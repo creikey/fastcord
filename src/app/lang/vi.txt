@@ -1,0 +1,1972 @@
+# Vietnamese (vi)
+ · required	 · bắt buộc
+% (requested to speak)	% (đã yêu cầu phát biểu)
+% (required)	% (bắt buộc)
+% Bans|% Bans	% lệnh cấm
+% Event|% Events	% sự kiện
+% KB	% KB
+% MB	% MB
+% Member|% Members	% thành viên
+% Messages	% tin nhắn
+% Mutual Friend|% Mutual Friends	% bạn chung
+% Mutual Server|% Mutual Servers	% máy chủ chung
+% Online	% trực tuyến
+% Result|% Results	% kết quả
+% accepted encryption.	% đã chấp nhận mã hóa.
+% accepted your friend request.	% đã chấp nhận lời mời kết bạn của bạn.
+% answer|% answers	% câu trả lời
+% becomes the owner once they accept on their device. You'll stay a member.	% sẽ trở thành chủ sở hữu khi họ chấp nhận trên thiết bị của mình. Bạn vẫn là thành viên.
+% blocked message —|% blocked messages —	% tin nhắn bị chặn —
+% byte|% bytes	% byte
+% changed the group icon.	% đã đổi biểu tượng nhóm.
+% day ago|% days ago	% ngày trước
+% day|% days	% ngày
+% disabled security actions.	% đã tắt các biện pháp bảo mật.
+% enabled security actions.	% đã bật các biện pháp bảo mật.
+% hasn't accepted encryption yet.	% chưa chấp nhận mã hóa.
+% hopped into the server.	% vừa nhảy vào máy chủ.
+% hour ago|% hours ago	% giờ trước
+% hour|% hours	% giờ
+% ignored message —|% ignored messages —	% tin nhắn bị bỏ qua —
+% is here.	% đã có mặt.
+% is typing...	% đang nhập...
+% joined the party.	% đã tham gia bữa tiệc.
+% just boosted the server!	% vừa nâng cấp máy chủ!
+% just landed.	% vừa hạ cánh.
+% just showed up!	% vừa xuất hiện!
+% just slid into the server.	% vừa trượt vào máy chủ.
+% left the group.	% đã rời nhóm.
+% member|% members	% thành viên
+% minute ago|% minutes ago	% phút trước
+% minute|% minutes	% phút
+% month ago|% months ago	% tháng trước
+% of %	%1 trên %2
+% removed the custom group name.	% đã xóa tên nhóm tùy chỉnh.
+% started a call.	% đã bắt đầu một cuộc gọi.
+% turned on encryption.	% đã bật mã hóa.
+% user|% users	% người dùng
+% use|% uses	% lượt dùng
+% vote|% votes	% phiếu bầu
+% wants to encrypt this DM with a new key. Compare safety numbers after accepting.	% muốn mã hóa tin nhắn trực tiếp này bằng khóa mới. Hãy so sánh mã số an toàn sau khi chấp nhận.
+% wants to encrypt this DM.	% muốn mã hóa tin nhắn trực tiếp này.
+% year ago|% years ago	% năm trước
+% · End-to-end encrypted	% · Mã hóa đầu cuối
+%'s Group	Nhóm của %
+%'s encryption key changed. Compare safety numbers before trusting new messages.	Khóa mã hóa của % đã thay đổi. Hãy so sánh mã số an toàn trước khi tin tưởng tin nhắn mới.
+%'s server	Máy chủ của %
+%1 (%2 more)	%1 (thêm %2)
+%1 FPS	%1 FPS
+%1 STICKERS — %2 SLOTS AVAILABLE	%1 NHÃN DÁN — CÒN %2 Ô TRỐNG
+%1 action %2	%1 hành động %2
+%1 added %2 to the group.	%1 đã thêm %2 vào nhóm.
+%1 and %2	%1 và %2
+%1 and %2 are typing...	%1 và %2 đang nhập...
+%1 and %2 other|%1 and %2 others	%1 và %2 người khác
+%1 banned %2	%1 đã cấm %2
+%1 changed the Stage topic: %2	%1 đã đổi chủ đề Sân khấu: %2
+%1 changed the channel name: %2.	%1 đã đổi tên kênh: %2.
+%1 changed the group name: %2.	%1 đã đổi tên nhóm: %2.
+%1 created a channel	%1 đã tạo một kênh
+%1 created a role	%1 đã tạo một vai trò
+%1 created a webhook	%1 đã tạo một webhook
+%1 created an emoji	%1 đã tạo một emoji
+%1 created an invite	%1 đã tạo một lời mời
+%1 deleted a channel	%1 đã xóa một kênh
+%1 deleted a message by %2	%1 đã xóa một tin nhắn của %2
+%1 deleted a role	%1 đã xóa một vai trò
+%1 deleted a webhook	%1 đã xóa một webhook
+%1 deleted an emoji	%1 đã xóa một emoji
+%1 deleted an invite	%1 đã xóa một lời mời
+%1 enabled security actions until %2.	%1 đã bật các biện pháp bảo mật đến %2.
+%1 ended %2	%1 đã kết thúc %2
+%1 has achieved %2	%1 đã đạt được %2
+%1 has added %2 to this channel. Its most important updates will show up here.	%1 đã thêm %2 vào kênh này. Những cập nhật quan trọng nhất của kênh đó sẽ hiện ở đây.
+%1 has blocked a message in %2	%1 đã chặn một tin nhắn trong %2
+%1 has flagged a message in %2	%1 đã gắn cờ một tin nhắn trong %2
+%1 is now a speaker.	%1 giờ là người phát biểu.
+%1 joined %2 and has been a subscriber of %3 for %4 month!|%1 joined %2 and has been a subscriber of %3 for %4 months!	%1 đã tham gia %2 và đã đăng ký %3 được %4 tháng!
+%1 joined %2 as a subscriber of %3!	%1 đã tham gia %2 với tư cách người đăng ký %3!
+%1 just boosted the server %2 times!	%1 vừa nâng cấp máy chủ %2 lần!
+%1 kicked %2	%1 đã đuổi %2
+%1 new message since %2|%1 new messages since %2	%1 tin nhắn mới kể từ %2
+%1 of %2 slot used|%1 of %2 slots used	Đã dùng %1 trên %2 ô
+%1 pinned %2 to this channel. See all %3.	%1 đã ghim %2 vào kênh này. Xem tất cả %3.
+%1 reacted with %2	%1 đã bày tỏ cảm xúc bằng %2
+%1 removed %2 from the group.	%1 đã xóa %2 khỏi nhóm.
+%1 renewed %2 and has been a subscriber of %3 for %4 month!|%1 renewed %2 and has been a subscriber of %3 for %4 months!	%1 đã gia hạn %2 và đã đăng ký %3 được %4 tháng!
+%1 renewed %2 in their %3 membership!	%1 đã gia hạn %2 trong gói thành viên %3 của họ!
+%1 reported a raid in %2.	%1 đã báo cáo một cuộc tấn công ồ ạt trong %2.
+%1 requested to speak.	%1 đã yêu cầu phát biểu.
+%1 resolved an Activity Alert in %2.	%1 đã xử lý một Cảnh báo hoạt động trong %2.
+%1 said %2	%1 đã nói %2
+%1 started %2	%1 đã bắt đầu %2
+%1 started a call that lasted %2.	%1 đã bắt đầu một cuộc gọi kéo dài %2.
+%1 started a thread: %2. See all %3.	%1 đã bắt đầu một chủ đề: %2. Xem tất cả %3.
+%1 unbanned %2	%1 đã bỏ cấm %2
+%1 updated %2	%1 đã cập nhật %2
+%1 updated a channel	%1 đã cập nhật một kênh
+%1 updated a role	%1 đã cập nhật một vai trò
+%1 updated a webhook	%1 đã cập nhật một webhook
+%1 updated an emoji	%1 đã cập nhật một emoji
+%1 updated the roles of %2	%1 đã cập nhật vai trò của %2
+%1 updated the server	%1 đã cập nhật máy chủ
+%1 vote · %2|%1 votes · %2	%1 phiếu · %2
+%1 wants to make you the owner of %2. You'll be able to manage everything about it, and they'll stay a member.	%1 muốn chuyển quyền sở hữu %2 cho bạn. Bạn sẽ có thể quản lý mọi thứ ở đó, còn họ vẫn là thành viên.
+%1's poll %2 has closed.	Cuộc thăm dò %2 của %1 đã kết thúc.
+%1, %2 and %3	%1, %2 và %3
+%1, %2 at %3	%1, %2 lúc %3
+%1, %2, and %3 are typing...	%1, %2 và %3 đang nhập...
+%1: %2	%1: %2
+%: a number	%: một số
+%: a whole number	%: một số nguyên
+%: pick a channel	%: chọn một kênh
+%: pick a member	%: chọn một thành viên
+%: pick a role	%: chọn một vai trò
+%: true or false	%: đúng hoặc sai
+%d ago	% ngày trước
+%d left	còn % ngày
+%h	% giờ
+%h ago	% giờ trước
+%h left	còn % giờ
+%m	% phút
+%m ago	% phút trước
+%m left	còn % phút
+%mo ago	% tháng trước
+%s	% giây
+(edited)	(đã chỉnh sửa)
+/% takes no options.	/% không có tùy chọn nào.
+/%1 needs %2:	/%1 cần %2:
+1 Day	1 ngày
+1 Hour	1 giờ
+1 Message	1 tin nhắn
+1 Week	1 tuần
+1 day	1 ngày
+1 hour	1 giờ
+1 minute	1 phút
+1 use	1 lượt dùng
+1 week	1 tuần
+10 Minutes	10 phút
+10 minutes	10 phút
+10 uses	10 lượt dùng
+100 uses	100 lượt dùng
+12 hours	12 giờ
+12-hour	12 giờ
+15 minutes	15 phút
+2 hours	2 giờ
+2 to 4 letters or numbers	2 đến 4 chữ cái hoặc chữ số
+2 weeks	2 tuần
+24 Hours	24 giờ
+24 hours	24 giờ
+24-hour	24 giờ
+25 uses	25 lượt dùng
+3 Days	3 ngày
+3 days	3 ngày
+30 days	30 ngày
+30 minutes	30 phút
+3:00 PM	3:00 CH
+4 hours	4 giờ
+5 Minutes	5 phút
+5 minutes	5 phút
+5 uses	5 lượt dùng
+50 uses	50 lượt dùng
+6 hours	6 giờ
+6-digit authentication code	Mã xác thực 6 chữ số
+60 Seconds	60 giây
+60 seconds	60 giây
+7 days	7 ngày
+8 hours	8 giờ
+8-digit backup code	Mã dự phòng 8 chữ số
+@ OFF	@ TẮT
+@ ON	@ BẬT
+@MENTIONS	@ĐỀ CẬP
+@everyone · applies to all server members	@everyone · áp dụng cho mọi thành viên máy chủ
+A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button.	Một phím kèm Ctrl, Alt, Shift hoặc Cmd, chỉ một phím bổ trợ, hoặc nút giữa hay nút bên của chuột.
+A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button. Works in every app.	Một phím kèm Ctrl, Alt, Shift hoặc Cmd, chỉ một phím bổ trợ, hoặc nút giữa hay nút bên của chuột. Hoạt động trong mọi ứng dụng.
+A role needs a name.	Vai trò cần có tên.
+A webhook needs a name.	Webhook cần có tên.
+A wild % appeared.	Một % hoang dã đã xuất hiện.
+ACTION	HÀNH ĐỘNG
+ACTIVE INVITE LINKS	LIÊN KẾT MỜI ĐANG HOẠT ĐỘNG
+ALL	TẤT CẢ
+ALL THE BITS! Going above 64 kbps may adversely affect people on poor connections.	TỐI ĐA BIT! Vượt quá 64 kbps có thể ảnh hưởng xấu đến những người có kết nối kém.
+AM	SA
+ANIMATED EMOJI — % SLOTS AVAILABLE	EMOJI ĐỘNG — CÒN % Ô TRỐNG
+APP	ỨNG DỤNG
+AUDIENCE — %	KHÁN GIẢ — %
+AUTHENTICATOR APP	ỨNG DỤNG XÁC THỰC
+About Me	Giới thiệu bản thân
+Accept	Chấp nhận
+Accept Friend Request	Chấp nhận lời mời kết bạn
+Accept Invite	Chấp nhận lời mời
+Accept Server Ownership	Nhận quyền sở hữu máy chủ
+Accept this message request (Friends, Message Requests) to reply.	Chấp nhận yêu cầu nhắn tin này (Bạn bè, Yêu cầu tin nhắn) để trả lời.
+Accepting...	Đang chấp nhận...
+Access	Quyền truy cập
+Accessibility	Trợ năng
+Account	Tài khoản
+Account Removal	Xóa tài khoản
+Activate	Kích hoạt
+Active	Đang hoạt động
+Active Now	Đang hoạt động
+Activities	Hoạt động
+Activity Joining	Tham gia hoạt động
+Activity Privacy	Quyền riêng tư hoạt động
+Activity Status	Trạng thái hoạt động
+Add Answer	Thêm câu trả lời
+Add Emoji	Thêm emoji
+Add Friend	Thêm bạn
+Add Friend Nickname	Thêm biệt danh bạn bè
+Add Note	Thêm ghi chú
+Add Reaction	Thêm biểu cảm
+Add Reactions	Thêm biểu cảm
+Add Tag	Thêm thẻ
+Add a Keybind	Thêm phím tắt
+Add a Question	Thêm câu hỏi
+Add a channel	Thêm kênh
+Add a channel to override its default notification settings	Thêm kênh để ghi đè cài đặt thông báo mặc định của kênh đó
+Add a description	Thêm mô tả
+Add a location, link, or something.	Thêm địa điểm, liên kết hoặc gì đó.
+Add a role	Thêm vai trò
+Add an Account	Thêm tài khoản
+Add an optional message...	Thêm lời nhắn (không bắt buộc)...
+Add another answer	Thêm câu trả lời khác
+Add at least one word to block.	Thêm ít nhất một từ để chặn.
+Add members or roles	Thêm thành viên hoặc vai trò
+Add this channel's updates to your server!	Thêm cập nhật của kênh này vào máy chủ của bạn!
+Add this key to an authenticator app, then enter the code it shows.	Thêm khóa này vào ứng dụng xác thực, rồi nhập mã mà ứng dụng hiển thị.
+Add to Favorites	Thêm vào mục yêu thích
+Add to Group DM	Thêm vào nhóm tin nhắn
+Add up to 5 traits to show off your server's interests and personality.	Thêm tối đa 5 đặc điểm để thể hiện sở thích và cá tính của máy chủ.
+Add up to 50 custom emoji that anyone can use in this server. Animated GIF emoji may be used by members with Discord Nitro. Emoji names must be at least 2 characters long and can only contain alphanumeric characters and underscores. Emoji must be under 256 KB in size.	Thêm tối đa 50 emoji tùy chỉnh mà ai cũng có thể dùng trong máy chủ này. Emoji GIF động có thể được dùng bởi thành viên có Discord Nitro. Tên emoji phải dài ít nhất 2 ký tự và chỉ được chứa chữ cái, chữ số và dấu gạch dưới. Emoji phải nhỏ hơn 256 KB.
+Add your pronouns	Thêm danh xưng của bạn
+Added %	Đã thêm %
+Adjust the size of the interface. You can also change this with % +/-.	Điều chỉnh kích thước giao diện. Bạn cũng có thể thay đổi bằng % +/-.
+Administrator	Quản trị viên
+Advanced Permissions	Quyền nâng cao
+Advanced permissions	Quyền nâng cao
+Age-Restricted Channel	Kênh giới hạn độ tuổi
+All	Tất cả
+All Actions	Tất cả hành động
+All Messages	Tất cả tin nhắn
+All Users	Tất cả người dùng
+All friends	Tất cả bạn bè
+All messages will be filtered for sensitive image-based media.	Mọi tin nhắn sẽ được lọc nội dung hình ảnh nhạy cảm.
+All set. Now share your event!	Xong rồi. Giờ hãy chia sẻ sự kiện của bạn!
+Allow DMs from other members in servers	Cho phép tin nhắn trực tiếp từ thành viên khác trong máy chủ
+Allow Discord to use and process my information to understand and improve Discord's services.	Cho phép Discord sử dụng và xử lý thông tin của tôi để hiểu và cải thiện dịch vụ của Discord.
+Allow Friend Requests from...	Cho phép lời mời kết bạn từ...
+Allow Multiple Answers	Cho phép nhiều câu trả lời
+Allow anyone to @mention this role	Cho phép mọi người @đề cập vai trò này
+Allow direct messages from other members in this server.	Cho phép tin nhắn trực tiếp từ thành viên khác trong máy chủ này.
+Allow friends to join your game	Cho phép bạn bè tham gia trò chơi của bạn
+Allow members to change this server's name, switch regions, view all invites, add apps to this server and create and update AutoMod rules.	Cho phép thành viên đổi tên máy chủ, chuyển khu vực, xem mọi lời mời, thêm ứng dụng vào máy chủ và tạo, cập nhật quy tắc AutoMod.
+Allow members to create invite-only threads.	Cho phép thành viên tạo chủ đề chỉ dành cho người được mời.
+Allow members to create threads that everyone in a channel can view.	Cho phép thành viên tạo chủ đề mà mọi người trong kênh đều xem được.
+Allow members to send messages in text channels and create posts in forum channels.	Cho phép thành viên gửi tin nhắn trong kênh văn bản và tạo bài đăng trong kênh diễn đàn.
+Allow members to send messages in threads and in posts on forum channels.	Cho phép thành viên gửi tin nhắn trong chủ đề và trong bài đăng ở kênh diễn đàn.
+Allow message requests from server members you may not know	Cho phép yêu cầu nhắn tin từ thành viên máy chủ mà bạn có thể không quen
+Allow voice channel participants to join your game	Cho phép người trong kênh thoại tham gia trò chơi của bạn
+Allowed words	Từ được phép
+Allows apps that members have added to their account to post messages. When disabled, the messages will be private.	Cho phép các ứng dụng mà thành viên đã thêm vào tài khoản đăng tin nhắn. Khi tắt, tin nhắn sẽ ở chế độ riêng tư.
+Allows links that members share to show embedded content in text channels.	Cho phép liên kết mà thành viên chia sẻ hiển thị nội dung nhúng trong kênh văn bản.
+Allows members to add custom emoji, stickers, and sounds in this server.	Cho phép thành viên thêm emoji, nhãn dán và âm thanh tùy chỉnh trong máy chủ này.
+Allows members to add new emoji reactions to a message. If this permission is disabled, members can still react using any existing reactions on a message.	Cho phép thành viên thêm biểu cảm emoji mới vào tin nhắn. Nếu tắt quyền này, thành viên vẫn có thể bày tỏ cảm xúc bằng các biểu cảm đã có trên tin nhắn.
+Allows members to be more easily heard in voice channels. When activated, the volume of others without this permission will be automatically lowered.	Giúp thành viên được nghe rõ hơn trong kênh thoại. Khi bật, âm lượng của những người không có quyền này sẽ tự động giảm xuống.
+Allows members to change the nicknames of other members.	Cho phép thành viên đổi biệt danh của thành viên khác.
+Allows members to change their own nickname, a custom name for just this server.	Cho phép thành viên đổi biệt danh của chính mình, một tên tùy chỉnh chỉ dùng trong máy chủ này.
+Allows members to change this channel's name, description, and settings. They can also delete it.	Cho phép thành viên đổi tên, mô tả và cài đặt của kênh này. Họ cũng có thể xóa kênh.
+Allows members to change this channel's permissions.	Cho phép thành viên thay đổi quyền của kênh này.
+Allows members to create and edit voice channel status.	Cho phép thành viên tạo và chỉnh sửa trạng thái kênh thoại.
+Allows members to create events.	Cho phép thành viên tạo sự kiện.
+Allows members to create new roles and edit or delete roles lower than their highest role. Also allows members to change permissions of individual channels that they have access to.	Cho phép thành viên tạo vai trò mới và chỉnh sửa hoặc xóa các vai trò thấp hơn vai trò cao nhất của họ. Đồng thời cho phép thay đổi quyền của từng kênh mà họ truy cập được.
+Allows members to create polls.	Cho phép thành viên tạo cuộc thăm dò.
+Allows members to create, edit, or delete channels.	Cho phép thành viên tạo, chỉnh sửa hoặc xóa kênh.
+Allows members to create, edit, or delete webhooks, which can post messages from other apps or sites into this server.	Cho phép thành viên tạo, chỉnh sửa hoặc xóa webhook, thứ có thể đăng tin nhắn từ ứng dụng hoặc trang web khác vào máy chủ này.
+Allows members to deafen other members in voice channels, which means they won't be able to speak or hear others.	Cho phép thành viên tắt âm thanh của thành viên khác trong kênh thoại, nghĩa là họ sẽ không thể nói hay nghe người khác.
+Allows members to delete or remove embeds from messages by other members.	Cho phép thành viên xóa tin nhắn hoặc gỡ nội dung nhúng khỏi tin nhắn của thành viên khác.
+Allows members to disconnect or move other members between voice channels that the member with this permission has access to.	Cho phép thành viên ngắt kết nối hoặc di chuyển thành viên khác giữa các kênh thoại mà người có quyền này truy cập được.
+Allows members to edit and cancel events.	Cho phép thành viên chỉnh sửa và hủy sự kiện.
+Allows members to edit or remove custom emoji, stickers, and sounds in this server.	Cho phép thành viên chỉnh sửa hoặc xóa emoji, nhãn dán và âm thanh tùy chỉnh trong máy chủ này.
+Allows members to invite new people to this server.	Cho phép thành viên mời người mới vào máy chủ này.
+Allows members to join voice channels and hear others.	Cho phép thành viên tham gia kênh thoại và nghe người khác.
+Allows members to mute other members in voice channels for everyone.	Cho phép thành viên tắt tiếng thành viên khác trong kênh thoại đối với mọi người.
+Allows members to permanently ban and delete the message history of other members from this server.	Cho phép thành viên cấm vĩnh viễn và xóa lịch sử tin nhắn của thành viên khác khỏi máy chủ này.
+Allows members to pin or unpin any message.	Cho phép thành viên ghim hoặc bỏ ghim bất kỳ tin nhắn nào.
+Allows members to read previous messages sent in channels. If this permission is disabled, members only see messages sent when they are online. This does not fully apply to threads and forum posts.	Cho phép thành viên đọc tin nhắn cũ trong kênh. Nếu tắt quyền này, thành viên chỉ thấy tin nhắn được gửi khi họ trực tuyến. Điều này không áp dụng hoàn toàn cho chủ đề và bài đăng diễn đàn.
+Allows members to remove other members from this server. Kicked members will be able to rejoin if they have another invite.	Cho phép thành viên đuổi thành viên khác khỏi máy chủ này. Người bị đuổi có thể tham gia lại nếu có lời mời khác.
+Allows members to rename, delete, close, and turn on slow mode for threads and posts. They can also view private threads.	Cho phép thành viên đổi tên, xóa, đóng và bật chế độ chậm cho chủ đề và bài đăng. Họ cũng có thể xem chủ đề riêng tư.
+Allows members to send messages without being affected by slowmode.	Cho phép thành viên gửi tin nhắn mà không bị ảnh hưởng bởi chế độ chậm.
+Allows members to send sounds from server soundboard.	Cho phép thành viên gửi âm thanh từ bảng âm thanh của máy chủ.
+Allows members to send text-to-speech messages by starting a message with /tts. These messages can be heard by anyone focused on the channel.	Cho phép thành viên gửi tin nhắn chuyển văn bản thành giọng nói bằng cách bắt đầu tin nhắn với /tts. Ai đang mở kênh cũng nghe được những tin nhắn này.
+Allows members to send voice messages.	Cho phép thành viên gửi tin nhắn thoại.
+Allows members to share their video, screen share, or stream a game in this server.	Cho phép thành viên chia sẻ video, chia sẻ màn hình hoặc phát trực tiếp trò chơi trong máy chủ này.
+Allows members to speak in voice channels by simply talking. If this permission is disabled, members are required to use Push-to-talk. Good for controlling background noise or noisy members.	Cho phép thành viên nói trong kênh thoại chỉ bằng cách cất tiếng. Nếu tắt quyền này, thành viên phải dùng Nhấn để nói. Hữu ích để kiểm soát tiếng ồn nền hoặc thành viên ồn ào.
+Allows members to talk in voice channels. If this permission is disabled, members are default muted until somebody with the "Mute Members" permission un-mutes them.	Cho phép thành viên nói chuyện trong kênh thoại. Nếu tắt quyền này, thành viên sẽ bị tắt tiếng mặc định cho đến khi ai đó có quyền "Tắt tiếng thành viên" bật tiếng cho họ.
+Allows members to upload files or media in text channels.	Cho phép thành viên tải lên tệp hoặc nội dung đa phương tiện trong kênh văn bản.
+Allows members to use @everyone (everyone in the server) or @here (only online members in that channel). They can also @mention all roles, even if the role's "Allow anyone to mention this role" permission is disabled.	Cho phép thành viên dùng @everyone (mọi người trong máy chủ) hoặc @here (chỉ thành viên đang trực tuyến trong kênh đó). Họ cũng có thể @đề cập mọi vai trò, kể cả khi quyền "Cho phép mọi người đề cập vai trò này" của vai trò đó bị tắt.
+Allows members to use commands from applications, including slash commands and context menu commands.	Cho phép thành viên dùng lệnh từ ứng dụng, bao gồm lệnh gạch chéo và lệnh trong menu ngữ cảnh.
+Allows members to use emoji from other servers, if they're a Discord Nitro member.	Cho phép thành viên dùng emoji từ máy chủ khác, nếu họ là thành viên Discord Nitro.
+Allows members to use sounds from other servers, if they're a Discord Nitro member.	Cho phép thành viên dùng âm thanh từ máy chủ khác, nếu họ là thành viên Discord Nitro.
+Allows members to use stickers from other servers, if they're a Discord Nitro member.	Cho phép thành viên dùng nhãn dán từ máy chủ khác, nếu họ là thành viên Discord Nitro.
+Allows members to view Server Insights, which shows data on community growth, engagement, and more. This will allow them to see certain data about channel activity, even for channels they cannot access.	Cho phép thành viên xem Thông tin chi tiết máy chủ, nơi hiển thị dữ liệu về mức tăng trưởng, mức độ tương tác của cộng đồng và hơn thế nữa. Họ sẽ thấy một số dữ liệu về hoạt động của kênh, kể cả những kênh họ không truy cập được.
+Allows members to view a record of who made which changes in this server.	Cho phép thành viên xem nhật ký ai đã thay đổi gì trong máy chủ này.
+Allows members to view channels by default (excluding private channels).	Cho phép thành viên xem các kênh theo mặc định (trừ kênh riêng tư).
+Allows members to view these channels by default. Disabling this for @everyone will make the category private.	Cho phép thành viên xem các kênh này theo mặc định. Tắt quyền này cho @everyone sẽ khiến danh mục thành riêng tư.
+Allows members to view this channel by default. Disabling this for @everyone will make this channel private.	Cho phép thành viên xem kênh này theo mặc định. Tắt quyền này cho @everyone sẽ khiến kênh thành riêng tư.
+Always	Luôn luôn
+An emoji name, like smile	Tên emoji, ví dụ smile
+An encrypted file couldn't be opened.|% encrypted files couldn't be opened.	Không thể mở % tệp đã mã hóa.
+An error occurred, please try again.	Đã xảy ra lỗi, vui lòng thử lại.
+An error occurred. Please try again.	Đã xảy ra lỗi. Vui lòng thử lại.
+Announcement	Thông báo
+Announcement Channel	Kênh thông báo
+Answer	Câu trả lời
+Answers	Câu trả lời
+Anyone can join your server directly through Server Discovery	Bất kỳ ai cũng có thể tham gia máy chủ của bạn trực tiếp qua Khám phá máy chủ
+Anyone can use	Ai cũng dùng được
+Anyone with access to this text channel will be able to see the notifications.	Bất kỳ ai có quyền truy cập kênh văn bản này đều xem được thông báo.
+App Directory	Thư mục ứng dụng
+Appearance	Giao diện
+Appends (╯°□°)╯︵ ┻━┻ to your message.	Thêm (╯°□°)╯︵ ┻━┻ vào tin nhắn của bạn.
+Appends ¯\\_(ツ)_/¯ to your message.	Thêm ¯\\_(ツ)_/¯ vào tin nhắn của bạn.
+Appends ┬─┬ノ( º _ ºノ) to your message.	Thêm ┬─┬ノ( º _ ºノ) vào tin nhắn của bạn.
+Applications	Ứng dụng
+Apply to Join	Đăng ký tham gia
+Approve	Phê duyệt
+Apps	Ứng dụng
+Apps Permissions	Quyền ứng dụng
+Archived	Đã lưu trữ
+Archived Threads	Chủ đề đã lưu trữ
+Are you building a Community? Convert to a Community Server to access additional administrative tools that can help you moderate, run, and grow your server.	Bạn đang xây dựng một cộng đồng? Hãy chuyển sang Máy chủ cộng đồng để dùng thêm các công cụ quản trị giúp bạn kiểm duyệt, vận hành và phát triển máy chủ.
+Are you sure that you want to delete your account? This will immediately log you out of your account and you will not be able to log in again.	Bạn có chắc muốn xóa tài khoản không? Bạn sẽ bị đăng xuất ngay lập tức và không thể đăng nhập lại.
+Are you sure that you want to disable your account? This will immediately log you out and make your account inaccessible to anyone.	Bạn có chắc muốn vô hiệu hóa tài khoản không? Bạn sẽ bị đăng xuất ngay lập tức và không ai có thể truy cập tài khoản của bạn.
+Are you sure you want to ban @%1 from %2? They won't be able to come back until the ban is lifted.	Bạn có chắc muốn cấm @%1 khỏi %2 không? Họ sẽ không thể quay lại cho đến khi được bỏ cấm.
+Are you sure you want to delete %? This action cannot be undone.	Bạn có chắc muốn xóa % không? Không thể hoàn tác hành động này.
+Are you sure you want to delete %? This cannot be undone.	Bạn có chắc muốn xóa % không? Không thể hoàn tác.
+Are you sure you want to delete :%:? This cannot be undone.	Bạn có chắc muốn xóa :%: không? Không thể hoàn tác.
+Are you sure you want to delete the rule %? This cannot be undone.	Bạn có chắc muốn xóa quy tắc % không? Không thể hoàn tác.
+Are you sure you want to delete this message?	Bạn có chắc muốn xóa tin nhắn này không?
+Are you sure you want to delete this role? This action cannot be undone.	Bạn có chắc muốn xóa vai trò này không? Không thể hoàn tác hành động này.
+Are you sure you want to delete this template? Its link will stop working.	Bạn có chắc muốn xóa mẫu này không? Liên kết của mẫu sẽ ngừng hoạt động.
+Are you sure you want to kick @%1 from %2? They will be able to rejoin again with a new invite.	Bạn có chắc muốn đuổi @%1 khỏi %2 không? Họ có thể tham gia lại bằng lời mời mới.
+Are you sure you want to logout?	Bạn có chắc muốn đăng xuất không?
+Are you sure you want to remove all embeds on this message? This will remove them for everyone.	Bạn có chắc muốn gỡ mọi nội dung nhúng trên tin nhắn này không? Chúng sẽ bị gỡ đối với tất cả mọi người.
+Are you sure you want to remove all of the reactions for this emoji from this message?	Bạn có chắc muốn xóa mọi biểu cảm của emoji này khỏi tin nhắn không?
+Are you sure you want to remove all the reactions on this message?	Bạn có chắc muốn xóa mọi biểu cảm trên tin nhắn này không?
+Are you sure you want to revoke the invite %? Nobody will be able to join with it.	Bạn có chắc muốn thu hồi lời mời % không? Sẽ không ai có thể tham gia bằng lời mời này nữa.
+Ask for a new invite	Xin lời mời mới
+Ask new members what they're here for; each answer gives them channels and roles.	Hỏi thành viên mới họ đến đây để làm gì; mỗi câu trả lời sẽ cấp cho họ kênh và vai trò.
+Attach Files	Đính kèm tệp
+Attachment removed	Đã gỡ tệp đính kèm
+Attachments	Tệp đính kèm
+Audit Log	Nhật ký kiểm tra
+Authorized Apps	Ứng dụng được ủy quyền
+Auto	Tự động
+AutoMod	AutoMod
+Automatic	Tự động
+Automatic Gain Control	Tự động điều chỉnh độ lợi
+Automatically determine input sensitivity	Tự động xác định độ nhạy đầu vào
+Automatically enable Streamer Mode if OBS or XSplit are running	Tự động bật Chế độ Stream nếu OBS hoặc XSplit đang chạy
+Automatically filter suspected spam messages	Tự động lọc tin nhắn nghi là spam
+Automatically move members to this channel and mute them when they have been idle for longer than the inactive timeout. This does not affect browsers.	Tự động chuyển thành viên vào kênh này và tắt tiếng họ khi họ treo máy lâu hơn thời gian chờ không hoạt động. Điều này không ảnh hưởng đến trình duyệt.
+Automatically open fastcord when your computer starts up	Tự động mở fastcord khi khởi động máy tính
+Automatically scan and delete messages sent in this server that contain explicit media.	Tự động quét và xóa tin nhắn gửi trong máy chủ này có chứa nội dung phản cảm.
+Avatar	Ảnh đại diện
+BACK	QUAY LẠI
+BACKUP CODES	MÃ DỰ PHÒNG
+Back	Quay lại
+Back / forward	Lùi / tiến
+Backup codes can only be used one time each and are for emergency access to your account!	Mỗi mã dự phòng chỉ dùng được một lần và dành cho việc truy cập khẩn cấp vào tài khoản của bạn!
+Backups	Bản sao lưu
+Ban	Cấm
+Ban %	Cấm %
+Ban '%' from Server	Cấm '%' khỏi máy chủ
+Ban Member	Cấm thành viên
+Ban Members	Cấm thành viên
+Banner	Biểu ngữ
+Banner Color	Màu biểu ngữ
+Bans	Lệnh cấm
+Bitrate	Tốc độ bit
+Block	Chặn
+Block Commonly Flagged Words	Chặn các từ thường bị gắn cờ
+Block Custom Words	Chặn từ tùy chỉnh
+Block Mention Spam	Chặn spam đề cập
+Block Suspected Spam Content	Chặn nội dung nghi là spam
+Block Words in Member Profile Names	Chặn từ trong tên hồ sơ thành viên
+Block message	Chặn tin nhắn
+Blocked	Đã chặn
+Blocked Users	Người dùng bị chặn
+Blocked by your content filters	Bị chặn bởi bộ lọc nội dung của bạn
+Blocked message	Tin nhắn bị chặn
+Blocked words	Từ bị chặn
+Blocked words in names	Từ bị chặn trong tên
+Blocks messages containing % word.|Blocks messages containing % words.	Chặn tin nhắn chứa % từ.
+Blocks messages suspected to be spam.	Chặn tin nhắn nghi là spam.
+Blocks messages with more than % mentions.	Chặn tin nhắn có hơn % lượt đề cập.
+Blocks words from Discord's commonly flagged lists.	Chặn các từ trong danh sách thường bị gắn cờ của Discord.
+Blocks words in member profile names.	Chặn từ trong tên hồ sơ thành viên.
+Blur	Làm mờ
+Blur Background	Làm mờ nền
+Blur what's behind you on camera. Only your camera is changed.	Làm mờ phía sau bạn trên camera. Chỉ camera của bạn bị thay đổi.
+Bold / italic / underline	In đậm / in nghiêng / gạch chân
+Bots and Apps	Bot và ứng dụng
+Browse	Duyệt
+Browse Channels	Duyệt kênh
+Built-In	Tích hợp sẵn
+Bulgarian	Tiếng Bulgaria
+By creating a server, you agree to Discord's Community Guidelines.	Khi tạo máy chủ, bạn đồng ý với Nguyên tắc cộng đồng của Discord.
+By enabling the widget, your server profile will be visible to others outside of your server members. You can control Profile privacy in Server Settings > Profile.	Khi bật tiện ích, hồ sơ máy chủ của bạn sẽ hiển thị với cả những người không phải thành viên máy chủ. Bạn có thể kiểm soát quyền riêng tư hồ sơ trong Cài đặt máy chủ > Hồ sơ.
+By making a category private, only select members and roles will be able to view this category. Linked channels in this category will automatically match to this setting.	Khi đặt danh mục thành riêng tư, chỉ những thành viên và vai trò được chọn mới xem được danh mục này. Các kênh liên kết trong danh mục sẽ tự động theo cài đặt này.
+By making a channel private, only select members and roles will be able to view this channel.	Khi đặt kênh thành riêng tư, chỉ những thành viên và vai trò được chọn mới xem được kênh này.
+By making a channel private, only select members and roles will have access to view or connect to this channel.	Khi đặt kênh thành riêng tư, chỉ những thành viên và vai trò được chọn mới có quyền xem hoặc kết nối vào kênh này.
+Bypass Slowmode	Bỏ qua chế độ chậm
+CHANNEL OR CATEGORY	KÊNH HOẶC DANH MỤC
+CONFIRM NEW PASSWORD	XÁC NHẬN MẬT KHẨU MỚI
+CURRENT PASSWORD	MẬT KHẨU HIỆN TẠI
+Call	Gọi
+Cancel	Hủy
+Cancel Event	Hủy sự kiện
+Cancel Friend Request	Hủy lời mời kết bạn
+Careful — you have unsaved changes!	Cẩn thận — bạn có thay đổi chưa lưu!
+Category Name	Tên danh mục
+Category deleted	Đã xóa danh mục
+Change %	Đổi %
+Change Avatar	Đổi ảnh đại diện
+Change Nickname	Đổi biệt danh
+Change Password	Đổi mật khẩu
+Change Server Icon	Đổi biểu tượng máy chủ
+Channel	Kênh
+Channel Name	Tên kênh
+Channel Notification Overrides	Ghi đè thông báo kênh
+Channel Topic	Chủ đề kênh
+Channel Type	Loại kênh
+Channel deleted	Đã xóa kênh
+Channel unmuted	Đã bật thông báo kênh
+Channels	Kênh
+Channels & Roles	Kênh & vai trò
+Channels Followed (%)	Kênh đã theo dõi (%)
+Channels matching #%	Kênh khớp với #%
+Chat	Trò chuyện
+Chat Font Scaling	Cỡ chữ trò chuyện
+Check your email for a login link	Kiểm tra email để lấy liên kết đăng nhập
+Check your phone!	Kiểm tra điện thoại của bạn!
+Checking the file…	Đang kiểm tra tệp…
+Chinese, China	Tiếng Trung, Trung Quốc
+Chinese, Taiwan	Tiếng Trung, Đài Loan
+Choose Image	Chọn ảnh
+Choose a link people can use to join, discord.gg/<code>.	Chọn liên kết mọi người có thể dùng để tham gia, discord.gg/<code>.
+Choose a server	Chọn máy chủ
+Choose the language you want Discord to display.	Chọn ngôn ngữ bạn muốn Discord hiển thị.
+Choose what happens to images and videos Discord detects as explicit.	Chọn cách xử lý hình ảnh và video mà Discord phát hiện là phản cảm.
+Clear	Xóa
+Clear Custom Status	Xóa trạng thái tùy chỉnh
+Clear after	Xóa sau
+Clear permissions	Xóa quyền
+Click Again to Reset	Nhấp lần nữa để đặt lại
+Click any channel, then pick a request whose name starts with "messages" or "science".	Nhấp vào kênh bất kỳ, rồi chọn một yêu cầu có tên bắt đầu bằng "messages" hoặc "science".
+Click to add a note	Nhấp để thêm ghi chú
+Click to see attachment	Nhấp để xem tệp đính kèm
+Close DM	Đóng tin nhắn trực tiếp
+Collapse	Thu gọn
+Collapse All Categories	Thu gọn tất cả danh mục
+Collapse Category	Thu gọn danh mục
+Commands	Lệnh
+Commands matching /%	Lệnh khớp với /%
+Community Overview	Tổng quan cộng đồng
+Community Updates Channel	Kênh cập nhật cộng đồng
+Community servers follow Discord's Community Guidelines.	Máy chủ cộng đồng tuân theo Nguyên tắc cộng đồng của Discord.
+Community servers have more tools to help you moderate and grow your server.	Máy chủ cộng đồng có thêm công cụ giúp bạn kiểm duyệt và phát triển máy chủ.
+Compact	Thu gọn
+Compare	So sánh
+Compare these with %, in person or on a call. If they match, no one can read this DM in between.	So sánh các mã này với %, gặp trực tiếp hoặc qua cuộc gọi. Nếu chúng khớp nhau, không ai ở giữa có thể đọc tin nhắn trực tiếp này.
+Configure system event messages sent to your server.	Cấu hình tin nhắn sự kiện hệ thống gửi đến máy chủ của bạn.
+Confirm	Xác nhận
+Confirm Request	Xác nhận yêu cầu
+Confirm your age to join this server.	Xác nhận tuổi của bạn để tham gia máy chủ này.
+Confirming...	Đang xác nhận...
+Connect	Kết nối
+Connect these accounts and unlock special Discord integrations. The sign-in opens in your browser.	Kết nối các tài khoản này để mở khóa tích hợp đặc biệt của Discord. Trang đăng nhập sẽ mở trong trình duyệt của bạn.
+Connected Apps	Ứng dụng đã kết nối
+Connecting	Đang kết nối
+Connecting...	Đang kết nối...
+Connecting…	Đang kết nối…
+Connection Info	Thông tin kết nối
+Connection lost. Messages may be out of date.	Mất kết nối. Tin nhắn có thể chưa được cập nhật.
+Connections	Kết nối
+Content Filters	Bộ lọc nội dung
+Continue	Tiếp tục
+Control who can see your profile info, like your bio and connected accounts.	Kiểm soát ai có thể xem thông tin hồ sơ của bạn, như tiểu sử và tài khoản đã kết nối.
+Copied	Đã sao chép
+Copy	Sao chép
+Copy Category ID	Sao chép ID danh mục
+Copy Channel ID	Sao chép ID kênh
+Copy Event Link	Sao chép liên kết sự kiện
+Copy Image	Sao chép ảnh
+Copy Image Link	Sao chép liên kết ảnh
+Copy Link	Sao chép liên kết
+Copy Media Link	Sao chép liên kết đa phương tiện
+Copy Message ID	Sao chép ID tin nhắn
+Copy Message Link	Sao chép liên kết tin nhắn
+Copy Server ID	Sao chép ID máy chủ
+Copy Text	Sao chép văn bản
+Copy User ID	Sao chép ID người dùng
+Copy Username	Sao chép tên người dùng
+Copy Webhook URL	Sao chép URL webhook
+Copy curl Command	Sao chép lệnh curl
+Copy the event link below to invite people to your event. This also acts as a server invite link.	Sao chép liên kết sự kiện bên dưới để mời mọi người tham gia sự kiện của bạn. Liên kết này cũng là lời mời vào máy chủ.
+Copy your account's token once from Discord in a web browser.	Sao chép token tài khoản của bạn một lần từ Discord trên trình duyệt web.
+Couldn't accept encryption.	Không thể chấp nhận mã hóa.
+Couldn't cancel the event.	Không thể hủy sự kiện.
+Couldn't change avatar	Không thể đổi ảnh đại diện
+Couldn't create an invite link.	Không thể tạo liên kết mời.
+Couldn't create an invite.	Không thể tạo lời mời.
+Couldn't delete the channel: %	Không thể xóa kênh: %
+Couldn't encrypt the message.	Không thể mã hóa tin nhắn.
+Couldn't join %: %	Không thể tham gia %1: %2
+Couldn't load onboarding.	Không thể tải phần giới thiệu.
+Couldn't load the AutoMod rules.	Không thể tải quy tắc AutoMod.
+Couldn't load the applications.	Không thể tải ứng dụng.
+Couldn't load the audit log.	Không thể tải nhật ký kiểm tra.
+Couldn't load the bans.	Không thể tải danh sách cấm.
+Couldn't load the invites.	Không thể tải lời mời.
+Couldn't load the members.	Không thể tải thành viên.
+Couldn't load the role's members.	Không thể tải thành viên của vai trò.
+Couldn't load the server rules.	Không thể tải nội quy máy chủ.
+Couldn't load the server's tag.	Không thể tải thẻ của máy chủ.
+Couldn't load the template.	Không thể tải mẫu.
+Couldn't load the webhooks.	Không thể tải webhook.
+Couldn't move the channel	Không thể di chuyển kênh
+Couldn't play it here, so it opened in your browser.	Không phát được ở đây nên đã mở trong trình duyệt của bạn.
+Couldn't reach %1: %2 Retrying.	Không thể kết nối tới %1: %2 Đang thử lại.
+Couldn't reach Discord. Check your connection and try again.	Không thể kết nối tới Discord. Kiểm tra kết nối và thử lại.
+Couldn't reach Discord. Try again.	Không thể kết nối tới Discord. Hãy thử lại.
+Couldn't reach the server.	Không thể kết nối tới máy chủ.
+Couldn't reach the server. Check your connection and try again.	Không thể kết nối tới máy chủ. Kiểm tra kết nối và thử lại.
+Couldn't save the file.	Không thể lưu tệp.
+Couldn't save the image.	Không thể lưu ảnh.
+Couldn't save the token.	Không thể lưu token.
+Couldn't turn on encryption.	Không thể bật mã hóa.
+Couldn't upload emoji	Không thể tải lên emoji
+Cozy	Thoải mái
+Create	Tạo
+Create Category	Tạo danh mục
+Create Channel	Tạo kênh
+Create DM	Tạo tin nhắn trực tiếp
+Create Emoji	Tạo emoji
+Create Event	Tạo sự kiện
+Create Events	Tạo sự kiện
+Create Expressions	Tạo biểu tượng cảm xúc
+Create Group DM	Tạo nhóm tin nhắn
+Create Invite	Tạo lời mời
+Create My Own	Tự tạo
+Create Poll	Tạo cuộc thăm dò
+Create Polls	Tạo cuộc thăm dò
+Create Private Threads	Tạo chủ đề riêng tư
+Create Public Threads	Tạo chủ đề công khai
+Create Role	Tạo vai trò
+Create Rule	Tạo quy tắc
+Create Thread	Tạo chủ đề
+Create Webhook	Tạo webhook
+Create Your Server	Tạo máy chủ của bạn
+Create a poll	Tạo cuộc thăm dò
+Create a space for organized discussions	Tạo không gian cho các cuộc thảo luận có tổ chức
+Create one for me	Tạo giúp tôi
+Created by %	Tạo bởi %
+Created on %1 by %2	Được %2 tạo vào %1
+Creating an invite link…	Đang tạo liên kết mời…
+Creating an invite...	Đang tạo lời mời...
+Creating...	Đang tạo...
+Creating…	Đang tạo…
+Creation Date	Ngày tạo
+Croatian	Tiếng Croatia
+Current Device	Thiết bị hiện tại
+Custom Invite Link	Liên kết mời tùy chỉnh
+Customize Your Server	Tùy chỉnh máy chủ của bạn
+Customize how your server appears in invite links and, if enabled, in Server Discovery and Announcement Channel messages	Tùy chỉnh cách máy chủ hiển thị trong liên kết mời và, nếu được bật, trong Khám phá máy chủ và tin nhắn của Kênh thông báo
+Customize your server with integrations. Manage webhooks, followed channels and apps.	Tùy chỉnh máy chủ bằng các tích hợp. Quản lý webhook, kênh đã theo dõi và ứng dụng.
+Cut	Cắt
+Czech	Tiếng Séc
+DAVE v%, % members	DAVE v%1, %2 thành viên
+DEFAULT KEYBINDS	PHÍM TẮT MẶC ĐỊNH
+DM closed	Đã đóng tin nhắn trực tiếp
+Danish	Tiếng Đan Mạch
+Data & Privacy	Dữ liệu & quyền riêng tư
+Date	Ngày
+Deafen	Tắt âm thanh
+Deafen Members	Tắt âm thanh thành viên
+Deauthorize	Hủy ủy quyền
+Decline	Từ chối
+Default	Mặc định
+Default Channels	Kênh mặc định
+Default Layout	Bố cục mặc định
+Default Notification Settings	Cài đặt thông báo mặc định
+Default Permissions	Quyền mặc định
+Default Sort Order	Thứ tự sắp xếp mặc định
+Default Themes	Chủ đề mặc định
+Default notifications become Only @mentions.	Thông báo mặc định chuyển thành Chỉ @đề cập.
+Delete	Xóa
+Delete '%'	Xóa '%'
+Delete Account	Xóa tài khoản
+Delete Category	Xóa danh mục
+Delete Channel	Xóa kênh
+Delete Emoji	Xóa emoji
+Delete Invite	Xóa lời mời
+Delete Message	Xóa tin nhắn
+Delete Message History	Xóa lịch sử tin nhắn
+Delete Question	Xóa câu hỏi
+Delete Role	Xóa vai trò
+Delete Rule	Xóa quy tắc
+Delete Server	Xóa máy chủ
+Delete Sticker	Xóa nhãn dán
+Delete Template	Xóa mẫu
+Delete Thread	Xóa chủ đề
+Delete Webhook	Xóa webhook
+Deleted message	Tin nhắn đã bị xóa
+Describe your sticker	Mô tả nhãn dán của bạn
+Description	Mô tả
+Description (alt text)	Mô tả (văn bản thay thế)
+Description (optional)	Mô tả (không bắt buộc)
+Detects a burst of mention spam across the server and locks it down.	Phát hiện đợt spam đề cập dồn dập trên máy chủ và khóa máy chủ lại.
+Developer	Nhà phát triển
+Developer Mode	Chế độ nhà phát triển
+Developer Mode exposes context menu items helpful for people writing apps using the Discord API.	Chế độ nhà phát triển hiện thêm các mục menu ngữ cảnh hữu ích cho người viết ứng dụng dùng Discord API.
+Devices	Thiết bị
+Direct Message (DM) Permissions	Quyền tin nhắn trực tiếp
+Direct Messages	Tin nhắn trực tiếp
+Direct messages from friends	Tin nhắn trực tiếp từ bạn bè
+Direct messages from others	Tin nhắn trực tiếp từ người khác
+Disable	Tắt
+Disable Account	Vô hiệu hóa tài khoản
+Disable All Notification Sounds	Tắt mọi âm thanh thông báo
+Disable Community	Tắt cộng đồng
+Disable all notifications	Tắt mọi thông báo
+Disable all sound effects	Tắt mọi hiệu ứng âm thanh
+Disabling your account means you can recover it at any time after taking this action.	Vô hiệu hóa tài khoản nghĩa là bạn có thể khôi phục lại bất cứ lúc nào sau khi thực hiện.
+Disconnect	Ngắt kết nối
+Disconnect From Voice Channel	Ngắt kết nối khỏi kênh thoại
+Disconnected	Đã ngắt kết nối
+Discord account	Tài khoản Discord
+Discord asked for a captcha, which fastcord can't show. Log in with the QR code instead.	Discord yêu cầu captcha mà fastcord không hiển thị được. Hãy đăng nhập bằng mã QR.
+Discord asked for a captcha, which fastcord can't show. Try on discord.com.	Discord yêu cầu captcha mà fastcord không hiển thị được. Hãy thử trên discord.com.
+Discord can filter out some messages that contain spam. These messages go to your Spam inbox.	Discord có thể lọc bớt một số tin nhắn chứa spam. Những tin nhắn này sẽ vào hộp thư Spam của bạn.
+Discord didn't accept the saved login. Log in again.	Discord không chấp nhận thông tin đăng nhập đã lưu. Hãy đăng nhập lại.
+Discord failed to unpin that message for some reason. Sorry about that.	Vì lý do nào đó Discord không bỏ ghim được tin nhắn đó. Xin lỗi bạn nhé.
+Discord will prioritize this server in search to users who speak the selected language.	Discord sẽ ưu tiên máy chủ này trong kết quả tìm kiếm cho người dùng nói ngôn ngữ đã chọn.
+Discord's terms don't allow third-party clients, so using one can get an account flagged.	Điều khoản của Discord không cho phép ứng dụng bên thứ ba, nên dùng chúng có thể khiến tài khoản bị gắn cờ.
+Discoverable	Có thể khám phá
+Dismiss	Bỏ qua
+Dismiss message	Bỏ qua tin nhắn
+Display	Hiển thị
+Display Images, Videos and Lolcats	Hiển thị hình ảnh, video và mèo hài
+Display Name	Tên hiển thị
+Display name	Tên hiển thị
+Display on profile	Hiển thị trên hồ sơ
+Display role members separately from online members	Hiển thị thành viên của vai trò tách biệt với thành viên trực tuyến
+Displays text with emphasis.	Hiển thị văn bản có nhấn mạnh.
+Do Not Disturb	Không làm phiền
+Do not filter	Không lọc
+Do not filter direct messages	Không lọc tin nhắn trực tiếp
+Don't Delete Any	Không xóa gì
+Don't clear	Không xóa
+Don't show role colors	Không hiện màu vai trò
+Done	Xong
+Download	Tải xuống
+Drop a file here, or browse	Thả tệp vào đây hoặc duyệt
+Duration	Thời lượng
+Dutch	Tiếng Hà Lan
+EDIT ROLE — %	CHỈNH SỬA VAI TRÒ — %
+EMAIL OR PHONE NUMBER	EMAIL HOẶC SỐ ĐIỆN THOẠI
+EMOJI MATCHING	EMOJI KHỚP VỚI
+ENTER THE 6-DIGIT CODE	NHẬP MÃ 6 CHỮ SỐ
+EXPIRE AFTER	HẾT HẠN SAU
+EXPIRES	HẾT HẠN
+Ease the chat and lists toward where you scroll. Off, they jump there at once (always, when your device asks for reduced motion).	Cuộn mượt khung trò chuyện và danh sách đến vị trí bạn cuộn. Khi tắt, chúng nhảy tới ngay lập tức (luôn như vậy khi thiết bị yêu cầu giảm chuyển động).
+Echo Cancellation	Khử tiếng vang
+Edit	Chỉnh sửa
+Edit Category	Chỉnh sửa danh mục
+Edit Channel	Chỉnh sửa kênh
+Edit Friend Nickname	Sửa biệt danh bạn bè
+Edit Message	Chỉnh sửa tin nhắn
+Edit Per-server Profile	Sửa hồ sơ theo máy chủ
+Edit Profile	Sửa hồ sơ
+Edit Profiles	Sửa hồ sơ
+Edit Sound	Sửa âm thanh
+Edit Thread	Chỉnh sửa chủ đề
+Edit User Profile	Sửa hồ sơ người dùng
+Edit invite link.	Sửa liên kết mời.
+Edit your last message	Sửa tin nhắn gần nhất của bạn
+Email	Email
+Embed Links	Nhúng liên kết
+Embed an HTML widget on your website to display your online members, voice channels, and invite link.	Nhúng tiện ích HTML lên trang web của bạn để hiển thị thành viên trực tuyến, kênh thoại và liên kết mời.
+Emoji	Emoji
+Emoji / GIF / sticker picker	Bộ chọn emoji / GIF / nhãn dán
+Enable Authenticator App	Bật ứng dụng xác thực
+Enable Community	Bật cộng đồng
+Enable Community to access Server Discovery	Bật cộng đồng để dùng Khám phá máy chủ
+Enable Desktop Notifications	Bật thông báo trên máy tính
+Enable Invites	Bật lời mời
+Enable Onboarding	Bật giới thiệu thành viên mới
+Enable Reduced Motion	Bật giảm chuyển động
+Enable Server Widget	Bật tiện ích máy chủ
+Enable Streamer Mode	Bật Chế độ Stream
+Enable Unread Message Badge	Bật huy hiệu tin nhắn chưa đọc
+Encrypt this DM	Mã hóa tin nhắn trực tiếp này
+Encrypted message	Tin nhắn đã mã hóa
+Encrypted messages are limited to % bytes for now.	Hiện tại tin nhắn mã hóa giới hạn ở % byte.
+End Date	Ngày kết thúc
+End Event	Kết thúc sự kiện
+End Poll Now	Kết thúc thăm dò ngay
+End Time	Giờ kết thúc
+End-to-end encrypted	Mã hóa đầu cuối
+End-to-end encryption	Mã hóa đầu cuối
+Engagement	Tương tác
+English, UK	Tiếng Anh, Anh
+English, USA	Tiếng Anh, Mỹ
+Enter Discord Auth Code	Nhập mã xác thực Discord
+Enter Discord Backup Code	Nhập mã dự phòng Discord
+Enter a location	Nhập địa điểm
+Enter a message to start the conversation!	Nhập tin nhắn để bắt đầu cuộc trò chuyện!
+Enter an invite below to join an existing server	Nhập lời mời bên dưới để tham gia máy chủ có sẵn
+Enter server name	Nhập tên máy chủ
+Enter your current password and a new password.	Nhập mật khẩu hiện tại và mật khẩu mới.
+Error	Lỗi
+Est. %	Thành lập %
+Event Info	Thông tin sự kiện
+Event Topic	Chủ đề sự kiện
+Event cancelled	Sự kiện đã bị hủy
+Event is over	Sự kiện đã kết thúc
+Events	Sự kiện
+Events Permissions	Quyền sự kiện
+Every answer needs a title.	Mỗi câu trả lời cần có tiêu đề.
+Every question needs a title and at least one answer.	Mỗi câu hỏi cần có tiêu đề và ít nhất một câu trả lời.
+Everyone	Mọi người
+Everyone in this channel connects to the selected region. Automatic picks the best one for whoever starts the call.	Mọi người trong kênh này sẽ kết nối đến khu vực đã chọn. Tự động sẽ chọn khu vực tốt nhất cho người bắt đầu cuộc gọi.
+Everyone welcome %!	Mọi người chào mừng % nào!
+Everyone who joins sees these channels, whatever they answer.	Mọi người tham gia đều thấy các kênh này, dù họ trả lời thế nào.
+Exempt a channel	Miễn trừ một kênh
+Exempt a role	Miễn trừ một vai trò
+Exemptions	Miễn trừ
+Expand (% lines)	Mở rộng (% dòng)
+Expand (% of % lines)	Mở rộng (%1 trên %2 dòng)
+Expired	Đã hết hạn
+Explicit image filter	Bộ lọc hình ảnh phản cảm
+Expression	Biểu tượng cảm xúc
+FRAME RATE	TỐC ĐỘ KHUNG HÌNH
+Failed to follow the channel, please try again.	Không thể theo dõi kênh, vui lòng thử lại.
+Fastcord couldn't be installed.	Không thể cài đặt fastcord.
+Favorites	Yêu thích
+File	Tệp
+File saved.	Đã lưu tệp.
+Filename	Tên tệp
+Fill out the details of your event.	Điền thông tin chi tiết về sự kiện của bạn.
+Filter by Action	Lọc theo hành động
+Filter by User	Lọc theo người dùng
+Filter direct messages from everyone	Lọc tin nhắn trực tiếp từ mọi người
+Filter direct messages from non-friends	Lọc tin nhắn trực tiếp từ người không phải bạn bè
+Filter messages from all members	Lọc tin nhắn từ mọi thành viên
+Filter messages from server members without roles	Lọc tin nhắn từ thành viên máy chủ không có vai trò
+Find or start a conversation	Tìm hoặc bắt đầu cuộc trò chuyện
+Find the perfect emoji	Tìm emoji hoàn hảo
+Find the perfect reaction	Tìm biểu cảm hoàn hảo
+Find the perfect sticker	Tìm nhãn dán hoàn hảo
+Finding the video%	Đang tìm video%
+Finish	Hoàn tất
+Finishing touches	Hoàn thiện
+Finnish	Tiếng Phần Lan
+Fit more messages on screen at one time. #IRC	Hiển thị nhiều tin nhắn hơn trên màn hình cùng lúc. #IRC
+Flagged as spam	Bị gắn cờ là spam
+Flags	Cờ
+Folder Color	Màu thư mục
+Folder Name	Tên thư mục
+Folder Settings	Cài đặt thư mục
+Folder removed	Đã xóa thư mục
+Follow	Theo dõi
+Followed!	Đã theo dõi!
+Food & Drink	Đồ ăn & thức uống
+For 1 Hour	Trong 1 giờ
+For 15 Minutes	Trong 15 phút
+For 24 Hours	Trong 24 giờ
+For 3 Days	Trong 3 ngày
+For 3 Hours	Trong 3 giờ
+For 8 Hours	Trong 8 giờ
+Forever	Vĩnh viễn
+Forgot your password?	Quên mật khẩu?
+Forum	Diễn đàn
+Forward	Chuyển tiếp
+Forward To	Chuyển tiếp đến
+Forwarded	Đã chuyển tiếp
+French	Tiếng Pháp
+Frequently Used	Thường dùng
+Friend Nickname	Biệt danh bạn bè
+Friend Request Permissions	Quyền lời mời kết bạn
+Friend Request Sent	Đã gửi lời mời kết bạn
+Friend removed	Đã xóa bạn
+Friend request cancelled	Đã hủy lời mời kết bạn
+Friend request ignored	Đã bỏ qua lời mời kết bạn
+Friends	Bạn bè
+Friends & All Servers	Bạn bè & mọi máy chủ
+Friends & Small Servers Only	Chỉ bạn bè & máy chủ nhỏ
+Friends Only	Chỉ bạn bè
+Friends can ask to join or join the game you're playing.	Bạn bè có thể xin tham gia hoặc tham gia trò chơi bạn đang chơi.
+Friends come online	Bạn bè trực tuyến
+Friends of friends	Bạn của bạn bè
+From User	Từ người dùng
+GIFs	GIF
+GIFs can't be sent encrypted yet.	Chưa thể gửi GIF dưới dạng mã hóa.
+Gallery view	Chế độ xem lưới
+General	Chung
+General Category Permissions	Quyền chung của danh mục
+General Channel Permissions	Quyền chung của kênh
+General Server Permissions	Quyền chung của máy chủ
+Generate Template	Tạo mẫu
+Generate a New Link	Tạo liên kết mới
+German	Tiếng Đức
+Get a copy of your data. It can take up to 30 days to prepare, and a download link is emailed to you when it's ready.	Nhận bản sao dữ liệu của bạn. Có thể mất tới 30 ngày để chuẩn bị, và liên kết tải xuống sẽ được gửi qua email khi sẵn sàng.
+Give new members a quick way to find the channels and roles that matter to them.	Giúp thành viên mới nhanh chóng tìm thấy các kênh và vai trò họ quan tâm.
+Give your new server a personality with a name. You can always change it later.	Đặt cho máy chủ mới một cái tên thật cá tính. Bạn luôn có thể đổi sau.
+Glad you're here, %.	Rất vui vì bạn ở đây, %.
+Go Back	Quay lại
+Go To Channel	Đi đến kênh
+Go back	Quay lại
+Go forward	Tiến tới
+Go to Server	Đi đến máy chủ
+Good to see you, %.	Rất vui được gặp bạn, %.
+Got It	Đã hiểu
+Grant temporary membership	Cấp tư cách thành viên tạm thời
+Greek	Tiếng Hy Lạp
+Hang out together with voice, video, and screen share	Cùng nhau trò chuyện bằng giọng nói, video và chia sẻ màn hình
+Hang out with voice, video, screenshare, and Go Live.	Trò chuyện bằng giọng nói, video, chia sẻ màn hình và Phát Trực Tiếp.
+Happening Now	Đang diễn ra
+Have an invite already?	Đã có lời mời?
+Help	Trợ giúp
+Here's a preview of your event.	Đây là bản xem trước sự kiện của bạn.
+Hey, just double checking that you want to pin this message to #% for posterity and greatness?	Này, chỉ kiểm tra lại thôi: bạn muốn ghim tin nhắn này vào #% để lưu danh muôn đời chứ?
+Hey, just double checking that you want to pin this message to the current channel for posterity and greatness?	Này, chỉ kiểm tra lại thôi: bạn muốn ghim tin nhắn này vào kênh hiện tại để lưu danh muôn đời chứ?
+Hide	Ẩn
+Hide After Inactivity	Ẩn khi không hoạt động
+Hide Chat	Ẩn trò chuyện
+Hide Fastcord window from screen capture	Ẩn cửa sổ fastcord khỏi ứng dụng chụp màn hình
+Hide Muted Channels	Ẩn kênh đã tắt thông báo
+Hide invite links to my Discord servers	Ẩn liên kết mời vào máy chủ Discord của tôi
+Hide my personal information, such as email, connected accounts, and notes	Ẩn thông tin cá nhân của tôi, như email, tài khoản đã kết nối và ghi chú
+Hides Fastcord windows from most screen capture software.	Ẩn cửa sổ fastcord khỏi hầu hết phần mềm chụp màn hình.
+High	Cao
+Highest	Cao nhất
+Highlights provide occasional updates when your friends are chatting in busy servers, and more.	Điểm nổi bật thỉnh thoảng gửi cập nhật khi bạn bè của bạn trò chuyện trong máy chủ đông đúc, và hơn thế nữa.
+Hindi	Tiếng Hindi
+History	Lịch sử
+Hitting X makes fastcord minimize to the system tray instead of closing.	Nhấn X sẽ thu nhỏ fastcord xuống khay hệ thống thay vì đóng.
+Hm, didn’t work. Double check that the username is correct.	Hừm, không được rồi. Hãy kiểm tra lại tên người dùng.
+Host	Chủ trì
+Host events with an audience	Tổ chức sự kiện có khán giả
+How Discord Uses My Data	Cách Discord sử dụng dữ liệu của tôi
+How can people join your server?	Mọi người có thể tham gia máy chủ của bạn bằng cách nào?
+How did your server get started? Why should people join?	Máy chủ của bạn bắt đầu như thế nào? Vì sao mọi người nên tham gia?
+Hungarian	Tiếng Hungary
+I acknowledge that by transferring ownership of this server to %, it officially belongs to them.	Tôi hiểu rằng khi chuyển quyền sở hữu máy chủ này cho %, máy chủ sẽ chính thức thuộc về họ.
+I agree and understand	Tôi đồng ý và đã hiểu
+I'm new here, say hi!	Mình mới đến, chào mình nhé!
+I'm sure, use a backup code	Tôi chắc chắn, dùng mã dự phòng
+IMAGE	HÌNH ẢNH
+INPUT DEVICE	THIẾT BỊ ĐẦU VÀO
+INPUT MODE	CHẾ ĐỘ ĐẦU VÀO
+INPUT SENSITIVITY	ĐỘ NHẠY ĐẦU VÀO
+INPUT VOLUME	ÂM LƯỢNG ĐẦU VÀO
+INVITE CODE	MÃ MỜI
+INVITE LINK	LIÊN KẾT MỜI
+INVITER	NGƯỜI MỜI
+INVITES SHOULD LOOK LIKE	LỜI MỜI CÓ DẠNG NHƯ
+Icon	Biểu tượng
+Idle	Chờ
+If Streamer Mode is enabled...	Nếu Chế độ Stream được bật...
+If you do not have access to any other methods, the button below will activate in % second.|If you do not have access to any other methods, the button below will activate in % seconds.	Nếu bạn không thể dùng phương thức nào khác, nút bên dưới sẽ được kích hoạt sau % giây.
+If you do not have access to any other methods, use the other button below to proceed.	Nếu bạn không thể dùng phương thức nào khác, hãy dùng nút còn lại bên dưới để tiếp tục.
+Ignore	Bỏ qua
+Ignore Friend Request	Bỏ qua lời mời kết bạn
+Ignored Users	Người dùng bị bỏ qua
+Ignored message	Tin nhắn bị bỏ qua
+Image saved.	Đã lưu ảnh.
+Important updates for people in and out of the server	Cập nhật quan trọng cho mọi người trong và ngoài máy chủ
+In Channel	Trong kênh
+Inactive Channel	Kênh không hoạt động
+Inactive Timeout	Thời gian chờ không hoạt động
+Inbox	Hộp thư
+Incoming Call...	Cuộc gọi đến...
+Incoming Friend Request	Lời mời kết bạn đến
+Indonesian	Tiếng Indonesia
+Insert Timestamp	Chèn dấu thời gian
+Install	Cài đặt
+Install Fastcord to open it from the Start menu.	Cài đặt fastcord để mở từ menu Start.
+Installing…	Đang cài đặt…
+Instructions Sent	Đã gửi hướng dẫn
+Insults and Slurs	Lăng mạ và miệt thị
+Integrations	Tích hợp
+Interested	Quan tâm
+Invalid Invite	Lời mời không hợp lệ
+Invalid date or time	Ngày hoặc giờ không hợp lệ
+Invisible	Vô hình
+Invite	Mời
+Invite Channel	Kênh mời
+Invite Invalid	Lời mời không hợp lệ
+Invite Only	Chỉ người được mời
+Invite People	Mời mọi người
+Invite friends to %	Mời bạn bè vào %
+Invite to Server	Mời vào máy chủ
+Invite to Speak	Mời phát biểu
+Invites	Lời mời
+Invites are currently paused for this server. Please try again later.	Máy chủ này hiện đang tạm dừng lời mời. Vui lòng thử lại sau.
+Invites are paused: nobody can join with an invite link until they're enabled again.	Lời mời đang tạm dừng: không ai có thể tham gia bằng liên kết mời cho đến khi lời mời được bật lại.
+It's quiet for now...	Hiện tại đang yên ắng...
+Italian	Tiếng Ý
+JOINED DISCORD	THAM GIA DISCORD
+JSON API	JSON API
+January|February|March|April|May|June|July|August|September|October|November|December	tháng 1|tháng 2|tháng 3|tháng 4|tháng 5|tháng 6|tháng 7|tháng 8|tháng 9|tháng 10|tháng 11|tháng 12
+Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec	thg 1|thg 2|thg 3|thg 4|thg 5|thg 6|thg 7|thg 8|thg 9|thg 10|thg 11|thg 12
+Japanese	Tiếng Nhật
+Jitter	Độ trễ dao động
+Join	Tham gia
+Join Call	Tham gia cuộc gọi
+Join Server	Tham gia máy chủ
+Join Thread	Tham gia chủ đề
+Join Voice	Tham gia thoại
+Join a Server	Tham gia máy chủ
+Join the call	Tham gia cuộc gọi
+Joined Threads	Chủ đề đã tham gia
+Joining…	Đang tham gia…
+Jump	Đi tới
+Jump To Present	Về hiện tại
+Jump to oldest unread message	Đi tới tin nhắn chưa đọc cũ nhất
+KEYBIND	PHÍM TẮT
+Keep Current Permissions	Giữ quyền hiện tại
+Keep these somewhere safe. Each code signs you in once if you lose your authenticator app; they are shown only now.	Hãy cất những mã này ở nơi an toàn. Mỗi mã giúp bạn đăng nhập một lần nếu mất ứng dụng xác thực; chúng chỉ hiển thị lúc này.
+Keep your server private, or open it up for more people to join.	Giữ máy chủ riêng tư, hoặc mở rộng cho nhiều người tham gia hơn.
+Keybinds	Phím tắt
+Keybinds only work while fastcord is focused. To use them in other apps, allow fastcord under Input Monitoring in System Settings, then restart fastcord.	Phím tắt chỉ hoạt động khi fastcord đang được chọn. Để dùng trong ứng dụng khác, hãy cho phép fastcord trong mục Giám sát đầu vào ở Cài đặt hệ thống, rồi khởi động lại fastcord.
+Keybinds only work while fastcord is focused: this desktop doesn't let apps see keys pressed in other windows.	Phím tắt chỉ hoạt động khi fastcord đang được chọn: môi trường desktop này không cho ứng dụng thấy phím được nhấn trong cửa sổ khác.
+Keybinds work in every app, also while fastcord is in the background.	Phím tắt hoạt động trong mọi ứng dụng, kể cả khi fastcord chạy nền.
+Keyboard Shortcuts	Phím tắt bàn phím
+Keyboard shortcuts	Phím tắt bàn phím
+Keyword: %	Từ khóa: %
+Kick	Đuổi
+Kick %	Đuổi %
+Kick '%' from Server	Đuổi '%' khỏi máy chủ
+Kick Member	Đuổi thành viên
+Kick, Approve, and Reject Members	Đuổi, phê duyệt và từ chối thành viên
+Korean	Tiếng Hàn
+LIVE	TRỰC TIẾP
+Language	Ngôn ngữ
+Language & Time	Ngôn ngữ & thời gian
+Last sync: %	Đồng bộ lần cuối: %
+Leave Group	Rời nhóm
+Leave Server	Rời máy chủ
+Leave Thread	Rời chủ đề
+Leaving Discord	Rời khỏi Discord
+Left %	Đã rời %
+Let everyone know how to use this channel!	Cho mọi người biết cách dùng kênh này!
+Let's Check	Kiểm tra nào
+Level %!	Cấp %!
+Limits	Giới hạn
+Limits the number of users that can connect to this voice channel. Users with the Move Members permission ignore this limit and can move other users into the channel.	Giới hạn số người dùng có thể kết nối vào kênh thoại này. Người có quyền Di chuyển thành viên không bị giới hạn này và có thể chuyển người khác vào kênh.
+Linked Roles	Vai trò liên kết
+List view	Chế độ xem danh sách
+Lithuanian	Tiếng Litva
+Live Now	Đang trực tiếp
+Loading sounds…	Đang tải âm thanh…
+Loading...	Đang tải...
+Loading…	Đang tải…
+Location	Địa điểm
+Log In	Đăng nhập
+Log Out	Đăng xuất
+Log Out All Known Devices	Đăng xuất mọi thiết bị đã biết
+Log in	Đăng nhập
+Log in to Discord in your web browser.	Đăng nhập Discord trên trình duyệt web của bạn.
+Log in with QR Code	Đăng nhập bằng mã QR
+Log in with a token	Đăng nhập bằng token
+Log out of all known devices	Đăng xuất khỏi mọi thiết bị đã biết
+Logged-in Devices	Thiết bị đã đăng nhập
+Logging in as %	Đang đăng nhập với tư cách %
+Logging in…	Đang đăng nhập…
+Login or password is invalid.	Thông tin đăng nhập hoặc mật khẩu không hợp lệ.
+Looking for screens…	Đang tìm màn hình…
+Lotus Mode	Chế độ Lotus
+Low	Thấp
+Lower Hand	Hạ tay
+MAX NUMBER OF USES	SỐ LƯỢT DÙNG TỐI ĐA
+MEMBER SINCE	THÀNH VIÊN TỪ
+MEMBERS	THÀNH VIÊN
+MUTE	TẮT TIẾNG
+Main Profile	Hồ sơ chính
+Make a selection	Chọn một mục
+Manage Accounts	Quản lý tài khoản
+Manage Channel	Quản lý kênh
+Manage Channels	Quản lý kênh
+Manage Events	Quản lý sự kiện
+Manage Expressions	Quản lý biểu tượng cảm xúc
+Manage Members	Quản lý thành viên
+Manage Messages	Quản lý tin nhắn
+Manage Nicknames	Quản lý biệt danh
+Manage Permissions	Quản lý quyền
+Manage Roles	Quản lý vai trò
+Manage Server	Quản lý máy chủ
+Manage Threads and Posts	Quản lý chủ đề và bài đăng
+Manage Webhooks	Quản lý webhook
+Manage settings that help keep your server active.	Quản lý các cài đặt giúp máy chủ của bạn luôn sôi nổi.
+Mark All as Read	Đánh dấu tất cả là đã đọc
+Mark As Read	Đánh dấu là đã đọc
+Mark Folder As Read	Đánh dấu thư mục là đã đọc
+Mark Unread	Đánh dấu chưa đọc
+Mark a message unread	Đánh dấu tin nhắn chưa đọc
+Mark as Verified	Đánh dấu đã xác minh
+Mark as spoiler	Đánh dấu là nội dung tiết lộ
+Mark channel read	Đánh dấu kênh đã đọc
+Mark server read	Đánh dấu máy chủ đã đọc
+Marked as read	Đã đánh dấu là đã đọc
+Marks your message as a spoiler.	Đánh dấu tin nhắn của bạn là nội dung tiết lộ.
+Match your device's light or dark mode.	Theo chế độ sáng hoặc tối của thiết bị.
+Max file size is % MB please.	Kích thước tệp tối đa là % MB nhé.
+Measuring	Đang đo
+Medium	Trung bình
+Member Since	Thành viên từ
+Members	Thành viên
+Members can pick more than one answer	Thành viên có thể chọn nhiều câu trả lời
+Members can wear your server's tag next to their name across Discord.	Thành viên có thể đeo thẻ máy chủ của bạn bên cạnh tên của họ trên khắp Discord.
+Members in timeout can't send messages, react, join voice or speak until it ends.	Thành viên bị hạn chế không thể gửi tin nhắn, bày tỏ cảm xúc, tham gia kênh thoại hay nói cho đến khi hết hạn.
+Members in timeout can't send messages, react, join voice or start threads until it ends.	Thành viên bị hạn chế không thể gửi tin nhắn, bày tỏ cảm xúc, tham gia kênh thoại hay tạo chủ đề cho đến khi hết hạn.
+Members matching @%	Thành viên khớp với @%
+Members must answer this question to join.	Thành viên phải trả lời câu hỏi này để tham gia.
+Members of the server must meet the following criteria before they can send messages in text channels or initiate a direct message conversation. If a member has an assigned role this does not apply.	Thành viên máy chủ phải đáp ứng các tiêu chí sau trước khi có thể gửi tin nhắn trong kênh văn bản hoặc bắt đầu cuộc trò chuyện tin nhắn trực tiếp. Điều này không áp dụng nếu thành viên đã được gán vai trò.
+Members use the colour of the highest role they have on the roles list.	Thành viên dùng màu của vai trò cao nhất mà họ có trong danh sách vai trò.
+Members use the colour of the highest role they have on this list. Drag roles, or use the arrows, to reorder them.	Thành viên dùng màu của vai trò cao nhất mà họ có trong danh sách này. Kéo vai trò hoặc dùng mũi tên để sắp xếp lại.
+Members will be restricted to sending one message and creating one thread per this interval, unless they have the Bypass Slowmode permission.	Thành viên chỉ được gửi một tin nhắn và tạo một chủ đề trong mỗi khoảng thời gian này, trừ khi họ có quyền Bỏ qua chế độ chậm.
+Members with a matching name can't talk or interact until they change it.	Thành viên có tên trùng khớp không thể trò chuyện hay tương tác cho đến khi đổi tên.
+Members with this permission will have every permission and will also bypass all channel specific permissions or restrictions (for example, these members would get access to all private channels). This is a dangerous permission to grant.	Thành viên có quyền này sẽ có mọi quyền và bỏ qua mọi quyền hoặc hạn chế riêng của kênh (ví dụ, họ sẽ truy cập được mọi kênh riêng tư). Đây là một quyền nguy hiểm khi cấp.
+Members — %	Thành viên — %
+Membership Permissions	Quyền thành viên
+Mention	Đề cập
+Mention %	Đề cập %
+Mention @everyone, @here, and All Roles	Đề cập @everyone, @here và tất cả vai trò
+Mention limit	Giới hạn đề cập
+Mention raid protection	Chống tấn công bằng đề cập
+Mention removed	Đã xóa đề cập
+Mentions	Lượt đề cập
+Mentions User	Đề cập người dùng
+Message	Nhắn tin
+Message #%	Nhắn #%
+Message %	Nhắn %
+Message @%	Nhắn @%
+Message @% (encrypted)	Nhắn @% (đã mã hóa)
+Message @% (not encrypted)	Nhắn @% (không mã hóa)
+Message Contains	Tin nhắn chứa
+Message Display	Hiển thị tin nhắn
+Message Requests	Yêu cầu tin nhắn
+Message deleted	Đã xóa tin nhắn
+Message failed to send.	Gửi tin nhắn thất bại.
+Message link copied: paste it into Discord's report form	Đã sao chép liên kết tin nhắn: dán vào biểu mẫu báo cáo của Discord
+Message request ignored	Đã bỏ qua yêu cầu tin nhắn
+Message unpinned	Đã bỏ ghim tin nhắn
+Messages Failed To Load	Không thể tải tin nhắn
+Messages from members you may not know go to Message Requests.	Tin nhắn từ thành viên mà bạn có thể không quen sẽ vào Yêu cầu tin nhắn.
+Messages from people you may not know go to Message Requests instead of your DMs.	Tin nhắn từ người mà bạn có thể không quen sẽ vào Yêu cầu tin nhắn thay vì tin nhắn trực tiếp.
+Messages from server members without a role will be filtered for sensitive image-based media.	Tin nhắn từ thành viên máy chủ không có vai trò sẽ được lọc nội dung hình ảnh nhạy cảm.
+Messages in servers	Tin nhắn trong máy chủ
+Messages will not be filtered for sensitive image-based media.	Tin nhắn sẽ không được lọc nội dung hình ảnh nhạy cảm.
+Messaging Permissions	Quyền nhắn tin
+Minimize to Tray	Thu nhỏ xuống khay
+Mobile Push Notifications	Thông báo đẩy trên di động
+Moderation	Kiểm duyệt
+Moderators must have two-factor authentication enabled to ban, kick, or timeout members and delete messages.	Người kiểm duyệt phải bật xác thực hai yếu tố để cấm, đuổi, hạn chế thành viên và xóa tin nhắn.
+Moderators only	Chỉ người kiểm duyệt
+Modern, beautiful, and easy on your eyes.	Hiện đại, đẹp mắt và dễ chịu cho mắt.
+Modify Attachment	Sửa tệp đính kèm
+Motion	Chuyển động
+Move Members	Di chuyển thành viên
+Move To	Di chuyển đến
+Move to Audience	Chuyển xuống khán giả
+Multi-Factor Authentication	Xác thực đa yếu tố
+Must also be a member of this server for longer than 10 minutes.	Cũng phải là thành viên của máy chủ này hơn 10 phút.
+Must also be registered on Discord for longer than 5 minutes.	Cũng phải đăng ký Discord hơn 5 phút.
+Must have a verified email on their Discord account.	Phải có email đã xác minh trên tài khoản Discord.
+Must have a verified phone on their Discord account.	Phải có số điện thoại đã xác minh trên tài khoản Discord.
+Mute	Tắt tiếng
+Mute %	Tắt thông báo %
+Mute Category	Tắt thông báo danh mục
+Mute Channel	Tắt thông báo kênh
+Mute Members	Tắt tiếng thành viên
+Mute New Events	Tắt thông báo sự kiện mới
+Mute Server	Tắt thông báo máy chủ
+Mute Thread	Tắt thông báo chủ đề
+Muted until %1, %2	Đã tắt thông báo đến %1, %2
+Muting a server prevents unread indicators and notifications from appearing unless you are mentioned.	Tắt thông báo máy chủ sẽ ẩn chỉ báo chưa đọc và thông báo, trừ khi bạn được đề cập.
+Mutual Friends	Bạn chung
+Mutual Servers	Máy chủ chung
+My Account	Tài khoản của tôi
+My server	Máy chủ của tôi
+NAME	TÊN
+NEW	MỚI
+NEW PASSWORD	MẬT KHẨU MỚI
+NO ACTIVE INVITE LINKS	KHÔNG CÓ LIÊN KẾT MỜI NÀO ĐANG HOẠT ĐỘNG
+NOTHING	KHÔNG GÌ CẢ
+Name	Tên
+Name your sound	Đặt tên cho âm thanh
+Name your sticker	Đặt tên cho nhãn dán
+Nature	Thiên nhiên
+Navigate Back	Điều hướng lùi
+Navigate Forward	Điều hướng tiến
+Need an account?	Cần một tài khoản?
+Network	Mạng
+Never	Không bao giờ
+Nevermind	Thôi
+New Category	Danh mục mới
+New Group DM	Nhóm tin nhắn mới
+New Post	Bài đăng mới
+New Thread	Chủ đề mới
+New Webhook	Webhook mới
+New members must read and agree to these before they can talk.	Thành viên mới phải đọc và đồng ý với những điều này trước khi có thể trò chuyện.
+New members pick channels and roles from your questions when they join.	Thành viên mới chọn kênh và vai trò từ các câu hỏi của bạn khi tham gia.
+New tag	Thẻ mới
+New threads will stop showing in the channel list after being inactive for the specified duration.	Chủ đề mới sẽ không còn hiện trong danh sách kênh sau khi không hoạt động trong khoảng thời gian đã chọn.
+Newest	Mới nhất
+Next	Tiếp
+Nickname	Biệt danh
+Nicknames are visible to everyone on this server. Do not change them unless you are enforcing a naming system or clearing a bad nickname.	Mọi người trong máy chủ này đều thấy biệt danh. Đừng thay đổi trừ khi bạn đang áp dụng quy tắc đặt tên hoặc xóa một biệt danh không phù hợp.
+No GIFs found	Không tìm thấy GIF
+No Inactive Channel	Không có kênh không hoạt động
+No Invite	Không có lời mời
+No Keybind Set	Chưa đặt phím tắt
+No System Messages	Không có tin nhắn hệ thống
+No applications waiting	Không có đơn nào đang chờ
+No apps have been added to this server.	Chưa có ứng dụng nào được thêm vào máy chủ này.
+No bans	Không có lệnh cấm
+No bans match your search	Không có lệnh cấm nào khớp với tìm kiếm
+No emoji found	Không tìm thấy emoji
+No favorites yet	Chưa có mục yêu thích
+No file chosen	Chưa chọn tệp
+No friends in common	Không có bạn chung
+No limit	Không giới hạn
+No logs yet	Chưa có nhật ký
+No members found	Không tìm thấy thành viên
+No members have this role yet.	Chưa có thành viên nào có vai trò này.
+No message requests.	Không có yêu cầu tin nhắn.
+No one is speaking yet	Chưa có ai phát biểu
+No one's around right now.	Hiện không có ai ở đây.
+No one's here yet	Chưa có ai ở đây
+No posts match	Không có bài đăng nào khớp
+No posts yet	Chưa có bài đăng
+No questions yet.	Chưa có câu hỏi.
+No reason given	Không có lý do
+No results	Không có kết quả
+No results found	Không tìm thấy kết quả
+No servers in common	Không có máy chủ chung
+No sounds found	Không tìm thấy âm thanh
+No sounds yet.	Chưa có âm thanh.
+No spam. Nice.	Không có spam. Tuyệt.
+No stickers found	Không tìm thấy nhãn dán
+No stickers yet	Chưa có nhãn dán
+Nobody can join this server with an invite link until the pause ends or you enable invites again.	Không ai có thể tham gia máy chủ này bằng liên kết mời cho đến khi hết tạm dừng hoặc bạn bật lại lời mời.
+Nobody has mentioned you recently.	Gần đây không có ai đề cập đến bạn.
+Noise Suppression	Khử tiếng ồn
+Noise Suppression: Off	Khử tiếng ồn: Tắt
+Noise Suppression: On	Khử tiếng ồn: Bật
+None	Không có
+Norwegian	Tiếng Na Uy
+Not Now	Để sau
+Not connected to % yet.	Chưa kết nối với %.
+Not encrypted	Không mã hóa
+Not encrypted: Discord can read this message	Không mã hóa: Discord có thể đọc tin nhắn này
+Not end-to-end encrypted	Không mã hóa đầu cuối
+Not me, start over	Không phải tôi, làm lại từ đầu
+Note	Ghi chú
+Note (only visible to you)	Ghi chú (chỉ bạn thấy)
+Note: Members with the "Mention @everyone, @here, and All Roles" permission will always be able to ping this role.	Lưu ý: Thành viên có quyền "Đề cập @everyone, @here và tất cả vai trò" luôn có thể ping vai trò này.
+Nothing	Không gì cả
+Notification Settings	Cài đặt thông báo
+Notification settings changed	Đã thay đổi cài đặt thông báo
+Notifications	Thông báo
+Notify everyone online who has permission to view this channel.	Thông báo cho mọi người đang trực tuyến có quyền xem kênh này.
+Notify everyone who has permission to view this channel.	Thông báo cho mọi người có quyền xem kênh này.
+Notify me when...	Thông báo cho tôi khi...
+Notify users with this role who have permission to view this channel.	Thông báo cho người dùng có vai trò này và có quyền xem kênh này.
+OUTPUT DEVICE	THIẾT BỊ ĐẦU RA
+OUTPUT VOLUME	ÂM LƯỢNG ĐẦU RA
+Objects	Đồ vật
+Off	Tắt
+Offline	Ngoại tuyến
+Oh yeah. Pin it	Ừ đúng rồi. Ghim đi
+Okay	OK
+Oldest	Cũ nhất
+On click	Khi nhấp
+On servers I moderate	Trên máy chủ tôi kiểm duyệt
+Onboarding	Giới thiệu thành viên mới
+One rule per line, for example: Be respectful	Mỗi dòng một quy tắc, ví dụ: Hãy tôn trọng mọi người
+Ongoing call	Cuộc gọi đang diễn ra
+Online	Trực tuyến
+Only @mentions	Chỉ @đề cập
+Only servers and channels you have webhook permissions in are shown.	Chỉ hiển thị máy chủ và kênh mà bạn có quyền webhook.
+Only you can see the nickname you give %.	Chỉ bạn mới thấy biệt danh bạn đặt cho %.
+Only you can see this · 	Chỉ bạn mới thấy nội dung này ·
+Oops!	Ối!
+Open Chat	Mở trò chuyện
+Open Image Link	Mở liên kết ảnh
+Open Link	Mở liên kết
+Open Logs Folder	Mở thư mục nhật ký
+Open Media Link	Mở liên kết đa phương tiện
+Open Server Insights	Mở Thông tin chi tiết máy chủ
+Open Settings	Mở cài đặt
+Open discord.com	Mở discord.com
+Open in Browser	Mở trong trình duyệt
+Open in YouTube	Mở trong YouTube
+Open the developer tools (Cmd+Option+I) and choose the Network tab.	Mở công cụ nhà phát triển (Cmd+Option+I) và chọn thẻ Network.
+Open the developer tools (Ctrl+Shift+I) and choose the Network tab.	Mở công cụ nhà phát triển (Ctrl+Shift+I) và chọn thẻ Network.
+Or, send a server invite link to a friend	Hoặc gửi liên kết mời vào máy chủ cho một người bạn
+Original message was deleted	Tin nhắn gốc đã bị xóa
+Other Active Threads	Chủ đề đang hoạt động khác
+Other Devices	Thiết bị khác
+Outgoing Friend Request	Lời mời kết bạn đã gửi
+Overview	Tổng quan
+PASSWORD	MẬT KHẨU
+PM	CH
+PRIVACY CODE	MÃ QUYỀN RIÊNG TƯ
+PTT Activate	Kích hoạt PTT
+PTT Deactivate	Tắt PTT
+PUSH TO TALK RELEASE DELAY	ĐỘ TRỄ NHẢ NÚT NHẤN ĐỂ NÓI
+Packet loss	Mất gói
+Packets received	Gói đã nhận
+Packets sent	Gói đã gửi
+Page %	Trang %
+Password	Mật khẩu
+Password and Authentication	Mật khẩu và xác thực
+Passwords do not match!	Mật khẩu không khớp!
+Paste	Dán
+Paste an emoji (optional)	Dán một emoji (không bắt buộc)
+Paste your token	Dán token của bạn
+Pause Invites	Tạm dừng lời mời
+Pending	Đang chờ
+People	Mọi người
+People can join your server directly with an invite	Mọi người có thể tham gia máy chủ trực tiếp bằng lời mời
+People in a voice channel with you can join the game you're playing.	Những người trong kênh thoại cùng bạn có thể tham gia trò chơi bạn đang chơi.
+People must submit an application and be approved to join	Mọi người phải nộp đơn và được phê duyệt mới tham gia được
+People who applied to join, waiting for a moderator.	Những người đã đăng ký tham gia, đang chờ người kiểm duyệt.
+Per-server Profiles	Hồ sơ theo máy chủ
+Permissions	Quyền
+Permissions not synced with category: 	Quyền chưa đồng bộ với danh mục:
+Permissions synced with category: 	Quyền đã đồng bộ với danh mục:
+Permissions: %	Quyền: %
+Phone Number	Số điện thoại
+Pick a channel	Chọn một kênh
+Pick a channel for the alerts.	Chọn một kênh để nhận cảnh báo.
+Pick at least one response.	Chọn ít nhất một phản hồi.
+Pin It. Pin It Good.	Ghim nó. Ghim thật chặt.
+Pin Message	Ghim tin nhắn
+Pin Messages	Ghim tin nhắn
+Ping	Ping
+Ping: % ms	Ping: % ms
+Ping: measuring…	Ping: đang đo…
+Pinned Messages	Tin nhắn đã ghim
+Play Here	Phát tại đây
+Play Soundboard Through My Mic	Phát bảng âm thanh qua mic của tôi
+Play YouTube videos here with yt-dlp? It needs yt-dlp installed, and connects to YouTube from your computer. Settings > Chat can change this.	Phát video YouTube tại đây bằng yt-dlp? Cần cài đặt yt-dlp, và máy tính của bạn sẽ kết nối tới YouTube. Có thể thay đổi trong Cài đặt > Trò chuyện.
+Play YouTube videos in fastcord with yt-dlp	Phát video YouTube trong fastcord bằng yt-dlp
+Please enter a valid invite link or invite code.	Vui lòng nhập liên kết mời hoặc mã mời hợp lệ.
+Please try again later.	Vui lòng thử lại sau.
+Polish	Tiếng Ba Lan
+Poll closed	Cuộc thăm dò đã kết thúc
+Portuguese, Brazilian	Tiếng Bồ Đào Nha, Brazil
+Post	Đăng
+Post Guidelines	Nguyên tắc đăng bài
+Post from a script	Đăng từ một tập lệnh
+Post messages that reach servers outside your own. Members can follow this channel, so the posts you publish here appear in their servers.	Đăng tin nhắn đến được cả các máy chủ khác ngoài máy chủ của bạn. Thành viên có thể theo dõi kênh này, nên bài bạn đăng ở đây sẽ xuất hiện trong máy chủ của họ.
+Post title	Tiêu đề bài đăng
+Posting...	Đang đăng...
+Press a shortcut…	Nhấn một tổ hợp phím…
+Previous	Trước
+Previous / next channel	Kênh trước / kế tiếp
+Previous / next channel with mentions	Kênh trước / kế tiếp có đề cập
+Previous / next server	Máy chủ trước / kế tiếp
+Previous / next unread channel	Kênh chưa đọc trước / kế tiếp
+Previous 12 Hours	12 giờ qua
+Previous 24 Hours	24 giờ qua
+Previous 3 Days	3 ngày qua
+Previous 6 Hours	6 giờ qua
+Previous 7 Days	7 ngày qua
+Previous Hour	1 giờ qua
+Priority Speaker	Người nói ưu tiên
+Privacy Settings	Cài đặt quyền riêng tư
+Private Category	Danh mục riêng tư
+Private Channel	Kênh riêng tư
+Private Profile	Hồ sơ riêng tư
+Profile	Hồ sơ
+Profile Banner	Biểu ngữ hồ sơ
+Profile Privacy	Quyền riêng tư hồ sơ
+Profiles	Hồ sơ
+Prompt members to reply to welcome messages with a sticker.	Gợi ý thành viên trả lời tin nhắn chào mừng bằng nhãn dán.
+Pronouns	Danh xưng
+Protect your Discord account with an extra layer of security. Once configured, you'll be required to enter your password and complete one additional step in order to sign in.	Bảo vệ tài khoản Discord bằng một lớp bảo mật bổ sung. Sau khi thiết lập, bạn sẽ phải nhập mật khẩu và hoàn thành thêm một bước nữa để đăng nhập.
+Protip:	Mẹo hay:
+Publish	Xuất bản
+Push to Mute	Nhấn để tắt tiếng
+Push to Talk	Nhấn để nói
+Push to Talk (Normal)	Nhấn để nói (Thường)
+Q: %	H: %
+Question	Câu hỏi
+Questions	Câu hỏi
+ROLES	VAI TRÒ
+ROLES — %	VAI TRÒ — %
+ROLES/MEMBERS	VAI TRÒ/THÀNH VIÊN
+RTC Connecting	Đang kết nối RTC
+Read Message History	Đọc lịch sử tin nhắn
+Reason	Lý do
+Reason for Ban	Lý do cấm
+Reason for Kick	Lý do đuổi
+Reason for Timeout	Lý do hạn chế
+Reason: %	Lý do: %
+Received	Đã nhận
+Recently Active	Hoạt động gần đây
+Reconnect	Kết nối lại
+Record Keybind	Ghi phím tắt
+Reduce the saturation of colors within the application, for those with color sensitivities.	Giảm độ bão hòa màu trong ứng dụng, dành cho người nhạy cảm với màu sắc.
+Reduces the amount of animation and motion effects. On whenever your device asks for reduced motion.	Giảm bớt hiệu ứng động và chuyển động. Luôn bật khi thiết bị yêu cầu giảm chuyển động.
+Region Override	Ghi đè khu vực
+Register	Đăng ký
+Reject	Từ chối
+Rejoin	Tham gia lại
+Related Emoji	Emoji liên quan
+Relevant	Liên quan
+Remove	Xóa
+Remove %	Xóa %
+Remove All Embeds	Gỡ mọi nội dung nhúng
+Remove All Reactions	Xóa mọi biểu cảm
+Remove Answer	Xóa câu trả lời
+Remove Attachment	Gỡ tệp đính kèm
+Remove Authenticator App	Gỡ ứng dụng xác thực
+Remove Avatar	Xóa ảnh đại diện
+Remove Embeds	Gỡ nội dung nhúng
+Remove Friend	Xóa bạn
+Remove From Group	Xóa khỏi nhóm
+Remove Icon	Xóa biểu tượng
+Remove Reaction	Xóa biểu cảm
+Remove Reactions	Xóa biểu cảm
+Remove Reactions for Emoji	Xóa biểu cảm của emoji
+Remove Server	Xóa máy chủ
+Remove Spoiler	Bỏ đánh dấu tiết lộ
+Remove Timeout	Gỡ hạn chế
+Remove Vote	Rút phiếu bầu
+Remove all embeds	Gỡ mọi nội dung nhúng
+Remove from Favorites	Xóa khỏi mục yêu thích
+Remove notification override for %	Xóa ghi đè thông báo cho %
+Remove the files added before encryption was on: they'd go unencrypted.	Hãy gỡ các tệp đã thêm trước khi bật mã hóa: chúng sẽ được gửi đi mà không mã hóa.
+Remove the files added while encryption was on: they'd arrive as unreadable ciphertext.	Hãy gỡ các tệp đã thêm khi đang bật mã hóa: chúng sẽ đến nơi dưới dạng bản mã không đọc được.
+Removing…	Đang xóa…
+Repeated encrypted message	Tin nhắn mã hóa bị lặp lại
+Reply	Trả lời
+Replying to	Đang trả lời
+Report Message	Báo cáo tin nhắn
+Request Data	Yêu cầu dữ liệu
+Request all of my Data	Yêu cầu toàn bộ dữ liệu của tôi
+Request to Speak	Yêu cầu phát biểu
+Requests	Yêu cầu
+Require 2FA for moderator actions	Yêu cầu 2FA cho hành động kiểm duyệt
+Require members to agree to the server rules	Yêu cầu thành viên đồng ý với nội quy máy chủ
+Require people to select tags when posting	Yêu cầu mọi người chọn thẻ khi đăng bài
+Required	Bắt buộc
+Resend SMS?	Gửi lại SMS?
+Reset	Đặt lại
+Reset Friend Nickname	Đặt lại biệt danh bạn bè
+Reset Voice Settings	Đặt lại cài đặt thoại
+Resolving Invite	Đang xử lý lời mời
+Responses	Phản hồi
+Retry	Thử lại
+Retry Now	Thử lại ngay
+Return to call	Quay lại cuộc gọi
+Return to the connected call	Quay lại cuộc gọi đang kết nối
+Reveal	Hiện
+Review	Xem xét
+Revoke	Thu hồi
+Revoke Ban	Thu hồi lệnh cấm
+Revoke Invite	Thu hồi lời mời
+Revoke the ban? They will be able to join again with an invite.	Thu hồi lệnh cấm? Họ sẽ có thể tham gia lại bằng lời mời.
+Ring	Đổ chuông
+Ringing…	Đang đổ chuông…
+Role Color	Màu vai trò
+Role Colors	Màu vai trò
+Role Icon	Biểu tượng vai trò
+Role name	Tên vai trò
+Roles	Vai trò
+Romanian, Romania	Tiếng Romania, Romania
+Rule: %	Quy tắc: %
+Rules or Guidelines Channel	Kênh nội quy hoặc hướng dẫn
+Russian	Tiếng Nga
+SELECT A CHANNEL	CHỌN MỘT KÊNH
+SELECT A SERVER	CHỌN MỘT MÁY CHỦ
+SERVER NAME	TÊN MÁY CHỦ
+SOUNDBOARD VOLUME	ÂM LƯỢNG BẢNG ÂM THANH
+STATIC EMOJI — % SLOTS AVAILABLE	EMOJI TĨNH — CÒN % Ô TRỐNG
+Safety Notifications Channel	Kênh thông báo an toàn
+Safety Number	Mã số an toàn
+Safety Setup	Thiết lập an toàn
+Safety checks	Kiểm tra an toàn
+Same as Device Theme	Giống chủ đề thiết bị
+Saturation	Độ bão hòa
+Save	Lưu
+Save Changes	Lưu thay đổi
+Save Image	Lưu ảnh
+Saving...	Đang lưu...
+Saving…	Đang lưu…
+Scan this with the Discord mobile app to log in instantly.	Quét mã này bằng ứng dụng Discord trên di động để đăng nhập ngay.
+Schedule an event for any planned activity in your server.	Lên lịch sự kiện cho bất kỳ hoạt động nào đã lên kế hoạch trong máy chủ của bạn.
+Screen	Màn hình
+Screen sharing isn't supported on this platform yet.	Nền tảng này chưa hỗ trợ chia sẻ màn hình.
+Scroll chat	Cuộn khung trò chuyện
+Search	Tìm kiếm
+Search %	Tìm kiếm %
+Search Bans by User ID or Username	Tìm lệnh cấm theo ID hoặc tên người dùng
+Search Klipy	Tìm trên Klipy
+Search Options	Tùy chọn tìm kiếm
+Search by username or id	Tìm theo tên người dùng hoặc ID
+Search for friends	Tìm bạn bè
+Search members to add (press Enter)	Tìm thành viên để thêm (nhấn Enter)
+Search or create a post...	Tìm hoặc tạo bài đăng...
+Search sounds	Tìm âm thanh
+Searching...	Đang tìm...
+Select Friends	Chọn bạn bè
+Select a Language	Chọn ngôn ngữ
+Select a channel	Chọn một kênh
+Select a channel or category…	Chọn kênh hoặc danh mục…
+Select one answer	Chọn một câu trả lời
+Select one or more answers	Chọn một hoặc nhiều câu trả lời
+Select where you want these updates to go. You can remove this at any time in Server Settings > Integrations > Channels Followed.	Chọn nơi bạn muốn nhận các cập nhật này. Bạn có thể gỡ bất cứ lúc nào trong Cài đặt máy chủ > Tích hợp > Kênh đã theo dõi.
+Select where you want to share this message.	Chọn nơi bạn muốn chia sẻ tin nhắn này.
+Send	Gửi
+Send Friend Request	Gửi lời mời kết bạn
+Send Messages and Create Posts	Gửi tin nhắn và tạo bài đăng
+Send Messages in Threads and Posts	Gửi tin nhắn trong chủ đề và bài đăng
+Send New Key	Gửi khóa mới
+Send Text-to-Speech Messages	Gửi tin nhắn chuyển văn bản thành giọng nói
+Send Voice Messages	Gửi tin nhắn thoại
+Send a random welcome message when someone joins this server.	Gửi một tin nhắn chào mừng ngẫu nhiên khi có người tham gia máy chủ này.
+Send a server invite link to a friend	Gửi liên kết mời vào máy chủ cho một người bạn
+Send an alert	Gửi cảnh báo
+Send helpful tips for server setup.	Gửi mẹo hữu ích để thiết lập máy chủ.
+Send messages, images, GIFs, emoji, opinions, and puns	Gửi tin nhắn, hình ảnh, GIF, emoji, ý kiến và những câu chơi chữ
+Sending...	Đang gửi...
+Sent	Đã gửi
+Sent a file	Đã gửi một tệp
+Sent a sticker	Đã gửi một nhãn dán
+Sent — %	Đã gửi — %
+Server	Máy chủ
+Server Avatar	Ảnh đại diện máy chủ
+Server Deafen	Tắt âm thanh máy chủ
+Server Deafened	Bị máy chủ tắt âm thanh
+Server Guide	Hướng dẫn máy chủ
+Server ID	ID máy chủ
+Server Info	Thông tin máy chủ
+Server Insights	Thông tin chi tiết máy chủ
+Server Insights is hosted on a separate website so that it's easier to share links and browse cross platform.	Thông tin chi tiết máy chủ được đặt trên một trang web riêng để dễ chia sẻ liên kết và xem trên nhiều nền tảng.
+Server Mute	Tắt tiếng máy chủ
+Server Muted	Bị máy chủ tắt tiếng
+Server Nickname	Biệt danh trong máy chủ
+Server Notification Settings	Cài đặt thông báo máy chủ
+Server Primary Language	Ngôn ngữ chính của máy chủ
+Server Profile	Hồ sơ máy chủ
+Server Rules	Nội quy máy chủ
+Server Settings	Cài đặt máy chủ
+Server Tag	Thẻ máy chủ
+Server Template	Mẫu máy chủ
+Server Widget	Tiện ích máy chủ
+Server members	Thành viên máy chủ
+Server members can only send you friend requests from servers where you also allow Direct Messages.	Thành viên máy chủ chỉ có thể gửi lời mời kết bạn cho bạn từ những máy chủ mà bạn cũng cho phép tin nhắn trực tiếp.
+Server name must be between 2 and 100 characters.	Tên máy chủ phải dài từ 2 đến 100 ký tự.
+Server unmuted	Đã bật thông báo máy chủ
+Sessions	Phiên
+Set Custom Status	Đặt trạng thái tùy chỉnh
+Set Voice Channel Status	Đặt trạng thái kênh thoại
+Set a custom status	Đặt trạng thái tùy chỉnh
+Set up AutoMod to automatically filter messages in this server with the rules below. Members with Manage Server or Administrator are exempt.	Thiết lập AutoMod để tự động lọc tin nhắn trong máy chủ này theo các quy tắc dưới đây. Thành viên có quyền Quản lý máy chủ hoặc Quản trị viên được miễn trừ.
+Sets camera video quality for all channel participants. Choose Auto for optimal performance.	Đặt chất lượng video camera cho mọi người trong kênh. Chọn Tự động để có hiệu suất tối ưu.
+Setting up encryption: % needs to open fastcord once.	Đang thiết lập mã hóa: % cần mở fastcord một lần.
+Several people are typing...	Nhiều người đang nhập...
+Severe Profanity	Ngôn từ tục tĩu nghiêm trọng
+Sexual Content	Nội dung tình dục
+Share	Chia sẻ
+Share Event	Chia sẻ sự kiện
+Share Your Screen	Chia sẻ màn hình
+Share my full profile with	Chia sẻ toàn bộ hồ sơ của tôi với
+Share your detected activities with others	Chia sẻ hoạt động được phát hiện của bạn với người khác
+Show	Hiện
+Show Chat	Hiện trò chuyện
+Show a system notification for messages that would notify you (DMs, mentions, servers set to all messages).	Hiện thông báo hệ thống cho những tin nhắn sẽ báo cho bạn (tin nhắn trực tiếp, lượt đề cập, máy chủ đặt thông báo mọi tin nhắn).
+Show embeds and preview website links pasted into chat	Hiện nội dung nhúng và xem trước liên kết trang web được dán vào trò chuyện
+Show emoji reactions on messages	Hiện biểu cảm emoji trên tin nhắn
+Show message	Hiện tin nhắn
+Show messages	Hiện tin nhắn
+Show role colors in names	Hiện màu vai trò trong tên
+Show role colors next to names	Hiện màu vai trò bên cạnh tên
+Show spoiler content	Hiện nội dung tiết lộ
+Show the game or app you're using on your profile and in member lists.	Hiện trò chơi hoặc ứng dụng bạn đang dùng trên hồ sơ và trong danh sách thành viên.
+Shows a red badge on the app icon when you have unread mentions.	Hiện huy hiệu đỏ trên biểu tượng ứng dụng khi bạn có lượt đề cập chưa đọc.
+Silence every sound and notification and hide all badges and unread marks, so fastcord never asks for your attention.	Tắt mọi âm thanh và thông báo, ẩn mọi huy hiệu và dấu chưa đọc, để fastcord không bao giờ làm phiền bạn.
+Slow down! Are you sure?	Chậm lại! Bạn chắc chứ?
+Slowmode	Chế độ chậm
+Slowmode is enabled	Chế độ chậm đang bật
+Slowmode is enabled. Members can send one message every % hour.|Slowmode is enabled. Members can send one message every % hours.	Chế độ chậm đang bật. Thành viên có thể gửi một tin nhắn mỗi % giờ.
+Slowmode is enabled. Members can send one message every % minute.|Slowmode is enabled. Members can send one message every % minutes.	Chế độ chậm đang bật. Thành viên có thể gửi một tin nhắn mỗi % phút.
+Slowmode is enabled. Members can send one message every % second.|Slowmode is enabled. Members can send one message every % seconds.	Chế độ chậm đang bật. Thành viên có thể gửi một tin nhắn mỗi % giây.
+Smooth Scrolling	Cuộn mượt
+So no one gets lost on where to go.	Để không ai bị lạc đường.
+Some older devices may not be shown here	Một số thiết bị cũ có thể không hiển thị ở đây
+Someone	Ai đó
+Something went wrong	Đã xảy ra sự cố
+Something went wrong (HTTP %).	Đã xảy ra sự cố (HTTP %).
+Something went wrong. Try again.	Đã xảy ra sự cố. Hãy thử lại.
+Somewhere Else	Nơi khác
+Sorry, we couldn't load the first message in this thread	Rất tiếc, không thể tải tin nhắn đầu tiên trong chủ đề này
+Sort: Date Posted	Sắp xếp: Ngày đăng
+Sort: Recent Activity	Sắp xếp: Hoạt động gần đây
+Sound Name	Tên âm thanh
+Sound names must be between 2 and 32 characters.	Tên âm thanh phải dài từ 2 đến 32 ký tự.
+Soundboard	Bảng âm thanh
+Sounds	Âm thanh
+Sounds must be 5.2 seconds or shorter.	Âm thanh phải dài tối đa 5,2 giây.
+Sounds must be under 512 KB.	Âm thanh phải nhỏ hơn 512 KB.
+Source	Nguồn
+Space between message groups	Khoảng cách giữa các nhóm tin nhắn
+Spam	Spam
+Spam Filters	Bộ lọc spam
+Spanish	Tiếng Tây Ban Nha
+Spanish, LATAM	Tiếng Tây Ban Nha, Mỹ Latinh
+Speak	Nói
+Speak Message	Đọc tin nhắn
+Spoiler Attachment	Tệp đính kèm tiết lộ
+Spoiler Content	Nội dung tiết lộ
+Stage	Sân khấu
+Start Date	Ngày bắt đầu
+Start Event	Bắt đầu sự kiện
+Start Minimized	Khởi động thu nhỏ
+Start Time	Giờ bắt đầu
+Starting in %m	Bắt đầu sau % phút
+State	Trạng thái
+Stickers	Nhãn dán
+Stickers can be used by anyone in this server. Upload a PNG, APNG, GIF or Lottie JSON file of up to 512 KB; it shows at 320x320.	Mọi người trong máy chủ này đều dùng được nhãn dán. Tải lên tệp PNG, APNG, GIF hoặc Lottie JSON tối đa 512 KB; nhãn dán hiển thị ở kích thước 320x320.
+Stickers can't be sent encrypted yet.	Chưa thể gửi nhãn dán dưới dạng mã hóa.
+Stickers must be PNG, APNG, GIF or Lottie JSON files.	Nhãn dán phải là tệp PNG, APNG, GIF hoặc Lottie JSON.
+Stop Recording	Dừng ghi
+Stop Streaming	Dừng phát trực tiếp
+Stop Testing	Dừng thử
+Stop Video	Tắt video
+Stop Watching	Ngừng xem
+Storage	Bộ nhớ
+Stream Settings	Cài đặt stream
+Streamer Mode	Chế độ Stream
+Streamer Mode Enabled	Đã bật Chế độ Stream
+Streamer Mode hides your personal info so others watching your stream can't see it.	Chế độ Stream ẩn thông tin cá nhân của bạn để người xem stream không thấy được.
+Streamer Mode is enabled. Usernames have been truncated.	Chế độ Stream đang bật. Tên người dùng đã được rút gọn.
+Success! Your friend request to % was sent.	Thành công! Đã gửi lời mời kết bạn đến %.
+Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday	Chủ Nhật|Thứ Hai|Thứ Ba|Thứ Tư|Thứ Năm|Thứ Sáu|Thứ Bảy
+Sun|Mon|Tue|Wed|Thu|Fri|Sat	CN|T2|T3|T4|T5|T6|T7
+Support has arrived!	Viện binh đã tới!
+Suppress @everyone and @here	Chặn @everyone và @here
+Suppress All Role @mentions	Chặn mọi @đề cập vai trò
+Suppress Highlights	Chặn điểm nổi bật
+Suppress Notifications	Chặn thông báo
+Suppress background noise from your mic.	Khử tiếng ồn nền từ mic của bạn.
+Swedish	Tiếng Thụy Điển
+Switch Accounts	Chuyển tài khoản
+Switch between accounts on this device.	Chuyển đổi giữa các tài khoản trên thiết bị này.
+Symbols	Ký hiệu
+Sync Now	Đồng bộ ngay
+Sync Permissions	Đồng bộ quyền
+Sync Template	Đồng bộ mẫu
+Sync permissions?	Đồng bộ quyền?
+System	Hệ thống
+System Messages	Tin nhắn hệ thống
+System Messages Channel	Kênh tin nhắn hệ thống
+System icon for new server members.	Biểu tượng hệ thống cho thành viên mới của máy chủ.
+THREAD NAME	TÊN CHỦ ĐỀ
+Tag	Thẻ
+Tags	Thẻ
+Tags (pick at least one)	Thẻ (chọn ít nhất một)
+Tags let members organize their posts. Members pick them when they post; moderated tags only moderators can apply.	Thẻ giúp thành viên sắp xếp bài đăng. Thành viên chọn thẻ khi đăng bài; thẻ kiểm duyệt chỉ người kiểm duyệt mới gắn được.
+Tap the link in your email to sign in instantly — no password needed.	Nhấn vào liên kết trong email để đăng nhập ngay — không cần mật khẩu.
+Tell people a little more about your event. Markdown, new lines, and links are supported.	Kể thêm cho mọi người về sự kiện của bạn. Hỗ trợ Markdown, xuống dòng và liên kết.
+Tell the world a bit about this server.	Giới thiệu đôi chút về máy chủ này với mọi người.
+Template Description	Mô tả mẫu
+Template Link	Liên kết mẫu
+Template Title	Tiêu đề mẫu
+Templates are an easy way to share your server setup and help anyone create a server instantly. When someone uses your server template link, they create a new server pre-filled with the same channels, roles, permissions, and settings as yours. Messages, members and your server's icon aren't copied.	Mẫu là cách dễ dàng để chia sẻ thiết lập máy chủ và giúp bất kỳ ai tạo máy chủ ngay lập tức. Khi ai đó dùng liên kết mẫu máy chủ của bạn, họ sẽ tạo một máy chủ mới có sẵn các kênh, vai trò, quyền và cài đặt giống của bạn. Tin nhắn, thành viên và biểu tượng máy chủ sẽ không được sao chép.
+Temporary members are automatically kicked when they disconnect unless a role has been assigned	Thành viên tạm thời sẽ tự động bị đuổi khi ngắt kết nối, trừ khi đã được gán vai trò
+Test Video	Thử video
+Text	Văn bản
+Text Channel Permissions	Quyền kênh văn bản
+Text channel, external link, or in-person location.	Kênh văn bản, liên kết bên ngoài hoặc địa điểm gặp mặt.
+Thai	Tiếng Thái
+That channel isn't on this server anymore.	Kênh đó không còn trong máy chủ này nữa.
+That file couldn't be read as an MP3 or OGG sound.	Không thể đọc tệp đó dưới dạng âm thanh MP3 hoặc OGG.
+That file couldn't be read. Avatars must be PNG, JPEG, GIF or WEBP images.	Không thể đọc tệp đó. Ảnh đại diện phải là ảnh PNG, JPEG, GIF hoặc WEBP.
+That file couldn't be read. Banners must be PNG, JPEG, GIF or WEBP images.	Không thể đọc tệp đó. Biểu ngữ phải là ảnh PNG, JPEG, GIF hoặc WEBP.
+That file couldn't be read. Emoji must be a PNG, JPEG, GIF, WEBP or AVIF image.	Không thể đọc tệp đó. Emoji phải là ảnh PNG, JPEG, GIF, WEBP hoặc AVIF.
+That file couldn't be read. Images must be PNG, JPEG, GIF or WEBP files.	Không thể đọc tệp đó. Ảnh phải là tệp PNG, JPEG, GIF hoặc WEBP.
+That file couldn't be read. Server icons must be PNG, JPEG, GIF or WEBP images.	Không thể đọc tệp đó. Biểu tượng máy chủ phải là ảnh PNG, JPEG, GIF hoặc WEBP.
+That file is too large. Emoji must be under 256 KB.	Tệp đó quá lớn. Emoji phải nhỏ hơn 256 KB.
+That file is too large. Stickers must be under 512 KB.	Tệp đó quá lớn. Nhãn dán phải nhỏ hơn 512 KB.
+That image is too large.	Ảnh đó quá lớn.
+That image is too large. Avatars must be under %.	Ảnh đó quá lớn. Ảnh đại diện phải nhỏ hơn %.
+That image is too large. Banners must be under 10 MB.	Ảnh đó quá lớn. Biểu ngữ phải nhỏ hơn 10 MB.
+That image is too large. Server icons must be under 512 KB.	Ảnh đó quá lớn. Biểu tượng máy chủ phải nhỏ hơn 512 KB.
+That isn't a valid fastcord invite.	Đó không phải lời mời fastcord hợp lệ.
+That's too long to send encrypted.	Quá dài để gửi dưới dạng mã hóa.
+The Pin Is Stuck!	Ghim bị kẹt rồi!
+The badge chosen in the official client stays as it is.	Huy hiệu đã chọn trong ứng dụng chính thức vẫn được giữ nguyên.
+The invite is invalid or has expired.	Lời mời không hợp lệ hoặc đã hết hạn.
+The mention limit is between 1 and 50.	Giới hạn đề cập nằm trong khoảng từ 1 đến 50.
+The most important updates from this channel will now show up directly in your server. Enjoy!	Những cập nhật quan trọng nhất từ kênh này giờ sẽ hiện trực tiếp trong máy chủ của bạn. Chúc vui vẻ!
+The owner	Chủ sở hữu
+The related emoji must be one emoji.	Emoji liên quan phải là một emoji duy nhất.
+The results were tied	Kết quả hòa
+The selected channel has too many webhooks. Please remove a webhook or select another channel.	Kênh đã chọn có quá nhiều webhook. Vui lòng xóa bớt một webhook hoặc chọn kênh khác.
+The server	Máy chủ
+The start time must be in the future.	Giờ bắt đầu phải ở trong tương lai.
+The thread stops showing in the channel list after being inactive for this long.	Chủ đề sẽ không còn hiện trong danh sách kênh sau khi không hoạt động trong khoảng thời gian này.
+Theme	Chủ đề
+There are no active threads.	Không có chủ đề nào đang hoạt động.
+There are no archived threads.	Không có chủ đề nào đã lưu trữ.
+There are no pending friend requests.	Không có lời mời kết bạn nào đang chờ.
+There are no upcoming events.	Không có sự kiện sắp tới.
+There is no identity key.	Không có khóa danh tính.
+There was no winner	Không có người thắng
+These are all the devices that are currently logged-in with your Discord account. Log out of devices that you don't recognize.	Đây là tất cả các thiết bị hiện đang đăng nhập tài khoản Discord của bạn. Hãy đăng xuất khỏi những thiết bị bạn không nhận ra.
+They said: %	Họ nói: %
+This account needs a passkey or security key, which fastcord can't use. Log in with the QR code instead.	Tài khoản này cần khóa truy cập hoặc khóa bảo mật mà fastcord không dùng được. Hãy đăng nhập bằng mã QR.
+This channel contains adult content that may not be suitable for all audiences. You must be 18 or older to view it.	Kênh này chứa nội dung người lớn có thể không phù hợp với mọi đối tượng. Bạn phải từ 18 tuổi trở lên để xem.
+This channel doesn't have any pinned messages... yet.	Kênh này chưa có tin nhắn ghim nào... cho đến lúc này.
+This device can't open this message.	Thiết bị này không thể mở tin nhắn này.
+This device's encryption keys couldn't be unlocked, so earlier encrypted DMs can't be opened here.	Không thể mở khóa các khóa mã hóa của thiết bị này, nên không thể mở các tin nhắn trực tiếp mã hóa trước đây tại đây.
+This event will auto start when it's time.	Sự kiện này sẽ tự động bắt đầu khi đến giờ.
+This extra step shows it's really you.	Bước bổ sung này chứng minh đó thực sự là bạn.
+This interaction failed	Tương tác này thất bại
+This invite may be expired, or you might not have permission to join.	Lời mời này có thể đã hết hạn hoặc bạn không có quyền tham gia.
+This is the beginning of your direct message history with %.	Đây là khởi đầu lịch sử tin nhắn trực tiếp của bạn với %.
+This is the channel we send system event messages to.	Đây là kênh chúng tôi gửi tin nhắn sự kiện hệ thống đến.
+This is the start of the #% channel.	Đây là khởi đầu của kênh #%.
+This is where Discord sends updates for moderators and admins of Community servers.	Đây là nơi Discord gửi cập nhật cho người kiểm duyệt và quản trị viên của máy chủ cộng đồng.
+This is where you'll show members your server rules or guidelines.	Đây là nơi bạn trình bày nội quy hoặc hướng dẫn máy chủ cho thành viên.
+This link is taking you to the following website	Liên kết này sẽ đưa bạn đến trang web sau
+This option is not available for Community Servers.	Tùy chọn này không có cho máy chủ cộng đồng.
+This role is managed by an integration and can't be edited here.	Vai trò này được một tích hợp quản lý và không thể chỉnh sửa ở đây.
+This server has been removed from Server Discovery because it no longer passes all the requirements. Check Server Settings for more details.	Máy chủ này đã bị gỡ khỏi Khám phá máy chủ vì không còn đáp ứng mọi yêu cầu. Xem Cài đặt máy chủ để biết thêm chi tiết.
+This server has failed Discovery activity requirements for 1 week. If this server fails for 4 weeks in a row, it will be automatically removed from Discovery.	Máy chủ này đã không đạt yêu cầu hoạt động của Khám phá trong 1 tuần. Nếu không đạt 4 tuần liên tiếp, máy chủ sẽ tự động bị gỡ khỏi Khám phá.
+This server has failed Discovery activity requirements for 3 weeks in a row. If this server fails for 1 more week, it will be removed from Discovery.	Máy chủ này đã không đạt yêu cầu hoạt động của Khám phá 3 tuần liên tiếp. Nếu không đạt thêm 1 tuần nữa, máy chủ sẽ bị gỡ khỏi Khám phá.
+This server has no voice channels.	Máy chủ này không có kênh thoại.
+This server is currently full.	Máy chủ này hiện đã đầy.
+This server is currently full. Please try again later.	Máy chủ này hiện đã đầy. Vui lòng thử lại sau.
+This server is eligible for Server Discovery again and has been automatically relisted!	Máy chủ này lại đủ điều kiện cho Khám phá máy chủ và đã được tự động niêm yết lại!
+This server is not available in your location.	Máy chủ này không khả dụng ở khu vực của bạn.
+This server's features are limited	Tính năng của máy chủ này bị giới hạn
+This setting is applied when you join a new server. It does not apply retroactively to your existing servers.	Cài đặt này được áp dụng khi bạn tham gia máy chủ mới. Nó không áp dụng ngược lại cho các máy chủ hiện có của bạn.
+This template has unsynced changes.	Mẫu này có thay đổi chưa đồng bộ.
+This thread is locked.	Chủ đề này đã bị khóa.
+This voice channel is full.	Kênh thoại này đã đầy.
+This will determine whether members who have not explicitly set their notification settings receive a notification for every message sent in this server or not.	Cài đặt này quyết định việc thành viên chưa tự đặt cài đặt thông báo có nhận thông báo cho mọi tin nhắn gửi trong máy chủ này hay không.
+This will transfer ownership of %1 to %2. This cannot be undone!	Thao tác này sẽ chuyển quyền sở hữu %1 cho %2. Không thể hoàn tác!
+Thread Name	Tên chủ đề
+Thread deleted	Đã xóa chủ đề
+Threads	Chủ đề
+Time	Thời gian
+Time format	Định dạng giờ
+Timeout	Hạn chế
+Timeout %	Hạn chế %
+Timeout Members	Hạn chế thành viên
+Timeout member	Hạn chế thành viên
+Times show as %.	Giờ hiển thị dạng %.
+To log them out, please change your password	Để đăng xuất chúng, vui lòng đổi mật khẩu
+To protect your members, Community servers need these, and enabling sets them:	Để bảo vệ thành viên, máy chủ cộng đồng cần những điều sau, và khi bật sẽ tự thiết lập:
+Today	Hôm nay
+Today at %	Hôm nay lúc %
+Toggle Deafen	Bật/tắt âm thanh
+Toggle Go Live Streaming	Bật/tắt Phát Trực Tiếp
+Toggle Mute	Bật/tắt tiếng
+Toggle Streamer Mode	Bật/tắt Chế độ Stream
+Toggle Voice Activity Mode	Bật/tắt chế độ Phát hiện giọng nói
+Toggle deafen	Bật/tắt âm thanh
+Toggle inbox	Bật/tắt hộp thư
+Toggle member list	Bật/tắt danh sách thành viên
+Toggle mute	Bật/tắt tiếng
+Toggle pins	Bật/tắt tin ghim
+Tomorrow at %	Ngày mai lúc %
+Too fast! Wait a bit and try again.	Nhanh quá! Đợi một chút rồi thử lại.
+Too many uploads!	Quá nhiều tệp tải lên!
+Trait %	Đặc điểm %
+Traits	Đặc điểm
+Transfer Ownership	Chuyển quyền sở hữu
+Travel & Places	Du lịch & địa điểm
+Treat the token like a password: anyone who has it controls your account. fastcord keeps it only on this computer.	Hãy giữ token như mật khẩu: ai có nó sẽ điều khiển được tài khoản của bạn. fastcord chỉ lưu token trên máy tính này.
+Trending GIFs	GIF thịnh hành
+Trust % links from now on	Từ giờ tin tưởng liên kết %
+Try Again	Thử lại
+Try searching for something else	Thử tìm thứ khác
+Try searching for...	Thử tìm...
+Try sending a new invite	Thử gửi lời mời mới
+Turkish	Tiếng Thổ Nhĩ Kỳ
+Turn off encryption	Tắt mã hóa
+Turns this back into a regular server. Community-only features stop working.	Chuyển máy chủ về dạng thường. Các tính năng chỉ dành cho cộng đồng sẽ ngừng hoạt động.
+Two-factor authentication is enabled on this account.	Tài khoản này đã bật xác thực hai yếu tố.
+Type the username of a friend	Nhập tên người dùng của một người bạn
+Type your answer	Nhập câu trả lời của bạn
+UPLOADED BY	TẢI LÊN BỞI
+USES	LƯỢT DÙNG
+Uh oh, you don't have webhook permissions in any server you're in. Ask your server admin to give you the permission or ask them to come follow themselves!	Ôi, bạn không có quyền webhook trong máy chủ nào bạn đang tham gia. Hãy nhờ quản trị viên máy chủ cấp quyền cho bạn hoặc nhờ họ tự theo dõi nhé!
+Uh-oh. Looks like you've been banned.	Ôi không. Có vẻ bạn đã bị cấm.
+Ukrainian	Tiếng Ukraina
+Unable to accept invite	Không thể chấp nhận lời mời
+Unassigned	Chưa gán
+Unban Member	Bỏ cấm thành viên
+Unblock	Bỏ chặn
+Undeafen	Bật âm thanh
+Under Request Headers, copy the value of "authorization" and paste it below.	Trong Request Headers, sao chép giá trị của "authorization" và dán vào bên dưới.
+Undo	Hoàn tác
+Unignore	Bỏ bỏ qua
+Unknown	Không rõ
+Unknown channel	Kênh không rõ
+Unmute	Bật tiếng
+Unmute Category	Bật thông báo danh mục
+Unmute Channel	Bật thông báo kênh
+Unmute Server	Bật thông báo máy chủ
+Unmute Thread	Bật thông báo chủ đề
+Unpin Message	Bỏ ghim tin nhắn
+Unreads	Chưa đọc
+Unrestricted	Không hạn chế
+Until %	Đến %
+Until %1 at %2	Đến %1 lúc %2
+Until I turn it back on	Cho đến khi tôi bật lại
+Until tomorrow at %	Đến ngày mai lúc %
+Untitled question	Câu hỏi chưa có tiêu đề
+Unverify	Bỏ xác minh
+Update %	Cập nhật %
+Update Channel	Cập nhật kênh
+Update Emoji	Cập nhật emoji
+Update Member	Cập nhật thành viên
+Update Member Roles	Cập nhật vai trò thành viên
+Update Role	Cập nhật vai trò
+Update Server	Cập nhật máy chủ
+Update Webhook	Cập nhật webhook
+Update your password	Cập nhật mật khẩu của bạn
+Upload	Tải lên
+Upload Emoji	Tải lên emoji
+Upload Sound	Tải lên âm thanh
+Upload Sticker	Tải lên nhãn dán
+Upload a File	Tải lên một tệp
+Upload a Sound	Tải lên một âm thanh
+Upload a file	Tải lên một tệp
+Upload custom sound reactions that anyone in this server can use. MP3 or OGG files, up to 512 KB and 5.2 seconds.	Tải lên âm thanh tùy chỉnh mà mọi người trong máy chủ này đều dùng được. Tệp MP3 hoặc OGG, tối đa 512 KB và 5,2 giây.
+Upload to %	Tải lên %
+Uploaded a file	Đã tải lên một tệp
+Uploading...	Đang tải lên...
+Use Application Commands	Dùng lệnh ứng dụng
+Use Category Default	Dùng mặc định của danh mục
+Use External Apps	Dùng ứng dụng bên ngoài
+Use External Emoji	Dùng emoji bên ngoài
+Use External Sounds	Dùng âm thanh bên ngoài
+Use External Stickers	Dùng nhãn dán bên ngoài
+Use Server Default	Dùng mặc định của máy chủ
+Use Soundboard	Dùng bảng âm thanh
+Use Voice Activity	Dùng phát hiện giọng nói
+Use a backup code	Dùng mã dự phòng
+Use a code sent to your phone	Dùng mã gửi đến điện thoại của bạn
+Use a passkey or security key	Dùng khóa truy cập hoặc khóa bảo mật
+Use data to improve Discord	Dùng dữ liệu để cải thiện Discord
+Use roles to group your server members and assign permissions.	Dùng vai trò để phân nhóm thành viên máy chủ và cấp quyền.
+Use your authenticator app	Dùng ứng dụng xác thực của bạn
+Used % times.|Used % times.	Đã dùng % lần.
+User Join	Người dùng tham gia
+User Leave	Người dùng rời đi
+User Limit	Giới hạn người dùng
+User Moved	Người dùng đã chuyển kênh
+User Volume	Âm lượng người dùng
+User blocked	Đã chặn người dùng
+User unblocked	Đã bỏ chặn người dùng
+Username	Tên người dùng
+Username is available. Nice!	Tên người dùng còn trống. Tuyệt!
+Username is unavailable. Try adding numbers, letters, underscores _ , or periods.	Tên người dùng đã có người dùng. Thử thêm số, chữ cái, dấu gạch dưới _ hoặc dấu chấm.
+Users will need to confirm they are of over the legal age to view in the content in this channel.\nAge-restricted channels are exempt from the explicit content filter.	Người dùng sẽ cần xác nhận họ đủ tuổi theo quy định để xem nội dung trong kênh này.\nKênh giới hạn độ tuổi được miễn bộ lọc nội dung phản cảm.
+Uses the yt-dlp you installed to play YouTube links in the chat instead of opening your browser. It connects to YouTube from your computer.	Dùng yt-dlp bạn đã cài để phát liên kết YouTube ngay trong trò chuyện thay vì mở trình duyệt. Máy tính của bạn sẽ kết nối tới YouTube.
+VOICE PROCESSING	XỬ LÝ GIỌNG NÓI
+Verification Level	Cấp độ xác minh
+Verified	Đã xác minh
+Verify with something else	Xác minh bằng cách khác
+Video	Video
+Video Quality	Chất lượng video
+Vietnamese	Tiếng Việt
+View Audit Log	Xem nhật ký kiểm tra
+View Channel	Xem kênh
+View Channels	Xem kênh
+View Details	Xem chi tiết
+View Full Profile	Xem hồ sơ đầy đủ
+View Poll	Xem cuộc thăm dò
+View Profile	Xem hồ sơ
+View Reactions	Xem biểu cảm
+View Server Insights	Xem Thông tin chi tiết máy chủ
+Visit Site	Truy cập trang
+Visual Density	Mật độ hiển thị
+Voice	Thoại
+Voice & Video	Thoại & video
+Voice Activity	Phát hiện giọng nói
+Voice Channel	Kênh thoại
+Voice Channel Permissions	Quyền kênh thoại
+Voice Connected	Đã kết nối thoại
+Voice Disconnected	Đã ngắt kết nối thoại
+Volume	Âm lượng
+Vote	Bỏ phiếu
+Waiting for a server	Đang chờ máy chủ
+Wants to message you	Muốn nhắn tin cho bạn
+Watch Stream	Xem stream
+Wave to say hi!	Vẫy tay chào nào!
+We appreciate the enthusiasm, but...	Chúng tôi rất cảm kích sự nhiệt tình, nhưng...
+We couldn't load the profile for this server.	Không thể tải hồ sơ cho máy chủ này.
+We recommend an image of at least 512x512.	Chúng tôi khuyên dùng ảnh tối thiểu 512x512.
+We sent instructions to change your password to %, please check both your inbox and spam folder.	Chúng tôi đã gửi hướng dẫn đổi mật khẩu đến %, vui lòng kiểm tra cả hộp thư đến và thư mục spam.
+We're so excited to see you again!	Rất vui được gặp lại bạn!
+We've sent a message to %.  Please enter the code you received.	Chúng tôi đã gửi tin nhắn đến %.  Vui lòng nhập mã bạn nhận được.
+Webhooks (%)	Webhook (%)
+Webhooks are a simple way to post messages from other apps and websites into this server.	Webhook là cách đơn giản để đăng tin nhắn từ ứng dụng và trang web khác vào máy chủ này.
+Welcome %. Say hi!	Chào mừng %. Chào một tiếng nào!
+Welcome back!	Chào mừng trở lại!
+Welcome to #%!	Chào mừng đến với #%!
+Welcome to the beginning of the % group.	Chào mừng đến với khởi đầu của nhóm %.
+Welcome, %. We hope you brought pizza.	Chào mừng, %. Hy vọng bạn có mang pizza.
+What brings you here?	Điều gì đưa bạn đến đây?
+What can people do in this server?	Mọi người có thể làm gì trong máy chủ này?
+What question do you want to ask?	Bạn muốn hỏi câu gì?
+What's cookin'?	Có gì hay ho thế?
+What's your event about?	Sự kiện của bạn về chủ đề gì?
+What's your event?	Sự kiện của bạn là gì?
+When a friend starts an activity—like playing a game or hanging out on voice—we'll show it here!	Khi một người bạn bắt đầu hoạt động—như chơi game hoặc trò chuyện thoại—chúng tôi sẽ hiển thị ở đây!
+When enabled, only server members can view profile content. Non-members won't be able to see this content unless they have an invite.	Khi bật, chỉ thành viên máy chủ mới xem được nội dung hồ sơ. Người không phải thành viên sẽ không thấy nội dung này trừ khi có lời mời.
+When you put a user in timeout they will not be able to send messages in chat, reply within threads, react to messages, or speak in voice or Stage channels.	Khi bạn hạn chế một người dùng, họ sẽ không thể gửi tin nhắn trong trò chuyện, trả lời trong chủ đề, bày tỏ cảm xúc với tin nhắn, hay nói trong kênh thoại hoặc kênh Sân khấu.
+Where is your event?	Sự kiện của bạn diễn ra ở đâu?
+Where would you like to go?	Bạn muốn đi đâu?
+Who is this server for? E.g. School Club, Artists' Community	Máy chủ này dành cho ai? Ví dụ: Câu lạc bộ trường, Cộng đồng nghệ sĩ
+Winning answer · %1%2	Câu trả lời thắng · %1%2
+Words that are never blocked, separated by commas	Các từ không bao giờ bị chặn, phân cách bằng dấu phẩy
+Words to block, separated by commas	Các từ cần chặn, phân cách bằng dấu phẩy
+Words to block, separated by commas (* matches anything)	Các từ cần chặn, phân cách bằng dấu phẩy (* khớp với mọi thứ)
+Would you like to sync %1 permissions with %2?	Bạn có muốn đồng bộ quyền của %1 với %2 không?
+Yay you made it, %!	Yay, bạn đến rồi, %!
+Yesterday at %	Hôm qua lúc %
+You	Bạn
+You accepted %'s friend request.	Bạn đã chấp nhận lời mời kết bạn của %.
+You are at the % server limit.	Bạn đã đạt giới hạn % máy chủ.
+You are banned from this server.	Bạn đã bị cấm khỏi máy chủ này.
+You aren't in that server. Ask a member for an invite.	Bạn không ở trong máy chủ đó. Hãy xin lời mời từ một thành viên.
+You can add % more friend.|You can add % more friends.	Bạn có thể thêm % người bạn nữa.
+You can add comments before uploading.\nHold shift to upload directly.	Bạn có thể thêm bình luận trước khi tải lên.\nGiữ Shift để tải lên trực tiếp.
+You can add friends with their Discord username.	Bạn có thể thêm bạn bè bằng tên người dùng Discord của họ.
+You can add up to 5 accounts.	Bạn có thể thêm tối đa 5 tài khoản.
+You can hold down shift when clicking % to bypass this confirmation entirely.	Bạn có thể giữ Shift khi nhấp % để bỏ qua hoàn toàn bước xác nhận này.
+You can only edit roles below your highest role.	Bạn chỉ có thể chỉnh sửa vai trò thấp hơn vai trò cao nhất của mình.
+You can only upload % files at a time!	Bạn chỉ có thể tải lên % tệp mỗi lần!
+You can use markdown and links if you'd like.	Bạn có thể dùng markdown và liên kết nếu muốn.
+You can't join this server because of your age group.	Bạn không thể tham gia máy chủ này do nhóm tuổi của bạn.
+You can't unblock the Wumpus.	Bạn không thể bỏ chặn Wumpus.
+You cannot friend yourself	Bạn không thể kết bạn với chính mình
+You can’t react and super react with the same emoji. There’s a lot of emoji to choose from, so maybe try another one.	Bạn không thể bày tỏ cảm xúc và siêu cảm xúc bằng cùng một emoji. Có rất nhiều emoji để chọn, thử cái khác xem.
+You do not have permission to send messages in this channel.	Bạn không có quyền gửi tin nhắn trong kênh này.
+You don't have any friends to add!	Bạn không có người bạn nào để thêm!
+You don't have permission to do that.	Bạn không có quyền làm điều đó.
+You haven't added a display name yet.	Bạn chưa thêm tên hiển thị.
+You haven't added a phone number yet.	Bạn chưa thêm số điện thoại.
+You haven't added an email yet.	Bạn chưa thêm email.
+You haven't authorized any apps.	Bạn chưa ủy quyền ứng dụng nào.
+You haven't blocked anyone.	Bạn chưa chặn ai.
+You haven't connected any accounts yet.	Bạn chưa kết nối tài khoản nào.
+You haven't ignored anyone.	Bạn chưa bỏ qua ai.
+You missed a call from %1 that lasted %2.	Bạn đã lỡ một cuộc gọi từ %1 kéo dài %2.
+You must be at least 18 years old to view this channel.	Bạn phải từ 18 tuổi trở lên để xem kênh này.
+You must leave a server first to join.	Bạn phải rời một máy chủ trước để tham gia.
+You need to add one or more rules.	Bạn cần thêm một hoặc nhiều quy tắc.
+You received an invite, but...	Bạn đã nhận được lời mời, nhưng...
+You said: %	Bạn nói: %
+You sent an invite to a self-hosted server	Bạn đã gửi lời mời vào một máy chủ tự lưu trữ
+You sent an invite, but	Bạn đã gửi lời mời, nhưng
+You sent an invite, but...	Bạn đã gửi lời mời, nhưng...
+You will appear offline	Bạn sẽ hiển thị là ngoại tuyến
+You will not receive desktop notifications	Bạn sẽ không nhận thông báo trên máy tính
+You'll have to log back in on all logged out devices.	Bạn sẽ phải đăng nhập lại trên mọi thiết bị đã đăng xuất.
+You're Viewing Older Messages	Bạn đang xem tin nhắn cũ
+You're all caught up!	Bạn đã xem hết rồi!
+You're already in that server.	Bạn đã ở trong máy chủ đó rồi.
+You're doing that too fast. Try again in a moment.	Bạn thao tác nhanh quá. Thử lại sau giây lát.
+You're not in any servers yet.	Bạn chưa tham gia máy chủ nào.
+You're offline: no invite link.	Bạn đang ngoại tuyến: không có liên kết mời.
+You're timed out until %.	Bạn bị hạn chế đến %.
+You've been invited to a self-hosted server	Bạn được mời vào một máy chủ tự lưu trữ
+You've been invited to join	Bạn được mời tham gia
+You've been invited to speak	Bạn được mời phát biểu
+You've been invited, but	Bạn được mời, nhưng
+Your files are too powerful	Tệp của bạn quá mạnh
+Your full profile is visible to friends and any server you join with 200 or fewer members. Everyone else sees a limited version.	Bạn bè và các máy chủ có từ 200 thành viên trở xuống mà bạn tham gia sẽ thấy hồ sơ đầy đủ của bạn. Những người khác thấy phiên bản giới hạn.
+Your full profile is visible to friends and any server you join.	Bạn bè và mọi máy chủ bạn tham gia sẽ thấy hồ sơ đầy đủ của bạn.
+Your full profile is visible to friends. Everyone else sees a limited version.	Bạn bè sẽ thấy hồ sơ đầy đủ của bạn. Những người khác thấy phiên bản giới hạn.
+Your invite link expires after %.	Liên kết mời của bạn hết hạn sau %.
+Your invite link expires in %.	Liên kết mời của bạn hết hạn sau %.
+Your invite link expires in %1, or after %2.	Liên kết mời của bạn hết hạn sau %1, hoặc sau %2.
+Your invite link expires in 7 days.	Liên kết mời của bạn hết hạn sau 7 ngày.
+Your invite link will never expire.	Liên kết mời của bạn sẽ không bao giờ hết hạn.
+Your last request was on %.	Yêu cầu gần nhất của bạn là vào %.
+Your message is too long (% / %).	Tin nhắn của bạn quá dài (%1 / %2).
+Your reaction was not added because there are too many reactions on this message.	Không thể thêm biểu cảm của bạn vì tin nhắn này có quá nhiều biểu cảm.
+Your request from % is being prepared.	Yêu cầu của bạn từ % đang được chuẩn bị.
+Your server is where you and your friends hang out. Make yours and start talking.	Máy chủ là nơi bạn và bạn bè tụ tập. Hãy tạo máy chủ của bạn và bắt đầu trò chuyện.
+Your sounds go out with your voice, mixed into your microphone, instead of as soundboard sounds.	Âm thanh của bạn được phát cùng giọng nói, trộn vào micro, thay vì phát dưới dạng âm thanh bảng âm thanh.
+Zoom level	Mức thu phóng
+a channel	một kênh
+a command	một lệnh
+a day	một ngày
+a day ago	một ngày trước
+a few seconds	vài giây
+a few seconds ago	vài giây trước
+a message	một tin nhắn
+a minute	một phút
+a minute ago	một phút trước
+a month ago	một tháng trước
+a year ago	một năm trước
+an hour	một giờ
+an hour ago	một giờ trước
+by %	bởi %
+cancel	hủy
+channel	kênh
+delete message	xóa tin nhắn
+escape to %1 • enter to %2	Esc để %1 • Enter để %2
+fastcord %	fastcord %
+fastcord quit unexpectedly last time. The report is in the logs folder (Settings, under Log Out).	Lần trước fastcord đã thoát bất ngờ. Báo cáo nằm trong thư mục nhật ký (Cài đặt, bên dưới Đăng xuất).
+fastcord starts in the background and stays out of your way.	fastcord khởi động ở chế độ nền và không làm phiền bạn.
+from %	từ %
+in %	sau %
+in % day|in % days	sau % ngày
+in % hour|in % hours	sau % giờ
+in % minute|in % minutes	sau % phút
+in % month|in % months	sau % tháng
+in % year|in % years	sau % năm
+in a day	sau một ngày
+in a few seconds	sau vài giây
+in a minute	sau một phút
+in a month	sau một tháng
+in a year	sau một năm
+in an hour	sau một giờ
+just now	vừa xong
+less than an hour ago	chưa đến một giờ trước
+link, embed or file	liên kết, nội dung nhúng hoặc tệp
+on %	vào %
+pinned messages	tin nhắn đã ghim
+remove embeds	gỡ nội dung nhúng
+save	lưu
+someone	ai đó
+specific date	ngày cụ thể
+this server	máy chủ này
+threads	chủ đề
+true or false	đúng hoặc sai
+unknown	không rõ
+unknown channel	kênh không rõ
+used	đã dùng
+user	người dùng
+• Media from all members is scanned by the explicit image filter.	• Nội dung đa phương tiện của mọi thành viên đều được bộ lọc hình ảnh phản cảm quét.
+• Members must have a verified email on their Discord account.	• Thành viên phải có email đã xác minh trên tài khoản Discord.
+← Back to %	← Quay lại %
+← Back to login	← Quay lại đăng nhập

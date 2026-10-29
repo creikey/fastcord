@@ -1,4 +1,3 @@
-
  for now.
  · required
 % (requested to speak)
@@ -442,6 +441,7 @@ Category deleted
 Change %##change
 Change Avatar
 Change Avatar##hav
+Change Image##cover
 Change Nickname
 Change Password##chpw
 Change Server Icon##upload
@@ -489,6 +489,7 @@ Community servers have more tools to help you moderate and grow your server.
 Compact
 Compare
 Compare these with %, in person or on a call. If they match, no one can read this DM in between.##note
+Complete
 Configure system event messages sent to your server.
 Confirm
 Confirm Request##harvest
@@ -546,12 +547,13 @@ Couldn't load the invites.
 Couldn't load the members.
 Couldn't load the role's members.
 Couldn't load the server rules.
+Couldn't load the server's rules.
 Couldn't load the server's tag.
 Couldn't load the template.
 Couldn't load the webhooks.
 Couldn't move the channel
 Couldn't play it here, so it opened in your browser.
-Couldn't reach %: %% Retrying.
+Couldn't reach %1: %2 Retrying.
 Couldn't reach Discord. Check your connection and try again.
 Couldn't reach Discord. Try again.
 Couldn't reach the server.
@@ -561,6 +563,7 @@ Couldn't save the image.
 Couldn't save the token.
 Couldn't turn on encryption.
 Couldn't upload emoji
+Cover Image
 Cozy
 Create
 Create Category
@@ -713,6 +716,7 @@ Ease the chat and lists toward where you scroll. Off, they jump there at once (a
 Echo Cancellation
 Edit Category
 Edit Channel
+Edit Event
 Edit Friend Nickname
 Edit Message
 Edit Per-server Profile
@@ -867,6 +871,7 @@ Go to Server
 Good to see you, %.
 Got It
 Grant temporary membership
+Great for larger community audio events.
 Greek
 Hang out together with voice, video, and screen share
 Hang out with voice, video, screenshare, and Go Live.
@@ -899,6 +904,7 @@ How did your server get started? Why should people join?
 Hungarian
 I acknowledge that by transferring ownership of this server to %, it officially belongs to them.
 I agree and understand
+I have read and agree to the rules
 I'm new here, say hi!
 I'm sure, use a backup code##sure
 IMAGE
@@ -1259,6 +1265,7 @@ Open Media Link
 Open Server Insights##insights
 Open Settings##giperm
 Open discord.com##open
+Open in Browser
 Open in Browser##ob
 Open in YouTube##ytno
 Open the developer tools (Cmd+Option+I) and choose the Network tab.
@@ -1361,6 +1368,7 @@ ROLES — %
 ROLES/MEMBERS
 RTC Connecting
 Read Message History
+Read and agree to the server rules
 Reason
 Reason for Ban
 Reason for Kick
@@ -1403,6 +1411,7 @@ Remove from Favorites
 Remove notification override for %
 Remove the files added before encryption was on: they'd go unencrypted.
 Remove the files added while encryption was on: they'd arrive as unreadable ciphertext.
+Remove##coverx
 Remove##hrm
 Remove##rm
 Remove##rmow
@@ -1426,6 +1435,7 @@ Reset##psreset
 Reset##reset
 Resolving Invite
 Responses
+Restart to Update
 Retry
 Retry Now
 Retry##retry
@@ -1463,10 +1473,12 @@ Saturation
 Save Changes##pssave
 Save Changes##save
 Save Changes##sbsubmit
+Save Event##next
 Save Image
 Save##modsave
 Save##save
 Save##vsave
+Saving...##next
 Saving...##save
 Saving...##sbsubmit
 Saving…
@@ -1576,6 +1588,7 @@ Some older devices may not be shown here
 Someone
 Something went wrong
 Something went wrong (HTTP %).
+Something went wrong. Please try again.
 Something went wrong. Try again.
 Somewhere Else
 Sorry, we couldn't load the first message in this thread
@@ -1598,6 +1611,7 @@ Speak Message
 Spoiler Attachment
 Spoiler Content
 Stage
+Stage Channel
 Start Date
 Start Event
 Start Minimized
@@ -1618,6 +1632,8 @@ Streamer Mode
 Streamer Mode Enabled##smbadge
 Streamer Mode hides your personal info so others watching your stream can't see it.
 Streamer Mode is enabled. Usernames have been truncated.
+Submit
+Submitting
 Success! Your friend request to % was sent.
 Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday
 Sun|Mon|Tue|Wed|Thu|Fri|Sat
@@ -1713,6 +1729,7 @@ This message is end-to-end encrypted. Forwarding it here sends it unencrypted, s
 This message is end-to-end encrypted. Forwarding it here sends it unencrypted, so the server's host can read it.
 This option is not available for Community Servers.
 This role is managed by an integration and can't be edited here.
+This server asks a few questions before you can join. Answer them on discord.com.
 This server has been removed from Server Discovery because it no longer passes all the requirements. Check Server Settings for more details.
 This server has failed Discovery activity requirements for 1 week. If this server fails for 4 weeks in a row, it will be automatically removed from Discovery.
 This server has failed Discovery activity requirements for 3 weeks in a row. If this server fails for 1 more week, it will be removed from Discovery.
@@ -1814,6 +1831,8 @@ Update Role
 Update Server
 Update Webhook
 Update your password
+Updating…
+Upload Cover Image##cover
 Upload Emoji##upload
 Upload Sound##sbupload
 Upload Sticker
@@ -1892,6 +1911,7 @@ Wave to say hi!
 We appreciate the enthusiasm, but...
 We couldn't load the profile for this server.
 We recommend an image of at least 512x512.
+We recommend an image of at least 800px wide and 320px tall.
 We sent instructions to change your password to %, please check both your inbox and spam folder.
 We're so excited to see you again!
 We've sent a message to %.  Please enter the code you received.
@@ -1950,6 +1970,7 @@ You haven't connected any accounts yet.
 You haven't ignored anyone.
 You missed a call from %1 that lasted %2.
 You must be at least 18 years old to view this channel.
+You must complete a few more steps before you can talk.
 You must leave a server first to join.
 You need to add one or more rules.
 You received an invite, but...
@@ -2004,7 +2025,6 @@ by %
 cancel
 channel
 delete message
-dingus@example.com
 discord.gg/
 en-GB
 en-US

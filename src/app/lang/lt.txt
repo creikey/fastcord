@@ -1,0 +1,1972 @@
+# Lithuanian (lt)
+ · required	 · privaloma
+% (requested to speak)	% (prašo žodžio)
+% (required)	% (privaloma)
+% Bans|% Bans	% draudimas|% draudimai|% draudimų
+% Event|% Events	% renginys|% renginiai|% renginių
+% KB	% KB
+% MB	% MB
+% Member|% Members	% narys|% nariai|% narių
+% Messages	Žinutės: %
+% Mutual Friend|% Mutual Friends	% bendras draugas|% bendri draugai|% bendrų draugų
+% Mutual Server|% Mutual Servers	% bendras serveris|% bendri serveriai|% bendrų serverių
+% Online	Prisijungę: %
+% Result|% Results	% rezultatas|% rezultatai|% rezultatų
+% accepted encryption.	% sutiko su šifravimu.
+% accepted your friend request.	% priėmė tavo draugystės užklausą.
+% answer|% answers	% atsakymas|% atsakymai|% atsakymų
+% becomes the owner once they accept on their device. You'll stay a member.	% taps savininku, kai patvirtins savo įrenginyje. Tu liksi nariu.
+% blocked message —|% blocked messages —	% užblokuota žinutė —|% užblokuotos žinutės —|% užblokuotų žinučių —
+% byte|% bytes	% baitas|% baitai|% baitų
+% changed the group icon.	% pakeitė grupės piktogramą.
+% day ago|% days ago	prieš % dieną|prieš % dienas|prieš % dienų
+% day|% days	% diena|% dienos|% dienų
+% disabled security actions.	% išjungė saugumo veiksmus.
+% enabled security actions.	% įjungė saugumo veiksmus.
+% hasn't accepted encryption yet.	% dar nesutiko su šifravimu.
+% hopped into the server.	% šoktelėjo į serverį.
+% hour ago|% hours ago	prieš % valandą|prieš % valandas|prieš % valandų
+% hour|% hours	% valanda|% valandos|% valandų
+% ignored message —|% ignored messages —	% ignoruojama žinutė —|% ignoruojamos žinutės —|% ignoruojamų žinučių —
+% is here.	% jau čia.
+% is typing...	% rašo...
+% joined the party.	% prisijungė prie vakarėlio.
+% just boosted the server!	% ką tik paspartino serverį!
+% just landed.	% ką tik nusileido.
+% just showed up!	% ką tik pasirodė!
+% just slid into the server.	% ką tik įslydo į serverį.
+% left the group.	% paliko grupę.
+% member|% members	% narys|% nariai|% narių
+% minute ago|% minutes ago	prieš % minutę|prieš % minutes|prieš % minučių
+% minute|% minutes	% minutė|% minutės|% minučių
+% month ago|% months ago	prieš % mėnesį|prieš % mėnesius|prieš % mėnesių
+% of %	%1 iš %2
+% removed the custom group name.	% pašalino pasirinktą grupės pavadinimą.
+% started a call.	% pradėjo skambutį.
+% turned on encryption.	% įjungė šifravimą.
+% user|% users	% naudotojas|% naudotojai|% naudotojų
+% use|% uses	% panaudojimas|% panaudojimai|% panaudojimų
+% vote|% votes	% balsas|% balsai|% balsų
+% wants to encrypt this DM with a new key. Compare safety numbers after accepting.	% nori šifruoti šį pokalbį nauju raktu. Priėmęs palygink saugos numerius.
+% wants to encrypt this DM.	% nori šifruoti šį pokalbį.
+% year ago|% years ago	prieš % metus|prieš % metus|prieš % metų
+% · End-to-end encrypted	% · Visapusiškai užšifruota
+%'s Group	Grupė: %
+%'s encryption key changed. Compare safety numbers before trusting new messages.	Pasikeitė naudotojo % šifravimo raktas. Prieš pasitikėdamas naujomis žinutėmis palygink saugos numerius.
+%'s server	Serveris: %
+%1 (%2 more)	%1 (dar %2)
+%1 FPS	%1 FPS
+%1 STICKERS — %2 SLOTS AVAILABLE	LIPDUKAI: %1 — LAISVŲ VIETŲ: %2
+%1 action %2	%1 veiksmas %2
+%1 added %2 to the group.	%1 pridėjo %2 į grupę.
+%1 and %2	%1 ir %2
+%1 and %2 are typing...	%1 ir %2 rašo...
+%1 and %2 other|%1 and %2 others	%1 ir dar %2|%1 ir dar %2|%1 ir dar %2
+%1 banned %2	%1 uždraudė %2
+%1 changed the Stage topic: %2	%1 pakeitė scenos temą: %2
+%1 changed the channel name: %2.	%1 pakeitė kanalo pavadinimą: %2.
+%1 changed the group name: %2.	%1 pakeitė grupės pavadinimą: %2.
+%1 created a channel	%1 sukūrė kanalą
+%1 created a role	%1 sukūrė vaidmenį
+%1 created a webhook	%1 sukūrė webhook
+%1 created an emoji	%1 sukūrė jaustuką
+%1 created an invite	%1 sukūrė pakvietimą
+%1 deleted a channel	%1 ištrynė kanalą
+%1 deleted a message by %2	%1 ištrynė %2 žinutę
+%1 deleted a role	%1 ištrynė vaidmenį
+%1 deleted a webhook	%1 ištrynė webhook
+%1 deleted an emoji	%1 ištrynė jaustuką
+%1 deleted an invite	%1 ištrynė pakvietimą
+%1 enabled security actions until %2.	%1 įjungė saugumo veiksmus iki %2.
+%1 ended %2	%1 baigė %2
+%1 has achieved %2	%1 pasiekė %2
+%1 has added %2 to this channel. Its most important updates will show up here.	%1 pridėjo %2 prie šio kanalo. Svarbiausi jo atnaujinimai bus rodomi čia.
+%1 has blocked a message in %2	%1 užblokavo žinutę kanale %2
+%1 has flagged a message in %2	%1 pažymėjo žinutę kanale %2
+%1 is now a speaker.	%1 dabar kalbėtojas.
+%1 joined %2 and has been a subscriber of %3 for %4 month!|%1 joined %2 and has been a subscriber of %3 for %4 months!	%1 prisijungė prie %2 ir jau %4 mėnesį prenumeruoja %3!|%1 prisijungė prie %2 ir jau %4 mėnesius prenumeruoja %3!|%1 prisijungė prie %2 ir jau %4 mėnesių prenumeruoja %3!
+%1 joined %2 as a subscriber of %3!	%1 prisijungė prie %2 kaip %3 prenumeratorius!
+%1 just boosted the server %2 times!	%1 ką tik paspartino serverį kartų: %2!
+%1 kicked %2	%1 išmetė %2
+%1 new message since %2|%1 new messages since %2	%1 nauja žinutė nuo %2|%1 naujos žinutės nuo %2|%1 naujų žinučių nuo %2
+%1 of %2 slot used|%1 of %2 slots used	Užimta %1 vieta iš %2|Užimtos %1 vietos iš %2|Užimta %1 vietų iš %2
+%1 pinned %2 to this channel. See all %3.	%1 prisegė %2 šiame kanale. Žiūrėti visus: %3.
+%1 reacted with %2	%1 sureagavo: %2
+%1 removed %2 from the group.	%1 pašalino %2 iš grupės.
+%1 renewed %2 and has been a subscriber of %3 for %4 month!|%1 renewed %2 and has been a subscriber of %3 for %4 months!	%1 atnaujino %2 ir jau %4 mėnesį prenumeruoja %3!|%1 atnaujino %2 ir jau %4 mėnesius prenumeruoja %3!|%1 atnaujino %2 ir jau %4 mėnesių prenumeruoja %3!
+%1 renewed %2 in their %3 membership!	%1 atnaujino %2 savo %3 narystėje!
+%1 reported a raid in %2.	%1 pranešė apie antpuolį %2.
+%1 requested to speak.	%1 paprašė žodžio.
+%1 resolved an Activity Alert in %2.	%1 išsprendė veiklos įspėjimą %2.
+%1 said %2	%1 pasakė %2
+%1 started %2	%1 pradėjo %2
+%1 started a call that lasted %2.	%1 pradėjo skambutį, kuris truko %2.
+%1 started a thread: %2. See all %3.	%1 pradėjo giją: %2. Žiūrėti visas: %3.
+%1 unbanned %2	%1 atšaukė %2 draudimą
+%1 updated %2	%1 atnaujino %2
+%1 updated a channel	%1 atnaujino kanalą
+%1 updated a role	%1 atnaujino vaidmenį
+%1 updated a webhook	%1 atnaujino webhook
+%1 updated an emoji	%1 atnaujino jaustuką
+%1 updated the roles of %2	%1 atnaujino %2 vaidmenis
+%1 updated the server	%1 atnaujino serverį
+%1 vote · %2|%1 votes · %2	%1 balsas · %2|%1 balsai · %2|%1 balsų · %2
+%1 wants to make you the owner of %2. You'll be able to manage everything about it, and they'll stay a member.	%1 nori padaryti tave %2 savininku. Galėsi valdyti viską, o jis liks nariu.
+%1's poll %2 has closed.	%1 apklausa %2 baigėsi.
+%1, %2 and %3	%1, %2 ir %3
+%1, %2 at %3	%1, %2 %3
+%1, %2, and %3 are typing...	%1, %2 ir %3 rašo...
+%1: %2	%1: %2
+%: a number	%: skaičius
+%: a whole number	%: sveikasis skaičius
+%: pick a channel	%: pasirink kanalą
+%: pick a member	%: pasirink narį
+%: pick a role	%: pasirink vaidmenį
+%: true or false	%: taip arba ne
+%d ago	prieš %d
+%d left	liko %d
+%h	%h
+%h ago	prieš %h
+%h left	liko %h
+%m	%m
+%m ago	prieš %m
+%m left	liko %m
+%mo ago	prieš %mėn.
+%s	%s
+(edited)	(redaguota)
+/% takes no options.	/% neturi parinkčių.
+/%1 needs %2:	/%1 reikia %2:
+1 Day	1 diena
+1 Hour	1 valanda
+1 Message	1 žinutė
+1 Week	1 savaitė
+1 day	1 diena
+1 hour	1 valanda
+1 minute	1 minutė
+1 use	1 panaudojimas
+1 week	1 savaitė
+10 Minutes	10 minučių
+10 minutes	10 minučių
+10 uses	10 panaudojimų
+100 uses	100 panaudojimų
+12 hours	12 valandų
+12-hour	12 valandų
+15 minutes	15 minučių
+2 hours	2 valandos
+2 to 4 letters or numbers	Nuo 2 iki 4 raidžių ar skaičių
+2 weeks	2 savaitės
+24 Hours	24 valandos
+24 hours	24 valandos
+24-hour	24 valandų
+25 uses	25 panaudojimai
+3 Days	3 dienos
+3 days	3 dienos
+30 days	30 dienų
+30 minutes	30 minučių
+3:00 PM	15:00
+4 hours	4 valandos
+5 Minutes	5 minutės
+5 minutes	5 minutės
+5 uses	5 panaudojimai
+50 uses	50 panaudojimų
+6 hours	6 valandos
+6-digit authentication code	6 skaitmenų tapatybės patvirtinimo kodas
+60 Seconds	60 sekundžių
+60 seconds	60 sekundžių
+7 days	7 dienos
+8 hours	8 valandos
+8-digit backup code	8 skaitmenų atsarginis kodas
+@ OFF	@ IŠJ.
+@ ON	@ ĮJ.
+@MENTIONS	@PAMINĖJIMAI
+@everyone · applies to all server members	@everyone · taikoma visiems serverio nariams
+A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button.	Klavišas su Ctrl, Alt, Shift ar Cmd, vien modifikatorius arba vidurinis ar šoninis pelės mygtukas.
+A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button. Works in every app.	Klavišas su Ctrl, Alt, Shift ar Cmd, vien modifikatorius arba vidurinis ar šoninis pelės mygtukas. Veikia visose programose.
+A role needs a name.	Vaidmeniui reikia pavadinimo.
+A webhook needs a name.	Webhook reikia pavadinimo.
+A wild % appeared.	Pasirodė laukinis %.
+ACTION	VEIKSMAS
+ACTIVE INVITE LINKS	AKTYVŪS PAKVIETIMŲ SAITAI
+ALL	VISI
+ALL THE BITS! Going above 64 kbps may adversely affect people on poor connections.	VISI BITAI! Daugiau nei 64 kbps gali pakenkti žmonėms su prastu ryšiu.
+AM	priešpiet
+ANIMATED EMOJI — % SLOTS AVAILABLE	ANIMUOTI JAUSTUKAI — LAISVŲ VIETŲ: %
+APP	PROGRAMA
+AUDIENCE — %	AUDITORIJA — %
+AUTHENTICATOR APP	AUTENTIFIKAVIMO PROGRAMA
+About Me	Apie mane
+Accept	Priimti
+Accept Friend Request	Priimti draugystės užklausą
+Accept Invite	Priimti pakvietimą
+Accept Server Ownership	Priimti serverio nuosavybę
+Accept this message request (Friends, Message Requests) to reply.	Kad atsakytum, priimk šią žinutės užklausą (Draugai, Žinučių užklausos).
+Accepting...	Priimama...
+Access	Prieiga
+Accessibility	Prieinamumas
+Account	Paskyra
+Account Removal	Paskyros pašalinimas
+Activate	Aktyvinti
+Active	Aktyvus
+Active Now	Dabar aktyvūs
+Activities	Veiklos
+Activity Joining	Prisijungimas prie veiklos
+Activity Privacy	Veiklos privatumas
+Activity Status	Veiklos būsena
+Add Answer	Pridėti atsakymą
+Add Emoji	Pridėti jaustuką
+Add Friend	Pridėti draugą
+Add Friend Nickname	Pridėti draugo slapyvardį
+Add Note	Pridėti pastabą
+Add Reaction	Pridėti reakciją
+Add Reactions	Pridėti reakcijų
+Add Tag	Pridėti žymą
+Add a Keybind	Pridėti spartųjį klavišą
+Add a Question	Pridėti klausimą
+Add a channel	Pridėti kanalą
+Add a channel to override its default notification settings	Pridėk kanalą, kad pakeistum jo numatytuosius pranešimų nustatymus
+Add a description	Pridėti aprašymą
+Add a location, link, or something.	Pridėk vietą, saitą ar ką nors kita.
+Add a role	Pridėti vaidmenį
+Add an Account	Pridėti paskyrą
+Add an optional message...	Pridėk žinutę (nebūtina)...
+Add another answer	Pridėti dar vieną atsakymą
+Add at least one word to block.	Pridėk bent vieną blokuojamą žodį.
+Add members or roles	Pridėti narių ar vaidmenų
+Add this channel's updates to your server!	Pridėk šio kanalo atnaujinimus į savo serverį!
+Add this key to an authenticator app, then enter the code it shows.	Pridėk šį raktą į autentifikavimo programą ir įvesk jos rodomą kodą.
+Add to Favorites	Pridėti prie mėgstamų
+Add to Group DM	Pridėti į grupės pokalbį
+Add up to 5 traits to show off your server's interests and personality.	Pridėk iki 5 bruožų, kurie parodytų serverio pomėgius ir charakterį.
+Add up to 50 custom emoji that anyone can use in this server. Animated GIF emoji may be used by members with Discord Nitro. Emoji names must be at least 2 characters long and can only contain alphanumeric characters and underscores. Emoji must be under 256 KB in size.	Pridėk iki 50 pasirinktinių jaustukų, kuriuos šiame serveryje galės naudoti visi. Animuotus GIF jaustukus gali naudoti nariai su Discord Nitro. Jaustukų pavadinimai turi būti bent 2 simbolių ir gali turėti tik raides, skaičius ir pabraukimus. Jaustukas turi būti mažesnis nei 256 KB.
+Add your pronouns	Pridėk savo įvardžius
+Added %	Pridėta: %
+Adjust the size of the interface. You can also change this with % +/-.	Keisk sąsajos dydį. Tai galima pakeisti ir su % +/-.
+Administrator	Administratorius
+Advanced Permissions	Išplėstiniai leidimai
+Advanced permissions	Išplėstiniai leidimai
+Age-Restricted Channel	Kanalas su amžiaus apribojimu
+All	Visi
+All Actions	Visi veiksmai
+All Messages	Visos žinutės
+All Users	Visi naudotojai
+All friends	Visi draugai
+All messages will be filtered for sensitive image-based media.	Visos žinutės bus filtruojamos dėl jautrios vaizdinės medijos.
+All set. Now share your event!	Viskas paruošta. Dabar pasidalink savo renginiu!
+Allow DMs from other members in servers	Leisti tiesiogines žinutes iš kitų serverių narių
+Allow Discord to use and process my information to understand and improve Discord's services.	Leisti Discord naudoti ir tvarkyti mano informaciją, kad suprastų ir gerintų Discord paslaugas.
+Allow Friend Requests from...	Leisti draugystės užklausas iš...
+Allow Multiple Answers	Leisti kelis atsakymus
+Allow anyone to @mention this role	Leisti visiems @paminėti šį vaidmenį
+Allow direct messages from other members in this server.	Leisti tiesiogines žinutes iš kitų šio serverio narių.
+Allow friends to join your game	Leisti draugams prisijungti prie tavo žaidimo
+Allow members to change this server's name, switch regions, view all invites, add apps to this server and create and update AutoMod rules.	Leisti nariams keisti serverio pavadinimą, regioną, matyti visus pakvietimus, pridėti programas ir kurti bei keisti AutoMod taisykles.
+Allow members to create invite-only threads.	Leisti nariams kurti gijas tik su pakvietimais.
+Allow members to create threads that everyone in a channel can view.	Leisti nariams kurti gijas, kurias mato visi kanalo nariai.
+Allow members to send messages in text channels and create posts in forum channels.	Leisti nariams siųsti žinutes teksto kanaluose ir kurti įrašus forumo kanaluose.
+Allow members to send messages in threads and in posts on forum channels.	Leisti nariams siųsti žinutes gijose ir forumo kanalų įrašuose.
+Allow message requests from server members you may not know	Leisti žinučių užklausas iš serverio narių, kurių galbūt nepažįsti
+Allow voice channel participants to join your game	Leisti balso kanalo dalyviams prisijungti prie tavo žaidimo
+Allowed words	Leidžiami žodžiai
+Allows apps that members have added to their account to post messages. When disabled, the messages will be private.	Leidžia programoms, kurias nariai pridėjo prie paskyros, skelbti žinutes. Išjungus žinutės bus privačios.
+Allows links that members share to show embedded content in text channels.	Leidžia narių bendrinamiems saitams rodyti įterptą turinį teksto kanaluose.
+Allows members to add custom emoji, stickers, and sounds in this server.	Leidžia nariams pridėti pasirinktinių jaustukų, lipdukų ir garsų šiame serveryje.
+Allows members to add new emoji reactions to a message. If this permission is disabled, members can still react using any existing reactions on a message.	Leidžia nariams pridėti naujas jaustukų reakcijas prie žinutės. Išjungus šį leidimą, nariai vis tiek gali reaguoti esamomis reakcijomis.
+Allows members to be more easily heard in voice channels. When activated, the volume of others without this permission will be automatically lowered.	Leidžia nariams būti geriau girdimiems balso kanaluose. Įjungus kitų be šio leidimo garsas bus automatiškai pritildomas.
+Allows members to change the nicknames of other members.	Leidžia nariams keisti kitų narių slapyvardžius.
+Allows members to change their own nickname, a custom name for just this server.	Leidžia nariams keisti savo slapyvardį – vardą, skirtą tik šiam serveriui.
+Allows members to change this channel's name, description, and settings. They can also delete it.	Leidžia nariams keisti šio kanalo pavadinimą, aprašymą ir nustatymus. Jie taip pat gali jį ištrinti.
+Allows members to change this channel's permissions.	Leidžia nariams keisti šio kanalo leidimus.
+Allows members to create and edit voice channel status.	Leidžia nariams kurti ir redaguoti balso kanalo būseną.
+Allows members to create events.	Leidžia nariams kurti renginius.
+Allows members to create new roles and edit or delete roles lower than their highest role. Also allows members to change permissions of individual channels that they have access to.	Leidžia nariams kurti naujus vaidmenis ir redaguoti ar trinti žemesnius už savo aukščiausią vaidmenis. Taip pat leidžia keisti kanalų, prie kurių jie turi prieigą, leidimus.
+Allows members to create polls.	Leidžia nariams kurti apklausas.
+Allows members to create, edit, or delete channels.	Leidžia nariams kurti, redaguoti ar trinti kanalus.
+Allows members to create, edit, or delete webhooks, which can post messages from other apps or sites into this server.	Leidžia nariams kurti, redaguoti ar trinti webhook, kurie gali skelbti žinutes iš kitų programų ar svetainių šiame serveryje.
+Allows members to deafen other members in voice channels, which means they won't be able to speak or hear others.	Leidžia nariams apkurtinti kitus narius balso kanaluose, t. y. jie negalės kalbėti ir girdėti kitų.
+Allows members to delete or remove embeds from messages by other members.	Leidžia nariams trinti kitų narių žinutes ar šalinti jų įterptą turinį.
+Allows members to disconnect or move other members between voice channels that the member with this permission has access to.	Leidžia nariams atjungti arba perkelti kitus narius tarp balso kanalų, prie kurių šį leidimą turintis narys turi prieigą.
+Allows members to edit and cancel events.	Leidžia nariams redaguoti ir atšaukti renginius.
+Allows members to edit or remove custom emoji, stickers, and sounds in this server.	Leidžia nariams redaguoti ar šalinti pasirinktinius jaustukus, lipdukus ir garsus šiame serveryje.
+Allows members to invite new people to this server.	Leidžia nariams kviesti naujus žmones į šį serverį.
+Allows members to join voice channels and hear others.	Leidžia nariams prisijungti prie balso kanalų ir girdėti kitus.
+Allows members to mute other members in voice channels for everyone.	Leidžia nariams nutildyti kitus narius balso kanaluose visiems.
+Allows members to permanently ban and delete the message history of other members from this server.	Leidžia nariams visam laikui uždrausti kitus narius šiame serveryje ir ištrinti jų žinučių istoriją.
+Allows members to pin or unpin any message.	Leidžia nariams prisegti ar atsegti bet kurią žinutę.
+Allows members to read previous messages sent in channels. If this permission is disabled, members only see messages sent when they are online. This does not fully apply to threads and forum posts.	Leidžia nariams skaityti ankstesnes kanalų žinutes. Išjungus šį leidimą, nariai mato tik žinutes, išsiųstas jiems esant prisijungus. Tai ne visai taikoma gijoms ir forumo įrašams.
+Allows members to remove other members from this server. Kicked members will be able to rejoin if they have another invite.	Leidžia nariams pašalinti kitus narius iš serverio. Išmesti nariai galės grįžti, jei turės kitą pakvietimą.
+Allows members to rename, delete, close, and turn on slow mode for threads and posts. They can also view private threads.	Leidžia nariams pervadinti, trinti, uždaryti gijas ir įrašus bei įjungti jiems lėtąjį režimą. Jie taip pat mato privačias gijas.
+Allows members to send messages without being affected by slowmode.	Leidžia nariams siųsti žinutes, nepaisant lėtojo režimo.
+Allows members to send sounds from server soundboard.	Leidžia nariams leisti garsus iš serverio garsų lentos.
+Allows members to send text-to-speech messages by starting a message with /tts. These messages can be heard by anyone focused on the channel.	Leidžia nariams siųsti įgarsinamas žinutes, pradedant žinutę /tts. Jas girdi visi, kurių dėmesys yra kanale.
+Allows members to send voice messages.	Leidžia nariams siųsti balso žinutes.
+Allows members to share their video, screen share, or stream a game in this server.	Leidžia nariams šiame serveryje rodyti vaizdą, bendrinti ekraną ar transliuoti žaidimą.
+Allows members to speak in voice channels by simply talking. If this permission is disabled, members are required to use Push-to-talk. Good for controlling background noise or noisy members.	Leidžia nariams kalbėti balso kanaluose tiesiog kalbant. Išjungus šį leidimą, nariai turi naudoti „Paspausk ir kalbėk“. Padeda valdyti foninį triukšmą ar triukšmingus narius.
+Allows members to talk in voice channels. If this permission is disabled, members are default muted until somebody with the "Mute Members" permission un-mutes them.	Leidžia nariams kalbėti balso kanaluose. Išjungus šį leidimą, nariai pagal numatymą nutildyti, kol kas nors su leidimu „Nutildyti narius“ juos įgarsins.
+Allows members to upload files or media in text channels.	Leidžia nariams įkelti failus ar mediją teksto kanaluose.
+Allows members to use @everyone (everyone in the server) or @here (only online members in that channel). They can also @mention all roles, even if the role's "Allow anyone to mention this role" permission is disabled.	Leidžia nariams naudoti @everyone (visi serverio nariai) ar @here (tik prisijungę to kanalo nariai). Jie taip pat gali @paminėti visus vaidmenis, net jei vaidmens leidimas „Leisti visiems paminėti šį vaidmenį“ išjungtas.
+Allows members to use commands from applications, including slash commands and context menu commands.	Leidžia nariams naudoti programų komandas, įskaitant pasvirojo brūkšnio ir kontekstinio meniu komandas.
+Allows members to use emoji from other servers, if they're a Discord Nitro member.	Leidžia nariams naudoti kitų serverių jaustukus, jei jie turi Discord Nitro.
+Allows members to use sounds from other servers, if they're a Discord Nitro member.	Leidžia nariams naudoti kitų serverių garsus, jei jie turi Discord Nitro.
+Allows members to use stickers from other servers, if they're a Discord Nitro member.	Leidžia nariams naudoti kitų serverių lipdukus, jei jie turi Discord Nitro.
+Allows members to view Server Insights, which shows data on community growth, engagement, and more. This will allow them to see certain data about channel activity, even for channels they cannot access.	Leidžia nariams matyti serverio įžvalgas – bendruomenės augimo, įsitraukimo ir kitus duomenis. Jie matys tam tikrus kanalų veiklos duomenis, net kanalų, prie kurių neturi prieigos.
+Allows members to view a record of who made which changes in this server.	Leidžia nariams matyti, kas kokius pakeitimus atliko šiame serveryje.
+Allows members to view channels by default (excluding private channels).	Leidžia nariams pagal numatymą matyti kanalus (išskyrus privačius).
+Allows members to view these channels by default. Disabling this for @everyone will make the category private.	Leidžia nariams pagal numatymą matyti šiuos kanalus. Išjungus tai @everyone, kategorija taps privati.
+Allows members to view this channel by default. Disabling this for @everyone will make this channel private.	Leidžia nariams pagal numatymą matyti šį kanalą. Išjungus tai @everyone, kanalas taps privatus.
+Always	Visada
+An emoji name, like smile	Jaustuko pavadinimas, pvz., smile
+An encrypted file couldn't be opened.|% encrypted files couldn't be opened.	Nepavyko atidaryti % užšifruoto failo.|Nepavyko atidaryti % užšifruotų failų.|Nepavyko atidaryti % užšifruotų failų.
+An error occurred, please try again.	Įvyko klaida, bandyk dar kartą.
+An error occurred. Please try again.	Įvyko klaida. Bandyk dar kartą.
+Announcement	Skelbimas
+Announcement Channel	Skelbimų kanalas
+Answer	Atsakymas
+Answers	Atsakymai
+Anyone can join your server directly through Server Discovery	Bet kas gali prisijungti prie tavo serverio tiesiai per serverių paiešką
+Anyone can use	Gali naudoti visi
+Anyone with access to this text channel will be able to see the notifications.	Pranešimus matys visi, turintys prieigą prie šio teksto kanalo.
+App Directory	Programų katalogas
+Appearance	Išvaizda
+Appends (╯°□°)╯︵ ┻━┻ to your message.	Prideda (╯°□°)╯︵ ┻━┻ prie tavo žinutės.
+Appends ¯\\_(ツ)_/¯ to your message.	Prideda ¯\\_(ツ)_/¯ prie tavo žinutės.
+Appends ┬─┬ノ( º _ ºノ) to your message.	Prideda ┬─┬ノ( º _ ºノ) prie tavo žinutės.
+Applications	Programos
+Apply to Join	Teikti prašymą prisijungti
+Approve	Patvirtinti
+Apps	Programos
+Apps Permissions	Programų leidimai
+Archived	Archyvuota
+Archived Threads	Archyvuotos gijos
+Are you building a Community? Convert to a Community Server to access additional administrative tools that can help you moderate, run, and grow your server.	Kuri bendruomenę? Paversk serverį bendruomenės serveriu ir gauk papildomų administravimo įrankių, padedančių moderuoti, valdyti ir auginti serverį.
+Are you sure that you want to delete your account? This will immediately log you out of your account and you will not be able to log in again.	Ar tikrai nori ištrinti paskyrą? Būsi iškart atjungtas ir nebegalėsi vėl prisijungti.
+Are you sure that you want to disable your account? This will immediately log you out and make your account inaccessible to anyone.	Ar tikrai nori išjungti paskyrą? Būsi iškart atjungtas, o paskyra taps niekam nepasiekiama.
+Are you sure you want to ban @%1 from %2? They won't be able to come back until the ban is lifted.	Ar tikrai nori uždrausti @%1 serveryje %2? Jis negalės grįžti, kol draudimas nebus atšauktas.
+Are you sure you want to delete %? This action cannot be undone.	Ar tikrai nori ištrinti %? Šio veiksmo atšaukti negalima.
+Are you sure you want to delete %? This cannot be undone.	Ar tikrai nori ištrinti %? To atšaukti negalima.
+Are you sure you want to delete :%:? This cannot be undone.	Ar tikrai nori ištrinti :%:? To atšaukti negalima.
+Are you sure you want to delete the rule %? This cannot be undone.	Ar tikrai nori ištrinti taisyklę %? To atšaukti negalima.
+Are you sure you want to delete this message?	Ar tikrai nori ištrinti šią žinutę?
+Are you sure you want to delete this role? This action cannot be undone.	Ar tikrai nori ištrinti šį vaidmenį? Šio veiksmo atšaukti negalima.
+Are you sure you want to delete this template? Its link will stop working.	Ar tikrai nori ištrinti šį šabloną? Jo saitas nebeveiks.
+Are you sure you want to kick @%1 from %2? They will be able to rejoin again with a new invite.	Ar tikrai nori išmesti @%1 iš %2? Jis galės grįžti su nauju pakvietimu.
+Are you sure you want to logout?	Ar tikrai nori atsijungti?
+Are you sure you want to remove all embeds on this message? This will remove them for everyone.	Ar tikrai nori pašalinti visą įterptą šios žinutės turinį? Jis bus pašalintas visiems.
+Are you sure you want to remove all of the reactions for this emoji from this message?	Ar tikrai nori pašalinti visas šio jaustuko reakcijas nuo šios žinutės?
+Are you sure you want to remove all the reactions on this message?	Ar tikrai nori pašalinti visas šios žinutės reakcijas?
+Are you sure you want to revoke the invite %? Nobody will be able to join with it.	Ar tikrai nori atšaukti pakvietimą %? Niekas nebegalės juo prisijungti.
+Ask for a new invite	Paprašyk naujo pakvietimo
+Ask new members what they're here for; each answer gives them channels and roles.	Paklausk naujų narių, ko jie čia atėjo; kiekvienas atsakymas suteikia kanalų ir vaidmenų.
+Attach Files	Pridėti failus
+Attachment removed	Priedas pašalintas
+Attachments	Priedai
+Audit Log	Audito žurnalas
+Authorized Apps	Įgaliotos programos
+Auto	Auto
+AutoMod	AutoMod
+Automatic	Automatinis
+Automatic Gain Control	Automatinis stiprinimo valdymas
+Automatically determine input sensitivity	Automatiškai nustatyti įvesties jautrumą
+Automatically enable Streamer Mode if OBS or XSplit are running	Automatiškai įjungti transliuotojo režimą, jei veikia OBS ar XSplit
+Automatically filter suspected spam messages	Automatiškai filtruoti įtariamą šlamštą
+Automatically move members to this channel and mute them when they have been idle for longer than the inactive timeout. This does not affect browsers.	Automatiškai perkelti narius į šį kanalą ir nutildyti, kai jie neveiklūs ilgiau nei nustatytas laikas. Naršyklėms netaikoma.
+Automatically open fastcord when your computer starts up	Automatiškai atidaryti fastcord įjungus kompiuterį
+Automatically scan and delete messages sent in this server that contain explicit media.	Automatiškai tikrinti ir trinti šiame serveryje siunčiamas žinutes su atviro turinio medija.
+Avatar	Avataras
+BACK	ATGAL
+BACKUP CODES	ATSARGINIAI KODAI
+Back	Atgal
+Back / forward	Atgal / pirmyn
+Backup codes can only be used one time each and are for emergency access to your account!	Kiekvieną atsarginį kodą galima naudoti tik kartą – jie skirti skubiai prieigai prie paskyros!
+Backups	Atsarginės kopijos
+Ban	Uždrausti
+Ban %	Uždrausti %
+Ban '%' from Server	Uždrausti „%“ serveryje
+Ban Member	Uždrausti narį
+Ban Members	Uždrausti narius
+Banner	Reklamjuostė
+Banner Color	Reklamjuostės spalva
+Bans	Draudimai
+Bitrate	Sparta
+Block	Blokuoti
+Block Commonly Flagged Words	Blokuoti dažnai žymimus žodžius
+Block Custom Words	Blokuoti pasirinktus žodžius
+Block Mention Spam	Blokuoti paminėjimų šlamštą
+Block Suspected Spam Content	Blokuoti įtariamą šlamštą
+Block Words in Member Profile Names	Blokuoti žodžius narių profilių varduose
+Block message	Blokuoti žinutę
+Blocked	Užblokuoti
+Blocked Users	Užblokuoti naudotojai
+Blocked by your content filters	Užblokuota tavo turinio filtrų
+Blocked message	Užblokuota žinutė
+Blocked words	Blokuojami žodžiai
+Blocked words in names	Blokuojami žodžiai varduose
+Blocks messages containing % word.|Blocks messages containing % words.	Blokuoja žinutes, kuriose yra % žodis.|Blokuoja žinutes, kuriose yra % žodžiai.|Blokuoja žinutes, kuriose yra % žodžių.
+Blocks messages suspected to be spam.	Blokuoja įtariamas šlamšto žinutes.
+Blocks messages with more than % mentions.	Blokuoja žinutes, kuriose daugiau nei % paminėjimų.
+Blocks words from Discord's commonly flagged lists.	Blokuoja žodžius iš Discord dažnai žymimų žodžių sąrašų.
+Blocks words in member profile names.	Blokuoja žodžius narių profilių varduose.
+Blur	Suliejimas
+Blur Background	Sulieti foną
+Blur what's behind you on camera. Only your camera is changed.	Sulieja tai, kas už tavęs kameroje. Keičiamas tik tavo kameros vaizdas.
+Bold / italic / underline	Paryškintas / pasvirasis / pabrauktas
+Bots and Apps	Botai ir programos
+Browse	Naršyti
+Browse Channels	Naršyti kanalus
+Built-In	Įtaisytieji
+Bulgarian	Bulgarų
+By creating a server, you agree to Discord's Community Guidelines.	Kurdamas serverį sutinki su Discord bendruomenės gairėmis.
+By enabling the widget, your server profile will be visible to others outside of your server members. You can control Profile privacy in Server Settings > Profile.	Įjungus valdiklį, tavo serverio profilį matys ir ne serverio nariai. Profilio privatumą gali valdyti: Serverio nustatymai > Profilis.
+By making a category private, only select members and roles will be able to view this category. Linked channels in this category will automatically match to this setting.	Padarius kategoriją privačią, ją matys tik pasirinkti nariai ir vaidmenys. Susieti šios kategorijos kanalai automatiškai perims šį nustatymą.
+By making a channel private, only select members and roles will be able to view this channel.	Padarius kanalą privatų, jį matys tik pasirinkti nariai ir vaidmenys.
+By making a channel private, only select members and roles will have access to view or connect to this channel.	Padarius kanalą privatų, jį matyti ar prie jo prisijungti galės tik pasirinkti nariai ir vaidmenys.
+Bypass Slowmode	Apeiti lėtąjį režimą
+CHANNEL OR CATEGORY	KANALAS AR KATEGORIJA
+CONFIRM NEW PASSWORD	PATVIRTINK NAUJĄ SLAPTAŽODĮ
+CURRENT PASSWORD	DABARTINIS SLAPTAŽODIS
+Call	Skambinti
+Cancel	Atšaukti
+Cancel Event	Atšaukti renginį
+Cancel Friend Request	Atšaukti draugystės užklausą
+Careful — you have unsaved changes!	Atsargiai – turi neišsaugotų pakeitimų!
+Category Name	Kategorijos pavadinimas
+Category deleted	Kategorija ištrinta
+Change %	Keisti %
+Change Avatar	Keisti avatarą
+Change Nickname	Keisti slapyvardį
+Change Password	Keisti slaptažodį
+Change Server Icon	Keisti serverio piktogramą
+Channel	Kanalas
+Channel Name	Kanalo pavadinimas
+Channel Notification Overrides	Kanalų pranešimų išimtys
+Channel Topic	Kanalo tema
+Channel Type	Kanalo tipas
+Channel deleted	Kanalas ištrintas
+Channel unmuted	Kanalo nutildymas atšauktas
+Channels	Kanalai
+Channels & Roles	Kanalai ir vaidmenys
+Channels Followed (%)	Sekami kanalai (%)
+Channels matching #%	Kanalai, atitinkantys #%
+Chat	Pokalbis
+Chat Font Scaling	Pokalbio šrifto mastelis
+Check your email for a login link	Patikrink el. paštą – ten prisijungimo saitas
+Check your phone!	Patikrink telefoną!
+Checking the file…	Tikrinamas failas…
+Chinese, China	Kinų (Kinija)
+Chinese, Taiwan	Kinų (Taivanas)
+Choose Image	Pasirinkti vaizdą
+Choose a link people can use to join, discord.gg/<code>.	Pasirink saitą, kuriuo žmonės galės prisijungti, discord.gg/<kodas>.
+Choose a server	Pasirink serverį
+Choose the language you want Discord to display.	Pasirink, kokia kalba rodyti Discord.
+Choose what happens to images and videos Discord detects as explicit.	Pasirink, kas nutinka vaizdams ir vaizdo įrašams, kuriuos Discord atpažįsta kaip atviro turinio.
+Clear	Išvalyti
+Clear Custom Status	Išvalyti pasirinktą būseną
+Clear after	Išvalyti po
+Clear permissions	Išvalyti leidimus
+Click Again to Reset	Spustelėk dar kartą, kad atstatytum
+Click any channel, then pick a request whose name starts with "messages" or "science".	Spustelėk bet kurį kanalą, tada pasirink užklausą, kurios pavadinimas prasideda „messages“ arba „science“.
+Click to add a note	Spustelėk, kad pridėtum pastabą
+Click to see attachment	Spustelėk, kad pamatytum priedą
+Close DM	Uždaryti pokalbį
+Collapse	Suskleisti
+Collapse All Categories	Suskleisti visas kategorijas
+Collapse Category	Suskleisti kategoriją
+Commands	Komandos
+Commands matching /%	Komandos, atitinkančios /%
+Community Overview	Bendruomenės apžvalga
+Community Updates Channel	Bendruomenės naujienų kanalas
+Community servers follow Discord's Community Guidelines.	Bendruomenės serveriai laikosi Discord bendruomenės gairių.
+Community servers have more tools to help you moderate and grow your server.	Bendruomenės serveriai turi daugiau įrankių moderuoti ir auginti serverį.
+Compact	Kompaktiškas
+Compare	Palyginti
+Compare these with %, in person or on a call. If they match, no one can read this DM in between.	Palygink juos su %, gyvai ar skambučio metu. Jei sutampa, niekas tarpe negali skaityti šio pokalbio.
+Configure system event messages sent to your server.	Konfigūruok į serverį siunčiamas sistemos įvykių žinutes.
+Confirm	Patvirtinti
+Confirm Request	Patvirtinti užklausą
+Confirm your age to join this server.	Patvirtink amžių, kad prisijungtum prie serverio.
+Confirming...	Tvirtinama...
+Connect	Prisijungti
+Connect these accounts and unlock special Discord integrations. The sign-in opens in your browser.	Susiek šias paskyras ir atrakink specialias Discord integracijas. Prisijungimas atsidarys naršyklėje.
+Connected Apps	Susietos programos
+Connecting	Jungiamasi
+Connecting...	Jungiamasi...
+Connecting…	Jungiamasi…
+Connection Info	Ryšio informacija
+Connection lost. Messages may be out of date.	Ryšys nutrūko. Žinutės gali būti pasenusios.
+Connections	Ryšiai
+Content Filters	Turinio filtrai
+Continue	Tęsti
+Control who can see your profile info, like your bio and connected accounts.	Valdyk, kas gali matyti tavo profilio informaciją, pvz., aprašymą ir susietas paskyras.
+Copied	Nukopijuota
+Copy	Kopijuoti
+Copy Category ID	Kopijuoti kategorijos ID
+Copy Channel ID	Kopijuoti kanalo ID
+Copy Event Link	Kopijuoti renginio saitą
+Copy Image	Kopijuoti vaizdą
+Copy Image Link	Kopijuoti vaizdo saitą
+Copy Link	Kopijuoti saitą
+Copy Media Link	Kopijuoti medijos saitą
+Copy Message ID	Kopijuoti žinutės ID
+Copy Message Link	Kopijuoti žinutės saitą
+Copy Server ID	Kopijuoti serverio ID
+Copy Text	Kopijuoti tekstą
+Copy User ID	Kopijuoti naudotojo ID
+Copy Username	Kopijuoti naudotojo vardą
+Copy Webhook URL	Kopijuoti webhook URL
+Copy curl Command	Kopijuoti curl komandą
+Copy the event link below to invite people to your event. This also acts as a server invite link.	Nukopijuok žemiau esantį renginio saitą ir pakviesk žmones. Jis veikia ir kaip serverio pakvietimas.
+Copy your account's token once from Discord in a web browser.	Vieną kartą nukopijuok savo paskyros žetoną iš Discord naršyklėje.
+Couldn't accept encryption.	Nepavyko sutikti su šifravimu.
+Couldn't cancel the event.	Nepavyko atšaukti renginio.
+Couldn't change avatar	Nepavyko pakeisti avataro
+Couldn't create an invite link.	Nepavyko sukurti pakvietimo saito.
+Couldn't create an invite.	Nepavyko sukurti pakvietimo.
+Couldn't delete the channel: %	Nepavyko ištrinti kanalo: %
+Couldn't encrypt the message.	Nepavyko užšifruoti žinutės.
+Couldn't join %: %	Nepavyko prisijungti prie %: %
+Couldn't load onboarding.	Nepavyko įkelti pasitikimo.
+Couldn't load the AutoMod rules.	Nepavyko įkelti AutoMod taisyklių.
+Couldn't load the applications.	Nepavyko įkelti programų.
+Couldn't load the audit log.	Nepavyko įkelti audito žurnalo.
+Couldn't load the bans.	Nepavyko įkelti draudimų.
+Couldn't load the invites.	Nepavyko įkelti pakvietimų.
+Couldn't load the members.	Nepavyko įkelti narių.
+Couldn't load the role's members.	Nepavyko įkelti vaidmens narių.
+Couldn't load the server rules.	Nepavyko įkelti serverio taisyklių.
+Couldn't load the server's tag.	Nepavyko įkelti serverio žymos.
+Couldn't load the template.	Nepavyko įkelti šablono.
+Couldn't load the webhooks.	Nepavyko įkelti webhook.
+Couldn't move the channel	Nepavyko perkelti kanalo
+Couldn't play it here, so it opened in your browser.	Čia paleisti nepavyko, todėl atidaryta naršyklėje.
+Couldn't reach %1: %2 Retrying.	Nepavyko pasiekti %1: %2 Bandoma iš naujo.
+Couldn't reach Discord. Check your connection and try again.	Nepavyko pasiekti Discord. Patikrink ryšį ir bandyk dar kartą.
+Couldn't reach Discord. Try again.	Nepavyko pasiekti Discord. Bandyk dar kartą.
+Couldn't reach the server.	Nepavyko pasiekti serverio.
+Couldn't reach the server. Check your connection and try again.	Nepavyko pasiekti serverio. Patikrink ryšį ir bandyk dar kartą.
+Couldn't save the file.	Nepavyko išsaugoti failo.
+Couldn't save the image.	Nepavyko išsaugoti vaizdo.
+Couldn't save the token.	Nepavyko išsaugoti žetono.
+Couldn't turn on encryption.	Nepavyko įjungti šifravimo.
+Couldn't upload emoji	Nepavyko įkelti jaustuko
+Cozy	Jaukus
+Create	Kurti
+Create Category	Kurti kategoriją
+Create Channel	Kurti kanalą
+Create DM	Kurti pokalbį
+Create Emoji	Kurti jaustuką
+Create Event	Kurti renginį
+Create Events	Kurti renginius
+Create Expressions	Kurti išraiškas
+Create Group DM	Kurti grupės pokalbį
+Create Invite	Kurti pakvietimą
+Create My Own	Sukurti savo
+Create Poll	Kurti apklausą
+Create Polls	Kurti apklausas
+Create Private Threads	Kurti privačias gijas
+Create Public Threads	Kurti viešas gijas
+Create Role	Kurti vaidmenį
+Create Rule	Kurti taisyklę
+Create Thread	Kurti giją
+Create Webhook	Kurti webhook
+Create Your Server	Sukurk savo serverį
+Create a poll	Kurti apklausą
+Create a space for organized discussions	Sukurk vietą tvarkingoms diskusijoms
+Create one for me	Sukurk man
+Created by %	Sukūrė %
+Created on %1 by %2	Sukūrė %2, %1
+Creating an invite link…	Kuriamas pakvietimo saitas…
+Creating an invite...	Kuriamas pakvietimas...
+Creating...	Kuriama...
+Creating…	Kuriama…
+Creation Date	Sukūrimo data
+Croatian	Kroatų
+Current Device	Šis įrenginys
+Custom Invite Link	Pasirinktinis pakvietimo saitas
+Customize Your Server	Pritaikyk savo serverį
+Customize how your server appears in invite links and, if enabled, in Server Discovery and Announcement Channel messages	Pritaikyk, kaip serveris atrodo pakvietimų saituose ir, jei įjungta, serverių paieškoje bei skelbimų kanalų žinutėse
+Customize your server with integrations. Manage webhooks, followed channels and apps.	Pritaikyk serverį integracijomis. Valdyk webhook, sekamus kanalus ir programas.
+Cut	Iškirpti
+Czech	Čekų
+DAVE v%, % members	DAVE v%, narių: %
+DEFAULT KEYBINDS	NUMATYTIEJI SPARTIEJI KLAVIŠAI
+DM closed	Pokalbis uždarytas
+Danish	Danų
+Data & Privacy	Duomenys ir privatumas
+Date	Data
+Deafen	Apkurtinti
+Deafen Members	Apkurtinti narius
+Deauthorize	Atšaukti įgaliojimą
+Decline	Atmesti
+Default	Numatytasis
+Default Channels	Numatytieji kanalai
+Default Layout	Numatytasis išdėstymas
+Default Notification Settings	Numatytieji pranešimų nustatymai
+Default Permissions	Numatytieji leidimai
+Default Sort Order	Numatytoji rikiavimo tvarka
+Default Themes	Numatytosios temos
+Default notifications become Only @mentions.	Numatytieji pranešimai tampa „Tik @paminėjimai“.
+Delete	Ištrinti
+Delete '%'	Ištrinti „%“
+Delete Account	Ištrinti paskyrą
+Delete Category	Ištrinti kategoriją
+Delete Channel	Ištrinti kanalą
+Delete Emoji	Ištrinti jaustuką
+Delete Invite	Ištrinti pakvietimą
+Delete Message	Ištrinti žinutę
+Delete Message History	Ištrinti žinučių istoriją
+Delete Question	Ištrinti klausimą
+Delete Role	Ištrinti vaidmenį
+Delete Rule	Ištrinti taisyklę
+Delete Server	Ištrinti serverį
+Delete Sticker	Ištrinti lipduką
+Delete Template	Ištrinti šabloną
+Delete Thread	Ištrinti giją
+Delete Webhook	Ištrinti webhook
+Deleted message	Ištrinta žinutė
+Describe your sticker	Apibūdink savo lipduką
+Description	Aprašymas
+Description (alt text)	Aprašymas (alternatyvusis tekstas)
+Description (optional)	Aprašymas (nebūtina)
+Detects a burst of mention spam across the server and locks it down.	Aptinka paminėjimų šlamšto antplūdį serveryje ir jį užrakina.
+Developer	Kūrėjas
+Developer Mode	Kūrėjo režimas
+Developer Mode exposes context menu items helpful for people writing apps using the Discord API.	Kūrėjo režimas parodo kontekstinio meniu punktus, naudingus kuriantiems programas su Discord API.
+Devices	Įrenginiai
+Direct Message (DM) Permissions	Tiesioginių žinučių leidimai
+Direct Messages	Tiesioginės žinutės
+Direct messages from friends	Tiesioginės žinutės iš draugų
+Direct messages from others	Tiesioginės žinutės iš kitų
+Disable	Išjungti
+Disable Account	Išjungti paskyrą
+Disable All Notification Sounds	Išjungti visus pranešimų garsus
+Disable Community	Išjungti bendruomenę
+Disable all notifications	Išjungti visus pranešimus
+Disable all sound effects	Išjungti visus garso efektus
+Disabling your account means you can recover it at any time after taking this action.	Išjungtą paskyrą galėsi atkurti bet kada.
+Disconnect	Atsijungti
+Disconnect From Voice Channel	Atsijungti nuo balso kanalo
+Disconnected	Atsijungta
+Discord account	Discord paskyra
+Discord asked for a captcha, which fastcord can't show. Log in with the QR code instead.	Discord paprašė captcha, kurios fastcord negali parodyti. Prisijunk QR kodu.
+Discord asked for a captcha, which fastcord can't show. Try on discord.com.	Discord paprašė captcha, kurios fastcord negali parodyti. Pabandyk discord.com.
+Discord can filter out some messages that contain spam. These messages go to your Spam inbox.	Discord gali atfiltruoti kai kurias šlamšto žinutes. Jos patenka į tavo šlamšto aplanką.
+Discord didn't accept the saved login. Log in again.	Discord nepriėmė išsaugoto prisijungimo. Prisijunk iš naujo.
+Discord failed to unpin that message for some reason. Sorry about that.	Discord kažkodėl nepavyko atsegti tos žinutės. Atsiprašome.
+Discord will prioritize this server in search to users who speak the selected language.	Discord paieškoje pirmiau rodys šį serverį pasirinkta kalba kalbantiems naudotojams.
+Discord's terms don't allow third-party clients, so using one can get an account flagged.	Discord sąlygos neleidžia trečiųjų šalių klientų, todėl juos naudojant paskyra gali būti pažymėta.
+Discoverable	Randamas paieškoje
+Dismiss	Atmesti
+Dismiss message	Atmesti žinutę
+Display	Rodymas
+Display Images, Videos and Lolcats	Rodyti vaizdus, vaizdo įrašus ir katinukus
+Display Name	Rodomas vardas
+Display name	Rodomas vardas
+Display on profile	Rodyti profilyje
+Display role members separately from online members	Rodyti vaidmens narius atskirai nuo prisijungusių narių
+Displays text with emphasis.	Rodo paryškintą tekstą.
+Do Not Disturb	Netrukdyti
+Do not filter	Nefiltruoti
+Do not filter direct messages	Nefiltruoti tiesioginių žinučių
+Don't Delete Any	Nieko netrinti
+Don't clear	Neišvalyti
+Don't show role colors	Nerodyti vaidmenų spalvų
+Done	Atlikta
+Download	Atsisiųsti
+Drop a file here, or browse	Numesk failą čia arba naršyk
+Duration	Trukmė
+Dutch	Olandų
+EDIT ROLE — %	REDAGUOTI VAIDMENĮ — %
+EMAIL OR PHONE NUMBER	EL. PAŠTAS ARBA TELEFONO NUMERIS
+EMOJI MATCHING	ATITINKANTYS JAUSTUKAI
+ENTER THE 6-DIGIT CODE	ĮVESK 6 SKAITMENŲ KODĄ
+EXPIRE AFTER	GALIOJA
+EXPIRES	BAIGIASI
+Ease the chat and lists toward where you scroll. Off, they jump there at once (always, when your device asks for reduced motion).	Sklandžiai slinkti pokalbį ir sąrašus. Išjungus jie peršoka iškart (visada, kai įrenginys prašo mažinti judesį).
+Echo Cancellation	Aido slopinimas
+Edit	Redaguoti
+Edit Category	Redaguoti kategoriją
+Edit Channel	Redaguoti kanalą
+Edit Friend Nickname	Redaguoti draugo slapyvardį
+Edit Message	Redaguoti žinutę
+Edit Per-server Profile	Redaguoti serverio profilį
+Edit Profile	Redaguoti profilį
+Edit Profiles	Redaguoti profilius
+Edit Sound	Redaguoti garsą
+Edit Thread	Redaguoti giją
+Edit User Profile	Redaguoti naudotojo profilį
+Edit invite link.	Redaguoti pakvietimo saitą.
+Edit your last message	Redaguoti paskutinę žinutę
+Email	El. paštas
+Embed Links	Įterpti saitus
+Embed an HTML widget on your website to display your online members, voice channels, and invite link.	Įterpk HTML valdiklį savo svetainėje, kad rodytum prisijungusius narius, balso kanalus ir pakvietimo saitą.
+Emoji	Jaustukai
+Emoji / GIF / sticker picker	Jaustukų / GIF / lipdukų rinkiklis
+Enable Authenticator App	Įjungti autentifikavimo programą
+Enable Community	Įjungti bendruomenę
+Enable Community to access Server Discovery	Įjunk bendruomenę, kad pasiektum serverių paiešką
+Enable Desktop Notifications	Įjungti darbalaukio pranešimus
+Enable Invites	Įjungti pakvietimus
+Enable Onboarding	Įjungti pasitikimą
+Enable Reduced Motion	Įjungti sumažintą judesį
+Enable Server Widget	Įjungti serverio valdiklį
+Enable Streamer Mode	Įjungti transliuotojo režimą
+Enable Unread Message Badge	Įjungti neskaitytų žinučių ženklelį
+Encrypt this DM	Šifruoti šį pokalbį
+Encrypted message	Užšifruota žinutė
+Encrypted messages are limited to % bytes for now.	Kol kas užšifruotos žinutės ribojamos iki % baitų.
+End Date	Pabaigos data
+End Event	Baigti renginį
+End Poll Now	Baigti apklausą dabar
+End Time	Pabaigos laikas
+End-to-end encrypted	Visapusiškai užšifruota
+End-to-end encryption	Visapusis šifravimas
+Engagement	Įsitraukimas
+English, UK	Anglų (JK)
+English, USA	Anglų (JAV)
+Enter Discord Auth Code	Įvesk Discord tapatybės patvirtinimo kodą
+Enter Discord Backup Code	Įvesk Discord atsarginį kodą
+Enter a location	Įvesk vietą
+Enter a message to start the conversation!	Įvesk žinutę ir pradėk pokalbį!
+Enter an invite below to join an existing server	Įvesk pakvietimą žemiau, kad prisijungtum prie esamo serverio
+Enter server name	Įvesk serverio pavadinimą
+Enter your current password and a new password.	Įvesk dabartinį ir naują slaptažodį.
+Error	Klaida
+Est. %	Įkurta %
+Event Info	Renginio informacija
+Event Topic	Renginio tema
+Event cancelled	Renginys atšauktas
+Event is over	Renginys baigėsi
+Events	Renginiai
+Events Permissions	Renginių leidimai
+Every answer needs a title.	Kiekvienam atsakymui reikia pavadinimo.
+Every question needs a title and at least one answer.	Kiekvienam klausimui reikia pavadinimo ir bent vieno atsakymo.
+Everyone	Visi
+Everyone in this channel connects to the selected region. Automatic picks the best one for whoever starts the call.	Visi šio kanalo dalyviai jungiasi prie pasirinkto regiono. Automatinis parenka geriausią skambutį pradedančiajam.
+Everyone welcome %!	Visi pasveikinkime %!
+Everyone who joins sees these channels, whatever they answer.	Visi prisijungę matys šiuos kanalus, kad ir ką atsakytų.
+Exempt a channel	Išimti kanalą
+Exempt a role	Išimti vaidmenį
+Exemptions	Išimtys
+Expand (% lines)	Išskleisti (eilučių: %)
+Expand (% of % lines)	Išskleisti (%1 iš %2 eilučių)
+Expired	Nebegalioja
+Explicit image filter	Atviro turinio vaizdų filtras
+Expression	Išraiška
+FRAME RATE	KADRŲ DAŽNIS
+Failed to follow the channel, please try again.	Nepavyko sekti kanalo, bandyk dar kartą.
+Fastcord couldn't be installed.	Nepavyko įdiegti Fastcord.
+Favorites	Mėgstami
+File	Failas
+File saved.	Failas išsaugotas.
+Filename	Failo pavadinimas
+Fill out the details of your event.	Užpildyk renginio informaciją.
+Filter by Action	Filtruoti pagal veiksmą
+Filter by User	Filtruoti pagal naudotoją
+Filter direct messages from everyone	Filtruoti visų tiesiogines žinutes
+Filter direct messages from non-friends	Filtruoti ne draugų tiesiogines žinutes
+Filter messages from all members	Filtruoti visų narių žinutes
+Filter messages from server members without roles	Filtruoti serverio narių be vaidmenų žinutes
+Find or start a conversation	Rask arba pradėk pokalbį
+Find the perfect emoji	Rask tobulą jaustuką
+Find the perfect reaction	Rask tobulą reakciją
+Find the perfect sticker	Rask tobulą lipduką
+Finding the video%	Ieškomas vaizdo įrašas%
+Finish	Baigti
+Finishing touches	Paskutiniai štrichai
+Finnish	Suomių
+Fit more messages on screen at one time. #IRC	Daugiau žinučių ekrane vienu metu. #IRC
+Flagged as spam	Pažymėta kaip šlamštas
+Flags	Vėliavos
+Folder Color	Aplanko spalva
+Folder Name	Aplanko pavadinimas
+Folder Settings	Aplanko nustatymai
+Folder removed	Aplankas pašalintas
+Follow	Sekti
+Followed!	Sekama!
+Food & Drink	Maistas ir gėrimai
+For 1 Hour	1 valandai
+For 15 Minutes	15 minučių
+For 24 Hours	24 valandoms
+For 3 Days	3 dienoms
+For 3 Hours	3 valandoms
+For 8 Hours	8 valandoms
+Forever	Visam laikui
+Forgot your password?	Pamiršai slaptažodį?
+Forum	Forumas
+Forward	Persiųsti
+Forward To	Persiųsti į
+Forwarded	Persiųsta
+French	Prancūzų
+Frequently Used	Dažnai naudojami
+Friend Nickname	Draugo slapyvardis
+Friend Request Permissions	Draugystės užklausų leidimai
+Friend Request Sent	Draugystės užklausa išsiųsta
+Friend removed	Draugas pašalintas
+Friend request cancelled	Draugystės užklausa atšaukta
+Friend request ignored	Draugystės užklausa ignoruota
+Friends	Draugai
+Friends & All Servers	Draugai ir visi serveriai
+Friends & Small Servers Only	Tik draugai ir maži serveriai
+Friends Only	Tik draugai
+Friends can ask to join or join the game you're playing.	Draugai gali prašyti prisijungti arba prisijungti prie tavo žaidžiamo žaidimo.
+Friends come online	Draugai prisijungia
+Friends of friends	Draugų draugai
+From User	Nuo naudotojo
+GIFs	GIF
+GIFs can't be sent encrypted yet.	GIF kol kas negalima siųsti užšifruotų.
+Gallery view	Galerijos rodinys
+General	Bendra
+General Category Permissions	Bendrieji kategorijos leidimai
+General Channel Permissions	Bendrieji kanalo leidimai
+General Server Permissions	Bendrieji serverio leidimai
+Generate Template	Kurti šabloną
+Generate a New Link	Kurti naują saitą
+German	Vokiečių
+Get a copy of your data. It can take up to 30 days to prepare, and a download link is emailed to you when it's ready.	Gauk savo duomenų kopiją. Paruošimas gali užtrukti iki 30 dienų, o kai bus paruošta, atsisiuntimo saitą gausi el. paštu.
+Give new members a quick way to find the channels and roles that matter to them.	Padėk naujiems nariams greitai rasti jiems svarbius kanalus ir vaidmenis.
+Give your new server a personality with a name. You can always change it later.	Suteik naujam serveriui charakterio su pavadinimu. Vėliau visada galėsi jį pakeisti.
+Glad you're here, %.	Smagu, kad esi čia, %.
+Go Back	Grįžti
+Go To Channel	Eiti į kanalą
+Go back	Grįžti
+Go forward	Pirmyn
+Go to Server	Eiti į serverį
+Good to see you, %.	Malonu tave matyti, %.
+Got It	Supratau
+Grant temporary membership	Suteikti laikiną narystę
+Greek	Graikų
+Hang out together with voice, video, and screen share	Leisk laiką kartu su balsu, vaizdu ir ekrano bendrinimu
+Hang out with voice, video, screenshare, and Go Live.	Leisk laiką su balsu, vaizdu, ekrano bendrinimu ir Go Live.
+Happening Now	Vyksta dabar
+Have an invite already?	Jau turi pakvietimą?
+Help	Pagalba
+Here's a preview of your event.	Štai tavo renginio peržiūra.
+Hey, just double checking that you want to pin this message to #% for posterity and greatness?	Ei, tik pasitikslinam – tikrai nori prisegti šią žinutę kanale #% ateities kartoms ir šlovei?
+Hey, just double checking that you want to pin this message to the current channel for posterity and greatness?	Ei, tik pasitikslinam – tikrai nori prisegti šią žinutę šiame kanale ateities kartoms ir šlovei?
+Hide	Slėpti
+Hide After Inactivity	Slėpti po neveiklumo
+Hide Chat	Slėpti pokalbį
+Hide Fastcord window from screen capture	Slėpti Fastcord langą nuo ekrano įrašymo
+Hide Muted Channels	Slėpti nutildytus kanalus
+Hide invite links to my Discord servers	Slėpti mano Discord serverių pakvietimų saitus
+Hide my personal information, such as email, connected accounts, and notes	Slėpti mano asmeninę informaciją, pvz., el. paštą, susietas paskyras ir pastabas
+Hides Fastcord windows from most screen capture software.	Slepia Fastcord langus nuo daugumos ekrano įrašymo programų.
+High	Aukšta
+Highest	Aukščiausia
+Highlights provide occasional updates when your friends are chatting in busy servers, and more.	Akcentai retkarčiais praneša, kai tavo draugai kalbasi aktyviuose serveriuose, ir ne tik.
+Hindi	Hindi
+History	Istorija
+Hitting X makes fastcord minimize to the system tray instead of closing.	Paspaudus X fastcord sumažinamas į sistemos dėklą, o ne uždaromas.
+Hm, didn’t work. Double check that the username is correct.	Hm, nepavyko. Patikrink, ar naudotojo vardas teisingas.
+Host	Rengėjas
+Host events with an audience	Renk renginius su auditorija
+How Discord Uses My Data	Kaip Discord naudoja mano duomenis
+How can people join your server?	Kaip žmonės gali prisijungti prie tavo serverio?
+How did your server get started? Why should people join?	Kaip prasidėjo tavo serveris? Kodėl žmonės turėtų prisijungti?
+Hungarian	Vengrų
+I acknowledge that by transferring ownership of this server to %, it officially belongs to them.	Suprantu, kad perdavus šio serverio nuosavybę %, jis oficialiai priklausys jam.
+I agree and understand	Sutinku ir suprantu
+I'm new here, say hi!	Aš čia naujas, pasisveikink!
+I'm sure, use a backup code	Esu tikras, naudoti atsarginį kodą
+IMAGE	VAIZDAS
+INPUT DEVICE	ĮVESTIES ĮRENGINYS
+INPUT MODE	ĮVESTIES REŽIMAS
+INPUT SENSITIVITY	ĮVESTIES JAUTRUMAS
+INPUT VOLUME	ĮVESTIES GARSUMAS
+INVITE CODE	PAKVIETIMO KODAS
+INVITE LINK	PAKVIETIMO SAITAS
+INVITER	KVIETĖJAS
+INVITES SHOULD LOOK LIKE	PAKVIETIMAI TURĖTŲ ATRODYTI TAIP
+Icon	Piktograma
+Idle	Neaktyvus
+If Streamer Mode is enabled...	Jei įjungtas transliuotojo režimas...
+If you do not have access to any other methods, the button below will activate in % second.|If you do not have access to any other methods, the button below will activate in % seconds.	Jei neturi kitų būdų, žemiau esantis mygtukas suaktyvės po % sekundės.|Jei neturi kitų būdų, žemiau esantis mygtukas suaktyvės po % sekundžių.|Jei neturi kitų būdų, žemiau esantis mygtukas suaktyvės po % sekundžių.
+If you do not have access to any other methods, use the other button below to proceed.	Jei neturi kitų būdų, tęsk paspaudęs kitą mygtuką žemiau.
+Ignore	Ignoruoti
+Ignore Friend Request	Ignoruoti draugystės užklausą
+Ignored Users	Ignoruojami naudotojai
+Ignored message	Ignoruojama žinutė
+Image saved.	Vaizdas išsaugotas.
+Important updates for people in and out of the server	Svarbios naujienos serverio nariams ir ne tik
+In Channel	Kanale
+Inactive Channel	Neaktyvumo kanalas
+Inactive Timeout	Neaktyvumo laikas
+Inbox	Gautieji
+Incoming Call...	Gaunamas skambutis...
+Incoming Friend Request	Gauta draugystės užklausa
+Indonesian	Indoneziečių
+Insert Timestamp	Įterpti laiko žymą
+Install	Įdiegti
+Install Fastcord to open it from the Start menu.	Įdiek Fastcord, kad atidarytum jį iš meniu Pradėti.
+Installing…	Diegiama…
+Instructions Sent	Instrukcijos išsiųstos
+Insults and Slurs	Įžeidimai ir keiksmai
+Integrations	Integracijos
+Interested	Domina
+Invalid Invite	Netinkamas pakvietimas
+Invalid date or time	Netinkama data ar laikas
+Invisible	Nematomas
+Invite	Pakviesti
+Invite Channel	Pakvietimo kanalas
+Invite Invalid	Pakvietimas netinkamas
+Invite Only	Tik su pakvietimu
+Invite People	Pakviesti žmonių
+Invite friends to %	Pakviesk draugų į %
+Invite to Server	Pakviesti į serverį
+Invite to Speak	Pakviesti kalbėti
+Invites	Pakvietimai
+Invites are currently paused for this server. Please try again later.	Šio serverio pakvietimai šiuo metu pristabdyti. Bandyk vėliau.
+Invites are paused: nobody can join with an invite link until they're enabled again.	Pakvietimai pristabdyti: niekas negali prisijungti pakvietimo saitu, kol jie nebus vėl įjungti.
+It's quiet for now...	Kol kas tylu...
+Italian	Italų
+JOINED DISCORD	PRISIJUNGĖ PRIE DISCORD
+JSON API	JSON API
+January|February|March|April|May|June|July|August|September|October|November|December	sausio|vasario|kovo|balandžio|gegužės|birželio|liepos|rugpjūčio|rugsėjo|spalio|lapkričio|gruodžio
+Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec	saus.|vas.|kov.|bal.|geg.|birž.|liep.|rugp.|rugs.|spal.|lapkr.|gruod.
+Japanese	Japonų
+Jitter	Drebėjimas
+Join	Prisijungti
+Join Call	Prisijungti prie skambučio
+Join Server	Prisijungti prie serverio
+Join Thread	Prisijungti prie gijos
+Join Voice	Prisijungti prie balso
+Join a Server	Prisijunk prie serverio
+Join the call	Prisijunk prie skambučio
+Joined Threads	Gijos, prie kurių prisijungta
+Joining…	Jungiamasi…
+Jump	Peršokti
+Jump To Present	Peršokti į dabartį
+Jump to oldest unread message	Peršokti į seniausią neskaitytą žinutę
+KEYBIND	SPARTUSIS KLAVIŠAS
+Keep Current Permissions	Palikti dabartinius leidimus
+Keep these somewhere safe. Each code signs you in once if you lose your authenticator app; they are shown only now.	Laikyk juos saugioje vietoje. Praradus autentifikavimo programą, kiekvienu kodu galima prisijungti vieną kartą; jie rodomi tik dabar.
+Keep your server private, or open it up for more people to join.	Laikyk serverį privatų arba atverk jį daugiau žmonių.
+Keybinds	Spartieji klavišai
+Keybinds only work while fastcord is focused. To use them in other apps, allow fastcord under Input Monitoring in System Settings, then restart fastcord.	Spartieji klavišai veikia tik kai fastcord aktyvus. Kad jie veiktų kitose programose, leisk fastcord skiltyje „Įvesties stebėjimas“ sistemos nustatymuose ir paleisk fastcord iš naujo.
+Keybinds only work while fastcord is focused: this desktop doesn't let apps see keys pressed in other windows.	Spartieji klavišai veikia tik kai fastcord aktyvus: ši darbalaukio aplinka neleidžia programoms matyti kituose languose spaudžiamų klavišų.
+Keybinds work in every app, also while fastcord is in the background.	Spartieji klavišai veikia visose programose, net kai fastcord veikia fone.
+Keyboard Shortcuts	Spartieji klavišai
+Keyboard shortcuts	Spartieji klavišai
+Keyword: %	Raktažodis: %
+Kick	Išmesti
+Kick %	Išmesti %
+Kick '%' from Server	Išmesti „%“ iš serverio
+Kick Member	Išmesti narį
+Kick, Approve, and Reject Members	Išmesti, patvirtinti ir atmesti narius
+Korean	Korėjiečių
+LIVE	TIESIOGIAI
+Language	Kalba
+Language & Time	Kalba ir laikas
+Last sync: %	Paskutinis sinchronizavimas: %
+Leave Group	Palikti grupę
+Leave Server	Palikti serverį
+Leave Thread	Palikti giją
+Leaving Discord	Išeinama iš Discord
+Left %	Paliko %
+Let everyone know how to use this channel!	Pasakyk visiems, kaip naudotis šiuo kanalu!
+Let's Check	Patikrinkim
+Level %!	% lygis!
+Limits	Apribojimai
+Limits the number of users that can connect to this voice channel. Users with the Move Members permission ignore this limit and can move other users into the channel.	Riboja naudotojų, galinčių prisijungti prie šio balso kanalo, skaičių. Naudotojai su leidimu „Perkelti narius“ šios ribos nepaiso ir gali perkelti kitus į kanalą.
+Linked Roles	Susieti vaidmenys
+List view	Sąrašo rodinys
+Lithuanian	Lietuvių
+Live Now	Dabar tiesiogiai
+Loading sounds…	Įkeliami garsai…
+Loading...	Įkeliama...
+Loading…	Įkeliama…
+Location	Vieta
+Log In	Prisijungti
+Log Out	Atsijungti
+Log Out All Known Devices	Atjungti visus žinomus įrenginius
+Log in	Prisijungti
+Log in to Discord in your web browser.	Prisijunk prie Discord naršyklėje.
+Log in with QR Code	Prisijungti QR kodu
+Log in with a token	Prisijungti žetonu
+Log out of all known devices	Atsijungti visuose žinomuose įrenginiuose
+Logged-in Devices	Prisijungę įrenginiai
+Logging in as %	Jungiamasi kaip %
+Logging in…	Jungiamasi…
+Login or password is invalid.	Neteisingas prisijungimo vardas arba slaptažodis.
+Looking for screens…	Ieškoma ekranų…
+Lotus Mode	Lotoso režimas
+Low	Žema
+Lower Hand	Nuleisti ranką
+MAX NUMBER OF USES	DAUGIAUSIA PANAUDOJIMŲ
+MEMBER SINCE	NARYS NUO
+MEMBERS	NARIAI
+MUTE	NUTILDYTI
+Main Profile	Pagrindinis profilis
+Make a selection	Pasirink
+Manage Accounts	Tvarkyti paskyras
+Manage Channel	Tvarkyti kanalą
+Manage Channels	Tvarkyti kanalus
+Manage Events	Tvarkyti renginius
+Manage Expressions	Tvarkyti išraiškas
+Manage Members	Tvarkyti narius
+Manage Messages	Tvarkyti žinutes
+Manage Nicknames	Tvarkyti slapyvardžius
+Manage Permissions	Tvarkyti leidimus
+Manage Roles	Tvarkyti vaidmenis
+Manage Server	Tvarkyti serverį
+Manage Threads and Posts	Tvarkyti gijas ir įrašus
+Manage Webhooks	Tvarkyti webhook
+Manage settings that help keep your server active.	Tvarkyk nustatymus, padedančius išlaikyti serverį aktyvų.
+Mark All as Read	Žymėti viską kaip skaityta
+Mark As Read	Žymėti kaip skaityta
+Mark Folder As Read	Žymėti aplanką kaip skaitytą
+Mark Unread	Žymėti kaip neskaityta
+Mark a message unread	Žymėti žinutę kaip neskaitytą
+Mark as Verified	Žymėti kaip patvirtintą
+Mark as spoiler	Žymėti kaip atskleidimą
+Mark channel read	Žymėti kanalą kaip skaitytą
+Mark server read	Žymėti serverį kaip skaitytą
+Marked as read	Pažymėta kaip skaityta
+Marks your message as a spoiler.	Pažymi tavo žinutę kaip atskleidimą.
+Match your device's light or dark mode.	Derinti prie įrenginio šviesaus ar tamsaus režimo.
+Max file size is % MB please.	Didžiausias failo dydis – % MB.
+Measuring	Matuojama
+Medium	Vidutinė
+Member Since	Narys nuo
+Members	Nariai
+Members can pick more than one answer	Nariai gali pasirinkti daugiau nei vieną atsakymą
+Members can wear your server's tag next to their name across Discord.	Nariai gali rodyti tavo serverio žymą šalia savo vardo visame Discord.
+Members in timeout can't send messages, react, join voice or speak until it ends.	Laikinai apriboti nariai negali siųsti žinučių, reaguoti, jungtis prie balso ar kalbėti, kol apribojimas nesibaigs.
+Members in timeout can't send messages, react, join voice or start threads until it ends.	Laikinai apriboti nariai negali siųsti žinučių, reaguoti, jungtis prie balso ar kurti gijų, kol apribojimas nesibaigs.
+Members matching @%	Nariai, atitinkantys @%
+Members must answer this question to join.	Nariai turi atsakyti į šį klausimą, kad prisijungtų.
+Members of the server must meet the following criteria before they can send messages in text channels or initiate a direct message conversation. If a member has an assigned role this does not apply.	Serverio nariai turi atitikti šiuos kriterijus, kad galėtų siųsti žinutes teksto kanaluose ar pradėti tiesioginį pokalbį. Netaikoma nariams, turintiems priskirtą vaidmenį.
+Members use the colour of the highest role they have on the roles list.	Nariai naudoja aukščiausio turimo vaidmens spalvą vaidmenų sąraše.
+Members use the colour of the highest role they have on this list. Drag roles, or use the arrows, to reorder them.	Nariai naudoja aukščiausio turimo vaidmens šiame sąraše spalvą. Vilk vaidmenis arba naudok rodykles, kad pakeistum tvarką.
+Members will be restricted to sending one message and creating one thread per this interval, unless they have the Bypass Slowmode permission.	Nariai per šį intervalą galės išsiųsti vieną žinutę ir sukurti vieną giją, nebent turi leidimą „Apeiti lėtąjį režimą“.
+Members with a matching name can't talk or interact until they change it.	Nariai su atitinkančiu vardu negali kalbėti ar sąveikauti, kol jo nepakeis.
+Members with this permission will have every permission and will also bypass all channel specific permissions or restrictions (for example, these members would get access to all private channels). This is a dangerous permission to grant.	Nariai su šiuo leidimu turės visus leidimus ir apeis visus kanalų leidimus ar apribojimus (pvz., gaus prieigą prie visų privačių kanalų). Suteikti šį leidimą pavojinga.
+Members — %	Nariai — %
+Membership Permissions	Narystės leidimai
+Mention	Paminėti
+Mention %	Paminėti %
+Mention @everyone, @here, and All Roles	Paminėti @everyone, @here ir visus vaidmenis
+Mention limit	Paminėjimų riba
+Mention raid protection	Apsauga nuo paminėjimų antpuolių
+Mention removed	Paminėjimas pašalintas
+Mentions	Paminėjimai
+Mentions User	Mini naudotoją
+Message	Žinutė
+Message #%	Rašyk į #%
+Message %	Rašyk %
+Message @%	Rašyk @%
+Message @% (encrypted)	Rašyk @% (užšifruota)
+Message @% (not encrypted)	Rašyk @% (neužšifruota)
+Message Contains	Žinutėje yra
+Message Display	Žinučių rodymas
+Message Requests	Žinučių užklausos
+Message deleted	Žinutė ištrinta
+Message failed to send.	Nepavyko išsiųsti žinutės.
+Message link copied: paste it into Discord's report form	Žinutės saitas nukopijuotas: įklijuok jį į Discord pranešimo formą
+Message request ignored	Žinutės užklausa ignoruota
+Message unpinned	Žinutė atsegta
+Messages Failed To Load	Nepavyko įkelti žinučių
+Messages from members you may not know go to Message Requests.	Žinutės iš narių, kurių galbūt nepažįsti, patenka į žinučių užklausas.
+Messages from people you may not know go to Message Requests instead of your DMs.	Žinutės iš žmonių, kurių galbūt nepažįsti, patenka į žinučių užklausas, o ne į tiesiogines žinutes.
+Messages from server members without a role will be filtered for sensitive image-based media.	Serverio narių be vaidmens žinutės bus filtruojamos dėl jautrios vaizdinės medijos.
+Messages in servers	Žinutės serveriuose
+Messages will not be filtered for sensitive image-based media.	Žinutės nebus filtruojamos dėl jautrios vaizdinės medijos.
+Messaging Permissions	Žinučių leidimai
+Minimize to Tray	Sumažinti į dėklą
+Mobile Push Notifications	Mobilieji pranešimai
+Moderation	Moderavimas
+Moderators must have two-factor authentication enabled to ban, kick, or timeout members and delete messages.	Moderatoriai turi būti įjungę dviejų veiksnių autentifikavimą, kad galėtų drausti, išmesti ar laikinai apriboti narius ir trinti žinutes.
+Moderators only	Tik moderatoriai
+Modern, beautiful, and easy on your eyes.	Moderni, graži ir taupanti akis.
+Modify Attachment	Keisti priedą
+Motion	Judesys
+Move Members	Perkelti narius
+Move To	Perkelti į
+Move to Audience	Perkelti į auditoriją
+Multi-Factor Authentication	Kelių veiksnių autentifikavimas
+Must also be a member of this server for longer than 10 minutes.	Taip pat turi būti šio serverio narys ilgiau nei 10 minučių.
+Must also be registered on Discord for longer than 5 minutes.	Taip pat turi būti užsiregistravęs Discord ilgiau nei 5 minutes.
+Must have a verified email on their Discord account.	Discord paskyroje turi būti patvirtintas el. paštas.
+Must have a verified phone on their Discord account.	Discord paskyroje turi būti patvirtintas telefonas.
+Mute	Nutildyti
+Mute %	Nutildyti %
+Mute Category	Nutildyti kategoriją
+Mute Channel	Nutildyti kanalą
+Mute Members	Nutildyti narius
+Mute New Events	Nutildyti naujus renginius
+Mute Server	Nutildyti serverį
+Mute Thread	Nutildyti giją
+Muted until %1, %2	Nutildyta iki %1, %2
+Muting a server prevents unread indicators and notifications from appearing unless you are mentioned.	Nutildžius serverį, neskaitytų žinučių žymos ir pranešimai nerodomi, nebent tave pamini.
+Mutual Friends	Bendri draugai
+Mutual Servers	Bendri serveriai
+My Account	Mano paskyra
+My server	Mano serveris
+NAME	PAVADINIMAS
+NEW	NAUJA
+NEW PASSWORD	NAUJAS SLAPTAŽODIS
+NO ACTIVE INVITE LINKS	NĖRA AKTYVIŲ PAKVIETIMŲ SAITŲ
+NOTHING	NIEKO
+Name	Pavadinimas
+Name your sound	Pavadink savo garsą
+Name your sticker	Pavadink savo lipduką
+Nature	Gamta
+Navigate Back	Naršyti atgal
+Navigate Forward	Naršyti pirmyn
+Need an account?	Reikia paskyros?
+Network	Tinklas
+Never	Niekada
+Nevermind	Nesvarbu
+New Category	Nauja kategorija
+New Group DM	Naujas grupės pokalbis
+New Post	Naujas įrašas
+New Thread	Nauja gija
+New Webhook	Naujas webhook
+New members must read and agree to these before they can talk.	Nauji nariai turi perskaityti ir sutikti su jomis, kad galėtų kalbėti.
+New members pick channels and roles from your questions when they join.	Prisijungę nauji nariai pagal tavo klausimus renkasi kanalus ir vaidmenis.
+New tag	Nauja žyma
+New threads will stop showing in the channel list after being inactive for the specified duration.	Naujos gijos nebebus rodomos kanalų sąraše, kai bus neaktyvios nurodytą laiką.
+Newest	Naujausi
+Next	Toliau
+Nickname	Slapyvardis
+Nicknames are visible to everyone on this server. Do not change them unless you are enforcing a naming system or clearing a bad nickname.	Slapyvardžius mato visi šio serverio nariai. Nekeisk jų, nebent taikai vardų sistemą ar šalini netinkamą slapyvardį.
+No GIFs found	GIF nerasta
+No Inactive Channel	Nėra neaktyvumo kanalo
+No Invite	Nėra pakvietimo
+No Keybind Set	Spartusis klavišas nenustatytas
+No System Messages	Nėra sistemos žinučių
+No applications waiting	Laukiančių prašymų nėra
+No apps have been added to this server.	Į šį serverį nepridėta jokių programų.
+No bans	Draudimų nėra
+No bans match your search	Paiešką atitinkančių draudimų nėra
+No emoji found	Jaustukų nerasta
+No favorites yet	Mėgstamų dar nėra
+No file chosen	Failas nepasirinktas
+No friends in common	Bendrų draugų nėra
+No limit	Be ribų
+No logs yet	Įrašų dar nėra
+No members found	Narių nerasta
+No members have this role yet.	Šio vaidmens dar niekas neturi.
+No message requests.	Žinučių užklausų nėra.
+No one is speaking yet	Dar niekas nekalba
+No one's around right now.	Šiuo metu nieko nėra.
+No one's here yet	Čia dar nieko nėra
+No posts match	Atitinkančių įrašų nėra
+No posts yet	Įrašų dar nėra
+No questions yet.	Klausimų dar nėra.
+No reason given	Priežastis nenurodyta
+No results	Rezultatų nėra
+No results found	Rezultatų nerasta
+No servers in common	Bendrų serverių nėra
+No sounds found	Garsų nerasta
+No sounds yet.	Garsų dar nėra.
+No spam. Nice.	Šlamšto nėra. Puiku.
+No stickers found	Lipdukų nerasta
+No stickers yet	Lipdukų dar nėra
+Nobody can join this server with an invite link until the pause ends or you enable invites again.	Niekas negali prisijungti prie šio serverio pakvietimo saitu, kol nesibaigs pauzė arba vėl neįjungsi pakvietimų.
+Nobody has mentioned you recently.	Pastaruoju metu tavęs niekas neminėjo.
+Noise Suppression	Triukšmo slopinimas
+Noise Suppression: Off	Triukšmo slopinimas: išj.
+Noise Suppression: On	Triukšmo slopinimas: įj.
+None	Nėra
+Norwegian	Norvegų
+Not Now	Ne dabar
+Not connected to % yet.	Dar neprisijungta prie %.
+Not encrypted	Neužšifruota
+Not encrypted: Discord can read this message	Neužšifruota: Discord gali skaityti šią žinutę
+Not end-to-end encrypted	Ne visapusiškai užšifruota
+Not me, start over	Ne aš, pradėti iš naujo
+Note	Pastaba
+Note (only visible to you)	Pastaba (matai tik tu)
+Note: Members with the "Mention @everyone, @here, and All Roles" permission will always be able to ping this role.	Pastaba: nariai su leidimu „Paminėti @everyone, @here ir visus vaidmenis“ visada galės paminėti šį vaidmenį.
+Nothing	Nieko
+Notification Settings	Pranešimų nustatymai
+Notification settings changed	Pranešimų nustatymai pakeisti
+Notifications	Pranešimai
+Notify everyone online who has permission to view this channel.	Pranešti visiems prisijungusiems, kurie gali matyti šį kanalą.
+Notify everyone who has permission to view this channel.	Pranešti visiems, kurie gali matyti šį kanalą.
+Notify me when...	Pranešti man, kai...
+Notify users with this role who have permission to view this channel.	Pranešti šio vaidmens naudotojams, kurie gali matyti šį kanalą.
+OUTPUT DEVICE	IŠVESTIES ĮRENGINYS
+OUTPUT VOLUME	IŠVESTIES GARSUMAS
+Objects	Objektai
+Off	Išjungta
+Offline	Neprisijungęs
+Oh yeah. Pin it	O taip. Prisegti
+Okay	Gerai
+Oldest	Seniausi
+On click	Spustelėjus
+On servers I moderate	Serveriuose, kuriuos moderuoju
+Onboarding	Pasitikimas
+One rule per line, for example: Be respectful	Viena taisyklė eilutėje, pvz.: Būk mandagus
+Ongoing call	Vykstantis skambutis
+Online	Prisijungęs
+Only @mentions	Tik @paminėjimai
+Only servers and channels you have webhook permissions in are shown.	Rodomi tik serveriai ir kanalai, kuriuose turi webhook leidimus.
+Only you can see the nickname you give %.	Tik tu matai slapyvardį, kurį suteiki %.
+Only you can see this · 	Tai matai tik tu ·
+Oops!	Oi!
+Open Chat	Atidaryti pokalbį
+Open Image Link	Atidaryti vaizdo saitą
+Open Link	Atidaryti saitą
+Open Logs Folder	Atidaryti žurnalų aplanką
+Open Media Link	Atidaryti medijos saitą
+Open Server Insights	Atidaryti serverio įžvalgas
+Open Settings	Atidaryti nustatymus
+Open discord.com	Atidaryti discord.com
+Open in Browser	Atidaryti naršyklėje
+Open in YouTube	Atidaryti YouTube
+Open the developer tools (Cmd+Option+I) and choose the Network tab.	Atidaryk kūrėjo įrankius (Cmd+Option+I) ir pasirink skirtuką Network.
+Open the developer tools (Ctrl+Shift+I) and choose the Network tab.	Atidaryk kūrėjo įrankius (Ctrl+Shift+I) ir pasirink skirtuką Network.
+Or, send a server invite link to a friend	Arba nusiųsk draugui serverio pakvietimo saitą
+Original message was deleted	Originali žinutė ištrinta
+Other Active Threads	Kitos aktyvios gijos
+Other Devices	Kiti įrenginiai
+Outgoing Friend Request	Išsiųsta draugystės užklausa
+Overview	Apžvalga
+PASSWORD	SLAPTAŽODIS
+PM	popiet
+PRIVACY CODE	PRIVATUMO KODAS
+PTT Activate	„Paspausk ir kalbėk“ įjungimas
+PTT Deactivate	„Paspausk ir kalbėk“ išjungimas
+PUSH TO TALK RELEASE DELAY	„PASPAUSK IR KALBĖK“ ATLEIDIMO DELSA
+Packet loss	Paketų praradimas
+Packets received	Gauta paketų
+Packets sent	Išsiųsta paketų
+Page %	% puslapis
+Password	Slaptažodis
+Password and Authentication	Slaptažodis ir autentifikavimas
+Passwords do not match!	Slaptažodžiai nesutampa!
+Paste	Įklijuoti
+Paste an emoji (optional)	Įklijuok jaustuką (nebūtina)
+Paste your token	Įklijuok savo žetoną
+Pause Invites	Pristabdyti pakvietimus
+Pending	Laukiama
+People	Žmonės
+People can join your server directly with an invite	Žmonės gali prisijungti prie serverio tiesiai su pakvietimu
+People in a voice channel with you can join the game you're playing.	Žmonės, esantys su tavimi balso kanale, gali prisijungti prie tavo žaidimo.
+People must submit an application and be approved to join	Norintys prisijungti turi pateikti prašymą ir būti patvirtinti
+People who applied to join, waiting for a moderator.	Žmonės, pateikę prašymą prisijungti ir laukiantys moderatoriaus.
+Per-server Profiles	Serverių profiliai
+Permissions	Leidimai
+Permissions not synced with category: 	Leidimai nesinchronizuoti su kategorija:
+Permissions synced with category: 	Leidimai sinchronizuoti su kategorija:
+Permissions: %	Leidimai: %
+Phone Number	Telefono numeris
+Pick a channel	Pasirink kanalą
+Pick a channel for the alerts.	Pasirink kanalą įspėjimams.
+Pick at least one response.	Pasirink bent vieną atsakymą.
+Pin It. Pin It Good.	Prisek. Prisek gerai.
+Pin Message	Prisegti žinutę
+Pin Messages	Prisegti žinutes
+Ping	Delsa
+Ping: % ms	Delsa: % ms
+Ping: measuring…	Delsa: matuojama…
+Pinned Messages	Prisegtos žinutės
+Play Here	Leisti čia
+Play Soundboard Through My Mic	Leisti garsų lentą per mano mikrofoną
+Play YouTube videos here with yt-dlp? It needs yt-dlp installed, and connects to YouTube from your computer. Settings > Chat can change this.	Leisti YouTube vaizdo įrašus čia su yt-dlp? Reikia įdiegto yt-dlp, ir jis jungiasi prie YouTube iš tavo kompiuterio. Tai galima pakeisti: Nustatymai > Pokalbis.
+Play YouTube videos in fastcord with yt-dlp	Leisti YouTube vaizdo įrašus fastcord su yt-dlp
+Please enter a valid invite link or invite code.	Įvesk tinkamą pakvietimo saitą ar kodą.
+Please try again later.	Bandyk vėliau.
+Polish	Lenkų
+Poll closed	Apklausa baigta
+Portuguese, Brazilian	Portugalų (Brazilija)
+Post	Įrašas
+Post Guidelines	Įrašų gairės
+Post from a script	Skelbti iš scenarijaus
+Post messages that reach servers outside your own. Members can follow this channel, so the posts you publish here appear in their servers.	Skelbk žinutes, pasiekiančias kitus serverius. Nariai gali sekti šį kanalą, tad čia publikuojami įrašai atsiras jų serveriuose.
+Post title	Įrašo pavadinimas
+Posting...	Skelbiama...
+Press a shortcut…	Paspausk klavišų derinį…
+Previous	Ankstesnis
+Previous / next channel	Ankstesnis / kitas kanalas
+Previous / next channel with mentions	Ankstesnis / kitas kanalas su paminėjimais
+Previous / next server	Ankstesnis / kitas serveris
+Previous / next unread channel	Ankstesnis / kitas neskaitytas kanalas
+Previous 12 Hours	Paskutinės 12 valandų
+Previous 24 Hours	Paskutinės 24 valandos
+Previous 3 Days	Paskutinės 3 dienos
+Previous 6 Hours	Paskutinės 6 valandos
+Previous 7 Days	Paskutinės 7 dienos
+Previous Hour	Paskutinė valanda
+Priority Speaker	Prioritetinis kalbėtojas
+Privacy Settings	Privatumo nustatymai
+Private Category	Privati kategorija
+Private Channel	Privatus kanalas
+Private Profile	Privatus profilis
+Profile	Profilis
+Profile Banner	Profilio reklamjuostė
+Profile Privacy	Profilio privatumas
+Profiles	Profiliai
+Prompt members to reply to welcome messages with a sticker.	Siūlyti nariams atsakyti į pasveikinimo žinutes lipduku.
+Pronouns	Įvardžiai
+Protect your Discord account with an extra layer of security. Once configured, you'll be required to enter your password and complete one additional step in order to sign in.	Apsaugok Discord paskyrą papildomu saugumo lygiu. Nustačius, prisijungiant reikės įvesti slaptažodį ir atlikti dar vieną žingsnį.
+Protip:	Patarimas:
+Publish	Publikuoti
+Push to Mute	Paspausk ir nutildyk
+Push to Talk	Paspausk ir kalbėk
+Push to Talk (Normal)	Paspausk ir kalbėk (įprastas)
+Q: %	K: %
+Question	Klausimas
+Questions	Klausimai
+ROLES	VAIDMENYS
+ROLES — %	VAIDMENYS — %
+ROLES/MEMBERS	VAIDMENYS / NARIAI
+RTC Connecting	RTC jungiamasi
+Read Message History	Skaityti žinučių istoriją
+Reason	Priežastis
+Reason for Ban	Draudimo priežastis
+Reason for Kick	Išmetimo priežastis
+Reason for Timeout	Apribojimo priežastis
+Reason: %	Priežastis: %
+Received	Gauta
+Recently Active	Neseniai aktyvūs
+Reconnect	Prisijungti iš naujo
+Record Keybind	Įrašyti spartųjį klavišą
+Reduce the saturation of colors within the application, for those with color sensitivities.	Sumažinti programos spalvų sodrumą jautriems spalvoms.
+Reduces the amount of animation and motion effects. On whenever your device asks for reduced motion.	Sumažina animacijų ir judesio efektų. Įjungta, kai įrenginys prašo mažinti judesį.
+Region Override	Regiono pakeitimas
+Register	Registruotis
+Reject	Atmesti
+Rejoin	Prisijungti vėl
+Related Emoji	Susiję jaustukai
+Relevant	Aktualiausi
+Remove	Pašalinti
+Remove %	Pašalinti %
+Remove All Embeds	Pašalinti visą įterptą turinį
+Remove All Reactions	Pašalinti visas reakcijas
+Remove Answer	Pašalinti atsakymą
+Remove Attachment	Pašalinti priedą
+Remove Authenticator App	Pašalinti autentifikavimo programą
+Remove Avatar	Pašalinti avatarą
+Remove Embeds	Pašalinti įterptą turinį
+Remove Friend	Pašalinti draugą
+Remove From Group	Pašalinti iš grupės
+Remove Icon	Pašalinti piktogramą
+Remove Reaction	Pašalinti reakciją
+Remove Reactions	Pašalinti reakcijas
+Remove Reactions for Emoji	Pašalinti jaustuko reakcijas
+Remove Server	Pašalinti serverį
+Remove Spoiler	Pašalinti atskleidimo žymą
+Remove Timeout	Panaikinti apribojimą
+Remove Vote	Atšaukti balsą
+Remove all embeds	Pašalinti visą įterptą turinį
+Remove from Favorites	Pašalinti iš mėgstamų
+Remove notification override for %	Pašalinti % pranešimų išimtį
+Remove the files added before encryption was on: they'd go unencrypted.	Pašalink failus, pridėtus prieš įjungiant šifravimą: jie būtų išsiųsti neužšifruoti.
+Remove the files added while encryption was on: they'd arrive as unreadable ciphertext.	Pašalink failus, pridėtus įjungus šifravimą: jie atkeliautų kaip neperskaitomas šifruotas tekstas.
+Removing…	Šalinama…
+Repeated encrypted message	Pakartota užšifruota žinutė
+Reply	Atsakyti
+Replying to	Atsakoma
+Report Message	Pranešti apie žinutę
+Request Data	Prašyti duomenų
+Request all of my Data	Prašyti visų mano duomenų
+Request to Speak	Prašyti žodžio
+Requests	Užklausos
+Require 2FA for moderator actions	Reikalauti 2FA moderatorių veiksmams
+Require members to agree to the server rules	Reikalauti, kad nariai sutiktų su serverio taisyklėmis
+Require people to select tags when posting	Reikalauti pasirinkti žymas skelbiant
+Required	Privaloma
+Resend SMS?	Siųsti SMS dar kartą?
+Reset	Atstatyti
+Reset Friend Nickname	Atstatyti draugo slapyvardį
+Reset Voice Settings	Atstatyti balso nustatymus
+Resolving Invite	Tikrinamas pakvietimas
+Responses	Atsakymai
+Retry	Bandyti dar kartą
+Retry Now	Bandyti dabar
+Return to call	Grįžti į skambutį
+Return to the connected call	Grįžti į prijungtą skambutį
+Reveal	Atskleisti
+Review	Peržiūrėti
+Revoke	Atšaukti
+Revoke Ban	Atšaukti draudimą
+Revoke Invite	Atšaukti pakvietimą
+Revoke the ban? They will be able to join again with an invite.	Atšaukti draudimą? Jis galės vėl prisijungti su pakvietimu.
+Ring	Skambinti
+Ringing…	Skambinama…
+Role Color	Vaidmens spalva
+Role Colors	Vaidmenų spalvos
+Role Icon	Vaidmens piktograma
+Role name	Vaidmens pavadinimas
+Roles	Vaidmenys
+Romanian, Romania	Rumunų (Rumunija)
+Rule: %	Taisyklė: %
+Rules or Guidelines Channel	Taisyklių ar gairių kanalas
+Russian	Rusų
+SELECT A CHANNEL	PASIRINK KANALĄ
+SELECT A SERVER	PASIRINK SERVERĮ
+SERVER NAME	SERVERIO PAVADINIMAS
+SOUNDBOARD VOLUME	GARSŲ LENTOS GARSUMAS
+STATIC EMOJI — % SLOTS AVAILABLE	STATINIAI JAUSTUKAI — LAISVŲ VIETŲ: %
+Safety Notifications Channel	Saugos pranešimų kanalas
+Safety Number	Saugos numeris
+Safety Setup	Saugos sąranka
+Safety checks	Saugos patikros
+Same as Device Theme	Kaip įrenginio tema
+Saturation	Sodrumas
+Save	Išsaugoti
+Save Changes	Išsaugoti pakeitimus
+Save Image	Išsaugoti vaizdą
+Saving...	Išsaugoma...
+Saving…	Išsaugoma…
+Scan this with the Discord mobile app to log in instantly.	Nuskenuok tai Discord mobiliąja programa ir prisijunk akimirksniu.
+Schedule an event for any planned activity in your server.	Suplanuok renginį bet kokiai serverio veiklai.
+Screen	Ekranas
+Screen sharing isn't supported on this platform yet.	Ekrano bendrinimas šioje platformoje kol kas nepalaikomas.
+Scroll chat	Slinkti pokalbį
+Search	Ieškoti
+Search %	Ieškoti: %
+Search Bans by User ID or Username	Ieškoti draudimų pagal naudotojo ID ar vardą
+Search Klipy	Ieškoti Klipy
+Search Options	Paieškos parinktys
+Search by username or id	Ieškoti pagal naudotojo vardą ar ID
+Search for friends	Ieškoti draugų
+Search members to add (press Enter)	Ieškok narių pridėjimui (spausk Enter)
+Search or create a post...	Ieškok arba kurk įrašą...
+Search sounds	Ieškoti garsų
+Searching...	Ieškoma...
+Select Friends	Pasirinkti draugus
+Select a Language	Pasirink kalbą
+Select a channel	Pasirink kanalą
+Select a channel or category…	Pasirink kanalą ar kategoriją…
+Select one answer	Pasirink vieną atsakymą
+Select one or more answers	Pasirink vieną ar daugiau atsakymų
+Select where you want these updates to go. You can remove this at any time in Server Settings > Integrations > Channels Followed.	Pasirink, kur siųsti šiuos atnaujinimus. Bet kada gali tai pašalinti: Serverio nustatymai > Integracijos > Sekami kanalai.
+Select where you want to share this message.	Pasirink, kur nori pasidalinti šia žinute.
+Send	Siųsti
+Send Friend Request	Siųsti draugystės užklausą
+Send Messages and Create Posts	Siųsti žinutes ir kurti įrašus
+Send Messages in Threads and Posts	Siųsti žinutes gijose ir įrašuose
+Send New Key	Siųsti naują raktą
+Send Text-to-Speech Messages	Siųsti įgarsinamas žinutes
+Send Voice Messages	Siųsti balso žinutes
+Send a random welcome message when someone joins this server.	Siųsti atsitiktinę pasveikinimo žinutę, kai kas nors prisijungia prie serverio.
+Send a server invite link to a friend	Nusiųsk draugui serverio pakvietimo saitą
+Send an alert	Siųsti įspėjimą
+Send helpful tips for server setup.	Siųsti naudingų patarimų serverio sąrankai.
+Send messages, images, GIFs, emoji, opinions, and puns	Siųsk žinutes, vaizdus, GIF, jaustukus, nuomones ir kalambūrus
+Sending...	Siunčiama...
+Sent	Išsiųsta
+Sent a file	Išsiuntė failą
+Sent a sticker	Išsiuntė lipduką
+Sent — %	Išsiųsta — %
+Server	Serveris
+Server Avatar	Serverio avataras
+Server Deafen	Apkurtinti serveryje
+Server Deafened	Apkurtintas serveryje
+Server Guide	Serverio gidas
+Server ID	Serverio ID
+Server Info	Serverio informacija
+Server Insights	Serverio įžvalgos
+Server Insights is hosted on a separate website so that it's easier to share links and browse cross platform.	Serverio įžvalgos veikia atskiroje svetainėje, kad būtų lengviau dalintis saitais ir naršyti bet kurioje platformoje.
+Server Mute	Nutildyti serveryje
+Server Muted	Nutildytas serveryje
+Server Nickname	Slapyvardis serveryje
+Server Notification Settings	Serverio pranešimų nustatymai
+Server Primary Language	Pagrindinė serverio kalba
+Server Profile	Serverio profilis
+Server Rules	Serverio taisyklės
+Server Settings	Serverio nustatymai
+Server Tag	Serverio žyma
+Server Template	Serverio šablonas
+Server Widget	Serverio valdiklis
+Server members	Serverio nariai
+Server members can only send you friend requests from servers where you also allow Direct Messages.	Serverio nariai gali siųsti tau draugystės užklausas tik iš serverių, kuriuose leidi ir tiesiogines žinutes.
+Server name must be between 2 and 100 characters.	Serverio pavadinimas turi būti nuo 2 iki 100 simbolių.
+Server unmuted	Serverio nutildymas atšauktas
+Sessions	Seansai
+Set Custom Status	Nustatyti pasirinktą būseną
+Set Voice Channel Status	Nustatyti balso kanalo būseną
+Set a custom status	Nustatyk pasirinktą būseną
+Set up AutoMod to automatically filter messages in this server with the rules below. Members with Manage Server or Administrator are exempt.	Nustatyk AutoMod, kad automatiškai filtruotų šio serverio žinutes pagal žemiau esančias taisykles. Nariams su leidimu „Tvarkyti serverį“ ar „Administratorius“ netaikoma.
+Sets camera video quality for all channel participants. Choose Auto for optimal performance.	Nustato kameros vaizdo kokybę visiems kanalo dalyviams. Optimaliam veikimui rinkis Auto.
+Setting up encryption: % needs to open fastcord once.	Nustatomas šifravimas: % turi bent kartą atidaryti fastcord.
+Several people are typing...	Keli žmonės rašo...
+Severe Profanity	Šiurkštūs keiksmažodžiai
+Sexual Content	Seksualinis turinys
+Share	Dalintis
+Share Event	Dalintis renginiu
+Share Your Screen	Bendrinti ekraną
+Share my full profile with	Rodyti visą mano profilį
+Share your detected activities with others	Rodyti kitiems aptiktą tavo veiklą
+Show	Rodyti
+Show Chat	Rodyti pokalbį
+Show a system notification for messages that would notify you (DMs, mentions, servers set to all messages).	Rodyti sistemos pranešimą apie žinutes, apie kurias tau pranešama (tiesioginės žinutės, paminėjimai, serveriai su visų žinučių pranešimais).
+Show embeds and preview website links pasted into chat	Rodyti įterptą turinį ir į pokalbį įklijuotų svetainių saitų peržiūras
+Show emoji reactions on messages	Rodyti jaustukų reakcijas žinutėse
+Show message	Rodyti žinutę
+Show messages	Rodyti žinutes
+Show role colors in names	Rodyti vaidmenų spalvas varduose
+Show role colors next to names	Rodyti vaidmenų spalvas šalia vardų
+Show spoiler content	Rodyti atskleidžiamą turinį
+Show the game or app you're using on your profile and in member lists.	Rodyti naudojamą žaidimą ar programą profilyje ir narių sąrašuose.
+Shows a red badge on the app icon when you have unread mentions.	Rodo raudoną ženklelį ant programos piktogramos, kai turi neskaitytų paminėjimų.
+Silence every sound and notification and hide all badges and unread marks, so fastcord never asks for your attention.	Nutildyti visus garsus bei pranešimus ir slėpti visus ženklelius bei neskaitytų žymas, kad fastcord niekada neprašytų tavo dėmesio.
+Slow down! Are you sure?	Neskubėk! Ar tikrai?
+Slowmode	Lėtasis režimas
+Slowmode is enabled	Įjungtas lėtasis režimas
+Slowmode is enabled. Members can send one message every % hour.|Slowmode is enabled. Members can send one message every % hours.	Įjungtas lėtasis režimas. Nariai gali siųsti vieną žinutę kas % valandą.|Įjungtas lėtasis režimas. Nariai gali siųsti vieną žinutę kas % valandas.|Įjungtas lėtasis režimas. Nariai gali siųsti vieną žinutę kas % valandų.
+Slowmode is enabled. Members can send one message every % minute.|Slowmode is enabled. Members can send one message every % minutes.	Įjungtas lėtasis režimas. Nariai gali siųsti vieną žinutę kas % minutę.|Įjungtas lėtasis režimas. Nariai gali siųsti vieną žinutę kas % minutes.|Įjungtas lėtasis režimas. Nariai gali siųsti vieną žinutę kas % minučių.
+Slowmode is enabled. Members can send one message every % second.|Slowmode is enabled. Members can send one message every % seconds.	Įjungtas lėtasis režimas. Nariai gali siųsti vieną žinutę kas % sekundę.|Įjungtas lėtasis režimas. Nariai gali siųsti vieną žinutę kas % sekundes.|Įjungtas lėtasis režimas. Nariai gali siųsti vieną žinutę kas % sekundžių.
+Smooth Scrolling	Sklandus slinkimas
+So no one gets lost on where to go.	Kad niekas nepasiklystų.
+Some older devices may not be shown here	Kai kurie senesni įrenginiai čia gali būti nerodomi
+Someone	Kažkas
+Something went wrong	Kažkas nepavyko
+Something went wrong (HTTP %).	Kažkas nepavyko (HTTP %).
+Something went wrong. Try again.	Kažkas nepavyko. Bandyk dar kartą.
+Somewhere Else	Kitur
+Sorry, we couldn't load the first message in this thread	Atsiprašome, nepavyko įkelti pirmosios šios gijos žinutės
+Sort: Date Posted	Rikiuoti: paskelbimo data
+Sort: Recent Activity	Rikiuoti: naujausia veikla
+Sound Name	Garso pavadinimas
+Sound names must be between 2 and 32 characters.	Garso pavadinimas turi būti nuo 2 iki 32 simbolių.
+Soundboard	Garsų lenta
+Sounds	Garsai
+Sounds must be 5.2 seconds or shorter.	Garsai turi būti ne ilgesni nei 5,2 sekundės.
+Sounds must be under 512 KB.	Garsai turi būti mažesni nei 512 KB.
+Source	Šaltinis
+Space between message groups	Tarpas tarp žinučių grupių
+Spam	Šlamštas
+Spam Filters	Šlamšto filtrai
+Spanish	Ispanų
+Spanish, LATAM	Ispanų (Lotynų Amerika)
+Speak	Kalbėti
+Speak Message	Įgarsinti žinutę
+Spoiler Attachment	Atskleidžiamas priedas
+Spoiler Content	Atskleidžiamas turinys
+Stage	Scena
+Start Date	Pradžios data
+Start Event	Pradėti renginį
+Start Minimized	Paleisti sumažintą
+Start Time	Pradžios laikas
+Starting in %m	Prasideda po %m
+State	Būsena
+Stickers	Lipdukai
+Stickers can be used by anyone in this server. Upload a PNG, APNG, GIF or Lottie JSON file of up to 512 KB; it shows at 320x320.	Lipdukus gali naudoti visi šio serverio nariai. Įkelk PNG, APNG, GIF ar Lottie JSON failą iki 512 KB; jis rodomas 320x320 dydžio.
+Stickers can't be sent encrypted yet.	Lipdukų kol kas negalima siųsti užšifruotų.
+Stickers must be PNG, APNG, GIF or Lottie JSON files.	Lipdukai turi būti PNG, APNG, GIF ar Lottie JSON failai.
+Stop Recording	Stabdyti įrašymą
+Stop Streaming	Stabdyti transliaciją
+Stop Testing	Stabdyti testą
+Stop Video	Išjungti vaizdą
+Stop Watching	Nebežiūrėti
+Storage	Saugykla
+Stream Settings	Transliacijos nustatymai
+Streamer Mode	Transliuotojo režimas
+Streamer Mode Enabled	Įjungtas transliuotojo režimas
+Streamer Mode hides your personal info so others watching your stream can't see it.	Transliuotojo režimas slepia tavo asmeninę informaciją, kad transliacijos žiūrovai jos nematytų.
+Streamer Mode is enabled. Usernames have been truncated.	Įjungtas transliuotojo režimas. Naudotojų vardai sutrumpinti.
+Success! Your friend request to % was sent.	Pavyko! Draugystės užklausa naudotojui % išsiųsta.
+Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday	sekmadienis|pirmadienis|antradienis|trečiadienis|ketvirtadienis|penktadienis|šeštadienis
+Sun|Mon|Tue|Wed|Thu|Fri|Sat	sk|pr|an|tr|kt|pn|št
+Support has arrived!	Pagalba atvyko!
+Suppress @everyone and @here	Slopinti @everyone ir @here
+Suppress All Role @mentions	Slopinti visus vaidmenų @paminėjimus
+Suppress Highlights	Slopinti akcentus
+Suppress Notifications	Slopinti pranešimus
+Suppress background noise from your mic.	Slopinti mikrofono foninį triukšmą.
+Swedish	Švedų
+Switch Accounts	Perjungti paskyras
+Switch between accounts on this device.	Perjunginėk paskyras šiame įrenginyje.
+Symbols	Simboliai
+Sync Now	Sinchronizuoti dabar
+Sync Permissions	Sinchronizuoti leidimus
+Sync Template	Sinchronizuoti šabloną
+Sync permissions?	Sinchronizuoti leidimus?
+System	Sistema
+System Messages	Sistemos žinutės
+System Messages Channel	Sistemos žinučių kanalas
+System icon for new server members.	Sistemos piktograma naujiems serverio nariams.
+THREAD NAME	GIJOS PAVADINIMAS
+Tag	Žyma
+Tags	Žymos
+Tags (pick at least one)	Žymos (pasirink bent vieną)
+Tags let members organize their posts. Members pick them when they post; moderated tags only moderators can apply.	Žymos padeda nariams tvarkyti įrašus. Nariai jas pasirenka skelbdami; moderuojamas žymas gali uždėti tik moderatoriai.
+Tap the link in your email to sign in instantly — no password needed.	Bakstelėk saitą el. laiške ir prisijunk akimirksniu – slaptažodžio nereikia.
+Tell people a little more about your event. Markdown, new lines, and links are supported.	Papasakok daugiau apie savo renginį. Palaikomi Markdown, naujos eilutės ir saitai.
+Tell the world a bit about this server.	Papasakok pasauliui apie šį serverį.
+Template Description	Šablono aprašymas
+Template Link	Šablono saitas
+Template Title	Šablono pavadinimas
+Templates are an easy way to share your server setup and help anyone create a server instantly. When someone uses your server template link, they create a new server pre-filled with the same channels, roles, permissions, and settings as yours. Messages, members and your server's icon aren't copied.	Šablonai – paprastas būdas dalintis serverio sąranka ir padėti bet kam akimirksniu sukurti serverį. Kas nors pasinaudojęs tavo šablono saitu sukuria naują serverį su tokiais pat kanalais, vaidmenimis, leidimais ir nustatymais. Žinutės, nariai ir serverio piktograma nekopijuojami.
+Temporary members are automatically kicked when they disconnect unless a role has been assigned	Laikini nariai atsijungę automatiškai išmetami, nebent jiems priskirtas vaidmuo
+Test Video	Išbandyti vaizdą
+Text	Tekstas
+Text Channel Permissions	Teksto kanalo leidimai
+Text channel, external link, or in-person location.	Teksto kanalas, išorinis saitas ar fizinė vieta.
+Thai	Tajų
+That channel isn't on this server anymore.	To kanalo šiame serveryje nebėra.
+That file couldn't be read as an MP3 or OGG sound.	Nepavyko nuskaityti failo kaip MP3 ar OGG garso.
+That file couldn't be read. Avatars must be PNG, JPEG, GIF or WEBP images.	Nepavyko nuskaityti failo. Avatarai turi būti PNG, JPEG, GIF ar WEBP vaizdai.
+That file couldn't be read. Banners must be PNG, JPEG, GIF or WEBP images.	Nepavyko nuskaityti failo. Reklamjuostės turi būti PNG, JPEG, GIF ar WEBP vaizdai.
+That file couldn't be read. Emoji must be a PNG, JPEG, GIF, WEBP or AVIF image.	Nepavyko nuskaityti failo. Jaustukas turi būti PNG, JPEG, GIF, WEBP ar AVIF vaizdas.
+That file couldn't be read. Images must be PNG, JPEG, GIF or WEBP files.	Nepavyko nuskaityti failo. Vaizdai turi būti PNG, JPEG, GIF ar WEBP failai.
+That file couldn't be read. Server icons must be PNG, JPEG, GIF or WEBP images.	Nepavyko nuskaityti failo. Serverio piktogramos turi būti PNG, JPEG, GIF ar WEBP vaizdai.
+That file is too large. Emoji must be under 256 KB.	Failas per didelis. Jaustukai turi būti mažesni nei 256 KB.
+That file is too large. Stickers must be under 512 KB.	Failas per didelis. Lipdukai turi būti mažesni nei 512 KB.
+That image is too large.	Vaizdas per didelis.
+That image is too large. Avatars must be under %.	Vaizdas per didelis. Avatarai turi būti mažesni nei %.
+That image is too large. Banners must be under 10 MB.	Vaizdas per didelis. Reklamjuostės turi būti mažesnės nei 10 MB.
+That image is too large. Server icons must be under 512 KB.	Vaizdas per didelis. Serverio piktogramos turi būti mažesnės nei 512 KB.
+That isn't a valid fastcord invite.	Tai netinkamas fastcord pakvietimas.
+That's too long to send encrypted.	Per ilga siųsti užšifruotai.
+The Pin Is Stuck!	Smeigtukas įstrigo!
+The badge chosen in the official client stays as it is.	Oficialiame kliente pasirinktas ženklelis lieka toks pat.
+The invite is invalid or has expired.	Pakvietimas netinkamas arba nebegalioja.
+The mention limit is between 1 and 50.	Paminėjimų riba – nuo 1 iki 50.
+The most important updates from this channel will now show up directly in your server. Enjoy!	Svarbiausi šio kanalo atnaujinimai dabar bus rodomi tiesiai tavo serveryje. Mėgaukis!
+The owner	Savininkas
+The related emoji must be one emoji.	Susijęs jaustukas turi būti vienas jaustukas.
+The results were tied	Rezultatai lygūs
+The selected channel has too many webhooks. Please remove a webhook or select another channel.	Pasirinktame kanale per daug webhook. Pašalink webhook arba pasirink kitą kanalą.
+The server	Serveris
+The start time must be in the future.	Pradžios laikas turi būti ateityje.
+The thread stops showing in the channel list after being inactive for this long.	Gija nebebus rodoma kanalų sąraše, kai bus neaktyvi tiek laiko.
+Theme	Tema
+There are no active threads.	Aktyvių gijų nėra.
+There are no archived threads.	Archyvuotų gijų nėra.
+There are no pending friend requests.	Laukiančių draugystės užklausų nėra.
+There are no upcoming events.	Artėjančių renginių nėra.
+There is no identity key.	Nėra tapatybės rakto.
+There was no winner	Nugalėtojo nėra
+These are all the devices that are currently logged-in with your Discord account. Log out of devices that you don't recognize.	Tai visi įrenginiai, kuriuose šiuo metu prisijungta prie tavo Discord paskyros. Atsijunk nuo įrenginių, kurių neatpažįsti.
+They said: %	Jie pasakė: %
+This account needs a passkey or security key, which fastcord can't use. Log in with the QR code instead.	Šiai paskyrai reikia prieigos rakto ar saugos rakto, kurių fastcord negali naudoti. Prisijunk QR kodu.
+This channel contains adult content that may not be suitable for all audiences. You must be 18 or older to view it.	Šiame kanale yra suaugusiesiems skirto turinio, kuris gali tikti ne visiems. Kad jį matytum, turi būti 18 metų ar vyresnis.
+This channel doesn't have any pinned messages... yet.	Šiame kanale dar nėra prisegtų žinučių... kol kas.
+This device can't open this message.	Šis įrenginys negali atidaryti šios žinutės.
+This device's encryption keys couldn't be unlocked, so earlier encrypted DMs can't be opened here.	Nepavyko atrakinti šio įrenginio šifravimo raktų, todėl ankstesnių užšifruotų pokalbių čia atidaryti negalima.
+This event will auto start when it's time.	Šis renginys prasidės automatiškai, kai ateis laikas.
+This extra step shows it's really you.	Šis papildomas žingsnis parodo, kad tai tikrai tu.
+This interaction failed	Ši sąveika nepavyko
+This invite may be expired, or you might not have permission to join.	Šis pakvietimas gali būti nebegaliojantis arba neturi leidimo prisijungti.
+This is the beginning of your direct message history with %.	Tai tavo tiesioginių žinučių su % istorijos pradžia.
+This is the channel we send system event messages to.	Į šį kanalą siunčiamos sistemos įvykių žinutės.
+This is the start of the #% channel.	Tai kanalo #% pradžia.
+This is where Discord sends updates for moderators and admins of Community servers.	Čia Discord siunčia naujienas bendruomenės serverių moderatoriams ir administratoriams.
+This is where you'll show members your server rules or guidelines.	Čia nariams rodysi serverio taisykles ar gaires.
+This link is taking you to the following website	Šis saitas veda į šią svetainę
+This option is not available for Community Servers.	Ši parinktis bendruomenės serveriams negalima.
+This role is managed by an integration and can't be edited here.	Šį vaidmenį valdo integracija, todėl čia jo redaguoti negalima.
+This server has been removed from Server Discovery because it no longer passes all the requirements. Check Server Settings for more details.	Šis serveris pašalintas iš serverių paieškos, nes nebeatitinka visų reikalavimų. Daugiau informacijos – serverio nustatymuose.
+This server has failed Discovery activity requirements for 1 week. If this server fails for 4 weeks in a row, it will be automatically removed from Discovery.	Šis serveris 1 savaitę neatitiko serverių paieškos veiklos reikalavimų. Jei neatitiks 4 savaites iš eilės, bus automatiškai pašalintas iš paieškos.
+This server has failed Discovery activity requirements for 3 weeks in a row. If this server fails for 1 more week, it will be removed from Discovery.	Šis serveris 3 savaites iš eilės neatitiko serverių paieškos veiklos reikalavimų. Jei neatitiks dar 1 savaitę, bus pašalintas iš paieškos.
+This server has no voice channels.	Šiame serveryje nėra balso kanalų.
+This server is currently full.	Šis serveris šiuo metu pilnas.
+This server is currently full. Please try again later.	Šis serveris šiuo metu pilnas. Bandyk vėliau.
+This server is eligible for Server Discovery again and has been automatically relisted!	Šis serveris vėl atitinka serverių paieškos reikalavimus ir buvo automatiškai grąžintas į sąrašą!
+This server is not available in your location.	Šis serveris tavo vietovėje nepasiekiamas.
+This server's features are limited	Šio serverio funkcijos apribotos
+This setting is applied when you join a new server. It does not apply retroactively to your existing servers.	Šis nustatymas taikomas prisijungus prie naujo serverio. Esamiems serveriams jis netaikomas atgaline data.
+This template has unsynced changes.	Šiame šablone yra nesinchronizuotų pakeitimų.
+This thread is locked.	Ši gija užrakinta.
+This voice channel is full.	Šis balso kanalas pilnas.
+This will determine whether members who have not explicitly set their notification settings receive a notification for every message sent in this server or not.	Tai nulemia, ar nariai, patys nenustatę pranešimų, gaus pranešimą apie kiekvieną šiame serveryje išsiųstą žinutę.
+This will transfer ownership of %1 to %2. This cannot be undone!	%1 nuosavybė bus perduota %2. To atšaukti negalima!
+Thread Name	Gijos pavadinimas
+Thread deleted	Gija ištrinta
+Threads	Gijos
+Time	Laikas
+Time format	Laiko formatas
+Timeout	Laikinas apribojimas
+Timeout %	Laikinai apriboti %
+Timeout Members	Laikinai apriboti narius
+Timeout member	Laikinai apriboti narį
+Times show as %.	Laikas rodomas taip: %.
+To log them out, please change your password	Kad juos atjungtum, pakeisk slaptažodį
+To protect your members, Community servers need these, and enabling sets them:	Kad apsaugotų narius, bendruomenės serveriams reikia šių nustatymų, o įjungimas juos nustato:
+Today	Šiandien
+Today at %	Šiandien %
+Toggle Deafen	Perjungti apkurtinimą
+Toggle Go Live Streaming	Perjungti Go Live transliaciją
+Toggle Mute	Perjungti nutildymą
+Toggle Streamer Mode	Perjungti transliuotojo režimą
+Toggle Voice Activity Mode	Perjungti balso aktyvumo režimą
+Toggle deafen	Perjungti apkurtinimą
+Toggle inbox	Perjungti gautuosius
+Toggle member list	Perjungti narių sąrašą
+Toggle mute	Perjungti nutildymą
+Toggle pins	Perjungti prisegtas
+Tomorrow at %	Rytoj %
+Too fast! Wait a bit and try again.	Per greitai! Palauk ir bandyk dar kartą.
+Too many uploads!	Per daug įkėlimų!
+Trait %	Bruožas %
+Traits	Bruožai
+Transfer Ownership	Perduoti nuosavybę
+Travel & Places	Kelionės ir vietos
+Treat the token like a password: anyone who has it controls your account. fastcord keeps it only on this computer.	Saugok žetoną kaip slaptažodį: kas jį turi, valdo tavo paskyrą. fastcord laiko jį tik šiame kompiuteryje.
+Trending GIFs	Populiarūs GIF
+Trust % links from now on	Nuo šiol pasitikėti % saitais
+Try Again	Bandyti dar kartą
+Try searching for something else	Pabandyk ieškoti ko nors kito
+Try searching for...	Pabandyk ieškoti...
+Try sending a new invite	Pabandyk išsiųsti naują pakvietimą
+Turkish	Turkų
+Turn off encryption	Išjungti šifravimą
+Turns this back into a regular server. Community-only features stop working.	Vėl paverčia jį įprastu serveriu. Tik bendruomenėms skirtos funkcijos nustos veikti.
+Two-factor authentication is enabled on this account.	Šioje paskyroje įjungtas dviejų veiksnių autentifikavimas.
+Type the username of a friend	Įvesk draugo naudotojo vardą
+Type your answer	Įvesk savo atsakymą
+UPLOADED BY	ĮKĖLĖ
+USES	PANAUDOJIMAI
+Uh oh, you don't have webhook permissions in any server you're in. Ask your server admin to give you the permission or ask them to come follow themselves!	Oi, neturi webhook leidimų nė viename savo serveryje. Paprašyk serverio administratoriaus suteikti leidimą arba pačiam užsiprenumeruoti!
+Uh-oh. Looks like you've been banned.	Oi. Atrodo, tau uždrausta.
+Ukrainian	Ukrainiečių
+Unable to accept invite	Nepavyko priimti pakvietimo
+Unassigned	Nepriskirta
+Unban Member	Atšaukti nario draudimą
+Unblock	Atblokuoti
+Undeafen	Atšaukti apkurtinimą
+Under Request Headers, copy the value of "authorization" and paste it below.	Skiltyje Request Headers nukopijuok „authorization“ reikšmę ir įklijuok ją žemiau.
+Undo	Anuliuoti
+Unignore	Nebeignoruoti
+Unknown	Nežinoma
+Unknown channel	Nežinomas kanalas
+Unmute	Įgarsinti
+Unmute Category	Įgarsinti kategoriją
+Unmute Channel	Įgarsinti kanalą
+Unmute Server	Įgarsinti serverį
+Unmute Thread	Įgarsinti giją
+Unpin Message	Atsegti žinutę
+Unreads	Neskaitytos
+Unrestricted	Neribota
+Until %	Iki %
+Until %1 at %2	Iki %1 %2
+Until I turn it back on	Kol vėl įjungsiu
+Until tomorrow at %	Iki rytojaus %
+Untitled question	Klausimas be pavadinimo
+Unverify	Atšaukti patvirtinimą
+Update %	Atnaujinti %
+Update Channel	Atnaujinti kanalą
+Update Emoji	Atnaujinti jaustuką
+Update Member	Atnaujinti narį
+Update Member Roles	Atnaujinti nario vaidmenis
+Update Role	Atnaujinti vaidmenį
+Update Server	Atnaujinti serverį
+Update Webhook	Atnaujinti webhook
+Update your password	Atnaujink slaptažodį
+Upload	Įkelti
+Upload Emoji	Įkelti jaustuką
+Upload Sound	Įkelti garsą
+Upload Sticker	Įkelti lipduką
+Upload a File	Įkelti failą
+Upload a Sound	Įkelti garsą
+Upload a file	Įkelti failą
+Upload custom sound reactions that anyone in this server can use. MP3 or OGG files, up to 512 KB and 5.2 seconds.	Įkelk pasirinktinių garsų reakcijų, kurias galės naudoti visi šio serverio nariai. MP3 ar OGG failai, iki 512 KB ir 5,2 sekundės.
+Upload to %	Įkelti į %
+Uploaded a file	Įkėlė failą
+Uploading...	Įkeliama...
+Use Application Commands	Naudoti programų komandas
+Use Category Default	Naudoti kategorijos numatytąjį
+Use External Apps	Naudoti išorines programas
+Use External Emoji	Naudoti išorinius jaustukus
+Use External Sounds	Naudoti išorinius garsus
+Use External Stickers	Naudoti išorinius lipdukus
+Use Server Default	Naudoti serverio numatytąjį
+Use Soundboard	Naudoti garsų lentą
+Use Voice Activity	Naudoti balso aktyvumą
+Use a backup code	Naudoti atsarginį kodą
+Use a code sent to your phone	Naudoti į telefoną atsiųstą kodą
+Use a passkey or security key	Naudoti prieigos raktą ar saugos raktą
+Use data to improve Discord	Naudoti duomenis Discord tobulinti
+Use roles to group your server members and assign permissions.	Naudok vaidmenis serverio nariams grupuoti ir leidimams priskirti.
+Use your authenticator app	Naudoti autentifikavimo programą
+Used % times.|Used % times.	Panaudota % kartą.|Panaudota % kartus.|Panaudota % kartų.
+User Join	Naudotojas prisijungia
+User Leave	Naudotojas išeina
+User Limit	Naudotojų riba
+User Moved	Naudotojas perkeltas
+User Volume	Naudotojo garsumas
+User blocked	Naudotojas užblokuotas
+User unblocked	Naudotojas atblokuotas
+Username	Naudotojo vardas
+Username is available. Nice!	Naudotojo vardas laisvas. Puiku!
+Username is unavailable. Try adding numbers, letters, underscores _ , or periods.	Naudotojo vardas užimtas. Pabandyk pridėti skaičių, raidžių, pabraukimų _ ar taškų.
+Users will need to confirm they are of over the legal age to view in the content in this channel.\nAge-restricted channels are exempt from the explicit content filter.	Norėdami matyti šio kanalo turinį, naudotojai turės patvirtinti, kad yra pilnamečiai.\nKanalams su amžiaus apribojimu atviro turinio filtras netaikomas.
+Uses the yt-dlp you installed to play YouTube links in the chat instead of opening your browser. It connects to YouTube from your computer.	Naudoja tavo įdiegtą yt-dlp YouTube saitams leisti pokalbyje, užuot atidarius naršyklę. Jis jungiasi prie YouTube iš tavo kompiuterio.
+VOICE PROCESSING	BALSO APDOROJIMAS
+Verification Level	Patvirtinimo lygis
+Verified	Patvirtinta
+Verify with something else	Patvirtinti kitu būdu
+Video	Vaizdas
+Video Quality	Vaizdo kokybė
+Vietnamese	Vietnamiečių
+View Audit Log	Peržiūrėti audito žurnalą
+View Channel	Matyti kanalą
+View Channels	Matyti kanalus
+View Details	Peržiūrėti išsamiau
+View Full Profile	Peržiūrėti visą profilį
+View Poll	Peržiūrėti apklausą
+View Profile	Peržiūrėti profilį
+View Reactions	Peržiūrėti reakcijas
+View Server Insights	Peržiūrėti serverio įžvalgas
+Visit Site	Aplankyti svetainę
+Visual Density	Vaizdo tankis
+Voice	Balsas
+Voice & Video	Balsas ir vaizdas
+Voice Activity	Balso aktyvumas
+Voice Channel	Balso kanalas
+Voice Channel Permissions	Balso kanalo leidimai
+Voice Connected	Balsas prijungtas
+Voice Disconnected	Balsas atjungtas
+Volume	Garsumas
+Vote	Balsuoti
+Waiting for a server	Laukiama serverio
+Wants to message you	Nori tau parašyti
+Watch Stream	Žiūrėti transliaciją
+Wave to say hi!	Pamojuok ir pasisveikink!
+We appreciate the enthusiasm, but...	Vertiname tavo entuziazmą, bet...
+We couldn't load the profile for this server.	Nepavyko įkelti šio serverio profilio.
+We recommend an image of at least 512x512.	Rekomenduojame bent 512x512 vaizdą.
+We sent instructions to change your password to %, please check both your inbox and spam folder.	Slaptažodžio keitimo instrukcijas išsiuntėme adresu %, patikrink gautuosius ir šlamšto aplanką.
+We're so excited to see you again!	Labai džiaugiamės vėl tave matydami!
+We've sent a message to %.  Please enter the code you received.	Išsiuntėme žinutę į %.  Įvesk gautą kodą.
+Webhooks (%)	Webhook (%)
+Webhooks are a simple way to post messages from other apps and websites into this server.	Webhook – paprastas būdas skelbti žinutes iš kitų programų ir svetainių šiame serveryje.
+Welcome %. Say hi!	Sveikas, %. Pasisveikink!
+Welcome back!	Sveikas sugrįžęs!
+Welcome to #%!	Sveiki atvykę į #%!
+Welcome to the beginning of the % group.	Sveiki atvykę į grupės % pradžią.
+Welcome, %. We hope you brought pizza.	Sveikas, %. Tikimės, atsinešei picos.
+What brings you here?	Kas tave čia atvedė?
+What can people do in this server?	Ką žmonės gali veikti šiame serveryje?
+What question do you want to ask?	Kokį klausimą nori užduoti?
+What's cookin'?	Kas gero?
+What's your event about?	Apie ką tavo renginys?
+What's your event?	Koks tavo renginys?
+When a friend starts an activity—like playing a game or hanging out on voice—we'll show it here!	Kai draugas pradės veiklą – pvz., žais žaidimą ar leis laiką balso kanale – parodysime tai čia!
+When enabled, only server members can view profile content. Non-members won't be able to see this content unless they have an invite.	Įjungus profilio turinį matys tik serverio nariai. Ne nariai jo nematys, nebent turi pakvietimą.
+When you put a user in timeout they will not be able to send messages in chat, reply within threads, react to messages, or speak in voice or Stage channels.	Laikinai apribotas naudotojas negalės siųsti žinučių pokalbyje, atsakyti gijose, reaguoti į žinutes ar kalbėti balso ar scenos kanaluose.
+Where is your event?	Kur vyks tavo renginys?
+Where would you like to go?	Kur norėtum eiti?
+Who is this server for? E.g. School Club, Artists' Community	Kam skirtas šis serveris? Pvz., mokyklos būrelis, menininkų bendruomenė
+Winning answer · %1%2	Laimėjęs atsakymas · %1%2
+Words that are never blocked, separated by commas	Niekada neblokuojami žodžiai, atskirti kableliais
+Words to block, separated by commas	Blokuojami žodžiai, atskirti kableliais
+Words to block, separated by commas (* matches anything)	Blokuojami žodžiai, atskirti kableliais (* atitinka bet ką)
+Would you like to sync %1 permissions with %2?	Ar nori sinchronizuoti %1 leidimus su %2?
+Yay you made it, %!	Valio, tau pavyko, %!
+Yesterday at %	Vakar %
+You	Tu
+You accepted %'s friend request.	Priėmei % draugystės užklausą.
+You are at the % server limit.	Pasiekei % serverių ribą.
+You are banned from this server.	Tau uždrausta šiame serveryje.
+You aren't in that server. Ask a member for an invite.	Nesi tame serveryje. Paprašyk nario pakvietimo.
+You can add % more friend.|You can add % more friends.	Gali pridėti dar % draugą.|Gali pridėti dar % draugus.|Gali pridėti dar % draugų.
+You can add comments before uploading.\nHold shift to upload directly.	Prieš įkeldamas gali pridėti komentarų.\nLaikyk Shift, kad įkeltum iškart.
+You can add friends with their Discord username.	Draugus gali pridėti pagal jų Discord naudotojo vardą.
+You can add up to 5 accounts.	Gali pridėti iki 5 paskyrų.
+You can hold down shift when clicking % to bypass this confirmation entirely.	Spustelėdamas % gali laikyti Shift ir visai praleisti šį patvirtinimą.
+You can only edit roles below your highest role.	Gali redaguoti tik žemesnius už savo aukščiausią vaidmenis.
+You can only upload % files at a time!	Vienu metu gali įkelti tik % failus!
+You can use markdown and links if you'd like.	Jei nori, gali naudoti Markdown ir saitus.
+You can't join this server because of your age group.	Negali prisijungti prie šio serverio dėl savo amžiaus grupės.
+You can't unblock the Wumpus.	Wumpus atblokuoti negalima.
+You cannot friend yourself	Negali pridėti savęs kaip draugo
+You can’t react and super react with the same emoji. There’s a lot of emoji to choose from, so maybe try another one.	Negalima reaguoti ir super reaguoti tuo pačiu jaustuku. Jaustukų daug, tad pabandyk kitą.
+You do not have permission to send messages in this channel.	Neturi leidimo siųsti žinučių šiame kanale.
+You don't have any friends to add!	Neturi draugų, kuriuos galėtum pridėti!
+You don't have permission to do that.	Neturi leidimo tai daryti.
+You haven't added a display name yet.	Dar nepridėjai rodomo vardo.
+You haven't added a phone number yet.	Dar nepridėjai telefono numerio.
+You haven't added an email yet.	Dar nepridėjai el. pašto.
+You haven't authorized any apps.	Nesi įgaliojęs jokių programų.
+You haven't blocked anyone.	Nieko neužblokavai.
+You haven't connected any accounts yet.	Dar nesusiejai jokių paskyrų.
+You haven't ignored anyone.	Nieko neignoruoji.
+You missed a call from %1 that lasted %2.	Praleidai %1 skambutį, kuris truko %2.
+You must be at least 18 years old to view this channel.	Kad matytum šį kanalą, turi būti bent 18 metų.
+You must leave a server first to join.	Kad prisijungtum, pirma palik kurį nors serverį.
+You need to add one or more rules.	Turi pridėti bent vieną taisyklę.
+You received an invite, but...	Gavai pakvietimą, bet...
+You said: %	Tu pasakei: %
+You sent an invite to a self-hosted server	Išsiuntei pakvietimą į savarankiškai talpinamą serverį
+You sent an invite, but	Išsiuntei pakvietimą, bet
+You sent an invite, but...	Išsiuntei pakvietimą, bet...
+You will appear offline	Atrodysi neprisijungęs
+You will not receive desktop notifications	Negausi darbalaukio pranešimų
+You'll have to log back in on all logged out devices.	Visuose atjungtuose įrenginiuose reikės prisijungti iš naujo.
+You're Viewing Older Messages	Žiūri senesnes žinutes
+You're all caught up!	Viskas perskaityta!
+You're already in that server.	Tu jau esi tame serveryje.
+You're doing that too fast. Try again in a moment.	Darai tai per greitai. Bandyk po akimirkos.
+You're not in any servers yet.	Dar nesi jokiame serveryje.
+You're offline: no invite link.	Esi neprisijungęs: pakvietimo saito nėra.
+You're timed out until %.	Esi laikinai apribotas iki %.
+You've been invited to a self-hosted server	Esi pakviestas į savarankiškai talpinamą serverį
+You've been invited to join	Esi pakviestas prisijungti
+You've been invited to speak	Esi pakviestas kalbėti
+You've been invited, but	Esi pakviestas, bet
+Your files are too powerful	Tavo failai per galingi
+Your full profile is visible to friends and any server you join with 200 or fewer members. Everyone else sees a limited version.	Visą tavo profilį mato draugai ir serveriai, kuriuose yra 200 ar mažiau narių. Kiti mato ribotą versiją.
+Your full profile is visible to friends and any server you join.	Visą tavo profilį mato draugai ir visi serveriai, prie kurių prisijungi.
+Your full profile is visible to friends. Everyone else sees a limited version.	Visą tavo profilį mato draugai. Kiti mato ribotą versiją.
+Your invite link expires after %.	Tavo pakvietimo saitas nustos galioti po %.
+Your invite link expires in %.	Tavo pakvietimo saitas nustos galioti po %.
+Your invite link expires in %1, or after %2.	Tavo pakvietimo saitas nustos galioti po %1 arba po %2.
+Your invite link expires in 7 days.	Tavo pakvietimo saitas nustos galioti po 7 dienų.
+Your invite link will never expire.	Tavo pakvietimo saitas galios visada.
+Your last request was on %.	Paskutinė tavo užklausa: %.
+Your message is too long (% / %).	Tavo žinutė per ilga (%1 / %2).
+Your reaction was not added because there are too many reactions on this message.	Tavo reakcija nepridėta, nes šioje žinutėje per daug reakcijų.
+Your request from % is being prepared.	Tavo % užklausa ruošiama.
+Your server is where you and your friends hang out. Make yours and start talking.	Serveris – vieta, kur leidi laiką su draugais. Susikurk savo ir pradėk kalbėtis.
+Your sounds go out with your voice, mixed into your microphone, instead of as soundboard sounds.	Tavo garsai siunčiami kartu su balsu, sumaišyti su mikrofonu, o ne kaip garsų lentos garsai.
+Zoom level	Mastelis
+a channel	kanalas
+a command	komanda
+a day	diena
+a day ago	prieš dieną
+a few seconds	kelios sekundės
+a few seconds ago	prieš kelias sekundes
+a message	žinutė
+a minute	minutė
+a minute ago	prieš minutę
+a month ago	prieš mėnesį
+a year ago	prieš metus
+an hour	valanda
+an hour ago	prieš valandą
+by %	autorius %
+cancel	atšaukti
+channel	kanalas
+delete message	ištrinti žinutę
+escape to %1 • enter to %2	Esc – %1 • Enter – %2
+fastcord %	fastcord %
+fastcord quit unexpectedly last time. The report is in the logs folder (Settings, under Log Out).	Praėjusį kartą fastcord netikėtai užsidarė. Ataskaita yra žurnalų aplanke (Nustatymai, po „Atsijungti“).
+fastcord starts in the background and stays out of your way.	fastcord pasileidžia fone ir netrukdo.
+from %	iš %
+in %	po %
+in % day|in % days	po % dienos|po % dienų|po % dienų
+in % hour|in % hours	po % valandos|po % valandų|po % valandų
+in % minute|in % minutes	po % minutės|po % minučių|po % minučių
+in % month|in % months	po % mėnesio|po % mėnesių|po % mėnesių
+in % year|in % years	po % metų|po % metų|po % metų
+in a day	po dienos
+in a few seconds	po kelių sekundžių
+in a minute	po minutės
+in a month	po mėnesio
+in a year	po metų
+in an hour	po valandos
+just now	ką tik
+less than an hour ago	mažiau nei prieš valandą
+link, embed or file	saitas, įterptas turinys ar failas
+on %	%
+pinned messages	prisegtos žinutės
+remove embeds	pašalinti įterptą turinį
+save	išsaugoti
+someone	kažkas
+specific date	konkreti data
+this server	šis serveris
+threads	gijos
+true or false	taip arba ne
+unknown	nežinoma
+unknown channel	nežinomas kanalas
+used	panaudota
+user	naudotojas
+• Media from all members is scanned by the explicit image filter.	• Visų narių medija tikrinama atviro turinio vaizdų filtru.
+• Members must have a verified email on their Discord account.	• Nariai Discord paskyroje turi turėti patvirtintą el. paštą.
+← Back to %	← Atgal į %
+← Back to login	← Atgal į prisijungimą

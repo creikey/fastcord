@@ -1,0 +1,1968 @@
+# Japanese (ja)
+ · required	 · 必須
+% (requested to speak)	%（発言をリクエスト中）
+% (required)	%（必須）
+% Bans|% Bans	%件のBAN
+% Event|% Events	%件のイベント
+% Member|% Members	%人のメンバー
+% Messages	%件のメッセージ
+% Mutual Friend|% Mutual Friends	%人の共通のフレンド
+% Mutual Server|% Mutual Servers	%個の共通のサーバー
+% Online	%人がオンライン
+% Result|% Results	%件の結果
+% accepted encryption.	%が暗号化を承認しました。
+% accepted your friend request.	%がフレンドリクエストを承認しました。
+% answer|% answers	%件の回答
+% becomes the owner once they accept on their device. You'll stay a member.	%がデバイスで承認すると、オーナーになります。あなたはメンバーとして残ります。
+% blocked message —|% blocked messages —	%件のブロックしたメッセージ —
+% byte|% bytes	%バイト
+% changed the group icon.	%がグループアイコンを変更しました。
+% day ago|% days ago	%日前
+% day|% days	%日
+% disabled security actions.	%がセキュリティアクションを無効にしました。
+% enabled security actions.	%がセキュリティアクションを有効にしました。
+% hasn't accepted encryption yet.	%はまだ暗号化を承認していません。
+% hopped into the server.	%がサーバーに飛び込んできました。
+% hour ago|% hours ago	%時間前
+% hour|% hours	%時間
+% ignored message —|% ignored messages —	%件の無視したメッセージ —
+% is here.	%がやってきました。
+% is typing...	%が入力中...
+% joined the party.	%がパーティーに参加しました。
+% just boosted the server!	%がサーバーをブーストしました！
+% just landed.	%が到着しました。
+% just showed up!	%が現れました！
+% just slid into the server.	%がサーバーに滑り込んできました。
+% left the group.	%がグループから退出しました。
+% member|% members	%人のメンバー
+% minute ago|% minutes ago	%分前
+% minute|% minutes	%分
+% month ago|% months ago	%か月前
+% of %	%/%
+% removed the custom group name.	%がカスタムグループ名を削除しました。
+% started a call.	%が通話を開始しました。
+% turned on encryption.	%が暗号化をオンにしました。
+% user|% users	%人のユーザー
+% use|% uses	%回使用
+% vote|% votes	%票
+% wants to encrypt this DM with a new key. Compare safety numbers after accepting.	%が新しい鍵でこのDMを暗号化しようとしています。承認後に安全番号を照合してください。
+% wants to encrypt this DM.	%がこのDMの暗号化を求めています。
+% year ago|% years ago	%年前
+% · End-to-end encrypted	% · エンドツーエンド暗号化
+%'s Group	%のグループ
+%'s encryption key changed. Compare safety numbers before trusting new messages.	%の暗号鍵が変更されました。新しいメッセージを信頼する前に安全番号を照合してください。
+%'s server	%のサーバー
+%1 (%2 more)	%1（他%2件）
+%1 STICKERS — %2 SLOTS AVAILABLE	スタンプ%1個 — 空き枠%2個
+%1 action %2	%1が%2を実行
+%1 added %2 to the group.	%1が%2をグループに追加しました。
+%1 and %2	%1と%2
+%1 and %2 are typing...	%1と%2が入力中...
+%1 and %2 other|%1 and %2 others	%1と他%2人
+%1 banned %2	%1が%2をBANしました
+%1 changed the Stage topic: %2	%1がステージのトピックを変更しました: %2
+%1 changed the channel name: %2.	%1がチャンネル名を変更しました: %2
+%1 changed the group name: %2.	%1がグループ名を変更しました: %2
+%1 created a channel	%1がチャンネルを作成しました
+%1 created a role	%1がロールを作成しました
+%1 created a webhook	%1がウェブフックを作成しました
+%1 created an emoji	%1が絵文字を作成しました
+%1 created an invite	%1が招待を作成しました
+%1 deleted a channel	%1がチャンネルを削除しました
+%1 deleted a message by %2	%1が%2のメッセージを削除しました
+%1 deleted a role	%1がロールを削除しました
+%1 deleted a webhook	%1がウェブフックを削除しました
+%1 deleted an emoji	%1が絵文字を削除しました
+%1 deleted an invite	%1が招待を削除しました
+%1 enabled security actions until %2.	%1が%2までセキュリティアクションを有効にしました。
+%1 ended %2	%1が%2を終了しました
+%1 has achieved %2	%1が%2を達成しました
+%1 has added %2 to this channel. Its most important updates will show up here.	%1がこのチャンネルに%2を追加しました。重要なお知らせがここに表示されます。
+%1 has blocked a message in %2	%1が%2でメッセージをブロックしました
+%1 has flagged a message in %2	%1が%2でメッセージにフラグを付けました
+%1 is now a speaker.	%1がスピーカーになりました。
+%1 joined %2 and has been a subscriber of %3 for %4 month!|%1 joined %2 and has been a subscriber of %3 for %4 months!	%1が%2に参加し、%3を%4か月間サブスクライブしています！
+%1 joined %2 as a subscriber of %3!	%1が%3のサブスクライバーとして%2に参加しました！
+%1 just boosted the server %2 times!	%1がサーバーを%2回ブーストしました！
+%1 kicked %2	%1が%2をキックしました
+%1 new message since %2|%1 new messages since %2	%2以降の新着メッセージ%1件
+%1 of %2 slot used|%1 of %2 slots used	%2枠中%1枠を使用中
+%1 pinned %2 to this channel. See all %3.	%1が%2をこのチャンネルにピン留めしました。%3をすべて表示。
+%1 reacted with %2	%1が%2でリアクションしました
+%1 removed %2 from the group.	%1が%2をグループから削除しました。
+%1 renewed %2 and has been a subscriber of %3 for %4 month!|%1 renewed %2 and has been a subscriber of %3 for %4 months!	%1が%2を更新し、%3を%4か月間サブスクライブしています！
+%1 renewed %2 in their %3 membership!	%1が%3メンバーシップの%2を更新しました！
+%1 reported a raid in %2.	%1が%2で荒らしを報告しました。
+%1 requested to speak.	%1が発言をリクエストしました。
+%1 resolved an Activity Alert in %2.	%1が%2のアクティビティアラートを解決しました。
+%1 said %2	%1: %2
+%1 started %2	%1が%2を開始しました
+%1 started a call that lasted %2.	%1が通話を開始しました（%2）。
+%1 started a thread: %2. See all %3.	%1がスレッドを開始しました: %2。%3をすべて表示。
+%1 unbanned %2	%1が%2のBANを解除しました
+%1 updated %2	%1が%2を更新しました
+%1 updated a channel	%1がチャンネルを更新しました
+%1 updated a role	%1がロールを更新しました
+%1 updated a webhook	%1がウェブフックを更新しました
+%1 updated an emoji	%1が絵文字を更新しました
+%1 updated the roles of %2	%1が%2のロールを更新しました
+%1 updated the server	%1がサーバーを更新しました
+%1 vote · %2|%1 votes · %2	%1票 · %2
+%1 wants to make you the owner of %2. You'll be able to manage everything about it, and they'll stay a member.	%1があなたを%2のオーナーにしようとしています。すべてを管理できるようになり、相手はメンバーとして残ります。
+%1's poll %2 has closed.	%1の投票「%2」が締め切られました。
+%1, %2 and %3	%1、%2、%3
+%1, %2 at %3	%1 %2 %3
+%1, %2, and %3 are typing...	%1、%2、%3が入力中...
+%1: %2	%1: %2
+%: a number	%: 数値
+%: a whole number	%: 整数
+%: pick a channel	%: チャンネルを選択
+%: pick a member	%: メンバーを選択
+%: pick a role	%: ロールを選択
+%: true or false	%: trueまたはfalse
+%d ago	%日前
+%d left	残り%日
+%h	%時間
+%h ago	%時間前
+%h left	残り%時間
+%m	%分
+%m ago	%分前
+%m left	残り%分
+%mo ago	%か月前
+%s	%秒
+(edited)	(編集済)
+/% takes no options.	/%にオプションはありません。
+/%1 needs %2:	/%1には%2が必要です:
+1 Day	1日
+1 Hour	1時間
+1 Message	1件のメッセージ
+1 Week	1週間
+1 day	1日
+1 hour	1時間
+1 minute	1分
+1 use	1回
+1 week	1週間
+10 Minutes	10分
+10 minutes	10分
+10 uses	10回
+100 uses	100回
+12 hours	12時間
+12-hour	12時間制
+15 minutes	15分
+2 hours	2時間
+2 to 4 letters or numbers	2〜4文字の英数字
+2 weeks	2週間
+24 Hours	24時間
+24 hours	24時間
+24-hour	24時間制
+25 uses	25回
+3 Days	3日
+3 days	3日
+30 days	30日
+30 minutes	30分
+3:00 PM	午後3:00
+4 hours	4時間
+5 Minutes	5分
+5 minutes	5分
+5 uses	5回
+50 uses	50回
+6 hours	6時間
+6-digit authentication code	6桁の認証コード
+60 Seconds	60秒
+60 seconds	60秒
+7 days	7日
+8 hours	8時間
+8-digit backup code	8桁のバックアップコード
+@ OFF	@ オフ
+@ ON	@ オン
+@MENTIONS	@メンション
+@everyone · applies to all server members	@everyone · サーバーの全メンバーに適用
+A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button.	Ctrl、Alt、Shift、Cmdと組み合わせたキー、修飾キー単体、またはマウスの中央・サイドボタン。
+A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button. Works in every app.	Ctrl、Alt、Shift、Cmdと組み合わせたキー、修飾キー単体、またはマウスの中央・サイドボタン。どのアプリでも使えます。
+A role needs a name.	ロールには名前が必要です。
+A webhook needs a name.	ウェブフックには名前が必要です。
+A wild % appeared.	野生の%が現れた。
+ACTION	アクション
+ACTIVE INVITE LINKS	有効な招待リンク
+ALL	すべて
+ALL THE BITS! Going above 64 kbps may adversely affect people on poor connections.	ビット全開！64kbpsを超えると、回線の弱い人に悪影響が出ることがあります。
+AM	午前
+ANIMATED EMOJI — % SLOTS AVAILABLE	アニメーション絵文字 — 空き枠%個
+APP	アプリ
+AUDIENCE — %	聴衆 — %
+AUTHENTICATOR APP	認証アプリ
+About Me	自己紹介
+Accept	承認
+Accept Friend Request	フレンドリクエストを承認
+Accept Invite	招待を受ける
+Accept Server Ownership	サーバーの所有権を受け取る
+Accept this message request (Friends, Message Requests) to reply.	返信するには、このメッセージリクエストを承認してください（フレンド > メッセージリクエスト）。
+Accepting...	承認中...
+Access	アクセス
+Accessibility	アクセシビリティ
+Account	アカウント
+Account Removal	アカウントの削除
+Activate	有効化
+Active	アクティブ
+Active Now	アクティビティ
+Activities	アクティビティ
+Activity Joining	アクティビティへの参加
+Activity Privacy	アクティビティのプライバシー
+Activity Status	アクティビティステータス
+Add Answer	回答を追加
+Add Emoji	絵文字を追加
+Add Friend	フレンドに追加
+Add Friend Nickname	フレンドのニックネームを追加
+Add Note	メモを追加
+Add Reaction	リアクションを付ける
+Add Reactions	リアクションの追加
+Add Tag	タグを追加
+Add a Keybind	キー割り当てを追加
+Add a Question	質問を追加
+Add a channel	チャンネルを追加
+Add a channel to override its default notification settings	チャンネルを追加して、デフォルトの通知設定を上書きします
+Add a description	説明を追加
+Add a location, link, or something.	場所やリンクなどを追加してください。
+Add a role	ロールを追加
+Add an Account	アカウントを追加
+Add an optional message...	メッセージを追加（任意）...
+Add another answer	回答をさらに追加
+Add at least one word to block.	ブロックする単語を1つ以上追加してください。
+Add members or roles	メンバーまたはロールを追加
+Add this channel's updates to your server!	このチャンネルの更新情報をあなたのサーバーに追加しよう！
+Add this key to an authenticator app, then enter the code it shows.	この鍵を認証アプリに追加し、表示されるコードを入力してください。
+Add to Favorites	お気に入りに追加
+Add to Group DM	グループDMに追加
+Add up to 5 traits to show off your server's interests and personality.	サーバーの興味や個性を示す特徴を5つまで追加できます。
+Add up to 50 custom emoji that anyone can use in this server. Animated GIF emoji may be used by members with Discord Nitro. Emoji names must be at least 2 characters long and can only contain alphanumeric characters and underscores. Emoji must be under 256 KB in size.	このサーバーで誰でも使えるカスタム絵文字を50個まで追加できます。アニメーションGIF絵文字はDiscord Nitroのメンバーが使えます。絵文字名は2文字以上で、英数字とアンダースコアのみ使用できます。絵文字のサイズは256KB未満にしてください。
+Add your pronouns	代名詞を追加
+Added %	%を追加しました
+Adjust the size of the interface. You can also change this with % +/-.	インターフェースのサイズを調整します。% +/- でも変更できます。
+Administrator	管理者
+Advanced Permissions	詳細な権限
+Advanced permissions	詳細な権限
+Age-Restricted Channel	年齢制限チャンネル
+All	すべて
+All Actions	すべてのアクション
+All Messages	すべてのメッセージ
+All Users	すべてのユーザー
+All friends	すべてのフレンド
+All messages will be filtered for sensitive image-based media.	すべてのメッセージで、センシティブな画像メディアがフィルタリングされます。
+All set. Now share your event!	準備完了！イベントを共有しましょう！
+Allow DMs from other members in servers	サーバー内の他のメンバーからのDMを許可する
+Allow Discord to use and process my information to understand and improve Discord's services.	Discordのサービスの理解と改善のために、Discordが私の情報を使用・処理することを許可する。
+Allow Friend Requests from...	フレンドリクエストを許可する相手...
+Allow Multiple Answers	複数回答を許可
+Allow anyone to @mention this role	誰でもこのロールを@メンションできるようにする
+Allow direct messages from other members in this server.	このサーバーの他のメンバーからのダイレクトメッセージを許可します。
+Allow friends to join your game	フレンドがあなたのゲームに参加できるようにする
+Allow members to change this server's name, switch regions, view all invites, add apps to this server and create and update AutoMod rules.	メンバーがサーバー名の変更、地域の切り替え、すべての招待の閲覧、サーバーへのアプリの追加、AutoModルールの作成・更新を行えるようにします。
+Allow members to create invite-only threads.	メンバーが招待制のスレッドを作成できるようにします。
+Allow members to create threads that everyone in a channel can view.	メンバーがチャンネルの全員が閲覧できるスレッドを作成できるようにします。
+Allow members to send messages in text channels and create posts in forum channels.	メンバーがテキストチャンネルでメッセージを送信し、フォーラムチャンネルで投稿を作成できるようにします。
+Allow members to send messages in threads and in posts on forum channels.	メンバーがスレッドやフォーラムチャンネルの投稿内でメッセージを送信できるようにします。
+Allow message requests from server members you may not know	知らない可能性のあるサーバーメンバーからのメッセージリクエストを許可する
+Allow voice channel participants to join your game	ボイスチャンネルの参加者があなたのゲームに参加できるようにする
+Allowed words	許可する単語
+Allows apps that members have added to their account to post messages. When disabled, the messages will be private.	メンバーがアカウントに追加したアプリがメッセージを投稿できるようにします。無効にすると、メッセージは非公開になります。
+Allows links that members share to show embedded content in text channels.	メンバーが共有したリンクの埋め込みコンテンツをテキストチャンネルに表示できるようにします。
+Allows members to add custom emoji, stickers, and sounds in this server.	メンバーがこのサーバーにカスタム絵文字、スタンプ、サウンドを追加できるようにします。
+Allows members to add new emoji reactions to a message. If this permission is disabled, members can still react using any existing reactions on a message.	メンバーがメッセージに新しい絵文字リアクションを付けられるようにします。この権限が無効でも、メッセージに既にあるリアクションは使えます。
+Allows members to be more easily heard in voice channels. When activated, the volume of others without this permission will be automatically lowered.	ボイスチャンネルでメンバーの声を聞こえやすくします。有効にすると、この権限を持たない他の人の音量が自動的に下がります。
+Allows members to change the nicknames of other members.	メンバーが他のメンバーのニックネームを変更できるようにします。
+Allows members to change their own nickname, a custom name for just this server.	メンバーが自分のニックネーム（このサーバー専用の名前）を変更できるようにします。
+Allows members to change this channel's name, description, and settings. They can also delete it.	メンバーがこのチャンネルの名前、説明、設定を変更できるようにします。チャンネルの削除もできます。
+Allows members to change this channel's permissions.	メンバーがこのチャンネルの権限を変更できるようにします。
+Allows members to create and edit voice channel status.	メンバーがボイスチャンネルのステータスを作成・編集できるようにします。
+Allows members to create events.	メンバーがイベントを作成できるようにします。
+Allows members to create new roles and edit or delete roles lower than their highest role. Also allows members to change permissions of individual channels that they have access to.	メンバーが新しいロールを作成し、自分の最上位ロールより下のロールを編集・削除できるようにします。また、アクセスできる個々のチャンネルの権限も変更できます。
+Allows members to create polls.	メンバーが投票を作成できるようにします。
+Allows members to create, edit, or delete channels.	メンバーがチャンネルを作成、編集、削除できるようにします。
+Allows members to create, edit, or delete webhooks, which can post messages from other apps or sites into this server.	メンバーがウェブフック（他のアプリやサイトからこのサーバーにメッセージを投稿できる機能）を作成、編集、削除できるようにします。
+Allows members to deafen other members in voice channels, which means they won't be able to speak or hear others.	メンバーがボイスチャンネルで他のメンバーをスピーカーミュートできるようにします。スピーカーミュートされたメンバーは話すことも聞くこともできません。
+Allows members to delete or remove embeds from messages by other members.	メンバーが他のメンバーのメッセージを削除したり、埋め込みを削除したりできるようにします。
+Allows members to disconnect or move other members between voice channels that the member with this permission has access to.	この権限を持つメンバーがアクセスできるボイスチャンネル間で、他のメンバーを切断・移動できるようにします。
+Allows members to edit and cancel events.	メンバーがイベントを編集・キャンセルできるようにします。
+Allows members to edit or remove custom emoji, stickers, and sounds in this server.	メンバーがこのサーバーのカスタム絵文字、スタンプ、サウンドを編集・削除できるようにします。
+Allows members to invite new people to this server.	メンバーがこのサーバーに新しい人を招待できるようにします。
+Allows members to join voice channels and hear others.	メンバーがボイスチャンネルに参加し、他の人の声を聞けるようにします。
+Allows members to mute other members in voice channels for everyone.	メンバーがボイスチャンネルで他のメンバーを全員に対してミュートできるようにします。
+Allows members to permanently ban and delete the message history of other members from this server.	メンバーが他のメンバーをこのサーバーから永久にBANし、メッセージ履歴を削除できるようにします。
+Allows members to pin or unpin any message.	メンバーが任意のメッセージをピン留め・ピン留め解除できるようにします。
+Allows members to read previous messages sent in channels. If this permission is disabled, members only see messages sent when they are online. This does not fully apply to threads and forum posts.	メンバーがチャンネルで過去に送信されたメッセージを読めるようにします。この権限が無効の場合、メンバーには自分がオンラインの間に送信されたメッセージのみ表示されます。スレッドとフォーラムの投稿には完全には適用されません。
+Allows members to remove other members from this server. Kicked members will be able to rejoin if they have another invite.	メンバーが他のメンバーをこのサーバーから追放できるようにします。キックされたメンバーは、別の招待があれば再参加できます。
+Allows members to rename, delete, close, and turn on slow mode for threads and posts. They can also view private threads.	メンバーがスレッドや投稿の名前変更、削除、クローズ、低速モードの有効化を行えるようにします。プライベートスレッドも閲覧できます。
+Allows members to send messages without being affected by slowmode.	メンバーが低速モードの影響を受けずにメッセージを送信できるようにします。
+Allows members to send sounds from server soundboard.	メンバーがサーバーのサウンドボードからサウンドを送信できるようにします。
+Allows members to send text-to-speech messages by starting a message with /tts. These messages can be heard by anyone focused on the channel.	メンバーがメッセージの先頭に /tts を付けて読み上げメッセージを送信できるようにします。このメッセージはチャンネルを開いている全員に聞こえます。
+Allows members to send voice messages.	メンバーがボイスメッセージを送信できるようにします。
+Allows members to share their video, screen share, or stream a game in this server.	メンバーがこのサーバーでビデオの共有、画面共有、ゲーム配信を行えるようにします。
+Allows members to speak in voice channels by simply talking. If this permission is disabled, members are required to use Push-to-talk. Good for controlling background noise or noisy members.	メンバーがボイスチャンネルで話すだけで発言できるようにします。この権限が無効の場合、メンバーはプッシュトゥトークを使う必要があります。周囲の雑音や騒がしいメンバーの対策に便利です。
+Allows members to talk in voice channels. If this permission is disabled, members are default muted until somebody with the "Mute Members" permission un-mutes them.	メンバーがボイスチャンネルで話せるようにします。この権限が無効の場合、「メンバーをミュート」権限を持つ誰かがミュートを解除するまで、メンバーはミュートされた状態になります。
+Allows members to upload files or media in text channels.	メンバーがテキストチャンネルにファイルやメディアをアップロードできるようにします。
+Allows members to use @everyone (everyone in the server) or @here (only online members in that channel). They can also @mention all roles, even if the role's "Allow anyone to mention this role" permission is disabled.	メンバーが@everyone（サーバーの全員）や@here（そのチャンネルのオンラインのメンバーのみ）を使えるようにします。また、ロールの「誰でもこのロールをメンションできるようにする」が無効でも、すべてのロールを@メンションできます。
+Allows members to use commands from applications, including slash commands and context menu commands.	メンバーがスラッシュコマンドやコンテキストメニューのコマンドなど、アプリのコマンドを使えるようにします。
+Allows members to use emoji from other servers, if they're a Discord Nitro member.	Discord Nitroのメンバーが他のサーバーの絵文字を使えるようにします。
+Allows members to use sounds from other servers, if they're a Discord Nitro member.	Discord Nitroのメンバーが他のサーバーのサウンドを使えるようにします。
+Allows members to use stickers from other servers, if they're a Discord Nitro member.	Discord Nitroのメンバーが他のサーバーのスタンプを使えるようにします。
+Allows members to view Server Insights, which shows data on community growth, engagement, and more. This will allow them to see certain data about channel activity, even for channels they cannot access.	メンバーがサーバーインサイト（コミュニティの成長やエンゲージメントなどのデータ）を閲覧できるようにします。アクセスできないチャンネルについても、チャンネルのアクティビティに関する一部のデータが見られるようになります。
+Allows members to view a record of who made which changes in this server.	メンバーがこのサーバーで誰がどの変更を行ったかの記録を閲覧できるようにします。
+Allows members to view channels by default (excluding private channels).	メンバーがデフォルトでチャンネルを閲覧できるようにします（プライベートチャンネルを除く）。
+Allows members to view these channels by default. Disabling this for @everyone will make the category private.	メンバーがデフォルトでこれらのチャンネルを閲覧できるようにします。@everyoneでこれを無効にすると、カテゴリーがプライベートになります。
+Allows members to view this channel by default. Disabling this for @everyone will make this channel private.	メンバーがデフォルトでこのチャンネルを閲覧できるようにします。@everyoneでこれを無効にすると、このチャンネルがプライベートになります。
+Always	常に
+An emoji name, like smile	絵文字の名前（例: smile）
+An encrypted file couldn't be opened.|% encrypted files couldn't be opened.	%件の暗号化ファイルを開けませんでした。
+An error occurred, please try again.	エラーが発生しました。もう一度お試しください。
+An error occurred. Please try again.	エラーが発生しました。もう一度お試しください。
+Announcement	アナウンス
+Announcement Channel	アナウンスチャンネル
+Answer	回答
+Answers	回答
+Anyone can join your server directly through Server Discovery	誰でもサーバー発見から直接サーバーに参加できます
+Anyone can use	誰でも使用可能
+Anyone with access to this text channel will be able to see the notifications.	このテキストチャンネルにアクセスできる人は誰でも通知を見ることができます。
+App Directory	アプリディレクトリ
+Appearance	テーマ
+Appends (╯°□°)╯︵ ┻━┻ to your message.	メッセージに (╯°□°)╯︵ ┻━┻ を付け加えます。
+Appends ¯\\_(ツ)_/¯ to your message.	メッセージに ¯\\_(ツ)_/¯ を付け加えます。
+Appends ┬─┬ノ( º _ ºノ) to your message.	メッセージに ┬─┬ノ( º _ ºノ) を付け加えます。
+Applications	アプリケーション
+Apply to Join	参加を申請
+Approve	承認
+Apps	アプリ
+Apps Permissions	アプリの権限
+Archived	アーカイブ済み
+Archived Threads	アーカイブされたスレッド
+Are you building a Community? Convert to a Community Server to access additional administrative tools that can help you moderate, run, and grow your server.	コミュニティを作っていますか？コミュニティサーバーに切り替えると、サーバーのモデレーション、運営、成長に役立つ管理ツールが使えるようになります。
+Are you sure that you want to delete your account? This will immediately log you out of your account and you will not be able to log in again.	本当にアカウントを削除しますか？すぐにログアウトされ、再びログインすることはできなくなります。
+Are you sure that you want to disable your account? This will immediately log you out and make your account inaccessible to anyone.	本当にアカウントを無効にしますか？すぐにログアウトされ、誰もアカウントにアクセスできなくなります。
+Are you sure you want to ban @%1 from %2? They won't be able to come back until the ban is lifted.	本当に@%1を%2からBANしますか？BANが解除されるまで戻ってこられなくなります。
+Are you sure you want to delete %? This action cannot be undone.	本当に%を削除しますか？この操作は取り消せません。
+Are you sure you want to delete %? This cannot be undone.	本当に%を削除しますか？元に戻すことはできません。
+Are you sure you want to delete :%:? This cannot be undone.	本当に:%:を削除しますか？元に戻すことはできません。
+Are you sure you want to delete the rule %? This cannot be undone.	本当にルール「%」を削除しますか？元に戻すことはできません。
+Are you sure you want to delete this message?	本当にこのメッセージを削除しますか？
+Are you sure you want to delete this role? This action cannot be undone.	本当にこのロールを削除しますか？この操作は取り消せません。
+Are you sure you want to delete this template? Its link will stop working.	本当にこのテンプレートを削除しますか？リンクは使えなくなります。
+Are you sure you want to kick @%1 from %2? They will be able to rejoin again with a new invite.	本当に@%1を%2からキックしますか？新しい招待があれば再参加できます。
+Are you sure you want to logout?	本当にログアウトしますか？
+Are you sure you want to remove all embeds on this message? This will remove them for everyone.	本当にこのメッセージの埋め込みをすべて削除しますか？全員に対して削除されます。
+Are you sure you want to remove all of the reactions for this emoji from this message?	本当にこのメッセージからこの絵文字のリアクションをすべて削除しますか？
+Are you sure you want to remove all the reactions on this message?	本当にこのメッセージのリアクションをすべて削除しますか？
+Are you sure you want to revoke the invite %? Nobody will be able to join with it.	本当に招待%を取り消しますか？誰もこの招待で参加できなくなります。
+Ask for a new invite	新しい招待を頼んでください
+Ask new members what they're here for; each answer gives them channels and roles.	新しいメンバーに参加の目的を尋ねましょう。回答ごとにチャンネルとロールが付与されます。
+Attach Files	ファイルを添付
+Attachment removed	添付ファイルを削除しました
+Attachments	添付ファイル
+Audit Log	監査ログ
+Authorized Apps	認証済みアプリ
+Auto	自動
+AutoMod	AutoMod
+Automatic	自動
+Automatic Gain Control	自動ゲイン調整
+Automatically determine input sensitivity	入力感度を自動調整する
+Automatically enable Streamer Mode if OBS or XSplit are running	OBSまたはXSplitの起動中は自動で配信モードを有効にする
+Automatically filter suspected spam messages	スパムの疑いがあるメッセージを自動でフィルタリングする
+Automatically move members to this channel and mute them when they have been idle for longer than the inactive timeout. This does not affect browsers.	非アクティブタイムアウトより長く退席中のメンバーを、自動でこのチャンネルに移動してミュートします。ブラウザには影響しません。
+Automatically open fastcord when your computer starts up	コンピューターの起動時にfastcordを自動で開く
+Automatically scan and delete messages sent in this server that contain explicit media.	このサーバーで送信された露骨なメディアを含むメッセージを自動でスキャンして削除します。
+Avatar	アバター
+BACK	戻る
+BACKUP CODES	バックアップコード
+Back	戻る
+Back / forward	戻る / 進む
+Backup codes can only be used one time each and are for emergency access to your account!	バックアップコードはそれぞれ1回のみ使用でき、緊急時にアカウントにアクセスするためのものです！
+Backups	バックアップ
+Ban	BAN
+Ban %	%をBAN
+Ban '%' from Server	「%」をサーバーからBAN
+Ban Member	メンバーをBAN
+Ban Members	メンバーをBAN
+Banner	バナー
+Banner Color	バナーの色
+Bans	BAN
+Bitrate	ビットレート
+Block	ブロック
+Block Commonly Flagged Words	よくフラグが付く単語をブロック
+Block Custom Words	カスタム単語をブロック
+Block Mention Spam	メンションスパムをブロック
+Block Suspected Spam Content	スパムの疑いがあるコンテンツをブロック
+Block Words in Member Profile Names	メンバーのプロフィール名の単語をブロック
+Block message	メッセージをブロック
+Blocked	ブロック中
+Blocked Users	ブロック中のユーザー
+Blocked by your content filters	コンテンツフィルターでブロックされました
+Blocked message	ブロックしたメッセージ
+Blocked words	ブロックする単語
+Blocked words in names	名前でブロックする単語
+Blocks messages containing % word.|Blocks messages containing % words.	%個の単語を含むメッセージをブロックします。
+Blocks messages suspected to be spam.	スパムの疑いがあるメッセージをブロックします。
+Blocks messages with more than % mentions.	メンションが%個を超えるメッセージをブロックします。
+Blocks words from Discord's commonly flagged lists.	Discordのよくフラグが付く単語リストにある単語をブロックします。
+Blocks words in member profile names.	メンバーのプロフィール名に含まれる単語をブロックします。
+Blur	ぼかし
+Blur Background	背景をぼかす
+Blur what's behind you on camera. Only your camera is changed.	カメラに映る背景をぼかします。変更されるのはあなたのカメラだけです。
+Bold / italic / underline	太字 / 斜体 / 下線
+Bots and Apps	ボットとアプリ
+Browse	参照
+Browse Channels	チャンネルを見る
+Built-In	内蔵
+Bulgarian	ブルガリア語
+By creating a server, you agree to Discord's Community Guidelines.	サーバーを作成すると、Discordのコミュニティガイドラインに同意したことになります。
+By enabling the widget, your server profile will be visible to others outside of your server members. You can control Profile privacy in Server Settings > Profile.	ウィジェットを有効にすると、サーバーのメンバー以外にもサーバープロフィールが表示されます。プロフィールのプライバシーはサーバー設定 > プロフィールで管理できます。
+By making a category private, only select members and roles will be able to view this category. Linked channels in this category will automatically match to this setting.	カテゴリーをプライベートにすると、選択したメンバーとロールのみがこのカテゴリーを閲覧できます。このカテゴリー内の同期されたチャンネルは自動でこの設定に合わせられます。
+By making a channel private, only select members and roles will be able to view this channel.	チャンネルをプライベートにすると、選択したメンバーとロールのみがこのチャンネルを閲覧できます。
+By making a channel private, only select members and roles will have access to view or connect to this channel.	チャンネルをプライベートにすると、選択したメンバーとロールのみがこのチャンネルを閲覧・接続できます。
+Bypass Slowmode	低速モードを回避
+CHANNEL OR CATEGORY	チャンネルまたはカテゴリー
+CONFIRM NEW PASSWORD	新しいパスワードを確認
+CURRENT PASSWORD	現在のパスワード
+Call	通話
+Cancel	キャンセル
+Cancel Event	イベントをキャンセル
+Cancel Friend Request	フレンドリクエストを取り消す
+Careful — you have unsaved changes!	注意 — 未保存の変更があります！
+Category Name	カテゴリー名
+Category deleted	カテゴリーを削除しました
+Change %	%を変更
+Change Avatar	アバターを変更
+Change Nickname	ニックネームを変更
+Change Password	パスワードを変更
+Change Server Icon	サーバーアイコンを変更
+Channel	チャンネル
+Channel Name	チャンネル名
+Channel Notification Overrides	チャンネル通知の上書き
+Channel Topic	チャンネルトピック
+Channel Type	チャンネルの種類
+Channel deleted	チャンネルを削除しました
+Channel unmuted	チャンネルのミュートを解除しました
+Channels	チャンネル
+Channels & Roles	チャンネル＆ロール
+Channels Followed (%)	フォロー中のチャンネル（%）
+Channels matching #%	#%に一致するチャンネル
+Chat	チャット
+Chat Font Scaling	チャットのフォントサイズ
+Check your email for a login link	メールでログインリンクを確認してください
+Check your phone!	スマートフォンを確認してください！
+Checking the file…	ファイルを確認中…
+Chinese, China	中国語（中国）
+Chinese, Taiwan	中国語（台湾）
+Choose Image	画像を選択
+Choose a link people can use to join, discord.gg/<code>.	参加に使うリンクを選んでください（discord.gg/<code>）。
+Choose a server	サーバーを選択
+Choose the language you want Discord to display.	Discordの表示言語を選んでください。
+Choose what happens to images and videos Discord detects as explicit.	Discordが露骨と判定した画像や動画の扱いを選んでください。
+Clear	クリア
+Clear Custom Status	カスタムステータスをクリア
+Clear after	クリアするまでの時間
+Clear permissions	権限をクリア
+Click Again to Reset	もう一度クリックでリセット
+Click any channel, then pick a request whose name starts with "messages" or "science".	どれかのチャンネルをクリックし、名前が「messages」または「science」で始まるリクエストを選んでください。
+Click to add a note	クリックしてメモを追加
+Click to see attachment	クリックして添付ファイルを表示
+Close DM	DMを閉じる
+Collapse	折りたたむ
+Collapse All Categories	すべてのカテゴリーを折りたたむ
+Collapse Category	カテゴリーを折りたたむ
+Commands	コマンド
+Commands matching /%	/%に一致するコマンド
+Community Overview	コミュニティの概要
+Community Updates Channel	コミュニティアップデートチャンネル
+Community servers follow Discord's Community Guidelines.	コミュニティサーバーはDiscordのコミュニティガイドラインに従います。
+Community servers have more tools to help you moderate and grow your server.	コミュニティサーバーには、サーバーのモデレーションや成長に役立つツールが揃っています。
+Compact	コンパクト
+Compare	照合
+Compare these with %, in person or on a call. If they match, no one can read this DM in between.	直接会うか通話で、%とこれを照合してください。一致すれば、途中で誰もこのDMを読むことはできません。
+Configure system event messages sent to your server.	サーバーに送信されるシステムイベントメッセージを設定します。
+Confirm	確認
+Confirm Request	リクエストを確認
+Confirm your age to join this server.	このサーバーに参加するには年齢を確認してください。
+Confirming...	確認中...
+Connect	接続
+Connect these accounts and unlock special Discord integrations. The sign-in opens in your browser.	これらのアカウントを接続して、Discordの特別な連携を利用しましょう。サインインはブラウザで開きます。
+Connected Apps	接続済みアプリ
+Connecting	接続中
+Connecting...	接続中...
+Connecting…	接続中…
+Connection Info	接続情報
+Connection lost. Messages may be out of date.	接続が切れました。メッセージが最新でない可能性があります。
+Connections	接続
+Content Filters	コンテンツフィルター
+Continue	続ける
+Control who can see your profile info, like your bio and connected accounts.	自己紹介や接続済みアカウントなど、プロフィール情報を見られる人を管理します。
+Copied	コピーしました
+Copy	コピー
+Copy Category ID	カテゴリーIDをコピー
+Copy Channel ID	チャンネルIDをコピー
+Copy Event Link	イベントのリンクをコピー
+Copy Image	画像をコピー
+Copy Image Link	画像のリンクをコピー
+Copy Link	リンクをコピー
+Copy Media Link	メディアのリンクをコピー
+Copy Message ID	メッセージIDをコピー
+Copy Message Link	メッセージのリンクをコピー
+Copy Server ID	サーバーIDをコピー
+Copy Text	テキストをコピー
+Copy User ID	ユーザーIDをコピー
+Copy Username	ユーザー名をコピー
+Copy Webhook URL	ウェブフックURLをコピー
+Copy curl Command	curlコマンドをコピー
+Copy the event link below to invite people to your event. This also acts as a server invite link.	下のイベントリンクをコピーして、イベントに人を招待しましょう。サーバーの招待リンクとしても使えます。
+Copy your account's token once from Discord in a web browser.	ウェブブラウザのDiscordから、アカウントのトークンを一度だけコピーしてください。
+Couldn't accept encryption.	暗号化を承認できませんでした。
+Couldn't cancel the event.	イベントをキャンセルできませんでした。
+Couldn't change avatar	アバターを変更できませんでした
+Couldn't create an invite link.	招待リンクを作成できませんでした。
+Couldn't create an invite.	招待を作成できませんでした。
+Couldn't delete the channel: %	チャンネルを削除できませんでした: %
+Couldn't encrypt the message.	メッセージを暗号化できませんでした。
+Couldn't join %: %	%に参加できませんでした: %
+Couldn't load onboarding.	オンボーディングを読み込めませんでした。
+Couldn't load the AutoMod rules.	AutoModのルールを読み込めませんでした。
+Couldn't load the applications.	申請を読み込めませんでした。
+Couldn't load the audit log.	監査ログを読み込めませんでした。
+Couldn't load the bans.	BANを読み込めませんでした。
+Couldn't load the invites.	招待を読み込めませんでした。
+Couldn't load the members.	メンバーを読み込めませんでした。
+Couldn't load the role's members.	ロールのメンバーを読み込めませんでした。
+Couldn't load the server rules.	サーバールールを読み込めませんでした。
+Couldn't load the server's tag.	サーバータグを読み込めませんでした。
+Couldn't load the template.	テンプレートを読み込めませんでした。
+Couldn't load the webhooks.	ウェブフックを読み込めませんでした。
+Couldn't move the channel	チャンネルを移動できませんでした
+Couldn't play it here, so it opened in your browser.	ここでは再生できなかったため、ブラウザで開きました。
+Couldn't reach %1: %2 Retrying.	%1に接続できませんでした: %2 再試行しています。
+Couldn't reach Discord. Check your connection and try again.	Discordに接続できませんでした。接続を確認して、もう一度お試しください。
+Couldn't reach Discord. Try again.	Discordに接続できませんでした。もう一度お試しください。
+Couldn't reach the server.	サーバーに接続できませんでした。
+Couldn't reach the server. Check your connection and try again.	サーバーに接続できませんでした。接続を確認して、もう一度お試しください。
+Couldn't save the file.	ファイルを保存できませんでした。
+Couldn't save the image.	画像を保存できませんでした。
+Couldn't save the token.	トークンを保存できませんでした。
+Couldn't turn on encryption.	暗号化をオンにできませんでした。
+Couldn't upload emoji	絵文字をアップロードできませんでした
+Cozy	ゆったり
+Create	作成
+Create Category	カテゴリーを作成
+Create Channel	チャンネルを作成
+Create DM	DMを作成
+Create Emoji	絵文字を作成
+Create Event	イベントを作成
+Create Events	イベントの作成
+Create Expressions	エクスプレッションの作成
+Create Group DM	グループDMを作成
+Create Invite	招待を作成
+Create My Own	オリジナルの作成
+Create Poll	投票を作成
+Create Polls	投票の作成
+Create Private Threads	プライベートスレッドの作成
+Create Public Threads	公開スレッドの作成
+Create Role	ロールを作成
+Create Rule	ルールを作成
+Create Thread	スレッドを作成
+Create Webhook	ウェブフックを作成
+Create Your Server	サーバーを作成
+Create a poll	投票を作成
+Create a space for organized discussions	整理された議論の場を作りましょう
+Create one for me	自分で作る
+Created by %	作成者: %
+Created on %1 by %2	%1に%2が作成
+Creating an invite link…	招待リンクを作成中…
+Creating an invite...	招待を作成中...
+Creating...	作成中...
+Creating…	作成中…
+Creation Date	作成日
+Croatian	クロアチア語
+Current Device	現在のデバイス
+Custom Invite Link	カスタム招待リンク
+Customize Your Server	サーバーをカスタマイズ
+Customize how your server appears in invite links and, if enabled, in Server Discovery and Announcement Channel messages	招待リンク、および有効な場合はサーバー発見とアナウンスチャンネルのメッセージで、サーバーがどう表示されるかをカスタマイズします
+Customize your server with integrations. Manage webhooks, followed channels and apps.	連携でサーバーをカスタマイズしましょう。ウェブフック、フォロー中のチャンネル、アプリを管理できます。
+Cut	切り取り
+Czech	チェコ語
+DAVE v%, % members	DAVE v%、%人のメンバー
+DEFAULT KEYBINDS	デフォルトのキー割り当て
+DM closed	DMを閉じました
+Danish	デンマーク語
+Data & Privacy	データとプライバシー
+Date	日付
+Deafen	スピーカーミュート
+Deafen Members	メンバーのスピーカーをミュート
+Deauthorize	認証を解除
+Decline	拒否
+Default	デフォルト
+Default Channels	デフォルトチャンネル
+Default Layout	デフォルトのレイアウト
+Default Notification Settings	デフォルトの通知設定
+Default Permissions	デフォルトの権限
+Default Sort Order	デフォルトの並び順
+Default Themes	デフォルトのテーマ
+Default notifications become Only @mentions.	デフォルトの通知が「@メンションのみ」になります。
+Delete	削除
+Delete '%'	「%」を削除
+Delete Account	アカウントを削除
+Delete Category	カテゴリーを削除
+Delete Channel	チャンネルを削除
+Delete Emoji	絵文字を削除
+Delete Invite	招待を削除
+Delete Message	メッセージを削除
+Delete Message History	メッセージ履歴を削除
+Delete Question	質問を削除
+Delete Role	ロールを削除
+Delete Rule	ルールを削除
+Delete Server	サーバーを削除
+Delete Sticker	スタンプを削除
+Delete Template	テンプレートを削除
+Delete Thread	スレッドを削除
+Delete Webhook	ウェブフックを削除
+Deleted message	削除されたメッセージ
+Describe your sticker	スタンプの説明
+Description	説明
+Description (alt text)	説明（代替テキスト）
+Description (optional)	説明（任意）
+Detects a burst of mention spam across the server and locks it down.	サーバー全体でのメンションスパムの急増を検知して、ロックダウンします。
+Developer	開発者
+Developer Mode	開発者モード
+Developer Mode exposes context menu items helpful for people writing apps using the Discord API.	開発者モードでは、Discord APIでアプリを作る人に便利なコンテキストメニュー項目が表示されます。
+Devices	デバイス
+Direct Message (DM) Permissions	ダイレクトメッセージ（DM）の権限
+Direct Messages	ダイレクトメッセージ
+Direct messages from friends	フレンドからのダイレクトメッセージ
+Direct messages from others	その他の人からのダイレクトメッセージ
+Disable	無効化
+Disable Account	アカウントを無効化
+Disable All Notification Sounds	すべての通知音を無効化
+Disable Community	コミュニティを無効化
+Disable all notifications	すべての通知を無効化
+Disable all sound effects	すべての効果音を無効化
+Disabling your account means you can recover it at any time after taking this action.	アカウントを無効化しても、後からいつでも復元できます。
+Disconnect	切断
+Disconnect From Voice Channel	ボイスチャンネルから切断
+Disconnected	切断されました
+Discord account	Discordアカウント
+Discord asked for a captcha, which fastcord can't show. Log in with the QR code instead.	DiscordがCAPTCHAを要求しましたが、fastcordでは表示できません。代わりにQRコードでログインしてください。
+Discord asked for a captcha, which fastcord can't show. Try on discord.com.	DiscordがCAPTCHAを要求しましたが、fastcordでは表示できません。discord.comでお試しください。
+Discord can filter out some messages that contain spam. These messages go to your Spam inbox.	Discordはスパムを含む一部のメッセージを除外できます。除外されたメッセージはスパム受信箱に入ります。
+Discord didn't accept the saved login. Log in again.	保存されたログイン情報がDiscordに受け付けられませんでした。もう一度ログインしてください。
+Discord failed to unpin that message for some reason. Sorry about that.	何らかの理由で、Discordはそのメッセージのピン留めを解除できませんでした。申し訳ありません。
+Discord will prioritize this server in search to users who speak the selected language.	選択した言語を話すユーザーの検索で、このサーバーが優先的に表示されます。
+Discord's terms don't allow third-party clients, so using one can get an account flagged.	Discordの規約ではサードパーティクライアントが認められていないため、使うとアカウントにフラグが付く可能性があります。
+Discoverable	発見可能
+Dismiss	閉じる
+Dismiss message	メッセージを閉じる
+Display	表示
+Display Images, Videos and Lolcats	画像、動画、ネコ画像を表示
+Display Name	表示名
+Display name	表示名
+Display on profile	プロフィールに表示
+Display role members separately from online members	ロールのメンバーをオンラインメンバーとは別に表示する
+Displays text with emphasis.	テキストを強調して表示します。
+Do Not Disturb	取り込み中
+Do not filter	フィルタリングしない
+Do not filter direct messages	ダイレクトメッセージをフィルタリングしない
+Don't Delete Any	削除しない
+Don't clear	クリアしない
+Don't show role colors	ロールの色を表示しない
+Done	完了
+Download	ダウンロード
+Drop a file here, or browse	ここにファイルをドロップ、または参照
+Duration	期間
+Dutch	オランダ語
+EDIT ROLE — %	ロールを編集 — %
+EMAIL OR PHONE NUMBER	メールアドレスまたは電話番号
+EMOJI MATCHING	絵文字の検索結果
+ENTER THE 6-DIGIT CODE	6桁のコードを入力
+EXPIRE AFTER	有効期限
+EXPIRES	有効期限
+Ease the chat and lists toward where you scroll. Off, they jump there at once (always, when your device asks for reduced motion).	チャットやリストをスクロール先までなめらかに動かします。オフにすると一瞬で移動します（デバイスで視差効果を減らす設定の場合は常にオフ）。
+Echo Cancellation	エコー除去
+Edit	編集
+Edit Category	カテゴリーを編集
+Edit Channel	チャンネルを編集
+Edit Friend Nickname	フレンドのニックネームを編集
+Edit Message	メッセージを編集
+Edit Per-server Profile	サーバー別プロフィールを編集
+Edit Profile	プロフィールを編集
+Edit Profiles	プロフィールを編集
+Edit Sound	サウンドを編集
+Edit Thread	スレッドを編集
+Edit User Profile	ユーザープロフィールを編集
+Edit invite link.	招待リンクを編集。
+Edit your last message	最後のメッセージを編集
+Email	メールアドレス
+Embed Links	埋め込みリンク
+Embed an HTML widget on your website to display your online members, voice channels, and invite link.	ウェブサイトにHTMLウィジェットを埋め込んで、オンラインのメンバー、ボイスチャンネル、招待リンクを表示します。
+Emoji	絵文字
+Emoji / GIF / sticker picker	絵文字 / GIF / スタンプの選択
+Enable Authenticator App	認証アプリを有効化
+Enable Community	コミュニティを有効化
+Enable Community to access Server Discovery	コミュニティを有効にしてサーバー発見を使えるようにする
+Enable Desktop Notifications	デスクトップ通知を有効化
+Enable Invites	招待を有効化
+Enable Onboarding	オンボーディングを有効化
+Enable Reduced Motion	視差効果を減らす
+Enable Server Widget	サーバーウィジェットを有効化
+Enable Streamer Mode	配信モードを有効化
+Enable Unread Message Badge	未読メッセージのバッジを有効化
+Encrypt this DM	このDMを暗号化
+Encrypted message	暗号化されたメッセージ
+Encrypted messages are limited to % bytes for now.	暗号化メッセージは現在%バイトまでです。
+End Date	終了日
+End Event	イベントを終了
+End Poll Now	今すぐ投票を締め切る
+End Time	終了時刻
+End-to-end encrypted	エンドツーエンド暗号化
+End-to-end encryption	エンドツーエンド暗号化
+Engagement	エンゲージメント
+English, UK	英語（イギリス）
+English, USA	英語（アメリカ）
+Enter Discord Auth Code	Discordの認証コードを入力
+Enter Discord Backup Code	Discordのバックアップコードを入力
+Enter a location	場所を入力
+Enter a message to start the conversation!	メッセージを入力して会話を始めましょう！
+Enter an invite below to join an existing server	既存のサーバーに参加するには、下に招待を入力してください
+Enter server name	サーバー名を入力
+Enter your current password and a new password.	現在のパスワードと新しいパスワードを入力してください。
+Error	エラー
+Est. %	設立: %
+Event Info	イベント情報
+Event Topic	イベントのトピック
+Event cancelled	イベントがキャンセルされました
+Event is over	イベントは終了しました
+Events	イベント
+Events Permissions	イベントの権限
+Every answer needs a title.	すべての回答にタイトルが必要です。
+Every question needs a title and at least one answer.	すべての質問にタイトルと1つ以上の回答が必要です。
+Everyone	全員
+Everyone in this channel connects to the selected region. Automatic picks the best one for whoever starts the call.	このチャンネルの全員が選択した地域に接続します。「自動」では、通話を始めた人に最適な地域が選ばれます。
+Everyone welcome %!	みんな、%を歓迎しよう！
+Everyone who joins sees these channels, whatever they answer.	参加した人は、回答にかかわらずこれらのチャンネルが見られます。
+Exempt a channel	チャンネルを除外
+Exempt a role	ロールを除外
+Exemptions	除外
+Expand (% lines)	展開（%行）
+Expand (% of % lines)	展開（%/%行）
+Expired	期限切れ
+Explicit image filter	不適切な画像のフィルター
+Expression	エクスプレッション
+FRAME RATE	フレームレート
+Failed to follow the channel, please try again.	チャンネルをフォローできませんでした。もう一度お試しください。
+Fastcord couldn't be installed.	Fastcordをインストールできませんでした。
+Favorites	お気に入り
+File	ファイル
+File saved.	ファイルを保存しました。
+Filename	ファイル名
+Fill out the details of your event.	イベントの詳細を入力してください。
+Filter by Action	アクションで絞り込む
+Filter by User	ユーザーで絞り込む
+Filter direct messages from everyone	すべての人からのダイレクトメッセージをフィルタリング
+Filter direct messages from non-friends	フレンド以外からのダイレクトメッセージをフィルタリング
+Filter messages from all members	すべてのメンバーのメッセージをフィルタリング
+Filter messages from server members without roles	ロールのないサーバーメンバーのメッセージをフィルタリング
+Find or start a conversation	会話を検索または開始
+Find the perfect emoji	ぴったりの絵文字を探そう
+Find the perfect reaction	ぴったりのリアクションを探そう
+Find the perfect sticker	ぴったりのスタンプを探そう
+Finding the video%	動画を検索中%
+Finish	完了
+Finishing touches	最後の仕上げ
+Finnish	フィンランド語
+Fit more messages on screen at one time. #IRC	一度に画面に表示するメッセージを増やします。#IRC
+Flagged as spam	スパムとしてフラグ付け
+Flags	フラグ
+Folder Color	フォルダーの色
+Folder Name	フォルダー名
+Folder Settings	フォルダー設定
+Folder removed	フォルダーを削除しました
+Follow	フォロー
+Followed!	フォローしました！
+Food & Drink	食べ物＆飲み物
+For 1 Hour	1時間
+For 15 Minutes	15分間
+For 24 Hours	24時間
+For 3 Days	3日間
+For 3 Hours	3時間
+For 8 Hours	8時間
+Forever	無期限
+Forgot your password?	パスワードをお忘れですか？
+Forum	フォーラム
+Forward	転送
+Forward To	転送先
+Forwarded	転送済み
+French	フランス語
+Frequently Used	よく使う
+Friend Nickname	フレンドのニックネーム
+Friend Request Permissions	フレンドリクエストの権限
+Friend Request Sent	フレンドリクエストを送信しました
+Friend removed	フレンドを削除しました
+Friend request cancelled	フレンドリクエストを取り消しました
+Friend request ignored	フレンドリクエストを無視しました
+Friends	フレンド
+Friends & All Servers	フレンドとすべてのサーバー
+Friends & Small Servers Only	フレンドと小規模サーバーのみ
+Friends Only	フレンドのみ
+Friends can ask to join or join the game you're playing.	フレンドがあなたのプレイ中のゲームへの参加をリクエストしたり、参加したりできます。
+Friends come online	フレンドがオンラインになったとき
+Friends of friends	フレンドのフレンド
+From User	ユーザーから
+GIFs	GIF
+GIFs can't be sent encrypted yet.	GIFはまだ暗号化して送信できません。
+Gallery view	ギャラリー表示
+General	一般
+General Category Permissions	カテゴリーの一般権限
+General Channel Permissions	チャンネルの一般権限
+General Server Permissions	サーバーの一般権限
+Generate Template	テンプレートを生成
+Generate a New Link	新しいリンクを生成
+German	ドイツ語
+Get a copy of your data. It can take up to 30 days to prepare, and a download link is emailed to you when it's ready.	データのコピーを取得します。準備には最大30日かかり、準備ができるとダウンロードリンクがメールで届きます。
+Give new members a quick way to find the channels and roles that matter to them.	新しいメンバーが自分に合ったチャンネルとロールをすぐ見つけられるようにしましょう。
+Give your new server a personality with a name. You can always change it later.	名前を付けて、新しいサーバーに個性を持たせましょう。名前は後からいつでも変更できます。
+Glad you're here, %.	%、来てくれてうれしいです。
+Go Back	戻る
+Go To Channel	チャンネルへ移動
+Go back	戻る
+Go forward	進む
+Go to Server	サーバーへ移動
+Good to see you, %.	%、ようこそ。
+Got It	了解
+Grant temporary membership	一時的なメンバーシップを付与する
+Greek	ギリシャ語
+Hang out together with voice, video, and screen share	音声、ビデオ、画面共有で一緒に過ごそう
+Hang out with voice, video, screenshare, and Go Live.	音声、ビデオ、画面共有、Go Liveで一緒に過ごしましょう。
+Happening Now	開催中
+Have an invite already?	招待をお持ちですか？
+Help	ヘルプ
+Here's a preview of your event.	イベントのプレビューです。
+Hey, just double checking that you want to pin this message to #% for posterity and greatness?	念のため確認です。このメッセージを後世に残すために#%にピン留めしますか？
+Hey, just double checking that you want to pin this message to the current channel for posterity and greatness?	念のため確認です。このメッセージを後世に残すために現在のチャンネルにピン留めしますか？
+Hide	非表示
+Hide After Inactivity	非アクティブ後に非表示
+Hide Chat	チャットを非表示
+Hide Fastcord window from screen capture	画面キャプチャからFastcordのウィンドウを隠す
+Hide Muted Channels	ミュートしたチャンネルを非表示
+Hide invite links to my Discord servers	自分のDiscordサーバーへの招待リンクを隠す
+Hide my personal information, such as email, connected accounts, and notes	メールアドレス、接続済みアカウント、メモなどの個人情報を隠す
+Hides Fastcord windows from most screen capture software.	ほとんどの画面キャプチャソフトからFastcordのウィンドウを隠します。
+High	高
+Highest	最高
+Highlights provide occasional updates when your friends are chatting in busy servers, and more.	ハイライトでは、フレンドがにぎやかなサーバーで話しているときなどに、ときどき最新情報をお届けします。
+Hindi	ヒンディー語
+History	履歴
+Hitting X makes fastcord minimize to the system tray instead of closing.	×を押すと、fastcordは閉じずにシステムトレイに最小化されます。
+Hm, didn’t work. Double check that the username is correct.	うーん、うまくいきませんでした。ユーザー名が正しいか確認してください。
+Host	主催者
+Host events with an audience	聴衆を集めてイベントを開催
+How Discord Uses My Data	Discordによるデータの利用方法
+How can people join your server?	どうやってサーバーに参加してもらいますか？
+How did your server get started? Why should people join?	サーバーを始めたきっかけは？参加するとどんないいことがありますか？
+Hungarian	ハンガリー語
+I acknowledge that by transferring ownership of this server to %, it officially belongs to them.	このサーバーの所有権を%に譲渡すると、サーバーは正式に相手のものになることを了承します。
+I agree and understand	理解し、同意します
+I'm new here, say hi!	はじめまして、よろしく！
+I'm sure, use a backup code	バックアップコードを使う
+IMAGE	画像
+INPUT DEVICE	入力デバイス
+INPUT MODE	入力モード
+INPUT SENSITIVITY	入力感度
+INPUT VOLUME	入力音量
+INVITE CODE	招待コード
+INVITE LINK	招待リンク
+INVITER	招待者
+INVITES SHOULD LOOK LIKE	招待の形式
+Icon	アイコン
+Idle	退席中
+If Streamer Mode is enabled...	配信モードが有効のとき...
+If you do not have access to any other methods, the button below will activate in % second.|If you do not have access to any other methods, the button below will activate in % seconds.	他の方法が使えない場合、%秒後に下のボタンが有効になります。
+If you do not have access to any other methods, use the other button below to proceed.	他の方法が使えない場合は、下のもう1つのボタンで先に進んでください。
+Ignore	無視
+Ignore Friend Request	フレンドリクエストを無視
+Ignored Users	無視中のユーザー
+Ignored message	無視したメッセージ
+Image saved.	画像を保存しました。
+Important updates for people in and out of the server	サーバー内外の人への重要なお知らせ
+In Channel	チャンネル内
+Inactive Channel	非アクティブチャンネル
+Inactive Timeout	非アクティブタイムアウト
+Inbox	受信箱
+Incoming Call...	着信中...
+Incoming Friend Request	フレンドリクエストが届いています
+Indonesian	インドネシア語
+Insert Timestamp	タイムスタンプを挿入
+Install	インストール
+Install Fastcord to open it from the Start menu.	スタートメニューから開くには、Fastcordをインストールしてください。
+Installing…	インストール中…
+Instructions Sent	手順を送信しました
+Insults and Slurs	侮辱・差別用語
+Integrations	連携サービス
+Interested	興味あり
+Invalid Invite	無効な招待
+Invalid date or time	日付または時刻が無効です
+Invisible	オフライン表示
+Invite	招待
+Invite Channel	招待チャンネル
+Invite Invalid	招待が無効です
+Invite Only	招待制
+Invite People	友達を招待
+Invite friends to %	%に友達を招待
+Invite to Server	サーバーに招待
+Invite to Speak	発言に招待
+Invites	招待
+Invites are currently paused for this server. Please try again later.	このサーバーでは現在招待が停止されています。後でもう一度お試しください。
+Invites are paused: nobody can join with an invite link until they're enabled again.	招待が停止中です。再び有効になるまで、誰も招待リンクで参加できません。
+It's quiet for now...	今は静かです...
+Italian	イタリア語
+JOINED DISCORD	Discord参加日
+January|February|March|April|May|June|July|August|September|October|November|December	1月|2月|3月|4月|5月|6月|7月|8月|9月|10月|11月|12月
+Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec	1月|2月|3月|4月|5月|6月|7月|8月|9月|10月|11月|12月
+Japanese	日本語
+Jitter	ジッター
+Join	参加
+Join Call	通話に参加
+Join Server	サーバーに参加
+Join Thread	スレッドに参加
+Join Voice	ボイスに参加
+Join a Server	サーバーに参加
+Join the call	通話に参加
+Joined Threads	参加中のスレッド
+Joining…	参加中…
+Jump	ジャンプ
+Jump To Present	最新へジャンプ
+Jump to oldest unread message	最も古い未読メッセージへジャンプ
+KEYBIND	キー割り当て
+Keep Current Permissions	現在の権限を維持
+Keep these somewhere safe. Each code signs you in once if you lose your authenticator app; they are shown only now.	安全な場所に保管してください。認証アプリをなくしたとき、各コードで1回ずつサインインできます。表示されるのは今だけです。
+Keep your server private, or open it up for more people to join.	サーバーを非公開にするか、もっと多くの人が参加できるよう公開しましょう。
+Keybinds	キー割り当て
+Keybinds only work while fastcord is focused. To use them in other apps, allow fastcord under Input Monitoring in System Settings, then restart fastcord.	キー割り当てはfastcordがアクティブなときのみ動作します。他のアプリで使うには、システム設定の「入力監視」でfastcordを許可し、fastcordを再起動してください。
+Keybinds only work while fastcord is focused: this desktop doesn't let apps see keys pressed in other windows.	キー割り当てはfastcordがアクティブなときのみ動作します。このデスクトップでは、他のウィンドウで押されたキーをアプリが取得できません。
+Keybinds work in every app, also while fastcord is in the background.	キー割り当てはどのアプリでも、fastcordがバックグラウンドにあるときも動作します。
+Keyboard Shortcuts	キーボードショートカット
+Keyboard shortcuts	キーボードショートカット
+Keyword: %	キーワード: %
+Kick	キック
+Kick %	%をキック
+Kick '%' from Server	「%」をサーバーからキック
+Kick Member	メンバーをキック
+Kick, Approve, and Reject Members	メンバーのキック、承認、拒否
+Korean	韓国語
+LIVE	ライブ
+Language	言語
+Language & Time	言語と時刻
+Last sync: %	最終同期: %
+Leave Group	グループから退出
+Leave Server	サーバーから退出
+Leave Thread	スレッドから退出
+Leaving Discord	Discordから移動します
+Left %	%から退出しました
+Let everyone know how to use this channel!	このチャンネルの使い方をみんなに伝えましょう！
+Let's Check	確認する
+Level %!	レベル%！
+Limits	制限
+Limits the number of users that can connect to this voice channel. Users with the Move Members permission ignore this limit and can move other users into the channel.	このボイスチャンネルに接続できるユーザー数を制限します。「メンバーを移動」権限を持つユーザーはこの制限を受けず、他のユーザーをチャンネルに移動できます。
+Linked Roles	リンクされたロール
+List view	リスト表示
+Lithuanian	リトアニア語
+Live Now	ライブ配信中
+Loading sounds…	サウンドを読み込み中…
+Loading...	読み込み中...
+Loading…	読み込み中…
+Location	場所
+Log In	ログイン
+Log Out	ログアウト
+Log Out All Known Devices	既知のすべてのデバイスからログアウト
+Log in	ログイン
+Log in to Discord in your web browser.	ウェブブラウザでDiscordにログインしてください。
+Log in with QR Code	QRコードでログイン
+Log in with a token	トークンでログイン
+Log out of all known devices	既知のすべてのデバイスからログアウト
+Logged-in Devices	ログイン中のデバイス
+Logging in as %	%としてログイン中
+Logging in…	ログイン中…
+Login or password is invalid.	ログイン情報またはパスワードが無効です。
+Looking for screens…	画面を検索中…
+Lotus Mode	ロータスモード
+Low	低
+Lower Hand	手を下ろす
+MAX NUMBER OF USES	最大使用回数
+MEMBER SINCE	メンバー歴
+MEMBERS	メンバー
+MUTE	ミュート
+Main Profile	メインプロフィール
+Make a selection	選択してください
+Manage Accounts	アカウントを管理
+Manage Channel	チャンネルの管理
+Manage Channels	チャンネルの管理
+Manage Events	イベントの管理
+Manage Expressions	エクスプレッションの管理
+Manage Members	メンバーの管理
+Manage Messages	メッセージの管理
+Manage Nicknames	ニックネームの管理
+Manage Permissions	権限の管理
+Manage Roles	ロールの管理
+Manage Server	サーバー管理
+Manage Threads and Posts	スレッドと投稿の管理
+Manage Webhooks	ウェブフックの管理
+Manage settings that help keep your server active.	サーバーを活発に保つための設定を管理します。
+Mark All as Read	すべて既読にする
+Mark As Read	既読にする
+Mark Folder As Read	フォルダーを既読にする
+Mark Unread	未読にする
+Mark a message unread	メッセージを未読にする
+Mark as Verified	認証済みにする
+Mark as spoiler	ネタバレにする
+Mark channel read	チャンネルを既読にする
+Mark server read	サーバーを既読にする
+Marked as read	既読にしました
+Marks your message as a spoiler.	メッセージをネタバレとしてマークします。
+Match your device's light or dark mode.	デバイスのライト/ダークモードに合わせます。
+Max file size is % MB please.	ファイルサイズは最大%MBまでです。
+Measuring	測定中
+Medium	中
+Member Since	メンバー歴
+Members	メンバー
+Members can pick more than one answer	メンバーは複数の回答を選べます
+Members can wear your server's tag next to their name across Discord.	メンバーはDiscord全体で名前の横にサーバータグを付けられます。
+Members in timeout can't send messages, react, join voice or speak until it ends.	タイムアウト中のメンバーは、終了するまでメッセージの送信、リアクション、ボイスへの参加、発言ができません。
+Members in timeout can't send messages, react, join voice or start threads until it ends.	タイムアウト中のメンバーは、終了するまでメッセージの送信、リアクション、ボイスへの参加、スレッドの開始ができません。
+Members matching @%	@%に一致するメンバー
+Members must answer this question to join.	メンバーは参加するためにこの質問に答える必要があります。
+Members of the server must meet the following criteria before they can send messages in text channels or initiate a direct message conversation. If a member has an assigned role this does not apply.	サーバーのメンバーは、テキストチャンネルでメッセージを送信したりダイレクトメッセージを始めたりする前に、以下の条件を満たす必要があります。ロールが割り当てられているメンバーには適用されません。
+Members use the colour of the highest role they have on the roles list.	メンバーには、ロール一覧で最上位にあるロールの色が使われます。
+Members use the colour of the highest role they have on this list. Drag roles, or use the arrows, to reorder them.	メンバーには、この一覧で最上位にあるロールの色が使われます。ロールをドラッグするか矢印で並べ替えられます。
+Members will be restricted to sending one message and creating one thread per this interval, unless they have the Bypass Slowmode permission.	「低速モードを回避」権限がないメンバーは、この間隔ごとにメッセージ1件の送信とスレッド1件の作成に制限されます。
+Members with a matching name can't talk or interact until they change it.	名前が一致するメンバーは、名前を変更するまで発言ややり取りができません。
+Members with this permission will have every permission and will also bypass all channel specific permissions or restrictions (for example, these members would get access to all private channels). This is a dangerous permission to grant.	この権限を持つメンバーはすべての権限を持ち、チャンネルごとの権限や制限もすべて無視します（たとえば、すべてのプライベートチャンネルにアクセスできます）。付与には注意が必要な権限です。
+Members — %	メンバー — %
+Membership Permissions	メンバーシップの権限
+Mention	メンション
+Mention %	%をメンション
+Mention @everyone, @here, and All Roles	@everyone、@here、全ロールへのメンション
+Mention limit	メンションの上限
+Mention raid protection	メンション荒らし対策
+Mention removed	メンションを削除しました
+Mentions	メンション
+Mentions User	ユーザーへのメンション
+Message	メッセージ
+Message #%	#%へメッセージを送信
+Message %	%へメッセージを送信
+Message @%	@%へメッセージを送信
+Message @% (encrypted)	@%へメッセージを送信（暗号化）
+Message @% (not encrypted)	@%へメッセージを送信（暗号化なし）
+Message Contains	メッセージの内容
+Message Display	メッセージの表示
+Message Requests	メッセージリクエスト
+Message deleted	メッセージを削除しました
+Message failed to send.	メッセージを送信できませんでした。
+Message link copied: paste it into Discord's report form	メッセージのリンクをコピーしました。Discordの報告フォームに貼り付けてください
+Message request ignored	メッセージリクエストを無視しました
+Message unpinned	メッセージのピン留めを解除しました
+Messages Failed To Load	メッセージを読み込めませんでした
+Messages from members you may not know go to Message Requests.	知らない可能性のあるメンバーからのメッセージは、メッセージリクエストに届きます。
+Messages from people you may not know go to Message Requests instead of your DMs.	知らない可能性のある人からのメッセージは、DMではなくメッセージリクエストに届きます。
+Messages from server members without a role will be filtered for sensitive image-based media.	ロールのないサーバーメンバーのメッセージで、センシティブな画像メディアがフィルタリングされます。
+Messages in servers	サーバーのメッセージ
+Messages will not be filtered for sensitive image-based media.	メッセージのセンシティブな画像メディアはフィルタリングされません。
+Messaging Permissions	メッセージの権限
+Minimize to Tray	トレイに最小化
+Mobile Push Notifications	モバイルのプッシュ通知
+Moderation	モデレーション
+Moderators must have two-factor authentication enabled to ban, kick, or timeout members and delete messages.	モデレーターがメンバーのBAN、キック、タイムアウトやメッセージの削除を行うには、二要素認証を有効にする必要があります。
+Moderators only	モデレーターのみ
+Modern, beautiful, and easy on your eyes.	モダンで美しく、目にやさしい。
+Modify Attachment	添付ファイルを変更
+Motion	動き
+Move Members	メンバーを移動
+Move To	移動先
+Move to Audience	聴衆に移動
+Multi-Factor Authentication	多要素認証
+Must also be a member of this server for longer than 10 minutes.	さらに、このサーバーのメンバーになってから10分以上経過している必要があります。
+Must also be registered on Discord for longer than 5 minutes.	さらに、Discordに登録してから5分以上経過している必要があります。
+Must have a verified email on their Discord account.	Discordアカウントのメールアドレスが認証済みである必要があります。
+Must have a verified phone on their Discord account.	Discordアカウントの電話番号が認証済みである必要があります。
+Mute	ミュート
+Mute %	%をミュート
+Mute Category	カテゴリーをミュート
+Mute Channel	チャンネルをミュート
+Mute Members	メンバーをミュート
+Mute New Events	新しいイベントをミュート
+Mute Server	サーバーをミュート
+Mute Thread	スレッドをミュート
+Muted until %1, %2	%1 %2までミュート中
+Muting a server prevents unread indicators and notifications from appearing unless you are mentioned.	サーバーをミュートすると、メンションされた場合を除き、未読表示や通知が表示されなくなります。
+Mutual Friends	共通のフレンド
+Mutual Servers	共通のサーバー
+My Account	マイアカウント
+My server	マイサーバー
+NAME	名前
+NEW	新着
+NEW PASSWORD	新しいパスワード
+NO ACTIVE INVITE LINKS	有効な招待リンクはありません
+NOTHING	なし
+Name	名前
+Name your sound	サウンドに名前を付ける
+Name your sticker	スタンプに名前を付ける
+Nature	自然
+Navigate Back	前に戻る
+Navigate Forward	次に進む
+Need an account?	アカウントが必要ですか？
+Network	ネットワーク
+Never	なし
+Nevermind	やめておく
+New Category	新しいカテゴリー
+New Group DM	新しいグループDM
+New Post	新規投稿
+New Thread	新しいスレッド
+New Webhook	新しいウェブフック
+New members must read and agree to these before they can talk.	新しいメンバーは、発言する前にこれを読んで同意する必要があります。
+New members pick channels and roles from your questions when they join.	新しいメンバーは参加時に、質問への回答でチャンネルとロールを選びます。
+New tag	新しいタグ
+New threads will stop showing in the channel list after being inactive for the specified duration.	新しいスレッドは、指定した期間アクティビティがないとチャンネル一覧に表示されなくなります。
+Newest	新しい順
+Next	次へ
+Nickname	ニックネーム
+Nicknames are visible to everyone on this server. Do not change them unless you are enforcing a naming system or clearing a bad nickname.	ニックネームはこのサーバーの全員に表示されます。命名ルールを徹底する場合や不適切なニックネームを消す場合以外は変更しないでください。
+No GIFs found	GIFが見つかりません
+No Inactive Channel	非アクティブチャンネルなし
+No Invite	招待なし
+No Keybind Set	キー割り当てなし
+No System Messages	システムメッセージなし
+No applications waiting	保留中の申請はありません
+No apps have been added to this server.	このサーバーにはアプリが追加されていません。
+No bans	BANはありません
+No bans match your search	検索に一致するBANはありません
+No emoji found	絵文字が見つかりません
+No favorites yet	お気に入りはまだありません
+No file chosen	ファイルが選択されていません
+No friends in common	共通のフレンドはいません
+No limit	制限なし
+No logs yet	ログはまだありません
+No members found	メンバーが見つかりません
+No members have this role yet.	このロールを持つメンバーはまだいません。
+No message requests.	メッセージリクエストはありません。
+No one is speaking yet	まだ誰も話していません
+No one's around right now.	今は誰もいません。
+No one's here yet	まだ誰もいません
+No posts match	一致する投稿はありません
+No posts yet	投稿はまだありません
+No questions yet.	質問はまだありません。
+No reason given	理由なし
+No results	結果なし
+No results found	結果が見つかりません
+No servers in common	共通のサーバーはありません
+No sounds found	サウンドが見つかりません
+No sounds yet.	サウンドはまだありません。
+No spam. Nice.	スパムなし。いいね。
+No stickers found	スタンプが見つかりません
+No stickers yet	スタンプはまだありません
+Nobody can join this server with an invite link until the pause ends or you enable invites again.	停止期間が終わるか、招待を再び有効にするまで、誰も招待リンクでこのサーバーに参加できません。
+Nobody has mentioned you recently.	最近あなたをメンションした人はいません。
+Noise Suppression	ノイズ抑制
+Noise Suppression: Off	ノイズ抑制: オフ
+Noise Suppression: On	ノイズ抑制: オン
+None	なし
+Norwegian	ノルウェー語
+Not Now	後で
+Not connected to % yet.	まだ%に接続されていません。
+Not encrypted	暗号化なし
+Not encrypted: Discord can read this message	暗号化なし: Discordがこのメッセージを読めます
+Not end-to-end encrypted	エンドツーエンド暗号化なし
+Not me, start over	私ではありません。やり直す
+Note	メモ
+Note (only visible to you)	メモ（あなたにのみ表示）
+Note: Members with the "Mention @everyone, @here, and All Roles" permission will always be able to ping this role.	注: 「@everyone、@here、全ロールへのメンション」権限を持つメンバーは、いつでもこのロールに通知できます。
+Nothing	なし
+Notification Settings	通知設定
+Notification settings changed	通知設定を変更しました
+Notifications	通知
+Notify everyone online who has permission to view this channel.	このチャンネルの閲覧権限を持つオンラインの全員に通知します。
+Notify everyone who has permission to view this channel.	このチャンネルの閲覧権限を持つ全員に通知します。
+Notify me when...	通知するタイミング...
+Notify users with this role who have permission to view this channel.	このロールを持ち、このチャンネルの閲覧権限があるユーザーに通知します。
+OUTPUT DEVICE	出力デバイス
+OUTPUT VOLUME	出力音量
+Objects	物
+Off	オフ
+Offline	オフライン
+Oh yeah. Pin it	よし、ピン留めしよう
+Okay	OK
+Oldest	古い順
+On click	クリック時
+On servers I moderate	自分がモデレートするサーバー
+Onboarding	オンボーディング
+One rule per line, for example: Be respectful	1行に1ルール。例: 敬意を持って接すること
+Ongoing call	通話中
+Online	オンライン
+Only @mentions	@メンションのみ
+Only servers and channels you have webhook permissions in are shown.	ウェブフックの権限があるサーバーとチャンネルのみ表示されます。
+Only you can see the nickname you give %.	%に付けたニックネームはあなただけに表示されます。
+Only you can see this · 	あなただけに表示されています ·
+Oops!	おっと！
+Open Chat	チャットを開く
+Open Image Link	画像のリンクを開く
+Open Link	リンクを開く
+Open Logs Folder	ログフォルダーを開く
+Open Media Link	メディアのリンクを開く
+Open Server Insights	サーバーインサイトを開く
+Open Settings	設定を開く
+Open discord.com	discord.comを開く
+Open in Browser	ブラウザで開く
+Open in YouTube	YouTubeで開く
+Open the developer tools (Cmd+Option+I) and choose the Network tab.	開発者ツール（Cmd+Option+I）を開き、「ネットワーク」タブを選んでください。
+Open the developer tools (Ctrl+Shift+I) and choose the Network tab.	開発者ツール（Ctrl+Shift+I）を開き、「ネットワーク」タブを選んでください。
+Or, send a server invite link to a friend	または、サーバーの招待リンクを友達に送る
+Original message was deleted	元のメッセージは削除されました
+Other Active Threads	その他のアクティブなスレッド
+Other Devices	その他のデバイス
+Outgoing Friend Request	送信済みのフレンドリクエスト
+Overview	概要
+PASSWORD	パスワード
+PM	午後
+PRIVACY CODE	プライバシーコード
+PTT Activate	PTT開始
+PTT Deactivate	PTT終了
+PUSH TO TALK RELEASE DELAY	プッシュトゥトークの解除遅延
+Packet loss	パケットロス
+Packets received	受信パケット
+Packets sent	送信パケット
+Page %	%ページ
+Password	パスワード
+Password and Authentication	パスワードと認証
+Passwords do not match!	パスワードが一致しません！
+Paste	貼り付け
+Paste an emoji (optional)	絵文字を貼り付け（任意）
+Paste your token	トークンを貼り付け
+Pause Invites	招待を停止
+Pending	保留中
+People	人
+People can join your server directly with an invite	招待から直接サーバーに参加できます
+People in a voice channel with you can join the game you're playing.	同じボイスチャンネルにいる人が、あなたのプレイ中のゲームに参加できます。
+People must submit an application and be approved to join	参加するには申請して承認される必要があります
+People who applied to join, waiting for a moderator.	参加を申請し、モデレーターの対応を待っている人です。
+Per-server Profiles	サーバー別プロフィール
+Permissions	権限
+Permissions not synced with category: 	カテゴリーと同期されていない権限:
+Permissions synced with category: 	カテゴリーと同期済みの権限:
+Permissions: %	権限: %
+Phone Number	電話番号
+Pick a channel	チャンネルを選択
+Pick a channel for the alerts.	アラートを送るチャンネルを選んでください。
+Pick at least one response.	回答を1つ以上選んでください。
+Pin It. Pin It Good.	ピン留めだ。しっかりと。
+Pin Message	メッセージをピン留め
+Pin Messages	メッセージのピン留め
+Ping	Ping
+Ping: % ms	Ping: % ms
+Ping: measuring…	Ping: 測定中…
+Pinned Messages	ピン留めされたメッセージ
+Play Here	ここで再生
+Play Soundboard Through My Mic	サウンドボードをマイクから再生
+Play YouTube videos here with yt-dlp? It needs yt-dlp installed, and connects to YouTube from your computer. Settings > Chat can change this.	yt-dlpでYouTube動画をここで再生しますか？yt-dlpのインストールが必要で、あなたのコンピューターからYouTubeに接続します。設定 > チャットで変更できます。
+Play YouTube videos in fastcord with yt-dlp	yt-dlpでYouTube動画をfastcord内で再生する
+Please enter a valid invite link or invite code.	有効な招待リンクまたは招待コードを入力してください。
+Please try again later.	後でもう一度お試しください。
+Polish	ポーランド語
+Poll closed	投票が締め切られました
+Portuguese, Brazilian	ポルトガル語（ブラジル）
+Post	投稿
+Post Guidelines	投稿のガイドライン
+Post from a script	スクリプトから投稿
+Post messages that reach servers outside your own. Members can follow this channel, so the posts you publish here appear in their servers.	自分のサーバー外にも届くメッセージを投稿します。メンバーがこのチャンネルをフォローすると、ここで公開した投稿がそのメンバーのサーバーに表示されます。
+Post title	投稿のタイトル
+Posting...	投稿中...
+Press a shortcut…	ショートカットを押してください…
+Previous	前へ
+Previous / next channel	前 / 次のチャンネル
+Previous / next channel with mentions	メンションがある前 / 次のチャンネル
+Previous / next server	前 / 次のサーバー
+Previous / next unread channel	前 / 次の未読チャンネル
+Previous 12 Hours	過去12時間
+Previous 24 Hours	過去24時間
+Previous 3 Days	過去3日間
+Previous 6 Hours	過去6時間
+Previous 7 Days	過去7日間
+Previous Hour	過去1時間
+Priority Speaker	優先スピーカー
+Privacy Settings	プライバシー設定
+Private Category	プライベートカテゴリー
+Private Channel	プライベートチャンネル
+Private Profile	非公開プロフィール
+Profile	プロフィール
+Profile Banner	プロフィールバナー
+Profile Privacy	プロフィールのプライバシー
+Profiles	プロフィール
+Prompt members to reply to welcome messages with a sticker.	ウェルカムメッセージにスタンプで返信するようメンバーに促します。
+Pronouns	代名詞
+Protect your Discord account with an extra layer of security. Once configured, you'll be required to enter your password and complete one additional step in order to sign in.	セキュリティをもう一段階追加して、Discordアカウントを保護しましょう。設定後は、サインイン時にパスワードの入力と追加の手順が1つ必要になります。
+Protip:	ヒント:
+Publish	公開
+Push to Mute	プッシュトゥミュート
+Push to Talk	プッシュトゥトーク
+Push to Talk (Normal)	プッシュトゥトーク（通常）
+Q: %	Q: %
+Question	質問
+Questions	質問
+ROLES	ロール
+ROLES — %	ロール — %
+ROLES/MEMBERS	ロール/メンバー
+RTC Connecting	RTC接続中
+Read Message History	メッセージ履歴を読む
+Reason	理由
+Reason for Ban	BANの理由
+Reason for Kick	キックの理由
+Reason for Timeout	タイムアウトの理由
+Reason: %	理由: %
+Received	受信
+Recently Active	最近のアクティブ
+Reconnect	再接続
+Record Keybind	キー割り当てを記録
+Reduce the saturation of colors within the application, for those with color sensitivities.	色に敏感な方のために、アプリ内の色の彩度を下げます。
+Reduces the amount of animation and motion effects. On whenever your device asks for reduced motion.	アニメーションや動きの効果を減らします。デバイスで視差効果を減らす設定にしている場合は常にオンになります。
+Region Override	地域の上書き
+Register	登録
+Reject	拒否
+Rejoin	再参加
+Related Emoji	関連する絵文字
+Relevant	関連度順
+Remove	削除
+Remove %	%を削除
+Remove All Embeds	すべての埋め込みを削除
+Remove All Reactions	すべてのリアクションを削除
+Remove Answer	回答を削除
+Remove Attachment	添付ファイルを削除
+Remove Authenticator App	認証アプリを削除
+Remove Avatar	アバターを削除
+Remove Embeds	埋め込みを削除
+Remove Friend	フレンドを削除
+Remove From Group	グループから削除
+Remove Icon	アイコンを削除
+Remove Reaction	リアクションを削除
+Remove Reactions	リアクションを削除
+Remove Reactions for Emoji	この絵文字のリアクションを削除
+Remove Server	サーバーを削除
+Remove Spoiler	ネタバレを解除
+Remove Timeout	タイムアウトを解除
+Remove Vote	投票を取り消す
+Remove all embeds	すべての埋め込みを削除
+Remove from Favorites	お気に入りから削除
+Remove notification override for %	%の通知の上書きを削除
+Remove the files added before encryption was on: they'd go unencrypted.	暗号化をオンにする前に追加したファイルを削除してください。暗号化されずに送信されてしまいます。
+Remove the files added while encryption was on: they'd arrive as unreadable ciphertext.	暗号化がオンの間に追加したファイルを削除してください。読めない暗号文として届いてしまいます。
+Removing…	削除中…
+Repeated encrypted message	重複した暗号化メッセージ
+Reply	返信
+Replying to	返信先
+Report Message	メッセージを報告
+Request Data	データをリクエスト
+Request all of my Data	すべてのデータをリクエスト
+Request to Speak	発言をリクエスト
+Requests	リクエスト
+Require 2FA for moderator actions	モデレーター操作に二要素認証を必須にする
+Require members to agree to the server rules	メンバーにサーバールールへの同意を必須にする
+Require people to select tags when posting	投稿時にタグの選択を必須にする
+Required	必須
+Resend SMS?	SMSを再送信しますか？
+Reset	リセット
+Reset Friend Nickname	フレンドのニックネームをリセット
+Reset Voice Settings	音声設定をリセット
+Resolving Invite	招待を確認中
+Responses	回答
+Retry	再試行
+Retry Now	今すぐ再試行
+Return to call	通話に戻る
+Return to the connected call	接続中の通話に戻る
+Reveal	表示
+Review	確認
+Revoke	取り消す
+Revoke Ban	BANを解除
+Revoke Invite	招待を取り消す
+Revoke the ban? They will be able to join again with an invite.	BANを解除しますか？招待があれば再び参加できるようになります。
+Ring	呼び出す
+Ringing…	呼び出し中…
+Role Color	ロールの色
+Role Colors	ロールの色
+Role Icon	ロールアイコン
+Role name	ロール名
+Roles	ロール
+Romanian, Romania	ルーマニア語（ルーマニア）
+Rule: %	ルール: %
+Rules or Guidelines Channel	ルールまたはガイドラインのチャンネル
+Russian	ロシア語
+SELECT A CHANNEL	チャンネルを選択
+SELECT A SERVER	サーバーを選択
+SERVER NAME	サーバー名
+SOUNDBOARD VOLUME	サウンドボードの音量
+STATIC EMOJI — % SLOTS AVAILABLE	静止画絵文字 — 空き枠%個
+Safety Notifications Channel	安全通知チャンネル
+Safety Number	安全番号
+Safety Setup	安全設定
+Safety checks	安全チェック
+Same as Device Theme	デバイスのテーマと同じ
+Saturation	彩度
+Save	保存
+Save Changes	変更を保存
+Save Image	画像を保存
+Saving...	保存中...
+Saving…	保存中…
+Scan this with the Discord mobile app to log in instantly.	Discordモバイルアプリでこれをスキャンすると、すぐにログインできます。
+Schedule an event for any planned activity in your server.	サーバーで予定しているアクティビティのイベントを作成しましょう。
+Screen	画面
+Screen sharing isn't supported on this platform yet.	このプラットフォームでは画面共有にまだ対応していません。
+Scroll chat	チャットをスクロール
+Search	検索
+Search %	%を検索
+Search Bans by User ID or Username	ユーザーIDまたはユーザー名でBANを検索
+Search Klipy	Klipyを検索
+Search Options	検索オプション
+Search by username or id	ユーザー名またはIDで検索
+Search for friends	フレンドを検索
+Search members to add (press Enter)	追加するメンバーを検索（Enterキーを押す）
+Search or create a post...	投稿を検索または作成...
+Search sounds	サウンドを検索
+Searching...	検索中...
+Select Friends	フレンドを選択
+Select a Language	言語を選択
+Select a channel	チャンネルを選択
+Select a channel or category…	チャンネルまたはカテゴリーを選択…
+Select one answer	回答を1つ選択
+Select one or more answers	回答を1つ以上選択
+Select where you want these updates to go. You can remove this at any time in Server Settings > Integrations > Channels Followed.	更新情報の送信先を選んでください。サーバー設定 > 連携サービス > フォロー中のチャンネルからいつでも削除できます。
+Select where you want to share this message.	このメッセージの共有先を選んでください。
+Send	送信
+Send Friend Request	フレンドリクエストを送信
+Send Messages and Create Posts	メッセージの送信と投稿の作成
+Send Messages in Threads and Posts	スレッドと投稿でメッセージを送信
+Send New Key	新しい鍵を送信
+Send Text-to-Speech Messages	読み上げメッセージを送信
+Send Voice Messages	ボイスメッセージを送信
+Send a random welcome message when someone joins this server.	誰かがこのサーバーに参加したとき、ランダムなウェルカムメッセージを送信します。
+Send a server invite link to a friend	サーバーの招待リンクを友達に送る
+Send an alert	アラートを送信
+Send helpful tips for server setup.	サーバー設定に役立つヒントを送信します。
+Send messages, images, GIFs, emoji, opinions, and puns	メッセージ、画像、GIF、絵文字、意見、ダジャレを送ろう
+Sending...	送信中...
+Sent	送信済み
+Sent a file	ファイルを送信しました
+Sent a sticker	スタンプを送信しました
+Sent — %	送信済み — %
+Server	サーバー
+Server Avatar	サーバーアバター
+Server Deafen	サーバースピーカーミュート
+Server Deafened	サーバーでスピーカーミュート中
+Server Guide	サーバーガイド
+Server ID	サーバーID
+Server Info	サーバー情報
+Server Insights	サーバーインサイト
+Server Insights is hosted on a separate website so that it's easier to share links and browse cross platform.	サーバーインサイトは、リンクの共有やプラットフォームをまたいだ閲覧をしやすくするため、別のウェブサイトで提供されています。
+Server Mute	サーバーミュート
+Server Muted	サーバーでミュート中
+Server Nickname	サーバーニックネーム
+Server Notification Settings	サーバーの通知設定
+Server Primary Language	サーバーの主要言語
+Server Profile	サーバープロフィール
+Server Rules	サーバールール
+Server Settings	サーバー設定
+Server Tag	サーバータグ
+Server Template	サーバーテンプレート
+Server Widget	サーバーウィジェット
+Server members	サーバーメンバー
+Server members can only send you friend requests from servers where you also allow Direct Messages.	サーバーメンバーがフレンドリクエストを送れるのは、ダイレクトメッセージも許可しているサーバーからのみです。
+Server name must be between 2 and 100 characters.	サーバー名は2〜100文字にしてください。
+Server unmuted	サーバーのミュートを解除しました
+Sessions	セッション
+Set Custom Status	カスタムステータスを設定
+Set Voice Channel Status	ボイスチャンネルのステータスを設定
+Set a custom status	カスタムステータスを設定
+Set up AutoMod to automatically filter messages in this server with the rules below. Members with Manage Server or Administrator are exempt.	AutoModを設定して、以下のルールでこのサーバーのメッセージを自動でフィルタリングします。「サーバー管理」または「管理者」権限を持つメンバーは対象外です。
+Sets camera video quality for all channel participants. Choose Auto for optimal performance.	チャンネルの全参加者のカメラ画質を設定します。最適なパフォーマンスには「自動」を選んでください。
+Setting up encryption: % needs to open fastcord once.	暗号化を設定中: %がfastcordを一度開く必要があります。
+Several people are typing...	複数の人が入力中...
+Severe Profanity	ひどい暴言
+Sexual Content	性的コンテンツ
+Share	共有
+Share Event	イベントを共有
+Share Your Screen	画面を共有
+Share my full profile with	プロフィール全体を共有する相手
+Share your detected activities with others	検出したアクティビティを他の人と共有する
+Show	表示
+Show Chat	チャットを表示
+Show a system notification for messages that would notify you (DMs, mentions, servers set to all messages).	通知対象のメッセージ（DM、メンション、「すべてのメッセージ」に設定したサーバー）でシステム通知を表示します。
+Show embeds and preview website links pasted into chat	埋め込みを表示し、チャットに貼られたウェブサイトのリンクをプレビューする
+Show emoji reactions on messages	メッセージに絵文字リアクションを表示する
+Show message	メッセージを表示
+Show messages	メッセージを表示
+Show role colors in names	名前にロールの色を表示
+Show role colors next to names	名前の横にロールの色を表示
+Show spoiler content	ネタバレを表示
+Show the game or app you're using on your profile and in member lists.	使用中のゲームやアプリをプロフィールとメンバーリストに表示します。
+Shows a red badge on the app icon when you have unread mentions.	未読のメンションがあるとき、アプリアイコンに赤いバッジを表示します。
+Silence every sound and notification and hide all badges and unread marks, so fastcord never asks for your attention.	すべての音と通知を消し、バッジや未読マークもすべて隠して、fastcordが注意を引かないようにします。
+Slow down! Are you sure?	ちょっと待って！本当にいいですか？
+Slowmode	低速モード
+Slowmode is enabled	低速モードが有効です
+Slowmode is enabled. Members can send one message every % hour.|Slowmode is enabled. Members can send one message every % hours.	低速モードが有効です。メンバーは%時間ごとに1件メッセージを送信できます。
+Slowmode is enabled. Members can send one message every % minute.|Slowmode is enabled. Members can send one message every % minutes.	低速モードが有効です。メンバーは%分ごとに1件メッセージを送信できます。
+Slowmode is enabled. Members can send one message every % second.|Slowmode is enabled. Members can send one message every % seconds.	低速モードが有効です。メンバーは%秒ごとに1件メッセージを送信できます。
+Smooth Scrolling	スムーズスクロール
+So no one gets lost on where to go.	誰も迷わないように。
+Some older devices may not be shown here	古いデバイスの一部はここに表示されない場合があります
+Someone	誰か
+Something went wrong	問題が発生しました
+Something went wrong (HTTP %).	問題が発生しました（HTTP %）。
+Something went wrong. Try again.	問題が発生しました。もう一度お試しください。
+Somewhere Else	その他の場所
+Sorry, we couldn't load the first message in this thread	申し訳ありません、このスレッドの最初のメッセージを読み込めませんでした
+Sort: Date Posted	並び替え: 投稿日
+Sort: Recent Activity	並び替え: 最近のアクティビティ
+Sound Name	サウンド名
+Sound names must be between 2 and 32 characters.	サウンド名は2〜32文字にしてください。
+Soundboard	サウンドボード
+Sounds	サウンド
+Sounds must be 5.2 seconds or shorter.	サウンドは5.2秒以内にしてください。
+Sounds must be under 512 KB.	サウンドは512KB未満にしてください。
+Source	ソース
+Space between message groups	メッセージグループの間隔
+Spam	スパム
+Spam Filters	スパムフィルター
+Spanish	スペイン語
+Spanish, LATAM	スペイン語（中南米）
+Speak	発言
+Speak Message	メッセージを読み上げる
+Spoiler Attachment	ネタバレ添付ファイル
+Spoiler Content	ネタバレ
+Stage	ステージ
+Start Date	開始日
+Start Event	イベントを開始
+Start Minimized	最小化して起動
+Start Time	開始時刻
+Starting in %m	%分後に開始
+State	状態
+Stickers	スタンプ
+Stickers can be used by anyone in this server. Upload a PNG, APNG, GIF or Lottie JSON file of up to 512 KB; it shows at 320x320.	スタンプはこのサーバーの誰でも使えます。512KBまでのPNG、APNG、GIF、Lottie JSONファイルをアップロードしてください。320x320で表示されます。
+Stickers can't be sent encrypted yet.	スタンプはまだ暗号化して送信できません。
+Stickers must be PNG, APNG, GIF or Lottie JSON files.	スタンプはPNG、APNG、GIF、Lottie JSONファイルにしてください。
+Stop Recording	記録を停止
+Stop Streaming	配信を停止
+Stop Testing	テストを停止
+Stop Video	ビデオを停止
+Stop Watching	視聴をやめる
+Storage	ストレージ
+Stream Settings	配信設定
+Streamer Mode	配信モード
+Streamer Mode Enabled	配信モード有効
+Streamer Mode hides your personal info so others watching your stream can't see it.	配信モードでは個人情報を隠し、配信の視聴者に見られないようにします。
+Streamer Mode is enabled. Usernames have been truncated.	配信モードが有効です。ユーザー名は省略表示されています。
+Success! Your friend request to % was sent.	完了！%にフレンドリクエストを送信しました。
+Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday	日曜日|月曜日|火曜日|水曜日|木曜日|金曜日|土曜日
+Sun|Mon|Tue|Wed|Thu|Fri|Sat	日|月|火|水|木|金|土
+Support has arrived!	応援が到着しました！
+Suppress @everyone and @here	@everyoneと@hereを無効にする
+Suppress All Role @mentions	すべてのロールの@メンションを無効にする
+Suppress Highlights	ハイライトを無効にする
+Suppress Notifications	通知を無効にする
+Suppress background noise from your mic.	マイクの背景ノイズを抑えます。
+Swedish	スウェーデン語
+Switch Accounts	アカウントを切り替える
+Switch between accounts on this device.	このデバイスでアカウントを切り替えます。
+Symbols	記号
+Sync Now	今すぐ同期
+Sync Permissions	権限を同期
+Sync Template	テンプレートを同期
+Sync permissions?	権限を同期しますか？
+System	システム
+System Messages	システムメッセージ
+System Messages Channel	システムメッセージチャンネル
+System icon for new server members.	新しいサーバーメンバー用のシステムアイコン。
+THREAD NAME	スレッド名
+Tag	タグ
+Tags	タグ
+Tags (pick at least one)	タグ（1つ以上選択）
+Tags let members organize their posts. Members pick them when they post; moderated tags only moderators can apply.	タグを使うと、メンバーが投稿を整理できます。メンバーは投稿時にタグを選びます。モデレーター専用タグはモデレーターのみが付けられます。
+Tap the link in your email to sign in instantly — no password needed.	メールのリンクをタップするとすぐにサインインできます。パスワードは不要です。
+Tell people a little more about your event. Markdown, new lines, and links are supported.	イベントについてもう少し詳しく伝えましょう。Markdown、改行、リンクが使えます。
+Tell the world a bit about this server.	このサーバーについて少し紹介しましょう。
+Template Description	テンプレートの説明
+Template Link	テンプレートのリンク
+Template Title	テンプレートのタイトル
+Templates are an easy way to share your server setup and help anyone create a server instantly. When someone uses your server template link, they create a new server pre-filled with the same channels, roles, permissions, and settings as yours. Messages, members and your server's icon aren't copied.	テンプレートを使うと、サーバーの構成を手軽に共有でき、誰でもすぐにサーバーを作成できます。誰かがあなたのサーバーテンプレートのリンクを使うと、あなたと同じチャンネル、ロール、権限、設定が入った新しいサーバーが作成されます。メッセージ、メンバー、サーバーアイコンはコピーされません。
+Temporary members are automatically kicked when they disconnect unless a role has been assigned	一時的なメンバーは、ロールが割り当てられていない限り、切断時に自動でキックされます
+Test Video	ビデオをテスト
+Text	テキスト
+Text Channel Permissions	テキストチャンネルの権限
+Text channel, external link, or in-person location.	テキストチャンネル、外部リンク、または対面の場所。
+Thai	タイ語
+That channel isn't on this server anymore.	そのチャンネルはもうこのサーバーにありません。
+That file couldn't be read as an MP3 or OGG sound.	そのファイルをMP3またはOGGのサウンドとして読み込めませんでした。
+That file couldn't be read. Avatars must be PNG, JPEG, GIF or WEBP images.	そのファイルを読み込めませんでした。アバターはPNG、JPEG、GIF、WEBP画像にしてください。
+That file couldn't be read. Banners must be PNG, JPEG, GIF or WEBP images.	そのファイルを読み込めませんでした。バナーはPNG、JPEG、GIF、WEBP画像にしてください。
+That file couldn't be read. Emoji must be a PNG, JPEG, GIF, WEBP or AVIF image.	そのファイルを読み込めませんでした。絵文字はPNG、JPEG、GIF、WEBP、AVIF画像にしてください。
+That file couldn't be read. Images must be PNG, JPEG, GIF or WEBP files.	そのファイルを読み込めませんでした。画像はPNG、JPEG、GIF、WEBPファイルにしてください。
+That file couldn't be read. Server icons must be PNG, JPEG, GIF or WEBP images.	そのファイルを読み込めませんでした。サーバーアイコンはPNG、JPEG、GIF、WEBP画像にしてください。
+That file is too large. Emoji must be under 256 KB.	ファイルが大きすぎます。絵文字は256KB未満にしてください。
+That file is too large. Stickers must be under 512 KB.	ファイルが大きすぎます。スタンプは512KB未満にしてください。
+That image is too large.	画像が大きすぎます。
+That image is too large. Avatars must be under %.	画像が大きすぎます。アバターは%未満にしてください。
+That image is too large. Banners must be under 10 MB.	画像が大きすぎます。バナーは10MB未満にしてください。
+That image is too large. Server icons must be under 512 KB.	画像が大きすぎます。サーバーアイコンは512KB未満にしてください。
+That isn't a valid fastcord invite.	有効なfastcordの招待ではありません。
+That's too long to send encrypted.	長すぎるため暗号化して送信できません。
+The Pin Is Stuck!	ピンが刺さりました！
+The badge chosen in the official client stays as it is.	公式クライアントで選んだバッジはそのまま残ります。
+The invite is invalid or has expired.	招待が無効か、期限切れです。
+The mention limit is between 1 and 50.	メンションの上限は1〜50です。
+The most important updates from this channel will now show up directly in your server. Enjoy!	このチャンネルの重要な更新情報が、あなたのサーバーに直接表示されるようになりました。お楽しみください！
+The owner	オーナー
+The related emoji must be one emoji.	関連する絵文字は1つにしてください。
+The results were tied	同票でした
+The selected channel has too many webhooks. Please remove a webhook or select another channel.	選択したチャンネルのウェブフックが多すぎます。ウェブフックを削除するか、別のチャンネルを選んでください。
+The server	サーバー
+The start time must be in the future.	開始時刻は未来の時刻にしてください。
+The thread stops showing in the channel list after being inactive for this long.	この期間アクティビティがないと、スレッドはチャンネル一覧に表示されなくなります。
+Theme	テーマ
+There are no active threads.	アクティブなスレッドはありません。
+There are no archived threads.	アーカイブされたスレッドはありません。
+There are no pending friend requests.	保留中のフレンドリクエストはありません。
+There are no upcoming events.	予定されているイベントはありません。
+There is no identity key.	ID鍵がありません。
+There was no winner	勝者はいませんでした
+These are all the devices that are currently logged-in with your Discord account. Log out of devices that you don't recognize.	あなたのDiscordアカウントで現在ログインしているすべてのデバイスです。心当たりのないデバイスからはログアウトしてください。
+They said: %	相手のメッセージ: %
+This account needs a passkey or security key, which fastcord can't use. Log in with the QR code instead.	このアカウントにはパスキーまたはセキュリティキーが必要ですが、fastcordでは使えません。代わりにQRコードでログインしてください。
+This channel contains adult content that may not be suitable for all audiences. You must be 18 or older to view it.	このチャンネルには、すべての人に適しているとは限らない成人向けコンテンツが含まれています。閲覧するには18歳以上である必要があります。
+This channel doesn't have any pinned messages... yet.	このチャンネルにはピン留めされたメッセージがありません...今のところは。
+This device can't open this message.	このデバイスではこのメッセージを開けません。
+This device's encryption keys couldn't be unlocked, so earlier encrypted DMs can't be opened here.	このデバイスの暗号鍵のロックを解除できなかったため、以前の暗号化DMをここで開けません。
+This event will auto start when it's time.	このイベントは時間になると自動で開始します。
+This extra step shows it's really you.	この追加の手順で本人であることを確認します。
+This interaction failed	このインタラクションは失敗しました
+This invite may be expired, or you might not have permission to join.	この招待は期限切れか、参加する権限がない可能性があります。
+This is the beginning of your direct message history with %.	%とのダイレクトメッセージの始まりです。
+This is the channel we send system event messages to.	システムイベントメッセージの送信先チャンネルです。
+This is the start of the #% channel.	#%チャンネルの始まりです。
+This is where Discord sends updates for moderators and admins of Community servers.	Discordがコミュニティサーバーのモデレーターと管理者向けに更新情報を送る場所です。
+This is where you'll show members your server rules or guidelines.	メンバーにサーバールールやガイドラインを示す場所です。
+This link is taking you to the following website	このリンクは次のウェブサイトに移動します
+This option is not available for Community Servers.	このオプションはコミュニティサーバーでは使えません。
+This role is managed by an integration and can't be edited here.	このロールは連携サービスによって管理されているため、ここでは編集できません。
+This server has been removed from Server Discovery because it no longer passes all the requirements. Check Server Settings for more details.	このサーバーは要件をすべて満たさなくなったため、サーバー発見から削除されました。詳しくはサーバー設定を確認してください。
+This server has failed Discovery activity requirements for 1 week. If this server fails for 4 weeks in a row, it will be automatically removed from Discovery.	このサーバーは1週間、サーバー発見のアクティビティ要件を満たしていません。4週連続で満たさない場合、サーバー発見から自動的に削除されます。
+This server has failed Discovery activity requirements for 3 weeks in a row. If this server fails for 1 more week, it will be removed from Discovery.	このサーバーは3週連続で、サーバー発見のアクティビティ要件を満たしていません。あと1週間満たさない場合、サーバー発見から削除されます。
+This server has no voice channels.	このサーバーにはボイスチャンネルがありません。
+This server is currently full.	このサーバーは現在満員です。
+This server is currently full. Please try again later.	このサーバーは現在満員です。後でもう一度お試しください。
+This server is eligible for Server Discovery again and has been automatically relisted!	このサーバーは再びサーバー発見の対象となり、自動的に再掲載されました！
+This server is not available in your location.	このサーバーはお住まいの地域では利用できません。
+This server's features are limited	このサーバーの機能は制限されています
+This setting is applied when you join a new server. It does not apply retroactively to your existing servers.	この設定は新しいサーバーに参加したときに適用されます。既存のサーバーにはさかのぼって適用されません。
+This template has unsynced changes.	このテンプレートには同期されていない変更があります。
+This thread is locked.	このスレッドはロックされています。
+This voice channel is full.	このボイスチャンネルは満員です。
+This will determine whether members who have not explicitly set their notification settings receive a notification for every message sent in this server or not.	通知設定を明示的に設定していないメンバーが、このサーバーで送信されるすべてのメッセージの通知を受け取るかどうかを決めます。
+This will transfer ownership of %1 to %2. This cannot be undone!	%1の所有権を%2に譲渡します。元に戻すことはできません！
+Thread Name	スレッド名
+Thread deleted	スレッドを削除しました
+Threads	スレッド
+Time	時刻
+Time format	時刻の形式
+Timeout	タイムアウト
+Timeout %	%をタイムアウト
+Timeout Members	メンバーをタイムアウト
+Timeout member	メンバーをタイムアウト
+Times show as %.	時刻は%のように表示されます。
+To log them out, please change your password	ログアウトさせるには、パスワードを変更してください
+To protect your members, Community servers need these, and enabling sets them:	メンバーを守るため、コミュニティサーバーには以下が必要です。有効にすると設定されます:
+Today	今日
+Today at %	今日 %
+Toggle Deafen	スピーカーミュートの切り替え
+Toggle Go Live Streaming	Go Live配信の切り替え
+Toggle Mute	ミュートの切り替え
+Toggle Streamer Mode	配信モードの切り替え
+Toggle Voice Activity Mode	音声検出モードの切り替え
+Toggle deafen	スピーカーミュートの切り替え
+Toggle inbox	受信箱の切り替え
+Toggle member list	メンバーリストの切り替え
+Toggle mute	ミュートの切り替え
+Toggle pins	ピン留めの切り替え
+Tomorrow at %	明日 %
+Too fast! Wait a bit and try again.	速すぎます！少し待ってからもう一度お試しください。
+Too many uploads!	アップロードが多すぎます！
+Trait %	特徴%
+Traits	特徴
+Transfer Ownership	所有権を譲渡
+Travel & Places	旅行＆場所
+Treat the token like a password: anyone who has it controls your account. fastcord keeps it only on this computer.	トークンはパスワードと同じように扱ってください。持っている人は誰でもあなたのアカウントを操作できます。fastcordはこのコンピューターにのみ保存します。
+Trending GIFs	人気のGIF
+Trust % links from now on	今後は%のリンクを信頼する
+Try Again	もう一度試す
+Try searching for something else	別のキーワードで検索してみてください
+Try searching for...	検索してみよう...
+Try sending a new invite	新しい招待を送ってみてください
+Turkish	トルコ語
+Turn off encryption	暗号化をオフにする
+Turns this back into a regular server. Community-only features stop working.	通常のサーバーに戻します。コミュニティ専用の機能は使えなくなります。
+Two-factor authentication is enabled on this account.	このアカウントでは二要素認証が有効です。
+Type the username of a friend	フレンドのユーザー名を入力
+Type your answer	回答を入力
+UPLOADED BY	アップロードした人
+USES	使用回数
+Uh oh, you don't have webhook permissions in any server you're in. Ask your server admin to give you the permission or ask them to come follow themselves!	おっと、参加中のどのサーバーでもウェブフックの権限がありません。サーバーの管理者に権限をもらうか、管理者自身にフォローしてもらいましょう！
+Uh-oh. Looks like you've been banned.	おっと。BANされてしまったようです。
+Ukrainian	ウクライナ語
+Unable to accept invite	招待を受けられません
+Unassigned	未割り当て
+Unban Member	メンバーのBANを解除
+Unblock	ブロック解除
+Undeafen	スピーカーミュート解除
+Under Request Headers, copy the value of "authorization" and paste it below.	「リクエストヘッダー」の「authorization」の値をコピーして、下に貼り付けてください。
+Undo	元に戻す
+Unignore	無視を解除
+Unknown	不明
+Unknown channel	不明なチャンネル
+Unmute	ミュート解除
+Unmute Category	カテゴリーのミュートを解除
+Unmute Channel	チャンネルのミュートを解除
+Unmute Server	サーバーのミュートを解除
+Unmute Thread	スレッドのミュートを解除
+Unpin Message	メッセージのピン留めを解除
+Unreads	未読
+Unrestricted	制限なし
+Until %	%まで
+Until %1 at %2	%1 %2まで
+Until I turn it back on	再びオンにするまで
+Until tomorrow at %	明日の%まで
+Untitled question	無題の質問
+Unverify	認証を取り消す
+Update %	%を更新
+Update Channel	チャンネルを更新
+Update Emoji	絵文字を更新
+Update Member	メンバーを更新
+Update Member Roles	メンバーのロールを更新
+Update Role	ロールを更新
+Update Server	サーバーを更新
+Update Webhook	ウェブフックを更新
+Update your password	パスワードを更新
+Upload	アップロード
+Upload Emoji	絵文字をアップロード
+Upload Sound	サウンドをアップロード
+Upload Sticker	スタンプをアップロード
+Upload a File	ファイルをアップロード
+Upload a Sound	サウンドをアップロード
+Upload a file	ファイルをアップロード
+Upload custom sound reactions that anyone in this server can use. MP3 or OGG files, up to 512 KB and 5.2 seconds.	このサーバーの誰でも使えるカスタムサウンドリアクションをアップロードしましょう。MP3またはOGGファイル、512KB・5.2秒まで。
+Upload to %	%にアップロード
+Uploaded a file	ファイルをアップロードしました
+Uploading...	アップロード中...
+Use Application Commands	アプリコマンドを使用
+Use Category Default	カテゴリーのデフォルトを使用
+Use External Apps	外部のアプリを使用
+Use External Emoji	外部の絵文字を使用
+Use External Sounds	外部のサウンドを使用
+Use External Stickers	外部のスタンプを使用
+Use Server Default	サーバーのデフォルトを使用
+Use Soundboard	サウンドボードを使用
+Use Voice Activity	音声検出を使用
+Use a backup code	バックアップコードを使う
+Use a code sent to your phone	スマートフォンに届いたコードを使う
+Use a passkey or security key	パスキーまたはセキュリティキーを使う
+Use data to improve Discord	データを使ってDiscordを改善する
+Use roles to group your server members and assign permissions.	ロールを使って、サーバーメンバーをグループ分けし、権限を割り当てましょう。
+Use your authenticator app	認証アプリを使う
+Used % times.|Used % times.	%回使用されました。
+User Join	ユーザーの参加
+User Leave	ユーザーの退出
+User Limit	ユーザー数の上限
+User Moved	ユーザーの移動
+User Volume	ユーザーの音量
+User blocked	ユーザーをブロックしました
+User unblocked	ユーザーのブロックを解除しました
+Username	ユーザー名
+Username is available. Nice!	このユーザー名は使えます。いいね！
+Username is unavailable. Try adding numbers, letters, underscores _ , or periods.	このユーザー名は使えません。数字、文字、アンダースコア（_）、ピリオドを加えてみてください。
+Users will need to confirm they are of over the legal age to view in the content in this channel.\nAge-restricted channels are exempt from the explicit content filter.	このチャンネルのコンテンツを閲覧するには、法定年齢以上であることの確認が必要です。\n年齢制限チャンネルは不適切なコンテンツのフィルターの対象外です。
+Uses the yt-dlp you installed to play YouTube links in the chat instead of opening your browser. It connects to YouTube from your computer.	インストールしたyt-dlpを使い、ブラウザを開かずにチャット内でYouTubeのリンクを再生します。あなたのコンピューターからYouTubeに接続します。
+VOICE PROCESSING	音声処理
+Verification Level	認証レベル
+Verified	認証済み
+Verify with something else	別の方法で認証
+Video	ビデオ
+Video Quality	画質
+Vietnamese	ベトナム語
+View Audit Log	監査ログを表示
+View Channel	チャンネルを見る
+View Channels	チャンネルを見る
+View Details	詳細を表示
+View Full Profile	プロフィール全体を表示
+View Poll	投票を表示
+View Profile	プロフィールを表示
+View Reactions	リアクションを表示
+View Server Insights	サーバーインサイトを表示
+Visit Site	サイトに移動
+Visual Density	表示密度
+Voice	ボイス
+Voice & Video	音声・ビデオ
+Voice Activity	音声検出
+Voice Channel	ボイスチャンネル
+Voice Channel Permissions	ボイスチャンネルの権限
+Voice Connected	ボイス接続済み
+Voice Disconnected	ボイス切断
+Volume	音量
+Vote	投票
+Waiting for a server	サーバーを待機中
+Wants to message you	メッセージを送りたがっています
+Watch Stream	配信を視聴
+Wave to say hi!	手を振ってあいさつしよう！
+We appreciate the enthusiasm, but...	熱意はありがたいのですが...
+We couldn't load the profile for this server.	このサーバーのプロフィールを読み込めませんでした。
+We recommend an image of at least 512x512.	512x512以上の画像をおすすめします。
+We sent instructions to change your password to %, please check both your inbox and spam folder.	パスワード変更の手順を%に送信しました。受信箱と迷惑メールフォルダーの両方を確認してください。
+We're so excited to see you again!	またお会いできてうれしいです！
+We've sent a message to %.  Please enter the code you received.	%にメッセージを送信しました。受け取ったコードを入力してください。
+Webhooks (%)	ウェブフック（%）
+Webhooks are a simple way to post messages from other apps and websites into this server.	ウェブフックを使うと、他のアプリやウェブサイトからこのサーバーに簡単にメッセージを投稿できます。
+Welcome %. Say hi!	ようこそ、%さん。あいさつしよう！
+Welcome back!	おかえりなさい！
+Welcome to #%!	#%へようこそ！
+Welcome to the beginning of the % group.	%グループの始まりへようこそ。
+Welcome, %. We hope you brought pizza.	ようこそ、%さん。ピザを持ってきてくれたかな。
+What brings you here?	参加のきっかけは？
+What can people do in this server?	このサーバーで何ができますか？
+What question do you want to ask?	何を質問しますか？
+What's cookin'?	調子はどう？
+What's your event about?	どんなイベントですか？
+What's your event?	イベントの内容は？
+When a friend starts an activity—like playing a game or hanging out on voice—we'll show it here!	フレンドがゲームのプレイやボイスでの雑談などのアクティビティを始めると、ここに表示されます！
+When enabled, only server members can view profile content. Non-members won't be able to see this content unless they have an invite.	有効にすると、サーバーメンバーのみがプロフィールの内容を閲覧できます。メンバー以外は招待がない限り閲覧できません。
+When you put a user in timeout they will not be able to send messages in chat, reply within threads, react to messages, or speak in voice or Stage channels.	ユーザーをタイムアウトにすると、チャットでのメッセージ送信、スレッドでの返信、メッセージへのリアクション、ボイスやステージチャンネルでの発言ができなくなります。
+Where is your event?	イベントの場所は？
+Where would you like to go?	どこに移動しますか？
+Who is this server for? E.g. School Club, Artists' Community	このサーバーは誰のためのもの？例: 部活、アーティストのコミュニティ
+Winning answer · %1%2	最多得票の回答 · %1%2
+Words that are never blocked, separated by commas	ブロックしない単語（カンマ区切り）
+Words to block, separated by commas	ブロックする単語（カンマ区切り）
+Words to block, separated by commas (* matches anything)	ブロックする単語（カンマ区切り、* は任意の文字に一致）
+Would you like to sync %1 permissions with %2?	%1の権限を%2と同期しますか？
+Yay you made it, %!	やったね、%さんが来てくれました！
+Yesterday at %	昨日 %
+You	あなた
+You accepted %'s friend request.	%のフレンドリクエストを承認しました。
+You are at the % server limit.	サーバー数が上限の%に達しています。
+You are banned from this server.	あなたはこのサーバーからBANされています。
+You aren't in that server. Ask a member for an invite.	そのサーバーには参加していません。メンバーに招待を頼んでください。
+You can add % more friend.|You can add % more friends.	あと%人のフレンドを追加できます。
+You can add comments before uploading.\nHold shift to upload directly.	アップロード前にコメントを追加できます。\nShiftキーを押しながらで直接アップロードします。
+You can add friends with their Discord username.	Discordのユーザー名でフレンドを追加できます。
+You can add up to 5 accounts.	アカウントは5つまで追加できます。
+You can hold down shift when clicking % to bypass this confirmation entirely.	Shiftキーを押しながら%をクリックすると、この確認をスキップできます。
+You can only edit roles below your highest role.	自分の最上位ロールより下のロールのみ編集できます。
+You can only upload % files at a time!	一度にアップロードできるファイルは%個までです！
+You can use markdown and links if you'd like.	Markdownやリンクも使えます。
+You can't join this server because of your age group.	年齢層の制限により、このサーバーに参加できません。
+You can't unblock the Wumpus.	Wumpusのブロックは解除できません。
+You cannot friend yourself	自分自身をフレンドにすることはできません
+You can’t react and super react with the same emoji. There’s a lot of emoji to choose from, so maybe try another one.	同じ絵文字でリアクションとスーパーリアクションの両方はできません。絵文字はたくさんあるので、別のものを試してみてください。
+You do not have permission to send messages in this channel.	このチャンネルでメッセージを送信する権限がありません。
+You don't have any friends to add!	追加できるフレンドがいません！
+You don't have permission to do that.	その操作を行う権限がありません。
+You haven't added a display name yet.	まだ表示名を追加していません。
+You haven't added a phone number yet.	まだ電話番号を追加していません。
+You haven't added an email yet.	まだメールアドレスを追加していません。
+You haven't authorized any apps.	認証したアプリはありません。
+You haven't blocked anyone.	ブロックしている人はいません。
+You haven't connected any accounts yet.	まだアカウントを接続していません。
+You haven't ignored anyone.	無視している人はいません。
+You missed a call from %1 that lasted %2.	%1からの不在着信がありました（%2）。
+You must be at least 18 years old to view this channel.	このチャンネルを閲覧するには18歳以上である必要があります。
+You must leave a server first to join.	参加するには、まずどこかのサーバーから退出する必要があります。
+You need to add one or more rules.	ルールを1つ以上追加する必要があります。
+You received an invite, but...	招待が届きましたが...
+You said: %	あなたのメッセージ: %
+You sent an invite to a self-hosted server	セルフホストサーバーへの招待を送信しました
+You sent an invite, but	招待を送信しましたが
+You sent an invite, but...	招待を送信しましたが...
+You will appear offline	オフラインとして表示されます
+You will not receive desktop notifications	デスクトップ通知を受け取りません
+You'll have to log back in on all logged out devices.	ログアウトしたすべてのデバイスで再ログインが必要になります。
+You're Viewing Older Messages	過去のメッセージを表示中です
+You're all caught up!	すべて確認済みです！
+You're already in that server.	そのサーバーには既に参加しています。
+You're doing that too fast. Try again in a moment.	操作が速すぎます。少し待ってからもう一度お試しください。
+You're not in any servers yet.	まだどのサーバーにも参加していません。
+You're offline: no invite link.	オフラインのため招待リンクがありません。
+You're timed out until %.	%までタイムアウト中です。
+You've been invited to a self-hosted server	セルフホストサーバーに招待されました
+You've been invited to join	サーバーに招待されました
+You've been invited to speak	発言に招待されました
+You've been invited, but	招待されましたが
+Your files are too powerful	ファイルが強力すぎます
+Your full profile is visible to friends and any server you join with 200 or fewer members. Everyone else sees a limited version.	プロフィール全体は、フレンドと、参加しているメンバー200人以下のサーバーに表示されます。それ以外の人には一部のみ表示されます。
+Your full profile is visible to friends and any server you join.	プロフィール全体は、フレンドと参加しているすべてのサーバーに表示されます。
+Your full profile is visible to friends. Everyone else sees a limited version.	プロフィール全体はフレンドに表示されます。それ以外の人には一部のみ表示されます。
+Your invite link expires after %.	招待リンクは%で期限切れになります。
+Your invite link expires in %.	招待リンクの有効期限は%です。
+Your invite link expires in %1, or after %2.	招待リンクは%1後、または%2で期限切れになります。
+Your invite link expires in 7 days.	招待リンクは7日後に期限切れになります。
+Your invite link will never expire.	招待リンクは期限切れになりません。
+Your last request was on %.	前回のリクエストは%でした。
+Your message is too long (% / %).	メッセージが長すぎます（% / %）。
+Your reaction was not added because there are too many reactions on this message.	このメッセージのリアクションが多すぎるため、リアクションを追加できませんでした。
+Your request from % is being prepared.	%のリクエストを準備中です。
+Your server is where you and your friends hang out. Make yours and start talking.	サーバーは、あなたとフレンドが集まる場所です。サーバーを作って話し始めましょう。
+Your sounds go out with your voice, mixed into your microphone, instead of as soundboard sounds.	サウンドはサウンドボードのサウンドとしてではなく、マイクに混ぜて声と一緒に送信されます。
+Zoom level	ズームレベル
+a channel	チャンネル
+a command	コマンド
+a day	1日
+a day ago	1日前
+a few seconds	数秒
+a few seconds ago	数秒前
+a message	メッセージ
+a minute	1分
+a minute ago	1分前
+a month ago	1か月前
+a year ago	1年前
+an hour	1時間
+an hour ago	1時間前
+by %	作成者: %
+cancel	キャンセル
+channel	チャンネル
+delete message	メッセージを削除
+escape to %1 • enter to %2	Escで%1 • Enterで%2
+fastcord quit unexpectedly last time. The report is in the logs folder (Settings, under Log Out).	fastcordは前回予期せず終了しました。レポートはログフォルダーにあります（設定の「ログアウト」の下）。
+fastcord starts in the background and stays out of your way.	fastcordはバックグラウンドで起動し、邪魔になりません。
+from %	%から
+in %	%後
+in % day|in % days	%日後
+in % hour|in % hours	%時間後
+in % minute|in % minutes	%分後
+in % month|in % months	%か月後
+in % year|in % years	%年後
+in a day	1日後
+in a few seconds	数秒後
+in a minute	1分後
+in a month	1か月後
+in a year	1年後
+in an hour	1時間後
+just now	たった今
+less than an hour ago	1時間以内
+link, embed or file	リンク、埋め込み、ファイル
+on %	%に
+pinned messages	ピン留めされたメッセージ
+remove embeds	埋め込みを削除
+save	保存
+someone	誰か
+specific date	特定の日付
+this server	このサーバー
+threads	スレッド
+true or false	trueまたはfalse
+unknown	不明
+unknown channel	不明なチャンネル
+unknown-user	不明なユーザー
+used	使用済み
+user	ユーザー
+• Media from all members is scanned by the explicit image filter.	• すべてのメンバーのメディアが不適切な画像のフィルターでスキャンされます。
+• Members must have a verified email on their Discord account.	• メンバーはDiscordアカウントのメールアドレスを認証済みにする必要があります。
+← Back to %	← %に戻る
+← Back to login	← ログインに戻る

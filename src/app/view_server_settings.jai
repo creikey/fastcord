@@ -3333,7 +3333,7 @@ reviews_applications :: (g: *dc.Guild) -> bool {
 
 access_page :: (g: *dc.Guild) {
 	page_subtitle(L("Keep your server private, or open it up for more people to join."));
-	section_heading("join", L("How can people join your server?"), L(""));
+	section_heading("join", L("How can people join your server?"), "");
 	// the server's access type as the client reads it from its features; switching it is the official client's
 	public := dc.guild_has_feature(g, "COMMUNITY") && dc.guild_has_feature(g, "DISCOVERABLE");
 	apply := !public && dc.guild_has_feature(g, "MEMBER_VERIFICATION_MANUAL_APPROVAL") && dc.guild_has_feature(g, "MEMBER_VERIFICATION_GATE_ENABLED");
@@ -3491,7 +3491,7 @@ vanity_block :: (g: *dc.Guild) {
 
 stickers_page :: (g: *dc.Guild) {
 	page_subtitle(L("Stickers can be used by anyone in this server. Upload a PNG, APNG, GIF or Lottie JSON file of up to 512 KB; it shows at 320x320."));
-	section_heading("upload", L("Upload Sticker"), L(""));
+	section_heading("upload", L("Upload Sticker"), "");
 	field_title(L("Name"));
 	if set_input("sname", *ss.hook_name, L("Name your sticker"), max_runes = 30) == .Escape ss.field_escape = true;
 	spacer(.Y, 12);

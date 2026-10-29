@@ -1,0 +1,1973 @@
+# Danish (da)
+ · required	 · påkrævet
+% (requested to speak)	% (har bedt om ordet)
+% (required)	% (påkrævet)
+% Bans|% Bans	% udelukkelse|% udelukkelser
+% Event|% Events	% begivenhed|% begivenheder
+% KB	% KB
+% MB	% MB
+% Member|% Members	% medlem|% medlemmer
+% Messages	% beskeder
+% Mutual Friend|% Mutual Friends	% fælles ven|% fælles venner
+% Mutual Server|% Mutual Servers	% fælles server|% fælles servere
+% Online	% online
+% Result|% Results	% resultat|% resultater
+% accepted encryption.	% accepterede kryptering.
+% accepted your friend request.	% accepterede din venneanmodning.
+% answer|% answers	% svar|% svar
+% becomes the owner once they accept on their device. You'll stay a member.	% bliver ejer, når vedkommende accepterer på sin enhed. Du forbliver medlem.
+% blocked message —|% blocked messages —	% blokeret besked —|% blokerede beskeder —
+% byte|% bytes	% byte|% bytes
+% changed the group icon.	% ændrede gruppeikonet.
+% day ago|% days ago	for % dag siden|for % dage siden
+% day|% days	% dag|% dage
+% disabled security actions.	% slog sikkerhedshandlinger fra.
+% enabled security actions.	% slog sikkerhedshandlinger til.
+% hasn't accepted encryption yet.	% har ikke accepteret kryptering endnu.
+% hopped into the server.	% hoppede ind på serveren.
+% hour ago|% hours ago	for % time siden|for % timer siden
+% hour|% hours	% time|% timer
+% ignored message —|% ignored messages —	% ignoreret besked —|% ignorerede beskeder —
+% is here.	% er her.
+% is typing...	% skriver...
+% joined the party.	% sluttede sig til festen.
+% just boosted the server!	% har lige boostet serveren!
+% just landed.	% er lige landet.
+% just showed up!	% dukkede lige op!
+% just slid into the server.	% gled lige ind på serveren.
+% left the group.	% forlod gruppen.
+% member|% members	% medlem|% medlemmer
+% minute ago|% minutes ago	for % minut siden|for % minutter siden
+% minute|% minutes	% minut|% minutter
+% month ago|% months ago	for % måned siden|for % måneder siden
+% of %	%1 af %2
+% removed the custom group name.	% fjernede det brugerdefinerede gruppenavn.
+% started a call.	% startede et opkald.
+% turned on encryption.	% slog kryptering til.
+% user|% users	% bruger|% brugere
+% use|% uses	% brug|% brug
+% vote|% votes	% stemme|% stemmer
+% wants to encrypt this DM with a new key. Compare safety numbers after accepting.	% vil kryptere denne DM med en ny nøgle. Sammenlign sikkerhedsnumre, når du har accepteret.
+% wants to encrypt this DM.	% vil kryptere denne DM.
+% year ago|% years ago	for % år siden|for % år siden
+% · End-to-end encrypted	% · End-to-end-krypteret
+%'s Group	%s gruppe
+%'s encryption key changed. Compare safety numbers before trusting new messages.	%s krypteringsnøgle er ændret. Sammenlign sikkerhedsnumre, før du stoler på nye beskeder.
+%'s server	%s server
+%1 (%2 more)	%1 (%2 mere)
+%1 FPS	%1 FPS
+%1 STICKERS — %2 SLOTS AVAILABLE	%1 KLISTERMÆRKER — %2 PLADSER LEDIGE
+%1 action %2	%1 handling %2
+%1 added %2 to the group.	%1 tilføjede %2 til gruppen.
+%1 and %2	%1 og %2
+%1 and %2 are typing...	%1 og %2 skriver...
+%1 and %2 other|%1 and %2 others	%1 og %2 anden|%1 og %2 andre
+%1 banned %2	%1 udelukkede %2
+%1 changed the Stage topic: %2	%1 ændrede Stage-emnet: %2
+%1 changed the channel name: %2.	%1 ændrede kanalnavnet: %2.
+%1 changed the group name: %2.	%1 ændrede gruppenavnet: %2.
+%1 created a channel	%1 oprettede en kanal
+%1 created a role	%1 oprettede en rolle
+%1 created a webhook	%1 oprettede en webhook
+%1 created an emoji	%1 oprettede en emoji
+%1 created an invite	%1 oprettede en invitation
+%1 deleted a channel	%1 slettede en kanal
+%1 deleted a message by %2	%1 slettede en besked fra %2
+%1 deleted a role	%1 slettede en rolle
+%1 deleted a webhook	%1 slettede en webhook
+%1 deleted an emoji	%1 slettede en emoji
+%1 deleted an invite	%1 slettede en invitation
+%1 enabled security actions until %2.	%1 slog sikkerhedshandlinger til indtil %2.
+%1 ended %2	%1 afsluttede %2
+%1 has achieved %2	%1 har opnået %2
+%1 has added %2 to this channel. Its most important updates will show up here.	%1 har tilføjet %2 til denne kanal. De vigtigste opdateringer vises her.
+%1 has blocked a message in %2	%1 har blokeret en besked i %2
+%1 has flagged a message in %2	%1 har markeret en besked i %2
+%1 is now a speaker.	%1 er nu taler.
+%1 joined %2 and has been a subscriber of %3 for %4 month!|%1 joined %2 and has been a subscriber of %3 for %4 months!	%1 tilmeldte sig %2 og har abonneret på %3 i %4 måned!|%1 tilmeldte sig %2 og har abonneret på %3 i %4 måneder!
+%1 joined %2 as a subscriber of %3!	%1 tilmeldte sig %2 som abonnent på %3!
+%1 just boosted the server %2 times!	%1 har lige boostet serveren %2 gange!
+%1 kicked %2	%1 smed %2 ud
+%1 new message since %2|%1 new messages since %2	%1 ny besked siden %2|%1 nye beskeder siden %2
+%1 of %2 slot used|%1 of %2 slots used	%1 af %2 plads brugt|%1 af %2 pladser brugt
+%1 pinned %2 to this channel. See all %3.	%1 fastgjorde %2 i denne kanal. Se alle %3.
+%1 reacted with %2	%1 reagerede med %2
+%1 removed %2 from the group.	%1 fjernede %2 fra gruppen.
+%1 renewed %2 and has been a subscriber of %3 for %4 month!|%1 renewed %2 and has been a subscriber of %3 for %4 months!	%1 fornyede %2 og har abonneret på %3 i %4 måned!|%1 fornyede %2 og har abonneret på %3 i %4 måneder!
+%1 renewed %2 in their %3 membership!	%1 fornyede %2 i sit %3-medlemskab!
+%1 reported a raid in %2.	%1 rapporterede et raid i %2.
+%1 requested to speak.	%1 har bedt om ordet.
+%1 resolved an Activity Alert in %2.	%1 løste en aktivitetsadvarsel i %2.
+%1 said %2	%1 sagde %2
+%1 started %2	%1 startede %2
+%1 started a call that lasted %2.	%1 startede et opkald, der varede %2.
+%1 started a thread: %2. See all %3.	%1 startede en tråd: %2. Se alle %3.
+%1 unbanned %2	%1 ophævede udelukkelsen af %2
+%1 updated %2	%1 opdaterede %2
+%1 updated a channel	%1 opdaterede en kanal
+%1 updated a role	%1 opdaterede en rolle
+%1 updated a webhook	%1 opdaterede en webhook
+%1 updated an emoji	%1 opdaterede en emoji
+%1 updated the roles of %2	%1 opdaterede roller for %2
+%1 updated the server	%1 opdaterede serveren
+%1 vote · %2|%1 votes · %2	%1 stemme · %2|%1 stemmer · %2
+%1 wants to make you the owner of %2. You'll be able to manage everything about it, and they'll stay a member.	%1 vil gøre dig til ejer af %2. Du kan administrere alt ved den, og vedkommende forbliver medlem.
+%1's poll %2 has closed.	%1s afstemning %2 er lukket.
+%1, %2 and %3	%1, %2 og %3
+%1, %2 at %3	%1, %2 kl. %3
+%1, %2, and %3 are typing...	%1, %2 og %3 skriver...
+%1: %2	%1: %2
+%: a number	%: et tal
+%: a whole number	%: et heltal
+%: pick a channel	%: vælg en kanal
+%: pick a member	%: vælg et medlem
+%: pick a role	%: vælg en rolle
+%: true or false	%: sand eller falsk
+%d ago	for %d siden
+%d left	%d tilbage
+%h	%t
+%h ago	for %t siden
+%h left	%t tilbage
+%m	%m
+%m ago	for %m siden
+%m left	%m tilbage
+%mo ago	for %md siden
+%s	%s
+(edited)	(redigeret)
+/% takes no options.	/% har ingen indstillinger.
+/%1 needs %2:	/%1 kræver %2:
+1 Day	1 dag
+1 Hour	1 time
+1 Message	1 besked
+1 Week	1 uge
+1 day	1 dag
+1 hour	1 time
+1 minute	1 minut
+1 use	1 brug
+1 week	1 uge
+10 Minutes	10 minutter
+10 minutes	10 minutter
+10 uses	10 brug
+100 uses	100 brug
+12 hours	12 timer
+12-hour	12-timers
+15 minutes	15 minutter
+2 hours	2 timer
+2 to 4 letters or numbers	2 til 4 bogstaver eller tal
+2 weeks	2 uger
+24 Hours	24 timer
+24 hours	24 timer
+24-hour	24-timers
+25 uses	25 brug
+3 Days	3 dage
+3 days	3 dage
+30 days	30 dage
+30 minutes	30 minutter
+3:00 PM	15.00
+4 hours	4 timer
+5 Minutes	5 minutter
+5 minutes	5 minutter
+5 uses	5 brug
+50 uses	50 brug
+6 hours	6 timer
+6-digit authentication code	6-cifret godkendelseskode
+60 Seconds	60 sekunder
+60 seconds	60 sekunder
+7 days	7 dage
+8 hours	8 timer
+8-digit backup code	8-cifret backupkode
+@ OFF	@ FRA
+@ ON	@ TIL
+@MENTIONS	@OMTALER
+@everyone · applies to all server members	@everyone · gælder for alle servermedlemmer
+A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button.	En tast med Ctrl, Alt, Shift eller Cmd, en ændringstast alene eller en midter- eller sideknap på musen.
+A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button. Works in every app.	En tast med Ctrl, Alt, Shift eller Cmd, en ændringstast alene eller en midter- eller sideknap på musen. Virker i alle apps.
+A role needs a name.	En rolle skal have et navn.
+A webhook needs a name.	En webhook skal have et navn.
+A wild % appeared.	En vild % dukkede op.
+ACTION	HANDLING
+ACTIVE INVITE LINKS	AKTIVE INVITATIONSLINKS
+ALL	ALLE
+ALL THE BITS! Going above 64 kbps may adversely affect people on poor connections.	ALLE BITSENE! Over 64 kbps kan give problemer for folk med dårlig forbindelse.
+AM	AM
+ANIMATED EMOJI — % SLOTS AVAILABLE	ANIMEREDE EMOJIS — % PLADSER LEDIGE
+APP	APP
+AUDIENCE — %	PUBLIKUM — %
+AUTHENTICATOR APP	GODKENDELSESAPP
+About Me	Om mig
+Accept	Acceptér
+Accept Friend Request	Acceptér venneanmodning
+Accept Invite	Acceptér invitation
+Accept Server Ownership	Acceptér ejerskab af server
+Accept this message request (Friends, Message Requests) to reply.	Acceptér denne beskedanmodning (Venner, Beskedanmodninger) for at svare.
+Accepting...	Accepterer...
+Access	Adgang
+Accessibility	Tilgængelighed
+Account	Konto
+Account Removal	Fjernelse af konto
+Activate	Aktivér
+Active	Aktiv
+Active Now	Aktiv nu
+Activities	Aktiviteter
+Activity Joining	Deltagelse i aktiviteter
+Activity Privacy	Aktivitetsprivatliv
+Activity Status	Aktivitetsstatus
+Add Answer	Tilføj svar
+Add Emoji	Tilføj emoji
+Add Friend	Tilføj ven
+Add Friend Nickname	Tilføj kælenavn til ven
+Add Note	Tilføj note
+Add Reaction	Tilføj reaktion
+Add Reactions	Tilføj reaktioner
+Add Tag	Tilføj tag
+Add a Keybind	Tilføj en genvejstast
+Add a Question	Tilføj et spørgsmål
+Add a channel	Tilføj en kanal
+Add a channel to override its default notification settings	Tilføj en kanal for at tilsidesætte dens standardnotifikationer
+Add a description	Tilføj en beskrivelse
+Add a location, link, or something.	Tilføj et sted, et link eller noget andet.
+Add a role	Tilføj en rolle
+Add an Account	Tilføj en konto
+Add an optional message...	Tilføj eventuelt en besked...
+Add another answer	Tilføj endnu et svar
+Add at least one word to block.	Tilføj mindst ét ord at blokere.
+Add members or roles	Tilføj medlemmer eller roller
+Add this channel's updates to your server!	Føj denne kanals opdateringer til din server!
+Add this key to an authenticator app, then enter the code it shows.	Føj denne nøgle til en godkendelsesapp, og indtast så koden, den viser.
+Add to Favorites	Føj til favoritter
+Add to Group DM	Føj til gruppe-DM
+Add up to 5 traits to show off your server's interests and personality.	Tilføj op til 5 træk, der viser din servers interesser og personlighed.
+Add up to 50 custom emoji that anyone can use in this server. Animated GIF emoji may be used by members with Discord Nitro. Emoji names must be at least 2 characters long and can only contain alphanumeric characters and underscores. Emoji must be under 256 KB in size.	Tilføj op til 50 brugerdefinerede emojis, som alle kan bruge på denne server. Animerede GIF-emojis kan bruges af medlemmer med Discord Nitro. Emojinavne skal være mindst 2 tegn lange og må kun indeholde bogstaver, tal og understreger. Emojis skal være under 256 KB.
+Add your pronouns	Tilføj dine stedord
+Added %	Tilføjet %
+Adjust the size of the interface. You can also change this with % +/-.	Justér størrelsen på brugerfladen. Du kan også ændre den med % +/-.
+Administrator	Administrator
+Advanced Permissions	Avancerede tilladelser
+Advanced permissions	Avancerede tilladelser
+Age-Restricted Channel	Aldersbegrænset kanal
+All	Alle
+All Actions	Alle handlinger
+All Messages	Alle beskeder
+All Users	Alle brugere
+All friends	Alle venner
+All messages will be filtered for sensitive image-based media.	Alle beskeder bliver filtreret for følsomme billeder og videoer.
+All set. Now share your event!	Alt er klar. Del nu din begivenhed!
+Allow DMs from other members in servers	Tillad DM'er fra andre medlemmer på servere
+Allow Discord to use and process my information to understand and improve Discord's services.	Tillad Discord at bruge og behandle mine oplysninger for at forstå og forbedre Discords tjenester.
+Allow Friend Requests from...	Tillad venneanmodninger fra...
+Allow Multiple Answers	Tillad flere svar
+Allow anyone to @mention this role	Tillad alle at @omtale denne rolle
+Allow direct messages from other members in this server.	Tillad direkte beskeder fra andre medlemmer på denne server.
+Allow friends to join your game	Tillad venner at deltage i dit spil
+Allow members to change this server's name, switch regions, view all invites, add apps to this server and create and update AutoMod rules.	Tillad medlemmer at ændre serverens navn, skifte region, se alle invitationer, tilføje apps til serveren samt oprette og opdatere AutoMod-regler.
+Allow members to create invite-only threads.	Tillad medlemmer at oprette tråde, der kun er for inviterede.
+Allow members to create threads that everyone in a channel can view.	Tillad medlemmer at oprette tråde, som alle i en kanal kan se.
+Allow members to send messages in text channels and create posts in forum channels.	Tillad medlemmer at sende beskeder i tekstkanaler og oprette opslag i forumkanaler.
+Allow members to send messages in threads and in posts on forum channels.	Tillad medlemmer at sende beskeder i tråde og i opslag i forumkanaler.
+Allow message requests from server members you may not know	Tillad beskedanmodninger fra servermedlemmer, du måske ikke kender
+Allow voice channel participants to join your game	Tillad deltagere i talekanalen at deltage i dit spil
+Allowed words	Tilladte ord
+Allows apps that members have added to their account to post messages. When disabled, the messages will be private.	Tillader apps, som medlemmer har føjet til deres konto, at sende beskeder. Når det er slået fra, er beskederne private.
+Allows links that members share to show embedded content in text channels.	Tillader links, som medlemmer deler, at vise indlejret indhold i tekstkanaler.
+Allows members to add custom emoji, stickers, and sounds in this server.	Tillader medlemmer at tilføje brugerdefinerede emojis, klistermærker og lyde på denne server.
+Allows members to add new emoji reactions to a message. If this permission is disabled, members can still react using any existing reactions on a message.	Tillader medlemmer at tilføje nye emojireaktioner til en besked. Hvis tilladelsen er slået fra, kan medlemmer stadig reagere med eksisterende reaktioner på en besked.
+Allows members to be more easily heard in voice channels. When activated, the volume of others without this permission will be automatically lowered.	Gør det lettere at høre medlemmer i talekanaler. Når det er slået til, sænkes lydstyrken automatisk for andre uden denne tilladelse.
+Allows members to change the nicknames of other members.	Tillader medlemmer at ændre andre medlemmers kælenavne.
+Allows members to change their own nickname, a custom name for just this server.	Tillader medlemmer at ændre deres eget kælenavn, et brugerdefineret navn kun til denne server.
+Allows members to change this channel's name, description, and settings. They can also delete it.	Tillader medlemmer at ændre kanalens navn, beskrivelse og indstillinger. De kan også slette den.
+Allows members to change this channel's permissions.	Tillader medlemmer at ændre kanalens tilladelser.
+Allows members to create and edit voice channel status.	Tillader medlemmer at oprette og redigere talekanalens status.
+Allows members to create events.	Tillader medlemmer at oprette begivenheder.
+Allows members to create new roles and edit or delete roles lower than their highest role. Also allows members to change permissions of individual channels that they have access to.	Tillader medlemmer at oprette nye roller og redigere eller slette roller under deres højeste rolle. Tillader også medlemmer at ændre tilladelser for enkelte kanaler, de har adgang til.
+Allows members to create polls.	Tillader medlemmer at oprette afstemninger.
+Allows members to create, edit, or delete channels.	Tillader medlemmer at oprette, redigere eller slette kanaler.
+Allows members to create, edit, or delete webhooks, which can post messages from other apps or sites into this server.	Tillader medlemmer at oprette, redigere eller slette webhooks, som kan sende beskeder fra andre apps eller websteder til denne server.
+Allows members to deafen other members in voice channels, which means they won't be able to speak or hear others.	Tillader medlemmer at gøre andre medlemmer døve i talekanaler, så de hverken kan tale eller høre andre.
+Allows members to delete or remove embeds from messages by other members.	Tillader medlemmer at slette beskeder eller fjerne indlejringer fra andre medlemmers beskeder.
+Allows members to disconnect or move other members between voice channels that the member with this permission has access to.	Tillader medlemmer at afbryde eller flytte andre medlemmer mellem talekanaler, som medlemmet med denne tilladelse har adgang til.
+Allows members to edit and cancel events.	Tillader medlemmer at redigere og aflyse begivenheder.
+Allows members to edit or remove custom emoji, stickers, and sounds in this server.	Tillader medlemmer at redigere eller fjerne brugerdefinerede emojis, klistermærker og lyde på denne server.
+Allows members to invite new people to this server.	Tillader medlemmer at invitere nye personer til denne server.
+Allows members to join voice channels and hear others.	Tillader medlemmer at deltage i talekanaler og høre andre.
+Allows members to mute other members in voice channels for everyone.	Tillader medlemmer at gøre andre medlemmer lydløse i talekanaler for alle.
+Allows members to permanently ban and delete the message history of other members from this server.	Tillader medlemmer permanent at udelukke andre medlemmer fra serveren og slette deres beskedhistorik.
+Allows members to pin or unpin any message.	Tillader medlemmer at fastgøre eller frigøre enhver besked.
+Allows members to read previous messages sent in channels. If this permission is disabled, members only see messages sent when they are online. This does not fully apply to threads and forum posts.	Tillader medlemmer at læse tidligere beskeder i kanaler. Hvis tilladelsen er slået fra, ser medlemmer kun beskeder sendt, mens de er online. Det gælder ikke fuldt ud for tråde og forumopslag.
+Allows members to remove other members from this server. Kicked members will be able to rejoin if they have another invite.	Tillader medlemmer at fjerne andre medlemmer fra serveren. Medlemmer, der er smidt ud, kan komme tilbage med en ny invitation.
+Allows members to rename, delete, close, and turn on slow mode for threads and posts. They can also view private threads.	Tillader medlemmer at omdøbe, slette og lukke tråde og opslag samt slå langsom tilstand til for dem. De kan også se private tråde.
+Allows members to send messages without being affected by slowmode.	Tillader medlemmer at sende beskeder uden at være påvirket af langsom tilstand.
+Allows members to send sounds from server soundboard.	Tillader medlemmer at afspille lyde fra serverens soundboard.
+Allows members to send text-to-speech messages by starting a message with /tts. These messages can be heard by anyone focused on the channel.	Tillader medlemmer at sende tekst-til-tale-beskeder ved at starte en besked med /tts. Beskederne kan høres af alle, der har kanalen åben.
+Allows members to send voice messages.	Tillader medlemmer at sende talebeskeder.
+Allows members to share their video, screen share, or stream a game in this server.	Tillader medlemmer at dele video, dele skærm eller streame et spil på denne server.
+Allows members to speak in voice channels by simply talking. If this permission is disabled, members are required to use Push-to-talk. Good for controlling background noise or noisy members.	Tillader medlemmer at tale i talekanaler ved bare at snakke. Hvis tilladelsen er slået fra, skal medlemmer bruge Tryk for at tale. Godt til at styre baggrundsstøj eller larmende medlemmer.
+Allows members to talk in voice channels. If this permission is disabled, members are default muted until somebody with the "Mute Members" permission un-mutes them.	Tillader medlemmer at tale i talekanaler. Hvis tilladelsen er slået fra, er medlemmer lydløse som standard, indtil nogen med tilladelsen "Gør medlemmer lydløse" slår lyden til for dem.
+Allows members to upload files or media in text channels.	Tillader medlemmer at uploade filer eller medier i tekstkanaler.
+Allows members to use @everyone (everyone in the server) or @here (only online members in that channel). They can also @mention all roles, even if the role's "Allow anyone to mention this role" permission is disabled.	Tillader medlemmer at bruge @everyone (alle på serveren) eller @here (kun medlemmer i kanalen, der er online). De kan også @omtale alle roller, selv hvis rollens tilladelse "Tillad alle at omtale denne rolle" er slået fra.
+Allows members to use commands from applications, including slash commands and context menu commands.	Tillader medlemmer at bruge kommandoer fra apps, herunder skråstregskommandoer og kommandoer i genvejsmenuen.
+Allows members to use emoji from other servers, if they're a Discord Nitro member.	Tillader medlemmer at bruge emojis fra andre servere, hvis de har Discord Nitro.
+Allows members to use sounds from other servers, if they're a Discord Nitro member.	Tillader medlemmer at bruge lyde fra andre servere, hvis de har Discord Nitro.
+Allows members to use stickers from other servers, if they're a Discord Nitro member.	Tillader medlemmer at bruge klistermærker fra andre servere, hvis de har Discord Nitro.
+Allows members to view Server Insights, which shows data on community growth, engagement, and more. This will allow them to see certain data about channel activity, even for channels they cannot access.	Tillader medlemmer at se Serverindsigt, som viser data om fællesskabets vækst, engagement og mere. De kan dermed se visse data om kanalaktivitet, også for kanaler, de ikke har adgang til.
+Allows members to view a record of who made which changes in this server.	Tillader medlemmer at se en oversigt over, hvem der har lavet hvilke ændringer på serveren.
+Allows members to view channels by default (excluding private channels).	Tillader medlemmer at se kanaler som standard (undtagen private kanaler).
+Allows members to view these channels by default. Disabling this for @everyone will make the category private.	Tillader medlemmer at se disse kanaler som standard. Slår du det fra for @everyone, bliver kategorien privat.
+Allows members to view this channel by default. Disabling this for @everyone will make this channel private.	Tillader medlemmer at se denne kanal som standard. Slår du det fra for @everyone, bliver kanalen privat.
+Always	Altid
+An emoji name, like smile	Et emojinavn, f.eks. smile
+An encrypted file couldn't be opened.|% encrypted files couldn't be opened.	En krypteret fil kunne ikke åbnes.|% krypterede filer kunne ikke åbnes.
+An error occurred, please try again.	Der opstod en fejl. Prøv igen.
+An error occurred. Please try again.	Der opstod en fejl. Prøv igen.
+Announcement	Meddelelse
+Announcement Channel	Meddelelseskanal
+Answer	Svar
+Answers	Svar
+Anyone can join your server directly through Server Discovery	Alle kan deltage direkte på din server via Serveroversigt
+Anyone can use	Alle kan bruge
+Anyone with access to this text channel will be able to see the notifications.	Alle med adgang til denne tekstkanal kan se notifikationerne.
+App Directory	Appkatalog
+Appearance	Udseende
+Appends (╯°□°)╯︵ ┻━┻ to your message.	Føjer (╯°□°)╯︵ ┻━┻ til din besked.
+Appends ¯\\_(ツ)_/¯ to your message.	Føjer ¯\\_(ツ)_/¯ til din besked.
+Appends ┬─┬ノ( º _ ºノ) to your message.	Føjer ┬─┬ノ( º _ ºノ) til din besked.
+Applications	Apps
+Apply to Join	Ansøg om at deltage
+Approve	Godkend
+Apps	Apps
+Apps Permissions	Apptilladelser
+Archived	Arkiveret
+Archived Threads	Arkiverede tråde
+Are you building a Community? Convert to a Community Server to access additional administrative tools that can help you moderate, run, and grow your server.	Bygger du et fællesskab? Konvertér til en fællesskabsserver for at få flere administrationsværktøjer, der kan hjælpe dig med at moderere, drive og udvikle din server.
+Are you sure that you want to delete your account? This will immediately log you out of your account and you will not be able to log in again.	Er du sikker på, at du vil slette din konto? Du bliver straks logget ud og kan ikke logge ind igen.
+Are you sure that you want to disable your account? This will immediately log you out and make your account inaccessible to anyone.	Er du sikker på, at du vil deaktivere din konto? Du bliver straks logget ud, og ingen kan få adgang til kontoen.
+Are you sure you want to ban @%1 from %2? They won't be able to come back until the ban is lifted.	Er du sikker på, at du vil udelukke @%1 fra %2? Vedkommende kan ikke komme tilbage, før udelukkelsen er ophævet.
+Are you sure you want to delete %? This action cannot be undone.	Er du sikker på, at du vil slette %? Handlingen kan ikke fortrydes.
+Are you sure you want to delete %? This cannot be undone.	Er du sikker på, at du vil slette %? Det kan ikke fortrydes.
+Are you sure you want to delete :%:? This cannot be undone.	Er du sikker på, at du vil slette :%:? Det kan ikke fortrydes.
+Are you sure you want to delete the rule %? This cannot be undone.	Er du sikker på, at du vil slette reglen %? Det kan ikke fortrydes.
+Are you sure you want to delete this message?	Er du sikker på, at du vil slette denne besked?
+Are you sure you want to delete this role? This action cannot be undone.	Er du sikker på, at du vil slette denne rolle? Handlingen kan ikke fortrydes.
+Are you sure you want to delete this template? Its link will stop working.	Er du sikker på, at du vil slette denne skabelon? Dens link holder op med at virke.
+Are you sure you want to kick @%1 from %2? They will be able to rejoin again with a new invite.	Er du sikker på, at du vil smide @%1 ud af %2? Vedkommende kan komme tilbage med en ny invitation.
+Are you sure you want to logout?	Er du sikker på, at du vil logge ud?
+Are you sure you want to remove all embeds on this message? This will remove them for everyone.	Er du sikker på, at du vil fjerne alle indlejringer i denne besked? De fjernes for alle.
+Are you sure you want to remove all of the reactions for this emoji from this message?	Er du sikker på, at du vil fjerne alle reaktioner med denne emoji fra beskeden?
+Are you sure you want to remove all the reactions on this message?	Er du sikker på, at du vil fjerne alle reaktioner på denne besked?
+Are you sure you want to revoke the invite %? Nobody will be able to join with it.	Er du sikker på, at du vil tilbagekalde invitationen %? Ingen vil kunne deltage med den.
+Ask for a new invite	Bed om en ny invitation
+Ask new members what they're here for; each answer gives them channels and roles.	Spørg nye medlemmer, hvorfor de er her; hvert svar giver dem kanaler og roller.
+Attach Files	Vedhæft filer
+Attachment removed	Vedhæftning fjernet
+Attachments	Vedhæftninger
+Audit Log	Revisionslog
+Authorized Apps	Godkendte apps
+Auto	Auto
+AutoMod	AutoMod
+Automatic	Automatisk
+Automatic Gain Control	Automatisk forstærkning
+Automatically determine input sensitivity	Bestem inputfølsomhed automatisk
+Automatically enable Streamer Mode if OBS or XSplit are running	Slå streamertilstand til automatisk, hvis OBS eller XSplit kører
+Automatically filter suspected spam messages	Filtrér automatisk mistænkte spambeskeder
+Automatically move members to this channel and mute them when they have been idle for longer than the inactive timeout. This does not affect browsers.	Flyt automatisk medlemmer til denne kanal og gør dem lydløse, når de har været inaktive længere end inaktivitetsgrænsen. Det påvirker ikke browsere.
+Automatically open fastcord when your computer starts up	Åbn fastcord automatisk, når computeren starter
+Automatically scan and delete messages sent in this server that contain explicit media.	Scan og slet automatisk beskeder på denne server, der indeholder eksplicitte medier.
+Avatar	Avatar
+BACK	TILBAGE
+BACKUP CODES	BACKUPKODER
+Back	Tilbage
+Back / forward	Tilbage / frem
+Backup codes can only be used one time each and are for emergency access to your account!	Backupkoder kan kun bruges én gang hver og er til nødadgang til din konto!
+Backups	Backups
+Ban	Udeluk
+Ban %	Udeluk %
+Ban '%' from Server	Udeluk '%' fra serveren
+Ban Member	Udeluk medlem
+Ban Members	Udeluk medlemmer
+Banner	Banner
+Banner Color	Bannerfarve
+Bans	Udelukkelser
+Bitrate	Bithastighed
+Block	Bloker
+Block Commonly Flagged Words	Bloker ofte markerede ord
+Block Custom Words	Bloker egne ord
+Block Mention Spam	Bloker omtalespam
+Block Suspected Spam Content	Bloker mistænkt spamindhold
+Block Words in Member Profile Names	Bloker ord i medlemmers profilnavne
+Block message	Bloker besked
+Blocked	Blokeret
+Blocked Users	Blokerede brugere
+Blocked by your content filters	Blokeret af dine indholdsfiltre
+Blocked message	Blokeret besked
+Blocked words	Blokerede ord
+Blocked words in names	Blokerede ord i navne
+Blocks messages containing % word.|Blocks messages containing % words.	Blokerer beskeder, der indeholder % ord.|Blokerer beskeder, der indeholder % ord.
+Blocks messages suspected to be spam.	Blokerer beskeder, der mistænkes for at være spam.
+Blocks messages with more than % mentions.	Blokerer beskeder med mere end % omtaler.
+Blocks words from Discord's commonly flagged lists.	Blokerer ord fra Discords lister over ofte markerede ord.
+Blocks words in member profile names.	Blokerer ord i medlemmers profilnavne.
+Blur	Slør
+Blur Background	Slør baggrund
+Blur what's behind you on camera. Only your camera is changed.	Slør det, der er bag dig på kameraet. Kun dit kamera ændres.
+Bold / italic / underline	Fed / kursiv / understreget
+Bots and Apps	Bots og apps
+Browse	Gennemse
+Browse Channels	Gennemse kanaler
+Built-In	Indbygget
+Bulgarian	Bulgarsk
+By creating a server, you agree to Discord's Community Guidelines.	Ved at oprette en server accepterer du Discords retningslinjer for fællesskabet.
+By enabling the widget, your server profile will be visible to others outside of your server members. You can control Profile privacy in Server Settings > Profile.	Når du slår widgetten til, kan andre end dine servermedlemmer se din serverprofil. Du kan styre profilens privatliv under Serverindstillinger > Profil.
+By making a category private, only select members and roles will be able to view this category. Linked channels in this category will automatically match to this setting.	Når du gør en kategori privat, kan kun udvalgte medlemmer og roller se den. Synkroniserede kanaler i kategorien følger automatisk denne indstilling.
+By making a channel private, only select members and roles will be able to view this channel.	Når du gør en kanal privat, kan kun udvalgte medlemmer og roller se den.
+By making a channel private, only select members and roles will have access to view or connect to this channel.	Når du gør en kanal privat, kan kun udvalgte medlemmer og roller se eller oprette forbindelse til den.
+Bypass Slowmode	Omgå langsom tilstand
+CHANNEL OR CATEGORY	KANAL ELLER KATEGORI
+CONFIRM NEW PASSWORD	BEKRÆFT NY ADGANGSKODE
+CURRENT PASSWORD	NUVÆRENDE ADGANGSKODE
+Call	Ring op
+Cancel	Annuller
+Cancel Event	Aflys begivenhed
+Cancel Friend Request	Annuller venneanmodning
+Careful — you have unsaved changes!	Pas på — du har ændringer, der ikke er gemt!
+Category Name	Kategorinavn
+Category deleted	Kategori slettet
+Change %	Skift %
+Change Avatar	Skift avatar
+Change Nickname	Skift kælenavn
+Change Password	Skift adgangskode
+Change Server Icon	Skift serverikon
+Channel	Kanal
+Channel Name	Kanalnavn
+Channel Notification Overrides	Tilsidesættelse af kanalnotifikationer
+Channel Topic	Kanalemne
+Channel Type	Kanaltype
+Channel deleted	Kanal slettet
+Channel unmuted	Lyd slået til for kanal
+Channels	Kanaler
+Channels & Roles	Kanaler og roller
+Channels Followed (%)	Fulgte kanaler (%)
+Channels matching #%	Kanaler, der matcher #%
+Chat	Chat
+Chat Font Scaling	Skriftstørrelse i chat
+Check your email for a login link	Tjek din e-mail for et loginlink
+Check your phone!	Tjek din telefon!
+Checking the file…	Tjekker filen…
+Chinese, China	Kinesisk, Kina
+Chinese, Taiwan	Kinesisk, Taiwan
+Choose Image	Vælg billede
+Choose a link people can use to join, discord.gg/<code>.	Vælg et link, folk kan bruge til at deltage, discord.gg/<kode>.
+Choose a server	Vælg en server
+Choose the language you want Discord to display.	Vælg det sprog, Discord skal vises på.
+Choose what happens to images and videos Discord detects as explicit.	Vælg, hvad der sker med billeder og videoer, som Discord registrerer som eksplicitte.
+Clear	Ryd
+Clear Custom Status	Ryd brugerdefineret status
+Clear after	Ryd efter
+Clear permissions	Ryd tilladelser
+Click Again to Reset	Klik igen for at nulstille
+Click any channel, then pick a request whose name starts with "messages" or "science".	Klik på en kanal, og vælg så en anmodning, hvis navn starter med "messages" eller "science".
+Click to add a note	Klik for at tilføje en note
+Click to see attachment	Klik for at se vedhæftning
+Close DM	Luk DM
+Collapse	Skjul
+Collapse All Categories	Skjul alle kategorier
+Collapse Category	Skjul kategori
+Commands	Kommandoer
+Commands matching /%	Kommandoer, der matcher /%
+Community Overview	Fællesskabsoversigt
+Community Updates Channel	Kanal til fællesskabsopdateringer
+Community servers follow Discord's Community Guidelines.	Fællesskabsservere følger Discords retningslinjer for fællesskabet.
+Community servers have more tools to help you moderate and grow your server.	Fællesskabsservere har flere værktøjer, der hjælper dig med at moderere og udvikle din server.
+Compact	Kompakt
+Compare	Sammenlign
+Compare these with %, in person or on a call. If they match, no one can read this DM in between.	Sammenlign disse med %, ansigt til ansigt eller i et opkald. Hvis de passer, kan ingen læse med i denne DM undervejs.
+Configure system event messages sent to your server.	Konfigurer systembeskeder, der sendes til din server.
+Confirm	Bekræft
+Confirm Request	Bekræft anmodning
+Confirm your age to join this server.	Bekræft din alder for at deltage på denne server.
+Confirming...	Bekræfter...
+Connect	Opret forbindelse
+Connect these accounts and unlock special Discord integrations. The sign-in opens in your browser.	Forbind disse konti og lås op for særlige Discord-integrationer. Login åbnes i din browser.
+Connected Apps	Forbundne apps
+Connecting	Opretter forbindelse
+Connecting...	Opretter forbindelse...
+Connecting…	Opretter forbindelse…
+Connection Info	Forbindelsesinfo
+Connection lost. Messages may be out of date.	Forbindelsen blev afbrudt. Beskeder er måske ikke opdaterede.
+Connections	Forbindelser
+Content Filters	Indholdsfiltre
+Continue	Fortsæt
+Control who can see your profile info, like your bio and connected accounts.	Styr, hvem der kan se dine profiloplysninger, f.eks. din bio og forbundne konti.
+Copied	Kopieret
+Copy	Kopiér
+Copy Category ID	Kopiér kategori-id
+Copy Channel ID	Kopiér kanal-id
+Copy Event Link	Kopiér begivenhedslink
+Copy Image	Kopiér billede
+Copy Image Link	Kopiér billedlink
+Copy Link	Kopiér link
+Copy Media Link	Kopiér medielink
+Copy Message ID	Kopiér besked-id
+Copy Message Link	Kopiér beskedlink
+Copy Server ID	Kopiér server-id
+Copy Text	Kopiér tekst
+Copy User ID	Kopiér bruger-id
+Copy Username	Kopiér brugernavn
+Copy Webhook URL	Kopiér webhook-URL
+Copy curl Command	Kopiér curl-kommando
+Copy the event link below to invite people to your event. This also acts as a server invite link.	Kopiér begivenhedslinket nedenfor for at invitere folk til din begivenhed. Det fungerer også som invitationslink til serveren.
+Copy your account's token once from Discord in a web browser.	Kopiér din kontos token én gang fra Discord i en webbrowser.
+Couldn't accept encryption.	Kunne ikke acceptere kryptering.
+Couldn't cancel the event.	Kunne ikke aflyse begivenheden.
+Couldn't change avatar	Kunne ikke skifte avatar
+Couldn't create an invite link.	Kunne ikke oprette et invitationslink.
+Couldn't create an invite.	Kunne ikke oprette en invitation.
+Couldn't delete the channel: %	Kunne ikke slette kanalen: %
+Couldn't encrypt the message.	Kunne ikke kryptere beskeden.
+Couldn't join %: %	Kunne ikke deltage i %: %
+Couldn't load onboarding.	Kunne ikke indlæse onboarding.
+Couldn't load the AutoMod rules.	Kunne ikke indlæse AutoMod-reglerne.
+Couldn't load the applications.	Kunne ikke indlæse apps.
+Couldn't load the audit log.	Kunne ikke indlæse revisionsloggen.
+Couldn't load the bans.	Kunne ikke indlæse udelukkelserne.
+Couldn't load the invites.	Kunne ikke indlæse invitationerne.
+Couldn't load the members.	Kunne ikke indlæse medlemmerne.
+Couldn't load the role's members.	Kunne ikke indlæse rollens medlemmer.
+Couldn't load the server rules.	Kunne ikke indlæse serverreglerne.
+Couldn't load the server's tag.	Kunne ikke indlæse serverens tag.
+Couldn't load the template.	Kunne ikke indlæse skabelonen.
+Couldn't load the webhooks.	Kunne ikke indlæse webhooks.
+Couldn't move the channel	Kunne ikke flytte kanalen
+Couldn't play it here, so it opened in your browser.	Kunne ikke afspilles her, så den blev åbnet i din browser.
+Couldn't reach %1: %2 Retrying.	Kunne ikke nå %1: %2 Prøver igen.
+Couldn't reach Discord. Check your connection and try again.	Kunne ikke nå Discord. Tjek din forbindelse, og prøv igen.
+Couldn't reach Discord. Try again.	Kunne ikke nå Discord. Prøv igen.
+Couldn't reach the server.	Kunne ikke nå serveren.
+Couldn't reach the server. Check your connection and try again.	Kunne ikke nå serveren. Tjek din forbindelse, og prøv igen.
+Couldn't save the file.	Kunne ikke gemme filen.
+Couldn't save the image.	Kunne ikke gemme billedet.
+Couldn't save the token.	Kunne ikke gemme token.
+Couldn't turn on encryption.	Kunne ikke slå kryptering til.
+Couldn't upload emoji	Kunne ikke uploade emoji
+Cozy	Hyggelig
+Create	Opret
+Create Category	Opret kategori
+Create Channel	Opret kanal
+Create DM	Opret DM
+Create Emoji	Opret emoji
+Create Event	Opret begivenhed
+Create Events	Opret begivenheder
+Create Expressions	Opret udtryk
+Create Group DM	Opret gruppe-DM
+Create Invite	Opret invitation
+Create My Own	Lav min egen
+Create Poll	Opret afstemning
+Create Polls	Opret afstemninger
+Create Private Threads	Opret private tråde
+Create Public Threads	Opret offentlige tråde
+Create Role	Opret rolle
+Create Rule	Opret regel
+Create Thread	Opret tråd
+Create Webhook	Opret webhook
+Create Your Server	Opret din server
+Create a poll	Opret en afstemning
+Create a space for organized discussions	Opret et sted til organiserede diskussioner
+Create one for me	Opret en til mig
+Created by %	Oprettet af %
+Created on %1 by %2	Oprettet %1 af %2
+Creating an invite link…	Opretter et invitationslink…
+Creating an invite...	Opretter en invitation...
+Creating...	Opretter...
+Creating…	Opretter…
+Creation Date	Oprettelsesdato
+Croatian	Kroatisk
+Current Device	Denne enhed
+Custom Invite Link	Brugerdefineret invitationslink
+Customize Your Server	Tilpas din server
+Customize how your server appears in invite links and, if enabled, in Server Discovery and Announcement Channel messages	Tilpas, hvordan din server vises i invitationslinks og, hvis det er slået til, i Serveroversigt og beskeder fra meddelelseskanaler
+Customize your server with integrations. Manage webhooks, followed channels and apps.	Tilpas din server med integrationer. Administrer webhooks, fulgte kanaler og apps.
+Cut	Klip
+Czech	Tjekkisk
+DAVE v%, % members	DAVE v%, % medlemmer
+DEFAULT KEYBINDS	STANDARDGENVEJSTASTER
+DM closed	DM lukket
+Danish	Dansk
+Data & Privacy	Data og privatliv
+Date	Dato
+Deafen	Gør døv
+Deafen Members	Gør medlemmer døve
+Deauthorize	Fjern godkendelse
+Decline	Afvis
+Default	Standard
+Default Channels	Standardkanaler
+Default Layout	Standardlayout
+Default Notification Settings	Standardindstillinger for notifikationer
+Default Permissions	Standardtilladelser
+Default Sort Order	Standardsortering
+Default Themes	Standardtemaer
+Default notifications become Only @mentions.	Standardnotifikationer bliver Kun @omtaler.
+Delete	Slet
+Delete '%'	Slet '%'
+Delete Account	Slet konto
+Delete Category	Slet kategori
+Delete Channel	Slet kanal
+Delete Emoji	Slet emoji
+Delete Invite	Slet invitation
+Delete Message	Slet besked
+Delete Message History	Slet beskedhistorik
+Delete Question	Slet spørgsmål
+Delete Role	Slet rolle
+Delete Rule	Slet regel
+Delete Server	Slet server
+Delete Sticker	Slet klistermærke
+Delete Template	Slet skabelon
+Delete Thread	Slet tråd
+Delete Webhook	Slet webhook
+Deleted message	Slettet besked
+Describe your sticker	Beskriv dit klistermærke
+Description	Beskrivelse
+Description (alt text)	Beskrivelse (alternativ tekst)
+Description (optional)	Beskrivelse (valgfri)
+Detects a burst of mention spam across the server and locks it down.	Registrerer en bølge af omtalespam på serveren og låser den ned.
+Developer	Udvikler
+Developer Mode	Udviklertilstand
+Developer Mode exposes context menu items helpful for people writing apps using the Discord API.	Udviklertilstand viser punkter i genvejsmenuen, der er nyttige for dem, der skriver apps med Discord API'et.
+Devices	Enheder
+Direct Message (DM) Permissions	Tilladelser for direkte beskeder (DM)
+Direct Messages	Direkte beskeder
+Direct messages from friends	Direkte beskeder fra venner
+Direct messages from others	Direkte beskeder fra andre
+Disable	Deaktiver
+Disable Account	Deaktiver konto
+Disable All Notification Sounds	Slå alle notifikationslyde fra
+Disable Community	Deaktiver fællesskab
+Disable all notifications	Slå alle notifikationer fra
+Disable all sound effects	Slå alle lydeffekter fra
+Disabling your account means you can recover it at any time after taking this action.	Når du deaktiverer din konto, kan du til enhver tid gendanne den bagefter.
+Disconnect	Afbryd
+Disconnect From Voice Channel	Afbryd fra talekanal
+Disconnected	Afbrudt
+Discord account	Discord-konto
+Discord asked for a captcha, which fastcord can't show. Log in with the QR code instead.	Discord bad om en captcha, som fastcord ikke kan vise. Log ind med QR-koden i stedet.
+Discord asked for a captcha, which fastcord can't show. Try on discord.com.	Discord bad om en captcha, som fastcord ikke kan vise. Prøv på discord.com.
+Discord can filter out some messages that contain spam. These messages go to your Spam inbox.	Discord kan frasortere nogle beskeder, der indeholder spam. De havner i din spamindbakke.
+Discord didn't accept the saved login. Log in again.	Discord accepterede ikke det gemte login. Log ind igen.
+Discord failed to unpin that message for some reason. Sorry about that.	Discord kunne af en eller anden grund ikke frigøre beskeden. Beklager.
+Discord will prioritize this server in search to users who speak the selected language.	Discord prioriterer denne server i søgninger for brugere, der taler det valgte sprog.
+Discord's terms don't allow third-party clients, so using one can get an account flagged.	Discords vilkår tillader ikke tredjepartsklienter, så brug af en kan få en konto markeret.
+Discoverable	Kan findes
+Dismiss	Afvis
+Dismiss message	Afvis besked
+Display	Visning
+Display Images, Videos and Lolcats	Vis billeder, videoer og lolcats
+Display Name	Visningsnavn
+Display name	Visningsnavn
+Display on profile	Vis på profil
+Display role members separately from online members	Vis rollemedlemmer adskilt fra onlinemedlemmer
+Displays text with emphasis.	Viser tekst med fremhævning.
+Do Not Disturb	Forstyr ikke
+Do not filter	Filtrér ikke
+Do not filter direct messages	Filtrér ikke direkte beskeder
+Don't Delete Any	Slet ingen
+Don't clear	Ryd ikke
+Don't show role colors	Vis ikke rollefarver
+Done	Færdig
+Download	Download
+Drop a file here, or browse	Slip en fil her, eller gennemse
+Duration	Varighed
+Dutch	Hollandsk
+EDIT ROLE — %	REDIGER ROLLE — %
+EMAIL OR PHONE NUMBER	E-MAIL ELLER TELEFONNUMMER
+EMOJI MATCHING	EMOJIS, DER MATCHER
+ENTER THE 6-DIGIT CODE	INDTAST DEN 6-CIFREDE KODE
+EXPIRE AFTER	UDLØBER EFTER
+EXPIRES	UDLØBER
+Ease the chat and lists toward where you scroll. Off, they jump there at once (always, when your device asks for reduced motion).	Lad chatten og lister glide hen, hvor du scroller. Slået fra hopper de derhen med det samme (altid, når din enhed beder om reduceret bevægelse).
+Echo Cancellation	Ekkoannullering
+Edit	Rediger
+Edit Category	Rediger kategori
+Edit Channel	Rediger kanal
+Edit Friend Nickname	Rediger vens kælenavn
+Edit Message	Rediger besked
+Edit Per-server Profile	Rediger profil pr. server
+Edit Profile	Rediger profil
+Edit Profiles	Rediger profiler
+Edit Sound	Rediger lyd
+Edit Thread	Rediger tråd
+Edit User Profile	Rediger brugerprofil
+Edit invite link.	Rediger invitationslink.
+Edit your last message	Rediger din seneste besked
+Email	E-mail
+Embed Links	Indlejr links
+Embed an HTML widget on your website to display your online members, voice channels, and invite link.	Indlejr en HTML-widget på dit websted for at vise dine onlinemedlemmer, talekanaler og invitationslink.
+Emoji	Emoji
+Emoji / GIF / sticker picker	Vælger til emoji / GIF / klistermærke
+Enable Authenticator App	Aktivér godkendelsesapp
+Enable Community	Aktivér fællesskab
+Enable Community to access Server Discovery	Aktivér fællesskab for at få adgang til Serveroversigt
+Enable Desktop Notifications	Aktivér skrivebordsnotifikationer
+Enable Invites	Aktivér invitationer
+Enable Onboarding	Aktivér onboarding
+Enable Reduced Motion	Aktivér reduceret bevægelse
+Enable Server Widget	Aktivér serverwidget
+Enable Streamer Mode	Aktivér streamertilstand
+Enable Unread Message Badge	Aktivér mærke for ulæste beskeder
+Encrypt this DM	Kryptér denne DM
+Encrypted message	Krypteret besked
+Encrypted messages are limited to % bytes for now.	Krypterede beskeder er indtil videre begrænset til % bytes.
+End Date	Slutdato
+End Event	Afslut begivenhed
+End Poll Now	Afslut afstemning nu
+End Time	Sluttidspunkt
+End-to-end encrypted	End-to-end-krypteret
+End-to-end encryption	End-to-end-kryptering
+Engagement	Engagement
+English, UK	Engelsk, Storbritannien
+English, USA	Engelsk, USA
+Enter Discord Auth Code	Indtast Discord-godkendelseskode
+Enter Discord Backup Code	Indtast Discord-backupkode
+Enter a location	Indtast et sted
+Enter a message to start the conversation!	Skriv en besked for at starte samtalen!
+Enter an invite below to join an existing server	Indtast en invitation nedenfor for at deltage på en eksisterende server
+Enter server name	Indtast servernavn
+Enter your current password and a new password.	Indtast din nuværende adgangskode og en ny adgangskode.
+Error	Fejl
+Est. %	Ca. %
+Event Info	Begivenhedsinfo
+Event Topic	Begivenhedsemne
+Event cancelled	Begivenhed aflyst
+Event is over	Begivenheden er slut
+Events	Begivenheder
+Events Permissions	Tilladelser for begivenheder
+Every answer needs a title.	Hvert svar skal have en titel.
+Every question needs a title and at least one answer.	Hvert spørgsmål skal have en titel og mindst ét svar.
+Everyone	Alle
+Everyone in this channel connects to the selected region. Automatic picks the best one for whoever starts the call.	Alle i denne kanal forbinder til den valgte region. Automatisk vælger den bedste for den, der starter opkaldet.
+Everyone welcome %!	Sig velkommen til %, alle sammen!
+Everyone who joins sees these channels, whatever they answer.	Alle, der deltager, ser disse kanaler, uanset hvad de svarer.
+Exempt a channel	Undtag en kanal
+Exempt a role	Undtag en rolle
+Exemptions	Undtagelser
+Expand (% lines)	Udvid (% linjer)
+Expand (% of % lines)	Udvid (% af % linjer)
+Expired	Udløbet
+Explicit image filter	Filter for eksplicitte billeder
+Expression	Udtryk
+FRAME RATE	BILLEDHASTIGHED
+Failed to follow the channel, please try again.	Kunne ikke følge kanalen. Prøv igen.
+Fastcord couldn't be installed.	Fastcord kunne ikke installeres.
+Favorites	Favoritter
+File	Fil
+File saved.	Fil gemt.
+Filename	Filnavn
+Fill out the details of your event.	Udfyld detaljerne om din begivenhed.
+Filter by Action	Filtrér efter handling
+Filter by User	Filtrér efter bruger
+Filter direct messages from everyone	Filtrér direkte beskeder fra alle
+Filter direct messages from non-friends	Filtrér direkte beskeder fra personer, der ikke er venner
+Filter messages from all members	Filtrér beskeder fra alle medlemmer
+Filter messages from server members without roles	Filtrér beskeder fra servermedlemmer uden roller
+Find or start a conversation	Find eller start en samtale
+Find the perfect emoji	Find den perfekte emoji
+Find the perfect reaction	Find den perfekte reaktion
+Find the perfect sticker	Find det perfekte klistermærke
+Finding the video%	Finder videoen%
+Finish	Afslut
+Finishing touches	Sidste finpudsning
+Finnish	Finsk
+Fit more messages on screen at one time. #IRC	Få plads til flere beskeder på skærmen på én gang. #IRC
+Flagged as spam	Markeret som spam
+Flags	Markeringer
+Folder Color	Mappefarve
+Folder Name	Mappenavn
+Folder Settings	Mappeindstillinger
+Folder removed	Mappe fjernet
+Follow	Følg
+Followed!	Fulgt!
+Food & Drink	Mad og drikke
+For 1 Hour	I 1 time
+For 15 Minutes	I 15 minutter
+For 24 Hours	I 24 timer
+For 3 Days	I 3 dage
+For 3 Hours	I 3 timer
+For 8 Hours	I 8 timer
+Forever	For altid
+Forgot your password?	Har du glemt din adgangskode?
+Forum	Forum
+Forward	Videresend
+Forward To	Videresend til
+Forwarded	Videresendt
+French	Fransk
+Frequently Used	Ofte brugt
+Friend Nickname	Vens kælenavn
+Friend Request Permissions	Tilladelser for venneanmodninger
+Friend Request Sent	Venneanmodning sendt
+Friend removed	Ven fjernet
+Friend request cancelled	Venneanmodning annulleret
+Friend request ignored	Venneanmodning ignoreret
+Friends	Venner
+Friends & All Servers	Venner og alle servere
+Friends & Small Servers Only	Kun venner og små servere
+Friends Only	Kun venner
+Friends can ask to join or join the game you're playing.	Venner kan bede om at deltage eller deltage i det spil, du spiller.
+Friends come online	Venner kommer online
+Friends of friends	Venners venner
+From User	Fra bruger
+GIFs	GIF'er
+GIFs can't be sent encrypted yet.	GIF'er kan ikke sendes krypteret endnu.
+Gallery view	Gallerivisning
+General	Generelt
+General Category Permissions	Generelle kategoritilladelser
+General Channel Permissions	Generelle kanaltilladelser
+General Server Permissions	Generelle servertilladelser
+Generate Template	Generér skabelon
+Generate a New Link	Generér et nyt link
+German	Tysk
+Get a copy of your data. It can take up to 30 days to prepare, and a download link is emailed to you when it's ready.	Få en kopi af dine data. Det kan tage op til 30 dage at klargøre, og du får et downloadlink på e-mail, når den er klar.
+Give new members a quick way to find the channels and roles that matter to them.	Giv nye medlemmer en hurtig måde at finde de kanaler og roller, der betyder noget for dem.
+Give your new server a personality with a name. You can always change it later.	Giv din nye server personlighed med et navn. Du kan altid ændre det senere.
+Glad you're here, %.	Godt, du er her, %.
+Go Back	Gå tilbage
+Go To Channel	Gå til kanal
+Go back	Gå tilbage
+Go forward	Gå frem
+Go to Server	Gå til server
+Good to see you, %.	Godt at se dig, %.
+Got It	Forstået
+Grant temporary membership	Giv midlertidigt medlemskab
+Greek	Græsk
+Hang out together with voice, video, and screen share	Hæng ud sammen med tale, video og skærmdeling
+Hang out with voice, video, screenshare, and Go Live.	Hæng ud med tale, video, skærmdeling og Go Live.
+Happening Now	Sker nu
+Have an invite already?	Har du allerede en invitation?
+Help	Hjælp
+Here's a preview of your event.	Her er en forhåndsvisning af din begivenhed.
+Hey, just double checking that you want to pin this message to #% for posterity and greatness?	Hej, vil du virkelig fastgøre denne besked i #% for eftertiden og storheden?
+Hey, just double checking that you want to pin this message to the current channel for posterity and greatness?	Hej, vil du virkelig fastgøre denne besked i den aktuelle kanal for eftertiden og storheden?
+Hide	Skjul
+Hide After Inactivity	Skjul efter inaktivitet
+Hide Chat	Skjul chat
+Hide Fastcord window from screen capture	Skjul Fastcord-vinduet fra skærmoptagelse
+Hide Muted Channels	Skjul lydløse kanaler
+Hide invite links to my Discord servers	Skjul invitationslinks til mine Discord-servere
+Hide my personal information, such as email, connected accounts, and notes	Skjul mine personlige oplysninger, f.eks. e-mail, forbundne konti og noter
+Hides Fastcord windows from most screen capture software.	Skjuler Fastcord-vinduer fra de fleste programmer til skærmoptagelse.
+High	Høj
+Highest	Højeste
+Highlights provide occasional updates when your friends are chatting in busy servers, and more.	Højdepunkter giver dig løbende opdateringer, når dine venner chatter på travle servere, og meget mere.
+Hindi	Hindi
+History	Historik
+Hitting X makes fastcord minimize to the system tray instead of closing.	Klikker du på X, minimeres fastcord til systembakken i stedet for at lukke.
+Hm, didn’t work. Double check that the username is correct.	Hm, det virkede ikke. Dobbelttjek, at brugernavnet er korrekt.
+Host	Vært
+Host events with an audience	Afhold begivenheder med publikum
+How Discord Uses My Data	Sådan bruger Discord mine data
+How can people join your server?	Hvordan kan folk deltage på din server?
+How did your server get started? Why should people join?	Hvordan startede din server? Hvorfor skal folk deltage?
+Hungarian	Ungarsk
+I acknowledge that by transferring ownership of this server to %, it officially belongs to them.	Jeg anerkender, at når jeg overdrager ejerskabet af denne server til %, tilhører den officielt vedkommende.
+I agree and understand	Jeg accepterer og forstår
+I'm new here, say hi!	Jeg er ny her, sig hej!
+I'm sure, use a backup code	Jeg er sikker, brug en backupkode
+IMAGE	BILLEDE
+INPUT DEVICE	INPUTENHED
+INPUT MODE	INPUTTILSTAND
+INPUT SENSITIVITY	INPUTFØLSOMHED
+INPUT VOLUME	INPUTLYDSTYRKE
+INVITE CODE	INVITATIONSKODE
+INVITE LINK	INVITATIONSLINK
+INVITER	INVITERET AF
+INVITES SHOULD LOOK LIKE	INVITATIONER SKAL SE SÅDAN UD
+Icon	Ikon
+Idle	Inaktiv
+If Streamer Mode is enabled...	Hvis streamertilstand er slået til...
+If you do not have access to any other methods, the button below will activate in % second.|If you do not have access to any other methods, the button below will activate in % seconds.	Hvis du ikke har adgang til andre metoder, aktiveres knappen nedenfor om % sekund.|Hvis du ikke har adgang til andre metoder, aktiveres knappen nedenfor om % sekunder.
+If you do not have access to any other methods, use the other button below to proceed.	Hvis du ikke har adgang til andre metoder, kan du bruge den anden knap nedenfor for at fortsætte.
+Ignore	Ignorer
+Ignore Friend Request	Ignorer venneanmodning
+Ignored Users	Ignorerede brugere
+Ignored message	Ignoreret besked
+Image saved.	Billede gemt.
+Important updates for people in and out of the server	Vigtige opdateringer til folk på og uden for serveren
+In Channel	I kanal
+Inactive Channel	Inaktiv kanal
+Inactive Timeout	Inaktivitetsgrænse
+Inbox	Indbakke
+Incoming Call...	Indgående opkald...
+Incoming Friend Request	Indgående venneanmodning
+Indonesian	Indonesisk
+Insert Timestamp	Indsæt tidsstempel
+Install	Installer
+Install Fastcord to open it from the Start menu.	Installer Fastcord for at åbne det fra menuen Start.
+Installing…	Installerer…
+Instructions Sent	Vejledning sendt
+Insults and Slurs	Fornærmelser og skældsord
+Integrations	Integrationer
+Interested	Interesseret
+Invalid Invite	Ugyldig invitation
+Invalid date or time	Ugyldig dato eller tid
+Invisible	Usynlig
+Invite	Inviter
+Invite Channel	Invitationskanal
+Invite Invalid	Invitation ugyldig
+Invite Only	Kun med invitation
+Invite People	Inviter personer
+Invite friends to %	Inviter venner til %
+Invite to Server	Inviter til server
+Invite to Speak	Inviter til at tale
+Invites	Invitationer
+Invites are currently paused for this server. Please try again later.	Invitationer er sat på pause for denne server. Prøv igen senere.
+Invites are paused: nobody can join with an invite link until they're enabled again.	Invitationer er sat på pause: ingen kan deltage med et invitationslink, før de slås til igen.
+It's quiet for now...	Der er stille lige nu...
+Italian	Italiensk
+JOINED DISCORD	TILMELDT DISCORD
+JSON API	JSON-API
+January|February|March|April|May|June|July|August|September|October|November|December	januar|februar|marts|april|maj|juni|juli|august|september|oktober|november|december
+Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec	jan.|feb.|mar.|apr.|maj|jun.|jul.|aug.|sep.|okt.|nov.|dec.
+Japanese	Japansk
+Jitter	Jitter
+Join	Deltag
+Join Call	Deltag i opkald
+Join Server	Deltag på server
+Join Thread	Deltag i tråd
+Join Voice	Deltag i tale
+Join a Server	Deltag på en server
+Join the call	Deltag i opkaldet
+Joined Threads	Tråde, du deltager i
+Joining…	Deltager…
+Jump	Hop
+Jump To Present	Hop til nutid
+Jump to oldest unread message	Hop til ældste ulæste besked
+KEYBIND	GENVEJSTAST
+Keep Current Permissions	Behold nuværende tilladelser
+Keep these somewhere safe. Each code signs you in once if you lose your authenticator app; they are shown only now.	Gem dem et sikkert sted. Hver kode logger dig ind én gang, hvis du mister din godkendelsesapp; de vises kun nu.
+Keep your server private, or open it up for more people to join.	Hold din server privat, eller åbn den, så flere kan deltage.
+Keybinds	Genvejstaster
+Keybinds only work while fastcord is focused. To use them in other apps, allow fastcord under Input Monitoring in System Settings, then restart fastcord.	Genvejstaster virker kun, mens fastcord er i fokus. For at bruge dem i andre apps skal du tillade fastcord under Inputovervågning i Systemindstillinger og derefter genstarte fastcord.
+Keybinds only work while fastcord is focused: this desktop doesn't let apps see keys pressed in other windows.	Genvejstaster virker kun, mens fastcord er i fokus: dette skrivebord lader ikke apps se taster, der trykkes i andre vinduer.
+Keybinds work in every app, also while fastcord is in the background.	Genvejstaster virker i alle apps, også mens fastcord er i baggrunden.
+Keyboard Shortcuts	Tastaturgenveje
+Keyboard shortcuts	Tastaturgenveje
+Keyword: %	Nøgleord: %
+Kick	Smid ud
+Kick %	Smid % ud
+Kick '%' from Server	Smid '%' ud af serveren
+Kick Member	Smid medlem ud
+Kick, Approve, and Reject Members	Smid ud, godkend og afvis medlemmer
+Korean	Koreansk
+LIVE	LIVE
+Language	Sprog
+Language & Time	Sprog og tid
+Last sync: %	Sidst synkroniseret: %
+Leave Group	Forlad gruppe
+Leave Server	Forlad server
+Leave Thread	Forlad tråd
+Leaving Discord	Forlader Discord
+Left %	Forlod %
+Let everyone know how to use this channel!	Fortæl alle, hvordan denne kanal skal bruges!
+Let's Check	Lad os tjekke
+Level %!	Niveau %!
+Limits	Grænser
+Limits the number of users that can connect to this voice channel. Users with the Move Members permission ignore this limit and can move other users into the channel.	Begrænser antallet af brugere, der kan forbinde til denne talekanal. Brugere med tilladelsen Flyt medlemmer ignorerer grænsen og kan flytte andre brugere ind i kanalen.
+Linked Roles	Forbundne roller
+List view	Listevisning
+Lithuanian	Litauisk
+Live Now	Live nu
+Loading sounds…	Indlæser lyde…
+Loading...	Indlæser...
+Loading…	Indlæser…
+Location	Sted
+Log In	Log ind
+Log Out	Log ud
+Log Out All Known Devices	Log ud af alle kendte enheder
+Log in	Log ind
+Log in to Discord in your web browser.	Log ind på Discord i din webbrowser.
+Log in with QR Code	Log ind med QR-kode
+Log in with a token	Log ind med et token
+Log out of all known devices	Log ud af alle kendte enheder
+Logged-in Devices	Enheder, der er logget ind
+Logging in as %	Logger ind som %
+Logging in…	Logger ind…
+Login or password is invalid.	Login eller adgangskode er ugyldig.
+Looking for screens…	Leder efter skærme…
+Lotus Mode	Lotustilstand
+Low	Lav
+Lower Hand	Sænk hånden
+MAX NUMBER OF USES	MAKS. ANTAL BRUG
+MEMBER SINCE	MEDLEM SIDEN
+MEMBERS	MEDLEMMER
+MUTE	LYDLØS
+Main Profile	Hovedprofil
+Make a selection	Foretag et valg
+Manage Accounts	Administrer konti
+Manage Channel	Administrer kanal
+Manage Channels	Administrer kanaler
+Manage Events	Administrer begivenheder
+Manage Expressions	Administrer udtryk
+Manage Members	Administrer medlemmer
+Manage Messages	Administrer beskeder
+Manage Nicknames	Administrer kælenavne
+Manage Permissions	Administrer tilladelser
+Manage Roles	Administrer roller
+Manage Server	Administrer server
+Manage Threads and Posts	Administrer tråde og opslag
+Manage Webhooks	Administrer webhooks
+Manage settings that help keep your server active.	Administrer indstillinger, der hjælper med at holde din server aktiv.
+Mark All as Read	Markér alle som læst
+Mark As Read	Markér som læst
+Mark Folder As Read	Markér mappe som læst
+Mark Unread	Markér som ulæst
+Mark a message unread	Markér en besked som ulæst
+Mark as Verified	Markér som bekræftet
+Mark as spoiler	Markér som spoiler
+Mark channel read	Markér kanal som læst
+Mark server read	Markér server som læst
+Marked as read	Markeret som læst
+Marks your message as a spoiler.	Markerer din besked som spoiler.
+Match your device's light or dark mode.	Følg din enheds lyse eller mørke tilstand.
+Max file size is % MB please.	Den maksimale filstørrelse er % MB.
+Measuring	Måler
+Medium	Middel
+Member Since	Medlem siden
+Members	Medlemmer
+Members can pick more than one answer	Medlemmer kan vælge mere end ét svar
+Members can wear your server's tag next to their name across Discord.	Medlemmer kan vise din servers tag ved siden af deres navn overalt på Discord.
+Members in timeout can't send messages, react, join voice or speak until it ends.	Medlemmer i timeout kan ikke sende beskeder, reagere, deltage i tale eller tale, før den slutter.
+Members in timeout can't send messages, react, join voice or start threads until it ends.	Medlemmer i timeout kan ikke sende beskeder, reagere, deltage i tale eller starte tråde, før den slutter.
+Members matching @%	Medlemmer, der matcher @%
+Members must answer this question to join.	Medlemmer skal besvare dette spørgsmål for at deltage.
+Members of the server must meet the following criteria before they can send messages in text channels or initiate a direct message conversation. If a member has an assigned role this does not apply.	Servermedlemmer skal opfylde følgende kriterier, før de kan sende beskeder i tekstkanaler eller starte en samtale med direkte beskeder. Det gælder ikke, hvis et medlem har en tildelt rolle.
+Members use the colour of the highest role they have on the roles list.	Medlemmer bruger farven fra deres højeste rolle på rollelisten.
+Members use the colour of the highest role they have on this list. Drag roles, or use the arrows, to reorder them.	Medlemmer bruger farven fra deres højeste rolle på denne liste. Træk roller, eller brug pilene, for at ændre rækkefølgen.
+Members will be restricted to sending one message and creating one thread per this interval, unless they have the Bypass Slowmode permission.	Medlemmer kan kun sende én besked og oprette én tråd pr. interval, medmindre de har tilladelsen Omgå langsom tilstand.
+Members with a matching name can't talk or interact until they change it.	Medlemmer med et matchende navn kan ikke skrive eller interagere, før de ændrer det.
+Members with this permission will have every permission and will also bypass all channel specific permissions or restrictions (for example, these members would get access to all private channels). This is a dangerous permission to grant.	Medlemmer med denne tilladelse får alle tilladelser og omgår også alle kanalspecifikke tilladelser og begrænsninger (de får f.eks. adgang til alle private kanaler). Det er en farlig tilladelse at give.
+Members — %	Medlemmer — %
+Membership Permissions	Medlemskabstilladelser
+Mention	Omtal
+Mention %	Omtal %
+Mention @everyone, @here, and All Roles	Omtal @everyone, @here og alle roller
+Mention limit	Grænse for omtaler
+Mention raid protection	Beskyttelse mod omtaleraid
+Mention removed	Omtale fjernet
+Mentions	Omtaler
+Mentions User	Omtaler bruger
+Message	Besked
+Message #%	Skriv i #%
+Message %	Skriv til %
+Message @%	Skriv til @%
+Message @% (encrypted)	Skriv til @% (krypteret)
+Message @% (not encrypted)	Skriv til @% (ikke krypteret)
+Message Contains	Beskeden indeholder
+Message Display	Beskedvisning
+Message Requests	Beskedanmodninger
+Message deleted	Besked slettet
+Message failed to send.	Beskeden kunne ikke sendes.
+Message link copied: paste it into Discord's report form	Beskedlink kopieret: indsæt det i Discords rapporteringsformular
+Message request ignored	Beskedanmodning ignoreret
+Message unpinned	Besked frigjort
+Messages Failed To Load	Beskederne kunne ikke indlæses
+Messages from members you may not know go to Message Requests.	Beskeder fra medlemmer, du måske ikke kender, havner i Beskedanmodninger.
+Messages from people you may not know go to Message Requests instead of your DMs.	Beskeder fra folk, du måske ikke kender, havner i Beskedanmodninger i stedet for dine DM'er.
+Messages from server members without a role will be filtered for sensitive image-based media.	Beskeder fra servermedlemmer uden en rolle bliver filtreret for følsomme billeder og videoer.
+Messages in servers	Beskeder på servere
+Messages will not be filtered for sensitive image-based media.	Beskeder bliver ikke filtreret for følsomme billeder og videoer.
+Messaging Permissions	Beskedtilladelser
+Minimize to Tray	Minimer til systembakken
+Mobile Push Notifications	Push-notifikationer på mobil
+Moderation	Moderering
+Moderators must have two-factor authentication enabled to ban, kick, or timeout members and delete messages.	Moderatorer skal have totrinsgodkendelse slået til for at udelukke, smide ud eller give timeout til medlemmer og slette beskeder.
+Moderators only	Kun moderatorer
+Modern, beautiful, and easy on your eyes.	Moderne, flot og skånsom for øjnene.
+Modify Attachment	Rediger vedhæftning
+Motion	Bevægelse
+Move Members	Flyt medlemmer
+Move To	Flyt til
+Move to Audience	Flyt til publikum
+Multi-Factor Authentication	Flertrinsgodkendelse
+Must also be a member of this server for longer than 10 minutes.	Skal også have været medlem af denne server i mere end 10 minutter.
+Must also be registered on Discord for longer than 5 minutes.	Skal også have været registreret på Discord i mere end 5 minutter.
+Must have a verified email on their Discord account.	Skal have en bekræftet e-mail på sin Discord-konto.
+Must have a verified phone on their Discord account.	Skal have en bekræftet telefon på sin Discord-konto.
+Mute	Slå lyd fra
+Mute %	Slå lyd fra for %
+Mute Category	Slå lyd fra for kategori
+Mute Channel	Slå lyd fra for kanal
+Mute Members	Gør medlemmer lydløse
+Mute New Events	Slå lyd fra for nye begivenheder
+Mute Server	Slå lyd fra for server
+Mute Thread	Slå lyd fra for tråd
+Muted until %1, %2	Lyd slået fra indtil %1, %2
+Muting a server prevents unread indicators and notifications from appearing unless you are mentioned.	Når du slår lyden fra for en server, vises ulæst-markeringer og notifikationer ikke, medmindre du bliver omtalt.
+Mutual Friends	Fælles venner
+Mutual Servers	Fælles servere
+My Account	Min konto
+My server	Min server
+NAME	NAVN
+NEW	NY
+NEW PASSWORD	NY ADGANGSKODE
+NO ACTIVE INVITE LINKS	INGEN AKTIVE INVITATIONSLINKS
+NOTHING	INGENTING
+Name	Navn
+Name your sound	Giv din lyd et navn
+Name your sticker	Giv dit klistermærke et navn
+Nature	Natur
+Navigate Back	Gå tilbage
+Navigate Forward	Gå frem
+Need an account?	Har du brug for en konto?
+Network	Netværk
+Never	Aldrig
+Nevermind	Glem det
+New Category	Ny kategori
+New Group DM	Ny gruppe-DM
+New Post	Nyt opslag
+New Thread	Ny tråd
+New Webhook	Ny webhook
+New members must read and agree to these before they can talk.	Nye medlemmer skal læse og acceptere disse, før de kan skrive.
+New members pick channels and roles from your questions when they join.	Nye medlemmer vælger kanaler og roller ud fra dine spørgsmål, når de deltager.
+New tag	Nyt tag
+New threads will stop showing in the channel list after being inactive for the specified duration.	Nye tråde holder op med at blive vist på kanallisten, når de har været inaktive i den angivne tid.
+Newest	Nyeste
+Next	Næste
+Nickname	Kælenavn
+Nicknames are visible to everyone on this server. Do not change them unless you are enforcing a naming system or clearing a bad nickname.	Kælenavne er synlige for alle på denne server. Ændr dem ikke, medmindre du håndhæver et navnesystem eller fjerner et upassende kælenavn.
+No GIFs found	Ingen GIF'er fundet
+No Inactive Channel	Ingen inaktiv kanal
+No Invite	Ingen invitation
+No Keybind Set	Ingen genvejstast angivet
+No System Messages	Ingen systembeskeder
+No applications waiting	Ingen ansøgninger venter
+No apps have been added to this server.	Der er ikke tilføjet nogen apps til denne server.
+No bans	Ingen udelukkelser
+No bans match your search	Ingen udelukkelser matcher din søgning
+No emoji found	Ingen emojis fundet
+No favorites yet	Ingen favoritter endnu
+No file chosen	Ingen fil valgt
+No friends in common	Ingen fælles venner
+No limit	Ingen grænse
+No logs yet	Ingen logs endnu
+No members found	Ingen medlemmer fundet
+No members have this role yet.	Ingen medlemmer har denne rolle endnu.
+No message requests.	Ingen beskedanmodninger.
+No one is speaking yet	Ingen taler endnu
+No one's around right now.	Der er ingen her lige nu.
+No one's here yet	Der er ingen her endnu
+No posts match	Ingen opslag matcher
+No posts yet	Ingen opslag endnu
+No questions yet.	Ingen spørgsmål endnu.
+No reason given	Ingen begrundelse angivet
+No results	Ingen resultater
+No results found	Ingen resultater fundet
+No servers in common	Ingen fælles servere
+No sounds found	Ingen lyde fundet
+No sounds yet.	Ingen lyde endnu.
+No spam. Nice.	Ingen spam. Fedt.
+No stickers found	Ingen klistermærker fundet
+No stickers yet	Ingen klistermærker endnu
+Nobody can join this server with an invite link until the pause ends or you enable invites again.	Ingen kan deltage på denne server med et invitationslink, før pausen slutter, eller du slår invitationer til igen.
+Nobody has mentioned you recently.	Ingen har omtalt dig for nylig.
+Noise Suppression	Støjdæmpning
+Noise Suppression: Off	Støjdæmpning: Fra
+Noise Suppression: On	Støjdæmpning: Til
+None	Ingen
+Norwegian	Norsk
+Not Now	Ikke nu
+Not connected to % yet.	Ikke forbundet til % endnu.
+Not encrypted	Ikke krypteret
+Not encrypted: Discord can read this message	Ikke krypteret: Discord kan læse denne besked
+Not end-to-end encrypted	Ikke end-to-end-krypteret
+Not me, start over	Ikke mig, start forfra
+Note	Note
+Note (only visible to you)	Note (kun synlig for dig)
+Note: Members with the "Mention @everyone, @here, and All Roles" permission will always be able to ping this role.	Bemærk: Medlemmer med tilladelsen "Omtal @everyone, @here og alle roller" kan altid pinge denne rolle.
+Nothing	Ingenting
+Notification Settings	Notifikationsindstillinger
+Notification settings changed	Notifikationsindstillinger ændret
+Notifications	Notifikationer
+Notify everyone online who has permission to view this channel.	Giv besked til alle online, der har tilladelse til at se denne kanal.
+Notify everyone who has permission to view this channel.	Giv besked til alle, der har tilladelse til at se denne kanal.
+Notify me when...	Giv mig besked, når...
+Notify users with this role who have permission to view this channel.	Giv besked til brugere med denne rolle, der har tilladelse til at se denne kanal.
+OUTPUT DEVICE	OUTPUTENHED
+OUTPUT VOLUME	OUTPUTLYDSTYRKE
+Objects	Objekter
+Off	Fra
+Offline	Offline
+Oh yeah. Pin it	Klart. Fastgør den
+Okay	Okay
+Oldest	Ældste
+On click	Ved klik
+On servers I moderate	På servere, jeg modererer
+Onboarding	Onboarding
+One rule per line, for example: Be respectful	Én regel pr. linje, for eksempel: Vær respektfuld
+Ongoing call	Igangværende opkald
+Online	Online
+Only @mentions	Kun @omtaler
+Only servers and channels you have webhook permissions in are shown.	Kun servere og kanaler, hvor du har webhooktilladelser, vises.
+Only you can see the nickname you give %.	Kun du kan se det kælenavn, du giver %.
+Only you can see this · 	Kun du kan se dette ·
+Oops!	Ups!
+Open Chat	Åbn chat
+Open Image Link	Åbn billedlink
+Open Link	Åbn link
+Open Logs Folder	Åbn logmappe
+Open Media Link	Åbn medielink
+Open Server Insights	Åbn Serverindsigt
+Open Settings	Åbn indstillinger
+Open discord.com	Åbn discord.com
+Open in Browser	Åbn i browser
+Open in YouTube	Åbn i YouTube
+Open the developer tools (Cmd+Option+I) and choose the Network tab.	Åbn udviklerværktøjerne (Cmd+Option+I), og vælg fanen Network.
+Open the developer tools (Ctrl+Shift+I) and choose the Network tab.	Åbn udviklerværktøjerne (Ctrl+Shift+I), og vælg fanen Network.
+Or, send a server invite link to a friend	Eller send et invitationslink til serveren til en ven
+Original message was deleted	Den oprindelige besked blev slettet
+Other Active Threads	Andre aktive tråde
+Other Devices	Andre enheder
+Outgoing Friend Request	Udgående venneanmodning
+Overview	Oversigt
+PASSWORD	ADGANGSKODE
+PM	PM
+PRIVACY CODE	PRIVATLIVSKODE
+PTT Activate	PTT aktiveret
+PTT Deactivate	PTT deaktiveret
+PUSH TO TALK RELEASE DELAY	FORSINKELSE VED SLIP AF TRYK FOR AT TALE
+Packet loss	Pakketab
+Packets received	Modtagne pakker
+Packets sent	Sendte pakker
+Page %	Side %
+Password	Adgangskode
+Password and Authentication	Adgangskode og godkendelse
+Passwords do not match!	Adgangskoderne passer ikke!
+Paste	Indsæt
+Paste an emoji (optional)	Indsæt en emoji (valgfri)
+Paste your token	Indsæt dit token
+Pause Invites	Sæt invitationer på pause
+Pending	Afventer
+People	Personer
+People can join your server directly with an invite	Folk kan deltage direkte på din server med en invitation
+People in a voice channel with you can join the game you're playing.	Folk i en talekanal med dig kan deltage i det spil, du spiller.
+People must submit an application and be approved to join	Folk skal indsende en ansøgning og godkendes for at deltage
+People who applied to join, waiting for a moderator.	Folk, der har ansøgt om at deltage og venter på en moderator.
+Per-server Profiles	Profiler pr. server
+Permissions	Tilladelser
+Permissions not synced with category: 	Tilladelser ikke synkroniseret med kategori:
+Permissions synced with category: 	Tilladelser synkroniseret med kategori:
+Permissions: %	Tilladelser: %
+Phone Number	Telefonnummer
+Pick a channel	Vælg en kanal
+Pick a channel for the alerts.	Vælg en kanal til advarslerne.
+Pick at least one response.	Vælg mindst ét svar.
+Pin It. Pin It Good.	Fastgør den. Fastgør den godt.
+Pin Message	Fastgør besked
+Pin Messages	Fastgør beskeder
+Ping	Ping
+Ping: % ms	Ping: % ms
+Ping: measuring…	Ping: måler…
+Pinned Messages	Fastgjorte beskeder
+Play Here	Afspil her
+Play Soundboard Through My Mic	Afspil soundboard gennem min mikrofon
+Play YouTube videos here with yt-dlp? It needs yt-dlp installed, and connects to YouTube from your computer. Settings > Chat can change this.	Vil du afspille YouTube-videoer her med yt-dlp? Det kræver, at yt-dlp er installeret, og forbinder til YouTube fra din computer. Du kan ændre det under Indstillinger > Chat.
+Play YouTube videos in fastcord with yt-dlp	Afspil YouTube-videoer i fastcord med yt-dlp
+Please enter a valid invite link or invite code.	Indtast et gyldigt invitationslink eller en gyldig invitationskode.
+Please try again later.	Prøv igen senere.
+Polish	Polsk
+Poll closed	Afstemning lukket
+Portuguese, Brazilian	Portugisisk, Brasilien
+Post	Opslag
+Post Guidelines	Retningslinjer for opslag
+Post from a script	Send fra et script
+Post messages that reach servers outside your own. Members can follow this channel, so the posts you publish here appear in their servers.	Send beskeder, der når servere uden for din egen. Medlemmer kan følge denne kanal, så de opslag, du offentliggør her, vises på deres servere.
+Post title	Opslagstitel
+Posting...	Sender...
+Press a shortcut…	Tryk på en genvej…
+Previous	Forrige
+Previous / next channel	Forrige / næste kanal
+Previous / next channel with mentions	Forrige / næste kanal med omtaler
+Previous / next server	Forrige / næste server
+Previous / next unread channel	Forrige / næste ulæste kanal
+Previous 12 Hours	Seneste 12 timer
+Previous 24 Hours	Seneste 24 timer
+Previous 3 Days	Seneste 3 dage
+Previous 6 Hours	Seneste 6 timer
+Previous 7 Days	Seneste 7 dage
+Previous Hour	Seneste time
+Priority Speaker	Prioriteret taler
+Privacy Settings	Privatlivsindstillinger
+Private Category	Privat kategori
+Private Channel	Privat kanal
+Private Profile	Privat profil
+Profile	Profil
+Profile Banner	Profilbanner
+Profile Privacy	Profilens privatliv
+Profiles	Profiler
+Prompt members to reply to welcome messages with a sticker.	Opfordr medlemmer til at svare på velkomstbeskeder med et klistermærke.
+Pronouns	Stedord
+Protect your Discord account with an extra layer of security. Once configured, you'll be required to enter your password and complete one additional step in order to sign in.	Beskyt din Discord-konto med et ekstra lag sikkerhed. Når det er sat op, skal du indtaste din adgangskode og gennemføre et ekstra trin for at logge ind.
+Protip:	Tip:
+Publish	Offentliggør
+Push to Mute	Tryk for at slå lyd fra
+Push to Talk	Tryk for at tale
+Push to Talk (Normal)	Tryk for at tale (normal)
+Q: %	S: %
+Question	Spørgsmål
+Questions	Spørgsmål
+ROLES	ROLLER
+ROLES — %	ROLLER — %
+ROLES/MEMBERS	ROLLER/MEDLEMMER
+RTC Connecting	RTC opretter forbindelse
+Read Message History	Læs beskedhistorik
+Reason	Begrundelse
+Reason for Ban	Begrundelse for udelukkelse
+Reason for Kick	Begrundelse for at smide ud
+Reason for Timeout	Begrundelse for timeout
+Reason: %	Begrundelse: %
+Received	Modtaget
+Recently Active	Aktiv for nylig
+Reconnect	Genopret forbindelse
+Record Keybind	Optag genvejstast
+Reduce the saturation of colors within the application, for those with color sensitivities.	Reducer farvemætningen i appen, for dem der er følsomme over for farver.
+Reduces the amount of animation and motion effects. On whenever your device asks for reduced motion.	Reducerer mængden af animationer og bevægelseseffekter. Slået til, når din enhed beder om reduceret bevægelse.
+Region Override	Tilsidesæt region
+Register	Registrer
+Reject	Afvis
+Rejoin	Deltag igen
+Related Emoji	Relaterede emojis
+Relevant	Relevant
+Remove	Fjern
+Remove %	Fjern %
+Remove All Embeds	Fjern alle indlejringer
+Remove All Reactions	Fjern alle reaktioner
+Remove Answer	Fjern svar
+Remove Attachment	Fjern vedhæftning
+Remove Authenticator App	Fjern godkendelsesapp
+Remove Avatar	Fjern avatar
+Remove Embeds	Fjern indlejringer
+Remove Friend	Fjern ven
+Remove From Group	Fjern fra gruppe
+Remove Icon	Fjern ikon
+Remove Reaction	Fjern reaktion
+Remove Reactions	Fjern reaktioner
+Remove Reactions for Emoji	Fjern reaktioner for emoji
+Remove Server	Fjern server
+Remove Spoiler	Fjern spoiler
+Remove Timeout	Fjern timeout
+Remove Vote	Fjern stemme
+Remove all embeds	Fjern alle indlejringer
+Remove from Favorites	Fjern fra favoritter
+Remove notification override for %	Fjern tilsidesættelse af notifikationer for %
+Remove the files added before encryption was on: they'd go unencrypted.	Fjern de filer, der blev tilføjet, før kryptering blev slået til: de ville blive sendt ukrypteret.
+Remove the files added while encryption was on: they'd arrive as unreadable ciphertext.	Fjern de filer, der blev tilføjet, mens kryptering var slået til: de ville ankomme som ulæselig krypteret tekst.
+Removing…	Fjerner…
+Repeated encrypted message	Gentaget krypteret besked
+Reply	Svar
+Replying to	Svarer på
+Report Message	Rapportér besked
+Request Data	Anmod om data
+Request all of my Data	Anmod om alle mine data
+Request to Speak	Bed om ordet
+Requests	Anmodninger
+Require 2FA for moderator actions	Kræv 2FA til moderatorhandlinger
+Require members to agree to the server rules	Kræv, at medlemmer accepterer serverreglerne
+Require people to select tags when posting	Kræv, at folk vælger tags, når de laver opslag
+Required	Påkrævet
+Resend SMS?	Send SMS igen?
+Reset	Nulstil
+Reset Friend Nickname	Nulstil vens kælenavn
+Reset Voice Settings	Nulstil taleindstillinger
+Resolving Invite	Slår invitation op
+Responses	Svar
+Retry	Prøv igen
+Retry Now	Prøv igen nu
+Return to call	Tilbage til opkald
+Return to the connected call	Tilbage til det forbundne opkald
+Reveal	Vis
+Review	Gennemgå
+Revoke	Tilbagekald
+Revoke Ban	Ophæv udelukkelse
+Revoke Invite	Tilbagekald invitation
+Revoke the ban? They will be able to join again with an invite.	Vil du ophæve udelukkelsen? Vedkommende kan deltage igen med en invitation.
+Ring	Ring
+Ringing…	Ringer…
+Role Color	Rollefarve
+Role Colors	Rollefarver
+Role Icon	Rolleikon
+Role name	Rollenavn
+Roles	Roller
+Romanian, Romania	Rumænsk, Rumænien
+Rule: %	Regel: %
+Rules or Guidelines Channel	Kanal til regler eller retningslinjer
+Russian	Russisk
+SELECT A CHANNEL	VÆLG EN KANAL
+SELECT A SERVER	VÆLG EN SERVER
+SERVER NAME	SERVERNAVN
+SOUNDBOARD VOLUME	SOUNDBOARD-LYDSTYRKE
+STATIC EMOJI — % SLOTS AVAILABLE	STATISKE EMOJIS — % PLADSER LEDIGE
+Safety Notifications Channel	Kanal til sikkerhedsnotifikationer
+Safety Number	Sikkerhedsnummer
+Safety Setup	Sikkerhedsopsætning
+Safety checks	Sikkerhedstjek
+Same as Device Theme	Samme som enhedens tema
+Saturation	Mætning
+Save	Gem
+Save Changes	Gem ændringer
+Save Image	Gem billede
+Saving...	Gemmer...
+Saving…	Gemmer…
+Scan this with the Discord mobile app to log in instantly.	Scan denne med Discord-mobilappen for at logge ind med det samme.
+Schedule an event for any planned activity in your server.	Planlæg en begivenhed for enhver planlagt aktivitet på din server.
+Screen	Skærm
+Screen sharing isn't supported on this platform yet.	Skærmdeling understøttes endnu ikke på denne platform.
+Scroll chat	Scroll i chat
+Search	Søg
+Search %	Søg i %
+Search Bans by User ID or Username	Søg i udelukkelser efter bruger-id eller brugernavn
+Search Klipy	Søg i Klipy
+Search Options	Søgeindstillinger
+Search by username or id	Søg efter brugernavn eller id
+Search for friends	Søg efter venner
+Search members to add (press Enter)	Søg efter medlemmer at tilføje (tryk på Enter)
+Search or create a post...	Søg eller opret et opslag...
+Search sounds	Søg efter lyde
+Searching...	Søger...
+Select Friends	Vælg venner
+Select a Language	Vælg et sprog
+Select a channel	Vælg en kanal
+Select a channel or category…	Vælg en kanal eller kategori…
+Select one answer	Vælg ét svar
+Select one or more answers	Vælg et eller flere svar
+Select where you want these updates to go. You can remove this at any time in Server Settings > Integrations > Channels Followed.	Vælg, hvor disse opdateringer skal hen. Du kan til enhver tid fjerne det under Serverindstillinger > Integrationer > Fulgte kanaler.
+Select where you want to share this message.	Vælg, hvor du vil dele denne besked.
+Send	Send
+Send Friend Request	Send venneanmodning
+Send Messages and Create Posts	Send beskeder og opret opslag
+Send Messages in Threads and Posts	Send beskeder i tråde og opslag
+Send New Key	Send ny nøgle
+Send Text-to-Speech Messages	Send tekst-til-tale-beskeder
+Send Voice Messages	Send talebeskeder
+Send a random welcome message when someone joins this server.	Send en tilfældig velkomstbesked, når nogen tilmelder sig denne server.
+Send a server invite link to a friend	Send et invitationslink til serveren til en ven
+Send an alert	Send en advarsel
+Send helpful tips for server setup.	Send nyttige tips til opsætning af serveren.
+Send messages, images, GIFs, emoji, opinions, and puns	Send beskeder, billeder, GIF'er, emojis, meninger og ordspil
+Sending...	Sender...
+Sent	Sendt
+Sent a file	Sendte en fil
+Sent a sticker	Sendte et klistermærke
+Sent — %	Sendt — %
+Server	Server
+Server Avatar	Serveravatar
+Server Deafen	Gør døv på serveren
+Server Deafened	Gjort døv af serveren
+Server Guide	Serverguide
+Server ID	Server-id
+Server Info	Serverinfo
+Server Insights	Serverindsigt
+Server Insights is hosted on a separate website so that it's easier to share links and browse cross platform.	Serverindsigt ligger på et separat websted, så det er nemmere at dele links og bruge det på tværs af platforme.
+Server Mute	Slå lyd fra på serveren
+Server Muted	Lyd slået fra af serveren
+Server Nickname	Kælenavn på server
+Server Notification Settings	Notifikationsindstillinger for server
+Server Primary Language	Serverens primære sprog
+Server Profile	Serverprofil
+Server Rules	Serverregler
+Server Settings	Serverindstillinger
+Server Tag	Servertag
+Server Template	Serverskabelon
+Server Widget	Serverwidget
+Server members	Servermedlemmer
+Server members can only send you friend requests from servers where you also allow Direct Messages.	Servermedlemmer kan kun sende dig venneanmodninger fra servere, hvor du også tillader direkte beskeder.
+Server name must be between 2 and 100 characters.	Servernavnet skal være mellem 2 og 100 tegn.
+Server unmuted	Lyd slået til for server
+Sessions	Sessioner
+Set Custom Status	Angiv brugerdefineret status
+Set Voice Channel Status	Angiv talekanalstatus
+Set a custom status	Angiv en brugerdefineret status
+Set up AutoMod to automatically filter messages in this server with the rules below. Members with Manage Server or Administrator are exempt.	Sæt AutoMod op til automatisk at filtrere beskeder på denne server med reglerne nedenfor. Medlemmer med Administrer server eller Administrator er undtaget.
+Sets camera video quality for all channel participants. Choose Auto for optimal performance.	Angiver kameraets videokvalitet for alle deltagere i kanalen. Vælg Auto for optimal ydeevne.
+Setting up encryption: % needs to open fastcord once.	Opsætter kryptering: % skal åbne fastcord én gang.
+Several people are typing...	Flere personer skriver...
+Severe Profanity	Grove bandeord
+Sexual Content	Seksuelt indhold
+Share	Del
+Share Event	Del begivenhed
+Share Your Screen	Del din skærm
+Share my full profile with	Del hele min profil med
+Share your detected activities with others	Del dine registrerede aktiviteter med andre
+Show	Vis
+Show Chat	Vis chat
+Show a system notification for messages that would notify you (DMs, mentions, servers set to all messages).	Vis en systemnotifikation for beskeder, der ville give dig besked (DM'er, omtaler, servere indstillet til alle beskeder).
+Show embeds and preview website links pasted into chat	Vis indlejringer og forhåndsvisninger af links, der indsættes i chatten
+Show emoji reactions on messages	Vis emojireaktioner på beskeder
+Show message	Vis besked
+Show messages	Vis beskeder
+Show role colors in names	Vis rollefarver i navne
+Show role colors next to names	Vis rollefarver ved siden af navne
+Show spoiler content	Vis spoilerindhold
+Show the game or app you're using on your profile and in member lists.	Vis det spil eller den app, du bruger, på din profil og i medlemslister.
+Shows a red badge on the app icon when you have unread mentions.	Viser et rødt mærke på appikonet, når du har ulæste omtaler.
+Silence every sound and notification and hide all badges and unread marks, so fastcord never asks for your attention.	Gør alle lyde og notifikationer tavse, og skjul alle mærker og ulæst-markeringer, så fastcord aldrig beder om din opmærksomhed.
+Slow down! Are you sure?	Sæt farten ned! Er du sikker?
+Slowmode	Langsom tilstand
+Slowmode is enabled	Langsom tilstand er slået til
+Slowmode is enabled. Members can send one message every % hour.|Slowmode is enabled. Members can send one message every % hours.	Langsom tilstand er slået til. Medlemmer kan sende én besked hver % time.|Langsom tilstand er slået til. Medlemmer kan sende én besked hver % timer.
+Slowmode is enabled. Members can send one message every % minute.|Slowmode is enabled. Members can send one message every % minutes.	Langsom tilstand er slået til. Medlemmer kan sende én besked hvert % minut.|Langsom tilstand er slået til. Medlemmer kan sende én besked hver % minutter.
+Slowmode is enabled. Members can send one message every % second.|Slowmode is enabled. Members can send one message every % seconds.	Langsom tilstand er slået til. Medlemmer kan sende én besked hvert % sekund.|Langsom tilstand er slået til. Medlemmer kan sende én besked hver % sekunder.
+Smooth Scrolling	Blød scrolling
+So no one gets lost on where to go.	Så ingen farer vild.
+Some older devices may not be shown here	Nogle ældre enheder vises måske ikke her
+Someone	Nogen
+Something went wrong	Noget gik galt
+Something went wrong (HTTP %).	Noget gik galt (HTTP %).
+Something went wrong. Try again.	Noget gik galt. Prøv igen.
+Somewhere Else	Et andet sted
+Sorry, we couldn't load the first message in this thread	Beklager, vi kunne ikke indlæse den første besked i denne tråd
+Sort: Date Posted	Sortér: Dato for opslag
+Sort: Recent Activity	Sortér: Seneste aktivitet
+Sound Name	Lydnavn
+Sound names must be between 2 and 32 characters.	Lydnavne skal være mellem 2 og 32 tegn.
+Soundboard	Soundboard
+Sounds	Lyde
+Sounds must be 5.2 seconds or shorter.	Lyde må højst vare 5,2 sekunder.
+Sounds must be under 512 KB.	Lyde skal være under 512 KB.
+Source	Kilde
+Space between message groups	Afstand mellem beskedgrupper
+Spam	Spam
+Spam Filters	Spamfiltre
+Spanish	Spansk
+Spanish, LATAM	Spansk, Latinamerika
+Speak	Tal
+Speak Message	Læs besked op
+Spoiler Attachment	Spoilervedhæftning
+Spoiler Content	Spoilerindhold
+Stage	Stage
+Start Date	Startdato
+Start Event	Start begivenhed
+Start Minimized	Start minimeret
+Start Time	Starttidspunkt
+Starting in %m	Starter om %m
+State	Tilstand
+Stickers	Klistermærker
+Stickers can be used by anyone in this server. Upload a PNG, APNG, GIF or Lottie JSON file of up to 512 KB; it shows at 320x320.	Klistermærker kan bruges af alle på denne server. Upload en PNG-, APNG-, GIF- eller Lottie JSON-fil på op til 512 KB; den vises i 320x320.
+Stickers can't be sent encrypted yet.	Klistermærker kan ikke sendes krypteret endnu.
+Stickers must be PNG, APNG, GIF or Lottie JSON files.	Klistermærker skal være PNG-, APNG-, GIF- eller Lottie JSON-filer.
+Stop Recording	Stop optagelse
+Stop Streaming	Stop streaming
+Stop Testing	Stop test
+Stop Video	Stop video
+Stop Watching	Stop med at se
+Storage	Lagerplads
+Stream Settings	Streamindstillinger
+Streamer Mode	Streamertilstand
+Streamer Mode Enabled	Streamertilstand slået til
+Streamer Mode hides your personal info so others watching your stream can't see it.	Streamertilstand skjuler dine personlige oplysninger, så andre, der ser din stream, ikke kan se dem.
+Streamer Mode is enabled. Usernames have been truncated.	Streamertilstand er slået til. Brugernavne er blevet forkortet.
+Success! Your friend request to % was sent.	Sådan! Din venneanmodning til % er sendt.
+Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday	søndag|mandag|tirsdag|onsdag|torsdag|fredag|lørdag
+Sun|Mon|Tue|Wed|Thu|Fri|Sat	søn.|man.|tir.|ons.|tor.|fre.|lør.
+Support has arrived!	Hjælpen er kommet!
+Suppress @everyone and @here	Undertryk @everyone og @here
+Suppress All Role @mentions	Undertryk alle @omtaler af roller
+Suppress Highlights	Undertryk højdepunkter
+Suppress Notifications	Undertryk notifikationer
+Suppress background noise from your mic.	Dæmp baggrundsstøj fra din mikrofon.
+Swedish	Svensk
+Switch Accounts	Skift konto
+Switch between accounts on this device.	Skift mellem konti på denne enhed.
+Symbols	Symboler
+Sync Now	Synkroniser nu
+Sync Permissions	Synkroniser tilladelser
+Sync Template	Synkroniser skabelon
+Sync permissions?	Synkroniser tilladelser?
+System	System
+System Messages	Systembeskeder
+System Messages Channel	Kanal til systembeskeder
+System icon for new server members.	Systemikon for nye servermedlemmer.
+THREAD NAME	TRÅDNAVN
+Tag	Tag
+Tags	Tags
+Tags (pick at least one)	Tags (vælg mindst ét)
+Tags let members organize their posts. Members pick them when they post; moderated tags only moderators can apply.	Med tags kan medlemmer organisere deres opslag. Medlemmer vælger dem, når de laver opslag; modererede tags kan kun moderatorer bruge.
+Tap the link in your email to sign in instantly — no password needed.	Tryk på linket i din e-mail for at logge ind med det samme — uden adgangskode.
+Tell people a little more about your event. Markdown, new lines, and links are supported.	Fortæl lidt mere om din begivenhed. Markdown, linjeskift og links understøttes.
+Tell the world a bit about this server.	Fortæl verden lidt om denne server.
+Template Description	Skabelonbeskrivelse
+Template Link	Skabelonlink
+Template Title	Skabelontitel
+Templates are an easy way to share your server setup and help anyone create a server instantly. When someone uses your server template link, they create a new server pre-filled with the same channels, roles, permissions, and settings as yours. Messages, members and your server's icon aren't copied.	Skabeloner er en nem måde at dele din serveropsætning og hjælpe alle med at oprette en server på et øjeblik. Når nogen bruger linket til din serverskabelon, opretter de en ny server med de samme kanaler, roller, tilladelser og indstillinger som din. Beskeder, medlemmer og serverens ikon kopieres ikke.
+Temporary members are automatically kicked when they disconnect unless a role has been assigned	Midlertidige medlemmer smides automatisk ud, når de afbryder forbindelsen, medmindre de har fået tildelt en rolle
+Test Video	Test video
+Text	Tekst
+Text Channel Permissions	Tilladelser for tekstkanaler
+Text channel, external link, or in-person location.	Tekstkanal, eksternt link eller fysisk sted.
+Thai	Thai
+That channel isn't on this server anymore.	Den kanal findes ikke længere på denne server.
+That file couldn't be read as an MP3 or OGG sound.	Filen kunne ikke læses som en MP3- eller OGG-lyd.
+That file couldn't be read. Avatars must be PNG, JPEG, GIF or WEBP images.	Filen kunne ikke læses. Avatarer skal være PNG-, JPEG-, GIF- eller WEBP-billeder.
+That file couldn't be read. Banners must be PNG, JPEG, GIF or WEBP images.	Filen kunne ikke læses. Bannere skal være PNG-, JPEG-, GIF- eller WEBP-billeder.
+That file couldn't be read. Emoji must be a PNG, JPEG, GIF, WEBP or AVIF image.	Filen kunne ikke læses. Emojis skal være et PNG-, JPEG-, GIF-, WEBP- eller AVIF-billede.
+That file couldn't be read. Images must be PNG, JPEG, GIF or WEBP files.	Filen kunne ikke læses. Billeder skal være PNG-, JPEG-, GIF- eller WEBP-filer.
+That file couldn't be read. Server icons must be PNG, JPEG, GIF or WEBP images.	Filen kunne ikke læses. Serverikoner skal være PNG-, JPEG-, GIF- eller WEBP-billeder.
+That file is too large. Emoji must be under 256 KB.	Filen er for stor. Emojis skal være under 256 KB.
+That file is too large. Stickers must be under 512 KB.	Filen er for stor. Klistermærker skal være under 512 KB.
+That image is too large.	Billedet er for stort.
+That image is too large. Avatars must be under %.	Billedet er for stort. Avatarer skal være under %.
+That image is too large. Banners must be under 10 MB.	Billedet er for stort. Bannere skal være under 10 MB.
+That image is too large. Server icons must be under 512 KB.	Billedet er for stort. Serverikoner skal være under 512 KB.
+That isn't a valid fastcord invite.	Det er ikke en gyldig fastcord-invitation.
+That's too long to send encrypted.	Det er for langt til at sende krypteret.
+The Pin Is Stuck!	Nålen sidder fast!
+The badge chosen in the official client stays as it is.	Det mærke, der er valgt i den officielle klient, forbliver uændret.
+The invite is invalid or has expired.	Invitationen er ugyldig eller udløbet.
+The mention limit is between 1 and 50.	Grænsen for omtaler er mellem 1 og 50.
+The most important updates from this channel will now show up directly in your server. Enjoy!	De vigtigste opdateringer fra denne kanal vises nu direkte på din server. God fornøjelse!
+The owner	Ejeren
+The related emoji must be one emoji.	Den relaterede emoji skal være én emoji.
+The results were tied	Resultatet blev uafgjort
+The selected channel has too many webhooks. Please remove a webhook or select another channel.	Den valgte kanal har for mange webhooks. Fjern en webhook, eller vælg en anden kanal.
+The server	Serveren
+The start time must be in the future.	Starttidspunktet skal ligge i fremtiden.
+The thread stops showing in the channel list after being inactive for this long.	Tråden holder op med at blive vist på kanallisten, når den har været inaktiv så længe.
+Theme	Tema
+There are no active threads.	Der er ingen aktive tråde.
+There are no archived threads.	Der er ingen arkiverede tråde.
+There are no pending friend requests.	Der er ingen ventende venneanmodninger.
+There are no upcoming events.	Der er ingen kommende begivenheder.
+There is no identity key.	Der er ingen identitetsnøgle.
+There was no winner	Der var ingen vinder
+These are all the devices that are currently logged-in with your Discord account. Log out of devices that you don't recognize.	Det her er alle de enheder, der er logget ind med din Discord-konto lige nu. Log ud af enheder, du ikke genkender.
+They said: %	Vedkommende skrev: %
+This account needs a passkey or security key, which fastcord can't use. Log in with the QR code instead.	Denne konto kræver en adgangsnøgle eller sikkerhedsnøgle, som fastcord ikke kan bruge. Log ind med QR-koden i stedet.
+This channel contains adult content that may not be suitable for all audiences. You must be 18 or older to view it.	Denne kanal indeholder voksenindhold, der måske ikke er egnet for alle. Du skal være mindst 18 år for at se den.
+This channel doesn't have any pinned messages... yet.	Denne kanal har ingen fastgjorte beskeder... endnu.
+This device can't open this message.	Denne enhed kan ikke åbne denne besked.
+This device's encryption keys couldn't be unlocked, so earlier encrypted DMs can't be opened here.	Denne enheds krypteringsnøgler kunne ikke låses op, så tidligere krypterede DM'er kan ikke åbnes her.
+This event will auto start when it's time.	Denne begivenhed starter automatisk, når det er tid.
+This extra step shows it's really you.	Dette ekstra trin viser, at det virkelig er dig.
+This interaction failed	Denne interaktion mislykkedes
+This invite may be expired, or you might not have permission to join.	Denne invitation er måske udløbet, eller også har du ikke tilladelse til at deltage.
+This is the beginning of your direct message history with %.	Dette er starten på din historik med direkte beskeder med %.
+This is the channel we send system event messages to.	Dette er kanalen, vi sender systembeskeder til.
+This is the start of the #% channel.	Dette er starten på kanalen #%.
+This is where Discord sends updates for moderators and admins of Community servers.	Her sender Discord opdateringer til moderatorer og administratorer af fællesskabsservere.
+This is where you'll show members your server rules or guidelines.	Her viser du medlemmer dine serverregler eller retningslinjer.
+This link is taking you to the following website	Dette link fører dig til følgende websted
+This option is not available for Community Servers.	Denne mulighed er ikke tilgængelig for fællesskabsservere.
+This role is managed by an integration and can't be edited here.	Denne rolle administreres af en integration og kan ikke redigeres her.
+This server has been removed from Server Discovery because it no longer passes all the requirements. Check Server Settings for more details.	Denne server er blevet fjernet fra Serveroversigt, fordi den ikke længere opfylder alle kravene. Se Serverindstillinger for flere detaljer.
+This server has failed Discovery activity requirements for 1 week. If this server fails for 4 weeks in a row, it will be automatically removed from Discovery.	Denne server har ikke opfyldt aktivitetskravene til Serveroversigt i 1 uge. Hvis den ikke opfylder dem 4 uger i træk, fjernes den automatisk fra Serveroversigt.
+This server has failed Discovery activity requirements for 3 weeks in a row. If this server fails for 1 more week, it will be removed from Discovery.	Denne server har ikke opfyldt aktivitetskravene til Serveroversigt 3 uger i træk. Hvis den ikke opfylder dem 1 uge mere, fjernes den fra Serveroversigt.
+This server has no voice channels.	Denne server har ingen talekanaler.
+This server is currently full.	Denne server er fuld lige nu.
+This server is currently full. Please try again later.	Denne server er fuld lige nu. Prøv igen senere.
+This server is eligible for Server Discovery again and has been automatically relisted!	Denne server opfylder igen kravene til Serveroversigt og er automatisk blevet vist igen!
+This server is not available in your location.	Denne server er ikke tilgængelig, hvor du befinder dig.
+This server's features are limited	Denne servers funktioner er begrænsede
+This setting is applied when you join a new server. It does not apply retroactively to your existing servers.	Denne indstilling anvendes, når du tilmelder dig en ny server. Den gælder ikke med tilbagevirkende kraft for dine eksisterende servere.
+This template has unsynced changes.	Denne skabelon har ændringer, der ikke er synkroniseret.
+This thread is locked.	Denne tråd er låst.
+This voice channel is full.	Denne talekanal er fuld.
+This will determine whether members who have not explicitly set their notification settings receive a notification for every message sent in this server or not.	Dette bestemmer, om medlemmer, der ikke selv har angivet deres notifikationsindstillinger, får en notifikation for hver besked, der sendes på denne server.
+This will transfer ownership of %1 to %2. This cannot be undone!	Dette overdrager ejerskabet af %1 til %2. Det kan ikke fortrydes!
+Thread Name	Trådnavn
+Thread deleted	Tråd slettet
+Threads	Tråde
+Time	Tid
+Time format	Tidsformat
+Timeout	Timeout
+Timeout %	Giv % timeout
+Timeout Members	Giv medlemmer timeout
+Timeout member	Giv medlem timeout
+Times show as %.	Tider vises som %.
+To log them out, please change your password	Skift din adgangskode for at logge dem ud
+To protect your members, Community servers need these, and enabling sets them:	For at beskytte dine medlemmer kræver fællesskabsservere disse, og de angives, når du aktiverer:
+Today	I dag
+Today at %	I dag kl. %
+Toggle Deafen	Slå døv til/fra
+Toggle Go Live Streaming	Slå Go Live-streaming til/fra
+Toggle Mute	Slå mikrofon til/fra
+Toggle Streamer Mode	Slå streamertilstand til/fra
+Toggle Voice Activity Mode	Slå stemmeaktivering til/fra
+Toggle deafen	Slå døv til/fra
+Toggle inbox	Vis/skjul indbakke
+Toggle member list	Vis/skjul medlemsliste
+Toggle mute	Slå mikrofon til/fra
+Toggle pins	Vis/skjul fastgjorte
+Tomorrow at %	I morgen kl. %
+Too fast! Wait a bit and try again.	For hurtigt! Vent lidt, og prøv igen.
+Too many uploads!	For mange uploads!
+Trait %	Træk %
+Traits	Træk
+Transfer Ownership	Overdrag ejerskab
+Travel & Places	Rejser og steder
+Treat the token like a password: anyone who has it controls your account. fastcord keeps it only on this computer.	Behandl dit token som en adgangskode: alle, der har det, styrer din konto. fastcord gemmer det kun på denne computer.
+Trending GIFs	Populære GIF'er
+Trust % links from now on	Stol på links fra % fremover
+Try Again	Prøv igen
+Try searching for something else	Prøv at søge efter noget andet
+Try searching for...	Prøv at søge efter...
+Try sending a new invite	Prøv at sende en ny invitation
+Turkish	Tyrkisk
+Turn off encryption	Slå kryptering fra
+Turns this back into a regular server. Community-only features stop working.	Gør den til en almindelig server igen. Funktioner kun for fællesskaber holder op med at virke.
+Two-factor authentication is enabled on this account.	Totrinsgodkendelse er slået til på denne konto.
+Type the username of a friend	Skriv en vens brugernavn
+Type your answer	Skriv dit svar
+UPLOADED BY	UPLOADET AF
+USES	BRUG
+Uh oh, you don't have webhook permissions in any server you're in. Ask your server admin to give you the permission or ask them to come follow themselves!	Øv, du har ikke webhooktilladelser på nogen af dine servere. Bed din serveradministrator om at give dig tilladelsen, eller bed dem om selv at følge kanalen!
+Uh-oh. Looks like you've been banned.	Øv. Det ser ud til, at du er blevet udelukket.
+Ukrainian	Ukrainsk
+Unable to accept invite	Kan ikke acceptere invitationen
+Unassigned	Ikke tildelt
+Unban Member	Ophæv udelukkelse af medlem
+Unblock	Fjern blokering
+Undeafen	Slå døv fra
+Under Request Headers, copy the value of "authorization" and paste it below.	Under Request Headers skal du kopiere værdien af "authorization" og indsætte den nedenfor.
+Undo	Fortryd
+Unignore	Stop med at ignorere
+Unknown	Ukendt
+Unknown channel	Ukendt kanal
+Unmute	Slå lyd til
+Unmute Category	Slå lyd til for kategori
+Unmute Channel	Slå lyd til for kanal
+Unmute Server	Slå lyd til for server
+Unmute Thread	Slå lyd til for tråd
+Unpin Message	Frigør besked
+Unreads	Ulæste
+Unrestricted	Ubegrænset
+Until %	Indtil %
+Until %1 at %2	Indtil %1 kl. %2
+Until I turn it back on	Indtil jeg slår det til igen
+Until tomorrow at %	Indtil i morgen kl. %
+Untitled question	Spørgsmål uden titel
+Unverify	Fjern bekræftelse
+Update %	Opdater %
+Update Channel	Opdater kanal
+Update Emoji	Opdater emoji
+Update Member	Opdater medlem
+Update Member Roles	Opdater medlemsroller
+Update Role	Opdater rolle
+Update Server	Opdater server
+Update Webhook	Opdater webhook
+Update your password	Opdater din adgangskode
+Upload	Upload
+Upload Emoji	Upload emoji
+Upload Sound	Upload lyd
+Upload Sticker	Upload klistermærke
+Upload a File	Upload en fil
+Upload a Sound	Upload en lyd
+Upload a file	Upload en fil
+Upload custom sound reactions that anyone in this server can use. MP3 or OGG files, up to 512 KB and 5.2 seconds.	Upload brugerdefinerede lydreaktioner, som alle på denne server kan bruge. MP3- eller OGG-filer på op til 512 KB og 5,2 sekunder.
+Upload to %	Upload til %
+Uploaded a file	Uploadede en fil
+Uploading...	Uploader...
+Use Application Commands	Brug appkommandoer
+Use Category Default	Brug kategoriens standard
+Use External Apps	Brug eksterne apps
+Use External Emoji	Brug eksterne emojis
+Use External Sounds	Brug eksterne lyde
+Use External Stickers	Brug eksterne klistermærker
+Use Server Default	Brug serverens standard
+Use Soundboard	Brug soundboard
+Use Voice Activity	Brug stemmeaktivering
+Use a backup code	Brug en backupkode
+Use a code sent to your phone	Brug en kode sendt til din telefon
+Use a passkey or security key	Brug en adgangsnøgle eller sikkerhedsnøgle
+Use data to improve Discord	Brug data til at forbedre Discord
+Use roles to group your server members and assign permissions.	Brug roller til at gruppere dine servermedlemmer og tildele tilladelser.
+Use your authenticator app	Brug din godkendelsesapp
+Used % times.|Used % times.	Brugt % gang.|Brugt % gange.
+User Join	Bruger deltager
+User Leave	Bruger forlader
+User Limit	Brugergrænse
+User Moved	Bruger flyttet
+User Volume	Brugerlydstyrke
+User blocked	Bruger blokeret
+User unblocked	Blokering af bruger fjernet
+Username	Brugernavn
+Username is available. Nice!	Brugernavnet er ledigt. Fedt!
+Username is unavailable. Try adding numbers, letters, underscores _ , or periods.	Brugernavnet er ikke ledigt. Prøv at tilføje tal, bogstaver, understreger _ eller punktummer.
+Users will need to confirm they are of over the legal age to view in the content in this channel.\nAge-restricted channels are exempt from the explicit content filter.	Brugere skal bekræfte, at de er myndige, for at se indholdet i denne kanal.\nAldersbegrænsede kanaler er undtaget fra filteret for eksplicit indhold.
+Uses the yt-dlp you installed to play YouTube links in the chat instead of opening your browser. It connects to YouTube from your computer.	Bruger den yt-dlp, du har installeret, til at afspille YouTube-links i chatten i stedet for at åbne din browser. Den forbinder til YouTube fra din computer.
+VOICE PROCESSING	STEMMEBEHANDLING
+Verification Level	Bekræftelsesniveau
+Verified	Bekræftet
+Verify with something else	Bekræft på en anden måde
+Video	Video
+Video Quality	Videokvalitet
+Vietnamese	Vietnamesisk
+View Audit Log	Se revisionslog
+View Channel	Se kanal
+View Channels	Se kanaler
+View Details	Se detaljer
+View Full Profile	Se hele profilen
+View Poll	Se afstemning
+View Profile	Se profil
+View Reactions	Se reaktioner
+View Server Insights	Se Serverindsigt
+Visit Site	Besøg websted
+Visual Density	Visuel tæthed
+Voice	Tale
+Voice & Video	Tale og video
+Voice Activity	Stemmeaktivering
+Voice Channel	Talekanal
+Voice Channel Permissions	Tilladelser for talekanaler
+Voice Connected	Tale forbundet
+Voice Disconnected	Tale afbrudt
+Volume	Lydstyrke
+Vote	Stem
+Waiting for a server	Venter på en server
+Wants to message you	Vil skrive til dig
+Watch Stream	Se stream
+Wave to say hi!	Vink for at sige hej!
+We appreciate the enthusiasm, but...	Vi sætter pris på begejstringen, men...
+We couldn't load the profile for this server.	Vi kunne ikke indlæse profilen for denne server.
+We recommend an image of at least 512x512.	Vi anbefaler et billede på mindst 512x512.
+We sent instructions to change your password to %, please check both your inbox and spam folder.	Vi har sendt en vejledning i at skifte adgangskode til %. Tjek både din indbakke og din spammappe.
+We're so excited to see you again!	Hvor er det dejligt at se dig igen!
+We've sent a message to %.  Please enter the code you received.	Vi har sendt en besked til %.  Indtast den kode, du har modtaget.
+Webhooks (%)	Webhooks (%)
+Webhooks are a simple way to post messages from other apps and websites into this server.	Webhooks er en nem måde at sende beskeder fra andre apps og websteder til denne server.
+Welcome %. Say hi!	Velkommen, %. Sig hej!
+Welcome back!	Velkommen tilbage!
+Welcome to #%!	Velkommen til #%!
+Welcome to the beginning of the % group.	Velkommen til starten af gruppen %.
+Welcome, %. We hope you brought pizza.	Velkommen, %. Vi håber, du har pizza med.
+What brings you here?	Hvad bringer dig hertil?
+What can people do in this server?	Hvad kan folk lave på denne server?
+What question do you want to ask?	Hvilket spørgsmål vil du stille?
+What's cookin'?	Hvad sker der?
+What's your event about?	Hvad handler din begivenhed om?
+What's your event?	Hvad er din begivenhed?
+When a friend starts an activity—like playing a game or hanging out on voice—we'll show it here!	Når en ven starter en aktivitet—f.eks. spiller et spil eller hænger ud i tale—viser vi det her!
+When enabled, only server members can view profile content. Non-members won't be able to see this content unless they have an invite.	Når det er slået til, kan kun servermedlemmer se profilindholdet. Ikke-medlemmer kan ikke se indholdet, medmindre de har en invitation.
+When you put a user in timeout they will not be able to send messages in chat, reply within threads, react to messages, or speak in voice or Stage channels.	Når du giver en bruger timeout, kan vedkommende ikke sende beskeder i chatten, svare i tråde, reagere på beskeder eller tale i tale- eller Stage-kanaler.
+Where is your event?	Hvor foregår din begivenhed?
+Where would you like to go?	Hvor vil du hen?
+Who is this server for? E.g. School Club, Artists' Community	Hvem er serveren til? F.eks. skoleklub, kunstnerfællesskab
+Winning answer · %1%2	Vindende svar · %1%2
+Words that are never blocked, separated by commas	Ord, der aldrig blokeres, adskilt af kommaer
+Words to block, separated by commas	Ord, der skal blokeres, adskilt af kommaer
+Words to block, separated by commas (* matches anything)	Ord, der skal blokeres, adskilt af kommaer (* matcher alt)
+Would you like to sync %1 permissions with %2?	Vil du synkronisere tilladelserne for %1 med %2?
+Yay you made it, %!	Hurra, du nåede frem, %!
+Yesterday at %	I går kl. %
+You	Dig
+You accepted %'s friend request.	Du accepterede %s venneanmodning.
+You are at the % server limit.	Du har nået grænsen på % servere.
+You are banned from this server.	Du er udelukket fra denne server.
+You aren't in that server. Ask a member for an invite.	Du er ikke på den server. Bed et medlem om en invitation.
+You can add % more friend.|You can add % more friends.	Du kan tilføje % ven mere.|Du kan tilføje % venner mere.
+You can add comments before uploading.\nHold shift to upload directly.	Du kan tilføje kommentarer, før du uploader.\nHold Shift nede for at uploade direkte.
+You can add friends with their Discord username.	Du kan tilføje venner med deres Discord-brugernavn.
+You can add up to 5 accounts.	Du kan tilføje op til 5 konti.
+You can hold down shift when clicking % to bypass this confirmation entirely.	Du kan holde Shift nede, når du klikker på %, for helt at springe denne bekræftelse over.
+You can only edit roles below your highest role.	Du kan kun redigere roller under din højeste rolle.
+You can only upload % files at a time!	Du kan kun uploade % filer ad gangen!
+You can use markdown and links if you'd like.	Du kan bruge markdown og links, hvis du vil.
+You can't join this server because of your age group.	Du kan ikke deltage på denne server på grund af din aldersgruppe.
+You can't unblock the Wumpus.	Du kan ikke fjerne blokeringen af Wumpus.
+You cannot friend yourself	Du kan ikke blive ven med dig selv
+You can’t react and super react with the same emoji. There’s a lot of emoji to choose from, so maybe try another one.	Du kan ikke reagere og superreagere med den samme emoji. Der er masser af emojis at vælge imellem, så prøv måske en anden.
+You do not have permission to send messages in this channel.	Du har ikke tilladelse til at sende beskeder i denne kanal.
+You don't have any friends to add!	Du har ingen venner at tilføje!
+You don't have permission to do that.	Du har ikke tilladelse til at gøre det.
+You haven't added a display name yet.	Du har ikke tilføjet et visningsnavn endnu.
+You haven't added a phone number yet.	Du har ikke tilføjet et telefonnummer endnu.
+You haven't added an email yet.	Du har ikke tilføjet en e-mail endnu.
+You haven't authorized any apps.	Du har ikke godkendt nogen apps.
+You haven't blocked anyone.	Du har ikke blokeret nogen.
+You haven't connected any accounts yet.	Du har ikke forbundet nogen konti endnu.
+You haven't ignored anyone.	Du har ikke ignoreret nogen.
+You missed a call from %1 that lasted %2.	Du gik glip af et opkald fra %1, der varede %2.
+You must be at least 18 years old to view this channel.	Du skal være mindst 18 år for at se denne kanal.
+You must leave a server first to join.	Du skal først forlade en server for at deltage.
+You need to add one or more rules.	Du skal tilføje en eller flere regler.
+You received an invite, but...	Du har modtaget en invitation, men...
+You said: %	Du skrev: %
+You sent an invite to a self-hosted server	Du sendte en invitation til en selvhostet server
+You sent an invite, but	Du sendte en invitation, men
+You sent an invite, but...	Du sendte en invitation, men...
+You will appear offline	Du vises som offline
+You will not receive desktop notifications	Du får ingen skrivebordsnotifikationer
+You'll have to log back in on all logged out devices.	Du skal logge ind igen på alle de enheder, der er logget ud.
+You're Viewing Older Messages	Du ser ældre beskeder
+You're all caught up!	Du er helt opdateret!
+You're already in that server.	Du er allerede på den server.
+You're doing that too fast. Try again in a moment.	Du gør det for hurtigt. Prøv igen om et øjeblik.
+You're not in any servers yet.	Du er ikke på nogen servere endnu.
+You're offline: no invite link.	Du er offline: intet invitationslink.
+You're timed out until %.	Du har timeout indtil %.
+You've been invited to a self-hosted server	Du er blevet inviteret til en selvhostet server
+You've been invited to join	Du er blevet inviteret til at deltage
+You've been invited to speak	Du er blevet inviteret til at tale
+You've been invited, but	Du er blevet inviteret, men
+Your files are too powerful	Dine filer er for kraftfulde
+Your full profile is visible to friends and any server you join with 200 or fewer members. Everyone else sees a limited version.	Hele din profil er synlig for venner og alle servere med 200 eller færre medlemmer, som du deltager på. Alle andre ser en begrænset udgave.
+Your full profile is visible to friends and any server you join.	Hele din profil er synlig for venner og alle servere, du deltager på.
+Your full profile is visible to friends. Everyone else sees a limited version.	Hele din profil er synlig for venner. Alle andre ser en begrænset udgave.
+Your invite link expires after %.	Dit invitationslink udløber efter %.
+Your invite link expires in %.	Dit invitationslink udløber om %.
+Your invite link expires in %1, or after %2.	Dit invitationslink udløber om %1 eller efter %2.
+Your invite link expires in 7 days.	Dit invitationslink udløber om 7 dage.
+Your invite link will never expire.	Dit invitationslink udløber aldrig.
+Your last request was on %.	Din seneste anmodning var %.
+Your message is too long (% / %).	Din besked er for lang (% / %).
+Your reaction was not added because there are too many reactions on this message.	Din reaktion blev ikke tilføjet, fordi der er for mange reaktioner på denne besked.
+Your request from % is being prepared.	Din anmodning fra % er ved at blive klargjort.
+Your server is where you and your friends hang out. Make yours and start talking.	Din server er der, hvor du og dine venner hænger ud. Lav din egen, og begynd at snakke.
+Your sounds go out with your voice, mixed into your microphone, instead of as soundboard sounds.	Dine lyde sendes med din stemme, mixet ind i din mikrofon, i stedet for som soundboard-lyde.
+Zoom level	Zoomniveau
+a channel	en kanal
+a command	en kommando
+a day	en dag
+a day ago	for en dag siden
+a few seconds	et par sekunder
+a few seconds ago	for et par sekunder siden
+a message	en besked
+a minute	et minut
+a minute ago	for et minut siden
+a month ago	for en måned siden
+a year ago	for et år siden
+an hour	en time
+an hour ago	for en time siden
+by %	af %
+cancel	annuller
+channel	kanal
+delete message	slet besked
+escape to %1 • enter to %2	Esc: %1 • Enter: %2
+fastcord %	fastcord %
+fastcord quit unexpectedly last time. The report is in the logs folder (Settings, under Log Out).	fastcord lukkede uventet sidste gang. Rapporten ligger i logmappen (Indstillinger, under Log ud).
+fastcord starts in the background and stays out of your way.	fastcord starter i baggrunden og holder sig ude af vejen.
+from %	fra %
+in %	om %
+in % day|in % days	om % dag|om % dage
+in % hour|in % hours	om % time|om % timer
+in % minute|in % minutes	om % minut|om % minutter
+in % month|in % months	om % måned|om % måneder
+in % year|in % years	om % år|om % år
+in a day	om en dag
+in a few seconds	om et par sekunder
+in a minute	om et minut
+in a month	om en måned
+in a year	om et år
+in an hour	om en time
+just now	lige nu
+less than an hour ago	for under en time siden
+link, embed or file	link, indlejring eller fil
+on %	%
+pinned messages	fastgjorte beskeder
+remove embeds	fjern indlejringer
+save	gem
+someone	nogen
+specific date	bestemt dato
+this server	denne server
+threads	tråde
+true or false	sand eller falsk
+unknown	ukendt
+unknown channel	ukendt kanal
+unknown-user	ukendt-bruger
+used	brugt
+user	bruger
+• Media from all members is scanned by the explicit image filter.	• Medier fra alle medlemmer scannes af filteret for eksplicitte billeder.
+• Members must have a verified email on their Discord account.	• Medlemmer skal have en bekræftet e-mail på deres Discord-konto.
+← Back to %	← Tilbage til %
+← Back to login	← Tilbage til login

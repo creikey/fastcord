@@ -146,9 +146,19 @@ guild_menu_overlays :: () {
 
 // ---- shared menu pieces ----
 
+// A menu grows to its widest item, since a translation is often longer than the English: each item
+// reports the width its text needs (measured on the last layout), and the next pass uses the widest.
+Menu_Fit :: struct { applied, accum: float32; }
+menu_fits: Table(*ui.Box, Menu_Fit); // boxes persist across frames
+menu_fit_panel: *ui.Box;
+
 menu_panel :: (id: string, pos: ui.Vec2, w: float32) -> *ui.Box {
 	p := ui.box(id, .Draw_Background | .Draw_Border | .Draw_Shadow | .Floating_X | .Floating_Y | .Overlay | .Clickable);
-	p.semantic_size = .[ui.px(w), ui.children()];
+	fit := find_or_add(*menu_fits, p);
+	if fit.accum > 0 fit.applied = fit.accum;
+	fit.accum = 0;
+	menu_fit_panel = p;
+	p.semantic_size = .[ui.px(max(w, fit.applied)), ui.children()];
 	p.fixed_pos = pos;
 	p.layout_axis = .Y;
 	p.style.bg = T("--background-surface-higher");
@@ -222,7 +232,12 @@ menu_item :: (id: string, text: string, right: Item_Right = .None, icon_name := 
 					spacer(.X, 4);
 					icon("warn", "warning", 14, T("--status-warning"));
 				} else {
-					label(text, .Medium, 14, color, 18);
+					lb := label(text, .Medium, 14, color, 18);
+					fit := ifx menu_fit_panel then table_find_pointer(*menu_fits, menu_fit_panel) else null;
+					if fit && lb.prev_layout && col.rect.x1 > col.rect.x0 {
+						chrome := (menu_fit_panel.rect.x1 - menu_fit_panel.rect.x0) - (col.rect.x1 - col.rect.x0);
+						fit.accum = max(fit.accum, lb.prev_layout.width + chrome + 8);
+					}
 				}
 				if sub != "" label(sub, .Normal, 12, ifx hot && danger then color else T("--text-muted"), 16);
 			}

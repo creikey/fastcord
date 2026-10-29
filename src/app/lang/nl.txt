@@ -1,0 +1,1973 @@
+# Dutch (nl)
+ · required	 · verplicht
+% (requested to speak)	% (wil spreken)
+% (required)	% (verplicht)
+% Bans|% Bans	% ban|% bans
+% Event|% Events	% evenement|% evenementen
+% KB	% KB
+% MB	% MB
+% Member|% Members	% lid|% leden
+% Messages	% berichten
+% Mutual Friend|% Mutual Friends	% gemeenschappelijke vriend|% gemeenschappelijke vrienden
+% Mutual Server|% Mutual Servers	% gemeenschappelijke server|% gemeenschappelijke servers
+% Online	% online
+% Result|% Results	% resultaat|% resultaten
+% accepted encryption.	% heeft versleuteling geaccepteerd.
+% accepted your friend request.	% heeft je vriendschapsverzoek geaccepteerd.
+% answer|% answers	% antwoord|% antwoorden
+% becomes the owner once they accept on their device. You'll stay a member.	% wordt eigenaar zodra die het op diens apparaat accepteert. Jij blijft lid.
+% blocked message —|% blocked messages —	% geblokkeerd bericht —|% geblokkeerde berichten —
+% byte|% bytes	% byte|% bytes
+% changed the group icon.	% heeft het groepspictogram gewijzigd.
+% day ago|% days ago	% dag geleden|% dagen geleden
+% day|% days	% dag|% dagen
+% disabled security actions.	% heeft de beveiligingsacties uitgeschakeld.
+% enabled security actions.	% heeft de beveiligingsacties ingeschakeld.
+% hasn't accepted encryption yet.	% heeft versleuteling nog niet geaccepteerd.
+% hopped into the server.	% is de server binnengesprongen.
+% hour ago|% hours ago	% uur geleden|% uur geleden
+% hour|% hours	% uur|% uur
+% ignored message —|% ignored messages —	% genegeerd bericht —|% genegeerde berichten —
+% is here.	% is er.
+% is typing...	% is aan het typen...
+% joined the party.	% doet mee met het feest.
+% just boosted the server!	% heeft de server zojuist geboost!
+% just landed.	% is zojuist geland.
+% just showed up!	% is er zojuist bij gekomen!
+% just slid into the server.	% is de server zojuist binnengegleden.
+% left the group.	% heeft de groep verlaten.
+% member|% members	% lid|% leden
+% minute ago|% minutes ago	% minuut geleden|% minuten geleden
+% minute|% minutes	% minuut|% minuten
+% month ago|% months ago	% maand geleden|% maanden geleden
+% of %	% van %
+% removed the custom group name.	% heeft de aangepaste groepsnaam verwijderd.
+% started a call.	% is een gesprek begonnen.
+% turned on encryption.	% heeft versleuteling ingeschakeld.
+% user|% users	% gebruiker|% gebruikers
+% use|% uses	% keer gebruikt|% keer gebruikt
+% vote|% votes	% stem|% stemmen
+% wants to encrypt this DM with a new key. Compare safety numbers after accepting.	% wil deze DM versleutelen met een nieuwe sleutel. Vergelijk na het accepteren de veiligheidsnummers.
+% wants to encrypt this DM.	% wil deze DM versleutelen.
+% year ago|% years ago	% jaar geleden|% jaar geleden
+% · End-to-end encrypted	% · End-to-end versleuteld
+%'s Group	Groep van %
+%'s encryption key changed. Compare safety numbers before trusting new messages.	De versleutelingssleutel van % is gewijzigd. Vergelijk de veiligheidsnummers voordat je nieuwe berichten vertrouwt.
+%'s server	Server van %
+%1 (%2 more)	%1 (nog %2)
+%1 FPS	%1 FPS
+%1 STICKERS — %2 SLOTS AVAILABLE	%1 STICKERS — %2 PLEKKEN BESCHIKBAAR
+%1 action %2	%1 actie %2
+%1 added %2 to the group.	%1 heeft %2 aan de groep toegevoegd.
+%1 and %2	%1 en %2
+%1 and %2 are typing...	%1 en %2 zijn aan het typen...
+%1 and %2 other|%1 and %2 others	%1 en %2 ander|%1 en %2 anderen
+%1 banned %2	%1 heeft %2 verbannen
+%1 changed the Stage topic: %2	%1 heeft het Stage-onderwerp gewijzigd: %2
+%1 changed the channel name: %2.	%1 heeft de kanaalnaam gewijzigd: %2.
+%1 changed the group name: %2.	%1 heeft de groepsnaam gewijzigd: %2.
+%1 created a channel	%1 heeft een kanaal aangemaakt
+%1 created a role	%1 heeft een rol aangemaakt
+%1 created a webhook	%1 heeft een webhook aangemaakt
+%1 created an emoji	%1 heeft een emoji aangemaakt
+%1 created an invite	%1 heeft een uitnodiging aangemaakt
+%1 deleted a channel	%1 heeft een kanaal verwijderd
+%1 deleted a message by %2	%1 heeft een bericht van %2 verwijderd
+%1 deleted a role	%1 heeft een rol verwijderd
+%1 deleted a webhook	%1 heeft een webhook verwijderd
+%1 deleted an emoji	%1 heeft een emoji verwijderd
+%1 deleted an invite	%1 heeft een uitnodiging verwijderd
+%1 enabled security actions until %2.	%1 heeft de beveiligingsacties ingeschakeld tot %2.
+%1 ended %2	%1 heeft %2 beëindigd
+%1 has achieved %2	%1 heeft %2 behaald
+%1 has added %2 to this channel. Its most important updates will show up here.	%1 heeft %2 aan dit kanaal toegevoegd. De belangrijkste updates verschijnen hier.
+%1 has blocked a message in %2	%1 heeft een bericht geblokkeerd in %2
+%1 has flagged a message in %2	%1 heeft een bericht gemarkeerd in %2
+%1 is now a speaker.	%1 is nu spreker.
+%1 joined %2 and has been a subscriber of %3 for %4 month!|%1 joined %2 and has been a subscriber of %3 for %4 months!	%1 is lid geworden van %2 en is al %4 maand abonnee van %3!|%1 is lid geworden van %2 en is al %4 maanden abonnee van %3!
+%1 joined %2 as a subscriber of %3!	%1 is lid geworden van %2 als abonnee van %3!
+%1 just boosted the server %2 times!	%1 heeft de server zojuist %2 keer geboost!
+%1 kicked %2	%1 heeft %2 gekickt
+%1 new message since %2|%1 new messages since %2	%1 nieuw bericht sinds %2|%1 nieuwe berichten sinds %2
+%1 of %2 slot used|%1 of %2 slots used	%1 van %2 plek gebruikt|%1 van %2 plekken gebruikt
+%1 pinned %2 to this channel. See all %3.	%1 heeft %2 in dit kanaal vastgemaakt. Bekijk alle %3.
+%1 reacted with %2	%1 reageerde met %2
+%1 removed %2 from the group.	%1 heeft %2 uit de groep verwijderd.
+%1 renewed %2 and has been a subscriber of %3 for %4 month!|%1 renewed %2 and has been a subscriber of %3 for %4 months!	%1 heeft %2 verlengd en is al %4 maand abonnee van %3!|%1 heeft %2 verlengd en is al %4 maanden abonnee van %3!
+%1 renewed %2 in their %3 membership!	%1 heeft %2 verlengd in diens %3-lidmaatschap!
+%1 reported a raid in %2.	%1 heeft een raid gemeld in %2.
+%1 requested to speak.	%1 wil spreken.
+%1 resolved an Activity Alert in %2.	%1 heeft een activiteitsmelding afgehandeld in %2.
+%1 said %2	%1 zei %2
+%1 started %2	%1 is %2 begonnen
+%1 started a call that lasted %2.	%1 begon een gesprek dat %2 duurde.
+%1 started a thread: %2. See all %3.	%1 is een thread begonnen: %2. Bekijk alle %3.
+%1 unbanned %2	%1 heeft de ban van %2 opgeheven
+%1 updated %2	%1 heeft %2 bijgewerkt
+%1 updated a channel	%1 heeft een kanaal bijgewerkt
+%1 updated a role	%1 heeft een rol bijgewerkt
+%1 updated a webhook	%1 heeft een webhook bijgewerkt
+%1 updated an emoji	%1 heeft een emoji bijgewerkt
+%1 updated the roles of %2	%1 heeft de rollen van %2 bijgewerkt
+%1 updated the server	%1 heeft de server bijgewerkt
+%1 vote · %2|%1 votes · %2	%1 stem · %2|%1 stemmen · %2
+%1 wants to make you the owner of %2. You'll be able to manage everything about it, and they'll stay a member.	%1 wil jou eigenaar maken van %2. Je kunt dan alles ervan beheren, en die persoon blijft lid.
+%1's poll %2 has closed.	De peiling %2 van %1 is gesloten.
+%1, %2 and %3	%1, %2 en %3
+%1, %2 at %3	%1, %2 om %3
+%1, %2, and %3 are typing...	%1, %2 en %3 zijn aan het typen...
+%1: %2	%1: %2
+%: a number	%: een getal
+%: a whole number	%: een geheel getal
+%: pick a channel	%: kies een kanaal
+%: pick a member	%: kies een lid
+%: pick a role	%: kies een rol
+%: true or false	%: waar of onwaar
+%d ago	%d geleden
+%d left	nog %d
+%h	%u
+%h ago	%u geleden
+%h left	nog %u
+%m	%m
+%m ago	%m geleden
+%m left	nog %m
+%mo ago	%mnd geleden
+%s	%s
+(edited)	(bewerkt)
+/% takes no options.	/% heeft geen opties.
+/%1 needs %2:	/%1 heeft %2 nodig:
+1 Day	1 dag
+1 Hour	1 uur
+1 Message	1 bericht
+1 Week	1 week
+1 day	1 dag
+1 hour	1 uur
+1 minute	1 minuut
+1 use	1 keer
+1 week	1 week
+10 Minutes	10 minuten
+10 minutes	10 minuten
+10 uses	10 keer
+100 uses	100 keer
+12 hours	12 uur
+12-hour	12-uurs
+15 minutes	15 minuten
+2 hours	2 uur
+2 to 4 letters or numbers	2 tot 4 letters of cijfers
+2 weeks	2 weken
+24 Hours	24 uur
+24 hours	24 uur
+24-hour	24-uurs
+25 uses	25 keer
+3 Days	3 dagen
+3 days	3 dagen
+30 days	30 dagen
+30 minutes	30 minuten
+3:00 PM	15:00
+4 hours	4 uur
+5 Minutes	5 minuten
+5 minutes	5 minuten
+5 uses	5 keer
+50 uses	50 keer
+6 hours	6 uur
+6-digit authentication code	6-cijferige verificatiecode
+60 Seconds	60 seconden
+60 seconds	60 seconden
+7 days	7 dagen
+8 hours	8 uur
+8-digit backup code	8-cijferige back-upcode
+@ OFF	@ UIT
+@ ON	@ AAN
+@MENTIONS	@VERMELDINGEN
+@everyone · applies to all server members	@everyone · geldt voor alle serverleden
+A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button.	Een toets met Ctrl, Alt, Shift of Cmd, alleen een modificatietoets, of een middelste of zijknop van de muis.
+A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button. Works in every app.	Een toets met Ctrl, Alt, Shift of Cmd, alleen een modificatietoets, of een middelste of zijknop van de muis. Werkt in elke app.
+A role needs a name.	Een rol heeft een naam nodig.
+A webhook needs a name.	Een webhook heeft een naam nodig.
+A wild % appeared.	Een wilde % verscheen.
+ACTION	ACTIE
+ACTIVE INVITE LINKS	ACTIEVE UITNODIGINGSLINKS
+ALL	ALLES
+ALL THE BITS! Going above 64 kbps may adversely affect people on poor connections.	ALLE BITS! Boven 64 kbps kan nadelig zijn voor mensen met een slechte verbinding.
+AM	a.m.
+ANIMATED EMOJI — % SLOTS AVAILABLE	GEANIMEERDE EMOJI — % PLEKKEN BESCHIKBAAR
+APP	APP
+AUDIENCE — %	PUBLIEK — %
+AUTHENTICATOR APP	AUTHENTICATOR-APP
+About Me	Over mij
+Accept	Accepteren
+Accept Friend Request	Vriendschapsverzoek accepteren
+Accept Invite	Uitnodiging accepteren
+Accept Server Ownership	Servereigendom accepteren
+Accept this message request (Friends, Message Requests) to reply.	Accepteer dit berichtverzoek (Vrienden, Berichtverzoeken) om te antwoorden.
+Accepting...	Accepteren...
+Access	Toegang
+Accessibility	Toegankelijkheid
+Account	Account
+Account Removal	Account verwijderen
+Activate	Activeren
+Active	Actief
+Active Now	Nu actief
+Activities	Activiteiten
+Activity Joining	Deelnemen aan activiteiten
+Activity Privacy	Activiteitsprivacy
+Activity Status	Activiteitsstatus
+Add Answer	Antwoord toevoegen
+Add Emoji	Emoji toevoegen
+Add Friend	Vriend toevoegen
+Add Friend Nickname	Bijnaam voor vriend toevoegen
+Add Note	Notitie toevoegen
+Add Reaction	Reactie toevoegen
+Add Reactions	Reacties toevoegen
+Add Tag	Tag toevoegen
+Add a Keybind	Sneltoets toevoegen
+Add a Question	Vraag toevoegen
+Add a channel	Kanaal toevoegen
+Add a channel to override its default notification settings	Voeg een kanaal toe om de standaardmeldingsinstellingen ervan te overschrijven
+Add a description	Voeg een beschrijving toe
+Add a location, link, or something.	Voeg een locatie, link of iets anders toe.
+Add a role	Rol toevoegen
+Add an Account	Account toevoegen
+Add an optional message...	Voeg eventueel een bericht toe...
+Add another answer	Nog een antwoord toevoegen
+Add at least one word to block.	Voeg minstens één woord toe om te blokkeren.
+Add members or roles	Leden of rollen toevoegen
+Add this channel's updates to your server!	Voeg de updates van dit kanaal toe aan je server!
+Add this key to an authenticator app, then enter the code it shows.	Voeg deze sleutel toe aan een authenticator-app en voer daarna de code in die die toont.
+Add to Favorites	Aan favorieten toevoegen
+Add to Group DM	Aan groeps-DM toevoegen
+Add up to 5 traits to show off your server's interests and personality.	Voeg tot 5 kenmerken toe om de interesses en persoonlijkheid van je server te laten zien.
+Add up to 50 custom emoji that anyone can use in this server. Animated GIF emoji may be used by members with Discord Nitro. Emoji names must be at least 2 characters long and can only contain alphanumeric characters and underscores. Emoji must be under 256 KB in size.	Voeg tot 50 aangepaste emoji toe die iedereen in deze server kan gebruiken. Geanimeerde GIF-emoji kunnen worden gebruikt door leden met Discord Nitro. Emojinamen moeten minstens 2 tekens lang zijn en mogen alleen letters, cijfers en underscores bevatten. Emoji moeten kleiner zijn dan 256 KB.
+Add your pronouns	Voeg je voornaamwoorden toe
+Added %	% toegevoegd
+Adjust the size of the interface. You can also change this with % +/-.	Pas de grootte van de interface aan. Je kunt dit ook wijzigen met % +/-.
+Administrator	Beheerder
+Advanced Permissions	Geavanceerde machtigingen
+Advanced permissions	Geavanceerde machtigingen
+Age-Restricted Channel	Kanaal met leeftijdsbeperking
+All	Alles
+All Actions	Alle acties
+All Messages	Alle berichten
+All Users	Alle gebruikers
+All friends	Alle vrienden
+All messages will be filtered for sensitive image-based media.	Alle berichten worden gefilterd op gevoelige afbeeldingen.
+All set. Now share your event!	Alles klaar. Deel nu je evenement!
+Allow DMs from other members in servers	DM's van andere leden in servers toestaan
+Allow Discord to use and process my information to understand and improve Discord's services.	Discord toestaan mijn gegevens te gebruiken en te verwerken om de diensten van Discord te begrijpen en te verbeteren.
+Allow Friend Requests from...	Vriendschapsverzoeken toestaan van...
+Allow Multiple Answers	Meerdere antwoorden toestaan
+Allow anyone to @mention this role	Iedereen toestaan deze rol te @vermelden
+Allow direct messages from other members in this server.	Privéberichten van andere leden in deze server toestaan.
+Allow friends to join your game	Vrienden toestaan mee te doen met je game
+Allow members to change this server's name, switch regions, view all invites, add apps to this server and create and update AutoMod rules.	Leden toestaan de naam van deze server te wijzigen, van regio te wisselen, alle uitnodigingen te bekijken, apps aan deze server toe te voegen en AutoMod-regels te maken en bij te werken.
+Allow members to create invite-only threads.	Leden toestaan threads te maken die alleen op uitnodiging toegankelijk zijn.
+Allow members to create threads that everyone in a channel can view.	Leden toestaan threads te maken die iedereen in een kanaal kan bekijken.
+Allow members to send messages in text channels and create posts in forum channels.	Leden toestaan berichten te sturen in tekstkanalen en posts te maken in forumkanalen.
+Allow members to send messages in threads and in posts on forum channels.	Leden toestaan berichten te sturen in threads en in posts in forumkanalen.
+Allow message requests from server members you may not know	Berichtverzoeken toestaan van serverleden die je misschien niet kent
+Allow voice channel participants to join your game	Deelnemers in spraakkanalen toestaan mee te doen met je game
+Allowed words	Toegestane woorden
+Allows apps that members have added to their account to post messages. When disabled, the messages will be private.	Staat apps die leden aan hun account hebben toegevoegd toe berichten te plaatsen. Indien uitgeschakeld zijn de berichten privé.
+Allows links that members share to show embedded content in text channels.	Staat toe dat links die leden delen ingesloten inhoud tonen in tekstkanalen.
+Allows members to add custom emoji, stickers, and sounds in this server.	Staat leden toe aangepaste emoji, stickers en geluiden aan deze server toe te voegen.
+Allows members to add new emoji reactions to a message. If this permission is disabled, members can still react using any existing reactions on a message.	Staat leden toe nieuwe emojireacties aan een bericht toe te voegen. Als deze machtiging is uitgeschakeld, kunnen leden nog steeds reageren met bestaande reacties op een bericht.
+Allows members to be more easily heard in voice channels. When activated, the volume of others without this permission will be automatically lowered.	Zorgt dat leden beter te horen zijn in spraakkanalen. Indien actief wordt het volume van anderen zonder deze machtiging automatisch verlaagd.
+Allows members to change the nicknames of other members.	Staat leden toe de bijnamen van andere leden te wijzigen.
+Allows members to change their own nickname, a custom name for just this server.	Staat leden toe hun eigen bijnaam te wijzigen, een aangepaste naam voor alleen deze server.
+Allows members to change this channel's name, description, and settings. They can also delete it.	Staat leden toe de naam, beschrijving en instellingen van dit kanaal te wijzigen. Ze kunnen het ook verwijderen.
+Allows members to change this channel's permissions.	Staat leden toe de machtigingen van dit kanaal te wijzigen.
+Allows members to create and edit voice channel status.	Staat leden toe de status van spraakkanalen te maken en te bewerken.
+Allows members to create events.	Staat leden toe evenementen te maken.
+Allows members to create new roles and edit or delete roles lower than their highest role. Also allows members to change permissions of individual channels that they have access to.	Staat leden toe nieuwe rollen te maken en rollen onder hun hoogste rol te bewerken of te verwijderen. Staat leden ook toe de machtigingen te wijzigen van kanalen waartoe ze toegang hebben.
+Allows members to create polls.	Staat leden toe peilingen te maken.
+Allows members to create, edit, or delete channels.	Staat leden toe kanalen te maken, te bewerken of te verwijderen.
+Allows members to create, edit, or delete webhooks, which can post messages from other apps or sites into this server.	Staat leden toe webhooks te maken, te bewerken of te verwijderen. Webhooks kunnen berichten van andere apps of sites in deze server plaatsen.
+Allows members to deafen other members in voice channels, which means they won't be able to speak or hear others.	Staat leden toe andere leden in spraakkanalen doof te maken, waardoor die niet meer kunnen spreken of anderen kunnen horen.
+Allows members to delete or remove embeds from messages by other members.	Staat leden toe berichten van andere leden te verwijderen of er embeds uit te halen.
+Allows members to disconnect or move other members between voice channels that the member with this permission has access to.	Staat leden toe andere leden te verbreken of te verplaatsen tussen spraakkanalen waartoe het lid met deze machtiging toegang heeft.
+Allows members to edit and cancel events.	Staat leden toe evenementen te bewerken en te annuleren.
+Allows members to edit or remove custom emoji, stickers, and sounds in this server.	Staat leden toe aangepaste emoji, stickers en geluiden in deze server te bewerken of te verwijderen.
+Allows members to invite new people to this server.	Staat leden toe nieuwe mensen voor deze server uit te nodigen.
+Allows members to join voice channels and hear others.	Staat leden toe spraakkanalen te betreden en anderen te horen.
+Allows members to mute other members in voice channels for everyone.	Staat leden toe andere leden in spraakkanalen voor iedereen te dempen.
+Allows members to permanently ban and delete the message history of other members from this server.	Staat leden toe andere leden permanent uit deze server te verbannen en hun berichtgeschiedenis te verwijderen.
+Allows members to pin or unpin any message.	Staat leden toe elk bericht vast te maken of los te maken.
+Allows members to read previous messages sent in channels. If this permission is disabled, members only see messages sent when they are online. This does not fully apply to threads and forum posts.	Staat leden toe eerdere berichten in kanalen te lezen. Als deze machtiging is uitgeschakeld, zien leden alleen berichten die verstuurd zijn terwijl ze online waren. Dit geldt niet helemaal voor threads en forumposts.
+Allows members to remove other members from this server. Kicked members will be able to rejoin if they have another invite.	Staat leden toe andere leden uit deze server te verwijderen. Gekickte leden kunnen terugkomen als ze een nieuwe uitnodiging hebben.
+Allows members to rename, delete, close, and turn on slow mode for threads and posts. They can also view private threads.	Staat leden toe threads en posts te hernoemen, te verwijderen, te sluiten en de langzame modus in te schakelen. Ze kunnen ook privéthreads bekijken.
+Allows members to send messages without being affected by slowmode.	Staat leden toe berichten te sturen zonder last te hebben van de langzame modus.
+Allows members to send sounds from server soundboard.	Staat leden toe geluiden af te spelen van het soundboard van de server.
+Allows members to send text-to-speech messages by starting a message with /tts. These messages can be heard by anyone focused on the channel.	Staat leden toe tekst-naar-spraakberichten te sturen door een bericht met /tts te beginnen. Deze berichten zijn te horen voor iedereen die het kanaal open heeft.
+Allows members to send voice messages.	Staat leden toe spraakberichten te sturen.
+Allows members to share their video, screen share, or stream a game in this server.	Staat leden toe in deze server hun video of scherm te delen of een game te streamen.
+Allows members to speak in voice channels by simply talking. If this permission is disabled, members are required to use Push-to-talk. Good for controlling background noise or noisy members.	Staat leden toe in spraakkanalen te spreken door gewoon te praten. Als deze machtiging is uitgeschakeld, moeten leden Push-to-talk gebruiken. Handig tegen achtergrondgeluid of luidruchtige leden.
+Allows members to talk in voice channels. If this permission is disabled, members are default muted until somebody with the "Mute Members" permission un-mutes them.	Staat leden toe te praten in spraakkanalen. Als deze machtiging is uitgeschakeld, zijn leden standaard gedempt totdat iemand met de machtiging "Leden dempen" het dempen opheft.
+Allows members to upload files or media in text channels.	Staat leden toe bestanden of media te uploaden in tekstkanalen.
+Allows members to use @everyone (everyone in the server) or @here (only online members in that channel). They can also @mention all roles, even if the role's "Allow anyone to mention this role" permission is disabled.	Staat leden toe @everyone (iedereen in de server) of @here (alleen online leden in dat kanaal) te gebruiken. Ze kunnen ook alle rollen @vermelden, zelfs als de machtiging "Iedereen toestaan deze rol te vermelden" van die rol is uitgeschakeld.
+Allows members to use commands from applications, including slash commands and context menu commands.	Staat leden toe opdrachten van apps te gebruiken, waaronder slash-opdrachten en opdrachten in het contextmenu.
+Allows members to use emoji from other servers, if they're a Discord Nitro member.	Staat leden toe emoji van andere servers te gebruiken, als ze Discord Nitro hebben.
+Allows members to use sounds from other servers, if they're a Discord Nitro member.	Staat leden toe geluiden van andere servers te gebruiken, als ze Discord Nitro hebben.
+Allows members to use stickers from other servers, if they're a Discord Nitro member.	Staat leden toe stickers van andere servers te gebruiken, als ze Discord Nitro hebben.
+Allows members to view Server Insights, which shows data on community growth, engagement, and more. This will allow them to see certain data about channel activity, even for channels they cannot access.	Staat leden toe Serverinzichten te bekijken, met gegevens over de groei van de community, betrokkenheid en meer. Zo kunnen ze bepaalde gegevens over kanaalactiviteit zien, zelfs van kanalen waartoe ze geen toegang hebben.
+Allows members to view a record of who made which changes in this server.	Staat leden toe een overzicht te bekijken van wie welke wijzigingen in deze server heeft gemaakt.
+Allows members to view channels by default (excluding private channels).	Staat leden toe standaard kanalen te bekijken (behalve privékanalen).
+Allows members to view these channels by default. Disabling this for @everyone will make the category private.	Staat leden toe deze kanalen standaard te bekijken. Als je dit uitschakelt voor @everyone, wordt de categorie privé.
+Allows members to view this channel by default. Disabling this for @everyone will make this channel private.	Staat leden toe dit kanaal standaard te bekijken. Als je dit uitschakelt voor @everyone, wordt dit kanaal privé.
+Always	Altijd
+An emoji name, like smile	Een emojinaam, zoals smile
+An encrypted file couldn't be opened.|% encrypted files couldn't be opened.	Een versleuteld bestand kon niet worden geopend.|% versleutelde bestanden konden niet worden geopend.
+An error occurred, please try again.	Er is een fout opgetreden, probeer het opnieuw.
+An error occurred. Please try again.	Er is een fout opgetreden. Probeer het opnieuw.
+Announcement	Aankondiging
+Announcement Channel	Aankondigingskanaal
+Answer	Antwoord
+Answers	Antwoorden
+Anyone can join your server directly through Server Discovery	Iedereen kan via Serverontdekking direct lid worden van je server
+Anyone can use	Iedereen mag gebruiken
+Anyone with access to this text channel will be able to see the notifications.	Iedereen met toegang tot dit tekstkanaal kan de meldingen zien.
+App Directory	App-overzicht
+Appearance	Weergave
+Appends (╯°□°)╯︵ ┻━┻ to your message.	Voegt (╯°□°)╯︵ ┻━┻ toe aan je bericht.
+Appends ¯\\_(ツ)_/¯ to your message.	Voegt ¯\\_(ツ)_/¯ toe aan je bericht.
+Appends ┬─┬ノ( º _ ºノ) to your message.	Voegt ┬─┬ノ( º _ ºノ) toe aan je bericht.
+Applications	Apps
+Apply to Join	Aanvragen om lid te worden
+Approve	Goedkeuren
+Apps	Apps
+Apps Permissions	Machtigingen voor apps
+Archived	Gearchiveerd
+Archived Threads	Gearchiveerde threads
+Are you building a Community? Convert to a Community Server to access additional administrative tools that can help you moderate, run, and grow your server.	Bouw je aan een community? Zet je server om naar een communityserver voor extra beheertools die je helpen je server te modereren, te runnen en te laten groeien.
+Are you sure that you want to delete your account? This will immediately log you out of your account and you will not be able to log in again.	Weet je zeker dat je je account wilt verwijderen? Je wordt meteen uitgelogd en kunt daarna niet meer inloggen.
+Are you sure that you want to disable your account? This will immediately log you out and make your account inaccessible to anyone.	Weet je zeker dat je je account wilt uitschakelen? Je wordt meteen uitgelogd en je account is dan voor niemand meer toegankelijk.
+Are you sure you want to ban @%1 from %2? They won't be able to come back until the ban is lifted.	Weet je zeker dat je @%1 uit %2 wilt verbannen? Die kan pas terugkomen als de ban is opgeheven.
+Are you sure you want to delete %? This action cannot be undone.	Weet je zeker dat je % wilt verwijderen? Dit kan niet ongedaan worden gemaakt.
+Are you sure you want to delete %? This cannot be undone.	Weet je zeker dat je % wilt verwijderen? Dit kan niet ongedaan worden gemaakt.
+Are you sure you want to delete :%:? This cannot be undone.	Weet je zeker dat je :%: wilt verwijderen? Dit kan niet ongedaan worden gemaakt.
+Are you sure you want to delete the rule %? This cannot be undone.	Weet je zeker dat je de regel % wilt verwijderen? Dit kan niet ongedaan worden gemaakt.
+Are you sure you want to delete this message?	Weet je zeker dat je dit bericht wilt verwijderen?
+Are you sure you want to delete this role? This action cannot be undone.	Weet je zeker dat je deze rol wilt verwijderen? Dit kan niet ongedaan worden gemaakt.
+Are you sure you want to delete this template? Its link will stop working.	Weet je zeker dat je deze sjabloon wilt verwijderen? De link ervan werkt dan niet meer.
+Are you sure you want to kick @%1 from %2? They will be able to rejoin again with a new invite.	Weet je zeker dat je @%1 uit %2 wilt kicken? Met een nieuwe uitnodiging kan die weer lid worden.
+Are you sure you want to logout?	Weet je zeker dat je wilt uitloggen?
+Are you sure you want to remove all embeds on this message? This will remove them for everyone.	Weet je zeker dat je alle embeds uit dit bericht wilt verwijderen? Ze worden voor iedereen verwijderd.
+Are you sure you want to remove all of the reactions for this emoji from this message?	Weet je zeker dat je alle reacties met deze emoji van dit bericht wilt verwijderen?
+Are you sure you want to remove all the reactions on this message?	Weet je zeker dat je alle reacties op dit bericht wilt verwijderen?
+Are you sure you want to revoke the invite %? Nobody will be able to join with it.	Weet je zeker dat je de uitnodiging % wilt intrekken? Niemand kan er dan nog mee lid worden.
+Ask for a new invite	Vraag om een nieuwe uitnodiging
+Ask new members what they're here for; each answer gives them channels and roles.	Vraag nieuwe leden waarvoor ze komen; elk antwoord geeft ze kanalen en rollen.
+Attach Files	Bestanden bijvoegen
+Attachment removed	Bijlage verwijderd
+Attachments	Bijlagen
+Audit Log	Auditlogboek
+Authorized Apps	Geautoriseerde apps
+Auto	Auto
+AutoMod	AutoMod
+Automatic	Automatisch
+Automatic Gain Control	Automatische versterking
+Automatically determine input sensitivity	Invoergevoeligheid automatisch bepalen
+Automatically enable Streamer Mode if OBS or XSplit are running	Streamermodus automatisch inschakelen als OBS of XSplit draait
+Automatically filter suspected spam messages	Vermoedelijke spamberichten automatisch filteren
+Automatically move members to this channel and mute them when they have been idle for longer than the inactive timeout. This does not affect browsers.	Leden automatisch naar dit kanaal verplaatsen en dempen als ze langer inactief zijn dan de inactiviteitstijd. Dit geldt niet voor browsers.
+Automatically open fastcord when your computer starts up	fastcord automatisch openen als je computer opstart
+Automatically scan and delete messages sent in this server that contain explicit media.	Berichten in deze server met expliciete media automatisch scannen en verwijderen.
+Avatar	Avatar
+BACK	TERUG
+BACKUP CODES	BACK-UPCODES
+Back	Terug
+Back / forward	Terug / vooruit
+Backup codes can only be used one time each and are for emergency access to your account!	Back-upcodes kunnen elk maar één keer worden gebruikt en zijn bedoeld voor noodtoegang tot je account!
+Backups	Back-ups
+Ban	Verbannen
+Ban %	% verbannen
+Ban '%' from Server	'%' uit server verbannen
+Ban Member	Lid verbannen
+Ban Members	Leden verbannen
+Banner	Banner
+Banner Color	Bannerkleur
+Bans	Bans
+Bitrate	Bitrate
+Block	Blokkeren
+Block Commonly Flagged Words	Vaak gemarkeerde woorden blokkeren
+Block Custom Words	Aangepaste woorden blokkeren
+Block Mention Spam	Vermeldingsspam blokkeren
+Block Suspected Spam Content	Vermoedelijke spam blokkeren
+Block Words in Member Profile Names	Woorden in profielnamen van leden blokkeren
+Block message	Bericht blokkeren
+Blocked	Geblokkeerd
+Blocked Users	Geblokkeerde gebruikers
+Blocked by your content filters	Geblokkeerd door je inhoudsfilters
+Blocked message	Geblokkeerd bericht
+Blocked words	Geblokkeerde woorden
+Blocked words in names	Geblokkeerde woorden in namen
+Blocks messages containing % word.|Blocks messages containing % words.	Blokkeert berichten met % woord.|Blokkeert berichten met % woorden.
+Blocks messages suspected to be spam.	Blokkeert berichten die vermoedelijk spam zijn.
+Blocks messages with more than % mentions.	Blokkeert berichten met meer dan % vermeldingen.
+Blocks words from Discord's commonly flagged lists.	Blokkeert woorden van de lijsten met vaak gemarkeerde woorden van Discord.
+Blocks words in member profile names.	Blokkeert woorden in profielnamen van leden.
+Blur	Vervagen
+Blur Background	Achtergrond vervagen
+Blur what's behind you on camera. Only your camera is changed.	Vervaag wat er achter je op de camera te zien is. Alleen je camerabeeld verandert.
+Bold / italic / underline	Vet / cursief / onderstrepen
+Bots and Apps	Bots en apps
+Browse	Bladeren
+Browse Channels	Kanalen bekijken
+Built-In	Ingebouwd
+Bulgarian	Bulgaars
+By creating a server, you agree to Discord's Community Guidelines.	Door een server te maken ga je akkoord met de Communityrichtlijnen van Discord.
+By enabling the widget, your server profile will be visible to others outside of your server members. You can control Profile privacy in Server Settings > Profile.	Als je de widget inschakelt, is je serverprofiel ook zichtbaar voor mensen die geen lid zijn. Je beheert de profielprivacy in Serverinstellingen > Profiel.
+By making a category private, only select members and roles will be able to view this category. Linked channels in this category will automatically match to this setting.	Als je een categorie privé maakt, kunnen alleen geselecteerde leden en rollen deze categorie bekijken. Gekoppelde kanalen in deze categorie nemen deze instelling automatisch over.
+By making a channel private, only select members and roles will be able to view this channel.	Als je een kanaal privé maakt, kunnen alleen geselecteerde leden en rollen dit kanaal bekijken.
+By making a channel private, only select members and roles will have access to view or connect to this channel.	Als je een kanaal privé maakt, kunnen alleen geselecteerde leden en rollen dit kanaal bekijken of ermee verbinden.
+Bypass Slowmode	Langzame modus omzeilen
+CHANNEL OR CATEGORY	KANAAL OF CATEGORIE
+CONFIRM NEW PASSWORD	NIEUW WACHTWOORD BEVESTIGEN
+CURRENT PASSWORD	HUIDIG WACHTWOORD
+Call	Bellen
+Cancel	Annuleren
+Cancel Event	Evenement annuleren
+Cancel Friend Request	Vriendschapsverzoek annuleren
+Careful — you have unsaved changes!	Let op — je hebt niet-opgeslagen wijzigingen!
+Category Name	Categorienaam
+Category deleted	Categorie verwijderd
+Change %	% wijzigen
+Change Avatar	Avatar wijzigen
+Change Nickname	Bijnaam wijzigen
+Change Password	Wachtwoord wijzigen
+Change Server Icon	Serverpictogram wijzigen
+Channel	Kanaal
+Channel Name	Kanaalnaam
+Channel Notification Overrides	Meldingsuitzonderingen per kanaal
+Channel Topic	Kanaalonderwerp
+Channel Type	Kanaaltype
+Channel deleted	Kanaal verwijderd
+Channel unmuted	Kanaal niet meer gedempt
+Channels	Kanalen
+Channels & Roles	Kanalen en rollen
+Channels Followed (%)	Gevolgde kanalen (%)
+Channels matching #%	Kanalen die overeenkomen met #%
+Chat	Chat
+Chat Font Scaling	Lettergrootte chat
+Check your email for a login link	Kijk in je e-mail voor een inloglink
+Check your phone!	Kijk op je telefoon!
+Checking the file…	Bestand controleren…
+Chinese, China	Chinees, China
+Chinese, Taiwan	Chinees, Taiwan
+Choose Image	Afbeelding kiezen
+Choose a link people can use to join, discord.gg/<code>.	Kies een link waarmee mensen lid kunnen worden, discord.gg/<code>.
+Choose a server	Kies een server
+Choose the language you want Discord to display.	Kies de taal waarin Discord wordt weergegeven.
+Choose what happens to images and videos Discord detects as explicit.	Kies wat er gebeurt met afbeeldingen en video's die Discord als expliciet herkent.
+Clear	Wissen
+Clear Custom Status	Aangepaste status wissen
+Clear after	Wissen na
+Clear permissions	Machtigingen wissen
+Click Again to Reset	Klik nogmaals om te resetten
+Click any channel, then pick a request whose name starts with "messages" or "science".	Klik op een kanaal en kies daarna een verzoek waarvan de naam begint met "messages" of "science".
+Click to add a note	Klik om een notitie toe te voegen
+Click to see attachment	Klik om de bijlage te bekijken
+Close DM	DM sluiten
+Collapse	Inklappen
+Collapse All Categories	Alle categorieën inklappen
+Collapse Category	Categorie inklappen
+Commands	Opdrachten
+Commands matching /%	Opdrachten die overeenkomen met /%
+Community Overview	Communityoverzicht
+Community Updates Channel	Kanaal voor communityupdates
+Community servers follow Discord's Community Guidelines.	Communityservers volgen de Communityrichtlijnen van Discord.
+Community servers have more tools to help you moderate and grow your server.	Communityservers hebben meer tools om je server te modereren en te laten groeien.
+Compact	Compact
+Compare	Vergelijken
+Compare these with %, in person or on a call. If they match, no one can read this DM in between.	Vergelijk deze met %, in persoon of tijdens een gesprek. Als ze overeenkomen, kan niemand onderweg deze DM lezen.
+Configure system event messages sent to your server.	Stel de systeemberichten in die naar je server worden gestuurd.
+Confirm	Bevestigen
+Confirm Request	Verzoek bevestigen
+Confirm your age to join this server.	Bevestig je leeftijd om lid te worden van deze server.
+Confirming...	Bevestigen...
+Connect	Verbinden
+Connect these accounts and unlock special Discord integrations. The sign-in opens in your browser.	Koppel deze accounts en ontgrendel speciale Discord-integraties. Het inloggen opent in je browser.
+Connected Apps	Gekoppelde apps
+Connecting	Verbinden
+Connecting...	Verbinden...
+Connecting…	Verbinden…
+Connection Info	Verbindingsinfo
+Connection lost. Messages may be out of date.	Verbinding verbroken. Berichten zijn mogelijk verouderd.
+Connections	Koppelingen
+Content Filters	Inhoudsfilters
+Continue	Doorgaan
+Control who can see your profile info, like your bio and connected accounts.	Bepaal wie je profielinfo kan zien, zoals je bio en gekoppelde accounts.
+Copied	Gekopieerd
+Copy	Kopiëren
+Copy Category ID	Categorie-ID kopiëren
+Copy Channel ID	Kanaal-ID kopiëren
+Copy Event Link	Evenementlink kopiëren
+Copy Image	Afbeelding kopiëren
+Copy Image Link	Afbeeldingslink kopiëren
+Copy Link	Link kopiëren
+Copy Media Link	Medialink kopiëren
+Copy Message ID	Bericht-ID kopiëren
+Copy Message Link	Berichtlink kopiëren
+Copy Server ID	Server-ID kopiëren
+Copy Text	Tekst kopiëren
+Copy User ID	Gebruikers-ID kopiëren
+Copy Username	Gebruikersnaam kopiëren
+Copy Webhook URL	Webhook-URL kopiëren
+Copy curl Command	curl-opdracht kopiëren
+Copy the event link below to invite people to your event. This also acts as a server invite link.	Kopieer de evenementlink hieronder om mensen voor je evenement uit te nodigen. Deze werkt ook als uitnodigingslink voor de server.
+Copy your account's token once from Discord in a web browser.	Kopieer de token van je account één keer uit Discord in een webbrowser.
+Couldn't accept encryption.	Kan versleuteling niet accepteren.
+Couldn't cancel the event.	Kan het evenement niet annuleren.
+Couldn't change avatar	Kan avatar niet wijzigen
+Couldn't create an invite link.	Kan geen uitnodigingslink maken.
+Couldn't create an invite.	Kan geen uitnodiging maken.
+Couldn't delete the channel: %	Kan het kanaal niet verwijderen: %
+Couldn't encrypt the message.	Kan het bericht niet versleutelen.
+Couldn't join %: %	Kan niet deelnemen aan %: %
+Couldn't load onboarding.	Kan onboarding niet laden.
+Couldn't load the AutoMod rules.	Kan de AutoMod-regels niet laden.
+Couldn't load the applications.	Kan de apps niet laden.
+Couldn't load the audit log.	Kan het auditlogboek niet laden.
+Couldn't load the bans.	Kan de bans niet laden.
+Couldn't load the invites.	Kan de uitnodigingen niet laden.
+Couldn't load the members.	Kan de leden niet laden.
+Couldn't load the role's members.	Kan de leden van de rol niet laden.
+Couldn't load the server rules.	Kan de serverregels niet laden.
+Couldn't load the server's tag.	Kan de tag van de server niet laden.
+Couldn't load the template.	Kan de sjabloon niet laden.
+Couldn't load the webhooks.	Kan de webhooks niet laden.
+Couldn't move the channel	Kan het kanaal niet verplaatsen
+Couldn't play it here, so it opened in your browser.	Kon het hier niet afspelen, dus het is in je browser geopend.
+Couldn't reach %1: %2 Retrying.	Kan %1 niet bereiken: %2 Opnieuw proberen.
+Couldn't reach Discord. Check your connection and try again.	Kan Discord niet bereiken. Controleer je verbinding en probeer het opnieuw.
+Couldn't reach Discord. Try again.	Kan Discord niet bereiken. Probeer het opnieuw.
+Couldn't reach the server.	Kan de server niet bereiken.
+Couldn't reach the server. Check your connection and try again.	Kan de server niet bereiken. Controleer je verbinding en probeer het opnieuw.
+Couldn't save the file.	Kan het bestand niet opslaan.
+Couldn't save the image.	Kan de afbeelding niet opslaan.
+Couldn't save the token.	Kan de token niet opslaan.
+Couldn't turn on encryption.	Kan versleuteling niet inschakelen.
+Couldn't upload emoji	Kan emoji niet uploaden
+Cozy	Ruim
+Create	Maken
+Create Category	Categorie maken
+Create Channel	Kanaal maken
+Create DM	DM maken
+Create Emoji	Emoji maken
+Create Event	Evenement maken
+Create Events	Evenementen maken
+Create Expressions	Expressies maken
+Create Group DM	Groeps-DM maken
+Create Invite	Uitnodiging maken
+Create My Own	Zelf maken
+Create Poll	Peiling maken
+Create Polls	Peilingen maken
+Create Private Threads	Privéthreads maken
+Create Public Threads	Openbare threads maken
+Create Role	Rol maken
+Create Rule	Regel maken
+Create Thread	Thread maken
+Create Webhook	Webhook maken
+Create Your Server	Maak je server
+Create a poll	Maak een peiling
+Create a space for organized discussions	Maak een plek voor georganiseerde discussies
+Create one for me	Maak er een voor mij
+Created by %	Gemaakt door %
+Created on %1 by %2	Gemaakt op %1 door %2
+Creating an invite link…	Uitnodigingslink maken…
+Creating an invite...	Uitnodiging maken...
+Creating...	Maken...
+Creating…	Maken…
+Creation Date	Aanmaakdatum
+Croatian	Kroatisch
+Current Device	Huidig apparaat
+Custom Invite Link	Aangepaste uitnodigingslink
+Customize Your Server	Pas je server aan
+Customize how your server appears in invite links and, if enabled, in Server Discovery and Announcement Channel messages	Pas aan hoe je server verschijnt in uitnodigingslinks en, indien ingeschakeld, in Serverontdekking en berichten van aankondigingskanalen
+Customize your server with integrations. Manage webhooks, followed channels and apps.	Pas je server aan met integraties. Beheer webhooks, gevolgde kanalen en apps.
+Cut	Knippen
+Czech	Tsjechisch
+DAVE v%, % members	DAVE v%, % leden
+DEFAULT KEYBINDS	STANDAARDSNELTOETSEN
+DM closed	DM gesloten
+Danish	Deens
+Data & Privacy	Gegevens en privacy
+Date	Datum
+Deafen	Doof maken
+Deafen Members	Leden doof maken
+Deauthorize	Autorisatie intrekken
+Decline	Weigeren
+Default	Standaard
+Default Channels	Standaardkanalen
+Default Layout	Standaardindeling
+Default Notification Settings	Standaardmeldingsinstellingen
+Default Permissions	Standaardmachtigingen
+Default Sort Order	Standaardsortering
+Default Themes	Standaardthema's
+Default notifications become Only @mentions.	Standaardmeldingen worden Alleen @vermeldingen.
+Delete	Verwijderen
+Delete '%'	'%' verwijderen
+Delete Account	Account verwijderen
+Delete Category	Categorie verwijderen
+Delete Channel	Kanaal verwijderen
+Delete Emoji	Emoji verwijderen
+Delete Invite	Uitnodiging verwijderen
+Delete Message	Bericht verwijderen
+Delete Message History	Berichtgeschiedenis verwijderen
+Delete Question	Vraag verwijderen
+Delete Role	Rol verwijderen
+Delete Rule	Regel verwijderen
+Delete Server	Server verwijderen
+Delete Sticker	Sticker verwijderen
+Delete Template	Sjabloon verwijderen
+Delete Thread	Thread verwijderen
+Delete Webhook	Webhook verwijderen
+Deleted message	Verwijderd bericht
+Describe your sticker	Beschrijf je sticker
+Description	Beschrijving
+Description (alt text)	Beschrijving (alt-tekst)
+Description (optional)	Beschrijving (optioneel)
+Detects a burst of mention spam across the server and locks it down.	Herkent een golf van vermeldingsspam in de server en vergrendelt die.
+Developer	Ontwikkelaar
+Developer Mode	Ontwikkelaarsmodus
+Developer Mode exposes context menu items helpful for people writing apps using the Discord API.	De ontwikkelaarsmodus toont contextmenu-items die handig zijn voor wie apps maakt met de Discord-API.
+Devices	Apparaten
+Direct Message (DM) Permissions	Machtigingen voor privéberichten (DM)
+Direct Messages	Privéberichten
+Direct messages from friends	Privéberichten van vrienden
+Direct messages from others	Privéberichten van anderen
+Disable	Uitschakelen
+Disable Account	Account uitschakelen
+Disable All Notification Sounds	Alle meldingsgeluiden uitschakelen
+Disable Community	Community uitschakelen
+Disable all notifications	Alle meldingen uitschakelen
+Disable all sound effects	Alle geluidseffecten uitschakelen
+Disabling your account means you can recover it at any time after taking this action.	Als je je account uitschakelt, kun je het daarna op elk moment herstellen.
+Disconnect	Verbreken
+Disconnect From Voice Channel	Verbinding met spraakkanaal verbreken
+Disconnected	Verbinding verbroken
+Discord account	Discord-account
+Discord asked for a captcha, which fastcord can't show. Log in with the QR code instead.	Discord vraagt om een captcha, maar die kan fastcord niet tonen. Log in plaats daarvan in met de QR-code.
+Discord asked for a captcha, which fastcord can't show. Try on discord.com.	Discord vraagt om een captcha, maar die kan fastcord niet tonen. Probeer het op discord.com.
+Discord can filter out some messages that contain spam. These messages go to your Spam inbox.	Discord kan sommige berichten met spam eruit filteren. Die berichten gaan naar je spam-inbox.
+Discord didn't accept the saved login. Log in again.	Discord heeft de opgeslagen login niet geaccepteerd. Log opnieuw in.
+Discord failed to unpin that message for some reason. Sorry about that.	Discord kon dat bericht om de een of andere reden niet losmaken. Sorry daarvoor.
+Discord will prioritize this server in search to users who speak the selected language.	Discord geeft deze server voorrang in zoekresultaten voor gebruikers die de gekozen taal spreken.
+Discord's terms don't allow third-party clients, so using one can get an account flagged.	De voorwaarden van Discord staan geen clients van derden toe, dus als je er een gebruikt kan je account gemarkeerd worden.
+Discoverable	Vindbaar
+Dismiss	Sluiten
+Dismiss message	Bericht sluiten
+Display	Weergave
+Display Images, Videos and Lolcats	Afbeeldingen, video's en lolcats weergeven
+Display Name	Weergavenaam
+Display name	Weergavenaam
+Display on profile	Weergeven op profiel
+Display role members separately from online members	Rolleden apart van online leden weergeven
+Displays text with emphasis.	Toont tekst met nadruk.
+Do Not Disturb	Niet storen
+Do not filter	Niet filteren
+Do not filter direct messages	Privéberichten niet filteren
+Don't Delete Any	Niets verwijderen
+Don't clear	Niet wissen
+Don't show role colors	Rolkleuren niet tonen
+Done	Klaar
+Download	Downloaden
+Drop a file here, or browse	Sleep hier een bestand naartoe of blader
+Duration	Duur
+Dutch	Nederlands
+EDIT ROLE — %	ROL BEWERKEN — %
+EMAIL OR PHONE NUMBER	E-MAIL OF TELEFOONNUMMER
+EMOJI MATCHING	EMOJI DIE OVEREENKOMEN MET
+ENTER THE 6-DIGIT CODE	VOER DE 6-CIJFERIGE CODE IN
+EXPIRE AFTER	VERLOOPT NA
+EXPIRES	VERLOOPT
+Ease the chat and lists toward where you scroll. Off, they jump there at once (always, when your device asks for reduced motion).	Laat de chat en lijsten soepel meeschuiven naar waar je scrolt. Uit springen ze er meteen naartoe (altijd, als je apparaat om minder beweging vraagt).
+Echo Cancellation	Echo-onderdrukking
+Edit	Bewerken
+Edit Category	Categorie bewerken
+Edit Channel	Kanaal bewerken
+Edit Friend Nickname	Bijnaam voor vriend bewerken
+Edit Message	Bericht bewerken
+Edit Per-server Profile	Profiel per server bewerken
+Edit Profile	Profiel bewerken
+Edit Profiles	Profielen bewerken
+Edit Sound	Geluid bewerken
+Edit Thread	Thread bewerken
+Edit User Profile	Gebruikersprofiel bewerken
+Edit invite link.	Uitnodigingslink bewerken.
+Edit your last message	Je laatste bericht bewerken
+Email	E-mail
+Embed Links	Links insluiten
+Embed an HTML widget on your website to display your online members, voice channels, and invite link.	Sluit een HTML-widget in op je website om je online leden, spraakkanalen en uitnodigingslink te tonen.
+Emoji	Emoji
+Emoji / GIF / sticker picker	Emoji- / GIF- / stickerkiezer
+Enable Authenticator App	Authenticator-app inschakelen
+Enable Community	Community inschakelen
+Enable Community to access Server Discovery	Schakel Community in voor toegang tot Serverontdekking
+Enable Desktop Notifications	Bureaubladmeldingen inschakelen
+Enable Invites	Uitnodigingen inschakelen
+Enable Onboarding	Onboarding inschakelen
+Enable Reduced Motion	Minder beweging inschakelen
+Enable Server Widget	Serverwidget inschakelen
+Enable Streamer Mode	Streamermodus inschakelen
+Enable Unread Message Badge	Badge voor ongelezen berichten inschakelen
+Encrypt this DM	Deze DM versleutelen
+Encrypted message	Versleuteld bericht
+Encrypted messages are limited to % bytes for now.	Versleutelde berichten zijn voorlopig beperkt tot % bytes.
+End Date	Einddatum
+End Event	Evenement beëindigen
+End Poll Now	Peiling nu beëindigen
+End Time	Eindtijd
+End-to-end encrypted	End-to-end versleuteld
+End-to-end encryption	End-to-end versleuteling
+Engagement	Betrokkenheid
+English, UK	Engels, VK
+English, USA	Engels, VS
+Enter Discord Auth Code	Discord-verificatiecode invoeren
+Enter Discord Backup Code	Discord-back-upcode invoeren
+Enter a location	Voer een locatie in
+Enter a message to start the conversation!	Typ een bericht om het gesprek te beginnen!
+Enter an invite below to join an existing server	Voer hieronder een uitnodiging in om lid te worden van een bestaande server
+Enter server name	Voer servernaam in
+Enter your current password and a new password.	Voer je huidige wachtwoord en een nieuw wachtwoord in.
+Error	Fout
+Est. %	Sinds %
+Event Info	Evenementinfo
+Event Topic	Evenementonderwerp
+Event cancelled	Evenement geannuleerd
+Event is over	Evenement is afgelopen
+Events	Evenementen
+Events Permissions	Machtigingen voor evenementen
+Every answer needs a title.	Elk antwoord heeft een titel nodig.
+Every question needs a title and at least one answer.	Elke vraag heeft een titel en minstens één antwoord nodig.
+Everyone	Iedereen
+Everyone in this channel connects to the selected region. Automatic picks the best one for whoever starts the call.	Iedereen in dit kanaal maakt verbinding met de gekozen regio. Automatisch kiest de beste voor wie het gesprek begint.
+Everyone welcome %!	Iedereen, welkom %!
+Everyone who joins sees these channels, whatever they answer.	Iedereen die lid wordt ziet deze kanalen, wat ze ook antwoorden.
+Exempt a channel	Kanaal uitzonderen
+Exempt a role	Rol uitzonderen
+Exemptions	Uitzonderingen
+Expand (% lines)	Uitklappen (% regels)
+Expand (% of % lines)	Uitklappen (% van % regels)
+Expired	Verlopen
+Explicit image filter	Filter voor expliciete afbeeldingen
+Expression	Expressie
+FRAME RATE	FRAMERATE
+Failed to follow the channel, please try again.	Kan het kanaal niet volgen, probeer het opnieuw.
+Fastcord couldn't be installed.	Fastcord kon niet worden geïnstalleerd.
+Favorites	Favorieten
+File	Bestand
+File saved.	Bestand opgeslagen.
+Filename	Bestandsnaam
+Fill out the details of your event.	Vul de details van je evenement in.
+Filter by Action	Filteren op actie
+Filter by User	Filteren op gebruiker
+Filter direct messages from everyone	Privéberichten van iedereen filteren
+Filter direct messages from non-friends	Privéberichten van niet-vrienden filteren
+Filter messages from all members	Berichten van alle leden filteren
+Filter messages from server members without roles	Berichten van serverleden zonder rollen filteren
+Find or start a conversation	Zoek of begin een gesprek
+Find the perfect emoji	Vind de perfecte emoji
+Find the perfect reaction	Vind de perfecte reactie
+Find the perfect sticker	Vind de perfecte sticker
+Finding the video%	Video zoeken%
+Finish	Voltooien
+Finishing touches	Laatste details
+Finnish	Fins
+Fit more messages on screen at one time. #IRC	Toon meer berichten tegelijk op het scherm. #IRC
+Flagged as spam	Gemarkeerd als spam
+Flags	Vlaggen
+Folder Color	Mapkleur
+Folder Name	Mapnaam
+Folder Settings	Mapinstellingen
+Folder removed	Map verwijderd
+Follow	Volgen
+Followed!	Gevolgd!
+Food & Drink	Eten en drinken
+For 1 Hour	1 uur
+For 15 Minutes	15 minuten
+For 24 Hours	24 uur
+For 3 Days	3 dagen
+For 3 Hours	3 uur
+For 8 Hours	8 uur
+Forever	Voor altijd
+Forgot your password?	Wachtwoord vergeten?
+Forum	Forum
+Forward	Doorsturen
+Forward To	Doorsturen naar
+Forwarded	Doorgestuurd
+French	Frans
+Frequently Used	Vaak gebruikt
+Friend Nickname	Bijnaam voor vriend
+Friend Request Permissions	Machtigingen voor vriendschapsverzoeken
+Friend Request Sent	Vriendschapsverzoek verstuurd
+Friend removed	Vriend verwijderd
+Friend request cancelled	Vriendschapsverzoek geannuleerd
+Friend request ignored	Vriendschapsverzoek genegeerd
+Friends	Vrienden
+Friends & All Servers	Vrienden en alle servers
+Friends & Small Servers Only	Alleen vrienden en kleine servers
+Friends Only	Alleen vrienden
+Friends can ask to join or join the game you're playing.	Vrienden kunnen vragen om mee te doen of meedoen met de game die je speelt.
+Friends come online	Vrienden online komen
+Friends of friends	Vrienden van vrienden
+From User	Van gebruiker
+GIFs	GIF's
+GIFs can't be sent encrypted yet.	GIF's kunnen nog niet versleuteld worden verstuurd.
+Gallery view	Galerijweergave
+General	Algemeen
+General Category Permissions	Algemene categoriemachtigingen
+General Channel Permissions	Algemene kanaalmachtigingen
+General Server Permissions	Algemene servermachtigingen
+Generate Template	Sjabloon genereren
+Generate a New Link	Nieuwe link genereren
+German	Duits
+Get a copy of your data. It can take up to 30 days to prepare, and a download link is emailed to you when it's ready.	Vraag een kopie van je gegevens aan. Het klaarmaken kan tot 30 dagen duren, en je krijgt een downloadlink per e-mail als het klaar is.
+Give new members a quick way to find the channels and roles that matter to them.	Geef nieuwe leden een snelle manier om de kanalen en rollen te vinden die voor hen belangrijk zijn.
+Give your new server a personality with a name. You can always change it later.	Geef je nieuwe server persoonlijkheid met een naam. Je kunt die later altijd nog wijzigen.
+Glad you're here, %.	Fijn dat je er bent, %.
+Go Back	Terug
+Go To Channel	Naar kanaal
+Go back	Terug
+Go forward	Vooruit
+Go to Server	Naar server
+Good to see you, %.	Goed je te zien, %.
+Got It	Begrepen
+Grant temporary membership	Tijdelijk lidmaatschap geven
+Greek	Grieks
+Hang out together with voice, video, and screen share	Hang samen rond met spraak, video en scherm delen
+Hang out with voice, video, screenshare, and Go Live.	Hang rond met spraak, video, scherm delen en Live gaan.
+Happening Now	Nu bezig
+Have an invite already?	Heb je al een uitnodiging?
+Help	Help
+Here's a preview of your event.	Hier is een voorbeeld van je evenement.
+Hey, just double checking that you want to pin this message to #% for posterity and greatness?	Hé, even checken: wil je dit bericht vastmaken in #% voor het nageslacht en de eeuwige roem?
+Hey, just double checking that you want to pin this message to the current channel for posterity and greatness?	Hé, even checken: wil je dit bericht vastmaken in het huidige kanaal voor het nageslacht en de eeuwige roem?
+Hide	Verbergen
+Hide After Inactivity	Verbergen na inactiviteit
+Hide Chat	Chat verbergen
+Hide Fastcord window from screen capture	Fastcord-venster verbergen voor schermopnames
+Hide Muted Channels	Gedempte kanalen verbergen
+Hide invite links to my Discord servers	Uitnodigingslinks naar mijn Discord-servers verbergen
+Hide my personal information, such as email, connected accounts, and notes	Mijn persoonlijke gegevens verbergen, zoals e-mail, gekoppelde accounts en notities
+Hides Fastcord windows from most screen capture software.	Verbergt Fastcord-vensters voor de meeste schermopnamesoftware.
+High	Hoog
+Highest	Hoogst
+Highlights provide occasional updates when your friends are chatting in busy servers, and more.	Hoogtepunten geven je af en toe updates als je vrienden chatten in drukke servers, en meer.
+Hindi	Hindi
+History	Geschiedenis
+Hitting X makes fastcord minimize to the system tray instead of closing.	Met X wordt fastcord naar het systeemvak geminimaliseerd in plaats van gesloten.
+Hm, didn’t work. Double check that the username is correct.	Hm, dat werkte niet. Controleer of de gebruikersnaam klopt.
+Host	Host
+Host events with an audience	Organiseer evenementen met publiek
+How Discord Uses My Data	Hoe Discord mijn gegevens gebruikt
+How can people join your server?	Hoe kunnen mensen lid worden van je server?
+How did your server get started? Why should people join?	Hoe is je server begonnen? Waarom zouden mensen lid worden?
+Hungarian	Hongaars
+I acknowledge that by transferring ownership of this server to %, it officially belongs to them.	Ik begrijp dat deze server officieel van % is zodra ik het eigendom overdraag.
+I agree and understand	Ik ga akkoord en begrijp het
+I'm new here, say hi!	Ik ben nieuw hier, zeg hoi!
+I'm sure, use a backup code	Ik weet het zeker, gebruik een back-upcode
+IMAGE	AFBEELDING
+INPUT DEVICE	INVOERAPPARAAT
+INPUT MODE	INVOERMODUS
+INPUT SENSITIVITY	INVOERGEVOELIGHEID
+INPUT VOLUME	INVOERVOLUME
+INVITE CODE	UITNODIGINGSCODE
+INVITE LINK	UITNODIGINGSLINK
+INVITER	UITNODIGER
+INVITES SHOULD LOOK LIKE	UITNODIGINGEN ZIEN ER ZO UIT
+Icon	Pictogram
+Idle	Afwezig
+If Streamer Mode is enabled...	Als de streamermodus aan staat...
+If you do not have access to any other methods, the button below will activate in % second.|If you do not have access to any other methods, the button below will activate in % seconds.	Als je geen andere methoden kunt gebruiken, wordt de knop hieronder over % seconde actief.|Als je geen andere methoden kunt gebruiken, wordt de knop hieronder over % seconden actief.
+If you do not have access to any other methods, use the other button below to proceed.	Als je geen andere methoden kunt gebruiken, ga dan verder met de andere knop hieronder.
+Ignore	Negeren
+Ignore Friend Request	Vriendschapsverzoek negeren
+Ignored Users	Genegeerde gebruikers
+Ignored message	Genegeerd bericht
+Image saved.	Afbeelding opgeslagen.
+Important updates for people in and out of the server	Belangrijke updates voor mensen binnen en buiten de server
+In Channel	In kanaal
+Inactive Channel	Inactief kanaal
+Inactive Timeout	Inactiviteitstijd
+Inbox	Inbox
+Incoming Call...	Inkomend gesprek...
+Incoming Friend Request	Inkomend vriendschapsverzoek
+Indonesian	Indonesisch
+Insert Timestamp	Tijdstempel invoegen
+Install	Installeren
+Install Fastcord to open it from the Start menu.	Installeer Fastcord om het vanuit het startmenu te openen.
+Installing…	Installeren…
+Instructions Sent	Instructies verstuurd
+Insults and Slurs	Beledigingen en scheldwoorden
+Integrations	Integraties
+Interested	Geïnteresseerd
+Invalid Invite	Ongeldige uitnodiging
+Invalid date or time	Ongeldige datum of tijd
+Invisible	Onzichtbaar
+Invite	Uitnodigen
+Invite Channel	Uitnodigingskanaal
+Invite Invalid	Uitnodiging ongeldig
+Invite Only	Alleen op uitnodiging
+Invite People	Mensen uitnodigen
+Invite friends to %	Vrienden uitnodigen voor %
+Invite to Server	Uitnodigen voor server
+Invite to Speak	Uitnodigen om te spreken
+Invites	Uitnodigingen
+Invites are currently paused for this server. Please try again later.	Uitnodigingen zijn momenteel gepauzeerd voor deze server. Probeer het later opnieuw.
+Invites are paused: nobody can join with an invite link until they're enabled again.	Uitnodigingen zijn gepauzeerd: niemand kan lid worden met een uitnodigingslink totdat ze weer zijn ingeschakeld.
+It's quiet for now...	Het is voorlopig stil...
+Italian	Italiaans
+JOINED DISCORD	LID VAN DISCORD SINDS
+JSON API	JSON-API
+January|February|March|April|May|June|July|August|September|October|November|December	januari|februari|maart|april|mei|juni|juli|augustus|september|oktober|november|december
+Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec	jan|feb|mrt|apr|mei|jun|jul|aug|sep|okt|nov|dec
+Japanese	Japans
+Jitter	Jitter
+Join	Deelnemen
+Join Call	Deelnemen aan gesprek
+Join Server	Lid worden van server
+Join Thread	Deelnemen aan thread
+Join Voice	Deelnemen aan spraak
+Join a Server	Lid worden van een server
+Join the call	Neem deel aan het gesprek
+Joined Threads	Threads waaraan je deelneemt
+Joining…	Deelnemen…
+Jump	Ga naar
+Jump To Present	Naar het heden
+Jump to oldest unread message	Naar oudste ongelezen bericht
+KEYBIND	SNELTOETS
+Keep Current Permissions	Huidige machtigingen behouden
+Keep these somewhere safe. Each code signs you in once if you lose your authenticator app; they are shown only now.	Bewaar deze op een veilige plek. Met elke code kun je één keer inloggen als je je authenticator-app kwijt bent; ze worden alleen nu getoond.
+Keep your server private, or open it up for more people to join.	Houd je server privé of stel hem open zodat meer mensen lid kunnen worden.
+Keybinds	Sneltoetsen
+Keybinds only work while fastcord is focused. To use them in other apps, allow fastcord under Input Monitoring in System Settings, then restart fastcord.	Sneltoetsen werken alleen als fastcord actief is. Om ze in andere apps te gebruiken, sta je fastcord toe onder Invoermonitoring in Systeeminstellingen en start je fastcord opnieuw.
+Keybinds only work while fastcord is focused: this desktop doesn't let apps see keys pressed in other windows.	Sneltoetsen werken alleen als fastcord actief is: deze desktop laat apps geen toetsen zien die in andere vensters worden ingedrukt.
+Keybinds work in every app, also while fastcord is in the background.	Sneltoetsen werken in elke app, ook als fastcord op de achtergrond draait.
+Keyboard Shortcuts	Sneltoetsen
+Keyboard shortcuts	Sneltoetsen
+Keyword: %	Trefwoord: %
+Kick	Kicken
+Kick %	% kicken
+Kick '%' from Server	'%' uit server kicken
+Kick Member	Lid kicken
+Kick, Approve, and Reject Members	Leden kicken, goedkeuren en afwijzen
+Korean	Koreaans
+LIVE	LIVE
+Language	Taal
+Language & Time	Taal en tijd
+Last sync: %	Laatste synchronisatie: %
+Leave Group	Groep verlaten
+Leave Server	Server verlaten
+Leave Thread	Thread verlaten
+Leaving Discord	Je verlaat Discord
+Left %	% verlaten
+Let everyone know how to use this channel!	Laat iedereen weten hoe dit kanaal gebruikt wordt!
+Let's Check	Even kijken
+Level %!	Level %!
+Limits	Limieten
+Limits the number of users that can connect to this voice channel. Users with the Move Members permission ignore this limit and can move other users into the channel.	Beperkt het aantal gebruikers dat verbinding kan maken met dit spraakkanaal. Gebruikers met de machtiging Leden verplaatsen negeren deze limiet en kunnen andere gebruikers naar het kanaal verplaatsen.
+Linked Roles	Gekoppelde rollen
+List view	Lijstweergave
+Lithuanian	Litouws
+Live Now	Nu live
+Loading sounds…	Geluiden laden…
+Loading...	Laden...
+Loading…	Laden…
+Location	Locatie
+Log In	Inloggen
+Log Out	Uitloggen
+Log Out All Known Devices	Alle bekende apparaten uitloggen
+Log in	Inloggen
+Log in to Discord in your web browser.	Log in bij Discord in je webbrowser.
+Log in with QR Code	Inloggen met QR-code
+Log in with a token	Inloggen met een token
+Log out of all known devices	Uitloggen op alle bekende apparaten
+Logged-in Devices	Ingelogde apparaten
+Logging in as %	Inloggen als %
+Logging in…	Inloggen…
+Login or password is invalid.	Login of wachtwoord is ongeldig.
+Looking for screens…	Schermen zoeken…
+Lotus Mode	Lotusmodus
+Low	Laag
+Lower Hand	Hand laten zakken
+MAX NUMBER OF USES	MAXIMAAL AANTAL KEER GEBRUIKEN
+MEMBER SINCE	LID SINDS
+MEMBERS	LEDEN
+MUTE	DEMPEN
+Main Profile	Hoofdprofiel
+Make a selection	Maak een keuze
+Manage Accounts	Accounts beheren
+Manage Channel	Kanaal beheren
+Manage Channels	Kanalen beheren
+Manage Events	Evenementen beheren
+Manage Expressions	Expressies beheren
+Manage Members	Leden beheren
+Manage Messages	Berichten beheren
+Manage Nicknames	Bijnamen beheren
+Manage Permissions	Machtigingen beheren
+Manage Roles	Rollen beheren
+Manage Server	Server beheren
+Manage Threads and Posts	Threads en posts beheren
+Manage Webhooks	Webhooks beheren
+Manage settings that help keep your server active.	Beheer instellingen die je server actief houden.
+Mark All as Read	Alles als gelezen markeren
+Mark As Read	Als gelezen markeren
+Mark Folder As Read	Map als gelezen markeren
+Mark Unread	Als ongelezen markeren
+Mark a message unread	Een bericht als ongelezen markeren
+Mark as Verified	Als geverifieerd markeren
+Mark as spoiler	Als spoiler markeren
+Mark channel read	Kanaal als gelezen markeren
+Mark server read	Server als gelezen markeren
+Marked as read	Gemarkeerd als gelezen
+Marks your message as a spoiler.	Markeert je bericht als spoiler.
+Match your device's light or dark mode.	Volg de lichte of donkere modus van je apparaat.
+Max file size is % MB please.	De maximale bestandsgrootte is % MB.
+Measuring	Meten
+Medium	Gemiddeld
+Member Since	Lid sinds
+Members	Leden
+Members can pick more than one answer	Leden kunnen meer dan één antwoord kiezen
+Members can wear your server's tag next to their name across Discord.	Leden kunnen de tag van je server overal op Discord naast hun naam dragen.
+Members in timeout can't send messages, react, join voice or speak until it ends.	Leden met een time-out kunnen tot die afloopt geen berichten sturen, reageren, aan spraak deelnemen of spreken.
+Members in timeout can't send messages, react, join voice or start threads until it ends.	Leden met een time-out kunnen tot die afloopt geen berichten sturen, reageren, aan spraak deelnemen of threads beginnen.
+Members matching @%	Leden die overeenkomen met @%
+Members must answer this question to join.	Leden moeten deze vraag beantwoorden om lid te worden.
+Members of the server must meet the following criteria before they can send messages in text channels or initiate a direct message conversation. If a member has an assigned role this does not apply.	Leden van de server moeten aan de volgende criteria voldoen voordat ze berichten kunnen sturen in tekstkanalen of een privégesprek kunnen beginnen. Dit geldt niet voor leden met een toegewezen rol.
+Members use the colour of the highest role they have on the roles list.	Leden krijgen de kleur van hun hoogste rol in de rollenlijst.
+Members use the colour of the highest role they have on this list. Drag roles, or use the arrows, to reorder them.	Leden krijgen de kleur van hun hoogste rol in deze lijst. Sleep rollen of gebruik de pijlen om ze te herschikken.
+Members will be restricted to sending one message and creating one thread per this interval, unless they have the Bypass Slowmode permission.	Leden kunnen per deze periode maar één bericht sturen en één thread maken, tenzij ze de machtiging Langzame modus omzeilen hebben.
+Members with a matching name can't talk or interact until they change it.	Leden met een overeenkomende naam kunnen niet praten of reageren totdat ze die wijzigen.
+Members with this permission will have every permission and will also bypass all channel specific permissions or restrictions (for example, these members would get access to all private channels). This is a dangerous permission to grant.	Leden met deze machtiging hebben alle machtigingen en omzeilen ook alle kanaalspecifieke machtigingen of beperkingen (ze krijgen bijvoorbeeld toegang tot alle privékanalen). Dit is een gevaarlijke machtiging om te geven.
+Members — %	Leden — %
+Membership Permissions	Machtigingen voor lidmaatschap
+Mention	Vermelden
+Mention %	% vermelden
+Mention @everyone, @here, and All Roles	@everyone, @here en alle rollen vermelden
+Mention limit	Vermeldingslimiet
+Mention raid protection	Bescherming tegen vermeldingsraids
+Mention removed	Vermelding verwijderd
+Mentions	Vermeldingen
+Mentions User	Vermeldt gebruiker
+Message	Bericht
+Message #%	Bericht naar #%
+Message %	Bericht naar %
+Message @%	Bericht naar @%
+Message @% (encrypted)	Bericht naar @% (versleuteld)
+Message @% (not encrypted)	Bericht naar @% (niet versleuteld)
+Message Contains	Bericht bevat
+Message Display	Berichtweergave
+Message Requests	Berichtverzoeken
+Message deleted	Bericht verwijderd
+Message failed to send.	Bericht kon niet worden verstuurd.
+Message link copied: paste it into Discord's report form	Berichtlink gekopieerd: plak die in het meldformulier van Discord
+Message request ignored	Berichtverzoek genegeerd
+Message unpinned	Bericht losgemaakt
+Messages Failed To Load	Berichten konden niet worden geladen
+Messages from members you may not know go to Message Requests.	Berichten van leden die je misschien niet kent gaan naar Berichtverzoeken.
+Messages from people you may not know go to Message Requests instead of your DMs.	Berichten van mensen die je misschien niet kent gaan naar Berichtverzoeken in plaats van naar je DM's.
+Messages from server members without a role will be filtered for sensitive image-based media.	Berichten van serverleden zonder rol worden gefilterd op gevoelige afbeeldingen.
+Messages in servers	Berichten in servers
+Messages will not be filtered for sensitive image-based media.	Berichten worden niet gefilterd op gevoelige afbeeldingen.
+Messaging Permissions	Machtigingen voor berichten
+Minimize to Tray	Minimaliseren naar systeemvak
+Mobile Push Notifications	Pushmeldingen op mobiel
+Moderation	Moderatie
+Moderators must have two-factor authentication enabled to ban, kick, or timeout members and delete messages.	Moderators moeten tweestapsverificatie hebben ingeschakeld om leden te verbannen, te kicken of een time-out te geven en berichten te verwijderen.
+Moderators only	Alleen moderators
+Modern, beautiful, and easy on your eyes.	Modern, mooi en prettig voor je ogen.
+Modify Attachment	Bijlage aanpassen
+Motion	Beweging
+Move Members	Leden verplaatsen
+Move To	Verplaatsen naar
+Move to Audience	Naar publiek verplaatsen
+Multi-Factor Authentication	Meerstapsverificatie
+Must also be a member of this server for longer than 10 minutes.	Moet ook langer dan 10 minuten lid zijn van deze server.
+Must also be registered on Discord for longer than 5 minutes.	Moet ook langer dan 5 minuten geregistreerd zijn op Discord.
+Must have a verified email on their Discord account.	Moet een geverifieerd e-mailadres hebben op het Discord-account.
+Must have a verified phone on their Discord account.	Moet een geverifieerd telefoonnummer hebben op het Discord-account.
+Mute	Dempen
+Mute %	% dempen
+Mute Category	Categorie dempen
+Mute Channel	Kanaal dempen
+Mute Members	Leden dempen
+Mute New Events	Nieuwe evenementen dempen
+Mute Server	Server dempen
+Mute Thread	Thread dempen
+Muted until %1, %2	Gedempt tot %1, %2
+Muting a server prevents unread indicators and notifications from appearing unless you are mentioned.	Als je een server dempt, zie je geen ongelezen-indicatoren en meldingen meer, tenzij je wordt vermeld.
+Mutual Friends	Gemeenschappelijke vrienden
+Mutual Servers	Gemeenschappelijke servers
+My Account	Mijn account
+My server	Mijn server
+NAME	NAAM
+NEW	NIEUW
+NEW PASSWORD	NIEUW WACHTWOORD
+NO ACTIVE INVITE LINKS	GEEN ACTIEVE UITNODIGINGSLINKS
+NOTHING	NIETS
+Name	Naam
+Name your sound	Geef je geluid een naam
+Name your sticker	Geef je sticker een naam
+Nature	Natuur
+Navigate Back	Terug navigeren
+Navigate Forward	Vooruit navigeren
+Need an account?	Heb je een account nodig?
+Network	Netwerk
+Never	Nooit
+Nevermind	Laat maar
+New Category	Nieuwe categorie
+New Group DM	Nieuwe groeps-DM
+New Post	Nieuwe post
+New Thread	Nieuwe thread
+New Webhook	Nieuwe webhook
+New members must read and agree to these before they can talk.	Nieuwe leden moeten deze lezen en ermee akkoord gaan voordat ze kunnen praten.
+New members pick channels and roles from your questions when they join.	Nieuwe leden kiezen kanalen en rollen via je vragen als ze lid worden.
+New tag	Nieuwe tag
+New threads will stop showing in the channel list after being inactive for the specified duration.	Nieuwe threads worden niet meer in de kanalenlijst getoond als ze de opgegeven tijd inactief zijn.
+Newest	Nieuwste
+Next	Volgende
+Nickname	Bijnaam
+Nicknames are visible to everyone on this server. Do not change them unless you are enforcing a naming system or clearing a bad nickname.	Bijnamen zijn zichtbaar voor iedereen in deze server. Wijzig ze alleen als je een naamgevingssysteem handhaaft of een ongepaste bijnaam verwijdert.
+No GIFs found	Geen GIF's gevonden
+No Inactive Channel	Geen inactief kanaal
+No Invite	Geen uitnodiging
+No Keybind Set	Geen sneltoets ingesteld
+No System Messages	Geen systeemberichten
+No applications waiting	Geen aanvragen in behandeling
+No apps have been added to this server.	Er zijn geen apps aan deze server toegevoegd.
+No bans	Geen bans
+No bans match your search	Geen bans die overeenkomen met je zoekopdracht
+No emoji found	Geen emoji gevonden
+No favorites yet	Nog geen favorieten
+No file chosen	Geen bestand gekozen
+No friends in common	Geen gemeenschappelijke vrienden
+No limit	Geen limiet
+No logs yet	Nog geen logboeken
+No members found	Geen leden gevonden
+No members have this role yet.	Nog geen leden hebben deze rol.
+No message requests.	Geen berichtverzoeken.
+No one is speaking yet	Nog niemand spreekt
+No one's around right now.	Er is nu niemand.
+No one's here yet	Er is nog niemand
+No posts match	Geen overeenkomende posts
+No posts yet	Nog geen posts
+No questions yet.	Nog geen vragen.
+No reason given	Geen reden opgegeven
+No results	Geen resultaten
+No results found	Geen resultaten gevonden
+No servers in common	Geen gemeenschappelijke servers
+No sounds found	Geen geluiden gevonden
+No sounds yet.	Nog geen geluiden.
+No spam. Nice.	Geen spam. Mooi.
+No stickers found	Geen stickers gevonden
+No stickers yet	Nog geen stickers
+Nobody can join this server with an invite link until the pause ends or you enable invites again.	Niemand kan lid worden van deze server met een uitnodigingslink totdat de pauze voorbij is of je uitnodigingen weer inschakelt.
+Nobody has mentioned you recently.	Niemand heeft je onlangs vermeld.
+Noise Suppression	Ruisonderdrukking
+Noise Suppression: Off	Ruisonderdrukking: uit
+Noise Suppression: On	Ruisonderdrukking: aan
+None	Geen
+Norwegian	Noors
+Not Now	Niet nu
+Not connected to % yet.	Nog niet verbonden met %.
+Not encrypted	Niet versleuteld
+Not encrypted: Discord can read this message	Niet versleuteld: Discord kan dit bericht lezen
+Not end-to-end encrypted	Niet end-to-end versleuteld
+Not me, start over	Niet ik, opnieuw beginnen
+Note	Notitie
+Note (only visible to you)	Notitie (alleen zichtbaar voor jou)
+Note: Members with the "Mention @everyone, @here, and All Roles" permission will always be able to ping this role.	Let op: leden met de machtiging "@everyone, @here en alle rollen vermelden" kunnen deze rol altijd pingen.
+Nothing	Niets
+Notification Settings	Meldingsinstellingen
+Notification settings changed	Meldingsinstellingen gewijzigd
+Notifications	Meldingen
+Notify everyone online who has permission to view this channel.	Iedereen online met toestemming om dit kanaal te bekijken een melding sturen.
+Notify everyone who has permission to view this channel.	Iedereen met toestemming om dit kanaal te bekijken een melding sturen.
+Notify me when...	Stuur me een melding als...
+Notify users with this role who have permission to view this channel.	Gebruikers met deze rol die dit kanaal mogen bekijken een melding sturen.
+OUTPUT DEVICE	UITVOERAPPARAAT
+OUTPUT VOLUME	UITVOERVOLUME
+Objects	Objecten
+Off	Uit
+Offline	Offline
+Oh yeah. Pin it	O ja. Vastmaken
+Okay	Oké
+Oldest	Oudste
+On click	Bij klikken
+On servers I moderate	In servers die ik modereer
+Onboarding	Onboarding
+One rule per line, for example: Be respectful	Eén serverregel per regel, bijvoorbeeld: Wees respectvol
+Ongoing call	Lopend gesprek
+Online	Online
+Only @mentions	Alleen @vermeldingen
+Only servers and channels you have webhook permissions in are shown.	Alleen servers en kanalen waarin je webhookmachtigingen hebt worden getoond.
+Only you can see the nickname you give %.	Alleen jij kunt de bijnaam zien die je % geeft.
+Only you can see this · 	Alleen jij kunt dit zien ·
+Oops!	Oeps!
+Open Chat	Chat openen
+Open Image Link	Afbeeldingslink openen
+Open Link	Link openen
+Open Logs Folder	Logboekmap openen
+Open Media Link	Medialink openen
+Open Server Insights	Serverinzichten openen
+Open Settings	Instellingen openen
+Open discord.com	discord.com openen
+Open in Browser	Openen in browser
+Open in YouTube	Openen in YouTube
+Open the developer tools (Cmd+Option+I) and choose the Network tab.	Open de ontwikkelaarstools (Cmd+Option+I) en kies het tabblad Netwerk.
+Open the developer tools (Ctrl+Shift+I) and choose the Network tab.	Open de ontwikkelaarstools (Ctrl+Shift+I) en kies het tabblad Netwerk.
+Or, send a server invite link to a friend	Of stuur een vriend een uitnodigingslink voor de server
+Original message was deleted	Oorspronkelijk bericht is verwijderd
+Other Active Threads	Andere actieve threads
+Other Devices	Andere apparaten
+Outgoing Friend Request	Uitgaand vriendschapsverzoek
+Overview	Overzicht
+PASSWORD	WACHTWOORD
+PM	p.m.
+PRIVACY CODE	PRIVACYCODE
+PTT Activate	PTT activeren
+PTT Deactivate	PTT deactiveren
+PUSH TO TALK RELEASE DELAY	LOSLAATVERTRAGING PUSH-TO-TALK
+Packet loss	Pakketverlies
+Packets received	Pakketten ontvangen
+Packets sent	Pakketten verzonden
+Page %	Pagina %
+Password	Wachtwoord
+Password and Authentication	Wachtwoord en verificatie
+Passwords do not match!	Wachtwoorden komen niet overeen!
+Paste	Plakken
+Paste an emoji (optional)	Plak een emoji (optioneel)
+Paste your token	Plak je token
+Pause Invites	Uitnodigingen pauzeren
+Pending	In afwachting
+People	Mensen
+People can join your server directly with an invite	Mensen kunnen direct lid worden van je server met een uitnodiging
+People in a voice channel with you can join the game you're playing.	Mensen die met jou in een spraakkanaal zitten kunnen meedoen met de game die je speelt.
+People must submit an application and be approved to join	Mensen moeten een aanvraag indienen en goedgekeurd worden om lid te worden
+People who applied to join, waiting for a moderator.	Mensen die een aanvraag hebben ingediend en op een moderator wachten.
+Per-server Profiles	Profielen per server
+Permissions	Machtigingen
+Permissions not synced with category: 	Machtigingen niet gesynchroniseerd met categorie:
+Permissions synced with category: 	Machtigingen gesynchroniseerd met categorie:
+Permissions: %	Machtigingen: %
+Phone Number	Telefoonnummer
+Pick a channel	Kies een kanaal
+Pick a channel for the alerts.	Kies een kanaal voor de waarschuwingen.
+Pick at least one response.	Kies minstens één antwoord.
+Pin It. Pin It Good.	Vastmaken. Goed vastmaken.
+Pin Message	Bericht vastmaken
+Pin Messages	Berichten vastmaken
+Ping	Ping
+Ping: % ms	Ping: % ms
+Ping: measuring…	Ping: meten…
+Pinned Messages	Vastgemaakte berichten
+Play Here	Hier afspelen
+Play Soundboard Through My Mic	Soundboard via mijn microfoon afspelen
+Play YouTube videos here with yt-dlp? It needs yt-dlp installed, and connects to YouTube from your computer. Settings > Chat can change this.	YouTube-video's hier afspelen met yt-dlp? Daarvoor moet yt-dlp geïnstalleerd zijn, en je computer maakt dan verbinding met YouTube. Je kunt dit wijzigen in Instellingen > Chat.
+Play YouTube videos in fastcord with yt-dlp	YouTube-video's in fastcord afspelen met yt-dlp
+Please enter a valid invite link or invite code.	Voer een geldige uitnodigingslink of uitnodigingscode in.
+Please try again later.	Probeer het later opnieuw.
+Polish	Pools
+Poll closed	Peiling gesloten
+Portuguese, Brazilian	Portugees, Braziliaans
+Post	Plaatsen
+Post Guidelines	Postrichtlijnen
+Post from a script	Plaatsen vanuit een script
+Post messages that reach servers outside your own. Members can follow this channel, so the posts you publish here appear in their servers.	Plaats berichten die ook servers buiten je eigen server bereiken. Leden kunnen dit kanaal volgen, zodat de posts die je hier publiceert in hun servers verschijnen.
+Post title	Titel van post
+Posting...	Plaatsen...
+Press a shortcut…	Druk op een sneltoets…
+Previous	Vorige
+Previous / next channel	Vorig / volgend kanaal
+Previous / next channel with mentions	Vorig / volgend kanaal met vermeldingen
+Previous / next server	Vorige / volgende server
+Previous / next unread channel	Vorig / volgend ongelezen kanaal
+Previous 12 Hours	Afgelopen 12 uur
+Previous 24 Hours	Afgelopen 24 uur
+Previous 3 Days	Afgelopen 3 dagen
+Previous 6 Hours	Afgelopen 6 uur
+Previous 7 Days	Afgelopen 7 dagen
+Previous Hour	Afgelopen uur
+Priority Speaker	Prioriteitsspreker
+Privacy Settings	Privacyinstellingen
+Private Category	Privécategorie
+Private Channel	Privékanaal
+Private Profile	Privéprofiel
+Profile	Profiel
+Profile Banner	Profielbanner
+Profile Privacy	Profielprivacy
+Profiles	Profielen
+Prompt members to reply to welcome messages with a sticker.	Vraag leden om met een sticker op welkomstberichten te reageren.
+Pronouns	Voornaamwoorden
+Protect your Discord account with an extra layer of security. Once configured, you'll be required to enter your password and complete one additional step in order to sign in.	Bescherm je Discord-account met een extra beveiligingslaag. Na het instellen moet je bij het inloggen je wachtwoord invoeren en één extra stap voltooien.
+Protip:	Protip:
+Publish	Publiceren
+Push to Mute	Push-to-mute
+Push to Talk	Push-to-talk
+Push to Talk (Normal)	Push-to-talk (normaal)
+Q: %	V: %
+Question	Vraag
+Questions	Vragen
+ROLES	ROLLEN
+ROLES — %	ROLLEN — %
+ROLES/MEMBERS	ROLLEN/LEDEN
+RTC Connecting	RTC verbinden
+Read Message History	Berichtgeschiedenis lezen
+Reason	Reden
+Reason for Ban	Reden voor ban
+Reason for Kick	Reden voor kick
+Reason for Timeout	Reden voor time-out
+Reason: %	Reden: %
+Received	Ontvangen
+Recently Active	Onlangs actief
+Reconnect	Opnieuw verbinden
+Record Keybind	Sneltoets opnemen
+Reduce the saturation of colors within the application, for those with color sensitivities.	Verminder de verzadiging van kleuren in de app, voor wie gevoelig is voor kleuren.
+Reduces the amount of animation and motion effects. On whenever your device asks for reduced motion.	Vermindert animaties en bewegingseffecten. Staat aan zodra je apparaat om minder beweging vraagt.
+Region Override	Regio overschrijven
+Register	Registreren
+Reject	Afwijzen
+Rejoin	Opnieuw deelnemen
+Related Emoji	Gerelateerde emoji
+Relevant	Relevant
+Remove	Verwijderen
+Remove %	% verwijderen
+Remove All Embeds	Alle embeds verwijderen
+Remove All Reactions	Alle reacties verwijderen
+Remove Answer	Antwoord verwijderen
+Remove Attachment	Bijlage verwijderen
+Remove Authenticator App	Authenticator-app verwijderen
+Remove Avatar	Avatar verwijderen
+Remove Embeds	Embeds verwijderen
+Remove Friend	Vriend verwijderen
+Remove From Group	Uit groep verwijderen
+Remove Icon	Pictogram verwijderen
+Remove Reaction	Reactie verwijderen
+Remove Reactions	Reacties verwijderen
+Remove Reactions for Emoji	Reacties voor emoji verwijderen
+Remove Server	Server verwijderen
+Remove Spoiler	Spoiler verwijderen
+Remove Timeout	Time-out opheffen
+Remove Vote	Stem intrekken
+Remove all embeds	Alle embeds verwijderen
+Remove from Favorites	Uit favorieten verwijderen
+Remove notification override for %	Meldingsuitzondering voor % verwijderen
+Remove the files added before encryption was on: they'd go unencrypted.	Verwijder de bestanden die zijn toegevoegd voordat versleuteling aan stond: die zouden onversleuteld worden verstuurd.
+Remove the files added while encryption was on: they'd arrive as unreadable ciphertext.	Verwijder de bestanden die zijn toegevoegd terwijl versleuteling aan stond: die zouden aankomen als onleesbare versleutelde tekst.
+Removing…	Verwijderen…
+Repeated encrypted message	Herhaald versleuteld bericht
+Reply	Beantwoorden
+Replying to	Antwoord op
+Report Message	Bericht melden
+Request Data	Gegevens aanvragen
+Request all of my Data	Al mijn gegevens aanvragen
+Request to Speak	Vragen om te spreken
+Requests	Verzoeken
+Require 2FA for moderator actions	2FA vereisen voor moderatoracties
+Require members to agree to the server rules	Leden moeten akkoord gaan met de serverregels
+Require people to select tags when posting	Mensen moeten tags kiezen bij het plaatsen
+Required	Verplicht
+Resend SMS?	Sms opnieuw versturen?
+Reset	Resetten
+Reset Friend Nickname	Bijnaam voor vriend resetten
+Reset Voice Settings	Spraakinstellingen resetten
+Resolving Invite	Uitnodiging ophalen
+Responses	Antwoorden
+Retry	Opnieuw proberen
+Retry Now	Nu opnieuw proberen
+Return to call	Terug naar gesprek
+Return to the connected call	Terug naar het verbonden gesprek
+Reveal	Tonen
+Review	Beoordelen
+Revoke	Intrekken
+Revoke Ban	Ban opheffen
+Revoke Invite	Uitnodiging intrekken
+Revoke the ban? They will be able to join again with an invite.	Ban opheffen? Die persoon kan dan weer lid worden met een uitnodiging.
+Ring	Bellen
+Ringing…	Gaat over…
+Role Color	Rolkleur
+Role Colors	Rolkleuren
+Role Icon	Rolpictogram
+Role name	Rolnaam
+Roles	Rollen
+Romanian, Romania	Roemeens, Roemenië
+Rule: %	Regel: %
+Rules or Guidelines Channel	Kanaal voor regels of richtlijnen
+Russian	Russisch
+SELECT A CHANNEL	KIES EEN KANAAL
+SELECT A SERVER	KIES EEN SERVER
+SERVER NAME	SERVERNAAM
+SOUNDBOARD VOLUME	SOUNDBOARDVOLUME
+STATIC EMOJI — % SLOTS AVAILABLE	STATISCHE EMOJI — % PLEKKEN BESCHIKBAAR
+Safety Notifications Channel	Kanaal voor veiligheidsmeldingen
+Safety Number	Veiligheidsnummer
+Safety Setup	Veiligheidsinstellingen
+Safety checks	Veiligheidscontroles
+Same as Device Theme	Zelfde als apparaatthema
+Saturation	Verzadiging
+Save	Opslaan
+Save Changes	Wijzigingen opslaan
+Save Image	Afbeelding opslaan
+Saving...	Opslaan...
+Saving…	Opslaan…
+Scan this with the Discord mobile app to log in instantly.	Scan dit met de mobiele Discord-app om meteen in te loggen.
+Schedule an event for any planned activity in your server.	Plan een evenement voor elke geplande activiteit in je server.
+Screen	Scherm
+Screen sharing isn't supported on this platform yet.	Scherm delen wordt op dit platform nog niet ondersteund.
+Scroll chat	Chat scrollen
+Search	Zoeken
+Search %	% doorzoeken
+Search Bans by User ID or Username	Bans zoeken op gebruikers-ID of gebruikersnaam
+Search Klipy	Klipy doorzoeken
+Search Options	Zoekopties
+Search by username or id	Zoeken op gebruikersnaam of ID
+Search for friends	Vrienden zoeken
+Search members to add (press Enter)	Zoek leden om toe te voegen (druk op Enter)
+Search or create a post...	Zoek of maak een post...
+Search sounds	Geluiden zoeken
+Searching...	Zoeken...
+Select Friends	Vrienden kiezen
+Select a Language	Kies een taal
+Select a channel	Kies een kanaal
+Select a channel or category…	Kies een kanaal of categorie…
+Select one answer	Kies één antwoord
+Select one or more answers	Kies een of meer antwoorden
+Select where you want these updates to go. You can remove this at any time in Server Settings > Integrations > Channels Followed.	Kies waar deze updates naartoe moeten. Je kunt dit altijd verwijderen via Serverinstellingen > Integraties > Gevolgde kanalen.
+Select where you want to share this message.	Kies waar je dit bericht wilt delen.
+Send	Versturen
+Send Friend Request	Vriendschapsverzoek versturen
+Send Messages and Create Posts	Berichten sturen en posts maken
+Send Messages in Threads and Posts	Berichten sturen in threads en posts
+Send New Key	Nieuwe sleutel versturen
+Send Text-to-Speech Messages	Tekst-naar-spraakberichten sturen
+Send Voice Messages	Spraakberichten sturen
+Send a random welcome message when someone joins this server.	Stuur een willekeurig welkomstbericht als iemand lid wordt van deze server.
+Send a server invite link to a friend	Stuur een vriend een uitnodigingslink voor de server
+Send an alert	Waarschuwing sturen
+Send helpful tips for server setup.	Handige tips sturen voor het inrichten van de server.
+Send messages, images, GIFs, emoji, opinions, and puns	Stuur berichten, afbeeldingen, GIF's, emoji, meningen en woordgrappen
+Sending...	Versturen...
+Sent	Verstuurd
+Sent a file	Heeft een bestand gestuurd
+Sent a sticker	Heeft een sticker gestuurd
+Sent — %	Verstuurd — %
+Server	Server
+Server Avatar	Serveravatar
+Server Deafen	Server-doof
+Server Deafened	Door server doof gemaakt
+Server Guide	Servergids
+Server ID	Server-ID
+Server Info	Serverinfo
+Server Insights	Serverinzichten
+Server Insights is hosted on a separate website so that it's easier to share links and browse cross platform.	Serverinzichten staat op een aparte website, zodat je makkelijker links kunt delen en op elk platform kunt kijken.
+Server Mute	Server-dempen
+Server Muted	Door server gedempt
+Server Nickname	Serverbijnaam
+Server Notification Settings	Meldingsinstellingen voor server
+Server Primary Language	Hoofdtaal van server
+Server Profile	Serverprofiel
+Server Rules	Serverregels
+Server Settings	Serverinstellingen
+Server Tag	Servertag
+Server Template	Serversjabloon
+Server Widget	Serverwidget
+Server members	Serverleden
+Server members can only send you friend requests from servers where you also allow Direct Messages.	Serverleden kunnen je alleen vriendschapsverzoeken sturen vanuit servers waar je ook privéberichten toestaat.
+Server name must be between 2 and 100 characters.	Servernaam moet tussen 2 en 100 tekens lang zijn.
+Server unmuted	Server niet meer gedempt
+Sessions	Sessies
+Set Custom Status	Aangepaste status instellen
+Set Voice Channel Status	Status van spraakkanaal instellen
+Set a custom status	Stel een aangepaste status in
+Set up AutoMod to automatically filter messages in this server with the rules below. Members with Manage Server or Administrator are exempt.	Stel AutoMod in om berichten in deze server automatisch te filteren met de regels hieronder. Leden met Server beheren of Beheerder zijn uitgezonderd.
+Sets camera video quality for all channel participants. Choose Auto for optimal performance.	Stelt de videokwaliteit van de camera in voor alle deelnemers in het kanaal. Kies Auto voor de beste prestaties.
+Setting up encryption: % needs to open fastcord once.	Versleuteling instellen: % moet fastcord één keer openen.
+Several people are typing...	Meerdere mensen zijn aan het typen...
+Severe Profanity	Ernstige grofheden
+Sexual Content	Seksuele inhoud
+Share	Delen
+Share Event	Evenement delen
+Share Your Screen	Je scherm delen
+Share my full profile with	Mijn volledige profiel delen met
+Share your detected activities with others	Je gedetecteerde activiteiten met anderen delen
+Show	Tonen
+Show Chat	Chat tonen
+Show a system notification for messages that would notify you (DMs, mentions, servers set to all messages).	Toon een systeemmelding voor berichten waarvan je een melding zou krijgen (DM's, vermeldingen, servers ingesteld op alle berichten).
+Show embeds and preview website links pasted into chat	Embeds tonen en voorbeelden van websitelinks in de chat tonen
+Show emoji reactions on messages	Emojireacties op berichten tonen
+Show message	Bericht tonen
+Show messages	Berichten tonen
+Show role colors in names	Rolkleuren in namen tonen
+Show role colors next to names	Rolkleuren naast namen tonen
+Show spoiler content	Spoilerinhoud tonen
+Show the game or app you're using on your profile and in member lists.	Toon de game of app die je gebruikt op je profiel en in ledenlijsten.
+Shows a red badge on the app icon when you have unread mentions.	Toont een rode badge op het app-pictogram als je ongelezen vermeldingen hebt.
+Silence every sound and notification and hide all badges and unread marks, so fastcord never asks for your attention.	Zet alle geluiden en meldingen uit en verberg alle badges en ongelezen-markeringen, zodat fastcord nooit om je aandacht vraagt.
+Slow down! Are you sure?	Rustig aan! Weet je het zeker?
+Slowmode	Langzame modus
+Slowmode is enabled	Langzame modus staat aan
+Slowmode is enabled. Members can send one message every % hour.|Slowmode is enabled. Members can send one message every % hours.	Langzame modus staat aan. Leden kunnen elk uur één bericht sturen.|Langzame modus staat aan. Leden kunnen elke % uur één bericht sturen.
+Slowmode is enabled. Members can send one message every % minute.|Slowmode is enabled. Members can send one message every % minutes.	Langzame modus staat aan. Leden kunnen elke minuut één bericht sturen.|Langzame modus staat aan. Leden kunnen elke % minuten één bericht sturen.
+Slowmode is enabled. Members can send one message every % second.|Slowmode is enabled. Members can send one message every % seconds.	Langzame modus staat aan. Leden kunnen elke seconde één bericht sturen.|Langzame modus staat aan. Leden kunnen elke % seconden één bericht sturen.
+Smooth Scrolling	Vloeiend scrollen
+So no one gets lost on where to go.	Zodat niemand verdwaalt.
+Some older devices may not be shown here	Sommige oudere apparaten worden hier mogelijk niet getoond
+Someone	Iemand
+Something went wrong	Er ging iets mis
+Something went wrong (HTTP %).	Er ging iets mis (HTTP %).
+Something went wrong. Try again.	Er ging iets mis. Probeer het opnieuw.
+Somewhere Else	Ergens anders
+Sorry, we couldn't load the first message in this thread	Sorry, we konden het eerste bericht in deze thread niet laden
+Sort: Date Posted	Sorteren: datum geplaatst
+Sort: Recent Activity	Sorteren: recente activiteit
+Sound Name	Naam van geluid
+Sound names must be between 2 and 32 characters.	Geluidsnamen moeten tussen 2 en 32 tekens lang zijn.
+Soundboard	Soundboard
+Sounds	Geluiden
+Sounds must be 5.2 seconds or shorter.	Geluiden mogen maximaal 5,2 seconden duren.
+Sounds must be under 512 KB.	Geluiden moeten kleiner zijn dan 512 KB.
+Source	Bron
+Space between message groups	Ruimte tussen berichtgroepen
+Spam	Spam
+Spam Filters	Spamfilters
+Spanish	Spaans
+Spanish, LATAM	Spaans, Latijns-Amerika
+Speak	Spreken
+Speak Message	Bericht voorlezen
+Spoiler Attachment	Bijlage als spoiler
+Spoiler Content	Spoilerinhoud
+Stage	Stage
+Start Date	Startdatum
+Start Event	Evenement starten
+Start Minimized	Geminimaliseerd starten
+Start Time	Starttijd
+Starting in %m	Begint over %m
+State	Status
+Stickers	Stickers
+Stickers can be used by anyone in this server. Upload a PNG, APNG, GIF or Lottie JSON file of up to 512 KB; it shows at 320x320.	Stickers kunnen door iedereen in deze server worden gebruikt. Upload een PNG-, APNG-, GIF- of Lottie JSON-bestand van maximaal 512 KB; het wordt getoond op 320x320.
+Stickers can't be sent encrypted yet.	Stickers kunnen nog niet versleuteld worden verstuurd.
+Stickers must be PNG, APNG, GIF or Lottie JSON files.	Stickers moeten PNG-, APNG-, GIF- of Lottie JSON-bestanden zijn.
+Stop Recording	Opname stoppen
+Stop Streaming	Streamen stoppen
+Stop Testing	Testen stoppen
+Stop Video	Video stoppen
+Stop Watching	Kijken stoppen
+Storage	Opslag
+Stream Settings	Streaminstellingen
+Streamer Mode	Streamermodus
+Streamer Mode Enabled	Streamermodus ingeschakeld
+Streamer Mode hides your personal info so others watching your stream can't see it.	Streamermodus verbergt je persoonlijke info, zodat kijkers van je stream die niet kunnen zien.
+Streamer Mode is enabled. Usernames have been truncated.	Streamermodus is ingeschakeld. Gebruikersnamen zijn ingekort.
+Success! Your friend request to % was sent.	Gelukt! Je vriendschapsverzoek aan % is verstuurd.
+Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday	zondag|maandag|dinsdag|woensdag|donderdag|vrijdag|zaterdag
+Sun|Mon|Tue|Wed|Thu|Fri|Sat	zo|ma|di|wo|do|vr|za
+Support has arrived!	Er is hulp gearriveerd!
+Suppress @everyone and @here	@everyone en @here onderdrukken
+Suppress All Role @mentions	Alle @vermeldingen van rollen onderdrukken
+Suppress Highlights	Hoogtepunten onderdrukken
+Suppress Notifications	Meldingen onderdrukken
+Suppress background noise from your mic.	Onderdruk achtergrondgeluid van je microfoon.
+Swedish	Zweeds
+Switch Accounts	Van account wisselen
+Switch between accounts on this device.	Wissel tussen accounts op dit apparaat.
+Symbols	Symbolen
+Sync Now	Nu synchroniseren
+Sync Permissions	Machtigingen synchroniseren
+Sync Template	Sjabloon synchroniseren
+Sync permissions?	Machtigingen synchroniseren?
+System	Systeem
+System Messages	Systeemberichten
+System Messages Channel	Kanaal voor systeemberichten
+System icon for new server members.	Systeempictogram voor nieuwe serverleden.
+THREAD NAME	THREADNAAM
+Tag	Tag
+Tags	Tags
+Tags (pick at least one)	Tags (kies er minstens één)
+Tags let members organize their posts. Members pick them when they post; moderated tags only moderators can apply.	Met tags kunnen leden hun posts ordenen. Leden kiezen ze bij het plaatsen; gemodereerde tags kunnen alleen moderators toevoegen.
+Tap the link in your email to sign in instantly — no password needed.	Tik op de link in je e-mail om meteen in te loggen — geen wachtwoord nodig.
+Tell people a little more about your event. Markdown, new lines, and links are supported.	Vertel mensen wat meer over je evenement. Markdown, nieuwe regels en links worden ondersteund.
+Tell the world a bit about this server.	Vertel de wereld iets over deze server.
+Template Description	Beschrijving van sjabloon
+Template Link	Sjabloonlink
+Template Title	Titel van sjabloon
+Templates are an easy way to share your server setup and help anyone create a server instantly. When someone uses your server template link, they create a new server pre-filled with the same channels, roles, permissions, and settings as yours. Messages, members and your server's icon aren't copied.	Met sjablonen deel je eenvoudig de inrichting van je server en kan iedereen meteen een server maken. Als iemand de sjabloonlink van je server gebruikt, maakt die een nieuwe server met dezelfde kanalen, rollen, machtigingen en instellingen als die van jou. Berichten, leden en het pictogram van je server worden niet gekopieerd.
+Temporary members are automatically kicked when they disconnect unless a role has been assigned	Tijdelijke leden worden automatisch gekickt als ze de verbinding verbreken, tenzij ze een rol hebben gekregen
+Test Video	Video testen
+Text	Tekst
+Text Channel Permissions	Machtigingen voor tekstkanalen
+Text channel, external link, or in-person location.	Tekstkanaal, externe link of fysieke locatie.
+Thai	Thai
+That channel isn't on this server anymore.	Dat kanaal staat niet meer op deze server.
+That file couldn't be read as an MP3 or OGG sound.	Dat bestand kon niet worden gelezen als MP3- of OGG-geluid.
+That file couldn't be read. Avatars must be PNG, JPEG, GIF or WEBP images.	Dat bestand kon niet worden gelezen. Avatars moeten PNG-, JPEG-, GIF- of WEBP-afbeeldingen zijn.
+That file couldn't be read. Banners must be PNG, JPEG, GIF or WEBP images.	Dat bestand kon niet worden gelezen. Banners moeten PNG-, JPEG-, GIF- of WEBP-afbeeldingen zijn.
+That file couldn't be read. Emoji must be a PNG, JPEG, GIF, WEBP or AVIF image.	Dat bestand kon niet worden gelezen. Emoji moeten een PNG-, JPEG-, GIF-, WEBP- of AVIF-afbeelding zijn.
+That file couldn't be read. Images must be PNG, JPEG, GIF or WEBP files.	Dat bestand kon niet worden gelezen. Afbeeldingen moeten PNG-, JPEG-, GIF- of WEBP-bestanden zijn.
+That file couldn't be read. Server icons must be PNG, JPEG, GIF or WEBP images.	Dat bestand kon niet worden gelezen. Serverpictogrammen moeten PNG-, JPEG-, GIF- of WEBP-afbeeldingen zijn.
+That file is too large. Emoji must be under 256 KB.	Dat bestand is te groot. Emoji moeten kleiner zijn dan 256 KB.
+That file is too large. Stickers must be under 512 KB.	Dat bestand is te groot. Stickers moeten kleiner zijn dan 512 KB.
+That image is too large.	Die afbeelding is te groot.
+That image is too large. Avatars must be under %.	Die afbeelding is te groot. Avatars moeten kleiner zijn dan %.
+That image is too large. Banners must be under 10 MB.	Die afbeelding is te groot. Banners moeten kleiner zijn dan 10 MB.
+That image is too large. Server icons must be under 512 KB.	Die afbeelding is te groot. Serverpictogrammen moeten kleiner zijn dan 512 KB.
+That isn't a valid fastcord invite.	Dat is geen geldige fastcord-uitnodiging.
+That's too long to send encrypted.	Dat is te lang om versleuteld te versturen.
+The Pin Is Stuck!	De pin zit vast!
+The badge chosen in the official client stays as it is.	De badge die in de officiële client is gekozen blijft zoals die is.
+The invite is invalid or has expired.	De uitnodiging is ongeldig of verlopen.
+The mention limit is between 1 and 50.	De vermeldingslimiet ligt tussen 1 en 50.
+The most important updates from this channel will now show up directly in your server. Enjoy!	De belangrijkste updates van dit kanaal verschijnen nu direct in je server. Veel plezier!
+The owner	De eigenaar
+The related emoji must be one emoji.	De gerelateerde emoji moet één emoji zijn.
+The results were tied	Het is gelijkspel
+The selected channel has too many webhooks. Please remove a webhook or select another channel.	Het gekozen kanaal heeft te veel webhooks. Verwijder een webhook of kies een ander kanaal.
+The server	De server
+The start time must be in the future.	De starttijd moet in de toekomst liggen.
+The thread stops showing in the channel list after being inactive for this long.	De thread wordt niet meer in de kanalenlijst getoond als die zo lang inactief is.
+Theme	Thema
+There are no active threads.	Er zijn geen actieve threads.
+There are no archived threads.	Er zijn geen gearchiveerde threads.
+There are no pending friend requests.	Er zijn geen openstaande vriendschapsverzoeken.
+There are no upcoming events.	Er zijn geen aankomende evenementen.
+There is no identity key.	Er is geen identiteitssleutel.
+There was no winner	Er was geen winnaar
+These are all the devices that are currently logged-in with your Discord account. Log out of devices that you don't recognize.	Dit zijn alle apparaten die nu zijn ingelogd met je Discord-account. Log uit op apparaten die je niet herkent.
+They said: %	Die zei: %
+This account needs a passkey or security key, which fastcord can't use. Log in with the QR code instead.	Dit account heeft een passkey of beveiligingssleutel nodig, en die kan fastcord niet gebruiken. Log in plaats daarvan in met de QR-code.
+This channel contains adult content that may not be suitable for all audiences. You must be 18 or older to view it.	Dit kanaal bevat inhoud voor volwassenen die niet voor iedereen geschikt is. Je moet 18 jaar of ouder zijn om het te bekijken.
+This channel doesn't have any pinned messages... yet.	Dit kanaal heeft nog geen vastgemaakte berichten... nog niet.
+This device can't open this message.	Dit apparaat kan dit bericht niet openen.
+This device's encryption keys couldn't be unlocked, so earlier encrypted DMs can't be opened here.	De versleutelingssleutels van dit apparaat konden niet worden ontgrendeld, dus eerdere versleutelde DM's kunnen hier niet worden geopend.
+This event will auto start when it's time.	Dit evenement start automatisch als het zover is.
+This extra step shows it's really you.	Met deze extra stap laat je zien dat jij het echt bent.
+This interaction failed	Deze interactie is mislukt
+This invite may be expired, or you might not have permission to join.	Deze uitnodiging is mogelijk verlopen, of je hebt geen toestemming om lid te worden.
+This is the beginning of your direct message history with %.	Dit is het begin van je privéberichtgeschiedenis met %.
+This is the channel we send system event messages to.	Naar dit kanaal sturen we systeemberichten.
+This is the start of the #% channel.	Dit is het begin van het kanaal #%.
+This is where Discord sends updates for moderators and admins of Community servers.	Hier stuurt Discord updates voor moderators en beheerders van communityservers.
+This is where you'll show members your server rules or guidelines.	Hier laat je leden je serverregels of richtlijnen zien.
+This link is taking you to the following website	Deze link brengt je naar de volgende website
+This option is not available for Community Servers.	Deze optie is niet beschikbaar voor communityservers.
+This role is managed by an integration and can't be edited here.	Deze rol wordt beheerd door een integratie en kan hier niet worden bewerkt.
+This server has been removed from Server Discovery because it no longer passes all the requirements. Check Server Settings for more details.	Deze server is uit Serverontdekking verwijderd omdat die niet meer aan alle vereisten voldoet. Kijk in Serverinstellingen voor meer details.
+This server has failed Discovery activity requirements for 1 week. If this server fails for 4 weeks in a row, it will be automatically removed from Discovery.	Deze server voldoet al 1 week niet aan de activiteitsvereisten van Ontdekking. Als dat 4 weken op rij zo is, wordt de server automatisch uit Ontdekking verwijderd.
+This server has failed Discovery activity requirements for 3 weeks in a row. If this server fails for 1 more week, it will be removed from Discovery.	Deze server voldoet al 3 weken op rij niet aan de activiteitsvereisten van Ontdekking. Als dat nog 1 week zo is, wordt de server uit Ontdekking verwijderd.
+This server has no voice channels.	Deze server heeft geen spraakkanalen.
+This server is currently full.	Deze server is momenteel vol.
+This server is currently full. Please try again later.	Deze server is momenteel vol. Probeer het later opnieuw.
+This server is eligible for Server Discovery again and has been automatically relisted!	Deze server komt weer in aanmerking voor Serverontdekking en is automatisch opnieuw vermeld!
+This server is not available in your location.	Deze server is niet beschikbaar op jouw locatie.
+This server's features are limited	De functies van deze server zijn beperkt
+This setting is applied when you join a new server. It does not apply retroactively to your existing servers.	Deze instelling wordt toegepast als je lid wordt van een nieuwe server. Ze geldt niet met terugwerkende kracht voor je bestaande servers.
+This template has unsynced changes.	Deze sjabloon heeft niet-gesynchroniseerde wijzigingen.
+This thread is locked.	Deze thread is vergrendeld.
+This voice channel is full.	Dit spraakkanaal is vol.
+This will determine whether members who have not explicitly set their notification settings receive a notification for every message sent in this server or not.	Dit bepaalt of leden die hun meldingsinstellingen niet zelf hebben ingesteld een melding krijgen voor elk bericht in deze server.
+This will transfer ownership of %1 to %2. This cannot be undone!	Hiermee draag je het eigendom van %1 over aan %2. Dit kan niet ongedaan worden gemaakt!
+Thread Name	Threadnaam
+Thread deleted	Thread verwijderd
+Threads	Threads
+Time	Tijd
+Time format	Tijdnotatie
+Timeout	Time-out
+Timeout %	% een time-out geven
+Timeout Members	Leden een time-out geven
+Timeout member	Lid een time-out geven
+Times show as %.	Tijden worden getoond als %.
+To log them out, please change your password	Wijzig je wachtwoord om ze uit te loggen
+To protect your members, Community servers need these, and enabling sets them:	Om je leden te beschermen hebben communityservers deze nodig, en inschakelen stelt ze in:
+Today	Vandaag
+Today at %	Vandaag om %
+Toggle Deafen	Doof maken aan/uit
+Toggle Go Live Streaming	Live gaan aan/uit
+Toggle Mute	Dempen aan/uit
+Toggle Streamer Mode	Streamermodus aan/uit
+Toggle Voice Activity Mode	Spraakactiviteitsmodus aan/uit
+Toggle deafen	Doof maken aan/uit
+Toggle inbox	Inbox tonen/verbergen
+Toggle member list	Ledenlijst tonen/verbergen
+Toggle mute	Dempen aan/uit
+Toggle pins	Vastgemaakte berichten tonen/verbergen
+Tomorrow at %	Morgen om %
+Too fast! Wait a bit and try again.	Te snel! Wacht even en probeer het opnieuw.
+Too many uploads!	Te veel uploads!
+Trait %	Kenmerk %
+Traits	Kenmerken
+Transfer Ownership	Eigendom overdragen
+Travel & Places	Reizen en plaatsen
+Treat the token like a password: anyone who has it controls your account. fastcord keeps it only on this computer.	Behandel de token als een wachtwoord: wie hem heeft, heeft controle over je account. fastcord bewaart hem alleen op deze computer.
+Trending GIFs	Populaire GIF's
+Trust % links from now on	Links van % voortaan vertrouwen
+Try Again	Opnieuw proberen
+Try searching for something else	Probeer iets anders te zoeken
+Try searching for...	Probeer te zoeken naar...
+Try sending a new invite	Probeer een nieuwe uitnodiging te sturen
+Turkish	Turks
+Turn off encryption	Versleuteling uitschakelen
+Turns this back into a regular server. Community-only features stop working.	Maakt hier weer een gewone server van. Functies voor communityservers werken dan niet meer.
+Two-factor authentication is enabled on this account.	Tweestapsverificatie is ingeschakeld voor dit account.
+Type the username of a friend	Typ de gebruikersnaam van een vriend
+Type your answer	Typ je antwoord
+UPLOADED BY	GEÜPLOAD DOOR
+USES	GEBRUIKT
+Uh oh, you don't have webhook permissions in any server you're in. Ask your server admin to give you the permission or ask them to come follow themselves!	Oeps, je hebt in geen enkele server webhookmachtigingen. Vraag je serverbeheerder om je die machtiging te geven of om zelf te komen volgen!
+Uh-oh. Looks like you've been banned.	Oeps. Het lijkt erop dat je verbannen bent.
+Ukrainian	Oekraïens
+Unable to accept invite	Kan uitnodiging niet accepteren
+Unassigned	Niet toegewezen
+Unban Member	Ban van lid opheffen
+Unblock	Deblokkeren
+Undeafen	Niet meer doof
+Under Request Headers, copy the value of "authorization" and paste it below.	Kopieer onder Request Headers de waarde van "authorization" en plak die hieronder.
+Undo	Ongedaan maken
+Unignore	Niet meer negeren
+Unknown	Onbekend
+Unknown channel	Onbekend kanaal
+Unmute	Dempen opheffen
+Unmute Category	Dempen van categorie opheffen
+Unmute Channel	Dempen van kanaal opheffen
+Unmute Server	Dempen van server opheffen
+Unmute Thread	Dempen van thread opheffen
+Unpin Message	Bericht losmaken
+Unreads	Ongelezen
+Unrestricted	Onbeperkt
+Until %	Tot %
+Until %1 at %2	Tot %1 om %2
+Until I turn it back on	Totdat ik het weer aanzet
+Until tomorrow at %	Tot morgen om %
+Untitled question	Naamloze vraag
+Unverify	Verificatie intrekken
+Update %	% bijwerken
+Update Channel	Kanaal bijwerken
+Update Emoji	Emoji bijwerken
+Update Member	Lid bijwerken
+Update Member Roles	Rollen van lid bijwerken
+Update Role	Rol bijwerken
+Update Server	Server bijwerken
+Update Webhook	Webhook bijwerken
+Update your password	Werk je wachtwoord bij
+Upload	Uploaden
+Upload Emoji	Emoji uploaden
+Upload Sound	Geluid uploaden
+Upload Sticker	Sticker uploaden
+Upload a File	Bestand uploaden
+Upload a Sound	Geluid uploaden
+Upload a file	Bestand uploaden
+Upload custom sound reactions that anyone in this server can use. MP3 or OGG files, up to 512 KB and 5.2 seconds.	Upload aangepaste geluidsreacties die iedereen in deze server kan gebruiken. MP3- of OGG-bestanden, tot 512 KB en 5,2 seconden.
+Upload to %	Uploaden naar %
+Uploaded a file	Heeft een bestand geüpload
+Uploading...	Uploaden...
+Use Application Commands	App-opdrachten gebruiken
+Use Category Default	Standaard van categorie gebruiken
+Use External Apps	Externe apps gebruiken
+Use External Emoji	Externe emoji gebruiken
+Use External Sounds	Externe geluiden gebruiken
+Use External Stickers	Externe stickers gebruiken
+Use Server Default	Standaard van server gebruiken
+Use Soundboard	Soundboard gebruiken
+Use Voice Activity	Spraakactiviteit gebruiken
+Use a backup code	Een back-upcode gebruiken
+Use a code sent to your phone	Een code gebruiken die naar je telefoon is gestuurd
+Use a passkey or security key	Een passkey of beveiligingssleutel gebruiken
+Use data to improve Discord	Gegevens gebruiken om Discord te verbeteren
+Use roles to group your server members and assign permissions.	Gebruik rollen om je serverleden te groeperen en machtigingen toe te wijzen.
+Use your authenticator app	Je authenticator-app gebruiken
+Used % times.|Used % times.	% keer gebruikt.|% keer gebruikt.
+User Join	Gebruiker komt binnen
+User Leave	Gebruiker vertrekt
+User Limit	Gebruikerslimiet
+User Moved	Gebruiker verplaatst
+User Volume	Gebruikersvolume
+User blocked	Gebruiker geblokkeerd
+User unblocked	Gebruiker gedeblokkeerd
+Username	Gebruikersnaam
+Username is available. Nice!	Gebruikersnaam is beschikbaar. Mooi!
+Username is unavailable. Try adding numbers, letters, underscores _ , or periods.	Gebruikersnaam is niet beschikbaar. Probeer cijfers, letters, underscores _ of punten toe te voegen.
+Users will need to confirm they are of over the legal age to view in the content in this channel.\nAge-restricted channels are exempt from the explicit content filter.	Gebruikers moeten bevestigen dat ze meerderjarig zijn om de inhoud van dit kanaal te bekijken.\nKanalen met leeftijdsbeperking zijn uitgezonderd van het filter voor expliciete inhoud.
+Uses the yt-dlp you installed to play YouTube links in the chat instead of opening your browser. It connects to YouTube from your computer.	Gebruikt de yt-dlp die je hebt geïnstalleerd om YouTube-links in de chat af te spelen in plaats van je browser te openen. Je computer maakt dan verbinding met YouTube.
+VOICE PROCESSING	SPRAAKVERWERKING
+Verification Level	Verificatieniveau
+Verified	Geverifieerd
+Verify with something else	Op een andere manier verifiëren
+Video	Video
+Video Quality	Videokwaliteit
+Vietnamese	Vietnamees
+View Audit Log	Auditlogboek bekijken
+View Channel	Kanaal bekijken
+View Channels	Kanalen bekijken
+View Details	Details bekijken
+View Full Profile	Volledig profiel bekijken
+View Poll	Peiling bekijken
+View Profile	Profiel bekijken
+View Reactions	Reacties bekijken
+View Server Insights	Serverinzichten bekijken
+Visit Site	Site bezoeken
+Visual Density	Visuele dichtheid
+Voice	Spraak
+Voice & Video	Spraak en video
+Voice Activity	Spraakactiviteit
+Voice Channel	Spraakkanaal
+Voice Channel Permissions	Machtigingen voor spraakkanalen
+Voice Connected	Spraak verbonden
+Voice Disconnected	Spraak verbroken
+Volume	Volume
+Vote	Stemmen
+Waiting for a server	Wachten op een server
+Wants to message you	Wil je een bericht sturen
+Watch Stream	Stream bekijken
+Wave to say hi!	Zwaai om hoi te zeggen!
+We appreciate the enthusiasm, but...	We waarderen het enthousiasme, maar...
+We couldn't load the profile for this server.	We konden het profiel voor deze server niet laden.
+We recommend an image of at least 512x512.	We raden een afbeelding van minstens 512x512 aan.
+We sent instructions to change your password to %, please check both your inbox and spam folder.	We hebben instructies om je wachtwoord te wijzigen gestuurd naar %. Kijk in je inbox en je spammap.
+We're so excited to see you again!	Wat leuk je weer te zien!
+We've sent a message to %.  Please enter the code you received.	We hebben een bericht gestuurd naar %. Voer de code in die je hebt ontvangen.
+Webhooks (%)	Webhooks (%)
+Webhooks are a simple way to post messages from other apps and websites into this server.	Met webhooks plaats je eenvoudig berichten van andere apps en websites in deze server.
+Welcome %. Say hi!	Welkom %. Zeg hoi!
+Welcome back!	Welkom terug!
+Welcome to #%!	Welkom in #%!
+Welcome to the beginning of the % group.	Welkom bij het begin van de groep %.
+Welcome, %. We hope you brought pizza.	Welkom, %. We hopen dat je pizza hebt meegenomen.
+What brings you here?	Wat brengt je hier?
+What can people do in this server?	Wat kunnen mensen doen in deze server?
+What question do you want to ask?	Welke vraag wil je stellen?
+What's cookin'?	Wat is er aan de hand?
+What's your event about?	Waar gaat je evenement over?
+What's your event?	Wat is je evenement?
+When a friend starts an activity—like playing a game or hanging out on voice—we'll show it here!	Als een vriend een activiteit begint, zoals een game spelen of rondhangen in spraak, laten we dat hier zien!
+When enabled, only server members can view profile content. Non-members won't be able to see this content unless they have an invite.	Indien ingeschakeld kunnen alleen serverleden de profielinhoud bekijken. Niet-leden zien deze inhoud alleen als ze een uitnodiging hebben.
+When you put a user in timeout they will not be able to send messages in chat, reply within threads, react to messages, or speak in voice or Stage channels.	Als je een gebruiker een time-out geeft, kan die geen berichten in de chat sturen, niet antwoorden in threads, niet op berichten reageren en niet spreken in spraak- of Stage-kanalen.
+Where is your event?	Waar is je evenement?
+Where would you like to go?	Waar wil je naartoe?
+Who is this server for? E.g. School Club, Artists' Community	Voor wie is deze server? Bijv. schoolclub, kunstenaarscommunity
+Winning answer · %1%2	Winnend antwoord · %1%2
+Words that are never blocked, separated by commas	Woorden die nooit worden geblokkeerd, gescheiden door komma's
+Words to block, separated by commas	Te blokkeren woorden, gescheiden door komma's
+Words to block, separated by commas (* matches anything)	Te blokkeren woorden, gescheiden door komma's (* komt overeen met alles)
+Would you like to sync %1 permissions with %2?	Wil je de machtigingen van %1 synchroniseren met %2?
+Yay you made it, %!	Joepie, je bent er, %!
+Yesterday at %	Gisteren om %
+You	Jij
+You accepted %'s friend request.	Je hebt het vriendschapsverzoek van % geaccepteerd.
+You are at the % server limit.	Je zit aan de limiet van % servers.
+You are banned from this server.	Je bent verbannen uit deze server.
+You aren't in that server. Ask a member for an invite.	Je bent geen lid van die server. Vraag een lid om een uitnodiging.
+You can add % more friend.|You can add % more friends.	Je kunt nog % vriend toevoegen.|Je kunt nog % vrienden toevoegen.
+You can add comments before uploading.\nHold shift to upload directly.	Je kunt opmerkingen toevoegen voordat je uploadt.\nHoud Shift ingedrukt om direct te uploaden.
+You can add friends with their Discord username.	Je kunt vrienden toevoegen met hun Discord-gebruikersnaam.
+You can add up to 5 accounts.	Je kunt tot 5 accounts toevoegen.
+You can hold down shift when clicking % to bypass this confirmation entirely.	Houd Shift ingedrukt als je op % klikt om deze bevestiging helemaal over te slaan.
+You can only edit roles below your highest role.	Je kunt alleen rollen onder je hoogste rol bewerken.
+You can only upload % files at a time!	Je kunt maar % bestanden tegelijk uploaden!
+You can use markdown and links if you'd like.	Je kunt markdown en links gebruiken als je wilt.
+You can't join this server because of your age group.	Je kunt geen lid worden van deze server vanwege je leeftijdsgroep.
+You can't unblock the Wumpus.	Je kunt de Wumpus niet deblokkeren.
+You cannot friend yourself	Je kunt jezelf niet als vriend toevoegen
+You can’t react and super react with the same emoji. There’s a lot of emoji to choose from, so maybe try another one.	Je kunt niet gewoon en super reageren met dezelfde emoji. Er zijn genoeg emoji om uit te kiezen, dus probeer eens een andere.
+You do not have permission to send messages in this channel.	Je hebt geen toestemming om berichten te sturen in dit kanaal.
+You don't have any friends to add!	Je hebt geen vrienden om toe te voegen!
+You don't have permission to do that.	Je hebt geen toestemming om dat te doen.
+You haven't added a display name yet.	Je hebt nog geen weergavenaam toegevoegd.
+You haven't added a phone number yet.	Je hebt nog geen telefoonnummer toegevoegd.
+You haven't added an email yet.	Je hebt nog geen e-mailadres toegevoegd.
+You haven't authorized any apps.	Je hebt geen apps geautoriseerd.
+You haven't blocked anyone.	Je hebt niemand geblokkeerd.
+You haven't connected any accounts yet.	Je hebt nog geen accounts gekoppeld.
+You haven't ignored anyone.	Je hebt niemand genegeerd.
+You missed a call from %1 that lasted %2.	Je hebt een gesprek van %1 gemist dat %2 duurde.
+You must be at least 18 years old to view this channel.	Je moet minstens 18 jaar oud zijn om dit kanaal te bekijken.
+You must leave a server first to join.	Je moet eerst een server verlaten om lid te kunnen worden.
+You need to add one or more rules.	Je moet een of meer regels toevoegen.
+You received an invite, but...	Je hebt een uitnodiging ontvangen, maar...
+You said: %	Jij zei: %
+You sent an invite to a self-hosted server	Je hebt een uitnodiging gestuurd voor een zelfgehoste server
+You sent an invite, but	Je hebt een uitnodiging gestuurd, maar
+You sent an invite, but...	Je hebt een uitnodiging gestuurd, maar...
+You will appear offline	Je wordt als offline getoond
+You will not receive desktop notifications	Je krijgt geen bureaubladmeldingen
+You'll have to log back in on all logged out devices.	Je moet opnieuw inloggen op alle uitgelogde apparaten.
+You're Viewing Older Messages	Je bekijkt oudere berichten
+You're all caught up!	Je bent helemaal bij!
+You're already in that server.	Je bent al lid van die server.
+You're doing that too fast. Try again in a moment.	Je doet dat te snel. Probeer het zo opnieuw.
+You're not in any servers yet.	Je bent nog geen lid van servers.
+You're offline: no invite link.	Je bent offline: geen uitnodigingslink.
+You're timed out until %.	Je hebt een time-out tot %.
+You've been invited to a self-hosted server	Je bent uitgenodigd voor een zelfgehoste server
+You've been invited to join	Je bent uitgenodigd om lid te worden van
+You've been invited to speak	Je bent uitgenodigd om te spreken
+You've been invited, but	Je bent uitgenodigd, maar
+Your files are too powerful	Je bestanden zijn te krachtig
+Your full profile is visible to friends and any server you join with 200 or fewer members. Everyone else sees a limited version.	Je volledige profiel is zichtbaar voor vrienden en elke server met 200 of minder leden waarvan je lid wordt. Alle anderen zien een beperkte versie.
+Your full profile is visible to friends and any server you join.	Je volledige profiel is zichtbaar voor vrienden en elke server waarvan je lid wordt.
+Your full profile is visible to friends. Everyone else sees a limited version.	Je volledige profiel is zichtbaar voor vrienden. Alle anderen zien een beperkte versie.
+Your invite link expires after %.	Je uitnodigingslink verloopt na %.
+Your invite link expires in %.	Je uitnodigingslink verloopt over %.
+Your invite link expires in %1, or after %2.	Je uitnodigingslink verloopt over %1, of na %2.
+Your invite link expires in 7 days.	Je uitnodigingslink verloopt over 7 dagen.
+Your invite link will never expire.	Je uitnodigingslink verloopt nooit.
+Your last request was on %.	Je laatste aanvraag was op %.
+Your message is too long (% / %).	Je bericht is te lang (% / %).
+Your reaction was not added because there are too many reactions on this message.	Je reactie is niet toegevoegd omdat dit bericht te veel reacties heeft.
+Your request from % is being prepared.	Je aanvraag van % wordt klaargemaakt.
+Your server is where you and your friends hang out. Make yours and start talking.	Je server is de plek waar jij en je vrienden rondhangen. Maak de jouwe en begin te praten.
+Your sounds go out with your voice, mixed into your microphone, instead of as soundboard sounds.	Je geluiden gaan mee met je stem, gemengd in je microfoon, in plaats van als soundboardgeluiden.
+Zoom level	Zoomniveau
+a channel	een kanaal
+a command	een opdracht
+a day	een dag
+a day ago	een dag geleden
+a few seconds	een paar seconden
+a few seconds ago	een paar seconden geleden
+a message	een bericht
+a minute	een minuut
+a minute ago	een minuut geleden
+a month ago	een maand geleden
+a year ago	een jaar geleden
+an hour	een uur
+an hour ago	een uur geleden
+by %	door %
+cancel	annuleren
+channel	kanaal
+delete message	bericht verwijderen
+escape to %1 • enter to %2	Esc om te %1 • Enter om te %2
+fastcord %	fastcord %
+fastcord quit unexpectedly last time. The report is in the logs folder (Settings, under Log Out).	fastcord is de vorige keer onverwacht gestopt. Het rapport staat in de logboekmap (Instellingen, onder Uitloggen).
+fastcord starts in the background and stays out of your way.	fastcord start op de achtergrond en zit je niet in de weg.
+from %	van %
+in %	over %
+in % day|in % days	over % dag|over % dagen
+in % hour|in % hours	over % uur|over % uur
+in % minute|in % minutes	over % minuut|over % minuten
+in % month|in % months	over % maand|over % maanden
+in % year|in % years	over % jaar|over % jaar
+in a day	over een dag
+in a few seconds	over een paar seconden
+in a minute	over een minuut
+in a month	over een maand
+in a year	over een jaar
+in an hour	over een uur
+just now	zojuist
+less than an hour ago	minder dan een uur geleden
+link, embed or file	link, embed of bestand
+on %	op %
+pinned messages	vastgemaakte berichten
+remove embeds	embeds verwijderen
+save	opslaan
+someone	iemand
+specific date	specifieke datum
+this server	deze server
+threads	threads
+true or false	waar of onwaar
+unknown	onbekend
+unknown channel	onbekend kanaal
+unknown-user	onbekende-gebruiker
+used	gebruikt
+user	gebruiker
+• Media from all members is scanned by the explicit image filter.	• Media van alle leden worden gescand door het filter voor expliciete afbeeldingen.
+• Members must have a verified email on their Discord account.	• Leden moeten een geverifieerd e-mailadres hebben op hun Discord-account.
+← Back to %	← Terug naar %
+← Back to login	← Terug naar inloggen

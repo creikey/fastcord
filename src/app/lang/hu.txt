@@ -1,0 +1,1972 @@
+# Hungarian (hu)
+ · required	 · kötelező
+% (requested to speak)	% (szólásra jelentkezett)
+% (required)	% (kötelező)
+% Bans|% Bans	% kitiltás|% kitiltás
+% Event|% Events	% esemény|% esemény
+% KB	% KB
+% MB	% MB
+% Member|% Members	% tag|% tag
+% Messages	% üzenet
+% Mutual Friend|% Mutual Friends	% közös barát|% közös barát
+% Mutual Server|% Mutual Servers	% közös szerver|% közös szerver
+% Online	% online
+% Result|% Results	% találat|% találat
+% accepted encryption.	% elfogadta a titkosítást.
+% accepted your friend request.	% elfogadta a barátkérelmedet.
+% answer|% answers	% válasz|% válasz
+% becomes the owner once they accept on their device. You'll stay a member.	% lesz a tulajdonos, amint elfogadja a saját eszközén. Te tag maradsz.
+% blocked message —|% blocked messages —	% letiltott üzenet —|% letiltott üzenet —
+% byte|% bytes	% bájt|% bájt
+% changed the group icon.	% megváltoztatta a csoport ikonját.
+% day ago|% days ago	% napja|% napja
+% day|% days	% nap|% nap
+% disabled security actions.	% kikapcsolta a biztonsági intézkedéseket.
+% enabled security actions.	% bekapcsolta a biztonsági intézkedéseket.
+% hasn't accepted encryption yet.	% még nem fogadta el a titkosítást.
+% hopped into the server.	% beugrott a szerverre.
+% hour ago|% hours ago	% órája|% órája
+% hour|% hours	% óra|% óra
+% ignored message —|% ignored messages —	% figyelmen kívül hagyott üzenet —|% figyelmen kívül hagyott üzenet —
+% is here.	% megérkezett.
+% is typing...	% éppen ír...
+% joined the party.	% csatlakozott a bulihoz.
+% just boosted the server!	% épp most boostolta a szervert!
+% just landed.	% épp most landolt.
+% just showed up!	% épp most bukkant fel!
+% just slid into the server.	% épp most becsúszott a szerverre.
+% left the group.	% kilépett a csoportból.
+% member|% members	% tag|% tag
+% minute ago|% minutes ago	% perce|% perce
+% minute|% minutes	% perc|% perc
+% month ago|% months ago	% hónapja|% hónapja
+% of %	%1 / %2
+% removed the custom group name.	% eltávolította az egyéni csoportnevet.
+% started a call.	% hívást indított.
+% turned on encryption.	% bekapcsolta a titkosítást.
+% user|% users	% felhasználó|% felhasználó
+% use|% uses	% használat|% használat
+% vote|% votes	% szavazat|% szavazat
+% wants to encrypt this DM with a new key. Compare safety numbers after accepting.	% új kulccsal szeretné titkosítani ezt a DM-et. Elfogadás után hasonlítsátok össze a biztonsági számokat.
+% wants to encrypt this DM.	% szeretné titkosítani ezt a DM-et.
+% year ago|% years ago	% éve|% éve
+% · End-to-end encrypted	% · Végponttól végpontig titkosítva
+%'s Group	% csoportja
+%'s encryption key changed. Compare safety numbers before trusting new messages.	% titkosítási kulcsa megváltozott. Mielőtt megbíznál az új üzenetekben, hasonlítsd össze a biztonsági számokat.
+%'s server	% szervere
+%1 (%2 more)	%1 (még %2)
+%1 FPS	%1 FPS
+%1 STICKERS — %2 SLOTS AVAILABLE	%1 MATRICA — %2 SZABAD HELY
+%1 action %2	%1 művelet: %2
+%1 added %2 to the group.	%1 hozzáadta a csoporthoz: %2.
+%1 and %2	%1 és %2
+%1 and %2 are typing...	%1 és %2 éppen ír...
+%1 and %2 other|%1 and %2 others	%1 és még %2 másik|%1 és még %2 másik
+%1 banned %2	%1 kitiltotta: %2
+%1 changed the Stage topic: %2	%1 megváltoztatta a Színpad témáját: %2
+%1 changed the channel name: %2.	%1 megváltoztatta a csatorna nevét: %2.
+%1 changed the group name: %2.	%1 megváltoztatta a csoport nevét: %2.
+%1 created a channel	%1 létrehozott egy csatornát
+%1 created a role	%1 létrehozott egy rangot
+%1 created a webhook	%1 létrehozott egy webhookot
+%1 created an emoji	%1 létrehozott egy emodzsit
+%1 created an invite	%1 létrehozott egy meghívót
+%1 deleted a channel	%1 törölt egy csatornát
+%1 deleted a message by %2	%1 törölt egy üzenetet (szerző: %2)
+%1 deleted a role	%1 törölt egy rangot
+%1 deleted a webhook	%1 törölt egy webhookot
+%1 deleted an emoji	%1 törölt egy emodzsit
+%1 deleted an invite	%1 törölt egy meghívót
+%1 enabled security actions until %2.	%1 bekapcsolta a biztonsági intézkedéseket eddig: %2.
+%1 ended %2	%1 befejezte: %2
+%1 has achieved %2	%1 elérte: %2
+%1 has added %2 to this channel. Its most important updates will show up here.	%1 hozzáadta ehhez a csatornához: %2. A legfontosabb frissítései itt jelennek meg.
+%1 has blocked a message in %2	%1 letiltott egy üzenetet itt: %2
+%1 has flagged a message in %2	%1 megjelölt egy üzenetet itt: %2
+%1 is now a speaker.	%1 mostantól előadó.
+%1 joined %2 and has been a subscriber of %3 for %4 month!|%1 joined %2 and has been a subscriber of %3 for %4 months!	%1 csatlakozott: %2, és már %4 hónapja feliratkozója ennek: %3!|%1 csatlakozott: %2, és már %4 hónapja feliratkozója ennek: %3!
+%1 joined %2 as a subscriber of %3!	%1 csatlakozott: %2, mint %3 feliratkozó!
+%1 just boosted the server %2 times!	%1 épp most %2× boostolta a szervert!
+%1 kicked %2	%1 kirúgta: %2
+%1 new message since %2|%1 new messages since %2	%1 új üzenet %2 óta|%1 új üzenet %2 óta
+%1 of %2 slot used|%1 of %2 slots used	%1 / %2 hely foglalt|%1 / %2 hely foglalt
+%1 pinned %2 to this channel. See all %3.	%1 kitűzte ezt a csatornán: %2. Az összes %3 megtekintése.
+%1 reacted with %2	%1 reagált: %2
+%1 removed %2 from the group.	%1 eltávolította a csoportból: %2.
+%1 renewed %2 and has been a subscriber of %3 for %4 month!|%1 renewed %2 and has been a subscriber of %3 for %4 months!	%1 megújította: %2, és már %4 hónapja feliratkozója ennek: %3!|%1 megújította: %2, és már %4 hónapja feliratkozója ennek: %3!
+%1 renewed %2 in their %3 membership!	%1 megújította: %2, %3 tagságában!
+%1 reported a raid in %2.	%1 rajtaütést jelentett itt: %2.
+%1 requested to speak.	%1 szólásra jelentkezett.
+%1 resolved an Activity Alert in %2.	%1 lezárt egy tevékenységi riasztást itt: %2.
+%1 said %2	%1 ezt mondta: %2
+%1 started %2	%1 elindította: %2
+%1 started a call that lasted %2.	%1 hívást indított, ami %2 ideig tartott.
+%1 started a thread: %2. See all %3.	%1 szálat indított: %2. Az összes %3 megtekintése.
+%1 unbanned %2	%1 feloldotta a kitiltást: %2
+%1 updated %2	%1 frissítette: %2
+%1 updated a channel	%1 frissített egy csatornát
+%1 updated a role	%1 frissített egy rangot
+%1 updated a webhook	%1 frissített egy webhookot
+%1 updated an emoji	%1 frissített egy emodzsit
+%1 updated the roles of %2	%1 frissítette a rangjait: %2
+%1 updated the server	%1 frissítette a szervert
+%1 vote · %2|%1 votes · %2	%1 szavazat · %2|%1 szavazat · %2
+%1 wants to make you the owner of %2. You'll be able to manage everything about it, and they'll stay a member.	%1 téged szeretne a(z) %2 tulajdonosává tenni. Mindent kezelhetsz majd, ő pedig tag marad.
+%1's poll %2 has closed.	%1 szavazása lezárult: %2.
+%1, %2 and %3	%1, %2 és %3
+%1, %2 at %3	%1, %2, %3
+%1, %2, and %3 are typing...	%1, %2 és %3 éppen ír...
+%1: %2	%1: %2
+%: a number	%: egy szám
+%: a whole number	%: egy egész szám
+%: pick a channel	%: válassz csatornát
+%: pick a member	%: válassz tagot
+%: pick a role	%: válassz rangot
+%: true or false	%: igaz vagy hamis
+%d ago	%n ezelőtt
+%d left	még %n
+%h	%ó
+%h ago	%ó ezelőtt
+%h left	még %ó
+%m	%p
+%m ago	%p ezelőtt
+%m left	még %p
+%mo ago	%hó ezelőtt
+%s	%mp
+(edited)	(szerkesztve)
+/% takes no options.	A(z) /% parancsnak nincsenek opciói.
+/%1 needs %2:	A(z) /%1 parancshoz kell: %2
+1 Day	1 nap
+1 Hour	1 óra
+1 Message	1 üzenet
+1 Week	1 hét
+1 day	1 nap
+1 hour	1 óra
+1 minute	1 perc
+1 use	1 használat
+1 week	1 hét
+10 Minutes	10 perc
+10 minutes	10 perc
+10 uses	10 használat
+100 uses	100 használat
+12 hours	12 óra
+12-hour	12 órás
+15 minutes	15 perc
+2 hours	2 óra
+2 to 4 letters or numbers	2–4 betű vagy szám
+2 weeks	2 hét
+24 Hours	24 óra
+24 hours	24 óra
+24-hour	24 órás
+25 uses	25 használat
+3 Days	3 nap
+3 days	3 nap
+30 days	30 nap
+30 minutes	30 perc
+3:00 PM	du. 3:00
+4 hours	4 óra
+5 Minutes	5 perc
+5 minutes	5 perc
+5 uses	5 használat
+50 uses	50 használat
+6 hours	6 óra
+6-digit authentication code	6 jegyű hitelesítési kód
+60 Seconds	60 másodperc
+60 seconds	60 másodperc
+7 days	7 nap
+8 hours	8 óra
+8-digit backup code	8 jegyű tartalékkód
+@ OFF	@ KI
+@ ON	@ BE
+@MENTIONS	@EMLÍTÉSEK
+@everyone · applies to all server members	@everyone · a szerver összes tagjára vonatkozik
+A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button.	Egy billentyű Ctrl, Alt, Shift vagy Cmd gombbal, egy módosítóbillentyű önmagában, vagy a középső vagy oldalsó egérgomb.
+A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button. Works in every app.	Egy billentyű Ctrl, Alt, Shift vagy Cmd gombbal, egy módosítóbillentyű önmagában, vagy a középső vagy oldalsó egérgomb. Minden alkalmazásban működik.
+A role needs a name.	A rangnak kell egy név.
+A webhook needs a name.	A webhooknak kell egy név.
+A wild % appeared.	Egy vad % jelent meg.
+ACTION	MŰVELET
+ACTIVE INVITE LINKS	AKTÍV MEGHÍVÓLINKEK
+ALL	ÖSSZES
+ALL THE BITS! Going above 64 kbps may adversely affect people on poor connections.	AZ ÖSSZES BITET! 64 kbps felett a gyenge kapcsolatú felhasználóknak gondjaik lehetnek.
+AM	de.
+ANIMATED EMOJI — % SLOTS AVAILABLE	ANIMÁLT EMODZSIK — % SZABAD HELY
+APP	ALKALMAZÁS
+AUDIENCE — %	KÖZÖNSÉG — %
+AUTHENTICATOR APP	HITELESÍTŐ ALKALMAZÁS
+About Me	Rólam
+Accept	Elfogadás
+Accept Friend Request	Barátkérelem elfogadása
+Accept Invite	Meghívó elfogadása
+Accept Server Ownership	Szervertulajdon elfogadása
+Accept this message request (Friends, Message Requests) to reply.	A válaszhoz fogadd el ezt az üzenetkérelmet (Barátok, Üzenetkérelmek).
+Accepting...	Elfogadás...
+Access	Hozzáférés
+Accessibility	Akadálymentesség
+Account	Fiók
+Account Removal	Fiók eltávolítása
+Activate	Aktiválás
+Active	Aktív
+Active Now	Most aktív
+Activities	Tevékenységek
+Activity Joining	Csatlakozás tevékenységhez
+Activity Privacy	Tevékenység adatvédelme
+Activity Status	Tevékenységi állapot
+Add Answer	Válasz hozzáadása
+Add Emoji	Emodzsi hozzáadása
+Add Friend	Barát hozzáadása
+Add Friend Nickname	Barát becenevének hozzáadása
+Add Note	Jegyzet hozzáadása
+Add Reaction	Reakció hozzáadása
+Add Reactions	Reakciók hozzáadása
+Add Tag	Címke hozzáadása
+Add a Keybind	Billentyűparancs hozzáadása
+Add a Question	Kérdés hozzáadása
+Add a channel	Csatorna hozzáadása
+Add a channel to override its default notification settings	Adj hozzá egy csatornát az alapértelmezett értesítési beállításai felülírásához
+Add a description	Leírás hozzáadása
+Add a location, link, or something.	Adj meg egy helyet, linket vagy bármit.
+Add a role	Rang hozzáadása
+Add an Account	Fiók hozzáadása
+Add an optional message...	Opcionális üzenet hozzáadása...
+Add another answer	Újabb válasz hozzáadása
+Add at least one word to block.	Adj meg legalább egy tiltandó szót.
+Add members or roles	Tagok vagy rangok hozzáadása
+Add this channel's updates to your server!	Add hozzá ennek a csatornának a frissítéseit a szerveredhez!
+Add this key to an authenticator app, then enter the code it shows.	Add hozzá ezt a kulcsot egy hitelesítő alkalmazáshoz, majd írd be a megjelenő kódot.
+Add to Favorites	Hozzáadás a kedvencekhez
+Add to Group DM	Hozzáadás csoportos DM-hez
+Add up to 5 traits to show off your server's interests and personality.	Adj meg legfeljebb 5 jellemzőt, hogy megmutasd a szervered érdeklődési körét és személyiségét.
+Add up to 50 custom emoji that anyone can use in this server. Animated GIF emoji may be used by members with Discord Nitro. Emoji names must be at least 2 characters long and can only contain alphanumeric characters and underscores. Emoji must be under 256 KB in size.	Adj hozzá legfeljebb 50 egyéni emodzsit, amelyet bárki használhat ezen a szerveren. Animált GIF emodzsit a Discord Nitróval rendelkező tagok használhatnak. Az emodzsik neve legalább 2 karakteres legyen, és csak betűket, számokat és aláhúzásjelet tartalmazhat. Az emodzsik mérete legfeljebb 256 KB lehet.
+Add your pronouns	Add meg a névmásaidat
+Added %	Hozzáadva: %
+Adjust the size of the interface. You can also change this with % +/-.	A felület méretének módosítása. Ezt a(z) % +/- kombinációval is állíthatod.
+Administrator	Adminisztrátor
+Advanced Permissions	Speciális engedélyek
+Advanced permissions	Speciális engedélyek
+Age-Restricted Channel	Korhatáros csatorna
+All	Összes
+All Actions	Összes művelet
+All Messages	Összes üzenet
+All Users	Összes felhasználó
+All friends	Összes barát
+All messages will be filtered for sensitive image-based media.	Minden üzenetben szűrjük a kényes képi tartalmakat.
+All set. Now share your event!	Minden kész. Most oszd meg az eseményedet!
+Allow DMs from other members in servers	DM-ek engedélyezése a szervereken lévő többi tagtól
+Allow Discord to use and process my information to understand and improve Discord's services.	Engedélyezem, hogy a Discord felhasználja és feldolgozza az adataimat a szolgáltatásai megértéséhez és fejlesztéséhez.
+Allow Friend Requests from...	Barátkérelmek engedélyezése tőlük...
+Allow Multiple Answers	Több válasz engedélyezése
+Allow anyone to @mention this role	Bárki @említheti ezt a rangot
+Allow direct messages from other members in this server.	Közvetlen üzenetek engedélyezése a szerver többi tagjától.
+Allow friends to join your game	A barátaid csatlakozhatnak a játékodhoz
+Allow members to change this server's name, switch regions, view all invites, add apps to this server and create and update AutoMod rules.	A tagok módosíthatják a szerver nevét, régiót válthatnak, megtekinthetik az összes meghívót, alkalmazásokat adhatnak a szerverhez, valamint AutoMod-szabályokat hozhatnak létre és frissíthetnek.
+Allow members to create invite-only threads.	A tagok csak meghívással elérhető szálakat hozhatnak létre.
+Allow members to create threads that everyone in a channel can view.	A tagok olyan szálakat hozhatnak létre, amelyeket a csatornán mindenki láthat.
+Allow members to send messages in text channels and create posts in forum channels.	A tagok üzeneteket küldhetnek a szöveges csatornákon, és bejegyzéseket hozhatnak létre a fórumcsatornákon.
+Allow members to send messages in threads and in posts on forum channels.	A tagok üzeneteket küldhetnek a szálakban és a fórumcsatornák bejegyzéseiben.
+Allow message requests from server members you may not know	Üzenetkérelmek engedélyezése olyan szervertagoktól, akiket talán nem ismersz
+Allow voice channel participants to join your game	A hangcsatorna résztvevői csatlakozhatnak a játékodhoz
+Allowed words	Engedélyezett szavak
+Allows apps that members have added to their account to post messages. When disabled, the messages will be private.	A tagok fiókjukhoz adott alkalmazásai üzeneteket küldhetnek. Kikapcsolva az üzenetek privátak lesznek.
+Allows links that members share to show embedded content in text channels.	A tagok által megosztott linkek beágyazott tartalmat jeleníthetnek meg a szöveges csatornákon.
+Allows members to add custom emoji, stickers, and sounds in this server.	A tagok egyéni emodzsikat, matricákat és hangokat adhatnak hozzá ehhez a szerverhez.
+Allows members to add new emoji reactions to a message. If this permission is disabled, members can still react using any existing reactions on a message.	A tagok új emodzsireakciókat adhatnak egy üzenethez. Ha ez az engedély ki van kapcsolva, a tagok továbbra is reagálhatnak az üzeneten már meglévő reakciókkal.
+Allows members to be more easily heard in voice channels. When activated, the volume of others without this permission will be automatically lowered.	A tagokat könnyebben lehet hallani a hangcsatornákon. Bekapcsolva az engedéllyel nem rendelkezők hangereje automatikusan lecsökken.
+Allows members to change the nicknames of other members.	A tagok módosíthatják más tagok becenevét.
+Allows members to change their own nickname, a custom name for just this server.	A tagok módosíthatják a saját becenevüket, vagyis az ezen a szerveren használt egyéni nevüket.
+Allows members to change this channel's name, description, and settings. They can also delete it.	A tagok módosíthatják a csatorna nevét, leírását és beállításait. Törölhetik is.
+Allows members to change this channel's permissions.	A tagok módosíthatják a csatorna engedélyeit.
+Allows members to create and edit voice channel status.	A tagok létrehozhatják és szerkeszthetik a hangcsatorna állapotát.
+Allows members to create events.	A tagok eseményeket hozhatnak létre.
+Allows members to create new roles and edit or delete roles lower than their highest role. Also allows members to change permissions of individual channels that they have access to.	A tagok új rangokat hozhatnak létre, és szerkeszthetik vagy törölhetik a legmagasabb rangjuknál alacsonyabb rangokat. Emellett módosíthatják az általuk elérhető egyes csatornák engedélyeit.
+Allows members to create polls.	A tagok szavazásokat hozhatnak létre.
+Allows members to create, edit, or delete channels.	A tagok csatornákat hozhatnak létre, szerkeszthetnek vagy törölhetnek.
+Allows members to create, edit, or delete webhooks, which can post messages from other apps or sites into this server.	A tagok webhookokat hozhatnak létre, szerkeszthetnek vagy törölhetnek, amelyek más alkalmazásokból vagy oldalakról küldhetnek üzeneteket erre a szerverre.
+Allows members to deafen other members in voice channels, which means they won't be able to speak or hear others.	A tagok lesüketíthetnek más tagokat a hangcsatornákon, így azok nem tudnak beszélni és nem hallanak másokat.
+Allows members to delete or remove embeds from messages by other members.	A tagok törölhetik más tagok üzeneteit, vagy eltávolíthatják belőlük a beágyazásokat.
+Allows members to disconnect or move other members between voice channels that the member with this permission has access to.	A tagok lecsatlakoztathatnak más tagokat, vagy áthelyezhetik őket azon hangcsatornák között, amelyekhez az engedéllyel rendelkező tag hozzáfér.
+Allows members to edit and cancel events.	A tagok szerkeszthetik és lemondhatják az eseményeket.
+Allows members to edit or remove custom emoji, stickers, and sounds in this server.	A tagok szerkeszthetik vagy eltávolíthatják a szerver egyéni emodzsijait, matricáit és hangjait.
+Allows members to invite new people to this server.	A tagok új embereket hívhatnak meg erre a szerverre.
+Allows members to join voice channels and hear others.	A tagok csatlakozhatnak a hangcsatornákhoz, és hallhatnak másokat.
+Allows members to mute other members in voice channels for everyone.	A tagok mindenki számára elnémíthatnak más tagokat a hangcsatornákon.
+Allows members to permanently ban and delete the message history of other members from this server.	A tagok véglegesen kitilthatnak más tagokat erről a szerverről, és törölhetik az üzenetelőzményeiket.
+Allows members to pin or unpin any message.	A tagok bármely üzenetet kitűzhetnek vagy levehetnek.
+Allows members to read previous messages sent in channels. If this permission is disabled, members only see messages sent when they are online. This does not fully apply to threads and forum posts.	A tagok olvashatják a csatornákon korábban küldött üzeneteket. Ha ez az engedély ki van kapcsolva, a tagok csak az online létük alatt küldött üzeneteket látják. Ez nem teljesen vonatkozik a szálakra és a fórumbejegyzésekre.
+Allows members to remove other members from this server. Kicked members will be able to rejoin if they have another invite.	A tagok eltávolíthatnak más tagokat erről a szerverről. A kirúgott tagok újra csatlakozhatnak, ha van másik meghívójuk.
+Allows members to rename, delete, close, and turn on slow mode for threads and posts. They can also view private threads.	A tagok átnevezhetik, törölhetik, lezárhatják a szálakat és bejegyzéseket, és lassított módot kapcsolhatnak be rajtuk. A privát szálakat is láthatják.
+Allows members to send messages without being affected by slowmode.	A tagok a lassított mód korlátozása nélkül küldhetnek üzeneteket.
+Allows members to send sounds from server soundboard.	A tagok hangokat küldhetnek a szerver hangtáblájáról.
+Allows members to send text-to-speech messages by starting a message with /tts. These messages can be heard by anyone focused on the channel.	A tagok szövegfelolvasós üzeneteket küldhetnek, ha az üzenetet /tts-sel kezdik. Ezeket mindenki hallja, aki éppen a csatornát nézi.
+Allows members to send voice messages.	A tagok hangüzeneteket küldhetnek.
+Allows members to share their video, screen share, or stream a game in this server.	A tagok megoszthatják a videójukat, a képernyőjüket, vagy közvetíthetnek egy játékot ezen a szerveren.
+Allows members to speak in voice channels by simply talking. If this permission is disabled, members are required to use Push-to-talk. Good for controlling background noise or noisy members.	A tagok egyszerűen beszéddel szólalhatnak meg a hangcsatornákon. Ha ez az engedély ki van kapcsolva, a tagoknak a Nyomd és beszélj módot kell használniuk. Hasznos a háttérzaj vagy a zajos tagok kezelésére.
+Allows members to talk in voice channels. If this permission is disabled, members are default muted until somebody with the "Mute Members" permission un-mutes them.	A tagok beszélhetnek a hangcsatornákon. Ha ez az engedély ki van kapcsolva, a tagok alapból némítva vannak, amíg valaki a „Tagok némítása” engedéllyel fel nem oldja a némításukat.
+Allows members to upload files or media in text channels.	A tagok fájlokat vagy médiát tölthetnek fel a szöveges csatornákon.
+Allows members to use @everyone (everyone in the server) or @here (only online members in that channel). They can also @mention all roles, even if the role's "Allow anyone to mention this role" permission is disabled.	A tagok használhatják az @everyone (a szerveren mindenki) vagy a @here (csak a csatorna online tagjai) említést. Az összes rangot is @említhetik, akkor is, ha a rang „Bárki említheti ezt a rangot” engedélye ki van kapcsolva.
+Allows members to use commands from applications, including slash commands and context menu commands.	A tagok használhatják az alkalmazások parancsait, beleértve a perjeles és a helyi menüs parancsokat.
+Allows members to use emoji from other servers, if they're a Discord Nitro member.	A tagok más szerverek emodzsijait is használhatják, ha Discord Nitro-tagok.
+Allows members to use sounds from other servers, if they're a Discord Nitro member.	A tagok más szerverek hangjait is használhatják, ha Discord Nitro-tagok.
+Allows members to use stickers from other servers, if they're a Discord Nitro member.	A tagok más szerverek matricáit is használhatják, ha Discord Nitro-tagok.
+Allows members to view Server Insights, which shows data on community growth, engagement, and more. This will allow them to see certain data about channel activity, even for channels they cannot access.	A tagok megtekinthetik a Szerverelemzéseket, amelyek a közösség növekedéséről, aktivitásáról és egyebekről mutatnak adatokat. Így a csatornatevékenység bizonyos adatait azokról a csatornákról is láthatják, amelyekhez nem férnek hozzá.
+Allows members to view a record of who made which changes in this server.	A tagok megtekinthetik, ki milyen módosításokat végzett ezen a szerveren.
+Allows members to view channels by default (excluding private channels).	A tagok alapból láthatják a csatornákat (a privát csatornák kivételével).
+Allows members to view these channels by default. Disabling this for @everyone will make the category private.	A tagok alapból láthatják ezeket a csatornákat. Ha ezt kikapcsolod az @everyone számára, a kategória privát lesz.
+Allows members to view this channel by default. Disabling this for @everyone will make this channel private.	A tagok alapból láthatják ezt a csatornát. Ha ezt kikapcsolod az @everyone számára, a csatorna privát lesz.
+Always	Mindig
+An emoji name, like smile	Egy emodzsi neve, pl. smile
+An encrypted file couldn't be opened.|% encrypted files couldn't be opened.	Egy titkosított fájlt nem sikerült megnyitni.|% titkosított fájlt nem sikerült megnyitni.
+An error occurred, please try again.	Hiba történt, próbáld újra.
+An error occurred. Please try again.	Hiba történt. Próbáld újra.
+Announcement	Közlemény
+Announcement Channel	Közleménycsatorna
+Answer	Válasz
+Answers	Válaszok
+Anyone can join your server directly through Server Discovery	Bárki közvetlenül csatlakozhat a szerveredhez a Szerverfelfedezőn keresztül
+Anyone can use	Bárki használhatja
+Anyone with access to this text channel will be able to see the notifications.	Bárki, aki hozzáfér ehhez a szöveges csatornához, látni fogja az értesítéseket.
+App Directory	Alkalmazáskönyvtár
+Appearance	Megjelenés
+Appends (╯°□°)╯︵ ┻━┻ to your message.	Hozzáfűzi a (╯°□°)╯︵ ┻━┻ jelet az üzenetedhez.
+Appends ¯\\_(ツ)_/¯ to your message.	Hozzáfűzi a ¯\\_(ツ)_/¯ jelet az üzenetedhez.
+Appends ┬─┬ノ( º _ ºノ) to your message.	Hozzáfűzi a ┬─┬ノ( º _ ºノ) jelet az üzenetedhez.
+Applications	Alkalmazások
+Apply to Join	Csatlakozási kérelem
+Approve	Jóváhagyás
+Apps	Alkalmazások
+Apps Permissions	Alkalmazásengedélyek
+Archived	Archivált
+Archived Threads	Archivált szálak
+Are you building a Community? Convert to a Community Server to access additional administrative tools that can help you moderate, run, and grow your server.	Közösséget építesz? Alakítsd át Közösségi szerverré, és további adminisztrációs eszközöket kapsz a szervered moderálásához, működtetéséhez és növeléséhez.
+Are you sure that you want to delete your account? This will immediately log you out of your account and you will not be able to log in again.	Biztosan törölni szeretnéd a fiókodat? Ezzel azonnal kijelentkezel, és többé nem tudsz majd bejelentkezni.
+Are you sure that you want to disable your account? This will immediately log you out and make your account inaccessible to anyone.	Biztosan le szeretnéd tiltani a fiókodat? Ezzel azonnal kijelentkezel, és a fiókod senki számára nem lesz elérhető.
+Are you sure you want to ban @%1 from %2? They won't be able to come back until the ban is lifted.	Biztosan ki szeretnéd tiltani @%1 felhasználót innen: %2? Nem térhet vissza, amíg a kitiltást fel nem oldják.
+Are you sure you want to delete %? This action cannot be undone.	Biztosan törölni szeretnéd: %? Ez a művelet nem vonható vissza.
+Are you sure you want to delete %? This cannot be undone.	Biztosan törölni szeretnéd: %? Ez nem vonható vissza.
+Are you sure you want to delete :%:? This cannot be undone.	Biztosan törölni szeretnéd: :%:? Ez nem vonható vissza.
+Are you sure you want to delete the rule %? This cannot be undone.	Biztosan törölni szeretnéd ezt a szabályt: %? Ez nem vonható vissza.
+Are you sure you want to delete this message?	Biztosan törölni szeretnéd ezt az üzenetet?
+Are you sure you want to delete this role? This action cannot be undone.	Biztosan törölni szeretnéd ezt a rangot? Ez a művelet nem vonható vissza.
+Are you sure you want to delete this template? Its link will stop working.	Biztosan törölni szeretnéd ezt a sablont? A linkje megszűnik működni.
+Are you sure you want to kick @%1 from %2? They will be able to rejoin again with a new invite.	Biztosan ki szeretnéd rúgni @%1 felhasználót innen: %2? Új meghívóval újra csatlakozhat.
+Are you sure you want to logout?	Biztosan ki szeretnél jelentkezni?
+Are you sure you want to remove all embeds on this message? This will remove them for everyone.	Biztosan eltávolítod az összes beágyazást erről az üzenetről? Mindenkinél eltűnnek.
+Are you sure you want to remove all of the reactions for this emoji from this message?	Biztosan eltávolítod az üzenetről az összes reakciót ezzel az emodzsival?
+Are you sure you want to remove all the reactions on this message?	Biztosan eltávolítod az összes reakciót erről az üzenetről?
+Are you sure you want to revoke the invite %? Nobody will be able to join with it.	Biztosan visszavonod ezt a meghívót: %? Senki sem tud majd vele csatlakozni.
+Ask for a new invite	Kérj új meghívót
+Ask new members what they're here for; each answer gives them channels and roles.	Kérdezd meg az új tagokat, miért jöttek; minden válasz csatornákat és rangokat ad nekik.
+Attach Files	Fájlok csatolása
+Attachment removed	Melléklet eltávolítva
+Attachments	Mellékletek
+Audit Log	Napló
+Authorized Apps	Engedélyezett alkalmazások
+Auto	Auto
+AutoMod	AutoMod
+Automatic	Automatikus
+Automatic Gain Control	Automatikus erősítésszabályozás
+Automatically determine input sensitivity	Bemeneti érzékenység automatikus meghatározása
+Automatically enable Streamer Mode if OBS or XSplit are running	Streamer mód automatikus bekapcsolása, ha fut az OBS vagy az XSplit
+Automatically filter suspected spam messages	Gyanús spamüzenetek automatikus szűrése
+Automatically move members to this channel and mute them when they have been idle for longer than the inactive timeout. This does not affect browsers.	A tagok automatikus áthelyezése ebbe a csatornába és némítása, ha az inaktivitási időnél tovább tétlenek. Ez a böngészőkre nem vonatkozik.
+Automatically open fastcord when your computer starts up	A fastcord automatikus megnyitása a számítógép indulásakor
+Automatically scan and delete messages sent in this server that contain explicit media.	A szerveren küldött, kifogásolható médiát tartalmazó üzenetek automatikus vizsgálata és törlése.
+Avatar	Profilkép
+BACK	VISSZA
+BACKUP CODES	TARTALÉKKÓDOK
+Back	Vissza
+Back / forward	Vissza / előre
+Backup codes can only be used one time each and are for emergency access to your account!	A tartalékkódok mindegyike csak egyszer használható, és vészhelyzeti hozzáférésre szolgál a fiókodhoz!
+Backups	Biztonsági mentések
+Ban	Kitiltás
+Ban %	% kitiltása
+Ban '%' from Server	'%' kitiltása a szerverről
+Ban Member	Tag kitiltása
+Ban Members	Tagok kitiltása
+Banner	Borítókép
+Banner Color	Borítókép színe
+Bans	Kitiltások
+Bitrate	Bitráta
+Block	Letiltás
+Block Commonly Flagged Words	Gyakran jelölt szavak tiltása
+Block Custom Words	Egyéni szavak tiltása
+Block Mention Spam	Említésspam tiltása
+Block Suspected Spam Content	Gyanús spamtartalom tiltása
+Block Words in Member Profile Names	Szavak tiltása a tagok profilnevében
+Block message	Üzenet letiltása
+Blocked	Letiltva
+Blocked Users	Letiltott felhasználók
+Blocked by your content filters	A tartalomszűrőid letiltották
+Blocked message	Letiltott üzenet
+Blocked words	Tiltott szavak
+Blocked words in names	Tiltott szavak a nevekben
+Blocks messages containing % word.|Blocks messages containing % words.	Letiltja a(z) % szót tartalmazó üzeneteket.|Letiltja a(z) % szó valamelyikét tartalmazó üzeneteket.
+Blocks messages suspected to be spam.	Letiltja a spamnek tűnő üzeneteket.
+Blocks messages with more than % mentions.	Letiltja a(z) %-nál több említést tartalmazó üzeneteket.
+Blocks words from Discord's commonly flagged lists.	Letiltja a Discord gyakran jelölt szavainak listáin szereplő szavakat.
+Blocks words in member profile names.	Letiltja a szavakat a tagok profilnevében.
+Blur	Elmosás
+Blur Background	Háttér elmosása
+Blur what's behind you on camera. Only your camera is changed.	Elmossa a mögötted lévő hátteret a kamerán. Csak a kamerád képe változik.
+Bold / italic / underline	Félkövér / dőlt / aláhúzott
+Bots and Apps	Botok és alkalmazások
+Browse	Böngészés
+Browse Channels	Csatornák böngészése
+Built-In	Beépített
+Bulgarian	Bolgár
+By creating a server, you agree to Discord's Community Guidelines.	Szerver létrehozásával elfogadod a Discord Közösségi irányelveit.
+By enabling the widget, your server profile will be visible to others outside of your server members. You can control Profile privacy in Server Settings > Profile.	A widget bekapcsolásával a szervered profilját a szerver tagjain kívül mások is láthatják. A profil adatvédelmét a Szerverbeállítások > Profil menüben szabályozhatod.
+By making a category private, only select members and roles will be able to view this category. Linked channels in this category will automatically match to this setting.	Ha priváttá teszed a kategóriát, csak a kiválasztott tagok és rangok láthatják. A kategória szinkronizált csatornái automatikusan átveszik ezt a beállítást.
+By making a channel private, only select members and roles will be able to view this channel.	Ha priváttá teszed a csatornát, csak a kiválasztott tagok és rangok láthatják.
+By making a channel private, only select members and roles will have access to view or connect to this channel.	Ha priváttá teszed a csatornát, csak a kiválasztott tagok és rangok láthatják, illetve csatlakozhatnak hozzá.
+Bypass Slowmode	Lassított mód megkerülése
+CHANNEL OR CATEGORY	CSATORNA VAGY KATEGÓRIA
+CONFIRM NEW PASSWORD	ÚJ JELSZÓ MEGERŐSÍTÉSE
+CURRENT PASSWORD	JELENLEGI JELSZÓ
+Call	Hívás
+Cancel	Mégse
+Cancel Event	Esemény lemondása
+Cancel Friend Request	Barátkérelem visszavonása
+Careful — you have unsaved changes!	Vigyázz — mentetlen módosításaid vannak!
+Category Name	Kategória neve
+Category deleted	Kategória törölve
+Change %	% módosítása
+Change Avatar	Profilkép módosítása
+Change Nickname	Becenév módosítása
+Change Password	Jelszó módosítása
+Change Server Icon	Szerverikon módosítása
+Channel	Csatorna
+Channel Name	Csatorna neve
+Channel Notification Overrides	Csatornaértesítési felülírások
+Channel Topic	Csatorna témája
+Channel Type	Csatorna típusa
+Channel deleted	Csatorna törölve
+Channel unmuted	Csatorna némítása feloldva
+Channels	Csatornák
+Channels & Roles	Csatornák és rangok
+Channels Followed (%)	Követett csatornák (%)
+Channels matching #%	A(z) #% kifejezésnek megfelelő csatornák
+Chat	Csevegés
+Chat Font Scaling	Csevegés betűmérete
+Check your email for a login link	Nézd meg az e-mailjeidet, küldtünk egy bejelentkezési linket
+Check your phone!	Nézd meg a telefonodat!
+Checking the file…	Fájl ellenőrzése…
+Chinese, China	Kínai (Kína)
+Chinese, Taiwan	Kínai (Tajvan)
+Choose Image	Kép kiválasztása
+Choose a link people can use to join, discord.gg/<code>.	Válassz egy linket, amellyel mások csatlakozhatnak: discord.gg/<kód>.
+Choose a server	Válassz szervert
+Choose the language you want Discord to display.	Válaszd ki, milyen nyelven jelenjen meg a Discord.
+Choose what happens to images and videos Discord detects as explicit.	Válaszd ki, mi történjen azokkal a képekkel és videókkal, amelyeket a Discord kifogásolhatónak érzékel.
+Clear	Törlés
+Clear Custom Status	Egyéni állapot törlése
+Clear after	Törlés ennyi idő után
+Clear permissions	Engedélyek törlése
+Click Again to Reset	Kattints újra a visszaállításhoz
+Click any channel, then pick a request whose name starts with "messages" or "science".	Kattints egy csatornára, majd válassz egy kérést, amelynek a neve „messages” vagy „science” szóval kezdődik.
+Click to add a note	Kattints jegyzet hozzáadásához
+Click to see attachment	Kattints a melléklet megtekintéséhez
+Close DM	DM bezárása
+Collapse	Összecsukás
+Collapse All Categories	Összes kategória összecsukása
+Collapse Category	Kategória összecsukása
+Commands	Parancsok
+Commands matching /%	A(z) /% kifejezésnek megfelelő parancsok
+Community Overview	Közösségi áttekintés
+Community Updates Channel	Közösségi frissítések csatornája
+Community servers follow Discord's Community Guidelines.	A közösségi szerverek a Discord Közösségi irányelveit követik.
+Community servers have more tools to help you moderate and grow your server.	A közösségi szerverek több eszközt kínálnak a szervered moderálásához és növeléséhez.
+Compact	Tömör
+Compare	Összehasonlítás
+Compare these with %, in person or on a call. If they match, no one can read this DM in between.	Hasonlítsd össze ezeket vele: %, személyesen vagy egy hívásban. Ha egyeznek, senki sem olvashatja ezt a DM-et útközben.
+Configure system event messages sent to your server.	A szerveredre küldött rendszereseményüzenetek beállítása.
+Confirm	Megerősítés
+Confirm Request	Kérés megerősítése
+Confirm your age to join this server.	A szerverhez való csatlakozáshoz erősítsd meg az életkorodat.
+Confirming...	Megerősítés...
+Connect	Csatlakozás
+Connect these accounts and unlock special Discord integrations. The sign-in opens in your browser.	Kapcsold össze ezeket a fiókokat, és különleges Discord-integrációkat nyithatsz meg. A bejelentkezés a böngésződben nyílik meg.
+Connected Apps	Csatlakoztatott alkalmazások
+Connecting	Csatlakozás
+Connecting...	Csatlakozás...
+Connecting…	Csatlakozás…
+Connection Info	Kapcsolati információk
+Connection lost. Messages may be out of date.	Megszakadt a kapcsolat. Az üzenetek elavultak lehetnek.
+Connections	Kapcsolatok
+Content Filters	Tartalomszűrők
+Continue	Folytatás
+Control who can see your profile info, like your bio and connected accounts.	Szabályozd, ki láthatja a profiladataidat, például a bemutatkozásodat és a kapcsolt fiókjaidat.
+Copied	Másolva
+Copy	Másolás
+Copy Category ID	Kategóriaazonosító másolása
+Copy Channel ID	Csatornaazonosító másolása
+Copy Event Link	Eseménylink másolása
+Copy Image	Kép másolása
+Copy Image Link	Képlink másolása
+Copy Link	Link másolása
+Copy Media Link	Médialink másolása
+Copy Message ID	Üzenetazonosító másolása
+Copy Message Link	Üzenetlink másolása
+Copy Server ID	Szerverazonosító másolása
+Copy Text	Szöveg másolása
+Copy User ID	Felhasználói azonosító másolása
+Copy Username	Felhasználónév másolása
+Copy Webhook URL	Webhook URL másolása
+Copy curl Command	curl parancs másolása
+Copy the event link below to invite people to your event. This also acts as a server invite link.	Másold ki az alábbi eseménylinket, hogy meghívj embereket az eseményedre. Ez szervermeghívó linkként is működik.
+Copy your account's token once from Discord in a web browser.	Másold ki egyszer a fiókod tokenjét a Discordból egy webböngészőben.
+Couldn't accept encryption.	Nem sikerült elfogadni a titkosítást.
+Couldn't cancel the event.	Nem sikerült lemondani az eseményt.
+Couldn't change avatar	Nem sikerült módosítani a profilképet
+Couldn't create an invite link.	Nem sikerült meghívólinket létrehozni.
+Couldn't create an invite.	Nem sikerült meghívót létrehozni.
+Couldn't delete the channel: %	Nem sikerült törölni a csatornát: %
+Couldn't encrypt the message.	Nem sikerült titkosítani az üzenetet.
+Couldn't join %: %	Nem sikerült csatlakozni ide: %1: %2
+Couldn't load onboarding.	Nem sikerült betölteni a bevezetést.
+Couldn't load the AutoMod rules.	Nem sikerült betölteni az AutoMod-szabályokat.
+Couldn't load the applications.	Nem sikerült betölteni az alkalmazásokat.
+Couldn't load the audit log.	Nem sikerült betölteni a naplót.
+Couldn't load the bans.	Nem sikerült betölteni a kitiltásokat.
+Couldn't load the invites.	Nem sikerült betölteni a meghívókat.
+Couldn't load the members.	Nem sikerült betölteni a tagokat.
+Couldn't load the role's members.	Nem sikerült betölteni a rang tagjait.
+Couldn't load the server rules.	Nem sikerült betölteni a szerver szabályait.
+Couldn't load the server's tag.	Nem sikerült betölteni a szerver címkéjét.
+Couldn't load the template.	Nem sikerült betölteni a sablont.
+Couldn't load the webhooks.	Nem sikerült betölteni a webhookokat.
+Couldn't move the channel	Nem sikerült áthelyezni a csatornát
+Couldn't play it here, so it opened in your browser.	Itt nem lehetett lejátszani, ezért a böngésződben nyílt meg.
+Couldn't reach %1: %2 Retrying.	Nem érhető el: %1: %2 Újrapróbálás.
+Couldn't reach Discord. Check your connection and try again.	Nem sikerült elérni a Discordot. Ellenőrizd a kapcsolatodat, és próbáld újra.
+Couldn't reach Discord. Try again.	Nem sikerült elérni a Discordot. Próbáld újra.
+Couldn't reach the server.	Nem sikerült elérni a szervert.
+Couldn't reach the server. Check your connection and try again.	Nem sikerült elérni a szervert. Ellenőrizd a kapcsolatodat, és próbáld újra.
+Couldn't save the file.	Nem sikerült menteni a fájlt.
+Couldn't save the image.	Nem sikerült menteni a képet.
+Couldn't save the token.	Nem sikerült menteni a tokent.
+Couldn't turn on encryption.	Nem sikerült bekapcsolni a titkosítást.
+Couldn't upload emoji	Nem sikerült feltölteni az emodzsit
+Cozy	Kényelmes
+Create	Létrehozás
+Create Category	Kategória létrehozása
+Create Channel	Csatorna létrehozása
+Create DM	DM létrehozása
+Create Emoji	Emodzsi létrehozása
+Create Event	Esemény létrehozása
+Create Events	Események létrehozása
+Create Expressions	Kifejezések létrehozása
+Create Group DM	Csoportos DM létrehozása
+Create Invite	Meghívó létrehozása
+Create My Own	Saját létrehozása
+Create Poll	Szavazás létrehozása
+Create Polls	Szavazások létrehozása
+Create Private Threads	Privát szálak létrehozása
+Create Public Threads	Nyilvános szálak létrehozása
+Create Role	Rang létrehozása
+Create Rule	Szabály létrehozása
+Create Thread	Szál létrehozása
+Create Webhook	Webhook létrehozása
+Create Your Server	Hozd létre a szervered
+Create a poll	Szavazás létrehozása
+Create a space for organized discussions	Hozz létre egy helyet a rendezett beszélgetésekhez
+Create one for me	Hozz létre egyet nekem
+Created by %	Létrehozta: %
+Created on %1 by %2	Létrehozva: %1, létrehozta: %2
+Creating an invite link…	Meghívólink létrehozása…
+Creating an invite...	Meghívó létrehozása...
+Creating...	Létrehozás...
+Creating…	Létrehozás…
+Creation Date	Létrehozás dátuma
+Croatian	Horvát
+Current Device	Jelenlegi eszköz
+Custom Invite Link	Egyéni meghívólink
+Customize Your Server	Szabd testre a szervered
+Customize how your server appears in invite links and, if enabled, in Server Discovery and Announcement Channel messages	Szabd testre, hogyan jelenjen meg a szervered a meghívólinkekben, és ha be van kapcsolva, a Szerverfelfedezőben és a közleménycsatornák üzeneteiben
+Customize your server with integrations. Manage webhooks, followed channels and apps.	Szabd testre a szervered integrációkkal. Kezeld a webhookokat, a követett csatornákat és az alkalmazásokat.
+Cut	Kivágás
+Czech	Cseh
+DAVE v%, % members	DAVE v%1, %2 tag
+DEFAULT KEYBINDS	ALAPÉRTELMEZETT BILLENTYŰPARANCSOK
+DM closed	DM bezárva
+Danish	Dán
+Data & Privacy	Adatok és adatvédelem
+Date	Dátum
+Deafen	Süketítés
+Deafen Members	Tagok süketítése
+Deauthorize	Engedély visszavonása
+Decline	Elutasítás
+Default	Alapértelmezett
+Default Channels	Alapértelmezett csatornák
+Default Layout	Alapértelmezett elrendezés
+Default Notification Settings	Alapértelmezett értesítési beállítások
+Default Permissions	Alapértelmezett engedélyek
+Default Sort Order	Alapértelmezett rendezés
+Default Themes	Alapértelmezett témák
+Default notifications become Only @mentions.	Az alapértelmezett értesítés Csak @említések lesz.
+Delete	Törlés
+Delete '%'	'%' törlése
+Delete Account	Fiók törlése
+Delete Category	Kategória törlése
+Delete Channel	Csatorna törlése
+Delete Emoji	Emodzsi törlése
+Delete Invite	Meghívó törlése
+Delete Message	Üzenet törlése
+Delete Message History	Üzenetelőzmények törlése
+Delete Question	Kérdés törlése
+Delete Role	Rang törlése
+Delete Rule	Szabály törlése
+Delete Server	Szerver törlése
+Delete Sticker	Matrica törlése
+Delete Template	Sablon törlése
+Delete Thread	Szál törlése
+Delete Webhook	Webhook törlése
+Deleted message	Törölt üzenet
+Describe your sticker	Írd le a matricádat
+Description	Leírás
+Description (alt text)	Leírás (alternatív szöveg)
+Description (optional)	Leírás (opcionális)
+Detects a burst of mention spam across the server and locks it down.	Észleli a szerveren hirtelen megugró említésspamet, és lezárja a szervert.
+Developer	Fejlesztő
+Developer Mode	Fejlesztői mód
+Developer Mode exposes context menu items helpful for people writing apps using the Discord API.	A Fejlesztői mód olyan helyi menüs elemeket jelenít meg, amelyek a Discord API-val alkalmazásokat írók számára hasznosak.
+Devices	Eszközök
+Direct Message (DM) Permissions	Közvetlen üzenet (DM) engedélyek
+Direct Messages	Közvetlen üzenetek
+Direct messages from friends	Közvetlen üzenetek barátoktól
+Direct messages from others	Közvetlen üzenetek másoktól
+Disable	Letiltás
+Disable Account	Fiók letiltása
+Disable All Notification Sounds	Összes értesítési hang kikapcsolása
+Disable Community	Közösség kikapcsolása
+Disable all notifications	Összes értesítés kikapcsolása
+Disable all sound effects	Összes hangeffekt kikapcsolása
+Disabling your account means you can recover it at any time after taking this action.	A fiók letiltása után bármikor visszaállíthatod.
+Disconnect	Lecsatlakozás
+Disconnect From Voice Channel	Lecsatlakozás a hangcsatornáról
+Disconnected	Lecsatlakozva
+Discord account	Discord-fiók
+Discord asked for a captcha, which fastcord can't show. Log in with the QR code instead.	A Discord captchát kért, amit a fastcord nem tud megjeleníteni. Jelentkezz be inkább QR-kóddal.
+Discord asked for a captcha, which fastcord can't show. Try on discord.com.	A Discord captchát kért, amit a fastcord nem tud megjeleníteni. Próbáld a discord.com oldalon.
+Discord can filter out some messages that contain spam. These messages go to your Spam inbox.	A Discord kiszűrhet néhány spamet tartalmazó üzenetet. Ezek a Spam mappádba kerülnek.
+Discord didn't accept the saved login. Log in again.	A Discord nem fogadta el a mentett bejelentkezést. Jelentkezz be újra.
+Discord failed to unpin that message for some reason. Sorry about that.	A Discordnak valamiért nem sikerült levennie az üzenetet a kitűzöttek közül. Elnézést.
+Discord will prioritize this server in search to users who speak the selected language.	A Discord a keresésben előnyben részesíti ezt a szervert a kiválasztott nyelvet beszélő felhasználóknál.
+Discord's terms don't allow third-party clients, so using one can get an account flagged.	A Discord feltételei nem engedélyezik a harmadik féltől származó klienseket, ezért a használatuk miatt a fiókot megjelölhetik.
+Discoverable	Felfedezhető
+Dismiss	Elvetés
+Dismiss message	Üzenet elvetése
+Display	Megjelenítés
+Display Images, Videos and Lolcats	Képek, videók és lolcicák megjelenítése
+Display Name	Megjelenített név
+Display name	Megjelenített név
+Display on profile	Megjelenítés a profilon
+Display role members separately from online members	A rang tagjainak megjelenítése az online tagoktól külön
+Displays text with emphasis.	Kiemelve jeleníti meg a szöveget.
+Do Not Disturb	Ne zavarjanak
+Do not filter	Ne szűrje
+Do not filter direct messages	Ne szűrje a közvetlen üzeneteket
+Don't Delete Any	Semmit ne töröljön
+Don't clear	Ne törölje
+Don't show role colors	Ne mutassa a rangszíneket
+Done	Kész
+Download	Letöltés
+Drop a file here, or browse	Húzz ide egy fájlt, vagy tallózz
+Duration	Időtartam
+Dutch	Holland
+EDIT ROLE — %	RANG SZERKESZTÉSE — %
+EMAIL OR PHONE NUMBER	E-MAIL VAGY TELEFONSZÁM
+EMOJI MATCHING	EGYEZŐ EMODZSIK
+ENTER THE 6-DIGIT CODE	ÍRD BE A 6 JEGYŰ KÓDOT
+EXPIRE AFTER	LEJÁRAT
+EXPIRES	LEJÁR
+Ease the chat and lists toward where you scroll. Off, they jump there at once (always, when your device asks for reduced motion).	A csevegés és a listák finoman gördülnek oda, ahová görgetsz. Kikapcsolva azonnal odaugranak (mindig, ha az eszközöd csökkentett mozgást kér).
+Echo Cancellation	Visszhangszűrés
+Edit	Szerkesztés
+Edit Category	Kategória szerkesztése
+Edit Channel	Csatorna szerkesztése
+Edit Friend Nickname	Barát becenevének szerkesztése
+Edit Message	Üzenet szerkesztése
+Edit Per-server Profile	Szerverenkénti profil szerkesztése
+Edit Profile	Profil szerkesztése
+Edit Profiles	Profilok szerkesztése
+Edit Sound	Hang szerkesztése
+Edit Thread	Szál szerkesztése
+Edit User Profile	Felhasználói profil szerkesztése
+Edit invite link.	Meghívólink szerkesztése.
+Edit your last message	Utolsó üzeneted szerkesztése
+Email	E-mail
+Embed Links	Linkek beágyazása
+Embed an HTML widget on your website to display your online members, voice channels, and invite link.	Ágyazz be egy HTML-widgetet a weboldaladba, amely mutatja az online tagjaidat, a hangcsatornáidat és a meghívólinkedet.
+Emoji	Emodzsi
+Emoji / GIF / sticker picker	Emodzsi- / GIF- / matricaválasztó
+Enable Authenticator App	Hitelesítő alkalmazás bekapcsolása
+Enable Community	Közösség bekapcsolása
+Enable Community to access Server Discovery	Kapcsold be a Közösséget a Szerverfelfedező eléréséhez
+Enable Desktop Notifications	Asztali értesítések bekapcsolása
+Enable Invites	Meghívók engedélyezése
+Enable Onboarding	Bevezetés bekapcsolása
+Enable Reduced Motion	Csökkentett mozgás bekapcsolása
+Enable Server Widget	Szerverwidget bekapcsolása
+Enable Streamer Mode	Streamer mód bekapcsolása
+Enable Unread Message Badge	Olvasatlan üzenetek jelvényének bekapcsolása
+Encrypt this DM	DM titkosítása
+Encrypted message	Titkosított üzenet
+Encrypted messages are limited to % bytes for now.	A titkosított üzenetek egyelőre legfeljebb % bájtosak lehetnek.
+End Date	Befejezés dátuma
+End Event	Esemény befejezése
+End Poll Now	Szavazás lezárása most
+End Time	Befejezés ideje
+End-to-end encrypted	Végponttól végpontig titkosítva
+End-to-end encryption	Végpontok közötti titkosítás
+Engagement	Aktivitás
+English, UK	Angol (Egyesült Királyság)
+English, USA	Angol (USA)
+Enter Discord Auth Code	Discord hitelesítési kód megadása
+Enter Discord Backup Code	Discord tartalékkód megadása
+Enter a location	Adj meg egy helyszínt
+Enter a message to start the conversation!	Írj egy üzenetet a beszélgetés indításához!
+Enter an invite below to join an existing server	Írj be lent egy meghívót egy meglévő szerverhez való csatlakozáshoz
+Enter server name	Add meg a szerver nevét
+Enter your current password and a new password.	Add meg a jelenlegi és az új jelszavadat.
+Error	Hiba
+Est. %	Alapítva: %
+Event Info	Esemény adatai
+Event Topic	Esemény témája
+Event cancelled	Esemény lemondva
+Event is over	Az esemény véget ért
+Events	Események
+Events Permissions	Eseményengedélyek
+Every answer needs a title.	Minden válasznak kell egy cím.
+Every question needs a title and at least one answer.	Minden kérdésnek kell egy cím és legalább egy válasz.
+Everyone	Mindenki
+Everyone in this channel connects to the selected region. Automatic picks the best one for whoever starts the call.	A csatornán mindenki a kiválasztott régióhoz csatlakozik. Az Automatikus a hívást indító számára legjobbat választja.
+Everyone welcome %!	Üdvözöljük mindannyian: %!
+Everyone who joins sees these channels, whatever they answer.	Minden csatlakozó látja ezeket a csatornákat, bármit is válaszol.
+Exempt a channel	Csatorna kivétele
+Exempt a role	Rang kivétele
+Exemptions	Kivételek
+Expand (% lines)	Kibontás (% sor)
+Expand (% of % lines)	Kibontás (%1 / %2 sor)
+Expired	Lejárt
+Explicit image filter	Kifogásolható képek szűrője
+Expression	Kifejezés
+FRAME RATE	KÉPKOCKASEBESSÉG
+Failed to follow the channel, please try again.	Nem sikerült követni a csatornát, próbáld újra.
+Fastcord couldn't be installed.	A Fastcordot nem sikerült telepíteni.
+Favorites	Kedvencek
+File	Fájl
+File saved.	Fájl mentve.
+Filename	Fájlnév
+Fill out the details of your event.	Add meg az eseményed részleteit.
+Filter by Action	Szűrés művelet szerint
+Filter by User	Szűrés felhasználó szerint
+Filter direct messages from everyone	Mindenki közvetlen üzeneteinek szűrése
+Filter direct messages from non-friends	Nem barátok közvetlen üzeneteinek szűrése
+Filter messages from all members	Minden tag üzeneteinek szűrése
+Filter messages from server members without roles	A rang nélküli szervertagok üzeneteinek szűrése
+Find or start a conversation	Beszélgetés keresése vagy indítása
+Find the perfect emoji	Találd meg a tökéletes emodzsit
+Find the perfect reaction	Találd meg a tökéletes reakciót
+Find the perfect sticker	Találd meg a tökéletes matricát
+Finding the video%	Videó keresése%
+Finish	Befejezés
+Finishing touches	Utolsó simítások
+Finnish	Finn
+Fit more messages on screen at one time. #IRC	Egyszerre több üzenet fér el a képernyőn. #IRC
+Flagged as spam	Spamnek jelölve
+Flags	Jelzők
+Folder Color	Mappa színe
+Folder Name	Mappa neve
+Folder Settings	Mappabeállítások
+Folder removed	Mappa eltávolítva
+Follow	Követés
+Followed!	Követve!
+Food & Drink	Étel és ital
+For 1 Hour	1 órára
+For 15 Minutes	15 percre
+For 24 Hours	24 órára
+For 3 Days	3 napra
+For 3 Hours	3 órára
+For 8 Hours	8 órára
+Forever	Örökre
+Forgot your password?	Elfelejtetted a jelszavad?
+Forum	Fórum
+Forward	Továbbítás
+Forward To	Továbbítás neki
+Forwarded	Továbbítva
+French	Francia
+Frequently Used	Gyakran használt
+Friend Nickname	Barát beceneve
+Friend Request Permissions	Barátkérelem-engedélyek
+Friend Request Sent	Barátkérelem elküldve
+Friend removed	Barát eltávolítva
+Friend request cancelled	Barátkérelem visszavonva
+Friend request ignored	Barátkérelem figyelmen kívül hagyva
+Friends	Barátok
+Friends & All Servers	Barátok és összes szerver
+Friends & Small Servers Only	Csak barátok és kis szerverek
+Friends Only	Csak barátok
+Friends can ask to join or join the game you're playing.	A barátaid kérhetik a csatlakozást, vagy csatlakozhatnak a játékhoz, amivel játszol.
+Friends come online	Barátok online lesznek
+Friends of friends	Barátok barátai
+From User	Felhasználótól
+GIFs	GIF-ek
+GIFs can't be sent encrypted yet.	GIF-eket még nem lehet titkosítva küldeni.
+Gallery view	Galérianézet
+General	Általános
+General Category Permissions	Általános kategóriaengedélyek
+General Channel Permissions	Általános csatornaengedélyek
+General Server Permissions	Általános szerverengedélyek
+Generate Template	Sablon létrehozása
+Generate a New Link	Új link létrehozása
+German	Német
+Get a copy of your data. It can take up to 30 days to prepare, and a download link is emailed to you when it's ready.	Kérj másolatot az adataidról. Az előkészítés akár 30 napig is tarthat; ha elkészült, e-mailben küldünk letöltési linket.
+Give new members a quick way to find the channels and roles that matter to them.	Segíts az új tagoknak gyorsan megtalálni a számukra fontos csatornákat és rangokat.
+Give your new server a personality with a name. You can always change it later.	Adj személyiséget az új szerverednek egy névvel. Később bármikor módosíthatod.
+Glad you're here, %.	Örülünk, hogy itt vagy, %.
+Go Back	Vissza
+Go To Channel	Ugrás a csatornára
+Go back	Vissza
+Go forward	Előre
+Go to Server	Ugrás a szerverre
+Good to see you, %.	Jó látni téged, %.
+Got It	Értem
+Grant temporary membership	Ideiglenes tagság adása
+Greek	Görög
+Hang out together with voice, video, and screen share	Lógjatok együtt hanggal, videóval és képernyőmegosztással
+Hang out with voice, video, screenshare, and Go Live.	Lógjatok együtt hanggal, videóval, képernyőmegosztással és élő adással.
+Happening Now	Most zajlik
+Have an invite already?	Már van meghívód?
+Help	Súgó
+Here's a preview of your event.	Íme az eseményed előnézete.
+Hey, just double checking that you want to pin this message to #% for posterity and greatness?	Szia, csak megkérdezzük: biztosan ki szeretnéd tűzni ezt az üzenetet ide: #%, az utókor és a dicsőség kedvéért?
+Hey, just double checking that you want to pin this message to the current channel for posterity and greatness?	Szia, csak megkérdezzük: biztosan ki szeretnéd tűzni ezt az üzenetet a jelenlegi csatornára, az utókor és a dicsőség kedvéért?
+Hide	Elrejtés
+Hide After Inactivity	Elrejtés inaktivitás után
+Hide Chat	Csevegés elrejtése
+Hide Fastcord window from screen capture	A Fastcord ablakának elrejtése a képernyőfelvétel elől
+Hide Muted Channels	Némított csatornák elrejtése
+Hide invite links to my Discord servers	A Discord-szervereim meghívólinkjeinek elrejtése
+Hide my personal information, such as email, connected accounts, and notes	Személyes adataim elrejtése, például az e-mail, a kapcsolt fiókok és a jegyzetek
+Hides Fastcord windows from most screen capture software.	Elrejti a Fastcord ablakait a legtöbb képernyőfelvevő program elől.
+High	Magas
+Highest	Legmagasabb
+Highlights provide occasional updates when your friends are chatting in busy servers, and more.	A Kiemelések alkalmanként jelzik például, ha a barátaid forgalmas szervereken beszélgetnek.
+Hindi	Hindi
+History	Előzmények
+Hitting X makes fastcord minimize to the system tray instead of closing.	Az X megnyomására a fastcord bezárás helyett a tálcára kicsinyedik.
+Hm, didn’t work. Double check that the username is correct.	Hm, ez nem jött össze. Ellenőrizd, hogy helyes-e a felhasználónév.
+Host	Házigazda
+Host events with an audience	Rendezz eseményeket közönséggel
+How Discord Uses My Data	Hogyan használja a Discord az adataimat
+How can people join your server?	Hogyan csatlakozhatnak mások a szerveredhez?
+How did your server get started? Why should people join?	Hogyan indult a szervered? Miért érdemes csatlakozni?
+Hungarian	Magyar
+I acknowledge that by transferring ownership of this server to %, it officially belongs to them.	Tudomásul veszem, hogy a szerver tulajdonjogának átadásával % hivatalosan a szerver tulajdonosa lesz.
+I agree and understand	Megértettem és elfogadom
+I'm new here, say hi!	Új vagyok itt, köszönjetek!
+I'm sure, use a backup code	Biztos vagyok benne, tartalékkódot használok
+IMAGE	KÉP
+INPUT DEVICE	BEMENETI ESZKÖZ
+INPUT MODE	BEMENETI MÓD
+INPUT SENSITIVITY	BEMENETI ÉRZÉKENYSÉG
+INPUT VOLUME	BEMENETI HANGERŐ
+INVITE CODE	MEGHÍVÓKÓD
+INVITE LINK	MEGHÍVÓLINK
+INVITER	MEGHÍVÓ
+INVITES SHOULD LOOK LIKE	A MEGHÍVÓK ÍGY NÉZNEK KI
+Icon	Ikon
+Idle	Tétlen
+If Streamer Mode is enabled...	Ha a Streamer mód be van kapcsolva...
+If you do not have access to any other methods, the button below will activate in % second.|If you do not have access to any other methods, the button below will activate in % seconds.	Ha más módszerhez nem férsz hozzá, az alábbi gomb % másodperc múlva aktív lesz.|Ha más módszerhez nem férsz hozzá, az alábbi gomb % másodperc múlva aktív lesz.
+If you do not have access to any other methods, use the other button below to proceed.	Ha más módszerhez nem férsz hozzá, a folytatáshoz használd az alábbi másik gombot.
+Ignore	Figyelmen kívül hagyás
+Ignore Friend Request	Barátkérelem figyelmen kívül hagyása
+Ignored Users	Figyelmen kívül hagyott felhasználók
+Ignored message	Figyelmen kívül hagyott üzenet
+Image saved.	Kép mentve.
+Important updates for people in and out of the server	Fontos frissítések a szerveren belülieknek és kívülieknek
+In Channel	A csatornán
+Inactive Channel	Inaktív csatorna
+Inactive Timeout	Inaktivitási idő
+Inbox	Beérkezett
+Incoming Call...	Bejövő hívás...
+Incoming Friend Request	Bejövő barátkérelem
+Indonesian	Indonéz
+Insert Timestamp	Időbélyeg beszúrása
+Install	Telepítés
+Install Fastcord to open it from the Start menu.	Telepítsd a Fastcordot, hogy a Start menüből is megnyithasd.
+Installing…	Telepítés…
+Instructions Sent	Utasítások elküldve
+Insults and Slurs	Sértések és gyalázkodás
+Integrations	Integrációk
+Interested	Érdekel
+Invalid Invite	Érvénytelen meghívó
+Invalid date or time	Érvénytelen dátum vagy idő
+Invisible	Láthatatlan
+Invite	Meghívás
+Invite Channel	Meghívási csatorna
+Invite Invalid	Érvénytelen meghívó
+Invite Only	Csak meghívással
+Invite People	Emberek meghívása
+Invite friends to %	Barátok meghívása ide: %
+Invite to Server	Meghívás a szerverre
+Invite to Speak	Felkérés szólásra
+Invites	Meghívók
+Invites are currently paused for this server. Please try again later.	A meghívók jelenleg szüneteltetve vannak ezen a szerveren. Próbáld újra később.
+Invites are paused: nobody can join with an invite link until they're enabled again.	A meghívók szüneteltetve vannak: amíg újra be nem kapcsolják őket, senki sem tud meghívólinkkel csatlakozni.
+It's quiet for now...	Egyelőre csend van...
+Italian	Olasz
+JOINED DISCORD	CSATLAKOZOTT A DISCORDHOZ
+JSON API	JSON API
+January|February|March|April|May|June|July|August|September|October|November|December	január|február|március|április|május|június|július|augusztus|szeptember|október|november|december
+Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec	jan.|febr.|márc.|ápr.|máj.|jún.|júl.|aug.|szept.|okt.|nov.|dec.
+Japanese	Japán
+Jitter	Jitter
+Join	Csatlakozás
+Join Call	Csatlakozás a híváshoz
+Join Server	Csatlakozás a szerverhez
+Join Thread	Csatlakozás a szálhoz
+Join Voice	Csatlakozás hanghoz
+Join a Server	Csatlakozás egy szerverhez
+Join the call	Csatlakozz a híváshoz
+Joined Threads	Szálak, amelyekhez csatlakoztál
+Joining…	Csatlakozás…
+Jump	Ugrás
+Jump To Present	Ugrás a jelenhez
+Jump to oldest unread message	Ugrás a legrégebbi olvasatlan üzenetre
+KEYBIND	BILLENTYŰPARANCS
+Keep Current Permissions	Jelenlegi engedélyek megtartása
+Keep these somewhere safe. Each code signs you in once if you lose your authenticator app; they are shown only now.	Tartsd ezeket biztonságos helyen. Ha elveszíted a hitelesítő alkalmazásodat, mindegyik kóddal egyszer bejelentkezhetsz; csak most jelennek meg.
+Keep your server private, or open it up for more people to join.	Tartsd privátként a szervered, vagy nyisd meg, hogy többen csatlakozhassanak.
+Keybinds	Billentyűparancsok
+Keybinds only work while fastcord is focused. To use them in other apps, allow fastcord under Input Monitoring in System Settings, then restart fastcord.	A billentyűparancsok csak akkor működnek, ha a fastcord van fókuszban. Más alkalmazásokban való használatukhoz engedélyezd a fastcordot a Rendszerbeállítások Bemenetfigyelés részében, majd indítsd újra a fastcordot.
+Keybinds only work while fastcord is focused: this desktop doesn't let apps see keys pressed in other windows.	A billentyűparancsok csak akkor működnek, ha a fastcord van fókuszban: ez az asztali környezet nem engedi, hogy az alkalmazások lássák a más ablakokban lenyomott billentyűket.
+Keybinds work in every app, also while fastcord is in the background.	A billentyűparancsok minden alkalmazásban működnek, akkor is, ha a fastcord a háttérben van.
+Keyboard Shortcuts	Billentyűparancsok
+Keyboard shortcuts	Billentyűparancsok
+Keyword: %	Kulcsszó: %
+Kick	Kirúgás
+Kick %	% kirúgása
+Kick '%' from Server	'%' kirúgása a szerverről
+Kick Member	Tag kirúgása
+Kick, Approve, and Reject Members	Tagok kirúgása, jóváhagyása és elutasítása
+Korean	Koreai
+LIVE	ÉLŐ
+Language	Nyelv
+Language & Time	Nyelv és idő
+Last sync: %	Utolsó szinkronizálás: %
+Leave Group	Kilépés a csoportból
+Leave Server	Kilépés a szerverről
+Leave Thread	Kilépés a szálból
+Leaving Discord	Kilépés a Discordból
+Left %	Kilépett: %
+Let everyone know how to use this channel!	Mondd el mindenkinek, hogyan használják ezt a csatornát!
+Let's Check	Nézzük meg
+Level %!	%. szint!
+Limits	Korlátok
+Limits the number of users that can connect to this voice channel. Users with the Move Members permission ignore this limit and can move other users into the channel.	Korlátozza, hány felhasználó csatlakozhat ehhez a hangcsatornához. A Tagok áthelyezése engedéllyel rendelkezőkre nem vonatkozik a korlát, és más felhasználókat is áthelyezhetnek a csatornára.
+Linked Roles	Kapcsolt rangok
+List view	Listanézet
+Lithuanian	Litván
+Live Now	Most élőben
+Loading sounds…	Hangok betöltése…
+Loading...	Betöltés...
+Loading…	Betöltés…
+Location	Helyszín
+Log In	Bejelentkezés
+Log Out	Kijelentkezés
+Log Out All Known Devices	Kijelentkezés az összes ismert eszközről
+Log in	Bejelentkezés
+Log in to Discord in your web browser.	Jelentkezz be a Discordba a webböngésződben.
+Log in with QR Code	Bejelentkezés QR-kóddal
+Log in with a token	Bejelentkezés tokennel
+Log out of all known devices	Kijelentkezés az összes ismert eszközről
+Logged-in Devices	Bejelentkezett eszközök
+Logging in as %	Bejelentkezés mint %
+Logging in…	Bejelentkezés…
+Login or password is invalid.	Érvénytelen felhasználónév vagy jelszó.
+Looking for screens…	Képernyők keresése…
+Lotus Mode	Lótusz mód
+Low	Alacsony
+Lower Hand	Kéz leengedése
+MAX NUMBER OF USES	HASZNÁLATOK MAX. SZÁMA
+MEMBER SINCE	TAG ÓTA
+MEMBERS	TAGOK
+MUTE	NÉMÍTÁS
+Main Profile	Fő profil
+Make a selection	Válassz
+Manage Accounts	Fiókok kezelése
+Manage Channel	Csatorna kezelése
+Manage Channels	Csatornák kezelése
+Manage Events	Események kezelése
+Manage Expressions	Kifejezések kezelése
+Manage Members	Tagok kezelése
+Manage Messages	Üzenetek kezelése
+Manage Nicknames	Becenevek kezelése
+Manage Permissions	Engedélyek kezelése
+Manage Roles	Rangok kezelése
+Manage Server	Szerver kezelése
+Manage Threads and Posts	Szálak és bejegyzések kezelése
+Manage Webhooks	Webhookok kezelése
+Manage settings that help keep your server active.	Olyan beállítások kezelése, amelyek segítenek aktívan tartani a szervered.
+Mark All as Read	Összes megjelölése olvasottként
+Mark As Read	Megjelölés olvasottként
+Mark Folder As Read	Mappa megjelölése olvasottként
+Mark Unread	Megjelölés olvasatlanként
+Mark a message unread	Üzenet megjelölése olvasatlanként
+Mark as Verified	Megjelölés ellenőrzöttként
+Mark as spoiler	Megjelölés spoilerként
+Mark channel read	Csatorna megjelölése olvasottként
+Mark server read	Szerver megjelölése olvasottként
+Marked as read	Olvasottnak jelölve
+Marks your message as a spoiler.	Spoilerként jelöli meg az üzenetedet.
+Match your device's light or dark mode.	Az eszközöd világos vagy sötét módjához igazodik.
+Max file size is % MB please.	A fájl mérete legfeljebb % MB lehet.
+Measuring	Mérés
+Medium	Közepes
+Member Since	Tag óta
+Members	Tagok
+Members can pick more than one answer	A tagok több választ is választhatnak
+Members can wear your server's tag next to their name across Discord.	A tagok a nevük mellett viselhetik a szervered címkéjét az egész Discordon.
+Members in timeout can't send messages, react, join voice or speak until it ends.	A felfüggesztett tagok a felfüggesztés végéig nem küldhetnek üzenetet, nem reagálhatnak, nem csatlakozhatnak hanghoz és nem beszélhetnek.
+Members in timeout can't send messages, react, join voice or start threads until it ends.	A felfüggesztett tagok a felfüggesztés végéig nem küldhetnek üzenetet, nem reagálhatnak, nem csatlakozhatnak hanghoz és nem indíthatnak szálat.
+Members matching @%	A(z) @% kifejezésnek megfelelő tagok
+Members must answer this question to join.	A tagoknak meg kell válaszolniuk ezt a kérdést a csatlakozáshoz.
+Members of the server must meet the following criteria before they can send messages in text channels or initiate a direct message conversation. If a member has an assigned role this does not apply.	A szerver tagjainak a következő feltételeknek kell megfelelniük, mielőtt üzenetet küldhetnének a szöveges csatornákon vagy közvetlen beszélgetést kezdeményezhetnének. Ha a tagnak van kiosztott rangja, ez nem vonatkozik rá.
+Members use the colour of the highest role they have on the roles list.	A tagok a rangok listáján szereplő legmagasabb rangjuk színét kapják.
+Members use the colour of the highest role they have on this list. Drag roles, or use the arrows, to reorder them.	A tagok az ezen a listán szereplő legmagasabb rangjuk színét kapják. Az átrendezéshez húzd a rangokat, vagy használd a nyilakat.
+Members will be restricted to sending one message and creating one thread per this interval, unless they have the Bypass Slowmode permission.	A tagok ennyi időnként csak egy üzenetet küldhetnek és egy szálat hozhatnak létre, hacsak nincs Lassított mód megkerülése engedélyük.
+Members with a matching name can't talk or interact until they change it.	Az egyező nevű tagok nem beszélhetnek és nem léphetnek interakcióba, amíg meg nem változtatják.
+Members with this permission will have every permission and will also bypass all channel specific permissions or restrictions (for example, these members would get access to all private channels). This is a dangerous permission to grant.	Az ezzel az engedéllyel rendelkező tagok minden engedélyt megkapnak, és megkerülik az összes csatornaszintű engedélyt és korlátozást is (például hozzáférnek az összes privát csatornához). Ezt az engedélyt veszélyes megadni.
+Members — %	Tagok — %
+Membership Permissions	Tagsági engedélyek
+Mention	Említés
+Mention %	% említése
+Mention @everyone, @here, and All Roles	@everyone, @here és az összes rang említése
+Mention limit	Említési korlát
+Mention raid protection	Védelem említéses rajtaütés ellen
+Mention removed	Említés eltávolítva
+Mentions	Említések
+Mentions User	Felhasználót említ
+Message	Üzenet
+Message #%	Üzenet ide: #%
+Message %	Üzenet neki: %
+Message @%	Üzenet neki: @%
+Message @% (encrypted)	Üzenet neki: @% (titkosítva)
+Message @% (not encrypted)	Üzenet neki: @% (nem titkosított)
+Message Contains	Az üzenet tartalmazza
+Message Display	Üzenetmegjelenítés
+Message Requests	Üzenetkérelmek
+Message deleted	Üzenet törölve
+Message failed to send.	Nem sikerült elküldeni az üzenetet.
+Message link copied: paste it into Discord's report form	Üzenetlink másolva: illeszd be a Discord bejelentési űrlapjába
+Message request ignored	Üzenetkérelem figyelmen kívül hagyva
+Message unpinned	Üzenet levéve a kitűzöttek közül
+Messages Failed To Load	Nem sikerült betölteni az üzeneteket
+Messages from members you may not know go to Message Requests.	Az általad talán nem ismert tagok üzenetei az Üzenetkérelmek közé kerülnek.
+Messages from people you may not know go to Message Requests instead of your DMs.	Az általad talán nem ismert emberek üzenetei a DM-jeid helyett az Üzenetkérelmek közé kerülnek.
+Messages from server members without a role will be filtered for sensitive image-based media.	A rang nélküli szervertagok üzeneteiben szűrjük a kényes képi tartalmakat.
+Messages in servers	Üzenetek a szervereken
+Messages will not be filtered for sensitive image-based media.	Az üzenetekben nem szűrjük a kényes képi tartalmakat.
+Messaging Permissions	Üzenetküldési engedélyek
+Minimize to Tray	Kicsinyítés a tálcára
+Mobile Push Notifications	Mobilos push értesítések
+Moderation	Moderálás
+Moderators must have two-factor authentication enabled to ban, kick, or timeout members and delete messages.	A moderátoroknak kétlépcsős azonosítást kell bekapcsolniuk a tagok kitiltásához, kirúgásához, felfüggesztéséhez és az üzenetek törléséhez.
+Moderators only	Csak moderátorok
+Modern, beautiful, and easy on your eyes.	Modern, gyönyörű és kíméli a szemed.
+Modify Attachment	Melléklet módosítása
+Motion	Mozgás
+Move Members	Tagok áthelyezése
+Move To	Áthelyezés ide
+Move to Audience	Áthelyezés a közönségbe
+Multi-Factor Authentication	Többlépcsős azonosítás
+Must also be a member of this server for longer than 10 minutes.	Emellett legalább 10 perce tagja kell legyen a szervernek.
+Must also be registered on Discord for longer than 5 minutes.	Emellett legalább 5 perce regisztrálva kell legyen a Discordon.
+Must have a verified email on their Discord account.	A Discord-fiókjában ellenőrzött e-mail-címnek kell lennie.
+Must have a verified phone on their Discord account.	A Discord-fiókjában ellenőrzött telefonszámnak kell lennie.
+Mute	Némítás
+Mute %	% némítása
+Mute Category	Kategória némítása
+Mute Channel	Csatorna némítása
+Mute Members	Tagok némítása
+Mute New Events	Új események némítása
+Mute Server	Szerver némítása
+Mute Thread	Szál némítása
+Muted until %1, %2	Némítva eddig: %1, %2
+Muting a server prevents unread indicators and notifications from appearing unless you are mentioned.	Ha némítasz egy szervert, nem jelennek meg az olvasatlan jelzések és értesítések, kivéve, ha megemlítenek.
+Mutual Friends	Közös barátok
+Mutual Servers	Közös szerverek
+My Account	Fiókom
+My server	Szerverem
+NAME	NÉV
+NEW	ÚJ
+NEW PASSWORD	ÚJ JELSZÓ
+NO ACTIVE INVITE LINKS	NINCS AKTÍV MEGHÍVÓLINK
+NOTHING	SEMMI
+Name	Név
+Name your sound	Nevezd el a hangodat
+Name your sticker	Nevezd el a matricádat
+Nature	Természet
+Navigate Back	Navigálás vissza
+Navigate Forward	Navigálás előre
+Need an account?	Nincs még fiókod?
+Network	Hálózat
+Never	Soha
+Nevermind	Mégsem
+New Category	Új kategória
+New Group DM	Új csoportos DM
+New Post	Új bejegyzés
+New Thread	Új szál
+New Webhook	Új webhook
+New members must read and agree to these before they can talk.	Az új tagoknak el kell olvasniuk és el kell fogadniuk ezeket, mielőtt beszélhetnek.
+New members pick channels and roles from your questions when they join.	Az új tagok csatlakozáskor a kérdéseid alapján választanak csatornákat és rangokat.
+New tag	Új címke
+New threads will stop showing in the channel list after being inactive for the specified duration.	Az új szálak a megadott ideig tartó inaktivitás után eltűnnek a csatornalistáról.
+Newest	Legújabb
+Next	Tovább
+Nickname	Becenév
+Nicknames are visible to everyone on this server. Do not change them unless you are enforcing a naming system or clearing a bad nickname.	A beceneveket a szerveren mindenki látja. Csak akkor módosítsd őket, ha elnevezési rendszert tartatsz be, vagy egy nem megfelelő becenevet törölsz.
+No GIFs found	Nem található GIF
+No Inactive Channel	Nincs inaktív csatorna
+No Invite	Nincs meghívó
+No Keybind Set	Nincs beállított billentyűparancs
+No System Messages	Nincsenek rendszerüzenetek
+No applications waiting	Nincs függő kérelem
+No apps have been added to this server.	Ehhez a szerverhez még nem adtak hozzá alkalmazást.
+No bans	Nincsenek kitiltások
+No bans match your search	Egy kitiltás sem felel meg a keresésnek
+No emoji found	Nem található emodzsi
+No favorites yet	Még nincsenek kedvencek
+No file chosen	Nincs kiválasztott fájl
+No friends in common	Nincsenek közös barátok
+No limit	Nincs korlát
+No logs yet	Még nincsenek naplóbejegyzések
+No members found	Nem található tag
+No members have this role yet.	Még egy tagnak sincs ilyen rangja.
+No message requests.	Nincsenek üzenetkérelmek.
+No one is speaking yet	Még senki sem beszél
+No one's around right now.	Most senki sincs itt.
+No one's here yet	Még senki sincs itt
+No posts match	Nincs megfelelő bejegyzés
+No posts yet	Még nincsenek bejegyzések
+No questions yet.	Még nincsenek kérdések.
+No reason given	Nincs megadva indok
+No results	Nincs találat
+No results found	Nincs találat
+No servers in common	Nincsenek közös szerverek
+No sounds found	Nem található hang
+No sounds yet.	Még nincsenek hangok.
+No spam. Nice.	Nincs spam. Szuper.
+No stickers found	Nem található matrica
+No stickers yet	Még nincsenek matricák
+Nobody can join this server with an invite link until the pause ends or you enable invites again.	Senki sem csatlakozhat meghívólinkkel ehhez a szerverhez, amíg a szüneteltetés véget nem ér, vagy újra be nem kapcsolod a meghívókat.
+Nobody has mentioned you recently.	Mostanában senki sem említett meg.
+Noise Suppression	Zajszűrés
+Noise Suppression: Off	Zajszűrés: ki
+Noise Suppression: On	Zajszűrés: be
+None	Nincs
+Norwegian	Norvég
+Not Now	Most nem
+Not connected to % yet.	Még nincs kapcsolat ezzel: %.
+Not encrypted	Nem titkosított
+Not encrypted: Discord can read this message	Nem titkosított: a Discord elolvashatja ezt az üzenetet
+Not end-to-end encrypted	Nem végponttól végpontig titkosított
+Not me, start over	Nem én vagyok, kezdjük elölről
+Note	Jegyzet
+Note (only visible to you)	Jegyzet (csak te látod)
+Note: Members with the "Mention @everyone, @here, and All Roles" permission will always be able to ping this role.	Megjegyzés: a „@everyone, @here és az összes rang említése” engedéllyel rendelkező tagok mindig pingelhetik ezt a rangot.
+Nothing	Semmi
+Notification Settings	Értesítési beállítások
+Notification settings changed	Értesítési beállítások módosítva
+Notifications	Értesítések
+Notify everyone online who has permission to view this channel.	Értesít mindenkit, aki online, és jogosult látni ezt a csatornát.
+Notify everyone who has permission to view this channel.	Értesít mindenkit, aki jogosult látni ezt a csatornát.
+Notify me when...	Értesíts, ha...
+Notify users with this role who have permission to view this channel.	Értesíti az ilyen rangú felhasználókat, akik jogosultak látni ezt a csatornát.
+OUTPUT DEVICE	KIMENETI ESZKÖZ
+OUTPUT VOLUME	KIMENETI HANGERŐ
+Objects	Tárgyak
+Off	Ki
+Offline	Offline
+Oh yeah. Pin it	Ó, igen. Tűzd ki
+Okay	Rendben
+Oldest	Legrégebbi
+On click	Kattintásra
+On servers I moderate	Az általam moderált szervereken
+Onboarding	Bevezetés
+One rule per line, for example: Be respectful	Soronként egy szabály, például: Légy tisztelettudó
+Ongoing call	Folyamatban lévő hívás
+Online	Online
+Only @mentions	Csak @említések
+Only servers and channels you have webhook permissions in are shown.	Csak azok a szerverek és csatornák jelennek meg, ahol webhook-engedélyed van.
+Only you can see the nickname you give %.	A(z) % számára adott becenevet csak te látod.
+Only you can see this · 	Csak te látod ezt ·
+Oops!	Hoppá!
+Open Chat	Csevegés megnyitása
+Open Image Link	Képlink megnyitása
+Open Link	Link megnyitása
+Open Logs Folder	Naplómappa megnyitása
+Open Media Link	Médialink megnyitása
+Open Server Insights	Szerverelemzések megnyitása
+Open Settings	Beállítások megnyitása
+Open discord.com	discord.com megnyitása
+Open in Browser	Megnyitás böngészőben
+Open in YouTube	Megnyitás a YouTube-on
+Open the developer tools (Cmd+Option+I) and choose the Network tab.	Nyisd meg a fejlesztői eszközöket (Cmd+Option+I), és válaszd a Network fület.
+Open the developer tools (Ctrl+Shift+I) and choose the Network tab.	Nyisd meg a fejlesztői eszközöket (Ctrl+Shift+I), és válaszd a Network fület.
+Or, send a server invite link to a friend	Vagy küldj egy szervermeghívó linket egy barátodnak
+Original message was deleted	Az eredeti üzenetet törölték
+Other Active Threads	Egyéb aktív szálak
+Other Devices	Egyéb eszközök
+Outgoing Friend Request	Kimenő barátkérelem
+Overview	Áttekintés
+PASSWORD	JELSZÓ
+PM	du.
+PRIVACY CODE	ADATVÉDELMI KÓD
+PTT Activate	PTT bekapcsolása
+PTT Deactivate	PTT kikapcsolása
+PUSH TO TALK RELEASE DELAY	NYOMD ÉS BESZÉLJ – ELENGEDÉSI KÉSLELTETÉS
+Packet loss	Csomagvesztés
+Packets received	Fogadott csomagok
+Packets sent	Küldött csomagok
+Page %	%. oldal
+Password	Jelszó
+Password and Authentication	Jelszó és hitelesítés
+Passwords do not match!	A jelszavak nem egyeznek!
+Paste	Beillesztés
+Paste an emoji (optional)	Illessz be egy emodzsit (opcionális)
+Paste your token	Illeszd be a tokenedet
+Pause Invites	Meghívók szüneteltetése
+Pending	Függőben
+People	Emberek
+People can join your server directly with an invite	Bárki közvetlenül csatlakozhat a szerveredhez egy meghívóval
+People in a voice channel with you can join the game you're playing.	A veled egy hangcsatornán lévők csatlakozhatnak a játékhoz, amivel játszol.
+People must submit an application and be approved to join	A csatlakozáshoz kérelmet kell beadni, és jóvá kell hagyni
+People who applied to join, waiting for a moderator.	Akik csatlakozási kérelmet adtak be, és moderátorra várnak.
+Per-server Profiles	Szerverenkénti profilok
+Permissions	Engedélyek
+Permissions not synced with category: 	Az engedélyek nincsenek szinkronizálva a kategóriával:
+Permissions synced with category: 	Az engedélyek szinkronizálva vannak a kategóriával:
+Permissions: %	Engedélyek: %
+Phone Number	Telefonszám
+Pick a channel	Válassz csatornát
+Pick a channel for the alerts.	Válassz csatornát a riasztásokhoz.
+Pick at least one response.	Válassz legalább egy választ.
+Pin It. Pin It Good.	Tűzd ki. De rendesen.
+Pin Message	Üzenet kitűzése
+Pin Messages	Üzenetek kitűzése
+Ping	Ping
+Ping: % ms	Ping: % ms
+Ping: measuring…	Ping: mérés…
+Pinned Messages	Kitűzött üzenetek
+Play Here	Lejátszás itt
+Play Soundboard Through My Mic	Hangtábla lejátszása a mikrofonomon keresztül
+Play YouTube videos here with yt-dlp? It needs yt-dlp installed, and connects to YouTube from your computer. Settings > Chat can change this.	Lejátszod itt a YouTube-videókat a yt-dlp segítségével? Ehhez telepített yt-dlp kell, és a számítógéped közvetlenül a YouTube-hoz csatlakozik. Ezt a Beállítások > Csevegés menüben módosíthatod.
+Play YouTube videos in fastcord with yt-dlp	YouTube-videók lejátszása a fastcordban a yt-dlp segítségével
+Please enter a valid invite link or invite code.	Adj meg egy érvényes meghívólinket vagy meghívókódot.
+Please try again later.	Próbáld újra később.
+Polish	Lengyel
+Poll closed	Szavazás lezárva
+Portuguese, Brazilian	Portugál (Brazília)
+Post	Bejegyzés
+Post Guidelines	Bejegyzési irányelvek
+Post from a script	Küldés szkriptből
+Post messages that reach servers outside your own. Members can follow this channel, so the posts you publish here appear in their servers.	Olyan üzeneteket küldhetsz, amelyek a saját szervereden kívülre is eljutnak. A tagok követhetik ezt a csatornát, így az itt közzétett bejegyzéseid megjelennek az ő szervereiken.
+Post title	Bejegyzés címe
+Posting...	Közzététel...
+Press a shortcut…	Nyomj meg egy billentyűkombinációt…
+Previous	Előző
+Previous / next channel	Előző / következő csatorna
+Previous / next channel with mentions	Előző / következő csatorna említésekkel
+Previous / next server	Előző / következő szerver
+Previous / next unread channel	Előző / következő olvasatlan csatorna
+Previous 12 Hours	Elmúlt 12 óra
+Previous 24 Hours	Elmúlt 24 óra
+Previous 3 Days	Elmúlt 3 nap
+Previous 6 Hours	Elmúlt 6 óra
+Previous 7 Days	Elmúlt 7 nap
+Previous Hour	Elmúlt óra
+Priority Speaker	Elsőbbségi előadó
+Privacy Settings	Adatvédelmi beállítások
+Private Category	Privát kategória
+Private Channel	Privát csatorna
+Private Profile	Privát profil
+Profile	Profil
+Profile Banner	Profil borítóképe
+Profile Privacy	Profil adatvédelme
+Profiles	Profilok
+Prompt members to reply to welcome messages with a sticker.	A tagok ösztönzése, hogy matricával válaszoljanak az üdvözlő üzenetekre.
+Pronouns	Névmások
+Protect your Discord account with an extra layer of security. Once configured, you'll be required to enter your password and complete one additional step in order to sign in.	Védd a Discord-fiókodat egy további biztonsági réteggel. A beállítás után a bejelentkezéshez meg kell adnod a jelszavadat, és el kell végezned egy további lépést.
+Protip:	Profi tipp:
+Publish	Közzététel
+Push to Mute	Nyomd és némíts
+Push to Talk	Nyomd és beszélj
+Push to Talk (Normal)	Nyomd és beszélj (normál)
+Q: %	K: %
+Question	Kérdés
+Questions	Kérdések
+ROLES	RANGOK
+ROLES — %	RANGOK — %
+ROLES/MEMBERS	RANGOK/TAGOK
+RTC Connecting	RTC csatlakozás
+Read Message History	Üzenetelőzmények olvasása
+Reason	Indok
+Reason for Ban	Kitiltás indoka
+Reason for Kick	Kirúgás indoka
+Reason for Timeout	Felfüggesztés indoka
+Reason: %	Indok: %
+Received	Fogadott
+Recently Active	Nemrég aktív
+Reconnect	Újracsatlakozás
+Record Keybind	Billentyűparancs rögzítése
+Reduce the saturation of colors within the application, for those with color sensitivities.	Csökkenti a színek telítettségét az alkalmazásban a színérzékenyek számára.
+Reduces the amount of animation and motion effects. On whenever your device asks for reduced motion.	Csökkenti az animációkat és a mozgáseffekteket. Mindig bekapcsol, ha az eszközöd csökkentett mozgást kér.
+Region Override	Régió felülírása
+Register	Regisztráció
+Reject	Elutasítás
+Rejoin	Újracsatlakozás
+Related Emoji	Kapcsolódó emodzsi
+Relevant	Releváns
+Remove	Eltávolítás
+Remove %	% eltávolítása
+Remove All Embeds	Összes beágyazás eltávolítása
+Remove All Reactions	Összes reakció eltávolítása
+Remove Answer	Válasz eltávolítása
+Remove Attachment	Melléklet eltávolítása
+Remove Authenticator App	Hitelesítő alkalmazás eltávolítása
+Remove Avatar	Profilkép eltávolítása
+Remove Embeds	Beágyazások eltávolítása
+Remove Friend	Barát eltávolítása
+Remove From Group	Eltávolítás a csoportból
+Remove Icon	Ikon eltávolítása
+Remove Reaction	Reakció eltávolítása
+Remove Reactions	Reakciók eltávolítása
+Remove Reactions for Emoji	Emodzsi reakcióinak eltávolítása
+Remove Server	Szerver eltávolítása
+Remove Spoiler	Spoiler eltávolítása
+Remove Timeout	Felfüggesztés feloldása
+Remove Vote	Szavazat visszavonása
+Remove all embeds	Összes beágyazás eltávolítása
+Remove from Favorites	Eltávolítás a kedvencekből
+Remove notification override for %	Értesítési felülírás eltávolítása: %
+Remove the files added before encryption was on: they'd go unencrypted.	Távolítsd el a titkosítás bekapcsolása előtt hozzáadott fájlokat: titkosítatlanul mennének el.
+Remove the files added while encryption was on: they'd arrive as unreadable ciphertext.	Távolítsd el a bekapcsolt titkosítás alatt hozzáadott fájlokat: olvashatatlan titkosított szövegként érkeznének meg.
+Removing…	Eltávolítás…
+Repeated encrypted message	Ismételt titkosított üzenet
+Reply	Válasz
+Replying to	Válasz neki:
+Report Message	Üzenet jelentése
+Request Data	Adatok kérése
+Request all of my Data	Az összes adatom kérése
+Request to Speak	Szólásra jelentkezés
+Requests	Kérelmek
+Require 2FA for moderator actions	Kétlépcsős azonosítás megkövetelése moderátori műveletekhez
+Require members to agree to the server rules	A tagoknak el kell fogadniuk a szerver szabályait
+Require people to select tags when posting	Bejegyzéskor kötelező címkét választani
+Required	Kötelező
+Resend SMS?	Újraküldjük az SMS-t?
+Reset	Visszaállítás
+Reset Friend Nickname	Barát becenevének visszaállítása
+Reset Voice Settings	Hangbeállítások visszaállítása
+Resolving Invite	Meghívó feldolgozása
+Responses	Válaszok
+Retry	Újra
+Retry Now	Újra most
+Return to call	Vissza a híváshoz
+Return to the connected call	Vissza a folyamatban lévő híváshoz
+Reveal	Felfedés
+Review	Áttekintés
+Revoke	Visszavonás
+Revoke Ban	Kitiltás feloldása
+Revoke Invite	Meghívó visszavonása
+Revoke the ban? They will be able to join again with an invite.	Feloldod a kitiltást? Meghívóval újra csatlakozhat.
+Ring	Csörgetés
+Ringing…	Kicseng…
+Role Color	Rang színe
+Role Colors	Rangszínek
+Role Icon	Rang ikonja
+Role name	Rang neve
+Roles	Rangok
+Romanian, Romania	Román
+Rule: %	Szabály: %
+Rules or Guidelines Channel	Szabályok vagy irányelvek csatornája
+Russian	Orosz
+SELECT A CHANNEL	VÁLASSZ CSATORNÁT
+SELECT A SERVER	VÁLASSZ SZERVERT
+SERVER NAME	SZERVER NEVE
+SOUNDBOARD VOLUME	HANGTÁBLA HANGEREJE
+STATIC EMOJI — % SLOTS AVAILABLE	STATIKUS EMODZSIK — % SZABAD HELY
+Safety Notifications Channel	Biztonsági értesítések csatornája
+Safety Number	Biztonsági szám
+Safety Setup	Biztonsági beállítás
+Safety checks	Biztonsági ellenőrzések
+Same as Device Theme	Az eszköz témája szerint
+Saturation	Telítettség
+Save	Mentés
+Save Changes	Módosítások mentése
+Save Image	Kép mentése
+Saving...	Mentés...
+Saving…	Mentés…
+Scan this with the Discord mobile app to log in instantly.	Olvasd be ezt a Discord mobilalkalmazással az azonnali bejelentkezéshez.
+Schedule an event for any planned activity in your server.	Ütemezz eseményt a szervereden tervezett bármely tevékenységhez.
+Screen	Képernyő
+Screen sharing isn't supported on this platform yet.	A képernyőmegosztás ezen a platformon még nem támogatott.
+Scroll chat	Csevegés görgetése
+Search	Keresés
+Search %	Keresés itt: %
+Search Bans by User ID or Username	Kitiltások keresése felhasználói azonosító vagy felhasználónév alapján
+Search Klipy	Keresés a Klipyn
+Search Options	Keresési beállítások
+Search by username or id	Keresés felhasználónév vagy azonosító alapján
+Search for friends	Barátok keresése
+Search members to add (press Enter)	Hozzáadandó tagok keresése (nyomj Entert)
+Search or create a post...	Bejegyzés keresése vagy létrehozása...
+Search sounds	Hangok keresése
+Searching...	Keresés...
+Select Friends	Barátok kiválasztása
+Select a Language	Válassz nyelvet
+Select a channel	Válassz csatornát
+Select a channel or category…	Válassz csatornát vagy kategóriát…
+Select one answer	Válassz egy választ
+Select one or more answers	Válassz egy vagy több választ
+Select where you want these updates to go. You can remove this at any time in Server Settings > Integrations > Channels Followed.	Válaszd ki, hová érkezzenek ezek a frissítések. Ezt bármikor eltávolíthatod a Szerverbeállítások > Integrációk > Követett csatornák menüben.
+Select where you want to share this message.	Válaszd ki, hol szeretnéd megosztani ezt az üzenetet.
+Send	Küldés
+Send Friend Request	Barátkérelem küldése
+Send Messages and Create Posts	Üzenetek küldése és bejegyzések létrehozása
+Send Messages in Threads and Posts	Üzenetek küldése szálakban és bejegyzésekben
+Send New Key	Új kulcs küldése
+Send Text-to-Speech Messages	Szövegfelolvasós üzenetek küldése
+Send Voice Messages	Hangüzenetek küldése
+Send a random welcome message when someone joins this server.	Véletlenszerű üdvözlő üzenet küldése, amikor valaki csatlakozik a szerverhez.
+Send a server invite link to a friend	Küldj szervermeghívó linket egy barátodnak
+Send an alert	Riasztás küldése
+Send helpful tips for server setup.	Hasznos tippek küldése a szerver beállításához.
+Send messages, images, GIFs, emoji, opinions, and puns	Küldj üzeneteket, képeket, GIF-eket, emodzsikat, véleményeket és szóvicceket
+Sending...	Küldés...
+Sent	Elküldve
+Sent a file	Fájlt küldött
+Sent a sticker	Matricát küldött
+Sent — %	Elküldött — %
+Server	Szerver
+Server Avatar	Szerverprofilkép
+Server Deafen	Szerveres süketítés
+Server Deafened	Szerveren süketítve
+Server Guide	Szerverkalauz
+Server ID	Szerverazonosító
+Server Info	Szerver adatai
+Server Insights	Szerverelemzések
+Server Insights is hosted on a separate website so that it's easier to share links and browse cross platform.	A Szerverelemzések külön weboldalon érhetők el, hogy könnyebb legyen linkeket megosztani és platformfüggetlenül böngészni.
+Server Mute	Szerveres némítás
+Server Muted	Szerveren némítva
+Server Nickname	Szerverbeli becenév
+Server Notification Settings	Szerver értesítési beállításai
+Server Primary Language	A szerver elsődleges nyelve
+Server Profile	Szerverprofil
+Server Rules	Szerverszabályok
+Server Settings	Szerverbeállítások
+Server Tag	Szervercímke
+Server Template	Szerversablon
+Server Widget	Szerverwidget
+Server members	Szervertagok
+Server members can only send you friend requests from servers where you also allow Direct Messages.	A szervertagok csak olyan szerverekről küldhetnek neked barátkérelmet, ahol a közvetlen üzeneteket is engedélyezed.
+Server name must be between 2 and 100 characters.	A szerver neve 2 és 100 karakter között lehet.
+Server unmuted	Szerver némítása feloldva
+Sessions	Munkamenetek
+Set Custom Status	Egyéni állapot beállítása
+Set Voice Channel Status	Hangcsatorna állapotának beállítása
+Set a custom status	Egyéni állapot beállítása
+Set up AutoMod to automatically filter messages in this server with the rules below. Members with Manage Server or Administrator are exempt.	Állítsd be az AutoModot, hogy az alábbi szabályokkal automatikusan szűrje az üzeneteket ezen a szerveren. A Szerver kezelése vagy Adminisztrátor engedéllyel rendelkező tagok kivételt képeznek.
+Sets camera video quality for all channel participants. Choose Auto for optimal performance.	Beállítja a kameravideó minőségét a csatorna összes résztvevője számára. Az optimális teljesítményhez válaszd az Auto lehetőséget.
+Setting up encryption: % needs to open fastcord once.	Titkosítás beállítása: %-nak egyszer meg kell nyitnia a fastcordot.
+Several people are typing...	Többen is írnak...
+Severe Profanity	Súlyos káromkodás
+Sexual Content	Szexuális tartalom
+Share	Megosztás
+Share Event	Esemény megosztása
+Share Your Screen	Képernyő megosztása
+Share my full profile with	A teljes profilom megosztása velük:
+Share your detected activities with others	Az észlelt tevékenységeid megosztása másokkal
+Show	Megjelenítés
+Show Chat	Csevegés megjelenítése
+Show a system notification for messages that would notify you (DMs, mentions, servers set to all messages).	Rendszerértesítés megjelenítése az értesítést kiváltó üzenetekhez (DM-ek, említések, az összes üzenetre állított szerverek).
+Show embeds and preview website links pasted into chat	Beágyazások és a csevegésbe illesztett weboldallinkek előnézetének megjelenítése
+Show emoji reactions on messages	Emodzsireakciók megjelenítése az üzeneteken
+Show message	Üzenet megjelenítése
+Show messages	Üzenetek megjelenítése
+Show role colors in names	Rangszínek megjelenítése a nevekben
+Show role colors next to names	Rangszínek megjelenítése a nevek mellett
+Show spoiler content	Spoileres tartalom megjelenítése
+Show the game or app you're using on your profile and in member lists.	A használt játék vagy alkalmazás megjelenítése a profilodon és a taglistákban.
+Shows a red badge on the app icon when you have unread mentions.	Piros jelvényt mutat az alkalmazásikonon, ha olvasatlan említéseid vannak.
+Silence every sound and notification and hide all badges and unread marks, so fastcord never asks for your attention.	Elnémít minden hangot és értesítést, és elrejt minden jelvényt és olvasatlan jelzést, így a fastcord sosem kéri a figyelmedet.
+Slow down! Are you sure?	Lassíts! Biztos vagy benne?
+Slowmode	Lassított mód
+Slowmode is enabled	Lassított mód bekapcsolva
+Slowmode is enabled. Members can send one message every % hour.|Slowmode is enabled. Members can send one message every % hours.	Lassított mód bekapcsolva. A tagok óránként egy üzenetet küldhetnek.|Lassított mód bekapcsolva. A tagok % óránként egy üzenetet küldhetnek.
+Slowmode is enabled. Members can send one message every % minute.|Slowmode is enabled. Members can send one message every % minutes.	Lassított mód bekapcsolva. A tagok percenként egy üzenetet küldhetnek.|Lassított mód bekapcsolva. A tagok % percenként egy üzenetet küldhetnek.
+Slowmode is enabled. Members can send one message every % second.|Slowmode is enabled. Members can send one message every % seconds.	Lassított mód bekapcsolva. A tagok másodpercenként egy üzenetet küldhetnek.|Lassított mód bekapcsolva. A tagok % másodpercenként egy üzenetet küldhetnek.
+Smooth Scrolling	Finom görgetés
+So no one gets lost on where to go.	Hogy senki se tévedjen el.
+Some older devices may not be shown here	Néhány régebbi eszköz nem jelenhet meg itt
+Someone	Valaki
+Something went wrong	Valami hiba történt
+Something went wrong (HTTP %).	Valami hiba történt (HTTP %).
+Something went wrong. Try again.	Valami hiba történt. Próbáld újra.
+Somewhere Else	Máshol
+Sorry, we couldn't load the first message in this thread	Sajnáljuk, nem sikerült betölteni a szál első üzenetét
+Sort: Date Posted	Rendezés: közzététel dátuma
+Sort: Recent Activity	Rendezés: legutóbbi tevékenység
+Sound Name	Hang neve
+Sound names must be between 2 and 32 characters.	A hangok neve 2 és 32 karakter között lehet.
+Soundboard	Hangtábla
+Sounds	Hangok
+Sounds must be 5.2 seconds or shorter.	A hangok legfeljebb 5,2 másodpercesek lehetnek.
+Sounds must be under 512 KB.	A hangok mérete 512 KB alatt kell legyen.
+Source	Forrás
+Space between message groups	Térköz az üzenetcsoportok között
+Spam	Spam
+Spam Filters	Spamszűrők
+Spanish	Spanyol
+Spanish, LATAM	Spanyol (Latin-Amerika)
+Speak	Beszéd
+Speak Message	Üzenet felolvasása
+Spoiler Attachment	Spoileres melléklet
+Spoiler Content	Spoileres tartalom
+Stage	Színpad
+Start Date	Kezdés dátuma
+Start Event	Esemény indítása
+Start Minimized	Indítás kicsinyítve
+Start Time	Kezdés ideje
+Starting in %m	Kezdés %p múlva
+State	Állapot
+Stickers	Matricák
+Stickers can be used by anyone in this server. Upload a PNG, APNG, GIF or Lottie JSON file of up to 512 KB; it shows at 320x320.	A matricákat bárki használhatja ezen a szerveren. Tölts fel egy legfeljebb 512 KB-os PNG, APNG, GIF vagy Lottie JSON fájlt; 320x320-as méretben jelenik meg.
+Stickers can't be sent encrypted yet.	Matricákat még nem lehet titkosítva küldeni.
+Stickers must be PNG, APNG, GIF or Lottie JSON files.	A matricák PNG, APNG, GIF vagy Lottie JSON fájlok lehetnek.
+Stop Recording	Rögzítés leállítása
+Stop Streaming	Közvetítés leállítása
+Stop Testing	Teszt leállítása
+Stop Video	Videó leállítása
+Stop Watching	Nézés befejezése
+Storage	Tárhely
+Stream Settings	Közvetítési beállítások
+Streamer Mode	Streamer mód
+Streamer Mode Enabled	Streamer mód bekapcsolva
+Streamer Mode hides your personal info so others watching your stream can't see it.	A Streamer mód elrejti a személyes adataidat, hogy a közvetítésed nézői ne lássák őket.
+Streamer Mode is enabled. Usernames have been truncated.	A Streamer mód be van kapcsolva. A felhasználónevek le vannak rövidítve.
+Success! Your friend request to % was sent.	Siker! Elküldtük a barátkérelmedet neki: %.
+Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday	vasárnap|hétfő|kedd|szerda|csütörtök|péntek|szombat
+Sun|Mon|Tue|Wed|Thu|Fri|Sat	V|H|K|Sze|Cs|P|Szo
+Support has arrived!	Megérkezett az erősítés!
+Suppress @everyone and @here	@everyone és @here elnémítása
+Suppress All Role @mentions	Összes rang-@említés elnémítása
+Suppress Highlights	Kiemelések elnémítása
+Suppress Notifications	Értesítések elnémítása
+Suppress background noise from your mic.	A mikrofonod háttérzajának elnyomása.
+Swedish	Svéd
+Switch Accounts	Fiókváltás
+Switch between accounts on this device.	Válts a fiókok között ezen az eszközön.
+Symbols	Szimbólumok
+Sync Now	Szinkronizálás most
+Sync Permissions	Engedélyek szinkronizálása
+Sync Template	Sablon szinkronizálása
+Sync permissions?	Szinkronizálod az engedélyeket?
+System	Rendszer
+System Messages	Rendszerüzenetek
+System Messages Channel	Rendszerüzenetek csatornája
+System icon for new server members.	Rendszerikon az új szervertagoknak.
+THREAD NAME	SZÁL NEVE
+Tag	Címke
+Tags	Címkék
+Tags (pick at least one)	Címkék (válassz legalább egyet)
+Tags let members organize their posts. Members pick them when they post; moderated tags only moderators can apply.	A címkékkel a tagok rendszerezhetik a bejegyzéseiket. Bejegyzéskor választják ki őket; a moderált címkéket csak moderátorok adhatják hozzá.
+Tap the link in your email to sign in instantly — no password needed.	Koppints az e-mailben kapott linkre az azonnali bejelentkezéshez — jelszó nélkül.
+Tell people a little more about your event. Markdown, new lines, and links are supported.	Mesélj kicsit többet az eseményedről. A Markdown, az új sorok és a linkek támogatottak.
+Tell the world a bit about this server.	Mesélj a világnak egy kicsit erről a szerverről.
+Template Description	Sablon leírása
+Template Link	Sablon linkje
+Template Title	Sablon címe
+Templates are an easy way to share your server setup and help anyone create a server instantly. When someone uses your server template link, they create a new server pre-filled with the same channels, roles, permissions, and settings as yours. Messages, members and your server's icon aren't copied.	A sablonokkal könnyen megoszthatod a szervered felépítését, és bárki azonnal létrehozhat egy szervert. Ha valaki a szerversablonod linkjét használja, egy új szervert hoz létre ugyanazokkal a csatornákkal, rangokkal, engedélyekkel és beállításokkal, mint a tiéd. Az üzenetek, a tagok és a szerver ikonja nem kerülnek át.
+Temporary members are automatically kicked when they disconnect unless a role has been assigned	Az ideiglenes tagokat lecsatlakozáskor automatikusan kirúgjuk, hacsak nem kaptak rangot
+Test Video	Videó tesztelése
+Text	Szöveg
+Text Channel Permissions	Szöveges csatorna engedélyei
+Text channel, external link, or in-person location.	Szöveges csatorna, külső link vagy személyes helyszín.
+Thai	Thai
+That channel isn't on this server anymore.	Ez a csatorna már nincs ezen a szerveren.
+That file couldn't be read as an MP3 or OGG sound.	Ezt a fájlt nem sikerült MP3 vagy OGG hangként beolvasni.
+That file couldn't be read. Avatars must be PNG, JPEG, GIF or WEBP images.	Ezt a fájlt nem sikerült beolvasni. A profilképek PNG, JPEG, GIF vagy WEBP képek lehetnek.
+That file couldn't be read. Banners must be PNG, JPEG, GIF or WEBP images.	Ezt a fájlt nem sikerült beolvasni. A borítóképek PNG, JPEG, GIF vagy WEBP képek lehetnek.
+That file couldn't be read. Emoji must be a PNG, JPEG, GIF, WEBP or AVIF image.	Ezt a fájlt nem sikerült beolvasni. Az emodzsik PNG, JPEG, GIF, WEBP vagy AVIF képek lehetnek.
+That file couldn't be read. Images must be PNG, JPEG, GIF or WEBP files.	Ezt a fájlt nem sikerült beolvasni. A képek PNG, JPEG, GIF vagy WEBP fájlok lehetnek.
+That file couldn't be read. Server icons must be PNG, JPEG, GIF or WEBP images.	Ezt a fájlt nem sikerült beolvasni. A szerverikonok PNG, JPEG, GIF vagy WEBP képek lehetnek.
+That file is too large. Emoji must be under 256 KB.	Ez a fájl túl nagy. Az emodzsik mérete 256 KB alatt kell legyen.
+That file is too large. Stickers must be under 512 KB.	Ez a fájl túl nagy. A matricák mérete 512 KB alatt kell legyen.
+That image is too large.	Ez a kép túl nagy.
+That image is too large. Avatars must be under %.	Ez a kép túl nagy. A profilképek mérete % alatt kell legyen.
+That image is too large. Banners must be under 10 MB.	Ez a kép túl nagy. A borítóképek mérete 10 MB alatt kell legyen.
+That image is too large. Server icons must be under 512 KB.	Ez a kép túl nagy. A szerverikonok mérete 512 KB alatt kell legyen.
+That isn't a valid fastcord invite.	Ez nem érvényes fastcord-meghívó.
+That's too long to send encrypted.	Ez túl hosszú ahhoz, hogy titkosítva elküldjük.
+The Pin Is Stuck!	Beragadt a kitűző!
+The badge chosen in the official client stays as it is.	A hivatalos kliensben választott jelvény változatlan marad.
+The invite is invalid or has expired.	A meghívó érvénytelen vagy lejárt.
+The mention limit is between 1 and 50.	Az említési korlát 1 és 50 között lehet.
+The most important updates from this channel will now show up directly in your server. Enjoy!	A csatorna legfontosabb frissítései mostantól közvetlenül a szervereden jelennek meg. Jó szórakozást!
+The owner	A tulajdonos
+The related emoji must be one emoji.	A kapcsolódó emodzsi csak egy emodzsi lehet.
+The results were tied	Döntetlen lett az eredmény
+The selected channel has too many webhooks. Please remove a webhook or select another channel.	A kiválasztott csatornának túl sok webhookja van. Távolíts el egy webhookot, vagy válassz másik csatornát.
+The server	A szerver
+The start time must be in the future.	A kezdési időpontnak a jövőben kell lennie.
+The thread stops showing in the channel list after being inactive for this long.	A szál ennyi inaktivitás után eltűnik a csatornalistáról.
+Theme	Téma
+There are no active threads.	Nincsenek aktív szálak.
+There are no archived threads.	Nincsenek archivált szálak.
+There are no pending friend requests.	Nincsenek függő barátkérelmek.
+There are no upcoming events.	Nincsenek közelgő események.
+There is no identity key.	Nincs identitáskulcs.
+There was no winner	Nem volt nyertes
+These are all the devices that are currently logged-in with your Discord account. Log out of devices that you don't recognize.	Ezek az összes eszköz, amelyen jelenleg be vagy jelentkezve a Discord-fiókoddal. Jelentkezz ki azokról, amelyeket nem ismersz fel.
+They said: %	Ezt mondta: %
+This account needs a passkey or security key, which fastcord can't use. Log in with the QR code instead.	Ehhez a fiókhoz jelkulcs vagy biztonsági kulcs kell, amit a fastcord nem tud használni. Jelentkezz be inkább QR-kóddal.
+This channel contains adult content that may not be suitable for all audiences. You must be 18 or older to view it.	Ez a csatorna felnőtt tartalmat tartalmaz, amely nem mindenkinek való. A megtekintéséhez legalább 18 évesnek kell lenned.
+This channel doesn't have any pinned messages... yet.	Ebben a csatornában még nincsenek kitűzött üzenetek... egyelőre.
+This device can't open this message.	Ez az eszköz nem tudja megnyitni ezt az üzenetet.
+This device's encryption keys couldn't be unlocked, so earlier encrypted DMs can't be opened here.	Nem sikerült feloldani az eszköz titkosítási kulcsait, ezért a korábbi titkosított DM-ek itt nem nyithatók meg.
+This event will auto start when it's time.	Ez az esemény automatikusan elindul, amikor eljön az ideje.
+This extra step shows it's really you.	Ez a további lépés igazolja, hogy tényleg te vagy az.
+This interaction failed	Ez az interakció nem sikerült
+This invite may be expired, or you might not have permission to join.	Lehet, hogy ez a meghívó lejárt, vagy nincs engedélyed a csatlakozáshoz.
+This is the beginning of your direct message history with %.	Itt kezdődnek a közvetlen üzeneteid vele: %.
+This is the channel we send system event messages to.	Ebbe a csatornába küldjük a rendszereseményüzeneteket.
+This is the start of the #% channel.	Itt kezdődik a(z) #% csatorna.
+This is where Discord sends updates for moderators and admins of Community servers.	Ide küldi a Discord a frissítéseket a közösségi szerverek moderátorainak és adminjainak.
+This is where you'll show members your server rules or guidelines.	Itt mutatod meg a tagoknak a szerver szabályait vagy irányelveit.
+This link is taking you to the following website	Ez a link a következő weboldalra visz
+This option is not available for Community Servers.	Ez a lehetőség nem érhető el közösségi szervereken.
+This role is managed by an integration and can't be edited here.	Ezt a rangot egy integráció kezeli, ezért itt nem szerkeszthető.
+This server has been removed from Server Discovery because it no longer passes all the requirements. Check Server Settings for more details.	Ezt a szervert eltávolítottuk a Szerverfelfedezőből, mert már nem felel meg minden követelménynek. A részletekért nézd meg a Szerverbeállításokat.
+This server has failed Discovery activity requirements for 1 week. If this server fails for 4 weeks in a row, it will be automatically removed from Discovery.	Ez a szerver 1 hete nem felel meg a Felfedező aktivitási követelményeinek. Ha 4 egymást követő héten át nem felel meg, automatikusan eltávolítjuk a Felfedezőből.
+This server has failed Discovery activity requirements for 3 weeks in a row. If this server fails for 1 more week, it will be removed from Discovery.	Ez a szerver 3 egymást követő hete nem felel meg a Felfedező aktivitási követelményeinek. Ha még 1 hétig nem felel meg, eltávolítjuk a Felfedezőből.
+This server has no voice channels.	Ezen a szerveren nincsenek hangcsatornák.
+This server is currently full.	Ez a szerver jelenleg tele van.
+This server is currently full. Please try again later.	Ez a szerver jelenleg tele van. Próbáld újra később.
+This server is eligible for Server Discovery again and has been automatically relisted!	Ez a szerver ismét jogosult a Szerverfelfedezőre, és automatikusan újra listáztuk!
+This server is not available in your location.	Ez a szerver nem érhető el a tartózkodási helyeden.
+This server's features are limited	Ennek a szervernek a funkciói korlátozottak
+This setting is applied when you join a new server. It does not apply retroactively to your existing servers.	Ez a beállítás új szerverhez való csatlakozáskor érvényes. A meglévő szervereidre visszamenőleg nem vonatkozik.
+This template has unsynced changes.	Ennek a sablonnak szinkronizálatlan módosításai vannak.
+This thread is locked.	Ez a szál zárolva van.
+This voice channel is full.	Ez a hangcsatorna tele van.
+This will determine whether members who have not explicitly set their notification settings receive a notification for every message sent in this server or not.	Ez határozza meg, hogy az értesítési beállításaikat külön meg nem adó tagok kapnak-e értesítést a szerveren küldött minden üzenetről.
+This will transfer ownership of %1 to %2. This cannot be undone!	Ezzel a(z) %1 tulajdonjogát átadod neki: %2. Ez nem vonható vissza!
+Thread Name	Szál neve
+Thread deleted	Szál törölve
+Threads	Szálak
+Time	Idő
+Time format	Időformátum
+Timeout	Felfüggesztés
+Timeout %	% felfüggesztése
+Timeout Members	Tagok felfüggesztése
+Timeout member	Tag felfüggesztése
+Times show as %.	Az idők így jelennek meg: %.
+To log them out, please change your password	A kijelentkeztetésükhöz módosítsd a jelszavadat
+To protect your members, Community servers need these, and enabling sets them:	A tagok védelme érdekében a közösségi szervereknek ezekre szükségük van, és a bekapcsolás beállítja őket:
+Today	Ma
+Today at %	Ma %
+Toggle Deafen	Süketítés be/ki
+Toggle Go Live Streaming	Élő közvetítés be/ki
+Toggle Mute	Némítás be/ki
+Toggle Streamer Mode	Streamer mód be/ki
+Toggle Voice Activity Mode	Hangaktivitás mód be/ki
+Toggle deafen	Süketítés be/ki
+Toggle inbox	Beérkezett be/ki
+Toggle member list	Taglista be/ki
+Toggle mute	Némítás be/ki
+Toggle pins	Kitűzöttek be/ki
+Tomorrow at %	Holnap %
+Too fast! Wait a bit and try again.	Túl gyors vagy! Várj egy kicsit, és próbáld újra.
+Too many uploads!	Túl sok feltöltés!
+Trait %	%. jellemző
+Traits	Jellemzők
+Transfer Ownership	Tulajdonjog átadása
+Travel & Places	Utazás és helyek
+Treat the token like a password: anyone who has it controls your account. fastcord keeps it only on this computer.	Kezeld a tokent jelszóként: akinél megvan, az irányítja a fiókodat. A fastcord csak ezen a számítógépen tárolja.
+Trending GIFs	Felkapott GIF-ek
+Trust % links from now on	Mostantól megbízom a(z) % linkekben
+Try Again	Próbáld újra
+Try searching for something else	Próbálj másra keresni
+Try searching for...	Próbálj erre keresni...
+Try sending a new invite	Próbálj új meghívót küldeni
+Turkish	Török
+Turn off encryption	Titkosítás kikapcsolása
+Turns this back into a regular server. Community-only features stop working.	Visszaalakítja hagyományos szerverré. A csak közösségi funkciók megszűnnek működni.
+Two-factor authentication is enabled on this account.	Ezen a fiókon be van kapcsolva a kétlépcsős azonosítás.
+Type the username of a friend	Írd be egy barátod felhasználónevét
+Type your answer	Írd be a válaszodat
+UPLOADED BY	FELTÖLTÖTTE
+USES	HASZNÁLATOK
+Uh oh, you don't have webhook permissions in any server you're in. Ask your server admin to give you the permission or ask them to come follow themselves!	Hoppá, egyik szervereden sincs webhook-engedélyed. Kérd meg a szerver adminját, hogy adjon engedélyt, vagy hogy kövesse ő maga a csatornát!
+Uh-oh. Looks like you've been banned.	Hoppá. Úgy tűnik, ki lettél tiltva.
+Ukrainian	Ukrán
+Unable to accept invite	Nem sikerült elfogadni a meghívót
+Unassigned	Nincs hozzárendelve
+Unban Member	Tag kitiltásának feloldása
+Unblock	Letiltás feloldása
+Undeafen	Süketítés feloldása
+Under Request Headers, copy the value of "authorization" and paste it below.	A Request Headers alatt másold ki az „authorization” értékét, és illeszd be lent.
+Undo	Visszavonás
+Unignore	Figyelmen kívül hagyás megszüntetése
+Unknown	Ismeretlen
+Unknown channel	Ismeretlen csatorna
+Unmute	Némítás feloldása
+Unmute Category	Kategória némításának feloldása
+Unmute Channel	Csatorna némításának feloldása
+Unmute Server	Szerver némításának feloldása
+Unmute Thread	Szál némításának feloldása
+Unpin Message	Üzenet levétele a kitűzöttek közül
+Unreads	Olvasatlanok
+Unrestricted	Korlátlan
+Until %	Eddig: %
+Until %1 at %2	Eddig: %1 %2
+Until I turn it back on	Amíg vissza nem kapcsolom
+Until tomorrow at %	Eddig: holnap %
+Untitled question	Cím nélküli kérdés
+Unverify	Ellenőrzés visszavonása
+Update %	% frissítése
+Update Channel	Csatorna frissítése
+Update Emoji	Emodzsi frissítése
+Update Member	Tag frissítése
+Update Member Roles	Tag rangjainak frissítése
+Update Role	Rang frissítése
+Update Server	Szerver frissítése
+Update Webhook	Webhook frissítése
+Update your password	Jelszó frissítése
+Upload	Feltöltés
+Upload Emoji	Emodzsi feltöltése
+Upload Sound	Hang feltöltése
+Upload Sticker	Matrica feltöltése
+Upload a File	Fájl feltöltése
+Upload a Sound	Hang feltöltése
+Upload a file	Fájl feltöltése
+Upload custom sound reactions that anyone in this server can use. MP3 or OGG files, up to 512 KB and 5.2 seconds.	Tölts fel egyéni hangreakciókat, amelyeket a szerveren bárki használhat. MP3 vagy OGG fájlok, legfeljebb 512 KB és 5,2 másodperc.
+Upload to %	Feltöltés ide: %
+Uploaded a file	Fájlt töltött fel
+Uploading...	Feltöltés...
+Use Application Commands	Alkalmazásparancsok használata
+Use Category Default	Kategória alapértelmezésének használata
+Use External Apps	Külső alkalmazások használata
+Use External Emoji	Külső emodzsik használata
+Use External Sounds	Külső hangok használata
+Use External Stickers	Külső matricák használata
+Use Server Default	Szerver alapértelmezésének használata
+Use Soundboard	Hangtábla használata
+Use Voice Activity	Hangaktivitás használata
+Use a backup code	Tartalékkód használata
+Use a code sent to your phone	A telefonodra küldött kód használata
+Use a passkey or security key	Jelkulcs vagy biztonsági kulcs használata
+Use data to improve Discord	Adatok felhasználása a Discord fejlesztéséhez
+Use roles to group your server members and assign permissions.	Rangokkal csoportosíthatod a szervered tagjait, és engedélyeket oszthatsz ki.
+Use your authenticator app	A hitelesítő alkalmazásod használata
+Used % times.|Used % times.	% alkalommal használva.|% alkalommal használva.
+User Join	Felhasználó csatlakozása
+User Leave	Felhasználó távozása
+User Limit	Felhasználói korlát
+User Moved	Felhasználó áthelyezve
+User Volume	Felhasználó hangereje
+User blocked	Felhasználó letiltva
+User unblocked	Felhasználó letiltása feloldva
+Username	Felhasználónév
+Username is available. Nice!	A felhasználónév szabad. Szuper!
+Username is unavailable. Try adding numbers, letters, underscores _ , or periods.	A felhasználónév foglalt. Próbálj hozzáadni számokat, betűket, aláhúzásjelet _ vagy pontot.
+Users will need to confirm they are of over the legal age to view in the content in this channel.\nAge-restricted channels are exempt from the explicit content filter.	A felhasználóknak meg kell erősíteniük, hogy nagykorúak, mielőtt megtekinthetik a csatorna tartalmát.\nA korhatáros csatornákra nem vonatkozik a kifogásolható tartalmak szűrője.
+Uses the yt-dlp you installed to play YouTube links in the chat instead of opening your browser. It connects to YouTube from your computer.	A telepített yt-dlp segítségével a csevegésben játssza le a YouTube-linkeket a böngésző megnyitása helyett. A számítógéped közvetlenül a YouTube-hoz csatlakozik.
+VOICE PROCESSING	HANGFELDOLGOZÁS
+Verification Level	Ellenőrzési szint
+Verified	Ellenőrzött
+Verify with something else	Ellenőrzés más módon
+Video	Videó
+Video Quality	Videóminőség
+Vietnamese	Vietnámi
+View Audit Log	Napló megtekintése
+View Channel	Csatorna megtekintése
+View Channels	Csatornák megtekintése
+View Details	Részletek megtekintése
+View Full Profile	Teljes profil megtekintése
+View Poll	Szavazás megtekintése
+View Profile	Profil megtekintése
+View Reactions	Reakciók megtekintése
+View Server Insights	Szerverelemzések megtekintése
+Visit Site	Oldal megnyitása
+Visual Density	Megjelenítési sűrűség
+Voice	Hang
+Voice & Video	Hang és videó
+Voice Activity	Hangaktivitás
+Voice Channel	Hangcsatorna
+Voice Channel Permissions	Hangcsatorna engedélyei
+Voice Connected	Hang csatlakoztatva
+Voice Disconnected	Hang lecsatlakoztatva
+Volume	Hangerő
+Vote	Szavazás
+Waiting for a server	Várakozás egy szerverre
+Wants to message you	Üzenetet szeretne küldeni neked
+Watch Stream	Közvetítés nézése
+Wave to say hi!	Integess, és köszönj!
+We appreciate the enthusiasm, but...	Értékeljük a lelkesedést, de...
+We couldn't load the profile for this server.	Nem sikerült betölteni a szerver profilját.
+We recommend an image of at least 512x512.	Legalább 512x512-es képet javaslunk.
+We sent instructions to change your password to %, please check both your inbox and spam folder.	Elküldtük a jelszómódosítási utasításokat ide: %. Nézd meg a beérkezett üzeneteidet és a spam mappát is.
+We're so excited to see you again!	Nagyon örülünk, hogy újra látunk!
+We've sent a message to %.  Please enter the code you received.	Üzenetet küldtünk ide: %.  Írd be a kapott kódot.
+Webhooks (%)	Webhookok (%)
+Webhooks are a simple way to post messages from other apps and websites into this server.	A webhookokkal egyszerűen küldhetsz üzeneteket más alkalmazásokból és weboldalakról erre a szerverre.
+Welcome %. Say hi!	Üdv, %! Köszönj!
+Welcome back!	Üdv újra!
+Welcome to #%!	Üdv a(z) #% csatornán!
+Welcome to the beginning of the % group.	Üdv a(z) % csoport kezdetén.
+Welcome, %. We hope you brought pizza.	Üdv, %! Reméljük, hoztál pizzát.
+What brings you here?	Mi szél hozott?
+What can people do in this server?	Mit csinálhatnak az emberek ezen a szerveren?
+What question do you want to ask?	Mit szeretnél kérdezni?
+What's cookin'?	Mi a helyzet?
+What's your event about?	Miről szól az eseményed?
+What's your event?	Mi az eseményed?
+When a friend starts an activity—like playing a game or hanging out on voice—we'll show it here!	Ha egy barátod elkezd valamit — például játszik vagy hangcsatornán lóg —, itt megmutatjuk!
+When enabled, only server members can view profile content. Non-members won't be able to see this content unless they have an invite.	Bekapcsolva csak a szerver tagjai láthatják a profil tartalmát. A nem tagok csak meghívóval láthatják.
+When you put a user in timeout they will not be able to send messages in chat, reply within threads, react to messages, or speak in voice or Stage channels.	Ha felfüggesztesz egy felhasználót, nem küldhet üzenetet a csevegésben, nem válaszolhat a szálakban, nem reagálhat az üzenetekre, és nem beszélhet a hang- vagy Színpad-csatornákon.
+Where is your event?	Hol lesz az eseményed?
+Where would you like to go?	Hová szeretnél menni?
+Who is this server for? E.g. School Club, Artists' Community	Kinek szól ez a szerver? Pl. iskolai klub, művészközösség
+Winning answer · %1%2	Nyertes válasz · %1%2
+Words that are never blocked, separated by commas	Soha nem tiltott szavak, vesszővel elválasztva
+Words to block, separated by commas	Tiltandó szavak, vesszővel elválasztva
+Words to block, separated by commas (* matches anything)	Tiltandó szavak, vesszővel elválasztva (a * bármire illeszkedik)
+Would you like to sync %1 permissions with %2?	Szeretnéd szinkronizálni a(z) %1 engedélyeit ezzel: %2?
+Yay you made it, %!	Hurrá, megérkeztél, %!
+Yesterday at %	Tegnap %
+You	Te
+You accepted %'s friend request.	Elfogadtad % barátkérelmét.
+You are at the % server limit.	Elérted a(z) % szerveres korlátot.
+You are banned from this server.	Ki vagy tiltva erről a szerverről.
+You aren't in that server. Ask a member for an invite.	Nem vagy tagja annak a szervernek. Kérj meghívót egy tagtól.
+You can add % more friend.|You can add % more friends.	Még % barátot adhatsz hozzá.|Még % barátot adhatsz hozzá.
+You can add comments before uploading.\nHold shift to upload directly.	Feltöltés előtt megjegyzést fűzhetsz hozzá.\nA közvetlen feltöltéshez tartsd lenyomva a Shiftet.
+You can add friends with their Discord username.	A barátaidat a Discord-felhasználónevük alapján adhatod hozzá.
+You can add up to 5 accounts.	Legfeljebb 5 fiókot adhatsz hozzá.
+You can hold down shift when clicking % to bypass this confirmation entirely.	Ha a(z) % gombra kattintva lenyomva tartod a Shiftet, teljesen kihagyhatod ezt a megerősítést.
+You can only edit roles below your highest role.	Csak a legmagasabb rangod alatti rangokat szerkesztheted.
+You can only upload % files at a time!	Egyszerre csak % fájlt tölthetsz fel!
+You can use markdown and links if you'd like.	Ha szeretnéd, használhatsz Markdownt és linkeket.
+You can't join this server because of your age group.	A korcsoportod miatt nem csatlakozhatsz ehhez a szerverhez.
+You can't unblock the Wumpus.	A Wumpus letiltását nem lehet feloldani.
+You cannot friend yourself	Saját magadat nem jelölheted barátnak
+You can’t react and super react with the same emoji. There’s a lot of emoji to choose from, so maybe try another one.	Nem reagálhatsz és szuperreagálhatsz ugyanazzal az emodzsival. Rengeteg emodzsi közül választhatsz, próbálj ki egy másikat.
+You do not have permission to send messages in this channel.	Nincs engedélyed üzenetet küldeni ebben a csatornában.
+You don't have any friends to add!	Nincs hozzáadható barátod!
+You don't have permission to do that.	Ehhez nincs engedélyed.
+You haven't added a display name yet.	Még nem adtál meg megjelenített nevet.
+You haven't added a phone number yet.	Még nem adtál meg telefonszámot.
+You haven't added an email yet.	Még nem adtál meg e-mail-címet.
+You haven't authorized any apps.	Még egy alkalmazást sem engedélyeztél.
+You haven't blocked anyone.	Még senkit sem tiltottál le.
+You haven't connected any accounts yet.	Még nem kapcsoltál össze egy fiókot sem.
+You haven't ignored anyone.	Még senkit sem hagytál figyelmen kívül.
+You missed a call from %1 that lasted %2.	Nem fogadtad %1 hívását, ami %2 ideig tartott.
+You must be at least 18 years old to view this channel.	A csatorna megtekintéséhez legalább 18 évesnek kell lenned.
+You must leave a server first to join.	A csatlakozáshoz előbb ki kell lépned egy szerverről.
+You need to add one or more rules.	Legalább egy szabályt meg kell adnod.
+You received an invite, but...	Kaptál egy meghívót, de...
+You said: %	Ezt mondtad: %
+You sent an invite to a self-hosted server	Meghívót küldtél egy saját üzemeltetésű szerverre
+You sent an invite, but	Meghívót küldtél, de
+You sent an invite, but...	Meghívót küldtél, de...
+You will appear offline	Offline-nak fogsz látszani
+You will not receive desktop notifications	Nem kapsz asztali értesítéseket
+You'll have to log back in on all logged out devices.	Az összes kijelentkeztetett eszközön újra be kell jelentkezned.
+You're Viewing Older Messages	Régebbi üzeneteket nézel
+You're all caught up!	Mindent elolvastál!
+You're already in that server.	Már tagja vagy annak a szervernek.
+You're doing that too fast. Try again in a moment.	Túl gyorsan csinálod. Próbáld újra egy pillanat múlva.
+You're not in any servers yet.	Még egy szervernek sem vagy tagja.
+You're offline: no invite link.	Offline vagy: nincs meghívólink.
+You're timed out until %.	Fel vagy függesztve eddig: %.
+You've been invited to a self-hosted server	Meghívtak egy saját üzemeltetésű szerverre
+You've been invited to join	Meghívtak, hogy csatlakozz
+You've been invited to speak	Felkértek szólásra
+You've been invited, but	Meghívtak, de
+Your files are too powerful	A fájljaid túl erősek
+Your full profile is visible to friends and any server you join with 200 or fewer members. Everyone else sees a limited version.	A teljes profilodat a barátaid és minden olyan, legfeljebb 200 tagú szerver látja, amelyhez csatlakozol. Mindenki más egy korlátozott változatot lát.
+Your full profile is visible to friends and any server you join.	A teljes profilodat a barátaid és minden szerver látja, amelyhez csatlakozol.
+Your full profile is visible to friends. Everyone else sees a limited version.	A teljes profilodat a barátaid látják. Mindenki más egy korlátozott változatot lát.
+Your invite link expires after %.	A meghívólinked lejár ennyi után: %.
+Your invite link expires in %.	A meghívólinked lejár ennyi idő múlva: %.
+Your invite link expires in %1, or after %2.	A meghívólinked lejár ennyi idő múlva: %1, vagy ennyi után: %2.
+Your invite link expires in 7 days.	A meghívólinked 7 nap múlva lejár.
+Your invite link will never expire.	A meghívólinked soha nem jár le.
+Your last request was on %.	Az utolsó kérésed időpontja: %.
+Your message is too long (% / %).	Túl hosszú az üzeneted (%1 / %2).
+Your reaction was not added because there are too many reactions on this message.	A reakciódat nem adtuk hozzá, mert ezen az üzeneten túl sok reakció van.
+Your request from % is being prepared.	A(z) % időpontban leadott kérésed előkészítés alatt áll.
+Your server is where you and your friends hang out. Make yours and start talking.	A szervereden lógsz együtt a barátaiddal. Hozd létre a sajátod, és kezdjetek beszélgetni.
+Your sounds go out with your voice, mixed into your microphone, instead of as soundboard sounds.	A hangjaid a hangoddal együtt, a mikrofonodba keverve mennek ki, nem hangtáblahangként.
+Zoom level	Nagyítás
+a channel	egy csatorna
+a command	egy parancs
+a day	egy nap
+a day ago	egy napja
+a few seconds	néhány másodperc
+a few seconds ago	néhány másodperce
+a message	egy üzenet
+a minute	egy perc
+a minute ago	egy perce
+a month ago	egy hónapja
+a year ago	egy éve
+an hour	egy óra
+an hour ago	egy órája
+by %	készítette: %
+cancel	mégse
+channel	csatorna
+delete message	üzenet törlése
+escape to %1 • enter to %2	escape: %1 • enter: %2
+fastcord quit unexpectedly last time. The report is in the logs folder (Settings, under Log Out).	A fastcord legutóbb váratlanul kilépett. A jelentés a naplómappában van (Beállítások, a Kijelentkezés alatt).
+fastcord starts in the background and stays out of your way.	A fastcord a háttérben indul, és nem lesz útban.
+from %	innen: %
+in %	itt: %
+in % day|in % days	% nap múlva|% nap múlva
+in % hour|in % hours	% óra múlva|% óra múlva
+in % minute|in % minutes	% perc múlva|% perc múlva
+in % month|in % months	% hónap múlva|% hónap múlva
+in % year|in % years	% év múlva|% év múlva
+in a day	egy nap múlva
+in a few seconds	néhány másodperc múlva
+in a minute	egy perc múlva
+in a month	egy hónap múlva
+in a year	egy év múlva
+in an hour	egy óra múlva
+just now	épp most
+less than an hour ago	kevesebb mint egy órája
+link, embed or file	link, beágyazás vagy fájl
+on %	ekkor: %
+pinned messages	kitűzött üzenet
+remove embeds	beágyazások eltávolítása
+save	mentés
+someone	valaki
+specific date	adott dátum
+this server	ez a szerver
+threads	szál
+true or false	igaz vagy hamis
+unknown	ismeretlen
+unknown channel	ismeretlen csatorna
+unknown-user	ismeretlen-felhasználó
+used	felhasználva
+user	felhasználó
+• Media from all members is scanned by the explicit image filter.	• A kifogásolható képek szűrője minden tag médiáját átvizsgálja.
+• Members must have a verified email on their Discord account.	• A tagok Discord-fiókjában ellenőrzött e-mail-címnek kell lennie.
+← Back to %	← Vissza ide: %
+← Back to login	← Vissza a bejelentkezéshez

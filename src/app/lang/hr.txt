@@ -1,0 +1,1973 @@
+# Croatian (hr)
+ · required	 · obavezno
+% (requested to speak)	% (traži riječ)
+% (required)	% (obavezno)
+% Bans|% Bans	% zabrana|% zabrane|% zabrana
+% Event|% Events	% događaj|% događaja|% događaja
+% KB	% KB
+% MB	% MB
+% Member|% Members	% član|% člana|% članova
+% Messages	Poruke: %
+% Mutual Friend|% Mutual Friends	% zajednički prijatelj|% zajednička prijatelja|% zajedničkih prijatelja
+% Mutual Server|% Mutual Servers	% zajednički poslužitelj|% zajednička poslužitelja|% zajedničkih poslužitelja
+% Online	Na mreži: %
+% Result|% Results	% rezultat|% rezultata|% rezultata
+% accepted encryption.	% je prihvatio šifriranje.
+% accepted your friend request.	% je prihvatio tvoj zahtjev za prijateljstvo.
+% answer|% answers	% odgovor|% odgovora|% odgovora
+% becomes the owner once they accept on their device. You'll stay a member.	% postaje vlasnik čim prihvati na svom uređaju. Ti ostaješ član.
+% blocked message —|% blocked messages —	% blokirana poruka —|% blokirane poruke —|% blokiranih poruka —
+% byte|% bytes	% bajt|% bajta|% bajtova
+% changed the group icon.	% je promijenio ikonu grupe.
+% day ago|% days ago	prije % dana|prije % dana|prije % dana
+% day|% days	% dan|% dana|% dana
+% disabled security actions.	% je isključio sigurnosne radnje.
+% enabled security actions.	% je uključio sigurnosne radnje.
+% hasn't accepted encryption yet.	% još nije prihvatio šifriranje.
+% hopped into the server.	% je uskočio na poslužitelj.
+% hour ago|% hours ago	prije % sata|prije % sata|prije % sati
+% hour|% hours	% sat|% sata|% sati
+% ignored message —|% ignored messages —	% zanemarena poruka —|% zanemarene poruke —|% zanemarenih poruka —
+% is here.	% je ovdje.
+% is typing...	% piše...
+% joined the party.	% se pridružio zabavi.
+% just boosted the server!	% je upravo pojačao poslužitelj!
+% just landed.	% je upravo sletio.
+% just showed up!	% se upravo pojavio!
+% just slid into the server.	% je upravo kliznuo na poslužitelj.
+% left the group.	% je napustio grupu.
+% member|% members	% član|% člana|% članova
+% minute ago|% minutes ago	prije % minute|prije % minute|prije % minuta
+% minute|% minutes	% minuta|% minute|% minuta
+% month ago|% months ago	prije % mjeseca|prije % mjeseca|prije % mjeseci
+% of %	%1 od %2
+% removed the custom group name.	% je uklonio prilagođeni naziv grupe.
+% started a call.	% je započeo poziv.
+% turned on encryption.	% je uključio šifriranje.
+% user|% users	% korisnik|% korisnika|% korisnika
+% use|% uses	% korištenje|% korištenja|% korištenja
+% vote|% votes	% glas|% glasa|% glasova
+% wants to encrypt this DM with a new key. Compare safety numbers after accepting.	% želi šifrirati ovu izravnu poruku novim ključem. Nakon prihvaćanja usporedi sigurnosne brojeve.
+% wants to encrypt this DM.	% želi šifrirati ovu izravnu poruku.
+% year ago|% years ago	prije % godine|prije % godine|prije % godina
+% · End-to-end encrypted	% · Sveobuhvatno šifrirano
+%'s Group	Grupa korisnika %
+%'s encryption key changed. Compare safety numbers before trusting new messages.	Ključ za šifriranje korisnika % se promijenio. Usporedi sigurnosne brojeve prije nego što povjeruješ novim porukama.
+%'s server	Poslužitelj korisnika %
+%1 (%2 more)	%1 (još %2)
+%1 FPS	%1 FPS
+%1 STICKERS — %2 SLOTS AVAILABLE	NALJEPNICE: %1 — SLOBODNIH MJESTA: %2
+%1 action %2	%1 radnja %2
+%1 added %2 to the group.	%1 je dodao korisnika %2 u grupu.
+%1 and %2	%1 i %2
+%1 and %2 are typing...	%1 i %2 pišu...
+%1 and %2 other|%1 and %2 others	%1 i još %2|%1 i još %2|%1 i još %2
+%1 banned %2	%1 je zabranio korisnika %2
+%1 changed the Stage topic: %2	%1 je promijenio temu Pozornice: %2
+%1 changed the channel name: %2.	%1 je promijenio naziv kanala: %2.
+%1 changed the group name: %2.	%1 je promijenio naziv grupe: %2.
+%1 created a channel	%1 je stvorio kanal
+%1 created a role	%1 je stvorio ulogu
+%1 created a webhook	%1 je stvorio webhook
+%1 created an emoji	%1 je stvorio emoji
+%1 created an invite	%1 je stvorio pozivnicu
+%1 deleted a channel	%1 je izbrisao kanal
+%1 deleted a message by %2	%1 je izbrisao poruku korisnika %2
+%1 deleted a role	%1 je izbrisao ulogu
+%1 deleted a webhook	%1 je izbrisao webhook
+%1 deleted an emoji	%1 je izbrisao emoji
+%1 deleted an invite	%1 je izbrisao pozivnicu
+%1 enabled security actions until %2.	%1 je uključio sigurnosne radnje do %2.
+%1 ended %2	%1 je završio %2
+%1 has achieved %2	%1 je postigao %2
+%1 has added %2 to this channel. Its most important updates will show up here.	%1 je dodao %2 u ovaj kanal. Ovdje će se prikazivati njegove najvažnije novosti.
+%1 has blocked a message in %2	%1 je blokirao poruku u %2
+%1 has flagged a message in %2	%1 je označio poruku u %2
+%1 is now a speaker.	%1 sada govori.
+%1 joined %2 and has been a subscriber of %3 for %4 month!|%1 joined %2 and has been a subscriber of %3 for %4 months!	%1 se pridružio razini %2 i pretplaćen je na %3 već %4 mjesec!|%1 se pridružio razini %2 i pretplaćen je na %3 već %4 mjeseca!|%1 se pridružio razini %2 i pretplaćen je na %3 već %4 mjeseci!
+%1 joined %2 as a subscriber of %3!	%1 se pridružio razini %2 kao pretplatnik na %3!
+%1 just boosted the server %2 times!	%1 je upravo pojačao poslužitelj %2 puta!
+%1 kicked %2	%1 je izbacio korisnika %2
+%1 new message since %2|%1 new messages since %2	%1 nova poruka od %2|%1 nove poruke od %2|%1 novih poruka od %2
+%1 of %2 slot used|%1 of %2 slots used	Iskorišteno %1 od %2 mjesta|Iskorištena %1 od %2 mjesta|Iskorišteno %1 od %2 mjesta
+%1 pinned %2 to this channel. See all %3.	%1 je prikvačio %2 u ovaj kanal. Pogledaj sve %3.
+%1 reacted with %2	%1 je reagirao s %2
+%1 removed %2 from the group.	%1 je uklonio korisnika %2 iz grupe.
+%1 renewed %2 and has been a subscriber of %3 for %4 month!|%1 renewed %2 and has been a subscriber of %3 for %4 months!	%1 je obnovio razinu %2 i pretplaćen je na %3 već %4 mjesec!|%1 je obnovio razinu %2 i pretplaćen je na %3 već %4 mjeseca!|%1 je obnovio razinu %2 i pretplaćen je na %3 već %4 mjeseci!
+%1 renewed %2 in their %3 membership!	%1 je obnovio %2 u svom članstvu %3!
+%1 reported a raid in %2.	%1 je prijavio napad u %2.
+%1 requested to speak.	%1 traži riječ.
+%1 resolved an Activity Alert in %2.	%1 je riješio upozorenje o aktivnosti u %2.
+%1 said %2	%1 je rekao %2
+%1 started %2	%1 je započeo %2
+%1 started a call that lasted %2.	%1 je započeo poziv koji je trajao %2.
+%1 started a thread: %2. See all %3.	%1 je započeo nit: %2. Pogledaj sve %3.
+%1 unbanned %2	%1 je ukinuo zabranu korisniku %2
+%1 updated %2	%1 je ažurirao %2
+%1 updated a channel	%1 je ažurirao kanal
+%1 updated a role	%1 je ažurirao ulogu
+%1 updated a webhook	%1 je ažurirao webhook
+%1 updated an emoji	%1 je ažurirao emoji
+%1 updated the roles of %2	%1 je ažurirao uloge korisnika %2
+%1 updated the server	%1 je ažurirao poslužitelj
+%1 vote · %2|%1 votes · %2	%1 glas · %2|%1 glasa · %2|%1 glasova · %2
+%1 wants to make you the owner of %2. You'll be able to manage everything about it, and they'll stay a member.	%1 te želi učiniti vlasnikom poslužitelja %2. Moći ćeš upravljati svime, a on ostaje član.
+%1's poll %2 has closed.	Anketa %2 korisnika %1 je zatvorena.
+%1, %2 and %3	%1, %2 i %3
+%1, %2 at %3	%1, %2 u %3
+%1, %2, and %3 are typing...	%1, %2 i %3 pišu...
+%1: %2	%1: %2
+%: a number	%: broj
+%: a whole number	%: cijeli broj
+%: pick a channel	%: odaberi kanal
+%: pick a member	%: odaberi člana
+%: pick a role	%: odaberi ulogu
+%: true or false	%: točno ili netočno
+%d ago	prije %d
+%d left	još %d
+%h	%h
+%h ago	prije %h
+%h left	još %h
+%m	%min
+%m ago	prije %min
+%m left	još %min
+%mo ago	prije %mj.
+%s	%s
+(edited)	(uređeno)
+/% takes no options.	/% nema opcija.
+/%1 needs %2:	/%1 traži %2:
+1 Day	1 dan
+1 Hour	1 sat
+1 Message	1 poruka
+1 Week	1 tjedan
+1 day	1 dan
+1 hour	1 sat
+1 minute	1 minuta
+1 use	1 korištenje
+1 week	1 tjedan
+10 Minutes	10 minuta
+10 minutes	10 minuta
+10 uses	10 korištenja
+100 uses	100 korištenja
+12 hours	12 sati
+12-hour	12-satni
+15 minutes	15 minuta
+2 hours	2 sata
+2 to 4 letters or numbers	2 do 4 slova ili brojke
+2 weeks	2 tjedna
+24 Hours	24 sata
+24 hours	24 sata
+24-hour	24-satni
+25 uses	25 korištenja
+3 Days	3 dana
+3 days	3 dana
+30 days	30 dana
+30 minutes	30 minuta
+3:00 PM	3:00 popodne
+4 hours	4 sata
+5 Minutes	5 minuta
+5 minutes	5 minuta
+5 uses	5 korištenja
+50 uses	50 korištenja
+6 hours	6 sati
+6-digit authentication code	6-znamenkasti kôd za autentifikaciju
+60 Seconds	60 sekundi
+60 seconds	60 sekundi
+7 days	7 dana
+8 hours	8 sati
+8-digit backup code	8-znamenkasti rezervni kôd
+@ OFF	@ ISKLJ.
+@ ON	@ UKLJ.
+@MENTIONS	@SPOMINJANJA
+@everyone · applies to all server members	@everyone · vrijedi za sve članove poslužitelja
+A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button.	Tipka s Ctrl, Alt, Shift ili Cmd, sam modifikator ili srednja ili bočna tipka miša.
+A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button. Works in every app.	Tipka s Ctrl, Alt, Shift ili Cmd, sam modifikator ili srednja ili bočna tipka miša. Radi u svakoj aplikaciji.
+A role needs a name.	Uloga treba naziv.
+A webhook needs a name.	Webhook treba naziv.
+A wild % appeared.	Divlji % se pojavio.
+ACTION	RADNJA
+ACTIVE INVITE LINKS	AKTIVNE POVEZNICE ZA POZIVNICE
+ALL	SVE
+ALL THE BITS! Going above 64 kbps may adversely affect people on poor connections.	SVI BITOVI! Iznad 64 kbps može smetati ljudima sa slabom vezom.
+AM	prijepodne
+ANIMATED EMOJI — % SLOTS AVAILABLE	ANIMIRANI EMOJIJI — SLOBODNIH MJESTA: %
+APP	APLIKACIJA
+AUDIENCE — %	PUBLIKA — %
+AUTHENTICATOR APP	APLIKACIJA ZA AUTENTIFIKACIJU
+About Me	O meni
+Accept	Prihvati
+Accept Friend Request	Prihvati zahtjev za prijateljstvo
+Accept Invite	Prihvati pozivnicu
+Accept Server Ownership	Prihvati vlasništvo nad poslužiteljem
+Accept this message request (Friends, Message Requests) to reply.	Prihvati ovaj zahtjev za poruku (Prijatelji, Zahtjevi za poruke) da bi odgovorio.
+Accepting...	Prihvaćanje...
+Access	Pristup
+Accessibility	Pristupačnost
+Account	Račun
+Account Removal	Uklanjanje računa
+Activate	Aktiviraj
+Active	Aktivno
+Active Now	Trenutačno aktivni
+Activities	Aktivnosti
+Activity Joining	Pridruživanje aktivnostima
+Activity Privacy	Privatnost aktivnosti
+Activity Status	Status aktivnosti
+Add Answer	Dodaj odgovor
+Add Emoji	Dodaj emoji
+Add Friend	Dodaj prijatelja
+Add Friend Nickname	Dodaj nadimak prijatelju
+Add Note	Dodaj bilješku
+Add Reaction	Dodaj reakciju
+Add Reactions	Dodavanje reakcija
+Add Tag	Dodaj oznaku
+Add a Keybind	Dodaj prečac
+Add a Question	Dodaj pitanje
+Add a channel	Dodaj kanal
+Add a channel to override its default notification settings	Dodaj kanal da bi nadjačao njegove zadane postavke obavijesti
+Add a description	Dodaj opis
+Add a location, link, or something.	Dodaj lokaciju, poveznicu ili nešto drugo.
+Add a role	Dodaj ulogu
+Add an Account	Dodaj račun
+Add an optional message...	Dodaj poruku po želji...
+Add another answer	Dodaj još jedan odgovor
+Add at least one word to block.	Dodaj barem jednu riječ za blokiranje.
+Add members or roles	Dodaj članove ili uloge
+Add this channel's updates to your server!	Dodaj novosti ovog kanala na svoj poslužitelj!
+Add this key to an authenticator app, then enter the code it shows.	Dodaj ovaj ključ u aplikaciju za autentifikaciju, a zatim unesi kôd koji prikaže.
+Add to Favorites	Dodaj u favorite
+Add to Group DM	Dodaj u grupnu poruku
+Add up to 5 traits to show off your server's interests and personality.	Dodaj do 5 osobina koje pokazuju interese i karakter tvog poslužitelja.
+Add up to 50 custom emoji that anyone can use in this server. Animated GIF emoji may be used by members with Discord Nitro. Emoji names must be at least 2 characters long and can only contain alphanumeric characters and underscores. Emoji must be under 256 KB in size.	Dodaj do 50 prilagođenih emojija koje svatko može koristiti na ovom poslužitelju. Animirane GIF emojije mogu koristiti članovi s Discord Nitrom. Nazivi emojija moraju imati barem 2 znaka i smiju sadržavati samo slova, brojke i podvlake. Emoji mora biti manji od 256 KB.
+Add your pronouns	Dodaj svoje zamjenice
+Added %	Dodano %
+Adjust the size of the interface. You can also change this with % +/-.	Prilagodi veličinu sučelja. Možeš je promijeniti i s % +/-.
+Administrator	Administrator
+Advanced Permissions	Napredna dopuštenja
+Advanced permissions	Napredna dopuštenja
+Age-Restricted Channel	Kanal s dobnim ograničenjem
+All	Sve
+All Actions	Sve radnje
+All Messages	Sve poruke
+All Users	Svi korisnici
+All friends	Svi prijatelji
+All messages will be filtered for sensitive image-based media.	Sve će se poruke filtrirati zbog osjetljivih slikovnih medija.
+All set. Now share your event!	Sve je spremno. Sad podijeli svoj događaj!
+Allow DMs from other members in servers	Dopusti izravne poruke od drugih članova poslužitelja
+Allow Discord to use and process my information to understand and improve Discord's services.	Dopusti Discordu da koristi i obrađuje moje podatke radi razumijevanja i poboljšanja svojih usluga.
+Allow Friend Requests from...	Dopusti zahtjeve za prijateljstvo od...
+Allow Multiple Answers	Dopusti više odgovora
+Allow anyone to @mention this role	Dopusti svima da @spomenu ovu ulogu
+Allow direct messages from other members in this server.	Dopusti izravne poruke od drugih članova ovog poslužitelja.
+Allow friends to join your game	Dopusti prijateljima da se pridruže tvojoj igri
+Allow members to change this server's name, switch regions, view all invites, add apps to this server and create and update AutoMod rules.	Dopušta članovima mijenjanje naziva poslužitelja, promjenu regije, pregled svih pozivnica, dodavanje aplikacija na poslužitelj te stvaranje i ažuriranje pravila AutoModa.
+Allow members to create invite-only threads.	Dopušta članovima stvaranje niti samo uz pozivnicu.
+Allow members to create threads that everyone in a channel can view.	Dopušta članovima stvaranje niti koje mogu vidjeti svi u kanalu.
+Allow members to send messages in text channels and create posts in forum channels.	Dopušta članovima slanje poruka u tekstnim kanalima i stvaranje objava u forumskim kanalima.
+Allow members to send messages in threads and in posts on forum channels.	Dopušta članovima slanje poruka u nitima i objavama forumskih kanala.
+Allow message requests from server members you may not know	Dopusti zahtjeve za poruke od članova poslužitelja koje možda ne poznaješ
+Allow voice channel participants to join your game	Dopusti sudionicima glasovnog kanala da se pridruže tvojoj igri
+Allowed words	Dopuštene riječi
+Allows apps that members have added to their account to post messages. When disabled, the messages will be private.	Dopušta aplikacijama koje su članovi dodali na svoj račun objavljivanje poruka. Kad je isključeno, poruke će biti privatne.
+Allows links that members share to show embedded content in text channels.	Dopušta poveznicama koje članovi dijele prikaz ugrađenog sadržaja u tekstnim kanalima.
+Allows members to add custom emoji, stickers, and sounds in this server.	Dopušta članovima dodavanje prilagođenih emojija, naljepnica i zvukova na ovaj poslužitelj.
+Allows members to add new emoji reactions to a message. If this permission is disabled, members can still react using any existing reactions on a message.	Dopušta članovima dodavanje novih emoji reakcija na poruku. Ako je ovo dopuštenje isključeno, članovi i dalje mogu reagirati postojećim reakcijama na poruci.
+Allows members to be more easily heard in voice channels. When activated, the volume of others without this permission will be automatically lowered.	Dopušta da se članovi lakše čuju u glasovnim kanalima. Kad je uključeno, glasnoća ostalih bez ovog dopuštenja automatski se smanjuje.
+Allows members to change the nicknames of other members.	Dopušta članovima mijenjanje nadimaka drugih članova.
+Allows members to change their own nickname, a custom name for just this server.	Dopušta članovima mijenjanje vlastitog nadimka, prilagođenog imena samo za ovaj poslužitelj.
+Allows members to change this channel's name, description, and settings. They can also delete it.	Dopušta članovima mijenjanje naziva, opisa i postavki ovog kanala. Mogu ga i izbrisati.
+Allows members to change this channel's permissions.	Dopušta članovima mijenjanje dopuštenja ovog kanala.
+Allows members to create and edit voice channel status.	Dopušta članovima stvaranje i uređivanje statusa glasovnog kanala.
+Allows members to create events.	Dopušta članovima stvaranje događaja.
+Allows members to create new roles and edit or delete roles lower than their highest role. Also allows members to change permissions of individual channels that they have access to.	Dopušta članovima stvaranje novih uloga te uređivanje ili brisanje uloga nižih od njihove najviše uloge. Također im dopušta mijenjanje dopuštenja pojedinih kanala kojima imaju pristup.
+Allows members to create polls.	Dopušta članovima stvaranje anketa.
+Allows members to create, edit, or delete channels.	Dopušta članovima stvaranje, uređivanje ili brisanje kanala.
+Allows members to create, edit, or delete webhooks, which can post messages from other apps or sites into this server.	Dopušta članovima stvaranje, uređivanje ili brisanje webhookova, koji mogu objavljivati poruke iz drugih aplikacija ili web-mjesta na ovaj poslužitelj.
+Allows members to deafen other members in voice channels, which means they won't be able to speak or hear others.	Dopušta članovima isključivanje zvuka drugim članovima u glasovnim kanalima, što znači da neće moći govoriti ni čuti druge.
+Allows members to delete or remove embeds from messages by other members.	Dopušta članovima brisanje ili uklanjanje ugrađenog sadržaja iz poruka drugih članova.
+Allows members to disconnect or move other members between voice channels that the member with this permission has access to.	Dopušta članovima odspajanje ili premještanje drugih članova između glasovnih kanala kojima član s ovim dopuštenjem ima pristup.
+Allows members to edit and cancel events.	Dopušta članovima uređivanje i otkazivanje događaja.
+Allows members to edit or remove custom emoji, stickers, and sounds in this server.	Dopušta članovima uređivanje ili uklanjanje prilagođenih emojija, naljepnica i zvukova na ovom poslužitelju.
+Allows members to invite new people to this server.	Dopušta članovima pozivanje novih ljudi na ovaj poslužitelj.
+Allows members to join voice channels and hear others.	Dopušta članovima pridruživanje glasovnim kanalima i slušanje drugih.
+Allows members to mute other members in voice channels for everyone.	Dopušta članovima utišavanje drugih članova u glasovnim kanalima za sve.
+Allows members to permanently ban and delete the message history of other members from this server.	Dopušta članovima trajnu zabranu drugih članova na ovom poslužitelju i brisanje njihove povijesti poruka.
+Allows members to pin or unpin any message.	Dopušta članovima prikvačivanje i otkvačivanje bilo koje poruke.
+Allows members to read previous messages sent in channels. If this permission is disabled, members only see messages sent when they are online. This does not fully apply to threads and forum posts.	Dopušta članovima čitanje prethodnih poruka poslanih u kanalima. Ako je ovo dopuštenje isključeno, članovi vide samo poruke poslane dok su na mreži. Ovo se ne odnosi u potpunosti na niti i forumske objave.
+Allows members to remove other members from this server. Kicked members will be able to rejoin if they have another invite.	Dopušta članovima uklanjanje drugih članova s ovog poslužitelja. Izbačeni članovi moći će se ponovno pridružiti ako imaju novu pozivnicu.
+Allows members to rename, delete, close, and turn on slow mode for threads and posts. They can also view private threads.	Dopušta članovima preimenovanje, brisanje, zatvaranje i uključivanje sporog načina za niti i objave. Mogu vidjeti i privatne niti.
+Allows members to send messages without being affected by slowmode.	Dopušta članovima slanje poruka bez ograničenja sporog načina.
+Allows members to send sounds from server soundboard.	Dopušta članovima slanje zvukova s ploče zvukova poslužitelja.
+Allows members to send text-to-speech messages by starting a message with /tts. These messages can be heard by anyone focused on the channel.	Dopušta članovima slanje poruka pretvorbe teksta u govor započinjanjem poruke s /tts. Te poruke može čuti svatko tko je u tom kanalu.
+Allows members to send voice messages.	Dopušta članovima slanje glasovnih poruka.
+Allows members to share their video, screen share, or stream a game in this server.	Dopušta članovima dijeljenje videa, dijeljenje zaslona ili streamanje igre na ovom poslužitelju.
+Allows members to speak in voice channels by simply talking. If this permission is disabled, members are required to use Push-to-talk. Good for controlling background noise or noisy members.	Dopušta članovima da u glasovnim kanalima govore jednostavno pričanjem. Ako je ovo dopuštenje isključeno, članovi moraju koristiti Pritisni za razgovor. Korisno za kontrolu pozadinske buke ili bučnih članova.
+Allows members to talk in voice channels. If this permission is disabled, members are default muted until somebody with the "Mute Members" permission un-mutes them.	Dopušta članovima govor u glasovnim kanalima. Ako je ovo dopuštenje isključeno, članovi su prema zadanim postavkama utišani dok ih netko s dopuštenjem "Utišaj članove" ne vrati.
+Allows members to upload files or media in text channels.	Dopušta članovima prijenos datoteka ili medija u tekstnim kanalima.
+Allows members to use @everyone (everyone in the server) or @here (only online members in that channel). They can also @mention all roles, even if the role's "Allow anyone to mention this role" permission is disabled.	Dopušta članovima korištenje @everyone (svi na poslužitelju) ili @here (samo članovi na mreži u tom kanalu). Mogu i @spomenuti sve uloge, čak i ako je za ulogu isključeno dopuštenje "Dopusti svima da spomenu ovu ulogu".
+Allows members to use commands from applications, including slash commands and context menu commands.	Dopušta članovima korištenje naredbi aplikacija, uključujući naredbe s kosom crtom i naredbe kontekstnog izbornika.
+Allows members to use emoji from other servers, if they're a Discord Nitro member.	Dopušta članovima korištenje emojija s drugih poslužitelja ako imaju Discord Nitro.
+Allows members to use sounds from other servers, if they're a Discord Nitro member.	Dopušta članovima korištenje zvukova s drugih poslužitelja ako imaju Discord Nitro.
+Allows members to use stickers from other servers, if they're a Discord Nitro member.	Dopušta članovima korištenje naljepnica s drugih poslužitelja ako imaju Discord Nitro.
+Allows members to view Server Insights, which shows data on community growth, engagement, and more. This will allow them to see certain data about channel activity, even for channels they cannot access.	Dopušta članovima pregled Uvida u poslužitelj, koji prikazuje podatke o rastu zajednice, angažmanu i drugo. Tako će vidjeti određene podatke o aktivnosti kanala, čak i za kanale kojima nemaju pristup.
+Allows members to view a record of who made which changes in this server.	Dopušta članovima pregled zapisa o tome tko je što promijenio na ovom poslužitelju.
+Allows members to view channels by default (excluding private channels).	Dopušta članovima pregled kanala prema zadanim postavkama (osim privatnih kanala).
+Allows members to view these channels by default. Disabling this for @everyone will make the category private.	Dopušta članovima pregled ovih kanala prema zadanim postavkama. Isključivanjem ovoga za @everyone kategorija postaje privatna.
+Allows members to view this channel by default. Disabling this for @everyone will make this channel private.	Dopušta članovima pregled ovog kanala prema zadanim postavkama. Isključivanjem ovoga za @everyone kanal postaje privatan.
+Always	Uvijek
+An emoji name, like smile	Naziv emojija, npr. smile
+An encrypted file couldn't be opened.|% encrypted files couldn't be opened.	% šifrirana datoteka nije se mogla otvoriti.|% šifrirane datoteke nisu se mogle otvoriti.|% šifriranih datoteka nije se moglo otvoriti.
+An error occurred, please try again.	Došlo je do pogreške, pokušaj ponovno.
+An error occurred. Please try again.	Došlo je do pogreške. Pokušaj ponovno.
+Announcement	Obavijest
+Announcement Channel	Kanal za obavijesti
+Answer	Odgovor
+Answers	Odgovori
+Anyone can join your server directly through Server Discovery	Svatko se može izravno pridružiti tvom poslužitelju putem Otkrivanja poslužitelja
+Anyone can use	Svatko može koristiti
+Anyone with access to this text channel will be able to see the notifications.	Svatko s pristupom ovom tekstnom kanalu moći će vidjeti obavijesti.
+App Directory	Imenik aplikacija
+Appearance	Izgled
+Appends (╯°□°)╯︵ ┻━┻ to your message.	Dodaje (╯°□°)╯︵ ┻━┻ tvojoj poruci.
+Appends ¯\\_(ツ)_/¯ to your message.	Dodaje ¯\\_(ツ)_/¯ tvojoj poruci.
+Appends ┬─┬ノ( º _ ºノ) to your message.	Dodaje ┬─┬ノ( º _ ºノ) tvojoj poruci.
+Applications	Aplikacije
+Apply to Join	Prijavi se za pridruživanje
+Approve	Odobri
+Apps	Aplikacije
+Apps Permissions	Dopuštenja aplikacija
+Archived	Arhivirano
+Archived Threads	Arhivirane niti
+Are you building a Community? Convert to a Community Server to access additional administrative tools that can help you moderate, run, and grow your server.	Gradiš zajednicu? Pretvori poslužitelj u poslužitelj zajednice i dobij dodatne administrativne alate koji ti pomažu moderirati, voditi i razvijati poslužitelj.
+Are you sure that you want to delete your account? This will immediately log you out of your account and you will not be able to log in again.	Sigurno želiš izbrisati svoj račun? Odmah ćeš biti odjavljen i više se nećeš moći prijaviti.
+Are you sure that you want to disable your account? This will immediately log you out and make your account inaccessible to anyone.	Sigurno želiš onemogućiti svoj račun? Odmah ćeš biti odjavljen, a račun neće biti dostupan nikome.
+Are you sure you want to ban @%1 from %2? They won't be able to come back until the ban is lifted.	Sigurno želiš zabraniti @%1 na %2? Neće se moći vratiti dok se zabrana ne ukine.
+Are you sure you want to delete %? This action cannot be undone.	Sigurno želiš izbrisati %? Ova se radnja ne može poništiti.
+Are you sure you want to delete %? This cannot be undone.	Sigurno želiš izbrisati %? To se ne može poništiti.
+Are you sure you want to delete :%:? This cannot be undone.	Sigurno želiš izbrisati :%:? To se ne može poništiti.
+Are you sure you want to delete the rule %? This cannot be undone.	Sigurno želiš izbrisati pravilo %? To se ne može poništiti.
+Are you sure you want to delete this message?	Sigurno želiš izbrisati ovu poruku?
+Are you sure you want to delete this role? This action cannot be undone.	Sigurno želiš izbrisati ovu ulogu? Ova se radnja ne može poništiti.
+Are you sure you want to delete this template? Its link will stop working.	Sigurno želiš izbrisati ovaj predložak? Njegova poveznica prestat će raditi.
+Are you sure you want to kick @%1 from %2? They will be able to rejoin again with a new invite.	Sigurno želiš izbaciti @%1 s %2? Moći će se ponovno pridružiti s novom pozivnicom.
+Are you sure you want to logout?	Sigurno se želiš odjaviti?
+Are you sure you want to remove all embeds on this message? This will remove them for everyone.	Sigurno želiš ukloniti sav ugrađeni sadržaj iz ove poruke? Uklonit će se za sve.
+Are you sure you want to remove all of the reactions for this emoji from this message?	Sigurno želiš ukloniti sve reakcije ovim emojijem s ove poruke?
+Are you sure you want to remove all the reactions on this message?	Sigurno želiš ukloniti sve reakcije s ove poruke?
+Are you sure you want to revoke the invite %? Nobody will be able to join with it.	Sigurno želiš opozvati pozivnicu %? Nitko se više neće moći pridružiti s njom.
+Ask for a new invite	Zatraži novu pozivnicu
+Ask new members what they're here for; each answer gives them channels and roles.	Pitaj nove članove zašto su ovdje; svaki im odgovor daje kanale i uloge.
+Attach Files	Prilaganje datoteka
+Attachment removed	Privitak uklonjen
+Attachments	Privici
+Audit Log	Zapisnik revizije
+Authorized Apps	Ovlaštene aplikacije
+Auto	Automatski
+AutoMod	AutoMod
+Automatic	Automatski
+Automatic Gain Control	Automatska kontrola pojačanja
+Automatically determine input sensitivity	Automatski odredi osjetljivost ulaza
+Automatically enable Streamer Mode if OBS or XSplit are running	Automatski uključi Način za streamere ako su pokrenuti OBS ili XSplit
+Automatically filter suspected spam messages	Automatski filtriraj poruke za koje se sumnja da su neželjene
+Automatically move members to this channel and mute them when they have been idle for longer than the inactive timeout. This does not affect browsers.	Automatski premjesti članove u ovaj kanal i utišaj ih kad su neaktivni dulje od vremena neaktivnosti. Ne utječe na preglednike.
+Automatically open fastcord when your computer starts up	Automatski otvori fastcord pri pokretanju računala
+Automatically scan and delete messages sent in this server that contain explicit media.	Automatski skeniraj i briši poruke poslane na ovom poslužitelju koje sadrže eksplicitne medije.
+Avatar	Avatar
+BACK	NATRAG
+BACKUP CODES	REZERVNI KODOVI
+Back	Natrag
+Back / forward	Natrag / naprijed
+Backup codes can only be used one time each and are for emergency access to your account!	Svaki rezervni kôd može se iskoristiti samo jednom i služi za hitan pristup tvom računu!
+Backups	Sigurnosne kopije
+Ban	Zabrani
+Ban %	Zabrani %
+Ban '%' from Server	Zabrani '%' na poslužitelju
+Ban Member	Zabrani člana
+Ban Members	Zabrana članova
+Banner	Natpis
+Banner Color	Boja natpisa
+Bans	Zabrane
+Bitrate	Brzina prijenosa
+Block	Blokiraj
+Block Commonly Flagged Words	Blokiraj često označene riječi
+Block Custom Words	Blokiraj prilagođene riječi
+Block Mention Spam	Blokiraj spam spominjanjima
+Block Suspected Spam Content	Blokiraj sumnjiv neželjeni sadržaj
+Block Words in Member Profile Names	Blokiraj riječi u imenima profila članova
+Block message	Blokiraj poruku
+Blocked	Blokirano
+Blocked Users	Blokirani korisnici
+Blocked by your content filters	Blokirano tvojim filtrima sadržaja
+Blocked message	Blokirana poruka
+Blocked words	Blokirane riječi
+Blocked words in names	Blokirane riječi u imenima
+Blocks messages containing % word.|Blocks messages containing % words.	Blokira poruke koje sadrže % riječ.|Blokira poruke koje sadrže % riječi.|Blokira poruke koje sadrže % riječi.
+Blocks messages suspected to be spam.	Blokira poruke za koje se sumnja da su neželjene.
+Blocks messages with more than % mentions.	Blokira poruke s više od % spominjanja.
+Blocks words from Discord's commonly flagged lists.	Blokira riječi s Discordovih popisa često označenih riječi.
+Blocks words in member profile names.	Blokira riječi u imenima profila članova.
+Blur	Zamućenje
+Blur Background	Zamuti pozadinu
+Blur what's behind you on camera. Only your camera is changed.	Zamuti ono što je iza tebe na kameri. Mijenja se samo tvoja kamera.
+Bold / italic / underline	Podebljano / kurziv / podcrtano
+Bots and Apps	Botovi i aplikacije
+Browse	Pregledaj
+Browse Channels	Pregledaj kanale
+Built-In	Ugrađeno
+Bulgarian	Bugarski
+By creating a server, you agree to Discord's Community Guidelines.	Stvaranjem poslužitelja prihvaćaš Discordove smjernice zajednice.
+By enabling the widget, your server profile will be visible to others outside of your server members. You can control Profile privacy in Server Settings > Profile.	Uključivanjem widgeta profil tvog poslužitelja bit će vidljiv i onima koji nisu članovi. Privatnost profila možeš kontrolirati u Postavke poslužitelja > Profil.
+By making a category private, only select members and roles will be able to view this category. Linked channels in this category will automatically match to this setting.	Ako kategoriju učiniš privatnom, vidjet će je samo odabrani članovi i uloge. Povezani kanali u ovoj kategoriji automatski će preuzeti ovu postavku.
+By making a channel private, only select members and roles will be able to view this channel.	Ako kanal učiniš privatnim, vidjet će ga samo odabrani članovi i uloge.
+By making a channel private, only select members and roles will have access to view or connect to this channel.	Ako kanal učiniš privatnim, samo će odabrani članovi i uloge moći vidjeti ovaj kanal ili se povezati s njim.
+Bypass Slowmode	Zaobilaženje sporog načina
+CHANNEL OR CATEGORY	KANAL ILI KATEGORIJA
+CONFIRM NEW PASSWORD	POTVRDI NOVU LOZINKU
+CURRENT PASSWORD	TRENUTAČNA LOZINKA
+Call	Poziv
+Cancel	Odustani
+Cancel Event	Otkaži događaj
+Cancel Friend Request	Otkaži zahtjev za prijateljstvo
+Careful — you have unsaved changes!	Oprez — imaš nespremljene promjene!
+Category Name	Naziv kategorije
+Category deleted	Kategorija izbrisana
+Change %	Promijeni %
+Change Avatar	Promijeni avatar
+Change Nickname	Promijeni nadimak
+Change Password	Promijeni lozinku
+Change Server Icon	Promijeni ikonu poslužitelja
+Channel	Kanal
+Channel Name	Naziv kanala
+Channel Notification Overrides	Nadjačavanja obavijesti kanala
+Channel Topic	Tema kanala
+Channel Type	Vrsta kanala
+Channel deleted	Kanal izbrisan
+Channel unmuted	Kanalu je vraćen zvuk
+Channels	Kanali
+Channels & Roles	Kanali i uloge
+Channels Followed (%)	Praćeni kanali (%)
+Channels matching #%	Kanali koji odgovaraju #%
+Chat	Chat
+Chat Font Scaling	Veličina fonta chata
+Check your email for a login link	Provjeri e-poštu za poveznicu za prijavu
+Check your phone!	Provjeri mobitel!
+Checking the file…	Provjera datoteke…
+Chinese, China	Kineski, Kina
+Chinese, Taiwan	Kineski, Tajvan
+Choose Image	Odaberi sliku
+Choose a link people can use to join, discord.gg/<code>.	Odaberi poveznicu kojom se ljudi mogu pridružiti, discord.gg/<kôd>.
+Choose a server	Odaberi poslužitelj
+Choose the language you want Discord to display.	Odaberi jezik na kojem želiš da se Discord prikazuje.
+Choose what happens to images and videos Discord detects as explicit.	Odaberi što se događa sa slikama i videozapisima koje Discord prepozna kao eksplicitne.
+Clear	Očisti
+Clear Custom Status	Očisti prilagođeni status
+Clear after	Očisti nakon
+Clear permissions	Očisti dopuštenja
+Click Again to Reset	Klikni ponovno za poništavanje
+Click any channel, then pick a request whose name starts with "messages" or "science".	Klikni bilo koji kanal, a zatim odaberi zahtjev čiji naziv počinje s "messages" ili "science".
+Click to add a note	Klikni za dodavanje bilješke
+Click to see attachment	Klikni za prikaz privitka
+Close DM	Zatvori izravnu poruku
+Collapse	Sažmi
+Collapse All Categories	Sažmi sve kategorije
+Collapse Category	Sažmi kategoriju
+Commands	Naredbe
+Commands matching /%	Naredbe koje odgovaraju /%
+Community Overview	Pregled zajednice
+Community Updates Channel	Kanal za novosti zajednice
+Community servers follow Discord's Community Guidelines.	Poslužitelji zajednice pridržavaju se Discordovih smjernica zajednice.
+Community servers have more tools to help you moderate and grow your server.	Poslužitelji zajednice imaju više alata koji ti pomažu moderirati i razvijati poslužitelj.
+Compact	Kompaktno
+Compare	Usporedi
+Compare these with %, in person or on a call. If they match, no one can read this DM in between.	Usporedi ih s korisnikom %, uživo ili u pozivu. Ako se podudaraju, nitko između vas ne može čitati ovu izravnu poruku.
+Configure system event messages sent to your server.	Konfiguriraj poruke sustavnih događaja koje se šalju na tvoj poslužitelj.
+Confirm	Potvrdi
+Confirm Request	Potvrdi zahtjev
+Confirm your age to join this server.	Potvrdi svoju dob da bi se pridružio ovom poslužitelju.
+Confirming...	Potvrđivanje...
+Connect	Poveži
+Connect these accounts and unlock special Discord integrations. The sign-in opens in your browser.	Poveži ove račune i otključaj posebne Discordove integracije. Prijava se otvara u pregledniku.
+Connected Apps	Povezane aplikacije
+Connecting	Povezivanje
+Connecting...	Povezivanje...
+Connecting…	Povezivanje…
+Connection Info	Podaci o vezi
+Connection lost. Messages may be out of date.	Veza je prekinuta. Poruke možda nisu ažurne.
+Connections	Veze
+Content Filters	Filtri sadržaja
+Continue	Nastavi
+Control who can see your profile info, like your bio and connected accounts.	Odredi tko može vidjeti podatke tvog profila, poput opisa i povezanih računa.
+Copied	Kopirano
+Copy	Kopiraj
+Copy Category ID	Kopiraj ID kategorije
+Copy Channel ID	Kopiraj ID kanala
+Copy Event Link	Kopiraj poveznicu događaja
+Copy Image	Kopiraj sliku
+Copy Image Link	Kopiraj poveznicu slike
+Copy Link	Kopiraj poveznicu
+Copy Media Link	Kopiraj poveznicu medija
+Copy Message ID	Kopiraj ID poruke
+Copy Message Link	Kopiraj poveznicu poruke
+Copy Server ID	Kopiraj ID poslužitelja
+Copy Text	Kopiraj tekst
+Copy User ID	Kopiraj ID korisnika
+Copy Username	Kopiraj korisničko ime
+Copy Webhook URL	Kopiraj URL webhooka
+Copy curl Command	Kopiraj curl naredbu
+Copy the event link below to invite people to your event. This also acts as a server invite link.	Kopiraj poveznicu događaja u nastavku da bi pozvao ljude na događaj. Ona služi i kao pozivnica na poslužitelj.
+Copy your account's token once from Discord in a web browser.	Jednom kopiraj token svog računa iz Discorda u web-pregledniku.
+Couldn't accept encryption.	Prihvaćanje šifriranja nije uspjelo.
+Couldn't cancel the event.	Otkazivanje događaja nije uspjelo.
+Couldn't change avatar	Promjena avatara nije uspjela
+Couldn't create an invite link.	Stvaranje poveznice za pozivnicu nije uspjelo.
+Couldn't create an invite.	Stvaranje pozivnice nije uspjelo.
+Couldn't delete the channel: %	Brisanje kanala nije uspjelo: %
+Couldn't encrypt the message.	Šifriranje poruke nije uspjelo.
+Couldn't join %: %	Pridruživanje na %1 nije uspjelo: %2
+Couldn't load onboarding.	Učitavanje uvođenja nije uspjelo.
+Couldn't load the AutoMod rules.	Učitavanje pravila AutoModa nije uspjelo.
+Couldn't load the applications.	Učitavanje aplikacija nije uspjelo.
+Couldn't load the audit log.	Učitavanje zapisnika revizije nije uspjelo.
+Couldn't load the bans.	Učitavanje zabrana nije uspjelo.
+Couldn't load the invites.	Učitavanje pozivnica nije uspjelo.
+Couldn't load the members.	Učitavanje članova nije uspjelo.
+Couldn't load the role's members.	Učitavanje članova uloge nije uspjelo.
+Couldn't load the server rules.	Učitavanje pravila poslužitelja nije uspjelo.
+Couldn't load the server's tag.	Učitavanje oznake poslužitelja nije uspjelo.
+Couldn't load the template.	Učitavanje predloška nije uspjelo.
+Couldn't load the webhooks.	Učitavanje webhookova nije uspjelo.
+Couldn't move the channel	Premještanje kanala nije uspjelo
+Couldn't play it here, so it opened in your browser.	Ovdje se nije moglo reproducirati, pa se otvorilo u pregledniku.
+Couldn't reach %1: %2 Retrying.	%1 nije dostupan: %2 Ponovni pokušaj.
+Couldn't reach Discord. Check your connection and try again.	Discord nije dostupan. Provjeri vezu i pokušaj ponovno.
+Couldn't reach Discord. Try again.	Discord nije dostupan. Pokušaj ponovno.
+Couldn't reach the server.	Poslužitelj nije dostupan.
+Couldn't reach the server. Check your connection and try again.	Poslužitelj nije dostupan. Provjeri vezu i pokušaj ponovno.
+Couldn't save the file.	Spremanje datoteke nije uspjelo.
+Couldn't save the image.	Spremanje slike nije uspjelo.
+Couldn't save the token.	Spremanje tokena nije uspjelo.
+Couldn't turn on encryption.	Uključivanje šifriranja nije uspjelo.
+Couldn't upload emoji	Prijenos emojija nije uspio
+Cozy	Udobno
+Create	Stvori
+Create Category	Stvori kategoriju
+Create Channel	Stvori kanal
+Create DM	Stvori izravnu poruku
+Create Emoji	Stvori emoji
+Create Event	Stvori događaj
+Create Events	Stvaranje događaja
+Create Expressions	Stvaranje izraza
+Create Group DM	Stvori grupnu poruku
+Create Invite	Stvori pozivnicu
+Create My Own	Stvori vlastiti
+Create Poll	Stvori anketu
+Create Polls	Stvaranje anketa
+Create Private Threads	Stvaranje privatnih niti
+Create Public Threads	Stvaranje javnih niti
+Create Role	Stvori ulogu
+Create Rule	Stvori pravilo
+Create Thread	Stvori nit
+Create Webhook	Stvori webhook
+Create Your Server	Stvori svoj poslužitelj
+Create a poll	Stvori anketu
+Create a space for organized discussions	Stvori prostor za organizirane rasprave
+Create one for me	Stvori ga za mene
+Created by %	Stvorio %
+Created on %1 by %2	Stvoreno %1, autor %2
+Creating an invite link…	Stvaranje poveznice za pozivnicu…
+Creating an invite...	Stvaranje pozivnice...
+Creating...	Stvaranje...
+Creating…	Stvaranje…
+Creation Date	Datum stvaranja
+Croatian	Hrvatski
+Current Device	Trenutačni uređaj
+Custom Invite Link	Prilagođena poveznica za pozivnicu
+Customize Your Server	Prilagodi svoj poslužitelj
+Customize how your server appears in invite links and, if enabled, in Server Discovery and Announcement Channel messages	Prilagodi kako se tvoj poslužitelj prikazuje u pozivnicama i, ako je uključeno, u Otkrivanju poslužitelja i porukama kanala za obavijesti
+Customize your server with integrations. Manage webhooks, followed channels and apps.	Prilagodi poslužitelj integracijama. Upravljaj webhookovima, praćenim kanalima i aplikacijama.
+Cut	Izreži
+Czech	Češki
+DAVE v%, % members	DAVE v%1, članova: %2
+DEFAULT KEYBINDS	ZADANI PREČACI
+DM closed	Izravna poruka zatvorena
+Danish	Danski
+Data & Privacy	Podaci i privatnost
+Date	Datum
+Deafen	Isključi zvuk
+Deafen Members	Isključivanje zvuka članovima
+Deauthorize	Opozovi ovlaštenje
+Decline	Odbij
+Default	Zadano
+Default Channels	Zadani kanali
+Default Layout	Zadani raspored
+Default Notification Settings	Zadane postavke obavijesti
+Default Permissions	Zadana dopuštenja
+Default Sort Order	Zadani redoslijed
+Default Themes	Zadane teme
+Default notifications become Only @mentions.	Zadane obavijesti postaju Samo @spominjanja.
+Delete	Izbriši
+Delete '%'	Izbriši '%'
+Delete Account	Izbriši račun
+Delete Category	Izbriši kategoriju
+Delete Channel	Izbriši kanal
+Delete Emoji	Izbriši emoji
+Delete Invite	Izbriši pozivnicu
+Delete Message	Izbriši poruku
+Delete Message History	Izbriši povijest poruka
+Delete Question	Izbriši pitanje
+Delete Role	Izbriši ulogu
+Delete Rule	Izbriši pravilo
+Delete Server	Izbriši poslužitelj
+Delete Sticker	Izbriši naljepnicu
+Delete Template	Izbriši predložak
+Delete Thread	Izbriši nit
+Delete Webhook	Izbriši webhook
+Deleted message	Izbrisana poruka
+Describe your sticker	Opiši svoju naljepnicu
+Description	Opis
+Description (alt text)	Opis (zamjenski tekst)
+Description (optional)	Opis (neobavezno)
+Detects a burst of mention spam across the server and locks it down.	Otkriva nalet spama spominjanjima na poslužitelju i zaključava ga.
+Developer	Razvojni programer
+Developer Mode	Način za razvojne programere
+Developer Mode exposes context menu items helpful for people writing apps using the Discord API.	Način za razvojne programere prikazuje stavke kontekstnog izbornika korisne onima koji pišu aplikacije s Discord API-jem.
+Devices	Uređaji
+Direct Message (DM) Permissions	Dopuštenja izravnih poruka (DM)
+Direct Messages	Izravne poruke
+Direct messages from friends	Izravne poruke od prijatelja
+Direct messages from others	Izravne poruke od ostalih
+Disable	Onemogući
+Disable Account	Onemogući račun
+Disable All Notification Sounds	Isključi sve zvukove obavijesti
+Disable Community	Isključi zajednicu
+Disable all notifications	Isključi sve obavijesti
+Disable all sound effects	Isključi sve zvučne efekte
+Disabling your account means you can recover it at any time after taking this action.	Ako onemogućiš račun, možeš ga vratiti u bilo kojem trenutku nakon toga.
+Disconnect	Prekini vezu
+Disconnect From Voice Channel	Prekini vezu s glasovnim kanalom
+Disconnected	Veza prekinuta
+Discord account	Discord račun
+Discord asked for a captcha, which fastcord can't show. Log in with the QR code instead.	Discord je zatražio captchu, koju fastcord ne može prikazati. Umjesto toga prijavi se QR kodom.
+Discord asked for a captcha, which fastcord can't show. Try on discord.com.	Discord je zatražio captchu, koju fastcord ne može prikazati. Pokušaj na discord.com.
+Discord can filter out some messages that contain spam. These messages go to your Spam inbox.	Discord može filtrirati neke poruke koje sadrže spam. Te poruke idu u tvoj sandučić Neželjeno.
+Discord didn't accept the saved login. Log in again.	Discord nije prihvatio spremljenu prijavu. Prijavi se ponovno.
+Discord failed to unpin that message for some reason. Sorry about that.	Discord iz nekog razloga nije uspio otkvačiti tu poruku. Žao nam je.
+Discord will prioritize this server in search to users who speak the selected language.	Discord će ovaj poslužitelj istaknuti u pretraživanju korisnicima koji govore odabrani jezik.
+Discord's terms don't allow third-party clients, so using one can get an account flagged.	Discordovi uvjeti ne dopuštaju klijente trećih strana, pa njihovo korištenje može dovesti do označavanja računa.
+Discoverable	Može se otkriti
+Dismiss	Odbaci
+Dismiss message	Odbaci poruku
+Display	Prikaz
+Display Images, Videos and Lolcats	Prikazuj slike, videozapise i smiješne mačke
+Display Name	Ime za prikaz
+Display name	Ime za prikaz
+Display on profile	Prikaži na profilu
+Display role members separately from online members	Prikazuj članove uloge odvojeno od članova na mreži
+Displays text with emphasis.	Prikazuje naglašeni tekst.
+Do Not Disturb	Ne ometaj
+Do not filter	Ne filtriraj
+Do not filter direct messages	Ne filtriraj izravne poruke
+Don't Delete Any	Ne briši ništa
+Don't clear	Ne čisti
+Don't show role colors	Ne prikazuj boje uloga
+Done	Gotovo
+Download	Preuzmi
+Drop a file here, or browse	Ispusti datoteku ovdje ili pregledaj
+Duration	Trajanje
+Dutch	Nizozemski
+EDIT ROLE — %	UREDI ULOGU — %
+EMAIL OR PHONE NUMBER	E-POŠTA ILI BROJ TELEFONA
+EMOJI MATCHING	EMOJIJI KOJI ODGOVARAJU
+ENTER THE 6-DIGIT CODE	UNESI 6-ZNAMENKASTI KÔD
+EXPIRE AFTER	ISTJEČE NAKON
+EXPIRES	ISTJEČE
+Ease the chat and lists toward where you scroll. Off, they jump there at once (always, when your device asks for reduced motion).	Glatko pomiči chat i popise prema mjestu na koje se pomičeš. Kad je isključeno, odmah skaču onamo (uvijek, kad uređaj traži smanjeno kretanje).
+Echo Cancellation	Poništavanje jeke
+Edit	Uredi
+Edit Category	Uredi kategoriju
+Edit Channel	Uredi kanal
+Edit Friend Nickname	Uredi nadimak prijatelja
+Edit Message	Uredi poruku
+Edit Per-server Profile	Uredi profil za poslužitelj
+Edit Profile	Uredi profil
+Edit Profiles	Uredi profile
+Edit Sound	Uredi zvuk
+Edit Thread	Uredi nit
+Edit User Profile	Uredi korisnički profil
+Edit invite link.	Uredi poveznicu za pozivnicu.
+Edit your last message	Uredi svoju zadnju poruku
+Email	E-pošta
+Embed Links	Ugrađivanje poveznica
+Embed an HTML widget on your website to display your online members, voice channels, and invite link.	Ugradi HTML widget na svoje web-mjesto za prikaz članova na mreži, glasovnih kanala i poveznice za pozivnicu.
+Emoji	Emoji
+Emoji / GIF / sticker picker	Odabir emojija / GIF-ova / naljepnica
+Enable Authenticator App	Uključi aplikaciju za autentifikaciju
+Enable Community	Uključi zajednicu
+Enable Community to access Server Discovery	Uključi zajednicu za pristup Otkrivanju poslužitelja
+Enable Desktop Notifications	Uključi obavijesti na radnoj površini
+Enable Invites	Uključi pozivnice
+Enable Onboarding	Uključi uvođenje
+Enable Reduced Motion	Uključi smanjeno kretanje
+Enable Server Widget	Uključi widget poslužitelja
+Enable Streamer Mode	Uključi Način za streamere
+Enable Unread Message Badge	Uključi značku nepročitanih poruka
+Encrypt this DM	Šifriraj ovu izravnu poruku
+Encrypted message	Šifrirana poruka
+Encrypted messages are limited to % bytes for now.	Šifrirane poruke zasad su ograničene na % bajtova.
+End Date	Datum završetka
+End Event	Završi događaj
+End Poll Now	Završi anketu odmah
+End Time	Vrijeme završetka
+End-to-end encrypted	Sveobuhvatno šifrirano
+End-to-end encryption	Sveobuhvatno šifriranje
+Engagement	Angažman
+English, UK	Engleski, UK
+English, USA	Engleski, SAD
+Enter Discord Auth Code	Unesi Discordov kôd za autentifikaciju
+Enter Discord Backup Code	Unesi Discordov rezervni kôd
+Enter a location	Unesi lokaciju
+Enter a message to start the conversation!	Unesi poruku da započneš razgovor!
+Enter an invite below to join an existing server	Unesi pozivnicu u nastavku da se pridružiš postojećem poslužitelju
+Enter server name	Unesi naziv poslužitelja
+Enter your current password and a new password.	Unesi trenutačnu i novu lozinku.
+Error	Pogreška
+Est. %	Osnovano %
+Event Info	Podaci o događaju
+Event Topic	Tema događaja
+Event cancelled	Događaj otkazan
+Event is over	Događaj je završio
+Events	Događaji
+Events Permissions	Dopuštenja događaja
+Every answer needs a title.	Svaki odgovor treba naslov.
+Every question needs a title and at least one answer.	Svako pitanje treba naslov i barem jedan odgovor.
+Everyone	Svi
+Everyone in this channel connects to the selected region. Automatic picks the best one for whoever starts the call.	Svi u ovom kanalu povezuju se na odabranu regiju. Automatski odabire najbolju za onoga tko započne poziv.
+Everyone welcome %!	Svi pozdravite %!
+Everyone who joins sees these channels, whatever they answer.	Svi koji se pridruže vide ove kanale, bez obzira na odgovor.
+Exempt a channel	Izuzmi kanal
+Exempt a role	Izuzmi ulogu
+Exemptions	Izuzeća
+Expand (% lines)	Proširi (redaka: %)
+Expand (% of % lines)	Proširi (%1 od %2 redaka)
+Expired	Isteklo
+Explicit image filter	Filtar eksplicitnih slika
+Expression	Izraz
+FRAME RATE	BROJ SLIČICA U SEKUNDI
+Failed to follow the channel, please try again.	Praćenje kanala nije uspjelo, pokušaj ponovno.
+Fastcord couldn't be installed.	Fastcord se nije mogao instalirati.
+Favorites	Favoriti
+File	Datoteka
+File saved.	Datoteka spremljena.
+Filename	Naziv datoteke
+Fill out the details of your event.	Ispuni pojedinosti svog događaja.
+Filter by Action	Filtriraj po radnji
+Filter by User	Filtriraj po korisniku
+Filter direct messages from everyone	Filtriraj izravne poruke od svih
+Filter direct messages from non-friends	Filtriraj izravne poruke od onih koji nisu prijatelji
+Filter messages from all members	Filtriraj poruke svih članova
+Filter messages from server members without roles	Filtriraj poruke članova poslužitelja bez uloga
+Find or start a conversation	Pronađi ili započni razgovor
+Find the perfect emoji	Pronađi savršen emoji
+Find the perfect reaction	Pronađi savršenu reakciju
+Find the perfect sticker	Pronađi savršenu naljepnicu
+Finding the video%	Traženje videozapisa%
+Finish	Završi
+Finishing touches	Završni detalji
+Finnish	Finski
+Fit more messages on screen at one time. #IRC	Prikaži više poruka na zaslonu odjednom. #IRC
+Flagged as spam	Označeno kao spam
+Flags	Zastave
+Folder Color	Boja mape
+Folder Name	Naziv mape
+Folder Settings	Postavke mape
+Folder removed	Mapa uklonjena
+Follow	Prati
+Followed!	Praćeno!
+Food & Drink	Hrana i piće
+For 1 Hour	1 sat
+For 15 Minutes	15 minuta
+For 24 Hours	24 sata
+For 3 Days	3 dana
+For 3 Hours	3 sata
+For 8 Hours	8 sati
+Forever	Zauvijek
+Forgot your password?	Zaboravio si lozinku?
+Forum	Forum
+Forward	Proslijedi
+Forward To	Proslijedi u
+Forwarded	Proslijeđeno
+French	Francuski
+Frequently Used	Često korišteno
+Friend Nickname	Nadimak prijatelja
+Friend Request Permissions	Dopuštenja zahtjeva za prijateljstvo
+Friend Request Sent	Zahtjev za prijateljstvo poslan
+Friend removed	Prijatelj uklonjen
+Friend request cancelled	Zahtjev za prijateljstvo otkazan
+Friend request ignored	Zahtjev za prijateljstvo zanemaren
+Friends	Prijatelji
+Friends & All Servers	Prijatelji i svi poslužitelji
+Friends & Small Servers Only	Samo prijatelji i mali poslužitelji
+Friends Only	Samo prijatelji
+Friends can ask to join or join the game you're playing.	Prijatelji mogu zatražiti pridruživanje ili se pridružiti igri koju igraš.
+Friends come online	Prijatelji dolaze na mrežu
+Friends of friends	Prijatelji prijatelja
+From User	Od korisnika
+GIFs	GIF-ovi
+GIFs can't be sent encrypted yet.	GIF-ovi se još ne mogu slati šifrirano.
+Gallery view	Prikaz galerije
+General	Općenito
+General Category Permissions	Opća dopuštenja kategorije
+General Channel Permissions	Opća dopuštenja kanala
+General Server Permissions	Opća dopuštenja poslužitelja
+Generate Template	Generiraj predložak
+Generate a New Link	Generiraj novu poveznicu
+German	Njemački
+Get a copy of your data. It can take up to 30 days to prepare, and a download link is emailed to you when it's ready.	Preuzmi kopiju svojih podataka. Priprema može trajati do 30 dana, a poveznicu za preuzimanje dobit ćeš e-poštom kad bude spremna.
+Give new members a quick way to find the channels and roles that matter to them.	Omogući novim članovima da brzo pronađu kanale i uloge koji su im važni.
+Give your new server a personality with a name. You can always change it later.	Daj novom poslužitelju osobnost nazivom. Uvijek ga možeš promijeniti kasnije.
+Glad you're here, %.	Drago nam je što si tu, %.
+Go Back	Natrag
+Go To Channel	Idi na kanal
+Go back	Natrag
+Go forward	Naprijed
+Go to Server	Idi na poslužitelj
+Good to see you, %.	Lijepo te vidjeti, %.
+Got It	Shvaćam
+Grant temporary membership	Dodijeli privremeno članstvo
+Greek	Grčki
+Hang out together with voice, video, and screen share	Družite se uz glas, video i dijeljenje zaslona
+Hang out with voice, video, screenshare, and Go Live.	Družite se uz glas, video, dijeljenje zaslona i Uživo.
+Happening Now	Upravo se događa
+Have an invite already?	Već imaš pozivnicu?
+Help	Pomoć
+Here's a preview of your event.	Evo pregleda tvog događaja.
+Hey, just double checking that you want to pin this message to #% for posterity and greatness?	Hej, samo provjeravamo želiš li prikvačiti ovu poruku u #% za potomstvo i slavu?
+Hey, just double checking that you want to pin this message to the current channel for posterity and greatness?	Hej, samo provjeravamo želiš li prikvačiti ovu poruku u trenutačni kanal za potomstvo i slavu?
+Hide	Sakrij
+Hide After Inactivity	Sakrij nakon neaktivnosti
+Hide Chat	Sakrij chat
+Hide Fastcord window from screen capture	Sakrij prozor Fastcorda od snimanja zaslona
+Hide Muted Channels	Sakrij utišane kanale
+Hide invite links to my Discord servers	Sakrij poveznice za pozivnice na moje Discord poslužitelje
+Hide my personal information, such as email, connected accounts, and notes	Sakrij moje osobne podatke, poput e-pošte, povezanih računa i bilješki
+Hides Fastcord windows from most screen capture software.	Skriva prozore Fastcorda od većine softvera za snimanje zaslona.
+High	Visoka
+Highest	Najviša
+Highlights provide occasional updates when your friends are chatting in busy servers, and more.	Istaknuto povremeno javlja kad tvoji prijatelji razgovaraju na prometnim poslužiteljima i još mnogo toga.
+Hindi	Hindski
+History	Povijest
+Hitting X makes fastcord minimize to the system tray instead of closing.	Klikom na X fastcord se smanjuje u traku sustava umjesto da se zatvori.
+Hm, didn’t work. Double check that the username is correct.	Hm, nije uspjelo. Provjeri je li korisničko ime točno.
+Host	Domaćin
+Host events with an audience	Organiziraj događaje s publikom
+How Discord Uses My Data	Kako Discord koristi moje podatke
+How can people join your server?	Kako se ljudi mogu pridružiti tvom poslužitelju?
+How did your server get started? Why should people join?	Kako je nastao tvoj poslužitelj? Zašto bi mu se ljudi pridružili?
+Hungarian	Mađarski
+I acknowledge that by transferring ownership of this server to %, it officially belongs to them.	Potvrđujem da prijenosom vlasništva nad ovim poslužiteljem korisniku % on službeno pripada njemu.
+I agree and understand	Slažem se i razumijem
+I'm new here, say hi!	Nov sam ovdje, pozdravite me!
+I'm sure, use a backup code	Siguran sam, koristi rezervni kôd
+IMAGE	SLIKA
+INPUT DEVICE	ULAZNI UREĐAJ
+INPUT MODE	NAČIN UNOSA
+INPUT SENSITIVITY	OSJETLJIVOST ULAZA
+INPUT VOLUME	GLASNOĆA ULAZA
+INVITE CODE	KÔD POZIVNICE
+INVITE LINK	POVEZNICA ZA POZIVNICU
+INVITER	POZVAO
+INVITES SHOULD LOOK LIKE	POZIVNICE TREBAJU IZGLEDATI OVAKO
+Icon	Ikona
+Idle	Neaktivan
+If Streamer Mode is enabled...	Ako je Način za streamere uključen...
+If you do not have access to any other methods, the button below will activate in % second.|If you do not have access to any other methods, the button below will activate in % seconds.	Ako nemaš pristup nijednom drugom načinu, gumb u nastavku aktivirat će se za % sekundu.|Ako nemaš pristup nijednom drugom načinu, gumb u nastavku aktivirat će se za % sekunde.|Ako nemaš pristup nijednom drugom načinu, gumb u nastavku aktivirat će se za % sekundi.
+If you do not have access to any other methods, use the other button below to proceed.	Ako nemaš pristup nijednom drugom načinu, nastavi pomoću drugog gumba u nastavku.
+Ignore	Zanemari
+Ignore Friend Request	Zanemari zahtjev za prijateljstvo
+Ignored Users	Zanemareni korisnici
+Ignored message	Zanemarena poruka
+Image saved.	Slika spremljena.
+Important updates for people in and out of the server	Važne novosti za ljude na poslužitelju i izvan njega
+In Channel	U kanalu
+Inactive Channel	Neaktivni kanal
+Inactive Timeout	Vrijeme neaktivnosti
+Inbox	Sandučić
+Incoming Call...	Dolazni poziv...
+Incoming Friend Request	Dolazni zahtjev za prijateljstvo
+Indonesian	Indonezijski
+Insert Timestamp	Umetni vremensku oznaku
+Install	Instaliraj
+Install Fastcord to open it from the Start menu.	Instaliraj Fastcord da ga možeš otvarati iz izbornika Start.
+Installing…	Instaliranje…
+Instructions Sent	Upute poslane
+Insults and Slurs	Uvrede i pogrdni izrazi
+Integrations	Integracije
+Interested	Zainteresiran
+Invalid Invite	Nevažeća pozivnica
+Invalid date or time	Nevažeći datum ili vrijeme
+Invisible	Nevidljiv
+Invite	Pozovi
+Invite Channel	Kanal za pozivnice
+Invite Invalid	Pozivnica nije važeća
+Invite Only	Samo uz pozivnicu
+Invite People	Pozovi ljude
+Invite friends to %	Pozovi prijatelje na %
+Invite to Server	Pozovi na poslužitelj
+Invite to Speak	Pozovi da govori
+Invites	Pozivnice
+Invites are currently paused for this server. Please try again later.	Pozivnice na ovaj poslužitelj trenutačno su pauzirane. Pokušaj ponovno kasnije.
+Invites are paused: nobody can join with an invite link until they're enabled again.	Pozivnice su pauzirane: nitko se ne može pridružiti s poveznicom za pozivnicu dok se ponovno ne uključe.
+It's quiet for now...	Zasad je tiho...
+Italian	Talijanski
+JOINED DISCORD	PRIDRUŽIO SE DISCORDU
+JSON API	JSON API
+January|February|March|April|May|June|July|August|September|October|November|December	siječnja|veljače|ožujka|travnja|svibnja|lipnja|srpnja|kolovoza|rujna|listopada|studenoga|prosinca
+Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec	sij|velj|ožu|tra|svi|lip|srp|kol|ruj|lis|stu|pro
+Japanese	Japanski
+Jitter	Podrhtavanje
+Join	Pridruži se
+Join Call	Pridruži se pozivu
+Join Server	Pridruži se poslužitelju
+Join Thread	Pridruži se niti
+Join Voice	Pridruži se glasovnom
+Join a Server	Pridruži se poslužitelju
+Join the call	Pridruži se pozivu
+Joined Threads	Niti kojima si se pridružio
+Joining…	Pridruživanje…
+Jump	Skoči
+Jump To Present	Skoči na sadašnjost
+Jump to oldest unread message	Skoči na najstariju nepročitanu poruku
+KEYBIND	PREČAC
+Keep Current Permissions	Zadrži trenutačna dopuštenja
+Keep these somewhere safe. Each code signs you in once if you lose your authenticator app; they are shown only now.	Čuvaj ih na sigurnom. Svaki kôd te jednom prijavljuje ako izgubiš aplikaciju za autentifikaciju; prikazuju se samo sada.
+Keep your server private, or open it up for more people to join.	Zadrži poslužitelj privatnim ili ga otvori da mu se pridruži više ljudi.
+Keybinds	Prečaci
+Keybinds only work while fastcord is focused. To use them in other apps, allow fastcord under Input Monitoring in System Settings, then restart fastcord.	Prečaci rade samo dok je fastcord u fokusu. Za korištenje u drugim aplikacijama dopusti fastcord pod Praćenje unosa u Postavkama sustava, a zatim ponovno pokreni fastcord.
+Keybinds only work while fastcord is focused: this desktop doesn't let apps see keys pressed in other windows.	Prečaci rade samo dok je fastcord u fokusu: ova radna površina ne dopušta aplikacijama da vide tipke pritisnute u drugim prozorima.
+Keybinds work in every app, also while fastcord is in the background.	Prečaci rade u svakoj aplikaciji, i dok je fastcord u pozadini.
+Keyboard Shortcuts	Tipkovnički prečaci
+Keyboard shortcuts	Tipkovnički prečaci
+Keyword: %	Ključna riječ: %
+Kick	Izbaci
+Kick %	Izbaci %
+Kick '%' from Server	Izbaci '%' s poslužitelja
+Kick Member	Izbaci člana
+Kick, Approve, and Reject Members	Izbacivanje, odobravanje i odbijanje članova
+Korean	Korejski
+LIVE	UŽIVO
+Language	Jezik
+Language & Time	Jezik i vrijeme
+Last sync: %	Zadnja sinkronizacija: %
+Leave Group	Napusti grupu
+Leave Server	Napusti poslužitelj
+Leave Thread	Napusti nit
+Leaving Discord	Napuštanje Discorda
+Left %	Napustio %
+Let everyone know how to use this channel!	Objasni svima kako koristiti ovaj kanal!
+Let's Check	Provjerimo
+Level %!	Razina %!
+Limits	Ograničenja
+Limits the number of users that can connect to this voice channel. Users with the Move Members permission ignore this limit and can move other users into the channel.	Ograničava broj korisnika koji se mogu povezati s ovim glasovnim kanalom. Korisnici s dopuštenjem Premještanje članova zanemaruju ovo ograničenje i mogu premjestiti druge korisnike u kanal.
+Linked Roles	Povezane uloge
+List view	Prikaz popisa
+Lithuanian	Litavski
+Live Now	Sada uživo
+Loading sounds…	Učitavanje zvukova…
+Loading...	Učitavanje...
+Loading…	Učitavanje…
+Location	Lokacija
+Log In	Prijava
+Log Out	Odjava
+Log Out All Known Devices	Odjavi sve poznate uređaje
+Log in	Prijavi se
+Log in to Discord in your web browser.	Prijavi se u Discord u web-pregledniku.
+Log in with QR Code	Prijava QR kodom
+Log in with a token	Prijava tokenom
+Log out of all known devices	Odjavi se sa svih poznatih uređaja
+Logged-in Devices	Prijavljeni uređaji
+Logging in as %	Prijava kao %
+Logging in…	Prijava…
+Login or password is invalid.	Prijava ili lozinka nisu valjani.
+Looking for screens…	Traženje zaslona…
+Lotus Mode	Lotus način
+Low	Niska
+Lower Hand	Spusti ruku
+MAX NUMBER OF USES	NAJVEĆI BROJ KORIŠTENJA
+MEMBER SINCE	ČLAN OD
+MEMBERS	ČLANOVI
+MUTE	UTIŠAJ
+Main Profile	Glavni profil
+Make a selection	Odaberi
+Manage Accounts	Upravljaj računima
+Manage Channel	Upravljanje kanalom
+Manage Channels	Upravljanje kanalima
+Manage Events	Upravljanje događajima
+Manage Expressions	Upravljanje izrazima
+Manage Members	Upravljanje članovima
+Manage Messages	Upravljanje porukama
+Manage Nicknames	Upravljanje nadimcima
+Manage Permissions	Upravljanje dopuštenjima
+Manage Roles	Upravljanje ulogama
+Manage Server	Upravljanje poslužiteljem
+Manage Threads and Posts	Upravljanje nitima i objavama
+Manage Webhooks	Upravljanje webhookovima
+Manage settings that help keep your server active.	Upravljaj postavkama koje pomažu da poslužitelj ostane aktivan.
+Mark All as Read	Označi sve kao pročitano
+Mark As Read	Označi kao pročitano
+Mark Folder As Read	Označi mapu kao pročitanu
+Mark Unread	Označi kao nepročitano
+Mark a message unread	Označi poruku kao nepročitanu
+Mark as Verified	Označi kao potvrđeno
+Mark as spoiler	Označi kao spoiler
+Mark channel read	Označi kanal kao pročitan
+Mark server read	Označi poslužitelj kao pročitan
+Marked as read	Označeno kao pročitano
+Marks your message as a spoiler.	Označava tvoju poruku kao spoiler.
+Match your device's light or dark mode.	Prati svijetli ili tamni način uređaja.
+Max file size is % MB please.	Najveća veličina datoteke je % MB, molimo.
+Measuring	Mjerenje
+Medium	Srednja
+Member Since	Član od
+Members	Članovi
+Members can pick more than one answer	Članovi mogu odabrati više odgovora
+Members can wear your server's tag next to their name across Discord.	Članovi mogu nositi oznaku tvog poslužitelja uz svoje ime u cijelom Discordu.
+Members in timeout can't send messages, react, join voice or speak until it ends.	Članovi u vremenskom ograničenju ne mogu slati poruke, reagirati, pridružiti se glasovnom ni govoriti dok ono ne istekne.
+Members in timeout can't send messages, react, join voice or start threads until it ends.	Članovi u vremenskom ograničenju ne mogu slati poruke, reagirati, pridružiti se glasovnom ni započinjati niti dok ono ne istekne.
+Members matching @%	Članovi koji odgovaraju @%
+Members must answer this question to join.	Članovi moraju odgovoriti na ovo pitanje da bi se pridružili.
+Members of the server must meet the following criteria before they can send messages in text channels or initiate a direct message conversation. If a member has an assigned role this does not apply.	Članovi poslužitelja moraju ispuniti sljedeće uvjete prije nego što mogu slati poruke u tekstnim kanalima ili započeti razgovor izravnim porukama. Ako član ima dodijeljenu ulogu, to ne vrijedi.
+Members use the colour of the highest role they have on the roles list.	Članovi koriste boju najviše uloge koju imaju na popisu uloga.
+Members use the colour of the highest role they have on this list. Drag roles, or use the arrows, to reorder them.	Članovi koriste boju najviše uloge koju imaju na ovom popisu. Povuci uloge ili koristi strelice da im promijeniš redoslijed.
+Members will be restricted to sending one message and creating one thread per this interval, unless they have the Bypass Slowmode permission.	Članovi će moći poslati jednu poruku i stvoriti jednu nit u tom intervalu, osim ako imaju dopuštenje Zaobilaženje sporog načina.
+Members with a matching name can't talk or interact until they change it.	Članovi s odgovarajućim imenom ne mogu razgovarati ni sudjelovati dok ga ne promijene.
+Members with this permission will have every permission and will also bypass all channel specific permissions or restrictions (for example, these members would get access to all private channels). This is a dangerous permission to grant.	Članovi s ovim dopuštenjem imat će sva dopuštenja i zaobilazit će sva dopuštenja i ograničenja pojedinih kanala (na primjer, dobit će pristup svim privatnim kanalima). Ovo je opasno dopuštenje.
+Members — %	Članovi — %
+Membership Permissions	Dopuštenja članstva
+Mention	Spomeni
+Mention %	Spomeni %
+Mention @everyone, @here, and All Roles	Spominjanje @everyone, @here i svih uloga
+Mention limit	Ograničenje spominjanja
+Mention raid protection	Zaštita od napada spominjanjima
+Mention removed	Spominjanje uklonjeno
+Mentions	Spominjanja
+Mentions User	Spominje korisnika
+Message	Poruka
+Message #%	Pošalji poruku u #%
+Message %	Pošalji poruku %
+Message @%	Pošalji poruku @%
+Message @% (encrypted)	Pošalji poruku @% (šifrirano)
+Message @% (not encrypted)	Pošalji poruku @% (nije šifrirano)
+Message Contains	Poruka sadrži
+Message Display	Prikaz poruka
+Message Requests	Zahtjevi za poruke
+Message deleted	Poruka izbrisana
+Message failed to send.	Slanje poruke nije uspjelo.
+Message link copied: paste it into Discord's report form	Poveznica poruke kopirana: zalijepi je u Discordov obrazac za prijavu
+Message request ignored	Zahtjev za poruku zanemaren
+Message unpinned	Poruka otkvačena
+Messages Failed To Load	Učitavanje poruka nije uspjelo
+Messages from members you may not know go to Message Requests.	Poruke od članova koje možda ne poznaješ idu u Zahtjeve za poruke.
+Messages from people you may not know go to Message Requests instead of your DMs.	Poruke od ljudi koje možda ne poznaješ idu u Zahtjeve za poruke umjesto u izravne poruke.
+Messages from server members without a role will be filtered for sensitive image-based media.	Poruke članova poslužitelja bez uloge filtrirat će se zbog osjetljivih slikovnih medija.
+Messages in servers	Poruke na poslužiteljima
+Messages will not be filtered for sensitive image-based media.	Poruke se neće filtrirati zbog osjetljivih slikovnih medija.
+Messaging Permissions	Dopuštenja za poruke
+Minimize to Tray	Smanji u traku sustava
+Mobile Push Notifications	Push obavijesti na mobitelu
+Moderation	Moderiranje
+Moderators must have two-factor authentication enabled to ban, kick, or timeout members and delete messages.	Moderatori moraju imati uključenu dvofaktorsku autentifikaciju za zabranu, izbacivanje ili vremensko ograničenje članova i brisanje poruka.
+Moderators only	Samo moderatori
+Modern, beautiful, and easy on your eyes.	Moderno, lijepo i ugodno za oči.
+Modify Attachment	Izmijeni privitak
+Motion	Kretanje
+Move Members	Premještanje članova
+Move To	Premjesti u
+Move to Audience	Premjesti u publiku
+Multi-Factor Authentication	Višefaktorska autentifikacija
+Must also be a member of this server for longer than 10 minutes.	Mora biti i član ovog poslužitelja dulje od 10 minuta.
+Must also be registered on Discord for longer than 5 minutes.	Mora biti i registriran na Discordu dulje od 5 minuta.
+Must have a verified email on their Discord account.	Mora imati potvrđenu e-poštu na Discord računu.
+Must have a verified phone on their Discord account.	Mora imati potvrđen telefon na Discord računu.
+Mute	Utišaj
+Mute %	Utišaj %
+Mute Category	Utišaj kategoriju
+Mute Channel	Utišaj kanal
+Mute Members	Utišaj članove
+Mute New Events	Utišaj nove događaje
+Mute Server	Utišaj poslužitelj
+Mute Thread	Utišaj nit
+Muted until %1, %2	Utišano do %1, %2
+Muting a server prevents unread indicators and notifications from appearing unless you are mentioned.	Utišavanjem poslužitelja ne prikazuju se oznake nepročitanog ni obavijesti, osim ako te netko spomene.
+Mutual Friends	Zajednički prijatelji
+Mutual Servers	Zajednički poslužitelji
+My Account	Moj račun
+My server	Moj poslužitelj
+NAME	NAZIV
+NEW	NOVO
+NEW PASSWORD	NOVA LOZINKA
+NO ACTIVE INVITE LINKS	NEMA AKTIVNIH POVEZNICA ZA POZIVNICE
+NOTHING	NIŠTA
+Name	Naziv
+Name your sound	Imenuj svoj zvuk
+Name your sticker	Imenuj svoju naljepnicu
+Nature	Priroda
+Navigate Back	Idi natrag
+Navigate Forward	Idi naprijed
+Need an account?	Trebaš račun?
+Network	Mreža
+Never	Nikad
+Nevermind	Nema veze
+New Category	Nova kategorija
+New Group DM	Nova grupna poruka
+New Post	Nova objava
+New Thread	Nova nit
+New Webhook	Novi webhook
+New members must read and agree to these before they can talk.	Novi članovi moraju ih pročitati i prihvatiti prije nego što mogu pisati.
+New members pick channels and roles from your questions when they join.	Novi članovi pri pridruživanju odabiru kanale i uloge prema tvojim pitanjima.
+New tag	Nova oznaka
+New threads will stop showing in the channel list after being inactive for the specified duration.	Nove niti prestat će se prikazivati na popisu kanala nakon što budu neaktivne zadano vrijeme.
+Newest	Najnovije
+Next	Dalje
+Nickname	Nadimak
+Nicknames are visible to everyone on this server. Do not change them unless you are enforcing a naming system or clearing a bad nickname.	Nadimci su vidljivi svima na ovom poslužitelju. Ne mijenjaj ih osim ako uvodiš sustav imenovanja ili uklanjaš neprikladan nadimak.
+No GIFs found	Nema pronađenih GIF-ova
+No Inactive Channel	Nema neaktivnog kanala
+No Invite	Nema pozivnice
+No Keybind Set	Prečac nije postavljen
+No System Messages	Nema sustavnih poruka
+No applications waiting	Nema prijava na čekanju
+No apps have been added to this server.	Na ovaj poslužitelj nisu dodane aplikacije.
+No bans	Nema zabrana
+No bans match your search	Nijedna zabrana ne odgovara pretraživanju
+No emoji found	Nema pronađenih emojija
+No favorites yet	Još nema favorita
+No file chosen	Nije odabrana datoteka
+No friends in common	Nema zajedničkih prijatelja
+No limit	Bez ograničenja
+No logs yet	Još nema zapisa
+No members found	Nema pronađenih članova
+No members have this role yet.	Nijedan član još nema ovu ulogu.
+No message requests.	Nema zahtjeva za poruke.
+No one is speaking yet	Još nitko ne govori
+No one's around right now.	Trenutačno nikoga nema.
+No one's here yet	Još nikoga nema
+No posts match	Nijedna objava ne odgovara
+No posts yet	Još nema objava
+No questions yet.	Još nema pitanja.
+No reason given	Razlog nije naveden
+No results	Nema rezultata
+No results found	Nema pronađenih rezultata
+No servers in common	Nema zajedničkih poslužitelja
+No sounds found	Nema pronađenih zvukova
+No sounds yet.	Još nema zvukova.
+No spam. Nice.	Nema spama. Super.
+No stickers found	Nema pronađenih naljepnica
+No stickers yet	Još nema naljepnica
+Nobody can join this server with an invite link until the pause ends or you enable invites again.	Nitko se ne može pridružiti ovom poslužitelju poveznicom za pozivnicu dok pauza ne završi ili dok ponovno ne uključiš pozivnice.
+Nobody has mentioned you recently.	Nitko te nije nedavno spomenuo.
+Noise Suppression	Suzbijanje buke
+Noise Suppression: Off	Suzbijanje buke: isključeno
+Noise Suppression: On	Suzbijanje buke: uključeno
+None	Ništa
+Norwegian	Norveški
+Not Now	Ne sada
+Not connected to % yet.	Još nije povezano s %.
+Not encrypted	Nije šifrirano
+Not encrypted: Discord can read this message	Nije šifrirano: Discord može pročitati ovu poruku
+Not end-to-end encrypted	Nije sveobuhvatno šifrirano
+Not me, start over	Nisam ja, kreni ispočetka
+Note	Bilješka
+Note (only visible to you)	Bilješka (vidiš je samo ti)
+Note: Members with the "Mention @everyone, @here, and All Roles" permission will always be able to ping this role.	Napomena: Članovi s dopuštenjem "Spominjanje @everyone, @here i svih uloga" uvijek će moći pingati ovu ulogu.
+Nothing	Ništa
+Notification Settings	Postavke obavijesti
+Notification settings changed	Postavke obavijesti promijenjene
+Notifications	Obavijesti
+Notify everyone online who has permission to view this channel.	Obavijesti sve na mreži koji imaju dopuštenje za pregled ovog kanala.
+Notify everyone who has permission to view this channel.	Obavijesti sve koji imaju dopuštenje za pregled ovog kanala.
+Notify me when...	Obavijesti me kad...
+Notify users with this role who have permission to view this channel.	Obavijesti korisnike s ovom ulogom koji imaju dopuštenje za pregled ovog kanala.
+OUTPUT DEVICE	IZLAZNI UREĐAJ
+OUTPUT VOLUME	GLASNOĆA IZLAZA
+Objects	Predmeti
+Off	Isključeno
+Offline	Izvan mreže
+Oh yeah. Pin it	O da. Prikvači
+Okay	U redu
+Oldest	Najstarije
+On click	Na klik
+On servers I moderate	Na poslužiteljima koje moderiram
+Onboarding	Uvođenje
+One rule per line, for example: Be respectful	Jedno pravilo po retku, na primjer: Budi pristojan
+Ongoing call	Poziv u tijeku
+Online	Na mreži
+Only @mentions	Samo @spominjanja
+Only servers and channels you have webhook permissions in are shown.	Prikazuju se samo poslužitelji i kanali u kojima imaš dopuštenja za webhookove.
+Only you can see the nickname you give %.	Samo ti vidiš nadimak koji daješ korisniku %.
+Only you can see this · 	Ovo vidiš samo ti ·
+Oops!	Ups!
+Open Chat	Otvori chat
+Open Image Link	Otvori poveznicu slike
+Open Link	Otvori poveznicu
+Open Logs Folder	Otvori mapu zapisa
+Open Media Link	Otvori poveznicu medija
+Open Server Insights	Otvori Uvide u poslužitelj
+Open Settings	Otvori postavke
+Open discord.com	Otvori discord.com
+Open in Browser	Otvori u pregledniku
+Open in YouTube	Otvori na YouTubeu
+Open the developer tools (Cmd+Option+I) and choose the Network tab.	Otvori alate za razvojne programere (Cmd+Option+I) i odaberi karticu Network.
+Open the developer tools (Ctrl+Shift+I) and choose the Network tab.	Otvori alate za razvojne programere (Ctrl+Shift+I) i odaberi karticu Network.
+Or, send a server invite link to a friend	Ili pošalji prijatelju poveznicu za pozivnicu na poslužitelj
+Original message was deleted	Izvorna poruka je izbrisana
+Other Active Threads	Ostale aktivne niti
+Other Devices	Ostali uređaji
+Outgoing Friend Request	Odlazni zahtjev za prijateljstvo
+Overview	Pregled
+PASSWORD	LOZINKA
+PM	popodne
+PRIVACY CODE	KÔD PRIVATNOSTI
+PTT Activate	Aktivacija PTT-a
+PTT Deactivate	Deaktivacija PTT-a
+PUSH TO TALK RELEASE DELAY	ODGODA OTPUŠTANJA ZA PRITISNI ZA RAZGOVOR
+Packet loss	Gubitak paketa
+Packets received	Primljeni paketi
+Packets sent	Poslani paketi
+Page %	Stranica %
+Password	Lozinka
+Password and Authentication	Lozinka i autentifikacija
+Passwords do not match!	Lozinke se ne podudaraju!
+Paste	Zalijepi
+Paste an emoji (optional)	Zalijepi emoji (neobavezno)
+Paste your token	Zalijepi svoj token
+Pause Invites	Pauziraj pozivnice
+Pending	Na čekanju
+People	Ljudi
+People can join your server directly with an invite	Ljudi se mogu izravno pridružiti tvom poslužitelju s pozivnicom
+People in a voice channel with you can join the game you're playing.	Ljudi u glasovnom kanalu s tobom mogu se pridružiti igri koju igraš.
+People must submit an application and be approved to join	Ljudi moraju poslati prijavu i biti odobreni da bi se pridružili
+People who applied to join, waiting for a moderator.	Ljudi koji su se prijavili za pridruživanje i čekaju moderatora.
+Per-server Profiles	Profili za poslužitelje
+Permissions	Dopuštenja
+Permissions not synced with category: 	Dopuštenja nisu sinkronizirana s kategorijom:
+Permissions synced with category: 	Dopuštenja sinkronizirana s kategorijom:
+Permissions: %	Dopuštenja: %
+Phone Number	Broj telefona
+Pick a channel	Odaberi kanal
+Pick a channel for the alerts.	Odaberi kanal za upozorenja.
+Pick at least one response.	Odaberi barem jedan odgovor.
+Pin It. Pin It Good.	Prikvači. Dobro prikvači.
+Pin Message	Prikvači poruku
+Pin Messages	Prikvačivanje poruka
+Ping	Ping
+Ping: % ms	Ping: % ms
+Ping: measuring…	Ping: mjerenje…
+Pinned Messages	Prikvačene poruke
+Play Here	Reproduciraj ovdje
+Play Soundboard Through My Mic	Reproduciraj ploču zvukova kroz moj mikrofon
+Play YouTube videos here with yt-dlp? It needs yt-dlp installed, and connects to YouTube from your computer. Settings > Chat can change this.	Reproducirati YouTube videozapise ovdje putem yt-dlp? Potreban je instaliran yt-dlp, a povezuje se s YouTubeom s tvog računala. To možeš promijeniti u Postavke > Chat.
+Play YouTube videos in fastcord with yt-dlp	Reproduciraj YouTube videozapise u fastcordu putem yt-dlp
+Please enter a valid invite link or invite code.	Unesi valjanu poveznicu ili kôd pozivnice.
+Please try again later.	Pokušaj ponovno kasnije.
+Polish	Poljski
+Poll closed	Anketa zatvorena
+Portuguese, Brazilian	Portugalski, brazilski
+Post	Objavi
+Post Guidelines	Smjernice za objave
+Post from a script	Objavi iz skripte
+Post messages that reach servers outside your own. Members can follow this channel, so the posts you publish here appear in their servers.	Objavljuj poruke koje dosežu i druge poslužitelje. Članovi mogu pratiti ovaj kanal, pa se objave koje ovdje objaviš pojavljuju na njihovim poslužiteljima.
+Post title	Naslov objave
+Posting...	Objavljivanje...
+Press a shortcut…	Pritisni prečac…
+Previous	Prethodno
+Previous / next channel	Prethodni / sljedeći kanal
+Previous / next channel with mentions	Prethodni / sljedeći kanal sa spominjanjima
+Previous / next server	Prethodni / sljedeći poslužitelj
+Previous / next unread channel	Prethodni / sljedeći nepročitani kanal
+Previous 12 Hours	Zadnjih 12 sati
+Previous 24 Hours	Zadnja 24 sata
+Previous 3 Days	Zadnja 3 dana
+Previous 6 Hours	Zadnjih 6 sati
+Previous 7 Days	Zadnjih 7 dana
+Previous Hour	Zadnji sat
+Priority Speaker	Prioritetni govornik
+Privacy Settings	Postavke privatnosti
+Private Category	Privatna kategorija
+Private Channel	Privatni kanal
+Private Profile	Privatni profil
+Profile	Profil
+Profile Banner	Natpis profila
+Profile Privacy	Privatnost profila
+Profiles	Profili
+Prompt members to reply to welcome messages with a sticker.	Potakni članove da na poruke dobrodošlice odgovore naljepnicom.
+Pronouns	Zamjenice
+Protect your Discord account with an extra layer of security. Once configured, you'll be required to enter your password and complete one additional step in order to sign in.	Zaštiti svoj Discord račun dodatnim slojem sigurnosti. Nakon postavljanja za prijavu ćeš morati unijeti lozinku i dovršiti još jedan korak.
+Protip:	Savjet:
+Publish	Objavi
+Push to Mute	Pritisni za utišavanje
+Push to Talk	Pritisni za razgovor
+Push to Talk (Normal)	Pritisni za razgovor (normalno)
+Q: %	P: %
+Question	Pitanje
+Questions	Pitanja
+ROLES	ULOGE
+ROLES — %	ULOGE — %
+ROLES/MEMBERS	ULOGE/ČLANOVI
+RTC Connecting	RTC povezivanje
+Read Message History	Čitanje povijesti poruka
+Reason	Razlog
+Reason for Ban	Razlog zabrane
+Reason for Kick	Razlog izbacivanja
+Reason for Timeout	Razlog vremenskog ograničenja
+Reason: %	Razlog: %
+Received	Primljeno
+Recently Active	Nedavno aktivni
+Reconnect	Ponovno se poveži
+Record Keybind	Snimi prečac
+Reduce the saturation of colors within the application, for those with color sensitivities.	Smanji zasićenost boja u aplikaciji, za osobe osjetljive na boje.
+Reduces the amount of animation and motion effects. On whenever your device asks for reduced motion.	Smanjuje količinu animacija i efekata kretanja. Uključeno kad god uređaj traži smanjeno kretanje.
+Region Override	Nadjačavanje regije
+Register	Registriraj se
+Reject	Odbij
+Rejoin	Ponovno se pridruži
+Related Emoji	Povezani emoji
+Relevant	Relevantno
+Remove	Ukloni
+Remove %	Ukloni %
+Remove All Embeds	Ukloni sav ugrađeni sadržaj
+Remove All Reactions	Ukloni sve reakcije
+Remove Answer	Ukloni odgovor
+Remove Attachment	Ukloni privitak
+Remove Authenticator App	Ukloni aplikaciju za autentifikaciju
+Remove Avatar	Ukloni avatar
+Remove Embeds	Ukloni ugrađeni sadržaj
+Remove Friend	Ukloni prijatelja
+Remove From Group	Ukloni iz grupe
+Remove Icon	Ukloni ikonu
+Remove Reaction	Ukloni reakciju
+Remove Reactions	Ukloni reakcije
+Remove Reactions for Emoji	Ukloni reakcije za emoji
+Remove Server	Ukloni poslužitelj
+Remove Spoiler	Ukloni spoiler
+Remove Timeout	Ukloni vremensko ograničenje
+Remove Vote	Ukloni glas
+Remove all embeds	Ukloni sav ugrađeni sadržaj
+Remove from Favorites	Ukloni iz favorita
+Remove notification override for %	Ukloni nadjačavanje obavijesti za %
+Remove the files added before encryption was on: they'd go unencrypted.	Ukloni datoteke dodane prije uključivanja šifriranja: poslale bi se nešifrirano.
+Remove the files added while encryption was on: they'd arrive as unreadable ciphertext.	Ukloni datoteke dodane dok je šifriranje bilo uključeno: stigle bi kao nečitljiv šifrirani tekst.
+Removing…	Uklanjanje…
+Repeated encrypted message	Ponovljena šifrirana poruka
+Reply	Odgovori
+Replying to	Odgovor korisniku
+Report Message	Prijavi poruku
+Request Data	Zatraži podatke
+Request all of my Data	Zatraži sve moje podatke
+Request to Speak	Zatraži riječ
+Requests	Zahtjevi
+Require 2FA for moderator actions	Zahtijevaj 2FA za radnje moderatora
+Require members to agree to the server rules	Zahtijevaj da članovi prihvate pravila poslužitelja
+Require people to select tags when posting	Zahtijevaj odabir oznaka pri objavljivanju
+Required	Obavezno
+Resend SMS?	Ponovno poslati SMS?
+Reset	Poništi
+Reset Friend Nickname	Poništi nadimak prijatelja
+Reset Voice Settings	Poništi glasovne postavke
+Resolving Invite	Provjera pozivnice
+Responses	Odgovori
+Retry	Pokušaj ponovno
+Retry Now	Pokušaj odmah
+Return to call	Vrati se u poziv
+Return to the connected call	Vrati se u povezani poziv
+Reveal	Otkrij
+Review	Pregledaj
+Revoke	Opozovi
+Revoke Ban	Ukini zabranu
+Revoke Invite	Opozovi pozivnicu
+Revoke the ban? They will be able to join again with an invite.	Ukinuti zabranu? Moći će se ponovno pridružiti s pozivnicom.
+Ring	Zazvoni
+Ringing…	Zvoni…
+Role Color	Boja uloge
+Role Colors	Boje uloga
+Role Icon	Ikona uloge
+Role name	Naziv uloge
+Roles	Uloge
+Romanian, Romania	Rumunjski, Rumunjska
+Rule: %	Pravilo: %
+Rules or Guidelines Channel	Kanal za pravila ili smjernice
+Russian	Ruski
+SELECT A CHANNEL	ODABERI KANAL
+SELECT A SERVER	ODABERI POSLUŽITELJ
+SERVER NAME	NAZIV POSLUŽITELJA
+SOUNDBOARD VOLUME	GLASNOĆA PLOČE ZVUKOVA
+STATIC EMOJI — % SLOTS AVAILABLE	STATIČNI EMOJIJI — SLOBODNIH MJESTA: %
+Safety Notifications Channel	Kanal za sigurnosne obavijesti
+Safety Number	Sigurnosni broj
+Safety Setup	Sigurnosno postavljanje
+Safety checks	Sigurnosne provjere
+Same as Device Theme	Kao tema uređaja
+Saturation	Zasićenost
+Save	Spremi
+Save Changes	Spremi promjene
+Save Image	Spremi sliku
+Saving...	Spremanje...
+Saving…	Spremanje…
+Scan this with the Discord mobile app to log in instantly.	Skeniraj ovo Discordovom mobilnom aplikacijom za trenutačnu prijavu.
+Schedule an event for any planned activity in your server.	Zakaži događaj za bilo koju planiranu aktivnost na svom poslužitelju.
+Screen	Zaslon
+Screen sharing isn't supported on this platform yet.	Dijeljenje zaslona još nije podržano na ovoj platformi.
+Scroll chat	Pomicanje chata
+Search	Pretraži
+Search %	Pretraži %
+Search Bans by User ID or Username	Pretraži zabrane po ID-ju korisnika ili korisničkom imenu
+Search Klipy	Pretraži Klipy
+Search Options	Opcije pretraživanja
+Search by username or id	Pretraži po korisničkom imenu ili ID-ju
+Search for friends	Pretraži prijatelje
+Search members to add (press Enter)	Pretraži članove za dodavanje (pritisni Enter)
+Search or create a post...	Pretraži ili stvori objavu...
+Search sounds	Pretraži zvukove
+Searching...	Pretraživanje...
+Select Friends	Odaberi prijatelje
+Select a Language	Odaberi jezik
+Select a channel	Odaberi kanal
+Select a channel or category…	Odaberi kanal ili kategoriju…
+Select one answer	Odaberi jedan odgovor
+Select one or more answers	Odaberi jedan ili više odgovora
+Select where you want these updates to go. You can remove this at any time in Server Settings > Integrations > Channels Followed.	Odaberi kamo želiš da idu ove novosti. To možeš ukloniti u bilo kojem trenutku u Postavke poslužitelja > Integracije > Praćeni kanali.
+Select where you want to share this message.	Odaberi gdje želiš podijeliti ovu poruku.
+Send	Pošalji
+Send Friend Request	Pošalji zahtjev za prijateljstvo
+Send Messages and Create Posts	Slanje poruka i stvaranje objava
+Send Messages in Threads and Posts	Slanje poruka u nitima i objavama
+Send New Key	Pošalji novi ključ
+Send Text-to-Speech Messages	Slanje poruka pretvorbe teksta u govor
+Send Voice Messages	Slanje glasovnih poruka
+Send a random welcome message when someone joins this server.	Pošalji nasumičnu poruku dobrodošlice kad se netko pridruži ovom poslužitelju.
+Send a server invite link to a friend	Pošalji prijatelju poveznicu za pozivnicu na poslužitelj
+Send an alert	Pošalji upozorenje
+Send helpful tips for server setup.	Šalji korisne savjete za postavljanje poslužitelja.
+Send messages, images, GIFs, emoji, opinions, and puns	Šalji poruke, slike, GIF-ove, emojije, mišljenja i dosjetke
+Sending...	Slanje...
+Sent	Poslano
+Sent a file	Poslao je datoteku
+Sent a sticker	Poslao je naljepnicu
+Sent — %	Poslano — %
+Server	Poslužitelj
+Server Avatar	Avatar na poslužitelju
+Server Deafen	Isključi zvuk na poslužitelju
+Server Deafened	Zvuk isključen na poslužitelju
+Server Guide	Vodič poslužitelja
+Server ID	ID poslužitelja
+Server Info	Podaci o poslužitelju
+Server Insights	Uvidi u poslužitelj
+Server Insights is hosted on a separate website so that it's easier to share links and browse cross platform.	Uvidi u poslužitelj nalaze se na zasebnom web-mjestu kako bi se lakše dijelile poveznice i pregledavalo na svim platformama.
+Server Mute	Utišaj na poslužitelju
+Server Muted	Utišan na poslužitelju
+Server Nickname	Nadimak na poslužitelju
+Server Notification Settings	Postavke obavijesti poslužitelja
+Server Primary Language	Primarni jezik poslužitelja
+Server Profile	Profil na poslužitelju
+Server Rules	Pravila poslužitelja
+Server Settings	Postavke poslužitelja
+Server Tag	Oznaka poslužitelja
+Server Template	Predložak poslužitelja
+Server Widget	Widget poslužitelja
+Server members	Članovi poslužitelja
+Server members can only send you friend requests from servers where you also allow Direct Messages.	Članovi poslužitelja mogu ti slati zahtjeve za prijateljstvo samo s poslužitelja na kojima dopuštaš i izravne poruke.
+Server name must be between 2 and 100 characters.	Naziv poslužitelja mora imati od 2 do 100 znakova.
+Server unmuted	Poslužitelju je vraćen zvuk
+Sessions	Sesije
+Set Custom Status	Postavi prilagođeni status
+Set Voice Channel Status	Postavljanje statusa glasovnog kanala
+Set a custom status	Postavi prilagođeni status
+Set up AutoMod to automatically filter messages in this server with the rules below. Members with Manage Server or Administrator are exempt.	Postavi AutoMod da automatski filtrira poruke na ovom poslužitelju prema pravilima u nastavku. Članovi s dopuštenjem Upravljanje poslužiteljem ili Administrator su izuzeti.
+Sets camera video quality for all channel participants. Choose Auto for optimal performance.	Postavlja kvalitetu videa kamere za sve sudionike kanala. Za optimalne performanse odaberi Automatski.
+Setting up encryption: % needs to open fastcord once.	Postavljanje šifriranja: % treba jednom otvoriti fastcord.
+Several people are typing...	Nekoliko ljudi piše...
+Severe Profanity	Teške psovke
+Sexual Content	Seksualni sadržaj
+Share	Podijeli
+Share Event	Podijeli događaj
+Share Your Screen	Podijeli zaslon
+Share my full profile with	Podijeli moj cijeli profil s
+Share your detected activities with others	Dijeli prepoznate aktivnosti s drugima
+Show	Prikaži
+Show Chat	Prikaži chat
+Show a system notification for messages that would notify you (DMs, mentions, servers set to all messages).	Prikaži obavijest sustava za poruke o kojima bi te obavijestili (izravne poruke, spominjanja, poslužitelji postavljeni na sve poruke).
+Show embeds and preview website links pasted into chat	Prikazuj ugrađeni sadržaj i pretpregled poveznica zalijepljenih u chat
+Show emoji reactions on messages	Prikazuj emoji reakcije na porukama
+Show message	Prikaži poruku
+Show messages	Prikaži poruke
+Show role colors in names	Prikazuj boje uloga u imenima
+Show role colors next to names	Prikazuj boje uloga uz imena
+Show spoiler content	Prikazuj sadržaj spoilera
+Show the game or app you're using on your profile and in member lists.	Prikazuj igru ili aplikaciju koju koristiš na profilu i na popisima članova.
+Shows a red badge on the app icon when you have unread mentions.	Prikazuje crvenu značku na ikoni aplikacije kad imaš nepročitana spominjanja.
+Silence every sound and notification and hide all badges and unread marks, so fastcord never asks for your attention.	Utišaj sve zvukove i obavijesti te sakrij sve značke i oznake nepročitanog, da ti fastcord nikad ne odvlači pažnju.
+Slow down! Are you sure?	Polako! Jesi li siguran?
+Slowmode	Spori način
+Slowmode is enabled	Spori način je uključen
+Slowmode is enabled. Members can send one message every % hour.|Slowmode is enabled. Members can send one message every % hours.	Spori način je uključen. Članovi mogu slati jednu poruku svaki % sat.|Spori način je uključen. Članovi mogu slati jednu poruku svaka % sata.|Spori način je uključen. Članovi mogu slati jednu poruku svakih % sati.
+Slowmode is enabled. Members can send one message every % minute.|Slowmode is enabled. Members can send one message every % minutes.	Spori način je uključen. Članovi mogu slati jednu poruku svaku % minutu.|Spori način je uključen. Članovi mogu slati jednu poruku svake % minute.|Spori način je uključen. Članovi mogu slati jednu poruku svakih % minuta.
+Slowmode is enabled. Members can send one message every % second.|Slowmode is enabled. Members can send one message every % seconds.	Spori način je uključen. Članovi mogu slati jednu poruku svaku % sekundu.|Spori način je uključen. Članovi mogu slati jednu poruku svake % sekunde.|Spori način je uključen. Članovi mogu slati jednu poruku svakih % sekundi.
+Smooth Scrolling	Glatko pomicanje
+So no one gets lost on where to go.	Da se nitko ne izgubi.
+Some older devices may not be shown here	Neki stariji uređaji možda se ovdje neće prikazati
+Someone	Netko
+Something went wrong	Nešto nije u redu
+Something went wrong (HTTP %).	Nešto nije u redu (HTTP %).
+Something went wrong. Try again.	Nešto nije u redu. Pokušaj ponovno.
+Somewhere Else	Negdje drugdje
+Sorry, we couldn't load the first message in this thread	Nažalost, nismo uspjeli učitati prvu poruku u ovoj niti
+Sort: Date Posted	Poredaj: datum objave
+Sort: Recent Activity	Poredaj: nedavna aktivnost
+Sound Name	Naziv zvuka
+Sound names must be between 2 and 32 characters.	Nazivi zvukova moraju imati od 2 do 32 znaka.
+Soundboard	Ploča zvukova
+Sounds	Zvukovi
+Sounds must be 5.2 seconds or shorter.	Zvukovi smiju trajati najviše 5,2 sekunde.
+Sounds must be under 512 KB.	Zvukovi moraju biti manji od 512 KB.
+Source	Izvor
+Space between message groups	Razmak između grupa poruka
+Spam	Neželjeno
+Spam Filters	Filtri neželjenog sadržaja
+Spanish	Španjolski
+Spanish, LATAM	Španjolski, Latinska Amerika
+Speak	Govor
+Speak Message	Izgovori poruku
+Spoiler Attachment	Privitak spoilera
+Spoiler Content	Sadržaj spoilera
+Stage	Pozornica
+Start Date	Datum početka
+Start Event	Započni događaj
+Start Minimized	Pokreni smanjeno
+Start Time	Vrijeme početka
+Starting in %m	Počinje za %min
+State	Stanje
+Stickers	Naljepnice
+Stickers can be used by anyone in this server. Upload a PNG, APNG, GIF or Lottie JSON file of up to 512 KB; it shows at 320x320.	Naljepnice može koristiti svatko na ovom poslužitelju. Prenesi PNG, APNG, GIF ili Lottie JSON datoteku do 512 KB; prikazuje se u veličini 320x320.
+Stickers can't be sent encrypted yet.	Naljepnice se još ne mogu slati šifrirano.
+Stickers must be PNG, APNG, GIF or Lottie JSON files.	Naljepnice moraju biti PNG, APNG, GIF ili Lottie JSON datoteke.
+Stop Recording	Zaustavi snimanje
+Stop Streaming	Zaustavi stream
+Stop Testing	Zaustavi testiranje
+Stop Video	Zaustavi video
+Stop Watching	Prestani gledati
+Storage	Pohrana
+Stream Settings	Postavke streama
+Streamer Mode	Način za streamere
+Streamer Mode Enabled	Način za streamere uključen
+Streamer Mode hides your personal info so others watching your stream can't see it.	Način za streamere skriva tvoje osobne podatke kako ih ne bi vidjeli oni koji gledaju tvoj stream.
+Streamer Mode is enabled. Usernames have been truncated.	Način za streamere je uključen. Korisnička imena su skraćena.
+Success! Your friend request to % was sent.	Uspjeh! Tvoj zahtjev za prijateljstvo korisniku % je poslan.
+Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday	nedjelja|ponedjeljak|utorak|srijeda|četvrtak|petak|subota
+Sun|Mon|Tue|Wed|Thu|Fri|Sat	ned|pon|uto|sri|čet|pet|sub
+Support has arrived!	Podrška je stigla!
+Suppress @everyone and @here	Priguši @everyone i @here
+Suppress All Role @mentions	Priguši sva @spominjanja uloga
+Suppress Highlights	Priguši istaknuto
+Suppress Notifications	Priguši obavijesti
+Suppress background noise from your mic.	Suzbij pozadinsku buku iz mikrofona.
+Swedish	Švedski
+Switch Accounts	Promijeni račun
+Switch between accounts on this device.	Prebacuj se između računa na ovom uređaju.
+Symbols	Simboli
+Sync Now	Sinkroniziraj sada
+Sync Permissions	Sinkroniziraj dopuštenja
+Sync Template	Sinkroniziraj predložak
+Sync permissions?	Sinkronizirati dopuštenja?
+System	Sustav
+System Messages	Sustavne poruke
+System Messages Channel	Kanal za sustavne poruke
+System icon for new server members.	Ikona sustava za nove članove poslužitelja.
+THREAD NAME	NAZIV NITI
+Tag	Oznaka
+Tags	Oznake
+Tags (pick at least one)	Oznake (odaberi barem jednu)
+Tags let members organize their posts. Members pick them when they post; moderated tags only moderators can apply.	Oznake omogućuju članovima organiziranje objava. Članovi ih odabiru pri objavljivanju; moderirane oznake mogu dodijeliti samo moderatori.
+Tap the link in your email to sign in instantly — no password needed.	Dodirni poveznicu u e-pošti za trenutačnu prijavu — lozinka nije potrebna.
+Tell people a little more about your event. Markdown, new lines, and links are supported.	Reci ljudima nešto više o svom događaju. Podržani su Markdown, novi retci i poveznice.
+Tell the world a bit about this server.	Reci svijetu nešto o ovom poslužitelju.
+Template Description	Opis predloška
+Template Link	Poveznica predloška
+Template Title	Naslov predloška
+Templates are an easy way to share your server setup and help anyone create a server instantly. When someone uses your server template link, they create a new server pre-filled with the same channels, roles, permissions, and settings as yours. Messages, members and your server's icon aren't copied.	Predlošci su jednostavan način za dijeljenje postavki poslužitelja i pomažu svakome da odmah stvori poslužitelj. Kad netko upotrijebi poveznicu predloška tvog poslužitelja, stvara novi poslužitelj s istim kanalima, ulogama, dopuštenjima i postavkama kao tvoj. Poruke, članovi i ikona poslužitelja ne kopiraju se.
+Temporary members are automatically kicked when they disconnect unless a role has been assigned	Privremeni članovi automatski se izbacuju kad prekinu vezu, osim ako im je dodijeljena uloga
+Test Video	Testiraj video
+Text	Tekst
+Text Channel Permissions	Dopuštenja tekstnog kanala
+Text channel, external link, or in-person location.	Tekstni kanal, vanjska poveznica ili fizička lokacija.
+Thai	Tajlandski
+That channel isn't on this server anymore.	Taj kanal više nije na ovom poslužitelju.
+That file couldn't be read as an MP3 or OGG sound.	Ta se datoteka nije mogla pročitati kao MP3 ili OGG zvuk.
+That file couldn't be read. Avatars must be PNG, JPEG, GIF or WEBP images.	Ta se datoteka nije mogla pročitati. Avatari moraju biti PNG, JPEG, GIF ili WEBP slike.
+That file couldn't be read. Banners must be PNG, JPEG, GIF or WEBP images.	Ta se datoteka nije mogla pročitati. Natpisi moraju biti PNG, JPEG, GIF ili WEBP slike.
+That file couldn't be read. Emoji must be a PNG, JPEG, GIF, WEBP or AVIF image.	Ta se datoteka nije mogla pročitati. Emoji mora biti PNG, JPEG, GIF, WEBP ili AVIF slika.
+That file couldn't be read. Images must be PNG, JPEG, GIF or WEBP files.	Ta se datoteka nije mogla pročitati. Slike moraju biti PNG, JPEG, GIF ili WEBP datoteke.
+That file couldn't be read. Server icons must be PNG, JPEG, GIF or WEBP images.	Ta se datoteka nije mogla pročitati. Ikone poslužitelja moraju biti PNG, JPEG, GIF ili WEBP slike.
+That file is too large. Emoji must be under 256 KB.	Ta je datoteka prevelika. Emoji mora biti manji od 256 KB.
+That file is too large. Stickers must be under 512 KB.	Ta je datoteka prevelika. Naljepnice moraju biti manje od 512 KB.
+That image is too large.	Ta je slika prevelika.
+That image is too large. Avatars must be under %.	Ta je slika prevelika. Avatari moraju biti manji od %.
+That image is too large. Banners must be under 10 MB.	Ta je slika prevelika. Natpisi moraju biti manji od 10 MB.
+That image is too large. Server icons must be under 512 KB.	Ta je slika prevelika. Ikone poslužitelja moraju biti manje od 512 KB.
+That isn't a valid fastcord invite.	To nije valjana fastcord pozivnica.
+That's too long to send encrypted.	To je predugo za šifrirano slanje.
+The Pin Is Stuck!	Pribadača je zapela!
+The badge chosen in the official client stays as it is.	Značka odabrana u službenom klijentu ostaje kakva jest.
+The invite is invalid or has expired.	Pozivnica nije važeća ili je istekla.
+The mention limit is between 1 and 50.	Ograničenje spominjanja je između 1 i 50.
+The most important updates from this channel will now show up directly in your server. Enjoy!	Najvažnije novosti s ovog kanala sada će se prikazivati izravno na tvom poslužitelju. Uživaj!
+The owner	Vlasnik
+The related emoji must be one emoji.	Povezani emoji mora biti jedan emoji.
+The results were tied	Rezultat je neriješen
+The selected channel has too many webhooks. Please remove a webhook or select another channel.	Odabrani kanal ima previše webhookova. Ukloni jedan webhook ili odaberi drugi kanal.
+The server	Poslužitelj
+The start time must be in the future.	Vrijeme početka mora biti u budućnosti.
+The thread stops showing in the channel list after being inactive for this long.	Nit se prestaje prikazivati na popisu kanala nakon što je toliko dugo neaktivna.
+Theme	Tema
+There are no active threads.	Nema aktivnih niti.
+There are no archived threads.	Nema arhiviranih niti.
+There are no pending friend requests.	Nema zahtjeva za prijateljstvo na čekanju.
+There are no upcoming events.	Nema nadolazećih događaja.
+There is no identity key.	Nema ključa identiteta.
+There was no winner	Nije bilo pobjednika
+These are all the devices that are currently logged-in with your Discord account. Log out of devices that you don't recognize.	Ovo su svi uređaji trenutačno prijavljeni s tvojim Discord računom. Odjavi se s uređaja koje ne prepoznaješ.
+They said: %	Rekao je: %
+This account needs a passkey or security key, which fastcord can't use. Log in with the QR code instead.	Ovaj račun treba pristupni ključ ili sigurnosni ključ, koje fastcord ne može koristiti. Umjesto toga prijavi se QR kodom.
+This channel contains adult content that may not be suitable for all audiences. You must be 18 or older to view it.	Ovaj kanal sadrži sadržaj za odrasle koji možda nije prikladan za sve. Za pregled moraš imati najmanje 18 godina.
+This channel doesn't have any pinned messages... yet.	Ovaj kanal nema prikvačenih poruka... zasad.
+This device can't open this message.	Ovaj uređaj ne može otvoriti ovu poruku.
+This device's encryption keys couldn't be unlocked, so earlier encrypted DMs can't be opened here.	Ključevi za šifriranje ovog uređaja nisu se mogli otključati, pa se ranije šifrirane izravne poruke ovdje ne mogu otvoriti.
+This event will auto start when it's time.	Ovaj će događaj automatski započeti kad dođe vrijeme.
+This extra step shows it's really you.	Ovaj dodatni korak pokazuje da si to stvarno ti.
+This interaction failed	Ova interakcija nije uspjela
+This invite may be expired, or you might not have permission to join.	Ova je pozivnica možda istekla ili nemaš dopuštenje za pridruživanje.
+This is the beginning of your direct message history with %.	Ovo je početak tvoje povijesti izravnih poruka s korisnikom %.
+This is the channel we send system event messages to.	Ovo je kanal u koji šaljemo poruke sustavnih događaja.
+This is the start of the #% channel.	Ovo je početak kanala #%.
+This is where Discord sends updates for moderators and admins of Community servers.	Ovdje Discord šalje novosti za moderatore i administratore poslužitelja zajednice.
+This is where you'll show members your server rules or guidelines.	Ovdje ćeš članovima prikazati pravila ili smjernice poslužitelja.
+This link is taking you to the following website	Ova te poveznica vodi na sljedeće web-mjesto
+This option is not available for Community Servers.	Ova opcija nije dostupna za poslužitelje zajednice.
+This role is managed by an integration and can't be edited here.	Ovom ulogom upravlja integracija i ne može se ovdje uređivati.
+This server has been removed from Server Discovery because it no longer passes all the requirements. Check Server Settings for more details.	Ovaj poslužitelj uklonjen je iz Otkrivanja poslužitelja jer više ne ispunjava sve uvjete. Pojedinosti potraži u Postavkama poslužitelja.
+This server has failed Discovery activity requirements for 1 week. If this server fails for 4 weeks in a row, it will be automatically removed from Discovery.	Ovaj poslužitelj već 1 tjedan ne ispunjava uvjete aktivnosti za Otkrivanje. Ako ih ne ispuni 4 tjedna zaredom, automatski će biti uklonjen iz Otkrivanja.
+This server has failed Discovery activity requirements for 3 weeks in a row. If this server fails for 1 more week, it will be removed from Discovery.	Ovaj poslužitelj 3 tjedna zaredom ne ispunjava uvjete aktivnosti za Otkrivanje. Ako ih ne ispuni još 1 tjedan, bit će uklonjen iz Otkrivanja.
+This server has no voice channels.	Ovaj poslužitelj nema glasovnih kanala.
+This server is currently full.	Ovaj je poslužitelj trenutačno pun.
+This server is currently full. Please try again later.	Ovaj je poslužitelj trenutačno pun. Pokušaj ponovno kasnije.
+This server is eligible for Server Discovery again and has been automatically relisted!	Ovaj poslužitelj ponovno ispunjava uvjete za Otkrivanje poslužitelja i automatski je vraćen na popis!
+This server is not available in your location.	Ovaj poslužitelj nije dostupan na tvojoj lokaciji.
+This server's features are limited	Značajke ovog poslužitelja su ograničene
+This setting is applied when you join a new server. It does not apply retroactively to your existing servers.	Ova se postavka primjenjuje kad se pridružiš novom poslužitelju. Ne primjenjuje se naknadno na postojeće poslužitelje.
+This template has unsynced changes.	Ovaj predložak ima nesinkronizirane promjene.
+This thread is locked.	Ova je nit zaključana.
+This voice channel is full.	Ovaj je glasovni kanal pun.
+This will determine whether members who have not explicitly set their notification settings receive a notification for every message sent in this server or not.	Ovo određuje hoće li članovi koji nisu izričito postavili obavijesti primati obavijest za svaku poruku poslanu na ovom poslužitelju.
+This will transfer ownership of %1 to %2. This cannot be undone!	Ovime se vlasništvo nad %1 prenosi na korisnika %2. To se ne može poništiti!
+Thread Name	Naziv niti
+Thread deleted	Nit izbrisana
+Threads	Niti
+Time	Vrijeme
+Time format	Format vremena
+Timeout	Vremensko ograničenje
+Timeout %	Vremenski ograniči %
+Timeout Members	Vremensko ograničenje članova
+Timeout member	Vremenski ograniči člana
+Times show as %.	Vrijeme se prikazuje kao %.
+To log them out, please change your password	Da bi ih odjavio, promijeni lozinku
+To protect your members, Community servers need these, and enabling sets them:	Radi zaštite članova poslužitelji zajednice trebaju sljedeće, a uključivanje ih postavlja:
+Today	Danas
+Today at %	Danas u %
+Toggle Deafen	Uključi/isključi zvuk
+Toggle Go Live Streaming	Uključi/isključi Uživo
+Toggle Mute	Uključi/isključi mikrofon
+Toggle Streamer Mode	Uključi/isključi Način za streamere
+Toggle Voice Activity Mode	Uključi/isključi način glasovne aktivnosti
+Toggle deafen	Uključi/isključi zvuk
+Toggle inbox	Prikaži/sakrij sandučić
+Toggle member list	Prikaži/sakrij popis članova
+Toggle mute	Uključi/isključi mikrofon
+Toggle pins	Prikaži/sakrij prikvačene
+Tomorrow at %	Sutra u %
+Too fast! Wait a bit and try again.	Prebrzo! Pričekaj malo i pokušaj ponovno.
+Too many uploads!	Previše prijenosa!
+Trait %	Osobina %
+Traits	Osobine
+Transfer Ownership	Prenesi vlasništvo
+Travel & Places	Putovanja i mjesta
+Treat the token like a password: anyone who has it controls your account. fastcord keeps it only on this computer.	Postupaj s tokenom kao s lozinkom: tko ga ima, upravlja tvojim računom. fastcord ga čuva samo na ovom računalu.
+Trending GIFs	Popularni GIF-ovi
+Trust % links from now on	Ubuduće vjeruj poveznicama na %
+Try Again	Pokušaj ponovno
+Try searching for something else	Pokušaj potražiti nešto drugo
+Try searching for...	Pokušaj potražiti...
+Try sending a new invite	Pokušaj poslati novu pozivnicu
+Turkish	Turski
+Turn off encryption	Isključi šifriranje
+Turns this back into a regular server. Community-only features stop working.	Vraća ovo u običan poslužitelj. Značajke samo za zajednice prestaju raditi.
+Two-factor authentication is enabled on this account.	Na ovom je računu uključena dvofaktorska autentifikacija.
+Type the username of a friend	Upiši korisničko ime prijatelja
+Type your answer	Upiši svoj odgovor
+UPLOADED BY	PRENIO
+USES	KORIŠTENJA
+Uh oh, you don't have webhook permissions in any server you're in. Ask your server admin to give you the permission or ask them to come follow themselves!	Ups, nemaš dopuštenja za webhookove ni na jednom poslužitelju na kojem si. Zamoli administratora poslužitelja da ti ih dodijeli ili da sam prati kanal!
+Uh-oh. Looks like you've been banned.	Ups. Izgleda da si dobio zabranu.
+Ukrainian	Ukrajinski
+Unable to accept invite	Pozivnicu nije moguće prihvatiti
+Unassigned	Nedodijeljeno
+Unban Member	Ukini zabranu članu
+Unblock	Deblokiraj
+Undeafen	Uključi zvuk
+Under Request Headers, copy the value of "authorization" and paste it below.	Pod Request Headers kopiraj vrijednost "authorization" i zalijepi je u nastavku.
+Undo	Poništi
+Unignore	Prestani zanemarivati
+Unknown	Nepoznato
+Unknown channel	Nepoznat kanal
+Unmute	Vrati zvuk
+Unmute Category	Vrati zvuk kategoriji
+Unmute Channel	Vrati zvuk kanalu
+Unmute Server	Vrati zvuk poslužitelju
+Unmute Thread	Vrati zvuk niti
+Unpin Message	Otkvači poruku
+Unreads	Nepročitano
+Unrestricted	Bez ograničenja
+Until %	Do %
+Until %1 at %2	Do %1 u %2
+Until I turn it back on	Dok ga ponovno ne uključim
+Until tomorrow at %	Do sutra u %
+Untitled question	Pitanje bez naslova
+Unverify	Ukloni potvrdu
+Update %	Ažuriraj %
+Update Channel	Ažuriraj kanal
+Update Emoji	Ažuriraj emoji
+Update Member	Ažuriraj člana
+Update Member Roles	Ažuriraj uloge člana
+Update Role	Ažuriraj ulogu
+Update Server	Ažuriraj poslužitelj
+Update Webhook	Ažuriraj webhook
+Update your password	Ažuriraj lozinku
+Upload	Prenesi
+Upload Emoji	Prenesi emoji
+Upload Sound	Prenesi zvuk
+Upload Sticker	Prenesi naljepnicu
+Upload a File	Prenesi datoteku
+Upload a Sound	Prenesi zvuk
+Upload a file	Prenesi datoteku
+Upload custom sound reactions that anyone in this server can use. MP3 or OGG files, up to 512 KB and 5.2 seconds.	Prenesi prilagođene zvučne reakcije koje svatko na ovom poslužitelju može koristiti. MP3 ili OGG datoteke, do 512 KB i 5,2 sekunde.
+Upload to %	Prenesi u %
+Uploaded a file	Prenio je datoteku
+Uploading...	Prijenos...
+Use Application Commands	Korištenje naredbi aplikacija
+Use Category Default	Koristi zadano kategorije
+Use External Apps	Korištenje vanjskih aplikacija
+Use External Emoji	Korištenje vanjskih emojija
+Use External Sounds	Korištenje vanjskih zvukova
+Use External Stickers	Korištenje vanjskih naljepnica
+Use Server Default	Koristi zadano poslužitelja
+Use Soundboard	Korištenje ploče zvukova
+Use Voice Activity	Korištenje glasovne aktivnosti
+Use a backup code	Koristi rezervni kôd
+Use a code sent to your phone	Koristi kôd poslan na tvoj telefon
+Use a passkey or security key	Koristi pristupni ili sigurnosni ključ
+Use data to improve Discord	Koristi podatke za poboljšanje Discorda
+Use roles to group your server members and assign permissions.	Koristi uloge za grupiranje članova poslužitelja i dodjelu dopuštenja.
+Use your authenticator app	Koristi aplikaciju za autentifikaciju
+Used % times.|Used % times.	Iskorišteno % put.|Iskorišteno % puta.|Iskorišteno % puta.
+User Join	Pridruživanje korisnika
+User Leave	Odlazak korisnika
+User Limit	Ograničenje korisnika
+User Moved	Korisnik premješten
+User Volume	Glasnoća korisnika
+User blocked	Korisnik blokiran
+User unblocked	Korisnik deblokiran
+Username	Korisničko ime
+Username is available. Nice!	Korisničko ime je dostupno. Super!
+Username is unavailable. Try adding numbers, letters, underscores _ , or periods.	Korisničko ime nije dostupno. Pokušaj dodati brojke, slova, podvlake _ ili točke.
+Users will need to confirm they are of over the legal age to view in the content in this channel.\nAge-restricted channels are exempt from the explicit content filter.	Korisnici će morati potvrditi da su punoljetni da bi vidjeli sadržaj ovog kanala.\nKanali s dobnim ograničenjem izuzeti su od filtra eksplicitnog sadržaja.
+Uses the yt-dlp you installed to play YouTube links in the chat instead of opening your browser. It connects to YouTube from your computer.	Koristi instalirani yt-dlp za reprodukciju YouTube poveznica u chatu umjesto otvaranja preglednika. Povezuje se s YouTubeom s tvog računala.
+VOICE PROCESSING	OBRADA GLASA
+Verification Level	Razina provjere
+Verified	Potvrđeno
+Verify with something else	Potvrdi na drugi način
+Video	Video
+Video Quality	Kvaliteta videa
+Vietnamese	Vijetnamski
+View Audit Log	Pregled zapisnika revizije
+View Channel	Pregled kanala
+View Channels	Pregled kanala
+View Details	Prikaži pojedinosti
+View Full Profile	Prikaži cijeli profil
+View Poll	Prikaži anketu
+View Profile	Prikaži profil
+View Reactions	Prikaži reakcije
+View Server Insights	Pregled Uvida u poslužitelj
+Visit Site	Posjeti web-mjesto
+Visual Density	Gustoća prikaza
+Voice	Glas
+Voice & Video	Glas i video
+Voice Activity	Glasovna aktivnost
+Voice Channel	Glasovni kanal
+Voice Channel Permissions	Dopuštenja glasovnog kanala
+Voice Connected	Glas povezan
+Voice Disconnected	Glas odspojen
+Volume	Glasnoća
+Vote	Glasaj
+Waiting for a server	Čekanje poslužitelja
+Wants to message you	Želi ti poslati poruku
+Watch Stream	Gledaj stream
+Wave to say hi!	Mahni za pozdrav!
+We appreciate the enthusiasm, but...	Cijenimo entuzijazam, ali...
+We couldn't load the profile for this server.	Nismo uspjeli učitati profil ovog poslužitelja.
+We recommend an image of at least 512x512.	Preporučujemo sliku od najmanje 512x512.
+We sent instructions to change your password to %, please check both your inbox and spam folder.	Poslali smo upute za promjenu lozinke na %, provjeri pristiglu poštu i mapu neželjene pošte.
+We're so excited to see you again!	Baš nam je drago što te opet vidimo!
+We've sent a message to %.  Please enter the code you received.	Poslali smo poruku na %.  Unesi kôd koji si primio.
+Webhooks (%)	Webhookovi (%)
+Webhooks are a simple way to post messages from other apps and websites into this server.	Webhookovi su jednostavan način za objavljivanje poruka iz drugih aplikacija i web-mjesta na ovaj poslužitelj.
+Welcome %. Say hi!	Dobro došao, %. Pozdravi!
+Welcome back!	Dobro došao natrag!
+Welcome to #%!	Dobro došao u #%!
+Welcome to the beginning of the % group.	Dobro došao na početak grupe %.
+Welcome, %. We hope you brought pizza.	Dobro došao, %. Nadamo se da si donio pizzu.
+What brings you here?	Što te dovodi ovamo?
+What can people do in this server?	Što ljudi mogu raditi na ovom poslužitelju?
+What question do you want to ask?	Što želiš pitati?
+What's cookin'?	Što se kuha?
+What's your event about?	O čemu je tvoj događaj?
+What's your event?	Koji je tvoj događaj?
+When a friend starts an activity—like playing a game or hanging out on voice—we'll show it here!	Kad prijatelj započne aktivnost — poput igranja igre ili druženja u glasovnom kanalu — prikazat ćemo je ovdje!
+When enabled, only server members can view profile content. Non-members won't be able to see this content unless they have an invite.	Kad je uključeno, sadržaj profila mogu vidjeti samo članovi poslužitelja. Oni koji nisu članovi neće ga moći vidjeti osim ako imaju pozivnicu.
+When you put a user in timeout they will not be able to send messages in chat, reply within threads, react to messages, or speak in voice or Stage channels.	Kad korisniku daš vremensko ograničenje, neće moći slati poruke u chatu, odgovarati u nitima, reagirati na poruke ni govoriti u glasovnim kanalima ili na Pozornici.
+Where is your event?	Gdje je tvoj događaj?
+Where would you like to go?	Kamo želiš ići?
+Who is this server for? E.g. School Club, Artists' Community	Za koga je ovaj poslužitelj? Npr. školski klub, zajednica umjetnika
+Winning answer · %1%2	Pobjednički odgovor · %1%2
+Words that are never blocked, separated by commas	Riječi koje se nikad ne blokiraju, odvojene zarezima
+Words to block, separated by commas	Riječi za blokiranje, odvojene zarezima
+Words to block, separated by commas (* matches anything)	Riječi za blokiranje, odvojene zarezima (* odgovara bilo čemu)
+Would you like to sync %1 permissions with %2?	Želiš li sinkronizirati dopuštenja %1 s %2?
+Yay you made it, %!	Juhu, stigao si, %!
+Yesterday at %	Jučer u %
+You	Ti
+You accepted %'s friend request.	Prihvatio si zahtjev za prijateljstvo korisnika %.
+You are at the % server limit.	Dosegnuo si ograničenje od % poslužitelja.
+You are banned from this server.	Imaš zabranu na ovom poslužitelju.
+You aren't in that server. Ask a member for an invite.	Nisi na tom poslužitelju. Zamoli nekog člana za pozivnicu.
+You can add % more friend.|You can add % more friends.	Možeš dodati još % prijatelja.|Možeš dodati još % prijatelja.|Možeš dodati još % prijatelja.
+You can add comments before uploading.\nHold shift to upload directly.	Prije prijenosa možeš dodati komentar.\nDrži Shift za izravan prijenos.
+You can add friends with their Discord username.	Prijatelje možeš dodati prema njihovom Discord korisničkom imenu.
+You can add up to 5 accounts.	Možeš dodati do 5 računa.
+You can hold down shift when clicking % to bypass this confirmation entirely.	Možeš držati Shift dok klikaš % da potpuno preskočiš ovu potvrdu.
+You can only edit roles below your highest role.	Možeš uređivati samo uloge ispod svoje najviše uloge.
+You can only upload % files at a time!	Odjednom možeš prenijeti samo % datoteka!
+You can use markdown and links if you'd like.	Ako želiš, možeš koristiti markdown i poveznice.
+You can't join this server because of your age group.	Ne možeš se pridružiti ovom poslužitelju zbog svoje dobne skupine.
+You can't unblock the Wumpus.	Wumpusa ne možeš deblokirati.
+You cannot friend yourself	Ne možeš dodati sebe za prijatelja
+You can’t react and super react with the same emoji. There’s a lot of emoji to choose from, so maybe try another one.	Ne možeš reagirati i super reagirati istim emojijem. Ima puno emojija za odabir, pa probaj neki drugi.
+You do not have permission to send messages in this channel.	Nemaš dopuštenje za slanje poruka u ovom kanalu.
+You don't have any friends to add!	Nemaš prijatelja za dodavanje!
+You don't have permission to do that.	Nemaš dopuštenje za to.
+You haven't added a display name yet.	Još nisi dodao ime za prikaz.
+You haven't added a phone number yet.	Još nisi dodao broj telefona.
+You haven't added an email yet.	Još nisi dodao e-poštu.
+You haven't authorized any apps.	Nisi ovlastio nijednu aplikaciju.
+You haven't blocked anyone.	Nisi nikoga blokirao.
+You haven't connected any accounts yet.	Još nisi povezao nijedan račun.
+You haven't ignored anyone.	Nisi nikoga zanemario.
+You missed a call from %1 that lasted %2.	Propustio si poziv od korisnika %1 koji je trajao %2.
+You must be at least 18 years old to view this channel.	Za pregled ovog kanala moraš imati najmanje 18 godina.
+You must leave a server first to join.	Za pridruživanje najprije moraš napustiti neki poslužitelj.
+You need to add one or more rules.	Moraš dodati jedno ili više pravila.
+You received an invite, but...	Primio si pozivnicu, ali...
+You said: %	Rekao si: %
+You sent an invite to a self-hosted server	Poslao si pozivnicu na samostalno hostani poslužitelj
+You sent an invite, but	Poslao si pozivnicu, ali
+You sent an invite, but...	Poslao si pozivnicu, ali...
+You will appear offline	Prikazivat ćeš se kao izvan mreže
+You will not receive desktop notifications	Nećeš primati obavijesti na radnoj površini
+You'll have to log back in on all logged out devices.	Morat ćeš se ponovno prijaviti na svim odjavljenim uređajima.
+You're Viewing Older Messages	Pregledavaš starije poruke
+You're all caught up!	Sve si pročitao!
+You're already in that server.	Već si na tom poslužitelju.
+You're doing that too fast. Try again in a moment.	Prebrzo to radiš. Pokušaj ponovno za trenutak.
+You're not in any servers yet.	Još nisi ni na jednom poslužitelju.
+You're offline: no invite link.	Izvan mreže si: nema poveznice za pozivnicu.
+You're timed out until %.	Imaš vremensko ograničenje do %.
+You've been invited to a self-hosted server	Pozvan si na samostalno hostani poslužitelj
+You've been invited to join	Pozvan si da se pridružiš
+You've been invited to speak	Pozvan si da govoriš
+You've been invited, but	Pozvan si, ali
+Your files are too powerful	Tvoje su datoteke prejake
+Your full profile is visible to friends and any server you join with 200 or fewer members. Everyone else sees a limited version.	Tvoj cijeli profil vidljiv je prijateljima i svakom poslužitelju s 200 ili manje članova kojem se pridružiš. Svi ostali vide ograničenu verziju.
+Your full profile is visible to friends and any server you join.	Tvoj cijeli profil vidljiv je prijateljima i svakom poslužitelju kojem se pridružiš.
+Your full profile is visible to friends. Everyone else sees a limited version.	Tvoj cijeli profil vidljiv je prijateljima. Svi ostali vide ograničenu verziju.
+Your invite link expires after %.	Tvoja poveznica za pozivnicu istječe nakon %.
+Your invite link expires in %.	Tvoja poveznica za pozivnicu istječe za %.
+Your invite link expires in %1, or after %2.	Tvoja poveznica za pozivnicu istječe za %1 ili nakon %2.
+Your invite link expires in 7 days.	Tvoja poveznica za pozivnicu istječe za 7 dana.
+Your invite link will never expire.	Tvoja poveznica za pozivnicu nikad neće isteći.
+Your last request was on %.	Tvoj zadnji zahtjev bio je %.
+Your message is too long (% / %).	Tvoja je poruka preduga (%1 / %2).
+Your reaction was not added because there are too many reactions on this message.	Tvoja reakcija nije dodana jer ova poruka ima previše reakcija.
+Your request from % is being prepared.	Tvoj zahtjev od % se priprema.
+Your server is where you and your friends hang out. Make yours and start talking.	Tvoj poslužitelj mjesto je gdje se družiš s prijateljima. Stvori svoj i počni razgovarati.
+Your sounds go out with your voice, mixed into your microphone, instead of as soundboard sounds.	Tvoji zvukovi idu zajedno s tvojim glasom, umiješani u mikrofon, umjesto kao zvukovi ploče zvukova.
+Zoom level	Razina zumiranja
+a channel	kanal
+a command	naredbu
+a day	dan
+a day ago	prije jednog dana
+a few seconds	nekoliko sekundi
+a few seconds ago	prije nekoliko sekundi
+a message	poruku
+a minute	minutu
+a minute ago	prije minutu
+a month ago	prije mjesec dana
+a year ago	prije godinu dana
+an hour	sat
+an hour ago	prije sat vremena
+by %	autor: %
+cancel	odustani
+channel	kanal
+delete message	izbriši poruku
+escape to %1 • enter to %2	Esc za %1 • Enter za %2
+fastcord %	fastcord %
+fastcord quit unexpectedly last time. The report is in the logs folder (Settings, under Log Out).	fastcord se prošli put neočekivano zatvorio. Izvješće je u mapi zapisa (Postavke, ispod Odjava).
+fastcord starts in the background and stays out of your way.	fastcord se pokreće u pozadini i ne smeta ti.
+from %	od %
+in %	za %
+in % day|in % days	za % dan|za % dana|za % dana
+in % hour|in % hours	za % sat|za % sata|za % sati
+in % minute|in % minutes	za % minutu|za % minute|za % minuta
+in % month|in % months	za % mjesec|za % mjeseca|za % mjeseci
+in % year|in % years	za % godinu|za % godine|za % godina
+in a day	za jedan dan
+in a few seconds	za nekoliko sekundi
+in a minute	za minutu
+in a month	za mjesec dana
+in a year	za godinu dana
+in an hour	za sat vremena
+just now	upravo sada
+less than an hour ago	prije manje od sat vremena
+link, embed or file	poveznica, ugrađeni sadržaj ili datoteka
+on %	%
+pinned messages	prikvačene poruke
+remove embeds	ukloni ugrađeni sadržaj
+save	spremi
+someone	netko
+specific date	određeni datum
+this server	ovaj poslužitelj
+threads	niti
+true or false	točno ili netočno
+unknown	nepoznato
+unknown channel	nepoznat kanal
+unknown-user	nepoznat-korisnik
+used	korišteno
+user	korisnik
+• Media from all members is scanned by the explicit image filter.	• Mediji svih članova skeniraju se filtrom eksplicitnih slika.
+• Members must have a verified email on their Discord account.	• Članovi moraju imati potvrđenu e-poštu na Discord računu.
+← Back to %	← Natrag na %
+← Back to login	← Natrag na prijavu

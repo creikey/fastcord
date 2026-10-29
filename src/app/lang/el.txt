@@ -1,0 +1,1973 @@
+# Greek (el)
+ · required	 · υποχρεωτικό
+% (requested to speak)	% (ζήτησε να μιλήσει)
+% (required)	% (υποχρεωτικό)
+% Bans|% Bans	% αποκλεισμός|% αποκλεισμοί
+% Event|% Events	% εκδήλωση|% εκδηλώσεις
+% KB	% KB
+% MB	% MB
+% Member|% Members	% μέλος|% μέλη
+% Messages	% μηνύματα
+% Mutual Friend|% Mutual Friends	% κοινός φίλος|% κοινοί φίλοι
+% Mutual Server|% Mutual Servers	% κοινός διακομιστής|% κοινοί διακομιστές
+% Online	% σε σύνδεση
+% Result|% Results	% αποτέλεσμα|% αποτελέσματα
+% accepted encryption.	Ο χρήστης % αποδέχτηκε την κρυπτογράφηση.
+% accepted your friend request.	Ο χρήστης % αποδέχτηκε το αίτημα φιλίας σου.
+% answer|% answers	% απάντηση|% απαντήσεις
+% becomes the owner once they accept on their device. You'll stay a member.	Ο χρήστης % θα γίνει κάτοχος μόλις αποδεχτεί από τη συσκευή του. Εσύ θα παραμείνεις μέλος.
+% blocked message —|% blocked messages —	% αποκλεισμένο μήνυμα —|% αποκλεισμένα μηνύματα —
+% byte|% bytes	% byte|% byte
+% changed the group icon.	Ο χρήστης % άλλαξε το εικονίδιο της ομάδας.
+% day ago|% days ago	πριν από % ημέρα|πριν από % ημέρες
+% day|% days	% ημέρα|% ημέρες
+% disabled security actions.	Ο χρήστης % απενεργοποίησε τις ενέργειες ασφαλείας.
+% enabled security actions.	Ο χρήστης % ενεργοποίησε τις ενέργειες ασφαλείας.
+% hasn't accepted encryption yet.	Ο χρήστης % δεν έχει αποδεχτεί ακόμα την κρυπτογράφηση.
+% hopped into the server.	Ο χρήστης % πετάχτηκε στον διακομιστή.
+% hour ago|% hours ago	πριν από % ώρα|πριν από % ώρες
+% hour|% hours	% ώρα|% ώρες
+% ignored message —|% ignored messages —	% μήνυμα σε παράβλεψη —|% μηνύματα σε παράβλεψη —
+% is here.	Ο χρήστης % είναι εδώ.
+% is typing...	Ο χρήστης % πληκτρολογεί...
+% joined the party.	Ο χρήστης % μπήκε στο πάρτι.
+% just boosted the server!	Ο χρήστης % μόλις έκανε boost στον διακομιστή!
+% just landed.	Ο χρήστης % μόλις προσγειώθηκε.
+% just showed up!	Ο χρήστης % μόλις εμφανίστηκε!
+% just slid into the server.	Ο χρήστης % μόλις γλίστρησε στον διακομιστή.
+% left the group.	Ο χρήστης % αποχώρησε από την ομάδα.
+% member|% members	% μέλος|% μέλη
+% minute ago|% minutes ago	πριν από % λεπτό|πριν από % λεπτά
+% minute|% minutes	% λεπτό|% λεπτά
+% month ago|% months ago	πριν από % μήνα|πριν από % μήνες
+% of %	%1 από %2
+% removed the custom group name.	Ο χρήστης % αφαίρεσε το προσαρμοσμένο όνομα της ομάδας.
+% started a call.	Ο χρήστης % ξεκίνησε μια κλήση.
+% turned on encryption.	Ο χρήστης % ενεργοποίησε την κρυπτογράφηση.
+% user|% users	% χρήστης|% χρήστες
+% use|% uses	% χρήση|% χρήσεις
+% vote|% votes	% ψήφος|% ψήφοι
+% wants to encrypt this DM with a new key. Compare safety numbers after accepting.	Ο χρήστης % θέλει να κρυπτογραφήσει αυτό το ΑΜ με νέο κλειδί. Σύγκρινε τους αριθμούς ασφαλείας αφού αποδεχτείς.
+% wants to encrypt this DM.	Ο χρήστης % θέλει να κρυπτογραφήσει αυτό το ΑΜ.
+% year ago|% years ago	πριν από % χρόνο|πριν από % χρόνια
+% · End-to-end encrypted	% · Κρυπτογράφηση από άκρο σε άκρο
+%'s Group	Ομάδα του χρήστη %
+%'s encryption key changed. Compare safety numbers before trusting new messages.	Το κλειδί κρυπτογράφησης του χρήστη % άλλαξε. Σύγκρινε τους αριθμούς ασφαλείας πριν εμπιστευτείς νέα μηνύματα.
+%'s server	Διακομιστής του χρήστη %
+%1 (%2 more)	%1 (%2 ακόμα)
+%1 FPS	%1 FPS
+%1 STICKERS — %2 SLOTS AVAILABLE	%1 ΑΥΤΟΚΟΛΛΗΤΑ — %2 ΔΙΑΘΕΣΙΜΕΣ ΘΕΣΕΙΣ
+%1 action %2	%1 ενέργεια %2
+%1 added %2 to the group.	Ο χρήστης %1 πρόσθεσε τον χρήστη %2 στην ομάδα.
+%1 and %2	%1 και %2
+%1 and %2 are typing...	Οι %1 και %2 πληκτρολογούν...
+%1 and %2 other|%1 and %2 others	%1 και %2 ακόμα|%1 και %2 ακόμα
+%1 banned %2	Ο χρήστης %1 απέκλεισε τον χρήστη %2
+%1 changed the Stage topic: %2	Ο χρήστης %1 άλλαξε το θέμα του Stage: %2
+%1 changed the channel name: %2.	Ο χρήστης %1 άλλαξε το όνομα του καναλιού: %2.
+%1 changed the group name: %2.	Ο χρήστης %1 άλλαξε το όνομα της ομάδας: %2.
+%1 created a channel	Ο χρήστης %1 δημιούργησε ένα κανάλι
+%1 created a role	Ο χρήστης %1 δημιούργησε έναν ρόλο
+%1 created a webhook	Ο χρήστης %1 δημιούργησε ένα webhook
+%1 created an emoji	Ο χρήστης %1 δημιούργησε ένα emoji
+%1 created an invite	Ο χρήστης %1 δημιούργησε μια πρόσκληση
+%1 deleted a channel	Ο χρήστης %1 διέγραψε ένα κανάλι
+%1 deleted a message by %2	Ο χρήστης %1 διέγραψε ένα μήνυμα του χρήστη %2
+%1 deleted a role	Ο χρήστης %1 διέγραψε έναν ρόλο
+%1 deleted a webhook	Ο χρήστης %1 διέγραψε ένα webhook
+%1 deleted an emoji	Ο χρήστης %1 διέγραψε ένα emoji
+%1 deleted an invite	Ο χρήστης %1 διέγραψε μια πρόσκληση
+%1 enabled security actions until %2.	Ο χρήστης %1 ενεργοποίησε τις ενέργειες ασφαλείας έως %2.
+%1 ended %2	Ο χρήστης %1 τερμάτισε το %2
+%1 has achieved %2	Ο χρήστης %1 πέτυχε το %2
+%1 has added %2 to this channel. Its most important updates will show up here.	Ο χρήστης %1 πρόσθεσε το %2 σε αυτό το κανάλι. Οι πιο σημαντικές ενημερώσεις του θα εμφανίζονται εδώ.
+%1 has blocked a message in %2	Ο χρήστης %1 απέκλεισε ένα μήνυμα στο %2
+%1 has flagged a message in %2	Ο χρήστης %1 επισήμανε ένα μήνυμα στο %2
+%1 is now a speaker.	Ο χρήστης %1 είναι πλέον ομιλητής.
+%1 joined %2 and has been a subscriber of %3 for %4 month!|%1 joined %2 and has been a subscriber of %3 for %4 months!	Ο χρήστης %1 έγινε μέλος στο %2 και είναι συνδρομητής του %3 εδώ και %4 μήνα!|Ο χρήστης %1 έγινε μέλος στο %2 και είναι συνδρομητής του %3 εδώ και %4 μήνες!
+%1 joined %2 as a subscriber of %3!	Ο χρήστης %1 έγινε μέλος στο %2 ως συνδρομητής του %3!
+%1 just boosted the server %2 times!	Ο χρήστης %1 μόλις έκανε boost στον διακομιστή %2 φορές!
+%1 kicked %2	Ο χρήστης %1 έδιωξε τον χρήστη %2
+%1 new message since %2|%1 new messages since %2	%1 νέο μήνυμα από %2|%1 νέα μηνύματα από %2
+%1 of %2 slot used|%1 of %2 slots used	%1 από %2 θέση σε χρήση|%1 από %2 θέσεις σε χρήση
+%1 pinned %2 to this channel. See all %3.	Ο χρήστης %1 καρφίτσωσε το %2 σε αυτό το κανάλι. Δες όλα τα %3.
+%1 reacted with %2	Ο χρήστης %1 αντέδρασε με %2
+%1 removed %2 from the group.	Ο χρήστης %1 αφαίρεσε τον χρήστη %2 από την ομάδα.
+%1 renewed %2 and has been a subscriber of %3 for %4 month!|%1 renewed %2 and has been a subscriber of %3 for %4 months!	Ο χρήστης %1 ανανέωσε το %2 και είναι συνδρομητής του %3 εδώ και %4 μήνα!|Ο χρήστης %1 ανανέωσε το %2 και είναι συνδρομητής του %3 εδώ και %4 μήνες!
+%1 renewed %2 in their %3 membership!	Ο χρήστης %1 ανανέωσε το %2 στη συνδρομή %3!
+%1 reported a raid in %2.	Ο χρήστης %1 ανέφερε επιδρομή στο %2.
+%1 requested to speak.	Ο χρήστης %1 ζήτησε να μιλήσει.
+%1 resolved an Activity Alert in %2.	Ο χρήστης %1 επέλυσε μια Ειδοποίηση δραστηριότητας στο %2.
+%1 said %2	Ο χρήστης %1 είπε %2
+%1 started %2	Ο χρήστης %1 ξεκίνησε το %2
+%1 started a call that lasted %2.	Ο χρήστης %1 ξεκίνησε μια κλήση που διήρκεσε %2.
+%1 started a thread: %2. See all %3.	Ο χρήστης %1 ξεκίνησε ένα νήμα: %2. Δες όλα τα %3.
+%1 unbanned %2	Ο χρήστης %1 ήρε τον αποκλεισμό του χρήστη %2
+%1 updated %2	Ο χρήστης %1 ενημέρωσε το %2
+%1 updated a channel	Ο χρήστης %1 ενημέρωσε ένα κανάλι
+%1 updated a role	Ο χρήστης %1 ενημέρωσε έναν ρόλο
+%1 updated a webhook	Ο χρήστης %1 ενημέρωσε ένα webhook
+%1 updated an emoji	Ο χρήστης %1 ενημέρωσε ένα emoji
+%1 updated the roles of %2	Ο χρήστης %1 ενημέρωσε τους ρόλους του χρήστη %2
+%1 updated the server	Ο χρήστης %1 ενημέρωσε τον διακομιστή
+%1 vote · %2|%1 votes · %2	%1 ψήφος · %2|%1 ψήφοι · %2
+%1 wants to make you the owner of %2. You'll be able to manage everything about it, and they'll stay a member.	Ο χρήστης %1 θέλει να σε κάνει κάτοχο του %2. Θα μπορείς να διαχειρίζεσαι τα πάντα σε αυτό, και εκείνος θα παραμείνει μέλος.
+%1's poll %2 has closed.	Η δημοσκόπηση %2 του χρήστη %1 έκλεισε.
+%1, %2 and %3	%1, %2 και %3
+%1, %2 at %3	%1, %2 στις %3
+%1, %2, and %3 are typing...	Οι %1, %2 και %3 πληκτρολογούν...
+%1: %2	%1: %2
+%: a number	%: ένας αριθμός
+%: a whole number	%: ένας ακέραιος αριθμός
+%: pick a channel	%: διάλεξε κανάλι
+%: pick a member	%: διάλεξε μέλος
+%: pick a role	%: διάλεξε ρόλο
+%: true or false	%: αληθές ή ψευδές
+%d ago	πριν %ημ.
+%d left	απομένουν %ημ.
+%h	%ώ
+%h ago	πριν %ώ
+%h left	απομένουν %ώ
+%m	%λ
+%m ago	πριν %λ
+%m left	απομένουν %λ
+%mo ago	πριν %μήν.
+%s	%δ
+(edited)	(επεξεργάστηκε)
+/% takes no options.	Το /% δεν δέχεται επιλογές.
+/%1 needs %2:	Το /%1 χρειάζεται %2:
+1 Day	1 ημέρα
+1 Hour	1 ώρα
+1 Message	1 μήνυμα
+1 Week	1 εβδομάδα
+1 day	1 ημέρα
+1 hour	1 ώρα
+1 minute	1 λεπτό
+1 use	1 χρήση
+1 week	1 εβδομάδα
+10 Minutes	10 λεπτά
+10 minutes	10 λεπτά
+10 uses	10 χρήσεις
+100 uses	100 χρήσεις
+12 hours	12 ώρες
+12-hour	12ωρη
+15 minutes	15 λεπτά
+2 hours	2 ώρες
+2 to 4 letters or numbers	2 έως 4 γράμματα ή αριθμοί
+2 weeks	2 εβδομάδες
+24 Hours	24 ώρες
+24 hours	24 ώρες
+24-hour	24ωρη
+25 uses	25 χρήσεις
+3 Days	3 ημέρες
+3 days	3 ημέρες
+30 days	30 ημέρες
+30 minutes	30 λεπτά
+3:00 PM	3:00 μ.μ.
+4 hours	4 ώρες
+5 Minutes	5 λεπτά
+5 minutes	5 λεπτά
+5 uses	5 χρήσεις
+50 uses	50 χρήσεις
+6 hours	6 ώρες
+6-digit authentication code	6ψήφιος κωδικός ελέγχου ταυτότητας
+60 Seconds	60 δευτερόλεπτα
+60 seconds	60 δευτερόλεπτα
+7 days	7 ημέρες
+8 hours	8 ώρες
+8-digit backup code	8ψήφιος εφεδρικός κωδικός
+@ OFF	@ ΑΝΕΝΕΡΓΟ
+@ ON	@ ΕΝΕΡΓΟ
+@MENTIONS	@ΑΝΑΦΟΡΕΣ
+@everyone · applies to all server members	@everyone · ισχύει για όλα τα μέλη του διακομιστή
+A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button.	Ένα πλήκτρο με Ctrl, Alt, Shift ή Cmd, ένα πλήκτρο τροποποίησης μόνο του ή το μεσαίο ή πλαϊνό κουμπί του ποντικιού.
+A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button. Works in every app.	Ένα πλήκτρο με Ctrl, Alt, Shift ή Cmd, ένα πλήκτρο τροποποίησης μόνο του ή το μεσαίο ή πλαϊνό κουμπί του ποντικιού. Λειτουργεί σε κάθε εφαρμογή.
+A role needs a name.	Ο ρόλος χρειάζεται όνομα.
+A webhook needs a name.	Το webhook χρειάζεται όνομα.
+A wild % appeared.	Ένας άγριος % εμφανίστηκε.
+ACTION	ΕΝΕΡΓΕΙΑ
+ACTIVE INVITE LINKS	ΕΝΕΡΓΟΙ ΣΥΝΔΕΣΜΟΙ ΠΡΟΣΚΛΗΣΗΣ
+ALL	ΟΛΑ
+ALL THE BITS! Going above 64 kbps may adversely affect people on poor connections.	ΟΛΑ ΤΑ BITS! Πάνω από 64 kbps μπορεί να επηρεάσει αρνητικά όσους έχουν κακή σύνδεση.
+AM	π.μ.
+ANIMATED EMOJI — % SLOTS AVAILABLE	ΚΙΝΟΥΜΕΝΑ EMOJI — % ΔΙΑΘΕΣΙΜΕΣ ΘΕΣΕΙΣ
+APP	ΕΦΑΡΜΟΓΗ
+AUDIENCE — %	ΚΟΙΝΟ — %
+AUTHENTICATOR APP	ΕΦΑΡΜΟΓΗ ΕΛΕΓΧΟΥ ΤΑΥΤΟΤΗΤΑΣ
+About Me	Σχετικά με εμένα
+Accept	Αποδοχή
+Accept Friend Request	Αποδοχή αιτήματος φιλίας
+Accept Invite	Αποδοχή πρόσκλησης
+Accept Server Ownership	Αποδοχή κατοχής διακομιστή
+Accept this message request (Friends, Message Requests) to reply.	Αποδέξου αυτό το αίτημα μηνύματος (Φίλοι, Αιτήματα μηνυμάτων) για να απαντήσεις.
+Accepting...	Αποδοχή...
+Access	Πρόσβαση
+Accessibility	Προσβασιμότητα
+Account	Λογαριασμός
+Account Removal	Αφαίρεση λογαριασμού
+Activate	Ενεργοποίηση
+Active	Ενεργό
+Active Now	Ενεργοί τώρα
+Activities	Δραστηριότητες
+Activity Joining	Συμμετοχή σε δραστηριότητα
+Activity Privacy	Απόρρητο δραστηριότητας
+Activity Status	Κατάσταση δραστηριότητας
+Add Answer	Προσθήκη απάντησης
+Add Emoji	Προσθήκη emoji
+Add Friend	Προσθήκη φίλου
+Add Friend Nickname	Προσθήκη ψευδωνύμου φίλου
+Add Note	Προσθήκη σημείωσης
+Add Reaction	Προσθήκη αντίδρασης
+Add Reactions	Προσθήκη αντιδράσεων
+Add Tag	Προσθήκη ετικέτας
+Add a Keybind	Προσθήκη συντόμευσης
+Add a Question	Προσθήκη ερώτησης
+Add a channel	Προσθήκη καναλιού
+Add a channel to override its default notification settings	Πρόσθεσε ένα κανάλι για να παρακάμψεις τις προεπιλεγμένες ρυθμίσεις ειδοποιήσεών του
+Add a description	Προσθήκη περιγραφής
+Add a location, link, or something.	Πρόσθεσε τοποθεσία, σύνδεσμο ή κάτι άλλο.
+Add a role	Προσθήκη ρόλου
+Add an Account	Προσθήκη λογαριασμού
+Add an optional message...	Πρόσθεσε ένα προαιρετικό μήνυμα...
+Add another answer	Προσθήκη άλλης απάντησης
+Add at least one word to block.	Πρόσθεσε τουλάχιστον μία λέξη για αποκλεισμό.
+Add members or roles	Προσθήκη μελών ή ρόλων
+Add this channel's updates to your server!	Πρόσθεσε τις ενημερώσεις αυτού του καναλιού στον διακομιστή σου!
+Add this key to an authenticator app, then enter the code it shows.	Πρόσθεσε αυτό το κλειδί σε μια εφαρμογή ελέγχου ταυτότητας και μετά πληκτρολόγησε τον κωδικό που εμφανίζει.
+Add to Favorites	Προσθήκη στα αγαπημένα
+Add to Group DM	Προσθήκη σε ομαδικό ΑΜ
+Add up to 5 traits to show off your server's interests and personality.	Πρόσθεσε έως 5 χαρακτηριστικά για να δείξεις τα ενδιαφέροντα και την προσωπικότητα του διακομιστή σου.
+Add up to 50 custom emoji that anyone can use in this server. Animated GIF emoji may be used by members with Discord Nitro. Emoji names must be at least 2 characters long and can only contain alphanumeric characters and underscores. Emoji must be under 256 KB in size.	Πρόσθεσε έως 50 προσαρμοσμένα emoji που μπορεί να χρησιμοποιεί οποιοσδήποτε σε αυτόν τον διακομιστή. Τα κινούμενα emoji GIF μπορούν να χρησιμοποιηθούν από μέλη με Discord Nitro. Τα ονόματα των emoji πρέπει να έχουν τουλάχιστον 2 χαρακτήρες και μπορούν να περιέχουν μόνο αλφαριθμητικούς χαρακτήρες και κάτω παύλες. Τα emoji πρέπει να είναι μικρότερα από 256 KB.
+Add your pronouns	Πρόσθεσε τις αντωνυμίες σου
+Added %	Προστέθηκε: %
+Adjust the size of the interface. You can also change this with % +/-.	Ρύθμισε το μέγεθος της διεπαφής. Μπορείς επίσης να το αλλάξεις με % +/-.
+Administrator	Διαχειριστής
+Advanced Permissions	Προηγμένα δικαιώματα
+Advanced permissions	Προηγμένα δικαιώματα
+Age-Restricted Channel	Κανάλι με περιορισμό ηλικίας
+All	Όλα
+All Actions	Όλες οι ενέργειες
+All Messages	Όλα τα μηνύματα
+All Users	Όλοι οι χρήστες
+All friends	Όλοι οι φίλοι
+All messages will be filtered for sensitive image-based media.	Όλα τα μηνύματα θα φιλτράρονται για ευαίσθητο οπτικό περιεχόμενο.
+All set. Now share your event!	Όλα έτοιμα. Τώρα κοινοποίησε την εκδήλωσή σου!
+Allow DMs from other members in servers	Να επιτρέπονται ΑΜ από άλλα μέλη σε διακομιστές
+Allow Discord to use and process my information to understand and improve Discord's services.	Να επιτρέπεται στο Discord να χρησιμοποιεί και να επεξεργάζεται τα στοιχεία μου για να κατανοεί και να βελτιώνει τις υπηρεσίες του.
+Allow Friend Requests from...	Να επιτρέπονται αιτήματα φιλίας από...
+Allow Multiple Answers	Να επιτρέπονται πολλές απαντήσεις
+Allow anyone to @mention this role	Να μπορεί οποιοσδήποτε να κάνει @αναφορά σε αυτόν τον ρόλο
+Allow direct messages from other members in this server.	Να επιτρέπονται άμεσα μηνύματα από άλλα μέλη σε αυτόν τον διακομιστή.
+Allow friends to join your game	Να μπορούν οι φίλοι να συμμετέχουν στο παιχνίδι σου
+Allow members to change this server's name, switch regions, view all invites, add apps to this server and create and update AutoMod rules.	Επιτρέπει στα μέλη να αλλάζουν το όνομα του διακομιστή, να αλλάζουν περιοχή, να βλέπουν όλες τις προσκλήσεις, να προσθέτουν εφαρμογές στον διακομιστή και να δημιουργούν και να ενημερώνουν κανόνες AutoMod.
+Allow members to create invite-only threads.	Επιτρέπει στα μέλη να δημιουργούν νήματα μόνο με πρόσκληση.
+Allow members to create threads that everyone in a channel can view.	Επιτρέπει στα μέλη να δημιουργούν νήματα που μπορούν να δουν όλοι στο κανάλι.
+Allow members to send messages in text channels and create posts in forum channels.	Επιτρέπει στα μέλη να στέλνουν μηνύματα σε κανάλια κειμένου και να δημιουργούν αναρτήσεις σε κανάλια φόρουμ.
+Allow members to send messages in threads and in posts on forum channels.	Επιτρέπει στα μέλη να στέλνουν μηνύματα σε νήματα και σε αναρτήσεις καναλιών φόρουμ.
+Allow message requests from server members you may not know	Να επιτρέπονται αιτήματα μηνυμάτων από μέλη διακομιστών που ίσως δεν γνωρίζεις
+Allow voice channel participants to join your game	Να μπορούν οι συμμετέχοντες στο φωνητικό κανάλι να συμμετέχουν στο παιχνίδι σου
+Allowed words	Επιτρεπόμενες λέξεις
+Allows apps that members have added to their account to post messages. When disabled, the messages will be private.	Επιτρέπει σε εφαρμογές που έχουν προσθέσει τα μέλη στον λογαριασμό τους να δημοσιεύουν μηνύματα. Όταν είναι απενεργοποιημένο, τα μηνύματα θα είναι ιδιωτικά.
+Allows links that members share to show embedded content in text channels.	Επιτρέπει στους συνδέσμους που μοιράζονται τα μέλη να εμφανίζουν ενσωματωμένο περιεχόμενο σε κανάλια κειμένου.
+Allows members to add custom emoji, stickers, and sounds in this server.	Επιτρέπει στα μέλη να προσθέτουν προσαρμοσμένα emoji, αυτοκόλλητα και ήχους σε αυτόν τον διακομιστή.
+Allows members to add new emoji reactions to a message. If this permission is disabled, members can still react using any existing reactions on a message.	Επιτρέπει στα μέλη να προσθέτουν νέες αντιδράσεις emoji σε ένα μήνυμα. Αν αυτό το δικαίωμα είναι απενεργοποιημένο, τα μέλη μπορούν ακόμα να αντιδρούν με όσες αντιδράσεις υπάρχουν ήδη στο μήνυμα.
+Allows members to be more easily heard in voice channels. When activated, the volume of others without this permission will be automatically lowered.	Επιτρέπει στα μέλη να ακούγονται πιο εύκολα στα φωνητικά κανάλια. Όταν είναι ενεργό, η ένταση των άλλων χωρίς αυτό το δικαίωμα χαμηλώνει αυτόματα.
+Allows members to change the nicknames of other members.	Επιτρέπει στα μέλη να αλλάζουν τα ψευδώνυμα άλλων μελών.
+Allows members to change their own nickname, a custom name for just this server.	Επιτρέπει στα μέλη να αλλάζουν το δικό τους ψευδώνυμο, ένα προσαρμοσμένο όνομα μόνο για αυτόν τον διακομιστή.
+Allows members to change this channel's name, description, and settings. They can also delete it.	Επιτρέπει στα μέλη να αλλάζουν το όνομα, την περιγραφή και τις ρυθμίσεις αυτού του καναλιού. Μπορούν επίσης να το διαγράψουν.
+Allows members to change this channel's permissions.	Επιτρέπει στα μέλη να αλλάζουν τα δικαιώματα αυτού του καναλιού.
+Allows members to create and edit voice channel status.	Επιτρέπει στα μέλη να δημιουργούν και να επεξεργάζονται την κατάσταση του φωνητικού καναλιού.
+Allows members to create events.	Επιτρέπει στα μέλη να δημιουργούν εκδηλώσεις.
+Allows members to create new roles and edit or delete roles lower than their highest role. Also allows members to change permissions of individual channels that they have access to.	Επιτρέπει στα μέλη να δημιουργούν νέους ρόλους και να επεξεργάζονται ή να διαγράφουν ρόλους κατώτερους από τον υψηλότερο ρόλο τους. Επιτρέπει επίσης να αλλάζουν τα δικαιώματα μεμονωμένων καναλιών στα οποία έχουν πρόσβαση.
+Allows members to create polls.	Επιτρέπει στα μέλη να δημιουργούν δημοσκοπήσεις.
+Allows members to create, edit, or delete channels.	Επιτρέπει στα μέλη να δημιουργούν, να επεξεργάζονται ή να διαγράφουν κανάλια.
+Allows members to create, edit, or delete webhooks, which can post messages from other apps or sites into this server.	Επιτρέπει στα μέλη να δημιουργούν, να επεξεργάζονται ή να διαγράφουν webhooks, που μπορούν να δημοσιεύουν μηνύματα από άλλες εφαρμογές ή ιστότοπους σε αυτόν τον διακομιστή.
+Allows members to deafen other members in voice channels, which means they won't be able to speak or hear others.	Επιτρέπει στα μέλη να κόβουν τον ήχο άλλων μελών στα φωνητικά κανάλια, ώστε να μην μπορούν να μιλούν ή να ακούν τους άλλους.
+Allows members to delete or remove embeds from messages by other members.	Επιτρέπει στα μέλη να διαγράφουν μηνύματα άλλων μελών ή να αφαιρούν ενσωματώσεις από αυτά.
+Allows members to disconnect or move other members between voice channels that the member with this permission has access to.	Επιτρέπει στα μέλη να αποσυνδέουν ή να μετακινούν άλλα μέλη ανάμεσα σε φωνητικά κανάλια στα οποία έχουν πρόσβαση.
+Allows members to edit and cancel events.	Επιτρέπει στα μέλη να επεξεργάζονται και να ακυρώνουν εκδηλώσεις.
+Allows members to edit or remove custom emoji, stickers, and sounds in this server.	Επιτρέπει στα μέλη να επεξεργάζονται ή να αφαιρούν προσαρμοσμένα emoji, αυτοκόλλητα και ήχους σε αυτόν τον διακομιστή.
+Allows members to invite new people to this server.	Επιτρέπει στα μέλη να προσκαλούν νέα άτομα σε αυτόν τον διακομιστή.
+Allows members to join voice channels and hear others.	Επιτρέπει στα μέλη να μπαίνουν σε φωνητικά κανάλια και να ακούν τους άλλους.
+Allows members to mute other members in voice channels for everyone.	Επιτρέπει στα μέλη να κάνουν σίγαση σε άλλα μέλη στα φωνητικά κανάλια για όλους.
+Allows members to permanently ban and delete the message history of other members from this server.	Επιτρέπει στα μέλη να αποκλείουν οριστικά άλλα μέλη από αυτόν τον διακομιστή και να διαγράφουν το ιστορικό μηνυμάτων τους.
+Allows members to pin or unpin any message.	Επιτρέπει στα μέλη να καρφιτσώνουν ή να ξεκαρφιτσώνουν οποιοδήποτε μήνυμα.
+Allows members to read previous messages sent in channels. If this permission is disabled, members only see messages sent when they are online. This does not fully apply to threads and forum posts.	Επιτρέπει στα μέλη να διαβάζουν προηγούμενα μηνύματα στα κανάλια. Αν αυτό το δικαίωμα είναι απενεργοποιημένο, τα μέλη βλέπουν μόνο μηνύματα που στάλθηκαν όσο ήταν σε σύνδεση. Αυτό δεν ισχύει πλήρως για νήματα και αναρτήσεις φόρουμ.
+Allows members to remove other members from this server. Kicked members will be able to rejoin if they have another invite.	Επιτρέπει στα μέλη να αφαιρούν άλλα μέλη από αυτόν τον διακομιστή. Όσοι αποβληθούν θα μπορούν να ξαναμπούν αν έχουν άλλη πρόσκληση.
+Allows members to rename, delete, close, and turn on slow mode for threads and posts. They can also view private threads.	Επιτρέπει στα μέλη να μετονομάζουν, να διαγράφουν, να κλείνουν και να ενεργοποιούν την αργή λειτουργία σε νήματα και αναρτήσεις. Μπορούν επίσης να βλέπουν ιδιωτικά νήματα.
+Allows members to send messages without being affected by slowmode.	Επιτρέπει στα μέλη να στέλνουν μηνύματα χωρίς να επηρεάζονται από την αργή λειτουργία.
+Allows members to send sounds from server soundboard.	Επιτρέπει στα μέλη να στέλνουν ήχους από το soundboard του διακομιστή.
+Allows members to send text-to-speech messages by starting a message with /tts. These messages can be heard by anyone focused on the channel.	Επιτρέπει στα μέλη να στέλνουν μηνύματα μετατροπής κειμένου σε ομιλία ξεκινώντας ένα μήνυμα με /tts. Αυτά τα μηνύματα μπορεί να τα ακούσει όποιος έχει ανοιχτό το κανάλι.
+Allows members to send voice messages.	Επιτρέπει στα μέλη να στέλνουν φωνητικά μηνύματα.
+Allows members to share their video, screen share, or stream a game in this server.	Επιτρέπει στα μέλη να μοιράζονται βίντεο, την οθόνη τους ή να μεταδίδουν ένα παιχνίδι σε αυτόν τον διακομιστή.
+Allows members to speak in voice channels by simply talking. If this permission is disabled, members are required to use Push-to-talk. Good for controlling background noise or noisy members.	Επιτρέπει στα μέλη να μιλούν στα φωνητικά κανάλια απλώς μιλώντας. Αν αυτό το δικαίωμα είναι απενεργοποιημένο, τα μέλη πρέπει να χρησιμοποιούν το Πάτα για ομιλία. Χρήσιμο για τον έλεγχο θορύβου στο παρασκήνιο ή θορυβωδών μελών.
+Allows members to talk in voice channels. If this permission is disabled, members are default muted until somebody with the "Mute Members" permission un-mutes them.	Επιτρέπει στα μέλη να μιλούν στα φωνητικά κανάλια. Αν αυτό το δικαίωμα είναι απενεργοποιημένο, τα μέλη είναι σε σίγαση μέχρι κάποιος με το δικαίωμα «Σίγαση μελών» να την αναιρέσει.
+Allows members to upload files or media in text channels.	Επιτρέπει στα μέλη να ανεβάζουν αρχεία ή πολυμέσα σε κανάλια κειμένου.
+Allows members to use @everyone (everyone in the server) or @here (only online members in that channel). They can also @mention all roles, even if the role's "Allow anyone to mention this role" permission is disabled.	Επιτρέπει στα μέλη να χρησιμοποιούν το @everyone (όλοι στον διακομιστή) ή το @here (μόνο όσοι είναι σε σύνδεση στο κανάλι). Μπορούν επίσης να κάνουν @αναφορά σε όλους τους ρόλους, ακόμα κι αν το «Να μπορεί οποιοσδήποτε να αναφέρει αυτόν τον ρόλο» είναι απενεργοποιημένο.
+Allows members to use commands from applications, including slash commands and context menu commands.	Επιτρέπει στα μέλη να χρησιμοποιούν εντολές από εφαρμογές, όπως εντολές κάθετου και εντολές μενού περιβάλλοντος.
+Allows members to use emoji from other servers, if they're a Discord Nitro member.	Επιτρέπει στα μέλη να χρησιμοποιούν emoji από άλλους διακομιστές, αν έχουν Discord Nitro.
+Allows members to use sounds from other servers, if they're a Discord Nitro member.	Επιτρέπει στα μέλη να χρησιμοποιούν ήχους από άλλους διακομιστές, αν έχουν Discord Nitro.
+Allows members to use stickers from other servers, if they're a Discord Nitro member.	Επιτρέπει στα μέλη να χρησιμοποιούν αυτοκόλλητα από άλλους διακομιστές, αν έχουν Discord Nitro.
+Allows members to view Server Insights, which shows data on community growth, engagement, and more. This will allow them to see certain data about channel activity, even for channels they cannot access.	Επιτρέπει στα μέλη να βλέπουν τα Στατιστικά διακομιστή, με δεδομένα για την ανάπτυξη της κοινότητας, τη συμμετοχή και άλλα. Έτσι θα βλέπουν ορισμένα δεδομένα για τη δραστηριότητα καναλιών, ακόμα και για κανάλια στα οποία δεν έχουν πρόσβαση.
+Allows members to view a record of who made which changes in this server.	Επιτρέπει στα μέλη να βλέπουν ένα αρχείο με το ποιος έκανε ποιες αλλαγές σε αυτόν τον διακομιστή.
+Allows members to view channels by default (excluding private channels).	Επιτρέπει στα μέλη να βλέπουν τα κανάλια από προεπιλογή (εκτός από τα ιδιωτικά κανάλια).
+Allows members to view these channels by default. Disabling this for @everyone will make the category private.	Επιτρέπει στα μέλη να βλέπουν αυτά τα κανάλια από προεπιλογή. Αν το απενεργοποιήσεις για το @everyone, η κατηγορία θα γίνει ιδιωτική.
+Allows members to view this channel by default. Disabling this for @everyone will make this channel private.	Επιτρέπει στα μέλη να βλέπουν αυτό το κανάλι από προεπιλογή. Αν το απενεργοποιήσεις για το @everyone, το κανάλι θα γίνει ιδιωτικό.
+Always	Πάντα
+An emoji name, like smile	Ένα όνομα emoji, π.χ. smile
+An encrypted file couldn't be opened.|% encrypted files couldn't be opened.	Δεν ήταν δυνατό να ανοίξει ένα κρυπτογραφημένο αρχείο.|Δεν ήταν δυνατό να ανοίξουν % κρυπτογραφημένα αρχεία.
+An error occurred, please try again.	Παρουσιάστηκε σφάλμα, δοκίμασε ξανά.
+An error occurred. Please try again.	Παρουσιάστηκε σφάλμα. Δοκίμασε ξανά.
+Announcement	Ανακοίνωση
+Announcement Channel	Κανάλι ανακοινώσεων
+Answer	Απάντηση
+Answers	Απαντήσεις
+Anyone can join your server directly through Server Discovery	Οποιοσδήποτε μπορεί να μπει στον διακομιστή σου απευθείας μέσω της Εξερεύνησης διακομιστών
+Anyone can use	Μπορεί να χρησιμοποιήσει οποιοσδήποτε
+Anyone with access to this text channel will be able to see the notifications.	Όποιος έχει πρόσβαση σε αυτό το κανάλι κειμένου θα μπορεί να βλέπει τις ειδοποιήσεις.
+App Directory	Κατάλογος εφαρμογών
+Appearance	Εμφάνιση
+Appends (╯°□°)╯︵ ┻━┻ to your message.	Προσθέτει (╯°□°)╯︵ ┻━┻ στο μήνυμά σου.
+Appends ¯\\_(ツ)_/¯ to your message.	Προσθέτει ¯\\_(ツ)_/¯ στο μήνυμά σου.
+Appends ┬─┬ノ( º _ ºノ) to your message.	Προσθέτει ┬─┬ノ( º _ ºノ) στο μήνυμά σου.
+Applications	Εφαρμογές
+Apply to Join	Αίτηση συμμετοχής
+Approve	Έγκριση
+Apps	Εφαρμογές
+Apps Permissions	Δικαιώματα εφαρμογών
+Archived	Αρχειοθετημένα
+Archived Threads	Αρχειοθετημένα νήματα
+Are you building a Community? Convert to a Community Server to access additional administrative tools that can help you moderate, run, and grow your server.	Χτίζεις μια κοινότητα; Μετάτρεψέ τον σε Διακομιστή κοινότητας για να αποκτήσεις επιπλέον εργαλεία διαχείρισης που θα σε βοηθήσουν να εποπτεύεις, να διαχειρίζεσαι και να μεγαλώσεις τον διακομιστή σου.
+Are you sure that you want to delete your account? This will immediately log you out of your account and you will not be able to log in again.	Σίγουρα θέλεις να διαγράψεις τον λογαριασμό σου; Θα αποσυνδεθείς αμέσως και δεν θα μπορείς να συνδεθείς ξανά.
+Are you sure that you want to disable your account? This will immediately log you out and make your account inaccessible to anyone.	Σίγουρα θέλεις να απενεργοποιήσεις τον λογαριασμό σου; Θα αποσυνδεθείς αμέσως και ο λογαριασμός σου δεν θα είναι προσβάσιμος σε κανέναν.
+Are you sure you want to ban @%1 from %2? They won't be able to come back until the ban is lifted.	Σίγουρα θέλεις να αποκλείσεις τον χρήστη @%1 από το %2; Δεν θα μπορεί να επιστρέψει μέχρι να αρθεί ο αποκλεισμός.
+Are you sure you want to delete %? This action cannot be undone.	Σίγουρα θέλεις να διαγράψεις το %; Αυτή η ενέργεια δεν αναιρείται.
+Are you sure you want to delete %? This cannot be undone.	Σίγουρα θέλεις να διαγράψεις το %; Αυτό δεν αναιρείται.
+Are you sure you want to delete :%:? This cannot be undone.	Σίγουρα θέλεις να διαγράψεις το :%:; Αυτό δεν αναιρείται.
+Are you sure you want to delete the rule %? This cannot be undone.	Σίγουρα θέλεις να διαγράψεις τον κανόνα %; Αυτό δεν αναιρείται.
+Are you sure you want to delete this message?	Σίγουρα θέλεις να διαγράψεις αυτό το μήνυμα;
+Are you sure you want to delete this role? This action cannot be undone.	Σίγουρα θέλεις να διαγράψεις αυτόν τον ρόλο; Αυτή η ενέργεια δεν αναιρείται.
+Are you sure you want to delete this template? Its link will stop working.	Σίγουρα θέλεις να διαγράψεις αυτό το πρότυπο; Ο σύνδεσμός του θα σταματήσει να λειτουργεί.
+Are you sure you want to kick @%1 from %2? They will be able to rejoin again with a new invite.	Σίγουρα θέλεις να διώξεις τον χρήστη @%1 από το %2; Θα μπορεί να ξαναμπεί με νέα πρόσκληση.
+Are you sure you want to logout?	Σίγουρα θέλεις να αποσυνδεθείς;
+Are you sure you want to remove all embeds on this message? This will remove them for everyone.	Σίγουρα θέλεις να αφαιρέσεις όλες τις ενσωματώσεις από αυτό το μήνυμα; Θα αφαιρεθούν για όλους.
+Are you sure you want to remove all of the reactions for this emoji from this message?	Σίγουρα θέλεις να αφαιρέσεις όλες τις αντιδράσεις με αυτό το emoji από αυτό το μήνυμα;
+Are you sure you want to remove all the reactions on this message?	Σίγουρα θέλεις να αφαιρέσεις όλες τις αντιδράσεις από αυτό το μήνυμα;
+Are you sure you want to revoke the invite %? Nobody will be able to join with it.	Σίγουρα θέλεις να ανακαλέσεις την πρόσκληση %; Κανείς δεν θα μπορεί να μπει με αυτήν.
+Ask for a new invite	Ζήτα νέα πρόσκληση
+Ask new members what they're here for; each answer gives them channels and roles.	Ρώτα τα νέα μέλη γιατί ήρθαν· κάθε απάντηση τους δίνει κανάλια και ρόλους.
+Attach Files	Επισύναψη αρχείων
+Attachment removed	Το συνημμένο αφαιρέθηκε
+Attachments	Συνημμένα
+Audit Log	Αρχείο ελέγχου
+Authorized Apps	Εξουσιοδοτημένες εφαρμογές
+Auto	Αυτόματο
+AutoMod	AutoMod
+Automatic	Αυτόματο
+Automatic Gain Control	Αυτόματος έλεγχος απολαβής
+Automatically determine input sensitivity	Αυτόματος καθορισμός ευαισθησίας εισόδου
+Automatically enable Streamer Mode if OBS or XSplit are running	Αυτόματη ενεργοποίηση Λειτουργίας streamer αν εκτελείται το OBS ή το XSplit
+Automatically filter suspected spam messages	Αυτόματο φιλτράρισμα ύποπτων μηνυμάτων spam
+Automatically move members to this channel and mute them when they have been idle for longer than the inactive timeout. This does not affect browsers.	Μετακινεί αυτόματα τα μέλη σε αυτό το κανάλι και τα θέτει σε σίγαση όταν είναι αδρανή περισσότερο από το όριο αδράνειας. Δεν επηρεάζει τα προγράμματα περιήγησης.
+Automatically open fastcord when your computer starts up	Αυτόματο άνοιγμα του fastcord κατά την εκκίνηση του υπολογιστή
+Automatically scan and delete messages sent in this server that contain explicit media.	Αυτόματος έλεγχος και διαγραφή μηνυμάτων σε αυτόν τον διακομιστή που περιέχουν άσεμνα πολυμέσα.
+Avatar	Avatar
+BACK	ΠΙΣΩ
+BACKUP CODES	ΕΦΕΔΡΙΚΟΙ ΚΩΔΙΚΟΙ
+Back	Πίσω
+Back / forward	Πίσω / εμπρός
+Backup codes can only be used one time each and are for emergency access to your account!	Κάθε εφεδρικός κωδικός χρησιμοποιείται μόνο μία φορά και είναι για πρόσβαση έκτακτης ανάγκης στον λογαριασμό σου!
+Backups	Αντίγραφα ασφαλείας
+Ban	Αποκλεισμός
+Ban %	Αποκλεισμός %
+Ban '%' from Server	Αποκλεισμός '%' από τον διακομιστή
+Ban Member	Αποκλεισμός μέλους
+Ban Members	Αποκλεισμός μελών
+Banner	Banner
+Banner Color	Χρώμα banner
+Bans	Αποκλεισμοί
+Bitrate	Ρυθμός bit
+Block	Αποκλεισμός
+Block Commonly Flagged Words	Αποκλεισμός λέξεων που επισημαίνονται συχνά
+Block Custom Words	Αποκλεισμός προσαρμοσμένων λέξεων
+Block Mention Spam	Αποκλεισμός spam αναφορών
+Block Suspected Spam Content	Αποκλεισμός ύποπτου περιεχομένου spam
+Block Words in Member Profile Names	Αποκλεισμός λέξεων σε ονόματα προφίλ μελών
+Block message	Αποκλεισμός μηνύματος
+Blocked	Αποκλεισμένοι
+Blocked Users	Αποκλεισμένοι χρήστες
+Blocked by your content filters	Αποκλείστηκε από τα φίλτρα περιεχομένου σου
+Blocked message	Αποκλεισμένο μήνυμα
+Blocked words	Αποκλεισμένες λέξεις
+Blocked words in names	Αποκλεισμένες λέξεις σε ονόματα
+Blocks messages containing % word.|Blocks messages containing % words.	Αποκλείει μηνύματα που περιέχουν % λέξη.|Αποκλείει μηνύματα που περιέχουν % λέξεις.
+Blocks messages suspected to be spam.	Αποκλείει μηνύματα που θεωρούνται spam.
+Blocks messages with more than % mentions.	Αποκλείει μηνύματα με περισσότερες από % αναφορές.
+Blocks words from Discord's commonly flagged lists.	Αποκλείει λέξεις από τις λίστες του Discord με λέξεις που επισημαίνονται συχνά.
+Blocks words in member profile names.	Αποκλείει λέξεις σε ονόματα προφίλ μελών.
+Blur	Θόλωμα
+Blur Background	Θόλωμα φόντου
+Blur what's behind you on camera. Only your camera is changed.	Θόλωσε ό,τι βρίσκεται πίσω σου στην κάμερα. Αλλάζει μόνο η κάμερά σου.
+Bold / italic / underline	Έντονα / πλάγια / υπογράμμιση
+Bots and Apps	Bot και εφαρμογές
+Browse	Περιήγηση
+Browse Channels	Περιήγηση καναλιών
+Built-In	Ενσωματωμένοι
+Bulgarian	Βουλγαρικά
+By creating a server, you agree to Discord's Community Guidelines.	Δημιουργώντας έναν διακομιστή, αποδέχεσαι τις Οδηγίες κοινότητας του Discord.
+By enabling the widget, your server profile will be visible to others outside of your server members. You can control Profile privacy in Server Settings > Profile.	Με την ενεργοποίηση του widget, το προφίλ του διακομιστή σου θα είναι ορατό και σε όσους δεν είναι μέλη. Μπορείς να ελέγξεις το απόρρητο προφίλ στις Ρυθμίσεις διακομιστή > Προφίλ.
+By making a category private, only select members and roles will be able to view this category. Linked channels in this category will automatically match to this setting.	Αν κάνεις μια κατηγορία ιδιωτική, μόνο επιλεγμένα μέλη και ρόλοι θα μπορούν να τη βλέπουν. Τα συγχρονισμένα κανάλια της κατηγορίας θα ακολουθούν αυτόματα αυτή τη ρύθμιση.
+By making a channel private, only select members and roles will be able to view this channel.	Αν κάνεις ένα κανάλι ιδιωτικό, μόνο επιλεγμένα μέλη και ρόλοι θα μπορούν να το βλέπουν.
+By making a channel private, only select members and roles will have access to view or connect to this channel.	Αν κάνεις ένα κανάλι ιδιωτικό, μόνο επιλεγμένα μέλη και ρόλοι θα μπορούν να το βλέπουν ή να συνδέονται σε αυτό.
+Bypass Slowmode	Παράκαμψη αργής λειτουργίας
+CHANNEL OR CATEGORY	ΚΑΝΑΛΙ Ή ΚΑΤΗΓΟΡΙΑ
+CONFIRM NEW PASSWORD	ΕΠΙΒΕΒΑΙΩΣΗ ΝΕΟΥ ΚΩΔΙΚΟΥ ΠΡΟΣΒΑΣΗΣ
+CURRENT PASSWORD	ΤΡΕΧΩΝ ΚΩΔΙΚΟΣ ΠΡΟΣΒΑΣΗΣ
+Call	Κλήση
+Cancel	Ακύρωση
+Cancel Event	Ακύρωση εκδήλωσης
+Cancel Friend Request	Ακύρωση αιτήματος φιλίας
+Careful — you have unsaved changes!	Προσοχή — έχεις μη αποθηκευμένες αλλαγές!
+Category Name	Όνομα κατηγορίας
+Category deleted	Η κατηγορία διαγράφηκε
+Change %	Αλλαγή %
+Change Avatar	Αλλαγή avatar
+Change Nickname	Αλλαγή ψευδωνύμου
+Change Password	Αλλαγή κωδικού πρόσβασης
+Change Server Icon	Αλλαγή εικονιδίου διακομιστή
+Channel	Κανάλι
+Channel Name	Όνομα καναλιού
+Channel Notification Overrides	Παρακάμψεις ειδοποιήσεων καναλιών
+Channel Topic	Θέμα καναλιού
+Channel Type	Τύπος καναλιού
+Channel deleted	Το κανάλι διαγράφηκε
+Channel unmuted	Αναίρεση σίγασης καναλιού
+Channels	Κανάλια
+Channels & Roles	Κανάλια και ρόλοι
+Channels Followed (%)	Κανάλια που ακολουθούνται (%)
+Channels matching #%	Κανάλια που ταιριάζουν με #%
+Chat	Συνομιλία
+Chat Font Scaling	Κλιμάκωση γραμματοσειράς συνομιλίας
+Check your email for a login link	Έλεγξε το email σου για σύνδεσμο σύνδεσης
+Check your phone!	Έλεγξε το τηλέφωνό σου!
+Checking the file…	Έλεγχος του αρχείου…
+Chinese, China	Κινεζικά, Κίνα
+Chinese, Taiwan	Κινεζικά, Ταϊβάν
+Choose Image	Επιλογή εικόνας
+Choose a link people can use to join, discord.gg/<code>.	Διάλεξε έναν σύνδεσμο που θα χρησιμοποιούν όλοι για να μπαίνουν, discord.gg/<code>.
+Choose a server	Διάλεξε διακομιστή
+Choose the language you want Discord to display.	Διάλεξε τη γλώσσα στην οποία θέλεις να εμφανίζεται το Discord.
+Choose what happens to images and videos Discord detects as explicit.	Διάλεξε τι θα γίνεται με εικόνες και βίντεο που το Discord εντοπίζει ως άσεμνα.
+Clear	Εκκαθάριση
+Clear Custom Status	Εκκαθάριση προσαρμοσμένης κατάστασης
+Clear after	Εκκαθάριση μετά από
+Clear permissions	Εκκαθάριση δικαιωμάτων
+Click Again to Reset	Κάνε κλικ ξανά για επαναφορά
+Click any channel, then pick a request whose name starts with "messages" or "science".	Κάνε κλικ σε οποιοδήποτε κανάλι και διάλεξε ένα αίτημα που το όνομά του ξεκινά με "messages" ή "science".
+Click to add a note	Κάνε κλικ για να προσθέσεις σημείωση
+Click to see attachment	Κάνε κλικ για να δεις το συνημμένο
+Close DM	Κλείσιμο ΑΜ
+Collapse	Σύμπτυξη
+Collapse All Categories	Σύμπτυξη όλων των κατηγοριών
+Collapse Category	Σύμπτυξη κατηγορίας
+Commands	Εντολές
+Commands matching /%	Εντολές που ταιριάζουν με /%
+Community Overview	Επισκόπηση κοινότητας
+Community Updates Channel	Κανάλι ενημερώσεων κοινότητας
+Community servers follow Discord's Community Guidelines.	Οι διακομιστές κοινότητας ακολουθούν τις Οδηγίες κοινότητας του Discord.
+Community servers have more tools to help you moderate and grow your server.	Οι διακομιστές κοινότητας έχουν περισσότερα εργαλεία για να εποπτεύεις και να μεγαλώνεις τον διακομιστή σου.
+Compact	Συμπαγής
+Compare	Σύγκριση
+Compare these with %, in person or on a call. If they match, no one can read this DM in between.	Σύγκρινέ τα με τον χρήστη %, από κοντά ή σε κλήση. Αν ταιριάζουν, κανείς ενδιάμεσος δεν μπορεί να διαβάσει αυτό το ΑΜ.
+Configure system event messages sent to your server.	Ρύθμισε τα μηνύματα συμβάντων συστήματος που στέλνονται στον διακομιστή σου.
+Confirm	Επιβεβαίωση
+Confirm Request	Επιβεβαίωση αιτήματος
+Confirm your age to join this server.	Επιβεβαίωσε την ηλικία σου για να μπεις σε αυτόν τον διακομιστή.
+Confirming...	Επιβεβαίωση...
+Connect	Σύνδεση
+Connect these accounts and unlock special Discord integrations. The sign-in opens in your browser.	Σύνδεσε αυτούς τους λογαριασμούς και ξεκλείδωσε ειδικές ενσωματώσεις του Discord. Η σύνδεση ανοίγει στο πρόγραμμα περιήγησής σου.
+Connected Apps	Συνδεδεμένες εφαρμογές
+Connecting	Σύνδεση
+Connecting...	Σύνδεση...
+Connecting…	Σύνδεση…
+Connection Info	Πληροφορίες σύνδεσης
+Connection lost. Messages may be out of date.	Η σύνδεση χάθηκε. Τα μηνύματα ίσως δεν είναι ενημερωμένα.
+Connections	Συνδέσεις
+Content Filters	Φίλτρα περιεχομένου
+Continue	Συνέχεια
+Control who can see your profile info, like your bio and connected accounts.	Έλεγξε ποιος μπορεί να βλέπει τα στοιχεία του προφίλ σου, όπως το βιογραφικό και τους συνδεδεμένους λογαριασμούς.
+Copied	Αντιγράφηκε
+Copy	Αντιγραφή
+Copy Category ID	Αντιγραφή ID κατηγορίας
+Copy Channel ID	Αντιγραφή ID καναλιού
+Copy Event Link	Αντιγραφή συνδέσμου εκδήλωσης
+Copy Image	Αντιγραφή εικόνας
+Copy Image Link	Αντιγραφή συνδέσμου εικόνας
+Copy Link	Αντιγραφή συνδέσμου
+Copy Media Link	Αντιγραφή συνδέσμου πολυμέσων
+Copy Message ID	Αντιγραφή ID μηνύματος
+Copy Message Link	Αντιγραφή συνδέσμου μηνύματος
+Copy Server ID	Αντιγραφή ID διακομιστή
+Copy Text	Αντιγραφή κειμένου
+Copy User ID	Αντιγραφή ID χρήστη
+Copy Username	Αντιγραφή ονόματος χρήστη
+Copy Webhook URL	Αντιγραφή URL webhook
+Copy curl Command	Αντιγραφή εντολής curl
+Copy the event link below to invite people to your event. This also acts as a server invite link.	Αντίγραψε τον παρακάτω σύνδεσμο για να προσκαλέσεις άτομα στην εκδήλωσή σου. Λειτουργεί και ως σύνδεσμος πρόσκλησης στον διακομιστή.
+Copy your account's token once from Discord in a web browser.	Αντίγραψε μία φορά το token του λογαριασμού σου από το Discord σε ένα πρόγραμμα περιήγησης.
+Couldn't accept encryption.	Δεν ήταν δυνατή η αποδοχή της κρυπτογράφησης.
+Couldn't cancel the event.	Δεν ήταν δυνατή η ακύρωση της εκδήλωσης.
+Couldn't change avatar	Δεν ήταν δυνατή η αλλαγή του avatar
+Couldn't create an invite link.	Δεν ήταν δυνατή η δημιουργία συνδέσμου πρόσκλησης.
+Couldn't create an invite.	Δεν ήταν δυνατή η δημιουργία πρόσκλησης.
+Couldn't delete the channel: %	Δεν ήταν δυνατή η διαγραφή του καναλιού: %
+Couldn't encrypt the message.	Δεν ήταν δυνατή η κρυπτογράφηση του μηνύματος.
+Couldn't join %: %	Δεν ήταν δυνατή η συμμετοχή στο %: %
+Couldn't load onboarding.	Δεν ήταν δυνατή η φόρτωση της υποδοχής νέων μελών.
+Couldn't load the AutoMod rules.	Δεν ήταν δυνατή η φόρτωση των κανόνων AutoMod.
+Couldn't load the applications.	Δεν ήταν δυνατή η φόρτωση των εφαρμογών.
+Couldn't load the audit log.	Δεν ήταν δυνατή η φόρτωση του αρχείου ελέγχου.
+Couldn't load the bans.	Δεν ήταν δυνατή η φόρτωση των αποκλεισμών.
+Couldn't load the invites.	Δεν ήταν δυνατή η φόρτωση των προσκλήσεων.
+Couldn't load the members.	Δεν ήταν δυνατή η φόρτωση των μελών.
+Couldn't load the role's members.	Δεν ήταν δυνατή η φόρτωση των μελών του ρόλου.
+Couldn't load the server rules.	Δεν ήταν δυνατή η φόρτωση των κανόνων του διακομιστή.
+Couldn't load the server's tag.	Δεν ήταν δυνατή η φόρτωση της ετικέτας του διακομιστή.
+Couldn't load the template.	Δεν ήταν δυνατή η φόρτωση του προτύπου.
+Couldn't load the webhooks.	Δεν ήταν δυνατή η φόρτωση των webhooks.
+Couldn't move the channel	Δεν ήταν δυνατή η μετακίνηση του καναλιού
+Couldn't play it here, so it opened in your browser.	Δεν ήταν δυνατή η αναπαραγωγή εδώ, οπότε άνοιξε στο πρόγραμμα περιήγησης.
+Couldn't reach %1: %2 Retrying.	Δεν ήταν δυνατή η σύνδεση με %1: %2 Νέα προσπάθεια.
+Couldn't reach Discord. Check your connection and try again.	Δεν ήταν δυνατή η σύνδεση με το Discord. Έλεγξε τη σύνδεσή σου και δοκίμασε ξανά.
+Couldn't reach Discord. Try again.	Δεν ήταν δυνατή η σύνδεση με το Discord. Δοκίμασε ξανά.
+Couldn't reach the server.	Δεν ήταν δυνατή η σύνδεση με τον διακομιστή.
+Couldn't reach the server. Check your connection and try again.	Δεν ήταν δυνατή η σύνδεση με τον διακομιστή. Έλεγξε τη σύνδεσή σου και δοκίμασε ξανά.
+Couldn't save the file.	Δεν ήταν δυνατή η αποθήκευση του αρχείου.
+Couldn't save the image.	Δεν ήταν δυνατή η αποθήκευση της εικόνας.
+Couldn't save the token.	Δεν ήταν δυνατή η αποθήκευση του token.
+Couldn't turn on encryption.	Δεν ήταν δυνατή η ενεργοποίηση της κρυπτογράφησης.
+Couldn't upload emoji	Δεν ήταν δυνατή η μεταφόρτωση του emoji
+Cozy	Άνετη
+Create	Δημιουργία
+Create Category	Δημιουργία κατηγορίας
+Create Channel	Δημιουργία καναλιού
+Create DM	Δημιουργία ΑΜ
+Create Emoji	Δημιουργία emoji
+Create Event	Δημιουργία εκδήλωσης
+Create Events	Δημιουργία εκδηλώσεων
+Create Expressions	Δημιουργία εκφράσεων
+Create Group DM	Δημιουργία ομαδικού ΑΜ
+Create Invite	Δημιουργία πρόσκλησης
+Create My Own	Δημιουργία δικού μου
+Create Poll	Δημιουργία δημοσκόπησης
+Create Polls	Δημιουργία δημοσκοπήσεων
+Create Private Threads	Δημιουργία ιδιωτικών νημάτων
+Create Public Threads	Δημιουργία δημόσιων νημάτων
+Create Role	Δημιουργία ρόλου
+Create Rule	Δημιουργία κανόνα
+Create Thread	Δημιουργία νήματος
+Create Webhook	Δημιουργία webhook
+Create Your Server	Δημιούργησε τον διακομιστή σου
+Create a poll	Δημιουργία δημοσκόπησης
+Create a space for organized discussions	Δημιούργησε έναν χώρο για οργανωμένες συζητήσεις
+Create one for me	Δημιούργησέ το για μένα
+Created by %	Δημιουργήθηκε από %
+Created on %1 by %2	Δημιουργήθηκε στις %1 από %2
+Creating an invite link…	Δημιουργία συνδέσμου πρόσκλησης…
+Creating an invite...	Δημιουργία πρόσκλησης...
+Creating...	Δημιουργία...
+Creating…	Δημιουργία…
+Creation Date	Ημερομηνία δημιουργίας
+Croatian	Κροατικά
+Current Device	Τρέχουσα συσκευή
+Custom Invite Link	Προσαρμοσμένος σύνδεσμος πρόσκλησης
+Customize Your Server	Προσάρμοσε τον διακομιστή σου
+Customize how your server appears in invite links and, if enabled, in Server Discovery and Announcement Channel messages	Προσάρμοσε πώς εμφανίζεται ο διακομιστής σου στους συνδέσμους πρόσκλησης και, αν είναι ενεργό, στην Εξερεύνηση διακομιστών και στα μηνύματα καναλιών ανακοινώσεων
+Customize your server with integrations. Manage webhooks, followed channels and apps.	Προσάρμοσε τον διακομιστή σου με ενσωματώσεις. Διαχειρίσου webhooks, κανάλια που ακολουθείς και εφαρμογές.
+Cut	Αποκοπή
+Czech	Τσεχικά
+DAVE v%, % members	DAVE v%, % μέλη
+DEFAULT KEYBINDS	ΠΡΟΕΠΙΛΕΓΜΕΝΕΣ ΣΥΝΤΟΜΕΥΣΕΙΣ
+DM closed	Το ΑΜ έκλεισε
+Danish	Δανικά
+Data & Privacy	Δεδομένα και απόρρητο
+Date	Ημερομηνία
+Deafen	Κώφωση
+Deafen Members	Κώφωση μελών
+Deauthorize	Ανάκληση εξουσιοδότησης
+Decline	Απόρριψη
+Default	Προεπιλογή
+Default Channels	Προεπιλεγμένα κανάλια
+Default Layout	Προεπιλεγμένη διάταξη
+Default Notification Settings	Προεπιλεγμένες ρυθμίσεις ειδοποιήσεων
+Default Permissions	Προεπιλεγμένα δικαιώματα
+Default Sort Order	Προεπιλεγμένη ταξινόμηση
+Default Themes	Προεπιλεγμένα θέματα
+Default notifications become Only @mentions.	Οι προεπιλεγμένες ειδοποιήσεις γίνονται Μόνο @αναφορές.
+Delete	Διαγραφή
+Delete '%'	Διαγραφή '%'
+Delete Account	Διαγραφή λογαριασμού
+Delete Category	Διαγραφή κατηγορίας
+Delete Channel	Διαγραφή καναλιού
+Delete Emoji	Διαγραφή emoji
+Delete Invite	Διαγραφή πρόσκλησης
+Delete Message	Διαγραφή μηνύματος
+Delete Message History	Διαγραφή ιστορικού μηνυμάτων
+Delete Question	Διαγραφή ερώτησης
+Delete Role	Διαγραφή ρόλου
+Delete Rule	Διαγραφή κανόνα
+Delete Server	Διαγραφή διακομιστή
+Delete Sticker	Διαγραφή αυτοκόλλητου
+Delete Template	Διαγραφή προτύπου
+Delete Thread	Διαγραφή νήματος
+Delete Webhook	Διαγραφή webhook
+Deleted message	Διαγραμμένο μήνυμα
+Describe your sticker	Περίγραψε το αυτοκόλλητό σου
+Description	Περιγραφή
+Description (alt text)	Περιγραφή (εναλλακτικό κείμενο)
+Description (optional)	Περιγραφή (προαιρετικό)
+Detects a burst of mention spam across the server and locks it down.	Εντοπίζει ξαφνική έξαρση spam αναφορών στον διακομιστή και τον κλειδώνει.
+Developer	Προγραμματιστής
+Developer Mode	Λειτουργία προγραμματιστή
+Developer Mode exposes context menu items helpful for people writing apps using the Discord API.	Η Λειτουργία προγραμματιστή εμφανίζει στοιχεία μενού περιβάλλοντος χρήσιμα για όσους γράφουν εφαρμογές με το Discord API.
+Devices	Συσκευές
+Direct Message (DM) Permissions	Δικαιώματα άμεσων μηνυμάτων (ΑΜ)
+Direct Messages	Άμεσα μηνύματα
+Direct messages from friends	Άμεσα μηνύματα από φίλους
+Direct messages from others	Άμεσα μηνύματα από άλλους
+Disable	Απενεργοποίηση
+Disable Account	Απενεργοποίηση λογαριασμού
+Disable All Notification Sounds	Απενεργοποίηση όλων των ήχων ειδοποιήσεων
+Disable Community	Απενεργοποίηση κοινότητας
+Disable all notifications	Απενεργοποίηση όλων των ειδοποιήσεων
+Disable all sound effects	Απενεργοποίηση όλων των ηχητικών εφέ
+Disabling your account means you can recover it at any time after taking this action.	Αν απενεργοποιήσεις τον λογαριασμό σου, μπορείς να τον ανακτήσεις οποιαδήποτε στιγμή.
+Disconnect	Αποσύνδεση
+Disconnect From Voice Channel	Αποσύνδεση από φωνητικό κανάλι
+Disconnected	Αποσυνδέθηκε
+Discord account	Λογαριασμός Discord
+Discord asked for a captcha, which fastcord can't show. Log in with the QR code instead.	Το Discord ζήτησε captcha, που το fastcord δεν μπορεί να εμφανίσει. Συνδέσου με τον κωδικό QR.
+Discord asked for a captcha, which fastcord can't show. Try on discord.com.	Το Discord ζήτησε captcha, που το fastcord δεν μπορεί να εμφανίσει. Δοκίμασε στο discord.com.
+Discord can filter out some messages that contain spam. These messages go to your Spam inbox.	Το Discord μπορεί να φιλτράρει ορισμένα μηνύματα με spam. Αυτά τα μηνύματα πηγαίνουν στα εισερχόμενα Spam.
+Discord didn't accept the saved login. Log in again.	Το Discord δεν αποδέχτηκε την αποθηκευμένη σύνδεση. Συνδέσου ξανά.
+Discord failed to unpin that message for some reason. Sorry about that.	Το Discord δεν κατάφερε να ξεκαρφιτσώσει αυτό το μήνυμα για κάποιο λόγο. Λυπούμαστε γι' αυτό.
+Discord will prioritize this server in search to users who speak the selected language.	Το Discord θα προβάλλει κατά προτεραιότητα αυτόν τον διακομιστή στην αναζήτηση σε χρήστες που μιλούν την επιλεγμένη γλώσσα.
+Discord's terms don't allow third-party clients, so using one can get an account flagged.	Οι όροι του Discord δεν επιτρέπουν εφαρμογές τρίτων, οπότε η χρήση τους μπορεί να οδηγήσει σε επισήμανση του λογαριασμού.
+Discoverable	Ανιχνεύσιμος
+Dismiss	Παράβλεψη
+Dismiss message	Παράβλεψη μηνύματος
+Display	Προβολή
+Display Images, Videos and Lolcats	Εμφάνιση εικόνων, βίντεο και lolcats
+Display Name	Εμφανιζόμενο όνομα
+Display name	Εμφανιζόμενο όνομα
+Display on profile	Εμφάνιση στο προφίλ
+Display role members separately from online members	Εμφάνιση μελών ρόλου ξεχωριστά από τα μέλη σε σύνδεση
+Displays text with emphasis.	Εμφανίζει κείμενο με έμφαση.
+Do Not Disturb	Μην ενοχλείτε
+Do not filter	Χωρίς φιλτράρισμα
+Do not filter direct messages	Χωρίς φιλτράρισμα άμεσων μηνυμάτων
+Don't Delete Any	Καμία διαγραφή
+Don't clear	Να μη γίνεται εκκαθάριση
+Don't show role colors	Να μην εμφανίζονται χρώματα ρόλων
+Done	Τέλος
+Download	Λήψη
+Drop a file here, or browse	Άφησε ένα αρχείο εδώ ή κάνε περιήγηση
+Duration	Διάρκεια
+Dutch	Ολλανδικά
+EDIT ROLE — %	ΕΠΕΞΕΡΓΑΣΙΑ ΡΟΛΟΥ — %
+EMAIL OR PHONE NUMBER	EMAIL Ή ΑΡΙΘΜΟΣ ΤΗΛΕΦΩΝΟΥ
+EMOJI MATCHING	EMOJI ΠΟΥ ΤΑΙΡΙΑΖΟΥΝ
+ENTER THE 6-DIGIT CODE	ΠΛΗΚΤΡΟΛΟΓΗΣΕ ΤΟΝ 6ΨΗΦΙΟ ΚΩΔΙΚΟ
+EXPIRE AFTER	ΛΗΞΗ ΜΕΤΑ ΑΠΟ
+EXPIRES	ΛΗΓΕΙ
+Ease the chat and lists toward where you scroll. Off, they jump there at once (always, when your device asks for reduced motion).	Ομαλή κύλιση της συνομιλίας και των λιστών. Όταν είναι ανενεργό, μεταπηδούν αμέσως (πάντα, όταν η συσκευή σου ζητά μειωμένη κίνηση).
+Echo Cancellation	Ακύρωση ηχούς
+Edit	Επεξεργασία
+Edit Category	Επεξεργασία κατηγορίας
+Edit Channel	Επεξεργασία καναλιού
+Edit Friend Nickname	Επεξεργασία ψευδωνύμου φίλου
+Edit Message	Επεξεργασία μηνύματος
+Edit Per-server Profile	Επεξεργασία προφίλ ανά διακομιστή
+Edit Profile	Επεξεργασία προφίλ
+Edit Profiles	Επεξεργασία προφίλ
+Edit Sound	Επεξεργασία ήχου
+Edit Thread	Επεξεργασία νήματος
+Edit User Profile	Επεξεργασία προφίλ χρήστη
+Edit invite link.	Επεξεργασία συνδέσμου πρόσκλησης.
+Edit your last message	Επεξεργασία του τελευταίου μηνύματός σου
+Email	Email
+Embed Links	Ενσωμάτωση συνδέσμων
+Embed an HTML widget on your website to display your online members, voice channels, and invite link.	Ενσωμάτωσε ένα widget HTML στον ιστότοπό σου για να εμφανίζεις τα μέλη σε σύνδεση, τα φωνητικά κανάλια και τον σύνδεσμο πρόσκλησης.
+Emoji	Emoji
+Emoji / GIF / sticker picker	Επιλογή emoji / GIF / αυτοκόλλητου
+Enable Authenticator App	Ενεργοποίηση εφαρμογής ελέγχου ταυτότητας
+Enable Community	Ενεργοποίηση κοινότητας
+Enable Community to access Server Discovery	Ενεργοποίησε την κοινότητα για πρόσβαση στην Εξερεύνηση διακομιστών
+Enable Desktop Notifications	Ενεργοποίηση ειδοποιήσεων επιφάνειας εργασίας
+Enable Invites	Ενεργοποίηση προσκλήσεων
+Enable Onboarding	Ενεργοποίηση υποδοχής νέων μελών
+Enable Reduced Motion	Ενεργοποίηση μειωμένης κίνησης
+Enable Server Widget	Ενεργοποίηση widget διακομιστή
+Enable Streamer Mode	Ενεργοποίηση Λειτουργίας streamer
+Enable Unread Message Badge	Ενεργοποίηση σήματος μη αναγνωσμένων μηνυμάτων
+Encrypt this DM	Κρυπτογράφηση αυτού του ΑΜ
+Encrypted message	Κρυπτογραφημένο μήνυμα
+Encrypted messages are limited to % bytes for now.	Τα κρυπτογραφημένα μηνύματα περιορίζονται προς το παρόν σε % byte.
+End Date	Ημερομηνία λήξης
+End Event	Τερματισμός εκδήλωσης
+End Poll Now	Λήξη δημοσκόπησης τώρα
+End Time	Ώρα λήξης
+End-to-end encrypted	Κρυπτογράφηση από άκρο σε άκρο
+End-to-end encryption	Κρυπτογράφηση από άκρο σε άκρο
+Engagement	Συμμετοχή
+English, UK	Αγγλικά, ΗΒ
+English, USA	Αγγλικά, ΗΠΑ
+Enter Discord Auth Code	Πληκτρολόγησε κωδικό ελέγχου ταυτότητας Discord
+Enter Discord Backup Code	Πληκτρολόγησε εφεδρικό κωδικό Discord
+Enter a location	Πληκτρολόγησε τοποθεσία
+Enter a message to start the conversation!	Γράψε ένα μήνυμα για να ξεκινήσει η συζήτηση!
+Enter an invite below to join an existing server	Πληκτρολόγησε μια πρόσκληση παρακάτω για να μπεις σε έναν υπάρχοντα διακομιστή
+Enter server name	Πληκτρολόγησε όνομα διακομιστή
+Enter your current password and a new password.	Πληκτρολόγησε τον τρέχοντα και έναν νέο κωδικό πρόσβασης.
+Error	Σφάλμα
+Est. %	Εκτ. %
+Event Info	Πληροφορίες εκδήλωσης
+Event Topic	Θέμα εκδήλωσης
+Event cancelled	Η εκδήλωση ακυρώθηκε
+Event is over	Η εκδήλωση τελείωσε
+Events	Εκδηλώσεις
+Events Permissions	Δικαιώματα εκδηλώσεων
+Every answer needs a title.	Κάθε απάντηση χρειάζεται τίτλο.
+Every question needs a title and at least one answer.	Κάθε ερώτηση χρειάζεται τίτλο και τουλάχιστον μία απάντηση.
+Everyone	Όλοι
+Everyone in this channel connects to the selected region. Automatic picks the best one for whoever starts the call.	Όλοι σε αυτό το κανάλι συνδέονται στην επιλεγμένη περιοχή. Η αυτόματη επιλογή διαλέγει την καλύτερη για όποιον ξεκινά την κλήση.
+Everyone welcome %!	Καλωσορίστε όλοι τον χρήστη %!
+Everyone who joins sees these channels, whatever they answer.	Όσοι μπαίνουν βλέπουν αυτά τα κανάλια, ό,τι κι αν απαντήσουν.
+Exempt a channel	Εξαίρεση καναλιού
+Exempt a role	Εξαίρεση ρόλου
+Exemptions	Εξαιρέσεις
+Expand (% lines)	Ανάπτυξη (% γραμμές)
+Expand (% of % lines)	Ανάπτυξη (% από % γραμμές)
+Expired	Έληξε
+Explicit image filter	Φίλτρο άσεμνων εικόνων
+Expression	Έκφραση
+FRAME RATE	ΡΥΘΜΟΣ ΚΑΡΕ
+Failed to follow the channel, please try again.	Δεν ήταν δυνατό να ακολουθήσεις το κανάλι, δοκίμασε ξανά.
+Fastcord couldn't be installed.	Δεν ήταν δυνατή η εγκατάσταση του Fastcord.
+Favorites	Αγαπημένα
+File	Αρχείο
+File saved.	Το αρχείο αποθηκεύτηκε.
+Filename	Όνομα αρχείου
+Fill out the details of your event.	Συμπλήρωσε τα στοιχεία της εκδήλωσής σου.
+Filter by Action	Φιλτράρισμα κατά ενέργεια
+Filter by User	Φιλτράρισμα κατά χρήστη
+Filter direct messages from everyone	Φιλτράρισμα άμεσων μηνυμάτων από όλους
+Filter direct messages from non-friends	Φιλτράρισμα άμεσων μηνυμάτων από μη φίλους
+Filter messages from all members	Φιλτράρισμα μηνυμάτων από όλα τα μέλη
+Filter messages from server members without roles	Φιλτράρισμα μηνυμάτων από μέλη χωρίς ρόλους
+Find or start a conversation	Βρες ή ξεκίνα μια συζήτηση
+Find the perfect emoji	Βρες το τέλειο emoji
+Find the perfect reaction	Βρες την τέλεια αντίδραση
+Find the perfect sticker	Βρες το τέλειο αυτοκόλλητο
+Finding the video%	Αναζήτηση του βίντεο%
+Finish	Ολοκλήρωση
+Finishing touches	Τελευταίες πινελιές
+Finnish	Φινλανδικά
+Fit more messages on screen at one time. #IRC	Χωράνε περισσότερα μηνύματα στην οθόνη. #IRC
+Flagged as spam	Επισημάνθηκε ως spam
+Flags	Σημαίες
+Folder Color	Χρώμα φακέλου
+Folder Name	Όνομα φακέλου
+Folder Settings	Ρυθμίσεις φακέλου
+Folder removed	Ο φάκελος αφαιρέθηκε
+Follow	Ακολούθησε
+Followed!	Το ακολουθείς!
+Food & Drink	Φαγητό και ποτό
+For 1 Hour	Για 1 ώρα
+For 15 Minutes	Για 15 λεπτά
+For 24 Hours	Για 24 ώρες
+For 3 Days	Για 3 ημέρες
+For 3 Hours	Για 3 ώρες
+For 8 Hours	Για 8 ώρες
+Forever	Για πάντα
+Forgot your password?	Ξέχασες τον κωδικό πρόσβασης;
+Forum	Φόρουμ
+Forward	Προώθηση
+Forward To	Προώθηση σε
+Forwarded	Προωθήθηκε
+French	Γαλλικά
+Frequently Used	Χρησιμοποιούνται συχνά
+Friend Nickname	Ψευδώνυμο φίλου
+Friend Request Permissions	Δικαιώματα αιτημάτων φιλίας
+Friend Request Sent	Το αίτημα φιλίας στάλθηκε
+Friend removed	Ο φίλος αφαιρέθηκε
+Friend request cancelled	Το αίτημα φιλίας ακυρώθηκε
+Friend request ignored	Το αίτημα φιλίας αγνοήθηκε
+Friends	Φίλοι
+Friends & All Servers	Φίλοι και όλοι οι διακομιστές
+Friends & Small Servers Only	Μόνο φίλοι και μικροί διακομιστές
+Friends Only	Μόνο φίλοι
+Friends can ask to join or join the game you're playing.	Οι φίλοι μπορούν να ζητήσουν να συμμετάσχουν ή να μπουν στο παιχνίδι που παίζεις.
+Friends come online	Οι φίλοι συνδέονται
+Friends of friends	Φίλοι φίλων
+From User	Από χρήστη
+GIFs	GIF
+GIFs can't be sent encrypted yet.	Τα GIF δεν μπορούν ακόμα να σταλούν κρυπτογραφημένα.
+Gallery view	Προβολή συλλογής
+General	Γενικά
+General Category Permissions	Γενικά δικαιώματα κατηγορίας
+General Channel Permissions	Γενικά δικαιώματα καναλιού
+General Server Permissions	Γενικά δικαιώματα διακομιστή
+Generate Template	Δημιουργία προτύπου
+Generate a New Link	Δημιουργία νέου συνδέσμου
+German	Γερμανικά
+Get a copy of your data. It can take up to 30 days to prepare, and a download link is emailed to you when it's ready.	Πάρε ένα αντίγραφο των δεδομένων σου. Η προετοιμασία μπορεί να διαρκέσει έως 30 ημέρες και θα λάβεις σύνδεσμο λήψης με email όταν είναι έτοιμο.
+Give new members a quick way to find the channels and roles that matter to them.	Δώσε στα νέα μέλη έναν γρήγορο τρόπο να βρίσκουν τα κανάλια και τους ρόλους που τους ενδιαφέρουν.
+Give your new server a personality with a name. You can always change it later.	Δώσε προσωπικότητα στον νέο διακομιστή σου με ένα όνομα. Μπορείς πάντα να το αλλάξεις αργότερα.
+Glad you're here, %.	Χαιρόμαστε που είσαι εδώ, %.
+Go Back	Επιστροφή
+Go To Channel	Μετάβαση στο κανάλι
+Go back	Πίσω
+Go forward	Εμπρός
+Go to Server	Μετάβαση στον διακομιστή
+Good to see you, %.	Χαιρόμαστε που σε βλέπουμε, %.
+Got It	Εντάξει
+Grant temporary membership	Παραχώρηση προσωρινής ιδιότητας μέλους
+Greek	Ελληνικά
+Hang out together with voice, video, and screen share	Κάντε παρέα με φωνή, βίντεο και κοινή χρήση οθόνης
+Hang out with voice, video, screenshare, and Go Live.	Κάντε παρέα με φωνή, βίντεο, κοινή χρήση οθόνης και Go Live.
+Happening Now	Συμβαίνει τώρα
+Have an invite already?	Έχεις ήδη πρόσκληση;
+Help	Βοήθεια
+Here's a preview of your event.	Αυτή είναι μια προεπισκόπηση της εκδήλωσής σου.
+Hey, just double checking that you want to pin this message to #% for posterity and greatness?	Γεια, απλώς επιβεβαιώνουμε: θέλεις να καρφιτσώσεις αυτό το μήνυμα στο #% για να μείνει στην ιστορία;
+Hey, just double checking that you want to pin this message to the current channel for posterity and greatness?	Γεια, απλώς επιβεβαιώνουμε: θέλεις να καρφιτσώσεις αυτό το μήνυμα στο τρέχον κανάλι για να μείνει στην ιστορία;
+Hide	Απόκρυψη
+Hide After Inactivity	Απόκρυψη μετά από αδράνεια
+Hide Chat	Απόκρυψη συνομιλίας
+Hide Fastcord window from screen capture	Απόκρυψη του παραθύρου Fastcord από την καταγραφή οθόνης
+Hide Muted Channels	Απόκρυψη καναλιών σε σίγαση
+Hide invite links to my Discord servers	Απόκρυψη συνδέσμων πρόσκλησης στους διακομιστές μου
+Hide my personal information, such as email, connected accounts, and notes	Απόκρυψη προσωπικών στοιχείων, όπως email, συνδεδεμένοι λογαριασμοί και σημειώσεις
+Hides Fastcord windows from most screen capture software.	Κρύβει τα παράθυρα του Fastcord από τα περισσότερα προγράμματα καταγραφής οθόνης.
+High	Υψηλή
+Highest	Μέγιστη
+Highlights provide occasional updates when your friends are chatting in busy servers, and more.	Τα Highlights σού δίνουν περιστασιακές ενημερώσεις όταν οι φίλοι σου συζητούν σε πολυσύχναστους διακομιστές, και άλλα.
+Hindi	Χίντι
+History	Ιστορικό
+Hitting X makes fastcord minimize to the system tray instead of closing.	Πατώντας το X, το fastcord ελαχιστοποιείται στην περιοχή ειδοποιήσεων αντί να κλείσει.
+Hm, didn’t work. Double check that the username is correct.	Χμ, δεν πέτυχε. Έλεγξε ξανά ότι το όνομα χρήστη είναι σωστό.
+Host	Οικοδεσπότης
+Host events with an audience	Φιλοξένησε εκδηλώσεις με κοινό
+How Discord Uses My Data	Πώς χρησιμοποιεί το Discord τα δεδομένα μου
+How can people join your server?	Πώς μπορούν να μπουν άτομα στον διακομιστή σου;
+How did your server get started? Why should people join?	Πώς ξεκίνησε ο διακομιστής σου; Γιατί να γίνει κάποιος μέλος;
+Hungarian	Ουγγρικά
+I acknowledge that by transferring ownership of this server to %, it officially belongs to them.	Κατανοώ ότι μεταβιβάζοντας την κατοχή αυτού του διακομιστή στον χρήστη %, θα του ανήκει επίσημα.
+I agree and understand	Συμφωνώ και κατανοώ
+I'm new here, say hi!	Είμαι καινούριος εδώ, πείτε ένα γεια!
+I'm sure, use a backup code	Είμαι σίγουρος, χρήση εφεδρικού κωδικού
+IMAGE	ΕΙΚΟΝΑ
+INPUT DEVICE	ΣΥΣΚΕΥΗ ΕΙΣΟΔΟΥ
+INPUT MODE	ΛΕΙΤΟΥΡΓΙΑ ΕΙΣΟΔΟΥ
+INPUT SENSITIVITY	ΕΥΑΙΣΘΗΣΙΑ ΕΙΣΟΔΟΥ
+INPUT VOLUME	ΕΝΤΑΣΗ ΕΙΣΟΔΟΥ
+INVITE CODE	ΚΩΔΙΚΟΣ ΠΡΟΣΚΛΗΣΗΣ
+INVITE LINK	ΣΥΝΔΕΣΜΟΣ ΠΡΟΣΚΛΗΣΗΣ
+INVITER	ΑΠΟΣΤΟΛΕΑΣ ΠΡΟΣΚΛΗΣΗΣ
+INVITES SHOULD LOOK LIKE	ΟΙ ΠΡΟΣΚΛΗΣΕΙΣ ΜΟΙΑΖΟΥΝ ΚΑΠΩΣ ΕΤΣΙ
+Icon	Εικονίδιο
+Idle	Αδρανής
+If Streamer Mode is enabled...	Αν η Λειτουργία streamer είναι ενεργή...
+If you do not have access to any other methods, the button below will activate in % second.|If you do not have access to any other methods, the button below will activate in % seconds.	Αν δεν έχεις πρόσβαση σε καμία άλλη μέθοδο, το παρακάτω κουμπί θα ενεργοποιηθεί σε % δευτερόλεπτο.|Αν δεν έχεις πρόσβαση σε καμία άλλη μέθοδο, το παρακάτω κουμπί θα ενεργοποιηθεί σε % δευτερόλεπτα.
+If you do not have access to any other methods, use the other button below to proceed.	Αν δεν έχεις πρόσβαση σε καμία άλλη μέθοδο, χρησιμοποίησε το άλλο κουμπί παρακάτω για να συνεχίσεις.
+Ignore	Αγνόηση
+Ignore Friend Request	Αγνόηση αιτήματος φιλίας
+Ignored Users	Χρήστες σε παράβλεψη
+Ignored message	Μήνυμα σε παράβλεψη
+Image saved.	Η εικόνα αποθηκεύτηκε.
+Important updates for people in and out of the server	Σημαντικές ενημερώσεις για άτομα εντός και εκτός διακομιστή
+In Channel	Στο κανάλι
+Inactive Channel	Κανάλι αδράνειας
+Inactive Timeout	Όριο αδράνειας
+Inbox	Εισερχόμενα
+Incoming Call...	Εισερχόμενη κλήση...
+Incoming Friend Request	Εισερχόμενο αίτημα φιλίας
+Indonesian	Ινδονησιακά
+Insert Timestamp	Εισαγωγή χρονοσφραγίδας
+Install	Εγκατάσταση
+Install Fastcord to open it from the Start menu.	Εγκατάστησε το Fastcord για να το ανοίγεις από το μενού Έναρξη.
+Installing…	Εγκατάσταση…
+Instructions Sent	Οι οδηγίες στάλθηκαν
+Insults and Slurs	Προσβολές και υβριστικοί χαρακτηρισμοί
+Integrations	Ενσωματώσεις
+Interested	Ενδιαφέρομαι
+Invalid Invite	Μη έγκυρη πρόσκληση
+Invalid date or time	Μη έγκυρη ημερομηνία ή ώρα
+Invisible	Αόρατος
+Invite	Πρόσκληση
+Invite Channel	Κανάλι πρόσκλησης
+Invite Invalid	Μη έγκυρη πρόσκληση
+Invite Only	Μόνο με πρόσκληση
+Invite People	Πρόσκληση ατόμων
+Invite friends to %	Πρόσκληση φίλων στο %
+Invite to Server	Πρόσκληση στον διακομιστή
+Invite to Speak	Πρόσκληση για ομιλία
+Invites	Προσκλήσεις
+Invites are currently paused for this server. Please try again later.	Οι προσκλήσεις για αυτόν τον διακομιστή έχουν προσωρινά διακοπεί. Δοκίμασε ξανά αργότερα.
+Invites are paused: nobody can join with an invite link until they're enabled again.	Οι προσκλήσεις έχουν διακοπεί: κανείς δεν μπορεί να μπει με σύνδεσμο πρόσκλησης μέχρι να ενεργοποιηθούν ξανά.
+It's quiet for now...	Επικρατεί ησυχία προς το παρόν...
+Italian	Ιταλικά
+JOINED DISCORD	ΜΕΛΟΣ ΤΟΥ DISCORD ΑΠΟ
+JSON API	JSON API
+January|February|March|April|May|June|July|August|September|October|November|December	Ιανουαρίου|Φεβρουαρίου|Μαρτίου|Απριλίου|Μαΐου|Ιουνίου|Ιουλίου|Αυγούστου|Σεπτεμβρίου|Οκτωβρίου|Νοεμβρίου|Δεκεμβρίου
+Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec	Ιαν|Φεβ|Μαρ|Απρ|Μαΐ|Ιουν|Ιουλ|Αυγ|Σεπ|Οκτ|Νοε|Δεκ
+Japanese	Ιαπωνικά
+Jitter	Jitter
+Join	Συμμετοχή
+Join Call	Συμμετοχή στην κλήση
+Join Server	Συμμετοχή στον διακομιστή
+Join Thread	Συμμετοχή στο νήμα
+Join Voice	Συμμετοχή σε φωνή
+Join a Server	Συμμετοχή σε διακομιστή
+Join the call	Μπες στην κλήση
+Joined Threads	Νήματα που συμμετέχεις
+Joining…	Συμμετοχή…
+Jump	Μετάβαση
+Jump To Present	Μετάβαση στο παρόν
+Jump to oldest unread message	Μετάβαση στο παλαιότερο μη αναγνωσμένο μήνυμα
+KEYBIND	ΣΥΝΤΟΜΕΥΣΗ
+Keep Current Permissions	Διατήρηση τρεχόντων δικαιωμάτων
+Keep these somewhere safe. Each code signs you in once if you lose your authenticator app; they are shown only now.	Φύλαξέ τους κάπου ασφαλή. Κάθε κωδικός σε συνδέει μία φορά αν χάσεις την εφαρμογή ελέγχου ταυτότητας· εμφανίζονται μόνο τώρα.
+Keep your server private, or open it up for more people to join.	Κράτησε τον διακομιστή σου ιδιωτικό ή άνοιξέ τον για να μπουν περισσότερα άτομα.
+Keybinds	Συντομεύσεις
+Keybinds only work while fastcord is focused. To use them in other apps, allow fastcord under Input Monitoring in System Settings, then restart fastcord.	Οι συντομεύσεις λειτουργούν μόνο όταν το fastcord είναι ενεργό. Για να τις χρησιμοποιείς σε άλλες εφαρμογές, επίτρεψε το fastcord στην Παρακολούθηση εισόδου στις Ρυθμίσεις συστήματος και κάνε επανεκκίνηση του fastcord.
+Keybinds only work while fastcord is focused: this desktop doesn't let apps see keys pressed in other windows.	Οι συντομεύσεις λειτουργούν μόνο όταν το fastcord είναι ενεργό: αυτή η επιφάνεια εργασίας δεν επιτρέπει στις εφαρμογές να βλέπουν πλήκτρα που πατιούνται σε άλλα παράθυρα.
+Keybinds work in every app, also while fastcord is in the background.	Οι συντομεύσεις λειτουργούν σε κάθε εφαρμογή, ακόμα και όταν το fastcord είναι στο παρασκήνιο.
+Keyboard Shortcuts	Συντομεύσεις πληκτρολογίου
+Keyboard shortcuts	Συντομεύσεις πληκτρολογίου
+Keyword: %	Λέξη-κλειδί: %
+Kick	Αποβολή
+Kick %	Αποβολή %
+Kick '%' from Server	Αποβολή '%' από τον διακομιστή
+Kick Member	Αποβολή μέλους
+Kick, Approve, and Reject Members	Αποβολή, έγκριση και απόρριψη μελών
+Korean	Κορεατικά
+LIVE	ΖΩΝΤΑΝΑ
+Language	Γλώσσα
+Language & Time	Γλώσσα και ώρα
+Last sync: %	Τελευταίος συγχρονισμός: %
+Leave Group	Αποχώρηση από την ομάδα
+Leave Server	Αποχώρηση από τον διακομιστή
+Leave Thread	Αποχώρηση από το νήμα
+Leaving Discord	Έξοδος από το Discord
+Left %	Αποχώρησε από %
+Let everyone know how to use this channel!	Ενημέρωσε όλους πώς να χρησιμοποιούν αυτό το κανάλι!
+Let's Check	Ας ελέγξουμε
+Level %!	Επίπεδο %!
+Limits	Όρια
+Limits the number of users that can connect to this voice channel. Users with the Move Members permission ignore this limit and can move other users into the channel.	Περιορίζει τον αριθμό των χρηστών που μπορούν να συνδεθούν σε αυτό το φωνητικό κανάλι. Οι χρήστες με το δικαίωμα Μετακίνηση μελών αγνοούν αυτό το όριο και μπορούν να μετακινούν άλλους χρήστες στο κανάλι.
+Linked Roles	Συνδεδεμένοι ρόλοι
+List view	Προβολή λίστας
+Lithuanian	Λιθουανικά
+Live Now	Ζωντανά τώρα
+Loading sounds…	Φόρτωση ήχων…
+Loading...	Φόρτωση...
+Loading…	Φόρτωση…
+Location	Τοποθεσία
+Log In	Σύνδεση
+Log Out	Αποσύνδεση
+Log Out All Known Devices	Αποσύνδεση όλων των γνωστών συσκευών
+Log in	Σύνδεση
+Log in to Discord in your web browser.	Συνδέσου στο Discord στο πρόγραμμα περιήγησής σου.
+Log in with QR Code	Σύνδεση με κωδικό QR
+Log in with a token	Σύνδεση με token
+Log out of all known devices	Αποσύνδεση από όλες τις γνωστές συσκευές
+Logged-in Devices	Συνδεδεμένες συσκευές
+Logging in as %	Σύνδεση ως %
+Logging in…	Σύνδεση…
+Login or password is invalid.	Μη έγκυρα στοιχεία σύνδεσης ή κωδικός πρόσβασης.
+Looking for screens…	Αναζήτηση οθονών…
+Lotus Mode	Λειτουργία Lotus
+Low	Χαμηλή
+Lower Hand	Κατέβασμα χεριού
+MAX NUMBER OF USES	ΜΕΓΙΣΤΟΣ ΑΡΙΘΜΟΣ ΧΡΗΣΕΩΝ
+MEMBER SINCE	ΜΕΛΟΣ ΑΠΟ
+MEMBERS	ΜΕΛΗ
+MUTE	ΣΙΓΑΣΗ
+Main Profile	Κύριο προφίλ
+Make a selection	Κάνε μια επιλογή
+Manage Accounts	Διαχείριση λογαριασμών
+Manage Channel	Διαχείριση καναλιού
+Manage Channels	Διαχείριση καναλιών
+Manage Events	Διαχείριση εκδηλώσεων
+Manage Expressions	Διαχείριση εκφράσεων
+Manage Members	Διαχείριση μελών
+Manage Messages	Διαχείριση μηνυμάτων
+Manage Nicknames	Διαχείριση ψευδωνύμων
+Manage Permissions	Διαχείριση δικαιωμάτων
+Manage Roles	Διαχείριση ρόλων
+Manage Server	Διαχείριση διακομιστή
+Manage Threads and Posts	Διαχείριση νημάτων και αναρτήσεων
+Manage Webhooks	Διαχείριση webhooks
+Manage settings that help keep your server active.	Διαχειρίσου ρυθμίσεις που βοηθούν να μένει ενεργός ο διακομιστής σου.
+Mark All as Read	Σήμανση όλων ως αναγνωσμένα
+Mark As Read	Σήμανση ως αναγνωσμένο
+Mark Folder As Read	Σήμανση φακέλου ως αναγνωσμένου
+Mark Unread	Σήμανση ως μη αναγνωσμένο
+Mark a message unread	Σήμανση μηνύματος ως μη αναγνωσμένου
+Mark as Verified	Σήμανση ως επαληθευμένο
+Mark as spoiler	Σήμανση ως spoiler
+Mark channel read	Σήμανση καναλιού ως αναγνωσμένου
+Mark server read	Σήμανση διακομιστή ως αναγνωσμένου
+Marked as read	Σημάνθηκε ως αναγνωσμένο
+Marks your message as a spoiler.	Σημαίνει το μήνυμά σου ως spoiler.
+Match your device's light or dark mode.	Ακολουθεί τη φωτεινή ή σκοτεινή λειτουργία της συσκευής σου.
+Max file size is % MB please.	Το μέγιστο μέγεθος αρχείου είναι % MB.
+Measuring	Μέτρηση
+Medium	Μεσαία
+Member Since	Μέλος από
+Members	Μέλη
+Members can pick more than one answer	Τα μέλη μπορούν να επιλέξουν πάνω από μία απάντηση
+Members can wear your server's tag next to their name across Discord.	Τα μέλη μπορούν να φορούν την ετικέτα του διακομιστή σου δίπλα στο όνομά τους σε όλο το Discord.
+Members in timeout can't send messages, react, join voice or speak until it ends.	Τα μέλη σε αποβολή χρόνου δεν μπορούν να στέλνουν μηνύματα, να αντιδρούν, να μπαίνουν σε φωνή ή να μιλούν μέχρι να λήξει.
+Members in timeout can't send messages, react, join voice or start threads until it ends.	Τα μέλη σε αποβολή χρόνου δεν μπορούν να στέλνουν μηνύματα, να αντιδρούν, να μπαίνουν σε φωνή ή να ξεκινούν νήματα μέχρι να λήξει.
+Members matching @%	Μέλη που ταιριάζουν με @%
+Members must answer this question to join.	Τα μέλη πρέπει να απαντήσουν σε αυτή την ερώτηση για να μπουν.
+Members of the server must meet the following criteria before they can send messages in text channels or initiate a direct message conversation. If a member has an assigned role this does not apply.	Τα μέλη του διακομιστή πρέπει να πληρούν τα παρακάτω κριτήρια για να μπορούν να στέλνουν μηνύματα σε κανάλια κειμένου ή να ξεκινούν συζήτηση με άμεσο μήνυμα. Αυτό δεν ισχύει για μέλη με εκχωρημένο ρόλο.
+Members use the colour of the highest role they have on the roles list.	Τα μέλη παίρνουν το χρώμα του υψηλότερου ρόλου τους στη λίστα ρόλων.
+Members use the colour of the highest role they have on this list. Drag roles, or use the arrows, to reorder them.	Τα μέλη παίρνουν το χρώμα του υψηλότερου ρόλου τους σε αυτή τη λίστα. Σύρε τους ρόλους ή χρησιμοποίησε τα βέλη για να αλλάξεις τη σειρά τους.
+Members will be restricted to sending one message and creating one thread per this interval, unless they have the Bypass Slowmode permission.	Τα μέλη θα μπορούν να στέλνουν ένα μήνυμα και να δημιουργούν ένα νήμα ανά διάστημα, εκτός αν έχουν το δικαίωμα Παράκαμψη αργής λειτουργίας.
+Members with a matching name can't talk or interact until they change it.	Τα μέλη με όνομα που ταιριάζει δεν μπορούν να μιλούν ή να αλληλεπιδρούν μέχρι να το αλλάξουν.
+Members with this permission will have every permission and will also bypass all channel specific permissions or restrictions (for example, these members would get access to all private channels). This is a dangerous permission to grant.	Τα μέλη με αυτό το δικαίωμα θα έχουν όλα τα δικαιώματα και θα παρακάμπτουν επίσης όλα τα δικαιώματα ή τους περιορισμούς των καναλιών (για παράδειγμα, θα έχουν πρόσβαση σε όλα τα ιδιωτικά κανάλια). Είναι επικίνδυνο δικαίωμα για παραχώρηση.
+Members — %	Μέλη — %
+Membership Permissions	Δικαιώματα ιδιότητας μέλους
+Mention	Αναφορά
+Mention %	Αναφορά %
+Mention @everyone, @here, and All Roles	Αναφορά σε @everyone, @here και όλους τους ρόλους
+Mention limit	Όριο αναφορών
+Mention raid protection	Προστασία από επιδρομές αναφορών
+Mention removed	Η αναφορά αφαιρέθηκε
+Mentions	Αναφορές
+Mentions User	Αναφέρει χρήστη
+Message	Μήνυμα
+Message #%	Μήνυμα στο #%
+Message %	Μήνυμα σε %
+Message @%	Μήνυμα στον @%
+Message @% (encrypted)	Μήνυμα στον @% (κρυπτογραφημένο)
+Message @% (not encrypted)	Μήνυμα στον @% (μη κρυπτογραφημένο)
+Message Contains	Το μήνυμα περιέχει
+Message Display	Εμφάνιση μηνυμάτων
+Message Requests	Αιτήματα μηνυμάτων
+Message deleted	Το μήνυμα διαγράφηκε
+Message failed to send.	Η αποστολή του μηνύματος απέτυχε.
+Message link copied: paste it into Discord's report form	Ο σύνδεσμος του μηνύματος αντιγράφηκε: επικόλλησέ τον στη φόρμα αναφοράς του Discord
+Message request ignored	Το αίτημα μηνύματος αγνοήθηκε
+Message unpinned	Το μήνυμα ξεκαρφιτσώθηκε
+Messages Failed To Load	Η φόρτωση των μηνυμάτων απέτυχε
+Messages from members you may not know go to Message Requests.	Τα μηνύματα από μέλη που ίσως δεν γνωρίζεις πηγαίνουν στα Αιτήματα μηνυμάτων.
+Messages from people you may not know go to Message Requests instead of your DMs.	Τα μηνύματα από άτομα που ίσως δεν γνωρίζεις πηγαίνουν στα Αιτήματα μηνυμάτων αντί για τα ΑΜ σου.
+Messages from server members without a role will be filtered for sensitive image-based media.	Τα μηνύματα από μέλη χωρίς ρόλο θα φιλτράρονται για ευαίσθητο οπτικό περιεχόμενο.
+Messages in servers	Μηνύματα σε διακομιστές
+Messages will not be filtered for sensitive image-based media.	Τα μηνύματα δεν θα φιλτράρονται για ευαίσθητο οπτικό περιεχόμενο.
+Messaging Permissions	Δικαιώματα μηνυμάτων
+Minimize to Tray	Ελαχιστοποίηση στην περιοχή ειδοποιήσεων
+Mobile Push Notifications	Ειδοποιήσεις push στο κινητό
+Moderation	Εποπτεία
+Moderators must have two-factor authentication enabled to ban, kick, or timeout members and delete messages.	Οι επόπτες πρέπει να έχουν ενεργό έλεγχο ταυτότητας δύο παραγόντων για να αποκλείουν, να αποβάλλουν ή να βάζουν σε αποβολή χρόνου μέλη και να διαγράφουν μηνύματα.
+Moderators only	Μόνο επόπτες
+Modern, beautiful, and easy on your eyes.	Σύγχρονη, όμορφη και ξεκούραστη για τα μάτια.
+Modify Attachment	Τροποποίηση συνημμένου
+Motion	Κίνηση
+Move Members	Μετακίνηση μελών
+Move To	Μετακίνηση σε
+Move to Audience	Μετακίνηση στο κοινό
+Multi-Factor Authentication	Έλεγχος ταυτότητας πολλών παραγόντων
+Must also be a member of this server for longer than 10 minutes.	Πρέπει επίσης να είναι μέλος αυτού του διακομιστή για περισσότερα από 10 λεπτά.
+Must also be registered on Discord for longer than 5 minutes.	Πρέπει επίσης να είναι εγγεγραμμένος στο Discord για περισσότερα από 5 λεπτά.
+Must have a verified email on their Discord account.	Πρέπει να έχει επαληθευμένο email στον λογαριασμό Discord.
+Must have a verified phone on their Discord account.	Πρέπει να έχει επαληθευμένο τηλέφωνο στον λογαριασμό Discord.
+Mute	Σίγαση
+Mute %	Σίγαση %
+Mute Category	Σίγαση κατηγορίας
+Mute Channel	Σίγαση καναλιού
+Mute Members	Σίγαση μελών
+Mute New Events	Σίγαση νέων εκδηλώσεων
+Mute Server	Σίγαση διακομιστή
+Mute Thread	Σίγαση νήματος
+Muted until %1, %2	Σε σίγαση έως %1, %2
+Muting a server prevents unread indicators and notifications from appearing unless you are mentioned.	Η σίγαση ενός διακομιστή αποτρέπει την εμφάνιση ενδείξεων μη αναγνωσμένων και ειδοποιήσεων, εκτός αν σε αναφέρουν.
+Mutual Friends	Κοινοί φίλοι
+Mutual Servers	Κοινοί διακομιστές
+My Account	Ο λογαριασμός μου
+My server	Ο διακομιστής μου
+NAME	ΟΝΟΜΑ
+NEW	ΝΕΟ
+NEW PASSWORD	ΝΕΟΣ ΚΩΔΙΚΟΣ ΠΡΟΣΒΑΣΗΣ
+NO ACTIVE INVITE LINKS	ΚΑΝΕΝΑΣ ΕΝΕΡΓΟΣ ΣΥΝΔΕΣΜΟΣ ΠΡΟΣΚΛΗΣΗΣ
+NOTHING	ΤΙΠΟΤΑ
+Name	Όνομα
+Name your sound	Δώσε όνομα στον ήχο σου
+Name your sticker	Δώσε όνομα στο αυτοκόλλητό σου
+Nature	Φύση
+Navigate Back	Πλοήγηση πίσω
+Navigate Forward	Πλοήγηση εμπρός
+Need an account?	Χρειάζεσαι λογαριασμό;
+Network	Δίκτυο
+Never	Ποτέ
+Nevermind	Άσ' το
+New Category	Νέα κατηγορία
+New Group DM	Νέο ομαδικό ΑΜ
+New Post	Νέα ανάρτηση
+New Thread	Νέο νήμα
+New Webhook	Νέο webhook
+New members must read and agree to these before they can talk.	Τα νέα μέλη πρέπει να τους διαβάσουν και να τους αποδεχτούν για να μπορούν να μιλήσουν.
+New members pick channels and roles from your questions when they join.	Τα νέα μέλη διαλέγουν κανάλια και ρόλους από τις ερωτήσεις σου όταν μπαίνουν.
+New tag	Νέα ετικέτα
+New threads will stop showing in the channel list after being inactive for the specified duration.	Τα νέα νήματα δεν θα εμφανίζονται πλέον στη λίστα καναλιών αφού μείνουν ανενεργά για το καθορισμένο διάστημα.
+Newest	Νεότερα
+Next	Επόμενο
+Nickname	Ψευδώνυμο
+Nicknames are visible to everyone on this server. Do not change them unless you are enforcing a naming system or clearing a bad nickname.	Τα ψευδώνυμα είναι ορατά σε όλους σε αυτόν τον διακομιστή. Μην τα αλλάζεις, εκτός αν εφαρμόζεις κάποιο σύστημα ονομάτων ή καθαρίζεις ένα ακατάλληλο ψευδώνυμο.
+No GIFs found	Δεν βρέθηκαν GIF
+No Inactive Channel	Χωρίς κανάλι αδράνειας
+No Invite	Χωρίς πρόσκληση
+No Keybind Set	Δεν έχει οριστεί συντόμευση
+No System Messages	Χωρίς μηνύματα συστήματος
+No applications waiting	Καμία αίτηση σε αναμονή
+No apps have been added to this server.	Δεν έχουν προστεθεί εφαρμογές σε αυτόν τον διακομιστή.
+No bans	Κανένας αποκλεισμός
+No bans match your search	Κανένας αποκλεισμός δεν ταιριάζει με την αναζήτησή σου
+No emoji found	Δεν βρέθηκαν emoji
+No favorites yet	Δεν υπάρχουν αγαπημένα ακόμα
+No file chosen	Δεν επιλέχθηκε αρχείο
+No friends in common	Κανένας κοινός φίλος
+No limit	Χωρίς όριο
+No logs yet	Δεν υπάρχουν καταγραφές ακόμα
+No members found	Δεν βρέθηκαν μέλη
+No members have this role yet.	Κανένα μέλος δεν έχει ακόμα αυτόν τον ρόλο.
+No message requests.	Κανένα αίτημα μηνύματος.
+No one is speaking yet	Δεν μιλάει κανείς ακόμα
+No one's around right now.	Δεν είναι κανείς εδώ αυτή τη στιγμή.
+No one's here yet	Δεν είναι κανείς εδώ ακόμα
+No posts match	Καμία ανάρτηση δεν ταιριάζει
+No posts yet	Δεν υπάρχουν αναρτήσεις ακόμα
+No questions yet.	Δεν υπάρχουν ερωτήσεις ακόμα.
+No reason given	Δεν δόθηκε αιτία
+No results	Κανένα αποτέλεσμα
+No results found	Δεν βρέθηκαν αποτελέσματα
+No servers in common	Κανένας κοινός διακομιστής
+No sounds found	Δεν βρέθηκαν ήχοι
+No sounds yet.	Δεν υπάρχουν ήχοι ακόμα.
+No spam. Nice.	Κανένα spam. Ωραία.
+No stickers found	Δεν βρέθηκαν αυτοκόλλητα
+No stickers yet	Δεν υπάρχουν αυτοκόλλητα ακόμα
+Nobody can join this server with an invite link until the pause ends or you enable invites again.	Κανείς δεν μπορεί να μπει σε αυτόν τον διακομιστή με σύνδεσμο πρόσκλησης μέχρι να λήξει η παύση ή να ενεργοποιήσεις ξανά τις προσκλήσεις.
+Nobody has mentioned you recently.	Δεν σε έχει αναφέρει κανείς πρόσφατα.
+Noise Suppression	Καταστολή θορύβου
+Noise Suppression: Off	Καταστολή θορύβου: Ανενεργή
+Noise Suppression: On	Καταστολή θορύβου: Ενεργή
+None	Κανένα
+Norwegian	Νορβηγικά
+Not Now	Όχι τώρα
+Not connected to % yet.	Δεν υπάρχει ακόμα σύνδεση με %.
+Not encrypted	Μη κρυπτογραφημένο
+Not encrypted: Discord can read this message	Μη κρυπτογραφημένο: το Discord μπορεί να διαβάσει αυτό το μήνυμα
+Not end-to-end encrypted	Χωρίς κρυπτογράφηση από άκρο σε άκρο
+Not me, start over	Δεν είμαι εγώ, από την αρχή
+Note	Σημείωση
+Note (only visible to you)	Σημείωση (ορατή μόνο σε σένα)
+Note: Members with the "Mention @everyone, @here, and All Roles" permission will always be able to ping this role.	Σημείωση: Τα μέλη με το δικαίωμα «Αναφορά σε @everyone, @here και όλους τους ρόλους» θα μπορούν πάντα να ειδοποιούν αυτόν τον ρόλο.
+Nothing	Τίποτα
+Notification Settings	Ρυθμίσεις ειδοποιήσεων
+Notification settings changed	Οι ρυθμίσεις ειδοποιήσεων άλλαξαν
+Notifications	Ειδοποιήσεις
+Notify everyone online who has permission to view this channel.	Ειδοποίηση όλων όσων είναι σε σύνδεση και έχουν δικαίωμα να βλέπουν αυτό το κανάλι.
+Notify everyone who has permission to view this channel.	Ειδοποίηση όλων όσων έχουν δικαίωμα να βλέπουν αυτό το κανάλι.
+Notify me when...	Ειδοποίησέ με όταν...
+Notify users with this role who have permission to view this channel.	Ειδοποίηση χρηστών με αυτόν τον ρόλο που έχουν δικαίωμα να βλέπουν αυτό το κανάλι.
+OUTPUT DEVICE	ΣΥΣΚΕΥΗ ΕΞΟΔΟΥ
+OUTPUT VOLUME	ΕΝΤΑΣΗ ΕΞΟΔΟΥ
+Objects	Αντικείμενα
+Off	Ανενεργό
+Offline	Εκτός σύνδεσης
+Oh yeah. Pin it	Ναι. Καρφίτσωσέ το
+Okay	Εντάξει
+Oldest	Παλαιότερα
+On click	Με κλικ
+On servers I moderate	Σε διακομιστές που εποπτεύω
+Onboarding	Υποδοχή νέων μελών
+One rule per line, for example: Be respectful	Ένας κανόνας ανά γραμμή, για παράδειγμα: Να είσαι ευγενικός
+Ongoing call	Κλήση σε εξέλιξη
+Online	Σε σύνδεση
+Only @mentions	Μόνο @αναφορές
+Only servers and channels you have webhook permissions in are shown.	Εμφανίζονται μόνο διακομιστές και κανάλια στα οποία έχεις δικαιώματα webhook.
+Only you can see the nickname you give %.	Μόνο εσύ βλέπεις το ψευδώνυμο που δίνεις στον χρήστη %.
+Only you can see this · 	Μόνο εσύ το βλέπεις αυτό ·
+Oops!	Ωχ!
+Open Chat	Άνοιγμα συνομιλίας
+Open Image Link	Άνοιγμα συνδέσμου εικόνας
+Open Link	Άνοιγμα συνδέσμου
+Open Logs Folder	Άνοιγμα φακέλου καταγραφών
+Open Media Link	Άνοιγμα συνδέσμου πολυμέσων
+Open Server Insights	Άνοιγμα στατιστικών διακομιστή
+Open Settings	Άνοιγμα ρυθμίσεων
+Open discord.com	Άνοιγμα discord.com
+Open in Browser	Άνοιγμα στο πρόγραμμα περιήγησης
+Open in YouTube	Άνοιγμα στο YouTube
+Open the developer tools (Cmd+Option+I) and choose the Network tab.	Άνοιξε τα εργαλεία προγραμματιστή (Cmd+Option+I) και διάλεξε την καρτέλα Network.
+Open the developer tools (Ctrl+Shift+I) and choose the Network tab.	Άνοιξε τα εργαλεία προγραμματιστή (Ctrl+Shift+I) και διάλεξε την καρτέλα Network.
+Or, send a server invite link to a friend	Ή στείλε σε έναν φίλο σύνδεσμο πρόσκλησης στον διακομιστή
+Original message was deleted	Το αρχικό μήνυμα διαγράφηκε
+Other Active Threads	Άλλα ενεργά νήματα
+Other Devices	Άλλες συσκευές
+Outgoing Friend Request	Εξερχόμενο αίτημα φιλίας
+Overview	Επισκόπηση
+PASSWORD	ΚΩΔΙΚΟΣ ΠΡΟΣΒΑΣΗΣ
+PM	μ.μ.
+PRIVACY CODE	ΚΩΔΙΚΟΣ ΑΠΟΡΡΗΤΟΥ
+PTT Activate	Ενεργοποίηση PTT
+PTT Deactivate	Απενεργοποίηση PTT
+PUSH TO TALK RELEASE DELAY	ΚΑΘΥΣΤΕΡΗΣΗ ΑΠΕΛΕΥΘΕΡΩΣΗΣ ΠΑΤΑ ΓΙΑ ΟΜΙΛΙΑ
+Packet loss	Απώλεια πακέτων
+Packets received	Ληφθέντα πακέτα
+Packets sent	Απεσταλμένα πακέτα
+Page %	Σελίδα %
+Password	Κωδικός πρόσβασης
+Password and Authentication	Κωδικός πρόσβασης και έλεγχος ταυτότητας
+Passwords do not match!	Οι κωδικοί πρόσβασης δεν ταιριάζουν!
+Paste	Επικόλληση
+Paste an emoji (optional)	Επικόλλησε ένα emoji (προαιρετικό)
+Paste your token	Επικόλλησε το token σου
+Pause Invites	Παύση προσκλήσεων
+Pending	Σε εκκρεμότητα
+People	Άτομα
+People can join your server directly with an invite	Τα άτομα μπορούν να μπουν στον διακομιστή σου απευθείας με πρόσκληση
+People in a voice channel with you can join the game you're playing.	Όσοι είναι μαζί σου σε φωνητικό κανάλι μπορούν να μπουν στο παιχνίδι που παίζεις.
+People must submit an application and be approved to join	Τα άτομα πρέπει να υποβάλουν αίτηση και να εγκριθούν για να μπουν
+People who applied to join, waiting for a moderator.	Άτομα που έκαναν αίτηση συμμετοχής και περιμένουν έναν επόπτη.
+Per-server Profiles	Προφίλ ανά διακομιστή
+Permissions	Δικαιώματα
+Permissions not synced with category: 	Τα δικαιώματα δεν είναι συγχρονισμένα με την κατηγορία:
+Permissions synced with category: 	Τα δικαιώματα είναι συγχρονισμένα με την κατηγορία:
+Permissions: %	Δικαιώματα: %
+Phone Number	Αριθμός τηλεφώνου
+Pick a channel	Διάλεξε κανάλι
+Pick a channel for the alerts.	Διάλεξε κανάλι για τις ειδοποιήσεις.
+Pick at least one response.	Διάλεξε τουλάχιστον μία απάντηση.
+Pin It. Pin It Good.	Καρφίτσωσέ το. Καρφίτσωσέ το καλά.
+Pin Message	Καρφίτσωμα μηνύματος
+Pin Messages	Καρφίτσωμα μηνυμάτων
+Ping	Ping
+Ping: % ms	Ping: % ms
+Ping: measuring…	Ping: μέτρηση…
+Pinned Messages	Καρφιτσωμένα μηνύματα
+Play Here	Αναπαραγωγή εδώ
+Play Soundboard Through My Mic	Αναπαραγωγή soundboard μέσω του μικροφώνου μου
+Play YouTube videos here with yt-dlp? It needs yt-dlp installed, and connects to YouTube from your computer. Settings > Chat can change this.	Αναπαραγωγή βίντεο YouTube εδώ με το yt-dlp; Χρειάζεται εγκατεστημένο yt-dlp και συνδέεται στο YouTube από τον υπολογιστή σου. Μπορείς να το αλλάξεις στις Ρυθμίσεις > Συνομιλία.
+Play YouTube videos in fastcord with yt-dlp	Αναπαραγωγή βίντεο YouTube στο fastcord με το yt-dlp
+Please enter a valid invite link or invite code.	Πληκτρολόγησε έναν έγκυρο σύνδεσμο ή κωδικό πρόσκλησης.
+Please try again later.	Δοκίμασε ξανά αργότερα.
+Polish	Πολωνικά
+Poll closed	Η δημοσκόπηση έκλεισε
+Portuguese, Brazilian	Πορτογαλικά, Βραζιλίας
+Post	Ανάρτηση
+Post Guidelines	Οδηγίες ανάρτησης
+Post from a script	Ανάρτηση από script
+Post messages that reach servers outside your own. Members can follow this channel, so the posts you publish here appear in their servers.	Δημοσίευσε μηνύματα που φτάνουν σε διακομιστές πέρα από τον δικό σου. Τα μέλη μπορούν να ακολουθούν αυτό το κανάλι, ώστε οι αναρτήσεις που δημοσιεύεις εδώ να εμφανίζονται στους διακομιστές τους.
+Post title	Τίτλος ανάρτησης
+Posting...	Ανάρτηση...
+Press a shortcut…	Πάτα μια συντόμευση…
+Previous	Προηγούμενο
+Previous / next channel	Προηγούμενο / επόμενο κανάλι
+Previous / next channel with mentions	Προηγούμενο / επόμενο κανάλι με αναφορές
+Previous / next server	Προηγούμενος / επόμενος διακομιστής
+Previous / next unread channel	Προηγούμενο / επόμενο μη αναγνωσμένο κανάλι
+Previous 12 Hours	Τελευταίες 12 ώρες
+Previous 24 Hours	Τελευταίες 24 ώρες
+Previous 3 Days	Τελευταίες 3 ημέρες
+Previous 6 Hours	Τελευταίες 6 ώρες
+Previous 7 Days	Τελευταίες 7 ημέρες
+Previous Hour	Τελευταία ώρα
+Priority Speaker	Ομιλητής προτεραιότητας
+Privacy Settings	Ρυθμίσεις απορρήτου
+Private Category	Ιδιωτική κατηγορία
+Private Channel	Ιδιωτικό κανάλι
+Private Profile	Ιδιωτικό προφίλ
+Profile	Προφίλ
+Profile Banner	Banner προφίλ
+Profile Privacy	Απόρρητο προφίλ
+Profiles	Προφίλ
+Prompt members to reply to welcome messages with a sticker.	Ενθάρρυνε τα μέλη να απαντούν στα μηνύματα καλωσορίσματος με ένα αυτοκόλλητο.
+Pronouns	Αντωνυμίες
+Protect your Discord account with an extra layer of security. Once configured, you'll be required to enter your password and complete one additional step in order to sign in.	Προστάτεψε τον λογαριασμό σου στο Discord με ένα επιπλέον επίπεδο ασφαλείας. Μόλις ρυθμιστεί, θα πρέπει να πληκτρολογείς τον κωδικό πρόσβασής σου και να ολοκληρώνεις ένα επιπλέον βήμα για να συνδεθείς.
+Protip:	Συμβουλή:
+Publish	Δημοσίευση
+Push to Mute	Πάτα για σίγαση
+Push to Talk	Πάτα για ομιλία
+Push to Talk (Normal)	Πάτα για ομιλία (Κανονικό)
+Q: %	Ε: %
+Question	Ερώτηση
+Questions	Ερωτήσεις
+ROLES	ΡΟΛΟΙ
+ROLES — %	ΡΟΛΟΙ — %
+ROLES/MEMBERS	ΡΟΛΟΙ/ΜΕΛΗ
+RTC Connecting	Σύνδεση RTC
+Read Message History	Ανάγνωση ιστορικού μηνυμάτων
+Reason	Αιτία
+Reason for Ban	Αιτία αποκλεισμού
+Reason for Kick	Αιτία αποβολής
+Reason for Timeout	Αιτία αποβολής χρόνου
+Reason: %	Αιτία: %
+Received	Ελήφθη
+Recently Active	Πρόσφατα ενεργοί
+Reconnect	Επανασύνδεση
+Record Keybind	Καταγραφή συντόμευσης
+Reduce the saturation of colors within the application, for those with color sensitivities.	Μείωσε τον κορεσμό των χρωμάτων στην εφαρμογή, για όσους είναι ευαίσθητοι στα χρώματα.
+Reduces the amount of animation and motion effects. On whenever your device asks for reduced motion.	Μειώνει τα εφέ κίνησης και κινούμενων σχεδίων. Ενεργό όποτε η συσκευή σου ζητά μειωμένη κίνηση.
+Region Override	Παράκαμψη περιοχής
+Register	Εγγραφή
+Reject	Απόρριψη
+Rejoin	Επανασύνδεση
+Related Emoji	Σχετικό emoji
+Relevant	Σχετικά
+Remove	Αφαίρεση
+Remove %	Αφαίρεση %
+Remove All Embeds	Αφαίρεση όλων των ενσωματώσεων
+Remove All Reactions	Αφαίρεση όλων των αντιδράσεων
+Remove Answer	Αφαίρεση απάντησης
+Remove Attachment	Αφαίρεση συνημμένου
+Remove Authenticator App	Αφαίρεση εφαρμογής ελέγχου ταυτότητας
+Remove Avatar	Αφαίρεση avatar
+Remove Embeds	Αφαίρεση ενσωματώσεων
+Remove Friend	Αφαίρεση φίλου
+Remove From Group	Αφαίρεση από την ομάδα
+Remove Icon	Αφαίρεση εικονιδίου
+Remove Reaction	Αφαίρεση αντίδρασης
+Remove Reactions	Αφαίρεση αντιδράσεων
+Remove Reactions for Emoji	Αφαίρεση αντιδράσεων για το emoji
+Remove Server	Αφαίρεση διακομιστή
+Remove Spoiler	Αφαίρεση spoiler
+Remove Timeout	Αφαίρεση αποβολής χρόνου
+Remove Vote	Αφαίρεση ψήφου
+Remove all embeds	Αφαίρεση όλων των ενσωματώσεων
+Remove from Favorites	Αφαίρεση από τα αγαπημένα
+Remove notification override for %	Αφαίρεση παράκαμψης ειδοποιήσεων για %
+Remove the files added before encryption was on: they'd go unencrypted.	Αφαίρεσε τα αρχεία που προστέθηκαν πριν ενεργοποιηθεί η κρυπτογράφηση: θα στέλνονταν μη κρυπτογραφημένα.
+Remove the files added while encryption was on: they'd arrive as unreadable ciphertext.	Αφαίρεσε τα αρχεία που προστέθηκαν όσο ήταν ενεργή η κρυπτογράφηση: θα έφταναν ως μη αναγνώσιμο κρυπτοκείμενο.
+Removing…	Αφαίρεση…
+Repeated encrypted message	Επαναλαμβανόμενο κρυπτογραφημένο μήνυμα
+Reply	Απάντηση
+Replying to	Απάντηση σε
+Report Message	Αναφορά μηνύματος
+Request Data	Αίτημα δεδομένων
+Request all of my Data	Αίτημα για όλα τα δεδομένα μου
+Request to Speak	Αίτημα για ομιλία
+Requests	Αιτήματα
+Require 2FA for moderator actions	Απαίτηση 2FA για ενέργειες εποπτών
+Require members to agree to the server rules	Τα μέλη πρέπει να αποδεχτούν τους κανόνες του διακομιστή
+Require people to select tags when posting	Απαίτηση επιλογής ετικετών κατά την ανάρτηση
+Required	Υποχρεωτικό
+Resend SMS?	Νέα αποστολή SMS;
+Reset	Επαναφορά
+Reset Friend Nickname	Επαναφορά ψευδωνύμου φίλου
+Reset Voice Settings	Επαναφορά ρυθμίσεων φωνής
+Resolving Invite	Επίλυση πρόσκλησης
+Responses	Απαντήσεις
+Retry	Επανάληψη
+Retry Now	Επανάληψη τώρα
+Return to call	Επιστροφή στην κλήση
+Return to the connected call	Επιστροφή στη συνδεδεμένη κλήση
+Reveal	Αποκάλυψη
+Review	Έλεγχος
+Revoke	Ανάκληση
+Revoke Ban	Άρση αποκλεισμού
+Revoke Invite	Ανάκληση πρόσκλησης
+Revoke the ban? They will be able to join again with an invite.	Άρση του αποκλεισμού; Θα μπορεί να μπει ξανά με πρόσκληση.
+Ring	Κλήση
+Ringing…	Κουδουνίζει…
+Role Color	Χρώμα ρόλου
+Role Colors	Χρώματα ρόλων
+Role Icon	Εικονίδιο ρόλου
+Role name	Όνομα ρόλου
+Roles	Ρόλοι
+Romanian, Romania	Ρουμανικά, Ρουμανία
+Rule: %	Κανόνας: %
+Rules or Guidelines Channel	Κανάλι κανόνων ή οδηγιών
+Russian	Ρωσικά
+SELECT A CHANNEL	ΕΠΙΛΟΓΗ ΚΑΝΑΛΙΟΥ
+SELECT A SERVER	ΕΠΙΛΟΓΗ ΔΙΑΚΟΜΙΣΤΗ
+SERVER NAME	ΟΝΟΜΑ ΔΙΑΚΟΜΙΣΤΗ
+SOUNDBOARD VOLUME	ΕΝΤΑΣΗ SOUNDBOARD
+STATIC EMOJI — % SLOTS AVAILABLE	ΣΤΑΤΙΚΑ EMOJI — % ΔΙΑΘΕΣΙΜΕΣ ΘΕΣΕΙΣ
+Safety Notifications Channel	Κανάλι ειδοποιήσεων ασφαλείας
+Safety Number	Αριθμός ασφαλείας
+Safety Setup	Ρύθμιση ασφαλείας
+Safety checks	Έλεγχοι ασφαλείας
+Same as Device Theme	Ίδιο με το θέμα της συσκευής
+Saturation	Κορεσμός
+Save	Αποθήκευση
+Save Changes	Αποθήκευση αλλαγών
+Save Image	Αποθήκευση εικόνας
+Saving...	Αποθήκευση...
+Saving…	Αποθήκευση…
+Scan this with the Discord mobile app to log in instantly.	Σάρωσέ το με την εφαρμογή Discord για κινητά για να συνδεθείς αμέσως.
+Schedule an event for any planned activity in your server.	Προγραμμάτισε μια εκδήλωση για οποιαδήποτε δραστηριότητα στον διακομιστή σου.
+Screen	Οθόνη
+Screen sharing isn't supported on this platform yet.	Η κοινή χρήση οθόνης δεν υποστηρίζεται ακόμα σε αυτή την πλατφόρμα.
+Scroll chat	Κύλιση συνομιλίας
+Search	Αναζήτηση
+Search %	Αναζήτηση %
+Search Bans by User ID or Username	Αναζήτηση αποκλεισμών με ID ή όνομα χρήστη
+Search Klipy	Αναζήτηση στο Klipy
+Search Options	Επιλογές αναζήτησης
+Search by username or id	Αναζήτηση με όνομα χρήστη ή ID
+Search for friends	Αναζήτηση φίλων
+Search members to add (press Enter)	Αναζήτηση μελών για προσθήκη (πάτα Enter)
+Search or create a post...	Αναζήτηση ή δημιουργία ανάρτησης...
+Search sounds	Αναζήτηση ήχων
+Searching...	Αναζήτηση...
+Select Friends	Επιλογή φίλων
+Select a Language	Επιλογή γλώσσας
+Select a channel	Επιλογή καναλιού
+Select a channel or category…	Επιλογή καναλιού ή κατηγορίας…
+Select one answer	Επίλεξε μία απάντηση
+Select one or more answers	Επίλεξε μία ή περισσότερες απαντήσεις
+Select where you want these updates to go. You can remove this at any time in Server Settings > Integrations > Channels Followed.	Επίλεξε πού θέλεις να πηγαίνουν αυτές οι ενημερώσεις. Μπορείς να το αφαιρέσεις οποιαδήποτε στιγμή στις Ρυθμίσεις διακομιστή > Ενσωματώσεις > Κανάλια που ακολουθούνται.
+Select where you want to share this message.	Επίλεξε πού θέλεις να μοιραστείς αυτό το μήνυμα.
+Send	Αποστολή
+Send Friend Request	Αποστολή αιτήματος φιλίας
+Send Messages and Create Posts	Αποστολή μηνυμάτων και δημιουργία αναρτήσεων
+Send Messages in Threads and Posts	Αποστολή μηνυμάτων σε νήματα και αναρτήσεις
+Send New Key	Αποστολή νέου κλειδιού
+Send Text-to-Speech Messages	Αποστολή μηνυμάτων κειμένου σε ομιλία
+Send Voice Messages	Αποστολή φωνητικών μηνυμάτων
+Send a random welcome message when someone joins this server.	Στείλε ένα τυχαίο μήνυμα καλωσορίσματος όταν κάποιος μπαίνει σε αυτόν τον διακομιστή.
+Send a server invite link to a friend	Στείλε σε έναν φίλο σύνδεσμο πρόσκλησης στον διακομιστή
+Send an alert	Αποστολή ειδοποίησης
+Send helpful tips for server setup.	Αποστολή χρήσιμων συμβουλών για τη ρύθμιση του διακομιστή.
+Send messages, images, GIFs, emoji, opinions, and puns	Στείλε μηνύματα, εικόνες, GIF, emoji, απόψεις και λογοπαίγνια
+Sending...	Αποστολή...
+Sent	Στάλθηκε
+Sent a file	Έστειλε ένα αρχείο
+Sent a sticker	Έστειλε ένα αυτοκόλλητο
+Sent — %	Απεσταλμένα — %
+Server	Διακομιστής
+Server Avatar	Avatar διακομιστή
+Server Deafen	Κώφωση διακομιστή
+Server Deafened	Σε κώφωση από τον διακομιστή
+Server Guide	Οδηγός διακομιστή
+Server ID	ID διακομιστή
+Server Info	Πληροφορίες διακομιστή
+Server Insights	Στατιστικά διακομιστή
+Server Insights is hosted on a separate website so that it's easier to share links and browse cross platform.	Τα Στατιστικά διακομιστή φιλοξενούνται σε ξεχωριστό ιστότοπο, ώστε να είναι πιο εύκολη η κοινοποίηση συνδέσμων και η περιήγηση από κάθε πλατφόρμα.
+Server Mute	Σίγαση διακομιστή
+Server Muted	Σε σίγαση από τον διακομιστή
+Server Nickname	Ψευδώνυμο διακομιστή
+Server Notification Settings	Ρυθμίσεις ειδοποιήσεων διακομιστή
+Server Primary Language	Κύρια γλώσσα διακομιστή
+Server Profile	Προφίλ διακομιστή
+Server Rules	Κανόνες διακομιστή
+Server Settings	Ρυθμίσεις διακομιστή
+Server Tag	Ετικέτα διακομιστή
+Server Template	Πρότυπο διακομιστή
+Server Widget	Widget διακομιστή
+Server members	Μέλη διακομιστή
+Server members can only send you friend requests from servers where you also allow Direct Messages.	Τα μέλη διακομιστών μπορούν να σου στέλνουν αιτήματα φιλίας μόνο από διακομιστές όπου επιτρέπεις και άμεσα μηνύματα.
+Server name must be between 2 and 100 characters.	Το όνομα του διακομιστή πρέπει να έχει από 2 έως 100 χαρακτήρες.
+Server unmuted	Αναίρεση σίγασης διακομιστή
+Sessions	Συνεδρίες
+Set Custom Status	Ορισμός προσαρμοσμένης κατάστασης
+Set Voice Channel Status	Ορισμός κατάστασης φωνητικού καναλιού
+Set a custom status	Όρισε μια προσαρμοσμένη κατάσταση
+Set up AutoMod to automatically filter messages in this server with the rules below. Members with Manage Server or Administrator are exempt.	Ρύθμισε το AutoMod για να φιλτράρει αυτόματα τα μηνύματα σε αυτόν τον διακομιστή με τους παρακάτω κανόνες. Τα μέλη με Διαχείριση διακομιστή ή Διαχειριστή εξαιρούνται.
+Sets camera video quality for all channel participants. Choose Auto for optimal performance.	Ορίζει την ποιότητα βίντεο κάμερας για όλους τους συμμετέχοντες στο κανάλι. Διάλεξε Αυτόματο για βέλτιστη απόδοση.
+Setting up encryption: % needs to open fastcord once.	Ρύθμιση κρυπτογράφησης: ο χρήστης % πρέπει να ανοίξει μία φορά το fastcord.
+Several people are typing...	Πολλά άτομα πληκτρολογούν...
+Severe Profanity	Σοβαρή βωμολοχία
+Sexual Content	Σεξουαλικό περιεχόμενο
+Share	Κοινοποίηση
+Share Event	Κοινοποίηση εκδήλωσης
+Share Your Screen	Κοινή χρήση οθόνης
+Share my full profile with	Κοινοποίηση πλήρους προφίλ σε
+Share your detected activities with others	Κοινοποίηση των δραστηριοτήτων σου που εντοπίζονται σε άλλους
+Show	Εμφάνιση
+Show Chat	Εμφάνιση συνομιλίας
+Show a system notification for messages that would notify you (DMs, mentions, servers set to all messages).	Εμφάνιση ειδοποίησης συστήματος για μηνύματα που θα σε ειδοποιούσαν (ΑΜ, αναφορές, διακομιστές ρυθμισμένοι σε όλα τα μηνύματα).
+Show embeds and preview website links pasted into chat	Εμφάνιση ενσωματώσεων και προεπισκόπησης συνδέσμων που επικολλώνται στη συνομιλία
+Show emoji reactions on messages	Εμφάνιση αντιδράσεων emoji στα μηνύματα
+Show message	Εμφάνιση μηνύματος
+Show messages	Εμφάνιση μηνυμάτων
+Show role colors in names	Εμφάνιση χρωμάτων ρόλων στα ονόματα
+Show role colors next to names	Εμφάνιση χρωμάτων ρόλων δίπλα στα ονόματα
+Show spoiler content	Εμφάνιση περιεχομένου spoiler
+Show the game or app you're using on your profile and in member lists.	Εμφάνιση του παιχνιδιού ή της εφαρμογής που χρησιμοποιείς στο προφίλ σου και στις λίστες μελών.
+Shows a red badge on the app icon when you have unread mentions.	Εμφανίζει ένα κόκκινο σήμα στο εικονίδιο της εφαρμογής όταν έχεις μη αναγνωσμένες αναφορές.
+Silence every sound and notification and hide all badges and unread marks, so fastcord never asks for your attention.	Σιγεί κάθε ήχο και ειδοποίηση και κρύβει όλα τα σήματα και τις ενδείξεις μη αναγνωσμένων, ώστε το fastcord να μη ζητά ποτέ την προσοχή σου.
+Slow down! Are you sure?	Πιο αργά! Είσαι σίγουρος;
+Slowmode	Αργή λειτουργία
+Slowmode is enabled	Η αργή λειτουργία είναι ενεργή
+Slowmode is enabled. Members can send one message every % hour.|Slowmode is enabled. Members can send one message every % hours.	Η αργή λειτουργία είναι ενεργή. Τα μέλη μπορούν να στέλνουν ένα μήνυμα κάθε % ώρα.|Η αργή λειτουργία είναι ενεργή. Τα μέλη μπορούν να στέλνουν ένα μήνυμα κάθε % ώρες.
+Slowmode is enabled. Members can send one message every % minute.|Slowmode is enabled. Members can send one message every % minutes.	Η αργή λειτουργία είναι ενεργή. Τα μέλη μπορούν να στέλνουν ένα μήνυμα κάθε % λεπτό.|Η αργή λειτουργία είναι ενεργή. Τα μέλη μπορούν να στέλνουν ένα μήνυμα κάθε % λεπτά.
+Slowmode is enabled. Members can send one message every % second.|Slowmode is enabled. Members can send one message every % seconds.	Η αργή λειτουργία είναι ενεργή. Τα μέλη μπορούν να στέλνουν ένα μήνυμα κάθε % δευτερόλεπτο.|Η αργή λειτουργία είναι ενεργή. Τα μέλη μπορούν να στέλνουν ένα μήνυμα κάθε % δευτερόλεπτα.
+Smooth Scrolling	Ομαλή κύλιση
+So no one gets lost on where to go.	Για να μη χάνεται κανείς.
+Some older devices may not be shown here	Ορισμένες παλαιότερες συσκευές ίσως δεν εμφανίζονται εδώ
+Someone	Κάποιος
+Something went wrong	Κάτι πήγε στραβά
+Something went wrong (HTTP %).	Κάτι πήγε στραβά (HTTP %).
+Something went wrong. Try again.	Κάτι πήγε στραβά. Δοκίμασε ξανά.
+Somewhere Else	Κάπου αλλού
+Sorry, we couldn't load the first message in this thread	Λυπούμαστε, δεν ήταν δυνατή η φόρτωση του πρώτου μηνύματος σε αυτό το νήμα
+Sort: Date Posted	Ταξινόμηση: Ημερομηνία ανάρτησης
+Sort: Recent Activity	Ταξινόμηση: Πρόσφατη δραστηριότητα
+Sound Name	Όνομα ήχου
+Sound names must be between 2 and 32 characters.	Τα ονόματα ήχων πρέπει να έχουν από 2 έως 32 χαρακτήρες.
+Soundboard	Soundboard
+Sounds	Ήχοι
+Sounds must be 5.2 seconds or shorter.	Οι ήχοι πρέπει να διαρκούν έως 5,2 δευτερόλεπτα.
+Sounds must be under 512 KB.	Οι ήχοι πρέπει να είναι μικρότεροι από 512 KB.
+Source	Πηγή
+Space between message groups	Απόσταση μεταξύ ομάδων μηνυμάτων
+Spam	Spam
+Spam Filters	Φίλτρα spam
+Spanish	Ισπανικά
+Spanish, LATAM	Ισπανικά, Λατινική Αμερική
+Speak	Ομιλία
+Speak Message	Εκφώνηση μηνύματος
+Spoiler Attachment	Συνημμένο spoiler
+Spoiler Content	Περιεχόμενο spoiler
+Stage	Stage
+Start Date	Ημερομηνία έναρξης
+Start Event	Έναρξη εκδήλωσης
+Start Minimized	Εκκίνηση σε ελαχιστοποίηση
+Start Time	Ώρα έναρξης
+Starting in %m	Ξεκινά σε %λ
+State	Κατάσταση
+Stickers	Αυτοκόλλητα
+Stickers can be used by anyone in this server. Upload a PNG, APNG, GIF or Lottie JSON file of up to 512 KB; it shows at 320x320.	Τα αυτοκόλλητα μπορεί να τα χρησιμοποιεί οποιοσδήποτε σε αυτόν τον διακομιστή. Ανέβασε ένα αρχείο PNG, APNG, GIF ή Lottie JSON έως 512 KB· εμφανίζεται σε 320x320.
+Stickers can't be sent encrypted yet.	Τα αυτοκόλλητα δεν μπορούν ακόμα να σταλούν κρυπτογραφημένα.
+Stickers must be PNG, APNG, GIF or Lottie JSON files.	Τα αυτοκόλλητα πρέπει να είναι αρχεία PNG, APNG, GIF ή Lottie JSON.
+Stop Recording	Διακοπή εγγραφής
+Stop Streaming	Διακοπή μετάδοσης
+Stop Testing	Διακοπή δοκιμής
+Stop Video	Διακοπή βίντεο
+Stop Watching	Διακοπή παρακολούθησης
+Storage	Αποθήκευση
+Stream Settings	Ρυθμίσεις μετάδοσης
+Streamer Mode	Λειτουργία streamer
+Streamer Mode Enabled	Η Λειτουργία streamer είναι ενεργή
+Streamer Mode hides your personal info so others watching your stream can't see it.	Η Λειτουργία streamer κρύβει τα προσωπικά σου στοιχεία ώστε να μην τα βλέπουν όσοι παρακολουθούν τη μετάδοσή σου.
+Streamer Mode is enabled. Usernames have been truncated.	Η Λειτουργία streamer είναι ενεργή. Τα ονόματα χρηστών έχουν περικοπεί.
+Success! Your friend request to % was sent.	Επιτυχία! Το αίτημα φιλίας σου προς τον χρήστη % στάλθηκε.
+Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday	Κυριακή|Δευτέρα|Τρίτη|Τετάρτη|Πέμπτη|Παρασκευή|Σάββατο
+Sun|Mon|Tue|Wed|Thu|Fri|Sat	Κυρ|Δευ|Τρί|Τετ|Πέμ|Παρ|Σάβ
+Support has arrived!	Έφτασε βοήθεια!
+Suppress @everyone and @here	Απόκρυψη @everyone και @here
+Suppress All Role @mentions	Απόκρυψη όλων των @αναφορών ρόλων
+Suppress Highlights	Απόκρυψη Highlights
+Suppress Notifications	Απόκρυψη ειδοποιήσεων
+Suppress background noise from your mic.	Καταστολή θορύβου παρασκηνίου από το μικρόφωνό σου.
+Swedish	Σουηδικά
+Switch Accounts	Εναλλαγή λογαριασμών
+Switch between accounts on this device.	Εναλλαγή μεταξύ λογαριασμών σε αυτή τη συσκευή.
+Symbols	Σύμβολα
+Sync Now	Συγχρονισμός τώρα
+Sync Permissions	Συγχρονισμός δικαιωμάτων
+Sync Template	Συγχρονισμός προτύπου
+Sync permissions?	Συγχρονισμός δικαιωμάτων;
+System	Σύστημα
+System Messages	Μηνύματα συστήματος
+System Messages Channel	Κανάλι μηνυμάτων συστήματος
+System icon for new server members.	Εικονίδιο συστήματος για νέα μέλη του διακομιστή.
+THREAD NAME	ΟΝΟΜΑ ΝΗΜΑΤΟΣ
+Tag	Ετικέτα
+Tags	Ετικέτες
+Tags (pick at least one)	Ετικέτες (διάλεξε τουλάχιστον μία)
+Tags let members organize their posts. Members pick them when they post; moderated tags only moderators can apply.	Οι ετικέτες βοηθούν τα μέλη να οργανώνουν τις αναρτήσεις τους. Τα μέλη τις διαλέγουν όταν αναρτούν· τις εποπτευόμενες ετικέτες μπορούν να τις βάζουν μόνο οι επόπτες.
+Tap the link in your email to sign in instantly — no password needed.	Πάτα τον σύνδεσμο στο email σου για να συνδεθείς αμέσως — δεν χρειάζεται κωδικός πρόσβασης.
+Tell people a little more about your event. Markdown, new lines, and links are supported.	Πες λίγα περισσότερα για την εκδήλωσή σου. Υποστηρίζονται Markdown, νέες γραμμές και σύνδεσμοι.
+Tell the world a bit about this server.	Πες στον κόσμο λίγα λόγια για αυτόν τον διακομιστή.
+Template Description	Περιγραφή προτύπου
+Template Link	Σύνδεσμος προτύπου
+Template Title	Τίτλος προτύπου
+Templates are an easy way to share your server setup and help anyone create a server instantly. When someone uses your server template link, they create a new server pre-filled with the same channels, roles, permissions, and settings as yours. Messages, members and your server's icon aren't copied.	Τα πρότυπα είναι ένας εύκολος τρόπος να μοιραστείς τη διαμόρφωση του διακομιστή σου και να βοηθήσεις οποιονδήποτε να δημιουργήσει αμέσως έναν διακομιστή. Όταν κάποιος χρησιμοποιεί τον σύνδεσμο προτύπου σου, δημιουργεί έναν νέο διακομιστή με τα ίδια κανάλια, ρόλους, δικαιώματα και ρυθμίσεις με τον δικό σου. Τα μηνύματα, τα μέλη και το εικονίδιο του διακομιστή δεν αντιγράφονται.
+Temporary members are automatically kicked when they disconnect unless a role has been assigned	Τα προσωρινά μέλη αποβάλλονται αυτόματα όταν αποσυνδέονται, εκτός αν τους έχει εκχωρηθεί ρόλος
+Test Video	Δοκιμή βίντεο
+Text	Κείμενο
+Text Channel Permissions	Δικαιώματα καναλιού κειμένου
+Text channel, external link, or in-person location.	Κανάλι κειμένου, εξωτερικός σύνδεσμος ή φυσική τοποθεσία.
+Thai	Ταϊλανδικά
+That channel isn't on this server anymore.	Αυτό το κανάλι δεν υπάρχει πλέον σε αυτόν τον διακομιστή.
+That file couldn't be read as an MP3 or OGG sound.	Δεν ήταν δυνατή η ανάγνωση του αρχείου ως ήχου MP3 ή OGG.
+That file couldn't be read. Avatars must be PNG, JPEG, GIF or WEBP images.	Δεν ήταν δυνατή η ανάγνωση του αρχείου. Τα avatar πρέπει να είναι εικόνες PNG, JPEG, GIF ή WEBP.
+That file couldn't be read. Banners must be PNG, JPEG, GIF or WEBP images.	Δεν ήταν δυνατή η ανάγνωση του αρχείου. Τα banner πρέπει να είναι εικόνες PNG, JPEG, GIF ή WEBP.
+That file couldn't be read. Emoji must be a PNG, JPEG, GIF, WEBP or AVIF image.	Δεν ήταν δυνατή η ανάγνωση του αρχείου. Τα emoji πρέπει να είναι εικόνες PNG, JPEG, GIF, WEBP ή AVIF.
+That file couldn't be read. Images must be PNG, JPEG, GIF or WEBP files.	Δεν ήταν δυνατή η ανάγνωση του αρχείου. Οι εικόνες πρέπει να είναι αρχεία PNG, JPEG, GIF ή WEBP.
+That file couldn't be read. Server icons must be PNG, JPEG, GIF or WEBP images.	Δεν ήταν δυνατή η ανάγνωση του αρχείου. Τα εικονίδια διακομιστή πρέπει να είναι εικόνες PNG, JPEG, GIF ή WEBP.
+That file is too large. Emoji must be under 256 KB.	Το αρχείο είναι πολύ μεγάλο. Τα emoji πρέπει να είναι μικρότερα από 256 KB.
+That file is too large. Stickers must be under 512 KB.	Το αρχείο είναι πολύ μεγάλο. Τα αυτοκόλλητα πρέπει να είναι μικρότερα από 512 KB.
+That image is too large.	Η εικόνα είναι πολύ μεγάλη.
+That image is too large. Avatars must be under %.	Η εικόνα είναι πολύ μεγάλη. Τα avatar πρέπει να είναι μικρότερα από %.
+That image is too large. Banners must be under 10 MB.	Η εικόνα είναι πολύ μεγάλη. Τα banner πρέπει να είναι μικρότερα από 10 MB.
+That image is too large. Server icons must be under 512 KB.	Η εικόνα είναι πολύ μεγάλη. Τα εικονίδια διακομιστή πρέπει να είναι μικρότερα από 512 KB.
+That isn't a valid fastcord invite.	Αυτή δεν είναι έγκυρη πρόσκληση fastcord.
+That's too long to send encrypted.	Είναι πολύ μεγάλο για κρυπτογραφημένη αποστολή.
+The Pin Is Stuck!	Η πινέζα κόλλησε!
+The badge chosen in the official client stays as it is.	Το σήμα που επιλέχθηκε στην επίσημη εφαρμογή μένει ως έχει.
+The invite is invalid or has expired.	Η πρόσκληση δεν είναι έγκυρη ή έχει λήξει.
+The mention limit is between 1 and 50.	Το όριο αναφορών είναι από 1 έως 50.
+The most important updates from this channel will now show up directly in your server. Enjoy!	Οι πιο σημαντικές ενημερώσεις από αυτό το κανάλι θα εμφανίζονται πλέον απευθείας στον διακομιστή σου. Απόλαυσέ το!
+The owner	Ο κάτοχος
+The related emoji must be one emoji.	Το σχετικό emoji πρέπει να είναι ένα μόνο emoji.
+The results were tied	Τα αποτελέσματα ήρθαν ισόπαλα
+The selected channel has too many webhooks. Please remove a webhook or select another channel.	Το επιλεγμένο κανάλι έχει πάρα πολλά webhooks. Αφαίρεσε ένα webhook ή επίλεξε άλλο κανάλι.
+The server	Ο διακομιστής
+The start time must be in the future.	Η ώρα έναρξης πρέπει να είναι στο μέλλον.
+The thread stops showing in the channel list after being inactive for this long.	Το νήμα δεν εμφανίζεται πλέον στη λίστα καναλιών αφού μείνει ανενεργό για τόσο διάστημα.
+Theme	Θέμα
+There are no active threads.	Δεν υπάρχουν ενεργά νήματα.
+There are no archived threads.	Δεν υπάρχουν αρχειοθετημένα νήματα.
+There are no pending friend requests.	Δεν υπάρχουν εκκρεμή αιτήματα φιλίας.
+There are no upcoming events.	Δεν υπάρχουν επερχόμενες εκδηλώσεις.
+There is no identity key.	Δεν υπάρχει κλειδί ταυτότητας.
+There was no winner	Δεν υπήρξε νικητής
+These are all the devices that are currently logged-in with your Discord account. Log out of devices that you don't recognize.	Αυτές είναι όλες οι συσκευές που είναι αυτή τη στιγμή συνδεδεμένες με τον λογαριασμό σου στο Discord. Αποσύνδεσε όσες συσκευές δεν αναγνωρίζεις.
+They said: %	Είπε: %
+This account needs a passkey or security key, which fastcord can't use. Log in with the QR code instead.	Αυτός ο λογαριασμός χρειάζεται passkey ή κλειδί ασφαλείας, που το fastcord δεν μπορεί να χρησιμοποιήσει. Συνδέσου με τον κωδικό QR.
+This channel contains adult content that may not be suitable for all audiences. You must be 18 or older to view it.	Αυτό το κανάλι περιέχει περιεχόμενο για ενήλικες που ίσως δεν είναι κατάλληλο για όλους. Πρέπει να είσαι 18 ετών ή μεγαλύτερος για να το δεις.
+This channel doesn't have any pinned messages... yet.	Αυτό το κανάλι δεν έχει καρφιτσωμένα μηνύματα... ακόμα.
+This device can't open this message.	Αυτή η συσκευή δεν μπορεί να ανοίξει αυτό το μήνυμα.
+This device's encryption keys couldn't be unlocked, so earlier encrypted DMs can't be opened here.	Δεν ήταν δυνατό το ξεκλείδωμα των κλειδιών κρυπτογράφησης αυτής της συσκευής, οπότε τα προηγούμενα κρυπτογραφημένα ΑΜ δεν μπορούν να ανοίξουν εδώ.
+This event will auto start when it's time.	Αυτή η εκδήλωση θα ξεκινήσει αυτόματα όταν έρθει η ώρα.
+This extra step shows it's really you.	Αυτό το επιπλέον βήμα δείχνει ότι είσαι πράγματι εσύ.
+This interaction failed	Αυτή η αλληλεπίδραση απέτυχε
+This invite may be expired, or you might not have permission to join.	Αυτή η πρόσκληση ίσως έχει λήξει ή ίσως δεν έχεις δικαίωμα συμμετοχής.
+This is the beginning of your direct message history with %.	Αυτή είναι η αρχή του ιστορικού άμεσων μηνυμάτων σου με τον χρήστη %.
+This is the channel we send system event messages to.	Σε αυτό το κανάλι στέλνουμε τα μηνύματα συμβάντων συστήματος.
+This is the start of the #% channel.	Αυτή είναι η αρχή του καναλιού #%.
+This is where Discord sends updates for moderators and admins of Community servers.	Εδώ στέλνει το Discord ενημερώσεις για επόπτες και διαχειριστές διακομιστών κοινότητας.
+This is where you'll show members your server rules or guidelines.	Εδώ θα δείχνεις στα μέλη τους κανόνες ή τις οδηγίες του διακομιστή σου.
+This link is taking you to the following website	Αυτός ο σύνδεσμος σε οδηγεί στον παρακάτω ιστότοπο
+This option is not available for Community Servers.	Αυτή η επιλογή δεν είναι διαθέσιμη για διακομιστές κοινότητας.
+This role is managed by an integration and can't be edited here.	Αυτός ο ρόλος διαχειρίζεται από μια ενσωμάτωση και δεν μπορεί να επεξεργαστεί εδώ.
+This server has been removed from Server Discovery because it no longer passes all the requirements. Check Server Settings for more details.	Αυτός ο διακομιστής αφαιρέθηκε από την Εξερεύνηση διακομιστών επειδή δεν πληροί πλέον όλες τις απαιτήσεις. Δες τις Ρυθμίσεις διακομιστή για περισσότερες λεπτομέρειες.
+This server has failed Discovery activity requirements for 1 week. If this server fails for 4 weeks in a row, it will be automatically removed from Discovery.	Αυτός ο διακομιστής δεν πληροί τις απαιτήσεις δραστηριότητας της Εξερεύνησης εδώ και 1 εβδομάδα. Αν δεν τις πληροί για 4 συνεχόμενες εβδομάδες, θα αφαιρεθεί αυτόματα από την Εξερεύνηση.
+This server has failed Discovery activity requirements for 3 weeks in a row. If this server fails for 1 more week, it will be removed from Discovery.	Αυτός ο διακομιστής δεν πληροί τις απαιτήσεις δραστηριότητας της Εξερεύνησης για 3 συνεχόμενες εβδομάδες. Αν δεν τις πληροί για 1 ακόμα εβδομάδα, θα αφαιρεθεί από την Εξερεύνηση.
+This server has no voice channels.	Αυτός ο διακομιστής δεν έχει φωνητικά κανάλια.
+This server is currently full.	Αυτός ο διακομιστής είναι γεμάτος αυτή τη στιγμή.
+This server is currently full. Please try again later.	Αυτός ο διακομιστής είναι γεμάτος αυτή τη στιγμή. Δοκίμασε ξανά αργότερα.
+This server is eligible for Server Discovery again and has been automatically relisted!	Αυτός ο διακομιστής είναι ξανά επιλέξιμος για την Εξερεύνηση διακομιστών και επανεμφανίστηκε αυτόματα!
+This server is not available in your location.	Αυτός ο διακομιστής δεν είναι διαθέσιμος στην τοποθεσία σου.
+This server's features are limited	Οι λειτουργίες αυτού του διακομιστή είναι περιορισμένες
+This setting is applied when you join a new server. It does not apply retroactively to your existing servers.	Αυτή η ρύθμιση εφαρμόζεται όταν μπαίνεις σε νέο διακομιστή. Δεν εφαρμόζεται αναδρομικά στους υπάρχοντες διακομιστές σου.
+This template has unsynced changes.	Αυτό το πρότυπο έχει μη συγχρονισμένες αλλαγές.
+This thread is locked.	Αυτό το νήμα είναι κλειδωμένο.
+This voice channel is full.	Αυτό το φωνητικό κανάλι είναι γεμάτο.
+This will determine whether members who have not explicitly set their notification settings receive a notification for every message sent in this server or not.	Καθορίζει αν τα μέλη που δεν έχουν ορίσει ρητά τις ρυθμίσεις ειδοποιήσεών τους θα λαμβάνουν ειδοποίηση για κάθε μήνυμα που στέλνεται σε αυτόν τον διακομιστή.
+This will transfer ownership of %1 to %2. This cannot be undone!	Η κατοχή του %1 θα μεταβιβαστεί στον χρήστη %2. Αυτό δεν αναιρείται!
+Thread Name	Όνομα νήματος
+Thread deleted	Το νήμα διαγράφηκε
+Threads	Νήματα
+Time	Ώρα
+Time format	Μορφή ώρας
+Timeout	Αποβολή χρόνου
+Timeout %	Αποβολή χρόνου %
+Timeout Members	Αποβολή χρόνου μελών
+Timeout member	Αποβολή χρόνου μέλους
+Times show as %.	Οι ώρες εμφανίζονται ως %.
+To log them out, please change your password	Για να τις αποσυνδέσεις, άλλαξε τον κωδικό πρόσβασής σου
+To protect your members, Community servers need these, and enabling sets them:	Για την προστασία των μελών σου, οι διακομιστές κοινότητας χρειάζονται τα εξής, και η ενεργοποίηση τα ορίζει:
+Today	Σήμερα
+Today at %	Σήμερα στις %
+Toggle Deafen	Εναλλαγή κώφωσης
+Toggle Go Live Streaming	Εναλλαγή μετάδοσης Go Live
+Toggle Mute	Εναλλαγή σίγασης
+Toggle Streamer Mode	Εναλλαγή Λειτουργίας streamer
+Toggle Voice Activity Mode	Εναλλαγή λειτουργίας φωνητικής δραστηριότητας
+Toggle deafen	Εναλλαγή κώφωσης
+Toggle inbox	Εναλλαγή εισερχομένων
+Toggle member list	Εναλλαγή λίστας μελών
+Toggle mute	Εναλλαγή σίγασης
+Toggle pins	Εναλλαγή καρφιτσωμένων
+Tomorrow at %	Αύριο στις %
+Too fast! Wait a bit and try again.	Πολύ γρήγορα! Περίμενε λίγο και δοκίμασε ξανά.
+Too many uploads!	Πάρα πολλές μεταφορτώσεις!
+Trait %	Χαρακτηριστικό %
+Traits	Χαρακτηριστικά
+Transfer Ownership	Μεταβίβαση κατοχής
+Travel & Places	Ταξίδια και μέρη
+Treat the token like a password: anyone who has it controls your account. fastcord keeps it only on this computer.	Αντιμετώπισε το token σαν κωδικό πρόσβασης: όποιος το έχει ελέγχει τον λογαριασμό σου. Το fastcord το κρατά μόνο σε αυτόν τον υπολογιστή.
+Trending GIFs	Δημοφιλή GIF
+Trust % links from now on	Εμπιστοσύνη στους συνδέσμους % από εδώ και πέρα
+Try Again	Δοκίμασε ξανά
+Try searching for something else	Δοκίμασε να αναζητήσεις κάτι άλλο
+Try searching for...	Δοκίμασε να αναζητήσεις...
+Try sending a new invite	Δοκίμασε να στείλεις νέα πρόσκληση
+Turkish	Τουρκικά
+Turn off encryption	Απενεργοποίηση κρυπτογράφησης
+Turns this back into a regular server. Community-only features stop working.	Τον επαναφέρει σε κανονικό διακομιστή. Οι λειτουργίες που είναι μόνο για κοινότητες σταματούν να λειτουργούν.
+Two-factor authentication is enabled on this account.	Ο έλεγχος ταυτότητας δύο παραγόντων είναι ενεργός σε αυτόν τον λογαριασμό.
+Type the username of a friend	Πληκτρολόγησε το όνομα χρήστη ενός φίλου
+Type your answer	Πληκτρολόγησε την απάντησή σου
+UPLOADED BY	ΑΝΕΒΗΚΕ ΑΠΟ
+USES	ΧΡΗΣΕΙΣ
+Uh oh, you don't have webhook permissions in any server you're in. Ask your server admin to give you the permission or ask them to come follow themselves!	Ωχ, δεν έχεις δικαιώματα webhook σε κανέναν διακομιστή στον οποίο είσαι μέλος. Ζήτα από τον διαχειριστή του διακομιστή σου να σου δώσει το δικαίωμα ή να το ακολουθήσει ο ίδιος!
+Uh-oh. Looks like you've been banned.	Ωχ. Φαίνεται ότι έχεις αποκλειστεί.
+Ukrainian	Ουκρανικά
+Unable to accept invite	Δεν ήταν δυνατή η αποδοχή της πρόσκλησης
+Unassigned	Χωρίς εκχώρηση
+Unban Member	Άρση αποκλεισμού μέλους
+Unblock	Άρση αποκλεισμού
+Undeafen	Αναίρεση κώφωσης
+Under Request Headers, copy the value of "authorization" and paste it below.	Στο Request Headers, αντίγραψε την τιμή του "authorization" και επικόλλησέ την παρακάτω.
+Undo	Αναίρεση
+Unignore	Αναίρεση παράβλεψης
+Unknown	Άγνωστο
+Unknown channel	Άγνωστο κανάλι
+Unmute	Αναίρεση σίγασης
+Unmute Category	Αναίρεση σίγασης κατηγορίας
+Unmute Channel	Αναίρεση σίγασης καναλιού
+Unmute Server	Αναίρεση σίγασης διακομιστή
+Unmute Thread	Αναίρεση σίγασης νήματος
+Unpin Message	Ξεκαρφίτσωμα μηνύματος
+Unreads	Μη αναγνωσμένα
+Unrestricted	Χωρίς περιορισμούς
+Until %	Έως %
+Until %1 at %2	Έως %1 στις %2
+Until I turn it back on	Μέχρι να το ενεργοποιήσω ξανά
+Until tomorrow at %	Έως αύριο στις %
+Untitled question	Ερώτηση χωρίς τίτλο
+Unverify	Αναίρεση επαλήθευσης
+Update %	Ενημέρωση %
+Update Channel	Ενημέρωση καναλιού
+Update Emoji	Ενημέρωση emoji
+Update Member	Ενημέρωση μέλους
+Update Member Roles	Ενημέρωση ρόλων μέλους
+Update Role	Ενημέρωση ρόλου
+Update Server	Ενημέρωση διακομιστή
+Update Webhook	Ενημέρωση webhook
+Update your password	Ενημέρωσε τον κωδικό πρόσβασής σου
+Upload	Μεταφόρτωση
+Upload Emoji	Μεταφόρτωση emoji
+Upload Sound	Μεταφόρτωση ήχου
+Upload Sticker	Μεταφόρτωση αυτοκόλλητου
+Upload a File	Μεταφόρτωση αρχείου
+Upload a Sound	Μεταφόρτωση ήχου
+Upload a file	Μεταφόρτωση αρχείου
+Upload custom sound reactions that anyone in this server can use. MP3 or OGG files, up to 512 KB and 5.2 seconds.	Ανέβασε προσαρμοσμένες ηχητικές αντιδράσεις που μπορεί να χρησιμοποιεί οποιοσδήποτε σε αυτόν τον διακομιστή. Αρχεία MP3 ή OGG, έως 512 KB και 5,2 δευτερόλεπτα.
+Upload to %	Μεταφόρτωση σε %
+Uploaded a file	Ανέβασε ένα αρχείο
+Uploading...	Μεταφόρτωση...
+Use Application Commands	Χρήση εντολών εφαρμογών
+Use Category Default	Χρήση προεπιλογής κατηγορίας
+Use External Apps	Χρήση εξωτερικών εφαρμογών
+Use External Emoji	Χρήση εξωτερικών emoji
+Use External Sounds	Χρήση εξωτερικών ήχων
+Use External Stickers	Χρήση εξωτερικών αυτοκόλλητων
+Use Server Default	Χρήση προεπιλογής διακομιστή
+Use Soundboard	Χρήση soundboard
+Use Voice Activity	Χρήση φωνητικής δραστηριότητας
+Use a backup code	Χρήση εφεδρικού κωδικού
+Use a code sent to your phone	Χρήση κωδικού που στάλθηκε στο τηλέφωνό σου
+Use a passkey or security key	Χρήση passkey ή κλειδιού ασφαλείας
+Use data to improve Discord	Χρήση δεδομένων για τη βελτίωση του Discord
+Use roles to group your server members and assign permissions.	Χρησιμοποίησε ρόλους για να ομαδοποιείς τα μέλη του διακομιστή σου και να εκχωρείς δικαιώματα.
+Use your authenticator app	Χρήση της εφαρμογής ελέγχου ταυτότητας
+Used % times.|Used % times.	Χρησιμοποιήθηκε % φορά.|Χρησιμοποιήθηκε % φορές.
+User Join	Είσοδος χρήστη
+User Leave	Αποχώρηση χρήστη
+User Limit	Όριο χρηστών
+User Moved	Μετακίνηση χρήστη
+User Volume	Ένταση χρήστη
+User blocked	Ο χρήστης αποκλείστηκε
+User unblocked	Άρση αποκλεισμού χρήστη
+Username	Όνομα χρήστη
+Username is available. Nice!	Το όνομα χρήστη είναι διαθέσιμο. Ωραία!
+Username is unavailable. Try adding numbers, letters, underscores _ , or periods.	Το όνομα χρήστη δεν είναι διαθέσιμο. Δοκίμασε να προσθέσεις αριθμούς, γράμματα, κάτω παύλες _ ή τελείες.
+Users will need to confirm they are of over the legal age to view in the content in this channel.\nAge-restricted channels are exempt from the explicit content filter.	Οι χρήστες θα πρέπει να επιβεβαιώσουν ότι είναι ενήλικες για να δουν το περιεχόμενο αυτού του καναλιού.\nΤα κανάλια με περιορισμό ηλικίας εξαιρούνται από το φίλτρο άσεμνου περιεχομένου.
+Uses the yt-dlp you installed to play YouTube links in the chat instead of opening your browser. It connects to YouTube from your computer.	Χρησιμοποιεί το yt-dlp που εγκατέστησες για να αναπαράγει συνδέσμους YouTube στη συνομιλία αντί να ανοίγει το πρόγραμμα περιήγησης. Συνδέεται στο YouTube από τον υπολογιστή σου.
+VOICE PROCESSING	ΕΠΕΞΕΡΓΑΣΙΑ ΦΩΝΗΣ
+Verification Level	Επίπεδο επαλήθευσης
+Verified	Επαληθευμένο
+Verify with something else	Επαλήθευση με άλλον τρόπο
+Video	Βίντεο
+Video Quality	Ποιότητα βίντεο
+Vietnamese	Βιετναμέζικα
+View Audit Log	Προβολή αρχείου ελέγχου
+View Channel	Προβολή καναλιού
+View Channels	Προβολή καναλιών
+View Details	Προβολή λεπτομερειών
+View Full Profile	Προβολή πλήρους προφίλ
+View Poll	Προβολή δημοσκόπησης
+View Profile	Προβολή προφίλ
+View Reactions	Προβολή αντιδράσεων
+View Server Insights	Προβολή στατιστικών διακομιστή
+Visit Site	Επίσκεψη ιστότοπου
+Visual Density	Οπτική πυκνότητα
+Voice	Φωνή
+Voice & Video	Φωνή και βίντεο
+Voice Activity	Φωνητική δραστηριότητα
+Voice Channel	Φωνητικό κανάλι
+Voice Channel Permissions	Δικαιώματα φωνητικού καναλιού
+Voice Connected	Φωνή συνδεδεμένη
+Voice Disconnected	Φωνή αποσυνδεδεμένη
+Volume	Ένταση
+Vote	Ψήφος
+Waiting for a server	Αναμονή για διακομιστή
+Wants to message you	Θέλει να σου στείλει μήνυμα
+Watch Stream	Παρακολούθηση μετάδοσης
+Wave to say hi!	Χαιρέτα για να πεις γεια!
+We appreciate the enthusiasm, but...	Εκτιμούμε τον ενθουσιασμό, αλλά...
+We couldn't load the profile for this server.	Δεν ήταν δυνατή η φόρτωση του προφίλ αυτού του διακομιστή.
+We recommend an image of at least 512x512.	Προτείνουμε εικόνα τουλάχιστον 512x512.
+We sent instructions to change your password to %, please check both your inbox and spam folder.	Στείλαμε οδηγίες για αλλαγή του κωδικού πρόσβασης στο %, έλεγξε τα εισερχόμενα και τον φάκελο spam.
+We're so excited to see you again!	Χαιρόμαστε πολύ που σε ξαναβλέπουμε!
+We've sent a message to %.  Please enter the code you received.	Στείλαμε μήνυμα στο %.  Πληκτρολόγησε τον κωδικό που έλαβες.
+Webhooks (%)	Webhooks (%)
+Webhooks are a simple way to post messages from other apps and websites into this server.	Τα webhooks είναι ένας απλός τρόπος να δημοσιεύονται μηνύματα από άλλες εφαρμογές και ιστότοπους σε αυτόν τον διακομιστή.
+Welcome %. Say hi!	Καλώς ήρθες %. Πες ένα γεια!
+Welcome back!	Καλώς ήρθες πάλι!
+Welcome to #%!	Καλώς ήρθες στο #%!
+Welcome to the beginning of the % group.	Καλώς ήρθες στην αρχή της ομάδας %.
+Welcome, %. We hope you brought pizza.	Καλώς ήρθες, %. Ελπίζουμε να έφερες πίτσα.
+What brings you here?	Τι σε φέρνει εδώ;
+What can people do in this server?	Τι μπορούν να κάνουν τα μέλη σε αυτόν τον διακομιστή;
+What question do you want to ask?	Ποια ερώτηση θέλεις να κάνεις;
+What's cookin'?	Τι μαγειρεύεται;
+What's your event about?	Ποιο είναι το θέμα της εκδήλωσής σου;
+What's your event?	Ποια είναι η εκδήλωσή σου;
+When a friend starts an activity—like playing a game or hanging out on voice—we'll show it here!	Όταν ένας φίλος ξεκινά μια δραστηριότητα—όπως ένα παιχνίδι ή παρέα σε φωνή—θα την εμφανίζουμε εδώ!
+When enabled, only server members can view profile content. Non-members won't be able to see this content unless they have an invite.	Όταν είναι ενεργό, μόνο τα μέλη του διακομιστή μπορούν να βλέπουν το περιεχόμενο του προφίλ. Όσοι δεν είναι μέλη δεν θα μπορούν να το δουν, εκτός αν έχουν πρόσκληση.
+When you put a user in timeout they will not be able to send messages in chat, reply within threads, react to messages, or speak in voice or Stage channels.	Όταν βάζεις έναν χρήστη σε αποβολή χρόνου, δεν θα μπορεί να στέλνει μηνύματα στη συνομιλία, να απαντά σε νήματα, να αντιδρά σε μηνύματα ή να μιλά σε φωνητικά κανάλια ή κανάλια Stage.
+Where is your event?	Πού γίνεται η εκδήλωσή σου;
+Where would you like to go?	Πού θα ήθελες να πας;
+Who is this server for? E.g. School Club, Artists' Community	Για ποιους είναι αυτός ο διακομιστής; Π.χ. Σχολικός όμιλος, Κοινότητα καλλιτεχνών
+Winning answer · %1%2	Νικήτρια απάντηση · %1%2
+Words that are never blocked, separated by commas	Λέξεις που δεν αποκλείονται ποτέ, χωρισμένες με κόμματα
+Words to block, separated by commas	Λέξεις για αποκλεισμό, χωρισμένες με κόμματα
+Words to block, separated by commas (* matches anything)	Λέξεις για αποκλεισμό, χωρισμένες με κόμματα (το * ταιριάζει με οτιδήποτε)
+Would you like to sync %1 permissions with %2?	Θέλεις να συγχρονίσεις τα δικαιώματα του %1 με το %2;
+Yay you made it, %!	Ζήτω, τα κατάφερες, %!
+Yesterday at %	Χθες στις %
+You	Εσύ
+You accepted %'s friend request.	Αποδέχτηκες το αίτημα φιλίας του χρήστη %.
+You are at the % server limit.	Έχεις φτάσει το όριο των % διακομιστών.
+You are banned from this server.	Έχεις αποκλειστεί από αυτόν τον διακομιστή.
+You aren't in that server. Ask a member for an invite.	Δεν είσαι μέλος αυτού του διακομιστή. Ζήτα πρόσκληση από ένα μέλος.
+You can add % more friend.|You can add % more friends.	Μπορείς να προσθέσεις ακόμα % φίλο.|Μπορείς να προσθέσεις ακόμα % φίλους.
+You can add comments before uploading.\nHold shift to upload directly.	Μπορείς να προσθέσεις σχόλια πριν από τη μεταφόρτωση.\nΚράτα πατημένο το Shift για απευθείας μεταφόρτωση.
+You can add friends with their Discord username.	Μπορείς να προσθέσεις φίλους με το όνομα χρήστη τους στο Discord.
+You can add up to 5 accounts.	Μπορείς να προσθέσεις έως 5 λογαριασμούς.
+You can hold down shift when clicking % to bypass this confirmation entirely.	Μπορείς να κρατάς πατημένο το Shift όταν κάνεις κλικ στο % για να παρακάμψεις εντελώς αυτή την επιβεβαίωση.
+You can only edit roles below your highest role.	Μπορείς να επεξεργάζεσαι μόνο ρόλους κάτω από τον υψηλότερο ρόλο σου.
+You can only upload % files at a time!	Μπορείς να ανεβάζεις μόνο % αρχεία κάθε φορά!
+You can use markdown and links if you'd like.	Μπορείς να χρησιμοποιήσεις markdown και συνδέσμους αν θέλεις.
+You can't join this server because of your age group.	Δεν μπορείς να μπεις σε αυτόν τον διακομιστή λόγω της ηλικιακής σου ομάδας.
+You can't unblock the Wumpus.	Δεν μπορείς να άρεις τον αποκλεισμό του Wumpus.
+You cannot friend yourself	Δεν μπορείς να κάνεις φίλο τον εαυτό σου
+You can’t react and super react with the same emoji. There’s a lot of emoji to choose from, so maybe try another one.	Δεν μπορείς να κάνεις αντίδραση και υπεραντίδραση με το ίδιο emoji. Υπάρχουν πολλά emoji για να διαλέξεις, οπότε δοκίμασε κάποιο άλλο.
+You do not have permission to send messages in this channel.	Δεν έχεις δικαίωμα να στέλνεις μηνύματα σε αυτό το κανάλι.
+You don't have any friends to add!	Δεν έχεις φίλους για να προσθέσεις!
+You don't have permission to do that.	Δεν έχεις δικαίωμα να το κάνεις αυτό.
+You haven't added a display name yet.	Δεν έχεις προσθέσει ακόμα εμφανιζόμενο όνομα.
+You haven't added a phone number yet.	Δεν έχεις προσθέσει ακόμα αριθμό τηλεφώνου.
+You haven't added an email yet.	Δεν έχεις προσθέσει ακόμα email.
+You haven't authorized any apps.	Δεν έχεις εξουσιοδοτήσει καμία εφαρμογή.
+You haven't blocked anyone.	Δεν έχεις αποκλείσει κανέναν.
+You haven't connected any accounts yet.	Δεν έχεις συνδέσει ακόμα κανέναν λογαριασμό.
+You haven't ignored anyone.	Δεν έχεις βάλει κανέναν σε παράβλεψη.
+You missed a call from %1 that lasted %2.	Έχασες μια κλήση από τον χρήστη %1 που διήρκεσε %2.
+You must be at least 18 years old to view this channel.	Πρέπει να είσαι τουλάχιστον 18 ετών για να δεις αυτό το κανάλι.
+You must leave a server first to join.	Πρέπει πρώτα να αποχωρήσεις από έναν διακομιστή για να μπεις.
+You need to add one or more rules.	Πρέπει να προσθέσεις έναν ή περισσότερους κανόνες.
+You received an invite, but...	Έλαβες πρόσκληση, αλλά...
+You said: %	Είπες: %
+You sent an invite to a self-hosted server	Έστειλες πρόσκληση σε αυτοφιλοξενούμενο διακομιστή
+You sent an invite, but	Έστειλες πρόσκληση, αλλά
+You sent an invite, but...	Έστειλες πρόσκληση, αλλά...
+You will appear offline	Θα εμφανίζεσαι εκτός σύνδεσης
+You will not receive desktop notifications	Δεν θα λαμβάνεις ειδοποιήσεις επιφάνειας εργασίας
+You'll have to log back in on all logged out devices.	Θα πρέπει να συνδεθείς ξανά σε όλες τις αποσυνδεδεμένες συσκευές.
+You're Viewing Older Messages	Βλέπεις παλαιότερα μηνύματα
+You're all caught up!	Είσαι πλήρως ενημερωμένος!
+You're already in that server.	Είσαι ήδη μέλος αυτού του διακομιστή.
+You're doing that too fast. Try again in a moment.	Το κάνεις πολύ γρήγορα. Δοκίμασε ξανά σε λίγο.
+You're not in any servers yet.	Δεν είσαι ακόμα μέλος σε κανέναν διακομιστή.
+You're offline: no invite link.	Είσαι εκτός σύνδεσης: δεν υπάρχει σύνδεσμος πρόσκλησης.
+You're timed out until %.	Είσαι σε αποβολή χρόνου έως %.
+You've been invited to a self-hosted server	Έχεις προσκληθεί σε αυτοφιλοξενούμενο διακομιστή
+You've been invited to join	Έχεις προσκληθεί να γίνεις μέλος
+You've been invited to speak	Έχεις προσκληθεί να μιλήσεις
+You've been invited, but	Έχεις προσκληθεί, αλλά
+Your files are too powerful	Τα αρχεία σου είναι υπερβολικά ισχυρά
+Your full profile is visible to friends and any server you join with 200 or fewer members. Everyone else sees a limited version.	Το πλήρες προφίλ σου είναι ορατό στους φίλους και σε κάθε διακομιστή με έως 200 μέλη στον οποίο μπαίνεις. Όλοι οι άλλοι βλέπουν μια περιορισμένη έκδοση.
+Your full profile is visible to friends and any server you join.	Το πλήρες προφίλ σου είναι ορατό στους φίλους και σε κάθε διακομιστή στον οποίο μπαίνεις.
+Your full profile is visible to friends. Everyone else sees a limited version.	Το πλήρες προφίλ σου είναι ορατό στους φίλους. Όλοι οι άλλοι βλέπουν μια περιορισμένη έκδοση.
+Your invite link expires after %.	Ο σύνδεσμος πρόσκλησής σου λήγει μετά από %.
+Your invite link expires in %.	Ο σύνδεσμος πρόσκλησής σου λήγει σε %.
+Your invite link expires in %1, or after %2.	Ο σύνδεσμος πρόσκλησής σου λήγει σε %1 ή μετά από %2.
+Your invite link expires in 7 days.	Ο σύνδεσμος πρόσκλησής σου λήγει σε 7 ημέρες.
+Your invite link will never expire.	Ο σύνδεσμος πρόσκλησής σου δεν θα λήξει ποτέ.
+Your last request was on %.	Το τελευταίο σου αίτημα ήταν στις %.
+Your message is too long (% / %).	Το μήνυμά σου είναι πολύ μεγάλο (% / %).
+Your reaction was not added because there are too many reactions on this message.	Η αντίδρασή σου δεν προστέθηκε επειδή υπάρχουν πάρα πολλές αντιδράσεις σε αυτό το μήνυμα.
+Your request from % is being prepared.	Το αίτημά σου από % προετοιμάζεται.
+Your server is where you and your friends hang out. Make yours and start talking.	Ο διακομιστής σου είναι το μέρος όπου κάνεις παρέα με τους φίλους σου. Φτιάξε τον δικό σου και ξεκίνα τη συζήτηση.
+Your sounds go out with your voice, mixed into your microphone, instead of as soundboard sounds.	Οι ήχοι σου στέλνονται μαζί με τη φωνή σου, αναμεμειγμένοι στο μικρόφωνο, αντί για ήχους soundboard.
+Zoom level	Επίπεδο ζουμ
+a channel	ένα κανάλι
+a command	μια εντολή
+a day	μια ημέρα
+a day ago	πριν από μια ημέρα
+a few seconds	λίγα δευτερόλεπτα
+a few seconds ago	πριν από λίγα δευτερόλεπτα
+a message	ένα μήνυμα
+a minute	ένα λεπτό
+a minute ago	πριν από ένα λεπτό
+a month ago	πριν από έναν μήνα
+a year ago	πριν από έναν χρόνο
+an hour	μία ώρα
+an hour ago	πριν από μία ώρα
+by %	από %
+cancel	ακύρωση
+channel	κανάλι
+delete message	διαγραφή μηνύματος
+escape to %1 • enter to %2	escape για %1 • enter για %2
+fastcord %	fastcord %
+fastcord quit unexpectedly last time. The report is in the logs folder (Settings, under Log Out).	Το fastcord τερματίστηκε απροσδόκητα την προηγούμενη φορά. Η αναφορά βρίσκεται στον φάκελο καταγραφών (Ρυθμίσεις, κάτω από την Αποσύνδεση).
+fastcord starts in the background and stays out of your way.	Το fastcord ξεκινά στο παρασκήνιο και δεν σε ενοχλεί.
+from %	από %
+in %	σε %
+in % day|in % days	σε % ημέρα|σε % ημέρες
+in % hour|in % hours	σε % ώρα|σε % ώρες
+in % minute|in % minutes	σε % λεπτό|σε % λεπτά
+in % month|in % months	σε % μήνα|σε % μήνες
+in % year|in % years	σε % χρόνο|σε % χρόνια
+in a day	σε μια ημέρα
+in a few seconds	σε λίγα δευτερόλεπτα
+in a minute	σε ένα λεπτό
+in a month	σε έναν μήνα
+in a year	σε έναν χρόνο
+in an hour	σε μία ώρα
+just now	μόλις τώρα
+less than an hour ago	πριν από λιγότερο από μία ώρα
+link, embed or file	σύνδεσμος, ενσωμάτωση ή αρχείο
+on %	στις %
+pinned messages	καρφιτσωμένα μηνύματα
+remove embeds	αφαίρεση ενσωματώσεων
+save	αποθήκευση
+someone	κάποιος
+specific date	συγκεκριμένη ημερομηνία
+this server	αυτός ο διακομιστής
+threads	νήματα
+true or false	αληθές ή ψευδές
+unknown	άγνωστο
+unknown channel	άγνωστο κανάλι
+used	χρησιμοποιήθηκε
+user	χρήστης
+• Media from all members is scanned by the explicit image filter.	• Τα πολυμέσα όλων των μελών ελέγχονται από το φίλτρο άσεμνων εικόνων.
+• Members must have a verified email on their Discord account.	• Τα μέλη πρέπει να έχουν επαληθευμένο email στον λογαριασμό τους στο Discord.
+← Back to %	← Επιστροφή σε %
+← Back to login	← Επιστροφή στη σύνδεση
+┬─┬ノ( º _ ºノ)	┬─┬ノ( º _ ºノ)

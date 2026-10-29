@@ -1,0 +1,1974 @@
+# Romanian (ro)
+ · required	 · obligatoriu
+% (requested to speak)	% (a cerut să vorbească)
+% (required)	% (obligatoriu)
+% Bans|% Bans	% interdicție|% interdicții|% de interdicții
+% Event|% Events	% eveniment|% evenimente|% de evenimente
+% KB	% KB
+% MB	% MB
+% Member|% Members	% membru|% membri|% de membri
+% Messages	% mesaje
+% Mutual Friend|% Mutual Friends	% prieten comun|% prieteni comuni|% de prieteni comuni
+% Mutual Server|% Mutual Servers	% server comun|% servere comune|% de servere comune
+% Online	% online
+% Result|% Results	% rezultat|% rezultate|% de rezultate
+% accepted encryption.	% a acceptat criptarea.
+% accepted your friend request.	% ți-a acceptat cererea de prietenie.
+% answer|% answers	% răspuns|% răspunsuri|% de răspunsuri
+% becomes the owner once they accept on their device. You'll stay a member.	% devine proprietar după ce acceptă pe dispozitivul său. Tu rămâi membru.
+% blocked message —|% blocked messages —	% mesaj blocat —|% mesaje blocate —|% de mesaje blocate —
+% byte|% bytes	% octet|% octeți|% de octeți
+% changed the group icon.	% a schimbat pictograma grupului.
+% day ago|% days ago	acum o zi|acum % zile|acum % de zile
+% day|% days	% zi|% zile|% de zile
+% disabled security actions.	% a dezactivat acțiunile de securitate.
+% enabled security actions.	% a activat acțiunile de securitate.
+% hasn't accepted encryption yet.	% nu a acceptat încă criptarea.
+% hopped into the server.	% a sărit pe server.
+% hour ago|% hours ago	acum o oră|acum % ore|acum % de ore
+% hour|% hours	% oră|% ore|% de ore
+% ignored message —|% ignored messages —	% mesaj ignorat —|% mesaje ignorate —|% de mesaje ignorate —
+% is here.	% e aici.
+% is typing...	% scrie...
+% joined the party.	% s-a alăturat petrecerii.
+% just boosted the server!	% tocmai a dat boost serverului!
+% just landed.	% tocmai a aterizat.
+% just showed up!	% tocmai a apărut!
+% just slid into the server.	% tocmai a alunecat pe server.
+% left the group.	% a părăsit grupul.
+% member|% members	% membru|% membri|% de membri
+% minute ago|% minutes ago	acum un minut|acum % minute|acum % de minute
+% minute|% minutes	% minut|% minute|% de minute
+% month ago|% months ago	acum o lună|acum % luni|acum % de luni
+% of %	%1 din %2
+% removed the custom group name.	% a eliminat numele personalizat al grupului.
+% started a call.	% a început un apel.
+% turned on encryption.	% a activat criptarea.
+% user|% users	% utilizator|% utilizatori|% de utilizatori
+% use|% uses	% utilizare|% utilizări|% de utilizări
+% vote|% votes	% vot|% voturi|% de voturi
+% wants to encrypt this DM with a new key. Compare safety numbers after accepting.	% vrea să cripteze acest mesaj direct cu o cheie nouă. Compară numerele de siguranță după ce accepți.
+% wants to encrypt this DM.	% vrea să cripteze acest mesaj direct.
+% year ago|% years ago	acum un an|acum % ani|acum % de ani
+% · End-to-end encrypted	% · Criptat end-to-end
+%'s Group	Grupul lui %
+%'s encryption key changed. Compare safety numbers before trusting new messages.	Cheia de criptare a lui % s-a schimbat. Compară numerele de siguranță înainte să ai încredere în mesajele noi.
+%'s server	Serverul lui %
+%1 (%2 more)	%1 (încă %2)
+%1 FPS	%1 FPS
+%1 STICKERS — %2 SLOTS AVAILABLE	%1 AUTOCOLANTE — %2 LOCURI DISPONIBILE
+%1 action %2	%1 acțiune %2
+%1 added %2 to the group.	%1 l-a adăugat pe %2 în grup.
+%1 and %2	%1 și %2
+%1 and %2 are typing...	%1 și %2 scriu...
+%1 and %2 other|%1 and %2 others	%1 și încă %2|%1 și încă %2|%1 și încă %2
+%1 banned %2	%1 a interzis accesul lui %2
+%1 changed the Stage topic: %2	%1 a schimbat subiectul Stage-ului: %2
+%1 changed the channel name: %2.	%1 a schimbat numele canalului: %2.
+%1 changed the group name: %2.	%1 a schimbat numele grupului: %2.
+%1 created a channel	%1 a creat un canal
+%1 created a role	%1 a creat un rol
+%1 created a webhook	%1 a creat un webhook
+%1 created an emoji	%1 a creat un emoji
+%1 created an invite	%1 a creat o invitație
+%1 deleted a channel	%1 a șters un canal
+%1 deleted a message by %2	%1 a șters un mesaj de la %2
+%1 deleted a role	%1 a șters un rol
+%1 deleted a webhook	%1 a șters un webhook
+%1 deleted an emoji	%1 a șters un emoji
+%1 deleted an invite	%1 a șters o invitație
+%1 enabled security actions until %2.	%1 a activat acțiunile de securitate până la %2.
+%1 ended %2	%1 a încheiat %2
+%1 has achieved %2	%1 a obținut %2
+%1 has added %2 to this channel. Its most important updates will show up here.	%1 a adăugat %2 în acest canal. Cele mai importante noutăți vor apărea aici.
+%1 has blocked a message in %2	%1 a blocat un mesaj în %2
+%1 has flagged a message in %2	%1 a semnalat un mesaj în %2
+%1 is now a speaker.	%1 este acum vorbitor.
+%1 joined %2 and has been a subscriber of %3 for %4 month!|%1 joined %2 and has been a subscriber of %3 for %4 months!	%1 s-a alăturat %2 și este abonat la %3 de %4 lună!|%1 s-a alăturat %2 și este abonat la %3 de %4 luni!|%1 s-a alăturat %2 și este abonat la %3 de %4 de luni!
+%1 joined %2 as a subscriber of %3!	%1 s-a alăturat %2 ca abonat la %3!
+%1 just boosted the server %2 times!	%1 tocmai a dat boost serverului de %2 ori!
+%1 kicked %2	%1 l-a dat afară pe %2
+%1 new message since %2|%1 new messages since %2	%1 mesaj nou de la %2|%1 mesaje noi de la %2|%1 de mesaje noi de la %2
+%1 of %2 slot used|%1 of %2 slots used	%1 din %2 locuri folosit|%1 din %2 locuri folosite|%1 din %2 de locuri folosite
+%1 pinned %2 to this channel. See all %3.	%1 a fixat %2 în acest canal. Vezi toate %3.
+%1 reacted with %2	%1 a reacționat cu %2
+%1 removed %2 from the group.	%1 l-a eliminat pe %2 din grup.
+%1 renewed %2 and has been a subscriber of %3 for %4 month!|%1 renewed %2 and has been a subscriber of %3 for %4 months!	%1 a reînnoit %2 și este abonat la %3 de %4 lună!|%1 a reînnoit %2 și este abonat la %3 de %4 luni!|%1 a reînnoit %2 și este abonat la %3 de %4 de luni!
+%1 renewed %2 in their %3 membership!	%1 a reînnoit %2 în abonamentul %3!
+%1 reported a raid in %2.	%1 a raportat un raid în %2.
+%1 requested to speak.	%1 a cerut să vorbească.
+%1 resolved an Activity Alert in %2.	%1 a rezolvat o alertă de activitate în %2.
+%1 said %2	%1 a spus %2
+%1 started %2	%1 a început %2
+%1 started a call that lasted %2.	%1 a început un apel care a durat %2.
+%1 started a thread: %2. See all %3.	%1 a început un fir: %2. Vezi toate %3.
+%1 unbanned %2	%1 a ridicat interdicția lui %2
+%1 updated %2	%1 a actualizat %2
+%1 updated a channel	%1 a actualizat un canal
+%1 updated a role	%1 a actualizat un rol
+%1 updated a webhook	%1 a actualizat un webhook
+%1 updated an emoji	%1 a actualizat un emoji
+%1 updated the roles of %2	%1 a actualizat rolurile lui %2
+%1 updated the server	%1 a actualizat serverul
+%1 vote · %2|%1 votes · %2	%1 vot · %2|%1 voturi · %2|%1 de voturi · %2
+%1 wants to make you the owner of %2. You'll be able to manage everything about it, and they'll stay a member.	%1 vrea să te facă proprietarul %2. Vei putea gestiona totul, iar el va rămâne membru.
+%1's poll %2 has closed.	Sondajul %2 al lui %1 s-a încheiat.
+%1, %2 and %3	%1, %2 și %3
+%1, %2 at %3	%1, %2 la %3
+%1, %2, and %3 are typing...	%1, %2 și %3 scriu...
+%1: %2	%1: %2
+%: a number	%: un număr
+%: a whole number	%: un număr întreg
+%: pick a channel	%: alege un canal
+%: pick a member	%: alege un membru
+%: pick a role	%: alege un rol
+%: true or false	%: adevărat sau fals
+%d ago	acum %z
+%d left	%z rămase
+%h	%h
+%h ago	acum %h
+%h left	%h rămase
+%m	%m
+%m ago	acum %m
+%m left	%m rămase
+%mo ago	acum %l
+%s	%s
+(edited)	(editat)
+/% takes no options.	/% nu are opțiuni.
+/%1 needs %2:	/%1 necesită %2:
+1 Day	1 zi
+1 Hour	1 oră
+1 Message	1 mesaj
+1 Week	1 săptămână
+1 day	1 zi
+1 hour	1 oră
+1 minute	1 minut
+1 use	1 utilizare
+1 week	1 săptămână
+10 Minutes	10 minute
+10 minutes	10 minute
+10 uses	10 utilizări
+100 uses	100 de utilizări
+12 hours	12 ore
+12-hour	12 ore
+15 minutes	15 minute
+2 hours	2 ore
+2 to 4 letters or numbers	Între 2 și 4 litere sau cifre
+2 weeks	2 săptămâni
+24 Hours	24 de ore
+24 hours	24 de ore
+24-hour	24 de ore
+25 uses	25 de utilizări
+3 Days	3 zile
+3 days	3 zile
+30 days	30 de zile
+30 minutes	30 de minute
+3:00 PM	15:00
+4 hours	4 ore
+5 Minutes	5 minute
+5 minutes	5 minute
+5 uses	5 utilizări
+50 uses	50 de utilizări
+6 hours	6 ore
+6-digit authentication code	Cod de autentificare din 6 cifre
+60 Seconds	60 de secunde
+60 seconds	60 de secunde
+7 days	7 zile
+8 hours	8 ore
+8-digit backup code	Cod de rezervă din 8 cifre
+@ OFF	@ OPRIT
+@ ON	@ PORNIT
+@MENTIONS	@MENȚIUNI
+@everyone · applies to all server members	@everyone · se aplică tuturor membrilor serverului
+A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button.	O tastă cu Ctrl, Alt, Shift sau Cmd, doar un modificator sau un buton de mouse din mijloc ori lateral.
+A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button. Works in every app.	O tastă cu Ctrl, Alt, Shift sau Cmd, doar un modificator sau un buton de mouse din mijloc ori lateral. Funcționează în orice aplicație.
+A role needs a name.	Rolul are nevoie de un nume.
+A webhook needs a name.	Webhookul are nevoie de un nume.
+A wild % appeared.	Un % sălbatic a apărut.
+ACTION	ACȚIUNE
+ACTIVE INVITE LINKS	LINKURI DE INVITAȚIE ACTIVE
+ALL	TOATE
+ALL THE BITS! Going above 64 kbps may adversely affect people on poor connections.	TOȚI BIȚII! Peste 64 kbps îi poate afecta pe cei cu conexiuni slabe.
+AM	a.m.
+ANIMATED EMOJI — % SLOTS AVAILABLE	EMOJI ANIMATE — % LOCURI DISPONIBILE
+APP	APLICAȚIE
+AUDIENCE — %	PUBLIC — %
+AUTHENTICATOR APP	APLICAȚIE DE AUTENTIFICARE
+About Me	Despre mine
+Accept	Acceptă
+Accept Friend Request	Acceptă cererea de prietenie
+Accept Invite	Acceptă invitația
+Accept Server Ownership	Acceptă proprietatea serverului
+Accept this message request (Friends, Message Requests) to reply.	Acceptă această cerere de mesaj (Prieteni, Cereri de mesaje) ca să răspunzi.
+Accepting...	Se acceptă...
+Access	Acces
+Accessibility	Accesibilitate
+Account	Cont
+Account Removal	Eliminarea contului
+Activate	Activează
+Active	Activ
+Active Now	Activi acum
+Activities	Activități
+Activity Joining	Alăturare la activitate
+Activity Privacy	Confidențialitatea activității
+Activity Status	Starea activității
+Add Answer	Adaugă răspuns
+Add Emoji	Adaugă emoji
+Add Friend	Adaugă prieten
+Add Friend Nickname	Adaugă poreclă de prieten
+Add Note	Adaugă notă
+Add Reaction	Adaugă reacție
+Add Reactions	Adaugă reacții
+Add Tag	Adaugă etichetă
+Add a Keybind	Adaugă o combinație de taste
+Add a Question	Adaugă o întrebare
+Add a channel	Adaugă un canal
+Add a channel to override its default notification settings	Adaugă un canal ca să-i suprascrii setările implicite de notificări
+Add a description	Adaugă o descriere
+Add a location, link, or something.	Adaugă o locație, un link sau altceva.
+Add a role	Adaugă un rol
+Add an Account	Adaugă un cont
+Add an optional message...	Adaugă un mesaj opțional...
+Add another answer	Adaugă alt răspuns
+Add at least one word to block.	Adaugă cel puțin un cuvânt de blocat.
+Add members or roles	Adaugă membri sau roluri
+Add this channel's updates to your server!	Adaugă noutățile acestui canal pe serverul tău!
+Add this key to an authenticator app, then enter the code it shows.	Adaugă această cheie într-o aplicație de autentificare, apoi introdu codul afișat.
+Add to Favorites	Adaugă la favorite
+Add to Group DM	Adaugă în grupul de mesaje directe
+Add up to 5 traits to show off your server's interests and personality.	Adaugă până la 5 trăsături care arată interesele și personalitatea serverului tău.
+Add up to 50 custom emoji that anyone can use in this server. Animated GIF emoji may be used by members with Discord Nitro. Emoji names must be at least 2 characters long and can only contain alphanumeric characters and underscores. Emoji must be under 256 KB in size.	Adaugă până la 50 de emoji personalizate pe care oricine le poate folosi pe acest server. Emoji GIF animate pot fi folosite de membrii cu Discord Nitro. Numele emoji trebuie să aibă cel puțin 2 caractere și pot conține doar caractere alfanumerice și liniuțe de subliniere. Emoji trebuie să aibă sub 256 KB.
+Add your pronouns	Adaugă-ți pronumele
+Added %	Adăugat %
+Adjust the size of the interface. You can also change this with % +/-.	Ajustează dimensiunea interfeței. Poți schimba asta și cu % +/-.
+Administrator	Administrator
+Advanced Permissions	Permisiuni avansate
+Advanced permissions	Permisiuni avansate
+Age-Restricted Channel	Canal cu restricție de vârstă
+All	Toate
+All Actions	Toate acțiunile
+All Messages	Toate mesajele
+All Users	Toți utilizatorii
+All friends	Toți prietenii
+All messages will be filtered for sensitive image-based media.	Toate mesajele vor fi filtrate pentru conținut media sensibil bazat pe imagini.
+All set. Now share your event!	Gata. Acum distribuie evenimentul!
+Allow DMs from other members in servers	Permite mesaje directe de la alți membri de pe servere
+Allow Discord to use and process my information to understand and improve Discord's services.	Permite Discord să-mi folosească și să-mi proceseze informațiile pentru a înțelege și îmbunătăți serviciile Discord.
+Allow Friend Requests from...	Permite cereri de prietenie de la...
+Allow Multiple Answers	Permite mai multe răspunsuri
+Allow anyone to @mention this role	Permite oricui să @menționeze acest rol
+Allow direct messages from other members in this server.	Permite mesaje directe de la alți membri de pe acest server.
+Allow friends to join your game	Permite prietenilor să se alăture jocului tău
+Allow members to change this server's name, switch regions, view all invites, add apps to this server and create and update AutoMod rules.	Permite membrilor să schimbe numele serverului, să schimbe regiunea, să vadă toate invitațiile, să adauge aplicații pe server și să creeze și să actualizeze reguli AutoMod.
+Allow members to create invite-only threads.	Permite membrilor să creeze fire doar cu invitație.
+Allow members to create threads that everyone in a channel can view.	Permite membrilor să creeze fire pe care le poate vedea oricine din canal.
+Allow members to send messages in text channels and create posts in forum channels.	Permite membrilor să trimită mesaje în canalele text și să creeze postări în canalele forum.
+Allow members to send messages in threads and in posts on forum channels.	Permite membrilor să trimită mesaje în fire și în postările din canalele forum.
+Allow message requests from server members you may not know	Permite cereri de mesaje de la membri ai serverelor pe care s-ar putea să nu-i cunoști
+Allow voice channel participants to join your game	Permite participanților din canalul vocal să se alăture jocului tău
+Allowed words	Cuvinte permise
+Allows apps that members have added to their account to post messages. When disabled, the messages will be private.	Permite aplicațiilor adăugate de membri în contul lor să posteze mesaje. Când e dezactivat, mesajele vor fi private.
+Allows links that members share to show embedded content in text channels.	Permite linkurilor distribuite de membri să afișeze conținut încorporat în canalele text.
+Allows members to add custom emoji, stickers, and sounds in this server.	Permite membrilor să adauge emoji, autocolante și sunete personalizate pe acest server.
+Allows members to add new emoji reactions to a message. If this permission is disabled, members can still react using any existing reactions on a message.	Permite membrilor să adauge reacții emoji noi la un mesaj. Dacă permisiunea e dezactivată, membrii pot reacționa în continuare cu reacțiile existente ale mesajului.
+Allows members to be more easily heard in voice channels. When activated, the volume of others without this permission will be automatically lowered.	Permite membrilor să fie auziți mai ușor în canalele vocale. Când e activată, volumul celorlalți fără această permisiune va fi redus automat.
+Allows members to change the nicknames of other members.	Permite membrilor să schimbe poreclele altor membri.
+Allows members to change their own nickname, a custom name for just this server.	Permite membrilor să-și schimbe propria poreclă, un nume personalizat doar pentru acest server.
+Allows members to change this channel's name, description, and settings. They can also delete it.	Permite membrilor să schimbe numele, descrierea și setările acestui canal. Îl pot și șterge.
+Allows members to change this channel's permissions.	Permite membrilor să schimbe permisiunile acestui canal.
+Allows members to create and edit voice channel status.	Permite membrilor să creeze și să editeze starea canalului vocal.
+Allows members to create events.	Permite membrilor să creeze evenimente.
+Allows members to create new roles and edit or delete roles lower than their highest role. Also allows members to change permissions of individual channels that they have access to.	Permite membrilor să creeze roluri noi și să editeze sau să șteargă rolurile aflate sub cel mai înalt rol al lor. Le permite și să schimbe permisiunile canalelor la care au acces.
+Allows members to create polls.	Permite membrilor să creeze sondaje.
+Allows members to create, edit, or delete channels.	Permite membrilor să creeze, să editeze sau să șteargă canale.
+Allows members to create, edit, or delete webhooks, which can post messages from other apps or sites into this server.	Permite membrilor să creeze, să editeze sau să șteargă webhookuri, care pot posta pe acest server mesaje din alte aplicații sau site-uri.
+Allows members to deafen other members in voice channels, which means they won't be able to speak or hear others.	Permite membrilor să asurzească alți membri în canalele vocale, adică aceștia nu vor putea vorbi sau auzi pe ceilalți.
+Allows members to delete or remove embeds from messages by other members.	Permite membrilor să șteargă mesajele altor membri sau să elimine conținutul încorporat din ele.
+Allows members to disconnect or move other members between voice channels that the member with this permission has access to.	Permite membrilor să deconecteze alți membri sau să-i mute între canalele vocale la care are acces membrul cu această permisiune.
+Allows members to edit and cancel events.	Permite membrilor să editeze și să anuleze evenimente.
+Allows members to edit or remove custom emoji, stickers, and sounds in this server.	Permite membrilor să editeze sau să elimine emoji, autocolante și sunete personalizate de pe acest server.
+Allows members to invite new people to this server.	Permite membrilor să invite persoane noi pe acest server.
+Allows members to join voice channels and hear others.	Permite membrilor să intre în canalele vocale și să-i audă pe ceilalți.
+Allows members to mute other members in voice channels for everyone.	Permite membrilor să pună pe mut alți membri în canalele vocale pentru toată lumea.
+Allows members to permanently ban and delete the message history of other members from this server.	Permite membrilor să interzică permanent alți membri pe acest server și să le șteargă istoricul mesajelor.
+Allows members to pin or unpin any message.	Permite membrilor să fixeze sau să anuleze fixarea oricărui mesaj.
+Allows members to read previous messages sent in channels. If this permission is disabled, members only see messages sent when they are online. This does not fully apply to threads and forum posts.	Permite membrilor să citească mesajele trimise anterior în canale. Dacă permisiunea e dezactivată, membrii văd doar mesajele trimise cât sunt online. Nu se aplică în totalitate firelor și postărilor din forum.
+Allows members to remove other members from this server. Kicked members will be able to rejoin if they have another invite.	Permite membrilor să elimine alți membri de pe acest server. Membrii dați afară vor putea reveni dacă au altă invitație.
+Allows members to rename, delete, close, and turn on slow mode for threads and posts. They can also view private threads.	Permite membrilor să redenumească, să șteargă, să închidă și să activeze modul lent pentru fire și postări. Pot vedea și firele private.
+Allows members to send messages without being affected by slowmode.	Permite membrilor să trimită mesaje fără să fie afectați de modul lent.
+Allows members to send sounds from server soundboard.	Permite membrilor să trimită sunete din soundboardul serverului.
+Allows members to send text-to-speech messages by starting a message with /tts. These messages can be heard by anyone focused on the channel.	Permite membrilor să trimită mesaje text-to-speech începând mesajul cu /tts. Aceste mesaje pot fi auzite de oricine are canalul deschis.
+Allows members to send voice messages.	Permite membrilor să trimită mesaje vocale.
+Allows members to share their video, screen share, or stream a game in this server.	Permite membrilor să-și partajeze camera, ecranul sau să transmită un joc pe acest server.
+Allows members to speak in voice channels by simply talking. If this permission is disabled, members are required to use Push-to-talk. Good for controlling background noise or noisy members.	Permite membrilor să vorbească în canalele vocale pur și simplu vorbind. Dacă permisiunea e dezactivată, membrii trebuie să folosească Apasă ca să vorbești. Util pentru a controla zgomotul de fundal sau membrii gălăgioși.
+Allows members to talk in voice channels. If this permission is disabled, members are default muted until somebody with the "Mute Members" permission un-mutes them.	Permite membrilor să vorbească în canalele vocale. Dacă permisiunea e dezactivată, membrii sunt implicit pe mut până când cineva cu permisiunea „Pune membri pe mut” le reactivează microfonul.
+Allows members to upload files or media in text channels.	Permite membrilor să încarce fișiere sau conținut media în canalele text.
+Allows members to use @everyone (everyone in the server) or @here (only online members in that channel). They can also @mention all roles, even if the role's "Allow anyone to mention this role" permission is disabled.	Permite membrilor să folosească @everyone (toată lumea de pe server) sau @here (doar membrii online din acel canal). Pot și să @menționeze toate rolurile, chiar dacă permisiunea „Permite oricui să menționeze acest rol” e dezactivată.
+Allows members to use commands from applications, including slash commands and context menu commands.	Permite membrilor să folosească comenzile aplicațiilor, inclusiv comenzile slash și cele din meniul contextual.
+Allows members to use emoji from other servers, if they're a Discord Nitro member.	Permite membrilor să folosească emoji de pe alte servere, dacă au Discord Nitro.
+Allows members to use sounds from other servers, if they're a Discord Nitro member.	Permite membrilor să folosească sunete de pe alte servere, dacă au Discord Nitro.
+Allows members to use stickers from other servers, if they're a Discord Nitro member.	Permite membrilor să folosească autocolante de pe alte servere, dacă au Discord Nitro.
+Allows members to view Server Insights, which shows data on community growth, engagement, and more. This will allow them to see certain data about channel activity, even for channels they cannot access.	Permite membrilor să vadă Statisticile serverului, cu date despre creșterea comunității, implicare și altele. Vor putea vedea anumite date despre activitatea canalelor, chiar și ale celor la care nu au acces.
+Allows members to view a record of who made which changes in this server.	Permite membrilor să vadă cine ce modificări a făcut pe acest server.
+Allows members to view channels by default (excluding private channels).	Permite membrilor să vadă canalele în mod implicit (cu excepția celor private).
+Allows members to view these channels by default. Disabling this for @everyone will make the category private.	Permite membrilor să vadă aceste canale în mod implicit. Dezactivarea pentru @everyone va face categoria privată.
+Allows members to view this channel by default. Disabling this for @everyone will make this channel private.	Permite membrilor să vadă acest canal în mod implicit. Dezactivarea pentru @everyone va face canalul privat.
+Always	Întotdeauna
+An emoji name, like smile	Un nume de emoji, de exemplu smile
+An encrypted file couldn't be opened.|% encrypted files couldn't be opened.	Un fișier criptat nu a putut fi deschis.|% fișiere criptate nu au putut fi deschise.|% de fișiere criptate nu au putut fi deschise.
+An error occurred, please try again.	A apărut o eroare, încearcă din nou.
+An error occurred. Please try again.	A apărut o eroare. Încearcă din nou.
+Announcement	Anunț
+Announcement Channel	Canal de anunțuri
+Answer	Răspuns
+Answers	Răspunsuri
+Anyone can join your server directly through Server Discovery	Oricine se poate alătura serverului tău direct din Descoperirea serverelor
+Anyone can use	Oricine poate folosi
+Anyone with access to this text channel will be able to see the notifications.	Oricine are acces la acest canal text va putea vedea notificările.
+App Directory	Director de aplicații
+Appearance	Aspect
+Appends (╯°□°)╯︵ ┻━┻ to your message.	Adaugă (╯°□°)╯︵ ┻━┻ la mesajul tău.
+Appends ¯\\_(ツ)_/¯ to your message.	Adaugă ¯\\_(ツ)_/¯ la mesajul tău.
+Appends ┬─┬ノ( º _ ºノ) to your message.	Adaugă ┬─┬ノ( º _ ºノ) la mesajul tău.
+Applications	Aplicații
+Apply to Join	Aplică pentru a te alătura
+Approve	Aprobă
+Apps	Aplicații
+Apps Permissions	Permisiuni pentru aplicații
+Archived	Arhivat
+Archived Threads	Fire arhivate
+Are you building a Community? Convert to a Community Server to access additional administrative tools that can help you moderate, run, and grow your server.	Construiești o comunitate? Transformă-l în server de comunitate ca să ai acces la instrumente administrative suplimentare care te ajută să moderezi, să administrezi și să dezvolți serverul.
+Are you sure that you want to delete your account? This will immediately log you out of your account and you will not be able to log in again.	Sigur vrei să-ți ștergi contul? Vei fi deconectat imediat și nu te vei mai putea conecta.
+Are you sure that you want to disable your account? This will immediately log you out and make your account inaccessible to anyone.	Sigur vrei să-ți dezactivezi contul? Vei fi deconectat imediat, iar contul va deveni inaccesibil pentru oricine.
+Are you sure you want to ban @%1 from %2? They won't be able to come back until the ban is lifted.	Sigur vrei să-i interzici lui @%1 accesul pe %2? Nu va putea reveni până nu e ridicată interdicția.
+Are you sure you want to delete %? This action cannot be undone.	Sigur vrei să ștergi %? Acțiunea nu poate fi anulată.
+Are you sure you want to delete %? This cannot be undone.	Sigur vrei să ștergi %? Nu poate fi anulat.
+Are you sure you want to delete :%:? This cannot be undone.	Sigur vrei să ștergi :%:? Nu poate fi anulat.
+Are you sure you want to delete the rule %? This cannot be undone.	Sigur vrei să ștergi regula %? Nu poate fi anulat.
+Are you sure you want to delete this message?	Sigur vrei să ștergi acest mesaj?
+Are you sure you want to delete this role? This action cannot be undone.	Sigur vrei să ștergi acest rol? Acțiunea nu poate fi anulată.
+Are you sure you want to delete this template? Its link will stop working.	Sigur vrei să ștergi acest șablon? Linkul lui nu va mai funcționa.
+Are you sure you want to kick @%1 from %2? They will be able to rejoin again with a new invite.	Sigur vrei să-l dai afară pe @%1 de pe %2? Va putea reveni cu o invitație nouă.
+Are you sure you want to logout?	Sigur vrei să te deconectezi?
+Are you sure you want to remove all embeds on this message? This will remove them for everyone.	Sigur vrei să elimini tot conținutul încorporat din acest mesaj? Va fi eliminat pentru toată lumea.
+Are you sure you want to remove all of the reactions for this emoji from this message?	Sigur vrei să elimini toate reacțiile cu acest emoji de la acest mesaj?
+Are you sure you want to remove all the reactions on this message?	Sigur vrei să elimini toate reacțiile de la acest mesaj?
+Are you sure you want to revoke the invite %? Nobody will be able to join with it.	Sigur vrei să revoci invitația %? Nimeni nu se va mai putea alătura cu ea.
+Ask for a new invite	Cere o invitație nouă
+Ask new members what they're here for; each answer gives them channels and roles.	Întreabă membrii noi de ce au venit; fiecare răspuns le dă canale și roluri.
+Attach Files	Atașează fișiere
+Attachment removed	Atașament eliminat
+Attachments	Atașamente
+Audit Log	Jurnal de audit
+Authorized Apps	Aplicații autorizate
+Auto	Auto
+AutoMod	AutoMod
+Automatic	Automat
+Automatic Gain Control	Control automat al amplificării
+Automatically determine input sensitivity	Determină automat sensibilitatea intrării
+Automatically enable Streamer Mode if OBS or XSplit are running	Activează automat Modul streamer dacă rulează OBS sau XSplit
+Automatically filter suspected spam messages	Filtrează automat mesajele suspectate de spam
+Automatically move members to this channel and mute them when they have been idle for longer than the inactive timeout. This does not affect browsers.	Mută automat membrii în acest canal și pune-i pe mut când sunt inactivi mai mult decât limita de inactivitate. Nu afectează browserele.
+Automatically open fastcord when your computer starts up	Deschide automat fastcord la pornirea computerului
+Automatically scan and delete messages sent in this server that contain explicit media.	Scanează și șterge automat mesajele trimise pe acest server care conțin media explicit.
+Avatar	Avatar
+BACK	ÎNAPOI
+BACKUP CODES	CODURI DE REZERVĂ
+Back	Înapoi
+Back / forward	Înapoi / înainte
+Backup codes can only be used one time each and are for emergency access to your account!	Fiecare cod de rezervă poate fi folosit o singură dată și e pentru accesul de urgență la cont!
+Backups	Copii de rezervă
+Ban	Interzice
+Ban %	Interzice-i lui %
+Ban '%' from Server	Interzice-i lui „%” accesul pe server
+Ban Member	Interzice membrul
+Ban Members	Interzice membri
+Banner	Banner
+Banner Color	Culoare banner
+Bans	Interdicții
+Bitrate	Rată de biți
+Block	Blochează
+Block Commonly Flagged Words	Blochează cuvintele semnalate frecvent
+Block Custom Words	Blochează cuvinte personalizate
+Block Mention Spam	Blochează spamul de mențiuni
+Block Suspected Spam Content	Blochează conținutul suspectat de spam
+Block Words in Member Profile Names	Blochează cuvinte în numele de profil ale membrilor
+Block message	Blochează mesajul
+Blocked	Blocat
+Blocked Users	Utilizatori blocați
+Blocked by your content filters	Blocat de filtrele tale de conținut
+Blocked message	Mesaj blocat
+Blocked words	Cuvinte blocate
+Blocked words in names	Cuvinte blocate în nume
+Blocks messages containing % word.|Blocks messages containing % words.	Blochează mesajele care conțin % cuvânt.|Blochează mesajele care conțin % cuvinte.|Blochează mesajele care conțin % de cuvinte.
+Blocks messages suspected to be spam.	Blochează mesajele suspectate de spam.
+Blocks messages with more than % mentions.	Blochează mesajele cu peste % mențiuni.
+Blocks words from Discord's commonly flagged lists.	Blochează cuvintele din listele Discord de cuvinte semnalate frecvent.
+Blocks words in member profile names.	Blochează cuvinte în numele de profil ale membrilor.
+Blur	Estompare
+Blur Background	Estompează fundalul
+Blur what's behind you on camera. Only your camera is changed.	Estompează ce e în spatele tău pe cameră. Se schimbă doar camera ta.
+Bold / italic / underline	Aldin / cursiv / subliniat
+Bots and Apps	Boți și aplicații
+Browse	Răsfoiește
+Browse Channels	Răsfoiește canalele
+Built-In	Integrat
+Bulgarian	Bulgară
+By creating a server, you agree to Discord's Community Guidelines.	Creând un server, ești de acord cu Regulile comunității Discord.
+By enabling the widget, your server profile will be visible to others outside of your server members. You can control Profile privacy in Server Settings > Profile.	Activând widgetul, profilul serverului va fi vizibil și pentru cei care nu sunt membri. Poți controla confidențialitatea profilului în Setări server > Profil.
+By making a category private, only select members and roles will be able to view this category. Linked channels in this category will automatically match to this setting.	Dacă faci categoria privată, doar membrii și rolurile alese o vor putea vedea. Canalele sincronizate din categorie vor prelua automat această setare.
+By making a channel private, only select members and roles will be able to view this channel.	Dacă faci canalul privat, doar membrii și rolurile alese îl vor putea vedea.
+By making a channel private, only select members and roles will have access to view or connect to this channel.	Dacă faci canalul privat, doar membrii și rolurile alese îl vor putea vedea sau se vor putea conecta la el.
+Bypass Slowmode	Ocolește modul lent
+CHANNEL OR CATEGORY	CANAL SAU CATEGORIE
+CONFIRM NEW PASSWORD	CONFIRMĂ PAROLA NOUĂ
+CURRENT PASSWORD	PAROLA ACTUALĂ
+Call	Apel
+Cancel	Anulează
+Cancel Event	Anulează evenimentul
+Cancel Friend Request	Anulează cererea de prietenie
+Careful — you have unsaved changes!	Atenție — ai modificări nesalvate!
+Category Name	Numele categoriei
+Category deleted	Categorie ștearsă
+Change %	Schimbă %
+Change Avatar	Schimbă avatarul
+Change Nickname	Schimbă porecla
+Change Password	Schimbă parola
+Change Server Icon	Schimbă pictograma serverului
+Channel	Canal
+Channel Name	Numele canalului
+Channel Notification Overrides	Excepții de notificări pentru canale
+Channel Topic	Subiectul canalului
+Channel Type	Tipul canalului
+Channel deleted	Canal șters
+Channel unmuted	Sunetul canalului reactivat
+Channels	Canale
+Channels & Roles	Canale și roluri
+Channels Followed (%)	Canale urmărite (%)
+Channels matching #%	Canale care se potrivesc cu #%
+Chat	Chat
+Chat Font Scaling	Dimensiunea fontului din chat
+Check your email for a login link	Verifică-ți e-mailul pentru un link de conectare
+Check your phone!	Verifică-ți telefonul!
+Checking the file…	Se verifică fișierul…
+Chinese, China	Chineză, China
+Chinese, Taiwan	Chineză, Taiwan
+Choose Image	Alege imaginea
+Choose a link people can use to join, discord.gg/<code>.	Alege un link cu care se pot alătura oamenii, discord.gg/<cod>.
+Choose a server	Alege un server
+Choose the language you want Discord to display.	Alege limba în care vrei să fie afișat Discord.
+Choose what happens to images and videos Discord detects as explicit.	Alege ce se întâmplă cu imaginile și videoclipurile pe care Discord le detectează ca explicite.
+Clear	Golește
+Clear Custom Status	Șterge starea personalizată
+Clear after	Șterge după
+Clear permissions	Șterge permisiunile
+Click Again to Reset	Apasă din nou pentru resetare
+Click any channel, then pick a request whose name starts with "messages" or "science".	Apasă pe orice canal, apoi alege o cerere al cărei nume începe cu „messages” sau „science”.
+Click to add a note	Apasă ca să adaugi o notă
+Click to see attachment	Apasă ca să vezi atașamentul
+Close DM	Închide mesajul direct
+Collapse	Restrânge
+Collapse All Categories	Restrânge toate categoriile
+Collapse Category	Restrânge categoria
+Commands	Comenzi
+Commands matching /%	Comenzi care se potrivesc cu /%
+Community Overview	Prezentare generală comunitate
+Community Updates Channel	Canal de noutăți pentru comunitate
+Community servers follow Discord's Community Guidelines.	Serverele de comunitate respectă Regulile comunității Discord.
+Community servers have more tools to help you moderate and grow your server.	Serverele de comunitate au mai multe instrumente care te ajută să moderezi și să dezvolți serverul.
+Compact	Compact
+Compare	Compară
+Compare these with %, in person or on a call. If they match, no one can read this DM in between.	Compară-le cu %, în persoană sau într-un apel. Dacă se potrivesc, nimeni nu poate citi acest mesaj direct pe drum.
+Configure system event messages sent to your server.	Configurează mesajele de sistem trimise pe serverul tău.
+Confirm	Confirmă
+Confirm Request	Confirmă cererea
+Confirm your age to join this server.	Confirmă-ți vârsta ca să te alături acestui server.
+Confirming...	Se confirmă...
+Connect	Conectează
+Connect these accounts and unlock special Discord integrations. The sign-in opens in your browser.	Conectează aceste conturi și deblochează integrări Discord speciale. Conectarea se deschide în browser.
+Connected Apps	Aplicații conectate
+Connecting	Se conectează
+Connecting...	Se conectează...
+Connecting…	Se conectează…
+Connection Info	Informații conexiune
+Connection lost. Messages may be out of date.	Conexiune pierdută. Mesajele pot fi neactualizate.
+Connections	Conexiuni
+Content Filters	Filtre de conținut
+Continue	Continuă
+Control who can see your profile info, like your bio and connected accounts.	Controlează cine îți poate vedea informațiile din profil, ca biografia și conturile conectate.
+Copied	Copiat
+Copy	Copiază
+Copy Category ID	Copiază ID-ul categoriei
+Copy Channel ID	Copiază ID-ul canalului
+Copy Event Link	Copiază linkul evenimentului
+Copy Image	Copiază imaginea
+Copy Image Link	Copiază linkul imaginii
+Copy Link	Copiază linkul
+Copy Media Link	Copiază linkul media
+Copy Message ID	Copiază ID-ul mesajului
+Copy Message Link	Copiază linkul mesajului
+Copy Server ID	Copiază ID-ul serverului
+Copy Text	Copiază textul
+Copy User ID	Copiază ID-ul utilizatorului
+Copy Username	Copiază numele de utilizator
+Copy Webhook URL	Copiază URL-ul webhookului
+Copy curl Command	Copiază comanda curl
+Copy the event link below to invite people to your event. This also acts as a server invite link.	Copiază linkul de mai jos ca să inviți oameni la eveniment. Funcționează și ca link de invitație pe server.
+Copy your account's token once from Discord in a web browser.	Copiază o dată tokenul contului din Discord, într-un browser web.
+Couldn't accept encryption.	Criptarea nu a putut fi acceptată.
+Couldn't cancel the event.	Evenimentul nu a putut fi anulat.
+Couldn't change avatar	Avatarul nu a putut fi schimbat
+Couldn't create an invite link.	Linkul de invitație nu a putut fi creat.
+Couldn't create an invite.	Invitația nu a putut fi creată.
+Couldn't delete the channel: %	Canalul nu a putut fi șters: %
+Couldn't encrypt the message.	Mesajul nu a putut fi criptat.
+Couldn't join %: %	Nu te-ai putut alătura la %1: %2
+Couldn't load onboarding.	Integrarea nu a putut fi încărcată.
+Couldn't load the AutoMod rules.	Regulile AutoMod nu au putut fi încărcate.
+Couldn't load the applications.	Aplicațiile nu au putut fi încărcate.
+Couldn't load the audit log.	Jurnalul de audit nu a putut fi încărcat.
+Couldn't load the bans.	Interdicțiile nu au putut fi încărcate.
+Couldn't load the invites.	Invitațiile nu au putut fi încărcate.
+Couldn't load the members.	Membrii nu au putut fi încărcați.
+Couldn't load the role's members.	Membrii rolului nu au putut fi încărcați.
+Couldn't load the server rules.	Regulile serverului nu au putut fi încărcate.
+Couldn't load the server's tag.	Eticheta serverului nu a putut fi încărcată.
+Couldn't load the template.	Șablonul nu a putut fi încărcat.
+Couldn't load the webhooks.	Webhookurile nu au putut fi încărcate.
+Couldn't move the channel	Canalul nu a putut fi mutat
+Couldn't play it here, so it opened in your browser.	Nu a putut fi redat aici, așa că s-a deschis în browser.
+Couldn't reach %1: %2 Retrying.	Nu s-a putut contacta %1: %2 Se reîncearcă.
+Couldn't reach Discord. Check your connection and try again.	Discord nu a putut fi contactat. Verifică-ți conexiunea și încearcă din nou.
+Couldn't reach Discord. Try again.	Discord nu a putut fi contactat. Încearcă din nou.
+Couldn't reach the server.	Serverul nu a putut fi contactat.
+Couldn't reach the server. Check your connection and try again.	Serverul nu a putut fi contactat. Verifică-ți conexiunea și încearcă din nou.
+Couldn't save the file.	Fișierul nu a putut fi salvat.
+Couldn't save the image.	Imaginea nu a putut fi salvată.
+Couldn't save the token.	Tokenul nu a putut fi salvat.
+Couldn't turn on encryption.	Criptarea nu a putut fi activată.
+Couldn't upload emoji	Emoji nu a putut fi încărcat
+Cozy	Confortabil
+Create	Creează
+Create Category	Creează categorie
+Create Channel	Creează canal
+Create DM	Creează mesaj direct
+Create Emoji	Creează emoji
+Create Event	Creează eveniment
+Create Events	Creează evenimente
+Create Expressions	Creează expresii
+Create Group DM	Creează grup de mesaje directe
+Create Invite	Creează invitație
+Create My Own	Creez unul propriu
+Create Poll	Creează sondaj
+Create Polls	Creează sondaje
+Create Private Threads	Creează fire private
+Create Public Threads	Creează fire publice
+Create Role	Creează rol
+Create Rule	Creează regulă
+Create Thread	Creează fir
+Create Webhook	Creează webhook
+Create Your Server	Creează-ți serverul
+Create a poll	Creează un sondaj
+Create a space for organized discussions	Creează un spațiu pentru discuții organizate
+Create one for me	Creează unul pentru mine
+Created by %	Creat de %
+Created on %1 by %2	Creat pe %1 de %2
+Creating an invite link…	Se creează un link de invitație…
+Creating an invite...	Se creează o invitație...
+Creating...	Se creează...
+Creating…	Se creează…
+Creation Date	Data creării
+Croatian	Croată
+Current Device	Dispozitivul curent
+Custom Invite Link	Link de invitație personalizat
+Customize Your Server	Personalizează-ți serverul
+Customize how your server appears in invite links and, if enabled, in Server Discovery and Announcement Channel messages	Personalizează cum apare serverul în linkurile de invitație și, dacă e activat, în Descoperirea serverelor și în mesajele din canalele de anunțuri
+Customize your server with integrations. Manage webhooks, followed channels and apps.	Personalizează serverul cu integrări. Gestionează webhookuri, canale urmărite și aplicații.
+Cut	Decupează
+Czech	Cehă
+DAVE v%, % members	DAVE v%1, %2 membri
+DEFAULT KEYBINDS	COMBINAȚII DE TASTE IMPLICITE
+DM closed	Mesaj direct închis
+Danish	Daneză
+Data & Privacy	Date și confidențialitate
+Date	Dată
+Deafen	Asurzește
+Deafen Members	Asurzește membri
+Deauthorize	Revocă autorizarea
+Decline	Refuză
+Default	Implicit
+Default Channels	Canale implicite
+Default Layout	Aspect implicit
+Default Notification Settings	Setări de notificare implicite
+Default Permissions	Permisiuni implicite
+Default Sort Order	Ordine de sortare implicită
+Default Themes	Teme implicite
+Default notifications become Only @mentions.	Notificările implicite devin Doar @mențiuni.
+Delete	Șterge
+Delete '%'	Șterge „%”
+Delete Account	Șterge contul
+Delete Category	Șterge categoria
+Delete Channel	Șterge canalul
+Delete Emoji	Șterge emoji
+Delete Invite	Șterge invitația
+Delete Message	Șterge mesajul
+Delete Message History	Șterge istoricul mesajelor
+Delete Question	Șterge întrebarea
+Delete Role	Șterge rolul
+Delete Rule	Șterge regula
+Delete Server	Șterge serverul
+Delete Sticker	Șterge autocolantul
+Delete Template	Șterge șablonul
+Delete Thread	Șterge firul
+Delete Webhook	Șterge webhookul
+Deleted message	Mesaj șters
+Describe your sticker	Descrie autocolantul
+Description	Descriere
+Description (alt text)	Descriere (text alternativ)
+Description (optional)	Descriere (opțional)
+Detects a burst of mention spam across the server and locks it down.	Detectează valurile de spam cu mențiuni de pe server și îl blochează.
+Developer	Dezvoltator
+Developer Mode	Mod dezvoltator
+Developer Mode exposes context menu items helpful for people writing apps using the Discord API.	Modul dezvoltator afișează în meniul contextual opțiuni utile celor care scriu aplicații cu API-ul Discord.
+Devices	Dispozitive
+Direct Message (DM) Permissions	Permisiuni pentru mesaje directe
+Direct Messages	Mesaje directe
+Direct messages from friends	Mesaje directe de la prieteni
+Direct messages from others	Mesaje directe de la alții
+Disable	Dezactivează
+Disable Account	Dezactivează contul
+Disable All Notification Sounds	Dezactivează toate sunetele de notificare
+Disable Community	Dezactivează comunitatea
+Disable all notifications	Dezactivează toate notificările
+Disable all sound effects	Dezactivează toate efectele sonore
+Disabling your account means you can recover it at any time after taking this action.	Dacă îți dezactivezi contul, îl poți recupera oricând după aceea.
+Disconnect	Deconectează
+Disconnect From Voice Channel	Deconectează-te de la canalul vocal
+Disconnected	Deconectat
+Discord account	Cont Discord
+Discord asked for a captcha, which fastcord can't show. Log in with the QR code instead.	Discord a cerut un captcha, pe care fastcord nu-l poate afișa. Conectează-te cu codul QR.
+Discord asked for a captcha, which fastcord can't show. Try on discord.com.	Discord a cerut un captcha, pe care fastcord nu-l poate afișa. Încearcă pe discord.com.
+Discord can filter out some messages that contain spam. These messages go to your Spam inbox.	Discord poate filtra unele mesaje care conțin spam. Acestea ajung în căsuța ta Spam.
+Discord didn't accept the saved login. Log in again.	Discord nu a acceptat conectarea salvată. Conectează-te din nou.
+Discord failed to unpin that message for some reason. Sorry about that.	Discord nu a reușit să anuleze fixarea mesajului dintr-un motiv oarecare. Ne pare rău.
+Discord will prioritize this server in search to users who speak the selected language.	Discord va prioritiza acest server în căutări pentru utilizatorii care vorbesc limba selectată.
+Discord's terms don't allow third-party clients, so using one can get an account flagged.	Termenii Discord nu permit clienți terți, așa că folosirea unuia poate duce la semnalarea contului.
+Discoverable	Poate fi descoperit
+Dismiss	Închide
+Dismiss message	Închide mesajul
+Display	Afișare
+Display Images, Videos and Lolcats	Afișează imagini, videoclipuri și pisici amuzante
+Display Name	Nume afișat
+Display name	Nume afișat
+Display on profile	Afișează în profil
+Display role members separately from online members	Afișează membrii rolului separat de membrii online
+Displays text with emphasis.	Afișează textul cu accent.
+Do Not Disturb	Nu deranjați
+Do not filter	Nu filtra
+Do not filter direct messages	Nu filtra mesajele directe
+Don't Delete Any	Nu șterge nimic
+Don't clear	Nu șterge
+Don't show role colors	Nu afișa culorile rolurilor
+Done	Gata
+Download	Descarcă
+Drop a file here, or browse	Trage un fișier aici sau răsfoiește
+Duration	Durată
+Dutch	Neerlandeză
+EDIT ROLE — %	EDITEAZĂ ROLUL — %
+EMAIL OR PHONE NUMBER	E-MAIL SAU NUMĂR DE TELEFON
+EMOJI MATCHING	EMOJI CARE SE POTRIVESC
+ENTER THE 6-DIGIT CODE	INTRODU CODUL DIN 6 CIFRE
+EXPIRE AFTER	EXPIRĂ DUPĂ
+EXPIRES	EXPIRĂ
+Ease the chat and lists toward where you scroll. Off, they jump there at once (always, when your device asks for reduced motion).	Derulează lin chatul și listele. Dacă e oprit, sar direct acolo (mereu, când dispozitivul cere mișcare redusă).
+Echo Cancellation	Anulare ecou
+Edit	Editează
+Edit Category	Editează categoria
+Edit Channel	Editează canalul
+Edit Friend Nickname	Editează porecla prietenului
+Edit Message	Editează mesajul
+Edit Per-server Profile	Editează profilul pe server
+Edit Profile	Editează profilul
+Edit Profiles	Editează profilurile
+Edit Sound	Editează sunetul
+Edit Thread	Editează firul
+Edit User Profile	Editează profilul de utilizator
+Edit invite link.	Editează linkul de invitație.
+Edit your last message	Editează ultimul mesaj
+Email	E-mail
+Embed Links	Încorporează linkuri
+Embed an HTML widget on your website to display your online members, voice channels, and invite link.	Încorporează un widget HTML pe site-ul tău ca să afișezi membrii online, canalele vocale și linkul de invitație.
+Emoji	Emoji
+Emoji / GIF / sticker picker	Selector de emoji / GIF / autocolante
+Enable Authenticator App	Activează aplicația de autentificare
+Enable Community	Activează comunitatea
+Enable Community to access Server Discovery	Activează comunitatea ca să ai acces la Descoperirea serverelor
+Enable Desktop Notifications	Activează notificările desktop
+Enable Invites	Activează invitațiile
+Enable Onboarding	Activează integrarea
+Enable Reduced Motion	Activează mișcarea redusă
+Enable Server Widget	Activează widgetul serverului
+Enable Streamer Mode	Activează Modul streamer
+Enable Unread Message Badge	Activează insigna pentru mesaje necitite
+Encrypt this DM	Criptează acest mesaj direct
+Encrypted message	Mesaj criptat
+Encrypted messages are limited to % bytes for now.	Deocamdată, mesajele criptate sunt limitate la % octeți.
+End Date	Data de încheiere
+End Event	Încheie evenimentul
+End Poll Now	Încheie sondajul acum
+End Time	Ora de încheiere
+End-to-end encrypted	Criptat end-to-end
+End-to-end encryption	Criptare end-to-end
+Engagement	Implicare
+English, UK	Engleză, Regatul Unit
+English, USA	Engleză, SUA
+Enter Discord Auth Code	Introdu codul de autentificare Discord
+Enter Discord Backup Code	Introdu codul de rezervă Discord
+Enter a location	Introdu o locație
+Enter a message to start the conversation!	Scrie un mesaj ca să începi conversația!
+Enter an invite below to join an existing server	Introdu o invitație mai jos ca să te alături unui server existent
+Enter server name	Introdu numele serverului
+Enter your current password and a new password.	Introdu parola actuală și o parolă nouă.
+Error	Eroare
+Est. %	Fondat în %
+Event Info	Informații eveniment
+Event Topic	Subiectul evenimentului
+Event cancelled	Eveniment anulat
+Event is over	Evenimentul s-a încheiat
+Events	Evenimente
+Events Permissions	Permisiuni pentru evenimente
+Every answer needs a title.	Fiecare răspuns are nevoie de un titlu.
+Every question needs a title and at least one answer.	Fiecare întrebare are nevoie de un titlu și de cel puțin un răspuns.
+Everyone	Toată lumea
+Everyone in this channel connects to the selected region. Automatic picks the best one for whoever starts the call.	Toți cei din acest canal se conectează la regiunea selectată. Automat alege cea mai bună regiune pentru cel care începe apelul.
+Everyone welcome %!	Bun venit, %!
+Everyone who joins sees these channels, whatever they answer.	Toți cei care se alătură văd aceste canale, indiferent ce răspund.
+Exempt a channel	Exceptează un canal
+Exempt a role	Exceptează un rol
+Exemptions	Excepții
+Expand (% lines)	Extinde (% rânduri)
+Expand (% of % lines)	Extinde (%1 din %2 rânduri)
+Expired	Expirat
+Explicit image filter	Filtru pentru imagini explicite
+Expression	Expresie
+FRAME RATE	RATĂ DE CADRE
+Failed to follow the channel, please try again.	Canalul nu a putut fi urmărit, încearcă din nou.
+Fastcord couldn't be installed.	Fastcord nu a putut fi instalat.
+Favorites	Favorite
+File	Fișier
+File saved.	Fișier salvat.
+Filename	Numele fișierului
+Fill out the details of your event.	Completează detaliile evenimentului.
+Filter by Action	Filtrează după acțiune
+Filter by User	Filtrează după utilizator
+Filter direct messages from everyone	Filtrează mesajele directe de la toată lumea
+Filter direct messages from non-friends	Filtrează mesajele directe de la cei care nu sunt prieteni
+Filter messages from all members	Filtrează mesajele de la toți membrii
+Filter messages from server members without roles	Filtrează mesajele de la membrii serverului fără roluri
+Find or start a conversation	Găsește sau începe o conversație
+Find the perfect emoji	Găsește emoji-ul perfect
+Find the perfect reaction	Găsește reacția perfectă
+Find the perfect sticker	Găsește autocolantul perfect
+Finding the video%	Se caută videoclipul%
+Finish	Finalizează
+Finishing touches	Ultimele retușuri
+Finnish	Finlandeză
+Fit more messages on screen at one time. #IRC	Încap mai multe mesaje pe ecran deodată. #IRC
+Flagged as spam	Semnalat ca spam
+Flags	Steaguri
+Folder Color	Culoarea dosarului
+Folder Name	Numele dosarului
+Folder Settings	Setările dosarului
+Folder removed	Dosar eliminat
+Follow	Urmărește
+Followed!	Urmărit!
+Food & Drink	Mâncare și băutură
+For 1 Hour	Timp de 1 oră
+For 15 Minutes	Timp de 15 minute
+For 24 Hours	Timp de 24 de ore
+For 3 Days	Timp de 3 zile
+For 3 Hours	Timp de 3 ore
+For 8 Hours	Timp de 8 ore
+Forever	Pentru totdeauna
+Forgot your password?	Ți-ai uitat parola?
+Forum	Forum
+Forward	Redirecționează
+Forward To	Redirecționează către
+Forwarded	Redirecționat
+French	Franceză
+Frequently Used	Folosite frecvent
+Friend Nickname	Porecla prietenului
+Friend Request Permissions	Permisiuni pentru cereri de prietenie
+Friend Request Sent	Cerere de prietenie trimisă
+Friend removed	Prieten eliminat
+Friend request cancelled	Cerere de prietenie anulată
+Friend request ignored	Cerere de prietenie ignorată
+Friends	Prieteni
+Friends & All Servers	Prieteni și toate serverele
+Friends & Small Servers Only	Doar prieteni și servere mici
+Friends Only	Doar prieteni
+Friends can ask to join or join the game you're playing.	Prietenii pot cere să se alăture sau se pot alătura jocului pe care îl joci.
+Friends come online	Prietenii devin online
+Friends of friends	Prieteni ai prietenilor
+From User	De la utilizator
+GIFs	GIF-uri
+GIFs can't be sent encrypted yet.	GIF-urile nu pot fi trimise criptat încă.
+Gallery view	Vizualizare galerie
+General	General
+General Category Permissions	Permisiuni generale pentru categorie
+General Channel Permissions	Permisiuni generale pentru canal
+General Server Permissions	Permisiuni generale pentru server
+Generate Template	Generează șablon
+Generate a New Link	Generează un link nou
+German	Germană
+Get a copy of your data. It can take up to 30 days to prepare, and a download link is emailed to you when it's ready.	Obține o copie a datelor tale. Pregătirea poate dura până la 30 de zile, iar când e gata primești pe e-mail un link de descărcare.
+Give new members a quick way to find the channels and roles that matter to them.	Oferă membrilor noi o cale rapidă să găsească canalele și rolurile care contează pentru ei.
+Give your new server a personality with a name. You can always change it later.	Dă-i serverului tău nou personalitate printr-un nume. Îl poți schimba oricând mai târziu.
+Glad you're here, %.	Ne bucurăm că ești aici, %.
+Go Back	Înapoi
+Go To Channel	Mergi la canal
+Go back	Înapoi
+Go forward	Înainte
+Go to Server	Mergi la server
+Good to see you, %.	Ce bine că te vedem, %.
+Got It	Am înțeles
+Grant temporary membership	Acordă calitate de membru temporară
+Greek	Greacă
+Hang out together with voice, video, and screen share	Petreceți timp împreună cu voce, video și partajare de ecran
+Hang out with voice, video, screenshare, and Go Live.	Petreceți timp împreună cu voce, video, partajare de ecran și transmisii live.
+Happening Now	Are loc acum
+Have an invite already?	Ai deja o invitație?
+Help	Ajutor
+Here's a preview of your event.	Iată o previzualizare a evenimentului.
+Hey, just double checking that you want to pin this message to #% for posterity and greatness?	Hei, doar verificăm: vrei să fixezi acest mesaj în #% pentru posteritate și glorie?
+Hey, just double checking that you want to pin this message to the current channel for posterity and greatness?	Hei, doar verificăm: vrei să fixezi acest mesaj în canalul curent pentru posteritate și glorie?
+Hide	Ascunde
+Hide After Inactivity	Ascunde după inactivitate
+Hide Chat	Ascunde chatul
+Hide Fastcord window from screen capture	Ascunde fereastra Fastcord de capturile de ecran
+Hide Muted Channels	Ascunde canalele cu sunetul dezactivat
+Hide invite links to my Discord servers	Ascunde linkurile de invitație către serverele mele Discord
+Hide my personal information, such as email, connected accounts, and notes	Ascunde informațiile mele personale, ca e-mailul, conturile conectate și notițele
+Hides Fastcord windows from most screen capture software.	Ascunde ferestrele Fastcord de majoritatea programelor de captură de ecran.
+High	Ridicat
+Highest	Cel mai ridicat
+Highlights provide occasional updates when your friends are chatting in busy servers, and more.	Momentele importante îți aduc din când în când noutăți când prietenii tăi discută pe servere aglomerate și nu numai.
+Hindi	Hindi
+History	Istoric
+Hitting X makes fastcord minimize to the system tray instead of closing.	Apăsarea pe X minimizează fastcord în bara de sistem în loc să-l închidă.
+Hm, didn’t work. Double check that the username is correct.	Hm, n-a mers. Verifică dacă numele de utilizator e corect.
+Host	Gazdă
+Host events with an audience	Găzduiește evenimente cu public
+How Discord Uses My Data	Cum îmi folosește Discord datele
+How can people join your server?	Cum se pot alătura oamenii serverului tău?
+How did your server get started? Why should people join?	Cum a început serverul tău? De ce ar trebui să se alăture oamenii?
+Hungarian	Maghiară
+I acknowledge that by transferring ownership of this server to %, it officially belongs to them.	Înțeleg că, transferând proprietatea acestui server către %, acesta îi aparține oficial.
+I agree and understand	Sunt de acord și înțeleg
+I'm new here, say hi!	Sunt nou aici, salută-mă!
+I'm sure, use a backup code	Sunt sigur, folosește un cod de rezervă
+IMAGE	IMAGINE
+INPUT DEVICE	DISPOZITIV DE INTRARE
+INPUT MODE	MOD DE INTRARE
+INPUT SENSITIVITY	SENSIBILITATEA INTRĂRII
+INPUT VOLUME	VOLUM INTRARE
+INVITE CODE	COD DE INVITAȚIE
+INVITE LINK	LINK DE INVITAȚIE
+INVITER	INVITAT DE
+INVITES SHOULD LOOK LIKE	INVITAȚIILE AR TREBUI SĂ ARATE AȘA
+Icon	Pictogramă
+Idle	Inactiv
+If Streamer Mode is enabled...	Dacă Modul streamer e activat...
+If you do not have access to any other methods, the button below will activate in % second.|If you do not have access to any other methods, the button below will activate in % seconds.	Dacă nu ai acces la alte metode, butonul de mai jos se va activa în % secundă.|Dacă nu ai acces la alte metode, butonul de mai jos se va activa în % secunde.|Dacă nu ai acces la alte metode, butonul de mai jos se va activa în % de secunde.
+If you do not have access to any other methods, use the other button below to proceed.	Dacă nu ai acces la alte metode, folosește celălalt buton de mai jos ca să continui.
+Ignore	Ignoră
+Ignore Friend Request	Ignoră cererea de prietenie
+Ignored Users	Utilizatori ignorați
+Ignored message	Mesaj ignorat
+Image saved.	Imagine salvată.
+Important updates for people in and out of the server	Noutăți importante pentru cei de pe server și din afara lui
+In Channel	În canal
+Inactive Channel	Canal de inactivitate
+Inactive Timeout	Limită de inactivitate
+Inbox	Căsuță
+Incoming Call...	Apel primit...
+Incoming Friend Request	Cerere de prietenie primită
+Indonesian	Indoneziană
+Insert Timestamp	Inserează marcaj temporal
+Install	Instalează
+Install Fastcord to open it from the Start menu.	Instalează Fastcord ca să-l deschizi din meniul Start.
+Installing…	Se instalează…
+Instructions Sent	Instrucțiuni trimise
+Insults and Slurs	Insulte și injurii
+Integrations	Integrări
+Interested	Interesat
+Invalid Invite	Invitație nevalidă
+Invalid date or time	Dată sau oră nevalidă
+Invisible	Invizibil
+Invite	Invită
+Invite Channel	Canal de invitație
+Invite Invalid	Invitație nevalidă
+Invite Only	Doar cu invitație
+Invite People	Invită oameni
+Invite friends to %	Invită prieteni pe %
+Invite to Server	Invită pe server
+Invite to Speak	Invită să vorbească
+Invites	Invitații
+Invites are currently paused for this server. Please try again later.	Invitațiile sunt momentan suspendate pe acest server. Încearcă din nou mai târziu.
+Invites are paused: nobody can join with an invite link until they're enabled again.	Invitațiile sunt suspendate: nimeni nu se poate alătura cu un link de invitație până nu sunt reactivate.
+It's quiet for now...	E liniște deocamdată...
+Italian	Italiană
+JOINED DISCORD	S-A ALĂTURAT DISCORD
+JSON API	API JSON
+January|February|March|April|May|June|July|August|September|October|November|December	ianuarie|februarie|martie|aprilie|mai|iunie|iulie|august|septembrie|octombrie|noiembrie|decembrie
+Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec	ian.|feb.|mar.|apr.|mai|iun.|iul.|aug.|sept.|oct.|nov.|dec.
+Japanese	Japoneză
+Jitter	Jitter
+Join	Alătură-te
+Join Call	Intră în apel
+Join Server	Alătură-te serverului
+Join Thread	Alătură-te firului
+Join Voice	Intră pe voce
+Join a Server	Alătură-te unui server
+Join the call	Intră în apel
+Joined Threads	Fire la care te-ai alăturat
+Joining…	Se alătură…
+Jump	Salt
+Jump To Present	Salt la prezent
+Jump to oldest unread message	Salt la cel mai vechi mesaj necitit
+KEYBIND	COMBINAȚIE DE TASTE
+Keep Current Permissions	Păstrează permisiunile actuale
+Keep these somewhere safe. Each code signs you in once if you lose your authenticator app; they are shown only now.	Păstrează-le într-un loc sigur. Fiecare cod te conectează o dată dacă pierzi aplicația de autentificare; sunt afișate doar acum.
+Keep your server private, or open it up for more people to join.	Păstrează serverul privat sau deschide-l ca să se alăture mai mulți oameni.
+Keybinds	Combinații de taste
+Keybinds only work while fastcord is focused. To use them in other apps, allow fastcord under Input Monitoring in System Settings, then restart fastcord.	Combinațiile de taste funcționează doar când fastcord e în prim-plan. Ca să le folosești în alte aplicații, permite fastcord la Monitorizarea introducerii din Configurări sistem, apoi repornește fastcord.
+Keybinds only work while fastcord is focused: this desktop doesn't let apps see keys pressed in other windows.	Combinațiile de taste funcționează doar când fastcord e în prim-plan: acest desktop nu le permite aplicațiilor să vadă tastele apăsate în alte ferestre.
+Keybinds work in every app, also while fastcord is in the background.	Combinațiile de taste funcționează în orice aplicație, chiar și când fastcord e în fundal.
+Keyboard Shortcuts	Comenzi rapide de la tastatură
+Keyboard shortcuts	Comenzi rapide de la tastatură
+Keyword: %	Cuvânt cheie: %
+Kick	Dă afară
+Kick %	Dă-l afară pe %
+Kick '%' from Server	Dă-l afară pe „%” de pe server
+Kick Member	Dă afară membrul
+Kick, Approve, and Reject Members	Dă afară, aprobă și respinge membri
+Korean	Coreeană
+LIVE	LIVE
+Language	Limbă
+Language & Time	Limbă și oră
+Last sync: %	Ultima sincronizare: %
+Leave Group	Părăsește grupul
+Leave Server	Părăsește serverul
+Leave Thread	Părăsește firul
+Leaving Discord	Părăsești Discord
+Left %	A părăsit %
+Let everyone know how to use this channel!	Spune-le tuturor cum se folosește acest canal!
+Let's Check	Hai să verificăm
+Level %!	Nivelul %!
+Limits	Limite
+Limits the number of users that can connect to this voice channel. Users with the Move Members permission ignore this limit and can move other users into the channel.	Limitează numărul de utilizatori care se pot conecta la acest canal vocal. Utilizatorii cu permisiunea Mută membri ignoră limita și pot muta alți utilizatori în canal.
+Linked Roles	Roluri asociate
+List view	Vizualizare listă
+Lithuanian	Lituaniană
+Live Now	Live acum
+Loading sounds…	Se încarcă sunetele…
+Loading...	Se încarcă...
+Loading…	Se încarcă…
+Location	Locație
+Log In	Conectează-te
+Log Out	Deconectează-te
+Log Out All Known Devices	Deconectează toate dispozitivele cunoscute
+Log in	Conectează-te
+Log in to Discord in your web browser.	Conectează-te la Discord în browserul web.
+Log in with QR Code	Conectează-te cu codul QR
+Log in with a token	Conectează-te cu un token
+Log out of all known devices	Deconectează-te de pe toate dispozitivele cunoscute
+Logged-in Devices	Dispozitive conectate
+Logging in as %	Se conectează ca %
+Logging in…	Se conectează…
+Login or password is invalid.	Datele de conectare sau parola sunt nevalide.
+Looking for screens…	Se caută ecrane…
+Lotus Mode	Modul Lotus
+Low	Scăzut
+Lower Hand	Coboară mâna
+MAX NUMBER OF USES	NUMĂR MAXIM DE UTILIZĂRI
+MEMBER SINCE	MEMBRU DIN
+MEMBERS	MEMBRI
+MUTE	MUT
+Main Profile	Profil principal
+Make a selection	Fă o selecție
+Manage Accounts	Gestionează conturile
+Manage Channel	Gestionează canalul
+Manage Channels	Gestionează canalele
+Manage Events	Gestionează evenimentele
+Manage Expressions	Gestionează expresiile
+Manage Members	Gestionează membrii
+Manage Messages	Gestionează mesajele
+Manage Nicknames	Gestionează poreclele
+Manage Permissions	Gestionează permisiunile
+Manage Roles	Gestionează rolurile
+Manage Server	Gestionează serverul
+Manage Threads and Posts	Gestionează firele și postările
+Manage Webhooks	Gestionează webhookurile
+Manage settings that help keep your server active.	Gestionează setările care te ajută să menții serverul activ.
+Mark All as Read	Marchează tot ca citit
+Mark As Read	Marchează ca citit
+Mark Folder As Read	Marchează dosarul ca citit
+Mark Unread	Marchează ca necitit
+Mark a message unread	Marchează un mesaj ca necitit
+Mark as Verified	Marchează ca verificat
+Mark as spoiler	Marchează ca spoiler
+Mark channel read	Marchează canalul ca citit
+Mark server read	Marchează serverul ca citit
+Marked as read	Marcat ca citit
+Marks your message as a spoiler.	Marchează mesajul tău ca spoiler.
+Match your device's light or dark mode.	Urmează modul luminos sau întunecat al dispozitivului.
+Max file size is % MB please.	Dimensiunea maximă a fișierului este % MB, te rugăm.
+Measuring	Se măsoară
+Medium	Mediu
+Member Since	Membru din
+Members	Membri
+Members can pick more than one answer	Membrii pot alege mai multe răspunsuri
+Members can wear your server's tag next to their name across Discord.	Membrii pot purta eticheta serverului tău lângă nume pe tot Discordul.
+Members in timeout can't send messages, react, join voice or speak until it ends.	Membrii în pauză forțată nu pot trimite mesaje, reacționa, intra pe voce sau vorbi până la încheierea ei.
+Members in timeout can't send messages, react, join voice or start threads until it ends.	Membrii în pauză forțată nu pot trimite mesaje, reacționa, intra pe voce sau începe fire până la încheierea ei.
+Members matching @%	Membri care se potrivesc cu @%
+Members must answer this question to join.	Membrii trebuie să răspundă la această întrebare ca să se alăture.
+Members of the server must meet the following criteria before they can send messages in text channels or initiate a direct message conversation. If a member has an assigned role this does not apply.	Membrii serverului trebuie să îndeplinească următoarele criterii înainte să poată trimite mesaje în canalele text sau să înceapă o conversație prin mesaje directe. Nu se aplică membrilor cu un rol atribuit.
+Members use the colour of the highest role they have on the roles list.	Membrii folosesc culoarea celui mai înalt rol pe care îl au în lista de roluri.
+Members use the colour of the highest role they have on this list. Drag roles, or use the arrows, to reorder them.	Membrii folosesc culoarea celui mai înalt rol pe care îl au în această listă. Trage rolurile sau folosește săgețile ca să le reordonezi.
+Members will be restricted to sending one message and creating one thread per this interval, unless they have the Bypass Slowmode permission.	Membrii vor putea trimite doar un mesaj și crea doar un fir în acest interval, dacă nu au permisiunea Ocolește modul lent.
+Members with a matching name can't talk or interact until they change it.	Membrii cu un nume care se potrivește nu pot vorbi sau interacționa până nu și-l schimbă.
+Members with this permission will have every permission and will also bypass all channel specific permissions or restrictions (for example, these members would get access to all private channels). This is a dangerous permission to grant.	Membrii cu această permisiune vor avea toate permisiunile și vor ocoli toate permisiunile sau restricțiile specifice canalelor (de exemplu, vor avea acces la toate canalele private). E o permisiune periculoasă de acordat.
+Members — %	Membri — %
+Membership Permissions	Permisiuni de membru
+Mention	Menționează
+Mention %	Menționează %
+Mention @everyone, @here, and All Roles	Menționează @everyone, @here și toate rolurile
+Mention limit	Limită de mențiuni
+Mention raid protection	Protecție la raid cu mențiuni
+Mention removed	Mențiune eliminată
+Mentions	Mențiuni
+Mentions User	Menționează utilizatorul
+Message	Mesaj
+Message #%	Trimite mesaj în #%
+Message %	Trimite mesaj către %
+Message @%	Trimite mesaj către @%
+Message @% (encrypted)	Trimite mesaj către @% (criptat)
+Message @% (not encrypted)	Trimite mesaj către @% (necriptat)
+Message Contains	Mesajul conține
+Message Display	Afișarea mesajelor
+Message Requests	Cereri de mesaje
+Message deleted	Mesaj șters
+Message failed to send.	Mesajul nu a putut fi trimis.
+Message link copied: paste it into Discord's report form	Linkul mesajului a fost copiat: lipește-l în formularul de raportare Discord
+Message request ignored	Cerere de mesaj ignorată
+Message unpinned	Fixarea mesajului a fost anulată
+Messages Failed To Load	Mesajele nu s-au putut încărca
+Messages from members you may not know go to Message Requests.	Mesajele de la membri pe care s-ar putea să nu-i cunoști ajung la Cereri de mesaje.
+Messages from people you may not know go to Message Requests instead of your DMs.	Mesajele de la persoane pe care s-ar putea să nu le cunoști ajung la Cereri de mesaje în loc de mesajele directe.
+Messages from server members without a role will be filtered for sensitive image-based media.	Mesajele de la membrii serverului fără rol vor fi filtrate pentru conținut media sensibil bazat pe imagini.
+Messages in servers	Mesaje pe servere
+Messages will not be filtered for sensitive image-based media.	Mesajele nu vor fi filtrate pentru conținut media sensibil bazat pe imagini.
+Messaging Permissions	Permisiuni pentru mesaje
+Minimize to Tray	Minimizează în bara de sistem
+Mobile Push Notifications	Notificări push pe mobil
+Moderation	Moderare
+Moderators must have two-factor authentication enabled to ban, kick, or timeout members and delete messages.	Moderatorii trebuie să aibă activată autentificarea în doi pași ca să interzică, să dea afară sau să pună în pauză forțată membri și să șteargă mesaje.
+Moderators only	Doar moderatori
+Modern, beautiful, and easy on your eyes.	Modern, frumos și blând cu ochii.
+Modify Attachment	Modifică atașamentul
+Motion	Mișcare
+Move Members	Mută membri
+Move To	Mută în
+Move to Audience	Mută în public
+Multi-Factor Authentication	Autentificare multifactor
+Must also be a member of this server for longer than 10 minutes.	Trebuie să fie și membru al acestui server de peste 10 minute.
+Must also be registered on Discord for longer than 5 minutes.	Trebuie să fie și înregistrat pe Discord de peste 5 minute.
+Must have a verified email on their Discord account.	Trebuie să aibă un e-mail verificat în contul Discord.
+Must have a verified phone on their Discord account.	Trebuie să aibă un telefon verificat în contul Discord.
+Mute	Pune pe mut
+Mute %	Pune pe mut %
+Mute Category	Dezactivează sunetul categoriei
+Mute Channel	Dezactivează sunetul canalului
+Mute Members	Pune membri pe mut
+Mute New Events	Dezactivează sunetul evenimentelor noi
+Mute Server	Dezactivează sunetul serverului
+Mute Thread	Dezactivează sunetul firului
+Muted until %1, %2	Sunet dezactivat până pe %1, %2
+Muting a server prevents unread indicators and notifications from appearing unless you are mentioned.	Dezactivarea sunetului unui server împiedică apariția indicatorilor de necitit și a notificărilor, cu excepția mențiunilor.
+Mutual Friends	Prieteni comuni
+Mutual Servers	Servere comune
+My Account	Contul meu
+My server	Serverul meu
+NAME	NUME
+NEW	NOU
+NEW PASSWORD	PAROLĂ NOUĂ
+NO ACTIVE INVITE LINKS	NICIUN LINK DE INVITAȚIE ACTIV
+NOTHING	NIMIC
+Name	Nume
+Name your sound	Dă-i un nume sunetului
+Name your sticker	Dă-i un nume autocolantului
+Nature	Natură
+Navigate Back	Navighează înapoi
+Navigate Forward	Navighează înainte
+Need an account?	Ai nevoie de un cont?
+Network	Rețea
+Never	Niciodată
+Nevermind	Lasă
+New Category	Categorie nouă
+New Group DM	Grup nou de mesaje directe
+New Post	Postare nouă
+New Thread	Fir nou
+New Webhook	Webhook nou
+New members must read and agree to these before they can talk.	Membrii noi trebuie să le citească și să fie de acord cu ele înainte să poată vorbi.
+New members pick channels and roles from your questions when they join.	Membrii noi aleg canale și roluri din întrebările tale când se alătură.
+New tag	Etichetă nouă
+New threads will stop showing in the channel list after being inactive for the specified duration.	Firele noi nu vor mai apărea în lista de canale după ce sunt inactive pe durata specificată.
+Newest	Cele mai noi
+Next	Înainte
+Nickname	Poreclă
+Nicknames are visible to everyone on this server. Do not change them unless you are enforcing a naming system or clearing a bad nickname.	Poreclele sunt vizibile pentru toată lumea de pe acest server. Nu le schimba decât dacă impui un sistem de denumire sau ștergi o poreclă nepotrivită.
+No GIFs found	Niciun GIF găsit
+No Inactive Channel	Niciun canal de inactivitate
+No Invite	Nicio invitație
+No Keybind Set	Nicio combinație setată
+No System Messages	Fără mesaje de sistem
+No applications waiting	Nicio cerere în așteptare
+No apps have been added to this server.	Nicio aplicație nu a fost adăugată pe acest server.
+No bans	Nicio interdicție
+No bans match your search	Nicio interdicție nu se potrivește căutării
+No emoji found	Niciun emoji găsit
+No favorites yet	Niciun favorit încă
+No file chosen	Niciun fișier ales
+No friends in common	Niciun prieten comun
+No limit	Fără limită
+No logs yet	Niciun jurnal încă
+No members found	Niciun membru găsit
+No members have this role yet.	Niciun membru nu are încă acest rol.
+No message requests.	Nicio cerere de mesaj.
+No one is speaking yet	Nu vorbește nimeni încă
+No one's around right now.	Nu e nimeni pe aici acum.
+No one's here yet	Nu e nimeni aici încă
+No posts match	Nicio postare nu se potrivește
+No posts yet	Nicio postare încă
+No questions yet.	Nicio întrebare încă.
+No reason given	Niciun motiv dat
+No results	Niciun rezultat
+No results found	Nu s-au găsit rezultate
+No servers in common	Niciun server comun
+No sounds found	Niciun sunet găsit
+No sounds yet.	Niciun sunet încă.
+No spam. Nice.	Niciun spam. Super.
+No stickers found	Niciun autocolant găsit
+No stickers yet	Niciun autocolant încă
+Nobody can join this server with an invite link until the pause ends or you enable invites again.	Nimeni nu se poate alătura acestui server cu un link de invitație până nu se încheie suspendarea sau până nu reactivezi invitațiile.
+Nobody has mentioned you recently.	Nu te-a menționat nimeni recent.
+Noise Suppression	Suprimarea zgomotului
+Noise Suppression: Off	Suprimarea zgomotului: oprită
+Noise Suppression: On	Suprimarea zgomotului: pornită
+None	Niciunul
+Norwegian	Norvegiană
+Not Now	Nu acum
+Not connected to % yet.	Nu ești conectat încă la %.
+Not encrypted	Necriptat
+Not encrypted: Discord can read this message	Necriptat: Discord poate citi acest mesaj
+Not end-to-end encrypted	Necriptat end-to-end
+Not me, start over	Nu sunt eu, ia-o de la capăt
+Note	Notă
+Note (only visible to you)	Notă (vizibilă doar pentru tine)
+Note: Members with the "Mention @everyone, @here, and All Roles" permission will always be able to ping this role.	Notă: membrii cu permisiunea „Menționează @everyone, @here și toate rolurile” vor putea mereu să menționeze acest rol.
+Nothing	Nimic
+Notification Settings	Setări de notificare
+Notification settings changed	Setările de notificare au fost schimbate
+Notifications	Notificări
+Notify everyone online who has permission to view this channel.	Notifică pe toți cei online care au permisiunea să vadă acest canal.
+Notify everyone who has permission to view this channel.	Notifică pe toți cei care au permisiunea să vadă acest canal.
+Notify me when...	Notifică-mă când...
+Notify users with this role who have permission to view this channel.	Notifică utilizatorii cu acest rol care au permisiunea să vadă acest canal.
+OUTPUT DEVICE	DISPOZITIV DE IEȘIRE
+OUTPUT VOLUME	VOLUM IEȘIRE
+Objects	Obiecte
+Off	Oprit
+Offline	Offline
+Oh yeah. Pin it	Da, fixează-l
+Okay	OK
+Oldest	Cele mai vechi
+On click	La clic
+On servers I moderate	Pe serverele pe care le moderez
+Onboarding	Integrare
+One rule per line, for example: Be respectful	O regulă pe rând, de exemplu: Fii respectuos
+Ongoing call	Apel în desfășurare
+Online	Online
+Only @mentions	Doar @mențiuni
+Only servers and channels you have webhook permissions in are shown.	Sunt afișate doar serverele și canalele în care ai permisiuni pentru webhookuri.
+Only you can see the nickname you give %.	Doar tu poți vedea porecla pe care i-o dai lui %.
+Only you can see this · 	Doar tu poți vedea asta ·
+Oops!	Hopa!
+Open Chat	Deschide chatul
+Open Image Link	Deschide linkul imaginii
+Open Link	Deschide linkul
+Open Logs Folder	Deschide dosarul de jurnale
+Open Media Link	Deschide linkul media
+Open Server Insights	Deschide Statisticile serverului
+Open Settings	Deschide setările
+Open discord.com	Deschide discord.com
+Open in Browser	Deschide în browser
+Open in YouTube	Deschide în YouTube
+Open the developer tools (Cmd+Option+I) and choose the Network tab.	Deschide instrumentele pentru dezvoltatori (Cmd+Option+I) și alege fila Network.
+Open the developer tools (Ctrl+Shift+I) and choose the Network tab.	Deschide instrumentele pentru dezvoltatori (Ctrl+Shift+I) și alege fila Network.
+Or, send a server invite link to a friend	Sau trimite unui prieten un link de invitație pe server
+Original message was deleted	Mesajul original a fost șters
+Other Active Threads	Alte fire active
+Other Devices	Alte dispozitive
+Outgoing Friend Request	Cerere de prietenie trimisă
+Overview	Prezentare generală
+PASSWORD	PAROLĂ
+PM	p.m.
+PRIVACY CODE	COD DE CONFIDENȚIALITATE
+PTT Activate	Activare PTT
+PTT Deactivate	Dezactivare PTT
+PUSH TO TALK RELEASE DELAY	ÎNTÂRZIERE LA ELIBERARE APASĂ CA SĂ VORBEȘTI
+Packet loss	Pierdere de pachete
+Packets received	Pachete primite
+Packets sent	Pachete trimise
+Page %	Pagina %
+Password	Parolă
+Password and Authentication	Parolă și autentificare
+Passwords do not match!	Parolele nu se potrivesc!
+Paste	Lipește
+Paste an emoji (optional)	Lipește un emoji (opțional)
+Paste your token	Lipește tokenul
+Pause Invites	Suspendă invitațiile
+Pending	În așteptare
+People	Oameni
+People can join your server directly with an invite	Oamenii se pot alătura serverului direct cu o invitație
+People in a voice channel with you can join the game you're playing.	Cei din canalul vocal cu tine se pot alătura jocului pe care îl joci.
+People must submit an application and be approved to join	Oamenii trebuie să trimită o cerere și să fie aprobați ca să se alăture
+People who applied to join, waiting for a moderator.	Persoane care au cerut să se alăture și așteaptă un moderator.
+Per-server Profiles	Profiluri pe server
+Permissions	Permisiuni
+Permissions not synced with category: 	Permisiuni nesincronizate cu categoria:
+Permissions synced with category: 	Permisiuni sincronizate cu categoria:
+Permissions: %	Permisiuni: %
+Phone Number	Număr de telefon
+Pick a channel	Alege un canal
+Pick a channel for the alerts.	Alege un canal pentru alerte.
+Pick at least one response.	Alege cel puțin un răspuns.
+Pin It. Pin It Good.	Fixează-l. Fixează-l bine.
+Pin Message	Fixează mesajul
+Pin Messages	Fixează mesaje
+Ping	Ping
+Ping: % ms	Ping: % ms
+Ping: measuring…	Ping: se măsoară…
+Pinned Messages	Mesaje fixate
+Play Here	Redă aici
+Play Soundboard Through My Mic	Redă soundboardul prin microfonul meu
+Play YouTube videos here with yt-dlp? It needs yt-dlp installed, and connects to YouTube from your computer. Settings > Chat can change this.	Redai aici videoclipurile YouTube cu yt-dlp? Necesită yt-dlp instalat și se conectează la YouTube de pe computerul tău. Poți schimba asta în Setări > Chat.
+Play YouTube videos in fastcord with yt-dlp	Redă videoclipurile YouTube în fastcord cu yt-dlp
+Please enter a valid invite link or invite code.	Introdu un link sau un cod de invitație valid.
+Please try again later.	Încearcă din nou mai târziu.
+Polish	Poloneză
+Poll closed	Sondaj încheiat
+Portuguese, Brazilian	Portugheză, Brazilia
+Post	Postează
+Post Guidelines	Reguli pentru postări
+Post from a script	Postează dintr-un script
+Post messages that reach servers outside your own. Members can follow this channel, so the posts you publish here appear in their servers.	Postează mesaje care ajung și pe alte servere. Membrii pot urmări acest canal, așa că postările publicate aici apar pe serverele lor.
+Post title	Titlul postării
+Posting...	Se postează...
+Press a shortcut…	Apasă o combinație…
+Previous	Înapoi
+Previous / next channel	Canalul anterior / următor
+Previous / next channel with mentions	Canalul anterior / următor cu mențiuni
+Previous / next server	Serverul anterior / următor
+Previous / next unread channel	Canalul necitit anterior / următor
+Previous 12 Hours	Ultimele 12 ore
+Previous 24 Hours	Ultimele 24 de ore
+Previous 3 Days	Ultimele 3 zile
+Previous 6 Hours	Ultimele 6 ore
+Previous 7 Days	Ultimele 7 zile
+Previous Hour	Ultima oră
+Priority Speaker	Vorbitor prioritar
+Privacy Settings	Setări de confidențialitate
+Private Category	Categorie privată
+Private Channel	Canal privat
+Private Profile	Profil privat
+Profile	Profil
+Profile Banner	Bannerul profilului
+Profile Privacy	Confidențialitatea profilului
+Profiles	Profiluri
+Prompt members to reply to welcome messages with a sticker.	Îndeamnă membrii să răspundă la mesajele de bun venit cu un autocolant.
+Pronouns	Pronume
+Protect your Discord account with an extra layer of security. Once configured, you'll be required to enter your password and complete one additional step in order to sign in.	Protejează-ți contul Discord cu un nivel suplimentar de securitate. După configurare, va trebui să introduci parola și să parcurgi încă un pas ca să te conectezi.
+Protip:	Sfat:
+Publish	Publică
+Push to Mute	Apasă pentru mut
+Push to Talk	Apasă ca să vorbești
+Push to Talk (Normal)	Apasă ca să vorbești (normal)
+Q: %	Î: %
+Question	Întrebare
+Questions	Întrebări
+ROLES	ROLURI
+ROLES — %	ROLURI — %
+ROLES/MEMBERS	ROLURI/MEMBRI
+RTC Connecting	Se conectează RTC
+Read Message History	Citește istoricul mesajelor
+Reason	Motiv
+Reason for Ban	Motivul interdicției
+Reason for Kick	Motivul dării afară
+Reason for Timeout	Motivul pauzei forțate
+Reason: %	Motiv: %
+Received	Primit
+Recently Active	Activi recent
+Reconnect	Reconectează
+Record Keybind	Înregistrează combinația
+Reduce the saturation of colors within the application, for those with color sensitivities.	Redu saturația culorilor din aplicație, pentru cei sensibili la culori.
+Reduces the amount of animation and motion effects. On whenever your device asks for reduced motion.	Reduce animațiile și efectele de mișcare. Activ de fiecare dată când dispozitivul cere mișcare redusă.
+Region Override	Suprascriere regiune
+Register	Înregistrează-te
+Reject	Respinge
+Rejoin	Revino
+Related Emoji	Emoji asemănătoare
+Relevant	Relevante
+Remove	Elimină
+Remove %	Elimină %
+Remove All Embeds	Elimină tot conținutul încorporat
+Remove All Reactions	Elimină toate reacțiile
+Remove Answer	Elimină răspunsul
+Remove Attachment	Elimină atașamentul
+Remove Authenticator App	Elimină aplicația de autentificare
+Remove Avatar	Elimină avatarul
+Remove Embeds	Elimină conținutul încorporat
+Remove Friend	Elimină prietenul
+Remove From Group	Elimină din grup
+Remove Icon	Elimină pictograma
+Remove Reaction	Elimină reacția
+Remove Reactions	Elimină reacțiile
+Remove Reactions for Emoji	Elimină reacțiile pentru emoji
+Remove Server	Elimină serverul
+Remove Spoiler	Elimină spoilerul
+Remove Timeout	Elimină pauza forțată
+Remove Vote	Elimină votul
+Remove all embeds	Elimină tot conținutul încorporat
+Remove from Favorites	Elimină din favorite
+Remove notification override for %	Elimină excepția de notificare pentru %
+Remove the files added before encryption was on: they'd go unencrypted.	Elimină fișierele adăugate înainte de activarea criptării: ar fi trimise necriptat.
+Remove the files added while encryption was on: they'd arrive as unreadable ciphertext.	Elimină fișierele adăugate cât criptarea era activă: ar ajunge ca text cifrat ilizibil.
+Removing…	Se elimină…
+Repeated encrypted message	Mesaj criptat repetat
+Reply	Răspunde
+Replying to	Răspunzi lui
+Report Message	Raportează mesajul
+Request Data	Solicită datele
+Request all of my Data	Solicită toate datele mele
+Request to Speak	Cere să vorbești
+Requests	Cereri
+Require 2FA for moderator actions	Cere 2FA pentru acțiunile de moderare
+Require members to agree to the server rules	Cere membrilor să fie de acord cu regulile serverului
+Require people to select tags when posting	Cere oamenilor să aleagă etichete când postează
+Required	Obligatoriu
+Resend SMS?	Retrimiți SMS-ul?
+Reset	Resetează
+Reset Friend Nickname	Resetează porecla prietenului
+Reset Voice Settings	Resetează setările vocale
+Resolving Invite	Se verifică invitația
+Responses	Răspunsuri
+Retry	Reîncearcă
+Retry Now	Reîncearcă acum
+Return to call	Revino la apel
+Return to the connected call	Revino la apelul conectat
+Reveal	Dezvăluie
+Review	Examinează
+Revoke	Revocă
+Revoke Ban	Revocă interdicția
+Revoke Invite	Revocă invitația
+Revoke the ban? They will be able to join again with an invite.	Revoci interdicția? Persoana se va putea alătura din nou cu o invitație.
+Ring	Sună
+Ringing…	Sună…
+Role Color	Culoarea rolului
+Role Colors	Culorile rolurilor
+Role Icon	Pictograma rolului
+Role name	Numele rolului
+Roles	Roluri
+Romanian, Romania	Română, România
+Rule: %	Regulă: %
+Rules or Guidelines Channel	Canal de reguli sau îndrumări
+Russian	Rusă
+SELECT A CHANNEL	ALEGE UN CANAL
+SELECT A SERVER	ALEGE UN SERVER
+SERVER NAME	NUMELE SERVERULUI
+SOUNDBOARD VOLUME	VOLUM SOUNDBOARD
+STATIC EMOJI — % SLOTS AVAILABLE	EMOJI STATICE — % LOCURI DISPONIBILE
+Safety Notifications Channel	Canal pentru notificări de siguranță
+Safety Number	Număr de siguranță
+Safety Setup	Configurare siguranță
+Safety checks	Verificări de siguranță
+Same as Device Theme	La fel ca tema dispozitivului
+Saturation	Saturație
+Save	Salvează
+Save Changes	Salvează modificările
+Save Image	Salvează imaginea
+Saving...	Se salvează...
+Saving…	Se salvează…
+Scan this with the Discord mobile app to log in instantly.	Scanează-l cu aplicația mobilă Discord ca să te conectezi instant.
+Schedule an event for any planned activity in your server.	Programează un eveniment pentru orice activitate planificată pe serverul tău.
+Screen	Ecran
+Screen sharing isn't supported on this platform yet.	Partajarea ecranului nu e încă acceptată pe această platformă.
+Scroll chat	Derulează chatul
+Search	Caută
+Search %	Caută în %
+Search Bans by User ID or Username	Caută interdicții după ID-ul sau numele utilizatorului
+Search Klipy	Caută pe Klipy
+Search Options	Opțiuni de căutare
+Search by username or id	Caută după nume de utilizator sau ID
+Search for friends	Caută prieteni
+Search members to add (press Enter)	Caută membri de adăugat (apasă Enter)
+Search or create a post...	Caută sau creează o postare...
+Search sounds	Caută sunete
+Searching...	Se caută...
+Select Friends	Alege prieteni
+Select a Language	Alege o limbă
+Select a channel	Alege un canal
+Select a channel or category…	Alege un canal sau o categorie…
+Select one answer	Alege un răspuns
+Select one or more answers	Alege unul sau mai multe răspunsuri
+Select where you want these updates to go. You can remove this at any time in Server Settings > Integrations > Channels Followed.	Alege unde vrei să ajungă aceste noutăți. Le poți elimina oricând din Setări server > Integrări > Canale urmărite.
+Select where you want to share this message.	Alege unde vrei să distribui acest mesaj.
+Send	Trimite
+Send Friend Request	Trimite cerere de prietenie
+Send Messages and Create Posts	Trimite mesaje și creează postări
+Send Messages in Threads and Posts	Trimite mesaje în fire și postări
+Send New Key	Trimite cheie nouă
+Send Text-to-Speech Messages	Trimite mesaje text-to-speech
+Send Voice Messages	Trimite mesaje vocale
+Send a random welcome message when someone joins this server.	Trimite un mesaj de bun venit aleatoriu când cineva se alătură serverului.
+Send a server invite link to a friend	Trimite unui prieten un link de invitație pe server
+Send an alert	Trimite o alertă
+Send helpful tips for server setup.	Trimite sfaturi utile pentru configurarea serverului.
+Send messages, images, GIFs, emoji, opinions, and puns	Trimite mesaje, imagini, GIF-uri, emoji, păreri și jocuri de cuvinte
+Sending...	Se trimite...
+Sent	Trimise
+Sent a file	A trimis un fișier
+Sent a sticker	A trimis un autocolant
+Sent — %	Trimise — %
+Server	Server
+Server Avatar	Avatar pe server
+Server Deafen	Asurzire pe server
+Server Deafened	Asurzit pe server
+Server Guide	Ghidul serverului
+Server ID	ID-ul serverului
+Server Info	Informații server
+Server Insights	Statisticile serverului
+Server Insights is hosted on a separate website so that it's easier to share links and browse cross platform.	Statisticile serverului sunt găzduite pe un site separat, ca să fie mai ușor să distribui linkuri și să navighezi pe orice platformă.
+Server Mute	Mut pe server
+Server Muted	Pus pe mut pe server
+Server Nickname	Poreclă pe server
+Server Notification Settings	Setările de notificare ale serverului
+Server Primary Language	Limba principală a serverului
+Server Profile	Profil pe server
+Server Rules	Regulile serverului
+Server Settings	Setări server
+Server Tag	Eticheta serverului
+Server Template	Șablonul serverului
+Server Widget	Widgetul serverului
+Server members	Membrii serverului
+Server members can only send you friend requests from servers where you also allow Direct Messages.	Membrii serverelor îți pot trimite cereri de prietenie doar de pe serverele unde permiți și mesaje directe.
+Server name must be between 2 and 100 characters.	Numele serverului trebuie să aibă între 2 și 100 de caractere.
+Server unmuted	Sunetul serverului reactivat
+Sessions	Sesiuni
+Set Custom Status	Setează starea personalizată
+Set Voice Channel Status	Setează starea canalului vocal
+Set a custom status	Setează o stare personalizată
+Set up AutoMod to automatically filter messages in this server with the rules below. Members with Manage Server or Administrator are exempt.	Configurează AutoMod ca să filtreze automat mesajele de pe acest server cu regulile de mai jos. Membrii cu Gestionează serverul sau Administrator sunt exceptați.
+Sets camera video quality for all channel participants. Choose Auto for optimal performance.	Setează calitatea video a camerei pentru toți participanții din canal. Alege Auto pentru performanță optimă.
+Setting up encryption: % needs to open fastcord once.	Se configurează criptarea: % trebuie să deschidă fastcord o dată.
+Several people are typing...	Mai multe persoane scriu...
+Severe Profanity	Limbaj vulgar grav
+Sexual Content	Conținut sexual
+Share	Distribuie
+Share Event	Distribuie evenimentul
+Share Your Screen	Partajează-ți ecranul
+Share my full profile with	Distribuie profilul meu complet cu
+Share your detected activities with others	Distribuie altora activitățile detectate
+Show	Afișează
+Show Chat	Afișează chatul
+Show a system notification for messages that would notify you (DMs, mentions, servers set to all messages).	Afișează o notificare de sistem pentru mesajele care te-ar notifica (mesaje directe, mențiuni, servere setate pe toate mesajele).
+Show embeds and preview website links pasted into chat	Afișează conținut încorporat și previzualizări pentru linkurile lipite în chat
+Show emoji reactions on messages	Afișează reacțiile emoji la mesaje
+Show message	Afișează mesajul
+Show messages	Afișează mesajele
+Show role colors in names	Afișează culorile rolurilor în nume
+Show role colors next to names	Afișează culorile rolurilor lângă nume
+Show spoiler content	Afișează conținutul spoiler
+Show the game or app you're using on your profile and in member lists.	Afișează jocul sau aplicația pe care o folosești în profil și în listele de membri.
+Shows a red badge on the app icon when you have unread mentions.	Afișează o insignă roșie pe pictograma aplicației când ai mențiuni necitite.
+Silence every sound and notification and hide all badges and unread marks, so fastcord never asks for your attention.	Oprește toate sunetele și notificările și ascunde toate insignele și marcajele de necitit, ca fastcord să nu-ți ceară niciodată atenția.
+Slow down! Are you sure?	Mai încet! Ești sigur?
+Slowmode	Mod lent
+Slowmode is enabled	Modul lent e activat
+Slowmode is enabled. Members can send one message every % hour.|Slowmode is enabled. Members can send one message every % hours.	Modul lent e activat. Membrii pot trimite un mesaj la fiecare % oră.|Modul lent e activat. Membrii pot trimite un mesaj la fiecare % ore.|Modul lent e activat. Membrii pot trimite un mesaj la fiecare % de ore.
+Slowmode is enabled. Members can send one message every % minute.|Slowmode is enabled. Members can send one message every % minutes.	Modul lent e activat. Membrii pot trimite un mesaj la fiecare % minut.|Modul lent e activat. Membrii pot trimite un mesaj la fiecare % minute.|Modul lent e activat. Membrii pot trimite un mesaj la fiecare % de minute.
+Slowmode is enabled. Members can send one message every % second.|Slowmode is enabled. Members can send one message every % seconds.	Modul lent e activat. Membrii pot trimite un mesaj la fiecare % secundă.|Modul lent e activat. Membrii pot trimite un mesaj la fiecare % secunde.|Modul lent e activat. Membrii pot trimite un mesaj la fiecare % de secunde.
+Smooth Scrolling	Derulare lină
+So no one gets lost on where to go.	Ca nimeni să nu se rătăcească.
+Some older devices may not be shown here	Unele dispozitive mai vechi s-ar putea să nu apară aici
+Someone	Cineva
+Something went wrong	Ceva n-a mers bine
+Something went wrong (HTTP %).	Ceva n-a mers bine (HTTP %).
+Something went wrong. Try again.	Ceva n-a mers bine. Încearcă din nou.
+Somewhere Else	În altă parte
+Sorry, we couldn't load the first message in this thread	Ne pare rău, nu am putut încărca primul mesaj din acest fir
+Sort: Date Posted	Sortare: data postării
+Sort: Recent Activity	Sortare: activitate recentă
+Sound Name	Numele sunetului
+Sound names must be between 2 and 32 characters.	Numele sunetelor trebuie să aibă între 2 și 32 de caractere.
+Soundboard	Soundboard
+Sounds	Sunete
+Sounds must be 5.2 seconds or shorter.	Sunetele trebuie să aibă cel mult 5,2 secunde.
+Sounds must be under 512 KB.	Sunetele trebuie să aibă sub 512 KB.
+Source	Sursă
+Space between message groups	Spațiu între grupurile de mesaje
+Spam	Spam
+Spam Filters	Filtre de spam
+Spanish	Spaniolă
+Spanish, LATAM	Spaniolă, America Latină
+Speak	Vorbește
+Speak Message	Citește mesajul cu voce tare
+Spoiler Attachment	Atașament spoiler
+Spoiler Content	Conținut spoiler
+Stage	Stage
+Start Date	Data de început
+Start Event	Începe evenimentul
+Start Minimized	Pornește minimizat
+Start Time	Ora de început
+Starting in %m	Începe în %m
+State	Stare
+Stickers	Autocolante
+Stickers can be used by anyone in this server. Upload a PNG, APNG, GIF or Lottie JSON file of up to 512 KB; it shows at 320x320.	Autocolantele pot fi folosite de oricine de pe acest server. Încarcă un fișier PNG, APNG, GIF sau Lottie JSON de cel mult 512 KB; va fi afișat la 320x320.
+Stickers can't be sent encrypted yet.	Autocolantele nu pot fi trimise criptat încă.
+Stickers must be PNG, APNG, GIF or Lottie JSON files.	Autocolantele trebuie să fie fișiere PNG, APNG, GIF sau Lottie JSON.
+Stop Recording	Oprește înregistrarea
+Stop Streaming	Oprește transmisia
+Stop Testing	Oprește testul
+Stop Video	Oprește camera
+Stop Watching	Nu mai urmări
+Storage	Stocare
+Stream Settings	Setări transmisie
+Streamer Mode	Modul streamer
+Streamer Mode Enabled	Modul streamer activat
+Streamer Mode hides your personal info so others watching your stream can't see it.	Modul streamer îți ascunde informațiile personale, ca cei care îți urmăresc transmisia să nu le vadă.
+Streamer Mode is enabled. Usernames have been truncated.	Modul streamer e activat. Numele de utilizator au fost scurtate.
+Success! Your friend request to % was sent.	Gata! Cererea ta de prietenie către % a fost trimisă.
+Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday	duminică|luni|marți|miercuri|joi|vineri|sâmbătă
+Sun|Mon|Tue|Wed|Thu|Fri|Sat	dum.|lun.|mar.|mie.|joi|vin.|sâm.
+Support has arrived!	Au sosit întăririle!
+Suppress @everyone and @here	Suprimă @everyone și @here
+Suppress All Role @mentions	Suprimă toate @mențiunile de rol
+Suppress Highlights	Suprimă momentele importante
+Suppress Notifications	Suprimă notificările
+Suppress background noise from your mic.	Suprimă zgomotul de fundal din microfon.
+Swedish	Suedeză
+Switch Accounts	Schimbă contul
+Switch between accounts on this device.	Comută între conturile de pe acest dispozitiv.
+Symbols	Simboluri
+Sync Now	Sincronizează acum
+Sync Permissions	Sincronizează permisiunile
+Sync Template	Sincronizează șablonul
+Sync permissions?	Sincronizezi permisiunile?
+System	Sistem
+System Messages	Mesaje de sistem
+System Messages Channel	Canal pentru mesaje de sistem
+System icon for new server members.	Pictogramă de sistem pentru membrii noi ai serverului.
+THREAD NAME	NUMELE FIRULUI
+Tag	Etichetă
+Tags	Etichete
+Tags (pick at least one)	Etichete (alege cel puțin una)
+Tags let members organize their posts. Members pick them when they post; moderated tags only moderators can apply.	Etichetele îi ajută pe membri să-și organizeze postările. Membrii le aleg când postează; etichetele moderate pot fi aplicate doar de moderatori.
+Tap the link in your email to sign in instantly — no password needed.	Apasă pe linkul din e-mail ca să te conectezi instant — fără parolă.
+Tell people a little more about your event. Markdown, new lines, and links are supported.	Spune-le oamenilor mai multe despre eveniment. Sunt acceptate Markdown, rânduri noi și linkuri.
+Tell the world a bit about this server.	Spune-i lumii câte ceva despre acest server.
+Template Description	Descrierea șablonului
+Template Link	Linkul șablonului
+Template Title	Titlul șablonului
+Templates are an easy way to share your server setup and help anyone create a server instantly. When someone uses your server template link, they create a new server pre-filled with the same channels, roles, permissions, and settings as yours. Messages, members and your server's icon aren't copied.	Șabloanele sunt o cale ușoară de a-ți distribui configurația serverului și de a ajuta pe oricine să creeze instant un server. Când cineva folosește linkul șablonului tău, creează un server nou, precompletat cu aceleași canale, roluri, permisiuni și setări ca ale tale. Mesajele, membrii și pictograma serverului nu sunt copiate.
+Temporary members are automatically kicked when they disconnect unless a role has been assigned	Membrii temporari sunt dați afară automat când se deconectează, dacă nu li s-a atribuit un rol
+Test Video	Testează camera
+Text	Text
+Text Channel Permissions	Permisiuni pentru canalele text
+Text channel, external link, or in-person location.	Canal text, link extern sau locație fizică.
+Thai	Thailandeză
+That channel isn't on this server anymore.	Acel canal nu mai e pe acest server.
+That file couldn't be read as an MP3 or OGG sound.	Fișierul nu a putut fi citit ca sunet MP3 sau OGG.
+That file couldn't be read. Avatars must be PNG, JPEG, GIF or WEBP images.	Fișierul nu a putut fi citit. Avatarele trebuie să fie imagini PNG, JPEG, GIF sau WEBP.
+That file couldn't be read. Banners must be PNG, JPEG, GIF or WEBP images.	Fișierul nu a putut fi citit. Bannerele trebuie să fie imagini PNG, JPEG, GIF sau WEBP.
+That file couldn't be read. Emoji must be a PNG, JPEG, GIF, WEBP or AVIF image.	Fișierul nu a putut fi citit. Emoji trebuie să fie o imagine PNG, JPEG, GIF, WEBP sau AVIF.
+That file couldn't be read. Images must be PNG, JPEG, GIF or WEBP files.	Fișierul nu a putut fi citit. Imaginile trebuie să fie fișiere PNG, JPEG, GIF sau WEBP.
+That file couldn't be read. Server icons must be PNG, JPEG, GIF or WEBP images.	Fișierul nu a putut fi citit. Pictogramele serverelor trebuie să fie imagini PNG, JPEG, GIF sau WEBP.
+That file is too large. Emoji must be under 256 KB.	Fișierul e prea mare. Emoji trebuie să aibă sub 256 KB.
+That file is too large. Stickers must be under 512 KB.	Fișierul e prea mare. Autocolantele trebuie să aibă sub 512 KB.
+That image is too large.	Imaginea e prea mare.
+That image is too large. Avatars must be under %.	Imaginea e prea mare. Avatarele trebuie să aibă sub %.
+That image is too large. Banners must be under 10 MB.	Imaginea e prea mare. Bannerele trebuie să aibă sub 10 MB.
+That image is too large. Server icons must be under 512 KB.	Imaginea e prea mare. Pictogramele serverelor trebuie să aibă sub 512 KB.
+That isn't a valid fastcord invite.	Aceasta nu e o invitație fastcord validă.
+That's too long to send encrypted.	E prea lung ca să fie trimis criptat.
+The Pin Is Stuck!	Pinul s-a blocat!
+The badge chosen in the official client stays as it is.	Insigna aleasă în clientul oficial rămâne neschimbată.
+The invite is invalid or has expired.	Invitația e nevalidă sau a expirat.
+The mention limit is between 1 and 50.	Limita de mențiuni e între 1 și 50.
+The most important updates from this channel will now show up directly in your server. Enjoy!	Cele mai importante noutăți din acest canal vor apărea acum direct pe serverul tău. Distracție plăcută!
+The owner	Proprietarul
+The related emoji must be one emoji.	Emoji-ul asemănător trebuie să fie un singur emoji.
+The results were tied	Rezultatele au fost la egalitate
+The selected channel has too many webhooks. Please remove a webhook or select another channel.	Canalul selectat are prea multe webhookuri. Elimină un webhook sau alege alt canal.
+The server	Serverul
+The start time must be in the future.	Ora de început trebuie să fie în viitor.
+The thread stops showing in the channel list after being inactive for this long.	Firul nu mai apare în lista de canale după ce e inactiv atât timp.
+Theme	Temă
+There are no active threads.	Nu există fire active.
+There are no archived threads.	Nu există fire arhivate.
+There are no pending friend requests.	Nu există cereri de prietenie în așteptare.
+There are no upcoming events.	Nu există evenimente viitoare.
+There is no identity key.	Nu există cheie de identitate.
+There was no winner	Nu a existat un câștigător
+These are all the devices that are currently logged-in with your Discord account. Log out of devices that you don't recognize.	Acestea sunt toate dispozitivele conectate acum la contul tău Discord. Deconectează dispozitivele pe care nu le recunoști.
+They said: %	A spus: %
+This account needs a passkey or security key, which fastcord can't use. Log in with the QR code instead.	Acest cont necesită o cheie de acces sau o cheie de securitate, pe care fastcord nu le poate folosi. Conectează-te cu codul QR.
+This channel contains adult content that may not be suitable for all audiences. You must be 18 or older to view it.	Acest canal are conținut pentru adulți, care s-ar putea să nu fie potrivit pentru toată lumea. Trebuie să ai cel puțin 18 ani ca să-l vezi.
+This channel doesn't have any pinned messages... yet.	Acest canal nu are mesaje fixate... încă.
+This device can't open this message.	Acest dispozitiv nu poate deschide mesajul.
+This device's encryption keys couldn't be unlocked, so earlier encrypted DMs can't be opened here.	Cheile de criptare ale acestui dispozitiv nu au putut fi deblocate, așa că mesajele directe criptate anterior nu pot fi deschise aici.
+This event will auto start when it's time.	Evenimentul va începe automat la momentul potrivit.
+This extra step shows it's really you.	Acest pas suplimentar arată că ești chiar tu.
+This interaction failed	Această interacțiune a eșuat
+This invite may be expired, or you might not have permission to join.	Invitația poate fi expirată sau s-ar putea să nu ai permisiunea să te alături.
+This is the beginning of your direct message history with %.	Acesta e începutul istoricului mesajelor directe cu %.
+This is the channel we send system event messages to.	Acesta e canalul în care trimitem mesajele de sistem.
+This is the start of the #% channel.	Acesta e începutul canalului #%.
+This is where Discord sends updates for moderators and admins of Community servers.	Aici trimite Discord noutăți pentru moderatorii și administratorii serverelor de comunitate.
+This is where you'll show members your server rules or guidelines.	Aici le vei arăta membrilor regulile sau îndrumările serverului.
+This link is taking you to the following website	Acest link te duce la următorul site
+This option is not available for Community Servers.	Această opțiune nu e disponibilă pentru serverele de comunitate.
+This role is managed by an integration and can't be edited here.	Acest rol e gestionat de o integrare și nu poate fi editat aici.
+This server has been removed from Server Discovery because it no longer passes all the requirements. Check Server Settings for more details.	Acest server a fost eliminat din Descoperirea serverelor pentru că nu mai îndeplinește toate cerințele. Vezi Setări server pentru detalii.
+This server has failed Discovery activity requirements for 1 week. If this server fails for 4 weeks in a row, it will be automatically removed from Discovery.	Acest server nu a îndeplinit cerințele de activitate pentru Descoperire timp de 1 săptămână. Dacă nu le îndeplinește 4 săptămâni la rând, va fi eliminat automat din Descoperire.
+This server has failed Discovery activity requirements for 3 weeks in a row. If this server fails for 1 more week, it will be removed from Discovery.	Acest server nu a îndeplinit cerințele de activitate pentru Descoperire 3 săptămâni la rând. Dacă nu le îndeplinește încă o săptămână, va fi eliminat din Descoperire.
+This server has no voice channels.	Acest server nu are canale vocale.
+This server is currently full.	Acest server e plin momentan.
+This server is currently full. Please try again later.	Acest server e plin momentan. Încearcă din nou mai târziu.
+This server is eligible for Server Discovery again and has been automatically relisted!	Acest server e din nou eligibil pentru Descoperirea serverelor și a fost relistat automat!
+This server is not available in your location.	Acest server nu e disponibil în locația ta.
+This server's features are limited	Funcțiile acestui server sunt limitate
+This setting is applied when you join a new server. It does not apply retroactively to your existing servers.	Setarea se aplică atunci când te alături unui server nou. Nu se aplică retroactiv serverelor existente.
+This template has unsynced changes.	Acest șablon are modificări nesincronizate.
+This thread is locked.	Acest fir e blocat.
+This voice channel is full.	Acest canal vocal e plin.
+This will determine whether members who have not explicitly set their notification settings receive a notification for every message sent in this server or not.	Stabilește dacă membrii care nu și-au setat explicit notificările primesc sau nu o notificare pentru fiecare mesaj trimis pe acest server.
+This will transfer ownership of %1 to %2. This cannot be undone!	Proprietatea %1 va fi transferată către %2. Acțiunea nu poate fi anulată!
+Thread Name	Numele firului
+Thread deleted	Fir șters
+Threads	Fire
+Time	Oră
+Time format	Formatul orei
+Timeout	Pauză forțată
+Timeout %	Pune pe % în pauză forțată
+Timeout Members	Pune membri în pauză forțată
+Timeout member	Pune membrul în pauză forțată
+Times show as %.	Orele apar ca %.
+To log them out, please change your password	Ca să le deconectezi, schimbă-ți parola
+To protect your members, Community servers need these, and enabling sets them:	Pentru protecția membrilor, serverele de comunitate au nevoie de acestea, iar activarea le setează:
+Today	Azi
+Today at %	Azi la %
+Toggle Deafen	Comută asurzirea
+Toggle Go Live Streaming	Comută transmisia live
+Toggle Mute	Comută mutul
+Toggle Streamer Mode	Comută Modul streamer
+Toggle Voice Activity Mode	Comută modul Activitate vocală
+Toggle deafen	Comută asurzirea
+Toggle inbox	Comută căsuța
+Toggle member list	Comută lista de membri
+Toggle mute	Comută mutul
+Toggle pins	Comută mesajele fixate
+Tomorrow at %	Mâine la %
+Too fast! Wait a bit and try again.	Prea repede! Așteaptă puțin și încearcă din nou.
+Too many uploads!	Prea multe încărcări!
+Trait %	Trăsătura %
+Traits	Trăsături
+Transfer Ownership	Transferă proprietatea
+Travel & Places	Călătorii și locuri
+Treat the token like a password: anyone who has it controls your account. fastcord keeps it only on this computer.	Tratează tokenul ca pe o parolă: oricine îl are îți controlează contul. fastcord îl păstrează doar pe acest computer.
+Trending GIFs	GIF-uri în tendințe
+Trust % links from now on	Ai încredere de acum în linkurile %
+Try Again	Încearcă din nou
+Try searching for something else	Încearcă să cauți altceva
+Try searching for...	Încearcă să cauți...
+Try sending a new invite	Încearcă să trimiți o invitație nouă
+Turkish	Turcă
+Turn off encryption	Dezactivează criptarea
+Turns this back into a regular server. Community-only features stop working.	Îl transformă înapoi într-un server obișnuit. Funcțiile exclusive comunității nu vor mai funcționa.
+Two-factor authentication is enabled on this account.	Autentificarea în doi pași e activată pe acest cont.
+Type the username of a friend	Scrie numele de utilizator al unui prieten
+Type your answer	Scrie răspunsul
+UPLOADED BY	ÎNCĂRCAT DE
+USES	UTILIZĂRI
+Uh oh, you don't have webhook permissions in any server you're in. Ask your server admin to give you the permission or ask them to come follow themselves!	Of, nu ai permisiuni pentru webhookuri pe niciun server pe care ești. Cere-i administratorului să-ți dea permisiunea sau să urmărească el canalul!
+Uh-oh. Looks like you've been banned.	Of. Se pare că ți s-a interzis accesul.
+Ukrainian	Ucraineană
+Unable to accept invite	Invitația nu poate fi acceptată
+Unassigned	Neatribuit
+Unban Member	Ridică interdicția membrului
+Unblock	Deblochează
+Undeafen	Anulează asurzirea
+Under Request Headers, copy the value of "authorization" and paste it below.	La Request Headers, copiază valoarea „authorization” și lipește-o mai jos.
+Undo	Anulează
+Unignore	Nu mai ignora
+Unknown	Necunoscut
+Unknown channel	Canal necunoscut
+Unmute	Reactivează sunetul
+Unmute Category	Reactivează sunetul categoriei
+Unmute Channel	Reactivează sunetul canalului
+Unmute Server	Reactivează sunetul serverului
+Unmute Thread	Reactivează sunetul firului
+Unpin Message	Anulează fixarea mesajului
+Unreads	Necitite
+Unrestricted	Fără restricții
+Until %	Până la %
+Until %1 at %2	Până pe %1 la %2
+Until I turn it back on	Până îl reactivez
+Until tomorrow at %	Până mâine la %
+Untitled question	Întrebare fără titlu
+Unverify	Anulează verificarea
+Update %	Actualizează %
+Update Channel	Actualizează canalul
+Update Emoji	Actualizează emoji
+Update Member	Actualizează membrul
+Update Member Roles	Actualizează rolurile membrului
+Update Role	Actualizează rolul
+Update Server	Actualizează serverul
+Update Webhook	Actualizează webhookul
+Update your password	Actualizează-ți parola
+Upload	Încarcă
+Upload Emoji	Încarcă emoji
+Upload Sound	Încarcă sunet
+Upload Sticker	Încarcă autocolant
+Upload a File	Încarcă un fișier
+Upload a Sound	Încarcă un sunet
+Upload a file	Încarcă un fișier
+Upload custom sound reactions that anyone in this server can use. MP3 or OGG files, up to 512 KB and 5.2 seconds.	Încarcă reacții sonore personalizate pe care le poate folosi oricine de pe acest server. Fișiere MP3 sau OGG, de cel mult 512 KB și 5,2 secunde.
+Upload to %	Încarcă în %
+Uploaded a file	A încărcat un fișier
+Uploading...	Se încarcă...
+Use Application Commands	Folosește comenzile aplicațiilor
+Use Category Default	Folosește setarea implicită a categoriei
+Use External Apps	Folosește aplicații externe
+Use External Emoji	Folosește emoji externe
+Use External Sounds	Folosește sunete externe
+Use External Stickers	Folosește autocolante externe
+Use Server Default	Folosește setarea implicită a serverului
+Use Soundboard	Folosește soundboardul
+Use Voice Activity	Folosește Activitatea vocală
+Use a backup code	Folosește un cod de rezervă
+Use a code sent to your phone	Folosește un cod trimis pe telefon
+Use a passkey or security key	Folosește o cheie de acces sau de securitate
+Use data to improve Discord	Folosește datele pentru a îmbunătăți Discord
+Use roles to group your server members and assign permissions.	Folosește roluri ca să grupezi membrii serverului și să atribui permisiuni.
+Use your authenticator app	Folosește aplicația de autentificare
+Used % times.|Used % times.	Folosit o dată.|Folosit de % ori.|Folosit de % de ori.
+User Join	Utilizator intrat
+User Leave	Utilizator ieșit
+User Limit	Limită de utilizatori
+User Moved	Utilizator mutat
+User Volume	Volumul utilizatorului
+User blocked	Utilizator blocat
+User unblocked	Utilizator deblocat
+Username	Nume de utilizator
+Username is available. Nice!	Numele de utilizator e disponibil. Super!
+Username is unavailable. Try adding numbers, letters, underscores _ , or periods.	Numele de utilizator nu e disponibil. Încearcă să adaugi cifre, litere, liniuțe de subliniere _ sau puncte.
+Users will need to confirm they are of over the legal age to view in the content in this channel.\nAge-restricted channels are exempt from the explicit content filter.	Utilizatorii vor trebui să confirme că au vârsta legală ca să vadă conținutul din acest canal.\nCanalele cu restricție de vârstă sunt exceptate de la filtrul de conținut explicit.
+Uses the yt-dlp you installed to play YouTube links in the chat instead of opening your browser. It connects to YouTube from your computer.	Folosește yt-dlp-ul instalat ca să redea linkurile YouTube în chat în loc să deschidă browserul. Se conectează la YouTube de pe computerul tău.
+VOICE PROCESSING	PROCESARE VOCE
+Verification Level	Nivel de verificare
+Verified	Verificat
+Verify with something else	Verifică altfel
+Video	Video
+Video Quality	Calitate video
+Vietnamese	Vietnameză
+View Audit Log	Vezi jurnalul de audit
+View Channel	Vezi canalul
+View Channels	Vezi canalele
+View Details	Vezi detaliile
+View Full Profile	Vezi profilul complet
+View Poll	Vezi sondajul
+View Profile	Vezi profilul
+View Reactions	Vezi reacțiile
+View Server Insights	Vezi Statisticile serverului
+Visit Site	Vizitează site-ul
+Visual Density	Densitate vizuală
+Voice	Voce
+Voice & Video	Voce și video
+Voice Activity	Activitate vocală
+Voice Channel	Canal vocal
+Voice Channel Permissions	Permisiuni pentru canalele vocale
+Voice Connected	Voce conectată
+Voice Disconnected	Voce deconectată
+Volume	Volum
+Vote	Votează
+Waiting for a server	Se așteaptă un server
+Wants to message you	Vrea să-ți trimită mesaje
+Watch Stream	Urmărește transmisia
+Wave to say hi!	Fă-i cu mâna să saluți!
+We appreciate the enthusiasm, but...	Apreciem entuziasmul, dar...
+We couldn't load the profile for this server.	Nu am putut încărca profilul acestui server.
+We recommend an image of at least 512x512.	Recomandăm o imagine de cel puțin 512x512.
+We sent instructions to change your password to %, please check both your inbox and spam folder.	Am trimis instrucțiuni pentru schimbarea parolei la %, verifică atât căsuța de primire, cât și dosarul de spam.
+We're so excited to see you again!	Ne bucurăm tare că te revedem!
+We've sent a message to %.  Please enter the code you received.	Am trimis un mesaj la %.  Introdu codul primit.
+Webhooks (%)	Webhookuri (%)
+Webhooks are a simple way to post messages from other apps and websites into this server.	Webhookurile sunt o cale simplă de a posta pe acest server mesaje din alte aplicații și site-uri.
+Welcome %. Say hi!	Bun venit, %. Salută!
+Welcome back!	Bine ai revenit!
+Welcome to #%!	Bun venit în #%!
+Welcome to the beginning of the % group.	Bun venit la începutul grupului %.
+Welcome, %. We hope you brought pizza.	Bun venit, %. Sperăm că ai adus pizza.
+What brings you here?	Ce te aduce pe aici?
+What can people do in this server?	Ce pot face oamenii pe acest server?
+What question do you want to ask?	Ce întrebare vrei să pui?
+What's cookin'?	Ce se mai gătește?
+What's your event about?	Despre ce e evenimentul tău?
+What's your event?	Care e evenimentul tău?
+When a friend starts an activity—like playing a game or hanging out on voice—we'll show it here!	Când un prieten începe o activitate—de exemplu joacă un joc sau stă pe voce—o vom afișa aici!
+When enabled, only server members can view profile content. Non-members won't be able to see this content unless they have an invite.	Când e activat, doar membrii serverului pot vedea conținutul profilului. Ceilalți nu îl vor putea vedea decât dacă au o invitație.
+When you put a user in timeout they will not be able to send messages in chat, reply within threads, react to messages, or speak in voice or Stage channels.	Când pui un utilizator în pauză forțată, acesta nu va putea trimite mesaje în chat, răspunde în fire, reacționa la mesaje sau vorbi în canalele vocale sau Stage.
+Where is your event?	Unde are loc evenimentul?
+Where would you like to go?	Unde ai vrea să mergi?
+Who is this server for? E.g. School Club, Artists' Community	Pentru cine e acest server? De ex. club școlar, comunitate de artiști
+Winning answer · %1%2	Răspuns câștigător · %1%2
+Words that are never blocked, separated by commas	Cuvinte care nu sunt blocate niciodată, separate prin virgulă
+Words to block, separated by commas	Cuvinte de blocat, separate prin virgulă
+Words to block, separated by commas (* matches anything)	Cuvinte de blocat, separate prin virgulă (* înlocuiește orice)
+Would you like to sync %1 permissions with %2?	Vrei să sincronizezi permisiunile %1 cu %2?
+Yay you made it, %!	Ura, ai ajuns, %!
+Yesterday at %	Ieri la %
+You	Tu
+You accepted %'s friend request.	Ai acceptat cererea de prietenie a lui %.
+You are at the % server limit.	Ai atins limita de % servere.
+You are banned from this server.	Ți s-a interzis accesul pe acest server.
+You aren't in that server. Ask a member for an invite.	Nu ești pe acel server. Cere-i unui membru o invitație.
+You can add % more friend.|You can add % more friends.	Mai poți adăuga % prieten.|Mai poți adăuga % prieteni.|Mai poți adăuga % de prieteni.
+You can add comments before uploading.\nHold shift to upload directly.	Poți adăuga comentarii înainte de încărcare.\nȚine apăsat Shift ca să încarci direct.
+You can add friends with their Discord username.	Poți adăuga prieteni după numele lor de utilizator Discord.
+You can add up to 5 accounts.	Poți adăuga până la 5 conturi.
+You can hold down shift when clicking % to bypass this confirmation entirely.	Poți ține apăsat Shift când apeși pe % ca să sari complet peste această confirmare.
+You can only edit roles below your highest role.	Poți edita doar rolurile aflate sub cel mai înalt rol al tău.
+You can only upload % files at a time!	Poți încărca doar % fișiere deodată!
+You can use markdown and links if you'd like.	Poți folosi markdown și linkuri dacă vrei.
+You can't join this server because of your age group.	Nu te poți alătura acestui server din cauza grupei tale de vârstă.
+You can't unblock the Wumpus.	Nu-l poți debloca pe Wumpus.
+You cannot friend yourself	Nu poți fi propriul tău prieten
+You can’t react and super react with the same emoji. There’s a lot of emoji to choose from, so maybe try another one.	Nu poți reacționa și super-reacționa cu același emoji. Sunt o mulțime de emoji din care să alegi, așa că poate încerci altul.
+You do not have permission to send messages in this channel.	Nu ai permisiunea să trimiți mesaje în acest canal.
+You don't have any friends to add!	Nu ai prieteni de adăugat!
+You don't have permission to do that.	Nu ai permisiunea să faci asta.
+You haven't added a display name yet.	Nu ai adăugat încă un nume afișat.
+You haven't added a phone number yet.	Nu ai adăugat încă un număr de telefon.
+You haven't added an email yet.	Nu ai adăugat încă un e-mail.
+You haven't authorized any apps.	Nu ai autorizat nicio aplicație.
+You haven't blocked anyone.	Nu ai blocat pe nimeni.
+You haven't connected any accounts yet.	Nu ai conectat încă niciun cont.
+You haven't ignored anyone.	Nu ai ignorat pe nimeni.
+You missed a call from %1 that lasted %2.	Ai pierdut un apel de la %1 care a durat %2.
+You must be at least 18 years old to view this channel.	Trebuie să ai cel puțin 18 ani ca să vezi acest canal.
+You must leave a server first to join.	Trebuie mai întâi să părăsești un server ca să te alături.
+You need to add one or more rules.	Trebuie să adaugi una sau mai multe reguli.
+You received an invite, but...	Ai primit o invitație, dar...
+You said: %	Ai spus: %
+You sent an invite to a self-hosted server	Ai trimis o invitație către un server auto-găzduit
+You sent an invite, but	Ai trimis o invitație, dar
+You sent an invite, but...	Ai trimis o invitație, dar...
+You will appear offline	Vei apărea offline
+You will not receive desktop notifications	Nu vei primi notificări desktop
+You'll have to log back in on all logged out devices.	Va trebui să te conectezi din nou pe toate dispozitivele deconectate.
+You're Viewing Older Messages	Vezi mesaje mai vechi
+You're all caught up!	Ești la zi!
+You're already in that server.	Ești deja pe acel server.
+You're doing that too fast. Try again in a moment.	Faci asta prea repede. Încearcă din nou peste puțin timp.
+You're not in any servers yet.	Nu ești încă pe niciun server.
+You're offline: no invite link.	Ești offline: niciun link de invitație.
+You're timed out until %.	Ești în pauză forțată până la %.
+You've been invited to a self-hosted server	Ai fost invitat pe un server auto-găzduit
+You've been invited to join	Ai fost invitat să te alături
+You've been invited to speak	Ai fost invitat să vorbești
+You've been invited, but	Ai fost invitat, dar
+Your files are too powerful	Fișierele tale sunt prea puternice
+Your full profile is visible to friends and any server you join with 200 or fewer members. Everyone else sees a limited version.	Profilul tău complet e vizibil pentru prieteni și pe orice server cu cel mult 200 de membri la care te alături. Restul văd o versiune limitată.
+Your full profile is visible to friends and any server you join.	Profilul tău complet e vizibil pentru prieteni și pe orice server la care te alături.
+Your full profile is visible to friends. Everyone else sees a limited version.	Profilul tău complet e vizibil pentru prieteni. Restul văd o versiune limitată.
+Your invite link expires after %.	Linkul tău de invitație expiră după %.
+Your invite link expires in %.	Linkul tău de invitație expiră în %.
+Your invite link expires in %1, or after %2.	Linkul tău de invitație expiră în %1 sau după %2.
+Your invite link expires in 7 days.	Linkul tău de invitație expiră în 7 zile.
+Your invite link will never expire.	Linkul tău de invitație nu va expira niciodată.
+Your last request was on %.	Ultima ta cerere a fost pe %.
+Your message is too long (% / %).	Mesajul tău e prea lung (%1 / %2).
+Your reaction was not added because there are too many reactions on this message.	Reacția ta nu a fost adăugată pentru că mesajul are prea multe reacții.
+Your request from % is being prepared.	Cererea ta din % e în pregătire.
+Your server is where you and your friends hang out. Make yours and start talking.	Serverul tău e locul unde tu și prietenii tăi petreceți timpul. Creează-l pe al tău și începeți să vorbiți.
+Your sounds go out with your voice, mixed into your microphone, instead of as soundboard sounds.	Sunetele tale pleacă odată cu vocea, mixate în microfon, în loc de sunete de soundboard.
+Zoom level	Nivel de zoom
+a channel	un canal
+a command	o comandă
+a day	o zi
+a day ago	acum o zi
+a few seconds	câteva secunde
+a few seconds ago	acum câteva secunde
+a message	un mesaj
+a minute	un minut
+a minute ago	acum un minut
+a month ago	acum o lună
+a year ago	acum un an
+an hour	o oră
+an hour ago	acum o oră
+by %	de %
+cancel	anulezi
+channel	canal
+delete message	ștergi mesajul
+dingus@example.com	nume@exemplu.ro
+escape to %1 • enter to %2	Esc ca să %1 • Enter ca să %2
+fastcord %	fastcord %
+fastcord quit unexpectedly last time. The report is in the logs folder (Settings, under Log Out).	fastcord s-a închis neașteptat data trecută. Raportul e în dosarul de jurnale (Setări, sub Deconectează-te).
+fastcord starts in the background and stays out of your way.	fastcord pornește în fundal și nu te deranjează.
+from %	de la %
+in %	în %
+in % day|in % days	peste % zi|peste % zile|peste % de zile
+in % hour|in % hours	peste % oră|peste % ore|peste % de ore
+in % minute|in % minutes	peste % minut|peste % minute|peste % de minute
+in % month|in % months	peste % lună|peste % luni|peste % de luni
+in % year|in % years	peste % an|peste % ani|peste % de ani
+in a day	peste o zi
+in a few seconds	peste câteva secunde
+in a minute	peste un minut
+in a month	peste o lună
+in a year	peste un an
+in an hour	peste o oră
+just now	chiar acum
+less than an hour ago	acum mai puțin de o oră
+link, embed or file	link, conținut încorporat sau fișier
+on %	pe %
+pinned messages	mesajele fixate
+remove embeds	elimini conținutul încorporat
+save	salvezi
+someone	cineva
+specific date	dată anume
+this server	acest server
+threads	firele
+true or false	adevărat sau fals
+unknown	necunoscut
+unknown channel	canal necunoscut
+unknown-user	utilizator-necunoscut
+used	folosit
+user	utilizator
+• Media from all members is scanned by the explicit image filter.	• Conținutul media de la toți membrii e scanat de filtrul de imagini explicite.
+• Members must have a verified email on their Discord account.	• Membrii trebuie să aibă un e-mail verificat în contul Discord.
+← Back to %	← Înapoi la %
+← Back to login	← Înapoi la conectare

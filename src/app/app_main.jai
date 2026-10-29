@@ -709,6 +709,9 @@ script_command :: (path: string, f: []string, t: *float64, depth := 0) {
 	case "developer_mode";
 		// the account's Developer Mode (off in the fixtures): the menus' Copy ... ID items
 		store().settings.developer_mode = true;
+	case "locale";
+		// the UI language, as Language & Time sets it offline (a static LANGUAGES code)
+		for LANGUAGES if it[0] == f[1] store().settings.locale = it[0];
 	case "theme";
 		th, ok := theme_by_name(f[1]);
 		if ok theme_load(*app.theme, th);

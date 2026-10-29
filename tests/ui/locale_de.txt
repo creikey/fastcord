@@ -1,0 +1,15 @@
+# The UI in de: chat, the server menu, a user's profile popout and User Settings (glyph fallback, text
+# overflow; see the PNGs).
+locale de
+wait 5
+shot build/ui-locale_de-chat.png
+click 200 57
+wait 10
+shot build/ui-locale_de-menu.png
+key escape
+wait 5
+click 338 683
+wait 20
+shot build/ui-locale_de-settings.png
+key escape
+wait 5

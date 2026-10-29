@@ -1,0 +1,15 @@
+# The UI in ru: chat, the server menu, a user's profile popout and User Settings (glyph fallback, text
+# overflow; see the PNGs).
+locale ru
+wait 5
+shot build/ui-locale_ru-chat.png
+click 200 57
+wait 10
+shot build/ui-locale_ru-menu.png
+key escape
+wait 5
+click 338 683
+wait 20
+shot build/ui-locale_ru-settings.png
+key escape
+wait 5

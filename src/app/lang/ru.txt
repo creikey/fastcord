@@ -1,0 +1,1973 @@
+# Russian (ru)
+ · required	 · обязательно
+% (requested to speak)	% (хочет выступить)
+% (required)	% (обязательно)
+% Bans|% Bans	% бан|% бана|% банов
+% Event|% Events	% событие|% события|% событий
+% KB	% КБ
+% MB	% МБ
+% Member|% Members	% участник|% участника|% участников
+% Messages	Сообщений: %
+% Mutual Friend|% Mutual Friends	% общий друг|% общих друга|% общих друзей
+% Mutual Server|% Mutual Servers	% общий сервер|% общих сервера|% общих серверов
+% Online	В сети: %
+% Result|% Results	% результат|% результата|% результатов
+% accepted encryption.	% принимает шифрование.
+% accepted your friend request.	% принимает ваш запрос дружбы.
+% answer|% answers	% ответ|% ответа|% ответов
+% becomes the owner once they accept on their device. You'll stay a member.	% станет владельцем, когда подтвердит это на своём устройстве. Вы останетесь участником.
+% blocked message —|% blocked messages —	% заблокированное сообщение —|% заблокированных сообщения —|% заблокированных сообщений —
+% byte|% bytes	% байт|% байта|% байт
+% changed the group icon.	% меняет иконку группы.
+% day ago|% days ago	% день назад|% дня назад|% дней назад
+% day|% days	% день|% дня|% дней
+% disabled security actions.	% отключает меры безопасности.
+% enabled security actions.	% включает меры безопасности.
+% hasn't accepted encryption yet.	% ещё не принял(а) шифрование.
+% hopped into the server.	% запрыгивает на сервер.
+% hour ago|% hours ago	% час назад|% часа назад|% часов назад
+% hour|% hours	% час|% часа|% часов
+% ignored message —|% ignored messages —	% игнорируемое сообщение —|% игнорируемых сообщения —|% игнорируемых сообщений —
+% is here.	% уже здесь.
+% is typing...	% печатает...
+% joined the party.	% присоединяется к вечеринке.
+% just boosted the server!	% бустит сервер!
+% just landed.	% приземляется на сервере.
+% just showed up!	% появляется на сервере!
+% just slid into the server.	% проскальзывает на сервер.
+% left the group.	% покидает группу.
+% member|% members	% участник|% участника|% участников
+% minute ago|% minutes ago	% минуту назад|% минуты назад|% минут назад
+% minute|% minutes	% минута|% минуты|% минут
+% month ago|% months ago	% месяц назад|% месяца назад|% месяцев назад
+% of %	%1 из %2
+% removed the custom group name.	% удаляет название группы.
+% started a call.	% начинает звонок.
+% turned on encryption.	% включает шифрование.
+% user|% users	% пользователь|% пользователя|% пользователей
+% use|% uses	% использование|% использования|% использований
+% vote|% votes	% голос|% голоса|% голосов
+% wants to encrypt this DM with a new key. Compare safety numbers after accepting.	% хочет шифровать эти ЛС новым ключом. После подтверждения сверьте коды безопасности.
+% wants to encrypt this DM.	% хочет шифровать эти ЛС.
+% year ago|% years ago	% год назад|% года назад|% лет назад
+% · End-to-end encrypted	% · Сквозное шифрование
+%'s Group	Группа %
+%'s encryption key changed. Compare safety numbers before trusting new messages.	Ключ шифрования % изменился. Сверьте коды безопасности, прежде чем доверять новым сообщениям.
+%'s server	Сервер %
+%1 (%2 more)	%1 (ещё %2)
+%1 FPS	%1 FPS
+%1 STICKERS — %2 SLOTS AVAILABLE	СТИКЕРЫ: %1 — СВОБОДНО МЕСТ: %2
+%1 action %2	%1 действие %2
+%1 added %2 to the group.	%1 добавляет %2 в группу.
+%1 and %2	%1 и %2
+%1 and %2 are typing...	%1 и %2 печатают...
+%1 and %2 other|%1 and %2 others	%1 и ещё %2|%1 и ещё %2|%1 и ещё %2
+%1 banned %2	%1 банит %2
+%1 changed the Stage topic: %2	%1 меняет тему трибуны: %2
+%1 changed the channel name: %2.	%1 меняет название канала: %2.
+%1 changed the group name: %2.	%1 меняет название группы: %2.
+%1 created a channel	%1 создаёт канал
+%1 created a role	%1 создаёт роль
+%1 created a webhook	%1 создаёт вебхук
+%1 created an emoji	%1 создаёт эмодзи
+%1 created an invite	%1 создаёт приглашение
+%1 deleted a channel	%1 удаляет канал
+%1 deleted a message by %2	%1 удаляет сообщение от %2
+%1 deleted a role	%1 удаляет роль
+%1 deleted a webhook	%1 удаляет вебхук
+%1 deleted an emoji	%1 удаляет эмодзи
+%1 deleted an invite	%1 удаляет приглашение
+%1 enabled security actions until %2.	%1 включает меры безопасности до %2.
+%1 ended %2	%1 завершает %2
+%1 has achieved %2	%1 получает достижение %2
+%1 has added %2 to this channel. Its most important updates will show up here.	%1 добавляет %2 в этот канал. Самые важные новости будут появляться здесь.
+%1 has blocked a message in %2	%1 блокирует сообщение в %2
+%1 has flagged a message in %2	%1 отмечает сообщение в %2
+%1 is now a speaker.	%1 теперь выступает.
+%1 joined %2 and has been a subscriber of %3 for %4 month!|%1 joined %2 and has been a subscriber of %3 for %4 months!	%1 подписывается на %2 и уже %4 месяц поддерживает %3!|%1 подписывается на %2 и уже %4 месяца поддерживает %3!|%1 подписывается на %2 и уже %4 месяцев поддерживает %3!
+%1 joined %2 as a subscriber of %3!	%1 подписывается на %2 и поддерживает %3!
+%1 just boosted the server %2 times!	%1 бустит сервер %2 раз(а)!
+%1 kicked %2	%1 выгоняет %2
+%1 new message since %2|%1 new messages since %2	%1 новое сообщение с %2|%1 новых сообщения с %2|%1 новых сообщений с %2
+%1 of %2 slot used|%1 of %2 slots used	Занято %1 из %2 мест|Занято %1 из %2 мест|Занято %1 из %2 мест
+%1 pinned %2 to this channel. See all %3.	%1 закрепляет %2 в этом канале. Посмотреть все %3.
+%1 reacted with %2	%1 реагирует: %2
+%1 removed %2 from the group.	%1 удаляет %2 из группы.
+%1 renewed %2 and has been a subscriber of %3 for %4 month!|%1 renewed %2 and has been a subscriber of %3 for %4 months!	%1 продлевает %2 и уже %4 месяц поддерживает %3!|%1 продлевает %2 и уже %4 месяца поддерживает %3!|%1 продлевает %2 и уже %4 месяцев поддерживает %3!
+%1 renewed %2 in their %3 membership!	%1 продлевает %2 в подписке %3!
+%1 reported a raid in %2.	%1 сообщает о рейде в %2.
+%1 requested to speak.	%1 хочет выступить.
+%1 resolved an Activity Alert in %2.	%1 закрывает оповещение об активности в %2.
+%1 said %2	%1: %2
+%1 started %2	%1 начинает %2
+%1 started a call that lasted %2.	%1 начинает звонок длительностью %2.
+%1 started a thread: %2. See all %3.	%1 создаёт ветку: %2. Посмотреть все %3.
+%1 unbanned %2	%1 разбанивает %2
+%1 updated %2	%1 обновляет %2
+%1 updated a channel	%1 обновляет канал
+%1 updated a role	%1 обновляет роль
+%1 updated a webhook	%1 обновляет вебхук
+%1 updated an emoji	%1 обновляет эмодзи
+%1 updated the roles of %2	%1 меняет роли %2
+%1 updated the server	%1 обновляет сервер
+%1 vote · %2|%1 votes · %2	%1 голос · %2|%1 голоса · %2|%1 голосов · %2
+%1 wants to make you the owner of %2. You'll be able to manage everything about it, and they'll stay a member.	%1 хочет сделать вас владельцем %2. Вы сможете полностью им управлять, а прежний владелец останется участником.
+%1's poll %2 has closed.	Опрос %2 от %1 завершён.
+%1, %2 and %3	%1, %2 и %3
+%1, %2 at %3	%1, %2 в %3
+%1, %2, and %3 are typing...	%1, %2 и %3 печатают...
+%1: %2	%1: %2
+%: a number	%: число
+%: a whole number	%: целое число
+%: pick a channel	%: выберите канал
+%: pick a member	%: выберите участника
+%: pick a role	%: выберите роль
+%: true or false	%: да или нет
+%d ago	% д назад
+%d left	осталось % д
+%h	% ч
+%h ago	% ч назад
+%h left	осталось % ч
+%m	% мин
+%m ago	% мин назад
+%m left	осталось % мин
+%mo ago	% мес. назад
+%s	% с
+(edited)	(изменено)
+/% takes no options.	У /% нет параметров.
+/%1 needs %2:	Для /%1 нужно %2:
+1 Day	1 день
+1 Hour	1 час
+1 Message	1 сообщение
+1 Week	1 неделя
+1 day	1 день
+1 hour	1 час
+1 minute	1 минута
+1 use	1 использование
+1 week	1 неделя
+10 Minutes	10 минут
+10 minutes	10 минут
+10 uses	10 использований
+100 uses	100 использований
+12 hours	12 часов
+12-hour	12-часовой
+15 minutes	15 минут
+2 hours	2 часа
+2 to 4 letters or numbers	От 2 до 4 букв или цифр
+2 weeks	2 недели
+24 Hours	24 часа
+24 hours	24 часа
+24-hour	24-часовой
+25 uses	25 использований
+3 Days	3 дня
+3 days	3 дня
+30 days	30 дней
+30 minutes	30 минут
+3:00 PM	3:00 ПП
+4 hours	4 часа
+5 Minutes	5 минут
+5 minutes	5 минут
+5 uses	5 использований
+50 uses	50 использований
+6 hours	6 часов
+6-digit authentication code	6-значный код аутентификации
+60 Seconds	60 секунд
+60 seconds	60 секунд
+7 days	7 дней
+8 hours	8 часов
+8-digit backup code	8-значный резервный код
+@ OFF	@ ВЫКЛ.
+@ ON	@ ВКЛ.
+@MENTIONS	@УПОМИНАНИЯ
+@everyone · applies to all server members	@everyone · для всех участников сервера
+A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button.	Клавиша с Ctrl, Alt, Shift или Cmd, одна клавиша-модификатор или средняя/боковая кнопка мыши.
+A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button. Works in every app.	Клавиша с Ctrl, Alt, Shift или Cmd, одна клавиша-модификатор или средняя/боковая кнопка мыши. Работает во всех приложениях.
+A role needs a name.	Укажите название роли.
+A webhook needs a name.	Укажите название вебхука.
+A wild % appeared.	Появляется дикий %.
+ACTION	ДЕЙСТВИЕ
+ACTIVE INVITE LINKS	АКТИВНЫЕ ССЫЛКИ-ПРИГЛАШЕНИЯ
+ALL	ВСЕ
+ALL THE BITS! Going above 64 kbps may adversely affect people on poor connections.	ВСЕ БИТЫ! Битрейт выше 64 кбит/с может мешать тем, у кого слабое соединение.
+AM	ДП
+ANIMATED EMOJI — % SLOTS AVAILABLE	АНИМИРОВАННЫЕ ЭМОДЗИ — СВОБОДНО МЕСТ: %
+APP	ПРИЛОЖЕНИЕ
+AUDIENCE — %	СЛУШАТЕЛИ — %
+AUTHENTICATOR APP	ПРИЛОЖЕНИЕ-АУТЕНТИФИКАТОР
+About Me	Обо мне
+Accept	Принять
+Accept Friend Request	Принять запрос дружбы
+Accept Invite	Принять приглашение
+Accept Server Ownership	Стать владельцем сервера
+Accept this message request (Friends, Message Requests) to reply.	Чтобы ответить, примите этот запрос на переписку (Друзья, Запросы на переписку).
+Accepting...	Принимаем...
+Access	Доступ
+Accessibility	Специальные возможности
+Account	Учётная запись
+Account Removal	Удаление учётной записи
+Activate	Активировать
+Active	Активно
+Active Now	Сейчас активны
+Activities	Активности
+Activity Joining	Присоединение к активности
+Activity Privacy	Конфиденциальность активности
+Activity Status	Статус активности
+Add Answer	Добавить ответ
+Add Emoji	Добавить эмодзи
+Add Friend	Добавить в друзья
+Add Friend Nickname	Добавить никнейм друга
+Add Note	Добавить заметку
+Add Reaction	Добавить реакцию
+Add Reactions	Добавлять реакции
+Add Tag	Добавить тег
+Add a Keybind	Добавить сочетание клавиш
+Add a Question	Добавить вопрос
+Add a channel	Добавить канал
+Add a channel to override its default notification settings	Добавьте канал, чтобы изменить для него настройки уведомлений
+Add a description	Добавьте описание
+Add a location, link, or something.	Добавьте место, ссылку или что-нибудь ещё.
+Add a role	Добавить роль
+Add an Account	Добавить учётную запись
+Add an optional message...	Добавьте сообщение (необязательно)...
+Add another answer	Добавить ещё ответ
+Add at least one word to block.	Добавьте хотя бы одно слово для блокировки.
+Add members or roles	Добавить участников или роли
+Add this channel's updates to your server!	Добавьте новости этого канала на свой сервер!
+Add this key to an authenticator app, then enter the code it shows.	Добавьте этот ключ в приложение-аутентификатор и введите показанный код.
+Add to Favorites	Добавить в избранное
+Add to Group DM	Добавить в групповые ЛС
+Add up to 5 traits to show off your server's interests and personality.	Добавьте до 5 черт, чтобы показать интересы и характер сервера.
+Add up to 50 custom emoji that anyone can use in this server. Animated GIF emoji may be used by members with Discord Nitro. Emoji names must be at least 2 characters long and can only contain alphanumeric characters and underscores. Emoji must be under 256 KB in size.	Добавьте до 50 собственных эмодзи, которыми сможет пользоваться любой участник сервера. Анимированные GIF-эмодзи доступны участникам с Discord Nitro. Названия эмодзи должны быть не короче 2 символов и содержать только буквы, цифры и подчёркивания. Размер эмодзи — меньше 256 КБ.
+Add your pronouns	Укажите местоимения
+Added %	Добавлено: %
+Adjust the size of the interface. You can also change this with % +/-.	Измените размер интерфейса. Это также можно сделать с помощью % +/-.
+Administrator	Администратор
+Advanced Permissions	Расширенные права
+Advanced permissions	Расширенные права
+Age-Restricted Channel	Канал с возрастным ограничением
+All	Все
+All Actions	Все действия
+All Messages	Все сообщения
+All Users	Все пользователи
+All friends	Все друзья
+All messages will be filtered for sensitive image-based media.	Все сообщения будут проверяться на откровенные изображения.
+All set. Now share your event!	Готово. Теперь поделитесь событием!
+Allow DMs from other members in servers	Разрешить ЛС от других участников серверов
+Allow Discord to use and process my information to understand and improve Discord's services.	Разрешить Discord использовать и обрабатывать мои данные для понимания и улучшения своих сервисов.
+Allow Friend Requests from...	Разрешить запросы дружбы от...
+Allow Multiple Answers	Разрешить несколько ответов
+Allow anyone to @mention this role	Разрешить всем @упоминать эту роль
+Allow direct messages from other members in this server.	Разрешить личные сообщения от других участников этого сервера.
+Allow friends to join your game	Разрешить друзьям присоединяться к вашей игре
+Allow members to change this server's name, switch regions, view all invites, add apps to this server and create and update AutoMod rules.	Позволяет участникам менять название сервера, переключать регион, просматривать все приглашения, добавлять приложения на сервер, а также создавать и изменять правила AutoMod.
+Allow members to create invite-only threads.	Позволяет участникам создавать ветки только по приглашению.
+Allow members to create threads that everyone in a channel can view.	Позволяет участникам создавать ветки, которые видны всем в канале.
+Allow members to send messages in text channels and create posts in forum channels.	Позволяет участникам отправлять сообщения в текстовых каналах и создавать публикации на форумах.
+Allow members to send messages in threads and in posts on forum channels.	Позволяет участникам отправлять сообщения в ветках и публикациях на форумах.
+Allow message requests from server members you may not know	Разрешить запросы на переписку от незнакомых вам участников серверов
+Allow voice channel participants to join your game	Разрешить участникам голосового канала присоединяться к вашей игре
+Allowed words	Разрешённые слова
+Allows apps that members have added to their account to post messages. When disabled, the messages will be private.	Позволяет приложениям, добавленным участниками в свою учётную запись, публиковать сообщения. Если отключено, сообщения будут видны только им.
+Allows links that members share to show embedded content in text channels.	Позволяет ссылкам участников показывать встроенный контент в текстовых каналах.
+Allows members to add custom emoji, stickers, and sounds in this server.	Позволяет участникам добавлять на сервер собственные эмодзи, стикеры и звуки.
+Allows members to add new emoji reactions to a message. If this permission is disabled, members can still react using any existing reactions on a message.	Позволяет участникам добавлять к сообщениям новые реакции. Если право отключено, участники всё равно могут нажимать на уже существующие реакции.
+Allows members to be more easily heard in voice channels. When activated, the volume of others without this permission will be automatically lowered.	Позволяет участникам лучше слышаться в голосовых каналах. Когда право используется, громкость остальных без этого права автоматически снижается.
+Allows members to change the nicknames of other members.	Позволяет участникам менять никнеймы других участников.
+Allows members to change their own nickname, a custom name for just this server.	Позволяет участникам менять свой никнейм — особое имя только для этого сервера.
+Allows members to change this channel's name, description, and settings. They can also delete it.	Позволяет участникам менять название, описание и настройки этого канала, а также удалять его.
+Allows members to change this channel's permissions.	Позволяет участникам менять права этого канала.
+Allows members to create and edit voice channel status.	Позволяет участникам задавать и менять статус голосового канала.
+Allows members to create events.	Позволяет участникам создавать события.
+Allows members to create new roles and edit or delete roles lower than their highest role. Also allows members to change permissions of individual channels that they have access to.	Позволяет участникам создавать новые роли, а также изменять и удалять роли ниже своей высшей роли. Также позволяет менять права отдельных каналов, к которым у них есть доступ.
+Allows members to create polls.	Позволяет участникам создавать опросы.
+Allows members to create, edit, or delete channels.	Позволяет участникам создавать, изменять и удалять каналы.
+Allows members to create, edit, or delete webhooks, which can post messages from other apps or sites into this server.	Позволяет участникам создавать, изменять и удалять вебхуки, через которые другие приложения и сайты могут публиковать сообщения на сервере.
+Allows members to deafen other members in voice channels, which means they won't be able to speak or hear others.	Позволяет участникам отключать звук другим участникам в голосовых каналах: те не смогут говорить и слышать других.
+Allows members to delete or remove embeds from messages by other members.	Позволяет участникам удалять сообщения других участников или убирать из них встроенный контент.
+Allows members to disconnect or move other members between voice channels that the member with this permission has access to.	Позволяет участникам отключать других участников или перемещать их между голосовыми каналами, к которым у обладателя права есть доступ.
+Allows members to edit and cancel events.	Позволяет участникам изменять и отменять события.
+Allows members to edit or remove custom emoji, stickers, and sounds in this server.	Позволяет участникам изменять и удалять собственные эмодзи, стикеры и звуки сервера.
+Allows members to invite new people to this server.	Позволяет участникам приглашать на сервер новых людей.
+Allows members to join voice channels and hear others.	Позволяет участникам заходить в голосовые каналы и слышать других.
+Allows members to mute other members in voice channels for everyone.	Позволяет участникам отключать микрофон другим участникам в голосовых каналах для всех.
+Allows members to permanently ban and delete the message history of other members from this server.	Позволяет участникам навсегда банить других участников на сервере и удалять их историю сообщений.
+Allows members to pin or unpin any message.	Позволяет участникам закреплять и откреплять любые сообщения.
+Allows members to read previous messages sent in channels. If this permission is disabled, members only see messages sent when they are online. This does not fully apply to threads and forum posts.	Позволяет участникам читать прошлые сообщения в каналах. Если право отключено, участники видят только сообщения, отправленные, пока они в сети. На ветки и публикации форумов это распространяется не полностью.
+Allows members to remove other members from this server. Kicked members will be able to rejoin if they have another invite.	Позволяет участникам выгонять других участников с сервера. Выгнанные смогут вернуться по новому приглашению.
+Allows members to rename, delete, close, and turn on slow mode for threads and posts. They can also view private threads.	Позволяет участникам переименовывать, удалять и закрывать ветки и публикации, а также включать в них медленный режим. Также они видят приватные ветки.
+Allows members to send messages without being affected by slowmode.	Позволяет участникам отправлять сообщения без ограничений медленного режима.
+Allows members to send sounds from server soundboard.	Позволяет участникам воспроизводить звуки со звуковой панели сервера.
+Allows members to send text-to-speech messages by starting a message with /tts. These messages can be heard by anyone focused on the channel.	Позволяет участникам отправлять сообщения с синтезом речи, начиная их с /tts. Их услышит каждый, у кого открыт этот канал.
+Allows members to send voice messages.	Позволяет участникам отправлять голосовые сообщения.
+Allows members to share their video, screen share, or stream a game in this server.	Позволяет участникам включать видео, демонстрацию экрана или трансляцию игры на этом сервере.
+Allows members to speak in voice channels by simply talking. If this permission is disabled, members are required to use Push-to-talk. Good for controlling background noise or noisy members.	Позволяет участникам говорить в голосовых каналах, просто начав говорить. Если право отключено, придётся использовать режим рации. Помогает бороться с фоновым шумом и шумными участниками.
+Allows members to talk in voice channels. If this permission is disabled, members are default muted until somebody with the "Mute Members" permission un-mutes them.	Позволяет участникам говорить в голосовых каналах. Если право отключено, у участников по умолчанию выключен микрофон, пока его не включит кто-то с правом «Отключать участникам микрофон».
+Allows members to upload files or media in text channels.	Позволяет участникам загружать файлы и медиа в текстовые каналы.
+Allows members to use @everyone (everyone in the server) or @here (only online members in that channel). They can also @mention all roles, even if the role's "Allow anyone to mention this role" permission is disabled.	Позволяет участникам использовать @everyone (все на сервере) и @here (только участники канала в сети). Также они могут @упоминать любые роли, даже если у роли отключено «Разрешить всем упоминать эту роль».
+Allows members to use commands from applications, including slash commands and context menu commands.	Позволяет участникам использовать команды приложений, включая слэш-команды и команды контекстного меню.
+Allows members to use emoji from other servers, if they're a Discord Nitro member.	Позволяет участникам с Discord Nitro использовать эмодзи с других серверов.
+Allows members to use sounds from other servers, if they're a Discord Nitro member.	Позволяет участникам с Discord Nitro использовать звуки с других серверов.
+Allows members to use stickers from other servers, if they're a Discord Nitro member.	Позволяет участникам с Discord Nitro использовать стикеры с других серверов.
+Allows members to view Server Insights, which shows data on community growth, engagement, and more. This will allow them to see certain data about channel activity, even for channels they cannot access.	Позволяет участникам просматривать аналитику сервера: рост сообщества, вовлечённость и другое. Они увидят часть данных об активности даже в каналах, к которым у них нет доступа.
+Allows members to view a record of who made which changes in this server.	Позволяет участникам видеть, кто и какие изменения вносил на сервере.
+Allows members to view channels by default (excluding private channels).	Позволяет участникам по умолчанию видеть каналы (кроме приватных).
+Allows members to view these channels by default. Disabling this for @everyone will make the category private.	Позволяет участникам по умолчанию видеть эти каналы. Если отключить это для @everyone, категория станет приватной.
+Allows members to view this channel by default. Disabling this for @everyone will make this channel private.	Позволяет участникам по умолчанию видеть этот канал. Если отключить это для @everyone, канал станет приватным.
+Always	Всегда
+An emoji name, like smile	Название эмодзи, например smile
+An encrypted file couldn't be opened.|% encrypted files couldn't be opened.	Не удалось открыть % зашифрованный файл.|Не удалось открыть % зашифрованных файла.|Не удалось открыть % зашифрованных файлов.
+An error occurred, please try again.	Произошла ошибка, попробуйте ещё раз.
+An error occurred. Please try again.	Произошла ошибка. Попробуйте ещё раз.
+Announcement	Объявления
+Announcement Channel	Канал объявлений
+Answer	Ответ
+Answers	Ответы
+Anyone can join your server directly through Server Discovery	Любой может зайти на ваш сервер прямо через каталог серверов
+Anyone can use	Доступно всем
+Anyone with access to this text channel will be able to see the notifications.	Уведомления увидит любой, у кого есть доступ к этому текстовому каналу.
+App Directory	Каталог приложений
+Appearance	Внешний вид
+Appends (╯°□°)╯︵ ┻━┻ to your message.	Добавляет (╯°□°)╯︵ ┻━┻ к вашему сообщению.
+Appends ¯\\_(ツ)_/¯ to your message.	Добавляет ¯\\_(ツ)_/¯ к вашему сообщению.
+Appends ┬─┬ノ( º _ ºノ) to your message.	Добавляет ┬─┬ノ( º _ ºノ) к вашему сообщению.
+Applications	Приложения
+Apply to Join	Подать заявку
+Approve	Одобрить
+Apps	Приложения
+Apps Permissions	Права приложений
+Archived	В архиве
+Archived Threads	Архивные ветки
+Are you building a Community? Convert to a Community Server to access additional administrative tools that can help you moderate, run, and grow your server.	Создаёте сообщество? Превратите сервер в сервер сообщества, чтобы получить дополнительные инструменты для модерации, управления и развития.
+Are you sure that you want to delete your account? This will immediately log you out of your account and you will not be able to log in again.	Точно удалить учётную запись? Вы сразу выйдете из неё и больше не сможете войти.
+Are you sure that you want to disable your account? This will immediately log you out and make your account inaccessible to anyone.	Точно отключить учётную запись? Вы сразу выйдете из неё, и она станет недоступна для всех.
+Are you sure you want to ban @%1 from %2? They won't be able to come back until the ban is lifted.	Точно забанить @%1 на сервере %2? Вернуться можно будет только после снятия бана.
+Are you sure you want to delete %? This action cannot be undone.	Точно удалить %? Это действие нельзя отменить.
+Are you sure you want to delete %? This cannot be undone.	Точно удалить %? Это нельзя отменить.
+Are you sure you want to delete :%:? This cannot be undone.	Точно удалить :%:? Это нельзя отменить.
+Are you sure you want to delete the rule %? This cannot be undone.	Точно удалить правило %? Это нельзя отменить.
+Are you sure you want to delete this message?	Точно удалить это сообщение?
+Are you sure you want to delete this role? This action cannot be undone.	Точно удалить эту роль? Это действие нельзя отменить.
+Are you sure you want to delete this template? Its link will stop working.	Точно удалить этот шаблон? Его ссылка перестанет работать.
+Are you sure you want to kick @%1 from %2? They will be able to rejoin again with a new invite.	Точно выгнать @%1 с сервера %2? Вернуться можно будет по новому приглашению.
+Are you sure you want to logout?	Точно выйти?
+Are you sure you want to remove all embeds on this message? This will remove them for everyone.	Точно убрать весь встроенный контент из этого сообщения? Он пропадёт у всех.
+Are you sure you want to remove all of the reactions for this emoji from this message?	Точно убрать все реакции с этим эмодзи из этого сообщения?
+Are you sure you want to remove all the reactions on this message?	Точно убрать все реакции с этого сообщения?
+Are you sure you want to revoke the invite %? Nobody will be able to join with it.	Точно отозвать приглашение %? По нему никто не сможет зайти.
+Ask for a new invite	Попросите новое приглашение
+Ask new members what they're here for; each answer gives them channels and roles.	Спросите новичков, зачем они пришли: каждый ответ даёт им каналы и роли.
+Attach Files	Прикреплять файлы
+Attachment removed	Вложение удалено
+Attachments	Вложения
+Audit Log	Журнал аудита
+Authorized Apps	Авторизованные приложения
+Auto	Авто
+AutoMod	AutoMod
+Automatic	Автоматически
+Automatic Gain Control	Автоматическая регулировка усиления
+Automatically determine input sensitivity	Автоматически определять чувствительность ввода
+Automatically enable Streamer Mode if OBS or XSplit are running	Автоматически включать режим стримера, если запущен OBS или XSplit
+Automatically filter suspected spam messages	Автоматически фильтровать подозрительный спам
+Automatically move members to this channel and mute them when they have been idle for longer than the inactive timeout. This does not affect browsers.	Автоматически перемещать сюда участников и отключать им микрофон, если они бездействуют дольше заданного времени. На браузеры не действует.
+Automatically open fastcord when your computer starts up	Автоматически запускать fastcord при включении компьютера
+Automatically scan and delete messages sent in this server that contain explicit media.	Автоматически проверять и удалять сообщения на сервере с откровенными медиа.
+Avatar	Аватар
+BACK	НАЗАД
+BACKUP CODES	РЕЗЕРВНЫЕ КОДЫ
+Back	Назад
+Back / forward	Назад / вперёд
+Backup codes can only be used one time each and are for emergency access to your account!	Каждый резервный код можно использовать только один раз — они нужны для экстренного доступа к учётной записи!
+Backups	Резервные копии
+Ban	Забанить
+Ban %	Забанить %
+Ban '%' from Server	Забанить «%» на сервере
+Ban Member	Забанить участника
+Ban Members	Банить участников
+Banner	Баннер
+Banner Color	Цвет баннера
+Bans	Баны
+Bitrate	Битрейт
+Block	Заблокировать
+Block Commonly Flagged Words	Блокировать часто отмечаемые слова
+Block Custom Words	Блокировать свои слова
+Block Mention Spam	Блокировать спам упоминаниями
+Block Suspected Spam Content	Блокировать подозрительный спам
+Block Words in Member Profile Names	Блокировать слова в именах профилей
+Block message	Заблокировать сообщение
+Blocked	Заблокированные
+Blocked Users	Заблокированные пользователи
+Blocked by your content filters	Заблокировано вашими фильтрами контента
+Blocked message	Заблокированное сообщение
+Blocked words	Запрещённые слова
+Blocked words in names	Запрещённые слова в именах
+Blocks messages containing % word.|Blocks messages containing % words.	Блокирует сообщения, содержащие % слово.|Блокирует сообщения, содержащие % слова.|Блокирует сообщения, содержащие % слов.
+Blocks messages suspected to be spam.	Блокирует сообщения, похожие на спам.
+Blocks messages with more than % mentions.	Блокирует сообщения, в которых больше % упоминаний.
+Blocks words from Discord's commonly flagged lists.	Блокирует слова из списков часто отмечаемых в Discord слов.
+Blocks words in member profile names.	Блокирует слова в именах профилей участников.
+Blur	Размытие
+Blur Background	Размыть фон
+Blur what's behind you on camera. Only your camera is changed.	Размывает фон за вами на камере. Меняется только ваша камера.
+Bold / italic / underline	Жирный / курсив / подчёркнутый
+Bots and Apps	Боты и приложения
+Browse	Обзор
+Browse Channels	Обзор каналов
+Built-In	Встроенный
+Bulgarian	Болгарский
+By creating a server, you agree to Discord's Community Guidelines.	Создавая сервер, вы соглашаетесь с Правилами сообщества Discord.
+By enabling the widget, your server profile will be visible to others outside of your server members. You can control Profile privacy in Server Settings > Profile.	Если включить виджет, профиль сервера увидят не только его участники. Конфиденциальность профиля настраивается в разделе «Настройки сервера» > «Профиль».
+By making a category private, only select members and roles will be able to view this category. Linked channels in this category will automatically match to this setting.	Приватную категорию увидят только выбранные участники и роли. Синхронизированные каналы этой категории автоматически получат ту же настройку.
+By making a channel private, only select members and roles will be able to view this channel.	Приватный канал увидят только выбранные участники и роли.
+By making a channel private, only select members and roles will have access to view or connect to this channel.	Видеть приватный канал и подключаться к нему смогут только выбранные участники и роли.
+Bypass Slowmode	Обход медленного режима
+CHANNEL OR CATEGORY	КАНАЛ ИЛИ КАТЕГОРИЯ
+CONFIRM NEW PASSWORD	ПОДТВЕРДИТЕ НОВЫЙ ПАРОЛЬ
+CURRENT PASSWORD	ТЕКУЩИЙ ПАРОЛЬ
+Call	Позвонить
+Cancel	Отмена
+Cancel Event	Отменить событие
+Cancel Friend Request	Отменить запрос дружбы
+Careful — you have unsaved changes!	Осторожно — есть несохранённые изменения!
+Category Name	Название категории
+Category deleted	Категория удалена
+Change %	Изменить %
+Change Avatar	Сменить аватар
+Change Nickname	Изменить никнейм
+Change Password	Сменить пароль
+Change Server Icon	Сменить иконку сервера
+Channel	Канал
+Channel Name	Название канала
+Channel Notification Overrides	Настройки уведомлений для каналов
+Channel Topic	Тема канала
+Channel Type	Тип канала
+Channel deleted	Канал удалён
+Channel unmuted	Уведомления канала включены
+Channels	Каналы
+Channels & Roles	Каналы и роли
+Channels Followed (%)	Отслеживаемые каналы (%)
+Channels matching #%	Каналы по запросу #%
+Chat	Чат
+Chat Font Scaling	Размер шрифта в чате
+Check your email for a login link	Проверьте почту: там ссылка для входа
+Check your phone!	Проверьте телефон!
+Checking the file…	Проверяем файл…
+Chinese, China	Китайский (Китай)
+Chinese, Taiwan	Китайский (Тайвань)
+Choose Image	Выбрать изображение
+Choose a link people can use to join, discord.gg/<code>.	Выберите ссылку для входа на сервер: discord.gg/<код>.
+Choose a server	Выберите сервер
+Choose the language you want Discord to display.	Выберите язык интерфейса Discord.
+Choose what happens to images and videos Discord detects as explicit.	Выберите, что делать с изображениями и видео, которые Discord считает откровенными.
+Clear	Очистить
+Clear Custom Status	Очистить статус
+Clear after	Очистить через
+Clear permissions	Сбросить права
+Click Again to Reset	Нажмите ещё раз для сброса
+Click any channel, then pick a request whose name starts with "messages" or "science".	Нажмите на любой канал и выберите запрос, название которого начинается с «messages» или «science».
+Click to add a note	Нажмите, чтобы добавить заметку
+Click to see attachment	Нажмите, чтобы посмотреть вложение
+Close DM	Закрыть ЛС
+Collapse	Свернуть
+Collapse All Categories	Свернуть все категории
+Collapse Category	Свернуть категорию
+Commands	Команды
+Commands matching /%	Команды по запросу /%
+Community Overview	Обзор сообщества
+Community Updates Channel	Канал новостей сообщества
+Community servers follow Discord's Community Guidelines.	Серверы сообществ соблюдают Правила сообщества Discord.
+Community servers have more tools to help you moderate and grow your server.	У серверов сообществ больше инструментов для модерации и развития.
+Compact	Компактный
+Compare	Сравнить
+Compare these with %, in person or on a call. If they match, no one can read this DM in between.	Сверьте их с % лично или во время звонка. Если они совпадают, никто посередине не сможет прочитать эти ЛС.
+Configure system event messages sent to your server.	Настройте системные сообщения о событиях на сервере.
+Confirm	Подтвердить
+Confirm Request	Подтвердить запрос
+Confirm your age to join this server.	Подтвердите возраст, чтобы зайти на этот сервер.
+Confirming...	Подтверждаем...
+Connect	Подключиться
+Connect these accounts and unlock special Discord integrations. The sign-in opens in your browser.	Привяжите эти учётные записи и получите особые интеграции Discord. Вход откроется в браузере.
+Connected Apps	Подключённые приложения
+Connecting	Подключение
+Connecting...	Подключение...
+Connecting…	Подключение…
+Connection Info	Сведения о подключении
+Connection lost. Messages may be out of date.	Соединение потеряно. Сообщения могут быть устаревшими.
+Connections	Интеграции
+Content Filters	Фильтры контента
+Continue	Продолжить
+Control who can see your profile info, like your bio and connected accounts.	Выберите, кто видит данные вашего профиля, например описание и привязанные учётные записи.
+Copied	Скопировано
+Copy	Копировать
+Copy Category ID	Копировать ID категории
+Copy Channel ID	Копировать ID канала
+Copy Event Link	Копировать ссылку на событие
+Copy Image	Копировать изображение
+Copy Image Link	Копировать ссылку на изображение
+Copy Link	Копировать ссылку
+Copy Media Link	Копировать ссылку на медиа
+Copy Message ID	Копировать ID сообщения
+Copy Message Link	Копировать ссылку на сообщение
+Copy Server ID	Копировать ID сервера
+Copy Text	Копировать текст
+Copy User ID	Копировать ID пользователя
+Copy Username	Копировать имя пользователя
+Copy Webhook URL	Копировать URL вебхука
+Copy curl Command	Копировать команду curl
+Copy the event link below to invite people to your event. This also acts as a server invite link.	Скопируйте ссылку ниже, чтобы пригласить людей на событие. Она также работает как приглашение на сервер.
+Copy your account's token once from Discord in a web browser.	Один раз скопируйте токен учётной записи из Discord в браузере.
+Couldn't accept encryption.	Не удалось принять шифрование.
+Couldn't cancel the event.	Не удалось отменить событие.
+Couldn't change avatar	Не удалось сменить аватар
+Couldn't create an invite link.	Не удалось создать ссылку-приглашение.
+Couldn't create an invite.	Не удалось создать приглашение.
+Couldn't delete the channel: %	Не удалось удалить канал: %
+Couldn't encrypt the message.	Не удалось зашифровать сообщение.
+Couldn't join %: %	Не удалось зайти на %1: %2
+Couldn't load onboarding.	Не удалось загрузить знакомство с сервером.
+Couldn't load the AutoMod rules.	Не удалось загрузить правила AutoMod.
+Couldn't load the applications.	Не удалось загрузить приложения.
+Couldn't load the audit log.	Не удалось загрузить журнал аудита.
+Couldn't load the bans.	Не удалось загрузить баны.
+Couldn't load the invites.	Не удалось загрузить приглашения.
+Couldn't load the members.	Не удалось загрузить участников.
+Couldn't load the role's members.	Не удалось загрузить участников роли.
+Couldn't load the server rules.	Не удалось загрузить правила сервера.
+Couldn't load the server's tag.	Не удалось загрузить тег сервера.
+Couldn't load the template.	Не удалось загрузить шаблон.
+Couldn't load the webhooks.	Не удалось загрузить вебхуки.
+Couldn't move the channel	Не удалось переместить канал
+Couldn't play it here, so it opened in your browser.	Здесь воспроизвести не удалось, поэтому открыли в браузере.
+Couldn't reach %1: %2 Retrying.	Нет связи с %1: %2 Повторяем.
+Couldn't reach Discord. Check your connection and try again.	Нет связи с Discord. Проверьте подключение и попробуйте ещё раз.
+Couldn't reach Discord. Try again.	Нет связи с Discord. Попробуйте ещё раз.
+Couldn't reach the server.	Нет связи с сервером.
+Couldn't reach the server. Check your connection and try again.	Нет связи с сервером. Проверьте подключение и попробуйте ещё раз.
+Couldn't save the file.	Не удалось сохранить файл.
+Couldn't save the image.	Не удалось сохранить изображение.
+Couldn't save the token.	Не удалось сохранить токен.
+Couldn't turn on encryption.	Не удалось включить шифрование.
+Couldn't upload emoji	Не удалось загрузить эмодзи
+Cozy	Уютный
+Create	Создать
+Create Category	Создать категорию
+Create Channel	Создать канал
+Create DM	Создать ЛС
+Create Emoji	Создать эмодзи
+Create Event	Создать событие
+Create Events	Создавать события
+Create Expressions	Создавать выражения
+Create Group DM	Создать групповые ЛС
+Create Invite	Создать приглашение
+Create My Own	Создать свой
+Create Poll	Создать опрос
+Create Polls	Создавать опросы
+Create Private Threads	Создавать приватные ветки
+Create Public Threads	Создавать публичные ветки
+Create Role	Создать роль
+Create Rule	Создать правило
+Create Thread	Создать ветку
+Create Webhook	Создать вебхук
+Create Your Server	Создайте свой сервер
+Create a poll	Создать опрос
+Create a space for organized discussions	Создайте место для упорядоченных обсуждений
+Create one for me	Создать за меня
+Created by %	Автор: %
+Created on %1 by %2	Создано %1, автор: %2
+Creating an invite link…	Создаём ссылку-приглашение…
+Creating an invite...	Создаём приглашение...
+Creating...	Создаём...
+Creating…	Создаём…
+Creation Date	Дата создания
+Croatian	Хорватский
+Current Device	Это устройство
+Custom Invite Link	Своя ссылка-приглашение
+Customize Your Server	Настройте свой сервер
+Customize how your server appears in invite links and, if enabled, in Server Discovery and Announcement Channel messages	Настройте, как сервер выглядит в ссылках-приглашениях и, если включено, в каталоге серверов и сообщениях каналов объявлений
+Customize your server with integrations. Manage webhooks, followed channels and apps.	Настройте сервер с помощью интеграций. Управляйте вебхуками, отслеживаемыми каналами и приложениями.
+Cut	Вырезать
+Czech	Чешский
+DAVE v%, % members	DAVE v%1, участников: %2
+DEFAULT KEYBINDS	СОЧЕТАНИЯ КЛАВИШ ПО УМОЛЧАНИЮ
+DM closed	ЛС закрыты
+Danish	Датский
+Data & Privacy	Данные и конфиденциальность
+Date	Дата
+Deafen	Отключить звук
+Deafen Members	Отключать участникам звук
+Deauthorize	Отозвать доступ
+Decline	Отклонить
+Default	По умолчанию
+Default Channels	Каналы по умолчанию
+Default Layout	Макет по умолчанию
+Default Notification Settings	Уведомления по умолчанию
+Default Permissions	Права по умолчанию
+Default Sort Order	Сортировка по умолчанию
+Default Themes	Стандартные темы
+Default notifications become Only @mentions.	Уведомления по умолчанию станут «Только @упоминания».
+Delete	Удалить
+Delete '%'	Удалить «%»
+Delete Account	Удалить учётную запись
+Delete Category	Удалить категорию
+Delete Channel	Удалить канал
+Delete Emoji	Удалить эмодзи
+Delete Invite	Удалить приглашение
+Delete Message	Удалить сообщение
+Delete Message History	Удалить историю сообщений
+Delete Question	Удалить вопрос
+Delete Role	Удалить роль
+Delete Rule	Удалить правило
+Delete Server	Удалить сервер
+Delete Sticker	Удалить стикер
+Delete Template	Удалить шаблон
+Delete Thread	Удалить ветку
+Delete Webhook	Удалить вебхук
+Deleted message	Удалённое сообщение
+Describe your sticker	Опишите стикер
+Description	Описание
+Description (alt text)	Описание (альтернативный текст)
+Description (optional)	Описание (необязательно)
+Detects a burst of mention spam across the server and locks it down.	Замечает всплеск спама упоминаниями на сервере и ограничивает его.
+Developer	Разработчик
+Developer Mode	Режим разработчика
+Developer Mode exposes context menu items helpful for people writing apps using the Discord API.	Режим разработчика добавляет в контекстное меню пункты, полезные тем, кто пишет приложения на Discord API.
+Devices	Устройства
+Direct Message (DM) Permissions	Права личных сообщений (ЛС)
+Direct Messages	Личные сообщения
+Direct messages from friends	Личные сообщения от друзей
+Direct messages from others	Личные сообщения от других
+Disable	Отключить
+Disable Account	Отключить учётную запись
+Disable All Notification Sounds	Отключить все звуки уведомлений
+Disable Community	Отключить сообщество
+Disable all notifications	Отключить все уведомления
+Disable all sound effects	Отключить все звуковые эффекты
+Disabling your account means you can recover it at any time after taking this action.	Отключённую учётную запись можно восстановить в любой момент.
+Disconnect	Отключиться
+Disconnect From Voice Channel	Отключиться от голосового канала
+Disconnected	Отключено
+Discord account	Учётная запись Discord
+Discord asked for a captcha, which fastcord can't show. Log in with the QR code instead.	Discord запросил капчу, которую fastcord не может показать. Войдите по QR-коду.
+Discord asked for a captcha, which fastcord can't show. Try on discord.com.	Discord запросил капчу, которую fastcord не может показать. Попробуйте на discord.com.
+Discord can filter out some messages that contain spam. These messages go to your Spam inbox.	Discord может отфильтровывать сообщения со спамом. Они попадают в папку «Спам».
+Discord didn't accept the saved login. Log in again.	Discord не принял сохранённый вход. Войдите снова.
+Discord failed to unpin that message for some reason. Sorry about that.	Discord почему-то не смог открепить это сообщение. Извините.
+Discord will prioritize this server in search to users who speak the selected language.	Discord будет чаще показывать этот сервер в поиске тем, кто говорит на выбранном языке.
+Discord's terms don't allow third-party clients, so using one can get an account flagged.	Условия Discord запрещают сторонние клиенты, поэтому за их использование учётную запись могут отметить.
+Discoverable	В каталоге
+Dismiss	Скрыть
+Dismiss message	Скрыть сообщение
+Display	Отображение
+Display Images, Videos and Lolcats	Показывать изображения, видео и котиков
+Display Name	Отображаемое имя
+Display name	Отображаемое имя
+Display on profile	Показывать в профиле
+Display role members separately from online members	Показывать участников с ролью отдельно от участников в сети
+Displays text with emphasis.	Выделяет текст.
+Do Not Disturb	Не беспокоить
+Do not filter	Не фильтровать
+Do not filter direct messages	Не фильтровать личные сообщения
+Don't Delete Any	Ничего не удалять
+Don't clear	Не очищать
+Don't show role colors	Не показывать цвета ролей
+Done	Готово
+Download	Скачать
+Drop a file here, or browse	Перетащите файл сюда или выберите
+Duration	Длительность
+Dutch	Нидерландский
+EDIT ROLE — %	ИЗМЕНИТЬ РОЛЬ — %
+EMAIL OR PHONE NUMBER	ЭЛ. ПОЧТА ИЛИ НОМЕР ТЕЛЕФОНА
+EMOJI MATCHING	ЭМОДЗИ ПО ЗАПРОСУ
+ENTER THE 6-DIGIT CODE	ВВЕДИТЕ 6-ЗНАЧНЫЙ КОД
+EXPIRE AFTER	ИСТЕКАЕТ ЧЕРЕЗ
+EXPIRES	ИСТЕКАЕТ
+Ease the chat and lists toward where you scroll. Off, they jump there at once (always, when your device asks for reduced motion).	Плавно прокручивать чат и списки. Если выключено, они перескакивают сразу (всегда, если на устройстве включено уменьшение движения).
+Echo Cancellation	Эхоподавление
+Edit	Изменить
+Edit Category	Изменить категорию
+Edit Channel	Изменить канал
+Edit Friend Nickname	Изменить никнейм друга
+Edit Message	Изменить сообщение
+Edit Per-server Profile	Изменить профиль на сервере
+Edit Profile	Изменить профиль
+Edit Profiles	Изменить профили
+Edit Sound	Изменить звук
+Edit Thread	Изменить ветку
+Edit User Profile	Изменить профиль пользователя
+Edit invite link.	Изменить ссылку-приглашение.
+Edit your last message	Изменить последнее сообщение
+Email	Эл. почта
+Embed Links	Встраивать ссылки
+Embed an HTML widget on your website to display your online members, voice channels, and invite link.	Встройте HTML-виджет на свой сайт, чтобы показать участников в сети, голосовые каналы и ссылку-приглашение.
+Emoji	Эмодзи
+Emoji / GIF / sticker picker	Выбор эмодзи / GIF / стикеров
+Enable Authenticator App	Включить приложение-аутентификатор
+Enable Community	Включить сообщество
+Enable Community to access Server Discovery	Включите сообщество, чтобы попасть в каталог серверов
+Enable Desktop Notifications	Включить уведомления на рабочем столе
+Enable Invites	Включить приглашения
+Enable Onboarding	Включить знакомство с сервером
+Enable Reduced Motion	Уменьшить движение
+Enable Server Widget	Включить виджет сервера
+Enable Streamer Mode	Включить режим стримера
+Enable Unread Message Badge	Значок непрочитанных сообщений
+Encrypt this DM	Зашифровать эти ЛС
+Encrypted message	Зашифрованное сообщение
+Encrypted messages are limited to % bytes for now.	Пока зашифрованные сообщения ограничены % байт.
+End Date	Дата окончания
+End Event	Завершить событие
+End Poll Now	Завершить опрос
+End Time	Время окончания
+End-to-end encrypted	Сквозное шифрование
+End-to-end encryption	Сквозное шифрование
+Engagement	Вовлечённость
+English, UK	Английский (Великобритания)
+English, USA	Английский (США)
+Enter Discord Auth Code	Введите код аутентификации Discord
+Enter Discord Backup Code	Введите резервный код Discord
+Enter a location	Укажите место
+Enter a message to start the conversation!	Напишите сообщение, чтобы начать разговор!
+Enter an invite below to join an existing server	Введите приглашение ниже, чтобы зайти на существующий сервер
+Enter server name	Введите название сервера
+Enter your current password and a new password.	Введите текущий и новый пароль.
+Error	Ошибка
+Est. %	Осн. %
+Event Info	О событии
+Event Topic	Тема события
+Event cancelled	Событие отменено
+Event is over	Событие завершилось
+Events	События
+Events Permissions	Права событий
+Every answer needs a title.	У каждого ответа должен быть текст.
+Every question needs a title and at least one answer.	У каждого вопроса должен быть заголовок и хотя бы один ответ.
+Everyone	Все
+Everyone in this channel connects to the selected region. Automatic picks the best one for whoever starts the call.	Все в этом канале подключаются к выбранному региону. «Автоматически» выбирает лучший для того, кто начинает звонок.
+Everyone welcome %!	Поприветствуем %!
+Everyone who joins sees these channels, whatever they answer.	Все новички видят эти каналы, как бы они ни ответили.
+Exempt a channel	Исключить канал
+Exempt a role	Исключить роль
+Exemptions	Исключения
+Expand (% lines)	Развернуть (строк: %)
+Expand (% of % lines)	Развернуть (%1 из %2 строк)
+Expired	Истекло
+Explicit image filter	Фильтр откровенных изображений
+Expression	Выражение
+FRAME RATE	ЧАСТОТА КАДРОВ
+Failed to follow the channel, please try again.	Не удалось подписаться на канал, попробуйте ещё раз.
+Fastcord couldn't be installed.	Не удалось установить Fastcord.
+Favorites	Избранное
+File	Файл
+File saved.	Файл сохранён.
+Filename	Имя файла
+Fill out the details of your event.	Заполните сведения о событии.
+Filter by Action	Фильтр по действию
+Filter by User	Фильтр по пользователю
+Filter direct messages from everyone	Фильтровать личные сообщения от всех
+Filter direct messages from non-friends	Фильтровать личные сообщения не от друзей
+Filter messages from all members	Фильтровать сообщения всех участников
+Filter messages from server members without roles	Фильтровать сообщения участников без ролей
+Find or start a conversation	Найти или начать беседу
+Find the perfect emoji	Найдите идеальный эмодзи
+Find the perfect reaction	Найдите идеальную реакцию
+Find the perfect sticker	Найдите идеальный стикер
+Finding the video%	Ищем видео%
+Finish	Готово
+Finishing touches	Последние штрихи
+Finnish	Финский
+Fit more messages on screen at one time. #IRC	Больше сообщений на экране за раз. #IRC
+Flagged as spam	Отмечено как спам
+Flags	Флаги
+Folder Color	Цвет папки
+Folder Name	Название папки
+Folder Settings	Настройки папки
+Folder removed	Папка удалена
+Follow	Подписаться
+Followed!	Подписка оформлена!
+Food & Drink	Еда и напитки
+For 1 Hour	На 1 час
+For 15 Minutes	На 15 минут
+For 24 Hours	На 24 часа
+For 3 Days	На 3 дня
+For 3 Hours	На 3 часа
+For 8 Hours	На 8 часов
+Forever	Навсегда
+Forgot your password?	Забыли пароль?
+Forum	Форум
+Forward	Переслать
+Forward To	Переслать в
+Forwarded	Переслано
+French	Французский
+Frequently Used	Часто используемые
+Friend Nickname	Никнейм друга
+Friend Request Permissions	Кто может отправлять запросы дружбы
+Friend Request Sent	Запрос дружбы отправлен
+Friend removed	Друг удалён
+Friend request cancelled	Запрос дружбы отменён
+Friend request ignored	Запрос дружбы проигнорирован
+Friends	Друзья
+Friends & All Servers	Друзья и все серверы
+Friends & Small Servers Only	Только друзья и небольшие серверы
+Friends Only	Только друзья
+Friends can ask to join or join the game you're playing.	Друзья могут попроситься в вашу игру или присоединиться к ней.
+Friends come online	Друзья заходят в сеть
+Friends of friends	Друзья друзей
+From User	От пользователя
+GIFs	GIF
+GIFs can't be sent encrypted yet.	GIF пока нельзя отправлять в зашифрованном виде.
+Gallery view	Галерея
+General	Общие
+General Category Permissions	Общие права категории
+General Channel Permissions	Общие права канала
+General Server Permissions	Общие права сервера
+Generate Template	Создать шаблон
+Generate a New Link	Создать новую ссылку
+German	Немецкий
+Get a copy of your data. It can take up to 30 days to prepare, and a download link is emailed to you when it's ready.	Получите копию своих данных. Подготовка может занять до 30 дней; когда всё будет готово, ссылка для скачивания придёт на почту.
+Give new members a quick way to find the channels and roles that matter to them.	Помогите новичкам быстро найти нужные им каналы и роли.
+Give your new server a personality with a name. You can always change it later.	Дайте новому серверу имя с характером. Его всегда можно изменить.
+Glad you're here, %.	Рады вас видеть, %.
+Go Back	Назад
+Go To Channel	Перейти в канал
+Go back	Назад
+Go forward	Вперёд
+Go to Server	Перейти на сервер
+Good to see you, %.	Приятно видеть вас, %.
+Got It	Понятно
+Grant temporary membership	Выдавать временное участие
+Greek	Греческий
+Hang out together with voice, video, and screen share	Общайтесь голосом, по видео и с демонстрацией экрана
+Hang out with voice, video, screenshare, and Go Live.	Общайтесь голосом, по видео, с демонстрацией экрана и трансляциями.
+Happening Now	Идёт сейчас
+Have an invite already?	Уже есть приглашение?
+Help	Помощь
+Here's a preview of your event.	Вот как будет выглядеть событие.
+Hey, just double checking that you want to pin this message to #% for posterity and greatness?	Уточним: закрепить это сообщение в #% для потомков и истории?
+Hey, just double checking that you want to pin this message to the current channel for posterity and greatness?	Уточним: закрепить это сообщение в этом канале для потомков и истории?
+Hide	Скрыть
+Hide After Inactivity	Скрывать при бездействии
+Hide Chat	Скрыть чат
+Hide Fastcord window from screen capture	Скрывать окно Fastcord от захвата экрана
+Hide Muted Channels	Скрыть заглушённые каналы
+Hide invite links to my Discord servers	Скрывать ссылки-приглашения на мои серверы Discord
+Hide my personal information, such as email, connected accounts, and notes	Скрывать мои личные данные: почту, привязанные учётные записи и заметки
+Hides Fastcord windows from most screen capture software.	Скрывает окна Fastcord от большинства программ захвата экрана.
+High	Высокое
+Highest	Наивысшее
+Highlights provide occasional updates when your friends are chatting in busy servers, and more.	Подборки время от времени сообщают, когда ваши друзья общаются на оживлённых серверах, и не только.
+Hindi	Хинди
+History	История
+Hitting X makes fastcord minimize to the system tray instead of closing.	При нажатии на крестик fastcord сворачивается в системный трей, а не закрывается.
+Hm, didn’t work. Double check that the username is correct.	Хм, не получилось. Проверьте, правильно ли указано имя пользователя.
+Host	Организатор
+Host events with an audience	Проводите мероприятия со слушателями
+How Discord Uses My Data	Как Discord использует мои данные
+How can people join your server?	Как люди смогут попасть на ваш сервер?
+How did your server get started? Why should people join?	С чего начался ваш сервер? Почему стоит к нему присоединиться?
+Hungarian	Венгерский
+I acknowledge that by transferring ownership of this server to %, it officially belongs to them.	Я понимаю, что после передачи сервера % он официально принадлежит этому пользователю.
+I agree and understand	Я понимаю и согласен(-на)
+I'm new here, say hi!	Я тут новенький — поздоровайтесь!
+I'm sure, use a backup code	Да, использовать резервный код
+IMAGE	ИЗОБРАЖЕНИЕ
+INPUT DEVICE	УСТРОЙСТВО ВВОДА
+INPUT MODE	РЕЖИМ ВВОДА
+INPUT SENSITIVITY	ЧУВСТВИТЕЛЬНОСТЬ ВВОДА
+INPUT VOLUME	ГРОМКОСТЬ ВВОДА
+INVITE CODE	КОД ПРИГЛАШЕНИЯ
+INVITE LINK	ССЫЛКА-ПРИГЛАШЕНИЕ
+INVITER	ПРИГЛАСИЛ
+INVITES SHOULD LOOK LIKE	ПРИГЛАШЕНИЯ ВЫГЛЯДЯТ ТАК
+Icon	Иконка
+Idle	Неактивен
+If Streamer Mode is enabled...	Когда включён режим стримера...
+If you do not have access to any other methods, the button below will activate in % second.|If you do not have access to any other methods, the button below will activate in % seconds.	Если другие способы недоступны, кнопка ниже станет активной через % секунду.|Если другие способы недоступны, кнопка ниже станет активной через % секунды.|Если другие способы недоступны, кнопка ниже станет активной через % секунд.
+If you do not have access to any other methods, use the other button below to proceed.	Если другие способы недоступны, нажмите другую кнопку ниже, чтобы продолжить.
+Ignore	Игнорировать
+Ignore Friend Request	Игнорировать запрос дружбы
+Ignored Users	Игнорируемые пользователи
+Ignored message	Игнорируемое сообщение
+Image saved.	Изображение сохранено.
+Important updates for people in and out of the server	Важные новости для тех, кто на сервере и за его пределами
+In Channel	В канале
+Inactive Channel	Канал для неактивных
+Inactive Timeout	Время до перехода в неактивные
+Inbox	Входящие
+Incoming Call...	Входящий звонок...
+Incoming Friend Request	Входящий запрос дружбы
+Indonesian	Индонезийский
+Insert Timestamp	Вставить метку времени
+Install	Установить
+Install Fastcord to open it from the Start menu.	Установите Fastcord, чтобы открывать его из меню «Пуск».
+Installing…	Установка…
+Instructions Sent	Инструкции отправлены
+Insults and Slurs	Оскорбления и ругательства
+Integrations	Интеграции
+Interested	Интересно
+Invalid Invite	Недействительное приглашение
+Invalid date or time	Неверная дата или время
+Invisible	Невидимый
+Invite	Пригласить
+Invite Channel	Канал для приглашения
+Invite Invalid	Приглашение недействительно
+Invite Only	Только по приглашению
+Invite People	Пригласить людей
+Invite friends to %	Пригласить друзей на %
+Invite to Server	Пригласить на сервер
+Invite to Speak	Пригласить выступить
+Invites	Приглашения
+Invites are currently paused for this server. Please try again later.	Приглашения на этот сервер сейчас приостановлены. Попробуйте позже.
+Invites are paused: nobody can join with an invite link until they're enabled again.	Приглашения приостановлены: никто не сможет зайти по ссылке, пока их снова не включат.
+It's quiet for now...	Пока тут тихо...
+Italian	Итальянский
+JOINED DISCORD	В DISCORD С
+JSON API	JSON API
+January|February|March|April|May|June|July|August|September|October|November|December	января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря
+Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec	янв.|февр.|мар.|апр.|мая|июн.|июл.|авг.|сент.|окт.|нояб.|дек.
+Japanese	Японский
+Jitter	Джиттер
+Join	Присоединиться
+Join Call	Присоединиться к звонку
+Join Server	Зайти на сервер
+Join Thread	Присоединиться к ветке
+Join Voice	Войти в голосовой
+Join a Server	Зайти на сервер
+Join the call	Присоединиться к звонку
+Joined Threads	Ваши ветки
+Joining…	Подключаемся…
+Jump	Перейти
+Jump To Present	К последним сообщениям
+Jump to oldest unread message	К самому старому непрочитанному
+KEYBIND	СОЧЕТАНИЕ КЛАВИШ
+Keep Current Permissions	Оставить текущие права
+Keep these somewhere safe. Each code signs you in once if you lose your authenticator app; they are shown only now.	Сохраните их в надёжном месте. Если вы потеряете приложение-аутентификатор, каждый код позволит войти один раз. Коды показываются только сейчас.
+Keep your server private, or open it up for more people to join.	Оставьте сервер закрытым или откройте его для новых людей.
+Keybinds	Сочетания клавиш
+Keybinds only work while fastcord is focused. To use them in other apps, allow fastcord under Input Monitoring in System Settings, then restart fastcord.	Сочетания клавиш работают, только когда fastcord в фокусе. Чтобы они работали в других приложениях, разрешите fastcord в «Мониторинге ввода» в Системных настройках и перезапустите fastcord.
+Keybinds only work while fastcord is focused: this desktop doesn't let apps see keys pressed in other windows.	Сочетания клавиш работают, только когда fastcord в фокусе: эта среда рабочего стола не даёт приложениям видеть нажатия в других окнах.
+Keybinds work in every app, also while fastcord is in the background.	Сочетания клавиш работают во всех приложениях, даже когда fastcord в фоне.
+Keyboard Shortcuts	Горячие клавиши
+Keyboard shortcuts	Горячие клавиши
+Keyword: %	Ключевое слово: %
+Kick	Выгнать
+Kick %	Выгнать %
+Kick '%' from Server	Выгнать «%» с сервера
+Kick Member	Выгнать участника
+Kick, Approve, and Reject Members	Выгонять, одобрять и отклонять участников
+Korean	Корейский
+LIVE	В ЭФИРЕ
+Language	Язык
+Language & Time	Язык и время
+Last sync: %	Последняя синхронизация: %
+Leave Group	Покинуть группу
+Leave Server	Покинуть сервер
+Leave Thread	Покинуть ветку
+Leaving Discord	Переход из Discord
+Left %	Покинул(а) %
+Let everyone know how to use this channel!	Расскажите всем, как пользоваться этим каналом!
+Let's Check	Проверим
+Level %!	Уровень %!
+Limits	Ограничения
+Limits the number of users that can connect to this voice channel. Users with the Move Members permission ignore this limit and can move other users into the channel.	Ограничивает число пользователей, которые могут подключиться к голосовому каналу. На пользователей с правом «Перемещать участников» ограничение не действует, и они могут перемещать в канал других.
+Linked Roles	Связанные роли
+List view	Список
+Lithuanian	Литовский
+Live Now	Сейчас в эфире
+Loading sounds…	Загружаем звуки…
+Loading...	Загрузка...
+Loading…	Загрузка…
+Location	Место
+Log In	Войти
+Log Out	Выйти
+Log Out All Known Devices	Выйти на всех известных устройствах
+Log in	Войти
+Log in to Discord in your web browser.	Войдите в Discord в браузере.
+Log in with QR Code	Войти по QR-коду
+Log in with a token	Войти с токеном
+Log out of all known devices	Выйти на всех известных устройствах
+Logged-in Devices	Устройства с выполненным входом
+Logging in as %	Входим как %
+Logging in…	Входим…
+Login or password is invalid.	Неверный логин или пароль.
+Looking for screens…	Ищем экраны…
+Lotus Mode	Режим «Лотос»
+Low	Низкое
+Lower Hand	Опустить руку
+MAX NUMBER OF USES	МАКС. ЧИСЛО ИСПОЛЬЗОВАНИЙ
+MEMBER SINCE	УЧАСТНИК С
+MEMBERS	УЧАСТНИКИ
+MUTE	ЗАГЛУШИТЬ
+Main Profile	Основной профиль
+Make a selection	Выберите вариант
+Manage Accounts	Управление учётными записями
+Manage Channel	Управлять каналом
+Manage Channels	Управлять каналами
+Manage Events	Управлять событиями
+Manage Expressions	Управлять выражениями
+Manage Members	Управлять участниками
+Manage Messages	Управлять сообщениями
+Manage Nicknames	Управлять никнеймами
+Manage Permissions	Управлять правами
+Manage Roles	Управлять ролями
+Manage Server	Управлять сервером
+Manage Threads and Posts	Управлять ветками и публикациями
+Manage Webhooks	Управлять вебхуками
+Manage settings that help keep your server active.	Настройки, которые помогают поддерживать активность сервера.
+Mark All as Read	Отметить всё как прочитанное
+Mark As Read	Отметить как прочитанное
+Mark Folder As Read	Отметить папку как прочитанную
+Mark Unread	Отметить как непрочитанное
+Mark a message unread	Отметить сообщение непрочитанным
+Mark as Verified	Отметить как проверенный
+Mark as spoiler	Отметить как спойлер
+Mark channel read	Отметить канал прочитанным
+Mark server read	Отметить сервер прочитанным
+Marked as read	Отмечено как прочитанное
+Marks your message as a spoiler.	Отмечает ваше сообщение как спойлер.
+Match your device's light or dark mode.	Как на устройстве: светлая или тёмная.
+Max file size is % MB please.	Максимальный размер файла — % МБ.
+Measuring	Измеряем
+Medium	Среднее
+Member Since	Участник с
+Members	Участники
+Members can pick more than one answer	Участники могут выбрать несколько ответов
+Members can wear your server's tag next to their name across Discord.	Участники могут носить тег вашего сервера рядом с именем по всему Discord.
+Members in timeout can't send messages, react, join voice or speak until it ends.	Участники в тайм-ауте до его окончания не могут писать, ставить реакции, заходить в голосовые каналы и говорить.
+Members in timeout can't send messages, react, join voice or start threads until it ends.	Участники в тайм-ауте до его окончания не могут писать, ставить реакции, заходить в голосовые каналы и создавать ветки.
+Members matching @%	Участники по запросу @%
+Members must answer this question to join.	Чтобы зайти, участники должны ответить на этот вопрос.
+Members of the server must meet the following criteria before they can send messages in text channels or initiate a direct message conversation. If a member has an assigned role this does not apply.	Чтобы писать в текстовых каналах или начинать личную переписку, участники сервера должны соответствовать этим условиям. На участников с назначенной ролью это не распространяется.
+Members use the colour of the highest role they have on the roles list.	Цвет участника — цвет его высшей роли в списке ролей.
+Members use the colour of the highest role they have on this list. Drag roles, or use the arrows, to reorder them.	Цвет участника — цвет его высшей роли в этом списке. Чтобы изменить порядок, перетаскивайте роли или используйте стрелки.
+Members will be restricted to sending one message and creating one thread per this interval, unless they have the Bypass Slowmode permission.	Участники смогут отправлять одно сообщение и создавать одну ветку за этот промежуток, если у них нет права «Обход медленного режима».
+Members with a matching name can't talk or interact until they change it.	Участники с подходящим под правило именем не смогут общаться и взаимодействовать, пока не сменят его.
+Members with this permission will have every permission and will also bypass all channel specific permissions or restrictions (for example, these members would get access to all private channels). This is a dangerous permission to grant.	Участники с этим правом получают все права и обходят все права и ограничения каналов (например, получают доступ ко всем приватным каналам). Выдавать это право опасно.
+Members — %	Участники — %
+Membership Permissions	Права участия
+Mention	Упомянуть
+Mention %	Упомянуть %
+Mention @everyone, @here, and All Roles	Упоминать @everyone, @here и все роли
+Mention limit	Лимит упоминаний
+Mention raid protection	Защита от рейдов упоминаниями
+Mention removed	Упоминание удалено
+Mentions	Упоминания
+Mentions User	Упоминает пользователя
+Message	Сообщение
+Message #%	Написать в #%
+Message %	Написать %
+Message @%	Написать @%
+Message @% (encrypted)	Написать @% (зашифровано)
+Message @% (not encrypted)	Написать @% (не зашифровано)
+Message Contains	Сообщение содержит
+Message Display	Отображение сообщений
+Message Requests	Запросы на переписку
+Message deleted	Сообщение удалено
+Message failed to send.	Не удалось отправить сообщение.
+Message link copied: paste it into Discord's report form	Ссылка на сообщение скопирована: вставьте её в форму жалобы Discord
+Message request ignored	Запрос на переписку проигнорирован
+Message unpinned	Сообщение откреплено
+Messages Failed To Load	Не удалось загрузить сообщения
+Messages from members you may not know go to Message Requests.	Сообщения от незнакомых вам участников попадают в «Запросы на переписку».
+Messages from people you may not know go to Message Requests instead of your DMs.	Сообщения от незнакомых вам людей попадают не в ЛС, а в «Запросы на переписку».
+Messages from server members without a role will be filtered for sensitive image-based media.	Сообщения участников без роли будут проверяться на откровенные изображения.
+Messages in servers	Сообщения на серверах
+Messages will not be filtered for sensitive image-based media.	Сообщения не будут проверяться на откровенные изображения.
+Messaging Permissions	Права сообщений
+Minimize to Tray	Сворачивать в трей
+Mobile Push Notifications	Push-уведомления на телефоне
+Moderation	Модерация
+Moderators must have two-factor authentication enabled to ban, kick, or timeout members and delete messages.	Чтобы банить, выгонять, отправлять в тайм-аут и удалять сообщения, модераторам нужно включить двухфакторную аутентификацию.
+Moderators only	Только модераторы
+Modern, beautiful, and easy on your eyes.	Современно, красиво и не утомляет глаза.
+Modify Attachment	Изменить вложение
+Motion	Анимация
+Move Members	Перемещать участников
+Move To	Переместить в
+Move to Audience	Перевести к слушателям
+Multi-Factor Authentication	Многофакторная аутентификация
+Must also be a member of this server for longer than 10 minutes.	Также нужно быть участником сервера дольше 10 минут.
+Must also be registered on Discord for longer than 5 minutes.	Также нужно быть зарегистрированным в Discord дольше 5 минут.
+Must have a verified email on their Discord account.	Нужна подтверждённая почта в учётной записи Discord.
+Must have a verified phone on their Discord account.	Нужен подтверждённый телефон в учётной записи Discord.
+Mute	Заглушить
+Mute %	Заглушить %
+Mute Category	Заглушить категорию
+Mute Channel	Заглушить канал
+Mute Members	Отключать участникам микрофон
+Mute New Events	Заглушить новые события
+Mute Server	Заглушить сервер
+Mute Thread	Заглушить ветку
+Muted until %1, %2	Заглушено до %1, %2
+Muting a server prevents unread indicators and notifications from appearing unless you are mentioned.	На заглушённом сервере не появляются индикаторы непрочитанного и уведомления, кроме упоминаний.
+Mutual Friends	Общие друзья
+Mutual Servers	Общие серверы
+My Account	Моя учётная запись
+My server	Мой сервер
+NAME	ИМЯ
+NEW	НОВОЕ
+NEW PASSWORD	НОВЫЙ ПАРОЛЬ
+NO ACTIVE INVITE LINKS	НЕТ АКТИВНЫХ ССЫЛОК-ПРИГЛАШЕНИЙ
+NOTHING	НИЧЕГО
+Name	Название
+Name your sound	Назовите звук
+Name your sticker	Назовите стикер
+Nature	Природа
+Navigate Back	Назад
+Navigate Forward	Вперёд
+Need an account?	Нужна учётная запись?
+Network	Сеть
+Never	Никогда
+Nevermind	Не надо
+New Category	Новая категория
+New Group DM	Новые групповые ЛС
+New Post	Новая публикация
+New Thread	Новая ветка
+New Webhook	Новый вебхук
+New members must read and agree to these before they can talk.	Прежде чем общаться, новички должны прочитать их и согласиться.
+New members pick channels and roles from your questions when they join.	При входе новички выбирают каналы и роли, отвечая на ваши вопросы.
+New tag	Новый тег
+New threads will stop showing in the channel list after being inactive for the specified duration.	Новые ветки пропадут из списка каналов, если будут неактивны указанное время.
+Newest	Сначала новые
+Next	Далее
+Nickname	Никнейм
+Nicknames are visible to everyone on this server. Do not change them unless you are enforcing a naming system or clearing a bad nickname.	Никнеймы видны всем на сервере. Меняйте их, только если вводите систему имён или убираете неподходящий никнейм.
+No GIFs found	GIF не найдены
+No Inactive Channel	Нет канала для неактивных
+No Invite	Без приглашения
+No Keybind Set	Сочетание не задано
+No System Messages	Без системных сообщений
+No applications waiting	Нет ожидающих заявок
+No apps have been added to this server.	На сервер ещё не добавлены приложения.
+No bans	Банов нет
+No bans match your search	Нет банов по запросу
+No emoji found	Эмодзи не найдены
+No favorites yet	В избранном пока пусто
+No file chosen	Файл не выбран
+No friends in common	Нет общих друзей
+No limit	Без ограничений
+No logs yet	Записей пока нет
+No members found	Участники не найдены
+No members have this role yet.	Пока ни у кого нет этой роли.
+No message requests.	Запросов на переписку нет.
+No one is speaking yet	Пока никто не выступает
+No one's around right now.	Сейчас здесь никого.
+No one's here yet	Здесь пока никого
+No posts match	Нет подходящих публикаций
+No posts yet	Публикаций пока нет
+No questions yet.	Вопросов пока нет.
+No reason given	Причина не указана
+No results	Нет результатов
+No results found	Ничего не найдено
+No servers in common	Нет общих серверов
+No sounds found	Звуки не найдены
+No sounds yet.	Звуков пока нет.
+No spam. Nice.	Спама нет. Отлично.
+No stickers found	Стикеры не найдены
+No stickers yet	Стикеров пока нет
+Nobody can join this server with an invite link until the pause ends or you enable invites again.	Никто не сможет зайти на сервер по ссылке, пока не закончится пауза или вы снова не включите приглашения.
+Nobody has mentioned you recently.	В последнее время вас никто не упоминал.
+Noise Suppression	Шумоподавление
+Noise Suppression: Off	Шумоподавление: выкл.
+Noise Suppression: On	Шумоподавление: вкл.
+None	Нет
+Norwegian	Норвежский
+Not Now	Не сейчас
+Not connected to % yet.	Пока нет подключения к %.
+Not encrypted	Не зашифровано
+Not encrypted: Discord can read this message	Не зашифровано: Discord может прочитать это сообщение
+Not end-to-end encrypted	Без сквозного шифрования
+Not me, start over	Это не я, начать заново
+Note	Заметка
+Note (only visible to you)	Заметка (видна только вам)
+Note: Members with the "Mention @everyone, @here, and All Roles" permission will always be able to ping this role.	Примечание: участники с правом «Упоминать @everyone, @here и все роли» всегда смогут упоминать эту роль.
+Nothing	Ничего
+Notification Settings	Настройки уведомлений
+Notification settings changed	Настройки уведомлений изменены
+Notifications	Уведомления
+Notify everyone online who has permission to view this channel.	Уведомить всех в сети, у кого есть доступ к этому каналу.
+Notify everyone who has permission to view this channel.	Уведомить всех, у кого есть доступ к этому каналу.
+Notify me when...	Уведомлять, когда...
+Notify users with this role who have permission to view this channel.	Уведомить пользователей с этой ролью, у которых есть доступ к этому каналу.
+OUTPUT DEVICE	УСТРОЙСТВО ВЫВОДА
+OUTPUT VOLUME	ГРОМКОСТЬ ВЫВОДА
+Objects	Предметы
+Off	Выкл.
+Offline	Не в сети
+Oh yeah. Pin it	О да. Закрепить
+Okay	Хорошо
+Oldest	Сначала старые
+On click	По нажатию
+On servers I moderate	На серверах, где я модератор
+Onboarding	Знакомство с сервером
+One rule per line, for example: Be respectful	По одному правилу на строку, например: Уважайте друг друга
+Ongoing call	Идёт звонок
+Online	В сети
+Only @mentions	Только @упоминания
+Only servers and channels you have webhook permissions in are shown.	Показаны только серверы и каналы, где у вас есть права на вебхуки.
+Only you can see the nickname you give %.	Никнейм, который вы даёте %, видите только вы.
+Only you can see this · 	Это видите только вы ·
+Oops!	Ой!
+Open Chat	Открыть чат
+Open Image Link	Открыть ссылку на изображение
+Open Link	Открыть ссылку
+Open Logs Folder	Открыть папку журналов
+Open Media Link	Открыть ссылку на медиа
+Open Server Insights	Открыть аналитику сервера
+Open Settings	Открыть настройки
+Open discord.com	Открыть discord.com
+Open in Browser	Открыть в браузере
+Open in YouTube	Открыть в YouTube
+Open the developer tools (Cmd+Option+I) and choose the Network tab.	Откройте инструменты разработчика (Cmd+Option+I) и выберите вкладку «Сеть» (Network).
+Open the developer tools (Ctrl+Shift+I) and choose the Network tab.	Откройте инструменты разработчика (Ctrl+Shift+I) и выберите вкладку «Сеть» (Network).
+Or, send a server invite link to a friend	Или отправьте другу ссылку-приглашение на сервер
+Original message was deleted	Исходное сообщение удалено
+Other Active Threads	Другие активные ветки
+Other Devices	Другие устройства
+Outgoing Friend Request	Исходящий запрос дружбы
+Overview	Обзор
+PASSWORD	ПАРОЛЬ
+PM	ПП
+PRIVACY CODE	КОД КОНФИДЕНЦИАЛЬНОСТИ
+PTT Activate	Рация: включение
+PTT Deactivate	Рация: выключение
+PUSH TO TALK RELEASE DELAY	ЗАДЕРЖКА ОТПУСКАНИЯ РАЦИИ
+Packet loss	Потеря пакетов
+Packets received	Пакетов получено
+Packets sent	Пакетов отправлено
+Page %	Страница %
+Password	Пароль
+Password and Authentication	Пароль и аутентификация
+Passwords do not match!	Пароли не совпадают!
+Paste	Вставить
+Paste an emoji (optional)	Вставьте эмодзи (необязательно)
+Paste your token	Вставьте свой токен
+Pause Invites	Приостановить приглашения
+Pending	Ожидание
+People	Люди
+People can join your server directly with an invite	Люди могут зайти на сервер сразу по приглашению
+People in a voice channel with you can join the game you're playing.	Люди в голосовом канале с вами могут присоединиться к вашей игре.
+People must submit an application and be approved to join	Чтобы зайти, нужно подать заявку и получить одобрение
+People who applied to join, waiting for a moderator.	Люди, подавшие заявку, ждут модератора.
+Per-server Profiles	Профили серверов
+Permissions	Права
+Permissions not synced with category: 	Права не синхронизированы с категорией:
+Permissions synced with category: 	Права синхронизированы с категорией:
+Permissions: %	Права: %
+Phone Number	Номер телефона
+Pick a channel	Выберите канал
+Pick a channel for the alerts.	Выберите канал для оповещений.
+Pick at least one response.	Выберите хотя бы один ответ.
+Pin It. Pin It Good.	Закрепить. Намертво.
+Pin Message	Закрепить сообщение
+Pin Messages	Закреплять сообщения
+Ping	Пинг
+Ping: % ms	Пинг: % мс
+Ping: measuring…	Пинг: измеряем…
+Pinned Messages	Закреплённые сообщения
+Play Here	Воспроизвести здесь
+Play Soundboard Through My Mic	Воспроизводить звуковую панель через мой микрофон
+Play YouTube videos here with yt-dlp? It needs yt-dlp installed, and connects to YouTube from your computer. Settings > Chat can change this.	Воспроизводить видео YouTube здесь через yt-dlp? Нужен установленный yt-dlp, и подключение к YouTube идёт с вашего компьютера. Это можно изменить в «Настройки» > «Чат».
+Play YouTube videos in fastcord with yt-dlp	Воспроизводить видео YouTube в fastcord через yt-dlp
+Please enter a valid invite link or invite code.	Введите действительную ссылку или код приглашения.
+Please try again later.	Попробуйте позже.
+Polish	Польский
+Poll closed	Опрос завершён
+Portuguese, Brazilian	Португальский (Бразилия)
+Post	Опубликовать
+Post Guidelines	Правила публикаций
+Post from a script	Публикация из скрипта
+Post messages that reach servers outside your own. Members can follow this channel, so the posts you publish here appear in their servers.	Публикуйте сообщения, которые доходят и до других серверов. На этот канал можно подписаться, и ваши публикации будут появляться на серверах подписчиков.
+Post title	Заголовок публикации
+Posting...	Публикуем...
+Press a shortcut…	Нажмите сочетание…
+Previous	Назад
+Previous / next channel	Предыдущий / следующий канал
+Previous / next channel with mentions	Предыдущий / следующий канал с упоминаниями
+Previous / next server	Предыдущий / следующий сервер
+Previous / next unread channel	Предыдущий / следующий непрочитанный канал
+Previous 12 Hours	Последние 12 часов
+Previous 24 Hours	Последние 24 часа
+Previous 3 Days	Последние 3 дня
+Previous 6 Hours	Последние 6 часов
+Previous 7 Days	Последние 7 дней
+Previous Hour	Последний час
+Priority Speaker	Приоритетный режим
+Privacy Settings	Настройки конфиденциальности
+Private Category	Приватная категория
+Private Channel	Приватный канал
+Private Profile	Скрытый профиль
+Profile	Профиль
+Profile Banner	Баннер профиля
+Profile Privacy	Конфиденциальность профиля
+Profiles	Профили
+Prompt members to reply to welcome messages with a sticker.	Предлагать участникам отвечать на приветствия стикером.
+Pronouns	Местоимения
+Protect your Discord account with an extra layer of security. Once configured, you'll be required to enter your password and complete one additional step in order to sign in.	Защитите учётную запись Discord дополнительным уровнем безопасности. После настройки для входа нужно будет ввести пароль и пройти ещё один шаг.
+Protip:	Совет:
+Publish	Опубликовать
+Push to Mute	Нажать для отключения микрофона
+Push to Talk	Режим рации
+Push to Talk (Normal)	Режим рации (обычный)
+Q: %	В: %
+Question	Вопрос
+Questions	Вопросы
+ROLES	РОЛИ
+ROLES — %	РОЛИ — %
+ROLES/MEMBERS	РОЛИ/УЧАСТНИКИ
+RTC Connecting	Подключение RTC
+Read Message History	Читать историю сообщений
+Reason	Причина
+Reason for Ban	Причина бана
+Reason for Kick	Причина исключения
+Reason for Timeout	Причина тайм-аута
+Reason: %	Причина: %
+Received	Получено
+Recently Active	Недавно активные
+Reconnect	Переподключиться
+Record Keybind	Записать сочетание
+Reduce the saturation of colors within the application, for those with color sensitivities.	Снижает насыщенность цветов в приложении для тех, кто чувствителен к цвету.
+Reduces the amount of animation and motion effects. On whenever your device asks for reduced motion.	Сокращает анимации и эффекты движения. Включено, когда на устройстве включено уменьшение движения.
+Region Override	Выбор региона
+Register	Зарегистрироваться
+Reject	Отклонить
+Rejoin	Вернуться
+Related Emoji	Похожие эмодзи
+Relevant	По релевантности
+Remove	Удалить
+Remove %	Удалить %
+Remove All Embeds	Убрать весь встроенный контент
+Remove All Reactions	Убрать все реакции
+Remove Answer	Удалить ответ
+Remove Attachment	Удалить вложение
+Remove Authenticator App	Удалить приложение-аутентификатор
+Remove Avatar	Удалить аватар
+Remove Embeds	Убрать встроенный контент
+Remove Friend	Удалить из друзей
+Remove From Group	Удалить из группы
+Remove Icon	Удалить иконку
+Remove Reaction	Убрать реакцию
+Remove Reactions	Убрать реакции
+Remove Reactions for Emoji	Убрать реакции с этим эмодзи
+Remove Server	Удалить сервер
+Remove Spoiler	Убрать спойлер
+Remove Timeout	Снять тайм-аут
+Remove Vote	Отменить голос
+Remove all embeds	Убрать весь встроенный контент
+Remove from Favorites	Убрать из избранного
+Remove notification override for %	Удалить особые уведомления для %
+Remove the files added before encryption was on: they'd go unencrypted.	Удалите файлы, добавленные до включения шифрования: они будут отправлены без шифрования.
+Remove the files added while encryption was on: they'd arrive as unreadable ciphertext.	Удалите файлы, добавленные при включённом шифровании: они придут нечитаемым шифротекстом.
+Removing…	Удаляем…
+Repeated encrypted message	Повторное зашифрованное сообщение
+Reply	Ответить
+Replying to	В ответ
+Report Message	Пожаловаться на сообщение
+Request Data	Запросить данные
+Request all of my Data	Запросить все мои данные
+Request to Speak	Попросить слово
+Requests	Запросы
+Require 2FA for moderator actions	Требовать 2FA для действий модераторов
+Require members to agree to the server rules	Требовать согласия с правилами сервера
+Require people to select tags when posting	Требовать выбор тегов при публикации
+Required	Обязательно
+Resend SMS?	Отправить SMS ещё раз?
+Reset	Сбросить
+Reset Friend Nickname	Сбросить никнейм друга
+Reset Voice Settings	Сбросить настройки голоса
+Resolving Invite	Проверяем приглашение
+Responses	Ответы
+Retry	Повторить
+Retry Now	Повторить сейчас
+Return to call	Вернуться к звонку
+Return to the connected call	Вернуться к текущему звонку
+Reveal	Показать
+Review	Проверить
+Revoke	Отозвать
+Revoke Ban	Снять бан
+Revoke Invite	Отозвать приглашение
+Revoke the ban? They will be able to join again with an invite.	Снять бан? Пользователь снова сможет зайти по приглашению.
+Ring	Позвонить
+Ringing…	Звоним…
+Role Color	Цвет роли
+Role Colors	Цвета ролей
+Role Icon	Иконка роли
+Role name	Название роли
+Roles	Роли
+Romanian, Romania	Румынский (Румыния)
+Rule: %	Правило: %
+Rules or Guidelines Channel	Канал правил
+Russian	Русский
+SELECT A CHANNEL	ВЫБЕРИТЕ КАНАЛ
+SELECT A SERVER	ВЫБЕРИТЕ СЕРВЕР
+SERVER NAME	НАЗВАНИЕ СЕРВЕРА
+SOUNDBOARD VOLUME	ГРОМКОСТЬ ЗВУКОВОЙ ПАНЕЛИ
+STATIC EMOJI — % SLOTS AVAILABLE	СТАТИЧНЫЕ ЭМОДЗИ — СВОБОДНО МЕСТ: %
+Safety Notifications Channel	Канал уведомлений о безопасности
+Safety Number	Код безопасности
+Safety Setup	Настройка безопасности
+Safety checks	Проверки безопасности
+Same as Device Theme	Как на устройстве
+Saturation	Насыщенность
+Save	Сохранить
+Save Changes	Сохранить изменения
+Save Image	Сохранить изображение
+Saving...	Сохраняем...
+Saving…	Сохраняем…
+Scan this with the Discord mobile app to log in instantly.	Отсканируйте этот код в мобильном приложении Discord, чтобы войти мгновенно.
+Schedule an event for any planned activity in your server.	Запланируйте событие для любых мероприятий на сервере.
+Screen	Экран
+Screen sharing isn't supported on this platform yet.	Демонстрация экрана на этой платформе пока не поддерживается.
+Scroll chat	Прокрутка чата
+Search	Поиск
+Search %	Поиск: %
+Search Bans by User ID or Username	Поиск банов по ID или имени пользователя
+Search Klipy	Поиск в Klipy
+Search Options	Параметры поиска
+Search by username or id	Поиск по имени пользователя или ID
+Search for friends	Поиск друзей
+Search members to add (press Enter)	Найдите участников для добавления (нажмите Enter)
+Search or create a post...	Найдите или создайте публикацию...
+Search sounds	Поиск звуков
+Searching...	Ищем...
+Select Friends	Выберите друзей
+Select a Language	Выберите язык
+Select a channel	Выберите канал
+Select a channel or category…	Выберите канал или категорию…
+Select one answer	Выберите один ответ
+Select one or more answers	Выберите один или несколько ответов
+Select where you want these updates to go. You can remove this at any time in Server Settings > Integrations > Channels Followed.	Выберите, куда будут приходить новости. Отключить это можно в любой момент в «Настройки сервера» > «Интеграции» > «Отслеживаемые каналы».
+Select where you want to share this message.	Выберите, куда отправить это сообщение.
+Send	Отправить
+Send Friend Request	Отправить запрос дружбы
+Send Messages and Create Posts	Отправлять сообщения и создавать публикации
+Send Messages in Threads and Posts	Отправлять сообщения в ветках и публикациях
+Send New Key	Отправить новый ключ
+Send Text-to-Speech Messages	Отправлять сообщения с синтезом речи
+Send Voice Messages	Отправлять голосовые сообщения
+Send a random welcome message when someone joins this server.	Отправлять случайное приветствие, когда кто-то заходит на сервер.
+Send a server invite link to a friend	Отправьте другу ссылку-приглашение на сервер
+Send an alert	Отправить оповещение
+Send helpful tips for server setup.	Присылать полезные советы по настройке сервера.
+Send messages, images, GIFs, emoji, opinions, and puns	Отправляйте сообщения, картинки, GIF, эмодзи, мнения и каламбуры
+Sending...	Отправляем...
+Sent	Отправлено
+Sent a file	Отправлен файл
+Sent a sticker	Отправлен стикер
+Sent — %	Отправлено — %
+Server	Сервер
+Server Avatar	Аватар на сервере
+Server Deafen	Отключить звук на сервере
+Server Deafened	Звук отключён сервером
+Server Guide	Гид по серверу
+Server ID	ID сервера
+Server Info	О сервере
+Server Insights	Аналитика сервера
+Server Insights is hosted on a separate website so that it's easier to share links and browse cross platform.	Аналитика сервера находится на отдельном сайте, чтобы ей было удобнее делиться и пользоваться на любых платформах.
+Server Mute	Отключить микрофон на сервере
+Server Muted	Микрофон отключён сервером
+Server Nickname	Никнейм на сервере
+Server Notification Settings	Настройки уведомлений сервера
+Server Primary Language	Основной язык сервера
+Server Profile	Профиль на сервере
+Server Rules	Правила сервера
+Server Settings	Настройки сервера
+Server Tag	Тег сервера
+Server Template	Шаблон сервера
+Server Widget	Виджет сервера
+Server members	Участники серверов
+Server members can only send you friend requests from servers where you also allow Direct Messages.	Участники серверов могут отправлять вам запросы дружбы только с тех серверов, где вы разрешили личные сообщения.
+Server name must be between 2 and 100 characters.	Название сервера должно содержать от 2 до 100 символов.
+Server unmuted	Уведомления сервера включены
+Sessions	Сеансы
+Set Custom Status	Задать статус
+Set Voice Channel Status	Задать статус голосового канала
+Set a custom status	Задать свой статус
+Set up AutoMod to automatically filter messages in this server with the rules below. Members with Manage Server or Administrator are exempt.	Настройте AutoMod, чтобы автоматически фильтровать сообщения на сервере по правилам ниже. На участников с правом «Управлять сервером» или «Администратор» они не действуют.
+Sets camera video quality for all channel participants. Choose Auto for optimal performance.	Задаёт качество видео с камер для всех участников канала. Для оптимальной работы выберите «Авто».
+Setting up encryption: % needs to open fastcord once.	Настраиваем шифрование: % нужно один раз открыть fastcord.
+Several people are typing...	Несколько человек печатают...
+Severe Profanity	Грубая брань
+Sexual Content	Сексуальный контент
+Share	Поделиться
+Share Event	Поделиться событием
+Share Your Screen	Демонстрация экрана
+Share my full profile with	Показывать мой полный профиль
+Share your detected activities with others	Показывать другим обнаруженную активность
+Show	Показать
+Show Chat	Показать чат
+Show a system notification for messages that would notify you (DMs, mentions, servers set to all messages).	Показывать системное уведомление о сообщениях, которые должны вас уведомить (ЛС, упоминания, серверы с уведомлениями обо всех сообщениях).
+Show embeds and preview website links pasted into chat	Показывать встроенный контент и превью ссылок в чате
+Show emoji reactions on messages	Показывать реакции на сообщениях
+Show message	Показать сообщение
+Show messages	Показать сообщения
+Show role colors in names	Показывать цвета ролей в именах
+Show role colors next to names	Показывать цвета ролей рядом с именами
+Show spoiler content	Показывать спойлеры
+Show the game or app you're using on your profile and in member lists.	Показывать игру или приложение, которыми вы пользуетесь, в профиле и списках участников.
+Shows a red badge on the app icon when you have unread mentions.	Показывает красный значок на иконке приложения, если есть непрочитанные упоминания.
+Silence every sound and notification and hide all badges and unread marks, so fastcord never asks for your attention.	Отключает все звуки и уведомления и скрывает все значки и отметки непрочитанного, чтобы fastcord никогда не отвлекал вас.
+Slow down! Are you sure?	Не торопитесь! Вы уверены?
+Slowmode	Медленный режим
+Slowmode is enabled	Включён медленный режим
+Slowmode is enabled. Members can send one message every % hour.|Slowmode is enabled. Members can send one message every % hours.	Включён медленный режим. Участники могут отправлять одно сообщение раз в % час.|Включён медленный режим. Участники могут отправлять одно сообщение раз в % часа.|Включён медленный режим. Участники могут отправлять одно сообщение раз в % часов.
+Slowmode is enabled. Members can send one message every % minute.|Slowmode is enabled. Members can send one message every % minutes.	Включён медленный режим. Участники могут отправлять одно сообщение раз в % минуту.|Включён медленный режим. Участники могут отправлять одно сообщение раз в % минуты.|Включён медленный режим. Участники могут отправлять одно сообщение раз в % минут.
+Slowmode is enabled. Members can send one message every % second.|Slowmode is enabled. Members can send one message every % seconds.	Включён медленный режим. Участники могут отправлять одно сообщение раз в % секунду.|Включён медленный режим. Участники могут отправлять одно сообщение раз в % секунды.|Включён медленный режим. Участники могут отправлять одно сообщение раз в % секунд.
+Smooth Scrolling	Плавная прокрутка
+So no one gets lost on where to go.	Чтобы никто не заблудился.
+Some older devices may not be shown here	Некоторые старые устройства могут здесь не отображаться
+Someone	Кто-то
+Something went wrong	Что-то пошло не так
+Something went wrong (HTTP %).	Что-то пошло не так (HTTP %).
+Something went wrong. Try again.	Что-то пошло не так. Попробуйте ещё раз.
+Somewhere Else	Где-то ещё
+Sorry, we couldn't load the first message in this thread	Не удалось загрузить первое сообщение этой ветки
+Sort: Date Posted	Сортировка: по дате публикации
+Sort: Recent Activity	Сортировка: по активности
+Sound Name	Название звука
+Sound names must be between 2 and 32 characters.	Название звука должно содержать от 2 до 32 символов.
+Soundboard	Звуковая панель
+Sounds	Звуки
+Sounds must be 5.2 seconds or shorter.	Звук должен длиться не больше 5,2 секунды.
+Sounds must be under 512 KB.	Звук должен весить меньше 512 КБ.
+Source	Источник
+Space between message groups	Отступ между группами сообщений
+Spam	Спам
+Spam Filters	Фильтры спама
+Spanish	Испанский
+Spanish, LATAM	Испанский (Латинская Америка)
+Speak	Говорить
+Speak Message	Озвучить сообщение
+Spoiler Attachment	Вложение-спойлер
+Spoiler Content	Спойлеры
+Stage	Трибуна
+Start Date	Дата начала
+Start Event	Начать событие
+Start Minimized	Запускать свёрнутым
+Start Time	Время начала
+Starting in %m	Начало через % мин
+State	Состояние
+Stickers	Стикеры
+Stickers can be used by anyone in this server. Upload a PNG, APNG, GIF or Lottie JSON file of up to 512 KB; it shows at 320x320.	Стикерами может пользоваться любой участник сервера. Загрузите файл PNG, APNG, GIF или Lottie JSON размером до 512 КБ; он отображается в размере 320x320.
+Stickers can't be sent encrypted yet.	Стикеры пока нельзя отправлять в зашифрованном виде.
+Stickers must be PNG, APNG, GIF or Lottie JSON files.	Стикеры должны быть файлами PNG, APNG, GIF или Lottie JSON.
+Stop Recording	Остановить запись
+Stop Streaming	Остановить трансляцию
+Stop Testing	Остановить проверку
+Stop Video	Выключить видео
+Stop Watching	Перестать смотреть
+Storage	Хранилище
+Stream Settings	Настройки трансляции
+Streamer Mode	Режим стримера
+Streamer Mode Enabled	Режим стримера включён
+Streamer Mode hides your personal info so others watching your stream can't see it.	Режим стримера скрывает ваши личные данные от зрителей трансляции.
+Streamer Mode is enabled. Usernames have been truncated.	Включён режим стримера. Имена пользователей сокращены.
+Success! Your friend request to % was sent.	Готово! Запрос дружбы для % отправлен.
+Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday	воскресенье|понедельник|вторник|среда|четверг|пятница|суббота
+Sun|Mon|Tue|Wed|Thu|Fri|Sat	вс|пн|вт|ср|чт|пт|сб
+Support has arrived!	Подмога прибыла!
+Suppress @everyone and @here	Отключить @everyone и @here
+Suppress All Role @mentions	Отключить все @упоминания ролей
+Suppress Highlights	Отключить подборки
+Suppress Notifications	Отключить уведомления
+Suppress background noise from your mic.	Подавляет фоновый шум микрофона.
+Swedish	Шведский
+Switch Accounts	Сменить учётную запись
+Switch between accounts on this device.	Переключайтесь между учётными записями на этом устройстве.
+Symbols	Символы
+Sync Now	Синхронизировать
+Sync Permissions	Синхронизировать права
+Sync Template	Синхронизировать шаблон
+Sync permissions?	Синхронизировать права?
+System	Система
+System Messages	Системные сообщения
+System Messages Channel	Канал системных сообщений
+System icon for new server members.	Системная иконка для новых участников сервера.
+THREAD NAME	НАЗВАНИЕ ВЕТКИ
+Tag	Тег
+Tags	Теги
+Tags (pick at least one)	Теги (выберите хотя бы один)
+Tags let members organize their posts. Members pick them when they post; moderated tags only moderators can apply.	Теги помогают упорядочить публикации. Участники выбирают их при публикации; модерируемые теги могут ставить только модераторы.
+Tap the link in your email to sign in instantly — no password needed.	Нажмите на ссылку в письме, чтобы войти мгновенно — пароль не нужен.
+Tell people a little more about your event. Markdown, new lines, and links are supported.	Расскажите о событии подробнее. Поддерживаются Markdown, переносы строк и ссылки.
+Tell the world a bit about this server.	Расскажите миру немного о сервере.
+Template Description	Описание шаблона
+Template Link	Ссылка на шаблон
+Template Title	Название шаблона
+Templates are an easy way to share your server setup and help anyone create a server instantly. When someone uses your server template link, they create a new server pre-filled with the same channels, roles, permissions, and settings as yours. Messages, members and your server's icon aren't copied.	Шаблоны — простой способ поделиться устройством сервера и помочь кому угодно мгновенно создать свой. По ссылке на шаблон создаётся новый сервер с такими же каналами, ролями, правами и настройками, как у вас. Сообщения, участники и иконка сервера не копируются.
+Temporary members are automatically kicked when they disconnect unless a role has been assigned	Временные участники автоматически исключаются при отключении, если им не назначена роль
+Test Video	Проверить видео
+Text	Текст
+Text Channel Permissions	Права текстового канала
+Text channel, external link, or in-person location.	Текстовый канал, внешняя ссылка или место встречи.
+Thai	Тайский
+That channel isn't on this server anymore.	Этого канала больше нет на сервере.
+That file couldn't be read as an MP3 or OGG sound.	Не удалось прочитать файл как звук MP3 или OGG.
+That file couldn't be read. Avatars must be PNG, JPEG, GIF or WEBP images.	Не удалось прочитать файл. Аватар должен быть изображением PNG, JPEG, GIF или WEBP.
+That file couldn't be read. Banners must be PNG, JPEG, GIF or WEBP images.	Не удалось прочитать файл. Баннер должен быть изображением PNG, JPEG, GIF или WEBP.
+That file couldn't be read. Emoji must be a PNG, JPEG, GIF, WEBP or AVIF image.	Не удалось прочитать файл. Эмодзи должен быть изображением PNG, JPEG, GIF, WEBP или AVIF.
+That file couldn't be read. Images must be PNG, JPEG, GIF or WEBP files.	Не удалось прочитать файл. Изображения должны быть файлами PNG, JPEG, GIF или WEBP.
+That file couldn't be read. Server icons must be PNG, JPEG, GIF or WEBP images.	Не удалось прочитать файл. Иконка сервера должна быть изображением PNG, JPEG, GIF или WEBP.
+That file is too large. Emoji must be under 256 KB.	Файл слишком большой. Эмодзи должен весить меньше 256 КБ.
+That file is too large. Stickers must be under 512 KB.	Файл слишком большой. Стикер должен весить меньше 512 КБ.
+That image is too large.	Изображение слишком большое.
+That image is too large. Avatars must be under %.	Изображение слишком большое. Аватар должен весить меньше %.
+That image is too large. Banners must be under 10 MB.	Изображение слишком большое. Баннер должен весить меньше 10 МБ.
+That image is too large. Server icons must be under 512 KB.	Изображение слишком большое. Иконка сервера должна весить меньше 512 КБ.
+That isn't a valid fastcord invite.	Это недействительное приглашение fastcord.
+That's too long to send encrypted.	Это слишком длинно для отправки в зашифрованном виде.
+The Pin Is Stuck!	Булавка застряла!
+The badge chosen in the official client stays as it is.	Значок, выбранный в официальном клиенте, остаётся прежним.
+The invite is invalid or has expired.	Приглашение недействительно или истекло.
+The mention limit is between 1 and 50.	Лимит упоминаний — от 1 до 50.
+The most important updates from this channel will now show up directly in your server. Enjoy!	Самые важные новости этого канала теперь будут появляться прямо на вашем сервере. Наслаждайтесь!
+The owner	Владелец
+The related emoji must be one emoji.	Похожий эмодзи должен быть одним эмодзи.
+The results were tied	Ничья
+The selected channel has too many webhooks. Please remove a webhook or select another channel.	В выбранном канале слишком много вебхуков. Удалите один или выберите другой канал.
+The server	Сервер
+The start time must be in the future.	Время начала должно быть в будущем.
+The thread stops showing in the channel list after being inactive for this long.	Ветка пропадёт из списка каналов, если будет неактивна столько времени.
+Theme	Тема
+There are no active threads.	Активных веток нет.
+There are no archived threads.	Архивных веток нет.
+There are no pending friend requests.	Нет ожидающих запросов дружбы.
+There are no upcoming events.	Предстоящих событий нет.
+There is no identity key.	Нет ключа идентификации.
+There was no winner	Победителя нет
+These are all the devices that are currently logged-in with your Discord account. Log out of devices that you don't recognize.	Это все устройства, на которых сейчас выполнен вход в вашу учётную запись Discord. Выйдите на устройствах, которые вы не узнаёте.
+They said: %	Сообщение: %
+This account needs a passkey or security key, which fastcord can't use. Log in with the QR code instead.	Этой учётной записи нужен ключ доступа или ключ безопасности, а fastcord их не поддерживает. Войдите по QR-коду.
+This channel contains adult content that may not be suitable for all audiences. You must be 18 or older to view it.	В этом канале есть контент для взрослых, подходящий не для всех. Для просмотра вам должно быть не меньше 18 лет.
+This channel doesn't have any pinned messages... yet.	В этом канале нет закреплённых сообщений... пока что.
+This device can't open this message.	Это устройство не может открыть сообщение.
+This device's encryption keys couldn't be unlocked, so earlier encrypted DMs can't be opened here.	Не удалось разблокировать ключи шифрования этого устройства, поэтому прежние зашифрованные ЛС здесь не открыть.
+This event will auto start when it's time.	Событие начнётся автоматически в назначенное время.
+This extra step shows it's really you.	Этот дополнительный шаг подтверждает, что это действительно вы.
+This interaction failed	Не удалось выполнить взаимодействие
+This invite may be expired, or you might not have permission to join.	Возможно, приглашение истекло или у вас нет права зайти.
+This is the beginning of your direct message history with %.	Это начало вашей личной переписки с %.
+This is the channel we send system event messages to.	В этот канал отправляются системные сообщения о событиях.
+This is the start of the #% channel.	Это начало канала #%.
+This is where Discord sends updates for moderators and admins of Community servers.	Сюда Discord отправляет новости для модераторов и администраторов серверов сообществ.
+This is where you'll show members your server rules or guidelines.	Здесь вы покажете участникам правила сервера.
+This link is taking you to the following website	Эта ссылка ведёт на следующий сайт
+This option is not available for Community Servers.	Этот вариант недоступен для серверов сообществ.
+This role is managed by an integration and can't be edited here.	Эта роль управляется интеграцией, и её нельзя изменить здесь.
+This server has been removed from Server Discovery because it no longer passes all the requirements. Check Server Settings for more details.	Сервер удалён из каталога серверов, потому что больше не соответствует всем требованиям. Подробности — в настройках сервера.
+This server has failed Discovery activity requirements for 1 week. If this server fails for 4 weeks in a row, it will be automatically removed from Discovery.	Сервер уже неделю не соответствует требованиям каталога к активности. Если так будет 4 недели подряд, он будет автоматически удалён из каталога.
+This server has failed Discovery activity requirements for 3 weeks in a row. If this server fails for 1 more week, it will be removed from Discovery.	Сервер уже 3 недели подряд не соответствует требованиям каталога к активности. Если так будет ещё неделю, он будет удалён из каталога.
+This server has no voice channels.	На этом сервере нет голосовых каналов.
+This server is currently full.	Сервер сейчас переполнен.
+This server is currently full. Please try again later.	Сервер сейчас переполнен. Попробуйте позже.
+This server is eligible for Server Discovery again and has been automatically relisted!	Сервер снова соответствует требованиям каталога и автоматически возвращён в него!
+This server is not available in your location.	Этот сервер недоступен в вашем регионе.
+This server's features are limited	Возможности сервера ограничены
+This setting is applied when you join a new server. It does not apply retroactively to your existing servers.	Эта настройка применяется, когда вы заходите на новый сервер. На уже имеющиеся серверы она не влияет.
+This template has unsynced changes.	В шаблоне есть несинхронизированные изменения.
+This thread is locked.	Эта ветка заблокирована.
+This voice channel is full.	Этот голосовой канал заполнен.
+This will determine whether members who have not explicitly set their notification settings receive a notification for every message sent in this server or not.	Определяет, будут ли участники, не настроившие уведомления сами, получать уведомление о каждом сообщении на сервере.
+This will transfer ownership of %1 to %2. This cannot be undone!	%1 перейдёт во владение %2. Это нельзя отменить!
+Thread Name	Название ветки
+Thread deleted	Ветка удалена
+Threads	Ветки
+Time	Время
+Time format	Формат времени
+Timeout	Тайм-аут
+Timeout %	Тайм-аут для %
+Timeout Members	Отправлять участников в тайм-аут
+Timeout member	Отправить участника в тайм-аут
+Times show as %.	Время отображается как %.
+To log them out, please change your password	Чтобы выйти на них, смените пароль
+To protect your members, Community servers need these, and enabling sets them:	Для защиты участников серверам сообществ нужно следующее, и при включении это будет настроено:
+Today	Сегодня
+Today at %	Сегодня в %
+Toggle Deafen	Вкл./выкл. звук
+Toggle Go Live Streaming	Вкл./выкл. трансляцию
+Toggle Mute	Вкл./выкл. микрофон
+Toggle Streamer Mode	Вкл./выкл. режим стримера
+Toggle Voice Activity Mode	Вкл./выкл. режим активации голосом
+Toggle deafen	Вкл./выкл. звук
+Toggle inbox	Показать/скрыть входящие
+Toggle member list	Показать/скрыть список участников
+Toggle mute	Вкл./выкл. микрофон
+Toggle pins	Показать/скрыть закреплённые
+Tomorrow at %	Завтра в %
+Too fast! Wait a bit and try again.	Слишком быстро! Подождите немного и попробуйте снова.
+Too many uploads!	Слишком много загрузок!
+Trait %	Черта %
+Traits	Черты
+Transfer Ownership	Передать владение
+Travel & Places	Путешествия и места
+Treat the token like a password: anyone who has it controls your account. fastcord keeps it only on this computer.	Храните токен как пароль: у кого он есть, тот управляет вашей учётной записью. fastcord хранит его только на этом компьютере.
+Trending GIFs	Популярные GIF
+Trust % links from now on	Доверять ссылкам на % в будущем
+Try Again	Попробовать снова
+Try searching for something else	Попробуйте поискать что-то другое
+Try searching for...	Попробуйте поискать...
+Try sending a new invite	Попробуйте отправить новое приглашение
+Turkish	Турецкий
+Turn off encryption	Отключить шифрование
+Turns this back into a regular server. Community-only features stop working.	Снова делает сервер обычным. Функции сообщества перестанут работать.
+Two-factor authentication is enabled on this account.	Для этой учётной записи включена двухфакторная аутентификация.
+Type the username of a friend	Введите имя пользователя друга
+Type your answer	Введите ответ
+UPLOADED BY	ЗАГРУЗИЛ(А)
+USES	ИСПОЛЬЗОВАНИЙ
+Uh oh, you don't have webhook permissions in any server you're in. Ask your server admin to give you the permission or ask them to come follow themselves!	Ой, ни на одном вашем сервере у вас нет прав на вебхуки. Попросите администратора выдать вам это право или подписаться самому!
+Uh-oh. Looks like you've been banned.	Ой-ой. Похоже, вас забанили.
+Ukrainian	Украинский
+Unable to accept invite	Не удалось принять приглашение
+Unassigned	Не назначено
+Unban Member	Разбанить участника
+Unblock	Разблокировать
+Undeafen	Включить звук
+Under Request Headers, copy the value of "authorization" and paste it below.	В разделе Request Headers скопируйте значение «authorization» и вставьте его ниже.
+Undo	Отменить
+Unignore	Перестать игнорировать
+Unknown	Неизвестно
+Unknown channel	Неизвестный канал
+Unmute	Включить
+Unmute Category	Включить уведомления категории
+Unmute Channel	Включить уведомления канала
+Unmute Server	Включить уведомления сервера
+Unmute Thread	Включить уведомления ветки
+Unpin Message	Открепить сообщение
+Unreads	Непрочитанное
+Unrestricted	Без ограничений
+Until %	До %
+Until %1 at %2	До %1, %2
+Until I turn it back on	Пока не включу снова
+Until tomorrow at %	До завтра, %
+Untitled question	Вопрос без названия
+Unverify	Снять отметку о проверке
+Update %	Обновить %
+Update Channel	Обновить канал
+Update Emoji	Обновить эмодзи
+Update Member	Обновить участника
+Update Member Roles	Обновить роли участника
+Update Role	Обновить роль
+Update Server	Обновить сервер
+Update Webhook	Обновить вебхук
+Update your password	Обновите пароль
+Upload	Загрузить
+Upload Emoji	Загрузить эмодзи
+Upload Sound	Загрузить звук
+Upload Sticker	Загрузить стикер
+Upload a File	Загрузить файл
+Upload a Sound	Загрузить звук
+Upload a file	Загрузить файл
+Upload custom sound reactions that anyone in this server can use. MP3 or OGG files, up to 512 KB and 5.2 seconds.	Загружайте звуковые реакции, которыми может пользоваться любой участник сервера. Файлы MP3 или OGG, до 512 КБ и 5,2 секунды.
+Upload to %	Загрузить в %
+Uploaded a file	Загружен файл
+Uploading...	Загружаем...
+Use Application Commands	Использовать команды приложений
+Use Category Default	Как в категории
+Use External Apps	Использовать внешние приложения
+Use External Emoji	Использовать внешние эмодзи
+Use External Sounds	Использовать внешние звуки
+Use External Stickers	Использовать внешние стикеры
+Use Server Default	Как на сервере
+Use Soundboard	Использовать звуковую панель
+Use Voice Activity	Использовать активацию голосом
+Use a backup code	Использовать резервный код
+Use a code sent to your phone	Использовать код из SMS
+Use a passkey or security key	Использовать ключ доступа или ключ безопасности
+Use data to improve Discord	Использовать данные для улучшения Discord
+Use roles to group your server members and assign permissions.	С помощью ролей можно группировать участников сервера и выдавать им права.
+Use your authenticator app	Использовать приложение-аутентификатор
+Used % times.|Used % times.	Использовано % раз.|Использовано % раза.|Использовано % раз.
+User Join	Пользователь заходит
+User Leave	Пользователь выходит
+User Limit	Лимит пользователей
+User Moved	Пользователь перемещён
+User Volume	Громкость пользователя
+User blocked	Пользователь заблокирован
+User unblocked	Пользователь разблокирован
+Username	Имя пользователя
+Username is available. Nice!	Имя пользователя свободно. Отлично!
+Username is unavailable. Try adding numbers, letters, underscores _ , or periods.	Имя пользователя занято. Попробуйте добавить цифры, буквы, подчёркивания _ или точки.
+Users will need to confirm they are of over the legal age to view in the content in this channel.\nAge-restricted channels are exempt from the explicit content filter.	Чтобы видеть контент этого канала, пользователям нужно подтвердить совершеннолетие.\nНа каналы с возрастным ограничением не действует фильтр откровенного контента.
+Uses the yt-dlp you installed to play YouTube links in the chat instead of opening your browser. It connects to YouTube from your computer.	Воспроизводит ссылки YouTube в чате через установленный у вас yt-dlp вместо открытия браузера. Подключение к YouTube идёт с вашего компьютера.
+VOICE PROCESSING	ОБРАБОТКА ГОЛОСА
+Verification Level	Уровень проверки
+Verified	Проверено
+Verify with something else	Подтвердить другим способом
+Video	Видео
+Video Quality	Качество видео
+Vietnamese	Вьетнамский
+View Audit Log	Просматривать журнал аудита
+View Channel	Просматривать канал
+View Channels	Просматривать каналы
+View Details	Подробнее
+View Full Profile	Открыть полный профиль
+View Poll	Открыть опрос
+View Profile	Открыть профиль
+View Reactions	Посмотреть реакции
+View Server Insights	Просматривать аналитику сервера
+Visit Site	Перейти на сайт
+Visual Density	Плотность интерфейса
+Voice	Голос
+Voice & Video	Голос и видео
+Voice Activity	Активация голосом
+Voice Channel	Голосовой канал
+Voice Channel Permissions	Права голосового канала
+Voice Connected	Голосовая связь подключена
+Voice Disconnected	Голосовая связь отключена
+Volume	Громкость
+Vote	Голосовать
+Waiting for a server	Ожидание сервера
+Wants to message you	Хочет написать вам
+Watch Stream	Смотреть трансляцию
+Wave to say hi!	Помашите, чтобы поздороваться!
+We appreciate the enthusiasm, but...	Ценим ваш энтузиазм, но...
+We couldn't load the profile for this server.	Не удалось загрузить профиль для этого сервера.
+We recommend an image of at least 512x512.	Рекомендуем изображение не меньше 512x512.
+We sent instructions to change your password to %, please check both your inbox and spam folder.	Мы отправили инструкции по смене пароля на %. Проверьте входящие и папку «Спам».
+We're so excited to see you again!	Мы так рады видеть вас снова!
+We've sent a message to %.  Please enter the code you received.	Мы отправили сообщение на %.  Введите полученный код.
+Webhooks (%)	Вебхуки (%)
+Webhooks are a simple way to post messages from other apps and websites into this server.	Вебхуки — простой способ публиковать на сервере сообщения из других приложений и сайтов.
+Welcome %. Say hi!	Добро пожаловать, %. Поздоровайтесь!
+Welcome back!	С возвращением!
+Welcome to #%!	Добро пожаловать в #%!
+Welcome to the beginning of the % group.	Это начало группы %.
+Welcome, %. We hope you brought pizza.	Добро пожаловать, %. Надеемся, вы принесли пиццу.
+What brings you here?	Что привело вас сюда?
+What can people do in this server?	Чем можно заняться на этом сервере?
+What question do you want to ask?	Какой вопрос вы хотите задать?
+What's cookin'?	Что готовим?
+What's your event about?	О чём ваше событие?
+What's your event?	Какое у вас событие?
+When a friend starts an activity—like playing a game or hanging out on voice—we'll show it here!	Когда друг чем-то займётся — например, начнёт играть или зайдёт в голосовой канал, — мы покажем это здесь!
+When enabled, only server members can view profile content. Non-members won't be able to see this content unless they have an invite.	Если включено, содержимое профиля видят только участники сервера. Остальные увидят его, только если у них есть приглашение.
+When you put a user in timeout they will not be able to send messages in chat, reply within threads, react to messages, or speak in voice or Stage channels.	Пользователь в тайм-ауте не сможет писать в чат, отвечать в ветках, ставить реакции и говорить в голосовых каналах и на трибунах.
+Where is your event?	Где пройдёт событие?
+Where would you like to go?	Куда вы хотите перейти?
+Who is this server for? E.g. School Club, Artists' Community	Для кого этот сервер? Например, школьный клуб или сообщество художников
+Winning answer · %1%2	Победивший ответ · %1%2
+Words that are never blocked, separated by commas	Слова, которые никогда не блокируются, через запятую
+Words to block, separated by commas	Слова для блокировки через запятую
+Words to block, separated by commas (* matches anything)	Слова для блокировки через запятую (* — любые символы)
+Would you like to sync %1 permissions with %2?	Синхронизировать права %1 с %2?
+Yay you made it, %!	Ура, %, вы с нами!
+Yesterday at %	Вчера в %
+You	Вы
+You accepted %'s friend request.	Вы приняли запрос дружбы от %.
+You are at the % server limit.	Вы достигли лимита в % серверов.
+You are banned from this server.	Вас забанили на этом сервере.
+You aren't in that server. Ask a member for an invite.	Вас нет на этом сервере. Попросите приглашение у участника.
+You can add % more friend.|You can add % more friends.	Вы можете добавить ещё % друга.|Вы можете добавить ещё % друзей.|Вы можете добавить ещё % друзей.
+You can add comments before uploading.\nHold shift to upload directly.	Перед загрузкой можно добавить комментарий.\nУдерживайте Shift, чтобы загрузить сразу.
+You can add friends with their Discord username.	Друзей можно добавлять по имени пользователя Discord.
+You can add up to 5 accounts.	Можно добавить до 5 учётных записей.
+You can hold down shift when clicking % to bypass this confirmation entirely.	Удерживайте Shift при нажатии на %, чтобы совсем пропускать это подтверждение.
+You can only edit roles below your highest role.	Можно изменять только роли ниже вашей высшей роли.
+You can only upload % files at a time!	За раз можно загрузить не больше % файлов!
+You can use markdown and links if you'd like.	Можно использовать Markdown и ссылки.
+You can't join this server because of your age group.	Вы не можете зайти на этот сервер из-за возрастной группы.
+You can't unblock the Wumpus.	Вампуса нельзя разблокировать.
+You cannot friend yourself	Нельзя добавить в друзья себя
+You can’t react and super react with the same emoji. There’s a lot of emoji to choose from, so maybe try another one.	Нельзя ставить обычную и суперреакцию с одним и тем же эмодзи. Эмодзи много — попробуйте другой.
+You do not have permission to send messages in this channel.	У вас нет права отправлять сообщения в этом канале.
+You don't have any friends to add!	У вас нет друзей, которых можно добавить!
+You don't have permission to do that.	У вас нет права на это.
+You haven't added a display name yet.	Вы ещё не указали отображаемое имя.
+You haven't added a phone number yet.	Вы ещё не добавили номер телефона.
+You haven't added an email yet.	Вы ещё не добавили электронную почту.
+You haven't authorized any apps.	Вы не авторизовали ни одного приложения.
+You haven't blocked anyone.	Вы никого не заблокировали.
+You haven't connected any accounts yet.	Вы ещё не привязали ни одной учётной записи.
+You haven't ignored anyone.	Вы никого не игнорируете.
+You missed a call from %1 that lasted %2.	Пропущенный звонок от %1 длительностью %2.
+You must be at least 18 years old to view this channel.	Чтобы смотреть этот канал, вам должно быть не меньше 18 лет.
+You must leave a server first to join.	Чтобы зайти, сначала покиньте какой-нибудь сервер.
+You need to add one or more rules.	Добавьте хотя бы одно правило.
+You received an invite, but...	Вы получили приглашение, но...
+You said: %	Вы: %
+You sent an invite to a self-hosted server	Вы отправили приглашение на собственный сервер
+You sent an invite, but	Вы отправили приглашение, но
+You sent an invite, but...	Вы отправили приглашение, но...
+You will appear offline	Вы будете казаться не в сети
+You will not receive desktop notifications	Вы не будете получать уведомления на рабочем столе
+You'll have to log back in on all logged out devices.	На всех устройствах, где был выполнен выход, придётся войти заново.
+You're Viewing Older Messages	Вы просматриваете старые сообщения
+You're all caught up!	Вы всё прочитали!
+You're already in that server.	Вы уже на этом сервере.
+You're doing that too fast. Try again in a moment.	Слишком быстро. Попробуйте чуть позже.
+You're not in any servers yet.	Вы пока не состоите ни в одном сервере.
+You're offline: no invite link.	Вы не в сети: ссылки-приглашения нет.
+You're timed out until %.	Вы в тайм-ауте до %.
+You've been invited to a self-hosted server	Вас пригласили на собственный сервер
+You've been invited to join	Вас пригласили присоединиться к
+You've been invited to speak	Вас пригласили выступить
+You've been invited, but	Вас пригласили, но
+Your files are too powerful	Ваши файлы слишком мощные
+Your full profile is visible to friends and any server you join with 200 or fewer members. Everyone else sees a limited version.	Ваш полный профиль видят друзья и участники серверов, где не больше 200 человек. Остальные видят сокращённую версию.
+Your full profile is visible to friends and any server you join.	Ваш полный профиль видят друзья и участники всех ваших серверов.
+Your full profile is visible to friends. Everyone else sees a limited version.	Ваш полный профиль видят друзья. Остальные видят сокращённую версию.
+Your invite link expires after %.	Ссылка-приглашение истечёт после %.
+Your invite link expires in %.	Ссылка-приглашение истечёт через %.
+Your invite link expires in %1, or after %2.	Ссылка-приглашение истечёт через %1 или после %2.
+Your invite link expires in 7 days.	Ссылка-приглашение истечёт через 7 дней.
+Your invite link will never expire.	Ссылка-приглашение бессрочная.
+Your last request was on %.	Ваш последний запрос: %.
+Your message is too long (% / %).	Сообщение слишком длинное (%1 / %2).
+Your reaction was not added because there are too many reactions on this message.	Реакция не добавлена: у этого сообщения слишком много реакций.
+Your request from % is being prepared.	Ваш запрос от % готовится.
+Your server is where you and your friends hang out. Make yours and start talking.	Сервер — место, где вы общаетесь с друзьями. Создайте свой и начните разговор.
+Your sounds go out with your voice, mixed into your microphone, instead of as soundboard sounds.	Звуки идут вместе с вашим голосом, подмешиваясь в микрофон, а не как звуки звуковой панели.
+Zoom level	Масштаб
+a channel	канал
+a command	команду
+a day	день
+a day ago	день назад
+a few seconds	несколько секунд
+a few seconds ago	несколько секунд назад
+a message	сообщение
+a minute	минуту
+a minute ago	минуту назад
+a month ago	месяц назад
+a year ago	год назад
+an hour	час
+an hour ago	час назад
+by %	от %
+cancel	отмена
+channel	канал
+delete message	удалить сообщение
+escape to %1 • enter to %2	Esc — %1 • Enter — %2
+fastcord %	fastcord %
+fastcord quit unexpectedly last time. The report is in the logs folder (Settings, under Log Out).	В прошлый раз fastcord неожиданно завершил работу. Отчёт лежит в папке журналов («Настройки», под кнопкой «Выйти»).
+fastcord starts in the background and stays out of your way.	fastcord запускается в фоне и не мешает.
+from %	от %
+in %	через %
+in % day|in % days	через % день|через % дня|через % дней
+in % hour|in % hours	через % час|через % часа|через % часов
+in % minute|in % minutes	через % минуту|через % минуты|через % минут
+in % month|in % months	через % месяц|через % месяца|через % месяцев
+in % year|in % years	через % год|через % года|через % лет
+in a day	через день
+in a few seconds	через несколько секунд
+in a minute	через минуту
+in a month	через месяц
+in a year	через год
+in an hour	через час
+just now	только что
+less than an hour ago	меньше часа назад
+link, embed or file	ссылка, встроенный контент или файл
+on %	%
+pinned messages	закреплённые сообщения
+remove embeds	убрать встроенный контент
+save	сохранить
+someone	кто-то
+specific date	конкретная дата
+this server	этот сервер
+threads	ветки
+true or false	да или нет
+unknown	неизвестно
+unknown channel	неизвестный канал
+unknown-user	неизвестный-пользователь
+used	использовано
+user	пользователь
+• Media from all members is scanned by the explicit image filter.	• Медиа от всех участников проверяются фильтром откровенных изображений.
+• Members must have a verified email on their Discord account.	• У участников должна быть подтверждённая почта в учётной записи Discord.
+← Back to %	← Назад в %
+← Back to login	← Назад ко входу

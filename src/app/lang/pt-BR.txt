@@ -1,0 +1,1983 @@
+# Portuguese, Brazilian (pt-BR)
+ · required	 · obrigatório
+% (requested to speak)	% (pediu para falar)
+% (required)	% (obrigatório)
+% Bans|% Bans	% banimento|% banimentos
+% Event|% Events	% evento|% eventos
+% KB	% KB
+% MB	% MB
+% Member|% Members	% membro|% membros
+% Messages	% mensagens
+% Mutual Friend|% Mutual Friends	% amigo em comum|% amigos em comum
+% Mutual Server|% Mutual Servers	% servidor em comum|% servidores em comum
+% Online	% online
+% Result|% Results	% resultado|% resultados
+% accepted encryption.	% aceitou a criptografia.
+% accepted your friend request.	% aceitou seu pedido de amizade.
+% answer|% answers	% resposta|% respostas
+% becomes the owner once they accept on their device. You'll stay a member.	% vira dono assim que aceitar no dispositivo. Você continua como membro.
+% blocked message —|% blocked messages —	% mensagem bloqueada —|% mensagens bloqueadas —
+% byte|% bytes	% byte|% bytes
+% changed the group icon.	% alterou o ícone do grupo.
+% day ago|% days ago	há % dia|há % dias
+% day|% days	% dia|% dias
+% disabled security actions.	% desativou as ações de segurança.
+% enabled security actions.	% ativou as ações de segurança.
+% hasn't accepted encryption yet.	% ainda não aceitou a criptografia.
+% hopped into the server.	% pulou no servidor.
+% hour ago|% hours ago	há % hora|há % horas
+% hour|% hours	% hora|% horas
+% ignored message —|% ignored messages —	% mensagem ignorada —|% mensagens ignoradas —
+% is here.	% está aqui.
+% is typing...	% está digitando...
+% joined the party.	% entrou na festa.
+% just boosted the server!	% acabou de impulsionar o servidor!
+% just landed.	% acabou de pousar.
+% just showed up!	% acabou de aparecer!
+% just slid into the server.	% deslizou para o servidor.
+% left the group.	% saiu do grupo.
+% member|% members	% membro|% membros
+% minute ago|% minutes ago	há % minuto|há % minutos
+% minute|% minutes	% minuto|% minutos
+% month ago|% months ago	há % mês|há % meses
+% of %	% de %
+% removed the custom group name.	% removeu o nome personalizado do grupo.
+% started a call.	% iniciou uma chamada.
+% turned on encryption.	% ativou a criptografia.
+% user|% users	% usuário|% usuários
+% use|% uses	% uso|% usos
+% vote|% votes	% voto|% votos
+% wants to encrypt this DM with a new key. Compare safety numbers after accepting.	% quer criptografar esta MD com uma nova chave. Compare os números de segurança depois de aceitar.
+% wants to encrypt this DM.	% quer criptografar esta MD.
+% year ago|% years ago	há % ano|há % anos
+% · End-to-end encrypted	% · Criptografia de ponta a ponta
+%'s Group	Grupo de %
+%'s encryption key changed. Compare safety numbers before trusting new messages.	A chave de criptografia de % mudou. Compare os números de segurança antes de confiar em novas mensagens.
+%'s server	Servidor de %
+%1 (%2 more)	%1 (mais %2)
+%1 FPS	%1 FPS
+%1 STICKERS — %2 SLOTS AVAILABLE	%1 FIGURINHAS — %2 ESPAÇOS DISPONÍVEIS
+%1 action %2	%1 ação %2
+%1 added %2 to the group.	%1 adicionou %2 ao grupo.
+%1 and %2	%1 e %2
+%1 and %2 are typing...	%1 e %2 estão digitando...
+%1 and %2 other|%1 and %2 others	%1 e mais %2|%1 e mais %2
+%1 banned %2	%1 baniu %2
+%1 changed the Stage topic: %2	%1 alterou o tema do Palco: %2
+%1 changed the channel name: %2.	%1 alterou o nome do canal: %2.
+%1 changed the group name: %2.	%1 alterou o nome do grupo: %2.
+%1 created a channel	%1 criou um canal
+%1 created a role	%1 criou um cargo
+%1 created a webhook	%1 criou um webhook
+%1 created an emoji	%1 criou um emoji
+%1 created an invite	%1 criou um convite
+%1 deleted a channel	%1 excluiu um canal
+%1 deleted a message by %2	%1 excluiu uma mensagem de %2
+%1 deleted a role	%1 excluiu um cargo
+%1 deleted a webhook	%1 excluiu um webhook
+%1 deleted an emoji	%1 excluiu um emoji
+%1 deleted an invite	%1 excluiu um convite
+%1 enabled security actions until %2.	%1 ativou as ações de segurança até %2.
+%1 ended %2	%1 encerrou %2
+%1 has achieved %2	%1 conquistou %2
+%1 has added %2 to this channel. Its most important updates will show up here.	%1 adicionou %2 a este canal. As atualizações mais importantes vão aparecer aqui.
+%1 has blocked a message in %2	%1 bloqueou uma mensagem em %2
+%1 has flagged a message in %2	%1 sinalizou uma mensagem em %2
+%1 is now a speaker.	%1 agora é palestrante.
+%1 joined %2 and has been a subscriber of %3 for %4 month!|%1 joined %2 and has been a subscriber of %3 for %4 months!	%1 entrou em %2 e é assinante de %3 há %4 mês!|%1 entrou em %2 e é assinante de %3 há %4 meses!
+%1 joined %2 as a subscriber of %3!	%1 entrou em %2 como assinante de %3!
+%1 just boosted the server %2 times!	%1 acabou de impulsionar o servidor %2 vezes!
+%1 kicked %2	%1 expulsou %2
+%1 new message since %2|%1 new messages since %2	%1 nova mensagem desde %2|%1 novas mensagens desde %2
+%1 of %2 slot used|%1 of %2 slots used	%1 de %2 espaço usado|%1 de %2 espaços usados
+%1 pinned %2 to this channel. See all %3.	%1 fixou %2 neste canal. Veja todas as %3.
+%1 reacted with %2	%1 reagiu com %2
+%1 removed %2 from the group.	%1 removeu %2 do grupo.
+%1 renewed %2 and has been a subscriber of %3 for %4 month!|%1 renewed %2 and has been a subscriber of %3 for %4 months!	%1 renovou %2 e é assinante de %3 há %4 mês!|%1 renovou %2 e é assinante de %3 há %4 meses!
+%1 renewed %2 in their %3 membership!	%1 renovou %2 na assinatura de %3!
+%1 reported a raid in %2.	%1 relatou uma invasão em %2.
+%1 requested to speak.	%1 pediu para falar.
+%1 resolved an Activity Alert in %2.	%1 resolveu um Alerta de Atividade em %2.
+%1 said %2	%1 disse %2
+%1 started %2	%1 iniciou %2
+%1 started a call that lasted %2.	%1 iniciou uma chamada que durou %2.
+%1 started a thread: %2. See all %3.	%1 iniciou um tópico: %2. Veja todos os %3.
+%1 unbanned %2	%1 revogou o banimento de %2
+%1 updated %2	%1 atualizou %2
+%1 updated a channel	%1 atualizou um canal
+%1 updated a role	%1 atualizou um cargo
+%1 updated a webhook	%1 atualizou um webhook
+%1 updated an emoji	%1 atualizou um emoji
+%1 updated the roles of %2	%1 atualizou os cargos de %2
+%1 updated the server	%1 atualizou o servidor
+%1 vote · %2|%1 votes · %2	%1 voto · %2|%1 votos · %2
+%1 wants to make you the owner of %2. You'll be able to manage everything about it, and they'll stay a member.	%1 quer tornar você dono de %2. Você poderá gerenciar tudo nele, e a pessoa continuará como membro.
+%1's poll %2 has closed.	A enquete %2 de %1 foi encerrada.
+%1, %2 and %3	%1, %2 e %3
+%1, %2 at %3	%1, %2 às %3
+%1, %2, and %3 are typing...	%1, %2 e %3 estão digitando...
+%1: %2	%1: %2
+%: a number	%: um número
+%: a whole number	%: um número inteiro
+%: pick a channel	%: escolha um canal
+%: pick a member	%: escolha um membro
+%: pick a role	%: escolha um cargo
+%: true or false	%: verdadeiro ou falso
+%d ago	há %d
+%d left	faltam %d
+%h	%h
+%h ago	há %h
+%h left	faltam %h
+%m	%min
+%m ago	há %min
+%m left	faltam %min
+%mo ago	há %mês
+%s	%s
+(edited)	(editado)
+/% takes no options.	/% não aceita opções.
+/%1 needs %2:	/%1 precisa de %2:
+1 Day	1 dia
+1 Hour	1 hora
+1 Message	1 mensagem
+1 Week	1 semana
+1 day	1 dia
+1 hour	1 hora
+1 minute	1 minuto
+1 use	1 uso
+1 week	1 semana
+10 Minutes	10 minutos
+10 minutes	10 minutos
+10 uses	10 usos
+100 uses	100 usos
+12 hours	12 horas
+12-hour	12 horas
+15 minutes	15 minutos
+2 hours	2 horas
+2 to 4 letters or numbers	2 a 4 letras ou números
+2 weeks	2 semanas
+24 Hours	24 horas
+24 hours	24 horas
+24-hour	24 horas
+25 uses	25 usos
+3 Days	3 dias
+3 days	3 dias
+30 days	30 dias
+30 minutes	30 minutos
+3:00 PM	15:00
+4 hours	4 horas
+5 Minutes	5 minutos
+5 minutes	5 minutos
+5 uses	5 usos
+50 uses	50 usos
+6 hours	6 horas
+6-digit authentication code	Código de autenticação de 6 dígitos
+60 Seconds	60 segundos
+60 seconds	60 segundos
+7 days	7 dias
+8 hours	8 horas
+8-digit backup code	Código de backup de 8 dígitos
+@ OFF	@ OFF
+@ ON	@ ON
+@MENTIONS	@MENÇÕES
+@everyone · applies to all server members	@everyone · vale para todos os membros do servidor
+A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button.	Uma tecla com Ctrl, Alt, Shift ou Cmd, um modificador sozinho, ou o botão do meio ou lateral do mouse.
+A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button. Works in every app.	Uma tecla com Ctrl, Alt, Shift ou Cmd, um modificador sozinho, ou o botão do meio ou lateral do mouse. Funciona em qualquer app.
+A role needs a name.	Um cargo precisa de um nome.
+A webhook needs a name.	Um webhook precisa de um nome.
+A wild % appeared.	Um % selvagem apareceu.
+ACTION	AÇÃO
+ACTIVE INVITE LINKS	LINKS DE CONVITE ATIVOS
+ALL	TODOS
+ALL THE BITS! Going above 64 kbps may adversely affect people on poor connections.	TODOS OS BITS! Passar de 64 kbps pode prejudicar quem tem conexão ruim.
+AM	AM
+ANIMATED EMOJI — % SLOTS AVAILABLE	EMOJIS ANIMADOS — % ESPAÇOS DISPONÍVEIS
+APP	APP
+AUDIENCE — %	PÚBLICO — %
+AUTHENTICATOR APP	APP AUTENTICADOR
+About Me	Sobre mim
+Accept	Aceitar
+Accept Friend Request	Aceitar pedido de amizade
+Accept Invite	Aceitar convite
+Accept Server Ownership	Aceitar posse do servidor
+Accept this message request (Friends, Message Requests) to reply.	Aceite esta solicitação de mensagem (Amigos, Solicitações de mensagem) para responder.
+Accepting...	Aceitando...
+Access	Acesso
+Accessibility	Acessibilidade
+Account	Conta
+Account Removal	Remoção da conta
+Activate	Ativar
+Active	Ativo
+Active Now	Ativo agora
+Activities	Atividades
+Activity Joining	Entrar em atividades
+Activity Privacy	Privacidade de atividade
+Activity Status	Status de atividade
+Add Answer	Adicionar resposta
+Add Emoji	Adicionar emoji
+Add Friend	Adicionar amigo
+Add Friend Nickname	Adicionar apelido de amigo
+Add Note	Adicionar nota
+Add Reaction	Adicionar reação
+Add Reactions	Adicionar reações
+Add Tag	Adicionar tag
+Add a Keybind	Adicionar atalho
+Add a Question	Adicionar pergunta
+Add a channel	Adicionar um canal
+Add a channel to override its default notification settings	Adicione um canal para substituir as configurações de notificação padrão
+Add a description	Adicione uma descrição
+Add a location, link, or something.	Adicione um local, link ou algo assim.
+Add a role	Adicionar um cargo
+Add an Account	Adicionar uma conta
+Add an optional message...	Adicione uma mensagem opcional...
+Add another answer	Adicionar outra resposta
+Add at least one word to block.	Adicione pelo menos uma palavra para bloquear.
+Add members or roles	Adicionar membros ou cargos
+Add this channel's updates to your server!	Adicione as atualizações deste canal ao seu servidor!
+Add this key to an authenticator app, then enter the code it shows.	Adicione esta chave a um app autenticador e digite o código que ele mostrar.
+Add to Favorites	Adicionar aos favoritos
+Add to Group DM	Adicionar à MD em grupo
+Add up to 5 traits to show off your server's interests and personality.	Adicione até 5 características para mostrar os interesses e a personalidade do seu servidor.
+Add up to 50 custom emoji that anyone can use in this server. Animated GIF emoji may be used by members with Discord Nitro. Emoji names must be at least 2 characters long and can only contain alphanumeric characters and underscores. Emoji must be under 256 KB in size.	Adicione até 50 emojis personalizados que qualquer pessoa pode usar neste servidor. Emojis animados em GIF podem ser usados por membros com Discord Nitro. Os nomes dos emojis precisam ter pelo menos 2 caracteres e só podem conter caracteres alfanuméricos e sublinhados. Os emojis precisam ter menos de 256 KB.
+Add your pronouns	Adicione seus pronomes
+Added %	% adicionado
+Adjust the size of the interface. You can also change this with % +/-.	Ajuste o tamanho da interface. Você também pode mudar isso com % +/-.
+Administrator	Administrador
+Advanced Permissions	Permissões avançadas
+Advanced permissions	Permissões avançadas
+Age-Restricted Channel	Canal com restrição de idade
+All	Todos
+All Actions	Todas as ações
+All Messages	Todas as mensagens
+All Users	Todos os usuários
+All friends	Todos os amigos
+All messages will be filtered for sensitive image-based media.	Todas as mensagens serão filtradas em busca de mídia sensível em imagens.
+All set. Now share your event!	Tudo pronto. Agora compartilhe seu evento!
+Allow DMs from other members in servers	Permitir MDs de outros membros nos servidores
+Allow Discord to use and process my information to understand and improve Discord's services.	Permitir que o Discord use e processe minhas informações para entender e melhorar os serviços do Discord.
+Allow Friend Requests from...	Permitir pedidos de amizade de...
+Allow Multiple Answers	Permitir várias respostas
+Allow anyone to @mention this role	Permitir que qualquer pessoa @mencione este cargo
+Allow direct messages from other members in this server.	Permitir mensagens diretas de outros membros neste servidor.
+Allow friends to join your game	Permitir que amigos entrem no seu jogo
+Allow members to change this server's name, switch regions, view all invites, add apps to this server and create and update AutoMod rules.	Permite que membros alterem o nome deste servidor, troquem de região, vejam todos os convites, adicionem apps a este servidor e criem e atualizem regras do AutoMod.
+Allow members to create invite-only threads.	Permite que membros criem tópicos só para convidados.
+Allow members to create threads that everyone in a channel can view.	Permite que membros criem tópicos que todos no canal podem ver.
+Allow members to send messages in text channels and create posts in forum channels.	Permite que membros enviem mensagens em canais de texto e criem publicações em canais de fórum.
+Allow members to send messages in threads and in posts on forum channels.	Permite que membros enviem mensagens em tópicos e em publicações de canais de fórum.
+Allow message requests from server members you may not know	Permitir solicitações de mensagem de membros de servidores que você talvez não conheça
+Allow voice channel participants to join your game	Permitir que participantes do canal de voz entrem no seu jogo
+Allowed words	Palavras permitidas
+Allows apps that members have added to their account to post messages. When disabled, the messages will be private.	Permite que apps adicionados pelos membros às suas contas publiquem mensagens. Quando desativado, as mensagens serão privadas.
+Allows links that members share to show embedded content in text channels.	Permite que links compartilhados por membros mostrem conteúdo incorporado em canais de texto.
+Allows members to add custom emoji, stickers, and sounds in this server.	Permite que membros adicionem emojis, figurinhas e sons personalizados neste servidor.
+Allows members to add new emoji reactions to a message. If this permission is disabled, members can still react using any existing reactions on a message.	Permite que membros adicionem novas reações com emoji a uma mensagem. Se esta permissão estiver desativada, os membros ainda podem reagir usando as reações que já estão na mensagem.
+Allows members to be more easily heard in voice channels. When activated, the volume of others without this permission will be automatically lowered.	Permite que membros sejam ouvidos com mais facilidade em canais de voz. Quando ativado, o volume de quem não tem esta permissão será reduzido automaticamente.
+Allows members to change the nicknames of other members.	Permite que membros alterem os apelidos de outros membros.
+Allows members to change their own nickname, a custom name for just this server.	Permite que membros alterem o próprio apelido, um nome personalizado só para este servidor.
+Allows members to change this channel's name, description, and settings. They can also delete it.	Permite que membros alterem o nome, a descrição e as configurações deste canal. Eles também podem excluí-lo.
+Allows members to change this channel's permissions.	Permite que membros alterem as permissões deste canal.
+Allows members to create and edit voice channel status.	Permite que membros criem e editem o status do canal de voz.
+Allows members to create events.	Permite que membros criem eventos.
+Allows members to create new roles and edit or delete roles lower than their highest role. Also allows members to change permissions of individual channels that they have access to.	Permite que membros criem novos cargos e editem ou excluam cargos abaixo do seu cargo mais alto. Também permite que membros alterem as permissões de canais individuais aos quais têm acesso.
+Allows members to create polls.	Permite que membros criem enquetes.
+Allows members to create, edit, or delete channels.	Permite que membros criem, editem ou excluam canais.
+Allows members to create, edit, or delete webhooks, which can post messages from other apps or sites into this server.	Permite que membros criem, editem ou excluam webhooks, que podem publicar mensagens de outros apps ou sites neste servidor.
+Allows members to deafen other members in voice channels, which means they won't be able to speak or hear others.	Permite que membros ensurdeçam outros membros em canais de voz, ou seja, eles não poderão falar nem ouvir os outros.
+Allows members to delete or remove embeds from messages by other members.	Permite que membros excluam ou removam incorporações de mensagens de outros membros.
+Allows members to disconnect or move other members between voice channels that the member with this permission has access to.	Permite que membros desconectem ou movam outros membros entre os canais de voz aos quais o membro com esta permissão tem acesso.
+Allows members to edit and cancel events.	Permite que membros editem e cancelem eventos.
+Allows members to edit or remove custom emoji, stickers, and sounds in this server.	Permite que membros editem ou removam emojis, figurinhas e sons personalizados neste servidor.
+Allows members to invite new people to this server.	Permite que membros convidem novas pessoas para este servidor.
+Allows members to join voice channels and hear others.	Permite que membros entrem em canais de voz e ouçam os outros.
+Allows members to mute other members in voice channels for everyone.	Permite que membros silenciem outros membros em canais de voz para todos.
+Allows members to permanently ban and delete the message history of other members from this server.	Permite que membros banam permanentemente outros membros deste servidor e excluam o histórico de mensagens deles.
+Allows members to pin or unpin any message.	Permite que membros fixem ou desafixem qualquer mensagem.
+Allows members to read previous messages sent in channels. If this permission is disabled, members only see messages sent when they are online. This does not fully apply to threads and forum posts.	Permite que membros leiam mensagens anteriores enviadas nos canais. Se esta permissão estiver desativada, os membros só verão as mensagens enviadas enquanto estiverem online. Isso não vale totalmente para tópicos e publicações de fórum.
+Allows members to remove other members from this server. Kicked members will be able to rejoin if they have another invite.	Permite que membros removam outros membros deste servidor. Membros expulsos poderão voltar se tiverem outro convite.
+Allows members to rename, delete, close, and turn on slow mode for threads and posts. They can also view private threads.	Permite que membros renomeiem, excluam, fechem e ativem o modo lento em tópicos e publicações. Eles também podem ver tópicos privados.
+Allows members to send messages without being affected by slowmode.	Permite que membros enviem mensagens sem serem afetados pelo modo lento.
+Allows members to send sounds from server soundboard.	Permite que membros enviem sons do painel de sons do servidor.
+Allows members to send text-to-speech messages by starting a message with /tts. These messages can be heard by anyone focused on the channel.	Permite que membros enviem mensagens de texto para voz começando a mensagem com /tts. Essas mensagens podem ser ouvidas por qualquer pessoa com o canal em foco.
+Allows members to send voice messages.	Permite que membros enviem mensagens de voz.
+Allows members to share their video, screen share, or stream a game in this server.	Permite que membros compartilhem vídeo, compartilhem a tela ou transmitam um jogo neste servidor.
+Allows members to speak in voice channels by simply talking. If this permission is disabled, members are required to use Push-to-talk. Good for controlling background noise or noisy members.	Permite que membros falem em canais de voz só falando. Se esta permissão estiver desativada, os membros precisam usar o Pressionar para falar. Bom para controlar ruído de fundo ou membros barulhentos.
+Allows members to talk in voice channels. If this permission is disabled, members are default muted until somebody with the "Mute Members" permission un-mutes them.	Permite que membros falem em canais de voz. Se esta permissão estiver desativada, os membros ficam silenciados por padrão até alguém com a permissão "Silenciar membros" tirar o silêncio deles.
+Allows members to upload files or media in text channels.	Permite que membros enviem arquivos ou mídia em canais de texto.
+Allows members to use @everyone (everyone in the server) or @here (only online members in that channel). They can also @mention all roles, even if the role's "Allow anyone to mention this role" permission is disabled.	Permite que membros usem @everyone (todos no servidor) ou @here (só os membros online naquele canal). Eles também podem @mencionar todos os cargos, mesmo que a permissão "Permitir que qualquer pessoa mencione este cargo" esteja desativada.
+Allows members to use commands from applications, including slash commands and context menu commands.	Permite que membros usem comandos de aplicativos, incluindo comandos de barra e comandos do menu de contexto.
+Allows members to use emoji from other servers, if they're a Discord Nitro member.	Permite que membros usem emojis de outros servidores, se forem membros do Discord Nitro.
+Allows members to use sounds from other servers, if they're a Discord Nitro member.	Permite que membros usem sons de outros servidores, se forem membros do Discord Nitro.
+Allows members to use stickers from other servers, if they're a Discord Nitro member.	Permite que membros usem figurinhas de outros servidores, se forem membros do Discord Nitro.
+Allows members to view Server Insights, which shows data on community growth, engagement, and more. This will allow them to see certain data about channel activity, even for channels they cannot access.	Permite que membros vejam o Insights do Servidor, que mostra dados de crescimento e engajamento da comunidade, entre outros. Isso permite que eles vejam certos dados sobre a atividade dos canais, mesmo de canais aos quais não têm acesso.
+Allows members to view a record of who made which changes in this server.	Permite que membros vejam um registro de quem fez quais alterações neste servidor.
+Allows members to view channels by default (excluding private channels).	Permite que membros vejam canais por padrão (exceto canais privados).
+Allows members to view these channels by default. Disabling this for @everyone will make the category private.	Permite que membros vejam estes canais por padrão. Desativar isso para @everyone tornará a categoria privada.
+Allows members to view this channel by default. Disabling this for @everyone will make this channel private.	Permite que membros vejam este canal por padrão. Desativar isso para @everyone tornará este canal privado.
+Always	Sempre
+An emoji name, like smile	Um nome de emoji, como smile
+An encrypted file couldn't be opened.|% encrypted files couldn't be opened.	Não foi possível abrir um arquivo criptografado.|Não foi possível abrir % arquivos criptografados.
+An error occurred, please try again.	Ocorreu um erro, tente novamente.
+An error occurred. Please try again.	Ocorreu um erro. Tente novamente.
+Announcement	Anúncio
+Announcement Channel	Canal de anúncios
+Answer	Resposta
+Answers	Respostas
+Anyone can join your server directly through Server Discovery	Qualquer pessoa pode entrar no seu servidor diretamente pela Descoberta de Servidores
+Anyone can use	Qualquer pessoa pode usar
+Anyone with access to this text channel will be able to see the notifications.	Qualquer pessoa com acesso a este canal de texto poderá ver as notificações.
+App Directory	Diretório de Apps
+Appearance	Aparência
+Appends (╯°□°)╯︵ ┻━┻ to your message.	Adiciona (╯°□°)╯︵ ┻━┻ à sua mensagem.
+Appends ¯\\_(ツ)_/¯ to your message.	Adiciona ¯\\_(ツ)_/¯ à sua mensagem.
+Appends ┬─┬ノ( º _ ºノ) to your message.	Adiciona ┬─┬ノ( º _ ºノ) à sua mensagem.
+Applications	Aplicativos
+Apply to Join	Inscrever-se para entrar
+Approve	Aprovar
+Apps	Apps
+Apps Permissions	Permissões de apps
+Archived	Arquivado
+Archived Threads	Tópicos arquivados
+Are you building a Community? Convert to a Community Server to access additional administrative tools that can help you moderate, run, and grow your server.	Você está criando uma comunidade? Converta para um Servidor de Comunidade e tenha acesso a ferramentas de administração extras que ajudam a moderar, gerenciar e fazer seu servidor crescer.
+Are you sure that you want to delete your account? This will immediately log you out of your account and you will not be able to log in again.	Tem certeza de que quer excluir sua conta? Você será desconectado imediatamente e não poderá entrar de novo.
+Are you sure that you want to disable your account? This will immediately log you out and make your account inaccessible to anyone.	Tem certeza de que quer desativar sua conta? Você será desconectado imediatamente e sua conta ficará inacessível para todos.
+Are you sure you want to ban @%1 from %2? They won't be able to come back until the ban is lifted.	Tem certeza de que quer banir @%1 de %2? A pessoa não poderá voltar até que o banimento seja revogado.
+Are you sure you want to delete %? This action cannot be undone.	Tem certeza de que quer excluir %? Esta ação não pode ser desfeita.
+Are you sure you want to delete %? This cannot be undone.	Tem certeza de que quer excluir %? Isso não pode ser desfeito.
+Are you sure you want to delete :%:? This cannot be undone.	Tem certeza de que quer excluir :%:? Isso não pode ser desfeito.
+Are you sure you want to delete the rule %? This cannot be undone.	Tem certeza de que quer excluir a regra %? Isso não pode ser desfeito.
+Are you sure you want to delete this message?	Tem certeza de que quer excluir esta mensagem?
+Are you sure you want to delete this role? This action cannot be undone.	Tem certeza de que quer excluir este cargo? Esta ação não pode ser desfeita.
+Are you sure you want to delete this template? Its link will stop working.	Tem certeza de que quer excluir este modelo? O link dele vai parar de funcionar.
+Are you sure you want to kick @%1 from %2? They will be able to rejoin again with a new invite.	Tem certeza de que quer expulsar @%1 de %2? A pessoa poderá voltar com um novo convite.
+Are you sure you want to logout?	Tem certeza de que quer sair?
+Are you sure you want to remove all embeds on this message? This will remove them for everyone.	Tem certeza de que quer remover todas as incorporações desta mensagem? Elas serão removidas para todos.
+Are you sure you want to remove all of the reactions for this emoji from this message?	Tem certeza de que quer remover todas as reações deste emoji nesta mensagem?
+Are you sure you want to remove all the reactions on this message?	Tem certeza de que quer remover todas as reações desta mensagem?
+Are you sure you want to revoke the invite %? Nobody will be able to join with it.	Tem certeza de que quer revogar o convite %? Ninguém poderá entrar com ele.
+Ask for a new invite	Peça um novo convite
+Ask new members what they're here for; each answer gives them channels and roles.	Pergunte aos novos membros o que vieram fazer; cada resposta dá a eles canais e cargos.
+Attach Files	Anexar arquivos
+Attachment removed	Anexo removido
+Attachments	Anexos
+Audit Log	Registro de auditoria
+Authorized Apps	Apps autorizados
+Auto	Auto
+AutoMod	AutoMod
+Automatic	Automático
+Automatic Gain Control	Controle automático de ganho
+Automatically determine input sensitivity	Determinar automaticamente a sensibilidade de entrada
+Automatically enable Streamer Mode if OBS or XSplit are running	Ativar automaticamente o Modo Streamer se o OBS ou o XSplit estiverem em execução
+Automatically filter suspected spam messages	Filtrar automaticamente mensagens suspeitas de spam
+Automatically move members to this channel and mute them when they have been idle for longer than the inactive timeout. This does not affect browsers.	Move automaticamente os membros para este canal e os silencia quando ficam inativos por mais tempo que o limite de inatividade. Isso não afeta navegadores.
+Automatically open fastcord when your computer starts up	Abrir o fastcord automaticamente quando o computador ligar
+Automatically scan and delete messages sent in this server that contain explicit media.	Verificar e excluir automaticamente mensagens enviadas neste servidor que contenham mídia explícita.
+Avatar	Avatar
+BACK	VOLTAR
+BACKUP CODES	CÓDIGOS DE BACKUP
+Back	Voltar
+Back / forward	Voltar / avançar
+Backup codes can only be used one time each and are for emergency access to your account!	Os códigos de backup só podem ser usados uma vez cada e servem para acesso de emergência à sua conta!
+Backups	Backups
+Ban	Banir
+Ban %	Banir %
+Ban '%' from Server	Banir '%' do servidor
+Ban Member	Banir membro
+Ban Members	Banir membros
+Banner	Banner
+Banner Color	Cor do banner
+Bans	Banimentos
+Bitrate	Taxa de bits
+Block	Bloquear
+Block Commonly Flagged Words	Bloquear palavras sinalizadas com frequência
+Block Custom Words	Bloquear palavras personalizadas
+Block Mention Spam	Bloquear spam de menções
+Block Suspected Spam Content	Bloquear conteúdo suspeito de spam
+Block Words in Member Profile Names	Bloquear palavras em nomes de perfil de membros
+Block message	Bloquear mensagem
+Blocked	Bloqueados
+Blocked Users	Usuários bloqueados
+Blocked by your content filters	Bloqueado pelos seus filtros de conteúdo
+Blocked message	Mensagem bloqueada
+Blocked words	Palavras bloqueadas
+Blocked words in names	Palavras bloqueadas em nomes
+Blocks messages containing % word.|Blocks messages containing % words.	Bloqueia mensagens com % palavra.|Bloqueia mensagens com % palavras.
+Blocks messages suspected to be spam.	Bloqueia mensagens suspeitas de spam.
+Blocks messages with more than % mentions.	Bloqueia mensagens com mais de % menções.
+Blocks words from Discord's commonly flagged lists.	Bloqueia palavras das listas de termos mais sinalizados do Discord.
+Blocks words in member profile names.	Bloqueia palavras em nomes de perfil de membros.
+Blur	Desfocar
+Blur Background	Desfocar fundo
+Blur what's behind you on camera. Only your camera is changed.	Desfoca o que está atrás de você na câmera. Só a sua câmera muda.
+Bold / italic / underline	Negrito / itálico / sublinhado
+Bots and Apps	Bots e apps
+Browse	Explorar
+Browse Channels	Explorar canais
+Built-In	Integrado
+Bulgarian	Búlgaro
+By creating a server, you agree to Discord's Community Guidelines.	Ao criar um servidor, você concorda com as Diretrizes da Comunidade do Discord.
+By enabling the widget, your server profile will be visible to others outside of your server members. You can control Profile privacy in Server Settings > Profile.	Ao ativar o widget, o perfil do seu servidor ficará visível para pessoas de fora do servidor. Você pode controlar a privacidade do perfil em Configurações do servidor > Perfil.
+By making a category private, only select members and roles will be able to view this category. Linked channels in this category will automatically match to this setting.	Ao tornar uma categoria privada, só membros e cargos selecionados poderão ver esta categoria. Os canais sincronizados nesta categoria vão seguir essa configuração automaticamente.
+By making a channel private, only select members and roles will be able to view this channel.	Ao tornar um canal privado, só membros e cargos selecionados poderão ver este canal.
+By making a channel private, only select members and roles will have access to view or connect to this channel.	Ao tornar um canal privado, só membros e cargos selecionados poderão ver ou se conectar a este canal.
+Bypass Slowmode	Ignorar modo lento
+CHANNEL OR CATEGORY	CANAL OU CATEGORIA
+CONFIRM NEW PASSWORD	CONFIRMAR NOVA SENHA
+CURRENT PASSWORD	SENHA ATUAL
+Call	Ligar
+Cancel	Cancelar
+Cancel Event	Cancelar evento
+Cancel Friend Request	Cancelar pedido de amizade
+Careful — you have unsaved changes!	Cuidado — você tem alterações não salvas!
+Category Name	Nome da categoria
+Category deleted	Categoria excluída
+Change %	Alterar %
+Change Avatar	Alterar avatar
+Change Nickname	Alterar apelido
+Change Password	Alterar senha
+Change Server Icon	Alterar ícone do servidor
+Channel	Canal
+Channel Name	Nome do canal
+Channel Notification Overrides	Substituições de notificação do canal
+Channel Topic	Tópico do canal
+Channel Type	Tipo de canal
+Channel deleted	Canal excluído
+Channel unmuted	Canal com som reativado
+Channels	Canais
+Channels & Roles	Canais e cargos
+Channels Followed (%)	Canais seguidos (%)
+Channels matching #%	Canais com #%
+Chat	Bate-papo
+Chat Font Scaling	Escala da fonte do bate-papo
+Check your email for a login link	Confira seu e-mail para pegar o link de login
+Check your phone!	Confira seu celular!
+Checking the file…	Verificando o arquivo…
+Chinese, China	Chinês, China
+Chinese, Taiwan	Chinês, Taiwan
+Choose Image	Escolher imagem
+Choose a link people can use to join, discord.gg/<code>.	Escolha um link que as pessoas possam usar para entrar, discord.gg/<code>.
+Choose a server	Escolha um servidor
+Choose the language you want Discord to display.	Escolha o idioma em que você quer ver o Discord.
+Choose what happens to images and videos Discord detects as explicit.	Escolha o que acontece com imagens e vídeos que o Discord detecta como explícitos.
+Clear	Limpar
+Clear Custom Status	Limpar status personalizado
+Clear after	Limpar após
+Clear permissions	Limpar permissões
+Click Again to Reset	Clique de novo para redefinir
+Click any channel, then pick a request whose name starts with "messages" or "science".	Clique em qualquer canal e escolha uma requisição cujo nome comece com "messages" ou "science".
+Click to add a note	Clique para adicionar uma nota
+Click to see attachment	Clique para ver o anexo
+Close DM	Fechar MD
+Collapse	Recolher
+Collapse All Categories	Recolher todas as categorias
+Collapse Category	Recolher categoria
+Commands	Comandos
+Commands matching /%	Comandos com /%
+Community Overview	Visão geral da comunidade
+Community Updates Channel	Canal de atualizações da comunidade
+Community servers follow Discord's Community Guidelines.	Servidores de comunidade seguem as Diretrizes da Comunidade do Discord.
+Community servers have more tools to help you moderate and grow your server.	Servidores de comunidade têm mais ferramentas para ajudar a moderar e fazer seu servidor crescer.
+Compact	Compacto
+Compare	Comparar
+Compare these with %, in person or on a call. If they match, no one can read this DM in between.	Compare estes números com %, pessoalmente ou numa chamada. Se forem iguais, ninguém consegue ler esta MD no caminho.
+Configure system event messages sent to your server.	Configure as mensagens de eventos do sistema enviadas ao seu servidor.
+Confirm	Confirmar
+Confirm Request	Confirmar solicitação
+Confirm your age to join this server.	Confirme sua idade para entrar neste servidor.
+Confirming...	Confirmando...
+Connect	Conectar
+Connect these accounts and unlock special Discord integrations. The sign-in opens in your browser.	Conecte essas contas e desbloqueie integrações especiais do Discord. O login abre no seu navegador.
+Connected Apps	Apps conectados
+Connecting	Conectando
+Connecting...	Conectando...
+Connecting…	Conectando…
+Connection Info	Informações da conexão
+Connection lost. Messages may be out of date.	Conexão perdida. As mensagens podem estar desatualizadas.
+Connections	Conexões
+Content Filters	Filtros de conteúdo
+Continue	Continuar
+Control who can see your profile info, like your bio and connected accounts.	Controle quem pode ver as informações do seu perfil, como a bio e as contas conectadas.
+Copied	Copiado
+Copy	Copiar
+Copy Category ID	Copiar ID da categoria
+Copy Channel ID	Copiar ID do canal
+Copy Event Link	Copiar link do evento
+Copy Image	Copiar imagem
+Copy Image Link	Copiar link da imagem
+Copy Link	Copiar link
+Copy Media Link	Copiar link da mídia
+Copy Message ID	Copiar ID da mensagem
+Copy Message Link	Copiar link da mensagem
+Copy Server ID	Copiar ID do servidor
+Copy Text	Copiar texto
+Copy User ID	Copiar ID do usuário
+Copy Username	Copiar nome de usuário
+Copy Webhook URL	Copiar URL do webhook
+Copy curl Command	Copiar comando curl
+Copy the event link below to invite people to your event. This also acts as a server invite link.	Copie o link do evento abaixo para convidar pessoas para o seu evento. Ele também funciona como link de convite do servidor.
+Copy your account's token once from Discord in a web browser.	Copie o token da sua conta uma vez no Discord por um navegador.
+Couldn't accept encryption.	Não foi possível aceitar a criptografia.
+Couldn't cancel the event.	Não foi possível cancelar o evento.
+Couldn't change avatar	Não foi possível alterar o avatar
+Couldn't create an invite link.	Não foi possível criar um link de convite.
+Couldn't create an invite.	Não foi possível criar um convite.
+Couldn't delete the channel: %	Não foi possível excluir o canal: %
+Couldn't encrypt the message.	Não foi possível criptografar a mensagem.
+Couldn't join %: %	Não foi possível entrar em %: %
+Couldn't load onboarding.	Não foi possível carregar a integração.
+Couldn't load the AutoMod rules.	Não foi possível carregar as regras do AutoMod.
+Couldn't load the applications.	Não foi possível carregar os aplicativos.
+Couldn't load the audit log.	Não foi possível carregar o registro de auditoria.
+Couldn't load the bans.	Não foi possível carregar os banimentos.
+Couldn't load the invites.	Não foi possível carregar os convites.
+Couldn't load the members.	Não foi possível carregar os membros.
+Couldn't load the role's members.	Não foi possível carregar os membros do cargo.
+Couldn't load the server rules.	Não foi possível carregar as regras do servidor.
+Couldn't load the server's tag.	Não foi possível carregar a tag do servidor.
+Couldn't load the template.	Não foi possível carregar o modelo.
+Couldn't load the webhooks.	Não foi possível carregar os webhooks.
+Couldn't move the channel	Não foi possível mover o canal
+Couldn't play it here, so it opened in your browser.	Não foi possível reproduzir aqui, então abrimos no seu navegador.
+Couldn't reach %1: %2 Retrying.	Não foi possível conectar a %1: %2 Tentando de novo.
+Couldn't reach Discord. Check your connection and try again.	Não foi possível conectar ao Discord. Verifique sua conexão e tente novamente.
+Couldn't reach Discord. Try again.	Não foi possível conectar ao Discord. Tente novamente.
+Couldn't reach the server.	Não foi possível conectar ao servidor.
+Couldn't reach the server. Check your connection and try again.	Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.
+Couldn't save the file.	Não foi possível salvar o arquivo.
+Couldn't save the image.	Não foi possível salvar a imagem.
+Couldn't save the token.	Não foi possível salvar o token.
+Couldn't turn on encryption.	Não foi possível ativar a criptografia.
+Couldn't upload emoji	Não foi possível enviar o emoji
+Cozy	Confortável
+Create	Criar
+Create Category	Criar categoria
+Create Channel	Criar canal
+Create DM	Criar MD
+Create Emoji	Criar emoji
+Create Event	Criar evento
+Create Events	Criar eventos
+Create Expressions	Criar expressões
+Create Group DM	Criar MD em grupo
+Create Invite	Criar convite
+Create My Own	Criar o meu
+Create Poll	Criar enquete
+Create Polls	Criar enquetes
+Create Private Threads	Criar tópicos privados
+Create Public Threads	Criar tópicos públicos
+Create Role	Criar cargo
+Create Rule	Criar regra
+Create Thread	Criar tópico
+Create Webhook	Criar webhook
+Create Your Server	Crie seu servidor
+Create a poll	Criar uma enquete
+Create a space for organized discussions	Crie um espaço para discussões organizadas
+Create one for me	Crie um para mim
+Created by %	Criado por %
+Created on %1 by %2	Criado em %1 por %2
+Creating an invite link…	Criando um link de convite…
+Creating an invite...	Criando um convite...
+Creating...	Criando...
+Creating…	Criando…
+Creation Date	Data de criação
+Croatian	Croata
+Current Device	Dispositivo atual
+Custom Invite Link	Link de convite personalizado
+Customize Your Server	Personalize seu servidor
+Customize how your server appears in invite links and, if enabled, in Server Discovery and Announcement Channel messages	Personalize como seu servidor aparece nos links de convite e, se ativado, na Descoberta de Servidores e nas mensagens de canais de anúncios
+Customize your server with integrations. Manage webhooks, followed channels and apps.	Personalize seu servidor com integrações. Gerencie webhooks, canais seguidos e apps.
+Cut	Recortar
+Czech	Tcheco
+DAVE v%, % members	DAVE v%, % membros
+DEFAULT KEYBINDS	ATALHOS PADRÃO
+DM closed	MD fechada
+Danish	Dinamarquês
+Data & Privacy	Dados e privacidade
+Date	Data
+Deafen	Ensurdecer
+Deafen Members	Ensurdecer membros
+Deauthorize	Remover autorização
+Decline	Recusar
+Default	Padrão
+Default Channels	Canais padrão
+Default Layout	Layout padrão
+Default Notification Settings	Configurações de notificação padrão
+Default Permissions	Permissões padrão
+Default Sort Order	Ordem padrão
+Default Themes	Temas padrão
+Default notifications become Only @mentions.	As notificações padrão passam a ser Só @menções.
+Delete	Excluir
+Delete '%'	Excluir '%'
+Delete Account	Excluir conta
+Delete Category	Excluir categoria
+Delete Channel	Excluir canal
+Delete Emoji	Excluir emoji
+Delete Invite	Excluir convite
+Delete Message	Excluir mensagem
+Delete Message History	Excluir histórico de mensagens
+Delete Question	Excluir pergunta
+Delete Role	Excluir cargo
+Delete Rule	Excluir regra
+Delete Server	Excluir servidor
+Delete Sticker	Excluir figurinha
+Delete Template	Excluir modelo
+Delete Thread	Excluir tópico
+Delete Webhook	Excluir webhook
+Deleted message	Mensagem excluída
+Describe your sticker	Descreva sua figurinha
+Description	Descrição
+Description (alt text)	Descrição (texto alternativo)
+Description (optional)	Descrição (opcional)
+Detects a burst of mention spam across the server and locks it down.	Detecta uma onda de spam de menções no servidor e bloqueia o servidor.
+Developer	Desenvolvedor
+Developer Mode	Modo desenvolvedor
+Developer Mode exposes context menu items helpful for people writing apps using the Discord API.	O Modo desenvolvedor mostra itens no menu de contexto úteis para quem cria apps com a API do Discord.
+Devices	Dispositivos
+Direct Message (DM) Permissions	Permissões de mensagens diretas (MD)
+Direct Messages	Mensagens diretas
+Direct messages from friends	Mensagens diretas de amigos
+Direct messages from others	Mensagens diretas de outras pessoas
+Disable	Desativar
+Disable Account	Desativar conta
+Disable All Notification Sounds	Desativar todos os sons de notificação
+Disable Community	Desativar Comunidade
+Disable all notifications	Desativar todas as notificações
+Disable all sound effects	Desativar todos os efeitos sonoros
+Disabling your account means you can recover it at any time after taking this action.	Desativar sua conta significa que você pode recuperá-la a qualquer momento depois desta ação.
+Disconnect	Desconectar
+Disconnect From Voice Channel	Desconectar do canal de voz
+Disconnected	Desconectado
+Discord account	Conta do Discord
+Discord asked for a captcha, which fastcord can't show. Log in with the QR code instead.	O Discord pediu um captcha, que o fastcord não consegue mostrar. Entre com o código QR.
+Discord asked for a captcha, which fastcord can't show. Try on discord.com.	O Discord pediu um captcha, que o fastcord não consegue mostrar. Tente em discord.com.
+Discord can filter out some messages that contain spam. These messages go to your Spam inbox.	O Discord pode filtrar algumas mensagens com spam. Essas mensagens vão para a sua caixa de Spam.
+Discord didn't accept the saved login. Log in again.	O Discord não aceitou o login salvo. Entre de novo.
+Discord failed to unpin that message for some reason. Sorry about that.	O Discord não conseguiu desafixar essa mensagem por algum motivo. Foi mal.
+Discord will prioritize this server in search to users who speak the selected language.	O Discord vai priorizar este servidor nas buscas para usuários que falam o idioma selecionado.
+Discord's terms don't allow third-party clients, so using one can get an account flagged.	Os termos do Discord não permitem clientes de terceiros, então usar um pode fazer a conta ser sinalizada.
+Discoverable	Descobrível
+Dismiss	Dispensar
+Dismiss message	Dispensar mensagem
+Display	Exibição
+Display Images, Videos and Lolcats	Exibir imagens, vídeos e lolcats
+Display Name	Nome de exibição
+Display name	Nome de exibição
+Display on profile	Exibir no perfil
+Display role members separately from online members	Exibir membros com cargo separados dos membros online
+Displays text with emphasis.	Exibe texto com ênfase.
+Do Not Disturb	Não perturbe
+Do not filter	Não filtrar
+Do not filter direct messages	Não filtrar mensagens diretas
+Don't Delete Any	Não excluir nada
+Don't clear	Não limpar
+Don't show role colors	Não mostrar cores dos cargos
+Done	Concluído
+Download	Baixar
+Drop a file here, or browse	Solte um arquivo aqui ou procure
+Duration	Duração
+Dutch	Holandês
+EDIT ROLE — %	EDITAR CARGO — %
+EMAIL OR PHONE NUMBER	E-MAIL OU NÚMERO DE TELEFONE
+EMOJI MATCHING	EMOJIS CORRESPONDENTES
+ENTER THE 6-DIGIT CODE	DIGITE O CÓDIGO DE 6 DÍGITOS
+EXPIRE AFTER	EXPIRAR APÓS
+EXPIRES	EXPIRA
+Ease the chat and lists toward where you scroll. Off, they jump there at once (always, when your device asks for reduced motion).	Desliza o bate-papo e as listas suavemente até onde você rola. Desativado, eles pulam direto para lá (sempre, quando o dispositivo pede movimento reduzido).
+Echo Cancellation	Cancelamento de eco
+Edit	Editar
+Edit Category	Editar categoria
+Edit Channel	Editar canal
+Edit Friend Nickname	Editar apelido de amigo
+Edit Message	Editar mensagem
+Edit Per-server Profile	Editar perfil por servidor
+Edit Profile	Editar perfil
+Edit Profiles	Editar perfis
+Edit Sound	Editar som
+Edit Thread	Editar tópico
+Edit User Profile	Editar perfil de usuário
+Edit invite link.	Editar link de convite.
+Edit your last message	Editar sua última mensagem
+Email	E-mail
+Embed Links	Inserir links
+Embed an HTML widget on your website to display your online members, voice channels, and invite link.	Incorpore um widget HTML no seu site para exibir seus membros online, canais de voz e link de convite.
+Emoji	Emoji
+Emoji / GIF / sticker picker	Seletor de emoji / GIF / figurinha
+Enable Authenticator App	Ativar app autenticador
+Enable Community	Ativar Comunidade
+Enable Community to access Server Discovery	Ative a Comunidade para acessar a Descoberta de Servidores
+Enable Desktop Notifications	Ativar notificações na área de trabalho
+Enable Invites	Ativar convites
+Enable Onboarding	Ativar integração
+Enable Reduced Motion	Ativar movimento reduzido
+Enable Server Widget	Ativar widget do servidor
+Enable Streamer Mode	Ativar Modo Streamer
+Enable Unread Message Badge	Ativar indicador de mensagens não lidas
+Encrypt this DM	Criptografar esta MD
+Encrypted message	Mensagem criptografada
+Encrypted messages are limited to % bytes for now.	Por enquanto, mensagens criptografadas são limitadas a % bytes.
+End Date	Data de término
+End Event	Encerrar evento
+End Poll Now	Encerrar enquete agora
+End Time	Horário de término
+End-to-end encrypted	Criptografado de ponta a ponta
+End-to-end encryption	Criptografia de ponta a ponta
+Engagement	Engajamento
+English, UK	Inglês, Reino Unido
+English, USA	Inglês, EUA
+Enter Discord Auth Code	Digite o código de autenticação do Discord
+Enter Discord Backup Code	Digite o código de backup do Discord
+Enter a location	Digite um local
+Enter a message to start the conversation!	Digite uma mensagem para começar a conversa!
+Enter an invite below to join an existing server	Digite um convite abaixo para entrar em um servidor existente
+Enter server name	Digite o nome do servidor
+Enter your current password and a new password.	Digite sua senha atual e uma nova senha.
+Error	Erro
+Est. %	Aprox. %
+Event Info	Informações do evento
+Event Topic	Tema do evento
+Event cancelled	Evento cancelado
+Event is over	O evento terminou
+Events	Eventos
+Events Permissions	Permissões de eventos
+Every answer needs a title.	Toda resposta precisa de um título.
+Every question needs a title and at least one answer.	Toda pergunta precisa de um título e pelo menos uma resposta.
+Everyone	Todos
+Everyone in this channel connects to the selected region. Automatic picks the best one for whoever starts the call.	Todos neste canal se conectam à região selecionada. Automático escolhe a melhor para quem iniciar a chamada.
+Everyone welcome %!	Todos, deem boas-vindas a %!
+Everyone who joins sees these channels, whatever they answer.	Todos que entram veem estes canais, seja qual for a resposta.
+Exempt a channel	Isentar um canal
+Exempt a role	Isentar um cargo
+Exemptions	Isenções
+Expand (% lines)	Expandir (% linhas)
+Expand (% of % lines)	Expandir (% de % linhas)
+Expired	Expirado
+Explicit image filter	Filtro de imagens explícitas
+Expression	Expressão
+FRAME RATE	TAXA DE QUADROS
+Failed to follow the channel, please try again.	Não foi possível seguir o canal, tente novamente.
+Fastcord couldn't be installed.	Não foi possível instalar o fastcord.
+Favorites	Favoritos
+File	Arquivo
+File saved.	Arquivo salvo.
+Filename	Nome do arquivo
+Fill out the details of your event.	Preencha os detalhes do seu evento.
+Filter by Action	Filtrar por ação
+Filter by User	Filtrar por usuário
+Filter direct messages from everyone	Filtrar mensagens diretas de todos
+Filter direct messages from non-friends	Filtrar mensagens diretas de quem não é amigo
+Filter messages from all members	Filtrar mensagens de todos os membros
+Filter messages from server members without roles	Filtrar mensagens de membros do servidor sem cargos
+Find or start a conversation	Encontre ou comece uma conversa
+Find the perfect emoji	Encontre o emoji perfeito
+Find the perfect reaction	Encontre a reação perfeita
+Find the perfect sticker	Encontre a figurinha perfeita
+Finding the video%	Procurando o vídeo%
+Finish	Concluir
+Finishing touches	Toques finais
+Finnish	Finlandês
+Fit more messages on screen at one time. #IRC	Mostra mais mensagens na tela de uma vez. #IRC
+Flagged as spam	Marcada como spam
+Flags	Sinalizações
+Folder Color	Cor da pasta
+Folder Name	Nome da pasta
+Folder Settings	Configurações da pasta
+Folder removed	Pasta removida
+Follow	Seguir
+Followed!	Seguindo!
+Food & Drink	Comida e bebida
+For 1 Hour	Por 1 hora
+For 15 Minutes	Por 15 minutos
+For 24 Hours	Por 24 horas
+For 3 Days	Por 3 dias
+For 3 Hours	Por 3 horas
+For 8 Hours	Por 8 horas
+Forever	Para sempre
+Forgot your password?	Esqueceu sua senha?
+Forum	Fórum
+Forward	Encaminhar
+Forward To	Encaminhar para
+Forwarded	Encaminhada
+French	Francês
+Frequently Used	Usados com frequência
+Friend Nickname	Apelido de amigo
+Friend Request Permissions	Permissões de pedidos de amizade
+Friend Request Sent	Pedido de amizade enviado
+Friend removed	Amigo removido
+Friend request cancelled	Pedido de amizade cancelado
+Friend request ignored	Pedido de amizade ignorado
+Friends	Amigos
+Friends & All Servers	Amigos e todos os servidores
+Friends & Small Servers Only	Só amigos e servidores pequenos
+Friends Only	Só amigos
+Friends can ask to join or join the game you're playing.	Amigos podem pedir para entrar ou entrar no jogo que você está jogando.
+Friends come online	Amigos ficam online
+Friends of friends	Amigos de amigos
+From User	Do usuário
+GIFs	GIFs
+GIFs can't be sent encrypted yet.	Ainda não dá para enviar GIFs criptografados.
+Gallery view	Visualização em galeria
+General	Geral
+General Category Permissions	Permissões gerais da categoria
+General Channel Permissions	Permissões gerais do canal
+General Server Permissions	Permissões gerais do servidor
+Generate Template	Gerar modelo
+Generate a New Link	Gerar um novo link
+German	Alemão
+Get a copy of your data. It can take up to 30 days to prepare, and a download link is emailed to you when it's ready.	Receba uma cópia dos seus dados. A preparação pode levar até 30 dias, e um link para baixar é enviado por e-mail quando estiver pronto.
+Give new members a quick way to find the channels and roles that matter to them.	Dê aos novos membros um jeito rápido de encontrar os canais e cargos que importam para eles.
+Give your new server a personality with a name. You can always change it later.	Dê personalidade ao seu novo servidor com um nome. Você pode mudar depois quando quiser.
+Glad you're here, %.	Que bom que você está aqui, %.
+Go Back	Voltar
+Go To Channel	Ir para o canal
+Go back	Voltar
+Go forward	Avançar
+Go to Server	Ir para o servidor
+Good to see you, %.	Que bom te ver, %.
+Got It	Entendi
+Grant temporary membership	Conceder associação temporária
+Greek	Grego
+Hang out together with voice, video, and screen share	Fiquem juntos com voz, vídeo e compartilhamento de tela
+Hang out with voice, video, screenshare, and Go Live.	Fiquem juntos com voz, vídeo, compartilhamento de tela e Transmitir ao vivo.
+Happening Now	Acontecendo agora
+Have an invite already?	Já tem um convite?
+Help	Ajuda
+Here's a preview of your event.	Esta é uma prévia do seu evento.
+Hey, just double checking that you want to pin this message to #% for posterity and greatness?	Ei, só para confirmar: você quer fixar esta mensagem em #% para a posteridade e a glória?
+Hey, just double checking that you want to pin this message to the current channel for posterity and greatness?	Ei, só para confirmar: você quer fixar esta mensagem no canal atual para a posteridade e a glória?
+Hide	Ocultar
+Hide After Inactivity	Ocultar após inatividade
+Hide Chat	Ocultar bate-papo
+Hide Fastcord window from screen capture	Ocultar a janela do fastcord da captura de tela
+Hide Muted Channels	Ocultar canais silenciados
+Hide invite links to my Discord servers	Ocultar links de convite para meus servidores do Discord
+Hide my personal information, such as email, connected accounts, and notes	Ocultar minhas informações pessoais, como e-mail, contas conectadas e notas
+Hides Fastcord windows from most screen capture software.	Oculta as janelas do fastcord da maioria dos programas de captura de tela.
+High	Alta
+Highest	Máxima
+Highlights provide occasional updates when your friends are chatting in busy servers, and more.	Os destaques trazem atualizações de vez em quando sobre conversas dos seus amigos em servidores movimentados, entre outras coisas.
+Hindi	Hindi
+History	Histórico
+Hitting X makes fastcord minimize to the system tray instead of closing.	Clicar no X minimiza o fastcord para a bandeja do sistema em vez de fechar.
+Hm, didn’t work. Double check that the username is correct.	Hmm, não funcionou. Confira se o nome de usuário está correto.
+Host	Anfitrião
+Host events with an audience	Organize eventos com público
+How Discord Uses My Data	Como o Discord usa meus dados
+How can people join your server?	Como as pessoas podem entrar no seu servidor?
+How did your server get started? Why should people join?	Como seu servidor começou? Por que as pessoas deveriam entrar?
+Hungarian	Húngaro
+I acknowledge that by transferring ownership of this server to %, it officially belongs to them.	Reconheço que, ao transferir a posse deste servidor para %, ele passa oficialmente a pertencer a essa pessoa.
+I agree and understand	Eu concordo e entendo
+I'm new here, say hi!	Sou novo aqui, diga oi!
+I'm sure, use a backup code	Tenho certeza, usar um código de backup
+IMAGE	IMAGEM
+INPUT DEVICE	DISPOSITIVO DE ENTRADA
+INPUT MODE	MODO DE ENTRADA
+INPUT SENSITIVITY	SENSIBILIDADE DE ENTRADA
+INPUT VOLUME	VOLUME DE ENTRADA
+INVITE CODE	CÓDIGO DO CONVITE
+INVITE LINK	LINK DE CONVITE
+INVITER	CONVIDADO POR
+INVITES SHOULD LOOK LIKE	OS CONVITES DEVEM FICAR ASSIM
+Icon	Ícone
+Idle	Ausente
+If Streamer Mode is enabled...	Se o Modo Streamer estiver ativado...
+If you do not have access to any other methods, the button below will activate in % second.|If you do not have access to any other methods, the button below will activate in % seconds.	Se você não tiver acesso a nenhum outro método, o botão abaixo será ativado em % segundo.|Se você não tiver acesso a nenhum outro método, o botão abaixo será ativado em % segundos.
+If you do not have access to any other methods, use the other button below to proceed.	Se você não tiver acesso a nenhum outro método, use o outro botão abaixo para continuar.
+Ignore	Ignorar
+Ignore Friend Request	Ignorar pedido de amizade
+Ignored Users	Usuários ignorados
+Ignored message	Mensagem ignorada
+Image saved.	Imagem salva.
+Important updates for people in and out of the server	Atualizações importantes para pessoas dentro e fora do servidor
+In Channel	No canal
+Inactive Channel	Canal inativo
+Inactive Timeout	Tempo limite de inatividade
+Inbox	Caixa de entrada
+Incoming Call...	Recebendo chamada...
+Incoming Friend Request	Pedido de amizade recebido
+Indonesian	Indonésio
+Insert Timestamp	Inserir data e hora
+Install	Instalar
+Install Fastcord to open it from the Start menu.	Instale o fastcord para abri-lo pelo menu Iniciar.
+Installing…	Instalando…
+Instructions Sent	Instruções enviadas
+Insults and Slurs	Insultos e ofensas
+Integrations	Integrações
+Interested	Interessado
+Invalid Invite	Convite inválido
+Invalid date or time	Data ou hora inválida
+Invisible	Invisível
+Invite	Convidar
+Invite Channel	Canal do convite
+Invite Invalid	Convite inválido
+Invite Only	Só com convite
+Invite People	Convidar pessoas
+Invite friends to %	Convide amigos para %
+Invite to Server	Convidar para o servidor
+Invite to Speak	Convidar para falar
+Invites	Convites
+Invites are currently paused for this server. Please try again later.	Os convites deste servidor estão pausados no momento. Tente novamente mais tarde.
+Invites are paused: nobody can join with an invite link until they're enabled again.	Os convites estão pausados: ninguém pode entrar com um link de convite até eles serem reativados.
+It's quiet for now...	Está tudo quieto por enquanto...
+Italian	Italiano
+JOINED DISCORD	ENTROU NO DISCORD
+JSON API	API JSON
+January|February|March|April|May|June|July|August|September|October|November|December	janeiro|fevereiro|março|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro
+Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec	jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez
+Japanese	Japonês
+Jitter	Jitter
+Join	Entrar
+Join Call	Entrar na chamada
+Join Server	Entrar no servidor
+Join Thread	Entrar no tópico
+Join Voice	Entrar na voz
+Join a Server	Entrar em um servidor
+Join the call	Entrar na chamada
+Joined Threads	Tópicos que você segue
+Joining…	Entrando…
+Jump	Ir
+Jump To Present	Ir para o presente
+Jump to oldest unread message	Ir para a mensagem não lida mais antiga
+KEYBIND	ATALHO
+Keep Current Permissions	Manter permissões atuais
+Keep these somewhere safe. Each code signs you in once if you lose your authenticator app; they are shown only now.	Guarde estes códigos em um lugar seguro. Cada código faz login uma vez se você perder o app autenticador; eles só aparecem agora.
+Keep your server private, or open it up for more people to join.	Mantenha seu servidor privado ou abra para mais pessoas entrarem.
+Keybinds	Atalhos
+Keybinds only work while fastcord is focused. To use them in other apps, allow fastcord under Input Monitoring in System Settings, then restart fastcord.	Os atalhos só funcionam com o fastcord em foco. Para usá-los em outros apps, permita o fastcord em Monitoramento de Entrada nos Ajustes do Sistema e reinicie o fastcord.
+Keybinds only work while fastcord is focused: this desktop doesn't let apps see keys pressed in other windows.	Os atalhos só funcionam com o fastcord em foco: este desktop não deixa apps verem teclas pressionadas em outras janelas.
+Keybinds work in every app, also while fastcord is in the background.	Os atalhos funcionam em qualquer app, mesmo com o fastcord em segundo plano.
+Keyboard Shortcuts	Atalhos de teclado
+Keyboard shortcuts	Atalhos de teclado
+Keyword: %	Palavra-chave: %
+Kick	Expulsar
+Kick %	Expulsar %
+Kick '%' from Server	Expulsar '%' do servidor
+Kick Member	Expulsar membro
+Kick, Approve, and Reject Members	Expulsar, aprovar e rejeitar membros
+Korean	Coreano
+LIVE	AO VIVO
+Language	Idioma
+Language & Time	Idioma e hora
+Last sync: %	Última sincronização: %
+Leave Group	Sair do grupo
+Leave Server	Sair do servidor
+Leave Thread	Sair do tópico
+Leaving Discord	Saindo do Discord
+Left %	% saiu
+Let everyone know how to use this channel!	Diga a todos como usar este canal!
+Let's Check	Vamos conferir
+Level %!	Nível %!
+Limits	Limites
+Limits the number of users that can connect to this voice channel. Users with the Move Members permission ignore this limit and can move other users into the channel.	Limita o número de usuários que podem se conectar a este canal de voz. Usuários com a permissão Mover membros ignoram esse limite e podem mover outros usuários para o canal.
+Linked Roles	Cargos vinculados
+List view	Visualização em lista
+Lithuanian	Lituano
+Live Now	Ao vivo agora
+Loading sounds…	Carregando sons…
+Loading...	Carregando...
+Loading…	Carregando…
+Location	Local
+Log In	Entrar
+Log Out	Sair
+Log Out All Known Devices	Sair de todos os dispositivos conhecidos
+Log in	Entrar
+Log in to Discord in your web browser.	Entre no Discord pelo seu navegador.
+Log in with QR Code	Entrar com código QR
+Log in with a token	Entrar com um token
+Log out of all known devices	Sair de todos os dispositivos conhecidos
+Logged-in Devices	Dispositivos conectados
+Logging in as %	Entrando como %
+Logging in…	Entrando…
+Login or password is invalid.	Login ou senha inválidos.
+Looking for screens…	Procurando telas…
+Lotus Mode	Modo Lótus
+Low	Baixa
+Lower Hand	Baixar a mão
+MAX NUMBER OF USES	NÚMERO MÁXIMO DE USOS
+MEMBER SINCE	MEMBRO DESDE
+MEMBERS	MEMBROS
+MUTE	SILENCIAR
+Main Profile	Perfil principal
+Make a selection	Faça uma seleção
+Manage Accounts	Gerenciar contas
+Manage Channel	Gerenciar canal
+Manage Channels	Gerenciar canais
+Manage Events	Gerenciar eventos
+Manage Expressions	Gerenciar expressões
+Manage Members	Gerenciar membros
+Manage Messages	Gerenciar mensagens
+Manage Nicknames	Gerenciar apelidos
+Manage Permissions	Gerenciar permissões
+Manage Roles	Gerenciar cargos
+Manage Server	Gerenciar servidor
+Manage Threads and Posts	Gerenciar tópicos e publicações
+Manage Webhooks	Gerenciar webhooks
+Manage settings that help keep your server active.	Gerencie configurações que ajudam a manter seu servidor ativo.
+Mark All as Read	Marcar tudo como lido
+Mark As Read	Marcar como lido
+Mark Folder As Read	Marcar pasta como lida
+Mark Unread	Marcar como não lido
+Mark a message unread	Marcar uma mensagem como não lida
+Mark as Verified	Marcar como verificado
+Mark as spoiler	Marcar como spoiler
+Mark channel read	Marcar canal como lido
+Mark server read	Marcar servidor como lido
+Marked as read	Marcado como lido
+Marks your message as a spoiler.	Marca sua mensagem como spoiler.
+Match your device's light or dark mode.	Seguir o modo claro ou escuro do dispositivo.
+Max file size is % MB please.	O tamanho máximo do arquivo é % MB, por favor.
+Measuring	Medindo
+Medium	Média
+Member Since	Membro desde
+Members	Membros
+Members can pick more than one answer	Membros podem escolher mais de uma resposta
+Members can wear your server's tag next to their name across Discord.	Membros podem usar a tag do seu servidor ao lado do nome em todo o Discord.
+Members in timeout can't send messages, react, join voice or speak until it ends.	Membros de castigo não podem enviar mensagens, reagir, entrar na voz nem falar até o castigo acabar.
+Members in timeout can't send messages, react, join voice or start threads until it ends.	Membros de castigo não podem enviar mensagens, reagir, entrar na voz nem criar tópicos até o castigo acabar.
+Members matching @%	Membros com @%
+Members must answer this question to join.	Membros precisam responder esta pergunta para entrar.
+Members of the server must meet the following criteria before they can send messages in text channels or initiate a direct message conversation. If a member has an assigned role this does not apply.	Os membros do servidor precisam atender aos critérios a seguir antes de enviar mensagens em canais de texto ou iniciar uma conversa por mensagem direta. Isso não se aplica a membros com um cargo atribuído.
+Members use the colour of the highest role they have on the roles list.	Membros usam a cor do cargo mais alto que têm na lista de cargos.
+Members use the colour of the highest role they have on this list. Drag roles, or use the arrows, to reorder them.	Membros usam a cor do cargo mais alto que têm nesta lista. Arraste os cargos, ou use as setas, para reordená-los.
+Members will be restricted to sending one message and creating one thread per this interval, unless they have the Bypass Slowmode permission.	Os membros só poderão enviar uma mensagem e criar um tópico por intervalo, a menos que tenham a permissão Ignorar modo lento.
+Members with a matching name can't talk or interact until they change it.	Membros com um nome correspondente não podem falar nem interagir até mudarem o nome.
+Members with this permission will have every permission and will also bypass all channel specific permissions or restrictions (for example, these members would get access to all private channels). This is a dangerous permission to grant.	Membros com esta permissão terão todas as permissões e também vão ignorar todas as permissões ou restrições específicas de canais (por exemplo, terão acesso a todos os canais privados). Esta é uma permissão perigosa de conceder.
+Members — %	Membros — %
+Membership Permissions	Permissões de associação
+Mention	Mencionar
+Mention %	Mencionar %
+Mention @everyone, @here, and All Roles	Mencionar @everyone, @here e todos os cargos
+Mention limit	Limite de menções
+Mention raid protection	Proteção contra invasão de menções
+Mention removed	Menção removida
+Mentions	Menções
+Mentions User	Menciona usuário
+Message	Mensagem
+Message #%	Conversar em #%
+Message %	Mensagem para %
+Message @%	Conversar com @%
+Message @% (encrypted)	Conversar com @% (criptografado)
+Message @% (not encrypted)	Conversar com @% (sem criptografia)
+Message Contains	A mensagem contém
+Message Display	Exibição de mensagens
+Message Requests	Solicitações de mensagem
+Message deleted	Mensagem excluída
+Message failed to send.	Falha ao enviar a mensagem.
+Message link copied: paste it into Discord's report form	Link da mensagem copiado: cole no formulário de denúncia do Discord
+Message request ignored	Solicitação de mensagem ignorada
+Message unpinned	Mensagem desafixada
+Messages Failed To Load	Falha ao carregar as mensagens
+Messages from members you may not know go to Message Requests.	Mensagens de membros que você talvez não conheça vão para Solicitações de mensagem.
+Messages from people you may not know go to Message Requests instead of your DMs.	Mensagens de pessoas que você talvez não conheça vão para Solicitações de mensagem em vez das suas MDs.
+Messages from server members without a role will be filtered for sensitive image-based media.	Mensagens de membros do servidor sem cargo serão filtradas em busca de mídia sensível em imagens.
+Messages in servers	Mensagens em servidores
+Messages will not be filtered for sensitive image-based media.	As mensagens não serão filtradas em busca de mídia sensível em imagens.
+Messaging Permissions	Permissões de mensagens
+Minimize to Tray	Minimizar para a bandeja
+Mobile Push Notifications	Notificações push no celular
+Moderation	Moderação
+Moderators must have two-factor authentication enabled to ban, kick, or timeout members and delete messages.	Os moderadores precisam ter a autenticação em dois fatores ativada para banir, expulsar ou castigar membros e excluir mensagens.
+Moderators only	Só moderadores
+Modern, beautiful, and easy on your eyes.	Moderno, bonito e agradável para os olhos.
+Modify Attachment	Modificar anexo
+Motion	Movimento
+Move Members	Mover membros
+Move To	Mover para
+Move to Audience	Mover para o público
+Multi-Factor Authentication	Autenticação multifator
+Must also be a member of this server for longer than 10 minutes.	Também precisa ser membro deste servidor há mais de 10 minutos.
+Must also be registered on Discord for longer than 5 minutes.	Também precisa estar registrado no Discord há mais de 5 minutos.
+Must have a verified email on their Discord account.	Precisa ter um e-mail verificado na conta do Discord.
+Must have a verified phone on their Discord account.	Precisa ter um telefone verificado na conta do Discord.
+Mute	Silenciar
+Mute %	Silenciar %
+Mute Category	Silenciar categoria
+Mute Channel	Silenciar canal
+Mute Members	Silenciar membros
+Mute New Events	Silenciar novos eventos
+Mute Server	Silenciar servidor
+Mute Thread	Silenciar tópico
+Muted until %1, %2	Silenciado até %1, %2
+Muting a server prevents unread indicators and notifications from appearing unless you are mentioned.	Silenciar um servidor impede que indicadores de não lidas e notificações apareçam, a menos que você seja mencionado.
+Mutual Friends	Amigos em comum
+Mutual Servers	Servidores em comum
+My Account	Minha conta
+My server	Meu servidor
+NAME	NOME
+NEW	NOVO
+NEW PASSWORD	NOVA SENHA
+NO ACTIVE INVITE LINKS	NENHUM LINK DE CONVITE ATIVO
+NOTHING	NADA
+Name	Nome
+Name your sound	Dê um nome ao seu som
+Name your sticker	Dê um nome à sua figurinha
+Nature	Natureza
+Navigate Back	Voltar
+Navigate Forward	Avançar
+Need an account?	Precisa de uma conta?
+Network	Rede
+Never	Nunca
+Nevermind	Deixa pra lá
+New Category	Nova categoria
+New Group DM	Nova MD em grupo
+New Post	Nova publicação
+New Thread	Novo tópico
+New Webhook	Novo webhook
+New members must read and agree to these before they can talk.	Os novos membros precisam ler e concordar com isto antes de poder conversar.
+New members pick channels and roles from your questions when they join.	Os novos membros escolhem canais e cargos pelas suas perguntas ao entrar.
+New tag	Nova tag
+New threads will stop showing in the channel list after being inactive for the specified duration.	Novos tópicos deixam de aparecer na lista de canais depois de ficarem inativos pelo tempo definido.
+Newest	Mais recentes
+Next	Próximo
+Nickname	Apelido
+Nicknames are visible to everyone on this server. Do not change them unless you are enforcing a naming system or clearing a bad nickname.	Os apelidos são visíveis para todos neste servidor. Não altere a menos que esteja aplicando um padrão de nomes ou removendo um apelido inadequado.
+No GIFs found	Nenhum GIF encontrado
+No Inactive Channel	Nenhum canal inativo
+No Invite	Sem convite
+No Keybind Set	Nenhum atalho definido
+No System Messages	Sem mensagens do sistema
+No applications waiting	Nenhuma inscrição pendente
+No apps have been added to this server.	Nenhum app foi adicionado a este servidor.
+No bans	Nenhum banimento
+No bans match your search	Nenhum banimento corresponde à sua busca
+No emoji found	Nenhum emoji encontrado
+No favorites yet	Nenhum favorito ainda
+No file chosen	Nenhum arquivo escolhido
+No friends in common	Nenhum amigo em comum
+No limit	Sem limite
+No logs yet	Nenhum registro ainda
+No members found	Nenhum membro encontrado
+No members have this role yet.	Nenhum membro tem este cargo ainda.
+No message requests.	Nenhuma solicitação de mensagem.
+No one is speaking yet	Ninguém está falando ainda
+No one's around right now.	Não tem ninguém por aqui agora.
+No one's here yet	Ninguém chegou ainda
+No posts match	Nenhuma publicação corresponde
+No posts yet	Nenhuma publicação ainda
+No questions yet.	Nenhuma pergunta ainda.
+No reason given	Nenhum motivo informado
+No results	Nenhum resultado
+No results found	Nenhum resultado encontrado
+No servers in common	Nenhum servidor em comum
+No sounds found	Nenhum som encontrado
+No sounds yet.	Nenhum som ainda.
+No spam. Nice.	Nada de spam. Boa.
+No stickers found	Nenhuma figurinha encontrada
+No stickers yet	Nenhuma figurinha ainda
+Nobody can join this server with an invite link until the pause ends or you enable invites again.	Ninguém pode entrar neste servidor com um link de convite até a pausa acabar ou você reativar os convites.
+Nobody has mentioned you recently.	Ninguém mencionou você recentemente.
+Noise Suppression	Supressão de ruído
+Noise Suppression: Off	Supressão de ruído: desativada
+Noise Suppression: On	Supressão de ruído: ativada
+None	Nenhum
+Norwegian	Norueguês
+Not Now	Agora não
+Not connected to % yet.	Ainda não conectado a %.
+Not encrypted	Sem criptografia
+Not encrypted: Discord can read this message	Sem criptografia: o Discord pode ler esta mensagem
+Not end-to-end encrypted	Sem criptografia de ponta a ponta
+Not me, start over	Não sou eu, recomeçar
+Note	Nota
+Note (only visible to you)	Nota (só você vê)
+Note: Members with the "Mention @everyone, @here, and All Roles" permission will always be able to ping this role.	Observação: membros com a permissão "Mencionar @everyone, @here e todos os cargos" sempre poderão mencionar este cargo.
+Nothing	Nada
+Notification Settings	Configurações de notificação
+Notification settings changed	Configurações de notificação alteradas
+Notifications	Notificações
+Notify everyone online who has permission to view this channel.	Notifica todos online que têm permissão para ver este canal.
+Notify everyone who has permission to view this channel.	Notifica todos que têm permissão para ver este canal.
+Notify me when...	Notifique-me quando...
+Notify users with this role who have permission to view this channel.	Notifica usuários com este cargo que têm permissão para ver este canal.
+OUTPUT DEVICE	DISPOSITIVO DE SAÍDA
+OUTPUT VOLUME	VOLUME DE SAÍDA
+Objects	Objetos
+Off	Desativado
+Offline	Offline
+Oh yeah. Pin it	Ah, sim. Fixa aí
+Okay	Ok
+Oldest	Mais antigas
+On click	Ao clicar
+On servers I moderate	Nos servidores que eu modero
+Onboarding	Integração
+One rule per line, for example: Be respectful	Uma regra por linha, por exemplo: Seja respeitoso
+Ongoing call	Chamada em andamento
+Online	Online
+Only @mentions	Só @menções
+Only servers and channels you have webhook permissions in are shown.	Só aparecem os servidores e canais em que você tem permissão de webhooks.
+Only you can see the nickname you give %.	Só você vê o apelido que der para %.
+Only you can see this · 	Só você pode ver isto · 
+Oops!	Opa!
+Open Chat	Abrir bate-papo
+Open Image Link	Abrir link da imagem
+Open Link	Abrir link
+Open Logs Folder	Abrir pasta de logs
+Open Media Link	Abrir link da mídia
+Open Server Insights	Abrir Insights do Servidor
+Open Settings	Abrir configurações
+Open discord.com	Abrir discord.com
+Open in Browser	Abrir no navegador
+Open in YouTube	Abrir no YouTube
+Open the developer tools (Cmd+Option+I) and choose the Network tab.	Abra as ferramentas de desenvolvedor (Cmd+Option+I) e escolha a aba Network.
+Open the developer tools (Ctrl+Shift+I) and choose the Network tab.	Abra as ferramentas de desenvolvedor (Ctrl+Shift+I) e escolha a aba Network.
+Or, send a server invite link to a friend	Ou envie um link de convite do servidor para um amigo
+Original message was deleted	A mensagem original foi excluída
+Other Active Threads	Outros tópicos ativos
+Other Devices	Outros dispositivos
+Outgoing Friend Request	Pedido de amizade enviado
+Overview	Visão geral
+PASSWORD	SENHA
+PM	PM
+PRIVACY CODE	CÓDIGO DE PRIVACIDADE
+PTT Activate	Ativar PTT
+PTT Deactivate	Desativar PTT
+PUSH TO TALK RELEASE DELAY	ATRASO AO SOLTAR O PRESSIONAR PARA FALAR
+Packet loss	Perda de pacotes
+Packets received	Pacotes recebidos
+Packets sent	Pacotes enviados
+Page %	Página %
+Password	Senha
+Password and Authentication	Senha e autenticação
+Passwords do not match!	As senhas não coincidem!
+Paste	Colar
+Paste an emoji (optional)	Cole um emoji (opcional)
+Paste your token	Cole seu token
+Pause Invites	Pausar convites
+Pending	Pendente
+People	Pessoas
+People can join your server directly with an invite	As pessoas podem entrar no seu servidor diretamente com um convite
+People in a voice channel with you can join the game you're playing.	Pessoas em um canal de voz com você podem entrar no jogo que você está jogando.
+People must submit an application and be approved to join	As pessoas precisam enviar uma inscrição e ser aprovadas para entrar
+People who applied to join, waiting for a moderator.	Pessoas que se inscreveram para entrar, aguardando um moderador.
+Per-server Profiles	Perfis por servidor
+Permissions	Permissões
+Permissions not synced with category: 	Permissões não sincronizadas com a categoria: 
+Permissions synced with category: 	Permissões sincronizadas com a categoria: 
+Permissions: %	Permissões: %
+Phone Number	Número de telefone
+Pick a channel	Escolha um canal
+Pick a channel for the alerts.	Escolha um canal para os alertas.
+Pick at least one response.	Escolha pelo menos uma resposta.
+Pin It. Pin It Good.	Fixa. Fixa com vontade.
+Pin Message	Fixar mensagem
+Pin Messages	Fixar mensagens
+Ping	Ping
+Ping: % ms	Ping: % ms
+Ping: measuring…	Ping: medindo…
+Pinned Messages	Mensagens fixadas
+Play Here	Reproduzir aqui
+Play Soundboard Through My Mic	Tocar o painel de sons pelo meu microfone
+Play YouTube videos here with yt-dlp? It needs yt-dlp installed, and connects to YouTube from your computer. Settings > Chat can change this.	Reproduzir vídeos do YouTube aqui com o yt-dlp? É preciso ter o yt-dlp instalado, e ele se conecta ao YouTube pelo seu computador. Dá para mudar isso em Configurações > Bate-papo.
+Play YouTube videos in fastcord with yt-dlp	Reproduzir vídeos do YouTube no fastcord com o yt-dlp
+Please enter a valid invite link or invite code.	Digite um link ou código de convite válido.
+Please try again later.	Tente novamente mais tarde.
+Polish	Polonês
+Poll closed	Enquete encerrada
+Portuguese, Brazilian	Português do Brasil
+Post	Publicar
+Post Guidelines	Diretrizes de publicação
+Post from a script	Publicar por um script
+Post messages that reach servers outside your own. Members can follow this channel, so the posts you publish here appear in their servers.	Publique mensagens que chegam a servidores além do seu. Membros podem seguir este canal, e as publicações feitas aqui aparecem nos servidores deles.
+Post title	Título da publicação
+Posting...	Publicando...
+Press a shortcut…	Pressione um atalho…
+Previous	Anterior
+Previous / next channel	Canal anterior / próximo
+Previous / next channel with mentions	Canal anterior / próximo com menções
+Previous / next server	Servidor anterior / próximo
+Previous / next unread channel	Canal não lido anterior / próximo
+Previous 12 Hours	Últimas 12 horas
+Previous 24 Hours	Últimas 24 horas
+Previous 3 Days	Últimos 3 dias
+Previous 6 Hours	Últimas 6 horas
+Previous 7 Days	Últimos 7 dias
+Previous Hour	Última hora
+Priority Speaker	Voz prioritária
+Privacy Settings	Configurações de privacidade
+Private Category	Categoria privada
+Private Channel	Canal privado
+Private Profile	Perfil privado
+Profile	Perfil
+Profile Banner	Banner do perfil
+Profile Privacy	Privacidade do perfil
+Profiles	Perfis
+Prompt members to reply to welcome messages with a sticker.	Incentive os membros a responder mensagens de boas-vindas com uma figurinha.
+Pronouns	Pronomes
+Protect your Discord account with an extra layer of security. Once configured, you'll be required to enter your password and complete one additional step in order to sign in.	Proteja sua conta do Discord com uma camada extra de segurança. Depois de configurar, você vai precisar digitar sua senha e concluir mais uma etapa para entrar.
+Protip:	Dica:
+Publish	Publicar
+Push to Mute	Pressionar para silenciar
+Push to Talk	Pressionar para falar
+Push to Talk (Normal)	Pressionar para falar (normal)
+Q: %	P: %
+Question	Pergunta
+Questions	Perguntas
+ROLES	CARGOS
+ROLES — %	CARGOS — %
+ROLES/MEMBERS	CARGOS/MEMBROS
+RTC Connecting	Conectando RTC
+Read Message History	Ler histórico de mensagens
+Reason	Motivo
+Reason for Ban	Motivo do banimento
+Reason for Kick	Motivo da expulsão
+Reason for Timeout	Motivo do castigo
+Reason: %	Motivo: %
+Received	Recebidos
+Recently Active	Ativos recentemente
+Reconnect	Reconectar
+Record Keybind	Gravar atalho
+Reduce the saturation of colors within the application, for those with color sensitivities.	Reduz a saturação das cores no aplicativo, para quem tem sensibilidade a cores.
+Reduces the amount of animation and motion effects. On whenever your device asks for reduced motion.	Reduz a quantidade de animações e efeitos de movimento. Ativado sempre que o dispositivo pede movimento reduzido.
+Region Override	Substituir região
+Register	Registrar
+Reject	Rejeitar
+Rejoin	Entrar de novo
+Related Emoji	Emojis relacionados
+Relevant	Relevantes
+Remove	Remover
+Remove %	Remover %
+Remove All Embeds	Remover todas as incorporações
+Remove All Reactions	Remover todas as reações
+Remove Answer	Remover resposta
+Remove Attachment	Remover anexo
+Remove Authenticator App	Remover app autenticador
+Remove Avatar	Remover avatar
+Remove Embeds	Remover incorporações
+Remove Friend	Remover amigo
+Remove From Group	Remover do grupo
+Remove Icon	Remover ícone
+Remove Reaction	Remover reação
+Remove Reactions	Remover reações
+Remove Reactions for Emoji	Remover reações do emoji
+Remove Server	Remover servidor
+Remove Spoiler	Remover spoiler
+Remove Timeout	Remover castigo
+Remove Vote	Remover voto
+Remove all embeds	Remover todas as incorporações
+Remove from Favorites	Remover dos favoritos
+Remove notification override for %	Remover substituição de notificação de %
+Remove the files added before encryption was on: they'd go unencrypted.	Remova os arquivos adicionados antes de ativar a criptografia: eles iriam sem criptografia.
+Remove the files added while encryption was on: they'd arrive as unreadable ciphertext.	Remova os arquivos adicionados com a criptografia ativada: eles chegariam como texto cifrado ilegível.
+Removing…	Removendo…
+Repeated encrypted message	Mensagem criptografada repetida
+Reply	Responder
+Replying to	Respondendo a
+Report Message	Denunciar mensagem
+Request Data	Solicitar dados
+Request all of my Data	Solicitar todos os meus dados
+Request to Speak	Pedir para falar
+Requests	Solicitações
+Require 2FA for moderator actions	Exigir 2FA para ações de moderação
+Require members to agree to the server rules	Exigir que os membros concordem com as regras do servidor
+Require people to select tags when posting	Exigir que as pessoas escolham tags ao publicar
+Required	Obrigatório
+Resend SMS?	Reenviar SMS?
+Reset	Redefinir
+Reset Friend Nickname	Redefinir apelido de amigo
+Reset Voice Settings	Redefinir configurações de voz
+Resolving Invite	Resolvendo convite
+Responses	Respostas
+Retry	Tentar novamente
+Retry Now	Tentar agora
+Return to call	Voltar para a chamada
+Return to the connected call	Voltar para a chamada conectada
+Reveal	Revelar
+Review	Revisar
+Revoke	Revogar
+Revoke Ban	Revogar banimento
+Revoke Invite	Revogar convite
+Revoke the ban? They will be able to join again with an invite.	Revogar o banimento? A pessoa poderá entrar de novo com um convite.
+Ring	Tocar
+Ringing…	Chamando…
+Role Color	Cor do cargo
+Role Colors	Cores dos cargos
+Role Icon	Ícone do cargo
+Role name	Nome do cargo
+Roles	Cargos
+Romanian, Romania	Romeno, Romênia
+Rule: %	Regra: %
+Rules or Guidelines Channel	Canal de regras ou diretrizes
+Russian	Russo
+SELECT A CHANNEL	SELECIONE UM CANAL
+SELECT A SERVER	SELECIONE UM SERVIDOR
+SERVER NAME	NOME DO SERVIDOR
+SOUNDBOARD VOLUME	VOLUME DO PAINEL DE SONS
+STATIC EMOJI — % SLOTS AVAILABLE	EMOJIS ESTÁTICOS — % ESPAÇOS DISPONÍVEIS
+Safety Notifications Channel	Canal de notificações de segurança
+Safety Number	Número de segurança
+Safety Setup	Configuração de segurança
+Safety checks	Verificações de segurança
+Same as Device Theme	Igual ao tema do dispositivo
+Saturation	Saturação
+Save	Salvar
+Save Changes	Salvar alterações
+Save Image	Salvar imagem
+Saving...	Salvando...
+Saving…	Salvando…
+Scan this with the Discord mobile app to log in instantly.	Escaneie com o app do Discord no celular para entrar na hora.
+Schedule an event for any planned activity in your server.	Agende um evento para qualquer atividade planejada no seu servidor.
+Screen	Tela
+Screen sharing isn't supported on this platform yet.	O compartilhamento de tela ainda não funciona nesta plataforma.
+Scroll chat	Rolar o bate-papo
+Search	Buscar
+Search %	Buscar em %
+Search Bans by User ID or Username	Buscar banimentos por ID ou nome de usuário
+Search Klipy	Buscar no Klipy
+Search Options	Opções de busca
+Search by username or id	Buscar por nome de usuário ou ID
+Search for friends	Buscar amigos
+Search members to add (press Enter)	Busque membros para adicionar (pressione Enter)
+Search or create a post...	Busque ou crie uma publicação...
+Search sounds	Buscar sons
+Searching...	Buscando...
+Select Friends	Selecionar amigos
+Select a Language	Selecione um idioma
+Select a channel	Selecione um canal
+Select a channel or category…	Selecione um canal ou categoria…
+Select one answer	Selecione uma resposta
+Select one or more answers	Selecione uma ou mais respostas
+Select where you want these updates to go. You can remove this at any time in Server Settings > Integrations > Channels Followed.	Selecione para onde você quer que essas atualizações vão. Você pode remover isso quando quiser em Configurações do servidor > Integrações > Canais seguidos.
+Select where you want to share this message.	Selecione onde você quer compartilhar esta mensagem.
+Send	Enviar
+Send Friend Request	Enviar pedido de amizade
+Send Messages and Create Posts	Enviar mensagens e criar publicações
+Send Messages in Threads and Posts	Enviar mensagens em tópicos e publicações
+Send New Key	Enviar nova chave
+Send Text-to-Speech Messages	Enviar mensagens de texto para voz
+Send Voice Messages	Enviar mensagens de voz
+Send a random welcome message when someone joins this server.	Enviar uma mensagem de boas-vindas aleatória quando alguém entrar neste servidor.
+Send a server invite link to a friend	Envie um link de convite do servidor para um amigo
+Send an alert	Enviar um alerta
+Send helpful tips for server setup.	Enviar dicas úteis para configurar o servidor.
+Send messages, images, GIFs, emoji, opinions, and puns	Envie mensagens, imagens, GIFs, emojis, opiniões e trocadilhos
+Sending...	Enviando...
+Sent	Enviado
+Sent a file	Enviou um arquivo
+Sent a sticker	Enviou uma figurinha
+Sent — %	Enviados — %
+Server	Servidor
+Server Avatar	Avatar do servidor
+Server Deafen	Ensurdecer no servidor
+Server Deafened	Ensurdecido pelo servidor
+Server Guide	Guia do servidor
+Server ID	ID do servidor
+Server Info	Informações do servidor
+Server Insights	Insights do Servidor
+Server Insights is hosted on a separate website so that it's easier to share links and browse cross platform.	O Insights do Servidor fica em um site separado para facilitar o compartilhamento de links e o acesso em várias plataformas.
+Server Mute	Silenciar no servidor
+Server Muted	Silenciado pelo servidor
+Server Nickname	Apelido no servidor
+Server Notification Settings	Configurações de notificação do servidor
+Server Primary Language	Idioma principal do servidor
+Server Profile	Perfil do servidor
+Server Rules	Regras do servidor
+Server Settings	Configurações do servidor
+Server Tag	Tag do servidor
+Server Template	Modelo de servidor
+Server Widget	Widget do servidor
+Server members	Membros do servidor
+Server members can only send you friend requests from servers where you also allow Direct Messages.	Membros do servidor só podem enviar pedidos de amizade a partir de servidores em que você também permite mensagens diretas.
+Server name must be between 2 and 100 characters.	O nome do servidor precisa ter entre 2 e 100 caracteres.
+Server unmuted	Servidor com som reativado
+Sessions	Sessões
+Set Custom Status	Definir status personalizado
+Set Voice Channel Status	Definir status do canal de voz
+Set a custom status	Defina um status personalizado
+Set up AutoMod to automatically filter messages in this server with the rules below. Members with Manage Server or Administrator are exempt.	Configure o AutoMod para filtrar automaticamente as mensagens deste servidor com as regras abaixo. Membros com Gerenciar servidor ou Administrador ficam isentos.
+Sets camera video quality for all channel participants. Choose Auto for optimal performance.	Define a qualidade de vídeo da câmera para todos no canal. Escolha Auto para o melhor desempenho.
+Setting up encryption: % needs to open fastcord once.	Configurando a criptografia: % precisa abrir o fastcord uma vez.
+Several people are typing...	Várias pessoas estão digitando...
+Severe Profanity	Palavrões graves
+Sexual Content	Conteúdo sexual
+Share	Compartilhar
+Share Event	Compartilhar evento
+Share Your Screen	Compartilhar sua tela
+Share my full profile with	Compartilhar meu perfil completo com
+Share your detected activities with others	Compartilhar suas atividades detectadas com outras pessoas
+Show	Mostrar
+Show Chat	Mostrar bate-papo
+Show a system notification for messages that would notify you (DMs, mentions, servers set to all messages).	Mostrar uma notificação do sistema para mensagens que notificariam você (MDs, menções, servidores com todas as mensagens).
+Show embeds and preview website links pasted into chat	Mostrar incorporações e prévias de links colados no bate-papo
+Show emoji reactions on messages	Mostrar reações com emoji nas mensagens
+Show message	Mostrar mensagem
+Show messages	Mostrar mensagens
+Show role colors in names	Mostrar cores dos cargos nos nomes
+Show role colors next to names	Mostrar cores dos cargos ao lado dos nomes
+Show spoiler content	Mostrar conteúdo com spoiler
+Show the game or app you're using on your profile and in member lists.	Mostrar o jogo ou app que você está usando no seu perfil e nas listas de membros.
+Shows a red badge on the app icon when you have unread mentions.	Mostra um indicador vermelho no ícone do app quando você tem menções não lidas.
+Silence every sound and notification and hide all badges and unread marks, so fastcord never asks for your attention.	Silencia todos os sons e notificações e oculta todos os indicadores e marcas de não lidas, para o fastcord nunca pedir sua atenção.
+Slow down! Are you sure?	Calma aí! Tem certeza?
+Slowmode	Modo lento
+Slowmode is enabled	O modo lento está ativado
+Slowmode is enabled. Members can send one message every % hour.|Slowmode is enabled. Members can send one message every % hours.	O modo lento está ativado. Os membros podem enviar uma mensagem a cada % hora.|O modo lento está ativado. Os membros podem enviar uma mensagem a cada % horas.
+Slowmode is enabled. Members can send one message every % minute.|Slowmode is enabled. Members can send one message every % minutes.	O modo lento está ativado. Os membros podem enviar uma mensagem a cada % minuto.|O modo lento está ativado. Os membros podem enviar uma mensagem a cada % minutos.
+Slowmode is enabled. Members can send one message every % second.|Slowmode is enabled. Members can send one message every % seconds.	O modo lento está ativado. Os membros podem enviar uma mensagem a cada % segundo.|O modo lento está ativado. Os membros podem enviar uma mensagem a cada % segundos.
+Smooth Scrolling	Rolagem suave
+So no one gets lost on where to go.	Para ninguém se perder sobre aonde ir.
+Some older devices may not be shown here	Alguns dispositivos mais antigos podem não aparecer aqui
+Someone	Alguém
+Something went wrong	Algo deu errado
+Something went wrong (HTTP %).	Algo deu errado (HTTP %).
+Something went wrong. Try again.	Algo deu errado. Tente novamente.
+Somewhere Else	Em outro lugar
+Sorry, we couldn't load the first message in this thread	Não foi possível carregar a primeira mensagem deste tópico
+Sort: Date Posted	Ordenar: data de publicação
+Sort: Recent Activity	Ordenar: atividade recente
+Sound Name	Nome do som
+Sound names must be between 2 and 32 characters.	Os nomes de sons precisam ter entre 2 e 32 caracteres.
+Soundboard	Painel de sons
+Sounds	Sons
+Sounds must be 5.2 seconds or shorter.	Os sons precisam ter 5,2 segundos ou menos.
+Sounds must be under 512 KB.	Os sons precisam ter menos de 512 KB.
+Source	Fonte
+Space between message groups	Espaço entre grupos de mensagens
+Spam	Spam
+Spam Filters	Filtros de spam
+Spanish	Espanhol
+Spanish, LATAM	Espanhol, América Latina
+Speak	Falar
+Speak Message	Ler mensagem em voz alta
+Spoiler Attachment	Anexo com spoiler
+Spoiler Content	Conteúdo com spoiler
+Stage	Palco
+Start Date	Data de início
+Start Event	Iniciar evento
+Start Minimized	Iniciar minimizado
+Start Time	Horário de início
+Starting in %m	Começa em %min
+State	Estado
+Stickers	Figurinhas
+Stickers can be used by anyone in this server. Upload a PNG, APNG, GIF or Lottie JSON file of up to 512 KB; it shows at 320x320.	Qualquer pessoa neste servidor pode usar figurinhas. Envie um arquivo PNG, APNG, GIF ou Lottie JSON de até 512 KB; ele aparece em 320x320.
+Stickers can't be sent encrypted yet.	Ainda não dá para enviar figurinhas criptografadas.
+Stickers must be PNG, APNG, GIF or Lottie JSON files.	As figurinhas precisam ser arquivos PNG, APNG, GIF ou Lottie JSON.
+Stop Recording	Parar gravação
+Stop Streaming	Parar transmissão
+Stop Testing	Parar teste
+Stop Video	Parar vídeo
+Stop Watching	Parar de assistir
+Storage	Armazenamento
+Stream Settings	Configurações de transmissão
+Streamer Mode	Modo Streamer
+Streamer Mode Enabled	Modo Streamer ativado
+Streamer Mode hides your personal info so others watching your stream can't see it.	O Modo Streamer oculta suas informações pessoais para quem assiste à sua transmissão não ver.
+Streamer Mode is enabled. Usernames have been truncated.	O Modo Streamer está ativado. Os nomes de usuário foram encurtados.
+Success! Your friend request to % was sent.	Pronto! Seu pedido de amizade para % foi enviado.
+Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday	domingo|segunda-feira|terça-feira|quarta-feira|quinta-feira|sexta-feira|sábado
+Sun|Mon|Tue|Wed|Thu|Fri|Sat	dom|seg|ter|qua|qui|sex|sáb
+Support has arrived!	O suporte chegou!
+Suppress @everyone and @here	Suprimir @everyone e @here
+Suppress All Role @mentions	Suprimir todas as @menções de cargos
+Suppress Highlights	Suprimir destaques
+Suppress Notifications	Suprimir notificações
+Suppress background noise from your mic.	Suprime o ruído de fundo do seu microfone.
+Swedish	Sueco
+Switch Accounts	Trocar de conta
+Switch between accounts on this device.	Alterne entre contas neste dispositivo.
+Symbols	Símbolos
+Sync Now	Sincronizar agora
+Sync Permissions	Sincronizar permissões
+Sync Template	Sincronizar modelo
+Sync permissions?	Sincronizar permissões?
+System	Sistema
+System Messages	Mensagens do sistema
+System Messages Channel	Canal de mensagens do sistema
+System icon for new server members.	Ícone do sistema para novos membros do servidor.
+THREAD NAME	NOME DO TÓPICO
+Tag	Tag
+Tags	Tags
+Tags (pick at least one)	Tags (escolha pelo menos uma)
+Tags let members organize their posts. Members pick them when they post; moderated tags only moderators can apply.	As tags permitem que os membros organizem suas publicações. Os membros escolhem as tags ao publicar; tags moderadas só podem ser aplicadas por moderadores.
+Tap the link in your email to sign in instantly — no password needed.	Toque no link do seu e-mail para entrar na hora — sem precisar de senha.
+Tell people a little more about your event. Markdown, new lines, and links are supported.	Conte um pouco mais sobre o seu evento. Markdown, quebras de linha e links são compatíveis.
+Tell the world a bit about this server.	Conte ao mundo um pouco sobre este servidor.
+Template Description	Descrição do modelo
+Template Link	Link do modelo
+Template Title	Título do modelo
+Templates are an easy way to share your server setup and help anyone create a server instantly. When someone uses your server template link, they create a new server pre-filled with the same channels, roles, permissions, and settings as yours. Messages, members and your server's icon aren't copied.	Os modelos são um jeito fácil de compartilhar a configuração do seu servidor e ajudar qualquer pessoa a criar um servidor na hora. Quando alguém usa o link do modelo do seu servidor, cria um novo servidor já com os mesmos canais, cargos, permissões e configurações do seu. Mensagens, membros e o ícone do servidor não são copiados.
+Temporary members are automatically kicked when they disconnect unless a role has been assigned	Membros temporários são expulsos automaticamente ao se desconectar, a menos que recebam um cargo
+Test Video	Testar vídeo
+Text	Texto
+Text Channel Permissions	Permissões do canal de texto
+Text channel, external link, or in-person location.	Canal de texto, link externo ou local presencial.
+Thai	Tailandês
+That channel isn't on this server anymore.	Esse canal não está mais neste servidor.
+That file couldn't be read as an MP3 or OGG sound.	Não foi possível ler esse arquivo como um som MP3 ou OGG.
+That file couldn't be read. Avatars must be PNG, JPEG, GIF or WEBP images.	Não foi possível ler esse arquivo. Avatares precisam ser imagens PNG, JPEG, GIF ou WEBP.
+That file couldn't be read. Banners must be PNG, JPEG, GIF or WEBP images.	Não foi possível ler esse arquivo. Banners precisam ser imagens PNG, JPEG, GIF ou WEBP.
+That file couldn't be read. Emoji must be a PNG, JPEG, GIF, WEBP or AVIF image.	Não foi possível ler esse arquivo. Emojis precisam ser imagens PNG, JPEG, GIF, WEBP ou AVIF.
+That file couldn't be read. Images must be PNG, JPEG, GIF or WEBP files.	Não foi possível ler esse arquivo. Imagens precisam ser arquivos PNG, JPEG, GIF ou WEBP.
+That file couldn't be read. Server icons must be PNG, JPEG, GIF or WEBP images.	Não foi possível ler esse arquivo. Ícones de servidor precisam ser imagens PNG, JPEG, GIF ou WEBP.
+That file is too large. Emoji must be under 256 KB.	Esse arquivo é grande demais. Emojis precisam ter menos de 256 KB.
+That file is too large. Stickers must be under 512 KB.	Esse arquivo é grande demais. Figurinhas precisam ter menos de 512 KB.
+That image is too large.	Essa imagem é grande demais.
+That image is too large. Avatars must be under %.	Essa imagem é grande demais. Avatares precisam ter menos de %.
+That image is too large. Banners must be under 10 MB.	Essa imagem é grande demais. Banners precisam ter menos de 10 MB.
+That image is too large. Server icons must be under 512 KB.	Essa imagem é grande demais. Ícones de servidor precisam ter menos de 512 KB.
+That isn't a valid fastcord invite.	Esse não é um convite válido do fastcord.
+That's too long to send encrypted.	Isso é longo demais para enviar criptografado.
+The Pin Is Stuck!	O alfinete emperrou!
+The badge chosen in the official client stays as it is.	O emblema escolhido no cliente oficial continua como está.
+The invite is invalid or has expired.	O convite é inválido ou expirou.
+The mention limit is between 1 and 50.	O limite de menções vai de 1 a 50.
+The most important updates from this channel will now show up directly in your server. Enjoy!	As atualizações mais importantes deste canal agora vão aparecer direto no seu servidor. Aproveite!
+The owner	O dono
+The related emoji must be one emoji.	O emoji relacionado precisa ser um único emoji.
+The results were tied	Os resultados empataram
+The selected channel has too many webhooks. Please remove a webhook or select another channel.	O canal selecionado tem webhooks demais. Remova um webhook ou selecione outro canal.
+The server	O servidor
+The start time must be in the future.	O horário de início precisa ser no futuro.
+The thread stops showing in the channel list after being inactive for this long.	O tópico deixa de aparecer na lista de canais depois de ficar inativo por esse tempo.
+Theme	Tema
+There are no active threads.	Não há tópicos ativos.
+There are no archived threads.	Não há tópicos arquivados.
+There are no pending friend requests.	Não há pedidos de amizade pendentes.
+There are no upcoming events.	Não há eventos futuros.
+There is no identity key.	Não há chave de identidade.
+There was no winner	Não houve vencedor
+These are all the devices that are currently logged-in with your Discord account. Log out of devices that you don't recognize.	Estes são todos os dispositivos conectados à sua conta do Discord no momento. Saia dos dispositivos que você não reconhece.
+They said: %	A pessoa disse: %
+This account needs a passkey or security key, which fastcord can't use. Log in with the QR code instead.	Esta conta precisa de uma chave de acesso ou chave de segurança, que o fastcord não consegue usar. Entre com o código QR.
+This channel contains adult content that may not be suitable for all audiences. You must be 18 or older to view it.	Este canal tem conteúdo adulto que pode não ser adequado para todos os públicos. Você precisa ter 18 anos ou mais para ver.
+This channel doesn't have any pinned messages... yet.	Este canal não tem nenhuma mensagem fixada... ainda.
+This device can't open this message.	Este dispositivo não consegue abrir esta mensagem.
+This device's encryption keys couldn't be unlocked, so earlier encrypted DMs can't be opened here.	Não foi possível desbloquear as chaves de criptografia deste dispositivo, então MDs criptografadas anteriores não podem ser abertas aqui.
+This event will auto start when it's time.	Este evento vai começar automaticamente na hora certa.
+This extra step shows it's really you.	Esta etapa extra mostra que é você mesmo.
+This interaction failed	Esta interação falhou
+This invite may be expired, or you might not have permission to join.	Este convite pode ter expirado, ou você pode não ter permissão para entrar.
+This is the beginning of your direct message history with %.	Este é o começo do seu histórico de mensagens diretas com %.
+This is the channel we send system event messages to.	Este é o canal para onde enviamos as mensagens de eventos do sistema.
+This is the start of the #% channel.	Este é o começo do canal #%.
+This is where Discord sends updates for moderators and admins of Community servers.	É aqui que o Discord envia atualizações para moderadores e administradores de servidores de comunidade.
+This is where you'll show members your server rules or guidelines.	É aqui que você vai mostrar aos membros as regras ou diretrizes do servidor.
+This link is taking you to the following website	Este link vai levar você ao seguinte site
+This option is not available for Community Servers.	Esta opção não está disponível para servidores de comunidade.
+This role is managed by an integration and can't be edited here.	Este cargo é gerenciado por uma integração e não pode ser editado aqui.
+This server has been removed from Server Discovery because it no longer passes all the requirements. Check Server Settings for more details.	Este servidor foi removido da Descoberta de Servidores porque não cumpre mais todos os requisitos. Veja as Configurações do servidor para mais detalhes.
+This server has failed Discovery activity requirements for 1 week. If this server fails for 4 weeks in a row, it will be automatically removed from Discovery.	Este servidor não cumpriu os requisitos de atividade da Descoberta por 1 semana. Se falhar por 4 semanas seguidas, ele será removido da Descoberta automaticamente.
+This server has failed Discovery activity requirements for 3 weeks in a row. If this server fails for 1 more week, it will be removed from Discovery.	Este servidor não cumpriu os requisitos de atividade da Descoberta por 3 semanas seguidas. Se falhar por mais 1 semana, ele será removido da Descoberta.
+This server has no voice channels.	Este servidor não tem canais de voz.
+This server is currently full.	Este servidor está cheio no momento.
+This server is currently full. Please try again later.	Este servidor está cheio no momento. Tente novamente mais tarde.
+This server is eligible for Server Discovery again and has been automatically relisted!	Este servidor voltou a ser elegível para a Descoberta de Servidores e foi listado de novo automaticamente!
+This server is not available in your location.	Este servidor não está disponível na sua região.
+This server's features are limited	Os recursos deste servidor estão limitados
+This setting is applied when you join a new server. It does not apply retroactively to your existing servers.	Esta configuração é aplicada quando você entra em um novo servidor. Ela não vale retroativamente para os servidores em que você já está.
+This template has unsynced changes.	Este modelo tem alterações não sincronizadas.
+This thread is locked.	Este tópico está bloqueado.
+This voice channel is full.	Este canal de voz está cheio.
+This will determine whether members who have not explicitly set their notification settings receive a notification for every message sent in this server or not.	Isso define se os membros que não ajustaram as próprias configurações de notificação vão receber uma notificação para cada mensagem enviada neste servidor ou não.
+This will transfer ownership of %1 to %2. This cannot be undone!	Isso vai transferir a posse de %1 para %2. Isso não pode ser desfeito!
+Thread Name	Nome do tópico
+Thread deleted	Tópico excluído
+Threads	Tópicos
+Time	Hora
+Time format	Formato de hora
+Timeout	Castigo
+Timeout %	Castigar %
+Timeout Members	Castigar membros
+Timeout member	Castigar membro
+Times show as %.	Os horários aparecem como %.
+To log them out, please change your password	Para desconectá-los, altere sua senha
+To protect your members, Community servers need these, and enabling sets them:	Para proteger seus membros, servidores de comunidade precisam disto, e ativar define:
+Today	Hoje
+Today at %	Hoje às %
+Toggle Deafen	Ativar/desativar ensurdecer
+Toggle Go Live Streaming	Ativar/desativar Transmitir ao vivo
+Toggle Mute	Ativar/desativar silenciar
+Toggle Streamer Mode	Ativar/desativar Modo Streamer
+Toggle Voice Activity Mode	Ativar/desativar detecção de voz
+Toggle deafen	Ativar/desativar ensurdecer
+Toggle inbox	Abrir/fechar caixa de entrada
+Toggle member list	Mostrar/ocultar lista de membros
+Toggle mute	Ativar/desativar silenciar
+Toggle pins	Mostrar/ocultar fixadas
+Tomorrow at %	Amanhã às %
+Too fast! Wait a bit and try again.	Rápido demais! Espere um pouco e tente de novo.
+Too many uploads!	Envios demais!
+Trait %	Característica %
+Traits	Características
+Transfer Ownership	Transferir posse
+Travel & Places	Viagens e lugares
+Treat the token like a password: anyone who has it controls your account. fastcord keeps it only on this computer.	Trate o token como uma senha: quem tiver ele controla sua conta. O fastcord guarda o token só neste computador.
+Trending GIFs	GIFs em alta
+Trust % links from now on	Confiar em links de % daqui em diante
+Try Again	Tentar novamente
+Try searching for something else	Tente buscar outra coisa
+Try searching for...	Tente buscar...
+Try sending a new invite	Tente enviar um novo convite
+Turkish	Turco
+Turn off encryption	Desativar criptografia
+Turns this back into a regular server. Community-only features stop working.	Transforma este servidor de volta em um servidor comum. Os recursos exclusivos de comunidade param de funcionar.
+Two-factor authentication is enabled on this account.	A autenticação em dois fatores está ativada nesta conta.
+Type the username of a friend	Digite o nome de usuário de um amigo
+Type your answer	Digite sua resposta
+UPLOADED BY	ENVIADO POR
+USES	USOS
+Uh oh, you don't have webhook permissions in any server you're in. Ask your server admin to give you the permission or ask them to come follow themselves!	Opa, você não tem permissão de webhooks em nenhum dos seus servidores. Peça ao administrador do servidor para te dar a permissão ou para seguir o canal ele mesmo!
+Uh-oh. Looks like you've been banned.	Eita. Parece que você foi banido.
+Ukrainian	Ucraniano
+Unable to accept invite	Não foi possível aceitar o convite
+Unassigned	Não atribuído
+Unban Member	Revogar banimento do membro
+Unblock	Desbloquear
+Undeafen	Desensurdecer
+Under Request Headers, copy the value of "authorization" and paste it below.	Em Request Headers, copie o valor de "authorization" e cole abaixo.
+Undo	Desfazer
+Unignore	Deixar de ignorar
+Unknown	Desconhecido
+Unknown channel	Canal desconhecido
+Unmute	Reativar som
+Unmute Category	Reativar som da categoria
+Unmute Channel	Reativar som do canal
+Unmute Server	Reativar som do servidor
+Unmute Thread	Reativar som do tópico
+Unpin Message	Desafixar mensagem
+Unreads	Não lidas
+Unrestricted	Sem restrições
+Until %	Até %
+Until %1 at %2	Até %1 às %2
+Until I turn it back on	Até eu reativar
+Until tomorrow at %	Até amanhã às %
+Untitled question	Pergunta sem título
+Unverify	Remover verificação
+Update %	Atualizar %
+Update Channel	Atualizar canal
+Update Emoji	Atualizar emoji
+Update Member	Atualizar membro
+Update Member Roles	Atualizar cargos do membro
+Update Role	Atualizar cargo
+Update Server	Atualizar servidor
+Update Webhook	Atualizar webhook
+Update your password	Atualize sua senha
+Upload	Enviar
+Upload Emoji	Enviar emoji
+Upload Sound	Enviar som
+Upload Sticker	Enviar figurinha
+Upload a File	Enviar um arquivo
+Upload a Sound	Enviar um som
+Upload a file	Enviar um arquivo
+Upload custom sound reactions that anyone in this server can use. MP3 or OGG files, up to 512 KB and 5.2 seconds.	Envie reações sonoras personalizadas que qualquer pessoa neste servidor pode usar. Arquivos MP3 ou OGG, de até 512 KB e 5,2 segundos.
+Upload to %	Enviar para %
+Uploaded a file	Enviou um arquivo
+Uploading...	Enviando...
+Use Application Commands	Usar comandos de aplicativos
+Use Category Default	Usar padrão da categoria
+Use External Apps	Usar apps externos
+Use External Emoji	Usar emojis externos
+Use External Sounds	Usar sons externos
+Use External Stickers	Usar figurinhas externas
+Use Server Default	Usar padrão do servidor
+Use Soundboard	Usar painel de sons
+Use Voice Activity	Usar detecção de voz
+Use a backup code	Usar um código de backup
+Use a code sent to your phone	Usar um código enviado ao seu celular
+Use a passkey or security key	Usar uma chave de acesso ou chave de segurança
+Use data to improve Discord	Usar dados para melhorar o Discord
+Use roles to group your server members and assign permissions.	Use cargos para agrupar os membros do servidor e atribuir permissões.
+Use your authenticator app	Usar seu app autenticador
+Used % times.|Used % times.	Usado % vez.|Usado % vezes.
+User Join	Entrada de usuário
+User Leave	Saída de usuário
+User Limit	Limite de usuários
+User Moved	Usuário movido
+User Volume	Volume do usuário
+User blocked	Usuário bloqueado
+User unblocked	Usuário desbloqueado
+Username	Nome de usuário
+Username is available. Nice!	Nome de usuário disponível. Boa!
+Username is unavailable. Try adding numbers, letters, underscores _ , or periods.	Nome de usuário indisponível. Tente adicionar números, letras, sublinhados _ ou pontos.
+Users will need to confirm they are of over the legal age to view in the content in this channel.\nAge-restricted channels are exempt from the explicit content filter.	Os usuários vão precisar confirmar que têm a idade legal para ver o conteúdo deste canal.\nCanais com restrição de idade não passam pelo filtro de conteúdo explícito.
+Uses the yt-dlp you installed to play YouTube links in the chat instead of opening your browser. It connects to YouTube from your computer.	Usa o yt-dlp que você instalou para reproduzir links do YouTube no bate-papo em vez de abrir o navegador. Ele se conecta ao YouTube pelo seu computador.
+VOICE PROCESSING	PROCESSAMENTO DE VOZ
+Verification Level	Nível de verificação
+Verified	Verificado
+Verify with something else	Verificar de outro jeito
+Video	Vídeo
+Video Quality	Qualidade de vídeo
+Vietnamese	Vietnamita
+View Audit Log	Ver registro de auditoria
+View Channel	Ver canal
+View Channels	Ver canais
+View Details	Ver detalhes
+View Full Profile	Ver perfil completo
+View Poll	Ver enquete
+View Profile	Ver perfil
+View Reactions	Ver reações
+View Server Insights	Ver Insights do Servidor
+Visit Site	Visitar site
+Visual Density	Densidade visual
+Voice	Voz
+Voice & Video	Voz e vídeo
+Voice Activity	Detecção de voz
+Voice Channel	Canal de voz
+Voice Channel Permissions	Permissões do canal de voz
+Voice Connected	Voz conectada
+Voice Disconnected	Voz desconectada
+Volume	Volume
+Vote	Votar
+Waiting for a server	Aguardando um servidor
+Wants to message you	Quer enviar mensagem para você
+Watch Stream	Assistir transmissão
+Wave to say hi!	Acene para dizer oi!
+We appreciate the enthusiasm, but...	Adoramos o entusiasmo, mas...
+We couldn't load the profile for this server.	Não foi possível carregar o perfil deste servidor.
+We recommend an image of at least 512x512.	Recomendamos uma imagem de pelo menos 512x512.
+We sent instructions to change your password to %, please check both your inbox and spam folder.	Enviamos instruções para alterar sua senha para %. Confira sua caixa de entrada e a pasta de spam.
+We're so excited to see you again!	Que bom te ver de novo!
+We've sent a message to %.  Please enter the code you received.	Enviamos uma mensagem para %.  Digite o código que você recebeu.
+Webhooks (%)	Webhooks (%)
+Webhooks are a simple way to post messages from other apps and websites into this server.	Webhooks são um jeito simples de publicar mensagens de outros apps e sites neste servidor.
+Welcome %. Say hi!	Boas-vindas, %. Diga oi!
+Welcome back!	Boas-vindas de volta!
+Welcome to #%!	Boas-vindas ao #%!
+Welcome to the beginning of the % group.	Boas-vindas ao começo do grupo %.
+Welcome, %. We hope you brought pizza.	Boas-vindas, %. Esperamos que tenha trazido pizza.
+What brings you here?	O que te traz aqui?
+What can people do in this server?	O que as pessoas podem fazer neste servidor?
+What question do you want to ask?	Que pergunta você quer fazer?
+What's cookin'?	O que tá rolando?
+What's your event about?	Sobre o que é o seu evento?
+What's your event?	Qual é o seu evento?
+When a friend starts an activity—like playing a game or hanging out on voice—we'll show it here!	Quando um amigo começar uma atividade, como jogar um jogo ou ficar na voz, vamos mostrar aqui!
+When enabled, only server members can view profile content. Non-members won't be able to see this content unless they have an invite.	Quando ativado, só membros do servidor podem ver o conteúdo do perfil. Quem não é membro não verá esse conteúdo, a menos que tenha um convite.
+When you put a user in timeout they will not be able to send messages in chat, reply within threads, react to messages, or speak in voice or Stage channels.	Quando você coloca um usuário de castigo, ele não pode enviar mensagens no bate-papo, responder em tópicos, reagir a mensagens nem falar em canais de voz ou de Palco.
+Where is your event?	Onde vai ser o seu evento?
+Where would you like to go?	Para onde você quer ir?
+Who is this server for? E.g. School Club, Artists' Community	Para quem é este servidor? Ex.: clube da escola, comunidade de artistas
+Winning answer · %1%2	Resposta vencedora · %1%2
+Words that are never blocked, separated by commas	Palavras que nunca são bloqueadas, separadas por vírgulas
+Words to block, separated by commas	Palavras para bloquear, separadas por vírgulas
+Words to block, separated by commas (* matches anything)	Palavras para bloquear, separadas por vírgulas (* corresponde a qualquer coisa)
+Would you like to sync %1 permissions with %2?	Quer sincronizar as permissões de %1 com %2?
+Yay you made it, %!	Eba, você chegou, %!
+Yesterday at %	Ontem às %
+You	Você
+You accepted %'s friend request.	Você aceitou o pedido de amizade de %.
+You are at the % server limit.	Você atingiu o limite de % servidores.
+You are banned from this server.	Você está banido deste servidor.
+You aren't in that server. Ask a member for an invite.	Você não está nesse servidor. Peça um convite a um membro.
+You can add % more friend.|You can add % more friends.	Você pode adicionar mais % amigo.|Você pode adicionar mais % amigos.
+You can add comments before uploading.\nHold shift to upload directly.	Você pode adicionar comentários antes de enviar.\nSegure Shift para enviar direto.
+You can add friends with their Discord username.	Você pode adicionar amigos pelo nome de usuário do Discord.
+You can add up to 5 accounts.	Você pode adicionar até 5 contas.
+You can hold down shift when clicking % to bypass this confirmation entirely.	Você pode segurar Shift ao clicar em % para pular esta confirmação de vez.
+You can only edit roles below your highest role.	Você só pode editar cargos abaixo do seu cargo mais alto.
+You can only upload % files at a time!	Você só pode enviar % arquivos por vez!
+You can use markdown and links if you'd like.	Você pode usar markdown e links, se quiser.
+You can't join this server because of your age group.	Você não pode entrar neste servidor por causa da sua faixa etária.
+You can't unblock the Wumpus.	Você não pode desbloquear o Wumpus.
+You cannot friend yourself	Você não pode adicionar a si mesmo como amigo
+You can’t react and super react with the same emoji. There’s a lot of emoji to choose from, so maybe try another one.	Você não pode reagir e super-reagir com o mesmo emoji. Tem muitos emojis para escolher, então tente outro.
+You do not have permission to send messages in this channel.	Você não tem permissão para enviar mensagens neste canal.
+You don't have any friends to add!	Você não tem amigos para adicionar!
+You don't have permission to do that.	Você não tem permissão para fazer isso.
+You haven't added a display name yet.	Você ainda não adicionou um nome de exibição.
+You haven't added a phone number yet.	Você ainda não adicionou um número de telefone.
+You haven't added an email yet.	Você ainda não adicionou um e-mail.
+You haven't authorized any apps.	Você não autorizou nenhum app.
+You haven't blocked anyone.	Você não bloqueou ninguém.
+You haven't connected any accounts yet.	Você ainda não conectou nenhuma conta.
+You haven't ignored anyone.	Você não ignorou ninguém.
+You missed a call from %1 that lasted %2.	Você perdeu uma chamada de %1 que durou %2.
+You must be at least 18 years old to view this channel.	Você precisa ter pelo menos 18 anos para ver este canal.
+You must leave a server first to join.	Você precisa sair de um servidor antes de entrar.
+You need to add one or more rules.	Você precisa adicionar uma ou mais regras.
+You received an invite, but...	Você recebeu um convite, mas...
+You said: %	Você disse: %
+You sent an invite to a self-hosted server	Você enviou um convite para um servidor auto-hospedado
+You sent an invite, but	Você enviou um convite, mas
+You sent an invite, but...	Você enviou um convite, mas...
+You will appear offline	Você vai aparecer offline
+You will not receive desktop notifications	Você não vai receber notificações na área de trabalho
+You'll have to log back in on all logged out devices.	Você vai precisar entrar de novo em todos os dispositivos desconectados.
+You're Viewing Older Messages	Você está vendo mensagens antigas
+You're all caught up!	Você está em dia!
+You're already in that server.	Você já está nesse servidor.
+You're doing that too fast. Try again in a moment.	Você está fazendo isso rápido demais. Tente de novo daqui a pouco.
+You're not in any servers yet.	Você ainda não está em nenhum servidor.
+You're offline: no invite link.	Você está offline: sem link de convite.
+You're timed out until %.	Você está de castigo até %.
+You've been invited to a self-hosted server	Você foi convidado para um servidor auto-hospedado
+You've been invited to join	Você foi convidado para entrar em
+You've been invited to speak	Você foi convidado para falar
+You've been invited, but	Você foi convidado, mas
+Your files are too powerful	Seus arquivos são poderosos demais
+Your full profile is visible to friends and any server you join with 200 or fewer members. Everyone else sees a limited version.	Seu perfil completo fica visível para amigos e para qualquer servidor com até 200 membros em que você entrar. Os demais veem uma versão limitada.
+Your full profile is visible to friends and any server you join.	Seu perfil completo fica visível para amigos e para qualquer servidor em que você entrar.
+Your full profile is visible to friends. Everyone else sees a limited version.	Seu perfil completo fica visível para amigos. Os demais veem uma versão limitada.
+Your invite link expires after %.	Seu link de convite expira depois de %.
+Your invite link expires in %.	Seu link de convite expira em %.
+Your invite link expires in %1, or after %2.	Seu link de convite expira em %1 ou depois de %2.
+Your invite link expires in 7 days.	Seu link de convite expira em 7 dias.
+Your invite link will never expire.	Seu link de convite nunca vai expirar.
+Your last request was on %.	Sua última solicitação foi em %.
+Your message is too long (% / %).	Sua mensagem é longa demais (% / %).
+Your reaction was not added because there are too many reactions on this message.	Sua reação não foi adicionada porque esta mensagem tem reações demais.
+Your request from % is being prepared.	Sua solicitação de % está sendo preparada.
+Your server is where you and your friends hang out. Make yours and start talking.	Seu servidor é onde você e seus amigos se encontram. Crie o seu e comece a conversar.
+Your sounds go out with your voice, mixed into your microphone, instead of as soundboard sounds.	Seus sons saem junto com sua voz, misturados ao microfone, em vez de como sons do painel de sons.
+Zoom level	Nível de zoom
+a channel	um canal
+a command	um comando
+a day	um dia
+a day ago	há um dia
+a few seconds	alguns segundos
+a few seconds ago	há alguns segundos
+a message	uma mensagem
+a minute	um minuto
+a minute ago	há um minuto
+a month ago	há um mês
+a year ago	há um ano
+an hour	uma hora
+an hour ago	há uma hora
+by %	por %
+cancel	cancelar
+channel	canal
+delete message	excluir mensagem
+dingus@example.com	dingus@example.com
+discord.gg/	discord.gg/
+en-GB	en-GB
+en-US	en-US
+es-ES	es-ES
+escape to %1 • enter to %2	esc para %1 • enter para %2
+fastcord %	fastcord %
+fastcord quit unexpectedly last time. The report is in the logs folder (Settings, under Log Out).	O fastcord fechou inesperadamente da última vez. O relatório está na pasta de logs (Configurações, abaixo de Sair).
+fastcord starts in the background and stays out of your way.	O fastcord inicia em segundo plano e não atrapalha você.
+from %	de %
+in %	em %
+in % day|in % days	em % dia|em % dias
+in % hour|in % hours	em % hora|em % horas
+in % minute|in % minutes	em % minuto|em % minutos
+in % month|in % months	em % mês|em % meses
+in % year|in % years	em % ano|em % anos
+in a day	em um dia
+in a few seconds	em alguns segundos
+in a minute	em um minuto
+in a month	em um mês
+in a year	em um ano
+in an hour	em uma hora
+just now	agora mesmo
+less than an hour ago	há menos de uma hora
+link, embed or file	link, incorporação ou arquivo
+on %	em %
+pinned messages	mensagens fixadas
+pt-BR	pt-BR
+remove embeds	remover incorporações
+save	salvar
+someone	alguém
+specific date	data específica
+sv-SE	sv-SE
+this server	este servidor
+threads	tópicos
+true or false	verdadeiro ou falso
+unknown	desconhecido
+unknown channel	canal desconhecido
+unknown-user	usuário-desconhecido
+used	usado
+user	usuário
+zh-CN	zh-CN
+zh-TW	zh-TW
+• Media from all members is scanned by the explicit image filter.	• A mídia de todos os membros passa pelo filtro de imagens explícitas.
+• Members must have a verified email on their Discord account.	• Os membros precisam ter um e-mail verificado na conta do Discord.
+← Back to %	← Voltar para %
+← Back to login	← Voltar para o login
+┬─┬ノ( º _ ºノ)	┬─┬ノ( º _ ºノ)

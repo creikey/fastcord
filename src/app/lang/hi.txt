@@ -1,0 +1,1970 @@
+# Hindi (hi)
+ · required	 · ज़रूरी
+% (requested to speak)	% (बोलने का अनुरोध किया)
+% (required)	% (ज़रूरी)
+% Bans|% Bans	% बैन|% बैन
+% Event|% Events	% इवेंट|% इवेंट
+% Member|% Members	% सदस्य|% सदस्य
+% Messages	% मैसेज
+% Mutual Friend|% Mutual Friends	% साझा दोस्त|% साझा दोस्त
+% Mutual Server|% Mutual Servers	% साझा सर्वर|% साझा सर्वर
+% Online	% ऑनलाइन
+% Result|% Results	% नतीजा|% नतीजे
+% accepted encryption.	% ने एन्क्रिप्शन स्वीकार किया।
+% accepted your friend request.	% ने आपकी फ़्रेंड रिक्वेस्ट स्वीकार की।
+% answer|% answers	% जवाब|% जवाब
+% becomes the owner once they accept on their device. You'll stay a member.	% अपने डिवाइस पर स्वीकार करते ही मालिक बन जाएँगे। आप सदस्य बने रहेंगे।
+% blocked message —|% blocked messages —	% ब्लॉक किया गया मैसेज —|% ब्लॉक किए गए मैसेज —
+% byte|% bytes	% बाइट|% बाइट
+% changed the group icon.	% ने ग्रुप आइकन बदला।
+% day ago|% days ago	% दिन पहले|% दिन पहले
+% day|% days	% दिन|% दिन
+% disabled security actions.	% ने सुरक्षा कार्रवाइयाँ बंद कीं।
+% enabled security actions.	% ने सुरक्षा कार्रवाइयाँ चालू कीं।
+% hasn't accepted encryption yet.	% ने अभी तक एन्क्रिप्शन स्वीकार नहीं किया है।
+% hopped into the server.	% सर्वर में कूद पड़े।
+% hour ago|% hours ago	% घंटा पहले|% घंटे पहले
+% hour|% hours	% घंटा|% घंटे
+% ignored message —|% ignored messages —	% अनदेखा किया गया मैसेज —|% अनदेखे किए गए मैसेज —
+% is here.	% आ गए हैं।
+% is typing...	% टाइप कर रहे हैं...
+% joined the party.	% पार्टी में शामिल हुए।
+% just boosted the server!	% ने अभी-अभी सर्वर को बूस्ट किया!
+% just landed.	% अभी-अभी उतरे हैं।
+% just showed up!	% अभी-अभी आ पहुँचे!
+% just slid into the server.	% सर्वर में फिसलते हुए आ गए।
+% left the group.	% ने ग्रुप छोड़ दिया।
+% member|% members	% सदस्य|% सदस्य
+% minute ago|% minutes ago	% मिनट पहले|% मिनट पहले
+% minute|% minutes	% मिनट|% मिनट
+% month ago|% months ago	% महीना पहले|% महीने पहले
+% of %	%2 में से %1
+% removed the custom group name.	% ने ग्रुप का कस्टम नाम हटा दिया।
+% started a call.	% ने कॉल शुरू की।
+% turned on encryption.	% ने एन्क्रिप्शन चालू किया।
+% user|% users	% यूज़र|% यूज़र
+% use|% uses	% उपयोग|% उपयोग
+% vote|% votes	% वोट|% वोट
+% wants to encrypt this DM with a new key. Compare safety numbers after accepting.	% इस DM को नई कुंजी से एन्क्रिप्ट करना चाहते हैं। स्वीकार करने के बाद सेफ़्टी नंबर मिलाएँ।
+% wants to encrypt this DM.	% इस DM को एन्क्रिप्ट करना चाहते हैं।
+% year ago|% years ago	% साल पहले|% साल पहले
+% · End-to-end encrypted	% · एंड-टू-एंड एन्क्रिप्टेड
+%'s Group	% का ग्रुप
+%'s encryption key changed. Compare safety numbers before trusting new messages.	% की एन्क्रिप्शन कुंजी बदल गई है। नए मैसेज पर भरोसा करने से पहले सेफ़्टी नंबर मिलाएँ।
+%'s server	% का सर्वर
+%1 (%2 more)	%1 (%2 और)
+%1 FPS	%1 FPS
+%1 STICKERS — %2 SLOTS AVAILABLE	%1 स्टिकर — %2 स्लॉट उपलब्ध
+%1 action %2	%1 कार्रवाई %2
+%1 added %2 to the group.	%1 ने %2 को ग्रुप में जोड़ा।
+%1 and %2	%1 और %2
+%1 and %2 are typing...	%1 और %2 टाइप कर रहे हैं...
+%1 and %2 other|%1 and %2 others	%1 और %2 अन्य|%1 और %2 अन्य
+%1 banned %2	%1 ने %2 को बैन किया
+%1 changed the Stage topic: %2	%1 ने स्टेज का विषय बदला: %2
+%1 changed the channel name: %2.	%1 ने चैनल का नाम बदला: %2।
+%1 changed the group name: %2.	%1 ने ग्रुप का नाम बदला: %2।
+%1 created a channel	%1 ने एक चैनल बनाया
+%1 created a role	%1 ने एक रोल बनाया
+%1 created a webhook	%1 ने एक वेबहुक बनाया
+%1 created an emoji	%1 ने एक इमोजी बनाया
+%1 created an invite	%1 ने एक इनवाइट बनाया
+%1 deleted a channel	%1 ने एक चैनल डिलीट किया
+%1 deleted a message by %2	%1 ने %2 का एक मैसेज डिलीट किया
+%1 deleted a role	%1 ने एक रोल डिलीट किया
+%1 deleted a webhook	%1 ने एक वेबहुक डिलीट किया
+%1 deleted an emoji	%1 ने एक इमोजी डिलीट किया
+%1 deleted an invite	%1 ने एक इनवाइट डिलीट किया
+%1 enabled security actions until %2.	%1 ने %2 तक सुरक्षा कार्रवाइयाँ चालू कीं।
+%1 ended %2	%1 ने %2 खत्म किया
+%1 has achieved %2	%1 ने %2 हासिल किया
+%1 has added %2 to this channel. Its most important updates will show up here.	%1 ने %2 को इस चैनल में जोड़ा है। इसके सबसे ज़रूरी अपडेट यहाँ दिखेंगे।
+%1 has blocked a message in %2	%1 ने %2 में एक मैसेज ब्लॉक किया
+%1 has flagged a message in %2	%1 ने %2 में एक मैसेज फ़्लैग किया
+%1 is now a speaker.	%1 अब स्पीकर हैं।
+%1 joined %2 and has been a subscriber of %3 for %4 month!|%1 joined %2 and has been a subscriber of %3 for %4 months!	%1 %2 में शामिल हुए और %4 महीने से %3 के सब्सक्राइबर हैं!|%1 %2 में शामिल हुए और %4 महीनों से %3 के सब्सक्राइबर हैं!
+%1 joined %2 as a subscriber of %3!	%1 %3 के सब्सक्राइबर के रूप में %2 में शामिल हुए!
+%1 just boosted the server %2 times!	%1 ने अभी-अभी सर्वर को %2 बार बूस्ट किया!
+%1 kicked %2	%1 ने %2 को किक किया
+%1 new message since %2|%1 new messages since %2	%2 से %1 नया मैसेज|%2 से %1 नए मैसेज
+%1 of %2 slot used|%1 of %2 slots used	%2 में से %1 स्लॉट इस्तेमाल हुआ|%2 में से %1 स्लॉट इस्तेमाल हुए
+%1 pinned %2 to this channel. See all %3.	%1 ने इस चैनल में %2 पिन किया। सभी %3 देखें।
+%1 reacted with %2	%1 ने %2 से रिएक्ट किया
+%1 removed %2 from the group.	%1 ने %2 को ग्रुप से हटाया।
+%1 renewed %2 and has been a subscriber of %3 for %4 month!|%1 renewed %2 and has been a subscriber of %3 for %4 months!	%1 ने %2 रिन्यू किया और %4 महीने से %3 के सब्सक्राइबर हैं!|%1 ने %2 रिन्यू किया और %4 महीनों से %3 के सब्सक्राइबर हैं!
+%1 renewed %2 in their %3 membership!	%1 ने अपनी %3 मेंबरशिप में %2 रिन्यू किया!
+%1 reported a raid in %2.	%1 ने %2 में रेड की रिपोर्ट की।
+%1 requested to speak.	%1 ने बोलने का अनुरोध किया।
+%1 resolved an Activity Alert in %2.	%1 ने %2 में एक गतिविधि अलर्ट हल किया।
+%1 said %2	%1 ने कहा %2
+%1 started %2	%1 ने %2 शुरू किया
+%1 started a call that lasted %2.	%1 ने एक कॉल शुरू की जो %2 चली।
+%1 started a thread: %2. See all %3.	%1 ने एक थ्रेड शुरू किया: %2। सभी %3 देखें।
+%1 unbanned %2	%1 ने %2 का बैन हटाया
+%1 updated %2	%1 ने %2 अपडेट किया
+%1 updated a channel	%1 ने एक चैनल अपडेट किया
+%1 updated a role	%1 ने एक रोल अपडेट किया
+%1 updated a webhook	%1 ने एक वेबहुक अपडेट किया
+%1 updated an emoji	%1 ने एक इमोजी अपडेट किया
+%1 updated the roles of %2	%1 ने %2 के रोल अपडेट किए
+%1 updated the server	%1 ने सर्वर अपडेट किया
+%1 vote · %2|%1 votes · %2	%1 वोट · %2|%1 वोट · %2
+%1 wants to make you the owner of %2. You'll be able to manage everything about it, and they'll stay a member.	%1 आपको %2 का मालिक बनाना चाहते हैं। आप इसकी हर चीज़ संभाल पाएँगे, और वे सदस्य बने रहेंगे।
+%1's poll %2 has closed.	%1 का पोल %2 बंद हो गया है।
+%1, %2 and %3	%1, %2 और %3
+%1, %2 at %3	%1, %2 को %3 बजे
+%1, %2, and %3 are typing...	%1, %2 और %3 टाइप कर रहे हैं...
+%1: %2	%1: %2
+%: a number	%: एक संख्या
+%: a whole number	%: एक पूर्ण संख्या
+%: pick a channel	%: एक चैनल चुनें
+%: pick a member	%: एक सदस्य चुनें
+%: pick a role	%: एक रोल चुनें
+%: true or false	%: true या false
+%d ago	%दि॰ पहले
+%d left	%दि॰ बाकी
+%h	%घं॰
+%h ago	%घं॰ पहले
+%h left	%घं॰ बाकी
+%m	%मि॰
+%m ago	%मि॰ पहले
+%m left	%मि॰ बाकी
+%mo ago	%मही॰ पहले
+%s	%से॰
+(edited)	(एडिट किया गया)
+/% takes no options.	/% में कोई विकल्प नहीं है।
+/%1 needs %2:	/%1 को %2 चाहिए:
+1 Day	1 दिन
+1 Hour	1 घंटा
+1 Message	1 मैसेज
+1 Week	1 हफ़्ता
+1 day	1 दिन
+1 hour	1 घंटा
+1 minute	1 मिनट
+1 use	1 उपयोग
+1 week	1 हफ़्ता
+10 Minutes	10 मिनट
+10 minutes	10 मिनट
+10 uses	10 उपयोग
+100 uses	100 उपयोग
+12 hours	12 घंटे
+12-hour	12-घंटे
+15 minutes	15 मिनट
+2 hours	2 घंटे
+2 to 4 letters or numbers	2 से 4 अक्षर या अंक
+2 weeks	2 हफ़्ते
+24 Hours	24 घंटे
+24 hours	24 घंटे
+24-hour	24-घंटे
+25 uses	25 उपयोग
+3 Days	3 दिन
+3 days	3 दिन
+30 days	30 दिन
+30 minutes	30 मिनट
+3:00 PM	3:00 अपराह्न
+4 hours	4 घंटे
+5 Minutes	5 मिनट
+5 minutes	5 मिनट
+5 uses	5 उपयोग
+50 uses	50 उपयोग
+6 hours	6 घंटे
+6-digit authentication code	6-अंकों का ऑथेंटिकेशन कोड
+60 Seconds	60 सेकंड
+60 seconds	60 सेकंड
+7 days	7 दिन
+8 hours	8 घंटे
+8-digit backup code	8-अंकों का बैकअप कोड
+@ OFF	@ बंद
+@ ON	@ चालू
+@MENTIONS	@मेंशन
+@everyone · applies to all server members	@everyone · सर्वर के सभी सदस्यों पर लागू
+A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button.	Ctrl, Alt, Shift या Cmd के साथ कोई की, अकेली मॉडिफ़ायर की, या माउस का बीच वाला या साइड बटन।
+A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button. Works in every app.	Ctrl, Alt, Shift या Cmd के साथ कोई की, अकेली मॉडिफ़ायर की, या माउस का बीच वाला या साइड बटन। हर ऐप में काम करता है।
+A role needs a name.	रोल का नाम होना ज़रूरी है।
+A webhook needs a name.	वेबहुक का नाम होना ज़रूरी है।
+A wild % appeared.	एक जंगली % प्रकट हुआ।
+ACTION	कार्रवाई
+ACTIVE INVITE LINKS	सक्रिय इनवाइट लिंक
+ALL	सभी
+ALL THE BITS! Going above 64 kbps may adversely affect people on poor connections.	सारे बिट्स! 64 kbps से ऊपर जाने पर कमज़ोर कनेक्शन वालों को दिक्कत हो सकती है।
+AM	पूर्वाह्न
+ANIMATED EMOJI — % SLOTS AVAILABLE	एनिमेटेड इमोजी — % स्लॉट उपलब्ध
+APP	ऐप
+AUDIENCE — %	दर्शक — %
+AUTHENTICATOR APP	ऑथेंटिकेटर ऐप
+About Me	मेरे बारे में
+Accept	स्वीकार करें
+Accept Friend Request	फ़्रेंड रिक्वेस्ट स्वीकार करें
+Accept Invite	इनवाइट स्वीकार करें
+Accept Server Ownership	सर्वर का मालिकाना हक स्वीकार करें
+Accept this message request (Friends, Message Requests) to reply.	जवाब देने के लिए यह मैसेज रिक्वेस्ट स्वीकार करें (दोस्त, मैसेज रिक्वेस्ट)।
+Accepting...	स्वीकार कर रहे हैं...
+Access	एक्सेस
+Accessibility	सुलभता
+Account	अकाउंट
+Account Removal	अकाउंट हटाना
+Activate	सक्रिय करें
+Active	सक्रिय
+Active Now	अभी सक्रिय
+Activities	गतिविधियाँ
+Activity Joining	गतिविधि में शामिल होना
+Activity Privacy	गतिविधि गोपनीयता
+Activity Status	गतिविधि स्टेटस
+Add Answer	जवाब जोड़ें
+Add Emoji	इमोजी जोड़ें
+Add Friend	दोस्त जोड़ें
+Add Friend Nickname	दोस्त का निकनेम जोड़ें
+Add Note	नोट जोड़ें
+Add Reaction	रिएक्शन जोड़ें
+Add Reactions	रिएक्शन जोड़ें
+Add Tag	टैग जोड़ें
+Add a Keybind	कीबाइंड जोड़ें
+Add a Question	सवाल जोड़ें
+Add a channel	चैनल जोड़ें
+Add a channel to override its default notification settings	डिफ़ॉल्ट नोटिफ़िकेशन सेटिंग्स बदलने के लिए एक चैनल जोड़ें
+Add a description	विवरण जोड़ें
+Add a location, link, or something.	कोई जगह, लिंक या कुछ और जोड़ें।
+Add a role	रोल जोड़ें
+Add an Account	अकाउंट जोड़ें
+Add an optional message...	चाहें तो मैसेज जोड़ें...
+Add another answer	एक और जवाब जोड़ें
+Add at least one word to block.	ब्लॉक करने के लिए कम से कम एक शब्द जोड़ें।
+Add members or roles	सदस्य या रोल जोड़ें
+Add this channel's updates to your server!	इस चैनल के अपडेट अपने सर्वर में जोड़ें!
+Add this key to an authenticator app, then enter the code it shows.	यह कुंजी किसी ऑथेंटिकेटर ऐप में जोड़ें, फिर उसमें दिखने वाला कोड डालें।
+Add to Favorites	पसंदीदा में जोड़ें
+Add to Group DM	ग्रुप DM में जोड़ें
+Add up to 5 traits to show off your server's interests and personality.	अपने सर्वर की रुचियाँ और अंदाज़ दिखाने के लिए 5 तक खूबियाँ जोड़ें।
+Add up to 50 custom emoji that anyone can use in this server. Animated GIF emoji may be used by members with Discord Nitro. Emoji names must be at least 2 characters long and can only contain alphanumeric characters and underscores. Emoji must be under 256 KB in size.	50 तक कस्टम इमोजी जोड़ें जिन्हें इस सर्वर में कोई भी इस्तेमाल कर सकता है। एनिमेटेड GIF इमोजी Discord Nitro वाले सदस्य इस्तेमाल कर सकते हैं। इमोजी के नाम कम से कम 2 अक्षर के होने चाहिए और उनमें सिर्फ़ अक्षर, अंक और अंडरस्कोर हो सकते हैं। इमोजी 256 KB से छोटे होने चाहिए।
+Add your pronouns	अपने सर्वनाम जोड़ें
+Added %	% जोड़ा गया
+Adjust the size of the interface. You can also change this with % +/-.	इंटरफ़ेस का आकार बदलें। आप इसे % +/- से भी बदल सकते हैं।
+Administrator	एडमिनिस्ट्रेटर
+Advanced Permissions	एडवांस्ड अनुमतियाँ
+Advanced permissions	एडवांस्ड अनुमतियाँ
+Age-Restricted Channel	उम्र-प्रतिबंधित चैनल
+All	सभी
+All Actions	सभी कार्रवाइयाँ
+All Messages	सभी मैसेज
+All Users	सभी यूज़र
+All friends	सभी दोस्त
+All messages will be filtered for sensitive image-based media.	सभी मैसेज में संवेदनशील इमेज वाली मीडिया को फ़िल्टर किया जाएगा।
+All set. Now share your event!	सब तैयार है। अब अपना इवेंट शेयर करें!
+Allow DMs from other members in servers	सर्वर के दूसरे सदस्यों से DM की अनुमति दें
+Allow Discord to use and process my information to understand and improve Discord's services.	Discord की सेवाओं को समझने और बेहतर बनाने के लिए Discord को मेरी जानकारी इस्तेमाल और प्रोसेस करने दें।
+Allow Friend Requests from...	इनसे फ़्रेंड रिक्वेस्ट की अनुमति दें...
+Allow Multiple Answers	कई जवाबों की अनुमति दें
+Allow anyone to @mention this role	किसी को भी इस रोल को @मेंशन करने दें
+Allow direct messages from other members in this server.	इस सर्वर के दूसरे सदस्यों से डायरेक्ट मैसेज की अनुमति दें।
+Allow friends to join your game	दोस्तों को आपके गेम में शामिल होने दें
+Allow members to change this server's name, switch regions, view all invites, add apps to this server and create and update AutoMod rules.	सदस्यों को इस सर्वर का नाम बदलने, रीजन बदलने, सभी इनवाइट देखने, इस सर्वर में ऐप जोड़ने और AutoMod नियम बनाने व अपडेट करने दें।
+Allow members to create invite-only threads.	सदस्यों को सिर्फ़-इनवाइट वाले थ्रेड बनाने दें।
+Allow members to create threads that everyone in a channel can view.	सदस्यों को ऐसे थ्रेड बनाने दें जिन्हें चैनल में हर कोई देख सके।
+Allow members to send messages in text channels and create posts in forum channels.	सदस्यों को टेक्स्ट चैनलों में मैसेज भेजने और फ़ोरम चैनलों में पोस्ट बनाने दें।
+Allow members to send messages in threads and in posts on forum channels.	सदस्यों को थ्रेड और फ़ोरम चैनलों की पोस्ट में मैसेज भेजने दें।
+Allow message requests from server members you may not know	उन सर्वर सदस्यों से मैसेज रिक्वेस्ट की अनुमति दें जिन्हें आप शायद नहीं जानते
+Allow voice channel participants to join your game	वॉइस चैनल के लोगों को आपके गेम में शामिल होने दें
+Allowed words	अनुमत शब्द
+Allows apps that members have added to their account to post messages. When disabled, the messages will be private.	सदस्यों के अकाउंट में जोड़े गए ऐप को मैसेज पोस्ट करने देता है। बंद होने पर मैसेज निजी रहेंगे।
+Allows links that members share to show embedded content in text channels.	सदस्यों के शेयर किए लिंक को टेक्स्ट चैनलों में एम्बेड सामग्री दिखाने देता है।
+Allows members to add custom emoji, stickers, and sounds in this server.	सदस्यों को इस सर्वर में कस्टम इमोजी, स्टिकर और साउंड जोड़ने देता है।
+Allows members to add new emoji reactions to a message. If this permission is disabled, members can still react using any existing reactions on a message.	सदस्यों को किसी मैसेज पर नए इमोजी रिएक्शन जोड़ने देता है। यह अनुमति बंद होने पर भी सदस्य मैसेज पर पहले से मौजूद रिएक्शन से रिएक्ट कर सकते हैं।
+Allows members to be more easily heard in voice channels. When activated, the volume of others without this permission will be automatically lowered.	वॉइस चैनलों में सदस्यों की आवाज़ ज़्यादा आसानी से सुनाई देने देता है। चालू होने पर, यह अनुमति न रखने वालों का वॉल्यूम अपने आप कम हो जाएगा।
+Allows members to change the nicknames of other members.	सदस्यों को दूसरे सदस्यों के निकनेम बदलने देता है।
+Allows members to change their own nickname, a custom name for just this server.	सदस्यों को अपना निकनेम बदलने देता है, जो सिर्फ़ इस सर्वर के लिए एक कस्टम नाम है।
+Allows members to change this channel's name, description, and settings. They can also delete it.	सदस्यों को इस चैनल का नाम, विवरण और सेटिंग्स बदलने देता है। वे इसे डिलीट भी कर सकते हैं।
+Allows members to change this channel's permissions.	सदस्यों को इस चैनल की अनुमतियाँ बदलने देता है।
+Allows members to create and edit voice channel status.	सदस्यों को वॉइस चैनल स्टेटस बनाने और एडिट करने देता है।
+Allows members to create events.	सदस्यों को इवेंट बनाने देता है।
+Allows members to create new roles and edit or delete roles lower than their highest role. Also allows members to change permissions of individual channels that they have access to.	सदस्यों को नए रोल बनाने और अपने सबसे ऊँचे रोल से नीचे के रोल एडिट या डिलीट करने देता है। सदस्यों को उन चैनलों की अनुमतियाँ बदलने भी देता है जिन तक उनकी पहुँच है।
+Allows members to create polls.	सदस्यों को पोल बनाने देता है।
+Allows members to create, edit, or delete channels.	सदस्यों को चैनल बनाने, एडिट करने या डिलीट करने देता है।
+Allows members to create, edit, or delete webhooks, which can post messages from other apps or sites into this server.	सदस्यों को वेबहुक बनाने, एडिट करने या डिलीट करने देता है, जो दूसरे ऐप या साइट से इस सर्वर में मैसेज पोस्ट कर सकते हैं।
+Allows members to deafen other members in voice channels, which means they won't be able to speak or hear others.	सदस्यों को वॉइस चैनलों में दूसरे सदस्यों को डेफ़न करने देता है, यानी वे न बोल पाएँगे और न दूसरों को सुन पाएँगे।
+Allows members to delete or remove embeds from messages by other members.	सदस्यों को दूसरे सदस्यों के मैसेज डिलीट करने या उनसे एम्बेड हटाने देता है।
+Allows members to disconnect or move other members between voice channels that the member with this permission has access to.	सदस्यों को दूसरे सदस्यों को डिस्कनेक्ट करने या उन वॉइस चैनलों के बीच ले जाने देता है जिन तक इस अनुमति वाले सदस्य की पहुँच है।
+Allows members to edit and cancel events.	सदस्यों को इवेंट एडिट और रद्द करने देता है।
+Allows members to edit or remove custom emoji, stickers, and sounds in this server.	सदस्यों को इस सर्वर में कस्टम इमोजी, स्टिकर और साउंड एडिट करने या हटाने देता है।
+Allows members to invite new people to this server.	सदस्यों को इस सर्वर में नए लोगों को इनवाइट करने देता है।
+Allows members to join voice channels and hear others.	सदस्यों को वॉइस चैनलों में शामिल होने और दूसरों को सुनने देता है।
+Allows members to mute other members in voice channels for everyone.	सदस्यों को वॉइस चैनलों में दूसरे सदस्यों को सबके लिए म्यूट करने देता है।
+Allows members to permanently ban and delete the message history of other members from this server.	सदस्यों को दूसरे सदस्यों को इस सर्वर से हमेशा के लिए बैन करने और उनकी मैसेज हिस्ट्री डिलीट करने देता है।
+Allows members to pin or unpin any message.	सदस्यों को कोई भी मैसेज पिन या अनपिन करने देता है।
+Allows members to read previous messages sent in channels. If this permission is disabled, members only see messages sent when they are online. This does not fully apply to threads and forum posts.	सदस्यों को चैनलों में भेजे गए पिछले मैसेज पढ़ने देता है। यह अनुमति बंद होने पर सदस्य सिर्फ़ वही मैसेज देखते हैं जो उनके ऑनलाइन रहते भेजे गए। यह थ्रेड और फ़ोरम पोस्ट पर पूरी तरह लागू नहीं होता।
+Allows members to remove other members from this server. Kicked members will be able to rejoin if they have another invite.	सदस्यों को दूसरे सदस्यों को इस सर्वर से हटाने देता है। किक किए गए सदस्य नया इनवाइट मिलने पर फिर से जुड़ सकेंगे।
+Allows members to rename, delete, close, and turn on slow mode for threads and posts. They can also view private threads.	सदस्यों को थ्रेड और पोस्ट का नाम बदलने, डिलीट करने, बंद करने और स्लोमोड चालू करने देता है। वे निजी थ्रेड भी देख सकते हैं।
+Allows members to send messages without being affected by slowmode.	सदस्यों को स्लोमोड से प्रभावित हुए बिना मैसेज भेजने देता है।
+Allows members to send sounds from server soundboard.	सदस्यों को सर्वर साउंडबोर्ड से साउंड भेजने देता है।
+Allows members to send text-to-speech messages by starting a message with /tts. These messages can be heard by anyone focused on the channel.	सदस्यों को मैसेज /tts से शुरू करके टेक्स्ट-टू-स्पीच मैसेज भेजने देता है। ये मैसेज चैनल खोले हुए कोई भी सुन सकता है।
+Allows members to send voice messages.	सदस्यों को वॉइस मैसेज भेजने देता है।
+Allows members to share their video, screen share, or stream a game in this server.	सदस्यों को इस सर्वर में अपना वीडियो शेयर करने, स्क्रीन शेयर करने या गेम स्ट्रीम करने देता है।
+Allows members to speak in voice channels by simply talking. If this permission is disabled, members are required to use Push-to-talk. Good for controlling background noise or noisy members.	सदस्यों को वॉइस चैनलों में सीधे बोलकर बात करने देता है। यह अनुमति बंद होने पर सदस्यों को पुश-टू-टॉक इस्तेमाल करना होगा। बैकग्राउंड शोर या शोर मचाने वाले सदस्यों पर काबू के लिए अच्छा है।
+Allows members to talk in voice channels. If this permission is disabled, members are default muted until somebody with the "Mute Members" permission un-mutes them.	सदस्यों को वॉइस चैनलों में बोलने देता है। यह अनुमति बंद होने पर सदस्य डिफ़ॉल्ट रूप से म्यूट रहते हैं, जब तक "सदस्यों को म्यूट करें" अनुमति वाला कोई उन्हें अनम्यूट न करे।
+Allows members to upload files or media in text channels.	सदस्यों को टेक्स्ट चैनलों में फ़ाइलें या मीडिया अपलोड करने देता है।
+Allows members to use @everyone (everyone in the server) or @here (only online members in that channel). They can also @mention all roles, even if the role's "Allow anyone to mention this role" permission is disabled.	सदस्यों को @everyone (सर्वर में हर कोई) या @here (उस चैनल के सिर्फ़ ऑनलाइन सदस्य) इस्तेमाल करने देता है। वे सभी रोल को @मेंशन भी कर सकते हैं, भले ही रोल की "किसी को भी इस रोल को मेंशन करने दें" अनुमति बंद हो।
+Allows members to use commands from applications, including slash commands and context menu commands.	सदस्यों को ऐप्लिकेशन के कमांड इस्तेमाल करने देता है, जिनमें स्लैश कमांड और कॉन्टेक्स्ट मेन्यू कमांड शामिल हैं।
+Allows members to use emoji from other servers, if they're a Discord Nitro member.	Discord Nitro वाले सदस्यों को दूसरे सर्वर के इमोजी इस्तेमाल करने देता है।
+Allows members to use sounds from other servers, if they're a Discord Nitro member.	Discord Nitro वाले सदस्यों को दूसरे सर्वर के साउंड इस्तेमाल करने देता है।
+Allows members to use stickers from other servers, if they're a Discord Nitro member.	Discord Nitro वाले सदस्यों को दूसरे सर्वर के स्टिकर इस्तेमाल करने देता है।
+Allows members to view Server Insights, which shows data on community growth, engagement, and more. This will allow them to see certain data about channel activity, even for channels they cannot access.	सदस्यों को सर्वर इनसाइट्स देखने देता है, जो कम्युनिटी की बढ़त, एंगेजमेंट और बहुत कुछ का डेटा दिखाता है। इससे वे चैनल गतिविधि का कुछ डेटा देख पाएँगे, उन चैनलों का भी जिन तक उनकी पहुँच नहीं है।
+Allows members to view a record of who made which changes in this server.	सदस्यों को यह रिकॉर्ड देखने देता है कि इस सर्वर में किसने क्या बदलाव किए।
+Allows members to view channels by default (excluding private channels).	सदस्यों को डिफ़ॉल्ट रूप से चैनल देखने देता है (निजी चैनलों को छोड़कर)।
+Allows members to view these channels by default. Disabling this for @everyone will make the category private.	सदस्यों को डिफ़ॉल्ट रूप से ये चैनल देखने देता है। @everyone के लिए इसे बंद करने पर कैटेगरी निजी हो जाएगी।
+Allows members to view this channel by default. Disabling this for @everyone will make this channel private.	सदस्यों को डिफ़ॉल्ट रूप से यह चैनल देखने देता है। @everyone के लिए इसे बंद करने पर यह चैनल निजी हो जाएगा।
+Always	हमेशा
+An emoji name, like smile	इमोजी का नाम, जैसे smile
+An encrypted file couldn't be opened.|% encrypted files couldn't be opened.	एक एन्क्रिप्टेड फ़ाइल नहीं खुल सकी।|% एन्क्रिप्टेड फ़ाइलें नहीं खुल सकीं।
+An error occurred, please try again.	कोई गड़बड़ी हुई, कृपया फिर से कोशिश करें।
+An error occurred. Please try again.	कोई गड़बड़ी हुई। कृपया फिर से कोशिश करें।
+Announcement	घोषणा
+Announcement Channel	घोषणा चैनल
+Answer	जवाब
+Answers	जवाब
+Anyone can join your server directly through Server Discovery	सर्वर डिस्कवरी के ज़रिए कोई भी सीधे आपके सर्वर से जुड़ सकता है
+Anyone can use	कोई भी इस्तेमाल कर सकता है
+Anyone with access to this text channel will be able to see the notifications.	इस टेक्स्ट चैनल तक पहुँच रखने वाला हर कोई नोटिफ़िकेशन देख पाएगा।
+App Directory	ऐप डायरेक्टरी
+Appearance	दिखावट
+Appends (╯°□°)╯︵ ┻━┻ to your message.	आपके मैसेज के अंत में (╯°□°)╯︵ ┻━┻ जोड़ता है।
+Appends ¯\\_(ツ)_/¯ to your message.	आपके मैसेज के अंत में ¯\\_(ツ)_/¯ जोड़ता है।
+Appends ┬─┬ノ( º _ ºノ) to your message.	आपके मैसेज के अंत में ┬─┬ノ( º _ ºノ) जोड़ता है।
+Applications	ऐप्लिकेशन
+Apply to Join	जुड़ने के लिए आवेदन करें
+Approve	मंज़ूर करें
+Apps	ऐप
+Apps Permissions	ऐप अनुमतियाँ
+Archived	आर्काइव किया गया
+Archived Threads	आर्काइव किए गए थ्रेड
+Are you building a Community? Convert to a Community Server to access additional administrative tools that can help you moderate, run, and grow your server.	क्या आप एक कम्युनिटी बना रहे हैं? कम्युनिटी सर्वर में बदलें और ऐसे अतिरिक्त एडमिन टूल पाएँ जो आपके सर्वर को मॉडरेट करने, चलाने और बढ़ाने में मदद करते हैं।
+Are you sure that you want to delete your account? This will immediately log you out of your account and you will not be able to log in again.	क्या आप वाकई अपना अकाउंट डिलीट करना चाहते हैं? इससे आप तुरंत लॉग आउट हो जाएँगे और फिर कभी लॉग इन नहीं कर पाएँगे।
+Are you sure that you want to disable your account? This will immediately log you out and make your account inaccessible to anyone.	क्या आप वाकई अपना अकाउंट बंद करना चाहते हैं? इससे आप तुरंत लॉग आउट हो जाएँगे और आपका अकाउंट किसी के लिए भी उपलब्ध नहीं रहेगा।
+Are you sure you want to ban @%1 from %2? They won't be able to come back until the ban is lifted.	क्या आप वाकई @%1 को %2 से बैन करना चाहते हैं? बैन हटने तक वे वापस नहीं आ पाएँगे।
+Are you sure you want to delete %? This action cannot be undone.	क्या आप वाकई % को डिलीट करना चाहते हैं? इसे पहले जैसा नहीं किया जा सकता।
+Are you sure you want to delete %? This cannot be undone.	क्या आप वाकई % को डिलीट करना चाहते हैं? इसे पहले जैसा नहीं किया जा सकता।
+Are you sure you want to delete :%:? This cannot be undone.	क्या आप वाकई :%: को डिलीट करना चाहते हैं? इसे पहले जैसा नहीं किया जा सकता।
+Are you sure you want to delete the rule %? This cannot be undone.	क्या आप वाकई नियम % को डिलीट करना चाहते हैं? इसे पहले जैसा नहीं किया जा सकता।
+Are you sure you want to delete this message?	क्या आप वाकई यह मैसेज डिलीट करना चाहते हैं?
+Are you sure you want to delete this role? This action cannot be undone.	क्या आप वाकई यह रोल डिलीट करना चाहते हैं? इसे पहले जैसा नहीं किया जा सकता।
+Are you sure you want to delete this template? Its link will stop working.	क्या आप वाकई यह टेम्पलेट डिलीट करना चाहते हैं? इसका लिंक काम करना बंद कर देगा।
+Are you sure you want to kick @%1 from %2? They will be able to rejoin again with a new invite.	क्या आप वाकई @%1 को %2 से किक करना चाहते हैं? वे नए इनवाइट से फिर से जुड़ सकेंगे।
+Are you sure you want to logout?	क्या आप वाकई लॉग आउट करना चाहते हैं?
+Are you sure you want to remove all embeds on this message? This will remove them for everyone.	क्या आप वाकई इस मैसेज के सभी एम्बेड हटाना चाहते हैं? ये सबके लिए हट जाएँगे।
+Are you sure you want to remove all of the reactions for this emoji from this message?	क्या आप वाकई इस मैसेज से इस इमोजी के सभी रिएक्शन हटाना चाहते हैं?
+Are you sure you want to remove all the reactions on this message?	क्या आप वाकई इस मैसेज के सभी रिएक्शन हटाना चाहते हैं?
+Are you sure you want to revoke the invite %? Nobody will be able to join with it.	क्या आप वाकई इनवाइट % रद्द करना चाहते हैं? इससे कोई नहीं जुड़ पाएगा।
+Ask for a new invite	नया इनवाइट माँगें
+Ask new members what they're here for; each answer gives them channels and roles.	नए सदस्यों से पूछें कि वे किसलिए आए हैं; हर जवाब उन्हें चैनल और रोल देता है।
+Attach Files	फ़ाइलें अटैच करें
+Attachment removed	अटैचमेंट हटाया गया
+Attachments	अटैचमेंट
+Audit Log	ऑडिट लॉग
+Authorized Apps	अधिकृत ऐप
+Auto	ऑटो
+AutoMod	AutoMod
+Automatic	अपने आप
+Automatic Gain Control	ऑटोमैटिक गेन कंट्रोल
+Automatically determine input sensitivity	इनपुट सेंसिटिविटी अपने आप तय करें
+Automatically enable Streamer Mode if OBS or XSplit are running	OBS या XSplit चलने पर स्ट्रीमर मोड अपने आप चालू करें
+Automatically filter suspected spam messages	संदिग्ध स्पैम मैसेज अपने आप फ़िल्टर करें
+Automatically move members to this channel and mute them when they have been idle for longer than the inactive timeout. This does not affect browsers.	जो सदस्य निष्क्रियता टाइमआउट से ज़्यादा देर तक निष्क्रिय रहें, उन्हें अपने आप इस चैनल में ले जाएँ और म्यूट करें। इसका ब्राउज़र पर असर नहीं होता।
+Automatically open fastcord when your computer starts up	कंप्यूटर शुरू होने पर fastcord अपने आप खोलें
+Automatically scan and delete messages sent in this server that contain explicit media.	इस सर्वर में भेजे गए अश्लील मीडिया वाले मैसेज अपने आप स्कैन करके डिलीट करें।
+Avatar	अवतार
+BACK	वापस
+BACKUP CODES	बैकअप कोड
+Back	वापस
+Back / forward	पीछे / आगे
+Backup codes can only be used one time each and are for emergency access to your account!	हर बैकअप कोड सिर्फ़ एक बार इस्तेमाल हो सकता है और यह आपके अकाउंट तक आपातकालीन पहुँच के लिए है!
+Backups	बैकअप
+Ban	बैन करें
+Ban %	% को बैन करें
+Ban '%' from Server	'%' को सर्वर से बैन करें
+Ban Member	सदस्य को बैन करें
+Ban Members	सदस्यों को बैन करें
+Banner	बैनर
+Banner Color	बैनर का रंग
+Bans	बैन
+Bitrate	बिटरेट
+Block	ब्लॉक करें
+Block Commonly Flagged Words	आम तौर पर फ़्लैग किए जाने वाले शब्द ब्लॉक करें
+Block Custom Words	कस्टम शब्द ब्लॉक करें
+Block Mention Spam	मेंशन स्पैम ब्लॉक करें
+Block Suspected Spam Content	संदिग्ध स्पैम सामग्री ब्लॉक करें
+Block Words in Member Profile Names	सदस्य प्रोफ़ाइल नामों में शब्द ब्लॉक करें
+Block message	मैसेज ब्लॉक करें
+Blocked	ब्लॉक किए गए
+Blocked Users	ब्लॉक किए गए यूज़र
+Blocked by your content filters	आपके कंटेंट फ़िल्टर ने ब्लॉक किया
+Blocked message	ब्लॉक किया गया मैसेज
+Blocked words	ब्लॉक किए गए शब्द
+Blocked words in names	नामों में ब्लॉक किए गए शब्द
+Blocks messages containing % word.|Blocks messages containing % words.	% शब्द वाले मैसेज ब्लॉक करता है।|% शब्दों वाले मैसेज ब्लॉक करता है।
+Blocks messages suspected to be spam.	संदिग्ध स्पैम मैसेज ब्लॉक करता है।
+Blocks messages with more than % mentions.	% से ज़्यादा मेंशन वाले मैसेज ब्लॉक करता है।
+Blocks words from Discord's commonly flagged lists.	Discord की आम तौर पर फ़्लैग होने वाली सूचियों के शब्द ब्लॉक करता है।
+Blocks words in member profile names.	सदस्य प्रोफ़ाइल नामों में शब्द ब्लॉक करता है।
+Blur	धुंधला
+Blur Background	बैकग्राउंड धुंधला करें
+Blur what's behind you on camera. Only your camera is changed.	कैमरे पर आपके पीछे का हिस्सा धुंधला करें। सिर्फ़ आपका कैमरा बदलता है।
+Bold / italic / underline	बोल्ड / इटैलिक / अंडरलाइन
+Bots and Apps	बॉट और ऐप
+Browse	ब्राउज़ करें
+Browse Channels	चैनल ब्राउज़ करें
+Built-In	बिल्ट-इन
+Bulgarian	बल्गेरियाई
+By creating a server, you agree to Discord's Community Guidelines.	सर्वर बनाकर, आप Discord के कम्युनिटी दिशानिर्देशों से सहमत होते हैं।
+By enabling the widget, your server profile will be visible to others outside of your server members. You can control Profile privacy in Server Settings > Profile.	विजेट चालू करने पर, आपकी सर्वर प्रोफ़ाइल सर्वर सदस्यों के बाहर के लोगों को भी दिखेगी। आप सर्वर सेटिंग्स > प्रोफ़ाइल में प्रोफ़ाइल गोपनीयता नियंत्रित कर सकते हैं।
+By making a category private, only select members and roles will be able to view this category. Linked channels in this category will automatically match to this setting.	कैटेगरी को निजी बनाने पर, सिर्फ़ चुने गए सदस्य और रोल ही इसे देख पाएँगे। इस कैटेगरी के लिंक किए गए चैनल अपने आप इस सेटिंग से मेल खाएँगे।
+By making a channel private, only select members and roles will be able to view this channel.	चैनल को निजी बनाने पर, सिर्फ़ चुने गए सदस्य और रोल ही इसे देख पाएँगे।
+By making a channel private, only select members and roles will have access to view or connect to this channel.	चैनल को निजी बनाने पर, सिर्फ़ चुने गए सदस्य और रोल ही इसे देख या इससे कनेक्ट कर पाएँगे।
+Bypass Slowmode	स्लोमोड बायपास करें
+CHANNEL OR CATEGORY	चैनल या कैटेगरी
+CONFIRM NEW PASSWORD	नए पासवर्ड की पुष्टि करें
+CURRENT PASSWORD	मौजूदा पासवर्ड
+Call	कॉल
+Cancel	रद्द करें
+Cancel Event	इवेंट रद्द करें
+Cancel Friend Request	फ़्रेंड रिक्वेस्ट रद्द करें
+Careful — you have unsaved changes!	ध्यान दें — आपके बदलाव सेव नहीं हुए हैं!
+Category Name	कैटेगरी का नाम
+Category deleted	कैटेगरी डिलीट की गई
+Change %	% बदलें
+Change Avatar	अवतार बदलें
+Change Nickname	निकनेम बदलें
+Change Password	पासवर्ड बदलें
+Change Server Icon	सर्वर आइकन बदलें
+Channel	चैनल
+Channel Name	चैनल का नाम
+Channel Notification Overrides	चैनल नोटिफ़िकेशन ओवरराइड
+Channel Topic	चैनल का विषय
+Channel Type	चैनल का प्रकार
+Channel deleted	चैनल डिलीट किया गया
+Channel unmuted	चैनल अनम्यूट किया गया
+Channels	चैनल
+Channels & Roles	चैनल और रोल
+Channels Followed (%)	फ़ॉलो किए गए चैनल (%)
+Channels matching #%	#% से मेल खाते चैनल
+Chat	चैट
+Chat Font Scaling	चैट फ़ॉन्ट का आकार
+Check your email for a login link	लॉगिन लिंक के लिए अपना ईमेल देखें
+Check your phone!	अपना फ़ोन देखें!
+Checking the file…	फ़ाइल जाँच रहे हैं…
+Chinese, China	चीनी (चीन)
+Chinese, Taiwan	चीनी (ताइवान)
+Choose Image	इमेज चुनें
+Choose a link people can use to join, discord.gg/<code>.	ऐसा लिंक चुनें जिससे लोग जुड़ सकें, discord.gg/<code>।
+Choose a server	सर्वर चुनें
+Choose the language you want Discord to display.	वह भाषा चुनें जिसमें आप Discord देखना चाहते हैं।
+Choose what happens to images and videos Discord detects as explicit.	चुनें कि Discord जिन इमेज और वीडियो को अश्लील पहचाने, उनके साथ क्या हो।
+Clear	साफ़ करें
+Clear Custom Status	कस्टम स्टेटस हटाएँ
+Clear after	इसके बाद हटाएँ
+Clear permissions	अनुमतियाँ साफ़ करें
+Click Again to Reset	रीसेट करने के लिए फिर से क्लिक करें
+Click any channel, then pick a request whose name starts with "messages" or "science".	कोई भी चैनल क्लिक करें, फिर ऐसी रिक्वेस्ट चुनें जिसका नाम "messages" या "science" से शुरू होता हो।
+Click to add a note	नोट जोड़ने के लिए क्लिक करें
+Click to see attachment	अटैचमेंट देखने के लिए क्लिक करें
+Close DM	DM बंद करें
+Collapse	छोटा करें
+Collapse All Categories	सभी कैटेगरी छोटी करें
+Collapse Category	कैटेगरी छोटी करें
+Commands	कमांड
+Commands matching /%	/% से मेल खाते कमांड
+Community Overview	कम्युनिटी अवलोकन
+Community Updates Channel	कम्युनिटी अपडेट चैनल
+Community servers follow Discord's Community Guidelines.	कम्युनिटी सर्वर Discord के कम्युनिटी दिशानिर्देशों का पालन करते हैं।
+Community servers have more tools to help you moderate and grow your server.	कम्युनिटी सर्वर में आपके सर्वर को मॉडरेट करने और बढ़ाने के लिए ज़्यादा टूल होते हैं।
+Compact	कॉम्पैक्ट
+Compare	मिलाएँ
+Compare these with %, in person or on a call. If they match, no one can read this DM in between.	इन्हें % के साथ मिलाएँ, आमने-सामने या कॉल पर। अगर ये मेल खाते हैं, तो बीच में कोई भी यह DM नहीं पढ़ सकता।
+Configure system event messages sent to your server.	आपके सर्वर में भेजे जाने वाले सिस्टम इवेंट मैसेज सेट करें।
+Confirm	पुष्टि करें
+Confirm Request	रिक्वेस्ट की पुष्टि करें
+Confirm your age to join this server.	इस सर्वर से जुड़ने के लिए अपनी उम्र की पुष्टि करें।
+Confirming...	पुष्टि कर रहे हैं...
+Connect	कनेक्ट करें
+Connect these accounts and unlock special Discord integrations. The sign-in opens in your browser.	ये अकाउंट कनेक्ट करें और खास Discord इंटीग्रेशन पाएँ। साइन-इन आपके ब्राउज़र में खुलता है।
+Connected Apps	कनेक्ट किए गए ऐप
+Connecting	कनेक्ट हो रहा है
+Connecting...	कनेक्ट हो रहा है...
+Connecting…	कनेक्ट हो रहा है…
+Connection Info	कनेक्शन की जानकारी
+Connection lost. Messages may be out of date.	कनेक्शन टूट गया। मैसेज पुराने हो सकते हैं।
+Connections	कनेक्शन
+Content Filters	कंटेंट फ़िल्टर
+Continue	जारी रखें
+Control who can see your profile info, like your bio and connected accounts.	तय करें कि आपकी प्रोफ़ाइल की जानकारी, जैसे बायो और कनेक्ट किए गए अकाउंट, कौन देख सकता है।
+Copied	कॉपी हो गया
+Copy	कॉपी करें
+Copy Category ID	कैटेगरी ID कॉपी करें
+Copy Channel ID	चैनल ID कॉपी करें
+Copy Event Link	इवेंट लिंक कॉपी करें
+Copy Image	इमेज कॉपी करें
+Copy Image Link	इमेज लिंक कॉपी करें
+Copy Link	लिंक कॉपी करें
+Copy Media Link	मीडिया लिंक कॉपी करें
+Copy Message ID	मैसेज ID कॉपी करें
+Copy Message Link	मैसेज लिंक कॉपी करें
+Copy Server ID	सर्वर ID कॉपी करें
+Copy Text	टेक्स्ट कॉपी करें
+Copy User ID	यूज़र ID कॉपी करें
+Copy Username	यूज़रनेम कॉपी करें
+Copy Webhook URL	वेबहुक URL कॉपी करें
+Copy curl Command	curl कमांड कॉपी करें
+Copy the event link below to invite people to your event. This also acts as a server invite link.	लोगों को अपने इवेंट में इनवाइट करने के लिए नीचे दिया इवेंट लिंक कॉपी करें। यह सर्वर इनवाइट लिंक का काम भी करता है।
+Copy your account's token once from Discord in a web browser.	वेब ब्राउज़र में Discord से एक बार अपने अकाउंट का टोकन कॉपी करें।
+Couldn't accept encryption.	एन्क्रिप्शन स्वीकार नहीं हो सका।
+Couldn't cancel the event.	इवेंट रद्द नहीं हो सका।
+Couldn't change avatar	अवतार नहीं बदल सका
+Couldn't create an invite link.	इनवाइट लिंक नहीं बन सका।
+Couldn't create an invite.	इनवाइट नहीं बन सका।
+Couldn't delete the channel: %	चैनल डिलीट नहीं हो सका: %
+Couldn't encrypt the message.	मैसेज एन्क्रिप्ट नहीं हो सका।
+Couldn't join %: %	%1 से नहीं जुड़ सके: %2
+Couldn't load onboarding.	ऑनबोर्डिंग लोड नहीं हो सकी।
+Couldn't load the AutoMod rules.	AutoMod नियम लोड नहीं हो सके।
+Couldn't load the applications.	आवेदन लोड नहीं हो सके।
+Couldn't load the audit log.	ऑडिट लॉग लोड नहीं हो सका।
+Couldn't load the bans.	बैन लोड नहीं हो सके।
+Couldn't load the invites.	इनवाइट लोड नहीं हो सके।
+Couldn't load the members.	सदस्य लोड नहीं हो सके।
+Couldn't load the role's members.	रोल के सदस्य लोड नहीं हो सके।
+Couldn't load the server rules.	सर्वर के नियम लोड नहीं हो सके।
+Couldn't load the server's tag.	सर्वर का टैग लोड नहीं हो सका।
+Couldn't load the template.	टेम्पलेट लोड नहीं हो सका।
+Couldn't load the webhooks.	वेबहुक लोड नहीं हो सके।
+Couldn't move the channel	चैनल नहीं हिल सका
+Couldn't play it here, so it opened in your browser.	यहाँ नहीं चल सका, इसलिए आपके ब्राउज़र में खुल गया।
+Couldn't reach %1: %2 Retrying.	%1 तक नहीं पहुँच सके: %2 फिर से कोशिश कर रहे हैं।
+Couldn't reach Discord. Check your connection and try again.	Discord तक नहीं पहुँच सके। अपना कनेक्शन जाँचें और फिर से कोशिश करें।
+Couldn't reach Discord. Try again.	Discord तक नहीं पहुँच सके। फिर से कोशिश करें।
+Couldn't reach the server.	सर्वर तक नहीं पहुँच सके।
+Couldn't reach the server. Check your connection and try again.	सर्वर तक नहीं पहुँच सके। अपना कनेक्शन जाँचें और फिर से कोशिश करें।
+Couldn't save the file.	फ़ाइल सेव नहीं हो सकी।
+Couldn't save the image.	इमेज सेव नहीं हो सकी।
+Couldn't save the token.	टोकन सेव नहीं हो सका।
+Couldn't turn on encryption.	एन्क्रिप्शन चालू नहीं हो सका।
+Couldn't upload emoji	इमोजी अपलोड नहीं हो सका
+Cozy	आरामदायक
+Create	बनाएँ
+Create Category	कैटेगरी बनाएँ
+Create Channel	चैनल बनाएँ
+Create DM	DM बनाएँ
+Create Emoji	इमोजी बनाएँ
+Create Event	इवेंट बनाएँ
+Create Events	इवेंट बनाएँ
+Create Expressions	एक्सप्रेशन बनाएँ
+Create Group DM	ग्रुप DM बनाएँ
+Create Invite	इनवाइट बनाएँ
+Create My Own	अपना खुद का बनाएँ
+Create Poll	पोल बनाएँ
+Create Polls	पोल बनाएँ
+Create Private Threads	निजी थ्रेड बनाएँ
+Create Public Threads	सार्वजनिक थ्रेड बनाएँ
+Create Role	रोल बनाएँ
+Create Rule	नियम बनाएँ
+Create Thread	थ्रेड बनाएँ
+Create Webhook	वेबहुक बनाएँ
+Create Your Server	अपना सर्वर बनाएँ
+Create a poll	पोल बनाएँ
+Create a space for organized discussions	व्यवस्थित चर्चाओं के लिए जगह बनाएँ
+Create one for me	मेरे लिए एक बनाएँ
+Created by %	% ने बनाया
+Created on %1 by %2	%1 को %2 ने बनाया
+Creating an invite link…	इनवाइट लिंक बना रहे हैं…
+Creating an invite...	इनवाइट बना रहे हैं...
+Creating...	बना रहे हैं...
+Creating…	बना रहे हैं…
+Creation Date	बनाने की तारीख
+Croatian	क्रोएशियाई
+Current Device	मौजूदा डिवाइस
+Custom Invite Link	कस्टम इनवाइट लिंक
+Customize Your Server	अपना सर्वर कस्टमाइज़ करें
+Customize how your server appears in invite links and, if enabled, in Server Discovery and Announcement Channel messages	तय करें कि आपका सर्वर इनवाइट लिंक में और, चालू होने पर, सर्वर डिस्कवरी और घोषणा चैनल के मैसेज में कैसा दिखे
+Customize your server with integrations. Manage webhooks, followed channels and apps.	इंटीग्रेशन से अपना सर्वर कस्टमाइज़ करें। वेबहुक, फ़ॉलो किए गए चैनल और ऐप मैनेज करें।
+Cut	कट करें
+Czech	चेक
+DAVE v%, % members	DAVE v%1, %2 सदस्य
+DEFAULT KEYBINDS	डिफ़ॉल्ट कीबाइंड
+DM closed	DM बंद किया गया
+Danish	डेनिश
+Data & Privacy	डेटा और गोपनीयता
+Date	तारीख
+Deafen	डेफ़न करें
+Deafen Members	सदस्यों को डेफ़न करें
+Deauthorize	अनुमति हटाएँ
+Decline	मना करें
+Default	डिफ़ॉल्ट
+Default Channels	डिफ़ॉल्ट चैनल
+Default Layout	डिफ़ॉल्ट लेआउट
+Default Notification Settings	डिफ़ॉल्ट नोटिफ़िकेशन सेटिंग्स
+Default Permissions	डिफ़ॉल्ट अनुमतियाँ
+Default Sort Order	डिफ़ॉल्ट क्रम
+Default Themes	डिफ़ॉल्ट थीम
+Default notifications become Only @mentions.	डिफ़ॉल्ट नोटिफ़िकेशन सिर्फ़ @मेंशन हो जाते हैं।
+Delete	डिलीट करें
+Delete '%'	'%' डिलीट करें
+Delete Account	अकाउंट डिलीट करें
+Delete Category	कैटेगरी डिलीट करें
+Delete Channel	चैनल डिलीट करें
+Delete Emoji	इमोजी डिलीट करें
+Delete Invite	इनवाइट डिलीट करें
+Delete Message	मैसेज डिलीट करें
+Delete Message History	मैसेज हिस्ट्री डिलीट करें
+Delete Question	सवाल डिलीट करें
+Delete Role	रोल डिलीट करें
+Delete Rule	नियम डिलीट करें
+Delete Server	सर्वर डिलीट करें
+Delete Sticker	स्टिकर डिलीट करें
+Delete Template	टेम्पलेट डिलीट करें
+Delete Thread	थ्रेड डिलीट करें
+Delete Webhook	वेबहुक डिलीट करें
+Deleted message	डिलीट किया गया मैसेज
+Describe your sticker	अपने स्टिकर का वर्णन करें
+Description	विवरण
+Description (alt text)	विवरण (alt टेक्स्ट)
+Description (optional)	विवरण (वैकल्पिक)
+Detects a burst of mention spam across the server and locks it down.	पूरे सर्वर में अचानक आए मेंशन स्पैम को पहचानकर उसे लॉक कर देता है।
+Developer	डेवलपर
+Developer Mode	डेवलपर मोड
+Developer Mode exposes context menu items helpful for people writing apps using the Discord API.	डेवलपर मोड ऐसे कॉन्टेक्स्ट मेन्यू आइटम दिखाता है जो Discord API से ऐप बनाने वालों के काम आते हैं।
+Devices	डिवाइस
+Direct Message (DM) Permissions	डायरेक्ट मैसेज (DM) अनुमतियाँ
+Direct Messages	डायरेक्ट मैसेज
+Direct messages from friends	दोस्तों के डायरेक्ट मैसेज
+Direct messages from others	दूसरों के डायरेक्ट मैसेज
+Disable	बंद करें
+Disable Account	अकाउंट बंद करें
+Disable All Notification Sounds	सभी नोटिफ़िकेशन साउंड बंद करें
+Disable Community	कम्युनिटी बंद करें
+Disable all notifications	सभी नोटिफ़िकेशन बंद करें
+Disable all sound effects	सभी साउंड इफ़ेक्ट बंद करें
+Disabling your account means you can recover it at any time after taking this action.	अकाउंट बंद करने का मतलब है कि आप इसके बाद कभी भी इसे वापस पा सकते हैं।
+Disconnect	डिस्कनेक्ट करें
+Disconnect From Voice Channel	वॉइस चैनल से डिस्कनेक्ट करें
+Disconnected	डिस्कनेक्ट हो गया
+Discord account	Discord अकाउंट
+Discord asked for a captcha, which fastcord can't show. Log in with the QR code instead.	Discord ने कैप्चा माँगा, जिसे fastcord नहीं दिखा सकता। इसके बजाय QR कोड से लॉग इन करें।
+Discord asked for a captcha, which fastcord can't show. Try on discord.com.	Discord ने कैप्चा माँगा, जिसे fastcord नहीं दिखा सकता। discord.com पर कोशिश करें।
+Discord can filter out some messages that contain spam. These messages go to your Spam inbox.	Discord स्पैम वाले कुछ मैसेज फ़िल्टर कर सकता है। ये मैसेज आपके स्पैम इनबॉक्स में जाते हैं।
+Discord didn't accept the saved login. Log in again.	Discord ने सेव किया गया लॉगिन स्वीकार नहीं किया। फिर से लॉग इन करें।
+Discord failed to unpin that message for some reason. Sorry about that.	किसी वजह से Discord वह मैसेज अनपिन नहीं कर सका। इसके लिए माफ़ी।
+Discord will prioritize this server in search to users who speak the selected language.	चुनी गई भाषा बोलने वाले यूज़र के लिए Discord खोज में इस सर्वर को प्राथमिकता देगा।
+Discord's terms don't allow third-party clients, so using one can get an account flagged.	Discord की शर्तें थर्ड-पार्टी क्लाइंट की अनुमति नहीं देतीं, इसलिए इसे इस्तेमाल करने पर अकाउंट फ़्लैग हो सकता है।
+Discoverable	खोजने योग्य
+Dismiss	हटाएँ
+Dismiss message	मैसेज हटाएँ
+Display	डिस्प्ले
+Display Images, Videos and Lolcats	इमेज, वीडियो और मज़ेदार बिल्लियाँ दिखाएँ
+Display Name	डिस्प्ले नेम
+Display name	डिस्प्ले नेम
+Display on profile	प्रोफ़ाइल पर दिखाएँ
+Display role members separately from online members	रोल के सदस्यों को ऑनलाइन सदस्यों से अलग दिखाएँ
+Displays text with emphasis.	टेक्स्ट को ज़ोर देकर दिखाता है।
+Do Not Disturb	परेशान न करें
+Do not filter	फ़िल्टर न करें
+Do not filter direct messages	डायरेक्ट मैसेज फ़िल्टर न करें
+Don't Delete Any	कुछ भी डिलीट न करें
+Don't clear	न हटाएँ
+Don't show role colors	रोल के रंग न दिखाएँ
+Done	हो गया
+Download	डाउनलोड करें
+Drop a file here, or browse	फ़ाइल यहाँ छोड़ें, या ब्राउज़ करें
+Duration	अवधि
+Dutch	डच
+EDIT ROLE — %	रोल एडिट करें — %
+EMAIL OR PHONE NUMBER	ईमेल या फ़ोन नंबर
+EMOJI MATCHING	मेल खाते इमोजी
+ENTER THE 6-DIGIT CODE	6-अंकों का कोड डालें
+EXPIRE AFTER	इसके बाद खत्म
+EXPIRES	खत्म होगा
+Ease the chat and lists toward where you scroll. Off, they jump there at once (always, when your device asks for reduced motion).	चैट और सूचियों को स्क्रॉल की जगह तक धीरे-धीरे ले जाएँ। बंद होने पर, वे तुरंत वहाँ पहुँच जाती हैं (हमेशा, जब आपका डिवाइस कम मोशन माँगता है)।
+Echo Cancellation	इको कैंसिलेशन
+Edit	एडिट करें
+Edit Category	कैटेगरी एडिट करें
+Edit Channel	चैनल एडिट करें
+Edit Friend Nickname	दोस्त का निकनेम एडिट करें
+Edit Message	मैसेज एडिट करें
+Edit Per-server Profile	हर सर्वर की प्रोफ़ाइल एडिट करें
+Edit Profile	प्रोफ़ाइल एडिट करें
+Edit Profiles	प्रोफ़ाइल एडिट करें
+Edit Sound	साउंड एडिट करें
+Edit Thread	थ्रेड एडिट करें
+Edit User Profile	यूज़र प्रोफ़ाइल एडिट करें
+Edit invite link.	इनवाइट लिंक एडिट करें।
+Edit your last message	अपना पिछला मैसेज एडिट करें
+Email	ईमेल
+Embed Links	लिंक एम्बेड करें
+Embed an HTML widget on your website to display your online members, voice channels, and invite link.	अपनी वेबसाइट पर HTML विजेट एम्बेड करें ताकि आपके ऑनलाइन सदस्य, वॉइस चैनल और इनवाइट लिंक दिखें।
+Emoji	इमोजी
+Emoji / GIF / sticker picker	इमोजी / GIF / स्टिकर पिकर
+Enable Authenticator App	ऑथेंटिकेटर ऐप चालू करें
+Enable Community	कम्युनिटी चालू करें
+Enable Community to access Server Discovery	सर्वर डिस्कवरी के लिए कम्युनिटी चालू करें
+Enable Desktop Notifications	डेस्कटॉप नोटिफ़िकेशन चालू करें
+Enable Invites	इनवाइट चालू करें
+Enable Onboarding	ऑनबोर्डिंग चालू करें
+Enable Reduced Motion	कम मोशन चालू करें
+Enable Server Widget	सर्वर विजेट चालू करें
+Enable Streamer Mode	स्ट्रीमर मोड चालू करें
+Enable Unread Message Badge	अनपढ़े मैसेज का बैज चालू करें
+Encrypt this DM	इस DM को एन्क्रिप्ट करें
+Encrypted message	एन्क्रिप्टेड मैसेज
+Encrypted messages are limited to % bytes for now.	एन्क्रिप्टेड मैसेज अभी % बाइट तक सीमित हैं।
+End Date	खत्म होने की तारीख
+End Event	इवेंट खत्म करें
+End Poll Now	पोल अभी खत्म करें
+End Time	खत्म होने का समय
+End-to-end encrypted	एंड-टू-एंड एन्क्रिप्टेड
+End-to-end encryption	एंड-टू-एंड एन्क्रिप्शन
+Engagement	एंगेजमेंट
+English, UK	अंग्रेज़ी (यूके)
+English, USA	अंग्रेज़ी (अमेरिका)
+Enter Discord Auth Code	Discord ऑथ कोड डालें
+Enter Discord Backup Code	Discord बैकअप कोड डालें
+Enter a location	जगह डालें
+Enter a message to start the conversation!	बातचीत शुरू करने के लिए मैसेज लिखें!
+Enter an invite below to join an existing server	किसी मौजूदा सर्वर से जुड़ने के लिए नीचे इनवाइट डालें
+Enter server name	सर्वर का नाम डालें
+Enter your current password and a new password.	अपना मौजूदा पासवर्ड और नया पासवर्ड डालें।
+Error	गड़बड़ी
+Est. %	अनुमानित %
+Event Info	इवेंट की जानकारी
+Event Topic	इवेंट का विषय
+Event cancelled	इवेंट रद्द किया गया
+Event is over	इवेंट खत्म हो गया
+Events	इवेंट
+Events Permissions	इवेंट अनुमतियाँ
+Every answer needs a title.	हर जवाब का शीर्षक होना ज़रूरी है।
+Every question needs a title and at least one answer.	हर सवाल का शीर्षक और कम से कम एक जवाब होना ज़रूरी है।
+Everyone	हर कोई
+Everyone in this channel connects to the selected region. Automatic picks the best one for whoever starts the call.	इस चैनल में हर कोई चुने गए रीजन से कनेक्ट होता है। "अपने आप" कॉल शुरू करने वाले के लिए सबसे अच्छा रीजन चुनता है।
+Everyone welcome %!	सब % का स्वागत करें!
+Everyone who joins sees these channels, whatever they answer.	जुड़ने वाले हर व्यक्ति को ये चैनल दिखते हैं, चाहे वे कुछ भी जवाब दें।
+Exempt a channel	चैनल को छूट दें
+Exempt a role	रोल को छूट दें
+Exemptions	छूट
+Expand (% lines)	बड़ा करें (% लाइनें)
+Expand (% of % lines)	बड़ा करें (%2 में से %1 लाइनें)
+Expired	खत्म हो गया
+Explicit image filter	अश्लील इमेज फ़िल्टर
+Expression	एक्सप्रेशन
+FRAME RATE	फ़्रेम रेट
+Failed to follow the channel, please try again.	चैनल फ़ॉलो नहीं हो सका, कृपया फिर से कोशिश करें।
+Fastcord couldn't be installed.	Fastcord इंस्टॉल नहीं हो सका।
+Favorites	पसंदीदा
+File	फ़ाइल
+File saved.	फ़ाइल सेव हो गई।
+Filename	फ़ाइल का नाम
+Fill out the details of your event.	अपने इवेंट की जानकारी भरें।
+Filter by Action	कार्रवाई के हिसाब से फ़िल्टर करें
+Filter by User	यूज़र के हिसाब से फ़िल्टर करें
+Filter direct messages from everyone	सभी के डायरेक्ट मैसेज फ़िल्टर करें
+Filter direct messages from non-friends	गैर-दोस्तों के डायरेक्ट मैसेज फ़िल्टर करें
+Filter messages from all members	सभी सदस्यों के मैसेज फ़िल्टर करें
+Filter messages from server members without roles	बिना रोल वाले सर्वर सदस्यों के मैसेज फ़िल्टर करें
+Find or start a conversation	बातचीत खोजें या शुरू करें
+Find the perfect emoji	सही इमोजी खोजें
+Find the perfect reaction	सही रिएक्शन खोजें
+Find the perfect sticker	सही स्टिकर खोजें
+Finding the video%	वीडियो खोज रहे हैं%
+Finish	पूरा करें
+Finishing touches	आखिरी तैयारी
+Finnish	फ़िनिश
+Fit more messages on screen at one time. #IRC	एक बार में स्क्रीन पर ज़्यादा मैसेज दिखाएँ। #IRC
+Flagged as spam	स्पैम के रूप में फ़्लैग किया गया
+Flags	फ़्लैग
+Folder Color	फ़ोल्डर का रंग
+Folder Name	फ़ोल्डर का नाम
+Folder Settings	फ़ोल्डर सेटिंग्स
+Folder removed	फ़ोल्डर हटाया गया
+Follow	फ़ॉलो करें
+Followed!	फ़ॉलो किया!
+Food & Drink	खाना-पीना
+For 1 Hour	1 घंटे के लिए
+For 15 Minutes	15 मिनट के लिए
+For 24 Hours	24 घंटे के लिए
+For 3 Days	3 दिन के लिए
+For 3 Hours	3 घंटे के लिए
+For 8 Hours	8 घंटे के लिए
+Forever	हमेशा के लिए
+Forgot your password?	पासवर्ड भूल गए?
+Forum	फ़ोरम
+Forward	फ़ॉरवर्ड करें
+Forward To	यहाँ फ़ॉरवर्ड करें
+Forwarded	फ़ॉरवर्ड किया गया
+French	फ़्रेंच
+Frequently Used	अक्सर इस्तेमाल किए गए
+Friend Nickname	दोस्त का निकनेम
+Friend Request Permissions	फ़्रेंड रिक्वेस्ट अनुमतियाँ
+Friend Request Sent	फ़्रेंड रिक्वेस्ट भेजी गई
+Friend removed	दोस्त हटाया गया
+Friend request cancelled	फ़्रेंड रिक्वेस्ट रद्द की गई
+Friend request ignored	फ़्रेंड रिक्वेस्ट अनदेखी की गई
+Friends	दोस्त
+Friends & All Servers	दोस्त और सभी सर्वर
+Friends & Small Servers Only	सिर्फ़ दोस्त और छोटे सर्वर
+Friends Only	सिर्फ़ दोस्त
+Friends can ask to join or join the game you're playing.	दोस्त आपके खेले जा रहे गेम में शामिल होने के लिए पूछ सकते हैं या सीधे शामिल हो सकते हैं।
+Friends come online	दोस्त ऑनलाइन आते हैं
+Friends of friends	दोस्तों के दोस्त
+From User	यूज़र से
+GIFs	GIF
+GIFs can't be sent encrypted yet.	GIF अभी एन्क्रिप्ट करके नहीं भेजे जा सकते।
+Gallery view	गैलरी व्यू
+General	सामान्य
+General Category Permissions	सामान्य कैटेगरी अनुमतियाँ
+General Channel Permissions	सामान्य चैनल अनुमतियाँ
+General Server Permissions	सामान्य सर्वर अनुमतियाँ
+Generate Template	टेम्पलेट बनाएँ
+Generate a New Link	नया लिंक बनाएँ
+German	जर्मन
+Get a copy of your data. It can take up to 30 days to prepare, and a download link is emailed to you when it's ready.	अपने डेटा की कॉपी पाएँ। इसे तैयार होने में 30 दिन तक लग सकते हैं, और तैयार होने पर डाउनलोड लिंक आपको ईमेल किया जाता है।
+Give new members a quick way to find the channels and roles that matter to them.	नए सदस्यों को उनके काम के चैनल और रोल जल्दी ढूँढने का तरीका दें।
+Give your new server a personality with a name. You can always change it later.	अपने नए सर्वर को एक नाम देकर उसकी पहचान बनाएँ। आप इसे बाद में कभी भी बदल सकते हैं।
+Glad you're here, %.	खुशी है कि आप आए, %।
+Go Back	वापस जाएँ
+Go To Channel	चैनल पर जाएँ
+Go back	वापस जाएँ
+Go forward	आगे जाएँ
+Go to Server	सर्वर पर जाएँ
+Good to see you, %.	आपको देखकर अच्छा लगा, %।
+Got It	समझ गया
+Grant temporary membership	अस्थायी मेंबरशिप दें
+Greek	यूनानी
+Hang out together with voice, video, and screen share	वॉइस, वीडियो और स्क्रीन शेयर के साथ मिलकर समय बिताएँ
+Hang out with voice, video, screenshare, and Go Live.	वॉइस, वीडियो, स्क्रीनशेयर और Go Live के साथ समय बिताएँ।
+Happening Now	अभी चल रहा है
+Have an invite already?	पहले से इनवाइट है?
+Help	मदद
+Here's a preview of your event.	यह रहा आपके इवेंट का प्रीव्यू।
+Hey, just double checking that you want to pin this message to #% for posterity and greatness?	अरे, बस पक्का कर रहे हैं — क्या आप इस मैसेज को आने वाली पीढ़ियों और महानता के लिए #% में पिन करना चाहते हैं?
+Hey, just double checking that you want to pin this message to the current channel for posterity and greatness?	अरे, बस पक्का कर रहे हैं — क्या आप इस मैसेज को आने वाली पीढ़ियों और महानता के लिए मौजूदा चैनल में पिन करना चाहते हैं?
+Hide	छिपाएँ
+Hide After Inactivity	निष्क्रियता के बाद छिपाएँ
+Hide Chat	चैट छिपाएँ
+Hide Fastcord window from screen capture	स्क्रीन कैप्चर से Fastcord विंडो छिपाएँ
+Hide Muted Channels	म्यूट किए गए चैनल छिपाएँ
+Hide invite links to my Discord servers	मेरे Discord सर्वर के इनवाइट लिंक छिपाएँ
+Hide my personal information, such as email, connected accounts, and notes	मेरी निजी जानकारी छिपाएँ, जैसे ईमेल, कनेक्ट किए गए अकाउंट और नोट
+Hides Fastcord windows from most screen capture software.	ज़्यादातर स्क्रीन कैप्चर सॉफ़्टवेयर से Fastcord विंडो छिपाता है।
+High	ऊँचा
+Highest	सबसे ऊँचा
+Highlights provide occasional updates when your friends are chatting in busy servers, and more.	हाइलाइट्स आपको कभी-कभी बताते हैं कि आपके दोस्त व्यस्त सर्वर में बातें कर रहे हैं, और भी बहुत कुछ।
+Hindi	हिन्दी
+History	हिस्ट्री
+Hitting X makes fastcord minimize to the system tray instead of closing.	X दबाने पर fastcord बंद होने के बजाय सिस्टम ट्रे में छोटा हो जाता है।
+Hm, didn’t work. Double check that the username is correct.	हम्म, काम नहीं किया। एक बार जाँच लें कि यूज़रनेम सही है।
+Host	होस्ट
+Host events with an audience	दर्शकों के साथ इवेंट होस्ट करें
+How Discord Uses My Data	Discord मेरे डेटा का इस्तेमाल कैसे करता है
+How can people join your server?	लोग आपके सर्वर से कैसे जुड़ सकते हैं?
+How did your server get started? Why should people join?	आपका सर्वर कैसे शुरू हुआ? लोग क्यों जुड़ें?
+Hungarian	हंगेरियाई
+I acknowledge that by transferring ownership of this server to %, it officially belongs to them.	मैं समझता/समझती हूँ कि इस सर्वर का मालिकाना हक % को सौंपने पर, यह आधिकारिक रूप से उनका हो जाएगा।
+I agree and understand	मैं सहमत हूँ और समझता/समझती हूँ
+I'm new here, say hi!	मैं यहाँ नया हूँ, हाय कहें!
+I'm sure, use a backup code	मुझे यकीन है, बैकअप कोड इस्तेमाल करें
+IMAGE	इमेज
+INPUT DEVICE	इनपुट डिवाइस
+INPUT MODE	इनपुट मोड
+INPUT SENSITIVITY	इनपुट सेंसिटिविटी
+INPUT VOLUME	इनपुट वॉल्यूम
+INVITE CODE	इनवाइट कोड
+INVITE LINK	इनवाइट लिंक
+INVITER	इनवाइट करने वाले
+INVITES SHOULD LOOK LIKE	इनवाइट ऐसे दिखने चाहिए
+Icon	आइकन
+Idle	निष्क्रिय
+If Streamer Mode is enabled...	अगर स्ट्रीमर मोड चालू है...
+If you do not have access to any other methods, the button below will activate in % second.|If you do not have access to any other methods, the button below will activate in % seconds.	अगर आपके पास कोई और तरीका नहीं है, तो नीचे वाला बटन % सेकंड में चालू हो जाएगा।|अगर आपके पास कोई और तरीका नहीं है, तो नीचे वाला बटन % सेकंड में चालू हो जाएगा।
+If you do not have access to any other methods, use the other button below to proceed.	अगर आपके पास कोई और तरीका नहीं है, तो आगे बढ़ने के लिए नीचे वाला दूसरा बटन इस्तेमाल करें।
+Ignore	अनदेखा करें
+Ignore Friend Request	फ़्रेंड रिक्वेस्ट अनदेखी करें
+Ignored Users	अनदेखे किए गए यूज़र
+Ignored message	अनदेखा किया गया मैसेज
+Image saved.	इमेज सेव हो गई।
+Important updates for people in and out of the server	सर्वर के अंदर और बाहर के लोगों के लिए ज़रूरी अपडेट
+In Channel	चैनल में
+Inactive Channel	निष्क्रिय चैनल
+Inactive Timeout	निष्क्रियता टाइमआउट
+Inbox	इनबॉक्स
+Incoming Call...	इनकमिंग कॉल...
+Incoming Friend Request	आई हुई फ़्रेंड रिक्वेस्ट
+Indonesian	इंडोनेशियाई
+Insert Timestamp	टाइमस्टैम्प डालें
+Install	इंस्टॉल करें
+Install Fastcord to open it from the Start menu.	Start मेन्यू से खोलने के लिए Fastcord इंस्टॉल करें।
+Installing…	इंस्टॉल हो रहा है…
+Instructions Sent	निर्देश भेज दिए गए
+Insults and Slurs	अपमान और गालियाँ
+Integrations	इंटीग्रेशन
+Interested	दिलचस्पी है
+Invalid Invite	अमान्य इनवाइट
+Invalid date or time	अमान्य तारीख या समय
+Invisible	अदृश्य
+Invite	इनवाइट करें
+Invite Channel	इनवाइट चैनल
+Invite Invalid	इनवाइट अमान्य है
+Invite Only	सिर्फ़ इनवाइट से
+Invite People	लोगों को इनवाइट करें
+Invite friends to %	दोस्तों को % में इनवाइट करें
+Invite to Server	सर्वर में इनवाइट करें
+Invite to Speak	बोलने के लिए इनवाइट करें
+Invites	इनवाइट
+Invites are currently paused for this server. Please try again later.	इस सर्वर के लिए इनवाइट अभी रोके गए हैं। कृपया बाद में फिर से कोशिश करें।
+Invites are paused: nobody can join with an invite link until they're enabled again.	इनवाइट रोके गए हैं: जब तक इन्हें फिर से चालू नहीं किया जाता, कोई इनवाइट लिंक से नहीं जुड़ सकता।
+It's quiet for now...	अभी तो शांति है...
+Italian	इतालवी
+JOINED DISCORD	DISCORD से जुड़े
+January|February|March|April|May|June|July|August|September|October|November|December	जनवरी|फ़रवरी|मार्च|अप्रैल|मई|जून|जुलाई|अगस्त|सितंबर|अक्तूबर|नवंबर|दिसंबर
+Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec	जन॰|फ़र॰|मार्च|अप्रैल|मई|जून|जुल॰|अग॰|सित॰|अक्तू॰|नव॰|दिस॰
+Japanese	जापानी
+Jitter	जिटर
+Join	जुड़ें
+Join Call	कॉल में जुड़ें
+Join Server	सर्वर से जुड़ें
+Join Thread	थ्रेड से जुड़ें
+Join Voice	वॉइस से जुड़ें
+Join a Server	किसी सर्वर से जुड़ें
+Join the call	कॉल में जुड़ें
+Joined Threads	जुड़े हुए थ्रेड
+Joining…	जुड़ रहे हैं…
+Jump	जाएँ
+Jump To Present	अभी के मैसेज पर जाएँ
+Jump to oldest unread message	सबसे पुराने अनपढ़े मैसेज पर जाएँ
+KEYBIND	कीबाइंड
+Keep Current Permissions	मौजूदा अनुमतियाँ रखें
+Keep these somewhere safe. Each code signs you in once if you lose your authenticator app; they are shown only now.	इन्हें कहीं सुरक्षित रखें। ऑथेंटिकेटर ऐप खो जाने पर हर कोड से एक बार साइन इन किया जा सकता है; ये सिर्फ़ अभी दिखाए जा रहे हैं।
+Keep your server private, or open it up for more people to join.	अपना सर्वर निजी रखें, या ज़्यादा लोगों के जुड़ने के लिए खोल दें।
+Keybinds	कीबाइंड
+Keybinds only work while fastcord is focused. To use them in other apps, allow fastcord under Input Monitoring in System Settings, then restart fastcord.	कीबाइंड सिर्फ़ तब काम करते हैं जब fastcord पर फ़ोकस हो। दूसरे ऐप में इस्तेमाल करने के लिए, System Settings में Input Monitoring के तहत fastcord को अनुमति दें, फिर fastcord रीस्टार्ट करें।
+Keybinds only work while fastcord is focused: this desktop doesn't let apps see keys pressed in other windows.	कीबाइंड सिर्फ़ तब काम करते हैं जब fastcord पर फ़ोकस हो: यह डेस्कटॉप ऐप को दूसरी विंडो में दबाई गई की देखने नहीं देता।
+Keybinds work in every app, also while fastcord is in the background.	कीबाइंड हर ऐप में काम करते हैं, fastcord के बैकग्राउंड में रहते हुए भी।
+Keyboard Shortcuts	कीबोर्ड शॉर्टकट
+Keyboard shortcuts	कीबोर्ड शॉर्टकट
+Keyword: %	कीवर्ड: %
+Kick	किक करें
+Kick %	% को किक करें
+Kick '%' from Server	'%' को सर्वर से किक करें
+Kick Member	सदस्य को किक करें
+Kick, Approve, and Reject Members	सदस्यों को किक, मंज़ूर और अस्वीकार करें
+Korean	कोरियाई
+LIVE	लाइव
+Language	भाषा
+Language & Time	भाषा और समय
+Last sync: %	पिछला सिंक: %
+Leave Group	ग्रुप छोड़ें
+Leave Server	सर्वर छोड़ें
+Leave Thread	थ्रेड छोड़ें
+Leaving Discord	Discord छोड़ रहे हैं
+Left %	% छोड़ा
+Let everyone know how to use this channel!	सबको बताएँ कि इस चैनल का इस्तेमाल कैसे करना है!
+Let's Check	चलिए देखते हैं
+Level %!	लेवल %!
+Limits	सीमाएँ
+Limits the number of users that can connect to this voice channel. Users with the Move Members permission ignore this limit and can move other users into the channel.	इस वॉइस चैनल से कनेक्ट होने वाले यूज़र की संख्या सीमित करता है। "सदस्यों को ले जाएँ" अनुमति वाले यूज़र पर यह सीमा लागू नहीं होती और वे दूसरे यूज़र को चैनल में ला सकते हैं।
+Linked Roles	लिंक किए गए रोल
+List view	लिस्ट व्यू
+Lithuanian	लिथुआनियाई
+Live Now	अभी लाइव
+Loading sounds…	साउंड लोड हो रहे हैं…
+Loading...	लोड हो रहा है...
+Loading…	लोड हो रहा है…
+Location	जगह
+Log In	लॉग इन करें
+Log Out	लॉग आउट करें
+Log Out All Known Devices	सभी ज्ञात डिवाइस से लॉग आउट करें
+Log in	लॉग इन करें
+Log in to Discord in your web browser.	अपने वेब ब्राउज़र में Discord पर लॉग इन करें।
+Log in with QR Code	QR कोड से लॉग इन करें
+Log in with a token	टोकन से लॉग इन करें
+Log out of all known devices	सभी ज्ञात डिवाइस से लॉग आउट करें
+Logged-in Devices	लॉग इन किए गए डिवाइस
+Logging in as %	% के रूप में लॉग इन कर रहे हैं
+Logging in…	लॉग इन कर रहे हैं…
+Login or password is invalid.	लॉगिन या पासवर्ड गलत है।
+Looking for screens…	स्क्रीन खोज रहे हैं…
+Lotus Mode	लोटस मोड
+Low	कम
+Lower Hand	हाथ नीचे करें
+MAX NUMBER OF USES	उपयोग की अधिकतम संख्या
+MEMBER SINCE	सदस्य कब से
+MEMBERS	सदस्य
+MUTE	म्यूट
+Main Profile	मुख्य प्रोफ़ाइल
+Make a selection	चुनें
+Manage Accounts	अकाउंट मैनेज करें
+Manage Channel	चैनल मैनेज करें
+Manage Channels	चैनल मैनेज करें
+Manage Events	इवेंट मैनेज करें
+Manage Expressions	एक्सप्रेशन मैनेज करें
+Manage Members	सदस्य मैनेज करें
+Manage Messages	मैसेज मैनेज करें
+Manage Nicknames	निकनेम मैनेज करें
+Manage Permissions	अनुमतियाँ मैनेज करें
+Manage Roles	रोल मैनेज करें
+Manage Server	सर्वर मैनेज करें
+Manage Threads and Posts	थ्रेड और पोस्ट मैनेज करें
+Manage Webhooks	वेबहुक मैनेज करें
+Manage settings that help keep your server active.	ऐसी सेटिंग्स मैनेज करें जो आपके सर्वर को सक्रिय रखने में मदद करती हैं।
+Mark All as Read	सभी को पढ़ा हुआ मार्क करें
+Mark As Read	पढ़ा हुआ मार्क करें
+Mark Folder As Read	फ़ोल्डर को पढ़ा हुआ मार्क करें
+Mark Unread	अनपढ़ा मार्क करें
+Mark a message unread	मैसेज को अनपढ़ा मार्क करें
+Mark as Verified	सत्यापित मार्क करें
+Mark as spoiler	स्पॉयलर मार्क करें
+Mark channel read	चैनल को पढ़ा हुआ मार्क करें
+Mark server read	सर्वर को पढ़ा हुआ मार्क करें
+Marked as read	पढ़ा हुआ मार्क किया गया
+Marks your message as a spoiler.	आपके मैसेज को स्पॉयलर मार्क करता है।
+Match your device's light or dark mode.	अपने डिवाइस के लाइट या डार्क मोड से मिलाएँ।
+Max file size is % MB please.	फ़ाइल का अधिकतम आकार % MB है।
+Measuring	माप रहे हैं
+Medium	मध्यम
+Member Since	सदस्य कब से
+Members	सदस्य
+Members can pick more than one answer	सदस्य एक से ज़्यादा जवाब चुन सकते हैं
+Members can wear your server's tag next to their name across Discord.	सदस्य पूरे Discord में अपने नाम के साथ आपके सर्वर का टैग लगा सकते हैं।
+Members in timeout can't send messages, react, join voice or speak until it ends.	टाइमआउट वाले सदस्य उसके खत्म होने तक मैसेज नहीं भेज सकते, रिएक्ट नहीं कर सकते, वॉइस से नहीं जुड़ सकते और बोल नहीं सकते।
+Members in timeout can't send messages, react, join voice or start threads until it ends.	टाइमआउट वाले सदस्य उसके खत्म होने तक मैसेज नहीं भेज सकते, रिएक्ट नहीं कर सकते, वॉइस से नहीं जुड़ सकते और थ्रेड शुरू नहीं कर सकते।
+Members matching @%	@% से मेल खाते सदस्य
+Members must answer this question to join.	जुड़ने के लिए सदस्यों को इस सवाल का जवाब देना होगा।
+Members of the server must meet the following criteria before they can send messages in text channels or initiate a direct message conversation. If a member has an assigned role this does not apply.	टेक्स्ट चैनलों में मैसेज भेजने या डायरेक्ट मैसेज बातचीत शुरू करने से पहले सर्वर के सदस्यों को ये शर्तें पूरी करनी होंगी। अगर किसी सदस्य को रोल दिया गया है, तो यह लागू नहीं होता।
+Members use the colour of the highest role they have on the roles list.	सदस्य रोल लिस्ट में अपने सबसे ऊँचे रोल का रंग इस्तेमाल करते हैं।
+Members use the colour of the highest role they have on this list. Drag roles, or use the arrows, to reorder them.	सदस्य इस लिस्ट में अपने सबसे ऊँचे रोल का रंग इस्तेमाल करते हैं। क्रम बदलने के लिए रोल खींचें, या तीरों का इस्तेमाल करें।
+Members will be restricted to sending one message and creating one thread per this interval, unless they have the Bypass Slowmode permission.	सदस्य इस अंतराल में सिर्फ़ एक मैसेज भेज और एक थ्रेड बना सकेंगे, जब तक उनके पास "स्लोमोड बायपास करें" अनुमति न हो।
+Members with a matching name can't talk or interact until they change it.	मेल खाते नाम वाले सदस्य नाम बदलने तक बात या कोई और गतिविधि नहीं कर सकते।
+Members with this permission will have every permission and will also bypass all channel specific permissions or restrictions (for example, these members would get access to all private channels). This is a dangerous permission to grant.	इस अनुमति वाले सदस्यों के पास हर अनुमति होगी और वे चैनल की सभी खास अनुमतियों या पाबंदियों को भी बायपास करेंगे (जैसे, इन सदस्यों को सभी निजी चैनलों तक पहुँच मिलेगी)। यह अनुमति देना खतरनाक है।
+Members — %	सदस्य — %
+Membership Permissions	मेंबरशिप अनुमतियाँ
+Mention	मेंशन करें
+Mention %	% को मेंशन करें
+Mention @everyone, @here, and All Roles	@everyone, @here और सभी रोल को मेंशन करें
+Mention limit	मेंशन सीमा
+Mention raid protection	मेंशन रेड से सुरक्षा
+Mention removed	मेंशन हटाया गया
+Mentions	मेंशन
+Mentions User	यूज़र को मेंशन करता है
+Message	मैसेज
+Message #%	#% में मैसेज भेजें
+Message %	% को मैसेज भेजें
+Message @%	@% को मैसेज भेजें
+Message @% (encrypted)	@% को मैसेज भेजें (एन्क्रिप्टेड)
+Message @% (not encrypted)	@% को मैसेज भेजें (एन्क्रिप्टेड नहीं)
+Message Contains	मैसेज में शामिल है
+Message Display	मैसेज डिस्प्ले
+Message Requests	मैसेज रिक्वेस्ट
+Message deleted	मैसेज डिलीट किया गया
+Message failed to send.	मैसेज नहीं भेजा जा सका।
+Message link copied: paste it into Discord's report form	मैसेज लिंक कॉपी हो गया: इसे Discord के रिपोर्ट फ़ॉर्म में पेस्ट करें
+Message request ignored	मैसेज रिक्वेस्ट अनदेखी की गई
+Message unpinned	मैसेज अनपिन किया गया
+Messages Failed To Load	मैसेज लोड नहीं हो सके
+Messages from members you may not know go to Message Requests.	जिन सदस्यों को आप शायद नहीं जानते, उनके मैसेज मैसेज रिक्वेस्ट में जाते हैं।
+Messages from people you may not know go to Message Requests instead of your DMs.	जिन लोगों को आप शायद नहीं जानते, उनके मैसेज आपके DM के बजाय मैसेज रिक्वेस्ट में जाते हैं।
+Messages from server members without a role will be filtered for sensitive image-based media.	बिना रोल वाले सर्वर सदस्यों के मैसेज में संवेदनशील इमेज वाली मीडिया को फ़िल्टर किया जाएगा।
+Messages in servers	सर्वर में मैसेज
+Messages will not be filtered for sensitive image-based media.	मैसेज में संवेदनशील इमेज वाली मीडिया को फ़िल्टर नहीं किया जाएगा।
+Messaging Permissions	मैसेजिंग अनुमतियाँ
+Minimize to Tray	ट्रे में छोटा करें
+Mobile Push Notifications	मोबाइल पुश नोटिफ़िकेशन
+Moderation	मॉडरेशन
+Moderators must have two-factor authentication enabled to ban, kick, or timeout members and delete messages.	सदस्यों को बैन, किक या टाइमआउट करने और मैसेज डिलीट करने के लिए मॉडरेटर का टू-फ़ैक्टर ऑथेंटिकेशन चालू होना ज़रूरी है।
+Moderators only	सिर्फ़ मॉडरेटर
+Modern, beautiful, and easy on your eyes.	आधुनिक, सुंदर और आँखों के लिए आरामदायक।
+Modify Attachment	अटैचमेंट बदलें
+Motion	मोशन
+Move Members	सदस्यों को ले जाएँ
+Move To	यहाँ ले जाएँ
+Move to Audience	दर्शकों में ले जाएँ
+Multi-Factor Authentication	मल्टी-फ़ैक्टर ऑथेंटिकेशन
+Must also be a member of this server for longer than 10 minutes.	साथ ही 10 मिनट से ज़्यादा समय से इस सर्वर का सदस्य होना चाहिए।
+Must also be registered on Discord for longer than 5 minutes.	साथ ही 5 मिनट से ज़्यादा समय से Discord पर रजिस्टर होना चाहिए।
+Must have a verified email on their Discord account.	उनके Discord अकाउंट पर सत्यापित ईमेल होना चाहिए।
+Must have a verified phone on their Discord account.	उनके Discord अकाउंट पर सत्यापित फ़ोन होना चाहिए।
+Mute	म्यूट करें
+Mute %	% को म्यूट करें
+Mute Category	कैटेगरी म्यूट करें
+Mute Channel	चैनल म्यूट करें
+Mute Members	सदस्यों को म्यूट करें
+Mute New Events	नए इवेंट म्यूट करें
+Mute Server	सर्वर म्यूट करें
+Mute Thread	थ्रेड म्यूट करें
+Muted until %1, %2	%1, %2 तक म्यूट
+Muting a server prevents unread indicators and notifications from appearing unless you are mentioned.	सर्वर म्यूट करने पर अनपढ़े संकेत और नोटिफ़िकेशन नहीं दिखते, जब तक आपको मेंशन न किया जाए।
+Mutual Friends	साझा दोस्त
+Mutual Servers	साझा सर्वर
+My Account	मेरा अकाउंट
+My server	मेरा सर्वर
+NAME	नाम
+NEW	नया
+NEW PASSWORD	नया पासवर्ड
+NO ACTIVE INVITE LINKS	कोई सक्रिय इनवाइट लिंक नहीं
+NOTHING	कुछ नहीं
+Name	नाम
+Name your sound	अपने साउंड का नाम रखें
+Name your sticker	अपने स्टिकर का नाम रखें
+Nature	प्रकृति
+Navigate Back	पीछे जाएँ
+Navigate Forward	आगे जाएँ
+Need an account?	अकाउंट चाहिए?
+Network	नेटवर्क
+Never	कभी नहीं
+Nevermind	रहने दें
+New Category	नई कैटेगरी
+New Group DM	नया ग्रुप DM
+New Post	नई पोस्ट
+New Thread	नया थ्रेड
+New Webhook	नया वेबहुक
+New members must read and agree to these before they can talk.	बात करने से पहले नए सदस्यों को इन्हें पढ़कर इनसे सहमत होना होगा।
+New members pick channels and roles from your questions when they join.	नए सदस्य जुड़ते समय आपके सवालों से चैनल और रोल चुनते हैं।
+New tag	नया टैग
+New threads will stop showing in the channel list after being inactive for the specified duration.	तय समय तक निष्क्रिय रहने के बाद नए थ्रेड चैनल लिस्ट में दिखना बंद हो जाएँगे।
+Newest	सबसे नया
+Next	आगे
+Nickname	निकनेम
+Nicknames are visible to everyone on this server. Do not change them unless you are enforcing a naming system or clearing a bad nickname.	निकनेम इस सर्वर पर सबको दिखते हैं। इन्हें तभी बदलें जब आप नाम रखने का कोई नियम लागू कर रहे हों या कोई गलत निकनेम हटा रहे हों।
+No GIFs found	कोई GIF नहीं मिला
+No Inactive Channel	कोई निष्क्रिय चैनल नहीं
+No Invite	कोई इनवाइट नहीं
+No Keybind Set	कोई कीबाइंड सेट नहीं
+No System Messages	कोई सिस्टम मैसेज नहीं
+No applications waiting	कोई आवेदन बाकी नहीं
+No apps have been added to this server.	इस सर्वर में कोई ऐप नहीं जोड़ा गया है।
+No bans	कोई बैन नहीं
+No bans match your search	आपकी खोज से कोई बैन मेल नहीं खाता
+No emoji found	कोई इमोजी नहीं मिला
+No favorites yet	अभी कोई पसंदीदा नहीं
+No file chosen	कोई फ़ाइल नहीं चुनी गई
+No friends in common	कोई साझा दोस्त नहीं
+No limit	कोई सीमा नहीं
+No logs yet	अभी कोई लॉग नहीं
+No members found	कोई सदस्य नहीं मिला
+No members have this role yet.	अभी किसी सदस्य के पास यह रोल नहीं है।
+No message requests.	कोई मैसेज रिक्वेस्ट नहीं।
+No one is speaking yet	अभी कोई नहीं बोल रहा
+No one's around right now.	अभी यहाँ कोई नहीं है।
+No one's here yet	अभी यहाँ कोई नहीं है
+No posts match	कोई पोस्ट मेल नहीं खाती
+No posts yet	अभी कोई पोस्ट नहीं
+No questions yet.	अभी कोई सवाल नहीं।
+No reason given	कोई वजह नहीं बताई गई
+No results	कोई नतीजा नहीं
+No results found	कोई नतीजा नहीं मिला
+No servers in common	कोई साझा सर्वर नहीं
+No sounds found	कोई साउंड नहीं मिला
+No sounds yet.	अभी कोई साउंड नहीं।
+No spam. Nice.	कोई स्पैम नहीं। बढ़िया।
+No stickers found	कोई स्टिकर नहीं मिला
+No stickers yet	अभी कोई स्टिकर नहीं
+Nobody can join this server with an invite link until the pause ends or you enable invites again.	जब तक रोक खत्म न हो या आप इनवाइट फिर से चालू न करें, कोई इनवाइट लिंक से इस सर्वर से नहीं जुड़ सकता।
+Nobody has mentioned you recently.	हाल में किसी ने आपको मेंशन नहीं किया।
+Noise Suppression	नॉइज़ सप्रेशन
+Noise Suppression: Off	नॉइज़ सप्रेशन: बंद
+Noise Suppression: On	नॉइज़ सप्रेशन: चालू
+None	कोई नहीं
+Norwegian	नॉर्वेजियाई
+Not Now	अभी नहीं
+Not connected to % yet.	अभी % से कनेक्ट नहीं हैं।
+Not encrypted	एन्क्रिप्टेड नहीं
+Not encrypted: Discord can read this message	एन्क्रिप्टेड नहीं: Discord यह मैसेज पढ़ सकता है
+Not end-to-end encrypted	एंड-टू-एंड एन्क्रिप्टेड नहीं
+Not me, start over	मैं नहीं हूँ, फिर से शुरू करें
+Note	नोट
+Note (only visible to you)	नोट (सिर्फ़ आपको दिखता है)
+Note: Members with the "Mention @everyone, @here, and All Roles" permission will always be able to ping this role.	नोट: "@everyone, @here और सभी रोल को मेंशन करें" अनुमति वाले सदस्य इस रोल को हमेशा पिंग कर सकेंगे।
+Nothing	कुछ नहीं
+Notification Settings	नोटिफ़िकेशन सेटिंग्स
+Notification settings changed	नोटिफ़िकेशन सेटिंग्स बदली गईं
+Notifications	नोटिफ़िकेशन
+Notify everyone online who has permission to view this channel.	इस चैनल को देखने की अनुमति वाले सभी ऑनलाइन लोगों को सूचित करें।
+Notify everyone who has permission to view this channel.	इस चैनल को देखने की अनुमति वाले सभी लोगों को सूचित करें।
+Notify me when...	मुझे तब सूचित करें जब...
+Notify users with this role who have permission to view this channel.	इस रोल वाले उन यूज़र को सूचित करें जिन्हें यह चैनल देखने की अनुमति है।
+OUTPUT DEVICE	आउटपुट डिवाइस
+OUTPUT VOLUME	आउटपुट वॉल्यूम
+Objects	वस्तुएँ
+Off	बंद
+Offline	ऑफ़लाइन
+Oh yeah. Pin it	हाँ बिल्कुल। पिन करें
+Okay	ठीक है
+Oldest	सबसे पुराना
+On click	क्लिक करने पर
+On servers I moderate	जिन सर्वर को मैं मॉडरेट करता/करती हूँ
+Onboarding	ऑनबोर्डिंग
+One rule per line, for example: Be respectful	हर लाइन में एक नियम, जैसे: सम्मान से पेश आएँ
+Ongoing call	चल रही कॉल
+Online	ऑनलाइन
+Only @mentions	सिर्फ़ @मेंशन
+Only servers and channels you have webhook permissions in are shown.	सिर्फ़ वही सर्वर और चैनल दिखाए गए हैं जिनमें आपके पास वेबहुक अनुमतियाँ हैं।
+Only you can see the nickname you give %.	% को दिया गया निकनेम सिर्फ़ आप देख सकते हैं।
+Only you can see this · 	इसे सिर्फ़ आप देख सकते हैं ·
+Oops!	उफ़!
+Open Chat	चैट खोलें
+Open Image Link	इमेज लिंक खोलें
+Open Link	लिंक खोलें
+Open Logs Folder	लॉग फ़ोल्डर खोलें
+Open Media Link	मीडिया लिंक खोलें
+Open Server Insights	सर्वर इनसाइट्स खोलें
+Open Settings	सेटिंग्स खोलें
+Open discord.com	discord.com खोलें
+Open in Browser	ब्राउज़र में खोलें
+Open in YouTube	YouTube में खोलें
+Open the developer tools (Cmd+Option+I) and choose the Network tab.	डेवलपर टूल खोलें (Cmd+Option+I) और Network टैब चुनें।
+Open the developer tools (Ctrl+Shift+I) and choose the Network tab.	डेवलपर टूल खोलें (Ctrl+Shift+I) और Network टैब चुनें।
+Or, send a server invite link to a friend	या, किसी दोस्त को सर्वर इनवाइट लिंक भेजें
+Original message was deleted	मूल मैसेज डिलीट कर दिया गया
+Other Active Threads	दूसरे सक्रिय थ्रेड
+Other Devices	दूसरे डिवाइस
+Outgoing Friend Request	भेजी गई फ़्रेंड रिक्वेस्ट
+Overview	अवलोकन
+PASSWORD	पासवर्ड
+PM	अपराह्न
+PRIVACY CODE	प्राइवेसी कोड
+PTT Activate	PTT चालू
+PTT Deactivate	PTT बंद
+PUSH TO TALK RELEASE DELAY	पुश-टू-टॉक छोड़ने की देरी
+Packet loss	पैकेट लॉस
+Packets received	मिले पैकेट
+Packets sent	भेजे गए पैकेट
+Page %	पेज %
+Password	पासवर्ड
+Password and Authentication	पासवर्ड और ऑथेंटिकेशन
+Passwords do not match!	पासवर्ड मेल नहीं खाते!
+Paste	पेस्ट करें
+Paste an emoji (optional)	इमोजी पेस्ट करें (वैकल्पिक)
+Paste your token	अपना टोकन पेस्ट करें
+Pause Invites	इनवाइट रोकें
+Pending	बाकी
+People	लोग
+People can join your server directly with an invite	लोग इनवाइट से सीधे आपके सर्वर से जुड़ सकते हैं
+People in a voice channel with you can join the game you're playing.	आपके साथ वॉइस चैनल में मौजूद लोग आपके खेले जा रहे गेम में शामिल हो सकते हैं।
+People must submit an application and be approved to join	जुड़ने के लिए लोगों को आवेदन देना होगा और मंज़ूरी मिलनी होगी
+People who applied to join, waiting for a moderator.	जुड़ने के लिए आवेदन करने वाले लोग, मॉडरेटर का इंतज़ार कर रहे हैं।
+Per-server Profiles	हर सर्वर की प्रोफ़ाइल
+Permissions	अनुमतियाँ
+Permissions not synced with category: 	अनुमतियाँ कैटेगरी से सिंक नहीं हैं:
+Permissions synced with category: 	अनुमतियाँ कैटेगरी से सिंक हैं:
+Permissions: %	अनुमतियाँ: %
+Phone Number	फ़ोन नंबर
+Pick a channel	चैनल चुनें
+Pick a channel for the alerts.	अलर्ट के लिए चैनल चुनें।
+Pick at least one response.	कम से कम एक जवाब चुनें।
+Pin It. Pin It Good.	पिन करें। अच्छे से पिन करें।
+Pin Message	मैसेज पिन करें
+Pin Messages	मैसेज पिन करें
+Ping	पिंग
+Ping: % ms	पिंग: % ms
+Ping: measuring…	पिंग: माप रहे हैं…
+Pinned Messages	पिन किए गए मैसेज
+Play Here	यहाँ चलाएँ
+Play Soundboard Through My Mic	साउंडबोर्ड मेरे माइक से चलाएँ
+Play YouTube videos here with yt-dlp? It needs yt-dlp installed, and connects to YouTube from your computer. Settings > Chat can change this.	yt-dlp से YouTube वीडियो यहीं चलाएँ? इसके लिए yt-dlp इंस्टॉल होना चाहिए, और यह आपके कंप्यूटर से YouTube से कनेक्ट होता है। सेटिंग्स > चैट में इसे बदला जा सकता है।
+Play YouTube videos in fastcord with yt-dlp	yt-dlp से YouTube वीडियो fastcord में चलाएँ
+Please enter a valid invite link or invite code.	कृपया सही इनवाइट लिंक या इनवाइट कोड डालें।
+Please try again later.	कृपया बाद में फिर से कोशिश करें।
+Polish	पोलिश
+Poll closed	पोल बंद हुआ
+Portuguese, Brazilian	पुर्तगाली (ब्राज़ील)
+Post	पोस्ट करें
+Post Guidelines	पोस्ट के दिशानिर्देश
+Post from a script	स्क्रिप्ट से पोस्ट करें
+Post messages that reach servers outside your own. Members can follow this channel, so the posts you publish here appear in their servers.	ऐसे मैसेज पोस्ट करें जो आपके सर्वर के बाहर के सर्वर तक पहुँचें। सदस्य इस चैनल को फ़ॉलो कर सकते हैं, ताकि यहाँ पब्लिश की गई पोस्ट उनके सर्वर में दिखें।
+Post title	पोस्ट का शीर्षक
+Posting...	पोस्ट कर रहे हैं...
+Press a shortcut…	कोई शॉर्टकट दबाएँ…
+Previous	पिछला
+Previous / next channel	पिछला / अगला चैनल
+Previous / next channel with mentions	मेंशन वाला पिछला / अगला चैनल
+Previous / next server	पिछला / अगला सर्वर
+Previous / next unread channel	पिछला / अगला अनपढ़ा चैनल
+Previous 12 Hours	पिछले 12 घंटे
+Previous 24 Hours	पिछले 24 घंटे
+Previous 3 Days	पिछले 3 दिन
+Previous 6 Hours	पिछले 6 घंटे
+Previous 7 Days	पिछले 7 दिन
+Previous Hour	पिछला घंटा
+Priority Speaker	प्राथमिक स्पीकर
+Privacy Settings	गोपनीयता सेटिंग्स
+Private Category	निजी कैटेगरी
+Private Channel	निजी चैनल
+Private Profile	निजी प्रोफ़ाइल
+Profile	प्रोफ़ाइल
+Profile Banner	प्रोफ़ाइल बैनर
+Profile Privacy	प्रोफ़ाइल गोपनीयता
+Profiles	प्रोफ़ाइल
+Prompt members to reply to welcome messages with a sticker.	सदस्यों को स्वागत मैसेज का जवाब स्टिकर से देने के लिए कहें।
+Pronouns	सर्वनाम
+Protect your Discord account with an extra layer of security. Once configured, you'll be required to enter your password and complete one additional step in order to sign in.	सुरक्षा की एक अतिरिक्त परत से अपना Discord अकाउंट सुरक्षित रखें। सेट होने के बाद, साइन इन करने के लिए आपको अपना पासवर्ड डालना होगा और एक अतिरिक्त चरण पूरा करना होगा।
+Protip:	प्रो टिप:
+Publish	पब्लिश करें
+Push to Mute	पुश-टू-म्यूट
+Push to Talk	पुश-टू-टॉक
+Push to Talk (Normal)	पुश-टू-टॉक (सामान्य)
+Q: %	स: %
+Question	सवाल
+Questions	सवाल
+ROLES	रोल
+ROLES — %	रोल — %
+ROLES/MEMBERS	रोल/सदस्य
+RTC Connecting	RTC कनेक्ट हो रहा है
+Read Message History	मैसेज हिस्ट्री पढ़ें
+Reason	वजह
+Reason for Ban	बैन की वजह
+Reason for Kick	किक की वजह
+Reason for Timeout	टाइमआउट की वजह
+Reason: %	वजह: %
+Received	मिला
+Recently Active	हाल में सक्रिय
+Reconnect	फिर से कनेक्ट करें
+Record Keybind	कीबाइंड रिकॉर्ड करें
+Reduce the saturation of colors within the application, for those with color sensitivities.	रंगों के प्रति संवेदनशील लोगों के लिए, ऐप्लिकेशन में रंगों की सैचुरेशन कम करें।
+Reduces the amount of animation and motion effects. On whenever your device asks for reduced motion.	एनिमेशन और मोशन इफ़ेक्ट कम करता है। जब भी आपका डिवाइस कम मोशन माँगे, यह चालू रहता है।
+Region Override	रीजन ओवरराइड
+Register	रजिस्टर करें
+Reject	अस्वीकार करें
+Rejoin	फिर से जुड़ें
+Related Emoji	संबंधित इमोजी
+Relevant	प्रासंगिक
+Remove	हटाएँ
+Remove %	% को हटाएँ
+Remove All Embeds	सभी एम्बेड हटाएँ
+Remove All Reactions	सभी रिएक्शन हटाएँ
+Remove Answer	जवाब हटाएँ
+Remove Attachment	अटैचमेंट हटाएँ
+Remove Authenticator App	ऑथेंटिकेटर ऐप हटाएँ
+Remove Avatar	अवतार हटाएँ
+Remove Embeds	एम्बेड हटाएँ
+Remove Friend	दोस्त हटाएँ
+Remove From Group	ग्रुप से हटाएँ
+Remove Icon	आइकन हटाएँ
+Remove Reaction	रिएक्शन हटाएँ
+Remove Reactions	रिएक्शन हटाएँ
+Remove Reactions for Emoji	इमोजी के रिएक्शन हटाएँ
+Remove Server	सर्वर हटाएँ
+Remove Spoiler	स्पॉयलर हटाएँ
+Remove Timeout	टाइमआउट हटाएँ
+Remove Vote	वोट हटाएँ
+Remove all embeds	सभी एम्बेड हटाएँ
+Remove from Favorites	पसंदीदा से हटाएँ
+Remove notification override for %	% के लिए नोटिफ़िकेशन ओवरराइड हटाएँ
+Remove the files added before encryption was on: they'd go unencrypted.	एन्क्रिप्शन चालू होने से पहले जोड़ी गई फ़ाइलें हटाएँ: वे बिना एन्क्रिप्शन के जाएँगी।
+Remove the files added while encryption was on: they'd arrive as unreadable ciphertext.	एन्क्रिप्शन चालू रहते जोड़ी गई फ़ाइलें हटाएँ: वे न पढ़े जा सकने वाले सिफ़रटेक्स्ट के रूप में पहुँचेंगी।
+Removing…	हटा रहे हैं…
+Repeated encrypted message	दोहराया गया एन्क्रिप्टेड मैसेज
+Reply	जवाब दें
+Replying to	इसका जवाब दे रहे हैं
+Report Message	मैसेज की रिपोर्ट करें
+Request Data	डेटा माँगें
+Request all of my Data	मेरा सारा डेटा माँगें
+Request to Speak	बोलने का अनुरोध करें
+Requests	रिक्वेस्ट
+Require 2FA for moderator actions	मॉडरेटर कार्रवाइयों के लिए 2FA ज़रूरी करें
+Require members to agree to the server rules	सदस्यों के लिए सर्वर नियमों से सहमत होना ज़रूरी करें
+Require people to select tags when posting	पोस्ट करते समय लोगों के लिए टैग चुनना ज़रूरी करें
+Required	ज़रूरी
+Resend SMS?	SMS फिर से भेजें?
+Reset	रीसेट करें
+Reset Friend Nickname	दोस्त का निकनेम रीसेट करें
+Reset Voice Settings	वॉइस सेटिंग्स रीसेट करें
+Resolving Invite	इनवाइट खोल रहे हैं
+Responses	जवाब
+Retry	फिर से कोशिश करें
+Retry Now	अभी फिर से कोशिश करें
+Return to call	कॉल पर लौटें
+Return to the connected call	कनेक्ट की गई कॉल पर लौटें
+Reveal	दिखाएँ
+Review	समीक्षा करें
+Revoke	रद्द करें
+Revoke Ban	बैन हटाएँ
+Revoke Invite	इनवाइट रद्द करें
+Revoke the ban? They will be able to join again with an invite.	बैन हटाएँ? वे इनवाइट से फिर से जुड़ सकेंगे।
+Ring	रिंग करें
+Ringing…	रिंग हो रही है…
+Role Color	रोल का रंग
+Role Colors	रोल के रंग
+Role Icon	रोल आइकन
+Role name	रोल का नाम
+Roles	रोल
+Romanian, Romania	रोमानियाई (रोमानिया)
+Rule: %	नियम: %
+Rules or Guidelines Channel	नियम या दिशानिर्देश चैनल
+Russian	रूसी
+SELECT A CHANNEL	चैनल चुनें
+SELECT A SERVER	सर्वर चुनें
+SERVER NAME	सर्वर का नाम
+SOUNDBOARD VOLUME	साउंडबोर्ड वॉल्यूम
+STATIC EMOJI — % SLOTS AVAILABLE	स्थिर इमोजी — % स्लॉट उपलब्ध
+Safety Notifications Channel	सुरक्षा नोटिफ़िकेशन चैनल
+Safety Number	सेफ़्टी नंबर
+Safety Setup	सुरक्षा सेटअप
+Safety checks	सुरक्षा जाँच
+Same as Device Theme	डिवाइस थीम जैसा
+Saturation	सैचुरेशन
+Save	सेव करें
+Save Changes	बदलाव सेव करें
+Save Image	इमेज सेव करें
+Saving...	सेव कर रहे हैं...
+Saving…	सेव कर रहे हैं…
+Scan this with the Discord mobile app to log in instantly.	तुरंत लॉग इन करने के लिए इसे Discord मोबाइल ऐप से स्कैन करें।
+Schedule an event for any planned activity in your server.	अपने सर्वर में किसी भी तय गतिविधि के लिए इवेंट शेड्यूल करें।
+Screen	स्क्रीन
+Screen sharing isn't supported on this platform yet.	इस प्लैटफ़ॉर्म पर अभी स्क्रीन शेयरिंग उपलब्ध नहीं है।
+Scroll chat	चैट स्क्रॉल करें
+Search	खोजें
+Search %	% में खोजें
+Search Bans by User ID or Username	यूज़र ID या यूज़रनेम से बैन खोजें
+Search Klipy	Klipy में खोजें
+Search Options	खोज विकल्प
+Search by username or id	यूज़रनेम या ID से खोजें
+Search for friends	दोस्त खोजें
+Search members to add (press Enter)	जोड़ने के लिए सदस्य खोजें (Enter दबाएँ)
+Search or create a post...	पोस्ट खोजें या बनाएँ...
+Search sounds	साउंड खोजें
+Searching...	खोज रहे हैं...
+Select Friends	दोस्त चुनें
+Select a Language	भाषा चुनें
+Select a channel	चैनल चुनें
+Select a channel or category…	चैनल या कैटेगरी चुनें…
+Select one answer	एक जवाब चुनें
+Select one or more answers	एक या ज़्यादा जवाब चुनें
+Select where you want these updates to go. You can remove this at any time in Server Settings > Integrations > Channels Followed.	चुनें कि ये अपडेट कहाँ जाएँ। आप इसे कभी भी सर्वर सेटिंग्स > इंटीग्रेशन > फ़ॉलो किए गए चैनल में हटा सकते हैं।
+Select where you want to share this message.	चुनें कि आप यह मैसेज कहाँ शेयर करना चाहते हैं।
+Send	भेजें
+Send Friend Request	फ़्रेंड रिक्वेस्ट भेजें
+Send Messages and Create Posts	मैसेज भेजें और पोस्ट बनाएँ
+Send Messages in Threads and Posts	थ्रेड और पोस्ट में मैसेज भेजें
+Send New Key	नई कुंजी भेजें
+Send Text-to-Speech Messages	टेक्स्ट-टू-स्पीच मैसेज भेजें
+Send Voice Messages	वॉइस मैसेज भेजें
+Send a random welcome message when someone joins this server.	जब कोई इस सर्वर से जुड़े तो कोई भी स्वागत मैसेज भेजें।
+Send a server invite link to a friend	किसी दोस्त को सर्वर इनवाइट लिंक भेजें
+Send an alert	अलर्ट भेजें
+Send helpful tips for server setup.	सर्वर सेटअप के लिए काम की टिप्स भेजें।
+Send messages, images, GIFs, emoji, opinions, and puns	मैसेज, इमेज, GIF, इमोजी, राय और चुटकुले भेजें
+Sending...	भेज रहे हैं...
+Sent	भेजा गया
+Sent a file	एक फ़ाइल भेजी
+Sent a sticker	एक स्टिकर भेजा
+Sent — %	भेजे गए — %
+Server	सर्वर
+Server Avatar	सर्वर अवतार
+Server Deafen	सर्वर डेफ़न
+Server Deafened	सर्वर ने डेफ़न किया
+Server Guide	सर्वर गाइड
+Server ID	सर्वर ID
+Server Info	सर्वर की जानकारी
+Server Insights	सर्वर इनसाइट्स
+Server Insights is hosted on a separate website so that it's easier to share links and browse cross platform.	सर्वर इनसाइट्स एक अलग वेबसाइट पर है ताकि लिंक शेयर करना और अलग-अलग प्लैटफ़ॉर्म पर देखना आसान हो।
+Server Mute	सर्वर म्यूट
+Server Muted	सर्वर ने म्यूट किया
+Server Nickname	सर्वर निकनेम
+Server Notification Settings	सर्वर नोटिफ़िकेशन सेटिंग्स
+Server Primary Language	सर्वर की मुख्य भाषा
+Server Profile	सर्वर प्रोफ़ाइल
+Server Rules	सर्वर के नियम
+Server Settings	सर्वर सेटिंग्स
+Server Tag	सर्वर टैग
+Server Template	सर्वर टेम्पलेट
+Server Widget	सर्वर विजेट
+Server members	सर्वर सदस्य
+Server members can only send you friend requests from servers where you also allow Direct Messages.	सर्वर सदस्य आपको सिर्फ़ उन्हीं सर्वर से फ़्रेंड रिक्वेस्ट भेज सकते हैं जहाँ आप डायरेक्ट मैसेज की भी अनुमति देते हैं।
+Server name must be between 2 and 100 characters.	सर्वर का नाम 2 से 100 अक्षरों के बीच होना चाहिए।
+Server unmuted	सर्वर अनम्यूट किया गया
+Sessions	सेशन
+Set Custom Status	कस्टम स्टेटस सेट करें
+Set Voice Channel Status	वॉइस चैनल स्टेटस सेट करें
+Set a custom status	कस्टम स्टेटस सेट करें
+Set up AutoMod to automatically filter messages in this server with the rules below. Members with Manage Server or Administrator are exempt.	नीचे दिए नियमों से इस सर्वर के मैसेज अपने आप फ़िल्टर करने के लिए AutoMod सेट करें। "सर्वर मैनेज करें" या एडमिनिस्ट्रेटर वाले सदस्यों को छूट है।
+Sets camera video quality for all channel participants. Choose Auto for optimal performance.	चैनल के सभी लोगों के लिए कैमरा वीडियो क्वालिटी सेट करता है। सबसे अच्छे प्रदर्शन के लिए ऑटो चुनें।
+Setting up encryption: % needs to open fastcord once.	एन्क्रिप्शन सेट हो रहा है: % को एक बार fastcord खोलना होगा।
+Several people are typing...	कई लोग टाइप कर रहे हैं...
+Severe Profanity	गंभीर अपशब्द
+Sexual Content	यौन सामग्री
+Share	शेयर करें
+Share Event	इवेंट शेयर करें
+Share Your Screen	अपनी स्क्रीन शेयर करें
+Share my full profile with	अपनी पूरी प्रोफ़ाइल इनके साथ शेयर करें
+Share your detected activities with others	पहचानी गई गतिविधियाँ दूसरों के साथ शेयर करें
+Show	दिखाएँ
+Show Chat	चैट दिखाएँ
+Show a system notification for messages that would notify you (DMs, mentions, servers set to all messages).	उन मैसेज के लिए सिस्टम नोटिफ़िकेशन दिखाएँ जिनसे आपको सूचना मिलनी चाहिए (DM, मेंशन, सभी मैसेज पर सेट सर्वर)।
+Show embeds and preview website links pasted into chat	चैट में पेस्ट किए गए वेबसाइट लिंक के एम्बेड और प्रीव्यू दिखाएँ
+Show emoji reactions on messages	मैसेज पर इमोजी रिएक्शन दिखाएँ
+Show message	मैसेज दिखाएँ
+Show messages	मैसेज दिखाएँ
+Show role colors in names	नामों में रोल के रंग दिखाएँ
+Show role colors next to names	नामों के बगल में रोल के रंग दिखाएँ
+Show spoiler content	स्पॉयलर सामग्री दिखाएँ
+Show the game or app you're using on your profile and in member lists.	आप जो गेम या ऐप इस्तेमाल कर रहे हैं, उसे अपनी प्रोफ़ाइल और सदस्य लिस्ट में दिखाएँ।
+Shows a red badge on the app icon when you have unread mentions.	अनपढ़े मेंशन होने पर ऐप आइकन पर लाल बैज दिखाता है।
+Silence every sound and notification and hide all badges and unread marks, so fastcord never asks for your attention.	हर साउंड और नोटिफ़िकेशन बंद करें और सभी बैज व अनपढ़े निशान छिपाएँ, ताकि fastcord कभी आपका ध्यान न खींचे।
+Slow down! Are you sure?	ज़रा धीरे! क्या आपको यकीन है?
+Slowmode	स्लोमोड
+Slowmode is enabled	स्लोमोड चालू है
+Slowmode is enabled. Members can send one message every % hour.|Slowmode is enabled. Members can send one message every % hours.	स्लोमोड चालू है। सदस्य हर % घंटे में एक मैसेज भेज सकते हैं।|स्लोमोड चालू है। सदस्य हर % घंटे में एक मैसेज भेज सकते हैं।
+Slowmode is enabled. Members can send one message every % minute.|Slowmode is enabled. Members can send one message every % minutes.	स्लोमोड चालू है। सदस्य हर % मिनट में एक मैसेज भेज सकते हैं।|स्लोमोड चालू है। सदस्य हर % मिनट में एक मैसेज भेज सकते हैं।
+Slowmode is enabled. Members can send one message every % second.|Slowmode is enabled. Members can send one message every % seconds.	स्लोमोड चालू है। सदस्य हर % सेकंड में एक मैसेज भेज सकते हैं।|स्लोमोड चालू है। सदस्य हर % सेकंड में एक मैसेज भेज सकते हैं।
+Smooth Scrolling	स्मूद स्क्रॉलिंग
+So no one gets lost on where to go.	ताकि कोई भटके नहीं कि कहाँ जाना है।
+Some older devices may not be shown here	कुछ पुराने डिवाइस शायद यहाँ न दिखें
+Someone	कोई
+Something went wrong	कुछ गड़बड़ हो गई
+Something went wrong (HTTP %).	कुछ गड़बड़ हो गई (HTTP %)।
+Something went wrong. Try again.	कुछ गड़बड़ हो गई। फिर से कोशिश करें।
+Somewhere Else	कहीं और
+Sorry, we couldn't load the first message in this thread	माफ़ करें, इस थ्रेड का पहला मैसेज लोड नहीं हो सका
+Sort: Date Posted	क्रम: पोस्ट की तारीख
+Sort: Recent Activity	क्रम: हाल की गतिविधि
+Sound Name	साउंड का नाम
+Sound names must be between 2 and 32 characters.	साउंड का नाम 2 से 32 अक्षरों के बीच होना चाहिए।
+Soundboard	साउंडबोर्ड
+Sounds	साउंड
+Sounds must be 5.2 seconds or shorter.	साउंड 5.2 सेकंड या उससे छोटे होने चाहिए।
+Sounds must be under 512 KB.	साउंड 512 KB से छोटे होने चाहिए।
+Source	स्रोत
+Space between message groups	मैसेज ग्रुप के बीच की जगह
+Spam	स्पैम
+Spam Filters	स्पैम फ़िल्टर
+Spanish	स्पेनिश
+Spanish, LATAM	स्पेनिश (लैटिन अमेरिका)
+Speak	बोलें
+Speak Message	मैसेज बोलकर सुनाएँ
+Spoiler Attachment	स्पॉयलर अटैचमेंट
+Spoiler Content	स्पॉयलर सामग्री
+Stage	स्टेज
+Start Date	शुरू होने की तारीख
+Start Event	इवेंट शुरू करें
+Start Minimized	छोटा करके शुरू करें
+Start Time	शुरू होने का समय
+Starting in %m	%मि॰ में शुरू
+State	स्थिति
+Stickers	स्टिकर
+Stickers can be used by anyone in this server. Upload a PNG, APNG, GIF or Lottie JSON file of up to 512 KB; it shows at 320x320.	स्टिकर इस सर्वर में कोई भी इस्तेमाल कर सकता है। 512 KB तक की PNG, APNG, GIF या Lottie JSON फ़ाइल अपलोड करें; यह 320x320 पर दिखता है।
+Stickers can't be sent encrypted yet.	स्टिकर अभी एन्क्रिप्ट करके नहीं भेजे जा सकते।
+Stickers must be PNG, APNG, GIF or Lottie JSON files.	स्टिकर PNG, APNG, GIF या Lottie JSON फ़ाइलें होने चाहिए।
+Stop Recording	रिकॉर्डिंग रोकें
+Stop Streaming	स्ट्रीमिंग रोकें
+Stop Testing	टेस्ट रोकें
+Stop Video	वीडियो रोकें
+Stop Watching	देखना बंद करें
+Storage	स्टोरेज
+Stream Settings	स्ट्रीम सेटिंग्स
+Streamer Mode	स्ट्रीमर मोड
+Streamer Mode Enabled	स्ट्रीमर मोड चालू है
+Streamer Mode hides your personal info so others watching your stream can't see it.	स्ट्रीमर मोड आपकी निजी जानकारी छिपाता है ताकि आपकी स्ट्रीम देखने वाले उसे न देख सकें।
+Streamer Mode is enabled. Usernames have been truncated.	स्ट्रीमर मोड चालू है। यूज़रनेम छोटे कर दिए गए हैं।
+Success! Your friend request to % was sent.	हो गया! % को आपकी फ़्रेंड रिक्वेस्ट भेज दी गई।
+Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday	रविवार|सोमवार|मंगलवार|बुधवार|गुरुवार|शुक्रवार|शनिवार
+Sun|Mon|Tue|Wed|Thu|Fri|Sat	रवि|सोम|मंगल|बुध|गुरु|शुक्र|शनि
+Support has arrived!	मदद आ गई है!
+Suppress @everyone and @here	@everyone और @here रोकें
+Suppress All Role @mentions	सभी रोल @मेंशन रोकें
+Suppress Highlights	हाइलाइट्स रोकें
+Suppress Notifications	नोटिफ़िकेशन रोकें
+Suppress background noise from your mic.	अपने माइक का बैकग्राउंड शोर दबाएँ।
+Swedish	स्वीडिश
+Switch Accounts	अकाउंट बदलें
+Switch between accounts on this device.	इस डिवाइस पर अकाउंट के बीच स्विच करें।
+Symbols	चिह्न
+Sync Now	अभी सिंक करें
+Sync Permissions	अनुमतियाँ सिंक करें
+Sync Template	टेम्पलेट सिंक करें
+Sync permissions?	अनुमतियाँ सिंक करें?
+System	सिस्टम
+System Messages	सिस्टम मैसेज
+System Messages Channel	सिस्टम मैसेज चैनल
+System icon for new server members.	नए सर्वर सदस्यों के लिए सिस्टम आइकन।
+THREAD NAME	थ्रेड का नाम
+Tag	टैग
+Tags	टैग
+Tags (pick at least one)	टैग (कम से कम एक चुनें)
+Tags let members organize their posts. Members pick them when they post; moderated tags only moderators can apply.	टैग से सदस्य अपनी पोस्ट व्यवस्थित करते हैं। सदस्य पोस्ट करते समय इन्हें चुनते हैं; मॉडरेटेड टैग सिर्फ़ मॉडरेटर लगा सकते हैं।
+Tap the link in your email to sign in instantly — no password needed.	तुरंत साइन इन करने के लिए अपने ईमेल में दिए लिंक पर टैप करें — पासवर्ड की ज़रूरत नहीं।
+Tell people a little more about your event. Markdown, new lines, and links are supported.	लोगों को अपने इवेंट के बारे में थोड़ा और बताएँ। Markdown, नई लाइनें और लिंक इस्तेमाल किए जा सकते हैं।
+Tell the world a bit about this server.	दुनिया को इस सर्वर के बारे में थोड़ा बताएँ।
+Template Description	टेम्पलेट का विवरण
+Template Link	टेम्पलेट लिंक
+Template Title	टेम्पलेट का शीर्षक
+Templates are an easy way to share your server setup and help anyone create a server instantly. When someone uses your server template link, they create a new server pre-filled with the same channels, roles, permissions, and settings as yours. Messages, members and your server's icon aren't copied.	टेम्पलेट आपके सर्वर का सेटअप शेयर करने और किसी को भी तुरंत सर्वर बनाने में मदद करने का आसान तरीका हैं। जब कोई आपके सर्वर टेम्पलेट लिंक का इस्तेमाल करता है, तो वह आपके जैसे चैनल, रोल, अनुमतियों और सेटिंग्स वाला नया सर्वर बनाता है। मैसेज, सदस्य और आपके सर्वर का आइकन कॉपी नहीं होते।
+Temporary members are automatically kicked when they disconnect unless a role has been assigned	अस्थायी सदस्य डिस्कनेक्ट होने पर अपने आप किक हो जाते हैं, जब तक उन्हें कोई रोल न दिया गया हो
+Test Video	वीडियो टेस्ट करें
+Text	टेक्स्ट
+Text Channel Permissions	टेक्स्ट चैनल अनुमतियाँ
+Text channel, external link, or in-person location.	टेक्स्ट चैनल, बाहरी लिंक, या असली जगह।
+Thai	थाई
+That channel isn't on this server anymore.	वह चैनल अब इस सर्वर पर नहीं है।
+That file couldn't be read as an MP3 or OGG sound.	वह फ़ाइल MP3 या OGG साउंड के रूप में नहीं पढ़ी जा सकी।
+That file couldn't be read. Avatars must be PNG, JPEG, GIF or WEBP images.	वह फ़ाइल नहीं पढ़ी जा सकी। अवतार PNG, JPEG, GIF या WEBP इमेज होने चाहिए।
+That file couldn't be read. Banners must be PNG, JPEG, GIF or WEBP images.	वह फ़ाइल नहीं पढ़ी जा सकी। बैनर PNG, JPEG, GIF या WEBP इमेज होने चाहिए।
+That file couldn't be read. Emoji must be a PNG, JPEG, GIF, WEBP or AVIF image.	वह फ़ाइल नहीं पढ़ी जा सकी। इमोजी PNG, JPEG, GIF, WEBP या AVIF इमेज होना चाहिए।
+That file couldn't be read. Images must be PNG, JPEG, GIF or WEBP files.	वह फ़ाइल नहीं पढ़ी जा सकी। इमेज PNG, JPEG, GIF या WEBP फ़ाइलें होनी चाहिए।
+That file couldn't be read. Server icons must be PNG, JPEG, GIF or WEBP images.	वह फ़ाइल नहीं पढ़ी जा सकी। सर्वर आइकन PNG, JPEG, GIF या WEBP इमेज होने चाहिए।
+That file is too large. Emoji must be under 256 KB.	वह फ़ाइल बहुत बड़ी है। इमोजी 256 KB से छोटे होने चाहिए।
+That file is too large. Stickers must be under 512 KB.	वह फ़ाइल बहुत बड़ी है। स्टिकर 512 KB से छोटे होने चाहिए।
+That image is too large.	वह इमेज बहुत बड़ी है।
+That image is too large. Avatars must be under %.	वह इमेज बहुत बड़ी है। अवतार % से छोटे होने चाहिए।
+That image is too large. Banners must be under 10 MB.	वह इमेज बहुत बड़ी है। बैनर 10 MB से छोटे होने चाहिए।
+That image is too large. Server icons must be under 512 KB.	वह इमेज बहुत बड़ी है। सर्वर आइकन 512 KB से छोटे होने चाहिए।
+That isn't a valid fastcord invite.	यह सही fastcord इनवाइट नहीं है।
+That's too long to send encrypted.	यह एन्क्रिप्ट करके भेजने के लिए बहुत लंबा है।
+The Pin Is Stuck!	पिन अटक गया!
+The badge chosen in the official client stays as it is.	ऑफ़िशियल क्लाइंट में चुना गया बैज जैसा है वैसा ही रहेगा।
+The invite is invalid or has expired.	इनवाइट अमान्य है या खत्म हो गया है।
+The mention limit is between 1 and 50.	मेंशन सीमा 1 से 50 के बीच है।
+The most important updates from this channel will now show up directly in your server. Enjoy!	इस चैनल के सबसे ज़रूरी अपडेट अब सीधे आपके सर्वर में दिखेंगे। मज़े करें!
+The owner	मालिक
+The related emoji must be one emoji.	संबंधित इमोजी एक ही इमोजी होना चाहिए।
+The results were tied	नतीजे बराबर रहे
+The selected channel has too many webhooks. Please remove a webhook or select another channel.	चुने गए चैनल में बहुत ज़्यादा वेबहुक हैं। कृपया कोई वेबहुक हटाएँ या दूसरा चैनल चुनें।
+The server	सर्वर
+The start time must be in the future.	शुरू होने का समय भविष्य में होना चाहिए।
+The thread stops showing in the channel list after being inactive for this long.	इतनी देर निष्क्रिय रहने के बाद थ्रेड चैनल लिस्ट में दिखना बंद हो जाता है।
+Theme	थीम
+There are no active threads.	कोई सक्रिय थ्रेड नहीं है।
+There are no archived threads.	कोई आर्काइव किया गया थ्रेड नहीं है।
+There are no pending friend requests.	कोई बाकी फ़्रेंड रिक्वेस्ट नहीं है।
+There are no upcoming events.	कोई आने वाला इवेंट नहीं है।
+There is no identity key.	कोई पहचान कुंजी नहीं है।
+There was no winner	कोई विजेता नहीं रहा
+These are all the devices that are currently logged-in with your Discord account. Log out of devices that you don't recognize.	ये वे सभी डिवाइस हैं जिन पर अभी आपके Discord अकाउंट से लॉग इन है। जिन डिवाइस को आप नहीं पहचानते, उनसे लॉग आउट करें।
+They said: %	उन्होंने कहा: %
+This account needs a passkey or security key, which fastcord can't use. Log in with the QR code instead.	इस अकाउंट के लिए पासकी या सिक्योरिटी की चाहिए, जिसे fastcord इस्तेमाल नहीं कर सकता। इसके बजाय QR कोड से लॉग इन करें।
+This channel contains adult content that may not be suitable for all audiences. You must be 18 or older to view it.	इस चैनल में वयस्क सामग्री है जो सभी के लिए सही नहीं हो सकती। इसे देखने के लिए आपकी उम्र 18 साल या ज़्यादा होनी चाहिए।
+This channel doesn't have any pinned messages... yet.	इस चैनल में कोई पिन किया गया मैसेज नहीं है... अभी तक।
+This device can't open this message.	यह डिवाइस यह मैसेज नहीं खोल सकता।
+This device's encryption keys couldn't be unlocked, so earlier encrypted DMs can't be opened here.	इस डिवाइस की एन्क्रिप्शन कुंजियाँ अनलॉक नहीं हो सकीं, इसलिए पहले के एन्क्रिप्टेड DM यहाँ नहीं खुल सकते।
+This event will auto start when it's time.	यह इवेंट समय होने पर अपने आप शुरू हो जाएगा।
+This extra step shows it's really you.	यह अतिरिक्त चरण दिखाता है कि यह सच में आप ही हैं।
+This interaction failed	यह इंटरैक्शन विफल रहा
+This invite may be expired, or you might not have permission to join.	यह इनवाइट शायद खत्म हो गया है, या आपको जुड़ने की अनुमति नहीं है।
+This is the beginning of your direct message history with %.	यह % के साथ आपकी डायरेक्ट मैसेज हिस्ट्री की शुरुआत है।
+This is the channel we send system event messages to.	यह वह चैनल है जिसमें हम सिस्टम इवेंट मैसेज भेजते हैं।
+This is the start of the #% channel.	यह #% चैनल की शुरुआत है।
+This is where Discord sends updates for moderators and admins of Community servers.	यहाँ Discord कम्युनिटी सर्वर के मॉडरेटर और एडमिन के लिए अपडेट भेजता है।
+This is where you'll show members your server rules or guidelines.	यहाँ आप सदस्यों को अपने सर्वर के नियम या दिशानिर्देश दिखाएँगे।
+This link is taking you to the following website	यह लिंक आपको इस वेबसाइट पर ले जा रहा है
+This option is not available for Community Servers.	यह विकल्प कम्युनिटी सर्वर के लिए उपलब्ध नहीं है।
+This role is managed by an integration and can't be edited here.	यह रोल एक इंटीग्रेशन से मैनेज होता है और इसे यहाँ एडिट नहीं किया जा सकता।
+This server has been removed from Server Discovery because it no longer passes all the requirements. Check Server Settings for more details.	यह सर्वर सर्वर डिस्कवरी से हटा दिया गया है क्योंकि यह अब सभी शर्तें पूरी नहीं करता। ज़्यादा जानकारी के लिए सर्वर सेटिंग्स देखें।
+This server has failed Discovery activity requirements for 1 week. If this server fails for 4 weeks in a row, it will be automatically removed from Discovery.	यह सर्वर 1 हफ़्ते से डिस्कवरी की गतिविधि शर्तें पूरी नहीं कर रहा। अगर यह लगातार 4 हफ़्ते ऐसा करता है, तो इसे डिस्कवरी से अपने आप हटा दिया जाएगा।
+This server has failed Discovery activity requirements for 3 weeks in a row. If this server fails for 1 more week, it will be removed from Discovery.	यह सर्वर लगातार 3 हफ़्ते से डिस्कवरी की गतिविधि शर्तें पूरी नहीं कर रहा। अगर यह 1 हफ़्ता और ऐसा करता है, तो इसे डिस्कवरी से हटा दिया जाएगा।
+This server has no voice channels.	इस सर्वर में कोई वॉइस चैनल नहीं है।
+This server is currently full.	यह सर्वर अभी भरा हुआ है।
+This server is currently full. Please try again later.	यह सर्वर अभी भरा हुआ है। कृपया बाद में फिर से कोशिश करें।
+This server is eligible for Server Discovery again and has been automatically relisted!	यह सर्वर फिर से सर्वर डिस्कवरी के योग्य है और अपने आप फिर से लिस्ट हो गया है!
+This server is not available in your location.	यह सर्वर आपकी जगह पर उपलब्ध नहीं है।
+This server's features are limited	इस सर्वर की सुविधाएँ सीमित हैं
+This setting is applied when you join a new server. It does not apply retroactively to your existing servers.	यह सेटिंग नए सर्वर से जुड़ने पर लागू होती है। यह आपके मौजूदा सर्वर पर पीछे से लागू नहीं होती।
+This template has unsynced changes.	इस टेम्पलेट में बिना सिंक किए बदलाव हैं।
+This thread is locked.	यह थ्रेड लॉक है।
+This voice channel is full.	यह वॉइस चैनल भरा हुआ है।
+This will determine whether members who have not explicitly set their notification settings receive a notification for every message sent in this server or not.	इससे तय होगा कि जिन सदस्यों ने अपनी नोटिफ़िकेशन सेटिंग्स खुद सेट नहीं की हैं, उन्हें इस सर्वर में भेजे गए हर मैसेज का नोटिफ़िकेशन मिले या नहीं।
+This will transfer ownership of %1 to %2. This cannot be undone!	इससे %1 का मालिकाना हक %2 को चला जाएगा। इसे पहले जैसा नहीं किया जा सकता!
+Thread Name	थ्रेड का नाम
+Thread deleted	थ्रेड डिलीट किया गया
+Threads	थ्रेड
+Time	समय
+Time format	समय का फ़ॉर्मैट
+Timeout	टाइमआउट
+Timeout %	% को टाइमआउट करें
+Timeout Members	सदस्यों को टाइमआउट करें
+Timeout member	सदस्य को टाइमआउट करें
+Times show as %.	समय % के रूप में दिखता है।
+To log them out, please change your password	उन्हें लॉग आउट करने के लिए, कृपया अपना पासवर्ड बदलें
+To protect your members, Community servers need these, and enabling sets them:	आपके सदस्यों की सुरक्षा के लिए कम्युनिटी सर्वर को ये चाहिए, और चालू करने पर ये सेट हो जाते हैं:
+Today	आज
+Today at %	आज % बजे
+Toggle Deafen	डेफ़न चालू/बंद करें
+Toggle Go Live Streaming	Go Live स्ट्रीमिंग चालू/बंद करें
+Toggle Mute	म्यूट चालू/बंद करें
+Toggle Streamer Mode	स्ट्रीमर मोड चालू/बंद करें
+Toggle Voice Activity Mode	वॉइस एक्टिविटी मोड चालू/बंद करें
+Toggle deafen	डेफ़न चालू/बंद करें
+Toggle inbox	इनबॉक्स दिखाएँ/छिपाएँ
+Toggle member list	सदस्य लिस्ट दिखाएँ/छिपाएँ
+Toggle mute	म्यूट चालू/बंद करें
+Toggle pins	पिन दिखाएँ/छिपाएँ
+Tomorrow at %	कल % बजे
+Too fast! Wait a bit and try again.	बहुत तेज़! थोड़ा रुककर फिर से कोशिश करें।
+Too many uploads!	बहुत ज़्यादा अपलोड!
+Trait %	खूबी %
+Traits	खूबियाँ
+Transfer Ownership	मालिकाना हक सौंपें
+Travel & Places	यात्रा और जगहें
+Treat the token like a password: anyone who has it controls your account. fastcord keeps it only on this computer.	टोकन को पासवर्ड की तरह संभालें: जिसके पास यह है, वह आपका अकाउंट चला सकता है। fastcord इसे सिर्फ़ इसी कंप्यूटर पर रखता है।
+Trending GIFs	ट्रेंडिंग GIF
+Trust % links from now on	अब से % के लिंक पर भरोसा करें
+Try Again	फिर से कोशिश करें
+Try searching for something else	कुछ और खोजकर देखें
+Try searching for...	यह खोजकर देखें...
+Try sending a new invite	नया इनवाइट भेजकर देखें
+Turkish	तुर्की
+Turn off encryption	एन्क्रिप्शन बंद करें
+Turns this back into a regular server. Community-only features stop working.	इसे फिर से सामान्य सर्वर बना देता है। सिर्फ़ कम्युनिटी वाली सुविधाएँ काम करना बंद कर देंगी।
+Two-factor authentication is enabled on this account.	इस अकाउंट पर टू-फ़ैक्टर ऑथेंटिकेशन चालू है।
+Type the username of a friend	किसी दोस्त का यूज़रनेम टाइप करें
+Type your answer	अपना जवाब टाइप करें
+UPLOADED BY	अपलोड करने वाले
+USES	उपयोग
+Uh oh, you don't have webhook permissions in any server you're in. Ask your server admin to give you the permission or ask them to come follow themselves!	अरे, आप जिन सर्वर में हैं, उनमें से किसी में आपके पास वेबहुक अनुमतियाँ नहीं हैं। अपने सर्वर एडमिन से अनुमति माँगें या उनसे खुद आकर फ़ॉलो करने को कहें!
+Uh-oh. Looks like you've been banned.	अरे नहीं। लगता है आपको बैन कर दिया गया है।
+Ukrainian	यूक्रेनी
+Unable to accept invite	इनवाइट स्वीकार नहीं हो सका
+Unassigned	असाइन नहीं किया गया
+Unban Member	सदस्य का बैन हटाएँ
+Unblock	अनब्लॉक करें
+Undeafen	अनडेफ़न करें
+Under Request Headers, copy the value of "authorization" and paste it below.	Request Headers के तहत, "authorization" की वैल्यू कॉपी करें और नीचे पेस्ट करें।
+Undo	पहले जैसा करें
+Unignore	अनदेखा करना बंद करें
+Unknown	अनजान
+Unknown channel	अनजान चैनल
+Unmute	अनम्यूट करें
+Unmute Category	कैटेगरी अनम्यूट करें
+Unmute Channel	चैनल अनम्यूट करें
+Unmute Server	सर्वर अनम्यूट करें
+Unmute Thread	थ्रेड अनम्यूट करें
+Unpin Message	मैसेज अनपिन करें
+Unreads	अनपढ़े
+Unrestricted	बिना पाबंदी
+Until %	% तक
+Until %1 at %2	%1 को %2 बजे तक
+Until I turn it back on	जब तक मैं फिर से चालू न करूँ
+Until tomorrow at %	कल % बजे तक
+Untitled question	बिना शीर्षक का सवाल
+Unverify	सत्यापन हटाएँ
+Update %	% अपडेट करें
+Update Channel	चैनल अपडेट करें
+Update Emoji	इमोजी अपडेट करें
+Update Member	सदस्य अपडेट करें
+Update Member Roles	सदस्य के रोल अपडेट करें
+Update Role	रोल अपडेट करें
+Update Server	सर्वर अपडेट करें
+Update Webhook	वेबहुक अपडेट करें
+Update your password	अपना पासवर्ड अपडेट करें
+Upload	अपलोड करें
+Upload Emoji	इमोजी अपलोड करें
+Upload Sound	साउंड अपलोड करें
+Upload Sticker	स्टिकर अपलोड करें
+Upload a File	फ़ाइल अपलोड करें
+Upload a Sound	साउंड अपलोड करें
+Upload a file	फ़ाइल अपलोड करें
+Upload custom sound reactions that anyone in this server can use. MP3 or OGG files, up to 512 KB and 5.2 seconds.	ऐसे कस्टम साउंड रिएक्शन अपलोड करें जिन्हें इस सर्वर में कोई भी इस्तेमाल कर सके। MP3 या OGG फ़ाइलें, 512 KB और 5.2 सेकंड तक।
+Upload to %	% पर अपलोड करें
+Uploaded a file	एक फ़ाइल अपलोड की
+Uploading...	अपलोड हो रहा है...
+Use Application Commands	ऐप्लिकेशन कमांड इस्तेमाल करें
+Use Category Default	कैटेगरी डिफ़ॉल्ट इस्तेमाल करें
+Use External Apps	बाहरी ऐप इस्तेमाल करें
+Use External Emoji	बाहरी इमोजी इस्तेमाल करें
+Use External Sounds	बाहरी साउंड इस्तेमाल करें
+Use External Stickers	बाहरी स्टिकर इस्तेमाल करें
+Use Server Default	सर्वर डिफ़ॉल्ट इस्तेमाल करें
+Use Soundboard	साउंडबोर्ड इस्तेमाल करें
+Use Voice Activity	वॉइस एक्टिविटी इस्तेमाल करें
+Use a backup code	बैकअप कोड इस्तेमाल करें
+Use a code sent to your phone	अपने फ़ोन पर भेजा गया कोड इस्तेमाल करें
+Use a passkey or security key	पासकी या सिक्योरिटी की इस्तेमाल करें
+Use data to improve Discord	Discord को बेहतर बनाने के लिए डेटा इस्तेमाल करें
+Use roles to group your server members and assign permissions.	अपने सर्वर सदस्यों को ग्रुप में बाँटने और अनुमतियाँ देने के लिए रोल इस्तेमाल करें।
+Use your authenticator app	अपना ऑथेंटिकेटर ऐप इस्तेमाल करें
+Used % times.|Used % times.	% बार इस्तेमाल हुआ।|% बार इस्तेमाल हुआ।
+User Join	यूज़र का जुड़ना
+User Leave	यूज़र का जाना
+User Limit	यूज़र सीमा
+User Moved	यूज़र को ले जाया गया
+User Volume	यूज़र वॉल्यूम
+User blocked	यूज़र ब्लॉक किया गया
+User unblocked	यूज़र अनब्लॉक किया गया
+Username	यूज़रनेम
+Username is available. Nice!	यूज़रनेम उपलब्ध है। बढ़िया!
+Username is unavailable. Try adding numbers, letters, underscores _ , or periods.	यूज़रनेम उपलब्ध नहीं है। अंक, अक्षर, अंडरस्कोर _ , या पीरियड जोड़कर देखें।
+Users will need to confirm they are of over the legal age to view in the content in this channel.\nAge-restricted channels are exempt from the explicit content filter.	इस चैनल की सामग्री देखने के लिए यूज़र को पुष्टि करनी होगी कि वे कानूनी उम्र से ज़्यादा के हैं।\nउम्र-प्रतिबंधित चैनलों पर अश्लील सामग्री फ़िल्टर लागू नहीं होता।
+Uses the yt-dlp you installed to play YouTube links in the chat instead of opening your browser. It connects to YouTube from your computer.	ब्राउज़र खोलने के बजाय चैट में YouTube लिंक चलाने के लिए आपके इंस्टॉल किए yt-dlp का इस्तेमाल करता है। यह आपके कंप्यूटर से YouTube से कनेक्ट होता है।
+VOICE PROCESSING	वॉइस प्रोसेसिंग
+Verification Level	सत्यापन स्तर
+Verified	सत्यापित
+Verify with something else	किसी और तरीके से सत्यापित करें
+Video	वीडियो
+Video Quality	वीडियो क्वालिटी
+Vietnamese	वियतनामी
+View Audit Log	ऑडिट लॉग देखें
+View Channel	चैनल देखें
+View Channels	चैनल देखें
+View Details	विवरण देखें
+View Full Profile	पूरी प्रोफ़ाइल देखें
+View Poll	पोल देखें
+View Profile	प्रोफ़ाइल देखें
+View Reactions	रिएक्शन देखें
+View Server Insights	सर्वर इनसाइट्स देखें
+Visit Site	साइट पर जाएँ
+Visual Density	विज़ुअल डेंसिटी
+Voice	वॉइस
+Voice & Video	वॉइस और वीडियो
+Voice Activity	वॉइस एक्टिविटी
+Voice Channel	वॉइस चैनल
+Voice Channel Permissions	वॉइस चैनल अनुमतियाँ
+Voice Connected	वॉइस कनेक्ट हुआ
+Voice Disconnected	वॉइस डिस्कनेक्ट हुआ
+Volume	वॉल्यूम
+Vote	वोट करें
+Waiting for a server	सर्वर का इंतज़ार
+Wants to message you	आपको मैसेज भेजना चाहते हैं
+Watch Stream	स्ट्रीम देखें
+Wave to say hi!	हाय कहने के लिए हाथ हिलाएँ!
+We appreciate the enthusiasm, but...	हमें आपका जोश पसंद है, लेकिन...
+We couldn't load the profile for this server.	हम इस सर्वर की प्रोफ़ाइल लोड नहीं कर सके।
+We recommend an image of at least 512x512.	हम कम से कम 512x512 की इमेज की सलाह देते हैं।
+We sent instructions to change your password to %, please check both your inbox and spam folder.	हमने पासवर्ड बदलने के निर्देश % पर भेजे हैं, कृपया अपना इनबॉक्स और स्पैम फ़ोल्डर दोनों देखें।
+We're so excited to see you again!	आपको फिर से देखकर हम बहुत खुश हैं!
+We've sent a message to %.  Please enter the code you received.	हमने % पर एक मैसेज भेजा है।  कृपया मिला हुआ कोड डालें।
+Webhooks (%)	वेबहुक (%)
+Webhooks are a simple way to post messages from other apps and websites into this server.	वेबहुक दूसरे ऐप और वेबसाइटों से इस सर्वर में मैसेज पोस्ट करने का आसान तरीका हैं।
+Welcome %. Say hi!	स्वागत है %। हाय कहें!
+Welcome back!	फिर से स्वागत है!
+Welcome to #%!	#% में आपका स्वागत है!
+Welcome to the beginning of the % group.	% ग्रुप की शुरुआत में आपका स्वागत है।
+Welcome, %. We hope you brought pizza.	स्वागत है, %। उम्मीद है आप पिज़्ज़ा लाए होंगे।
+What brings you here?	आप यहाँ किसलिए आए हैं?
+What can people do in this server?	लोग इस सर्वर में क्या कर सकते हैं?
+What question do you want to ask?	आप कौन-सा सवाल पूछना चाहते हैं?
+What's cookin'?	क्या चल रहा है?
+What's your event about?	आपका इवेंट किस बारे में है?
+What's your event?	आपका इवेंट क्या है?
+When a friend starts an activity—like playing a game or hanging out on voice—we'll show it here!	जब कोई दोस्त कोई गतिविधि शुरू करेगा—जैसे गेम खेलना या वॉइस पर समय बिताना—हम उसे यहाँ दिखाएँगे!
+When enabled, only server members can view profile content. Non-members won't be able to see this content unless they have an invite.	चालू होने पर, सिर्फ़ सर्वर सदस्य प्रोफ़ाइल सामग्री देख सकते हैं। गैर-सदस्य इनवाइट के बिना यह सामग्री नहीं देख पाएँगे।
+When you put a user in timeout they will not be able to send messages in chat, reply within threads, react to messages, or speak in voice or Stage channels.	जब आप किसी यूज़र को टाइमआउट में डालते हैं, तो वे चैट में मैसेज नहीं भेज पाएँगे, थ्रेड में जवाब नहीं दे पाएँगे, मैसेज पर रिएक्ट नहीं कर पाएँगे, और वॉइस या स्टेज चैनलों में बोल नहीं पाएँगे।
+Where is your event?	आपका इवेंट कहाँ है?
+Where would you like to go?	आप कहाँ जाना चाहेंगे?
+Who is this server for? E.g. School Club, Artists' Community	यह सर्वर किसके लिए है? जैसे स्कूल क्लब, कलाकारों की कम्युनिटी
+Winning answer · %1%2	जीतने वाला जवाब · %1%2
+Words that are never blocked, separated by commas	ऐसे शब्द जो कभी ब्लॉक नहीं होते, कॉमा से अलग करें
+Words to block, separated by commas	ब्लॉक करने वाले शब्द, कॉमा से अलग करें
+Words to block, separated by commas (* matches anything)	ब्लॉक करने वाले शब्द, कॉमा से अलग करें (* किसी से भी मेल खाता है)
+Would you like to sync %1 permissions with %2?	क्या आप %1 की अनुमतियाँ %2 से सिंक करना चाहेंगे?
+Yay you made it, %!	वाह, आप आ गए, %!
+Yesterday at %	कल % बजे
+You	आप
+You accepted %'s friend request.	आपने % की फ़्रेंड रिक्वेस्ट स्वीकार की।
+You are at the % server limit.	आप % सर्वर की सीमा पर पहुँच गए हैं।
+You are banned from this server.	आप इस सर्वर से बैन हैं।
+You aren't in that server. Ask a member for an invite.	आप उस सर्वर में नहीं हैं। किसी सदस्य से इनवाइट माँगें।
+You can add % more friend.|You can add % more friends.	आप % और दोस्त जोड़ सकते हैं।|आप % और दोस्त जोड़ सकते हैं।
+You can add comments before uploading.\nHold shift to upload directly.	अपलोड करने से पहले आप टिप्पणी जोड़ सकते हैं।\nसीधे अपलोड करने के लिए Shift दबाकर रखें।
+You can add friends with their Discord username.	आप Discord यूज़रनेम से दोस्त जोड़ सकते हैं।
+You can add up to 5 accounts.	आप 5 तक अकाउंट जोड़ सकते हैं।
+You can hold down shift when clicking % to bypass this confirmation entirely.	इस पुष्टि को पूरी तरह छोड़ने के लिए % पर क्लिक करते समय Shift दबाकर रखें।
+You can only edit roles below your highest role.	आप सिर्फ़ अपने सबसे ऊँचे रोल से नीचे के रोल एडिट कर सकते हैं।
+You can only upload % files at a time!	आप एक बार में सिर्फ़ % फ़ाइलें अपलोड कर सकते हैं!
+You can use markdown and links if you'd like.	चाहें तो आप markdown और लिंक इस्तेमाल कर सकते हैं।
+You can't join this server because of your age group.	अपने आयु वर्ग की वजह से आप इस सर्वर से नहीं जुड़ सकते।
+You can't unblock the Wumpus.	आप Wumpus को अनब्लॉक नहीं कर सकते।
+You cannot friend yourself	आप खुद को दोस्त नहीं बना सकते
+You can’t react and super react with the same emoji. There’s a lot of emoji to choose from, so maybe try another one.	आप एक ही इमोजी से रिएक्ट और सुपर रिएक्ट नहीं कर सकते। चुनने के लिए बहुत सारे इमोजी हैं, तो कोई दूसरा आज़माएँ।
+You do not have permission to send messages in this channel.	आपको इस चैनल में मैसेज भेजने की अनुमति नहीं है।
+You don't have any friends to add!	आपके पास जोड़ने के लिए कोई दोस्त नहीं है!
+You don't have permission to do that.	आपको ऐसा करने की अनुमति नहीं है।
+You haven't added a display name yet.	आपने अभी तक डिस्प्ले नेम नहीं जोड़ा है।
+You haven't added a phone number yet.	आपने अभी तक फ़ोन नंबर नहीं जोड़ा है।
+You haven't added an email yet.	आपने अभी तक ईमेल नहीं जोड़ा है।
+You haven't authorized any apps.	आपने किसी ऐप को अनुमति नहीं दी है।
+You haven't blocked anyone.	आपने किसी को ब्लॉक नहीं किया है।
+You haven't connected any accounts yet.	आपने अभी तक कोई अकाउंट कनेक्ट नहीं किया है।
+You haven't ignored anyone.	आपने किसी को अनदेखा नहीं किया है।
+You missed a call from %1 that lasted %2.	आपसे %1 की एक कॉल छूट गई जो %2 चली।
+You must be at least 18 years old to view this channel.	यह चैनल देखने के लिए आपकी उम्र कम से कम 18 साल होनी चाहिए।
+You must leave a server first to join.	जुड़ने के लिए पहले आपको कोई सर्वर छोड़ना होगा।
+You need to add one or more rules.	आपको एक या ज़्यादा नियम जोड़ने होंगे।
+You received an invite, but...	आपको एक इनवाइट मिला, लेकिन...
+You said: %	आपने कहा: %
+You sent an invite to a self-hosted server	आपने एक सेल्फ़-होस्टेड सर्वर का इनवाइट भेजा
+You sent an invite, but	आपने एक इनवाइट भेजा, लेकिन
+You sent an invite, but...	आपने एक इनवाइट भेजा, लेकिन...
+You will appear offline	आप ऑफ़लाइन दिखेंगे
+You will not receive desktop notifications	आपको डेस्कटॉप नोटिफ़िकेशन नहीं मिलेंगे
+You'll have to log back in on all logged out devices.	लॉग आउट हुए सभी डिवाइस पर आपको फिर से लॉग इन करना होगा।
+You're Viewing Older Messages	आप पुराने मैसेज देख रहे हैं
+You're all caught up!	आपने सब देख लिया है!
+You're already in that server.	आप पहले से उस सर्वर में हैं।
+You're doing that too fast. Try again in a moment.	आप यह बहुत तेज़ी से कर रहे हैं। थोड़ी देर में फिर से कोशिश करें।
+You're not in any servers yet.	आप अभी किसी सर्वर में नहीं हैं।
+You're offline: no invite link.	आप ऑफ़लाइन हैं: कोई इनवाइट लिंक नहीं।
+You're timed out until %.	आप % तक टाइमआउट में हैं।
+You've been invited to a self-hosted server	आपको एक सेल्फ़-होस्टेड सर्वर में इनवाइट किया गया है
+You've been invited to join	आपको जुड़ने के लिए इनवाइट किया गया है
+You've been invited to speak	आपको बोलने के लिए इनवाइट किया गया है
+You've been invited, but	आपको इनवाइट किया गया है, लेकिन
+Your files are too powerful	आपकी फ़ाइलें बहुत ताकतवर हैं
+Your full profile is visible to friends and any server you join with 200 or fewer members. Everyone else sees a limited version.	आपकी पूरी प्रोफ़ाइल दोस्तों को और आपके जुड़े हुए 200 या कम सदस्यों वाले किसी भी सर्वर को दिखती है। बाकी सबको सीमित वर्शन दिखता है।
+Your full profile is visible to friends and any server you join.	आपकी पूरी प्रोफ़ाइल दोस्तों को और आपके जुड़े हुए किसी भी सर्वर को दिखती है।
+Your full profile is visible to friends. Everyone else sees a limited version.	आपकी पूरी प्रोफ़ाइल दोस्तों को दिखती है। बाकी सबको सीमित वर्शन दिखता है।
+Your invite link expires after %.	आपका इनवाइट लिंक % के बाद खत्म हो जाएगा।
+Your invite link expires in %.	आपका इनवाइट लिंक % में खत्म हो जाएगा।
+Your invite link expires in %1, or after %2.	आपका इनवाइट लिंक %1 में, या %2 के बाद खत्म हो जाएगा।
+Your invite link expires in 7 days.	आपका इनवाइट लिंक 7 दिन में खत्म हो जाएगा।
+Your invite link will never expire.	आपका इनवाइट लिंक कभी खत्म नहीं होगा।
+Your last request was on %.	आपकी पिछली रिक्वेस्ट % को थी।
+Your message is too long (% / %).	आपका मैसेज बहुत लंबा है (% / %)।
+Your reaction was not added because there are too many reactions on this message.	आपका रिएक्शन नहीं जुड़ा क्योंकि इस मैसेज पर बहुत ज़्यादा रिएक्शन हैं।
+Your request from % is being prepared.	% की आपकी रिक्वेस्ट तैयार की जा रही है।
+Your server is where you and your friends hang out. Make yours and start talking.	आपका सर्वर वह जगह है जहाँ आप और आपके दोस्त मिलते-जुलते हैं। अपना बनाएँ और बातें शुरू करें।
+Your sounds go out with your voice, mixed into your microphone, instead of as soundboard sounds.	आपके साउंड साउंडबोर्ड साउंड के बजाय, आपके माइक्रोफ़ोन में मिलकर आपकी आवाज़ के साथ जाते हैं।
+Zoom level	ज़ूम लेवल
+a channel	एक चैनल
+a command	एक कमांड
+a day	एक दिन
+a day ago	एक दिन पहले
+a few seconds	कुछ सेकंड
+a few seconds ago	कुछ सेकंड पहले
+a message	एक मैसेज
+a minute	एक मिनट
+a minute ago	एक मिनट पहले
+a month ago	एक महीना पहले
+a year ago	एक साल पहले
+an hour	एक घंटा
+an hour ago	एक घंटा पहले
+by %	% द्वारा
+cancel	रद्द करें
+channel	चैनल
+delete message	मैसेज डिलीट करें
+escape to %1 • enter to %2	Esc दबाकर %1 • Enter दबाकर %2
+fastcord %	fastcord %
+fastcord quit unexpectedly last time. The report is in the logs folder (Settings, under Log Out).	पिछली बार fastcord अचानक बंद हो गया था। रिपोर्ट लॉग फ़ोल्डर में है (सेटिंग्स में, लॉग आउट के नीचे)।
+fastcord starts in the background and stays out of your way.	fastcord बैकग्राउंड में शुरू होता है और आपको परेशान नहीं करता।
+from %	% से
+in %	% में
+in % day|in % days	% दिन में|% दिन में
+in % hour|in % hours	% घंटे में|% घंटे में
+in % minute|in % minutes	% मिनट में|% मिनट में
+in % month|in % months	% महीने में|% महीने में
+in % year|in % years	% साल में|% साल में
+in a day	एक दिन में
+in a few seconds	कुछ सेकंड में
+in a minute	एक मिनट में
+in a month	एक महीने में
+in a year	एक साल में
+in an hour	एक घंटे में
+just now	अभी-अभी
+less than an hour ago	एक घंटे से कम पहले
+link, embed or file	लिंक, एम्बेड या फ़ाइल
+on %	% को
+pinned messages	पिन किए गए मैसेज
+remove embeds	एम्बेड हटाएँ
+save	सेव करें
+someone	कोई
+specific date	खास तारीख
+this server	यह सर्वर
+threads	थ्रेड
+true or false	true या false
+unknown	अनजान
+unknown channel	अनजान चैनल
+unknown-user	अनजान-यूज़र
+used	इस्तेमाल हुआ
+user	यूज़र
+• Media from all members is scanned by the explicit image filter.	• सभी सदस्यों का मीडिया अश्लील इमेज फ़िल्टर से स्कैन होता है।
+• Members must have a verified email on their Discord account.	• सदस्यों के Discord अकाउंट पर सत्यापित ईमेल होना चाहिए।
+← Back to %	← % पर वापस
+← Back to login	← लॉगिन पर वापस

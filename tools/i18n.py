@@ -5,7 +5,9 @@
                                             and the literals on lines marked "// i18n" (tables read by tr)
   python3 -I tools/i18n.py check [--fix]    per language: missing, stale and malformed lines (--fix drops
                                             stale lines and sorts the file in key order)
+  python3 -I tools/i18n.py check <code>     the same for one language
   python3 -I tools/i18n.py missing <code>   the untranslated keys of one language, one per line
+  python3 -I tools/i18n.py plurals          the plural (Lp) keys
 
 A lang/<code>.txt line is "English<TAB>translation", both with \\n, \\t and \\\\ escaped. The English is
 the text without any "##id" suffix. A plural (Lp) key is "one|other"; its translation lists the
@@ -99,6 +101,8 @@ def lang_files():
 
 def read_lang(code):
     rows = {}
+    if not os.path.exists(os.path.join(LANG, code + ".txt")):
+        return rows
     for line in open(os.path.join(LANG, code + ".txt"), encoding="utf-8").read().split("\n"):
         if not line or line.startswith("#") or "\t" not in line:
             continue
@@ -129,10 +133,15 @@ def main():
             if v not in rows:
                 print(esc(v))
         return
+    if cmd == "plurals":
+        for k in sorted(plurals, key=lambda k: k.encode("utf-8")):
+            print(esc(k))
+        return
     if cmd != "check":
         sys.exit(__doc__)
     bad = False
-    for code in lang_files():
+    only = [a for a in sys.argv[2:] if not a.startswith("--")]
+    for code in only or lang_files():
         rows = read_lang(code)
         stale = [k for k in rows if k not in vis]
         missing = [k for k in vis if k not in rows]

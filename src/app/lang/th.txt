@@ -1,0 +1,1973 @@
+# Thai (th)
+ · required	 · จำเป็น
+% (requested to speak)	% (ขอพูด)
+% (required)	% (จำเป็น)
+% Bans|% Bans	การแบน % รายการ
+% Event|% Events	% กิจกรรม
+% KB	% KB
+% MB	% MB
+% Member|% Members	สมาชิก % คน
+% Messages	% ข้อความ
+% Mutual Friend|% Mutual Friends	เพื่อนที่มีร่วมกัน % คน
+% Mutual Server|% Mutual Servers	เซิร์ฟเวอร์ที่มีร่วมกัน % แห่ง
+% Online	ออนไลน์ % คน
+% Result|% Results	% ผลลัพธ์
+% accepted encryption.	% ยอมรับการเข้ารหัสแล้ว
+% accepted your friend request.	% ยอมรับคำขอเป็นเพื่อนของคุณแล้ว
+% answer|% answers	% คำตอบ
+% becomes the owner once they accept on their device. You'll stay a member.	% จะเป็นเจ้าของเมื่อยอมรับบนอุปกรณ์ของเขา คุณจะยังเป็นสมาชิกอยู่
+% blocked message —|% blocked messages —	ข้อความที่ถูกบล็อก % ข้อความ —
+% byte|% bytes	% ไบต์
+% changed the group icon.	% เปลี่ยนไอคอนกลุ่มแล้ว
+% day ago|% days ago	% วันที่แล้ว
+% day|% days	% วัน
+% disabled security actions.	% ปิดมาตรการความปลอดภัยแล้ว
+% enabled security actions.	% เปิดมาตรการความปลอดภัยแล้ว
+% hasn't accepted encryption yet.	% ยังไม่ได้ยอมรับการเข้ารหัส
+% hopped into the server.	% กระโดดเข้ามาในเซิร์ฟเวอร์แล้ว
+% hour ago|% hours ago	% ชั่วโมงที่แล้ว
+% hour|% hours	% ชั่วโมง
+% ignored message —|% ignored messages —	ข้อความที่ถูกเพิกเฉย % ข้อความ —
+% is here.	% มาถึงแล้ว
+% is typing...	% กำลังพิมพ์...
+% joined the party.	% เข้าร่วมปาร์ตี้แล้ว
+% just boosted the server!	% เพิ่งบูสต์เซิร์ฟเวอร์!
+% just landed.	% เพิ่งลงจอด
+% just showed up!	% เพิ่งโผล่มา!
+% just slid into the server.	% เพิ่งไถลเข้ามาในเซิร์ฟเวอร์
+% left the group.	% ออกจากกลุ่มแล้ว
+% member|% members	สมาชิก % คน
+% minute ago|% minutes ago	% นาทีที่แล้ว
+% minute|% minutes	% นาที
+% month ago|% months ago	% เดือนที่แล้ว
+% of %	%1 จาก %2
+% removed the custom group name.	% ลบชื่อกลุ่มที่ตั้งเองออกแล้ว
+% started a call.	% เริ่มการโทร
+% turned on encryption.	% เปิดการเข้ารหัสแล้ว
+% user|% users	ผู้ใช้ % คน
+% use|% uses	ใช้ % ครั้ง
+% vote|% votes	% โหวต
+% wants to encrypt this DM with a new key. Compare safety numbers after accepting.	% ต้องการเข้ารหัส DM นี้ด้วยคีย์ใหม่ เปรียบเทียบหมายเลขความปลอดภัยหลังจากยอมรับ
+% wants to encrypt this DM.	% ต้องการเข้ารหัส DM นี้
+% year ago|% years ago	% ปีที่แล้ว
+% · End-to-end encrypted	% · เข้ารหัสต้นทางถึงปลายทาง
+%'s Group	กลุ่มของ %
+%'s encryption key changed. Compare safety numbers before trusting new messages.	คีย์เข้ารหัสของ % เปลี่ยนไป เปรียบเทียบหมายเลขความปลอดภัยก่อนเชื่อถือข้อความใหม่
+%'s server	เซิร์ฟเวอร์ของ %
+%1 (%2 more)	%1 (อีก %2)
+%1 FPS	%1 FPS
+%1 STICKERS — %2 SLOTS AVAILABLE	สติกเกอร์ %1 รายการ — ว่าง %2 ช่อง
+%1 action %2	%1 การดำเนินการ %2
+%1 added %2 to the group.	%1 เพิ่ม %2 เข้ากลุ่มแล้ว
+%1 and %2	%1 และ %2
+%1 and %2 are typing...	%1 และ %2 กำลังพิมพ์...
+%1 and %2 other|%1 and %2 others	%1 และอีก %2 คน
+%1 banned %2	%1 แบน %2
+%1 changed the Stage topic: %2	%1 เปลี่ยนหัวข้อ Stage: %2
+%1 changed the channel name: %2.	%1 เปลี่ยนชื่อช่อง: %2
+%1 changed the group name: %2.	%1 เปลี่ยนชื่อกลุ่ม: %2
+%1 created a channel	%1 สร้างช่อง
+%1 created a role	%1 สร้างบทบาท
+%1 created a webhook	%1 สร้างเว็บฮุก
+%1 created an emoji	%1 สร้างอีโมจิ
+%1 created an invite	%1 สร้างคำเชิญ
+%1 deleted a channel	%1 ลบช่อง
+%1 deleted a message by %2	%1 ลบข้อความของ %2
+%1 deleted a role	%1 ลบบทบาท
+%1 deleted a webhook	%1 ลบเว็บฮุก
+%1 deleted an emoji	%1 ลบอีโมจิ
+%1 deleted an invite	%1 ลบคำเชิญ
+%1 enabled security actions until %2.	%1 เปิดมาตรการความปลอดภัยจนถึง %2
+%1 ended %2	%1 สิ้นสุด %2
+%1 has achieved %2	%1 ได้รับ %2
+%1 has added %2 to this channel. Its most important updates will show up here.	%1 เพิ่ม %2 ลงในช่องนี้แล้ว อัปเดตสำคัญจะแสดงที่นี่
+%1 has blocked a message in %2	%1 บล็อกข้อความใน %2
+%1 has flagged a message in %2	%1 ตั้งค่าสถานะข้อความใน %2
+%1 is now a speaker.	%1 เป็นผู้พูดแล้ว
+%1 joined %2 and has been a subscriber of %3 for %4 month!|%1 joined %2 and has been a subscriber of %3 for %4 months!	%1 เข้าร่วม %2 และเป็นผู้ติดตามของ %3 มา %4 เดือนแล้ว!
+%1 joined %2 as a subscriber of %3!	%1 เข้าร่วม %2 ในฐานะผู้ติดตามของ %3!
+%1 just boosted the server %2 times!	%1 เพิ่งบูสต์เซิร์ฟเวอร์ %2 ครั้ง!
+%1 kicked %2	%1 เตะ %2
+%1 new message since %2|%1 new messages since %2	มีข้อความใหม่ %1 ข้อความตั้งแต่ %2
+%1 of %2 slot used|%1 of %2 slots used	ใช้ไป %1 จาก %2 ช่อง
+%1 pinned %2 to this channel. See all %3.	%1 ปักหมุด %2 ในช่องนี้ ดู%3ทั้งหมด
+%1 reacted with %2	%1 แสดงความรู้สึกด้วย %2
+%1 removed %2 from the group.	%1 นำ %2 ออกจากกลุ่มแล้ว
+%1 renewed %2 and has been a subscriber of %3 for %4 month!|%1 renewed %2 and has been a subscriber of %3 for %4 months!	%1 ต่ออายุ %2 และเป็นผู้ติดตามของ %3 มา %4 เดือนแล้ว!
+%1 renewed %2 in their %3 membership!	%1 ต่ออายุ %2 ในการเป็นสมาชิก %3!
+%1 reported a raid in %2.	%1 รายงานการบุกโจมตีใน %2
+%1 requested to speak.	%1 ขอพูด
+%1 resolved an Activity Alert in %2.	%1 แก้ไขการแจ้งเตือนกิจกรรมใน %2 แล้ว
+%1 said %2	%1 พูดว่า %2
+%1 started %2	%1 เริ่ม %2
+%1 started a call that lasted %2.	%1 เริ่มการโทรที่ยาว %2
+%1 started a thread: %2. See all %3.	%1 เริ่มเธรด: %2 ดู%3ทั้งหมด
+%1 unbanned %2	%1 ยกเลิกการแบน %2
+%1 updated %2	%1 อัปเดต %2
+%1 updated a channel	%1 อัปเดตช่อง
+%1 updated a role	%1 อัปเดตบทบาท
+%1 updated a webhook	%1 อัปเดตเว็บฮุก
+%1 updated an emoji	%1 อัปเดตอีโมจิ
+%1 updated the roles of %2	%1 อัปเดตบทบาทของ %2
+%1 updated the server	%1 อัปเดตเซิร์ฟเวอร์
+%1 vote · %2|%1 votes · %2	%1 โหวต · %2
+%1 wants to make you the owner of %2. You'll be able to manage everything about it, and they'll stay a member.	%1 ต้องการให้คุณเป็นเจ้าของ %2 คุณจะจัดการได้ทุกอย่าง และเขาจะยังเป็นสมาชิกอยู่
+%1's poll %2 has closed.	โพล %2 ของ %1 ปิดแล้ว
+%1, %2 and %3	%1, %2 และ %3
+%1, %2 at %3	%1, %2 เวลา %3
+%1, %2, and %3 are typing...	%1, %2 และ %3 กำลังพิมพ์...
+%1: %2	%1: %2
+%: a number	%: ตัวเลข
+%: a whole number	%: จำนวนเต็ม
+%: pick a channel	%: เลือกช่อง
+%: pick a member	%: เลือกสมาชิก
+%: pick a role	%: เลือกบทบาท
+%: true or false	%: จริงหรือเท็จ
+%d ago	%d ที่แล้ว
+%d left	เหลือ %d
+%h	%h
+%h ago	%h ที่แล้ว
+%h left	เหลือ %h
+%m	%m
+%m ago	%m ที่แล้ว
+%m left	เหลือ %m
+%mo ago	%mo ที่แล้ว
+%s	%s
+(edited)	(แก้ไขแล้ว)
+/% takes no options.	/% ไม่มีตัวเลือก
+/%1 needs %2:	/%1 ต้องการ %2:
+1 Day	1 วัน
+1 Hour	1 ชั่วโมง
+1 Message	1 ข้อความ
+1 Week	1 สัปดาห์
+1 day	1 วัน
+1 hour	1 ชั่วโมง
+1 minute	1 นาที
+1 use	1 ครั้ง
+1 week	1 สัปดาห์
+10 Minutes	10 นาที
+10 minutes	10 นาที
+10 uses	10 ครั้ง
+100 uses	100 ครั้ง
+12 hours	12 ชั่วโมง
+12-hour	12 ชั่วโมง
+15 minutes	15 นาที
+2 hours	2 ชั่วโมง
+2 to 4 letters or numbers	ตัวอักษรหรือตัวเลข 2 ถึง 4 ตัว
+2 weeks	2 สัปดาห์
+24 Hours	24 ชั่วโมง
+24 hours	24 ชั่วโมง
+24-hour	24 ชั่วโมง
+25 uses	25 ครั้ง
+3 Days	3 วัน
+3 days	3 วัน
+30 days	30 วัน
+30 minutes	30 นาที
+3:00 PM	3:00 หลังเที่ยง
+4 hours	4 ชั่วโมง
+5 Minutes	5 นาที
+5 minutes	5 นาที
+5 uses	5 ครั้ง
+50 uses	50 ครั้ง
+6 hours	6 ชั่วโมง
+6-digit authentication code	รหัสยืนยันตัวตน 6 หลัก
+60 Seconds	60 วินาที
+60 seconds	60 วินาที
+7 days	7 วัน
+8 hours	8 ชั่วโมง
+8-digit backup code	รหัสสำรอง 8 หลัก
+@ OFF	@ ปิด
+@ ON	@ เปิด
+@MENTIONS	@การกล่าวถึง
+@everyone · applies to all server members	@everyone · ใช้กับสมาชิกทุกคนในเซิร์ฟเวอร์
+A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button.	ปุ่มที่กดร่วมกับ Ctrl, Alt, Shift หรือ Cmd, ปุ่มปรับแต่งเดี่ยว หรือปุ่มกลางหรือปุ่มข้างของเมาส์
+A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button. Works in every app.	ปุ่มที่กดร่วมกับ Ctrl, Alt, Shift หรือ Cmd, ปุ่มปรับแต่งเดี่ยว หรือปุ่มกลางหรือปุ่มข้างของเมาส์ ใช้ได้ในทุกแอป
+A role needs a name.	บทบาทต้องมีชื่อ
+A webhook needs a name.	เว็บฮุกต้องมีชื่อ
+A wild % appeared.	% ป่าปรากฏตัวขึ้น
+ACTION	การดำเนินการ
+ACTIVE INVITE LINKS	ลิงก์คำเชิญที่ใช้งานอยู่
+ALL	ทั้งหมด
+ALL THE BITS! Going above 64 kbps may adversely affect people on poor connections.	จัดเต็มทุกบิต! การตั้งเกิน 64 kbps อาจส่งผลเสียต่อคนที่มีการเชื่อมต่อไม่ดี
+AM	ก่อนเที่ยง
+ANIMATED EMOJI — % SLOTS AVAILABLE	อีโมจิเคลื่อนไหว — ว่าง % ช่อง
+APP	แอป
+AUDIENCE — %	ผู้ฟัง — %
+AUTHENTICATOR APP	แอปยืนยันตัวตน
+About Me	เกี่ยวกับฉัน
+Accept	ยอมรับ
+Accept Friend Request	ยอมรับคำขอเป็นเพื่อน
+Accept Invite	ยอมรับคำเชิญ
+Accept Server Ownership	ยอมรับการเป็นเจ้าของเซิร์ฟเวอร์
+Accept this message request (Friends, Message Requests) to reply.	ยอมรับคำขอส่งข้อความนี้ (เพื่อน, คำขอส่งข้อความ) เพื่อตอบกลับ
+Accepting...	กำลังยอมรับ...
+Access	การเข้าถึง
+Accessibility	การช่วยการเข้าถึง
+Account	บัญชี
+Account Removal	การลบบัญชี
+Activate	เปิดใช้งาน
+Active	ใช้งานอยู่
+Active Now	กำลังใช้งาน
+Activities	กิจกรรม
+Activity Joining	การเข้าร่วมกิจกรรม
+Activity Privacy	ความเป็นส่วนตัวของกิจกรรม
+Activity Status	สถานะกิจกรรม
+Add Answer	เพิ่มคำตอบ
+Add Emoji	เพิ่มอีโมจิ
+Add Friend	เพิ่มเพื่อน
+Add Friend Nickname	เพิ่มชื่อเล่นเพื่อน
+Add Note	เพิ่มโน้ต
+Add Reaction	เพิ่มรีแอคชัน
+Add Reactions	เพิ่มรีแอคชัน
+Add Tag	เพิ่มแท็ก
+Add a Keybind	เพิ่มปุ่มลัด
+Add a Question	เพิ่มคำถาม
+Add a channel	เพิ่มช่อง
+Add a channel to override its default notification settings	เพิ่มช่องเพื่อแทนที่การตั้งค่าการแจ้งเตือนเริ่มต้น
+Add a description	เพิ่มคำอธิบาย
+Add a location, link, or something.	เพิ่มสถานที่ ลิงก์ หรืออะไรก็ได้
+Add a role	เพิ่มบทบาท
+Add an Account	เพิ่มบัญชี
+Add an optional message...	เพิ่มข้อความ (ไม่บังคับ)...
+Add another answer	เพิ่มคำตอบอื่น
+Add at least one word to block.	เพิ่มคำที่จะบล็อกอย่างน้อยหนึ่งคำ
+Add members or roles	เพิ่มสมาชิกหรือบทบาท
+Add this channel's updates to your server!	เพิ่มอัปเดตของช่องนี้ไปยังเซิร์ฟเวอร์ของคุณ!
+Add this key to an authenticator app, then enter the code it shows.	เพิ่มคีย์นี้ในแอปยืนยันตัวตน แล้วกรอกรหัสที่แอปแสดง
+Add to Favorites	เพิ่มในรายการโปรด
+Add to Group DM	เพิ่มใน DM กลุ่ม
+Add up to 5 traits to show off your server's interests and personality.	เพิ่มลักษณะได้สูงสุด 5 อย่างเพื่ออวดความสนใจและบุคลิกของเซิร์ฟเวอร์คุณ
+Add up to 50 custom emoji that anyone can use in this server. Animated GIF emoji may be used by members with Discord Nitro. Emoji names must be at least 2 characters long and can only contain alphanumeric characters and underscores. Emoji must be under 256 KB in size.	เพิ่มอีโมจิแบบกำหนดเองได้สูงสุด 50 รายการที่ทุกคนในเซิร์ฟเวอร์นี้ใช้ได้ อีโมจิ GIF เคลื่อนไหวใช้ได้เฉพาะสมาชิกที่มี Discord Nitro ชื่ออีโมจิต้องยาวอย่างน้อย 2 ตัวอักษร และใช้ได้เฉพาะตัวอักษร ตัวเลข และขีดล่าง อีโมจิต้องมีขนาดไม่เกิน 256 KB
+Add your pronouns	เพิ่มคำสรรพนามของคุณ
+Added %	เพิ่ม % แล้ว
+Adjust the size of the interface. You can also change this with % +/-.	ปรับขนาดของอินเทอร์เฟซ คุณยังเปลี่ยนได้ด้วย % +/-
+Administrator	ผู้ดูแลระบบ
+Advanced Permissions	สิทธิ์ขั้นสูง
+Advanced permissions	สิทธิ์ขั้นสูง
+Age-Restricted Channel	ช่องจำกัดอายุ
+All	ทั้งหมด
+All Actions	การดำเนินการทั้งหมด
+All Messages	ทุกข้อความ
+All Users	ผู้ใช้ทั้งหมด
+All friends	เพื่อนทั้งหมด
+All messages will be filtered for sensitive image-based media.	ข้อความทั้งหมดจะถูกกรองสื่อรูปภาพที่ละเอียดอ่อน
+All set. Now share your event!	เรียบร้อย! แชร์กิจกรรมของคุณได้เลย!
+Allow DMs from other members in servers	อนุญาต DM จากสมาชิกคนอื่นในเซิร์ฟเวอร์
+Allow Discord to use and process my information to understand and improve Discord's services.	อนุญาตให้ Discord ใช้และประมวลผลข้อมูลของฉันเพื่อทำความเข้าใจและปรับปรุงบริการของ Discord
+Allow Friend Requests from...	อนุญาตคำขอเป็นเพื่อนจาก...
+Allow Multiple Answers	อนุญาตหลายคำตอบ
+Allow anyone to @mention this role	อนุญาตให้ทุกคน @กล่าวถึงบทบาทนี้
+Allow direct messages from other members in this server.	อนุญาตข้อความส่วนตัวจากสมาชิกคนอื่นในเซิร์ฟเวอร์นี้
+Allow friends to join your game	อนุญาตให้เพื่อนเข้าร่วมเกมของคุณ
+Allow members to change this server's name, switch regions, view all invites, add apps to this server and create and update AutoMod rules.	อนุญาตให้สมาชิกเปลี่ยนชื่อเซิร์ฟเวอร์นี้ เปลี่ยนภูมิภาค ดูคำเชิญทั้งหมด เพิ่มแอปในเซิร์ฟเวอร์ และสร้างหรืออัปเดตกฎ AutoMod
+Allow members to create invite-only threads.	อนุญาตให้สมาชิกสร้างเธรดเฉพาะผู้ได้รับเชิญ
+Allow members to create threads that everyone in a channel can view.	อนุญาตให้สมาชิกสร้างเธรดที่ทุกคนในช่องดูได้
+Allow members to send messages in text channels and create posts in forum channels.	อนุญาตให้สมาชิกส่งข้อความในช่องข้อความและสร้างโพสต์ในช่องฟอรัม
+Allow members to send messages in threads and in posts on forum channels.	อนุญาตให้สมาชิกส่งข้อความในเธรดและในโพสต์ของช่องฟอรัม
+Allow message requests from server members you may not know	อนุญาตคำขอส่งข้อความจากสมาชิกเซิร์ฟเวอร์ที่คุณอาจไม่รู้จัก
+Allow voice channel participants to join your game	อนุญาตให้ผู้ที่อยู่ในช่องเสียงเข้าร่วมเกมของคุณ
+Allowed words	คำที่อนุญาต
+Allows apps that members have added to their account to post messages. When disabled, the messages will be private.	อนุญาตให้แอปที่สมาชิกเพิ่มในบัญชีของตนโพสต์ข้อความได้ เมื่อปิดไว้ ข้อความจะเป็นแบบส่วนตัว
+Allows links that members share to show embedded content in text channels.	อนุญาตให้ลิงก์ที่สมาชิกแชร์แสดงเนื้อหาแบบฝังในช่องข้อความ
+Allows members to add custom emoji, stickers, and sounds in this server.	อนุญาตให้สมาชิกเพิ่มอีโมจิ สติกเกอร์ และเสียงแบบกำหนดเองในเซิร์ฟเวอร์นี้
+Allows members to add new emoji reactions to a message. If this permission is disabled, members can still react using any existing reactions on a message.	อนุญาตให้สมาชิกเพิ่มรีแอคชันอีโมจิใหม่ให้ข้อความ หากปิดสิทธิ์นี้ สมาชิกยังแสดงรีแอคชันด้วยรีแอคชันที่มีอยู่แล้วบนข้อความได้
+Allows members to be more easily heard in voice channels. When activated, the volume of others without this permission will be automatically lowered.	ช่วยให้ได้ยินเสียงสมาชิกได้ง่ายขึ้นในช่องเสียง เมื่อเปิดใช้งาน เสียงของคนอื่นที่ไม่มีสิทธิ์นี้จะถูกลดลงโดยอัตโนมัติ
+Allows members to change the nicknames of other members.	อนุญาตให้สมาชิกเปลี่ยนชื่อเล่นของสมาชิกคนอื่น
+Allows members to change their own nickname, a custom name for just this server.	อนุญาตให้สมาชิกเปลี่ยนชื่อเล่นของตัวเอง ซึ่งเป็นชื่อที่ใช้เฉพาะในเซิร์ฟเวอร์นี้
+Allows members to change this channel's name, description, and settings. They can also delete it.	อนุญาตให้สมาชิกเปลี่ยนชื่อ คำอธิบาย และการตั้งค่าของช่องนี้ รวมถึงลบช่องได้
+Allows members to change this channel's permissions.	อนุญาตให้สมาชิกเปลี่ยนสิทธิ์ของช่องนี้
+Allows members to create and edit voice channel status.	อนุญาตให้สมาชิกสร้างและแก้ไขสถานะช่องเสียง
+Allows members to create events.	อนุญาตให้สมาชิกสร้างกิจกรรม
+Allows members to create new roles and edit or delete roles lower than their highest role. Also allows members to change permissions of individual channels that they have access to.	อนุญาตให้สมาชิกสร้างบทบาทใหม่ และแก้ไขหรือลบบทบาทที่ต่ำกว่าบทบาทสูงสุดของตน รวมถึงเปลี่ยนสิทธิ์ของแต่ละช่องที่ตนเข้าถึงได้
+Allows members to create polls.	อนุญาตให้สมาชิกสร้างโพล
+Allows members to create, edit, or delete channels.	อนุญาตให้สมาชิกสร้าง แก้ไข หรือลบช่อง
+Allows members to create, edit, or delete webhooks, which can post messages from other apps or sites into this server.	อนุญาตให้สมาชิกสร้าง แก้ไข หรือลบเว็บฮุก ซึ่งโพสต์ข้อความจากแอปหรือเว็บไซต์อื่นเข้ามาในเซิร์ฟเวอร์นี้ได้
+Allows members to deafen other members in voice channels, which means they won't be able to speak or hear others.	อนุญาตให้สมาชิกปิดการได้ยินของสมาชิกคนอื่นในช่องเสียง ซึ่งจะทำให้พวกเขาพูดหรือได้ยินคนอื่นไม่ได้
+Allows members to delete or remove embeds from messages by other members.	อนุญาตให้สมาชิกลบข้อความหรือลบเนื้อหาฝังจากข้อความของสมาชิกคนอื่น
+Allows members to disconnect or move other members between voice channels that the member with this permission has access to.	อนุญาตให้สมาชิกตัดการเชื่อมต่อหรือย้ายสมาชิกคนอื่นระหว่างช่องเสียงที่ผู้มีสิทธิ์นี้เข้าถึงได้
+Allows members to edit and cancel events.	อนุญาตให้สมาชิกแก้ไขและยกเลิกกิจกรรม
+Allows members to edit or remove custom emoji, stickers, and sounds in this server.	อนุญาตให้สมาชิกแก้ไขหรือลบอีโมจิ สติกเกอร์ และเสียงแบบกำหนดเองในเซิร์ฟเวอร์นี้
+Allows members to invite new people to this server.	อนุญาตให้สมาชิกเชิญคนใหม่เข้าเซิร์ฟเวอร์นี้
+Allows members to join voice channels and hear others.	อนุญาตให้สมาชิกเข้าช่องเสียงและได้ยินคนอื่น
+Allows members to mute other members in voice channels for everyone.	อนุญาตให้สมาชิกปิดเสียงสมาชิกคนอื่นในช่องเสียงสำหรับทุกคน
+Allows members to permanently ban and delete the message history of other members from this server.	อนุญาตให้สมาชิกแบนถาวรและลบประวัติข้อความของสมาชิกคนอื่นจากเซิร์ฟเวอร์นี้
+Allows members to pin or unpin any message.	อนุญาตให้สมาชิกปักหมุดหรือเลิกปักหมุดข้อความใดก็ได้
+Allows members to read previous messages sent in channels. If this permission is disabled, members only see messages sent when they are online. This does not fully apply to threads and forum posts.	อนุญาตให้สมาชิกอ่านข้อความก่อนหน้าที่ส่งในช่อง หากปิดสิทธิ์นี้ สมาชิกจะเห็นเฉพาะข้อความที่ส่งตอนที่ตนออนไลน์ ข้อนี้ไม่มีผลทั้งหมดกับเธรดและโพสต์ฟอรัม
+Allows members to remove other members from this server. Kicked members will be able to rejoin if they have another invite.	อนุญาตให้สมาชิกนำสมาชิกคนอื่นออกจากเซิร์ฟเวอร์นี้ สมาชิกที่ถูกเตะจะกลับเข้ามาใหม่ได้หากมีคำเชิญอื่น
+Allows members to rename, delete, close, and turn on slow mode for threads and posts. They can also view private threads.	อนุญาตให้สมาชิกเปลี่ยนชื่อ ลบ ปิด และเปิดโหมดช้าสำหรับเธรดและโพสต์ รวมถึงดูเธรดส่วนตัวได้
+Allows members to send messages without being affected by slowmode.	อนุญาตให้สมาชิกส่งข้อความได้โดยไม่ได้รับผลกระทบจากโหมดช้า
+Allows members to send sounds from server soundboard.	อนุญาตให้สมาชิกส่งเสียงจากซาวด์บอร์ดของเซิร์ฟเวอร์
+Allows members to send text-to-speech messages by starting a message with /tts. These messages can be heard by anyone focused on the channel.	อนุญาตให้สมาชิกส่งข้อความแปลงข้อความเป็นเสียงโดยขึ้นต้นข้อความด้วย /tts ทุกคนที่กำลังเปิดช่องนี้อยู่จะได้ยินข้อความเหล่านี้
+Allows members to send voice messages.	อนุญาตให้สมาชิกส่งข้อความเสียง
+Allows members to share their video, screen share, or stream a game in this server.	อนุญาตให้สมาชิกแชร์วิดีโอ แชร์หน้าจอ หรือสตรีมเกมในเซิร์ฟเวอร์นี้
+Allows members to speak in voice channels by simply talking. If this permission is disabled, members are required to use Push-to-talk. Good for controlling background noise or noisy members.	อนุญาตให้สมาชิกพูดในช่องเสียงได้เพียงแค่พูด หากปิดสิทธิ์นี้ สมาชิกต้องใช้กดเพื่อพูด เหมาะสำหรับควบคุมเสียงรบกวนหรือสมาชิกที่เสียงดัง
+Allows members to talk in voice channels. If this permission is disabled, members are default muted until somebody with the "Mute Members" permission un-mutes them.	อนุญาตให้สมาชิกพูดในช่องเสียง หากปิดสิทธิ์นี้ สมาชิกจะถูกปิดเสียงเป็นค่าเริ่มต้นจนกว่าคนที่มีสิทธิ์ "ปิดเสียงสมาชิก" จะเปิดเสียงให้
+Allows members to upload files or media in text channels.	อนุญาตให้สมาชิกอัปโหลดไฟล์หรือสื่อในช่องข้อความ
+Allows members to use @everyone (everyone in the server) or @here (only online members in that channel). They can also @mention all roles, even if the role's "Allow anyone to mention this role" permission is disabled.	อนุญาตให้สมาชิกใช้ @everyone (ทุกคนในเซิร์ฟเวอร์) หรือ @here (เฉพาะสมาชิกที่ออนไลน์ในช่องนั้น) และยัง @กล่าวถึงทุกบทบาทได้ แม้บทบาทนั้นจะปิดสิทธิ์ "อนุญาตให้ทุกคนกล่าวถึงบทบาทนี้" ไว้
+Allows members to use commands from applications, including slash commands and context menu commands.	อนุญาตให้สมาชิกใช้คำสั่งจากแอปพลิเคชัน รวมถึงคำสั่งสแลชและคำสั่งในเมนูบริบท
+Allows members to use emoji from other servers, if they're a Discord Nitro member.	อนุญาตให้สมาชิกใช้อีโมจิจากเซิร์ฟเวอร์อื่น หากเป็นสมาชิก Discord Nitro
+Allows members to use sounds from other servers, if they're a Discord Nitro member.	อนุญาตให้สมาชิกใช้เสียงจากเซิร์ฟเวอร์อื่น หากเป็นสมาชิก Discord Nitro
+Allows members to use stickers from other servers, if they're a Discord Nitro member.	อนุญาตให้สมาชิกใช้สติกเกอร์จากเซิร์ฟเวอร์อื่น หากเป็นสมาชิก Discord Nitro
+Allows members to view Server Insights, which shows data on community growth, engagement, and more. This will allow them to see certain data about channel activity, even for channels they cannot access.	อนุญาตให้สมาชิกดูข้อมูลเชิงลึกของเซิร์ฟเวอร์ ซึ่งแสดงข้อมูลการเติบโตของชุมชน การมีส่วนร่วม และอื่นๆ ทำให้เห็นข้อมูลบางส่วนเกี่ยวกับกิจกรรมของช่อง แม้แต่ช่องที่ตนเข้าถึงไม่ได้
+Allows members to view a record of who made which changes in this server.	อนุญาตให้สมาชิกดูบันทึกว่าใครเปลี่ยนแปลงอะไรในเซิร์ฟเวอร์นี้
+Allows members to view channels by default (excluding private channels).	อนุญาตให้สมาชิกดูช่องเป็นค่าเริ่มต้น (ยกเว้นช่องส่วนตัว)
+Allows members to view these channels by default. Disabling this for @everyone will make the category private.	อนุญาตให้สมาชิกดูช่องเหล่านี้เป็นค่าเริ่มต้น การปิดสิทธิ์นี้สำหรับ @everyone จะทำให้หมวดหมู่เป็นส่วนตัว
+Allows members to view this channel by default. Disabling this for @everyone will make this channel private.	อนุญาตให้สมาชิกดูช่องนี้เป็นค่าเริ่มต้น การปิดสิทธิ์นี้สำหรับ @everyone จะทำให้ช่องนี้เป็นส่วนตัว
+Always	เสมอ
+An emoji name, like smile	ชื่ออีโมจิ เช่น smile
+An encrypted file couldn't be opened.|% encrypted files couldn't be opened.	เปิดไฟล์ที่เข้ารหัสไม่ได้ % ไฟล์
+An error occurred, please try again.	เกิดข้อผิดพลาด โปรดลองอีกครั้ง
+An error occurred. Please try again.	เกิดข้อผิดพลาด โปรดลองอีกครั้ง
+Announcement	ประกาศ
+Announcement Channel	ช่องประกาศ
+Answer	คำตอบ
+Answers	คำตอบ
+Anyone can join your server directly through Server Discovery	ทุกคนเข้าร่วมเซิร์ฟเวอร์ของคุณได้โดยตรงผ่านการค้นหาเซิร์ฟเวอร์
+Anyone can use	ทุกคนใช้ได้
+Anyone with access to this text channel will be able to see the notifications.	ทุกคนที่เข้าถึงช่องข้อความนี้จะเห็นการแจ้งเตือน
+App Directory	ไดเรกทอรีแอป
+Appearance	รูปลักษณ์
+Appends (╯°□°)╯︵ ┻━┻ to your message.	ต่อท้ายข้อความของคุณด้วย (╯°□°)╯︵ ┻━┻
+Appends ¯\\_(ツ)_/¯ to your message.	ต่อท้ายข้อความของคุณด้วย ¯\\_(ツ)_/¯
+Appends ┬─┬ノ( º _ ºノ) to your message.	ต่อท้ายข้อความของคุณด้วย ┬─┬ノ( º _ ºノ)
+Applications	แอปพลิเคชัน
+Apply to Join	สมัครเข้าร่วม
+Approve	อนุมัติ
+Apps	แอป
+Apps Permissions	สิทธิ์ของแอป
+Archived	เก็บถาวรแล้ว
+Archived Threads	เธรดที่เก็บถาวร
+Are you building a Community? Convert to a Community Server to access additional administrative tools that can help you moderate, run, and grow your server.	กำลังสร้างชุมชนอยู่ใช่ไหม? เปลี่ยนเป็นเซิร์ฟเวอร์ชุมชนเพื่อเข้าถึงเครื่องมือดูแลเพิ่มเติมที่ช่วยคุณควบคุม บริหาร และขยายเซิร์ฟเวอร์
+Are you sure that you want to delete your account? This will immediately log you out of your account and you will not be able to log in again.	แน่ใจไหมว่าต้องการลบบัญชี? คุณจะถูกออกจากระบบทันทีและจะเข้าสู่ระบบอีกไม่ได้
+Are you sure that you want to disable your account? This will immediately log you out and make your account inaccessible to anyone.	แน่ใจไหมว่าต้องการปิดใช้งานบัญชี? คุณจะถูกออกจากระบบทันทีและจะไม่มีใครเข้าถึงบัญชีของคุณได้
+Are you sure you want to ban @%1 from %2? They won't be able to come back until the ban is lifted.	แน่ใจไหมว่าต้องการแบน @%1 จาก %2? เขาจะกลับมาไม่ได้จนกว่าจะยกเลิกการแบน
+Are you sure you want to delete %? This action cannot be undone.	แน่ใจไหมว่าต้องการลบ %? การดำเนินการนี้ย้อนกลับไม่ได้
+Are you sure you want to delete %? This cannot be undone.	แน่ใจไหมว่าต้องการลบ %? ย้อนกลับไม่ได้
+Are you sure you want to delete :%:? This cannot be undone.	แน่ใจไหมว่าต้องการลบ :%:? ย้อนกลับไม่ได้
+Are you sure you want to delete the rule %? This cannot be undone.	แน่ใจไหมว่าต้องการลบกฎ %? ย้อนกลับไม่ได้
+Are you sure you want to delete this message?	แน่ใจไหมว่าต้องการลบข้อความนี้?
+Are you sure you want to delete this role? This action cannot be undone.	แน่ใจไหมว่าต้องการลบบทบาทนี้? การดำเนินการนี้ย้อนกลับไม่ได้
+Are you sure you want to delete this template? Its link will stop working.	แน่ใจไหมว่าต้องการลบเทมเพลตนี้? ลิงก์ของเทมเพลตจะใช้ไม่ได้อีก
+Are you sure you want to kick @%1 from %2? They will be able to rejoin again with a new invite.	แน่ใจไหมว่าต้องการเตะ @%1 ออกจาก %2? เขาจะกลับเข้ามาใหม่ได้ด้วยคำเชิญใหม่
+Are you sure you want to logout?	แน่ใจไหมว่าต้องการออกจากระบบ?
+Are you sure you want to remove all embeds on this message? This will remove them for everyone.	แน่ใจไหมว่าต้องการลบเนื้อหาฝังทั้งหมดในข้อความนี้? จะถูกลบสำหรับทุกคน
+Are you sure you want to remove all of the reactions for this emoji from this message?	แน่ใจไหมว่าต้องการลบรีแอคชันทั้งหมดของอีโมจินี้ออกจากข้อความนี้?
+Are you sure you want to remove all the reactions on this message?	แน่ใจไหมว่าต้องการลบรีแอคชันทั้งหมดในข้อความนี้?
+Are you sure you want to revoke the invite %? Nobody will be able to join with it.	แน่ใจไหมว่าต้องการเพิกถอนคำเชิญ %? จะไม่มีใครเข้าร่วมด้วยคำเชิญนี้ได้อีก
+Ask for a new invite	ขอคำเชิญใหม่
+Ask new members what they're here for; each answer gives them channels and roles.	ถามสมาชิกใหม่ว่ามาที่นี่เพื่ออะไร แต่ละคำตอบจะให้ช่องและบทบาทแก่พวกเขา
+Attach Files	แนบไฟล์
+Attachment removed	ลบไฟล์แนบแล้ว
+Attachments	ไฟล์แนบ
+Audit Log	บันทึกการตรวจสอบ
+Authorized Apps	แอปที่ได้รับอนุญาต
+Auto	อัตโนมัติ
+AutoMod	AutoMod
+Automatic	อัตโนมัติ
+Automatic Gain Control	ควบคุมอัตราขยายอัตโนมัติ
+Automatically determine input sensitivity	กำหนดความไวอินพุตอัตโนมัติ
+Automatically enable Streamer Mode if OBS or XSplit are running	เปิดโหมดสตรีมเมอร์อัตโนมัติหาก OBS หรือ XSplit ทำงานอยู่
+Automatically filter suspected spam messages	กรองข้อความที่สงสัยว่าเป็นสแปมโดยอัตโนมัติ
+Automatically move members to this channel and mute them when they have been idle for longer than the inactive timeout. This does not affect browsers.	ย้ายสมาชิกมายังช่องนี้และปิดเสียงโดยอัตโนมัติเมื่อไม่มีความเคลื่อนไหวนานกว่าระยะหมดเวลา ไม่มีผลกับเบราว์เซอร์
+Automatically open fastcord when your computer starts up	เปิด fastcord อัตโนมัติเมื่อเปิดคอมพิวเตอร์
+Automatically scan and delete messages sent in this server that contain explicit media.	สแกนและลบข้อความที่ส่งในเซิร์ฟเวอร์นี้ที่มีสื่อโจ่งแจ้งโดยอัตโนมัติ
+Avatar	อวาตาร์
+BACK	กลับ
+BACKUP CODES	รหัสสำรอง
+Back	กลับ
+Back / forward	ย้อนกลับ / ไปข้างหน้า
+Backup codes can only be used one time each and are for emergency access to your account!	รหัสสำรองแต่ละรหัสใช้ได้เพียงครั้งเดียว และมีไว้สำหรับเข้าถึงบัญชีของคุณในกรณีฉุกเฉิน!
+Backups	ข้อมูลสำรอง
+Ban	แบน
+Ban %	แบน %
+Ban '%' from Server	แบน '%' จากเซิร์ฟเวอร์
+Ban Member	แบนสมาชิก
+Ban Members	แบนสมาชิก
+Banner	แบนเนอร์
+Banner Color	สีแบนเนอร์
+Bans	การแบน
+Bitrate	บิตเรต
+Block	บล็อก
+Block Commonly Flagged Words	บล็อกคำที่ถูกรายงานบ่อย
+Block Custom Words	บล็อกคำที่กำหนดเอง
+Block Mention Spam	บล็อกสแปมการกล่าวถึง
+Block Suspected Spam Content	บล็อกเนื้อหาที่สงสัยว่าเป็นสแปม
+Block Words in Member Profile Names	บล็อกคำในชื่อโปรไฟล์ของสมาชิก
+Block message	บล็อกข้อความ
+Blocked	ถูกบล็อก
+Blocked Users	ผู้ใช้ที่ถูกบล็อก
+Blocked by your content filters	ถูกบล็อกโดยตัวกรองเนื้อหาของคุณ
+Blocked message	ข้อความที่ถูกบล็อก
+Blocked words	คำที่ถูกบล็อก
+Blocked words in names	คำที่ถูกบล็อกในชื่อ
+Blocks messages containing % word.|Blocks messages containing % words.	บล็อกข้อความที่มีคำ % คำ
+Blocks messages suspected to be spam.	บล็อกข้อความที่สงสัยว่าเป็นสแปม
+Blocks messages with more than % mentions.	บล็อกข้อความที่มีการกล่าวถึงมากกว่า % ครั้ง
+Blocks words from Discord's commonly flagged lists.	บล็อกคำจากรายการคำที่ถูกรายงานบ่อยของ Discord
+Blocks words in member profile names.	บล็อกคำในชื่อโปรไฟล์ของสมาชิก
+Blur	เบลอ
+Blur Background	เบลอพื้นหลัง
+Blur what's behind you on camera. Only your camera is changed.	เบลอสิ่งที่อยู่ด้านหลังคุณในกล้อง เปลี่ยนเฉพาะกล้องของคุณเท่านั้น
+Bold / italic / underline	ตัวหนา / ตัวเอียง / ขีดเส้นใต้
+Bots and Apps	บอทและแอป
+Browse	เรียกดู
+Browse Channels	เรียกดูช่อง
+Built-In	ในตัว
+Bulgarian	บัลแกเรีย
+By creating a server, you agree to Discord's Community Guidelines.	การสร้างเซิร์ฟเวอร์ถือว่าคุณยอมรับแนวทางปฏิบัติของชุมชน Discord
+By enabling the widget, your server profile will be visible to others outside of your server members. You can control Profile privacy in Server Settings > Profile.	เมื่อเปิดใช้วิดเจ็ต คนที่ไม่ใช่สมาชิกจะเห็นโปรไฟล์เซิร์ฟเวอร์ของคุณ คุณควบคุมความเป็นส่วนตัวของโปรไฟล์ได้ใน การตั้งค่าเซิร์ฟเวอร์ > โปรไฟล์
+By making a category private, only select members and roles will be able to view this category. Linked channels in this category will automatically match to this setting.	เมื่อตั้งหมวดหมู่เป็นส่วนตัว เฉพาะสมาชิกและบทบาทที่เลือกเท่านั้นที่จะดูหมวดหมู่นี้ได้ ช่องที่ซิงค์ในหมวดหมู่นี้จะตั้งค่าตามนี้โดยอัตโนมัติ
+By making a channel private, only select members and roles will be able to view this channel.	เมื่อตั้งช่องเป็นส่วนตัว เฉพาะสมาชิกและบทบาทที่เลือกเท่านั้นที่จะดูช่องนี้ได้
+By making a channel private, only select members and roles will have access to view or connect to this channel.	เมื่อตั้งช่องเป็นส่วนตัว เฉพาะสมาชิกและบทบาทที่เลือกเท่านั้นที่จะดูหรือเชื่อมต่อกับช่องนี้ได้
+Bypass Slowmode	ข้ามโหมดช้า
+CHANNEL OR CATEGORY	ช่องหรือหมวดหมู่
+CONFIRM NEW PASSWORD	ยืนยันรหัสผ่านใหม่
+CURRENT PASSWORD	รหัสผ่านปัจจุบัน
+Call	โทร
+Cancel	ยกเลิก
+Cancel Event	ยกเลิกกิจกรรม
+Cancel Friend Request	ยกเลิกคำขอเป็นเพื่อน
+Careful — you have unsaved changes!	ระวัง — คุณมีการเปลี่ยนแปลงที่ยังไม่ได้บันทึก!
+Category Name	ชื่อหมวดหมู่
+Category deleted	ลบหมวดหมู่แล้ว
+Change %	เปลี่ยน %
+Change Avatar	เปลี่ยนอวาตาร์
+Change Nickname	เปลี่ยนชื่อเล่น
+Change Password	เปลี่ยนรหัสผ่าน
+Change Server Icon	เปลี่ยนไอคอนเซิร์ฟเวอร์
+Channel	ช่อง
+Channel Name	ชื่อช่อง
+Channel Notification Overrides	การแจ้งเตือนเฉพาะช่อง
+Channel Topic	หัวข้อช่อง
+Channel Type	ประเภทช่อง
+Channel deleted	ลบช่องแล้ว
+Channel unmuted	เปิดเสียงช่องแล้ว
+Channels	ช่อง
+Channels & Roles	ช่องและบทบาท
+Channels Followed (%)	ช่องที่ติดตาม (%)
+Channels matching #%	ช่องที่ตรงกับ #%
+Chat	แชท
+Chat Font Scaling	ขนาดฟอนต์แชท
+Check your email for a login link	ตรวจสอบอีเมลของคุณเพื่อรับลิงก์เข้าสู่ระบบ
+Check your phone!	ตรวจสอบโทรศัพท์ของคุณ!
+Checking the file…	กำลังตรวจสอบไฟล์…
+Chinese, China	จีน (จีน)
+Chinese, Taiwan	จีน (ไต้หวัน)
+Choose Image	เลือกรูปภาพ
+Choose a link people can use to join, discord.gg/<code>.	เลือกลิงก์ที่ผู้คนใช้เข้าร่วมได้ discord.gg/<code>
+Choose a server	เลือกเซิร์ฟเวอร์
+Choose the language you want Discord to display.	เลือกภาษาที่คุณต้องการให้ Discord แสดง
+Choose what happens to images and videos Discord detects as explicit.	เลือกว่าจะทำอย่างไรกับรูปภาพและวิดีโอที่ Discord ตรวจพบว่าโจ่งแจ้ง
+Clear	ล้าง
+Clear Custom Status	ล้างสถานะที่กำหนดเอง
+Clear after	ล้างหลังจาก
+Clear permissions	ล้างสิทธิ์
+Click Again to Reset	คลิกอีกครั้งเพื่อรีเซ็ต
+Click any channel, then pick a request whose name starts with "messages" or "science".	คลิกช่องใดก็ได้ แล้วเลือกคำขอที่ชื่อขึ้นต้นด้วย "messages" หรือ "science"
+Click to add a note	คลิกเพื่อเพิ่มโน้ต
+Click to see attachment	คลิกเพื่อดูไฟล์แนบ
+Close DM	ปิด DM
+Collapse	ยุบ
+Collapse All Categories	ยุบหมวดหมู่ทั้งหมด
+Collapse Category	ยุบหมวดหมู่
+Commands	คำสั่ง
+Commands matching /%	คำสั่งที่ตรงกับ /%
+Community Overview	ภาพรวมชุมชน
+Community Updates Channel	ช่องอัปเดตชุมชน
+Community servers follow Discord's Community Guidelines.	เซิร์ฟเวอร์ชุมชนปฏิบัติตามแนวทางปฏิบัติของชุมชน Discord
+Community servers have more tools to help you moderate and grow your server.	เซิร์ฟเวอร์ชุมชนมีเครื่องมือมากขึ้นที่ช่วยคุณดูแลและขยายเซิร์ฟเวอร์
+Compact	กะทัดรัด
+Compare	เปรียบเทียบ
+Compare these with %, in person or on a call. If they match, no one can read this DM in between.	เปรียบเทียบตัวเลขเหล่านี้กับ % ต่อหน้าหรือทางโทรศัพท์ หากตรงกัน จะไม่มีใครแอบอ่าน DM นี้ระหว่างทางได้
+Configure system event messages sent to your server.	กำหนดค่าข้อความเหตุการณ์ของระบบที่ส่งไปยังเซิร์ฟเวอร์ของคุณ
+Confirm	ยืนยัน
+Confirm Request	ยืนยันคำขอ
+Confirm your age to join this server.	ยืนยันอายุของคุณเพื่อเข้าร่วมเซิร์ฟเวอร์นี้
+Confirming...	กำลังยืนยัน...
+Connect	เชื่อมต่อ
+Connect these accounts and unlock special Discord integrations. The sign-in opens in your browser.	เชื่อมต่อบัญชีเหล่านี้เพื่อปลดล็อกการเชื่อมต่อพิเศษของ Discord การเข้าสู่ระบบจะเปิดในเบราว์เซอร์ของคุณ
+Connected Apps	แอปที่เชื่อมต่อ
+Connecting	กำลังเชื่อมต่อ
+Connecting...	กำลังเชื่อมต่อ...
+Connecting…	กำลังเชื่อมต่อ…
+Connection Info	ข้อมูลการเชื่อมต่อ
+Connection lost. Messages may be out of date.	การเชื่อมต่อขาดหาย ข้อความอาจไม่เป็นปัจจุบัน
+Connections	การเชื่อมต่อ
+Content Filters	ตัวกรองเนื้อหา
+Continue	ดำเนินการต่อ
+Control who can see your profile info, like your bio and connected accounts.	ควบคุมว่าใครจะเห็นข้อมูลโปรไฟล์ของคุณ เช่น ประวัติย่อและบัญชีที่เชื่อมต่อ
+Copied	คัดลอกแล้ว
+Copy	คัดลอก
+Copy Category ID	คัดลอก ID หมวดหมู่
+Copy Channel ID	คัดลอก ID ช่อง
+Copy Event Link	คัดลอกลิงก์กิจกรรม
+Copy Image	คัดลอกรูปภาพ
+Copy Image Link	คัดลอกลิงก์รูปภาพ
+Copy Link	คัดลอกลิงก์
+Copy Media Link	คัดลอกลิงก์สื่อ
+Copy Message ID	คัดลอก ID ข้อความ
+Copy Message Link	คัดลอกลิงก์ข้อความ
+Copy Server ID	คัดลอก ID เซิร์ฟเวอร์
+Copy Text	คัดลอกข้อความ
+Copy User ID	คัดลอก ID ผู้ใช้
+Copy Username	คัดลอกชื่อผู้ใช้
+Copy Webhook URL	คัดลอก URL เว็บฮุก
+Copy curl Command	คัดลอกคำสั่ง curl
+Copy the event link below to invite people to your event. This also acts as a server invite link.	คัดลอกลิงก์กิจกรรมด้านล่างเพื่อเชิญผู้คนมายังกิจกรรมของคุณ ลิงก์นี้ใช้เป็นลิงก์เชิญเข้าเซิร์ฟเวอร์ได้ด้วย
+Copy your account's token once from Discord in a web browser.	คัดลอกโทเค็นของบัญชีคุณหนึ่งครั้งจาก Discord ในเว็บเบราว์เซอร์
+Couldn't accept encryption.	ยอมรับการเข้ารหัสไม่ได้
+Couldn't cancel the event.	ยกเลิกกิจกรรมไม่ได้
+Couldn't change avatar	เปลี่ยนอวาตาร์ไม่ได้
+Couldn't create an invite link.	สร้างลิงก์คำเชิญไม่ได้
+Couldn't create an invite.	สร้างคำเชิญไม่ได้
+Couldn't delete the channel: %	ลบช่องไม่ได้: %
+Couldn't encrypt the message.	เข้ารหัสข้อความไม่ได้
+Couldn't join %: %	เข้าร่วม % ไม่ได้: %
+Couldn't load onboarding.	โหลดการต้อนรับสมาชิกใหม่ไม่ได้
+Couldn't load the AutoMod rules.	โหลดกฎ AutoMod ไม่ได้
+Couldn't load the applications.	โหลดแอปพลิเคชันไม่ได้
+Couldn't load the audit log.	โหลดบันทึกการตรวจสอบไม่ได้
+Couldn't load the bans.	โหลดรายการแบนไม่ได้
+Couldn't load the invites.	โหลดคำเชิญไม่ได้
+Couldn't load the members.	โหลดสมาชิกไม่ได้
+Couldn't load the role's members.	โหลดสมาชิกของบทบาทไม่ได้
+Couldn't load the server rules.	โหลดกฎของเซิร์ฟเวอร์ไม่ได้
+Couldn't load the server's tag.	โหลดแท็กของเซิร์ฟเวอร์ไม่ได้
+Couldn't load the template.	โหลดเทมเพลตไม่ได้
+Couldn't load the webhooks.	โหลดเว็บฮุกไม่ได้
+Couldn't move the channel	ย้ายช่องไม่ได้
+Couldn't play it here, so it opened in your browser.	เล่นที่นี่ไม่ได้ จึงเปิดในเบราว์เซอร์ของคุณแทน
+Couldn't reach %1: %2 Retrying.	ติดต่อ %1 ไม่ได้: %2 กำลังลองใหม่
+Couldn't reach Discord. Check your connection and try again.	ติดต่อ Discord ไม่ได้ ตรวจสอบการเชื่อมต่อแล้วลองอีกครั้ง
+Couldn't reach Discord. Try again.	ติดต่อ Discord ไม่ได้ ลองอีกครั้ง
+Couldn't reach the server.	ติดต่อเซิร์ฟเวอร์ไม่ได้
+Couldn't reach the server. Check your connection and try again.	ติดต่อเซิร์ฟเวอร์ไม่ได้ ตรวจสอบการเชื่อมต่อแล้วลองอีกครั้ง
+Couldn't save the file.	บันทึกไฟล์ไม่ได้
+Couldn't save the image.	บันทึกรูปภาพไม่ได้
+Couldn't save the token.	บันทึกโทเค็นไม่ได้
+Couldn't turn on encryption.	เปิดการเข้ารหัสไม่ได้
+Couldn't upload emoji	อัปโหลดอีโมจิไม่ได้
+Cozy	สบายตา
+Create	สร้าง
+Create Category	สร้างหมวดหมู่
+Create Channel	สร้างช่อง
+Create DM	สร้าง DM
+Create Emoji	สร้างอีโมจิ
+Create Event	สร้างกิจกรรม
+Create Events	สร้างกิจกรรม
+Create Expressions	สร้างการแสดงออก
+Create Group DM	สร้าง DM กลุ่ม
+Create Invite	สร้างคำเชิญ
+Create My Own	สร้างเอง
+Create Poll	สร้างโพล
+Create Polls	สร้างโพล
+Create Private Threads	สร้างเธรดส่วนตัว
+Create Public Threads	สร้างเธรดสาธารณะ
+Create Role	สร้างบทบาท
+Create Rule	สร้างกฎ
+Create Thread	สร้างเธรด
+Create Webhook	สร้างเว็บฮุก
+Create Your Server	สร้างเซิร์ฟเวอร์ของคุณ
+Create a poll	สร้างโพล
+Create a space for organized discussions	สร้างพื้นที่สำหรับการพูดคุยอย่างเป็นระเบียบ
+Create one for me	สร้างให้ฉัน
+Created by %	สร้างโดย %
+Created on %1 by %2	สร้างเมื่อ %1 โดย %2
+Creating an invite link…	กำลังสร้างลิงก์คำเชิญ…
+Creating an invite...	กำลังสร้างคำเชิญ...
+Creating...	กำลังสร้าง...
+Creating…	กำลังสร้าง…
+Creation Date	วันที่สร้าง
+Croatian	โครเอเชีย
+Current Device	อุปกรณ์ปัจจุบัน
+Custom Invite Link	ลิงก์คำเชิญแบบกำหนดเอง
+Customize Your Server	ปรับแต่งเซิร์ฟเวอร์ของคุณ
+Customize how your server appears in invite links and, if enabled, in Server Discovery and Announcement Channel messages	ปรับแต่งว่าเซิร์ฟเวอร์ของคุณจะแสดงอย่างไรในลิงก์คำเชิญ และในการค้นหาเซิร์ฟเวอร์และข้อความของช่องประกาศ (หากเปิดใช้)
+Customize your server with integrations. Manage webhooks, followed channels and apps.	ปรับแต่งเซิร์ฟเวอร์ของคุณด้วยการเชื่อมต่อ จัดการเว็บฮุก ช่องที่ติดตาม และแอป
+Cut	ตัด
+Czech	เช็ก
+DAVE v%, % members	DAVE v%, สมาชิก % คน
+DEFAULT KEYBINDS	ปุ่มลัดเริ่มต้น
+DM closed	ปิด DM แล้ว
+Danish	เดนมาร์ก
+Data & Privacy	ข้อมูลและความเป็นส่วนตัว
+Date	วันที่
+Deafen	ปิดการได้ยิน
+Deafen Members	ปิดการได้ยินของสมาชิก
+Deauthorize	ยกเลิกการอนุญาต
+Decline	ปฏิเสธ
+Default	ค่าเริ่มต้น
+Default Channels	ช่องเริ่มต้น
+Default Layout	เลย์เอาต์เริ่มต้น
+Default Notification Settings	การตั้งค่าการแจ้งเตือนเริ่มต้น
+Default Permissions	สิทธิ์เริ่มต้น
+Default Sort Order	ลำดับการเรียงเริ่มต้น
+Default Themes	ธีมเริ่มต้น
+Default notifications become Only @mentions.	การแจ้งเตือนเริ่มต้นจะเปลี่ยนเป็น เฉพาะ @การกล่าวถึง
+Delete	ลบ
+Delete '%'	ลบ '%'
+Delete Account	ลบบัญชี
+Delete Category	ลบหมวดหมู่
+Delete Channel	ลบช่อง
+Delete Emoji	ลบอีโมจิ
+Delete Invite	ลบคำเชิญ
+Delete Message	ลบข้อความ
+Delete Message History	ลบประวัติข้อความ
+Delete Question	ลบคำถาม
+Delete Role	ลบบทบาท
+Delete Rule	ลบกฎ
+Delete Server	ลบเซิร์ฟเวอร์
+Delete Sticker	ลบสติกเกอร์
+Delete Template	ลบเทมเพลต
+Delete Thread	ลบเธรด
+Delete Webhook	ลบเว็บฮุก
+Deleted message	ข้อความที่ถูกลบ
+Describe your sticker	อธิบายสติกเกอร์ของคุณ
+Description	คำอธิบาย
+Description (alt text)	คำอธิบาย (ข้อความแทนภาพ)
+Description (optional)	คำอธิบาย (ไม่บังคับ)
+Detects a burst of mention spam across the server and locks it down.	ตรวจจับการสแปมการกล่าวถึงจำนวนมากทั่วเซิร์ฟเวอร์และล็อกเซิร์ฟเวอร์ไว้
+Developer	นักพัฒนา
+Developer Mode	โหมดนักพัฒนา
+Developer Mode exposes context menu items helpful for people writing apps using the Discord API.	โหมดนักพัฒนาจะแสดงรายการในเมนูบริบทที่มีประโยชน์สำหรับคนที่เขียนแอปด้วย Discord API
+Devices	อุปกรณ์
+Direct Message (DM) Permissions	สิทธิ์ข้อความส่วนตัว (DM)
+Direct Messages	ข้อความส่วนตัว
+Direct messages from friends	ข้อความส่วนตัวจากเพื่อน
+Direct messages from others	ข้อความส่วนตัวจากคนอื่น
+Disable	ปิดใช้งาน
+Disable Account	ปิดใช้งานบัญชี
+Disable All Notification Sounds	ปิดเสียงการแจ้งเตือนทั้งหมด
+Disable Community	ปิดใช้งานชุมชน
+Disable all notifications	ปิดการแจ้งเตือนทั้งหมด
+Disable all sound effects	ปิดเอฟเฟกต์เสียงทั้งหมด
+Disabling your account means you can recover it at any time after taking this action.	การปิดใช้งานบัญชีหมายความว่าคุณกู้คืนบัญชีได้ทุกเมื่อหลังจากนี้
+Disconnect	ตัดการเชื่อมต่อ
+Disconnect From Voice Channel	ตัดการเชื่อมต่อจากช่องเสียง
+Disconnected	ตัดการเชื่อมต่อแล้ว
+Discord account	บัญชี Discord
+Discord asked for a captcha, which fastcord can't show. Log in with the QR code instead.	Discord ขอให้ทำแคปช่า ซึ่ง fastcord แสดงไม่ได้ เข้าสู่ระบบด้วยคิวอาร์โค้ดแทน
+Discord asked for a captcha, which fastcord can't show. Try on discord.com.	Discord ขอให้ทำแคปช่า ซึ่ง fastcord แสดงไม่ได้ ลองที่ discord.com
+Discord can filter out some messages that contain spam. These messages go to your Spam inbox.	Discord กรองข้อความบางส่วนที่เป็นสแปมออกได้ ข้อความเหล่านี้จะไปอยู่ในกล่องสแปมของคุณ
+Discord didn't accept the saved login. Log in again.	Discord ไม่ยอมรับการเข้าสู่ระบบที่บันทึกไว้ เข้าสู่ระบบอีกครั้ง
+Discord failed to unpin that message for some reason. Sorry about that.	Discord เลิกปักหมุดข้อความนั้นไม่สำเร็จด้วยเหตุผลบางอย่าง ขออภัยด้วย
+Discord will prioritize this server in search to users who speak the selected language.	Discord จะจัดลำดับเซิร์ฟเวอร์นี้ให้สูงขึ้นในการค้นหาสำหรับผู้ใช้ที่พูดภาษาที่เลือก
+Discord's terms don't allow third-party clients, so using one can get an account flagged.	ข้อกำหนดของ Discord ไม่อนุญาตไคลเอนต์ของบุคคลที่สาม การใช้จึงอาจทำให้บัญชีถูกตั้งค่าสถานะได้
+Discoverable	ค้นพบได้
+Dismiss	ปิด
+Dismiss message	ปิดข้อความ
+Display	การแสดงผล
+Display Images, Videos and Lolcats	แสดงรูปภาพ วิดีโอ และแมวตลก
+Display Name	ชื่อที่แสดง
+Display name	ชื่อที่แสดง
+Display on profile	แสดงในโปรไฟล์
+Display role members separately from online members	แสดงสมาชิกของบทบาทแยกจากสมาชิกที่ออนไลน์
+Displays text with emphasis.	แสดงข้อความแบบเน้น
+Do Not Disturb	ห้ามรบกวน
+Do not filter	ไม่กรอง
+Do not filter direct messages	ไม่กรองข้อความส่วนตัว
+Don't Delete Any	ไม่ลบเลย
+Don't clear	ไม่ต้องล้าง
+Don't show role colors	ไม่แสดงสีบทบาท
+Done	เสร็จสิ้น
+Download	ดาวน์โหลด
+Drop a file here, or browse	วางไฟล์ที่นี่ หรือเรียกดู
+Duration	ระยะเวลา
+Dutch	ดัตช์
+EDIT ROLE — %	แก้ไขบทบาท — %
+EMAIL OR PHONE NUMBER	อีเมลหรือหมายเลขโทรศัพท์
+EMOJI MATCHING	อีโมจิที่ตรงกับ
+ENTER THE 6-DIGIT CODE	กรอกรหัส 6 หลัก
+EXPIRE AFTER	หมดอายุหลังจาก
+EXPIRES	หมดอายุ
+Ease the chat and lists toward where you scroll. Off, they jump there at once (always, when your device asks for reduced motion).	เลื่อนแชทและรายการไปยังตำแหน่งที่คุณเลื่อนอย่างนุ่มนวล หากปิด จะกระโดดไปทันที (เป็นเช่นนั้นเสมอเมื่ออุปกรณ์ของคุณขอลดการเคลื่อนไหว)
+Echo Cancellation	ตัดเสียงสะท้อน
+Edit	แก้ไข
+Edit Category	แก้ไขหมวดหมู่
+Edit Channel	แก้ไขช่อง
+Edit Friend Nickname	แก้ไขชื่อเล่นเพื่อน
+Edit Message	แก้ไขข้อความ
+Edit Per-server Profile	แก้ไขโปรไฟล์ประจำเซิร์ฟเวอร์
+Edit Profile	แก้ไขโปรไฟล์
+Edit Profiles	แก้ไขโปรไฟล์
+Edit Sound	แก้ไขเสียง
+Edit Thread	แก้ไขเธรด
+Edit User Profile	แก้ไขโปรไฟล์ผู้ใช้
+Edit invite link.	แก้ไขลิงก์คำเชิญ
+Edit your last message	แก้ไขข้อความล่าสุดของคุณ
+Email	อีเมล
+Embed Links	ฝังลิงก์
+Embed an HTML widget on your website to display your online members, voice channels, and invite link.	ฝังวิดเจ็ต HTML บนเว็บไซต์ของคุณเพื่อแสดงสมาชิกที่ออนไลน์ ช่องเสียง และลิงก์คำเชิญ
+Emoji	อีโมจิ
+Emoji / GIF / sticker picker	ตัวเลือกอีโมจิ / GIF / สติกเกอร์
+Enable Authenticator App	เปิดใช้แอปยืนยันตัวตน
+Enable Community	เปิดใช้ชุมชน
+Enable Community to access Server Discovery	เปิดใช้ชุมชนเพื่อเข้าถึงการค้นหาเซิร์ฟเวอร์
+Enable Desktop Notifications	เปิดการแจ้งเตือนบนเดสก์ท็อป
+Enable Invites	เปิดใช้คำเชิญ
+Enable Onboarding	เปิดใช้การต้อนรับสมาชิกใหม่
+Enable Reduced Motion	เปิดใช้การลดการเคลื่อนไหว
+Enable Server Widget	เปิดใช้วิดเจ็ตเซิร์ฟเวอร์
+Enable Streamer Mode	เปิดโหมดสตรีมเมอร์
+Enable Unread Message Badge	เปิดป้ายข้อความที่ยังไม่ได้อ่าน
+Encrypt this DM	เข้ารหัส DM นี้
+Encrypted message	ข้อความที่เข้ารหัส
+Encrypted messages are limited to % bytes for now.	ตอนนี้ข้อความที่เข้ารหัสจำกัดไว้ที่ % ไบต์
+End Date	วันที่สิ้นสุด
+End Event	จบกิจกรรม
+End Poll Now	จบโพลตอนนี้
+End Time	เวลาสิ้นสุด
+End-to-end encrypted	เข้ารหัสต้นทางถึงปลายทาง
+End-to-end encryption	การเข้ารหัสต้นทางถึงปลายทาง
+Engagement	การมีส่วนร่วม
+English, UK	อังกฤษ (สหราชอาณาจักร)
+English, USA	อังกฤษ (สหรัฐอเมริกา)
+Enter Discord Auth Code	กรอกรหัสยืนยันตัวตน Discord
+Enter Discord Backup Code	กรอกรหัสสำรอง Discord
+Enter a location	กรอกสถานที่
+Enter a message to start the conversation!	พิมพ์ข้อความเพื่อเริ่มการสนทนา!
+Enter an invite below to join an existing server	กรอกคำเชิญด้านล่างเพื่อเข้าร่วมเซิร์ฟเวอร์ที่มีอยู่
+Enter server name	กรอกชื่อเซิร์ฟเวอร์
+Enter your current password and a new password.	กรอกรหัสผ่านปัจจุบันและรหัสผ่านใหม่
+Error	ข้อผิดพลาด
+Est. %	ก่อตั้ง %
+Event Info	ข้อมูลกิจกรรม
+Event Topic	หัวข้อกิจกรรม
+Event cancelled	ยกเลิกกิจกรรมแล้ว
+Event is over	กิจกรรมจบแล้ว
+Events	กิจกรรม
+Events Permissions	สิทธิ์ของกิจกรรม
+Every answer needs a title.	ทุกคำตอบต้องมีชื่อ
+Every question needs a title and at least one answer.	ทุกคำถามต้องมีชื่อและคำตอบอย่างน้อยหนึ่งข้อ
+Everyone	ทุกคน
+Everyone in this channel connects to the selected region. Automatic picks the best one for whoever starts the call.	ทุกคนในช่องนี้จะเชื่อมต่อกับภูมิภาคที่เลือก อัตโนมัติจะเลือกภูมิภาคที่ดีที่สุดสำหรับคนที่เริ่มการโทร
+Everyone welcome %!	ทุกคนยินดีต้อนรับ %!
+Everyone who joins sees these channels, whatever they answer.	ทุกคนที่เข้าร่วมจะเห็นช่องเหล่านี้ ไม่ว่าจะตอบอะไร
+Exempt a channel	ยกเว้นช่อง
+Exempt a role	ยกเว้นบทบาท
+Exemptions	ข้อยกเว้น
+Expand (% lines)	ขยาย (% บรรทัด)
+Expand (% of % lines)	ขยาย (% จาก % บรรทัด)
+Expired	หมดอายุแล้ว
+Explicit image filter	ตัวกรองรูปภาพโจ่งแจ้ง
+Expression	การแสดงออก
+FRAME RATE	อัตราเฟรม
+Failed to follow the channel, please try again.	ติดตามช่องไม่สำเร็จ โปรดลองอีกครั้ง
+Fastcord couldn't be installed.	ติดตั้ง Fastcord ไม่ได้
+Favorites	รายการโปรด
+File	ไฟล์
+File saved.	บันทึกไฟล์แล้ว
+Filename	ชื่อไฟล์
+Fill out the details of your event.	กรอกรายละเอียดกิจกรรมของคุณ
+Filter by Action	กรองตามการดำเนินการ
+Filter by User	กรองตามผู้ใช้
+Filter direct messages from everyone	กรองข้อความส่วนตัวจากทุกคน
+Filter direct messages from non-friends	กรองข้อความส่วนตัวจากคนที่ไม่ใช่เพื่อน
+Filter messages from all members	กรองข้อความจากสมาชิกทุกคน
+Filter messages from server members without roles	กรองข้อความจากสมาชิกเซิร์ฟเวอร์ที่ไม่มีบทบาท
+Find or start a conversation	ค้นหาหรือเริ่มการสนทนา
+Find the perfect emoji	ค้นหาอีโมจิที่ใช่
+Find the perfect reaction	ค้นหารีแอคชันที่ใช่
+Find the perfect sticker	ค้นหาสติกเกอร์ที่ใช่
+Finding the video%	กำลังค้นหาวิดีโอ%
+Finish	เสร็จสิ้น
+Finishing touches	เก็บรายละเอียดสุดท้าย
+Finnish	ฟินแลนด์
+Fit more messages on screen at one time. #IRC	แสดงข้อความบนหน้าจอได้มากขึ้นในคราวเดียว #IRC
+Flagged as spam	ถูกตั้งค่าสถานะเป็นสแปม
+Flags	ธง
+Folder Color	สีโฟลเดอร์
+Folder Name	ชื่อโฟลเดอร์
+Folder Settings	การตั้งค่าโฟลเดอร์
+Folder removed	ลบโฟลเดอร์แล้ว
+Follow	ติดตาม
+Followed!	ติดตามแล้ว!
+Food & Drink	อาหารและเครื่องดื่ม
+For 1 Hour	เป็นเวลา 1 ชั่วโมง
+For 15 Minutes	เป็นเวลา 15 นาที
+For 24 Hours	เป็นเวลา 24 ชั่วโมง
+For 3 Days	เป็นเวลา 3 วัน
+For 3 Hours	เป็นเวลา 3 ชั่วโมง
+For 8 Hours	เป็นเวลา 8 ชั่วโมง
+Forever	ตลอดไป
+Forgot your password?	ลืมรหัสผ่านใช่ไหม?
+Forum	ฟอรัม
+Forward	ส่งต่อ
+Forward To	ส่งต่อไปยัง
+Forwarded	ส่งต่อแล้ว
+French	ฝรั่งเศส
+Frequently Used	ใช้บ่อย
+Friend Nickname	ชื่อเล่นเพื่อน
+Friend Request Permissions	สิทธิ์คำขอเป็นเพื่อน
+Friend Request Sent	ส่งคำขอเป็นเพื่อนแล้ว
+Friend removed	ลบเพื่อนแล้ว
+Friend request cancelled	ยกเลิกคำขอเป็นเพื่อนแล้ว
+Friend request ignored	เพิกเฉยคำขอเป็นเพื่อนแล้ว
+Friends	เพื่อน
+Friends & All Servers	เพื่อนและเซิร์ฟเวอร์ทั้งหมด
+Friends & Small Servers Only	เฉพาะเพื่อนและเซิร์ฟเวอร์ขนาดเล็ก
+Friends Only	เฉพาะเพื่อน
+Friends can ask to join or join the game you're playing.	เพื่อนขอเข้าร่วมหรือเข้าร่วมเกมที่คุณกำลังเล่นได้
+Friends come online	เพื่อนออนไลน์
+Friends of friends	เพื่อนของเพื่อน
+From User	จากผู้ใช้
+GIFs	GIF
+GIFs can't be sent encrypted yet.	ยังส่ง GIF แบบเข้ารหัสไม่ได้
+Gallery view	มุมมองแกลเลอรี
+General	ทั่วไป
+General Category Permissions	สิทธิ์ทั่วไปของหมวดหมู่
+General Channel Permissions	สิทธิ์ทั่วไปของช่อง
+General Server Permissions	สิทธิ์ทั่วไปของเซิร์ฟเวอร์
+Generate Template	สร้างเทมเพลต
+Generate a New Link	สร้างลิงก์ใหม่
+German	เยอรมัน
+Get a copy of your data. It can take up to 30 days to prepare, and a download link is emailed to you when it's ready.	รับสำเนาข้อมูลของคุณ อาจใช้เวลาเตรียมถึง 30 วัน และจะส่งลิงก์ดาวน์โหลดทางอีเมลเมื่อพร้อม
+Give new members a quick way to find the channels and roles that matter to them.	ช่วยให้สมาชิกใหม่ค้นหาช่องและบทบาทที่สำคัญกับพวกเขาได้อย่างรวดเร็ว
+Give your new server a personality with a name. You can always change it later.	ตั้งชื่อเพื่อเพิ่มบุคลิกให้เซิร์ฟเวอร์ใหม่ของคุณ เปลี่ยนภายหลังได้เสมอ
+Glad you're here, %.	ดีใจที่คุณมา %
+Go Back	ย้อนกลับ
+Go To Channel	ไปที่ช่อง
+Go back	ย้อนกลับ
+Go forward	ไปข้างหน้า
+Go to Server	ไปที่เซิร์ฟเวอร์
+Good to see you, %.	ยินดีที่ได้เจอ %
+Got It	เข้าใจแล้ว
+Grant temporary membership	ให้สมาชิกภาพชั่วคราว
+Greek	กรีก
+Hang out together with voice, video, and screen share	แฮงเอาต์ด้วยกันด้วยเสียง วิดีโอ และการแชร์หน้าจอ
+Hang out with voice, video, screenshare, and Go Live.	แฮงเอาต์ด้วยเสียง วิดีโอ แชร์หน้าจอ และ Go Live
+Happening Now	กำลังเกิดขึ้น
+Have an invite already?	มีคำเชิญอยู่แล้วใช่ไหม?
+Help	ความช่วยเหลือ
+Here's a preview of your event.	นี่คือตัวอย่างกิจกรรมของคุณ
+Hey, just double checking that you want to pin this message to #% for posterity and greatness?	เดี๋ยวก่อน ขอเช็กอีกครั้งว่าคุณต้องการปักหมุดข้อความนี้ใน #% เพื่อให้เป็นตำนานสืบไปใช่ไหม?
+Hey, just double checking that you want to pin this message to the current channel for posterity and greatness?	เดี๋ยวก่อน ขอเช็กอีกครั้งว่าคุณต้องการปักหมุดข้อความนี้ในช่องปัจจุบันเพื่อให้เป็นตำนานสืบไปใช่ไหม?
+Hide	ซ่อน
+Hide After Inactivity	ซ่อนเมื่อไม่มีความเคลื่อนไหว
+Hide Chat	ซ่อนแชท
+Hide Fastcord window from screen capture	ซ่อนหน้าต่าง Fastcord จากการจับภาพหน้าจอ
+Hide Muted Channels	ซ่อนช่องที่ปิดเสียง
+Hide invite links to my Discord servers	ซ่อนลิงก์คำเชิญเข้าเซิร์ฟเวอร์ Discord ของฉัน
+Hide my personal information, such as email, connected accounts, and notes	ซ่อนข้อมูลส่วนตัวของฉัน เช่น อีเมล บัญชีที่เชื่อมต่อ และโน้ต
+Hides Fastcord windows from most screen capture software.	ซ่อนหน้าต่าง Fastcord จากซอฟต์แวร์จับภาพหน้าจอส่วนใหญ่
+High	สูง
+Highest	สูงสุด
+Highlights provide occasional updates when your friends are chatting in busy servers, and more.	ไฮไลต์จะแจ้งอัปเดตเป็นครั้งคราวเมื่อเพื่อนของคุณแชทในเซิร์ฟเวอร์ที่คึกคัก และอื่นๆ
+Hindi	ฮินดี
+History	ประวัติ
+Hitting X makes fastcord minimize to the system tray instead of closing.	การกด X จะย่อ fastcord ไปที่ถาดระบบแทนการปิด
+Hm, didn’t work. Double check that the username is correct.	อืม ไม่สำเร็จ ตรวจสอบอีกครั้งว่าชื่อผู้ใช้ถูกต้อง
+Host	โฮสต์
+Host events with an audience	จัดกิจกรรมที่มีผู้ฟัง
+How Discord Uses My Data	Discord ใช้ข้อมูลของฉันอย่างไร
+How can people join your server?	ผู้คนจะเข้าร่วมเซิร์ฟเวอร์ของคุณได้อย่างไร?
+How did your server get started? Why should people join?	เซิร์ฟเวอร์ของคุณเริ่มต้นขึ้นอย่างไร? ทำไมผู้คนควรเข้าร่วม?
+Hungarian	ฮังการี
+I acknowledge that by transferring ownership of this server to %, it officially belongs to them.	ฉันรับทราบว่าการโอนความเป็นเจ้าของเซิร์ฟเวอร์นี้ให้ % จะทำให้เซิร์ฟเวอร์เป็นของเขาอย่างเป็นทางการ
+I agree and understand	ฉันเข้าใจและยอมรับ
+I'm new here, say hi!	ฉันเพิ่งมาใหม่ ทักทายกันหน่อย!
+I'm sure, use a backup code	แน่ใจ ใช้รหัสสำรอง
+IMAGE	รูปภาพ
+INPUT DEVICE	อุปกรณ์อินพุต
+INPUT MODE	โหมดอินพุต
+INPUT SENSITIVITY	ความไวอินพุต
+INPUT VOLUME	ระดับเสียงอินพุต
+INVITE CODE	รหัสคำเชิญ
+INVITE LINK	ลิงก์คำเชิญ
+INVITER	ผู้เชิญ
+INVITES SHOULD LOOK LIKE	คำเชิญควรมีลักษณะดังนี้
+Icon	ไอคอน
+Idle	ไม่อยู่
+If Streamer Mode is enabled...	หากเปิดโหมดสตรีมเมอร์...
+If you do not have access to any other methods, the button below will activate in % second.|If you do not have access to any other methods, the button below will activate in % seconds.	หากคุณไม่มีวิธีอื่นให้ใช้ ปุ่มด้านล่างจะใช้งานได้ในอีก % วินาที
+If you do not have access to any other methods, use the other button below to proceed.	หากคุณไม่มีวิธีอื่นให้ใช้ ให้ใช้ปุ่มอื่นด้านล่างเพื่อดำเนินการต่อ
+Ignore	เพิกเฉย
+Ignore Friend Request	เพิกเฉยคำขอเป็นเพื่อน
+Ignored Users	ผู้ใช้ที่ถูกเพิกเฉย
+Ignored message	ข้อความที่ถูกเพิกเฉย
+Image saved.	บันทึกรูปภาพแล้ว
+Important updates for people in and out of the server	อัปเดตสำคัญสำหรับคนทั้งในและนอกเซิร์ฟเวอร์
+In Channel	ในช่อง
+Inactive Channel	ช่องสำหรับผู้ไม่เคลื่อนไหว
+Inactive Timeout	ระยะหมดเวลาเมื่อไม่เคลื่อนไหว
+Inbox	กล่องข้อความ
+Incoming Call...	สายเรียกเข้า...
+Incoming Friend Request	คำขอเป็นเพื่อนที่ได้รับ
+Indonesian	อินโดนีเซีย
+Insert Timestamp	แทรกเวลา
+Install	ติดตั้ง
+Install Fastcord to open it from the Start menu.	ติดตั้ง Fastcord เพื่อเปิดจากเมนูเริ่ม
+Installing…	กำลังติดตั้ง…
+Instructions Sent	ส่งคำแนะนำแล้ว
+Insults and Slurs	คำดูถูกและคำเหยียด
+Integrations	การเชื่อมต่อ
+Interested	สนใจ
+Invalid Invite	คำเชิญไม่ถูกต้อง
+Invalid date or time	วันที่หรือเวลาไม่ถูกต้อง
+Invisible	ล่องหน
+Invite	เชิญ
+Invite Channel	ช่องคำเชิญ
+Invite Invalid	คำเชิญไม่ถูกต้อง
+Invite Only	เฉพาะผู้ได้รับเชิญ
+Invite People	เชิญผู้คน
+Invite friends to %	เชิญเพื่อนมายัง %
+Invite to Server	เชิญเข้าเซิร์ฟเวอร์
+Invite to Speak	เชิญให้พูด
+Invites	คำเชิญ
+Invites are currently paused for this server. Please try again later.	ขณะนี้เซิร์ฟเวอร์นี้หยุดรับคำเชิญชั่วคราว โปรดลองอีกครั้งภายหลัง
+Invites are paused: nobody can join with an invite link until they're enabled again.	หยุดคำเชิญชั่วคราว: จะไม่มีใครเข้าร่วมด้วยลิงก์คำเชิญได้จนกว่าจะเปิดใช้อีกครั้ง
+It's quiet for now...	ตอนนี้ยังเงียบอยู่...
+Italian	อิตาลี
+JOINED DISCORD	เข้าร่วม DISCORD
+JSON API	JSON API
+January|February|March|April|May|June|July|August|September|October|November|December	มกราคม|กุมภาพันธ์|มีนาคม|เมษายน|พฤษภาคม|มิถุนายน|กรกฎาคม|สิงหาคม|กันยายน|ตุลาคม|พฤศจิกายน|ธันวาคม
+Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec	ม.ค.|ก.พ.|มี.ค.|เม.ย.|พ.ค.|มิ.ย.|ก.ค.|ส.ค.|ก.ย.|ต.ค.|พ.ย.|ธ.ค.
+Japanese	ญี่ปุ่น
+Jitter	จิตเตอร์
+Join	เข้าร่วม
+Join Call	เข้าร่วมการโทร
+Join Server	เข้าร่วมเซิร์ฟเวอร์
+Join Thread	เข้าร่วมเธรด
+Join Voice	เข้าร่วมช่องเสียง
+Join a Server	เข้าร่วมเซิร์ฟเวอร์
+Join the call	เข้าร่วมการโทร
+Joined Threads	เธรดที่เข้าร่วม
+Joining…	กำลังเข้าร่วม…
+Jump	ไปที่
+Jump To Present	ไปยังปัจจุบัน
+Jump to oldest unread message	ไปยังข้อความเก่าสุดที่ยังไม่ได้อ่าน
+KEYBIND	ปุ่มลัด
+Keep Current Permissions	เก็บสิทธิ์ปัจจุบันไว้
+Keep these somewhere safe. Each code signs you in once if you lose your authenticator app; they are shown only now.	เก็บรหัสเหล่านี้ไว้ในที่ปลอดภัย หากคุณทำแอปยืนยันตัวตนหาย แต่ละรหัสใช้เข้าสู่ระบบได้หนึ่งครั้ง และจะแสดงเฉพาะตอนนี้เท่านั้น
+Keep your server private, or open it up for more people to join.	ตั้งเซิร์ฟเวอร์ของคุณเป็นส่วนตัว หรือเปิดให้คนอื่นเข้าร่วมได้มากขึ้น
+Keybinds	ปุ่มลัด
+Keybinds only work while fastcord is focused. To use them in other apps, allow fastcord under Input Monitoring in System Settings, then restart fastcord.	ปุ่มลัดใช้ได้เฉพาะเมื่อ fastcord เป็นหน้าต่างที่ใช้งานอยู่ หากต้องการใช้ในแอปอื่น ให้อนุญาต fastcord ในส่วนการตรวจสอบอินพุตในการตั้งค่าระบบ แล้วรีสตาร์ท fastcord
+Keybinds only work while fastcord is focused: this desktop doesn't let apps see keys pressed in other windows.	ปุ่มลัดใช้ได้เฉพาะเมื่อ fastcord เป็นหน้าต่างที่ใช้งานอยู่: เดสก์ท็อปนี้ไม่ให้แอปเห็นปุ่มที่กดในหน้าต่างอื่น
+Keybinds work in every app, also while fastcord is in the background.	ปุ่มลัดใช้ได้ในทุกแอป แม้ fastcord จะทำงานอยู่เบื้องหลัง
+Keyboard Shortcuts	คีย์ลัด
+Keyboard shortcuts	คีย์ลัด
+Keyword: %	คีย์เวิร์ด: %
+Kick	เตะ
+Kick %	เตะ %
+Kick '%' from Server	เตะ '%' ออกจากเซิร์ฟเวอร์
+Kick Member	เตะสมาชิก
+Kick, Approve, and Reject Members	เตะ อนุมัติ และปฏิเสธสมาชิก
+Korean	เกาหลี
+LIVE	ถ่ายทอดสด
+Language	ภาษา
+Language & Time	ภาษาและเวลา
+Last sync: %	ซิงค์ล่าสุด: %
+Leave Group	ออกจากกลุ่ม
+Leave Server	ออกจากเซิร์ฟเวอร์
+Leave Thread	ออกจากเธรด
+Leaving Discord	กำลังออกจาก Discord
+Left %	ออกจาก % แล้ว
+Let everyone know how to use this channel!	บอกทุกคนว่าช่องนี้ใช้ทำอะไร!
+Let's Check	มาเช็กกัน
+Level %!	เลเวล %!
+Limits	ขีดจำกัด
+Limits the number of users that can connect to this voice channel. Users with the Move Members permission ignore this limit and can move other users into the channel.	จำกัดจำนวนผู้ใช้ที่เชื่อมต่อกับช่องเสียงนี้ได้ ผู้ใช้ที่มีสิทธิ์ย้ายสมาชิกจะไม่ถูกจำกัดและย้ายผู้ใช้อื่นเข้ามาในช่องได้
+Linked Roles	บทบาทที่เชื่อมโยง
+List view	มุมมองรายการ
+Lithuanian	ลิทัวเนีย
+Live Now	กำลังถ่ายทอดสด
+Loading sounds…	กำลังโหลดเสียง…
+Loading...	กำลังโหลด...
+Loading…	กำลังโหลด…
+Location	สถานที่
+Log In	เข้าสู่ระบบ
+Log Out	ออกจากระบบ
+Log Out All Known Devices	ออกจากระบบอุปกรณ์ที่รู้จักทั้งหมด
+Log in	เข้าสู่ระบบ
+Log in to Discord in your web browser.	เข้าสู่ระบบ Discord ในเว็บเบราว์เซอร์ของคุณ
+Log in with QR Code	เข้าสู่ระบบด้วยคิวอาร์โค้ด
+Log in with a token	เข้าสู่ระบบด้วยโทเค็น
+Log out of all known devices	ออกจากระบบอุปกรณ์ที่รู้จักทั้งหมด
+Logged-in Devices	อุปกรณ์ที่เข้าสู่ระบบอยู่
+Logging in as %	กำลังเข้าสู่ระบบในชื่อ %
+Logging in…	กำลังเข้าสู่ระบบ…
+Login or password is invalid.	ข้อมูลเข้าสู่ระบบหรือรหัสผ่านไม่ถูกต้อง
+Looking for screens…	กำลังค้นหาหน้าจอ…
+Lotus Mode	โหมดโลตัส
+Low	ต่ำ
+Lower Hand	เอามือลง
+MAX NUMBER OF USES	จำนวนครั้งที่ใช้ได้สูงสุด
+MEMBER SINCE	เป็นสมาชิกตั้งแต่
+MEMBERS	สมาชิก
+MUTE	ปิดเสียง
+Main Profile	โปรไฟล์หลัก
+Make a selection	เลือก
+Manage Accounts	จัดการบัญชี
+Manage Channel	จัดการช่อง
+Manage Channels	จัดการช่อง
+Manage Events	จัดการกิจกรรม
+Manage Expressions	จัดการการแสดงออก
+Manage Members	จัดการสมาชิก
+Manage Messages	จัดการข้อความ
+Manage Nicknames	จัดการชื่อเล่น
+Manage Permissions	จัดการสิทธิ์
+Manage Roles	จัดการบทบาท
+Manage Server	จัดการเซิร์ฟเวอร์
+Manage Threads and Posts	จัดการเธรดและโพสต์
+Manage Webhooks	จัดการเว็บฮุก
+Manage settings that help keep your server active.	จัดการการตั้งค่าที่ช่วยให้เซิร์ฟเวอร์ของคุณคึกคัก
+Mark All as Read	ทำเครื่องหมายทั้งหมดว่าอ่านแล้ว
+Mark As Read	ทำเครื่องหมายว่าอ่านแล้ว
+Mark Folder As Read	ทำเครื่องหมายโฟลเดอร์ว่าอ่านแล้ว
+Mark Unread	ทำเครื่องหมายว่ายังไม่ได้อ่าน
+Mark a message unread	ทำเครื่องหมายข้อความว่ายังไม่ได้อ่าน
+Mark as Verified	ทำเครื่องหมายว่ายืนยันแล้ว
+Mark as spoiler	ทำเครื่องหมายว่าเป็นสปอยล์
+Mark channel read	ทำเครื่องหมายช่องว่าอ่านแล้ว
+Mark server read	ทำเครื่องหมายเซิร์ฟเวอร์ว่าอ่านแล้ว
+Marked as read	ทำเครื่องหมายว่าอ่านแล้ว
+Marks your message as a spoiler.	ทำเครื่องหมายข้อความของคุณว่าเป็นสปอยล์
+Match your device's light or dark mode.	ใช้โหมดสว่างหรือมืดตามอุปกรณ์ของคุณ
+Max file size is % MB please.	ขนาดไฟล์สูงสุดคือ % MB นะ
+Measuring	กำลังวัด
+Medium	ปานกลาง
+Member Since	เป็นสมาชิกตั้งแต่
+Members	สมาชิก
+Members can pick more than one answer	สมาชิกเลือกได้มากกว่าหนึ่งคำตอบ
+Members can wear your server's tag next to their name across Discord.	สมาชิกติดแท็กเซิร์ฟเวอร์ของคุณไว้ข้างชื่อได้ทั่วทั้ง Discord
+Members in timeout can't send messages, react, join voice or speak until it ends.	สมาชิกที่ถูกพักการใช้งานจะส่งข้อความ แสดงรีแอคชัน เข้าช่องเสียง หรือพูดไม่ได้จนกว่าจะครบเวลา
+Members in timeout can't send messages, react, join voice or start threads until it ends.	สมาชิกที่ถูกพักการใช้งานจะส่งข้อความ แสดงรีแอคชัน เข้าช่องเสียง หรือเริ่มเธรดไม่ได้จนกว่าจะครบเวลา
+Members matching @%	สมาชิกที่ตรงกับ @%
+Members must answer this question to join.	สมาชิกต้องตอบคำถามนี้จึงจะเข้าร่วมได้
+Members of the server must meet the following criteria before they can send messages in text channels or initiate a direct message conversation. If a member has an assigned role this does not apply.	สมาชิกของเซิร์ฟเวอร์ต้องมีคุณสมบัติตามเกณฑ์ต่อไปนี้ก่อนจึงจะส่งข้อความในช่องข้อความหรือเริ่มการสนทนาแบบข้อความส่วนตัวได้ ไม่มีผลกับสมาชิกที่มีบทบาทแล้ว
+Members use the colour of the highest role they have on the roles list.	สมาชิกจะใช้สีของบทบาทที่สูงที่สุดที่มีในรายการบทบาท
+Members use the colour of the highest role they have on this list. Drag roles, or use the arrows, to reorder them.	สมาชิกจะใช้สีของบทบาทที่สูงที่สุดที่มีในรายการนี้ ลากบทบาทหรือใช้ลูกศรเพื่อจัดลำดับใหม่
+Members will be restricted to sending one message and creating one thread per this interval, unless they have the Bypass Slowmode permission.	สมาชิกจะส่งข้อความได้หนึ่งข้อความและสร้างเธรดได้หนึ่งเธรดต่อช่วงเวลานี้ เว้นแต่จะมีสิทธิ์ข้ามโหมดช้า
+Members with a matching name can't talk or interact until they change it.	สมาชิกที่มีชื่อตรงกันจะพูดหรือโต้ตอบไม่ได้จนกว่าจะเปลี่ยนชื่อ
+Members with this permission will have every permission and will also bypass all channel specific permissions or restrictions (for example, these members would get access to all private channels). This is a dangerous permission to grant.	สมาชิกที่มีสิทธิ์นี้จะมีสิทธิ์ทุกอย่างและข้ามสิทธิ์หรือข้อจำกัดเฉพาะช่องทั้งหมด (เช่น จะเข้าถึงช่องส่วนตัวได้ทั้งหมด) การให้สิทธิ์นี้มีความเสี่ยง
+Members — %	สมาชิก — %
+Membership Permissions	สิทธิ์การเป็นสมาชิก
+Mention	กล่าวถึง
+Mention %	กล่าวถึง %
+Mention @everyone, @here, and All Roles	กล่าวถึง @everyone, @here และทุกบทบาท
+Mention limit	ขีดจำกัดการกล่าวถึง
+Mention raid protection	การป้องกันการบุกด้วยการกล่าวถึง
+Mention removed	ลบการกล่าวถึงแล้ว
+Mentions	การกล่าวถึง
+Mentions User	กล่าวถึงผู้ใช้
+Message	ข้อความ
+Message #%	ส่งข้อความถึง #%
+Message %	ส่งข้อความถึง %
+Message @%	ส่งข้อความถึง @%
+Message @% (encrypted)	ส่งข้อความถึง @% (เข้ารหัส)
+Message @% (not encrypted)	ส่งข้อความถึง @% (ไม่เข้ารหัส)
+Message Contains	ข้อความมี
+Message Display	การแสดงข้อความ
+Message Requests	คำขอส่งข้อความ
+Message deleted	ลบข้อความแล้ว
+Message failed to send.	ส่งข้อความไม่สำเร็จ
+Message link copied: paste it into Discord's report form	คัดลอกลิงก์ข้อความแล้ว: วางลงในแบบฟอร์มรายงานของ Discord
+Message request ignored	เพิกเฉยคำขอส่งข้อความแล้ว
+Message unpinned	เลิกปักหมุดข้อความแล้ว
+Messages Failed To Load	โหลดข้อความไม่สำเร็จ
+Messages from members you may not know go to Message Requests.	ข้อความจากสมาชิกที่คุณอาจไม่รู้จักจะไปอยู่ในคำขอส่งข้อความ
+Messages from people you may not know go to Message Requests instead of your DMs.	ข้อความจากคนที่คุณอาจไม่รู้จักจะไปอยู่ในคำขอส่งข้อความแทน DM ของคุณ
+Messages from server members without a role will be filtered for sensitive image-based media.	ข้อความจากสมาชิกเซิร์ฟเวอร์ที่ไม่มีบทบาทจะถูกกรองสื่อรูปภาพที่ละเอียดอ่อน
+Messages in servers	ข้อความในเซิร์ฟเวอร์
+Messages will not be filtered for sensitive image-based media.	ข้อความจะไม่ถูกกรองสื่อรูปภาพที่ละเอียดอ่อน
+Messaging Permissions	สิทธิ์การส่งข้อความ
+Minimize to Tray	ย่อไปที่ถาดระบบ
+Mobile Push Notifications	การแจ้งเตือนแบบพุชบนมือถือ
+Moderation	การดูแล
+Moderators must have two-factor authentication enabled to ban, kick, or timeout members and delete messages.	ผู้ดูแลต้องเปิดการยืนยันตัวตนแบบสองขั้นตอนจึงจะแบน เตะ หรือพักการใช้งานสมาชิก และลบข้อความได้
+Moderators only	เฉพาะผู้ดูแล
+Modern, beautiful, and easy on your eyes.	ทันสมัย สวยงาม และสบายตา
+Modify Attachment	แก้ไขไฟล์แนบ
+Motion	การเคลื่อนไหว
+Move Members	ย้ายสมาชิก
+Move To	ย้ายไปที่
+Move to Audience	ย้ายไปเป็นผู้ฟัง
+Multi-Factor Authentication	การยืนยันตัวตนแบบหลายขั้นตอน
+Must also be a member of this server for longer than 10 minutes.	ต้องเป็นสมาชิกของเซิร์ฟเวอร์นี้นานกว่า 10 นาทีด้วย
+Must also be registered on Discord for longer than 5 minutes.	ต้องลงทะเบียน Discord มานานกว่า 5 นาทีด้วย
+Must have a verified email on their Discord account.	ต้องมีอีเมลที่ยืนยันแล้วในบัญชี Discord
+Must have a verified phone on their Discord account.	ต้องมีโทรศัพท์ที่ยืนยันแล้วในบัญชี Discord
+Mute	ปิดเสียง
+Mute %	ปิดเสียง %
+Mute Category	ปิดเสียงหมวดหมู่
+Mute Channel	ปิดเสียงช่อง
+Mute Members	ปิดเสียงสมาชิก
+Mute New Events	ปิดเสียงกิจกรรมใหม่
+Mute Server	ปิดเสียงเซิร์ฟเวอร์
+Mute Thread	ปิดเสียงเธรด
+Muted until %1, %2	ปิดเสียงจนถึง %1, %2
+Muting a server prevents unread indicators and notifications from appearing unless you are mentioned.	การปิดเสียงเซิร์ฟเวอร์จะไม่แสดงตัวบ่งชี้ข้อความที่ยังไม่ได้อ่านและการแจ้งเตือน เว้นแต่คุณจะถูกกล่าวถึง
+Mutual Friends	เพื่อนที่มีร่วมกัน
+Mutual Servers	เซิร์ฟเวอร์ที่มีร่วมกัน
+My Account	บัญชีของฉัน
+My server	เซิร์ฟเวอร์ของฉัน
+NAME	ชื่อ
+NEW	ใหม่
+NEW PASSWORD	รหัสผ่านใหม่
+NO ACTIVE INVITE LINKS	ไม่มีลิงก์คำเชิญที่ใช้งานอยู่
+NOTHING	ไม่มีอะไร
+Name	ชื่อ
+Name your sound	ตั้งชื่อเสียงของคุณ
+Name your sticker	ตั้งชื่อสติกเกอร์ของคุณ
+Nature	ธรรมชาติ
+Navigate Back	ย้อนกลับ
+Navigate Forward	ไปข้างหน้า
+Need an account?	ต้องการบัญชีใช่ไหม?
+Network	เครือข่าย
+Never	ไม่เลย
+Nevermind	ไม่เป็นไร
+New Category	หมวดหมู่ใหม่
+New Group DM	DM กลุ่มใหม่
+New Post	โพสต์ใหม่
+New Thread	เธรดใหม่
+New Webhook	เว็บฮุกใหม่
+New members must read and agree to these before they can talk.	สมาชิกใหม่ต้องอ่านและยอมรับข้อเหล่านี้ก่อนจึงจะพูดคุยได้
+New members pick channels and roles from your questions when they join.	สมาชิกใหม่จะเลือกช่องและบทบาทจากคำถามของคุณเมื่อเข้าร่วม
+New tag	แท็กใหม่
+New threads will stop showing in the channel list after being inactive for the specified duration.	เธรดใหม่จะไม่แสดงในรายการช่องอีกเมื่อไม่มีความเคลื่อนไหวตามระยะเวลาที่กำหนด
+Newest	ใหม่สุด
+Next	ถัดไป
+Nickname	ชื่อเล่น
+Nicknames are visible to everyone on this server. Do not change them unless you are enforcing a naming system or clearing a bad nickname.	ทุกคนในเซิร์ฟเวอร์นี้เห็นชื่อเล่นได้ อย่าเปลี่ยนชื่อเล่นเว้นแต่จะบังคับใช้ระบบการตั้งชื่อหรือล้างชื่อเล่นที่ไม่เหมาะสม
+No GIFs found	ไม่พบ GIF
+No Inactive Channel	ไม่มีช่องสำหรับผู้ไม่เคลื่อนไหว
+No Invite	ไม่มีคำเชิญ
+No Keybind Set	ยังไม่ได้ตั้งปุ่มลัด
+No System Messages	ไม่มีข้อความระบบ
+No applications waiting	ไม่มีใบสมัครที่รออยู่
+No apps have been added to this server.	ยังไม่มีแอปที่เพิ่มในเซิร์ฟเวอร์นี้
+No bans	ไม่มีการแบน
+No bans match your search	ไม่มีการแบนที่ตรงกับการค้นหา
+No emoji found	ไม่พบอีโมจิ
+No favorites yet	ยังไม่มีรายการโปรด
+No file chosen	ยังไม่ได้เลือกไฟล์
+No friends in common	ไม่มีเพื่อนที่มีร่วมกัน
+No limit	ไม่จำกัด
+No logs yet	ยังไม่มีบันทึก
+No members found	ไม่พบสมาชิก
+No members have this role yet.	ยังไม่มีสมาชิกที่มีบทบาทนี้
+No message requests.	ไม่มีคำขอส่งข้อความ
+No one is speaking yet	ยังไม่มีใครพูด
+No one's around right now.	ตอนนี้ไม่มีใครอยู่เลย
+No one's here yet	ยังไม่มีใครอยู่ที่นี่
+No posts match	ไม่มีโพสต์ที่ตรงกัน
+No posts yet	ยังไม่มีโพสต์
+No questions yet.	ยังไม่มีคำถาม
+No reason given	ไม่ได้ระบุเหตุผล
+No results	ไม่มีผลลัพธ์
+No results found	ไม่พบผลลัพธ์
+No servers in common	ไม่มีเซิร์ฟเวอร์ที่มีร่วมกัน
+No sounds found	ไม่พบเสียง
+No sounds yet.	ยังไม่มีเสียง
+No spam. Nice.	ไม่มีสแปม เยี่ยม
+No stickers found	ไม่พบสติกเกอร์
+No stickers yet	ยังไม่มีสติกเกอร์
+Nobody can join this server with an invite link until the pause ends or you enable invites again.	จะไม่มีใครเข้าร่วมเซิร์ฟเวอร์นี้ด้วยลิงก์คำเชิญได้จนกว่าการหยุดชั่วคราวจะสิ้นสุดหรือคุณเปิดคำเชิญอีกครั้ง
+Nobody has mentioned you recently.	ช่วงนี้ไม่มีใครกล่าวถึงคุณ
+Noise Suppression	การลดเสียงรบกวน
+Noise Suppression: Off	การลดเสียงรบกวน: ปิด
+Noise Suppression: On	การลดเสียงรบกวน: เปิด
+None	ไม่มี
+Norwegian	นอร์เวย์
+Not Now	ไม่ใช่ตอนนี้
+Not connected to % yet.	ยังไม่ได้เชื่อมต่อกับ %
+Not encrypted	ไม่เข้ารหัส
+Not encrypted: Discord can read this message	ไม่เข้ารหัส: Discord อ่านข้อความนี้ได้
+Not end-to-end encrypted	ไม่ได้เข้ารหัสต้นทางถึงปลายทาง
+Not me, start over	ไม่ใช่ฉัน เริ่มใหม่
+Note	โน้ต
+Note (only visible to you)	โน้ต (เห็นได้เฉพาะคุณ)
+Note: Members with the "Mention @everyone, @here, and All Roles" permission will always be able to ping this role.	หมายเหตุ: สมาชิกที่มีสิทธิ์ "กล่าวถึง @everyone, @here และทุกบทบาท" จะ ping บทบาทนี้ได้เสมอ
+Nothing	ไม่มีอะไร
+Notification Settings	การตั้งค่าการแจ้งเตือน
+Notification settings changed	เปลี่ยนการตั้งค่าการแจ้งเตือนแล้ว
+Notifications	การแจ้งเตือน
+Notify everyone online who has permission to view this channel.	แจ้งเตือนทุกคนที่ออนไลน์และมีสิทธิ์ดูช่องนี้
+Notify everyone who has permission to view this channel.	แจ้งเตือนทุกคนที่มีสิทธิ์ดูช่องนี้
+Notify me when...	แจ้งเตือนฉันเมื่อ...
+Notify users with this role who have permission to view this channel.	แจ้งเตือนผู้ใช้ที่มีบทบาทนี้และมีสิทธิ์ดูช่องนี้
+OUTPUT DEVICE	อุปกรณ์เอาต์พุต
+OUTPUT VOLUME	ระดับเสียงเอาต์พุต
+Objects	สิ่งของ
+Off	ปิด
+Offline	ออฟไลน์
+Oh yeah. Pin it	ใช่เลย ปักหมุดเลย
+Okay	ตกลง
+Oldest	เก่าสุด
+On click	เมื่อคลิก
+On servers I moderate	ในเซิร์ฟเวอร์ที่ฉันดูแล
+Onboarding	การต้อนรับสมาชิกใหม่
+One rule per line, for example: Be respectful	หนึ่งกฎต่อหนึ่งบรรทัด เช่น: ให้เกียรติกัน
+Ongoing call	การโทรที่กำลังดำเนินอยู่
+Online	ออนไลน์
+Only @mentions	เฉพาะ @การกล่าวถึง
+Only servers and channels you have webhook permissions in are shown.	แสดงเฉพาะเซิร์ฟเวอร์และช่องที่คุณมีสิทธิ์เว็บฮุก
+Only you can see the nickname you give %.	มีเพียงคุณที่เห็นชื่อเล่นที่คุณตั้งให้ %
+Only you can see this · 	มีเพียงคุณที่เห็นข้อความนี้ ·
+Oops!	อุ๊ย!
+Open Chat	เปิดแชท
+Open Image Link	เปิดลิงก์รูปภาพ
+Open Link	เปิดลิงก์
+Open Logs Folder	เปิดโฟลเดอร์บันทึก
+Open Media Link	เปิดลิงก์สื่อ
+Open Server Insights	เปิดข้อมูลเชิงลึกของเซิร์ฟเวอร์
+Open Settings	เปิดการตั้งค่า
+Open discord.com	เปิด discord.com
+Open in Browser	เปิดในเบราว์เซอร์
+Open in YouTube	เปิดใน YouTube
+Open the developer tools (Cmd+Option+I) and choose the Network tab.	เปิดเครื่องมือสำหรับนักพัฒนา (Cmd+Option+I) แล้วเลือกแท็บ Network
+Open the developer tools (Ctrl+Shift+I) and choose the Network tab.	เปิดเครื่องมือสำหรับนักพัฒนา (Ctrl+Shift+I) แล้วเลือกแท็บ Network
+Or, send a server invite link to a friend	หรือส่งลิงก์คำเชิญเข้าเซิร์ฟเวอร์ให้เพื่อน
+Original message was deleted	ข้อความต้นฉบับถูกลบแล้ว
+Other Active Threads	เธรดอื่นที่ใช้งานอยู่
+Other Devices	อุปกรณ์อื่น
+Outgoing Friend Request	คำขอเป็นเพื่อนที่ส่งไป
+Overview	ภาพรวม
+PASSWORD	รหัสผ่าน
+PM	หลังเที่ยง
+PRIVACY CODE	รหัสความเป็นส่วนตัว
+PTT Activate	เปิดกดเพื่อพูด
+PTT Deactivate	ปิดกดเพื่อพูด
+PUSH TO TALK RELEASE DELAY	ดีเลย์เมื่อปล่อยปุ่มกดเพื่อพูด
+Packet loss	แพ็กเก็ตสูญหาย
+Packets received	แพ็กเก็ตที่ได้รับ
+Packets sent	แพ็กเก็ตที่ส่ง
+Page %	หน้า %
+Password	รหัสผ่าน
+Password and Authentication	รหัสผ่านและการยืนยันตัวตน
+Passwords do not match!	รหัสผ่านไม่ตรงกัน!
+Paste	วาง
+Paste an emoji (optional)	วางอีโมจิ (ไม่บังคับ)
+Paste your token	วางโทเค็นของคุณ
+Pause Invites	หยุดคำเชิญชั่วคราว
+Pending	รอดำเนินการ
+People	ผู้คน
+People can join your server directly with an invite	ผู้คนเข้าร่วมเซิร์ฟเวอร์ของคุณได้โดยตรงด้วยคำเชิญ
+People in a voice channel with you can join the game you're playing.	คนที่อยู่ในช่องเสียงกับคุณเข้าร่วมเกมที่คุณกำลังเล่นได้
+People must submit an application and be approved to join	ผู้คนต้องส่งใบสมัครและได้รับอนุมัติจึงจะเข้าร่วมได้
+People who applied to join, waiting for a moderator.	คนที่สมัครเข้าร่วมและกำลังรอผู้ดูแล
+Per-server Profiles	โปรไฟล์ประจำเซิร์ฟเวอร์
+Permissions	สิทธิ์
+Permissions not synced with category: 	สิทธิ์ไม่ได้ซิงค์กับหมวดหมู่:
+Permissions synced with category: 	สิทธิ์ซิงค์กับหมวดหมู่:
+Permissions: %	สิทธิ์: %
+Phone Number	หมายเลขโทรศัพท์
+Pick a channel	เลือกช่อง
+Pick a channel for the alerts.	เลือกช่องสำหรับการแจ้งเตือน
+Pick at least one response.	เลือกอย่างน้อยหนึ่งคำตอบ
+Pin It. Pin It Good.	ปักหมุดเลย ปักให้แน่น
+Pin Message	ปักหมุดข้อความ
+Pin Messages	ปักหมุดข้อความ
+Ping	Ping
+Ping: % ms	Ping: % ms
+Ping: measuring…	Ping: กำลังวัด…
+Pinned Messages	ข้อความที่ปักหมุด
+Play Here	เล่นที่นี่
+Play Soundboard Through My Mic	เล่นซาวด์บอร์ดผ่านไมค์ของฉัน
+Play YouTube videos here with yt-dlp? It needs yt-dlp installed, and connects to YouTube from your computer. Settings > Chat can change this.	เล่นวิดีโอ YouTube ที่นี่ด้วย yt-dlp ไหม? ต้องติดตั้ง yt-dlp และจะเชื่อมต่อกับ YouTube จากคอมพิวเตอร์ของคุณ เปลี่ยนได้ใน การตั้งค่า > แชท
+Play YouTube videos in fastcord with yt-dlp	เล่นวิดีโอ YouTube ใน fastcord ด้วย yt-dlp
+Please enter a valid invite link or invite code.	โปรดกรอกลิงก์คำเชิญหรือรหัสคำเชิญที่ถูกต้อง
+Please try again later.	โปรดลองอีกครั้งภายหลัง
+Polish	โปแลนด์
+Poll closed	โพลปิดแล้ว
+Portuguese, Brazilian	โปรตุเกส (บราซิล)
+Post	โพสต์
+Post Guidelines	แนวทางการโพสต์
+Post from a script	โพสต์จากสคริปต์
+Post messages that reach servers outside your own. Members can follow this channel, so the posts you publish here appear in their servers.	โพสต์ข้อความที่ส่งถึงเซิร์ฟเวอร์อื่นนอกจากของคุณ สมาชิกติดตามช่องนี้ได้ โพสต์ที่คุณเผยแพร่ที่นี่จึงจะไปปรากฏในเซิร์ฟเวอร์ของพวกเขา
+Post title	ชื่อโพสต์
+Posting...	กำลังโพสต์...
+Press a shortcut…	กดคีย์ลัด…
+Previous	ก่อนหน้า
+Previous / next channel	ช่องก่อนหน้า / ถัดไป
+Previous / next channel with mentions	ช่องที่มีการกล่าวถึงก่อนหน้า / ถัดไป
+Previous / next server	เซิร์ฟเวอร์ก่อนหน้า / ถัดไป
+Previous / next unread channel	ช่องที่ยังไม่ได้อ่านก่อนหน้า / ถัดไป
+Previous 12 Hours	12 ชั่วโมงที่ผ่านมา
+Previous 24 Hours	24 ชั่วโมงที่ผ่านมา
+Previous 3 Days	3 วันที่ผ่านมา
+Previous 6 Hours	6 ชั่วโมงที่ผ่านมา
+Previous 7 Days	7 วันที่ผ่านมา
+Previous Hour	ชั่วโมงที่ผ่านมา
+Priority Speaker	ผู้พูดลำดับแรก
+Privacy Settings	การตั้งค่าความเป็นส่วนตัว
+Private Category	หมวดหมู่ส่วนตัว
+Private Channel	ช่องส่วนตัว
+Private Profile	โปรไฟล์ส่วนตัว
+Profile	โปรไฟล์
+Profile Banner	แบนเนอร์โปรไฟล์
+Profile Privacy	ความเป็นส่วนตัวของโปรไฟล์
+Profiles	โปรไฟล์
+Prompt members to reply to welcome messages with a sticker.	ชวนสมาชิกตอบกลับข้อความต้อนรับด้วยสติกเกอร์
+Pronouns	คำสรรพนาม
+Protect your Discord account with an extra layer of security. Once configured, you'll be required to enter your password and complete one additional step in order to sign in.	ปกป้องบัญชี Discord ของคุณด้วยการรักษาความปลอดภัยอีกชั้น เมื่อตั้งค่าแล้ว คุณจะต้องกรอกรหัสผ่านและทำอีกหนึ่งขั้นตอนเพื่อเข้าสู่ระบบ
+Protip:	เคล็ดลับ:
+Publish	เผยแพร่
+Push to Mute	กดเพื่อปิดเสียง
+Push to Talk	กดเพื่อพูด
+Push to Talk (Normal)	กดเพื่อพูด (ปกติ)
+Q: %	ถาม: %
+Question	คำถาม
+Questions	คำถาม
+ROLES	บทบาท
+ROLES — %	บทบาท — %
+ROLES/MEMBERS	บทบาท/สมาชิก
+RTC Connecting	กำลังเชื่อมต่อ RTC
+Read Message History	อ่านประวัติข้อความ
+Reason	เหตุผล
+Reason for Ban	เหตุผลในการแบน
+Reason for Kick	เหตุผลในการเตะ
+Reason for Timeout	เหตุผลในการพักการใช้งาน
+Reason: %	เหตุผล: %
+Received	ได้รับ
+Recently Active	ใช้งานล่าสุด
+Reconnect	เชื่อมต่อใหม่
+Record Keybind	บันทึกปุ่มลัด
+Reduce the saturation of colors within the application, for those with color sensitivities.	ลดความอิ่มตัวของสีในแอป สำหรับผู้ที่ไวต่อสี
+Reduces the amount of animation and motion effects. On whenever your device asks for reduced motion.	ลดภาพเคลื่อนไหวและเอฟเฟกต์การเคลื่อนไหว เปิดอยู่เสมอเมื่ออุปกรณ์ของคุณขอลดการเคลื่อนไหว
+Region Override	กำหนดภูมิภาคเอง
+Register	ลงทะเบียน
+Reject	ปฏิเสธ
+Rejoin	เข้าร่วมอีกครั้ง
+Related Emoji	อีโมจิที่เกี่ยวข้อง
+Relevant	เกี่ยวข้อง
+Remove	ลบ
+Remove %	ลบ %
+Remove All Embeds	ลบเนื้อหาฝังทั้งหมด
+Remove All Reactions	ลบรีแอคชันทั้งหมด
+Remove Answer	ลบคำตอบ
+Remove Attachment	ลบไฟล์แนบ
+Remove Authenticator App	ลบแอปยืนยันตัวตน
+Remove Avatar	ลบอวาตาร์
+Remove Embeds	ลบเนื้อหาฝัง
+Remove Friend	ลบเพื่อน
+Remove From Group	นำออกจากกลุ่ม
+Remove Icon	ลบไอคอน
+Remove Reaction	ลบรีแอคชัน
+Remove Reactions	ลบรีแอคชัน
+Remove Reactions for Emoji	ลบรีแอคชันของอีโมจินี้
+Remove Server	ลบเซิร์ฟเวอร์
+Remove Spoiler	ลบสปอยล์
+Remove Timeout	ยกเลิกการพักการใช้งาน
+Remove Vote	ลบโหวต
+Remove all embeds	ลบเนื้อหาฝังทั้งหมด
+Remove from Favorites	ลบออกจากรายการโปรด
+Remove notification override for %	ลบการแจ้งเตือนเฉพาะสำหรับ %
+Remove the files added before encryption was on: they'd go unencrypted.	ลบไฟล์ที่เพิ่มไว้ก่อนเปิดการเข้ารหัส: ไฟล์เหล่านั้นจะถูกส่งแบบไม่เข้ารหัส
+Remove the files added while encryption was on: they'd arrive as unreadable ciphertext.	ลบไฟล์ที่เพิ่มไว้ตอนเปิดการเข้ารหัส: ไฟล์เหล่านั้นจะไปถึงเป็นข้อความเข้ารหัสที่อ่านไม่ได้
+Removing…	กำลังลบ…
+Repeated encrypted message	ข้อความเข้ารหัสที่ซ้ำ
+Reply	ตอบกลับ
+Replying to	กำลังตอบกลับ
+Report Message	รายงานข้อความ
+Request Data	ขอข้อมูล
+Request all of my Data	ขอข้อมูลทั้งหมดของฉัน
+Request to Speak	ขอพูด
+Requests	คำขอ
+Require 2FA for moderator actions	บังคับ 2FA สำหรับการดำเนินการของผู้ดูแล
+Require members to agree to the server rules	กำหนดให้สมาชิกยอมรับกฎของเซิร์ฟเวอร์
+Require people to select tags when posting	กำหนดให้เลือกแท็กเมื่อโพสต์
+Required	จำเป็น
+Resend SMS?	ส่ง SMS อีกครั้งไหม?
+Reset	รีเซ็ต
+Reset Friend Nickname	รีเซ็ตชื่อเล่นเพื่อน
+Reset Voice Settings	รีเซ็ตการตั้งค่าเสียง
+Resolving Invite	กำลังตรวจสอบคำเชิญ
+Responses	คำตอบ
+Retry	ลองใหม่
+Retry Now	ลองใหม่ตอนนี้
+Return to call	กลับไปที่การโทร
+Return to the connected call	กลับไปที่การโทรที่เชื่อมต่ออยู่
+Reveal	เปิดเผย
+Review	ตรวจสอบ
+Revoke	เพิกถอน
+Revoke Ban	ยกเลิกการแบน
+Revoke Invite	เพิกถอนคำเชิญ
+Revoke the ban? They will be able to join again with an invite.	ยกเลิกการแบนไหม? เขาจะเข้าร่วมได้อีกครั้งด้วยคำเชิญ
+Ring	โทรเรียก
+Ringing…	กำลังโทรเรียก…
+Role Color	สีบทบาท
+Role Colors	สีบทบาท
+Role Icon	ไอคอนบทบาท
+Role name	ชื่อบทบาท
+Roles	บทบาท
+Romanian, Romania	โรมาเนีย (โรมาเนีย)
+Rule: %	กฎ: %
+Rules or Guidelines Channel	ช่องกฎหรือแนวทาง
+Russian	รัสเซีย
+SELECT A CHANNEL	เลือกช่อง
+SELECT A SERVER	เลือกเซิร์ฟเวอร์
+SERVER NAME	ชื่อเซิร์ฟเวอร์
+SOUNDBOARD VOLUME	ระดับเสียงซาวด์บอร์ด
+STATIC EMOJI — % SLOTS AVAILABLE	อีโมจิภาพนิ่ง — ว่าง % ช่อง
+Safety Notifications Channel	ช่องการแจ้งเตือนด้านความปลอดภัย
+Safety Number	หมายเลขความปลอดภัย
+Safety Setup	การตั้งค่าความปลอดภัย
+Safety checks	การตรวจสอบความปลอดภัย
+Same as Device Theme	เหมือนธีมของอุปกรณ์
+Saturation	ความอิ่มตัวของสี
+Save	บันทึก
+Save Changes	บันทึกการเปลี่ยนแปลง
+Save Image	บันทึกรูปภาพ
+Saving...	กำลังบันทึก...
+Saving…	กำลังบันทึก…
+Scan this with the Discord mobile app to log in instantly.	สแกนด้วยแอป Discord บนมือถือเพื่อเข้าสู่ระบบทันที
+Schedule an event for any planned activity in your server.	กำหนดเวลากิจกรรมสำหรับสิ่งที่วางแผนไว้ในเซิร์ฟเวอร์ของคุณ
+Screen	หน้าจอ
+Screen sharing isn't supported on this platform yet.	ยังไม่รองรับการแชร์หน้าจอบนแพลตฟอร์มนี้
+Scroll chat	เลื่อนแชท
+Search	ค้นหา
+Search %	ค้นหา %
+Search Bans by User ID or Username	ค้นหาการแบนด้วย ID ผู้ใช้หรือชื่อผู้ใช้
+Search Klipy	ค้นหาใน Klipy
+Search Options	ตัวเลือกการค้นหา
+Search by username or id	ค้นหาด้วยชื่อผู้ใช้หรือ ID
+Search for friends	ค้นหาเพื่อน
+Search members to add (press Enter)	ค้นหาสมาชิกที่จะเพิ่ม (กด Enter)
+Search or create a post...	ค้นหาหรือสร้างโพสต์...
+Search sounds	ค้นหาเสียง
+Searching...	กำลังค้นหา...
+Select Friends	เลือกเพื่อน
+Select a Language	เลือกภาษา
+Select a channel	เลือกช่อง
+Select a channel or category…	เลือกช่องหรือหมวดหมู่…
+Select one answer	เลือกหนึ่งคำตอบ
+Select one or more answers	เลือกอย่างน้อยหนึ่งคำตอบ
+Select where you want these updates to go. You can remove this at any time in Server Settings > Integrations > Channels Followed.	เลือกว่าต้องการให้อัปเดตเหล่านี้ไปที่ใด คุณลบได้ทุกเมื่อใน การตั้งค่าเซิร์ฟเวอร์ > การเชื่อมต่อ > ช่องที่ติดตาม
+Select where you want to share this message.	เลือกว่าต้องการแชร์ข้อความนี้ที่ใด
+Send	ส่ง
+Send Friend Request	ส่งคำขอเป็นเพื่อน
+Send Messages and Create Posts	ส่งข้อความและสร้างโพสต์
+Send Messages in Threads and Posts	ส่งข้อความในเธรดและโพสต์
+Send New Key	ส่งคีย์ใหม่
+Send Text-to-Speech Messages	ส่งข้อความแปลงข้อความเป็นเสียง
+Send Voice Messages	ส่งข้อความเสียง
+Send a random welcome message when someone joins this server.	ส่งข้อความต้อนรับแบบสุ่มเมื่อมีคนเข้าร่วมเซิร์ฟเวอร์นี้
+Send a server invite link to a friend	ส่งลิงก์คำเชิญเข้าเซิร์ฟเวอร์ให้เพื่อน
+Send an alert	ส่งการแจ้งเตือน
+Send helpful tips for server setup.	ส่งเคล็ดลับที่มีประโยชน์สำหรับการตั้งค่าเซิร์ฟเวอร์
+Send messages, images, GIFs, emoji, opinions, and puns	ส่งข้อความ รูปภาพ GIF อีโมจิ ความคิดเห็น และมุกตลก
+Sending...	กำลังส่ง...
+Sent	ส่งแล้ว
+Sent a file	ส่งไฟล์
+Sent a sticker	ส่งสติกเกอร์
+Sent — %	ส่งแล้ว — %
+Server	เซิร์ฟเวอร์
+Server Avatar	อวาตาร์ในเซิร์ฟเวอร์
+Server Deafen	ปิดการได้ยินระดับเซิร์ฟเวอร์
+Server Deafened	ถูกปิดการได้ยินโดยเซิร์ฟเวอร์
+Server Guide	คู่มือเซิร์ฟเวอร์
+Server ID	ID เซิร์ฟเวอร์
+Server Info	ข้อมูลเซิร์ฟเวอร์
+Server Insights	ข้อมูลเชิงลึกของเซิร์ฟเวอร์
+Server Insights is hosted on a separate website so that it's easier to share links and browse cross platform.	ข้อมูลเชิงลึกของเซิร์ฟเวอร์อยู่บนเว็บไซต์แยกต่างหาก เพื่อให้แชร์ลิงก์และเรียกดูข้ามแพลตฟอร์มได้ง่ายขึ้น
+Server Mute	ปิดเสียงระดับเซิร์ฟเวอร์
+Server Muted	ถูกปิดเสียงโดยเซิร์ฟเวอร์
+Server Nickname	ชื่อเล่นในเซิร์ฟเวอร์
+Server Notification Settings	การตั้งค่าการแจ้งเตือนเซิร์ฟเวอร์
+Server Primary Language	ภาษาหลักของเซิร์ฟเวอร์
+Server Profile	โปรไฟล์เซิร์ฟเวอร์
+Server Rules	กฎของเซิร์ฟเวอร์
+Server Settings	การตั้งค่าเซิร์ฟเวอร์
+Server Tag	แท็กเซิร์ฟเวอร์
+Server Template	เทมเพลตเซิร์ฟเวอร์
+Server Widget	วิดเจ็ตเซิร์ฟเวอร์
+Server members	สมาชิกเซิร์ฟเวอร์
+Server members can only send you friend requests from servers where you also allow Direct Messages.	สมาชิกเซิร์ฟเวอร์จะส่งคำขอเป็นเพื่อนถึงคุณได้เฉพาะจากเซิร์ฟเวอร์ที่คุณอนุญาตข้อความส่วนตัวด้วย
+Server name must be between 2 and 100 characters.	ชื่อเซิร์ฟเวอร์ต้องยาว 2 ถึง 100 ตัวอักษร
+Server unmuted	เปิดเสียงเซิร์ฟเวอร์แล้ว
+Sessions	เซสชัน
+Set Custom Status	ตั้งสถานะที่กำหนดเอง
+Set Voice Channel Status	ตั้งสถานะช่องเสียง
+Set a custom status	ตั้งสถานะที่กำหนดเอง
+Set up AutoMod to automatically filter messages in this server with the rules below. Members with Manage Server or Administrator are exempt.	ตั้งค่า AutoMod ให้กรองข้อความในเซิร์ฟเวอร์นี้โดยอัตโนมัติด้วยกฎด้านล่าง สมาชิกที่มีสิทธิ์จัดการเซิร์ฟเวอร์หรือผู้ดูแลระบบจะได้รับการยกเว้น
+Sets camera video quality for all channel participants. Choose Auto for optimal performance.	ตั้งคุณภาพวิดีโอจากกล้องสำหรับทุกคนในช่อง เลือกอัตโนมัติเพื่อประสิทธิภาพที่ดีที่สุด
+Setting up encryption: % needs to open fastcord once.	กำลังตั้งค่าการเข้ารหัส: % ต้องเปิด fastcord หนึ่งครั้ง
+Several people are typing...	หลายคนกำลังพิมพ์...
+Severe Profanity	คำหยาบคายรุนแรง
+Sexual Content	เนื้อหาทางเพศ
+Share	แชร์
+Share Event	แชร์กิจกรรม
+Share Your Screen	แชร์หน้าจอของคุณ
+Share my full profile with	แชร์โปรไฟล์เต็มของฉันกับ
+Share your detected activities with others	แชร์กิจกรรมที่ตรวจพบของคุณกับคนอื่น
+Show	แสดง
+Show Chat	แสดงแชท
+Show a system notification for messages that would notify you (DMs, mentions, servers set to all messages).	แสดงการแจ้งเตือนของระบบสำหรับข้อความที่จะแจ้งเตือนคุณ (DM, การกล่าวถึง, เซิร์ฟเวอร์ที่ตั้งเป็นทุกข้อความ)
+Show embeds and preview website links pasted into chat	แสดงเนื้อหาฝังและตัวอย่างลิงก์เว็บไซต์ที่วางในแชท
+Show emoji reactions on messages	แสดงรีแอคชันอีโมจิบนข้อความ
+Show message	แสดงข้อความ
+Show messages	แสดงข้อความ
+Show role colors in names	แสดงสีบทบาทในชื่อ
+Show role colors next to names	แสดงสีบทบาทข้างชื่อ
+Show spoiler content	แสดงเนื้อหาสปอยล์
+Show the game or app you're using on your profile and in member lists.	แสดงเกมหรือแอปที่คุณกำลังใช้ในโปรไฟล์และรายชื่อสมาชิก
+Shows a red badge on the app icon when you have unread mentions.	แสดงป้ายสีแดงบนไอคอนแอปเมื่อมีการกล่าวถึงที่ยังไม่ได้อ่าน
+Silence every sound and notification and hide all badges and unread marks, so fastcord never asks for your attention.	ปิดทุกเสียงและการแจ้งเตือน และซ่อนป้ายและเครื่องหมายยังไม่ได้อ่านทั้งหมด เพื่อไม่ให้ fastcord เรียกร้องความสนใจจากคุณ
+Slow down! Are you sure?	ใจเย็นก่อน! แน่ใจไหม?
+Slowmode	โหมดช้า
+Slowmode is enabled	เปิดโหมดช้าอยู่
+Slowmode is enabled. Members can send one message every % hour.|Slowmode is enabled. Members can send one message every % hours.	เปิดโหมดช้าอยู่ สมาชิกส่งข้อความได้หนึ่งข้อความทุก % ชั่วโมง
+Slowmode is enabled. Members can send one message every % minute.|Slowmode is enabled. Members can send one message every % minutes.	เปิดโหมดช้าอยู่ สมาชิกส่งข้อความได้หนึ่งข้อความทุก % นาที
+Slowmode is enabled. Members can send one message every % second.|Slowmode is enabled. Members can send one message every % seconds.	เปิดโหมดช้าอยู่ สมาชิกส่งข้อความได้หนึ่งข้อความทุก % วินาที
+Smooth Scrolling	การเลื่อนแบบนุ่มนวล
+So no one gets lost on where to go.	เพื่อไม่ให้ใครหลงทาง
+Some older devices may not be shown here	อุปกรณ์รุ่นเก่าบางเครื่องอาจไม่แสดงที่นี่
+Someone	ใครบางคน
+Something went wrong	เกิดข้อผิดพลาดบางอย่าง
+Something went wrong (HTTP %).	เกิดข้อผิดพลาดบางอย่าง (HTTP %)
+Something went wrong. Try again.	เกิดข้อผิดพลาดบางอย่าง ลองอีกครั้ง
+Somewhere Else	ที่อื่น
+Sorry, we couldn't load the first message in this thread	ขออภัย เราโหลดข้อความแรกในเธรดนี้ไม่ได้
+Sort: Date Posted	เรียง: วันที่โพสต์
+Sort: Recent Activity	เรียง: กิจกรรมล่าสุด
+Sound Name	ชื่อเสียง
+Sound names must be between 2 and 32 characters.	ชื่อเสียงต้องยาว 2 ถึง 32 ตัวอักษร
+Soundboard	ซาวด์บอร์ด
+Sounds	เสียง
+Sounds must be 5.2 seconds or shorter.	เสียงต้องยาวไม่เกิน 5.2 วินาที
+Sounds must be under 512 KB.	เสียงต้องมีขนาดไม่เกิน 512 KB
+Source	แหล่งที่มา
+Space between message groups	ระยะห่างระหว่างกลุ่มข้อความ
+Spam	สแปม
+Spam Filters	ตัวกรองสแปม
+Spanish	สเปน
+Spanish, LATAM	สเปน (ละตินอเมริกา)
+Speak	พูด
+Speak Message	อ่านออกเสียงข้อความ
+Spoiler Attachment	ไฟล์แนบสปอยล์
+Spoiler Content	เนื้อหาสปอยล์
+Stage	Stage
+Start Date	วันที่เริ่ม
+Start Event	เริ่มกิจกรรม
+Start Minimized	เริ่มแบบย่อหน้าต่าง
+Start Time	เวลาเริ่ม
+Starting in %m	เริ่มในอีก %m
+State	สถานะ
+Stickers	สติกเกอร์
+Stickers can be used by anyone in this server. Upload a PNG, APNG, GIF or Lottie JSON file of up to 512 KB; it shows at 320x320.	ทุกคนในเซิร์ฟเวอร์นี้ใช้สติกเกอร์ได้ อัปโหลดไฟล์ PNG, APNG, GIF หรือ Lottie JSON ขนาดไม่เกิน 512 KB จะแสดงที่ขนาด 320x320
+Stickers can't be sent encrypted yet.	ยังส่งสติกเกอร์แบบเข้ารหัสไม่ได้
+Stickers must be PNG, APNG, GIF or Lottie JSON files.	สติกเกอร์ต้องเป็นไฟล์ PNG, APNG, GIF หรือ Lottie JSON
+Stop Recording	หยุดบันทึก
+Stop Streaming	หยุดสตรีม
+Stop Testing	หยุดทดสอบ
+Stop Video	หยุดวิดีโอ
+Stop Watching	หยุดดู
+Storage	พื้นที่จัดเก็บ
+Stream Settings	การตั้งค่าสตรีม
+Streamer Mode	โหมดสตรีมเมอร์
+Streamer Mode Enabled	เปิดโหมดสตรีมเมอร์อยู่
+Streamer Mode hides your personal info so others watching your stream can't see it.	โหมดสตรีมเมอร์จะซ่อนข้อมูลส่วนตัวของคุณเพื่อไม่ให้คนที่ดูสตรีมเห็น
+Streamer Mode is enabled. Usernames have been truncated.	เปิดโหมดสตรีมเมอร์อยู่ ชื่อผู้ใช้ถูกตัดให้สั้นลง
+Success! Your friend request to % was sent.	สำเร็จ! ส่งคำขอเป็นเพื่อนถึง % แล้ว
+Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday	วันอาทิตย์|วันจันทร์|วันอังคาร|วันพุธ|วันพฤหัสบดี|วันศุกร์|วันเสาร์
+Sun|Mon|Tue|Wed|Thu|Fri|Sat	อา.|จ.|อ.|พ.|พฤ.|ศ.|ส.
+Support has arrived!	ความช่วยเหลือมาถึงแล้ว!
+Suppress @everyone and @here	ปิดการแจ้งเตือน @everyone และ @here
+Suppress All Role @mentions	ปิดการแจ้งเตือน @การกล่าวถึงบทบาททั้งหมด
+Suppress Highlights	ปิดไฮไลต์
+Suppress Notifications	ปิดการแจ้งเตือน
+Suppress background noise from your mic.	ลดเสียงรบกวนรอบข้างจากไมค์ของคุณ
+Swedish	สวีเดน
+Switch Accounts	สลับบัญชี
+Switch between accounts on this device.	สลับระหว่างบัญชีบนอุปกรณ์นี้
+Symbols	สัญลักษณ์
+Sync Now	ซิงค์ตอนนี้
+Sync Permissions	ซิงค์สิทธิ์
+Sync Template	ซิงค์เทมเพลต
+Sync permissions?	ซิงค์สิทธิ์ไหม?
+System	ระบบ
+System Messages	ข้อความระบบ
+System Messages Channel	ช่องข้อความระบบ
+System icon for new server members.	ไอคอนระบบสำหรับสมาชิกใหม่ของเซิร์ฟเวอร์
+THREAD NAME	ชื่อเธรด
+Tag	แท็ก
+Tags	แท็ก
+Tags (pick at least one)	แท็ก (เลือกอย่างน้อยหนึ่งรายการ)
+Tags let members organize their posts. Members pick them when they post; moderated tags only moderators can apply.	แท็กช่วยให้สมาชิกจัดระเบียบโพสต์ สมาชิกจะเลือกแท็กเมื่อโพสต์ ส่วนแท็กที่ควบคุมใช้ได้เฉพาะผู้ดูแล
+Tap the link in your email to sign in instantly — no password needed.	แตะลิงก์ในอีเมลของคุณเพื่อเข้าสู่ระบบทันที — ไม่ต้องใช้รหัสผ่าน
+Tell people a little more about your event. Markdown, new lines, and links are supported.	บอกเล่าเกี่ยวกับกิจกรรมของคุณเพิ่มอีกนิด รองรับ Markdown การขึ้นบรรทัดใหม่ และลิงก์
+Tell the world a bit about this server.	บอกโลกเกี่ยวกับเซิร์ฟเวอร์นี้สักหน่อย
+Template Description	คำอธิบายเทมเพลต
+Template Link	ลิงก์เทมเพลต
+Template Title	ชื่อเทมเพลต
+Templates are an easy way to share your server setup and help anyone create a server instantly. When someone uses your server template link, they create a new server pre-filled with the same channels, roles, permissions, and settings as yours. Messages, members and your server's icon aren't copied.	เทมเพลตเป็นวิธีง่ายๆ ในการแชร์การตั้งค่าเซิร์ฟเวอร์และช่วยให้ทุกคนสร้างเซิร์ฟเวอร์ได้ทันที เมื่อมีคนใช้ลิงก์เทมเพลตเซิร์ฟเวอร์ของคุณ เขาจะได้เซิร์ฟเวอร์ใหม่ที่มีช่อง บทบาท สิทธิ์ และการตั้งค่าเหมือนของคุณ ข้อความ สมาชิก และไอคอนเซิร์ฟเวอร์จะไม่ถูกคัดลอก
+Temporary members are automatically kicked when they disconnect unless a role has been assigned	สมาชิกชั่วคราวจะถูกเตะโดยอัตโนมัติเมื่อตัดการเชื่อมต่อ เว้นแต่จะได้รับบทบาทแล้ว
+Test Video	ทดสอบวิดีโอ
+Text	ข้อความ
+Text Channel Permissions	สิทธิ์ของช่องข้อความ
+Text channel, external link, or in-person location.	ช่องข้อความ ลิงก์ภายนอก หรือสถานที่จริง
+Thai	ไทย
+That channel isn't on this server anymore.	ช่องนั้นไม่อยู่ในเซิร์ฟเวอร์นี้แล้ว
+That file couldn't be read as an MP3 or OGG sound.	อ่านไฟล์นั้นเป็นเสียง MP3 หรือ OGG ไม่ได้
+That file couldn't be read. Avatars must be PNG, JPEG, GIF or WEBP images.	อ่านไฟล์นั้นไม่ได้ อวาตาร์ต้องเป็นรูปภาพ PNG, JPEG, GIF หรือ WEBP
+That file couldn't be read. Banners must be PNG, JPEG, GIF or WEBP images.	อ่านไฟล์นั้นไม่ได้ แบนเนอร์ต้องเป็นรูปภาพ PNG, JPEG, GIF หรือ WEBP
+That file couldn't be read. Emoji must be a PNG, JPEG, GIF, WEBP or AVIF image.	อ่านไฟล์นั้นไม่ได้ อีโมจิต้องเป็นรูปภาพ PNG, JPEG, GIF, WEBP หรือ AVIF
+That file couldn't be read. Images must be PNG, JPEG, GIF or WEBP files.	อ่านไฟล์นั้นไม่ได้ รูปภาพต้องเป็นไฟล์ PNG, JPEG, GIF หรือ WEBP
+That file couldn't be read. Server icons must be PNG, JPEG, GIF or WEBP images.	อ่านไฟล์นั้นไม่ได้ ไอคอนเซิร์ฟเวอร์ต้องเป็นรูปภาพ PNG, JPEG, GIF หรือ WEBP
+That file is too large. Emoji must be under 256 KB.	ไฟล์นั้นใหญ่เกินไป อีโมจิต้องมีขนาดไม่เกิน 256 KB
+That file is too large. Stickers must be under 512 KB.	ไฟล์นั้นใหญ่เกินไป สติกเกอร์ต้องมีขนาดไม่เกิน 512 KB
+That image is too large.	รูปภาพนั้นใหญ่เกินไป
+That image is too large. Avatars must be under %.	รูปภาพนั้นใหญ่เกินไป อวาตาร์ต้องมีขนาดไม่เกิน %
+That image is too large. Banners must be under 10 MB.	รูปภาพนั้นใหญ่เกินไป แบนเนอร์ต้องมีขนาดไม่เกิน 10 MB
+That image is too large. Server icons must be under 512 KB.	รูปภาพนั้นใหญ่เกินไป ไอคอนเซิร์ฟเวอร์ต้องมีขนาดไม่เกิน 512 KB
+That isn't a valid fastcord invite.	นั่นไม่ใช่คำเชิญ fastcord ที่ถูกต้อง
+That's too long to send encrypted.	ยาวเกินกว่าจะส่งแบบเข้ารหัสได้
+The Pin Is Stuck!	หมุดติดแน่นแล้ว!
+The badge chosen in the official client stays as it is.	ป้ายที่เลือกไว้ในไคลเอนต์ทางการจะยังคงเดิม
+The invite is invalid or has expired.	คำเชิญไม่ถูกต้องหรือหมดอายุแล้ว
+The mention limit is between 1 and 50.	ขีดจำกัดการกล่าวถึงอยู่ระหว่าง 1 ถึง 50
+The most important updates from this channel will now show up directly in your server. Enjoy!	ตอนนี้อัปเดตสำคัญจากช่องนี้จะแสดงในเซิร์ฟเวอร์ของคุณโดยตรง ขอให้สนุก!
+The owner	เจ้าของ
+The related emoji must be one emoji.	อีโมจิที่เกี่ยวข้องต้องเป็นอีโมจิเดียว
+The results were tied	ผลเสมอกัน
+The selected channel has too many webhooks. Please remove a webhook or select another channel.	ช่องที่เลือกมีเว็บฮุกมากเกินไป โปรดลบเว็บฮุกหรือเลือกช่องอื่น
+The server	เซิร์ฟเวอร์
+The start time must be in the future.	เวลาเริ่มต้องเป็นเวลาในอนาคต
+The thread stops showing in the channel list after being inactive for this long.	เธรดจะไม่แสดงในรายการช่องอีกเมื่อไม่มีความเคลื่อนไหวนานเท่านี้
+Theme	ธีม
+There are no active threads.	ไม่มีเธรดที่ใช้งานอยู่
+There are no archived threads.	ไม่มีเธรดที่เก็บถาวร
+There are no pending friend requests.	ไม่มีคำขอเป็นเพื่อนที่รออยู่
+There are no upcoming events.	ไม่มีกิจกรรมที่กำลังจะมาถึง
+There is no identity key.	ไม่มีคีย์ระบุตัวตน
+There was no winner	ไม่มีผู้ชนะ
+These are all the devices that are currently logged-in with your Discord account. Log out of devices that you don't recognize.	นี่คืออุปกรณ์ทั้งหมดที่เข้าสู่ระบบด้วยบัญชี Discord ของคุณอยู่ตอนนี้ ออกจากระบบอุปกรณ์ที่คุณไม่รู้จัก
+They said: %	เขาพูดว่า: %
+This account needs a passkey or security key, which fastcord can't use. Log in with the QR code instead.	บัญชีนี้ต้องใช้พาสคีย์หรือคีย์ความปลอดภัย ซึ่ง fastcord ใช้ไม่ได้ เข้าสู่ระบบด้วยคิวอาร์โค้ดแทน
+This channel contains adult content that may not be suitable for all audiences. You must be 18 or older to view it.	ช่องนี้มีเนื้อหาสำหรับผู้ใหญ่ที่อาจไม่เหมาะกับทุกคน คุณต้องมีอายุ 18 ปีขึ้นไปจึงจะดูได้
+This channel doesn't have any pinned messages... yet.	ช่องนี้ยังไม่มีข้อความที่ปักหมุด... ในตอนนี้
+This device can't open this message.	อุปกรณ์นี้เปิดข้อความนี้ไม่ได้
+This device's encryption keys couldn't be unlocked, so earlier encrypted DMs can't be opened here.	ปลดล็อกคีย์เข้ารหัสของอุปกรณ์นี้ไม่ได้ จึงเปิด DM ที่เข้ารหัสก่อนหน้านี้ที่นี่ไม่ได้
+This event will auto start when it's time.	กิจกรรมนี้จะเริ่มอัตโนมัติเมื่อถึงเวลา
+This extra step shows it's really you.	ขั้นตอนเพิ่มเติมนี้ยืนยันว่าเป็นคุณจริงๆ
+This interaction failed	การโต้ตอบนี้ล้มเหลว
+This invite may be expired, or you might not have permission to join.	คำเชิญนี้อาจหมดอายุแล้ว หรือคุณอาจไม่มีสิทธิ์เข้าร่วม
+This is the beginning of your direct message history with %.	นี่คือจุดเริ่มต้นของประวัติข้อความส่วนตัวระหว่างคุณกับ %
+This is the channel we send system event messages to.	นี่คือช่องที่เราส่งข้อความเหตุการณ์ของระบบไป
+This is the start of the #% channel.	นี่คือจุดเริ่มต้นของช่อง #%
+This is where Discord sends updates for moderators and admins of Community servers.	นี่คือที่ที่ Discord ส่งอัปเดตสำหรับผู้ดูแลและแอดมินของเซิร์ฟเวอร์ชุมชน
+This is where you'll show members your server rules or guidelines.	นี่คือที่ที่คุณจะแสดงกฎหรือแนวทางของเซิร์ฟเวอร์ให้สมาชิกเห็น
+This link is taking you to the following website	ลิงก์นี้จะพาคุณไปยังเว็บไซต์ต่อไปนี้
+This option is not available for Community Servers.	ตัวเลือกนี้ใช้ไม่ได้กับเซิร์ฟเวอร์ชุมชน
+This role is managed by an integration and can't be edited here.	บทบาทนี้จัดการโดยการเชื่อมต่อ และแก้ไขที่นี่ไม่ได้
+This server has been removed from Server Discovery because it no longer passes all the requirements. Check Server Settings for more details.	เซิร์ฟเวอร์นี้ถูกนำออกจากการค้นหาเซิร์ฟเวอร์เพราะไม่ผ่านข้อกำหนดทั้งหมดอีกต่อไป ดูรายละเอียดเพิ่มเติมได้ในการตั้งค่าเซิร์ฟเวอร์
+This server has failed Discovery activity requirements for 1 week. If this server fails for 4 weeks in a row, it will be automatically removed from Discovery.	เซิร์ฟเวอร์นี้ไม่ผ่านข้อกำหนดด้านกิจกรรมของการค้นหามา 1 สัปดาห์ หากไม่ผ่าน 4 สัปดาห์ติดต่อกัน จะถูกนำออกจากการค้นหาโดยอัตโนมัติ
+This server has failed Discovery activity requirements for 3 weeks in a row. If this server fails for 1 more week, it will be removed from Discovery.	เซิร์ฟเวอร์นี้ไม่ผ่านข้อกำหนดด้านกิจกรรมของการค้นหามา 3 สัปดาห์ติดต่อกัน หากไม่ผ่านอีก 1 สัปดาห์ จะถูกนำออกจากการค้นหา
+This server has no voice channels.	เซิร์ฟเวอร์นี้ไม่มีช่องเสียง
+This server is currently full.	เซิร์ฟเวอร์นี้เต็มแล้ว
+This server is currently full. Please try again later.	เซิร์ฟเวอร์นี้เต็มแล้ว โปรดลองอีกครั้งภายหลัง
+This server is eligible for Server Discovery again and has been automatically relisted!	เซิร์ฟเวอร์นี้มีสิทธิ์อยู่ในการค้นหาเซิร์ฟเวอร์อีกครั้ง และถูกนำกลับเข้ารายการโดยอัตโนมัติแล้ว!
+This server is not available in your location.	เซิร์ฟเวอร์นี้ไม่พร้อมให้บริการในพื้นที่ของคุณ
+This server's features are limited	ฟีเจอร์ของเซิร์ฟเวอร์นี้ถูกจำกัด
+This setting is applied when you join a new server. It does not apply retroactively to your existing servers.	การตั้งค่านี้จะใช้เมื่อคุณเข้าร่วมเซิร์ฟเวอร์ใหม่ และไม่มีผลย้อนหลังกับเซิร์ฟเวอร์ที่คุณอยู่แล้ว
+This template has unsynced changes.	เทมเพลตนี้มีการเปลี่ยนแปลงที่ยังไม่ได้ซิงค์
+This thread is locked.	เธรดนี้ถูกล็อก
+This voice channel is full.	ช่องเสียงนี้เต็มแล้ว
+This will determine whether members who have not explicitly set their notification settings receive a notification for every message sent in this server or not.	ตัวเลือกนี้จะกำหนดว่าสมาชิกที่ไม่ได้ตั้งค่าการแจ้งเตือนเองจะได้รับการแจ้งเตือนทุกข้อความที่ส่งในเซิร์ฟเวอร์นี้หรือไม่
+This will transfer ownership of %1 to %2. This cannot be undone!	การดำเนินการนี้จะโอนความเป็นเจ้าของ %1 ให้ %2 ย้อนกลับไม่ได้!
+Thread Name	ชื่อเธรด
+Thread deleted	ลบเธรดแล้ว
+Threads	เธรด
+Time	เวลา
+Time format	รูปแบบเวลา
+Timeout	พักการใช้งาน
+Timeout %	พักการใช้งาน %
+Timeout Members	พักการใช้งานสมาชิก
+Timeout member	พักการใช้งานสมาชิก
+Times show as %.	เวลาแสดงเป็น %
+To log them out, please change your password	หากต้องการออกจากระบบอุปกรณ์เหล่านั้น โปรดเปลี่ยนรหัสผ่าน
+To protect your members, Community servers need these, and enabling sets them:	เพื่อปกป้องสมาชิกของคุณ เซิร์ฟเวอร์ชุมชนต้องมีสิ่งเหล่านี้ และการเปิดใช้จะตั้งค่าให้:
+Today	วันนี้
+Today at %	วันนี้ เวลา %
+Toggle Deafen	สลับปิดการได้ยิน
+Toggle Go Live Streaming	สลับการสตรีม Go Live
+Toggle Mute	สลับปิดเสียง
+Toggle Streamer Mode	สลับโหมดสตรีมเมอร์
+Toggle Voice Activity Mode	สลับโหมดตรวจจับเสียง
+Toggle deafen	สลับปิดการได้ยิน
+Toggle inbox	สลับกล่องข้อความ
+Toggle member list	สลับรายชื่อสมาชิก
+Toggle mute	สลับปิดเสียง
+Toggle pins	สลับข้อความที่ปักหมุด
+Tomorrow at %	พรุ่งนี้ เวลา %
+Too fast! Wait a bit and try again.	เร็วเกินไป! รอสักครู่แล้วลองอีกครั้ง
+Too many uploads!	อัปโหลดมากเกินไป!
+Trait %	ลักษณะ %
+Traits	ลักษณะ
+Transfer Ownership	โอนความเป็นเจ้าของ
+Travel & Places	การเดินทางและสถานที่
+Treat the token like a password: anyone who has it controls your account. fastcord keeps it only on this computer.	ปฏิบัติต่อโทเค็นเหมือนรหัสผ่าน: ใครก็ตามที่มีโทเค็นจะควบคุมบัญชีของคุณได้ fastcord เก็บไว้เฉพาะบนคอมพิวเตอร์เครื่องนี้
+Trending GIFs	GIF ยอดนิยม
+Trust % links from now on	เชื่อถือลิงก์ % นับจากนี้
+Try Again	ลองอีกครั้ง
+Try searching for something else	ลองค้นหาอย่างอื่น
+Try searching for...	ลองค้นหา...
+Try sending a new invite	ลองส่งคำเชิญใหม่
+Turkish	ตุรกี
+Turn off encryption	ปิดการเข้ารหัส
+Turns this back into a regular server. Community-only features stop working.	เปลี่ยนกลับเป็นเซิร์ฟเวอร์ปกติ ฟีเจอร์เฉพาะชุมชนจะหยุดทำงาน
+Two-factor authentication is enabled on this account.	บัญชีนี้เปิดการยืนยันตัวตนแบบสองขั้นตอนอยู่
+Type the username of a friend	พิมพ์ชื่อผู้ใช้ของเพื่อน
+Type your answer	พิมพ์คำตอบของคุณ
+UPLOADED BY	อัปโหลดโดย
+USES	จำนวนครั้งที่ใช้
+Uh oh, you don't have webhook permissions in any server you're in. Ask your server admin to give you the permission or ask them to come follow themselves!	แย่แล้ว คุณไม่มีสิทธิ์เว็บฮุกในเซิร์ฟเวอร์ใดเลยที่คุณอยู่ ขอให้แอดมินเซิร์ฟเวอร์ให้สิทธิ์ หรือขอให้เขามาติดตามเอง!
+Uh-oh. Looks like you've been banned.	แย่แล้ว ดูเหมือนคุณจะถูกแบน
+Ukrainian	ยูเครน
+Unable to accept invite	ยอมรับคำเชิญไม่ได้
+Unassigned	ยังไม่ได้กำหนด
+Unban Member	ยกเลิกการแบนสมาชิก
+Unblock	เลิกบล็อก
+Undeafen	เปิดการได้ยิน
+Under Request Headers, copy the value of "authorization" and paste it below.	ใต้ Request Headers ให้คัดลอกค่าของ "authorization" แล้ววางด้านล่าง
+Undo	เลิกทำ
+Unignore	เลิกเพิกเฉย
+Unknown	ไม่ทราบ
+Unknown channel	ช่องที่ไม่รู้จัก
+Unmute	เปิดเสียง
+Unmute Category	เปิดเสียงหมวดหมู่
+Unmute Channel	เปิดเสียงช่อง
+Unmute Server	เปิดเสียงเซิร์ฟเวอร์
+Unmute Thread	เปิดเสียงเธรด
+Unpin Message	เลิกปักหมุดข้อความ
+Unreads	ยังไม่ได้อ่าน
+Unrestricted	ไม่จำกัด
+Until %	จนถึง %
+Until %1 at %2	จนถึง %1 เวลา %2
+Until I turn it back on	จนกว่าฉันจะเปิดอีกครั้ง
+Until tomorrow at %	จนถึงพรุ่งนี้ เวลา %
+Untitled question	คำถามที่ไม่มีชื่อ
+Unverify	ยกเลิกการยืนยัน
+Update %	อัปเดต %
+Update Channel	อัปเดตช่อง
+Update Emoji	อัปเดตอีโมจิ
+Update Member	อัปเดตสมาชิก
+Update Member Roles	อัปเดตบทบาทสมาชิก
+Update Role	อัปเดตบทบาท
+Update Server	อัปเดตเซิร์ฟเวอร์
+Update Webhook	อัปเดตเว็บฮุก
+Update your password	อัปเดตรหัสผ่านของคุณ
+Upload	อัปโหลด
+Upload Emoji	อัปโหลดอีโมจิ
+Upload Sound	อัปโหลดเสียง
+Upload Sticker	อัปโหลดสติกเกอร์
+Upload a File	อัปโหลดไฟล์
+Upload a Sound	อัปโหลดเสียง
+Upload a file	อัปโหลดไฟล์
+Upload custom sound reactions that anyone in this server can use. MP3 or OGG files, up to 512 KB and 5.2 seconds.	อัปโหลดเสียงรีแอคชันแบบกำหนดเองที่ทุกคนในเซิร์ฟเวอร์นี้ใช้ได้ ไฟล์ MP3 หรือ OGG ขนาดไม่เกิน 512 KB และยาวไม่เกิน 5.2 วินาที
+Upload to %	อัปโหลดไปยัง %
+Uploaded a file	อัปโหลดไฟล์
+Uploading...	กำลังอัปโหลด...
+Use Application Commands	ใช้คำสั่งแอปพลิเคชัน
+Use Category Default	ใช้ค่าเริ่มต้นของหมวดหมู่
+Use External Apps	ใช้แอปภายนอก
+Use External Emoji	ใช้อีโมจิภายนอก
+Use External Sounds	ใช้เสียงภายนอก
+Use External Stickers	ใช้สติกเกอร์ภายนอก
+Use Server Default	ใช้ค่าเริ่มต้นของเซิร์ฟเวอร์
+Use Soundboard	ใช้ซาวด์บอร์ด
+Use Voice Activity	ใช้การตรวจจับเสียง
+Use a backup code	ใช้รหัสสำรอง
+Use a code sent to your phone	ใช้รหัสที่ส่งไปยังโทรศัพท์ของคุณ
+Use a passkey or security key	ใช้พาสคีย์หรือคีย์ความปลอดภัย
+Use data to improve Discord	ใช้ข้อมูลเพื่อปรับปรุง Discord
+Use roles to group your server members and assign permissions.	ใช้บทบาทเพื่อจัดกลุ่มสมาชิกเซิร์ฟเวอร์และกำหนดสิทธิ์
+Use your authenticator app	ใช้แอปยืนยันตัวตนของคุณ
+Used % times.|Used % times.	ใช้ไปแล้ว % ครั้ง
+User Join	ผู้ใช้เข้าร่วม
+User Leave	ผู้ใช้ออก
+User Limit	จำกัดผู้ใช้
+User Moved	ผู้ใช้ถูกย้าย
+User Volume	ระดับเสียงผู้ใช้
+User blocked	บล็อกผู้ใช้แล้ว
+User unblocked	เลิกบล็อกผู้ใช้แล้ว
+Username	ชื่อผู้ใช้
+Username is available. Nice!	ชื่อผู้ใช้นี้ว่างอยู่ เยี่ยม!
+Username is unavailable. Try adding numbers, letters, underscores _ , or periods.	ชื่อผู้ใช้นี้ถูกใช้แล้ว ลองเพิ่มตัวเลข ตัวอักษร ขีดล่าง _ หรือจุด
+Users will need to confirm they are of over the legal age to view in the content in this channel.\nAge-restricted channels are exempt from the explicit content filter.	ผู้ใช้ต้องยืนยันว่ามีอายุเกินเกณฑ์ตามกฎหมายจึงจะดูเนื้อหาในช่องนี้ได้\nช่องจำกัดอายุได้รับการยกเว้นจากตัวกรองเนื้อหาโจ่งแจ้ง
+Uses the yt-dlp you installed to play YouTube links in the chat instead of opening your browser. It connects to YouTube from your computer.	ใช้ yt-dlp ที่คุณติดตั้งไว้เพื่อเล่นลิงก์ YouTube ในแชทแทนการเปิดเบราว์เซอร์ จะเชื่อมต่อกับ YouTube จากคอมพิวเตอร์ของคุณ
+VOICE PROCESSING	การประมวลผลเสียง
+Verification Level	ระดับการยืนยัน
+Verified	ยืนยันแล้ว
+Verify with something else	ยืนยันด้วยวิธีอื่น
+Video	วิดีโอ
+Video Quality	คุณภาพวิดีโอ
+Vietnamese	เวียดนาม
+View Audit Log	ดูบันทึกการตรวจสอบ
+View Channel	ดูช่อง
+View Channels	ดูช่อง
+View Details	ดูรายละเอียด
+View Full Profile	ดูโปรไฟล์เต็ม
+View Poll	ดูโพล
+View Profile	ดูโปรไฟล์
+View Reactions	ดูรีแอคชัน
+View Server Insights	ดูข้อมูลเชิงลึกของเซิร์ฟเวอร์
+Visit Site	ไปที่เว็บไซต์
+Visual Density	ความหนาแน่นของการแสดงผล
+Voice	เสียง
+Voice & Video	เสียงและวิดีโอ
+Voice Activity	การตรวจจับเสียง
+Voice Channel	ช่องเสียง
+Voice Channel Permissions	สิทธิ์ของช่องเสียง
+Voice Connected	เชื่อมต่อเสียงแล้ว
+Voice Disconnected	ตัดการเชื่อมต่อเสียงแล้ว
+Volume	ระดับเสียง
+Vote	โหวต
+Waiting for a server	กำลังรอเซิร์ฟเวอร์
+Wants to message you	ต้องการส่งข้อความถึงคุณ
+Watch Stream	ดูสตรีม
+Wave to say hi!	โบกมือทักทาย!
+We appreciate the enthusiasm, but...	เราชื่นชมความกระตือรือร้นนะ แต่...
+We couldn't load the profile for this server.	เราโหลดโปรไฟล์ของเซิร์ฟเวอร์นี้ไม่ได้
+We recommend an image of at least 512x512.	เราแนะนำรูปภาพขนาดอย่างน้อย 512x512
+We sent instructions to change your password to %, please check both your inbox and spam folder.	เราส่งคำแนะนำในการเปลี่ยนรหัสผ่านไปที่ % แล้ว โปรดตรวจสอบทั้งกล่องจดหมายและโฟลเดอร์สแปม
+We're so excited to see you again!	ดีใจมากที่ได้เจอคุณอีกครั้ง!
+We've sent a message to %.  Please enter the code you received.	เราส่งข้อความไปที่ % แล้ว โปรดกรอกรหัสที่คุณได้รับ
+Webhooks (%)	เว็บฮุก (%)
+Webhooks are a simple way to post messages from other apps and websites into this server.	เว็บฮุกเป็นวิธีง่ายๆ ในการโพสต์ข้อความจากแอปและเว็บไซต์อื่นเข้ามาในเซิร์ฟเวอร์นี้
+Welcome %. Say hi!	ยินดีต้อนรับ % ทักทายกันหน่อย!
+Welcome back!	ยินดีต้อนรับกลับมา!
+Welcome to #%!	ยินดีต้อนรับสู่ #%!
+Welcome to the beginning of the % group.	ยินดีต้อนรับสู่จุดเริ่มต้นของกลุ่ม %
+Welcome, %. We hope you brought pizza.	ยินดีต้อนรับ % หวังว่าคุณจะเอาพิซซ่ามาด้วยนะ
+What brings you here?	อะไรพาคุณมาที่นี่?
+What can people do in this server?	ผู้คนทำอะไรได้บ้างในเซิร์ฟเวอร์นี้?
+What question do you want to ask?	คุณอยากถามคำถามอะไร?
+What's cookin'?	มีอะไรใหม่บ้าง?
+What's your event about?	กิจกรรมของคุณเกี่ยวกับอะไร?
+What's your event?	กิจกรรมของคุณคืออะไร?
+When a friend starts an activity—like playing a game or hanging out on voice—we'll show it here!	เมื่อเพื่อนเริ่มกิจกรรม เช่น เล่นเกมหรือแฮงเอาต์ในช่องเสียง เราจะแสดงไว้ที่นี่!
+When enabled, only server members can view profile content. Non-members won't be able to see this content unless they have an invite.	เมื่อเปิดใช้ เฉพาะสมาชิกเซิร์ฟเวอร์เท่านั้นที่ดูเนื้อหาโปรไฟล์ได้ คนที่ไม่ใช่สมาชิกจะไม่เห็นเนื้อหานี้เว้นแต่จะมีคำเชิญ
+When you put a user in timeout they will not be able to send messages in chat, reply within threads, react to messages, or speak in voice or Stage channels.	เมื่อคุณพักการใช้งานผู้ใช้ เขาจะส่งข้อความในแชท ตอบกลับในเธรด แสดงรีแอคชันต่อข้อความ หรือพูดในช่องเสียงหรือช่อง Stage ไม่ได้
+Where is your event?	กิจกรรมของคุณจัดที่ไหน?
+Where would you like to go?	คุณอยากไปที่ไหน?
+Who is this server for? E.g. School Club, Artists' Community	เซิร์ฟเวอร์นี้สำหรับใคร? เช่น ชมรมในโรงเรียน, ชุมชนศิลปิน
+Winning answer · %1%2	คำตอบที่ชนะ · %1%2
+Words that are never blocked, separated by commas	คำที่จะไม่ถูกบล็อกเลย คั่นด้วยเครื่องหมายจุลภาค
+Words to block, separated by commas	คำที่จะบล็อก คั่นด้วยเครื่องหมายจุลภาค
+Words to block, separated by commas (* matches anything)	คำที่จะบล็อก คั่นด้วยเครื่องหมายจุลภาค (* ตรงกับอะไรก็ได้)
+Would you like to sync %1 permissions with %2?	คุณต้องการซิงค์สิทธิ์ของ %1 กับ %2 ไหม?
+Yay you made it, %!	เย่ มาถึงแล้ว %!
+Yesterday at %	เมื่อวาน เวลา %
+You	คุณ
+You accepted %'s friend request.	คุณยอมรับคำขอเป็นเพื่อนของ % แล้ว
+You are at the % server limit.	คุณมีเซิร์ฟเวอร์ครบขีดจำกัด % แห่งแล้ว
+You are banned from this server.	คุณถูกแบนจากเซิร์ฟเวอร์นี้
+You aren't in that server. Ask a member for an invite.	คุณไม่ได้อยู่ในเซิร์ฟเวอร์นั้น ขอคำเชิญจากสมาชิก
+You can add % more friend.|You can add % more friends.	คุณเพิ่มเพื่อนได้อีก % คน
+You can add comments before uploading.\nHold shift to upload directly.	คุณเพิ่มความคิดเห็นก่อนอัปโหลดได้\nกด Shift ค้างไว้เพื่ออัปโหลดโดยตรง
+You can add friends with their Discord username.	คุณเพิ่มเพื่อนได้ด้วยชื่อผู้ใช้ Discord ของพวกเขา
+You can add up to 5 accounts.	คุณเพิ่มบัญชีได้สูงสุด 5 บัญชี
+You can hold down shift when clicking % to bypass this confirmation entirely.	คุณกด Shift ค้างไว้ขณะคลิก % เพื่อข้ามการยืนยันนี้ได้เลย
+You can only edit roles below your highest role.	คุณแก้ไขได้เฉพาะบทบาทที่ต่ำกว่าบทบาทสูงสุดของคุณ
+You can only upload % files at a time!	คุณอัปโหลดได้ครั้งละ % ไฟล์เท่านั้น!
+You can use markdown and links if you'd like.	คุณใช้ markdown และลิงก์ได้ถ้าต้องการ
+You can't join this server because of your age group.	คุณเข้าร่วมเซิร์ฟเวอร์นี้ไม่ได้เนื่องจากกลุ่มอายุของคุณ
+You can't unblock the Wumpus.	คุณเลิกบล็อก Wumpus ไม่ได้
+You cannot friend yourself	คุณเป็นเพื่อนกับตัวเองไม่ได้
+You can’t react and super react with the same emoji. There’s a lot of emoji to choose from, so maybe try another one.	คุณแสดงรีแอคชันและซูเปอร์รีแอคชันด้วยอีโมจิเดียวกันไม่ได้ มีอีโมจิให้เลือกเยอะแยะ ลองตัวอื่นดูนะ
+You do not have permission to send messages in this channel.	คุณไม่มีสิทธิ์ส่งข้อความในช่องนี้
+You don't have any friends to add!	คุณไม่มีเพื่อนให้เพิ่ม!
+You don't have permission to do that.	คุณไม่มีสิทธิ์ทำแบบนั้น
+You haven't added a display name yet.	คุณยังไม่ได้เพิ่มชื่อที่แสดง
+You haven't added a phone number yet.	คุณยังไม่ได้เพิ่มหมายเลขโทรศัพท์
+You haven't added an email yet.	คุณยังไม่ได้เพิ่มอีเมล
+You haven't authorized any apps.	คุณยังไม่ได้อนุญาตแอปใดเลย
+You haven't blocked anyone.	คุณยังไม่ได้บล็อกใคร
+You haven't connected any accounts yet.	คุณยังไม่ได้เชื่อมต่อบัญชีใดเลย
+You haven't ignored anyone.	คุณยังไม่ได้เพิกเฉยใคร
+You missed a call from %1 that lasted %2.	คุณไม่ได้รับสายจาก %1 ที่ยาว %2
+You must be at least 18 years old to view this channel.	คุณต้องมีอายุอย่างน้อย 18 ปีจึงจะดูช่องนี้ได้
+You must leave a server first to join.	คุณต้องออกจากเซิร์ฟเวอร์หนึ่งก่อนจึงจะเข้าร่วมได้
+You need to add one or more rules.	คุณต้องเพิ่มกฎอย่างน้อยหนึ่งข้อ
+You received an invite, but...	คุณได้รับคำเชิญ แต่...
+You said: %	คุณพูดว่า: %
+You sent an invite to a self-hosted server	คุณส่งคำเชิญเข้าเซิร์ฟเวอร์ที่โฮสต์เอง
+You sent an invite, but	คุณส่งคำเชิญแล้ว แต่
+You sent an invite, but...	คุณส่งคำเชิญแล้ว แต่...
+You will appear offline	คุณจะแสดงเป็นออฟไลน์
+You will not receive desktop notifications	คุณจะไม่ได้รับการแจ้งเตือนบนเดสก์ท็อป
+You'll have to log back in on all logged out devices.	คุณจะต้องเข้าสู่ระบบใหม่บนอุปกรณ์ทั้งหมดที่ออกจากระบบ
+You're Viewing Older Messages	คุณกำลังดูข้อความเก่า
+You're all caught up!	คุณอ่านครบหมดแล้ว!
+You're already in that server.	คุณอยู่ในเซิร์ฟเวอร์นั้นแล้ว
+You're doing that too fast. Try again in a moment.	คุณทำเร็วเกินไป ลองอีกครั้งในอีกสักครู่
+You're not in any servers yet.	คุณยังไม่ได้อยู่ในเซิร์ฟเวอร์ใดเลย
+You're offline: no invite link.	คุณออฟไลน์อยู่: ไม่มีลิงก์คำเชิญ
+You're timed out until %.	คุณถูกพักการใช้งานจนถึง %
+You've been invited to a self-hosted server	คุณได้รับเชิญเข้าเซิร์ฟเวอร์ที่โฮสต์เอง
+You've been invited to join	คุณได้รับเชิญให้เข้าร่วม
+You've been invited to speak	คุณได้รับเชิญให้พูด
+You've been invited, but	คุณได้รับเชิญ แต่
+Your files are too powerful	ไฟล์ของคุณทรงพลังเกินไป
+Your full profile is visible to friends and any server you join with 200 or fewer members. Everyone else sees a limited version.	เพื่อนและเซิร์ฟเวอร์ที่คุณเข้าร่วมซึ่งมีสมาชิกไม่เกิน 200 คนจะเห็นโปรไฟล์เต็มของคุณ คนอื่นจะเห็นแบบจำกัด
+Your full profile is visible to friends and any server you join.	เพื่อนและทุกเซิร์ฟเวอร์ที่คุณเข้าร่วมจะเห็นโปรไฟล์เต็มของคุณ
+Your full profile is visible to friends. Everyone else sees a limited version.	เพื่อนจะเห็นโปรไฟล์เต็มของคุณ คนอื่นจะเห็นแบบจำกัด
+Your invite link expires after %.	ลิงก์คำเชิญของคุณจะหมดอายุหลังใช้ %
+Your invite link expires in %.	ลิงก์คำเชิญของคุณจะหมดอายุใน %
+Your invite link expires in %1, or after %2.	ลิงก์คำเชิญของคุณจะหมดอายุใน %1 หรือหลังใช้ %2
+Your invite link expires in 7 days.	ลิงก์คำเชิญของคุณจะหมดอายุใน 7 วัน
+Your invite link will never expire.	ลิงก์คำเชิญของคุณจะไม่มีวันหมดอายุ
+Your last request was on %.	คำขอล่าสุดของคุณเมื่อ %
+Your message is too long (% / %).	ข้อความของคุณยาวเกินไป (% / %)
+Your reaction was not added because there are too many reactions on this message.	ไม่ได้เพิ่มรีแอคชันของคุณเพราะข้อความนี้มีรีแอคชันมากเกินไป
+Your request from % is being prepared.	กำลังเตรียมคำขอของคุณเมื่อ %
+Your server is where you and your friends hang out. Make yours and start talking.	เซิร์ฟเวอร์คือที่ที่คุณและเพื่อนๆ แฮงเอาต์กัน สร้างของคุณแล้วเริ่มคุยกันเลย
+Your sounds go out with your voice, mixed into your microphone, instead of as soundboard sounds.	เสียงของคุณจะส่งออกไปพร้อมเสียงพูดโดยผสมเข้ากับไมโครโฟน แทนที่จะเป็นเสียงซาวด์บอร์ด
+Zoom level	ระดับการซูม
+a channel	ช่อง
+a command	คำสั่ง
+a day	1 วัน
+a day ago	1 วันที่แล้ว
+a few seconds	ไม่กี่วินาที
+a few seconds ago	ไม่กี่วินาทีที่แล้ว
+a message	ข้อความ
+a minute	1 นาที
+a minute ago	1 นาทีที่แล้ว
+a month ago	1 เดือนที่แล้ว
+a year ago	1 ปีที่แล้ว
+an hour	1 ชั่วโมง
+an hour ago	1 ชั่วโมงที่แล้ว
+by %	โดย %
+cancel	ยกเลิก
+channel	ช่อง
+delete message	ลบข้อความ
+escape to %1 • enter to %2	Esc เพื่อ%1 • Enter เพื่อ%2
+fastcord %	fastcord %
+fastcord quit unexpectedly last time. The report is in the logs folder (Settings, under Log Out).	ครั้งที่แล้ว fastcord ปิดตัวลงโดยไม่คาดคิด รายงานอยู่ในโฟลเดอร์บันทึก (การตั้งค่า ใต้ ออกจากระบบ)
+fastcord starts in the background and stays out of your way.	fastcord จะเริ่มทำงานเบื้องหลังและไม่รบกวนคุณ
+from %	จาก %
+in %	ใน %
+in % day|in % days	ในอีก % วัน
+in % hour|in % hours	ในอีก % ชั่วโมง
+in % minute|in % minutes	ในอีก % นาที
+in % month|in % months	ในอีก % เดือน
+in % year|in % years	ในอีก % ปี
+in a day	ในอีก 1 วัน
+in a few seconds	ในอีกไม่กี่วินาที
+in a minute	ในอีก 1 นาที
+in a month	ในอีก 1 เดือน
+in a year	ในอีก 1 ปี
+in an hour	ในอีก 1 ชั่วโมง
+just now	เมื่อสักครู่
+less than an hour ago	ไม่ถึงชั่วโมงที่แล้ว
+link, embed or file	ลิงก์ เนื้อหาฝัง หรือไฟล์
+on %	เมื่อ %
+pinned messages	ข้อความที่ปักหมุด
+remove embeds	ลบเนื้อหาฝัง
+save	บันทึก
+someone	ใครบางคน
+specific date	วันที่ระบุ
+this server	เซิร์ฟเวอร์นี้
+threads	เธรด
+true or false	จริงหรือเท็จ
+unknown	ไม่ทราบ
+unknown channel	ช่องที่ไม่รู้จัก
+unknown-user	ผู้ใช้ที่ไม่รู้จัก
+used	ใช้แล้ว
+user	ผู้ใช้
+• Media from all members is scanned by the explicit image filter.	• สื่อจากสมาชิกทุกคนจะถูกสแกนโดยตัวกรองรูปภาพโจ่งแจ้ง
+• Members must have a verified email on their Discord account.	• สมาชิกต้องมีอีเมลที่ยืนยันแล้วในบัญชี Discord
+← Back to %	← กลับไปที่ %
+← Back to login	← กลับไปหน้าเข้าสู่ระบบ

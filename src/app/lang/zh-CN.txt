@@ -1,0 +1,1983 @@
+# Chinese, Simplified (zh-CN)
+ · required	 · 必填
+% (requested to speak)	%（申请发言）
+% (required)	%（必填）
+% Bans|% Bans	% 个封禁
+% Event|% Events	% 个活动
+% KB	% KB
+% MB	% MB
+% Member|% Members	% 位成员
+% Messages	% 条消息
+% Mutual Friend|% Mutual Friends	% 位共同好友
+% Mutual Server|% Mutual Servers	% 个共同服务器
+% Online	% 人在线
+% Result|% Results	% 个结果
+% accepted encryption.	% 已接受加密。
+% accepted your friend request.	% 接受了你的好友请求。
+% answer|% answers	% 个回答
+% becomes the owner once they accept on their device. You'll stay a member.	% 在其设备上接受后将成为所有者。你仍会是成员。
+% blocked message —|% blocked messages —	% 条已屏蔽消息 —
+% byte|% bytes	% 字节
+% changed the group icon.	% 更改了群组图标。
+% day ago|% days ago	% 天前
+% day|% days	% 天
+% disabled security actions.	% 关闭了安全措施。
+% enabled security actions.	% 开启了安全措施。
+% hasn't accepted encryption yet.	% 尚未接受加密。
+% hopped into the server.	% 跳进了服务器。
+% hour ago|% hours ago	% 小时前
+% hour|% hours	% 小时
+% ignored message —|% ignored messages —	% 条已忽略消息 —
+% is here.	% 来了。
+% is typing...	% 正在输入...
+% joined the party.	% 加入了派对。
+% just boosted the server!	% 刚刚助力了服务器！
+% just landed.	% 刚刚降落。
+% just showed up!	% 刚刚现身！
+% just slid into the server.	% 刚刚滑进了服务器。
+% left the group.	% 离开了群组。
+% member|% members	% 位成员
+% minute ago|% minutes ago	% 分钟前
+% minute|% minutes	% 分钟
+% month ago|% months ago	% 个月前
+% of %	%1/%2
+% removed the custom group name.	% 移除了自定义群组名称。
+% started a call.	% 发起了通话。
+% turned on encryption.	% 开启了加密。
+% user|% users	% 位用户
+% use|% uses	% 次使用
+% vote|% votes	% 票
+% wants to encrypt this DM with a new key. Compare safety numbers after accepting.	% 想用新密钥加密此私信。接受后请比对安全码。
+% wants to encrypt this DM.	% 想要加密此私信。
+% year ago|% years ago	% 年前
+% · End-to-end encrypted	% · 端到端加密
+%'s Group	% 的群组
+%'s encryption key changed. Compare safety numbers before trusting new messages.	% 的加密密钥已更改。信任新消息前请比对安全码。
+%'s server	% 的服务器
+%1 (%2 more)	%1（还有 %2 个）
+%1 FPS	%1 FPS
+%1 STICKERS — %2 SLOTS AVAILABLE	%1 个贴纸 — 剩余 %2 个位置
+%1 action %2	%1 操作 %2
+%1 added %2 to the group.	%1 将 %2 添加到了群组。
+%1 and %2	%1 和 %2
+%1 and %2 are typing...	%1 和 %2 正在输入...
+%1 and %2 other|%1 and %2 others	%1 和其他 %2 人
+%1 banned %2	%1 封禁了 %2
+%1 changed the Stage topic: %2	%1 更改了舞台主题：%2
+%1 changed the channel name: %2.	%1 更改了频道名称：%2。
+%1 changed the group name: %2.	%1 更改了群组名称：%2。
+%1 created a channel	%1 创建了频道
+%1 created a role	%1 创建了身份组
+%1 created a webhook	%1 创建了 Webhook
+%1 created an emoji	%1 创建了表情符号
+%1 created an invite	%1 创建了邀请
+%1 deleted a channel	%1 删除了频道
+%1 deleted a message by %2	%1 删除了 %2 的消息
+%1 deleted a role	%1 删除了身份组
+%1 deleted a webhook	%1 删除了 Webhook
+%1 deleted an emoji	%1 删除了表情符号
+%1 deleted an invite	%1 删除了邀请
+%1 enabled security actions until %2.	%1 开启了安全措施，直至 %2。
+%1 ended %2	%1 结束了 %2
+%1 has achieved %2	%1 达成了 %2
+%1 has added %2 to this channel. Its most important updates will show up here.	%1 已将 %2 添加到此频道。其最重要的动态将显示在这里。
+%1 has blocked a message in %2	%1 在 %2 中拦截了一条消息
+%1 has flagged a message in %2	%1 在 %2 中标记了一条消息
+%1 is now a speaker.	%1 现在是发言人。
+%1 joined %2 and has been a subscriber of %3 for %4 month!|%1 joined %2 and has been a subscriber of %3 for %4 months!	%1 加入了 %2，已订阅 %3 %4 个月！
+%1 joined %2 as a subscriber of %3!	%1 以 %3 订阅者身份加入了 %2！
+%1 just boosted the server %2 times!	%1 刚刚助力了服务器 %2 次！
+%1 kicked %2	%1 踢出了 %2
+%1 new message since %2|%1 new messages since %2	自 %2 以来有 %1 条新消息
+%1 of %2 slot used|%1 of %2 slots used	已用 %1/%2 个位置
+%1 pinned %2 to this channel. See all %3.	%1 将 %2 置顶到此频道。查看全部%3。
+%1 reacted with %2	%1 回应了 %2
+%1 removed %2 from the group.	%1 将 %2 移出了群组。
+%1 renewed %2 and has been a subscriber of %3 for %4 month!|%1 renewed %2 and has been a subscriber of %3 for %4 months!	%1 续订了 %2，已订阅 %3 %4 个月！
+%1 renewed %2 in their %3 membership!	%1 在其 %3 会员中续订了 %2！
+%1 reported a raid in %2.	%1 在 %2 中报告了突袭。
+%1 requested to speak.	%1 申请发言。
+%1 resolved an Activity Alert in %2.	%1 在 %2 中处理了一条活动警报。
+%1 said %2	%1 说 %2
+%1 started %2	%1 开始了 %2
+%1 started a call that lasted %2.	%1 发起了一次通话，持续了 %2。
+%1 started a thread: %2. See all %3.	%1 创建了子区：%2。查看全部%3。
+%1 unbanned %2	%1 解封了 %2
+%1 updated %2	%1 更新了 %2
+%1 updated a channel	%1 更新了频道
+%1 updated a role	%1 更新了身份组
+%1 updated a webhook	%1 更新了 Webhook
+%1 updated an emoji	%1 更新了表情符号
+%1 updated the roles of %2	%1 更新了 %2 的身份组
+%1 updated the server	%1 更新了服务器
+%1 vote · %2|%1 votes · %2	%1 票 · %2
+%1 wants to make you the owner of %2. You'll be able to manage everything about it, and they'll stay a member.	%1 想让你成为 %2 的所有者。你将能管理它的一切，对方仍会是成员。
+%1's poll %2 has closed.	%1 的投票 %2 已结束。
+%1, %2 and %3	%1、%2 和 %3
+%1, %2 at %3	%1，%2 %3
+%1, %2, and %3 are typing...	%1、%2 和 %3 正在输入...
+%1: %2	%1：%2
+%: a number	%：数字
+%: a whole number	%：整数
+%: pick a channel	%：选择频道
+%: pick a member	%：选择成员
+%: pick a role	%：选择身份组
+%: true or false	%：是或否
+%d ago	%d前
+%d left	剩 %d
+%h	%h
+%h ago	%h前
+%h left	剩 %h
+%m	%m
+%m ago	%m前
+%m left	剩 %m
+%mo ago	%mo前
+%s	%s
+(edited)	（已编辑）
+/% takes no options.	/% 没有选项。
+/%1 needs %2:	/%1 需要 %2：
+1 Day	1 天
+1 Hour	1 小时
+1 Message	1 条消息
+1 Week	1 周
+1 day	1 天
+1 hour	1 小时
+1 minute	1 分钟
+1 use	1 次
+1 week	1 周
+10 Minutes	10 分钟
+10 minutes	10 分钟
+10 uses	10 次
+100 uses	100 次
+12 hours	12 小时
+12-hour	12 小时制
+15 minutes	15 分钟
+2 hours	2 小时
+2 to 4 letters or numbers	2 到 4 个字母或数字
+2 weeks	2 周
+24 Hours	24 小时
+24 hours	24 小时
+24-hour	24 小时制
+25 uses	25 次
+3 Days	3 天
+3 days	3 天
+30 days	30 天
+30 minutes	30 分钟
+3:00 PM	下午 3:00
+4 hours	4 小时
+5 Minutes	5 分钟
+5 minutes	5 分钟
+5 uses	5 次
+50 uses	50 次
+6 hours	6 小时
+6-digit authentication code	6 位验证码
+60 Seconds	60 秒
+60 seconds	60 秒
+7 days	7 天
+8 hours	8 小时
+8-digit backup code	8 位备用码
+@ OFF	@ 关
+@ ON	@ 开
+@MENTIONS	@提及
+@everyone · applies to all server members	@everyone · 适用于所有服务器成员
+A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button.	带 Ctrl、Alt、Shift 或 Cmd 的按键、单独的修饰键，或鼠标中键、侧键。
+A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button. Works in every app.	带 Ctrl、Alt、Shift 或 Cmd 的按键、单独的修饰键，或鼠标中键、侧键。在所有应用中有效。
+A role needs a name.	身份组需要名称。
+A webhook needs a name.	Webhook 需要名称。
+A wild % appeared.	野生的 % 出现了。
+ACTION	操作
+ACTIVE INVITE LINKS	有效邀请链接
+ALL	全部
+ALL THE BITS! Going above 64 kbps may adversely affect people on poor connections.	火力全开！超过 64 kbps 可能会影响网络较差的人。
+AM	上午
+ANIMATED EMOJI — % SLOTS AVAILABLE	动态表情符号 — 剩余 % 个位置
+APP	应用
+AUDIENCE — %	听众 — %
+AUTHENTICATOR APP	身份验证器应用
+About Me	关于我
+Accept	接受
+Accept Friend Request	接受好友请求
+Accept Invite	接受邀请
+Accept Server Ownership	接受服务器所有权
+Accept this message request (Friends, Message Requests) to reply.	接受此消息请求（好友 > 消息请求）即可回复。
+Accepting...	正在接受...
+Access	访问
+Accessibility	无障碍
+Account	账号
+Account Removal	删除账号
+Activate	激活
+Active	活跃
+Active Now	正在活跃
+Activities	活动
+Activity Joining	活动加入
+Activity Privacy	活动隐私
+Activity Status	活动状态
+Add Answer	添加回答
+Add Emoji	添加表情符号
+Add Friend	添加好友
+Add Friend Nickname	添加好友昵称
+Add Note	添加备注
+Add Reaction	添加反应
+Add Reactions	添加反应
+Add Tag	添加标签
+Add a Keybind	添加快捷键
+Add a Question	添加问题
+Add a channel	添加频道
+Add a channel to override its default notification settings	添加频道以覆盖其默认通知设置
+Add a description	添加描述
+Add a location, link, or something.	添加地点、链接或其他内容。
+Add a role	添加身份组
+Add an Account	添加账号
+Add an optional message...	添加可选消息...
+Add another answer	再添加一个回答
+Add at least one word to block.	请至少添加一个要屏蔽的词。
+Add members or roles	添加成员或身份组
+Add this channel's updates to your server!	将此频道的动态添加到你的服务器！
+Add this key to an authenticator app, then enter the code it shows.	将此密钥添加到身份验证器应用，然后输入它显示的代码。
+Add to Favorites	添加到收藏
+Add to Group DM	添加到群组私信
+Add up to 5 traits to show off your server's interests and personality.	最多添加 5 个特征，展示你服务器的兴趣和个性。
+Add up to 50 custom emoji that anyone can use in this server. Animated GIF emoji may be used by members with Discord Nitro. Emoji names must be at least 2 characters long and can only contain alphanumeric characters and underscores. Emoji must be under 256 KB in size.	最多添加 50 个此服务器中任何人都能使用的自定义表情符号。拥有 Discord Nitro 的成员可以使用动态 GIF 表情符号。表情符号名称至少 2 个字符，且只能包含字母、数字和下划线。表情符号大小须小于 256 KB。
+Add your pronouns	添加你的代词
+Added %	已添加 %
+Adjust the size of the interface. You can also change this with % +/-.	调整界面大小。你也可以用 % +/- 来更改。
+Administrator	管理员
+Advanced Permissions	高级权限
+Advanced permissions	高级权限
+Age-Restricted Channel	年龄限制频道
+All	全部
+All Actions	所有操作
+All Messages	所有消息
+All Users	所有用户
+All friends	所有好友
+All messages will be filtered for sensitive image-based media.	所有消息都将过滤敏感的图像类媒体。
+All set. Now share your event!	一切就绪。现在分享你的活动吧！
+Allow DMs from other members in servers	允许服务器中其他成员发送私信
+Allow Discord to use and process my information to understand and improve Discord's services.	允许 Discord 使用和处理我的信息，以了解和改进 Discord 的服务。
+Allow Friend Requests from...	允许谁发送好友请求...
+Allow Multiple Answers	允许多选
+Allow anyone to @mention this role	允许任何人 @提及此身份组
+Allow direct messages from other members in this server.	允许此服务器中其他成员发送私信。
+Allow friends to join your game	允许好友加入你的游戏
+Allow members to change this server's name, switch regions, view all invites, add apps to this server and create and update AutoMod rules.	允许成员更改此服务器的名称、切换地区、查看所有邀请、向此服务器添加应用，以及创建和更新 AutoMod 规则。
+Allow members to create invite-only threads.	允许成员创建仅限邀请的子区。
+Allow members to create threads that everyone in a channel can view.	允许成员创建频道中所有人都能查看的子区。
+Allow members to send messages in text channels and create posts in forum channels.	允许成员在文字频道中发送消息，以及在论坛频道中发帖。
+Allow members to send messages in threads and in posts on forum channels.	允许成员在子区和论坛频道的帖子中发送消息。
+Allow message requests from server members you may not know	允许你可能不认识的服务器成员发送消息请求
+Allow voice channel participants to join your game	允许语音频道参与者加入你的游戏
+Allowed words	允许的词
+Allows apps that members have added to their account to post messages. When disabled, the messages will be private.	允许成员添加到其账号的应用发布消息。关闭后，这些消息将仅自己可见。
+Allows links that members share to show embedded content in text channels.	允许成员分享的链接在文字频道中显示嵌入内容。
+Allows members to add custom emoji, stickers, and sounds in this server.	允许成员在此服务器中添加自定义表情符号、贴纸和音效。
+Allows members to add new emoji reactions to a message. If this permission is disabled, members can still react using any existing reactions on a message.	允许成员为消息添加新的表情反应。若关闭此权限，成员仍可使用消息上已有的反应。
+Allows members to be more easily heard in voice channels. When activated, the volume of others without this permission will be automatically lowered.	让成员在语音频道中更容易被听到。启用后，没有此权限的其他人的音量将自动降低。
+Allows members to change the nicknames of other members.	允许成员更改其他成员的昵称。
+Allows members to change their own nickname, a custom name for just this server.	允许成员更改自己的昵称，即仅用于此服务器的自定义名称。
+Allows members to change this channel's name, description, and settings. They can also delete it.	允许成员更改此频道的名称、描述和设置，也可以删除它。
+Allows members to change this channel's permissions.	允许成员更改此频道的权限。
+Allows members to create and edit voice channel status.	允许成员创建和编辑语音频道状态。
+Allows members to create events.	允许成员创建活动。
+Allows members to create new roles and edit or delete roles lower than their highest role. Also allows members to change permissions of individual channels that they have access to.	允许成员创建新身份组，以及编辑或删除低于其最高身份组的身份组。也允许成员更改其有权访问的各个频道的权限。
+Allows members to create polls.	允许成员创建投票。
+Allows members to create, edit, or delete channels.	允许成员创建、编辑或删除频道。
+Allows members to create, edit, or delete webhooks, which can post messages from other apps or sites into this server.	允许成员创建、编辑或删除 Webhook，Webhook 可将其他应用或网站的消息发布到此服务器。
+Allows members to deafen other members in voice channels, which means they won't be able to speak or hear others.	允许成员在语音频道中让其他成员闭麦，被闭麦者将无法说话或听到他人。
+Allows members to delete or remove embeds from messages by other members.	允许成员删除或移除其他成员消息中的嵌入内容。
+Allows members to disconnect or move other members between voice channels that the member with this permission has access to.	允许成员断开其他成员的连接，或在自己有权访问的语音频道之间移动其他成员。
+Allows members to edit and cancel events.	允许成员编辑和取消活动。
+Allows members to edit or remove custom emoji, stickers, and sounds in this server.	允许成员编辑或移除此服务器中的自定义表情符号、贴纸和音效。
+Allows members to invite new people to this server.	允许成员邀请新用户加入此服务器。
+Allows members to join voice channels and hear others.	允许成员加入语音频道并收听他人。
+Allows members to mute other members in voice channels for everyone.	允许成员在语音频道中为所有人静音其他成员。
+Allows members to permanently ban and delete the message history of other members from this server.	允许成员永久封禁其他成员并删除其在此服务器中的消息记录。
+Allows members to pin or unpin any message.	允许成员置顶或取消置顶任何消息。
+Allows members to read previous messages sent in channels. If this permission is disabled, members only see messages sent when they are online. This does not fully apply to threads and forum posts.	允许成员阅读频道中以前发送的消息。若关闭此权限，成员只能看到自己在线时发送的消息。此权限对子区和论坛帖子不完全适用。
+Allows members to remove other members from this server. Kicked members will be able to rejoin if they have another invite.	允许成员将其他成员移出此服务器。被踢出的成员如有其他邀请，可以重新加入。
+Allows members to rename, delete, close, and turn on slow mode for threads and posts. They can also view private threads.	允许成员对子区和帖子进行重命名、删除、关闭和开启慢速模式，也可以查看私密子区。
+Allows members to send messages without being affected by slowmode.	允许成员发送消息时不受慢速模式限制。
+Allows members to send sounds from server soundboard.	允许成员播放服务器音效板中的音效。
+Allows members to send text-to-speech messages by starting a message with /tts. These messages can be heard by anyone focused on the channel.	允许成员以 /tts 开头发送文字转语音消息。所有关注此频道的人都能听到这些消息。
+Allows members to send voice messages.	允许成员发送语音消息。
+Allows members to share their video, screen share, or stream a game in this server.	允许成员在此服务器中分享视频、屏幕共享或直播游戏。
+Allows members to speak in voice channels by simply talking. If this permission is disabled, members are required to use Push-to-talk. Good for controlling background noise or noisy members.	允许成员在语音频道中直接说话即可发言。若关闭此权限，成员必须使用按键说话。适合控制背景噪音或吵闹的成员。
+Allows members to talk in voice channels. If this permission is disabled, members are default muted until somebody with the "Mute Members" permission un-mutes them.	允许成员在语音频道中说话。若关闭此权限，成员默认静音，直到拥有“静音成员”权限的人为其解除静音。
+Allows members to upload files or media in text channels.	允许成员在文字频道中上传文件或媒体。
+Allows members to use @everyone (everyone in the server) or @here (only online members in that channel). They can also @mention all roles, even if the role's "Allow anyone to mention this role" permission is disabled.	允许成员使用 @everyone（服务器中所有人）或 @here（该频道中的在线成员）。他们也可以 @提及所有身份组，即使该身份组关闭了“允许任何人提及此身份组”权限。
+Allows members to use commands from applications, including slash commands and context menu commands.	允许成员使用应用的命令，包括斜杠命令和上下文菜单命令。
+Allows members to use emoji from other servers, if they're a Discord Nitro member.	允许成员使用其他服务器的表情符号（需为 Discord Nitro 会员）。
+Allows members to use sounds from other servers, if they're a Discord Nitro member.	允许成员使用其他服务器的音效（需为 Discord Nitro 会员）。
+Allows members to use stickers from other servers, if they're a Discord Nitro member.	允许成员使用其他服务器的贴纸（需为 Discord Nitro 会员）。
+Allows members to view Server Insights, which shows data on community growth, engagement, and more. This will allow them to see certain data about channel activity, even for channels they cannot access.	允许成员查看服务器洞察，其中包含社区增长、互动等数据。这将让他们看到某些频道活动数据，即使是他们无法访问的频道。
+Allows members to view a record of who made which changes in this server.	允许成员查看谁在此服务器中做了哪些更改的记录。
+Allows members to view channels by default (excluding private channels).	允许成员默认查看频道（私密频道除外）。
+Allows members to view these channels by default. Disabling this for @everyone will make the category private.	允许成员默认查看这些频道。对 @everyone 关闭此项将使该类别变为私密。
+Allows members to view this channel by default. Disabling this for @everyone will make this channel private.	允许成员默认查看此频道。对 @everyone 关闭此项将使此频道变为私密。
+Always	始终
+An emoji name, like smile	表情符号名称，例如 smile
+An encrypted file couldn't be opened.|% encrypted files couldn't be opened.	无法打开 % 个加密文件。
+An error occurred, please try again.	发生错误，请重试。
+An error occurred. Please try again.	发生错误。请重试。
+Announcement	公告
+Announcement Channel	公告频道
+Answer	回答
+Answers	回答
+Anyone can join your server directly through Server Discovery	任何人都可以通过服务器发现直接加入你的服务器
+Anyone can use	任何人可用
+Anyone with access to this text channel will be able to see the notifications.	任何能访问此文字频道的人都能看到这些通知。
+App Directory	应用目录
+Appearance	外观
+Appends (╯°□°)╯︵ ┻━┻ to your message.	在你的消息后附加 (╯°□°)╯︵ ┻━┻。
+Appends ¯\\_(ツ)_/¯ to your message.	在你的消息后附加 ¯\\_(ツ)_/¯。
+Appends ┬─┬ノ( º _ ºノ) to your message.	在你的消息后附加 ┬─┬ノ( º _ ºノ)。
+Applications	应用程序
+Apply to Join	申请加入
+Approve	批准
+Apps	应用
+Apps Permissions	应用权限
+Archived	已归档
+Archived Threads	已归档子区
+Are you building a Community? Convert to a Community Server to access additional administrative tools that can help you moderate, run, and grow your server.	你在打造社区吗？转换为社区服务器，即可使用更多管理工具，帮助你管理、运营和发展服务器。
+Are you sure that you want to delete your account? This will immediately log you out of your account and you will not be able to log in again.	你确定要删除账号吗？这将立即让你退出登录，且你将无法再次登录。
+Are you sure that you want to disable your account? This will immediately log you out and make your account inaccessible to anyone.	你确定要停用账号吗？这将立即让你退出登录，且任何人都将无法访问你的账号。
+Are you sure you want to ban @%1 from %2? They won't be able to come back until the ban is lifted.	你确定要将 @%1 从 %2 封禁吗？在解除封禁前，对方无法回来。
+Are you sure you want to delete %? This action cannot be undone.	你确定要删除 % 吗？此操作无法撤销。
+Are you sure you want to delete %? This cannot be undone.	你确定要删除 % 吗？此操作无法撤销。
+Are you sure you want to delete :%:? This cannot be undone.	你确定要删除 :%: 吗？此操作无法撤销。
+Are you sure you want to delete the rule %? This cannot be undone.	你确定要删除规则 % 吗？此操作无法撤销。
+Are you sure you want to delete this message?	你确定要删除这条消息吗？
+Are you sure you want to delete this role? This action cannot be undone.	你确定要删除此身份组吗？此操作无法撤销。
+Are you sure you want to delete this template? Its link will stop working.	你确定要删除此模板吗？其链接将失效。
+Are you sure you want to kick @%1 from %2? They will be able to rejoin again with a new invite.	你确定要将 @%1 踢出 %2 吗？对方可以通过新邀请重新加入。
+Are you sure you want to logout?	你确定要退出登录吗？
+Are you sure you want to remove all embeds on this message? This will remove them for everyone.	你确定要移除这条消息上的所有嵌入内容吗？这将对所有人移除。
+Are you sure you want to remove all of the reactions for this emoji from this message?	你确定要移除这条消息上此表情符号的所有反应吗？
+Are you sure you want to remove all the reactions on this message?	你确定要移除这条消息上的所有反应吗？
+Are you sure you want to revoke the invite %? Nobody will be able to join with it.	你确定要撤销邀请 % 吗？将没有人能用它加入。
+Ask for a new invite	请求新的邀请
+Ask new members what they're here for; each answer gives them channels and roles.	询问新成员的来意；每个回答都会为他们分配频道和身份组。
+Attach Files	附加文件
+Attachment removed	附件已移除
+Attachments	附件
+Audit Log	审核日志
+Authorized Apps	已授权的应用
+Auto	自动
+AutoMod	AutoMod
+Automatic	自动
+Automatic Gain Control	自动增益控制
+Automatically determine input sensitivity	自动判断输入灵敏度
+Automatically enable Streamer Mode if OBS or XSplit are running	在 OBS 或 XSplit 运行时自动启用主播模式
+Automatically filter suspected spam messages	自动过滤疑似垃圾消息
+Automatically move members to this channel and mute them when they have been idle for longer than the inactive timeout. This does not affect browsers.	成员闲置超过闲置超时后，自动将其移至此频道并静音。此设置不影响浏览器。
+Automatically open fastcord when your computer starts up	开机时自动打开 fastcord
+Automatically scan and delete messages sent in this server that contain explicit media.	自动扫描并删除此服务器中包含露骨媒体的消息。
+Avatar	头像
+BACK	返回
+BACKUP CODES	备用码
+Back	返回
+Back / forward	后退 / 前进
+Backup codes can only be used one time each and are for emergency access to your account!	每个备用码只能使用一次，用于紧急访问你的账号！
+Backups	备份
+Ban	封禁
+Ban %	封禁 %
+Ban '%' from Server	将“%”从服务器封禁
+Ban Member	封禁成员
+Ban Members	封禁成员
+Banner	横幅
+Banner Color	横幅颜色
+Bans	封禁
+Bitrate	比特率
+Block	屏蔽
+Block Commonly Flagged Words	屏蔽常见标记词
+Block Custom Words	屏蔽自定义词
+Block Mention Spam	屏蔽提及刷屏
+Block Suspected Spam Content	屏蔽疑似垃圾内容
+Block Words in Member Profile Names	屏蔽成员个人资料名称中的词
+Block message	拦截消息
+Blocked	已屏蔽
+Blocked Users	已屏蔽的用户
+Blocked by your content filters	被你的内容过滤器拦截
+Blocked message	已拦截的消息
+Blocked words	屏蔽词
+Blocked words in names	名称中的屏蔽词
+Blocks messages containing % word.|Blocks messages containing % words.	拦截包含 % 个词的消息。
+Blocks messages suspected to be spam.	拦截疑似垃圾消息。
+Blocks messages with more than % mentions.	拦截提及超过 % 次的消息。
+Blocks words from Discord's commonly flagged lists.	屏蔽 Discord 常见标记列表中的词。
+Blocks words in member profile names.	屏蔽成员个人资料名称中的词。
+Blur	模糊
+Blur Background	模糊背景
+Blur what's behind you on camera. Only your camera is changed.	模糊你在摄像头中的背景。只会更改你的摄像头画面。
+Bold / italic / underline	粗体 / 斜体 / 下划线
+Bots and Apps	机器人和应用
+Browse	浏览
+Browse Channels	浏览频道
+Built-In	内置
+Bulgarian	保加利亚语
+By creating a server, you agree to Discord's Community Guidelines.	创建服务器即表示你同意 Discord 的社区准则。
+By enabling the widget, your server profile will be visible to others outside of your server members. You can control Profile privacy in Server Settings > Profile.	启用小部件后，服务器成员以外的人也能看到你的服务器资料。你可以在“服务器设置 > 资料”中控制资料隐私。
+By making a category private, only select members and roles will be able to view this category. Linked channels in this category will automatically match to this setting.	将类别设为私密后，只有选定的成员和身份组能查看此类别。此类别中已同步的频道将自动匹配此设置。
+By making a channel private, only select members and roles will be able to view this channel.	将频道设为私密后，只有选定的成员和身份组能查看此频道。
+By making a channel private, only select members and roles will have access to view or connect to this channel.	将频道设为私密后，只有选定的成员和身份组能查看或连接此频道。
+Bypass Slowmode	无视慢速模式
+CHANNEL OR CATEGORY	频道或类别
+CONFIRM NEW PASSWORD	确认新密码
+CURRENT PASSWORD	当前密码
+Call	通话
+Cancel	取消
+Cancel Event	取消活动
+Cancel Friend Request	取消好友请求
+Careful — you have unsaved changes!	注意 — 你有未保存的更改！
+Category Name	类别名称
+Category deleted	类别已删除
+Change %	更改%
+Change Avatar	更改头像
+Change Nickname	更改昵称
+Change Password	更改密码
+Change Server Icon	更改服务器图标
+Channel	频道
+Channel Name	频道名称
+Channel Notification Overrides	频道通知覆盖设置
+Channel Topic	频道主题
+Channel Type	频道类型
+Channel deleted	频道已删除
+Channel unmuted	频道已取消静音
+Channels	频道
+Channels & Roles	频道和身份组
+Channels Followed (%)	已关注的频道（%）
+Channels matching #%	匹配 #% 的频道
+Chat	聊天
+Chat Font Scaling	聊天字体缩放
+Check your email for a login link	请查收邮件中的登录链接
+Check your phone!	请查看你的手机！
+Checking the file…	正在检查文件…
+Chinese, China	中文（中国）
+Chinese, Taiwan	中文（台湾）
+Choose Image	选择图片
+Choose a link people can use to join, discord.gg/<code>.	选择一个供人加入的链接，discord.gg/<code>。
+Choose a server	选择服务器
+Choose the language you want Discord to display.	选择你希望 Discord 显示的语言。
+Choose what happens to images and videos Discord detects as explicit.	选择 Discord 检测到露骨图片和视频时如何处理。
+Clear	清除
+Clear Custom Status	清除自定义状态
+Clear after	清除时间
+Clear permissions	清除权限
+Click Again to Reset	再次点击以重置
+Click any channel, then pick a request whose name starts with "messages" or "science".	点击任意频道，然后选择一个名称以“messages”或“science”开头的请求。
+Click to add a note	点击添加备注
+Click to see attachment	点击查看附件
+Close DM	关闭私信
+Collapse	收起
+Collapse All Categories	收起所有类别
+Collapse Category	收起类别
+Commands	命令
+Commands matching /%	匹配 /% 的命令
+Community Overview	社区概览
+Community Updates Channel	社区更新频道
+Community servers follow Discord's Community Guidelines.	社区服务器遵循 Discord 的社区准则。
+Community servers have more tools to help you moderate and grow your server.	社区服务器拥有更多工具，帮助你管理和发展服务器。
+Compact	紧凑
+Compare	比对
+Compare these with %, in person or on a call. If they match, no one can read this DM in between.	与 % 当面或通话比对这些数字。如果一致，就没有人能在中途读取此私信。
+Configure system event messages sent to your server.	配置发送到你服务器的系统事件消息。
+Confirm	确认
+Confirm Request	确认请求
+Confirm your age to join this server.	确认你的年龄以加入此服务器。
+Confirming...	正在确认...
+Connect	连接
+Connect these accounts and unlock special Discord integrations. The sign-in opens in your browser.	连接这些账号以解锁特殊的 Discord 集成。登录将在你的浏览器中打开。
+Connected Apps	已连接的应用
+Connecting	正在连接
+Connecting...	正在连接...
+Connecting…	正在连接…
+Connection Info	连接信息
+Connection lost. Messages may be out of date.	连接已断开。消息可能不是最新的。
+Connections	关联账号
+Content Filters	内容过滤
+Continue	继续
+Control who can see your profile info, like your bio and connected accounts.	控制谁可以看到你的个人资料信息，例如简介和关联账号。
+Copied	已复制
+Copy	复制
+Copy Category ID	复制类别 ID
+Copy Channel ID	复制频道 ID
+Copy Event Link	复制活动链接
+Copy Image	复制图片
+Copy Image Link	复制图片链接
+Copy Link	复制链接
+Copy Media Link	复制媒体链接
+Copy Message ID	复制消息 ID
+Copy Message Link	复制消息链接
+Copy Server ID	复制服务器 ID
+Copy Text	复制文字
+Copy User ID	复制用户 ID
+Copy Username	复制用户名
+Copy Webhook URL	复制 Webhook URL
+Copy curl Command	复制 curl 命令
+Copy the event link below to invite people to your event. This also acts as a server invite link.	复制下方的活动链接，邀请大家参加你的活动。此链接也可作为服务器邀请链接。
+Copy your account's token once from Discord in a web browser.	在网页浏览器中从 Discord 复制一次你账号的令牌。
+Couldn't accept encryption.	无法接受加密。
+Couldn't cancel the event.	无法取消活动。
+Couldn't change avatar	无法更改头像
+Couldn't create an invite link.	无法创建邀请链接。
+Couldn't create an invite.	无法创建邀请。
+Couldn't delete the channel: %	无法删除频道：%
+Couldn't encrypt the message.	无法加密消息。
+Couldn't join %: %	无法加入 %：%
+Couldn't load onboarding.	无法加载新人引导。
+Couldn't load the AutoMod rules.	无法加载 AutoMod 规则。
+Couldn't load the applications.	无法加载应用。
+Couldn't load the audit log.	无法加载审核日志。
+Couldn't load the bans.	无法加载封禁列表。
+Couldn't load the invites.	无法加载邀请。
+Couldn't load the members.	无法加载成员。
+Couldn't load the role's members.	无法加载该身份组的成员。
+Couldn't load the server rules.	无法加载服务器规则。
+Couldn't load the server's tag.	无法加载服务器标签。
+Couldn't load the template.	无法加载模板。
+Couldn't load the webhooks.	无法加载 Webhook。
+Couldn't move the channel	无法移动频道
+Couldn't play it here, so it opened in your browser.	无法在此处播放，已在你的浏览器中打开。
+Couldn't reach %1: %2 Retrying.	无法连接 %1：%2 正在重试。
+Couldn't reach Discord. Check your connection and try again.	无法连接 Discord。请检查你的网络连接后重试。
+Couldn't reach Discord. Try again.	无法连接 Discord。请重试。
+Couldn't reach the server.	无法连接服务器。
+Couldn't reach the server. Check your connection and try again.	无法连接服务器。请检查你的网络连接后重试。
+Couldn't save the file.	无法保存文件。
+Couldn't save the image.	无法保存图片。
+Couldn't save the token.	无法保存令牌。
+Couldn't turn on encryption.	无法开启加密。
+Couldn't upload emoji	无法上传表情符号
+Cozy	舒适
+Create	创建
+Create Category	创建类别
+Create Channel	创建频道
+Create DM	创建私信
+Create Emoji	创建表情符号
+Create Event	创建活动
+Create Events	创建活动
+Create Expressions	创建表情
+Create Group DM	创建群组私信
+Create Invite	创建邀请
+Create My Own	亲自创建
+Create Poll	创建投票
+Create Polls	创建投票
+Create Private Threads	创建私密子区
+Create Public Threads	创建公开子区
+Create Role	创建身份组
+Create Rule	创建规则
+Create Thread	创建子区
+Create Webhook	创建 Webhook
+Create Your Server	创建你的服务器
+Create a poll	创建投票
+Create a space for organized discussions	为有序讨论创建空间
+Create one for me	帮我创建
+Created by %	由 % 创建
+Created on %1 by %2	由 %2 创建于 %1
+Creating an invite link…	正在创建邀请链接…
+Creating an invite...	正在创建邀请...
+Creating...	正在创建...
+Creating…	正在创建…
+Creation Date	创建日期
+Croatian	克罗地亚语
+Current Device	当前设备
+Custom Invite Link	自定义邀请链接
+Customize Your Server	自定义你的服务器
+Customize how your server appears in invite links and, if enabled, in Server Discovery and Announcement Channel messages	自定义你的服务器在邀请链接中的显示方式，以及（如已启用）在服务器发现和公告频道消息中的显示方式
+Customize your server with integrations. Manage webhooks, followed channels and apps.	通过集成自定义你的服务器。管理 Webhook、已关注的频道和应用。
+Cut	剪切
+Czech	捷克语
+DAVE v%, % members	DAVE v%，% 位成员
+DEFAULT KEYBINDS	默认快捷键
+DM closed	私信已关闭
+Danish	丹麦语
+Data & Privacy	数据和隐私
+Date	日期
+Deafen	闭麦
+Deafen Members	让成员闭麦
+Deauthorize	取消授权
+Decline	拒绝
+Default	默认
+Default Channels	默认频道
+Default Layout	默认布局
+Default Notification Settings	默认通知设置
+Default Permissions	默认权限
+Default Sort Order	默认排序
+Default Themes	默认主题
+Default notifications become Only @mentions.	默认通知变为仅限 @提及。
+Delete	删除
+Delete '%'	删除“%”
+Delete Account	删除账号
+Delete Category	删除类别
+Delete Channel	删除频道
+Delete Emoji	删除表情符号
+Delete Invite	删除邀请
+Delete Message	删除消息
+Delete Message History	删除消息记录
+Delete Question	删除问题
+Delete Role	删除身份组
+Delete Rule	删除规则
+Delete Server	删除服务器
+Delete Sticker	删除贴纸
+Delete Template	删除模板
+Delete Thread	删除子区
+Delete Webhook	删除 Webhook
+Deleted message	已删除的消息
+Describe your sticker	描述你的贴纸
+Description	描述
+Description (alt text)	描述（替代文本）
+Description (optional)	描述（可选）
+Detects a burst of mention spam across the server and locks it down.	检测到服务器中突发的提及刷屏时将其锁定。
+Developer	开发者
+Developer Mode	开发者模式
+Developer Mode exposes context menu items helpful for people writing apps using the Discord API.	开发者模式会显示对使用 Discord API 编写应用的人有帮助的上下文菜单项。
+Devices	设备
+Direct Message (DM) Permissions	私信权限
+Direct Messages	私信
+Direct messages from friends	来自好友的私信
+Direct messages from others	来自其他人的私信
+Disable	停用
+Disable Account	停用账号
+Disable All Notification Sounds	关闭所有通知音效
+Disable Community	停用社区
+Disable all notifications	关闭所有通知
+Disable all sound effects	关闭所有音效
+Disabling your account means you can recover it at any time after taking this action.	停用账号后，你可以随时恢复它。
+Disconnect	断开连接
+Disconnect From Voice Channel	断开语音频道连接
+Disconnected	已断开连接
+Discord account	Discord 账号
+Discord asked for a captcha, which fastcord can't show. Log in with the QR code instead.	Discord 要求验证码，但 fastcord 无法显示。请改用二维码登录。
+Discord asked for a captcha, which fastcord can't show. Try on discord.com.	Discord 要求验证码，但 fastcord 无法显示。请在 discord.com 上尝试。
+Discord can filter out some messages that contain spam. These messages go to your Spam inbox.	Discord 可以过滤掉部分包含垃圾内容的消息。这些消息会进入你的垃圾邮件收件箱。
+Discord didn't accept the saved login. Log in again.	Discord 不接受已保存的登录信息。请重新登录。
+Discord failed to unpin that message for some reason. Sorry about that.	由于某些原因，Discord 无法取消置顶该消息。抱歉。
+Discord will prioritize this server in search to users who speak the selected language.	Discord 会在搜索中向使用所选语言的用户优先展示此服务器。
+Discord's terms don't allow third-party clients, so using one can get an account flagged.	Discord 的条款不允许第三方客户端，使用它们可能导致账号被标记。
+Discoverable	可被发现
+Dismiss	关闭
+Dismiss message	关闭消息
+Display	显示
+Display Images, Videos and Lolcats	显示图片、视频和搞笑猫图
+Display Name	显示名称
+Display name	显示名称
+Display on profile	在个人资料中显示
+Display role members separately from online members	将身份组成员与在线成员分开显示
+Displays text with emphasis.	以强调方式显示文字。
+Do Not Disturb	请勿打扰
+Do not filter	不过滤
+Do not filter direct messages	不过滤私信
+Don't Delete Any	不删除
+Don't clear	不清除
+Don't show role colors	不显示身份组颜色
+Done	完成
+Download	下载
+Drop a file here, or browse	将文件拖放到这里，或浏览
+Duration	时长
+Dutch	荷兰语
+EDIT ROLE — %	编辑身份组 — %
+EMAIL OR PHONE NUMBER	邮箱或手机号
+EMOJI MATCHING	匹配的表情符号
+ENTER THE 6-DIGIT CODE	输入 6 位验证码
+EXPIRE AFTER	过期时间
+EXPIRES	过期
+Ease the chat and lists toward where you scroll. Off, they jump there at once (always, when your device asks for reduced motion).	让聊天和列表平滑滚动到你滚动的位置。关闭后将立即跳转（当你的设备要求减少动态效果时始终如此）。
+Echo Cancellation	回声消除
+Edit	编辑
+Edit Category	编辑类别
+Edit Channel	编辑频道
+Edit Friend Nickname	编辑好友昵称
+Edit Message	编辑消息
+Edit Per-server Profile	编辑服务器个人资料
+Edit Profile	编辑个人资料
+Edit Profiles	编辑个人资料
+Edit Sound	编辑音效
+Edit Thread	编辑子区
+Edit User Profile	编辑用户个人资料
+Edit invite link.	编辑邀请链接。
+Edit your last message	编辑你的上一条消息
+Email	邮箱
+Embed Links	嵌入链接
+Embed an HTML widget on your website to display your online members, voice channels, and invite link.	在你的网站上嵌入 HTML 小部件，显示你的在线成员、语音频道和邀请链接。
+Emoji	表情符号
+Emoji / GIF / sticker picker	表情符号 / GIF / 贴纸选择器
+Enable Authenticator App	启用身份验证器应用
+Enable Community	启用社区
+Enable Community to access Server Discovery	启用社区以使用服务器发现
+Enable Desktop Notifications	启用桌面通知
+Enable Invites	启用邀请
+Enable Onboarding	启用新人引导
+Enable Reduced Motion	启用减少动态效果
+Enable Server Widget	启用服务器小部件
+Enable Streamer Mode	启用主播模式
+Enable Unread Message Badge	启用未读消息徽章
+Encrypt this DM	加密此私信
+Encrypted message	加密消息
+Encrypted messages are limited to % bytes for now.	加密消息目前限制为 % 字节。
+End Date	结束日期
+End Event	结束活动
+End Poll Now	立即结束投票
+End Time	结束时间
+End-to-end encrypted	端到端加密
+End-to-end encryption	端到端加密
+Engagement	互动
+English, UK	英语（英国）
+English, USA	英语（美国）
+Enter Discord Auth Code	输入 Discord 验证码
+Enter Discord Backup Code	输入 Discord 备用码
+Enter a location	输入地点
+Enter a message to start the conversation!	输入消息，开始对话吧！
+Enter an invite below to join an existing server	在下方输入邀请，加入现有服务器
+Enter server name	输入服务器名称
+Enter your current password and a new password.	输入你的当前密码和新密码。
+Error	错误
+Est. %	约 %
+Event Info	活动信息
+Event Topic	活动主题
+Event cancelled	活动已取消
+Event is over	活动已结束
+Events	活动
+Events Permissions	活动权限
+Every answer needs a title.	每个回答都需要标题。
+Every question needs a title and at least one answer.	每个问题都需要标题和至少一个回答。
+Everyone	所有人
+Everyone in this channel connects to the selected region. Automatic picks the best one for whoever starts the call.	此频道中的所有人都会连接到所选地区。“自动”会为发起通话的人选择最佳地区。
+Everyone welcome %!	欢迎 %！
+Everyone who joins sees these channels, whatever they answer.	所有加入的人都能看到这些频道，无论他们如何回答。
+Exempt a channel	豁免频道
+Exempt a role	豁免身份组
+Exemptions	豁免
+Expand (% lines)	展开（% 行）
+Expand (% of % lines)	展开（% 行，共 % 行）
+Expired	已过期
+Explicit image filter	露骨图片过滤
+Expression	表情
+FRAME RATE	帧率
+Failed to follow the channel, please try again.	关注频道失败，请重试。
+Fastcord couldn't be installed.	无法安装 Fastcord。
+Favorites	收藏
+File	文件
+File saved.	文件已保存。
+Filename	文件名
+Fill out the details of your event.	填写你的活动详情。
+Filter by Action	按操作筛选
+Filter by User	按用户筛选
+Filter direct messages from everyone	过滤所有人的私信
+Filter direct messages from non-friends	过滤非好友的私信
+Filter messages from all members	过滤所有成员的消息
+Filter messages from server members without roles	过滤没有身份组的服务器成员的消息
+Find or start a conversation	查找或开始对话
+Find the perfect emoji	寻找完美的表情符号
+Find the perfect reaction	寻找完美的反应
+Find the perfect sticker	寻找完美的贴纸
+Finding the video%	正在查找视频%
+Finish	完成
+Finishing touches	最后润色
+Finnish	芬兰语
+Fit more messages on screen at one time. #IRC	在屏幕上一次显示更多消息。#IRC
+Flagged as spam	已标记为垃圾消息
+Flags	标记
+Folder Color	文件夹颜色
+Folder Name	文件夹名称
+Folder Settings	文件夹设置
+Folder removed	文件夹已移除
+Follow	关注
+Followed!	已关注！
+Food & Drink	食物和饮料
+For 1 Hour	1 小时
+For 15 Minutes	15 分钟
+For 24 Hours	24 小时
+For 3 Days	3 天
+For 3 Hours	3 小时
+For 8 Hours	8 小时
+Forever	永久
+Forgot your password?	忘记密码了？
+Forum	论坛
+Forward	转发
+Forward To	转发至
+Forwarded	已转发
+French	法语
+Frequently Used	常用
+Friend Nickname	好友昵称
+Friend Request Permissions	好友请求权限
+Friend Request Sent	好友请求已发送
+Friend removed	好友已删除
+Friend request cancelled	好友请求已取消
+Friend request ignored	好友请求已忽略
+Friends	好友
+Friends & All Servers	好友和所有服务器
+Friends & Small Servers Only	仅好友和小型服务器
+Friends Only	仅好友
+Friends can ask to join or join the game you're playing.	好友可以请求加入或直接加入你正在玩的游戏。
+Friends come online	好友上线
+Friends of friends	好友的好友
+From User	来自用户
+GIFs	GIF
+GIFs can't be sent encrypted yet.	GIF 暂时无法加密发送。
+Gallery view	画廊视图
+General	常规
+General Category Permissions	常规类别权限
+General Channel Permissions	常规频道权限
+General Server Permissions	常规服务器权限
+Generate Template	生成模板
+Generate a New Link	生成新链接
+German	德语
+Get a copy of your data. It can take up to 30 days to prepare, and a download link is emailed to you when it's ready.	获取你的数据副本。准备可能需要最多 30 天，准备好后下载链接会通过邮件发送给你。
+Give new members a quick way to find the channels and roles that matter to them.	让新成员快速找到对他们重要的频道和身份组。
+Give your new server a personality with a name. You can always change it later.	给你的新服务器起个名字，赋予它个性。之后随时可以更改。
+Glad you're here, %.	很高兴你来了，%。
+Go Back	返回
+Go To Channel	前往频道
+Go back	返回
+Go forward	前进
+Go to Server	前往服务器
+Good to see you, %.	很高兴见到你，%。
+Got It	知道了
+Grant temporary membership	授予临时成员资格
+Greek	希腊语
+Hang out together with voice, video, and screen share	一起语音、视频和屏幕共享
+Hang out with voice, video, screenshare, and Go Live.	用语音、视频、屏幕共享和直播一起玩。
+Happening Now	正在进行
+Have an invite already?	已经有邀请了？
+Help	帮助
+Here's a preview of your event.	这是你的活动预览。
+Hey, just double checking that you want to pin this message to #% for posterity and greatness?	嘿，再确认一下：你要把这条消息置顶到 #%，让它流芳百世吗？
+Hey, just double checking that you want to pin this message to the current channel for posterity and greatness?	嘿，再确认一下：你要把这条消息置顶到当前频道，让它流芳百世吗？
+Hide	隐藏
+Hide After Inactivity	闲置后隐藏
+Hide Chat	隐藏聊天
+Hide Fastcord window from screen capture	在屏幕截图中隐藏 Fastcord 窗口
+Hide Muted Channels	隐藏已静音的频道
+Hide invite links to my Discord servers	隐藏我的 Discord 服务器邀请链接
+Hide my personal information, such as email, connected accounts, and notes	隐藏我的个人信息，例如邮箱、关联账号和备注
+Hides Fastcord windows from most screen capture software.	在大多数截屏软件中隐藏 Fastcord 窗口。
+High	高
+Highest	最高
+Highlights provide occasional updates when your friends are chatting in busy servers, and more.	精彩动态会在你的好友在热闹服务器中聊天时不时为你推送更新，以及更多内容。
+Hindi	印地语
+History	历史记录
+Hitting X makes fastcord minimize to the system tray instead of closing.	点击 X 会让 fastcord 最小化到系统托盘，而不是关闭。
+Hm, didn’t work. Double check that the username is correct.	嗯，没成功。请再检查一下用户名是否正确。
+Host	主持人
+Host events with an audience	举办有听众的活动
+How Discord Uses My Data	Discord 如何使用我的数据
+How can people join your server?	大家如何加入你的服务器？
+How did your server get started? Why should people join?	你的服务器是怎么开始的？大家为什么要加入？
+Hungarian	匈牙利语
+I acknowledge that by transferring ownership of this server to %, it officially belongs to them.	我知道将此服务器的所有权转让给 % 后，它将正式归对方所有。
+I agree and understand	我同意并理解
+I'm new here, say hi!	我是新人，打个招呼吧！
+I'm sure, use a backup code	我确定，使用备用码
+IMAGE	图片
+INPUT DEVICE	输入设备
+INPUT MODE	输入模式
+INPUT SENSITIVITY	输入灵敏度
+INPUT VOLUME	输入音量
+INVITE CODE	邀请码
+INVITE LINK	邀请链接
+INVITER	邀请人
+INVITES SHOULD LOOK LIKE	邀请应类似于
+Icon	图标
+Idle	闲置
+If Streamer Mode is enabled...	如果启用了主播模式...
+If you do not have access to any other methods, the button below will activate in % second.|If you do not have access to any other methods, the button below will activate in % seconds.	如果你无法使用其他任何方式，下方按钮将在 % 秒后激活。
+If you do not have access to any other methods, use the other button below to proceed.	如果你无法使用其他任何方式，请使用下方的另一个按钮继续。
+Ignore	忽略
+Ignore Friend Request	忽略好友请求
+Ignored Users	已忽略的用户
+Ignored message	已忽略的消息
+Image saved.	图片已保存。
+Important updates for people in and out of the server	面向服务器内外人员的重要更新
+In Channel	在频道中
+Inactive Channel	闲置频道
+Inactive Timeout	闲置超时
+Inbox	收件箱
+Incoming Call...	来电...
+Incoming Friend Request	收到的好友请求
+Indonesian	印度尼西亚语
+Insert Timestamp	插入时间戳
+Install	安装
+Install Fastcord to open it from the Start menu.	安装 Fastcord 后即可从“开始”菜单打开。
+Installing…	正在安装…
+Instructions Sent	已发送说明
+Insults and Slurs	侮辱和歧视用语
+Integrations	集成
+Interested	感兴趣
+Invalid Invite	无效邀请
+Invalid date or time	无效的日期或时间
+Invisible	隐身
+Invite	邀请
+Invite Channel	邀请频道
+Invite Invalid	邀请无效
+Invite Only	仅限邀请
+Invite People	邀请他人
+Invite friends to %	邀请好友加入 %
+Invite to Server	邀请加入服务器
+Invite to Speak	邀请发言
+Invites	邀请
+Invites are currently paused for this server. Please try again later.	此服务器的邀请目前已暂停。请稍后再试。
+Invites are paused: nobody can join with an invite link until they're enabled again.	邀请已暂停：在重新启用前，任何人都无法通过邀请链接加入。
+It's quiet for now...	现在还很安静...
+Italian	意大利语
+JOINED DISCORD	加入 DISCORD 时间
+JSON API	JSON API
+January|February|March|April|May|June|July|August|September|October|November|December	一月|二月|三月|四月|五月|六月|七月|八月|九月|十月|十一月|十二月
+Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec	1月|2月|3月|4月|5月|6月|7月|8月|9月|10月|11月|12月
+Japanese	日语
+Jitter	抖动
+Join	加入
+Join Call	加入通话
+Join Server	加入服务器
+Join Thread	加入子区
+Join Voice	加入语音
+Join a Server	加入服务器
+Join the call	加入通话
+Joined Threads	已加入的子区
+Joining…	正在加入…
+Jump	跳转
+Jump To Present	跳到最新
+Jump to oldest unread message	跳到最早的未读消息
+KEYBIND	快捷键
+Keep Current Permissions	保留当前权限
+Keep these somewhere safe. Each code signs you in once if you lose your authenticator app; they are shown only now.	请妥善保管这些代码。如果你丢失了身份验证器应用，每个代码可让你登录一次；它们只显示这一次。
+Keep your server private, or open it up for more people to join.	让你的服务器保持私密，或开放给更多人加入。
+Keybinds	快捷键
+Keybinds only work while fastcord is focused. To use them in other apps, allow fastcord under Input Monitoring in System Settings, then restart fastcord.	快捷键仅在 fastcord 处于焦点时有效。要在其他应用中使用，请在“系统设置”的“输入监控”中允许 fastcord，然后重启 fastcord。
+Keybinds only work while fastcord is focused: this desktop doesn't let apps see keys pressed in other windows.	快捷键仅在 fastcord 处于焦点时有效：此桌面环境不允许应用读取在其他窗口中按下的按键。
+Keybinds work in every app, also while fastcord is in the background.	快捷键在所有应用中都有效，fastcord 在后台时也一样。
+Keyboard Shortcuts	键盘快捷键
+Keyboard shortcuts	键盘快捷键
+Keyword: %	关键词：%
+Kick	踢出
+Kick %	踢出 %
+Kick '%' from Server	将“%”踢出服务器
+Kick Member	踢出成员
+Kick, Approve, and Reject Members	踢出、批准和拒绝成员
+Korean	韩语
+LIVE	直播
+Language	语言
+Language & Time	语言和时间
+Last sync: %	上次同步：%
+Leave Group	退出群组
+Leave Server	退出服务器
+Leave Thread	退出子区
+Leaving Discord	即将离开 Discord
+Left %	已离开 %
+Let everyone know how to use this channel!	让大家知道如何使用这个频道吧！
+Let's Check	检查一下
+Level %!	等级 %！
+Limits	限制
+Limits the number of users that can connect to this voice channel. Users with the Move Members permission ignore this limit and can move other users into the channel.	限制可连接到此语音频道的用户数。拥有“移动成员”权限的用户不受此限制，并可将其他用户移入频道。
+Linked Roles	关联身份组
+List view	列表视图
+Lithuanian	立陶宛语
+Live Now	正在直播
+Loading sounds…	正在加载音效…
+Loading...	正在加载...
+Loading…	正在加载…
+Location	地点
+Log In	登录
+Log Out	退出登录
+Log Out All Known Devices	退出所有已知设备
+Log in	登录
+Log in to Discord in your web browser.	在网页浏览器中登录 Discord。
+Log in with QR Code	使用二维码登录
+Log in with a token	使用令牌登录
+Log out of all known devices	退出所有已知设备
+Logged-in Devices	已登录的设备
+Logging in as %	正在以 % 登录
+Logging in…	正在登录…
+Login or password is invalid.	登录信息或密码无效。
+Looking for screens…	正在查找屏幕…
+Lotus Mode	莲花模式
+Low	低
+Lower Hand	放下手
+MAX NUMBER OF USES	最大使用次数
+MEMBER SINCE	成员加入时间
+MEMBERS	成员
+MUTE	静音
+Main Profile	主个人资料
+Make a selection	请选择
+Manage Accounts	管理账号
+Manage Channel	管理频道
+Manage Channels	管理频道
+Manage Events	管理活动
+Manage Expressions	管理表情
+Manage Members	管理成员
+Manage Messages	管理消息
+Manage Nicknames	管理昵称
+Manage Permissions	管理权限
+Manage Roles	管理身份组
+Manage Server	管理服务器
+Manage Threads and Posts	管理子区和帖子
+Manage Webhooks	管理 Webhook
+Manage settings that help keep your server active.	管理有助于保持服务器活跃的设置。
+Mark All as Read	全部标为已读
+Mark As Read	标为已读
+Mark Folder As Read	将文件夹标为已读
+Mark Unread	标为未读
+Mark a message unread	将消息标为未读
+Mark as Verified	标记为已验证
+Mark as spoiler	标记为剧透
+Mark channel read	将频道标为已读
+Mark server read	将服务器标为已读
+Marked as read	已标为已读
+Marks your message as a spoiler.	将你的消息标记为剧透。
+Match your device's light or dark mode.	跟随设备的浅色或深色模式。
+Max file size is % MB please.	文件大小上限为 % MB。
+Measuring	正在测量
+Medium	中
+Member Since	成员加入时间
+Members	成员
+Members can pick more than one answer	成员可以选择多个回答
+Members can wear your server's tag next to their name across Discord.	成员可以在 Discord 各处的名字旁佩戴你服务器的标签。
+Members in timeout can't send messages, react, join voice or speak until it ends.	处于禁言中的成员在结束前无法发送消息、添加反应、加入语音或发言。
+Members in timeout can't send messages, react, join voice or start threads until it ends.	处于禁言中的成员在结束前无法发送消息、添加反应、加入语音或创建子区。
+Members matching @%	匹配 @% 的成员
+Members must answer this question to join.	成员必须回答此问题才能加入。
+Members of the server must meet the following criteria before they can send messages in text channels or initiate a direct message conversation. If a member has an assigned role this does not apply.	服务器成员必须满足以下条件，才能在文字频道中发送消息或发起私信对话。已分配身份组的成员不受此限制。
+Members use the colour of the highest role they have on the roles list.	成员使用其在身份组列表中最高身份组的颜色。
+Members use the colour of the highest role they have on this list. Drag roles, or use the arrows, to reorder them.	成员使用其在此列表中最高身份组的颜色。拖动身份组或使用箭头来调整顺序。
+Members will be restricted to sending one message and creating one thread per this interval, unless they have the Bypass Slowmode permission.	成员在每个间隔内只能发送一条消息和创建一个子区，除非拥有“无视慢速模式”权限。
+Members with a matching name can't talk or interact until they change it.	名称匹配的成员在更改名称前无法说话或互动。
+Members with this permission will have every permission and will also bypass all channel specific permissions or restrictions (for example, these members would get access to all private channels). This is a dangerous permission to grant.	拥有此权限的成员将拥有所有权限，并会绕过所有频道特定的权限或限制（例如，这些成员将能访问所有私密频道）。授予此权限有风险。
+Members — %	成员 — %
+Membership Permissions	成员权限
+Mention	提及
+Mention %	提及 %
+Mention @everyone, @here, and All Roles	提及 @everyone、@here 和所有身份组
+Mention limit	提及上限
+Mention raid protection	提及突袭防护
+Mention removed	已移除提及
+Mentions	提及
+Mentions User	提及用户
+Message	消息
+Message #%	发消息到 #%
+Message %	发消息给 %
+Message @%	发消息给 @%
+Message @% (encrypted)	发消息给 @%（已加密）
+Message @% (not encrypted)	发消息给 @%（未加密）
+Message Contains	消息包含
+Message Display	消息显示
+Message Requests	消息请求
+Message deleted	消息已删除
+Message failed to send.	消息发送失败。
+Message link copied: paste it into Discord's report form	消息链接已复制：请粘贴到 Discord 的举报表单中
+Message request ignored	已忽略消息请求
+Message unpinned	已取消置顶消息
+Messages Failed To Load	消息加载失败
+Messages from members you may not know go to Message Requests.	来自你可能不认识的成员的消息会进入消息请求。
+Messages from people you may not know go to Message Requests instead of your DMs.	来自你可能不认识的人的消息会进入消息请求，而不是你的私信。
+Messages from server members without a role will be filtered for sensitive image-based media.	来自没有身份组的服务器成员的消息将过滤敏感的图像类媒体。
+Messages in servers	服务器中的消息
+Messages will not be filtered for sensitive image-based media.	消息不会过滤敏感的图像类媒体。
+Messaging Permissions	消息权限
+Minimize to Tray	最小化到托盘
+Mobile Push Notifications	移动端推送通知
+Moderation	管理
+Moderators must have two-factor authentication enabled to ban, kick, or timeout members and delete messages.	管理员必须启用双重身份验证，才能封禁、踢出或禁言成员以及删除消息。
+Moderators only	仅限管理员
+Modern, beautiful, and easy on your eyes.	现代、美观、护眼。
+Modify Attachment	修改附件
+Motion	动态效果
+Move Members	移动成员
+Move To	移动到
+Move to Audience	移至听众
+Multi-Factor Authentication	多重身份验证
+Must also be a member of this server for longer than 10 minutes.	还必须是此服务器成员超过 10 分钟。
+Must also be registered on Discord for longer than 5 minutes.	还必须在 Discord 注册超过 5 分钟。
+Must have a verified email on their Discord account.	其 Discord 账号必须有已验证的邮箱。
+Must have a verified phone on their Discord account.	其 Discord 账号必须有已验证的手机号。
+Mute	静音
+Mute %	静音 %
+Mute Category	静音类别
+Mute Channel	静音频道
+Mute Members	静音成员
+Mute New Events	静音新活动
+Mute Server	静音服务器
+Mute Thread	静音子区
+Muted until %1, %2	静音至 %1 %2
+Muting a server prevents unread indicators and notifications from appearing unless you are mentioned.	静音服务器后，除非有人提及你，否则不会显示未读标记和通知。
+Mutual Friends	共同好友
+Mutual Servers	共同服务器
+My Account	我的账号
+My server	我的服务器
+NAME	名称
+NEW	新
+NEW PASSWORD	新密码
+NO ACTIVE INVITE LINKS	没有有效的邀请链接
+NOTHING	无
+Name	名称
+Name your sound	为你的音效命名
+Name your sticker	为你的贴纸命名
+Nature	自然
+Navigate Back	后退
+Navigate Forward	前进
+Need an account?	需要账号？
+Network	网络
+Never	从不
+Nevermind	算了
+New Category	新建类别
+New Group DM	新建群组私信
+New Post	新帖子
+New Thread	新子区
+New Webhook	新 Webhook
+New members must read and agree to these before they can talk.	新成员必须阅读并同意这些规则后才能发言。
+New members pick channels and roles from your questions when they join.	新成员加入时，会根据你的问题选择频道和身份组。
+New tag	新标签
+New threads will stop showing in the channel list after being inactive for the specified duration.	新子区在闲置达到指定时长后，将不再显示在频道列表中。
+Newest	最新
+Next	下一步
+Nickname	昵称
+Nicknames are visible to everyone on this server. Do not change them unless you are enforcing a naming system or clearing a bad nickname.	此服务器中的所有人都能看到昵称。除非是在执行命名规则或清除不良昵称，否则请勿更改。
+No GIFs found	找不到 GIF
+No Inactive Channel	没有闲置频道
+No Invite	没有邀请
+No Keybind Set	未设置快捷键
+No System Messages	不发送系统消息
+No applications waiting	没有等待中的申请
+No apps have been added to this server.	此服务器尚未添加任何应用。
+No bans	没有封禁
+No bans match your search	没有符合搜索条件的封禁
+No emoji found	找不到表情符号
+No favorites yet	还没有收藏
+No file chosen	未选择文件
+No friends in common	没有共同好友
+No limit	无限制
+No logs yet	还没有日志
+No members found	找不到成员
+No members have this role yet.	还没有成员拥有此身份组。
+No message requests.	没有消息请求。
+No one is speaking yet	还没有人在发言
+No one's around right now.	现在没有人在。
+No one's here yet	这里还没有人
+No posts match	没有匹配的帖子
+No posts yet	还没有帖子
+No questions yet.	还没有问题。
+No reason given	未提供原因
+No results	没有结果
+No results found	找不到结果
+No servers in common	没有共同服务器
+No sounds found	找不到音效
+No sounds yet.	还没有音效。
+No spam. Nice.	没有垃圾消息。不错。
+No stickers found	找不到贴纸
+No stickers yet	还没有贴纸
+Nobody can join this server with an invite link until the pause ends or you enable invites again.	在暂停结束或你重新启用邀请之前，任何人都无法通过邀请链接加入此服务器。
+Nobody has mentioned you recently.	最近没有人提及你。
+Noise Suppression	降噪
+Noise Suppression: Off	降噪：关
+Noise Suppression: On	降噪：开
+None	无
+Norwegian	挪威语
+Not Now	以后再说
+Not connected to % yet.	尚未连接到 %。
+Not encrypted	未加密
+Not encrypted: Discord can read this message	未加密：Discord 可以读取此消息
+Not end-to-end encrypted	未端到端加密
+Not me, start over	不是我，重新开始
+Note	备注
+Note (only visible to you)	备注（仅你可见）
+Note: Members with the "Mention @everyone, @here, and All Roles" permission will always be able to ping this role.	注意：拥有“提及 @everyone、@here 和所有身份组”权限的成员始终可以提及此身份组。
+Nothing	无
+Notification Settings	通知设置
+Notification settings changed	通知设置已更改
+Notifications	通知
+Notify everyone online who has permission to view this channel.	通知所有有权查看此频道的在线成员。
+Notify everyone who has permission to view this channel.	通知所有有权查看此频道的人。
+Notify me when...	在以下情况通知我...
+Notify users with this role who have permission to view this channel.	通知拥有此身份组且有权查看此频道的用户。
+OUTPUT DEVICE	输出设备
+OUTPUT VOLUME	输出音量
+Objects	物品
+Off	关
+Offline	离线
+Oh yeah. Pin it	没错，置顶吧
+Okay	好的
+Oldest	最早
+On click	点击时
+On servers I moderate	在我管理的服务器上
+Onboarding	新人引导
+One rule per line, for example: Be respectful	每行一条规则，例如：互相尊重
+Ongoing call	正在进行的通话
+Online	在线
+Only @mentions	仅限 @提及
+Only servers and channels you have webhook permissions in are shown.	仅显示你拥有 Webhook 权限的服务器和频道。
+Only you can see the nickname you give %.	只有你能看到你给 % 设置的昵称。
+Only you can see this · 	仅你可见 ·
+Oops!	哎呀！
+Open Chat	打开聊天
+Open Image Link	打开图片链接
+Open Link	打开链接
+Open Logs Folder	打开日志文件夹
+Open Media Link	打开媒体链接
+Open Server Insights	打开服务器洞察
+Open Settings	打开设置
+Open discord.com	打开 discord.com
+Open in Browser	在浏览器中打开
+Open in YouTube	在 YouTube 中打开
+Open the developer tools (Cmd+Option+I) and choose the Network tab.	打开开发者工具（Cmd+Option+I），然后选择“网络”标签页。
+Open the developer tools (Ctrl+Shift+I) and choose the Network tab.	打开开发者工具（Ctrl+Shift+I），然后选择“网络”标签页。
+Or, send a server invite link to a friend	或者，向好友发送服务器邀请链接
+Original message was deleted	原消息已被删除
+Other Active Threads	其他活跃子区
+Other Devices	其他设备
+Outgoing Friend Request	发出的好友请求
+Overview	概览
+PASSWORD	密码
+PM	下午
+PRIVACY CODE	隐私码
+PTT Activate	按键说话启动
+PTT Deactivate	按键说话停止
+PUSH TO TALK RELEASE DELAY	按键说话释放延迟
+Packet loss	丢包
+Packets received	已接收数据包
+Packets sent	已发送数据包
+Page %	第 % 页
+Password	密码
+Password and Authentication	密码与身份验证
+Passwords do not match!	密码不一致！
+Paste	粘贴
+Paste an emoji (optional)	粘贴一个表情符号（可选）
+Paste your token	粘贴你的令牌
+Pause Invites	暂停邀请
+Pending	待处理
+People	用户
+People can join your server directly with an invite	大家可以通过邀请直接加入你的服务器
+People in a voice channel with you can join the game you're playing.	和你在同一语音频道的人可以加入你正在玩的游戏。
+People must submit an application and be approved to join	大家必须提交申请并获得批准才能加入
+People who applied to join, waiting for a moderator.	申请加入、正在等待管理员处理的人。
+Per-server Profiles	服务器个人资料
+Permissions	权限
+Permissions not synced with category: 	权限未与类别同步：
+Permissions synced with category: 	权限已与类别同步：
+Permissions: %	权限：%
+Phone Number	手机号
+Pick a channel	选择频道
+Pick a channel for the alerts.	为警报选择一个频道。
+Pick at least one response.	请至少选择一个回答。
+Pin It. Pin It Good.	置顶它。好好置顶。
+Pin Message	置顶消息
+Pin Messages	置顶消息
+Ping	Ping
+Ping: % ms	Ping：% ms
+Ping: measuring…	Ping：正在测量…
+Pinned Messages	已置顶的消息
+Play Here	在此播放
+Play Soundboard Through My Mic	通过我的麦克风播放音效板
+Play YouTube videos here with yt-dlp? It needs yt-dlp installed, and connects to YouTube from your computer. Settings > Chat can change this.	要用 yt-dlp 在此播放 YouTube 视频吗？需要安装 yt-dlp，并会从你的电脑连接 YouTube。可在“设置 > 聊天”中更改。
+Play YouTube videos in fastcord with yt-dlp	使用 yt-dlp 在 fastcord 中播放 YouTube 视频
+Please enter a valid invite link or invite code.	请输入有效的邀请链接或邀请码。
+Please try again later.	请稍后再试。
+Polish	波兰语
+Poll closed	投票已结束
+Portuguese, Brazilian	葡萄牙语（巴西）
+Post	发布
+Post Guidelines	发帖规范
+Post from a script	通过脚本发布
+Post messages that reach servers outside your own. Members can follow this channel, so the posts you publish here appear in their servers.	发布可传达到你服务器以外的消息。成员可以关注此频道，你在这里发布的帖子将出现在他们的服务器中。
+Post title	帖子标题
+Posting...	正在发布...
+Press a shortcut…	按下快捷键…
+Previous	上一步
+Previous / next channel	上一个 / 下一个频道
+Previous / next channel with mentions	上一个 / 下一个有提及的频道
+Previous / next server	上一个 / 下一个服务器
+Previous / next unread channel	上一个 / 下一个未读频道
+Previous 12 Hours	过去 12 小时
+Previous 24 Hours	过去 24 小时
+Previous 3 Days	过去 3 天
+Previous 6 Hours	过去 6 小时
+Previous 7 Days	过去 7 天
+Previous Hour	过去 1 小时
+Priority Speaker	优先发言人
+Privacy Settings	隐私设置
+Private Category	私密类别
+Private Channel	私密频道
+Private Profile	私密个人资料
+Profile	个人资料
+Profile Banner	个人资料横幅
+Profile Privacy	个人资料隐私
+Profiles	个人资料
+Prompt members to reply to welcome messages with a sticker.	提示成员用贴纸回复欢迎消息。
+Pronouns	代词
+Protect your Discord account with an extra layer of security. Once configured, you'll be required to enter your password and complete one additional step in order to sign in.	为你的 Discord 账号增加一层额外保护。配置完成后，登录时需要输入密码并完成一个额外步骤。
+Protip:	小贴士：
+Publish	发布
+Push to Mute	按键静音
+Push to Talk	按键说话
+Push to Talk (Normal)	按键说话（普通）
+Q: %	问：%
+Question	问题
+Questions	问题
+ROLES	身份组
+ROLES — %	身份组 — %
+ROLES/MEMBERS	身份组/成员
+RTC Connecting	RTC 正在连接
+Read Message History	读取消息记录
+Reason	原因
+Reason for Ban	封禁原因
+Reason for Kick	踢出原因
+Reason for Timeout	禁言原因
+Reason: %	原因：%
+Received	已接收
+Recently Active	最近活跃
+Reconnect	重新连接
+Record Keybind	录制快捷键
+Reduce the saturation of colors within the application, for those with color sensitivities.	为对颜色敏感的人降低应用内颜色的饱和度。
+Reduces the amount of animation and motion effects. On whenever your device asks for reduced motion.	减少动画和动态效果。设备要求减少动态效果时始终开启。
+Region Override	地区覆盖
+Register	注册
+Reject	拒绝
+Rejoin	重新加入
+Related Emoji	相关表情符号
+Relevant	相关
+Remove	移除
+Remove %	移除 %
+Remove All Embeds	移除所有嵌入内容
+Remove All Reactions	移除所有反应
+Remove Answer	移除回答
+Remove Attachment	移除附件
+Remove Authenticator App	移除身份验证器应用
+Remove Avatar	移除头像
+Remove Embeds	移除嵌入内容
+Remove Friend	删除好友
+Remove From Group	从群组中移除
+Remove Icon	移除图标
+Remove Reaction	移除反应
+Remove Reactions	移除反应
+Remove Reactions for Emoji	移除此表情符号的反应
+Remove Server	移除服务器
+Remove Spoiler	移除剧透
+Remove Timeout	解除禁言
+Remove Vote	撤回投票
+Remove all embeds	移除所有嵌入内容
+Remove from Favorites	从收藏中移除
+Remove notification override for %	移除 % 的通知覆盖设置
+Remove the files added before encryption was on: they'd go unencrypted.	请移除开启加密前添加的文件：它们将以未加密形式发送。
+Remove the files added while encryption was on: they'd arrive as unreadable ciphertext.	请移除开启加密期间添加的文件：它们将以无法读取的密文送达。
+Removing…	正在移除…
+Repeated encrypted message	重复的加密消息
+Reply	回复
+Replying to	正在回复
+Report Message	举报消息
+Request Data	申请数据
+Request all of my Data	申请我的全部数据
+Request to Speak	申请发言
+Requests	请求
+Require 2FA for moderator actions	管理操作需要双重身份验证
+Require members to agree to the server rules	要求成员同意服务器规则
+Require people to select tags when posting	要求发帖时选择标签
+Required	必填
+Resend SMS?	重新发送短信？
+Reset	重置
+Reset Friend Nickname	重置好友昵称
+Reset Voice Settings	重置语音设置
+Resolving Invite	正在解析邀请
+Responses	回答
+Retry	重试
+Retry Now	立即重试
+Return to call	返回通话
+Return to the connected call	返回已连接的通话
+Reveal	显示
+Review	审核
+Revoke	撤销
+Revoke Ban	解除封禁
+Revoke Invite	撤销邀请
+Revoke the ban? They will be able to join again with an invite.	要解除封禁吗？对方将能通过邀请重新加入。
+Ring	呼叫
+Ringing…	正在呼叫…
+Role Color	身份组颜色
+Role Colors	身份组颜色
+Role Icon	身份组图标
+Role name	身份组名称
+Roles	身份组
+Romanian, Romania	罗马尼亚语
+Rule: %	规则：%
+Rules or Guidelines Channel	规则或准则频道
+Russian	俄语
+SELECT A CHANNEL	选择频道
+SELECT A SERVER	选择服务器
+SERVER NAME	服务器名称
+SOUNDBOARD VOLUME	音效板音量
+STATIC EMOJI — % SLOTS AVAILABLE	静态表情符号 — 剩余 % 个位置
+Safety Notifications Channel	安全通知频道
+Safety Number	安全码
+Safety Setup	安全设置
+Safety checks	安全检查
+Same as Device Theme	跟随设备主题
+Saturation	饱和度
+Save	保存
+Save Changes	保存更改
+Save Image	保存图片
+Saving...	正在保存...
+Saving…	正在保存…
+Scan this with the Discord mobile app to log in instantly.	使用 Discord 手机应用扫描此码即可立即登录。
+Schedule an event for any planned activity in your server.	为服务器中任何计划好的活动安排日程。
+Screen	屏幕
+Screen sharing isn't supported on this platform yet.	此平台暂不支持屏幕共享。
+Scroll chat	滚动聊天
+Search	搜索
+Search %	搜索 %
+Search Bans by User ID or Username	按用户 ID 或用户名搜索封禁
+Search Klipy	搜索 Klipy
+Search Options	搜索选项
+Search by username or id	按用户名或 ID 搜索
+Search for friends	搜索好友
+Search members to add (press Enter)	搜索要添加的成员（按回车）
+Search or create a post...	搜索或创建帖子...
+Search sounds	搜索音效
+Searching...	正在搜索...
+Select Friends	选择好友
+Select a Language	选择语言
+Select a channel	选择频道
+Select a channel or category…	选择频道或类别…
+Select one answer	选择一个回答
+Select one or more answers	选择一个或多个回答
+Select where you want these updates to go. You can remove this at any time in Server Settings > Integrations > Channels Followed.	选择这些更新的发送位置。你可以随时在“服务器设置 > 集成 > 已关注的频道”中移除。
+Select where you want to share this message.	选择要分享此消息的位置。
+Send	发送
+Send Friend Request	发送好友请求
+Send Messages and Create Posts	发送消息和创建帖子
+Send Messages in Threads and Posts	在子区和帖子中发送消息
+Send New Key	发送新密钥
+Send Text-to-Speech Messages	发送文字转语音消息
+Send Voice Messages	发送语音消息
+Send a random welcome message when someone joins this server.	有人加入此服务器时发送一条随机欢迎消息。
+Send a server invite link to a friend	向好友发送服务器邀请链接
+Send an alert	发送警报
+Send helpful tips for server setup.	发送服务器设置的实用提示。
+Send messages, images, GIFs, emoji, opinions, and puns	发送消息、图片、GIF、表情符号、观点和谐音梗
+Sending...	正在发送...
+Sent	已发送
+Sent a file	发送了一个文件
+Sent a sticker	发送了一个贴纸
+Sent — %	已发送 — %
+Server	服务器
+Server Avatar	服务器头像
+Server Deafen	服务器闭麦
+Server Deafened	已被服务器闭麦
+Server Guide	服务器指南
+Server ID	服务器 ID
+Server Info	服务器信息
+Server Insights	服务器洞察
+Server Insights is hosted on a separate website so that it's easier to share links and browse cross platform.	服务器洞察托管在单独的网站上，便于分享链接和跨平台浏览。
+Server Mute	服务器静音
+Server Muted	已被服务器静音
+Server Nickname	服务器昵称
+Server Notification Settings	服务器通知设置
+Server Primary Language	服务器主要语言
+Server Profile	服务器个人资料
+Server Rules	服务器规则
+Server Settings	服务器设置
+Server Tag	服务器标签
+Server Template	服务器模板
+Server Widget	服务器小部件
+Server members	服务器成员
+Server members can only send you friend requests from servers where you also allow Direct Messages.	服务器成员只能在你也允许私信的服务器中向你发送好友请求。
+Server name must be between 2 and 100 characters.	服务器名称须为 2 到 100 个字符。
+Server unmuted	已取消静音服务器
+Sessions	会话
+Set Custom Status	设置自定义状态
+Set Voice Channel Status	设置语音频道状态
+Set a custom status	设置自定义状态
+Set up AutoMod to automatically filter messages in this server with the rules below. Members with Manage Server or Administrator are exempt.	设置 AutoMod，按以下规则自动过滤此服务器中的消息。拥有“管理服务器”或“管理员”权限的成员不受影响。
+Sets camera video quality for all channel participants. Choose Auto for optimal performance.	为所有频道参与者设置摄像头视频画质。选择“自动”以获得最佳性能。
+Setting up encryption: % needs to open fastcord once.	正在设置加密：% 需要打开一次 fastcord。
+Several people are typing...	好几个人正在输入...
+Severe Profanity	严重脏话
+Sexual Content	色情内容
+Share	分享
+Share Event	分享活动
+Share Your Screen	共享你的屏幕
+Share my full profile with	将我的完整个人资料分享给
+Share your detected activities with others	与他人分享检测到的活动
+Show	显示
+Show Chat	显示聊天
+Show a system notification for messages that would notify you (DMs, mentions, servers set to all messages).	对会通知你的消息（私信、提及、设为所有消息的服务器）显示系统通知。
+Show embeds and preview website links pasted into chat	显示嵌入内容并预览粘贴到聊天中的网站链接
+Show emoji reactions on messages	在消息上显示表情反应
+Show message	显示消息
+Show messages	显示消息
+Show role colors in names	在名称中显示身份组颜色
+Show role colors next to names	在名称旁显示身份组颜色
+Show spoiler content	显示剧透内容
+Show the game or app you're using on your profile and in member lists.	在个人资料和成员列表中显示你正在使用的游戏或应用。
+Shows a red badge on the app icon when you have unread mentions.	有未读提及时，在应用图标上显示红色徽章。
+Silence every sound and notification and hide all badges and unread marks, so fastcord never asks for your attention.	静音所有声音和通知，隐藏所有徽章和未读标记，让 fastcord 不再打扰你。
+Slow down! Are you sure?	慢点！你确定吗？
+Slowmode	慢速模式
+Slowmode is enabled	已启用慢速模式
+Slowmode is enabled. Members can send one message every % hour.|Slowmode is enabled. Members can send one message every % hours.	已启用慢速模式。成员每 % 小时可发送一条消息。
+Slowmode is enabled. Members can send one message every % minute.|Slowmode is enabled. Members can send one message every % minutes.	已启用慢速模式。成员每 % 分钟可发送一条消息。
+Slowmode is enabled. Members can send one message every % second.|Slowmode is enabled. Members can send one message every % seconds.	已启用慢速模式。成员每 % 秒可发送一条消息。
+Smooth Scrolling	平滑滚动
+So no one gets lost on where to go.	让大家都不会迷路。
+Some older devices may not be shown here	一些较旧的设备可能不会显示在这里
+Someone	某人
+Something went wrong	出了点问题
+Something went wrong (HTTP %).	出了点问题（HTTP %）。
+Something went wrong. Try again.	出了点问题。请重试。
+Somewhere Else	其他地方
+Sorry, we couldn't load the first message in this thread	抱歉，无法加载此子区的第一条消息
+Sort: Date Posted	排序：发布日期
+Sort: Recent Activity	排序：最近活动
+Sound Name	音效名称
+Sound names must be between 2 and 32 characters.	音效名称须为 2 到 32 个字符。
+Soundboard	音效板
+Sounds	音效
+Sounds must be 5.2 seconds or shorter.	音效时长须为 5.2 秒或更短。
+Sounds must be under 512 KB.	音效须小于 512 KB。
+Source	来源
+Space between message groups	消息组之间的间距
+Spam	垃圾消息
+Spam Filters	垃圾消息过滤
+Spanish	西班牙语
+Spanish, LATAM	西班牙语（拉丁美洲）
+Speak	发言
+Speak Message	朗读消息
+Spoiler Attachment	剧透附件
+Spoiler Content	剧透内容
+Stage	舞台
+Start Date	开始日期
+Start Event	开始活动
+Start Minimized	启动时最小化
+Start Time	开始时间
+Starting in %m	%m 后开始
+State	状态
+Stickers	贴纸
+Stickers can be used by anyone in this server. Upload a PNG, APNG, GIF or Lottie JSON file of up to 512 KB; it shows at 320x320.	此服务器中的任何人都可以使用贴纸。上传不超过 512 KB 的 PNG、APNG、GIF 或 Lottie JSON 文件；显示尺寸为 320x320。
+Stickers can't be sent encrypted yet.	贴纸暂时无法加密发送。
+Stickers must be PNG, APNG, GIF or Lottie JSON files.	贴纸必须是 PNG、APNG、GIF 或 Lottie JSON 文件。
+Stop Recording	停止录制
+Stop Streaming	停止直播
+Stop Testing	停止测试
+Stop Video	关闭视频
+Stop Watching	停止观看
+Storage	存储
+Stream Settings	直播设置
+Streamer Mode	主播模式
+Streamer Mode Enabled	主播模式已启用
+Streamer Mode hides your personal info so others watching your stream can't see it.	主播模式会隐藏你的个人信息，观看你直播的人将无法看到。
+Streamer Mode is enabled. Usernames have been truncated.	主播模式已启用。用户名已被截断。
+Success! Your friend request to % was sent.	成功！你已向 % 发送好友请求。
+Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday	星期日|星期一|星期二|星期三|星期四|星期五|星期六
+Sun|Mon|Tue|Wed|Thu|Fri|Sat	周日|周一|周二|周三|周四|周五|周六
+Support has arrived!	援军到了！
+Suppress @everyone and @here	屏蔽 @everyone 和 @here
+Suppress All Role @mentions	屏蔽所有身份组 @提及
+Suppress Highlights	屏蔽精彩动态
+Suppress Notifications	屏蔽通知
+Suppress background noise from your mic.	抑制麦克风的背景噪音。
+Swedish	瑞典语
+Switch Accounts	切换账号
+Switch between accounts on this device.	在此设备上切换账号。
+Symbols	符号
+Sync Now	立即同步
+Sync Permissions	同步权限
+Sync Template	同步模板
+Sync permissions?	同步权限？
+System	系统
+System Messages	系统消息
+System Messages Channel	系统消息频道
+System icon for new server members.	新服务器成员的系统图标。
+THREAD NAME	子区名称
+Tag	标签
+Tags	标签
+Tags (pick at least one)	标签（至少选择一个）
+Tags let members organize their posts. Members pick them when they post; moderated tags only moderators can apply.	标签可帮助成员整理帖子。成员在发帖时选择标签；受管理的标签只有管理员可以使用。
+Tap the link in your email to sign in instantly — no password needed.	点击邮件中的链接即可立即登录，无需密码。
+Tell people a little more about your event. Markdown, new lines, and links are supported.	向大家多介绍一下你的活动。支持 Markdown、换行和链接。
+Tell the world a bit about this server.	向世界介绍一下这个服务器。
+Template Description	模板描述
+Template Link	模板链接
+Template Title	模板标题
+Templates are an easy way to share your server setup and help anyone create a server instantly. When someone uses your server template link, they create a new server pre-filled with the same channels, roles, permissions, and settings as yours. Messages, members and your server's icon aren't copied.	模板可以轻松分享你的服务器配置，帮助任何人立即创建服务器。有人使用你的服务器模板链接时，会创建一个新服务器，预先填好与你相同的频道、身份组、权限和设置。消息、成员和服务器图标不会被复制。
+Temporary members are automatically kicked when they disconnect unless a role has been assigned	临时成员断开连接时会被自动踢出，除非已为其分配身份组
+Test Video	测试视频
+Text	文字
+Text Channel Permissions	文字频道权限
+Text channel, external link, or in-person location.	文字频道、外部链接或线下地点。
+Thai	泰语
+That channel isn't on this server anymore.	该频道已不在此服务器中。
+That file couldn't be read as an MP3 or OGG sound.	无法将该文件读取为 MP3 或 OGG 音效。
+That file couldn't be read. Avatars must be PNG, JPEG, GIF or WEBP images.	无法读取该文件。头像必须是 PNG、JPEG、GIF 或 WEBP 图片。
+That file couldn't be read. Banners must be PNG, JPEG, GIF or WEBP images.	无法读取该文件。横幅必须是 PNG、JPEG、GIF 或 WEBP 图片。
+That file couldn't be read. Emoji must be a PNG, JPEG, GIF, WEBP or AVIF image.	无法读取该文件。表情符号必须是 PNG、JPEG、GIF、WEBP 或 AVIF 图片。
+That file couldn't be read. Images must be PNG, JPEG, GIF or WEBP files.	无法读取该文件。图片必须是 PNG、JPEG、GIF 或 WEBP 文件。
+That file couldn't be read. Server icons must be PNG, JPEG, GIF or WEBP images.	无法读取该文件。服务器图标必须是 PNG、JPEG、GIF 或 WEBP 图片。
+That file is too large. Emoji must be under 256 KB.	该文件太大。表情符号须小于 256 KB。
+That file is too large. Stickers must be under 512 KB.	该文件太大。贴纸须小于 512 KB。
+That image is too large.	该图片太大。
+That image is too large. Avatars must be under %.	该图片太大。头像须小于 %。
+That image is too large. Banners must be under 10 MB.	该图片太大。横幅须小于 10 MB。
+That image is too large. Server icons must be under 512 KB.	该图片太大。服务器图标须小于 512 KB。
+That isn't a valid fastcord invite.	这不是有效的 fastcord 邀请。
+That's too long to send encrypted.	内容太长，无法加密发送。
+The Pin Is Stuck!	置顶卡住了！
+The badge chosen in the official client stays as it is.	在官方客户端中选择的徽章保持不变。
+The invite is invalid or has expired.	该邀请无效或已过期。
+The mention limit is between 1 and 50.	提及上限须在 1 到 50 之间。
+The most important updates from this channel will now show up directly in your server. Enjoy!	此频道最重要的动态现在将直接显示在你的服务器中。尽情享受吧！
+The owner	所有者
+The related emoji must be one emoji.	相关表情符号必须是一个表情符号。
+The results were tied	结果为平局
+The selected channel has too many webhooks. Please remove a webhook or select another channel.	所选频道的 Webhook 过多。请移除一个 Webhook 或选择其他频道。
+The server	服务器
+The start time must be in the future.	开始时间必须是将来的时间。
+The thread stops showing in the channel list after being inactive for this long.	子区闲置达到此时长后，将不再显示在频道列表中。
+Theme	主题
+There are no active threads.	没有活跃的子区。
+There are no archived threads.	没有已归档的子区。
+There are no pending friend requests.	没有待处理的好友请求。
+There are no upcoming events.	没有即将进行的活动。
+There is no identity key.	没有身份密钥。
+There was no winner	没有获胜者
+These are all the devices that are currently logged-in with your Discord account. Log out of devices that you don't recognize.	这些是当前使用你的 Discord 账号登录的所有设备。请退出你不认识的设备。
+They said: %	对方说：%
+This account needs a passkey or security key, which fastcord can't use. Log in with the QR code instead.	此账号需要通行密钥或安全密钥，但 fastcord 无法使用。请改用二维码登录。
+This channel contains adult content that may not be suitable for all audiences. You must be 18 or older to view it.	此频道包含可能不适合所有观众的成人内容。你必须年满 18 岁才能查看。
+This channel doesn't have any pinned messages... yet.	此频道还没有任何置顶消息……暂时。
+This device can't open this message.	此设备无法打开这条消息。
+This device's encryption keys couldn't be unlocked, so earlier encrypted DMs can't be opened here.	无法解锁此设备的加密密钥，因此无法在此打开之前的加密私信。
+This event will auto start when it's time.	此活动将在时间到时自动开始。
+This extra step shows it's really you.	这个额外步骤可证明确实是你本人。
+This interaction failed	此交互失败
+This invite may be expired, or you might not have permission to join.	此邀请可能已过期，或者你可能没有加入的权限。
+This is the beginning of your direct message history with %.	这是你与 % 的私信记录的开头。
+This is the channel we send system event messages to.	这是我们发送系统事件消息的频道。
+This is the start of the #% channel.	这是 #% 频道的开头。
+This is where Discord sends updates for moderators and admins of Community servers.	Discord 会在这里向社区服务器的管理员发送更新。
+This is where you'll show members your server rules or guidelines.	你将在这里向成员展示服务器规则或准则。
+This link is taking you to the following website	此链接将带你前往以下网站
+This option is not available for Community Servers.	此选项不适用于社区服务器。
+This role is managed by an integration and can't be edited here.	此身份组由集成管理，无法在此编辑。
+This server has been removed from Server Discovery because it no longer passes all the requirements. Check Server Settings for more details.	此服务器已不再满足所有要求，因此已从服务器发现中移除。请查看服务器设置了解详情。
+This server has failed Discovery activity requirements for 1 week. If this server fails for 4 weeks in a row, it will be automatically removed from Discovery.	此服务器已连续 1 周未达到服务器发现的活跃度要求。如果连续 4 周未达到，将被自动从服务器发现中移除。
+This server has failed Discovery activity requirements for 3 weeks in a row. If this server fails for 1 more week, it will be removed from Discovery.	此服务器已连续 3 周未达到服务器发现的活跃度要求。如果再有 1 周未达到，将被从服务器发现中移除。
+This server has no voice channels.	此服务器没有语音频道。
+This server is currently full.	此服务器目前已满。
+This server is currently full. Please try again later.	此服务器目前已满。请稍后再试。
+This server is eligible for Server Discovery again and has been automatically relisted!	此服务器再次符合服务器发现的条件，已自动重新上架！
+This server is not available in your location.	此服务器在你所在的地区不可用。
+This server's features are limited	此服务器的功能受到限制
+This setting is applied when you join a new server. It does not apply retroactively to your existing servers.	此设置将在你加入新服务器时应用，不会追溯应用到你现有的服务器。
+This template has unsynced changes.	此模板有未同步的更改。
+This thread is locked.	此子区已锁定。
+This voice channel is full.	此语音频道已满。
+This will determine whether members who have not explicitly set their notification settings receive a notification for every message sent in this server or not.	这将决定未单独设置通知的成员是否会收到此服务器中每条消息的通知。
+This will transfer ownership of %1 to %2. This cannot be undone!	这将把 %1 的所有权转让给 %2。此操作无法撤销！
+Thread Name	子区名称
+Thread deleted	子区已删除
+Threads	子区
+Time	时间
+Time format	时间格式
+Timeout	禁言
+Timeout %	禁言 %
+Timeout Members	禁言成员
+Timeout member	禁言成员
+Times show as %.	时间显示为 %。
+To log them out, please change your password	要让它们退出登录，请更改你的密码
+To protect your members, Community servers need these, and enabling sets them:	为保护你的成员，社区服务器需要以下设置，启用后会自动设置：
+Today	今天
+Today at %	今天 %
+Toggle Deafen	切换闭麦
+Toggle Go Live Streaming	切换直播
+Toggle Mute	切换静音
+Toggle Streamer Mode	切换主播模式
+Toggle Voice Activity Mode	切换语音活动模式
+Toggle deafen	切换闭麦
+Toggle inbox	切换收件箱
+Toggle member list	切换成员列表
+Toggle mute	切换静音
+Toggle pins	切换置顶消息
+Tomorrow at %	明天 %
+Too fast! Wait a bit and try again.	太快了！请稍等后再试。
+Too many uploads!	上传太多了！
+Trait %	特征 %
+Traits	特征
+Transfer Ownership	转让所有权
+Travel & Places	旅行和地点
+Treat the token like a password: anyone who has it controls your account. fastcord keeps it only on this computer.	请像对待密码一样对待令牌：任何拥有它的人都能控制你的账号。fastcord 只将它保存在这台电脑上。
+Trending GIFs	热门 GIF
+Trust % links from now on	从现在起信任 % 链接
+Try Again	重试
+Try searching for something else	试试搜索其他内容
+Try searching for...	试试搜索...
+Try sending a new invite	试试发送新的邀请
+Turkish	土耳其语
+Turn off encryption	关闭加密
+Turns this back into a regular server. Community-only features stop working.	将其恢复为普通服务器。仅限社区的功能将停止工作。
+Two-factor authentication is enabled on this account.	此账号已启用双重身份验证。
+Type the username of a friend	输入好友的用户名
+Type your answer	输入你的回答
+UPLOADED BY	上传者
+USES	使用次数
+Uh oh, you don't have webhook permissions in any server you're in. Ask your server admin to give you the permission or ask them to come follow themselves!	哎呀，你在所加入的任何服务器中都没有 Webhook 权限。请让服务器管理员给你权限，或者让他们亲自来关注！
+Uh-oh. Looks like you've been banned.	哎呀。看来你已被封禁。
+Ukrainian	乌克兰语
+Unable to accept invite	无法接受邀请
+Unassigned	未分配
+Unban Member	解除封禁成员
+Unblock	取消屏蔽
+Undeafen	取消闭麦
+Under Request Headers, copy the value of "authorization" and paste it below.	在“请求标头”下，复制“authorization”的值并粘贴到下方。
+Undo	撤销
+Unignore	取消忽略
+Unknown	未知
+Unknown channel	未知频道
+Unmute	取消静音
+Unmute Category	取消静音类别
+Unmute Channel	取消静音频道
+Unmute Server	取消静音服务器
+Unmute Thread	取消静音子区
+Unpin Message	取消置顶消息
+Unreads	未读
+Unrestricted	无限制
+Until %	直到 %
+Until %1 at %2	直到 %1 %2
+Until I turn it back on	直到我重新开启
+Until tomorrow at %	直到明天 %
+Untitled question	未命名的问题
+Unverify	取消验证
+Update %	更新 %
+Update Channel	更新频道
+Update Emoji	更新表情符号
+Update Member	更新成员
+Update Member Roles	更新成员身份组
+Update Role	更新身份组
+Update Server	更新服务器
+Update Webhook	更新 Webhook
+Update your password	更新你的密码
+Upload	上传
+Upload Emoji	上传表情符号
+Upload Sound	上传音效
+Upload Sticker	上传贴纸
+Upload a File	上传文件
+Upload a Sound	上传音效
+Upload a file	上传文件
+Upload custom sound reactions that anyone in this server can use. MP3 or OGG files, up to 512 KB and 5.2 seconds.	上传此服务器中任何人都能使用的自定义音效反应。MP3 或 OGG 文件，最大 512 KB、5.2 秒。
+Upload to %	上传到 %
+Uploaded a file	上传了一个文件
+Uploading...	正在上传...
+Use Application Commands	使用应用命令
+Use Category Default	使用类别默认设置
+Use External Apps	使用外部应用
+Use External Emoji	使用外部表情符号
+Use External Sounds	使用外部音效
+Use External Stickers	使用外部贴纸
+Use Server Default	使用服务器默认设置
+Use Soundboard	使用音效板
+Use Voice Activity	使用语音活动
+Use a backup code	使用备用码
+Use a code sent to your phone	使用发送到你手机的代码
+Use a passkey or security key	使用通行密钥或安全密钥
+Use data to improve Discord	使用数据改进 Discord
+Use roles to group your server members and assign permissions.	使用身份组对服务器成员进行分组并分配权限。
+Use your authenticator app	使用你的身份验证器应用
+Used % times.|Used % times.	已使用 % 次。
+User Join	用户加入
+User Leave	用户离开
+User Limit	用户上限
+User Moved	用户被移动
+User Volume	用户音量
+User blocked	已屏蔽用户
+User unblocked	已取消屏蔽用户
+Username	用户名
+Username is available. Nice!	用户名可用。不错！
+Username is unavailable. Try adding numbers, letters, underscores _ , or periods.	用户名不可用。试试添加数字、字母、下划线 _ 或句点。
+Users will need to confirm they are of over the legal age to view in the content in this channel.\nAge-restricted channels are exempt from the explicit content filter.	用户需要确认已达到法定年龄才能查看此频道中的内容。\n年龄限制频道不受露骨内容过滤器影响。
+Uses the yt-dlp you installed to play YouTube links in the chat instead of opening your browser. It connects to YouTube from your computer.	使用你安装的 yt-dlp 在聊天中播放 YouTube 链接，而不是打开浏览器。它会从你的电脑连接 YouTube。
+VOICE PROCESSING	语音处理
+Verification Level	验证等级
+Verified	已验证
+Verify with something else	使用其他方式验证
+Video	视频
+Video Quality	视频画质
+Vietnamese	越南语
+View Audit Log	查看审核日志
+View Channel	查看频道
+View Channels	查看频道
+View Details	查看详情
+View Full Profile	查看完整个人资料
+View Poll	查看投票
+View Profile	查看个人资料
+View Reactions	查看反应
+View Server Insights	查看服务器洞察
+Visit Site	访问网站
+Visual Density	界面密度
+Voice	语音
+Voice & Video	语音和视频
+Voice Activity	语音活动
+Voice Channel	语音频道
+Voice Channel Permissions	语音频道权限
+Voice Connected	语音已连接
+Voice Disconnected	语音已断开
+Volume	音量
+Vote	投票
+Waiting for a server	正在等待服务器
+Wants to message you	想给你发消息
+Watch Stream	观看直播
+Wave to say hi!	挥挥手打个招呼吧！
+We appreciate the enthusiasm, but...	我们很欣赏你的热情，但是...
+We couldn't load the profile for this server.	无法加载此服务器的个人资料。
+We recommend an image of at least 512x512.	建议使用至少 512x512 的图片。
+We sent instructions to change your password to %, please check both your inbox and spam folder.	我们已将更改密码的说明发送到 %，请查看你的收件箱和垃圾邮件文件夹。
+We're so excited to see you again!	很高兴再次见到你！
+We've sent a message to %.  Please enter the code you received.	我们已向 % 发送了一条消息。请输入你收到的代码。
+Webhooks (%)	Webhook（%）
+Webhooks are a simple way to post messages from other apps and websites into this server.	Webhook 是将其他应用和网站的消息发布到此服务器的简单方式。
+Welcome %. Say hi!	欢迎 %。打个招呼吧！
+Welcome back!	欢迎回来！
+Welcome to #%!	欢迎来到 #%！
+Welcome to the beginning of the % group.	欢迎来到 % 群组的开头。
+Welcome, %. We hope you brought pizza.	欢迎，%。希望你带了披萨。
+What brings you here?	你来这里做什么？
+What can people do in this server?	大家可以在这个服务器里做什么？
+What question do you want to ask?	你想问什么问题？
+What's cookin'?	在忙啥呢？
+What's your event about?	你的活动是关于什么的？
+What's your event?	你的活动是什么？
+When a friend starts an activity—like playing a game or hanging out on voice—we'll show it here!	当好友开始活动时，例如玩游戏或在语音中闲聊，我们会在这里显示！
+When enabled, only server members can view profile content. Non-members won't be able to see this content unless they have an invite.	启用后，只有服务器成员可以查看个人资料内容。非成员除非有邀请，否则无法看到这些内容。
+When you put a user in timeout they will not be able to send messages in chat, reply within threads, react to messages, or speak in voice or Stage channels.	你禁言某个用户后，对方将无法在聊天中发送消息、在子区中回复、对消息添加反应，或在语音或舞台频道中发言。
+Where is your event?	你的活动在哪里举行？
+Where would you like to go?	你想去哪里？
+Who is this server for? E.g. School Club, Artists' Community	这个服务器面向谁？例如：学校社团、艺术家社区
+Winning answer · %1%2	获胜回答 · %1%2
+Words that are never blocked, separated by commas	永不屏蔽的词，用逗号分隔
+Words to block, separated by commas	要屏蔽的词，用逗号分隔
+Words to block, separated by commas (* matches anything)	要屏蔽的词，用逗号分隔（* 匹配任意内容）
+Would you like to sync %1 permissions with %2?	你想将 %1 的权限与 %2 同步吗？
+Yay you made it, %!	耶，你来了，%！
+Yesterday at %	昨天 %
+You	你
+You accepted %'s friend request.	你接受了 % 的好友请求。
+You are at the % server limit.	你已达到 % 个服务器的上限。
+You are banned from this server.	你已被此服务器封禁。
+You aren't in that server. Ask a member for an invite.	你不在该服务器中。请向成员索要邀请。
+You can add % more friend.|You can add % more friends.	你还可以添加 % 位好友。
+You can add comments before uploading.\nHold shift to upload directly.	你可以在上传前添加评论。\n按住 Shift 可直接上传。
+You can add friends with their Discord username.	你可以通过 Discord 用户名添加好友。
+You can add up to 5 accounts.	你最多可以添加 5 个账号。
+You can hold down shift when clicking % to bypass this confirmation entirely.	点击 % 时按住 Shift 可完全跳过此确认。
+You can only edit roles below your highest role.	你只能编辑低于你最高身份组的身份组。
+You can only upload % files at a time!	你一次只能上传 % 个文件！
+You can use markdown and links if you'd like.	如果你愿意，可以使用 Markdown 和链接。
+You can't join this server because of your age group.	由于你的年龄段，你无法加入此服务器。
+You can't unblock the Wumpus.	你无法取消屏蔽 Wumpus。
+You cannot friend yourself	你不能加自己为好友
+You can’t react and super react with the same emoji. There’s a lot of emoji to choose from, so maybe try another one.	你不能用同一个表情符号同时添加反应和超级反应。表情符号有很多，不妨换一个试试。
+You do not have permission to send messages in this channel.	你没有在此频道发送消息的权限。
+You don't have any friends to add!	你没有可以添加的好友！
+You don't have permission to do that.	你没有执行此操作的权限。
+You haven't added a display name yet.	你还没有添加显示名称。
+You haven't added a phone number yet.	你还没有添加手机号。
+You haven't added an email yet.	你还没有添加邮箱。
+You haven't authorized any apps.	你还没有授权任何应用。
+You haven't blocked anyone.	你还没有屏蔽任何人。
+You haven't connected any accounts yet.	你还没有关联任何账号。
+You haven't ignored anyone.	你还没有忽略任何人。
+You missed a call from %1 that lasted %2.	你错过了 %1 的通话，持续了 %2。
+You must be at least 18 years old to view this channel.	你必须年满 18 岁才能查看此频道。
+You must leave a server first to join.	你必须先退出一个服务器才能加入。
+You need to add one or more rules.	你需要添加一条或多条规则。
+You received an invite, but...	你收到了邀请，但是...
+You said: %	你说：%
+You sent an invite to a self-hosted server	你发送了一个自托管服务器的邀请
+You sent an invite, but	你发送了邀请，但是
+You sent an invite, but...	你发送了邀请，但是...
+You will appear offline	你将显示为离线
+You will not receive desktop notifications	你将不会收到桌面通知
+You'll have to log back in on all logged out devices.	你需要在所有已退出的设备上重新登录。
+You're Viewing Older Messages	你正在查看较早的消息
+You're all caught up!	你已全部看完！
+You're already in that server.	你已经在该服务器中了。
+You're doing that too fast. Try again in a moment.	你操作太快了。请稍后再试。
+You're not in any servers yet.	你还没有加入任何服务器。
+You're offline: no invite link.	你已离线：没有邀请链接。
+You're timed out until %.	你被禁言至 %。
+You've been invited to a self-hosted server	你被邀请加入一个自托管服务器
+You've been invited to join	你被邀请加入
+You've been invited to speak	你被邀请发言
+You've been invited, but	你被邀请了，但是
+Your files are too powerful	你的文件太强大了
+Your full profile is visible to friends and any server you join with 200 or fewer members. Everyone else sees a limited version.	你的完整个人资料对好友以及你加入的 200 人及以下的服务器可见。其他人只能看到有限的版本。
+Your full profile is visible to friends and any server you join.	你的完整个人资料对好友以及你加入的任何服务器可见。
+Your full profile is visible to friends. Everyone else sees a limited version.	你的完整个人资料对好友可见。其他人只能看到有限的版本。
+Your invite link expires after %.	你的邀请链接将在 % 后过期。
+Your invite link expires in %.	你的邀请链接将在 % 后过期。
+Your invite link expires in %1, or after %2.	你的邀请链接将在 %1 后过期，或用满 %2 后过期。
+Your invite link expires in 7 days.	你的邀请链接将在 7 天后过期。
+Your invite link will never expire.	你的邀请链接永不过期。
+Your last request was on %.	你上次申请是在 %。
+Your message is too long (% / %).	你的消息太长（%/%）。
+Your reaction was not added because there are too many reactions on this message.	由于这条消息上的反应太多，你的反应未能添加。
+Your request from % is being prepared.	你在 % 提交的申请正在准备中。
+Your server is where you and your friends hang out. Make yours and start talking.	服务器是你和好友一起玩的地方。创建一个，开始聊天吧。
+Your sounds go out with your voice, mixed into your microphone, instead of as soundboard sounds.	你的音效会混入麦克风，随你的语音一起发出，而不是作为音效板音效播放。
+Zoom level	缩放级别
+a channel	一个频道
+a command	一个命令
+a day	1 天
+a day ago	1 天前
+a few seconds	几秒
+a few seconds ago	几秒前
+a message	一条消息
+a minute	1 分钟
+a minute ago	1 分钟前
+a month ago	1 个月前
+a year ago	1 年前
+an hour	1 小时
+an hour ago	1 小时前
+by %	作者：%
+cancel	取消
+channel	频道
+delete message	删除消息
+dingus@example.com	dingus@example.com
+discord.gg/	discord.gg/
+en-GB	en-GB
+en-US	en-US
+es-ES	es-ES
+escape to %1 • enter to %2	按 Esc %1 • 按 Enter %2
+fastcord %	fastcord %
+fastcord quit unexpectedly last time. The report is in the logs folder (Settings, under Log Out).	fastcord 上次意外退出。报告已保存在日志文件夹中（设置中“退出登录”下方）。
+fastcord starts in the background and stays out of your way.	fastcord 会在后台启动，不打扰你。
+from %	来自 %
+in %	在 % 中
+in % day|in % days	% 天后
+in % hour|in % hours	% 小时后
+in % minute|in % minutes	% 分钟后
+in % month|in % months	% 个月后
+in % year|in % years	% 年后
+in a day	1 天后
+in a few seconds	几秒后
+in a minute	1 分钟后
+in a month	1 个月后
+in a year	1 年后
+in an hour	1 小时后
+just now	刚刚
+less than an hour ago	不到 1 小时前
+link, embed or file	链接、嵌入内容或文件
+on %	于 %
+pinned messages	置顶消息
+pt-BR	pt-BR
+remove embeds	移除嵌入内容
+save	保存
+someone	某人
+specific date	指定日期
+sv-SE	sv-SE
+this server	此服务器
+threads	子区
+true or false	是或否
+unknown	未知
+unknown channel	未知频道
+unknown-user	未知用户
+used	已使用
+user	用户
+zh-CN	zh-CN
+zh-TW	zh-TW
+• Media from all members is scanned by the explicit image filter.	• 所有成员的媒体都会经过露骨图片过滤器扫描。
+• Members must have a verified email on their Discord account.	• 成员的 Discord 账号必须有已验证的邮箱。
+← Back to %	← 返回 %
+← Back to login	← 返回登录
+┬─┬ノ( º _ ºノ)	┬─┬ノ( º _ ºノ)

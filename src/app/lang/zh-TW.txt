@@ -1,0 +1,1973 @@
+# Chinese, Traditional (zh-TW)
+ · required	 · 必填
+% (requested to speak)	%（請求發言）
+% (required)	%（必填）
+% Bans|% Bans	% 個停權
+% Event|% Events	% 個活動
+% KB	% KB
+% MB	% MB
+% Member|% Members	% 位成員
+% Messages	% 則訊息
+% Mutual Friend|% Mutual Friends	% 位共同好友
+% Mutual Server|% Mutual Servers	% 個共同伺服器
+% Online	% 人在線上
+% Result|% Results	% 筆結果
+% accepted encryption.	% 已接受加密。
+% accepted your friend request.	% 已接受你的好友邀請。
+% answer|% answers	% 個答案
+% becomes the owner once they accept on their device. You'll stay a member.	% 在其裝置上接受後就會成為擁有者。你會保留成員身分。
+% blocked message —|% blocked messages —	% 則已封鎖的訊息 —
+% byte|% bytes	% 位元組
+% changed the group icon.	% 變更了群組圖示。
+% day ago|% days ago	% 天前
+% day|% days	% 天
+% disabled security actions.	% 停用了安全措施。
+% enabled security actions.	% 啟用了安全措施。
+% hasn't accepted encryption yet.	% 尚未接受加密。
+% hopped into the server.	% 跳進了伺服器。
+% hour ago|% hours ago	% 小時前
+% hour|% hours	% 小時
+% ignored message —|% ignored messages —	% 則已忽略的訊息 —
+% is here.	% 來了。
+% is typing...	% 正在輸入...
+% joined the party.	% 加入了派對。
+% just boosted the server!	% 剛剛加成了伺服器！
+% just landed.	% 剛剛降落。
+% just showed up!	% 剛剛現身！
+% just slid into the server.	% 剛剛滑進了伺服器。
+% left the group.	% 離開了群組。
+% member|% members	% 位成員
+% minute ago|% minutes ago	% 分鐘前
+% minute|% minutes	% 分鐘
+% month ago|% months ago	% 個月前
+% of %	%1 / %2
+% removed the custom group name.	% 移除了自訂群組名稱。
+% started a call.	% 發起了通話。
+% turned on encryption.	% 開啟了加密。
+% user|% users	% 位使用者
+% use|% uses	% 次使用
+% vote|% votes	% 票
+% wants to encrypt this DM with a new key. Compare safety numbers after accepting.	% 想用新的金鑰加密這則私訊。接受後請比對安全碼。
+% wants to encrypt this DM.	% 想要加密這則私訊。
+% year ago|% years ago	% 年前
+% · End-to-end encrypted	% · 端對端加密
+%'s Group	% 的群組
+%'s encryption key changed. Compare safety numbers before trusting new messages.	% 的加密金鑰已變更。信任新訊息前請先比對安全碼。
+%'s server	% 的伺服器
+%1 (%2 more)	%1（還有 %2 個）
+%1 FPS	%1 FPS
+%1 STICKERS — %2 SLOTS AVAILABLE	%1 個貼圖 — 剩餘 %2 個空位
+%1 action %2	%1 動作 %2
+%1 added %2 to the group.	%1 將 %2 加入了群組。
+%1 and %2	%1 和 %2
+%1 and %2 are typing...	%1 和 %2 正在輸入...
+%1 and %2 other|%1 and %2 others	%1 和其他 %2 人
+%1 banned %2	%1 停權了 %2
+%1 changed the Stage topic: %2	%1 變更了舞台主題：%2
+%1 changed the channel name: %2.	%1 變更了頻道名稱：%2。
+%1 changed the group name: %2.	%1 變更了群組名稱：%2。
+%1 created a channel	%1 建立了頻道
+%1 created a role	%1 建立了身分組
+%1 created a webhook	%1 建立了 Webhook
+%1 created an emoji	%1 建立了表情符號
+%1 created an invite	%1 建立了邀請
+%1 deleted a channel	%1 刪除了頻道
+%1 deleted a message by %2	%1 刪除了 %2 的訊息
+%1 deleted a role	%1 刪除了身分組
+%1 deleted a webhook	%1 刪除了 Webhook
+%1 deleted an emoji	%1 刪除了表情符號
+%1 deleted an invite	%1 刪除了邀請
+%1 enabled security actions until %2.	%1 啟用了安全措施，直到 %2。
+%1 ended %2	%1 結束了 %2
+%1 has achieved %2	%1 達成了 %2
+%1 has added %2 to this channel. Its most important updates will show up here.	%1 已將 %2 加入此頻道。它最重要的更新會顯示在這裡。
+%1 has blocked a message in %2	%1 在 %2 封鎖了一則訊息
+%1 has flagged a message in %2	%1 在 %2 標記了一則訊息
+%1 is now a speaker.	%1 現在是發言者了。
+%1 joined %2 and has been a subscriber of %3 for %4 month!|%1 joined %2 and has been a subscriber of %3 for %4 months!	%1 加入了 %2，已訂閱 %3 %4 個月！
+%1 joined %2 as a subscriber of %3!	%1 以 %3 訂閱者身分加入了 %2！
+%1 just boosted the server %2 times!	%1 剛剛加成了伺服器 %2 次！
+%1 kicked %2	%1 踢出了 %2
+%1 new message since %2|%1 new messages since %2	自 %2 以來有 %1 則新訊息
+%1 of %2 slot used|%1 of %2 slots used	已使用 %1 / %2 個空位
+%1 pinned %2 to this channel. See all %3.	%1 將 %2 釘選到此頻道。查看所有%3。
+%1 reacted with %2	%1 回應了 %2
+%1 removed %2 from the group.	%1 將 %2 移出了群組。
+%1 renewed %2 and has been a subscriber of %3 for %4 month!|%1 renewed %2 and has been a subscriber of %3 for %4 months!	%1 續訂了 %2，已訂閱 %3 %4 個月！
+%1 renewed %2 in their %3 membership!	%1 在 %3 會員資格中續訂了 %2！
+%1 reported a raid in %2.	%1 回報了 %2 遭到突襲。
+%1 requested to speak.	%1 請求發言。
+%1 resolved an Activity Alert in %2.	%1 處理了 %2 的活動警示。
+%1 said %2	%1 說：%2
+%1 started %2	%1 開始了 %2
+%1 started a call that lasted %2.	%1 發起了一場通話，持續 %2。
+%1 started a thread: %2. See all %3.	%1 開啟了討論串：%2。查看所有%3。
+%1 unbanned %2	%1 解除了 %2 的停權
+%1 updated %2	%1 更新了 %2
+%1 updated a channel	%1 更新了頻道
+%1 updated a role	%1 更新了身分組
+%1 updated a webhook	%1 更新了 Webhook
+%1 updated an emoji	%1 更新了表情符號
+%1 updated the roles of %2	%1 更新了 %2 的身分組
+%1 updated the server	%1 更新了伺服器
+%1 vote · %2|%1 votes · %2	%1 票 · %2
+%1 wants to make you the owner of %2. You'll be able to manage everything about it, and they'll stay a member.	%1 想讓你成為 %2 的擁有者。你將可以管理它的一切，而對方會保留成員身分。
+%1's poll %2 has closed.	%1 的投票 %2 已結束。
+%1, %2 and %3	%1、%2 和 %3
+%1, %2 at %3	%1，%2 %3
+%1, %2, and %3 are typing...	%1、%2 和 %3 正在輸入...
+%1: %2	%1：%2
+%: a number	%：數字
+%: a whole number	%：整數
+%: pick a channel	%：選擇頻道
+%: pick a member	%：選擇成員
+%: pick a role	%：選擇身分組
+%: true or false	%：是或否
+%d ago	% 天前
+%d left	剩 % 天
+%h	% 小時
+%h ago	% 小時前
+%h left	剩 % 小時
+%m	% 分
+%m ago	% 分鐘前
+%m left	剩 % 分鐘
+%mo ago	% 個月前
+%s	% 秒
+(edited)	（已編輯）
+/% takes no options.	/% 沒有選項。
+/%1 needs %2:	/%1 需要 %2：
+1 Day	1 天
+1 Hour	1 小時
+1 Message	1 則訊息
+1 Week	1 週
+1 day	1 天
+1 hour	1 小時
+1 minute	1 分鐘
+1 use	1 次
+1 week	1 週
+10 Minutes	10 分鐘
+10 minutes	10 分鐘
+10 uses	10 次
+100 uses	100 次
+12 hours	12 小時
+12-hour	12 小時制
+15 minutes	15 分鐘
+2 hours	2 小時
+2 to 4 letters or numbers	2 到 4 個字母或數字
+2 weeks	2 週
+24 Hours	24 小時
+24 hours	24 小時
+24-hour	24 小時制
+25 uses	25 次
+3 Days	3 天
+3 days	3 天
+30 days	30 天
+30 minutes	30 分鐘
+3:00 PM	下午 3:00
+4 hours	4 小時
+5 Minutes	5 分鐘
+5 minutes	5 分鐘
+5 uses	5 次
+50 uses	50 次
+6 hours	6 小時
+6-digit authentication code	6 位數驗證碼
+60 Seconds	60 秒
+60 seconds	60 秒
+7 days	7 天
+8 hours	8 小時
+8-digit backup code	8 位數備用碼
+@ OFF	@ 關閉
+@ ON	@ 開啟
+@MENTIONS	@提及
+@everyone · applies to all server members	@everyone · 套用至所有伺服器成員
+A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button.	搭配 Ctrl、Alt、Shift 或 Cmd 的按鍵、單一修飾鍵，或滑鼠中鍵、側鍵。
+A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button. Works in every app.	搭配 Ctrl、Alt、Shift 或 Cmd 的按鍵、單一修飾鍵，或滑鼠中鍵、側鍵。在所有應用程式中都有效。
+A role needs a name.	身分組需要名稱。
+A webhook needs a name.	Webhook 需要名稱。
+A wild % appeared.	野生的 % 出現了。
+ACTION	動作
+ACTIVE INVITE LINKS	有效的邀請連結
+ALL	全部
+ALL THE BITS! Going above 64 kbps may adversely affect people on poor connections.	位元全開！超過 64 kbps 可能會影響網路連線不佳的人。
+AM	上午
+ANIMATED EMOJI — % SLOTS AVAILABLE	動態表情符號 — 剩餘 % 個空位
+APP	應用程式
+AUDIENCE — %	觀眾 — %
+AUTHENTICATOR APP	驗證應用程式
+About Me	關於我
+Accept	接受
+Accept Friend Request	接受好友邀請
+Accept Invite	接受邀請
+Accept Server Ownership	接受伺服器擁有權
+Accept this message request (Friends, Message Requests) to reply.	接受此訊息請求（好友、訊息請求）即可回覆。
+Accepting...	接受中...
+Access	存取權
+Accessibility	無障礙
+Account	帳號
+Account Removal	移除帳號
+Activate	啟用
+Active	活躍
+Active Now	目前活躍
+Activities	活動
+Activity Joining	活動加入
+Activity Privacy	活動隱私
+Activity Status	活動狀態
+Add Answer	新增答案
+Add Emoji	新增表情符號
+Add Friend	新增好友
+Add Friend Nickname	新增好友暱稱
+Add Note	新增備註
+Add Reaction	新增反應
+Add Reactions	新增反應
+Add Tag	新增標籤
+Add a Keybind	新增快捷鍵
+Add a Question	新增問題
+Add a channel	新增頻道
+Add a channel to override its default notification settings	新增頻道以覆寫其預設通知設定
+Add a description	新增說明
+Add a location, link, or something.	新增地點、連結或其他資訊。
+Add a role	新增身分組
+Add an Account	新增帳號
+Add an optional message...	附加訊息（選填）...
+Add another answer	再新增一個答案
+Add at least one word to block.	請至少新增一個要封鎖的字詞。
+Add members or roles	新增成員或身分組
+Add this channel's updates to your server!	將此頻道的更新加入你的伺服器！
+Add this key to an authenticator app, then enter the code it shows.	將這組金鑰加入驗證應用程式，然後輸入它顯示的代碼。
+Add to Favorites	加入最愛
+Add to Group DM	加入群組私訊
+Add up to 5 traits to show off your server's interests and personality.	最多新增 5 個特色，展現你伺服器的興趣與個性。
+Add up to 50 custom emoji that anyone can use in this server. Animated GIF emoji may be used by members with Discord Nitro. Emoji names must be at least 2 characters long and can only contain alphanumeric characters and underscores. Emoji must be under 256 KB in size.	最多新增 50 個自訂表情符號，讓所有人在此伺服器中使用。擁有 Discord Nitro 的成員可以使用動態 GIF 表情符號。表情符號名稱至少需 2 個字元，且只能包含英數字元與底線。表情符號大小必須低於 256 KB。
+Add your pronouns	新增你的人稱代名詞
+Added %	已新增 %
+Adjust the size of the interface. You can also change this with % +/-.	調整介面大小。你也可以用 % +/- 來變更。
+Administrator	管理員
+Advanced Permissions	進階權限
+Advanced permissions	進階權限
+Age-Restricted Channel	年齡限制頻道
+All	全部
+All Actions	所有動作
+All Messages	所有訊息
+All Users	所有使用者
+All friends	所有好友
+All messages will be filtered for sensitive image-based media.	所有訊息都會過濾敏感的圖片類媒體。
+All set. Now share your event!	一切就緒，現在來分享你的活動吧！
+Allow DMs from other members in servers	允許伺服器中的其他成員傳送私訊
+Allow Discord to use and process my information to understand and improve Discord's services.	允許 Discord 使用並處理我的資訊，以了解並改善 Discord 的服務。
+Allow Friend Requests from...	允許以下對象傳送好友邀請...
+Allow Multiple Answers	允許多選
+Allow anyone to @mention this role	允許任何人 @提及此身分組
+Allow direct messages from other members in this server.	允許此伺服器中的其他成員傳送私訊。
+Allow friends to join your game	允許好友加入你的遊戲
+Allow members to change this server's name, switch regions, view all invites, add apps to this server and create and update AutoMod rules.	允許成員變更此伺服器的名稱、切換地區、查看所有邀請、將應用程式加入此伺服器，以及建立和更新 AutoMod 規則。
+Allow members to create invite-only threads.	允許成員建立僅限邀請的討論串。
+Allow members to create threads that everyone in a channel can view.	允許成員建立頻道中所有人都能查看的討論串。
+Allow members to send messages in text channels and create posts in forum channels.	允許成員在文字頻道傳送訊息，並在論壇頻道建立貼文。
+Allow members to send messages in threads and in posts on forum channels.	允許成員在討論串和論壇頻道的貼文中傳送訊息。
+Allow message requests from server members you may not know	允許你可能不認識的伺服器成員傳送訊息請求
+Allow voice channel participants to join your game	允許語音頻道參與者加入你的遊戲
+Allowed words	允許的字詞
+Allows apps that members have added to their account to post messages. When disabled, the messages will be private.	允許成員加入其帳號的應用程式發布訊息。停用時，這些訊息將為私人訊息。
+Allows links that members share to show embedded content in text channels.	允許成員分享的連結在文字頻道中顯示嵌入內容。
+Allows members to add custom emoji, stickers, and sounds in this server.	允許成員在此伺服器中新增自訂表情符號、貼圖和音效。
+Allows members to add new emoji reactions to a message. If this permission is disabled, members can still react using any existing reactions on a message.	允許成員為訊息新增表情符號反應。若停用此權限，成員仍可使用訊息上已有的反應。
+Allows members to be more easily heard in voice channels. When activated, the volume of others without this permission will be automatically lowered.	讓成員在語音頻道中更容易被聽見。啟用時，沒有此權限的其他人音量會自動降低。
+Allows members to change the nicknames of other members.	允許成員變更其他成員的暱稱。
+Allows members to change their own nickname, a custom name for just this server.	允許成員變更自己的暱稱，也就是僅用於此伺服器的自訂名稱。
+Allows members to change this channel's name, description, and settings. They can also delete it.	允許成員變更此頻道的名稱、說明和設定，也可以刪除它。
+Allows members to change this channel's permissions.	允許成員變更此頻道的權限。
+Allows members to create and edit voice channel status.	允許成員建立和編輯語音頻道狀態。
+Allows members to create events.	允許成員建立活動。
+Allows members to create new roles and edit or delete roles lower than their highest role. Also allows members to change permissions of individual channels that they have access to.	允許成員建立新身分組，並編輯或刪除低於其最高身分組的身分組。也允許成員變更他們有權存取的個別頻道權限。
+Allows members to create polls.	允許成員建立投票。
+Allows members to create, edit, or delete channels.	允許成員建立、編輯或刪除頻道。
+Allows members to create, edit, or delete webhooks, which can post messages from other apps or sites into this server.	允許成員建立、編輯或刪除 Webhook，Webhook 可將其他應用程式或網站的訊息發布到此伺服器。
+Allows members to deafen other members in voice channels, which means they won't be able to speak or hear others.	允許成員在語音頻道中拒聽其他成員，被拒聽者將無法說話或聽見他人。
+Allows members to delete or remove embeds from messages by other members.	允許成員刪除其他成員的訊息或移除其中的嵌入內容。
+Allows members to disconnect or move other members between voice channels that the member with this permission has access to.	允許成員中斷其他成員的連線，或在自己有權存取的語音頻道之間移動其他成員。
+Allows members to edit and cancel events.	允許成員編輯和取消活動。
+Allows members to edit or remove custom emoji, stickers, and sounds in this server.	允許成員編輯或移除此伺服器中的自訂表情符號、貼圖和音效。
+Allows members to invite new people to this server.	允許成員邀請新的人加入此伺服器。
+Allows members to join voice channels and hear others.	允許成員加入語音頻道並聽見他人。
+Allows members to mute other members in voice channels for everyone.	允許成員在語音頻道中為所有人靜音其他成員。
+Allows members to permanently ban and delete the message history of other members from this server.	允許成員將其他成員從此伺服器永久停權，並刪除其訊息紀錄。
+Allows members to pin or unpin any message.	允許成員釘選或取消釘選任何訊息。
+Allows members to read previous messages sent in channels. If this permission is disabled, members only see messages sent when they are online. This does not fully apply to threads and forum posts.	允許成員閱讀頻道中先前傳送的訊息。若停用此權限，成員只能看到他們在線時傳送的訊息。此設定不完全適用於討論串和論壇貼文。
+Allows members to remove other members from this server. Kicked members will be able to rejoin if they have another invite.	允許成員將其他成員從此伺服器移除。被踢出的成員若有其他邀請仍可重新加入。
+Allows members to rename, delete, close, and turn on slow mode for threads and posts. They can also view private threads.	允許成員重新命名、刪除、關閉討論串和貼文，以及開啟慢速模式。他們也能查看私人討論串。
+Allows members to send messages without being affected by slowmode.	允許成員傳送訊息時不受慢速模式影響。
+Allows members to send sounds from server soundboard.	允許成員從伺服器音效板播放音效。
+Allows members to send text-to-speech messages by starting a message with /tts. These messages can be heard by anyone focused on the channel.	允許成員以 /tts 開頭傳送文字轉語音訊息。任何正在檢視此頻道的人都能聽見這些訊息。
+Allows members to send voice messages.	允許成員傳送語音訊息。
+Allows members to share their video, screen share, or stream a game in this server.	允許成員在此伺服器中分享視訊、分享螢幕或直播遊戲。
+Allows members to speak in voice channels by simply talking. If this permission is disabled, members are required to use Push-to-talk. Good for controlling background noise or noisy members.	允許成員在語音頻道中直接開口說話。若停用此權限，成員必須使用按鍵發話。適合用來控制背景噪音或吵鬧的成員。
+Allows members to talk in voice channels. If this permission is disabled, members are default muted until somebody with the "Mute Members" permission un-mutes them.	允許成員在語音頻道中說話。若停用此權限，成員預設會被靜音，直到擁有「將成員靜音」權限的人為他們解除靜音。
+Allows members to upload files or media in text channels.	允許成員在文字頻道中上傳檔案或媒體。
+Allows members to use @everyone (everyone in the server) or @here (only online members in that channel). They can also @mention all roles, even if the role's "Allow anyone to mention this role" permission is disabled.	允許成員使用 @everyone（伺服器中的所有人）或 @here（僅該頻道中的線上成員）。他們也能 @提及所有身分組，即使該身分組的「允許任何人提及此身分組」權限已停用。
+Allows members to use commands from applications, including slash commands and context menu commands.	允許成員使用應用程式的指令，包括斜線指令和右鍵選單指令。
+Allows members to use emoji from other servers, if they're a Discord Nitro member.	允許 Discord Nitro 會員使用其他伺服器的表情符號。
+Allows members to use sounds from other servers, if they're a Discord Nitro member.	允許 Discord Nitro 會員使用其他伺服器的音效。
+Allows members to use stickers from other servers, if they're a Discord Nitro member.	允許 Discord Nitro 會員使用其他伺服器的貼圖。
+Allows members to view Server Insights, which shows data on community growth, engagement, and more. This will allow them to see certain data about channel activity, even for channels they cannot access.	允許成員查看伺服器洞察，其中顯示社群成長、參與度等資料。這也會讓他們看到某些頻道活動資料，即使是他們無法存取的頻道。
+Allows members to view a record of who made which changes in this server.	允許成員查看誰在此伺服器中做了哪些變更的紀錄。
+Allows members to view channels by default (excluding private channels).	允許成員預設查看頻道（不含私人頻道）。
+Allows members to view these channels by default. Disabling this for @everyone will make the category private.	允許成員預設查看這些頻道。對 @everyone 停用此權限會將該類別設為私人。
+Allows members to view this channel by default. Disabling this for @everyone will make this channel private.	允許成員預設查看此頻道。對 @everyone 停用此權限會將此頻道設為私人。
+Always	永遠
+An emoji name, like smile	表情符號名稱，例如 smile
+An encrypted file couldn't be opened.|% encrypted files couldn't be opened.	有 % 個加密檔案無法開啟。
+An error occurred, please try again.	發生錯誤，請再試一次。
+An error occurred. Please try again.	發生錯誤，請再試一次。
+Announcement	公告
+Announcement Channel	公告頻道
+Answer	答案
+Answers	答案
+Anyone can join your server directly through Server Discovery	任何人都能透過伺服器探索直接加入你的伺服器
+Anyone can use	任何人都能使用
+Anyone with access to this text channel will be able to see the notifications.	任何能存取此文字頻道的人都能看到這些通知。
+App Directory	應用程式目錄
+Appearance	外觀
+Appends (╯°□°)╯︵ ┻━┻ to your message.	在你的訊息後加上 (╯°□°)╯︵ ┻━┻。
+Appends ¯\\_(ツ)_/¯ to your message.	在你的訊息後加上 ¯\\_(ツ)_/¯。
+Appends ┬─┬ノ( º _ ºノ) to your message.	在你的訊息後加上 ┬─┬ノ( º _ ºノ)。
+Applications	應用程式
+Apply to Join	申請加入
+Approve	核准
+Apps	應用程式
+Apps Permissions	應用程式權限
+Archived	已封存
+Archived Threads	已封存的討論串
+Are you building a Community? Convert to a Community Server to access additional administrative tools that can help you moderate, run, and grow your server.	你正在打造社群嗎？轉換為社群伺服器，即可使用更多管理工具，協助你管理、經營並拓展伺服器。
+Are you sure that you want to delete your account? This will immediately log you out of your account and you will not be able to log in again.	確定要刪除你的帳號嗎？這會立即將你登出，之後也無法再登入。
+Are you sure that you want to disable your account? This will immediately log you out and make your account inaccessible to anyone.	確定要停用你的帳號嗎？這會立即將你登出，且任何人都無法存取你的帳號。
+Are you sure you want to ban @%1 from %2? They won't be able to come back until the ban is lifted.	確定要將 @%1 從 %2 停權嗎？在解除停權前，對方都無法回來。
+Are you sure you want to delete %? This action cannot be undone.	確定要刪除 % 嗎？此動作無法復原。
+Are you sure you want to delete %? This cannot be undone.	確定要刪除 % 嗎？此動作無法復原。
+Are you sure you want to delete :%:? This cannot be undone.	確定要刪除 :%: 嗎？此動作無法復原。
+Are you sure you want to delete the rule %? This cannot be undone.	確定要刪除規則 % 嗎？此動作無法復原。
+Are you sure you want to delete this message?	確定要刪除這則訊息嗎？
+Are you sure you want to delete this role? This action cannot be undone.	確定要刪除這個身分組嗎？此動作無法復原。
+Are you sure you want to delete this template? Its link will stop working.	確定要刪除這個範本嗎？它的連結將會失效。
+Are you sure you want to kick @%1 from %2? They will be able to rejoin again with a new invite.	確定要將 @%1 踢出 %2 嗎？對方可以透過新的邀請重新加入。
+Are you sure you want to logout?	確定要登出嗎？
+Are you sure you want to remove all embeds on this message? This will remove them for everyone.	確定要移除這則訊息上的所有嵌入內容嗎？所有人都將看不到它們。
+Are you sure you want to remove all of the reactions for this emoji from this message?	確定要從這則訊息移除此表情符號的所有反應嗎？
+Are you sure you want to remove all the reactions on this message?	確定要移除這則訊息上的所有反應嗎？
+Are you sure you want to revoke the invite %? Nobody will be able to join with it.	確定要撤銷邀請 % 嗎？之後沒有人能用它加入。
+Ask for a new invite	索取新的邀請
+Ask new members what they're here for; each answer gives them channels and roles.	詢問新成員為何而來；每個答案都會給他們對應的頻道和身分組。
+Attach Files	附加檔案
+Attachment removed	附件已移除
+Attachments	附件
+Audit Log	審核日誌
+Authorized Apps	已授權的應用程式
+Auto	自動
+AutoMod	AutoMod
+Automatic	自動
+Automatic Gain Control	自動增益控制
+Automatically determine input sensitivity	自動判斷輸入靈敏度
+Automatically enable Streamer Mode if OBS or XSplit are running	偵測到 OBS 或 XSplit 執行時自動啟用實況模式
+Automatically filter suspected spam messages	自動過濾疑似垃圾訊息
+Automatically move members to this channel and mute them when they have been idle for longer than the inactive timeout. This does not affect browsers.	成員閒置超過逾時時間後，自動將其移至此頻道並靜音。此設定不影響瀏覽器。
+Automatically open fastcord when your computer starts up	電腦開機時自動開啟 fastcord
+Automatically scan and delete messages sent in this server that contain explicit media.	自動掃描並刪除此伺服器中含有露骨媒體的訊息。
+Avatar	大頭貼
+BACK	返回
+BACKUP CODES	備用碼
+Back	返回
+Back / forward	上一頁 / 下一頁
+Backup codes can only be used one time each and are for emergency access to your account!	每組備用碼只能使用一次，僅供緊急存取你的帳號！
+Backups	備份
+Ban	停權
+Ban %	停權 %
+Ban '%' from Server	將「%」從伺服器停權
+Ban Member	停權成員
+Ban Members	停權成員
+Banner	橫幅
+Banner Color	橫幅顏色
+Bans	停權
+Bitrate	位元率
+Block	封鎖
+Block Commonly Flagged Words	封鎖常被檢舉的字詞
+Block Custom Words	封鎖自訂字詞
+Block Mention Spam	封鎖大量提及
+Block Suspected Spam Content	封鎖疑似垃圾內容
+Block Words in Member Profile Names	封鎖成員個人資料名稱中的字詞
+Block message	封鎖訊息
+Blocked	已封鎖
+Blocked Users	已封鎖的使用者
+Blocked by your content filters	已被你的內容過濾器封鎖
+Blocked message	已封鎖的訊息
+Blocked words	封鎖的字詞
+Blocked words in names	名稱中封鎖的字詞
+Blocks messages containing % word.|Blocks messages containing % words.	封鎖含有 % 個字詞的訊息。
+Blocks messages suspected to be spam.	封鎖疑似垃圾訊息的訊息。
+Blocks messages with more than % mentions.	封鎖提及次數超過 % 次的訊息。
+Blocks words from Discord's commonly flagged lists.	封鎖 Discord 常被檢舉清單中的字詞。
+Blocks words in member profile names.	封鎖成員個人資料名稱中的字詞。
+Blur	模糊
+Blur Background	模糊背景
+Blur what's behind you on camera. Only your camera is changed.	模糊攝影機畫面中你身後的背景。只會改變你的攝影機畫面。
+Bold / italic / underline	粗體 / 斜體 / 底線
+Bots and Apps	機器人與應用程式
+Browse	瀏覽
+Browse Channels	瀏覽頻道
+Built-In	內建
+Bulgarian	保加利亞文
+By creating a server, you agree to Discord's Community Guidelines.	建立伺服器即表示你同意 Discord 的社群守則。
+By enabling the widget, your server profile will be visible to others outside of your server members. You can control Profile privacy in Server Settings > Profile.	啟用小工具後，伺服器成員以外的人也能看到你的伺服器個人資料。你可以在「伺服器設定 > 個人資料」中控制個人資料隱私。
+By making a category private, only select members and roles will be able to view this category. Linked channels in this category will automatically match to this setting.	將類別設為私人後，只有選定的成員和身分組能查看此類別。此類別中已同步的頻道會自動套用此設定。
+By making a channel private, only select members and roles will be able to view this channel.	將頻道設為私人後，只有選定的成員和身分組能查看此頻道。
+By making a channel private, only select members and roles will have access to view or connect to this channel.	將頻道設為私人後，只有選定的成員和身分組能查看或連線至此頻道。
+Bypass Slowmode	略過慢速模式
+CHANNEL OR CATEGORY	頻道或類別
+CONFIRM NEW PASSWORD	確認新密碼
+CURRENT PASSWORD	目前密碼
+Call	通話
+Cancel	取消
+Cancel Event	取消活動
+Cancel Friend Request	取消好友邀請
+Careful — you have unsaved changes!	注意 — 你有尚未儲存的變更！
+Category Name	類別名稱
+Category deleted	類別已刪除
+Change %	變更 %
+Change Avatar	變更大頭貼
+Change Nickname	變更暱稱
+Change Password	變更密碼
+Change Server Icon	變更伺服器圖示
+Channel	頻道
+Channel Name	頻道名稱
+Channel Notification Overrides	頻道通知覆寫
+Channel Topic	頻道主題
+Channel Type	頻道類型
+Channel deleted	頻道已刪除
+Channel unmuted	已取消頻道靜音
+Channels	頻道
+Channels & Roles	頻道與身分組
+Channels Followed (%)	已追蹤的頻道（%）
+Channels matching #%	符合 #% 的頻道
+Chat	聊天
+Chat Font Scaling	聊天字型縮放
+Check your email for a login link	請到你的電子郵件查看登入連結
+Check your phone!	請查看你的手機！
+Checking the file…	正在檢查檔案…
+Chinese, China	中文（中國）
+Chinese, Taiwan	中文（台灣）
+Choose Image	選擇圖片
+Choose a link people can use to join, discord.gg/<code>.	選擇一個讓大家用來加入的連結：discord.gg/<code>。
+Choose a server	選擇伺服器
+Choose the language you want Discord to display.	選擇你希望 Discord 顯示的語言。
+Choose what happens to images and videos Discord detects as explicit.	選擇 Discord 偵測到露骨圖片和影片時的處理方式。
+Clear	清除
+Clear Custom Status	清除自訂狀態
+Clear after	清除時間
+Clear permissions	清除權限
+Click Again to Reset	再按一次以重設
+Click any channel, then pick a request whose name starts with "messages" or "science".	點選任一頻道，然後選擇名稱以「messages」或「science」開頭的請求。
+Click to add a note	點擊以新增備註
+Click to see attachment	點擊以查看附件
+Close DM	關閉私訊
+Collapse	收合
+Collapse All Categories	收合所有類別
+Collapse Category	收合類別
+Commands	指令
+Commands matching /%	符合 /% 的指令
+Community Overview	社群概覽
+Community Updates Channel	社群更新頻道
+Community servers follow Discord's Community Guidelines.	社群伺服器須遵守 Discord 的社群守則。
+Community servers have more tools to help you moderate and grow your server.	社群伺服器有更多工具，可協助你管理和拓展伺服器。
+Compact	緊湊
+Compare	比對
+Compare these with %, in person or on a call. If they match, no one can read this DM in between.	請與 % 當面或在通話中比對這些數字。如果一致，就沒有人能在中途讀取這則私訊。
+Configure system event messages sent to your server.	設定傳送到你伺服器的系統事件訊息。
+Confirm	確認
+Confirm Request	確認請求
+Confirm your age to join this server.	確認你的年齡以加入此伺服器。
+Confirming...	確認中...
+Connect	連線
+Connect these accounts and unlock special Discord integrations. The sign-in opens in your browser.	連結這些帳號以解鎖特殊的 Discord 整合功能。登入頁面會在你的瀏覽器中開啟。
+Connected Apps	已連結的應用程式
+Connecting	連線中
+Connecting...	連線中...
+Connecting…	連線中…
+Connection Info	連線資訊
+Connection lost. Messages may be out of date.	連線中斷，訊息可能不是最新的。
+Connections	連結
+Content Filters	內容過濾器
+Continue	繼續
+Control who can see your profile info, like your bio and connected accounts.	控制誰能看到你的個人資料，例如自我介紹和已連結的帳號。
+Copied	已複製
+Copy	複製
+Copy Category ID	複製類別 ID
+Copy Channel ID	複製頻道 ID
+Copy Event Link	複製活動連結
+Copy Image	複製圖片
+Copy Image Link	複製圖片連結
+Copy Link	複製連結
+Copy Media Link	複製媒體連結
+Copy Message ID	複製訊息 ID
+Copy Message Link	複製訊息連結
+Copy Server ID	複製伺服器 ID
+Copy Text	複製文字
+Copy User ID	複製使用者 ID
+Copy Username	複製使用者名稱
+Copy Webhook URL	複製 Webhook 網址
+Copy curl Command	複製 curl 指令
+Copy the event link below to invite people to your event. This also acts as a server invite link.	複製下方的活動連結來邀請大家參加你的活動。這個連結同時也是伺服器邀請連結。
+Copy your account's token once from Discord in a web browser.	從網頁瀏覽器中的 Discord 複製一次你的帳號權杖。
+Couldn't accept encryption.	無法接受加密。
+Couldn't cancel the event.	無法取消活動。
+Couldn't change avatar	無法變更大頭貼
+Couldn't create an invite link.	無法建立邀請連結。
+Couldn't create an invite.	無法建立邀請。
+Couldn't delete the channel: %	無法刪除頻道：%
+Couldn't encrypt the message.	無法加密訊息。
+Couldn't join %: %	無法加入 %1：%2
+Couldn't load onboarding.	無法載入新手引導。
+Couldn't load the AutoMod rules.	無法載入 AutoMod 規則。
+Couldn't load the applications.	無法載入應用程式。
+Couldn't load the audit log.	無法載入審核日誌。
+Couldn't load the bans.	無法載入停權名單。
+Couldn't load the invites.	無法載入邀請。
+Couldn't load the members.	無法載入成員。
+Couldn't load the role's members.	無法載入身分組成員。
+Couldn't load the server rules.	無法載入伺服器規則。
+Couldn't load the server's tag.	無法載入伺服器標籤。
+Couldn't load the template.	無法載入範本。
+Couldn't load the webhooks.	無法載入 Webhook。
+Couldn't move the channel	無法移動頻道
+Couldn't play it here, so it opened in your browser.	無法在這裡播放，已改在你的瀏覽器中開啟。
+Couldn't reach %1: %2 Retrying.	無法連線至 %1：%2 正在重試。
+Couldn't reach Discord. Check your connection and try again.	無法連線至 Discord。請檢查你的網路連線後再試一次。
+Couldn't reach Discord. Try again.	無法連線至 Discord，請再試一次。
+Couldn't reach the server.	無法連線至伺服器。
+Couldn't reach the server. Check your connection and try again.	無法連線至伺服器。請檢查你的網路連線後再試一次。
+Couldn't save the file.	無法儲存檔案。
+Couldn't save the image.	無法儲存圖片。
+Couldn't save the token.	無法儲存權杖。
+Couldn't turn on encryption.	無法開啟加密。
+Couldn't upload emoji	無法上傳表情符號
+Cozy	舒適
+Create	建立
+Create Category	建立類別
+Create Channel	建立頻道
+Create DM	建立私訊
+Create Emoji	建立表情符號
+Create Event	建立活動
+Create Events	建立活動
+Create Expressions	建立表情
+Create Group DM	建立群組私訊
+Create Invite	建立邀請
+Create My Own	自己建立
+Create Poll	建立投票
+Create Polls	建立投票
+Create Private Threads	建立私人討論串
+Create Public Threads	建立公開討論串
+Create Role	建立身分組
+Create Rule	建立規則
+Create Thread	建立討論串
+Create Webhook	建立 Webhook
+Create Your Server	建立你的伺服器
+Create a poll	建立投票
+Create a space for organized discussions	建立一個有條理的討論空間
+Create one for me	幫我建立一個
+Created by %	由 % 建立
+Created on %1 by %2	由 %2 於 %1 建立
+Creating an invite link…	正在建立邀請連結…
+Creating an invite...	正在建立邀請...
+Creating...	建立中...
+Creating…	建立中…
+Creation Date	建立日期
+Croatian	克羅埃西亞文
+Current Device	目前裝置
+Custom Invite Link	自訂邀請連結
+Customize Your Server	自訂你的伺服器
+Customize how your server appears in invite links and, if enabled, in Server Discovery and Announcement Channel messages	自訂你的伺服器在邀請連結中的樣子，以及（若已啟用）在伺服器探索和公告頻道訊息中的樣子
+Customize your server with integrations. Manage webhooks, followed channels and apps.	用整合功能自訂你的伺服器。管理 Webhook、已追蹤的頻道和應用程式。
+Cut	剪下
+Czech	捷克文
+DAVE v%, % members	DAVE v%1，%2 位成員
+DEFAULT KEYBINDS	預設快捷鍵
+DM closed	私訊已關閉
+Danish	丹麥文
+Data & Privacy	資料與隱私
+Date	日期
+Deafen	拒聽
+Deafen Members	拒聽成員
+Deauthorize	取消授權
+Decline	拒絕
+Default	預設
+Default Channels	預設頻道
+Default Layout	預設版面
+Default Notification Settings	預設通知設定
+Default Permissions	預設權限
+Default Sort Order	預設排序方式
+Default Themes	預設主題
+Default notifications become Only @mentions.	預設通知會變為「僅限 @提及」。
+Delete	刪除
+Delete '%'	刪除「%」
+Delete Account	刪除帳號
+Delete Category	刪除類別
+Delete Channel	刪除頻道
+Delete Emoji	刪除表情符號
+Delete Invite	刪除邀請
+Delete Message	刪除訊息
+Delete Message History	刪除訊息紀錄
+Delete Question	刪除問題
+Delete Role	刪除身分組
+Delete Rule	刪除規則
+Delete Server	刪除伺服器
+Delete Sticker	刪除貼圖
+Delete Template	刪除範本
+Delete Thread	刪除討論串
+Delete Webhook	刪除 Webhook
+Deleted message	已刪除的訊息
+Describe your sticker	描述你的貼圖
+Description	說明
+Description (alt text)	說明（替代文字）
+Description (optional)	說明（選填）
+Detects a burst of mention spam across the server and locks it down.	偵測到伺服器出現大量提及時，自動封鎖伺服器。
+Developer	開發者
+Developer Mode	開發者模式
+Developer Mode exposes context menu items helpful for people writing apps using the Discord API.	開發者模式會顯示一些右鍵選單項目，方便使用 Discord API 開發應用程式的人。
+Devices	裝置
+Direct Message (DM) Permissions	私人訊息（私訊）權限
+Direct Messages	私人訊息
+Direct messages from friends	來自好友的私訊
+Direct messages from others	來自其他人的私訊
+Disable	停用
+Disable Account	停用帳號
+Disable All Notification Sounds	停用所有通知音效
+Disable Community	停用社群
+Disable all notifications	停用所有通知
+Disable all sound effects	停用所有音效
+Disabling your account means you can recover it at any time after taking this action.	停用帳號後，你隨時都能將它復原。
+Disconnect	中斷連線
+Disconnect From Voice Channel	中斷語音頻道連線
+Disconnected	已中斷連線
+Discord account	Discord 帳號
+Discord asked for a captcha, which fastcord can't show. Log in with the QR code instead.	Discord 要求進行人機驗證，但 fastcord 無法顯示。請改用 QR 碼登入。
+Discord asked for a captcha, which fastcord can't show. Try on discord.com.	Discord 要求進行人機驗證，但 fastcord 無法顯示。請到 discord.com 試試。
+Discord can filter out some messages that contain spam. These messages go to your Spam inbox.	Discord 可以過濾掉部分含有垃圾內容的訊息。這些訊息會被移到你的垃圾訊息收件匣。
+Discord didn't accept the saved login. Log in again.	Discord 不接受已儲存的登入資訊，請重新登入。
+Discord failed to unpin that message for some reason. Sorry about that.	Discord 因故無法取消釘選這則訊息，很抱歉。
+Discord will prioritize this server in search to users who speak the selected language.	Discord 會在搜尋中優先向使用所選語言的使用者顯示此伺服器。
+Discord's terms don't allow third-party clients, so using one can get an account flagged.	Discord 的條款不允許第三方用戶端，使用它可能導致帳號被標記。
+Discoverable	可被探索
+Dismiss	關閉
+Dismiss message	關閉訊息
+Display	顯示
+Display Images, Videos and Lolcats	顯示圖片、影片和搞笑貓圖
+Display Name	顯示名稱
+Display name	顯示名稱
+Display on profile	顯示在個人資料上
+Display role members separately from online members	將身分組成員與線上成員分開顯示
+Displays text with emphasis.	以強調樣式顯示文字。
+Do Not Disturb	請勿打擾
+Do not filter	不過濾
+Do not filter direct messages	不過濾私訊
+Don't Delete Any	不刪除
+Don't clear	不清除
+Don't show role colors	不顯示身分組顏色
+Done	完成
+Download	下載
+Drop a file here, or browse	將檔案拖放到這裡，或瀏覽
+Duration	持續時間
+Dutch	荷蘭文
+EDIT ROLE — %	編輯身分組 — %
+EMAIL OR PHONE NUMBER	電子郵件或電話號碼
+EMOJI MATCHING	符合的表情符號
+ENTER THE 6-DIGIT CODE	輸入 6 位數代碼
+EXPIRE AFTER	失效時間
+EXPIRES	到期
+Ease the chat and lists toward where you scroll. Off, they jump there at once (always, when your device asks for reduced motion).	讓聊天和清單平滑捲動到目標位置。關閉時會直接跳過去（裝置要求減少動態效果時一律如此）。
+Echo Cancellation	回音消除
+Edit	編輯
+Edit Category	編輯類別
+Edit Channel	編輯頻道
+Edit Friend Nickname	編輯好友暱稱
+Edit Message	編輯訊息
+Edit Per-server Profile	編輯伺服器專屬個人資料
+Edit Profile	編輯個人資料
+Edit Profiles	編輯個人資料
+Edit Sound	編輯音效
+Edit Thread	編輯討論串
+Edit User Profile	編輯使用者個人資料
+Edit invite link.	編輯邀請連結。
+Edit your last message	編輯你的上一則訊息
+Email	電子郵件
+Embed Links	嵌入連結
+Embed an HTML widget on your website to display your online members, voice channels, and invite link.	在你的網站嵌入 HTML 小工具，顯示線上成員、語音頻道和邀請連結。
+Emoji	表情符號
+Emoji / GIF / sticker picker	表情符號 / GIF / 貼圖選擇器
+Enable Authenticator App	啟用驗證應用程式
+Enable Community	啟用社群
+Enable Community to access Server Discovery	啟用社群以使用伺服器探索
+Enable Desktop Notifications	啟用桌面通知
+Enable Invites	啟用邀請
+Enable Onboarding	啟用新手引導
+Enable Reduced Motion	啟用減少動態效果
+Enable Server Widget	啟用伺服器小工具
+Enable Streamer Mode	啟用實況模式
+Enable Unread Message Badge	啟用未讀訊息標記
+Encrypt this DM	加密這則私訊
+Encrypted message	加密訊息
+Encrypted messages are limited to % bytes for now.	加密訊息目前限制為 % 位元組。
+End Date	結束日期
+End Event	結束活動
+End Poll Now	立即結束投票
+End Time	結束時間
+End-to-end encrypted	端對端加密
+End-to-end encryption	端對端加密
+Engagement	參與度
+English, UK	英文（英國）
+English, USA	英文（美國）
+Enter Discord Auth Code	輸入 Discord 驗證碼
+Enter Discord Backup Code	輸入 Discord 備用碼
+Enter a location	輸入地點
+Enter a message to start the conversation!	輸入訊息來開始對話吧！
+Enter an invite below to join an existing server	在下方輸入邀請以加入現有的伺服器
+Enter server name	輸入伺服器名稱
+Enter your current password and a new password.	輸入你的目前密碼和新密碼。
+Error	錯誤
+Est. %	成立於 %
+Event Info	活動資訊
+Event Topic	活動主題
+Event cancelled	活動已取消
+Event is over	活動已結束
+Events	活動
+Events Permissions	活動權限
+Every answer needs a title.	每個答案都需要標題。
+Every question needs a title and at least one answer.	每個問題都需要標題和至少一個答案。
+Everyone	所有人
+Everyone in this channel connects to the selected region. Automatic picks the best one for whoever starts the call.	此頻道中的所有人都會連線到所選地區。選擇「自動」會為發起通話的人挑選最佳地區。
+Everyone welcome %!	大家歡迎 %！
+Everyone who joins sees these channels, whatever they answer.	無論怎麼回答，所有加入的人都會看到這些頻道。
+Exempt a channel	排除頻道
+Exempt a role	排除身分組
+Exemptions	例外
+Expand (% lines)	展開（% 行）
+Expand (% of % lines)	展開（%1 / %2 行）
+Expired	已過期
+Explicit image filter	露骨圖片過濾器
+Expression	表情
+FRAME RATE	影格率
+Failed to follow the channel, please try again.	無法追蹤頻道，請再試一次。
+Fastcord couldn't be installed.	無法安裝 Fastcord。
+Favorites	最愛
+File	檔案
+File saved.	檔案已儲存。
+Filename	檔案名稱
+Fill out the details of your event.	填寫你的活動詳細資料。
+Filter by Action	依動作篩選
+Filter by User	依使用者篩選
+Filter direct messages from everyone	過濾所有人的私訊
+Filter direct messages from non-friends	過濾非好友的私訊
+Filter messages from all members	過濾所有成員的訊息
+Filter messages from server members without roles	過濾沒有身分組的伺服器成員訊息
+Find or start a conversation	尋找或開始對話
+Find the perfect emoji	找到最完美的表情符號
+Find the perfect reaction	找到最完美的反應
+Find the perfect sticker	找到最完美的貼圖
+Finding the video%	正在尋找影片%
+Finish	完成
+Finishing touches	最後潤飾
+Finnish	芬蘭文
+Fit more messages on screen at one time. #IRC	一次在螢幕上顯示更多訊息。#IRC
+Flagged as spam	已標記為垃圾訊息
+Flags	旗幟
+Folder Color	資料夾顏色
+Folder Name	資料夾名稱
+Folder Settings	資料夾設定
+Folder removed	資料夾已移除
+Follow	追蹤
+Followed!	已追蹤！
+Food & Drink	食物與飲料
+For 1 Hour	1 小時
+For 15 Minutes	15 分鐘
+For 24 Hours	24 小時
+For 3 Days	3 天
+For 3 Hours	3 小時
+For 8 Hours	8 小時
+Forever	永久
+Forgot your password?	忘記密碼了嗎？
+Forum	論壇
+Forward	轉發
+Forward To	轉發至
+Forwarded	已轉發
+French	法文
+Frequently Used	常用
+Friend Nickname	好友暱稱
+Friend Request Permissions	好友邀請權限
+Friend Request Sent	已送出好友邀請
+Friend removed	已移除好友
+Friend request cancelled	已取消好友邀請
+Friend request ignored	已忽略好友邀請
+Friends	好友
+Friends & All Servers	好友與所有伺服器
+Friends & Small Servers Only	僅限好友與小型伺服器
+Friends Only	僅限好友
+Friends can ask to join or join the game you're playing.	好友可以請求加入或直接加入你正在玩的遊戲。
+Friends come online	好友上線時
+Friends of friends	好友的好友
+From User	來自使用者
+GIFs	GIF
+GIFs can't be sent encrypted yet.	目前還無法以加密方式傳送 GIF。
+Gallery view	圖庫檢視
+General	一般
+General Category Permissions	一般類別權限
+General Channel Permissions	一般頻道權限
+General Server Permissions	一般伺服器權限
+Generate Template	產生範本
+Generate a New Link	產生新連結
+German	德文
+Get a copy of your data. It can take up to 30 days to prepare, and a download link is emailed to you when it's ready.	取得你的資料副本。準備最多可能需要 30 天，完成後會以電子郵件寄送下載連結給你。
+Give new members a quick way to find the channels and roles that matter to them.	讓新成員快速找到對他們重要的頻道和身分組。
+Give your new server a personality with a name. You can always change it later.	為你的新伺服器取個有個性的名字。之後隨時都能更改。
+Glad you're here, %.	很高興你來了，%。
+Go Back	返回
+Go To Channel	前往頻道
+Go back	返回
+Go forward	前進
+Go to Server	前往伺服器
+Good to see you, %.	很高興見到你，%。
+Got It	知道了
+Grant temporary membership	授予臨時成員資格
+Greek	希臘文
+Hang out together with voice, video, and screen share	用語音、視訊和螢幕分享一起聊天
+Hang out with voice, video, screenshare, and Go Live.	用語音、視訊、螢幕分享和直播一起聊天。
+Happening Now	正在進行
+Have an invite already?	已經有邀請了嗎？
+Help	說明
+Here's a preview of your event.	這是你的活動預覽。
+Hey, just double checking that you want to pin this message to #% for posterity and greatness?	嘿，再確認一下，你確定要把這則訊息釘選到 #% 流芳百世嗎？
+Hey, just double checking that you want to pin this message to the current channel for posterity and greatness?	嘿，再確認一下，你確定要把這則訊息釘選到目前頻道流芳百世嗎？
+Hide	隱藏
+Hide After Inactivity	閒置後隱藏
+Hide Chat	隱藏聊天
+Hide Fastcord window from screen capture	在螢幕擷取中隱藏 Fastcord 視窗
+Hide Muted Channels	隱藏已靜音的頻道
+Hide invite links to my Discord servers	隱藏我的 Discord 伺服器邀請連結
+Hide my personal information, such as email, connected accounts, and notes	隱藏我的個人資訊，例如電子郵件、已連結的帳號和備註
+Hides Fastcord windows from most screen capture software.	在大多數螢幕擷取軟體中隱藏 Fastcord 視窗。
+High	高
+Highest	最高
+Highlights provide occasional updates when your friends are chatting in busy servers, and more.	精選動態會不定期通知你好友在熱鬧伺服器中的聊天等內容。
+Hindi	印地文
+History	紀錄
+Hitting X makes fastcord minimize to the system tray instead of closing.	按下 X 時，fastcord 會縮小到系統匣而不是關閉。
+Hm, didn’t work. Double check that the username is correct.	嗯，沒有成功。請再確認使用者名稱是否正確。
+Host	主持人
+Host events with an audience	舉辦有觀眾的活動
+How Discord Uses My Data	Discord 如何使用我的資料
+How can people join your server?	大家要怎麼加入你的伺服器？
+How did your server get started? Why should people join?	你的伺服器是怎麼開始的？大家為什麼要加入？
+Hungarian	匈牙利文
+I acknowledge that by transferring ownership of this server to %, it officially belongs to them.	我了解將此伺服器的擁有權轉移給 % 後，它將正式歸對方所有。
+I agree and understand	我同意並了解
+I'm new here, say hi!	我是新來的，跟我打聲招呼吧！
+I'm sure, use a backup code	我確定，使用備用碼
+IMAGE	圖片
+INPUT DEVICE	輸入裝置
+INPUT MODE	輸入模式
+INPUT SENSITIVITY	輸入靈敏度
+INPUT VOLUME	輸入音量
+INVITE CODE	邀請碼
+INVITE LINK	邀請連結
+INVITER	邀請者
+INVITES SHOULD LOOK LIKE	邀請格式應如下
+Icon	圖示
+Idle	閒置
+If Streamer Mode is enabled...	若已啟用實況模式...
+If you do not have access to any other methods, the button below will activate in % second.|If you do not have access to any other methods, the button below will activate in % seconds.	如果你無法使用其他方式，下方按鈕將在 % 秒後啟用。
+If you do not have access to any other methods, use the other button below to proceed.	如果你無法使用其他方式，請使用下方的另一個按鈕繼續。
+Ignore	忽略
+Ignore Friend Request	忽略好友邀請
+Ignored Users	已忽略的使用者
+Ignored message	已忽略的訊息
+Image saved.	圖片已儲存。
+Important updates for people in and out of the server	給伺服器內外人士的重要更新
+In Channel	所在頻道
+Inactive Channel	閒置頻道
+Inactive Timeout	閒置逾時
+Inbox	收件匣
+Incoming Call...	來電中...
+Incoming Friend Request	收到的好友邀請
+Indonesian	印尼文
+Insert Timestamp	插入時間戳記
+Install	安裝
+Install Fastcord to open it from the Start menu.	安裝 Fastcord 後即可從開始功能表開啟。
+Installing…	安裝中…
+Instructions Sent	已寄出說明
+Insults and Slurs	侮辱與歧視用語
+Integrations	整合
+Interested	有興趣
+Invalid Invite	無效的邀請
+Invalid date or time	無效的日期或時間
+Invisible	隱形
+Invite	邀請
+Invite Channel	邀請頻道
+Invite Invalid	邀請無效
+Invite Only	僅限邀請
+Invite People	邀請其他人
+Invite friends to %	邀請好友加入 %
+Invite to Server	邀請加入伺服器
+Invite to Speak	邀請發言
+Invites	邀請
+Invites are currently paused for this server. Please try again later.	此伺服器目前暫停邀請，請稍後再試。
+Invites are paused: nobody can join with an invite link until they're enabled again.	邀請已暫停：在重新啟用前，沒有人能透過邀請連結加入。
+It's quiet for now...	目前很安靜...
+Italian	義大利文
+JOINED DISCORD	加入 DISCORD 的時間
+JSON API	JSON API
+January|February|March|April|May|June|July|August|September|October|November|December	一月|二月|三月|四月|五月|六月|七月|八月|九月|十月|十一月|十二月
+Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec	1月|2月|3月|4月|5月|6月|7月|8月|9月|10月|11月|12月
+Japanese	日文
+Jitter	抖動
+Join	加入
+Join Call	加入通話
+Join Server	加入伺服器
+Join Thread	加入討論串
+Join Voice	加入語音
+Join a Server	加入伺服器
+Join the call	加入通話
+Joined Threads	已加入的討論串
+Joining…	加入中…
+Jump	跳轉
+Jump To Present	跳到最新
+Jump to oldest unread message	跳到最早的未讀訊息
+KEYBIND	快捷鍵
+Keep Current Permissions	保留目前權限
+Keep these somewhere safe. Each code signs you in once if you lose your authenticator app; they are shown only now.	請妥善保存。如果你遺失驗證應用程式，每組代碼可讓你登入一次；這些代碼只會顯示這一次。
+Keep your server private, or open it up for more people to join.	將伺服器設為私人，或開放讓更多人加入。
+Keybinds	快捷鍵
+Keybinds only work while fastcord is focused. To use them in other apps, allow fastcord under Input Monitoring in System Settings, then restart fastcord.	快捷鍵只在 fastcord 為作用中視窗時有效。若要在其他應用程式中使用，請在「系統設定」的「輸入監控」中允許 fastcord，然後重新啟動 fastcord。
+Keybinds only work while fastcord is focused: this desktop doesn't let apps see keys pressed in other windows.	快捷鍵只在 fastcord 為作用中視窗時有效：此桌面環境不允許應用程式偵測在其他視窗中按下的按鍵。
+Keybinds work in every app, also while fastcord is in the background.	快捷鍵在所有應用程式中都有效，fastcord 在背景執行時也一樣。
+Keyboard Shortcuts	鍵盤快捷鍵
+Keyboard shortcuts	鍵盤快捷鍵
+Keyword: %	關鍵字：%
+Kick	踢出
+Kick %	踢出 %
+Kick '%' from Server	將「%」踢出伺服器
+Kick Member	踢出成員
+Kick, Approve, and Reject Members	踢出、核准和拒絕成員
+Korean	韓文
+LIVE	直播
+Language	語言
+Language & Time	語言與時間
+Last sync: %	上次同步：%
+Leave Group	離開群組
+Leave Server	離開伺服器
+Leave Thread	離開討論串
+Leaving Discord	正在離開 Discord
+Left %	已離開 %
+Let everyone know how to use this channel!	讓大家知道如何使用這個頻道！
+Let's Check	來檢查看看
+Level %!	等級 %！
+Limits	限制
+Limits the number of users that can connect to this voice channel. Users with the Move Members permission ignore this limit and can move other users into the channel.	限制可連線至此語音頻道的使用者人數。擁有「移動成員」權限的使用者不受此限制，並可將其他使用者移入此頻道。
+Linked Roles	連結身分組
+List view	清單檢視
+Lithuanian	立陶宛文
+Live Now	正在直播
+Loading sounds…	正在載入音效…
+Loading...	載入中...
+Loading…	載入中…
+Location	地點
+Log In	登入
+Log Out	登出
+Log Out All Known Devices	登出所有已知裝置
+Log in	登入
+Log in to Discord in your web browser.	在你的網頁瀏覽器中登入 Discord。
+Log in with QR Code	使用 QR 碼登入
+Log in with a token	使用權杖登入
+Log out of all known devices	登出所有已知裝置
+Logged-in Devices	已登入的裝置
+Logging in as %	正在以 % 的身分登入
+Logging in…	登入中…
+Login or password is invalid.	帳號或密碼無效。
+Looking for screens…	正在尋找螢幕…
+Lotus Mode	蓮花模式
+Low	低
+Lower Hand	放下手
+MAX NUMBER OF USES	使用次數上限
+MEMBER SINCE	成員資歷
+MEMBERS	成員
+MUTE	靜音
+Main Profile	主要個人資料
+Make a selection	請選擇
+Manage Accounts	管理帳號
+Manage Channel	管理頻道
+Manage Channels	管理頻道
+Manage Events	管理活動
+Manage Expressions	管理表情
+Manage Members	管理成員
+Manage Messages	管理訊息
+Manage Nicknames	管理暱稱
+Manage Permissions	管理權限
+Manage Roles	管理身分組
+Manage Server	管理伺服器
+Manage Threads and Posts	管理討論串和貼文
+Manage Webhooks	管理 Webhook
+Manage settings that help keep your server active.	管理有助於保持伺服器活躍的設定。
+Mark All as Read	全部標示為已讀
+Mark As Read	標示為已讀
+Mark Folder As Read	將資料夾標示為已讀
+Mark Unread	標示為未讀
+Mark a message unread	將訊息標示為未讀
+Mark as Verified	標示為已驗證
+Mark as spoiler	標示為劇透
+Mark channel read	將頻道標示為已讀
+Mark server read	將伺服器標示為已讀
+Marked as read	已標示為已讀
+Marks your message as a spoiler.	將你的訊息標示為劇透。
+Match your device's light or dark mode.	配合你裝置的淺色或深色模式。
+Max file size is % MB please.	檔案大小上限為 % MB。
+Measuring	測量中
+Medium	中
+Member Since	成員資歷
+Members	成員
+Members can pick more than one answer	成員可以選擇多個答案
+Members can wear your server's tag next to their name across Discord.	成員可以在 Discord 各處的名稱旁配戴你伺服器的標籤。
+Members in timeout can't send messages, react, join voice or speak until it ends.	禁言中的成員在禁言結束前無法傳送訊息、新增反應、加入語音或說話。
+Members in timeout can't send messages, react, join voice or start threads until it ends.	禁言中的成員在禁言結束前無法傳送訊息、新增反應、加入語音或開啟討論串。
+Members matching @%	符合 @% 的成員
+Members must answer this question to join.	成員必須回答此問題才能加入。
+Members of the server must meet the following criteria before they can send messages in text channels or initiate a direct message conversation. If a member has an assigned role this does not apply.	伺服器成員必須符合下列條件，才能在文字頻道傳送訊息或發起私訊對話。已被指派身分組的成員不受此限。
+Members use the colour of the highest role they have on the roles list.	成員會使用其在身分組清單中最高身分組的顏色。
+Members use the colour of the highest role they have on this list. Drag roles, or use the arrows, to reorder them.	成員會使用其在此清單中最高身分組的顏色。拖曳身分組或使用箭頭來重新排序。
+Members will be restricted to sending one message and creating one thread per this interval, unless they have the Bypass Slowmode permission.	除非擁有「略過慢速模式」權限，否則成員在此間隔內只能傳送一則訊息並建立一個討論串。
+Members with a matching name can't talk or interact until they change it.	名稱符合的成員在更改名稱前無法說話或互動。
+Members with this permission will have every permission and will also bypass all channel specific permissions or restrictions (for example, these members would get access to all private channels). This is a dangerous permission to grant.	擁有此權限的成員將擁有所有權限，並略過所有頻道專屬的權限或限制（例如，這些成員可以存取所有私人頻道）。授予此權限具有風險。
+Members — %	成員 — %
+Membership Permissions	成員資格權限
+Mention	提及
+Mention %	提及 %
+Mention @everyone, @here, and All Roles	提及 @everyone、@here 和所有身分組
+Mention limit	提及上限
+Mention raid protection	提及突襲防護
+Mention removed	已移除提及
+Mentions	提及
+Mentions User	提及使用者
+Message	訊息
+Message #%	傳訊息到 #%
+Message %	傳訊息給 %
+Message @%	傳訊息給 @%
+Message @% (encrypted)	傳訊息給 @%（已加密）
+Message @% (not encrypted)	傳訊息給 @%（未加密）
+Message Contains	訊息包含
+Message Display	訊息顯示
+Message Requests	訊息請求
+Message deleted	訊息已刪除
+Message failed to send.	訊息傳送失敗。
+Message link copied: paste it into Discord's report form	已複製訊息連結：請貼到 Discord 的檢舉表單中
+Message request ignored	已忽略訊息請求
+Message unpinned	已取消釘選訊息
+Messages Failed To Load	訊息載入失敗
+Messages from members you may not know go to Message Requests.	來自你可能不認識的成員的訊息會移到訊息請求。
+Messages from people you may not know go to Message Requests instead of your DMs.	來自你可能不認識的人的訊息會移到訊息請求，而非你的私訊。
+Messages from server members without a role will be filtered for sensitive image-based media.	沒有身分組的伺服器成員所傳的訊息會過濾敏感的圖片類媒體。
+Messages in servers	伺服器中的訊息
+Messages will not be filtered for sensitive image-based media.	訊息不會過濾敏感的圖片類媒體。
+Messaging Permissions	訊息權限
+Minimize to Tray	縮小到系統匣
+Mobile Push Notifications	行動推播通知
+Moderation	管理
+Moderators must have two-factor authentication enabled to ban, kick, or timeout members and delete messages.	管理員必須啟用雙重驗證，才能停權、踢出、禁言成員及刪除訊息。
+Moderators only	僅限管理員
+Modern, beautiful, and easy on your eyes.	現代、美觀，而且不傷眼。
+Modify Attachment	修改附件
+Motion	動態效果
+Move Members	移動成員
+Move To	移至
+Move to Audience	移至觀眾席
+Multi-Factor Authentication	多重要素驗證
+Must also be a member of this server for longer than 10 minutes.	也必須成為此伺服器成員超過 10 分鐘。
+Must also be registered on Discord for longer than 5 minutes.	也必須註冊 Discord 超過 5 分鐘。
+Must have a verified email on their Discord account.	Discord 帳號必須有已驗證的電子郵件。
+Must have a verified phone on their Discord account.	Discord 帳號必須有已驗證的手機號碼。
+Mute	靜音
+Mute %	將 % 靜音
+Mute Category	將類別靜音
+Mute Channel	將頻道靜音
+Mute Members	將成員靜音
+Mute New Events	將新活動靜音
+Mute Server	將伺服器靜音
+Mute Thread	將討論串靜音
+Muted until %1, %2	靜音至 %1 %2
+Muting a server prevents unread indicators and notifications from appearing unless you are mentioned.	將伺服器靜音後，除非你被提及，否則不會出現未讀標記和通知。
+Mutual Friends	共同好友
+Mutual Servers	共同伺服器
+My Account	我的帳號
+My server	我的伺服器
+NAME	名稱
+NEW	新
+NEW PASSWORD	新密碼
+NO ACTIVE INVITE LINKS	沒有有效的邀請連結
+NOTHING	無
+Name	名稱
+Name your sound	為你的音效命名
+Name your sticker	為你的貼圖命名
+Nature	自然
+Navigate Back	上一頁
+Navigate Forward	下一頁
+Need an account?	需要帳號嗎？
+Network	網路
+Never	永不
+Nevermind	算了
+New Category	新類別
+New Group DM	新群組私訊
+New Post	新貼文
+New Thread	新討論串
+New Webhook	新 Webhook
+New members must read and agree to these before they can talk.	新成員必須閱讀並同意這些內容才能發言。
+New members pick channels and roles from your questions when they join.	新成員加入時會透過你的問題選擇頻道和身分組。
+New tag	新標籤
+New threads will stop showing in the channel list after being inactive for the specified duration.	新討論串在閒置超過指定時間後，將不再顯示於頻道清單中。
+Newest	最新
+Next	下一步
+Nickname	暱稱
+Nicknames are visible to everyone on this server. Do not change them unless you are enforcing a naming system or clearing a bad nickname.	此伺服器上的所有人都看得到暱稱。除非是在執行命名規則或清除不當暱稱，否則請勿更改。
+No GIFs found	找不到 GIF
+No Inactive Channel	無閒置頻道
+No Invite	無邀請
+No Keybind Set	未設定快捷鍵
+No System Messages	無系統訊息
+No applications waiting	沒有待審核的申請
+No apps have been added to this server.	此伺服器尚未加入任何應用程式。
+No bans	沒有停權
+No bans match your search	沒有符合搜尋的停權
+No emoji found	找不到表情符號
+No favorites yet	尚無最愛
+No file chosen	未選擇檔案
+No friends in common	沒有共同好友
+No limit	無限制
+No logs yet	尚無日誌
+No members found	找不到成員
+No members have this role yet.	尚無成員擁有此身分組。
+No message requests.	沒有訊息請求。
+No one is speaking yet	還沒有人發言
+No one's around right now.	現在沒有人在。
+No one's here yet	這裡還沒有人
+No posts match	沒有符合的貼文
+No posts yet	尚無貼文
+No questions yet.	尚無問題。
+No reason given	未提供原因
+No results	沒有結果
+No results found	找不到結果
+No servers in common	沒有共同伺服器
+No sounds found	找不到音效
+No sounds yet.	尚無音效。
+No spam. Nice.	沒有垃圾訊息，讚。
+No stickers found	找不到貼圖
+No stickers yet	尚無貼圖
+Nobody can join this server with an invite link until the pause ends or you enable invites again.	在暫停結束或你重新啟用邀請之前，沒有人能透過邀請連結加入此伺服器。
+Nobody has mentioned you recently.	最近沒有人提及你。
+Noise Suppression	噪音抑制
+Noise Suppression: Off	噪音抑制：關閉
+Noise Suppression: On	噪音抑制：開啟
+None	無
+Norwegian	挪威文
+Not Now	稍後再說
+Not connected to % yet.	尚未連線至 %。
+Not encrypted	未加密
+Not encrypted: Discord can read this message	未加密：Discord 可以讀取這則訊息
+Not end-to-end encrypted	未端對端加密
+Not me, start over	不是我，重新開始
+Note	備註
+Note (only visible to you)	備註（只有你看得到）
+Note: Members with the "Mention @everyone, @here, and All Roles" permission will always be able to ping this role.	注意：擁有「提及 @everyone、@here 和所有身分組」權限的成員一律可以標註此身分組。
+Nothing	無
+Notification Settings	通知設定
+Notification settings changed	通知設定已變更
+Notifications	通知
+Notify everyone online who has permission to view this channel.	通知所有有權查看此頻道的線上成員。
+Notify everyone who has permission to view this channel.	通知所有有權查看此頻道的人。
+Notify me when...	在以下情況通知我...
+Notify users with this role who have permission to view this channel.	通知擁有此身分組且有權查看此頻道的使用者。
+OUTPUT DEVICE	輸出裝置
+OUTPUT VOLUME	輸出音量
+Objects	物品
+Off	關閉
+Offline	離線
+Oh yeah. Pin it	沒錯，釘選吧
+Okay	好
+Oldest	最舊
+On click	點擊時
+On servers I moderate	在我管理的伺服器
+Onboarding	新手引導
+One rule per line, for example: Be respectful	每行一條規則，例如：尊重他人
+Ongoing call	通話進行中
+Online	線上
+Only @mentions	僅限 @提及
+Only servers and channels you have webhook permissions in are shown.	只會顯示你擁有 Webhook 權限的伺服器和頻道。
+Only you can see the nickname you give %.	只有你看得到你給 % 取的暱稱。
+Only you can see this · 	只有你看得到 ·
+Oops!	糟糕！
+Open Chat	開啟聊天
+Open Image Link	開啟圖片連結
+Open Link	開啟連結
+Open Logs Folder	開啟日誌資料夾
+Open Media Link	開啟媒體連結
+Open Server Insights	開啟伺服器洞察
+Open Settings	開啟設定
+Open discord.com	開啟 discord.com
+Open in Browser	在瀏覽器中開啟
+Open in YouTube	在 YouTube 中開啟
+Open the developer tools (Cmd+Option+I) and choose the Network tab.	開啟開發者工具（Cmd+Option+I），然後選擇「Network」分頁。
+Open the developer tools (Ctrl+Shift+I) and choose the Network tab.	開啟開發者工具（Ctrl+Shift+I），然後選擇「Network」分頁。
+Or, send a server invite link to a friend	或是傳送伺服器邀請連結給好友
+Original message was deleted	原始訊息已刪除
+Other Active Threads	其他活躍的討論串
+Other Devices	其他裝置
+Outgoing Friend Request	送出的好友邀請
+Overview	概覽
+PASSWORD	密碼
+PM	下午
+PRIVACY CODE	隱私碼
+PTT Activate	按鍵發話啟動
+PTT Deactivate	按鍵發話停止
+PUSH TO TALK RELEASE DELAY	按鍵發話放開延遲
+Packet loss	封包遺失
+Packets received	已接收封包
+Packets sent	已傳送封包
+Page %	第 % 頁
+Password	密碼
+Password and Authentication	密碼與驗證
+Passwords do not match!	密碼不一致！
+Paste	貼上
+Paste an emoji (optional)	貼上表情符號（選填）
+Paste your token	貼上你的權杖
+Pause Invites	暫停邀請
+Pending	待處理
+People	人物
+People can join your server directly with an invite	大家可以透過邀請直接加入你的伺服器
+People in a voice channel with you can join the game you're playing.	和你在同一個語音頻道的人可以加入你正在玩的遊戲。
+People must submit an application and be approved to join	必須提交申請並獲得核准才能加入
+People who applied to join, waiting for a moderator.	已申請加入、正在等候管理員審核的人。
+Per-server Profiles	伺服器專屬個人資料
+Permissions	權限
+Permissions not synced with category: 	權限未與類別同步：
+Permissions synced with category: 	權限已與類別同步：
+Permissions: %	權限：%
+Phone Number	電話號碼
+Pick a channel	選擇頻道
+Pick a channel for the alerts.	選擇接收警示的頻道。
+Pick at least one response.	請至少選擇一個回應。
+Pin It. Pin It Good.	釘選它，好好釘選。
+Pin Message	釘選訊息
+Pin Messages	釘選訊息
+Ping	延遲
+Ping: % ms	延遲：% 毫秒
+Ping: measuring…	延遲：測量中…
+Pinned Messages	已釘選的訊息
+Play Here	在這裡播放
+Play Soundboard Through My Mic	透過我的麥克風播放音效板
+Play YouTube videos here with yt-dlp? It needs yt-dlp installed, and connects to YouTube from your computer. Settings > Chat can change this.	要用 yt-dlp 在這裡播放 YouTube 影片嗎？這需要安裝 yt-dlp，並會從你的電腦連線到 YouTube。你可以在「設定 > 聊天」中變更。
+Play YouTube videos in fastcord with yt-dlp	使用 yt-dlp 在 fastcord 中播放 YouTube 影片
+Please enter a valid invite link or invite code.	請輸入有效的邀請連結或邀請碼。
+Please try again later.	請稍後再試。
+Polish	波蘭文
+Poll closed	投票已結束
+Portuguese, Brazilian	葡萄牙文（巴西）
+Post	貼文
+Post Guidelines	貼文守則
+Post from a script	從指令碼發布
+Post messages that reach servers outside your own. Members can follow this channel, so the posts you publish here appear in their servers.	發布能傳到你伺服器以外的訊息。成員可以追蹤此頻道，你在這裡發布的貼文就會出現在他們的伺服器中。
+Post title	貼文標題
+Posting...	發布中...
+Press a shortcut…	請按下快捷鍵…
+Previous	上一個
+Previous / next channel	上一個 / 下一個頻道
+Previous / next channel with mentions	上一個 / 下一個有提及的頻道
+Previous / next server	上一個 / 下一個伺服器
+Previous / next unread channel	上一個 / 下一個未讀頻道
+Previous 12 Hours	過去 12 小時
+Previous 24 Hours	過去 24 小時
+Previous 3 Days	過去 3 天
+Previous 6 Hours	過去 6 小時
+Previous 7 Days	過去 7 天
+Previous Hour	過去 1 小時
+Priority Speaker	優先發言者
+Privacy Settings	隱私設定
+Private Category	私人類別
+Private Channel	私人頻道
+Private Profile	私人個人資料
+Profile	個人資料
+Profile Banner	個人資料橫幅
+Profile Privacy	個人資料隱私
+Profiles	個人資料
+Prompt members to reply to welcome messages with a sticker.	提示成員用貼圖回覆歡迎訊息。
+Pronouns	人稱代名詞
+Protect your Discord account with an extra layer of security. Once configured, you'll be required to enter your password and complete one additional step in order to sign in.	為你的 Discord 帳號多加一層保護。設定完成後，登入時除了輸入密碼，還需要完成一個額外步驟。
+Protip:	小技巧：
+Publish	發布
+Push to Mute	按鍵靜音
+Push to Talk	按鍵發話
+Push to Talk (Normal)	按鍵發話（一般）
+Q: %	問：%
+Question	問題
+Questions	問題
+ROLES	身分組
+ROLES — %	身分組 — %
+ROLES/MEMBERS	身分組/成員
+RTC Connecting	RTC 連線中
+Read Message History	讀取訊息紀錄
+Reason	原因
+Reason for Ban	停權原因
+Reason for Kick	踢出原因
+Reason for Timeout	禁言原因
+Reason: %	原因：%
+Received	已收到
+Recently Active	最近活躍
+Reconnect	重新連線
+Record Keybind	錄製快捷鍵
+Reduce the saturation of colors within the application, for those with color sensitivities.	為對顏色敏感的人降低應用程式內的色彩飽和度。
+Reduces the amount of animation and motion effects. On whenever your device asks for reduced motion.	減少動畫和動態效果。裝置要求減少動態效果時會自動開啟。
+Region Override	覆寫地區
+Register	註冊
+Reject	拒絕
+Rejoin	重新加入
+Related Emoji	相關表情符號
+Relevant	相關
+Remove	移除
+Remove %	移除 %
+Remove All Embeds	移除所有嵌入內容
+Remove All Reactions	移除所有反應
+Remove Answer	移除答案
+Remove Attachment	移除附件
+Remove Authenticator App	移除驗證應用程式
+Remove Avatar	移除大頭貼
+Remove Embeds	移除嵌入內容
+Remove Friend	移除好友
+Remove From Group	從群組中移除
+Remove Icon	移除圖示
+Remove Reaction	移除反應
+Remove Reactions	移除反應
+Remove Reactions for Emoji	移除此表情符號的反應
+Remove Server	移除伺服器
+Remove Spoiler	移除劇透
+Remove Timeout	解除禁言
+Remove Vote	取消投票
+Remove all embeds	移除所有嵌入內容
+Remove from Favorites	從最愛中移除
+Remove notification override for %	移除 % 的通知覆寫
+Remove the files added before encryption was on: they'd go unencrypted.	請移除開啟加密前加入的檔案：它們會以未加密的方式傳送。
+Remove the files added while encryption was on: they'd arrive as unreadable ciphertext.	請移除開啟加密時加入的檔案：它們送達時會是無法讀取的密文。
+Removing…	移除中…
+Repeated encrypted message	重複的加密訊息
+Reply	回覆
+Replying to	正在回覆
+Report Message	檢舉訊息
+Request Data	申請資料
+Request all of my Data	申請我的所有資料
+Request to Speak	請求發言
+Requests	請求
+Require 2FA for moderator actions	管理動作需要雙重驗證
+Require members to agree to the server rules	要求成員同意伺服器規則
+Require people to select tags when posting	發文時必須選擇標籤
+Required	必填
+Resend SMS?	重新傳送簡訊？
+Reset	重設
+Reset Friend Nickname	重設好友暱稱
+Reset Voice Settings	重設語音設定
+Resolving Invite	正在解析邀請
+Responses	回應
+Retry	重試
+Retry Now	立即重試
+Return to call	返回通話
+Return to the connected call	返回已連線的通話
+Reveal	顯示
+Review	審核
+Revoke	撤銷
+Revoke Ban	解除停權
+Revoke Invite	撤銷邀請
+Revoke the ban? They will be able to join again with an invite.	要解除停權嗎？對方將可以透過邀請再次加入。
+Ring	響鈴
+Ringing…	響鈴中…
+Role Color	身分組顏色
+Role Colors	身分組顏色
+Role Icon	身分組圖示
+Role name	身分組名稱
+Roles	身分組
+Romanian, Romania	羅馬尼亞文
+Rule: %	規則：%
+Rules or Guidelines Channel	規則或守則頻道
+Russian	俄文
+SELECT A CHANNEL	選擇頻道
+SELECT A SERVER	選擇伺服器
+SERVER NAME	伺服器名稱
+SOUNDBOARD VOLUME	音效板音量
+STATIC EMOJI — % SLOTS AVAILABLE	靜態表情符號 — 剩餘 % 個空位
+Safety Notifications Channel	安全通知頻道
+Safety Number	安全碼
+Safety Setup	安全設定
+Safety checks	安全檢查
+Same as Device Theme	與裝置主題相同
+Saturation	飽和度
+Save	儲存
+Save Changes	儲存變更
+Save Image	儲存圖片
+Saving...	儲存中...
+Saving…	儲存中…
+Scan this with the Discord mobile app to log in instantly.	用 Discord 手機應用程式掃描即可立即登入。
+Schedule an event for any planned activity in your server.	為伺服器中任何預定的活動排定時間。
+Screen	螢幕
+Screen sharing isn't supported on this platform yet.	此平台尚不支援螢幕分享。
+Scroll chat	捲動聊天
+Search	搜尋
+Search %	搜尋 %
+Search Bans by User ID or Username	依使用者 ID 或使用者名稱搜尋停權
+Search Klipy	搜尋 Klipy
+Search Options	搜尋選項
+Search by username or id	依使用者名稱或 ID 搜尋
+Search for friends	搜尋好友
+Search members to add (press Enter)	搜尋要新增的成員（按 Enter）
+Search or create a post...	搜尋或建立貼文...
+Search sounds	搜尋音效
+Searching...	搜尋中...
+Select Friends	選擇好友
+Select a Language	選擇語言
+Select a channel	選擇頻道
+Select a channel or category…	選擇頻道或類別…
+Select one answer	選擇一個答案
+Select one or more answers	選擇一個或多個答案
+Select where you want these updates to go. You can remove this at any time in Server Settings > Integrations > Channels Followed.	選擇要將這些更新傳送到哪裡。你隨時可以在「伺服器設定 > 整合 > 已追蹤的頻道」中移除。
+Select where you want to share this message.	選擇要將這則訊息分享到哪裡。
+Send	傳送
+Send Friend Request	送出好友邀請
+Send Messages and Create Posts	傳送訊息和建立貼文
+Send Messages in Threads and Posts	在討論串和貼文中傳送訊息
+Send New Key	傳送新金鑰
+Send Text-to-Speech Messages	傳送文字轉語音訊息
+Send Voice Messages	傳送語音訊息
+Send a random welcome message when someone joins this server.	有人加入此伺服器時，隨機傳送一則歡迎訊息。
+Send a server invite link to a friend	傳送伺服器邀請連結給好友
+Send an alert	傳送警示
+Send helpful tips for server setup.	傳送伺服器設定的實用小技巧。
+Send messages, images, GIFs, emoji, opinions, and puns	傳送訊息、圖片、GIF、表情符號、意見和雙關語
+Sending...	傳送中...
+Sent	已送出
+Sent a file	傳送了檔案
+Sent a sticker	傳送了貼圖
+Sent — %	已送出 — %
+Server	伺服器
+Server Avatar	伺服器大頭貼
+Server Deafen	伺服器拒聽
+Server Deafened	已被伺服器拒聽
+Server Guide	伺服器指南
+Server ID	伺服器 ID
+Server Info	伺服器資訊
+Server Insights	伺服器洞察
+Server Insights is hosted on a separate website so that it's easier to share links and browse cross platform.	伺服器洞察放在獨立的網站上，方便分享連結和跨平台瀏覽。
+Server Mute	伺服器靜音
+Server Muted	已被伺服器靜音
+Server Nickname	伺服器暱稱
+Server Notification Settings	伺服器通知設定
+Server Primary Language	伺服器主要語言
+Server Profile	伺服器個人資料
+Server Rules	伺服器規則
+Server Settings	伺服器設定
+Server Tag	伺服器標籤
+Server Template	伺服器範本
+Server Widget	伺服器小工具
+Server members	伺服器成員
+Server members can only send you friend requests from servers where you also allow Direct Messages.	伺服器成員只能在你也允許私訊的伺服器中向你送出好友邀請。
+Server name must be between 2 and 100 characters.	伺服器名稱必須介於 2 到 100 個字元之間。
+Server unmuted	已取消伺服器靜音
+Sessions	工作階段
+Set Custom Status	設定自訂狀態
+Set Voice Channel Status	設定語音頻道狀態
+Set a custom status	設定自訂狀態
+Set up AutoMod to automatically filter messages in this server with the rules below. Members with Manage Server or Administrator are exempt.	設定 AutoMod，以下方規則自動過濾此伺服器中的訊息。擁有「管理伺服器」或「管理員」權限的成員不受限制。
+Sets camera video quality for all channel participants. Choose Auto for optimal performance.	為所有頻道參與者設定攝影機畫質。選擇「自動」以獲得最佳效能。
+Setting up encryption: % needs to open fastcord once.	正在設定加密：% 需要開啟一次 fastcord。
+Several people are typing...	好幾個人正在輸入...
+Severe Profanity	嚴重髒話
+Sexual Content	性相關內容
+Share	分享
+Share Event	分享活動
+Share Your Screen	分享你的螢幕
+Share my full profile with	將我的完整個人資料分享給
+Share your detected activities with others	與其他人分享偵測到的活動
+Show	顯示
+Show Chat	顯示聊天
+Show a system notification for messages that would notify you (DMs, mentions, servers set to all messages).	收到會通知你的訊息時（私訊、提及、設為「所有訊息」的伺服器），顯示系統通知。
+Show embeds and preview website links pasted into chat	顯示嵌入內容並預覽貼到聊天中的網站連結
+Show emoji reactions on messages	在訊息上顯示表情符號反應
+Show message	顯示訊息
+Show messages	顯示訊息
+Show role colors in names	在名稱中顯示身分組顏色
+Show role colors next to names	在名稱旁顯示身分組顏色
+Show spoiler content	顯示劇透內容
+Show the game or app you're using on your profile and in member lists.	在你的個人資料和成員清單中顯示你正在使用的遊戲或應用程式。
+Shows a red badge on the app icon when you have unread mentions.	有未讀的提及時，在應用程式圖示上顯示紅色標記。
+Silence every sound and notification and hide all badges and unread marks, so fastcord never asks for your attention.	關閉所有音效和通知，並隱藏所有標記和未讀記號，讓 fastcord 完全不打擾你。
+Slow down! Are you sure?	慢著！你確定嗎？
+Slowmode	慢速模式
+Slowmode is enabled	已啟用慢速模式
+Slowmode is enabled. Members can send one message every % hour.|Slowmode is enabled. Members can send one message every % hours.	已啟用慢速模式。成員每 % 小時可以傳送一則訊息。
+Slowmode is enabled. Members can send one message every % minute.|Slowmode is enabled. Members can send one message every % minutes.	已啟用慢速模式。成員每 % 分鐘可以傳送一則訊息。
+Slowmode is enabled. Members can send one message every % second.|Slowmode is enabled. Members can send one message every % seconds.	已啟用慢速模式。成員每 % 秒可以傳送一則訊息。
+Smooth Scrolling	平滑捲動
+So no one gets lost on where to go.	讓大家都知道該往哪裡走。
+Some older devices may not be shown here	部分較舊的裝置可能不會顯示在這裡
+Someone	某人
+Something went wrong	發生錯誤
+Something went wrong (HTTP %).	發生錯誤（HTTP %）。
+Something went wrong. Try again.	發生錯誤，請再試一次。
+Somewhere Else	其他地方
+Sorry, we couldn't load the first message in this thread	抱歉，無法載入此討論串的第一則訊息
+Sort: Date Posted	排序：發文日期
+Sort: Recent Activity	排序：最近活動
+Sound Name	音效名稱
+Sound names must be between 2 and 32 characters.	音效名稱必須介於 2 到 32 個字元之間。
+Soundboard	音效板
+Sounds	音效
+Sounds must be 5.2 seconds or shorter.	音效長度必須在 5.2 秒以內。
+Sounds must be under 512 KB.	音效必須小於 512 KB。
+Source	來源
+Space between message groups	訊息群組間距
+Spam	垃圾訊息
+Spam Filters	垃圾訊息過濾器
+Spanish	西班牙文
+Spanish, LATAM	西班牙文（拉丁美洲）
+Speak	說話
+Speak Message	朗讀訊息
+Spoiler Attachment	劇透附件
+Spoiler Content	劇透內容
+Stage	舞台
+Start Date	開始日期
+Start Event	開始活動
+Start Minimized	啟動時縮小
+Start Time	開始時間
+Starting in %m	% 分鐘後開始
+State	狀態
+Stickers	貼圖
+Stickers can be used by anyone in this server. Upload a PNG, APNG, GIF or Lottie JSON file of up to 512 KB; it shows at 320x320.	此伺服器中的所有人都能使用貼圖。請上傳 512 KB 以內的 PNG、APNG、GIF 或 Lottie JSON 檔案；顯示大小為 320x320。
+Stickers can't be sent encrypted yet.	目前還無法以加密方式傳送貼圖。
+Stickers must be PNG, APNG, GIF or Lottie JSON files.	貼圖必須是 PNG、APNG、GIF 或 Lottie JSON 檔案。
+Stop Recording	停止錄製
+Stop Streaming	停止直播
+Stop Testing	停止測試
+Stop Video	關閉視訊
+Stop Watching	停止觀看
+Storage	儲存空間
+Stream Settings	直播設定
+Streamer Mode	實況模式
+Streamer Mode Enabled	已啟用實況模式
+Streamer Mode hides your personal info so others watching your stream can't see it.	實況模式會隱藏你的個人資訊，讓觀看你直播的人看不到。
+Streamer Mode is enabled. Usernames have been truncated.	已啟用實況模式。使用者名稱已被截斷。
+Success! Your friend request to % was sent.	成功！已向 % 送出好友邀請。
+Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday	星期日|星期一|星期二|星期三|星期四|星期五|星期六
+Sun|Mon|Tue|Wed|Thu|Fri|Sat	週日|週一|週二|週三|週四|週五|週六
+Support has arrived!	援軍到了！
+Suppress @everyone and @here	隱藏 @everyone 和 @here
+Suppress All Role @mentions	隱藏所有身分組 @提及
+Suppress Highlights	隱藏精選動態
+Suppress Notifications	隱藏通知
+Suppress background noise from your mic.	抑制麥克風收到的背景噪音。
+Swedish	瑞典文
+Switch Accounts	切換帳號
+Switch between accounts on this device.	在此裝置上切換帳號。
+Symbols	符號
+Sync Now	立即同步
+Sync Permissions	同步權限
+Sync Template	同步範本
+Sync permissions?	要同步權限嗎？
+System	系統
+System Messages	系統訊息
+System Messages Channel	系統訊息頻道
+System icon for new server members.	新伺服器成員的系統圖示。
+THREAD NAME	討論串名稱
+Tag	標籤
+Tags	標籤
+Tags (pick at least one)	標籤（至少選擇一個）
+Tags let members organize their posts. Members pick them when they post; moderated tags only moderators can apply.	標籤可以讓成員整理貼文。成員在發文時選擇標籤；受管理的標籤只有管理員能套用。
+Tap the link in your email to sign in instantly — no password needed.	點擊電子郵件中的連結即可立即登入 — 不需要密碼。
+Tell people a little more about your event. Markdown, new lines, and links are supported.	向大家多介紹一點你的活動。支援 Markdown、換行和連結。
+Tell the world a bit about this server.	向全世界介紹一下這個伺服器。
+Template Description	範本說明
+Template Link	範本連結
+Template Title	範本標題
+Templates are an easy way to share your server setup and help anyone create a server instantly. When someone uses your server template link, they create a new server pre-filled with the same channels, roles, permissions, and settings as yours. Messages, members and your server's icon aren't copied.	範本是分享伺服器設定的簡單方式，能幫助任何人立即建立伺服器。有人使用你的伺服器範本連結時，會建立一個新伺服器，預先填入與你相同的頻道、身分組、權限和設定。訊息、成員和伺服器圖示不會被複製。
+Temporary members are automatically kicked when they disconnect unless a role has been assigned	臨時成員中斷連線時會被自動踢出，除非已被指派身分組
+Test Video	測試視訊
+Text	文字
+Text Channel Permissions	文字頻道權限
+Text channel, external link, or in-person location.	文字頻道、外部連結或實體地點。
+Thai	泰文
+That channel isn't on this server anymore.	該頻道已不在此伺服器中。
+That file couldn't be read as an MP3 or OGG sound.	無法將該檔案讀取為 MP3 或 OGG 音效。
+That file couldn't be read. Avatars must be PNG, JPEG, GIF or WEBP images.	無法讀取該檔案。大頭貼必須是 PNG、JPEG、GIF 或 WEBP 圖片。
+That file couldn't be read. Banners must be PNG, JPEG, GIF or WEBP images.	無法讀取該檔案。橫幅必須是 PNG、JPEG、GIF 或 WEBP 圖片。
+That file couldn't be read. Emoji must be a PNG, JPEG, GIF, WEBP or AVIF image.	無法讀取該檔案。表情符號必須是 PNG、JPEG、GIF、WEBP 或 AVIF 圖片。
+That file couldn't be read. Images must be PNG, JPEG, GIF or WEBP files.	無法讀取該檔案。圖片必須是 PNG、JPEG、GIF 或 WEBP 檔案。
+That file couldn't be read. Server icons must be PNG, JPEG, GIF or WEBP images.	無法讀取該檔案。伺服器圖示必須是 PNG、JPEG、GIF 或 WEBP 圖片。
+That file is too large. Emoji must be under 256 KB.	該檔案太大。表情符號必須小於 256 KB。
+That file is too large. Stickers must be under 512 KB.	該檔案太大。貼圖必須小於 512 KB。
+That image is too large.	該圖片太大。
+That image is too large. Avatars must be under %.	該圖片太大。大頭貼必須小於 %。
+That image is too large. Banners must be under 10 MB.	該圖片太大。橫幅必須小於 10 MB。
+That image is too large. Server icons must be under 512 KB.	該圖片太大。伺服器圖示必須小於 512 KB。
+That isn't a valid fastcord invite.	這不是有效的 fastcord 邀請。
+That's too long to send encrypted.	內容太長，無法以加密方式傳送。
+The Pin Is Stuck!	圖釘卡住了！
+The badge chosen in the official client stays as it is.	在官方用戶端選擇的徽章會維持不變。
+The invite is invalid or has expired.	邀請無效或已過期。
+The mention limit is between 1 and 50.	提及上限介於 1 到 50 之間。
+The most important updates from this channel will now show up directly in your server. Enjoy!	此頻道最重要的更新現在會直接顯示在你的伺服器中。好好享受吧！
+The owner	擁有者
+The related emoji must be one emoji.	相關表情符號必須是單一表情符號。
+The results were tied	結果平手
+The selected channel has too many webhooks. Please remove a webhook or select another channel.	所選頻道的 Webhook 太多。請移除一個 Webhook 或選擇其他頻道。
+The server	伺服器
+The start time must be in the future.	開始時間必須是未來的時間。
+The thread stops showing in the channel list after being inactive for this long.	討論串閒置超過這段時間後，將不再顯示於頻道清單中。
+Theme	主題
+There are no active threads.	沒有活躍的討論串。
+There are no archived threads.	沒有已封存的討論串。
+There are no pending friend requests.	沒有待處理的好友邀請。
+There are no upcoming events.	沒有即將舉行的活動。
+There is no identity key.	沒有身分金鑰。
+There was no winner	沒有勝出者
+These are all the devices that are currently logged-in with your Discord account. Log out of devices that you don't recognize.	這些是目前登入你 Discord 帳號的所有裝置。請登出你不認得的裝置。
+They said: %	對方說：%
+This account needs a passkey or security key, which fastcord can't use. Log in with the QR code instead.	此帳號需要通行金鑰或安全金鑰，但 fastcord 無法使用。請改用 QR 碼登入。
+This channel contains adult content that may not be suitable for all audiences. You must be 18 or older to view it.	此頻道包含可能不適合所有觀眾的成人內容。你必須年滿 18 歲才能查看。
+This channel doesn't have any pinned messages... yet.	此頻道還沒有任何釘選的訊息……目前為止。
+This device can't open this message.	此裝置無法開啟這則訊息。
+This device's encryption keys couldn't be unlocked, so earlier encrypted DMs can't be opened here.	無法解鎖此裝置的加密金鑰，因此無法在這裡開啟先前的加密私訊。
+This event will auto start when it's time.	時間一到，此活動就會自動開始。
+This extra step shows it's really you.	這個額外步驟能證明真的是你。
+This interaction failed	此互動失敗
+This invite may be expired, or you might not have permission to join.	此邀請可能已過期，或你沒有加入的權限。
+This is the beginning of your direct message history with %.	這是你和 % 私訊紀錄的開頭。
+This is the channel we send system event messages to.	系統事件訊息會傳送到這個頻道。
+This is the start of the #% channel.	這是 #% 頻道的開頭。
+This is where Discord sends updates for moderators and admins of Community servers.	Discord 會在這裡傳送給社群伺服器管理員的更新。
+This is where you'll show members your server rules or guidelines.	你會在這裡向成員展示伺服器規則或守則。
+This link is taking you to the following website	此連結將帶你前往下列網站
+This option is not available for Community Servers.	社群伺服器無法使用此選項。
+This role is managed by an integration and can't be edited here.	此身分組由整合功能管理，無法在這裡編輯。
+This server has been removed from Server Discovery because it no longer passes all the requirements. Check Server Settings for more details.	此伺服器已不再符合所有條件，因此已從伺服器探索中移除。請查看伺服器設定以了解詳情。
+This server has failed Discovery activity requirements for 1 week. If this server fails for 4 weeks in a row, it will be automatically removed from Discovery.	此伺服器已有 1 週未達探索的活躍度要求。若連續 4 週未達標，將自動從探索中移除。
+This server has failed Discovery activity requirements for 3 weeks in a row. If this server fails for 1 more week, it will be removed from Discovery.	此伺服器已連續 3 週未達探索的活躍度要求。若再 1 週未達標，將從探索中移除。
+This server has no voice channels.	此伺服器沒有語音頻道。
+This server is currently full.	此伺服器目前已滿。
+This server is currently full. Please try again later.	此伺服器目前已滿，請稍後再試。
+This server is eligible for Server Discovery again and has been automatically relisted!	此伺服器再次符合伺服器探索資格，已自動重新上架！
+This server is not available in your location.	此伺服器在你所在的地區無法使用。
+This server's features are limited	此伺服器的功能受到限制
+This setting is applied when you join a new server. It does not apply retroactively to your existing servers.	此設定會在你加入新伺服器時套用，不會回溯套用到你現有的伺服器。
+This template has unsynced changes.	此範本有尚未同步的變更。
+This thread is locked.	此討論串已鎖定。
+This voice channel is full.	此語音頻道已滿。
+This will determine whether members who have not explicitly set their notification settings receive a notification for every message sent in this server or not.	這會決定未自行設定通知的成員，是否會收到此伺服器中每則訊息的通知。
+This will transfer ownership of %1 to %2. This cannot be undone!	這會將 %1 的擁有權轉移給 %2。此動作無法復原！
+Thread Name	討論串名稱
+Thread deleted	討論串已刪除
+Threads	討論串
+Time	時間
+Time format	時間格式
+Timeout	禁言
+Timeout %	禁言 %
+Timeout Members	禁言成員
+Timeout member	禁言成員
+Times show as %.	時間顯示為 %。
+To log them out, please change your password	若要登出這些裝置，請變更你的密碼
+To protect your members, Community servers need these, and enabling sets them:	為了保護你的成員，社群伺服器需要下列設定，啟用時會自動套用：
+Today	今天
+Today at %	今天 %
+Toggle Deafen	切換拒聽
+Toggle Go Live Streaming	切換直播
+Toggle Mute	切換靜音
+Toggle Streamer Mode	切換實況模式
+Toggle Voice Activity Mode	切換語音活動模式
+Toggle deafen	切換拒聽
+Toggle inbox	切換收件匣
+Toggle member list	切換成員清單
+Toggle mute	切換靜音
+Toggle pins	切換釘選訊息
+Tomorrow at %	明天 %
+Too fast! Wait a bit and try again.	太快了！請稍等一下再試。
+Too many uploads!	上傳太多了！
+Trait %	特色 %
+Traits	特色
+Transfer Ownership	轉移擁有權
+Travel & Places	旅遊與地點
+Treat the token like a password: anyone who has it controls your account. fastcord keeps it only on this computer.	請像對待密碼一樣對待權杖：任何持有它的人都能控制你的帳號。fastcord 只會將它保存在這台電腦上。
+Trending GIFs	熱門 GIF
+Trust % links from now on	從現在起信任 % 的連結
+Try Again	再試一次
+Try searching for something else	試試搜尋其他內容
+Try searching for...	試試搜尋...
+Try sending a new invite	試著傳送新的邀請
+Turkish	土耳其文
+Turn off encryption	關閉加密
+Turns this back into a regular server. Community-only features stop working.	將此伺服器改回一般伺服器。社群專屬功能將停止運作。
+Two-factor authentication is enabled on this account.	此帳號已啟用雙重驗證。
+Type the username of a friend	輸入好友的使用者名稱
+Type your answer	輸入你的答案
+UPLOADED BY	上傳者
+USES	使用次數
+Uh oh, you don't have webhook permissions in any server you're in. Ask your server admin to give you the permission or ask them to come follow themselves!	糟糕，你在所加入的伺服器中都沒有 Webhook 權限。請伺服器管理員給你權限，或請他們親自來追蹤！
+Uh-oh. Looks like you've been banned.	糟糕，看來你已被停權。
+Ukrainian	烏克蘭文
+Unable to accept invite	無法接受邀請
+Unassigned	未指派
+Unban Member	解除成員停權
+Unblock	解除封鎖
+Undeafen	取消拒聽
+Under Request Headers, copy the value of "authorization" and paste it below.	在「Request Headers」下，複製「authorization」的值並貼到下方。
+Undo	復原
+Unignore	取消忽略
+Unknown	未知
+Unknown channel	未知頻道
+Unmute	取消靜音
+Unmute Category	取消類別靜音
+Unmute Channel	取消頻道靜音
+Unmute Server	取消伺服器靜音
+Unmute Thread	取消討論串靜音
+Unpin Message	取消釘選訊息
+Unreads	未讀
+Unrestricted	無限制
+Until %	直到 %
+Until %1 at %2	直到 %1 %2
+Until I turn it back on	直到我重新開啟
+Until tomorrow at %	直到明天 %
+Untitled question	未命名的問題
+Unverify	取消驗證
+Update %	更新 %
+Update Channel	更新頻道
+Update Emoji	更新表情符號
+Update Member	更新成員
+Update Member Roles	更新成員身分組
+Update Role	更新身分組
+Update Server	更新伺服器
+Update Webhook	更新 Webhook
+Update your password	更新你的密碼
+Upload	上傳
+Upload Emoji	上傳表情符號
+Upload Sound	上傳音效
+Upload Sticker	上傳貼圖
+Upload a File	上傳檔案
+Upload a Sound	上傳音效
+Upload a file	上傳檔案
+Upload custom sound reactions that anyone in this server can use. MP3 or OGG files, up to 512 KB and 5.2 seconds.	上傳此伺服器中所有人都能使用的自訂音效。限 MP3 或 OGG 檔案，最大 512 KB、5.2 秒。
+Upload to %	上傳到 %
+Uploaded a file	上傳了檔案
+Uploading...	上傳中...
+Use Application Commands	使用應用程式指令
+Use Category Default	使用類別預設值
+Use External Apps	使用外部應用程式
+Use External Emoji	使用外部表情符號
+Use External Sounds	使用外部音效
+Use External Stickers	使用外部貼圖
+Use Server Default	使用伺服器預設值
+Use Soundboard	使用音效板
+Use Voice Activity	使用語音活動
+Use a backup code	使用備用碼
+Use a code sent to your phone	使用傳送到你手機的代碼
+Use a passkey or security key	使用通行金鑰或安全金鑰
+Use data to improve Discord	使用資料來改善 Discord
+Use roles to group your server members and assign permissions.	使用身分組來將伺服器成員分組並指派權限。
+Use your authenticator app	使用你的驗證應用程式
+Used % times.|Used % times.	已使用 % 次。
+User Join	使用者加入
+User Leave	使用者離開
+User Limit	使用者人數上限
+User Moved	使用者已移動
+User Volume	使用者音量
+User blocked	已封鎖使用者
+User unblocked	已解除封鎖使用者
+Username	使用者名稱
+Username is available. Nice!	使用者名稱可以使用，讚！
+Username is unavailable. Try adding numbers, letters, underscores _ , or periods.	使用者名稱無法使用。試著加入數字、字母、底線 _ 或句點。
+Users will need to confirm they are of over the legal age to view in the content in this channel.\nAge-restricted channels are exempt from the explicit content filter.	使用者需要確認自己已達法定年齡，才能查看此頻道中的內容。\n年齡限制頻道不受露骨內容過濾器影響。
+Uses the yt-dlp you installed to play YouTube links in the chat instead of opening your browser. It connects to YouTube from your computer.	使用你安裝的 yt-dlp 在聊天中播放 YouTube 連結，而不是開啟瀏覽器。它會從你的電腦連線到 YouTube。
+VOICE PROCESSING	語音處理
+Verification Level	驗證等級
+Verified	已驗證
+Verify with something else	使用其他方式驗證
+Video	視訊
+Video Quality	視訊畫質
+Vietnamese	越南文
+View Audit Log	查看審核日誌
+View Channel	查看頻道
+View Channels	查看頻道
+View Details	查看詳細資料
+View Full Profile	查看完整個人資料
+View Poll	查看投票
+View Profile	查看個人資料
+View Reactions	查看反應
+View Server Insights	查看伺服器洞察
+Visit Site	前往網站
+Visual Density	視覺密度
+Voice	語音
+Voice & Video	語音與視訊
+Voice Activity	語音活動
+Voice Channel	語音頻道
+Voice Channel Permissions	語音頻道權限
+Voice Connected	語音已連線
+Voice Disconnected	語音已中斷
+Volume	音量
+Vote	投票
+Waiting for a server	正在等候伺服器
+Wants to message you	想傳訊息給你
+Watch Stream	觀看直播
+Wave to say hi!	揮手打聲招呼吧！
+We appreciate the enthusiasm, but...	我們很感謝你的熱情，但是...
+We couldn't load the profile for this server.	無法載入此伺服器的個人資料。
+We recommend an image of at least 512x512.	建議使用至少 512x512 的圖片。
+We sent instructions to change your password to %, please check both your inbox and spam folder.	我們已將變更密碼的說明寄到 %，請檢查你的收件匣和垃圾郵件資料夾。
+We're so excited to see you again!	很高興再次見到你！
+We've sent a message to %.  Please enter the code you received.	我們已傳送訊息到 %。請輸入你收到的代碼。
+Webhooks (%)	Webhook（%）
+Webhooks are a simple way to post messages from other apps and websites into this server.	Webhook 是將其他應用程式和網站的訊息發布到此伺服器的簡單方式。
+Welcome %. Say hi!	歡迎 %，打聲招呼吧！
+Welcome back!	歡迎回來！
+Welcome to #%!	歡迎來到 #%！
+Welcome to the beginning of the % group.	歡迎來到 % 群組的開頭。
+Welcome, %. We hope you brought pizza.	歡迎，%。希望你有帶披薩來。
+What brings you here?	是什麼風把你吹來的？
+What can people do in this server?	大家可以在這個伺服器做什麼？
+What question do you want to ask?	你想問什麼問題？
+What's cookin'?	在忙什麼呢？
+What's your event about?	你的活動是關於什麼？
+What's your event?	你的活動是什麼？
+When a friend starts an activity—like playing a game or hanging out on voice—we'll show it here!	當好友開始活動（例如玩遊戲或在語音中聊天）時，我們會顯示在這裡！
+When enabled, only server members can view profile content. Non-members won't be able to see this content unless they have an invite.	啟用時，只有伺服器成員能查看個人資料內容。非成員除非有邀請，否則無法看到此內容。
+When you put a user in timeout they will not be able to send messages in chat, reply within threads, react to messages, or speak in voice or Stage channels.	將使用者禁言後，對方將無法在聊天中傳送訊息、在討論串中回覆、對訊息新增反應，或在語音或舞台頻道中說話。
+Where is your event?	你的活動在哪裡舉行？
+Where would you like to go?	你想去哪裡？
+Who is this server for? E.g. School Club, Artists' Community	這個伺服器是給誰的？例如：學校社團、藝術家社群
+Winning answer · %1%2	勝出答案 · %1%2
+Words that are never blocked, separated by commas	永遠不會被封鎖的字詞，以逗號分隔
+Words to block, separated by commas	要封鎖的字詞，以逗號分隔
+Words to block, separated by commas (* matches anything)	要封鎖的字詞，以逗號分隔（* 可比對任何內容）
+Would you like to sync %1 permissions with %2?	要將 %1 的權限與 %2 同步嗎？
+Yay you made it, %!	耶，你來了，%！
+Yesterday at %	昨天 %
+You	你
+You accepted %'s friend request.	你已接受 % 的好友邀請。
+You are at the % server limit.	你已達到 % 個伺服器的上限。
+You are banned from this server.	你已被此伺服器停權。
+You aren't in that server. Ask a member for an invite.	你不在該伺服器中。請向成員索取邀請。
+You can add % more friend.|You can add % more friends.	你還可以新增 % 位好友。
+You can add comments before uploading.\nHold shift to upload directly.	你可以在上傳前加上留言。\n按住 Shift 可直接上傳。
+You can add friends with their Discord username.	你可以用 Discord 使用者名稱新增好友。
+You can add up to 5 accounts.	你最多可以新增 5 個帳號。
+You can hold down shift when clicking % to bypass this confirmation entirely.	點擊 % 時按住 Shift，即可完全略過此確認。
+You can only edit roles below your highest role.	你只能編輯低於你最高身分組的身分組。
+You can only upload % files at a time!	你一次只能上傳 % 個檔案！
+You can use markdown and links if you'd like.	你可以使用 Markdown 和連結。
+You can't join this server because of your age group.	由於你的年齡層，你無法加入此伺服器。
+You can't unblock the Wumpus.	你無法解除封鎖 Wumpus。
+You cannot friend yourself	你不能加自己為好友
+You can’t react and super react with the same emoji. There’s a lot of emoji to choose from, so maybe try another one.	你不能用同一個表情符號同時新增反應和超級反應。可選的表情符號很多，換一個試試吧。
+You do not have permission to send messages in this channel.	你沒有在此頻道傳送訊息的權限。
+You don't have any friends to add!	你沒有可以新增的好友！
+You don't have permission to do that.	你沒有執行此動作的權限。
+You haven't added a display name yet.	你還沒有新增顯示名稱。
+You haven't added a phone number yet.	你還沒有新增電話號碼。
+You haven't added an email yet.	你還沒有新增電子郵件。
+You haven't authorized any apps.	你還沒有授權任何應用程式。
+You haven't blocked anyone.	你還沒有封鎖任何人。
+You haven't connected any accounts yet.	你還沒有連結任何帳號。
+You haven't ignored anyone.	你還沒有忽略任何人。
+You missed a call from %1 that lasted %2.	你錯過了 %1 的來電，通話持續 %2。
+You must be at least 18 years old to view this channel.	你必須年滿 18 歲才能查看此頻道。
+You must leave a server first to join.	你必須先離開一個伺服器才能加入。
+You need to add one or more rules.	你需要新增一條或多條規則。
+You received an invite, but...	你收到了邀請，但是...
+You said: %	你說：%
+You sent an invite to a self-hosted server	你傳送了自架伺服器的邀請
+You sent an invite, but	你傳送了邀請，但是
+You sent an invite, but...	你傳送了邀請，但是...
+You will appear offline	你會顯示為離線
+You will not receive desktop notifications	你不會收到桌面通知
+You'll have to log back in on all logged out devices.	你必須在所有已登出的裝置上重新登入。
+You're Viewing Older Messages	你正在查看較舊的訊息
+You're all caught up!	你已經看完所有內容了！
+You're already in that server.	你已經在該伺服器中了。
+You're doing that too fast. Try again in a moment.	你操作得太快了，請稍後再試。
+You're not in any servers yet.	你還沒有加入任何伺服器。
+You're offline: no invite link.	你目前離線：沒有邀請連結。
+You're timed out until %.	你已被禁言，直到 %。
+You've been invited to a self-hosted server	你受邀加入自架伺服器
+You've been invited to join	你受邀加入
+You've been invited to speak	你受邀發言
+You've been invited, but	你受到了邀請，但是
+Your files are too powerful	你的檔案太強大了
+Your full profile is visible to friends and any server you join with 200 or fewer members. Everyone else sees a limited version.	好友以及你加入的 200 人以下伺服器都能看到你的完整個人資料。其他人只會看到有限的版本。
+Your full profile is visible to friends and any server you join.	好友以及你加入的所有伺服器都能看到你的完整個人資料。
+Your full profile is visible to friends. Everyone else sees a limited version.	好友能看到你的完整個人資料。其他人只會看到有限的版本。
+Your invite link expires after %.	你的邀請連結將在 % 後失效。
+Your invite link expires in %.	你的邀請連結將在 % 後到期。
+Your invite link expires in %1, or after %2.	你的邀請連結將在 %1 後到期，或在 %2 後失效。
+Your invite link expires in 7 days.	你的邀請連結將在 7 天後到期。
+Your invite link will never expire.	你的邀請連結永不過期。
+Your last request was on %.	你上次申請是在 %。
+Your message is too long (% / %).	你的訊息太長了（%1 / %2）。
+Your reaction was not added because there are too many reactions on this message.	這則訊息的反應太多，因此未新增你的反應。
+Your request from % is being prepared.	你在 % 提出的申請正在準備中。
+Your server is where you and your friends hang out. Make yours and start talking.	伺服器是你和好友聚會的地方。建立你自己的伺服器，開始聊天吧。
+Your sounds go out with your voice, mixed into your microphone, instead of as soundboard sounds.	你的音效會混入麥克風，隨你的聲音一起傳出，而不是作為音效板音效播放。
+Zoom level	縮放等級
+a channel	某個頻道
+a command	指令
+a day	1 天
+a day ago	1 天前
+a few seconds	幾秒
+a few seconds ago	幾秒前
+a message	一則訊息
+a minute	1 分鐘
+a minute ago	1 分鐘前
+a month ago	1 個月前
+a year ago	1 年前
+an hour	1 小時
+an hour ago	1 小時前
+by %	由 %
+cancel	取消
+channel	頻道
+delete message	刪除訊息
+escape to %1 • enter to %2	按 Esc %1 • 按 Enter %2
+fastcord %	fastcord %
+fastcord quit unexpectedly last time. The report is in the logs folder (Settings, under Log Out).	fastcord 上次意外結束。報告放在日誌資料夾中（設定中「登出」下方）。
+fastcord starts in the background and stays out of your way.	fastcord 會在背景啟動，不會打擾你。
+from %	來自 %
+in %	位於 %
+in % day|in % days	% 天後
+in % hour|in % hours	% 小時後
+in % minute|in % minutes	% 分鐘後
+in % month|in % months	% 個月後
+in % year|in % years	% 年後
+in a day	1 天後
+in a few seconds	幾秒後
+in a minute	1 分鐘後
+in a month	1 個月後
+in a year	1 年後
+in an hour	1 小時後
+just now	剛剛
+less than an hour ago	不到 1 小時前
+link, embed or file	連結、嵌入內容或檔案
+on %	收錄於 %
+pinned messages	釘選的訊息
+remove embeds	移除嵌入內容
+save	儲存
+someone	某人
+specific date	特定日期
+this server	此伺服器
+threads	討論串
+true or false	是或否
+unknown	未知
+unknown channel	未知頻道
+unknown-user	未知使用者
+used	使用了
+user	使用者
+• Media from all members is scanned by the explicit image filter.	• 所有成員的媒體都會經過露骨圖片過濾器掃描。
+• Members must have a verified email on their Discord account.	• 成員的 Discord 帳號必須有已驗證的電子郵件。
+← Back to %	← 返回 %
+← Back to login	← 返回登入

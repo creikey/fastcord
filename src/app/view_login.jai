@@ -894,7 +894,7 @@ login_test_state :: (state: string) -> bool {
 		lg.mode = .Token;
 	case "forgot_sent";
 		lg.notice = .Instructions_Sent;
-		set_str(*lg.notice_login, L("dingus@example.com"));
+		set_str(*lg.notice_login, "dingus@example.com");
 	case;
 		return false;
 	}

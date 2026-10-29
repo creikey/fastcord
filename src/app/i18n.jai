@@ -49,19 +49,12 @@ i18n_frame :: () {
 	file := ifx code == "es-419" then "es-ES" else code; // one Spanish for both
 	for 0..LANG_FILES.count / 2 - 1 if LANG_FILES[it * 2] == file data = LANG_FILES[it * 2 + 1];
 	if !data return;
-	found: Table(string, string);
-	found.allocator = temp;
 	for line: split(data, "\n",, temp) {
-		if !line || line[0] == #char "#" continue;
-		tab := find_index_from_left(line, #char "\t");
-		if tab <= 0 continue;
-		table_set(*found, slice(line, 0, tab), slice(line, tab + 1, line.count - tab - 1));
-	}
-	for KEYS {
-		cut := find_index_from_left(it, "##");
-		visible := ifx cut >= 0 then slice(it, 0, cut) else it;
-		ok, t := table_find(*found, escape_key(visible));
-		if ok && t i18n.table[it_index] = join(unescape(t), ifx cut >= 0 then slice(it, cut, it.count - cut) else "");
+		if it_index >= KEYS.count break;
+		if !line continue;
+		k := KEYS[it_index];
+		cut := find_index_from_left(k, "##");
+		i18n.table[it_index] = join(unescape(line), ifx cut >= 0 then slice(k, cut, k.count - cut) else "");
 	}
 }
 
@@ -274,12 +267,6 @@ list_item :: (list: string, i: int) -> string {
 	return ifx bar >= 0 then slice(s, 0, bar) else s;
 }
 
-// A key or translation as lang files write it: \n, \t and \\ escaped.
-escape_key :: (s: string) -> string {
-	if !contains(s, "\\") && !contains(s, "\n") && !contains(s, "\t") return s;
-	return replace(replace(replace(s, "\\", "\\\\",, temp), "\n", "\\n",, temp), "\t", "\\t",, temp);
-}
-
 unescape :: (s: string) -> string {
 	if !contains(s, "\\") return copy_string(s);
 	sb: String_Builder;
@@ -337,14 +324,28 @@ KEYS :: #run,host -> []string {
 	return out;
 };
 
-// Code, text, code, text...: a cross-compile's #run,host can only return strings and arrays of them.
+// Code, text, code, text...: a cross-compile's #run,host can only return strings and arrays of them, and
+// sees none of this file's procedures. A text is its file's translations in keys.txt's order, one escaped
+// line each ("" where missing), so the English isn't stored once per language.
 LANG_FILES :: #run,host -> []string {
-	#import "Basic"; #import "File"; #import "File_Utilities"; #import "String";
+	#import "Basic"; #import "File"; #import "File_Utilities"; #import "String"; #import "Hash_Table";
+	keys := split(read_entire_file(tprint("%lang/keys.txt", #filepath)), "\n"); // escaped as the files are
 	out: [..]string;
 	for file_list(tprint("%lang", #filepath)) {
 		name := path_filename(it);
 		if !ends_with(name, ".txt") || name == "keys.txt" continue;
-		array_add(*out, copy_string(slice(name, 0, name.count - 4)), read_entire_file(it));
+		found: Table(string, string);
+		for line: split(read_entire_file(it), "\n") {
+			tab := find_index_from_left(line, #char "\t");
+			if line && line[0] != #char "#" && tab > 0 table_set(*found, slice(line, 0, tab), slice(line, tab + 1, line.count - tab - 1));
+		}
+		sb: String_Builder;
+		for keys if it {
+			cut := find_index_from_left(it, "##");
+			_, t := table_find(*found, ifx cut >= 0 then slice(it, 0, cut) else it);
+			print_to_builder(*sb, "%\n", t);
+		}
+		array_add(*out, copy_string(slice(name, 0, name.count - 4)), builder_to_string(*sb));
 	}
 	return out;
 };

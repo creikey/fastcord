@@ -1,0 +1,1972 @@
+# Turkish (tr)
+ · required	 · zorunlu
+% (requested to speak)	% (konuşma isteği gönderdi)
+% (required)	% (zorunlu)
+% Bans|% Bans	% Yasak|% Yasak
+% Event|% Events	% Etkinlik|% Etkinlik
+% KB	% KB
+% MB	% MB
+% Member|% Members	% Üye|% Üye
+% Messages	% Mesaj
+% Mutual Friend|% Mutual Friends	% Ortak Arkadaş|% Ortak Arkadaş
+% Mutual Server|% Mutual Servers	% Ortak Sunucu|% Ortak Sunucu
+% Online	% Çevrimiçi
+% Result|% Results	% Sonuç|% Sonuç
+% accepted encryption.	% şifrelemeyi kabul etti.
+% accepted your friend request.	% arkadaşlık isteğini kabul etti.
+% answer|% answers	% cevap|% cevap
+% becomes the owner once they accept on their device. You'll stay a member.	% kendi cihazında kabul ettiğinde sahip olacak. Sen üye olarak kalacaksın.
+% blocked message —|% blocked messages —	% engellenmiş mesaj —|% engellenmiş mesaj —
+% byte|% bytes	% bayt|% bayt
+% changed the group icon.	% grup simgesini değiştirdi.
+% day ago|% days ago	% gün önce|% gün önce
+% day|% days	% gün|% gün
+% disabled security actions.	% güvenlik önlemlerini devre dışı bıraktı.
+% enabled security actions.	% güvenlik önlemlerini etkinleştirdi.
+% hasn't accepted encryption yet.	% henüz şifrelemeyi kabul etmedi.
+% hopped into the server.	% sunucuya atladı.
+% hour ago|% hours ago	% saat önce|% saat önce
+% hour|% hours	% saat|% saat
+% ignored message —|% ignored messages —	% yok sayılan mesaj —|% yok sayılan mesaj —
+% is here.	% burada.
+% is typing...	% yazıyor...
+% joined the party.	% partiye katıldı.
+% just boosted the server!	% sunucuya takviye yaptı!
+% just landed.	% iniş yaptı.
+% just showed up!	% çıkageldi!
+% just slid into the server.	% sunucuya süzülerek girdi.
+% left the group.	% gruptan ayrıldı.
+% member|% members	% üye|% üye
+% minute ago|% minutes ago	% dakika önce|% dakika önce
+% minute|% minutes	% dakika|% dakika
+% month ago|% months ago	% ay önce|% ay önce
+% of %	%1 / %2
+% removed the custom group name.	% özel grup adını kaldırdı.
+% started a call.	% bir arama başlattı.
+% turned on encryption.	% şifrelemeyi açtı.
+% user|% users	% kullanıcı|% kullanıcı
+% use|% uses	% kullanım|% kullanım
+% vote|% votes	% oy|% oy
+% wants to encrypt this DM with a new key. Compare safety numbers after accepting.	% bu DM'yi yeni bir anahtarla şifrelemek istiyor. Kabul ettikten sonra güvenlik numaralarını karşılaştır.
+% wants to encrypt this DM.	% bu DM'yi şifrelemek istiyor.
+% year ago|% years ago	% yıl önce|% yıl önce
+% · End-to-end encrypted	% · Uçtan uca şifreli
+%'s Group	% Grubu
+%'s encryption key changed. Compare safety numbers before trusting new messages.	% şifreleme anahtarını değiştirdi. Yeni mesajlara güvenmeden önce güvenlik numaralarını karşılaştır.
+%'s server	% Sunucusu
+%1 (%2 more)	%1 (%2 tane daha)
+%1 FPS	%1 FPS
+%1 STICKERS — %2 SLOTS AVAILABLE	%1 ÇIKARTMA — %2 BOŞ YER
+%1 action %2	%1 eylem %2
+%1 added %2 to the group.	%1, %2 kişisini gruba ekledi.
+%1 and %2	%1 ve %2
+%1 and %2 are typing...	%1 ve %2 yazıyor...
+%1 and %2 other|%1 and %2 others	%1 ve %2 kişi daha|%1 ve %2 kişi daha
+%1 banned %2	%1, %2 kişisini yasakladı
+%1 changed the Stage topic: %2	%1 Sahne konusunu değiştirdi: %2
+%1 changed the channel name: %2.	%1 kanal adını değiştirdi: %2.
+%1 changed the group name: %2.	%1 grup adını değiştirdi: %2.
+%1 created a channel	%1 bir kanal oluşturdu
+%1 created a role	%1 bir rol oluşturdu
+%1 created a webhook	%1 bir webhook oluşturdu
+%1 created an emoji	%1 bir emoji oluşturdu
+%1 created an invite	%1 bir davet oluşturdu
+%1 deleted a channel	%1 bir kanalı sildi
+%1 deleted a message by %2	%1, %2 tarafından gönderilen bir mesajı sildi
+%1 deleted a role	%1 bir rolü sildi
+%1 deleted a webhook	%1 bir webhook'u sildi
+%1 deleted an emoji	%1 bir emojiyi sildi
+%1 deleted an invite	%1 bir daveti sildi
+%1 enabled security actions until %2.	%1 güvenlik önlemlerini şu zamana kadar etkinleştirdi: %2.
+%1 ended %2	%1 şunu sonlandırdı: %2
+%1 has achieved %2	%1 şunu başardı: %2
+%1 has added %2 to this channel. Its most important updates will show up here.	%1, %2 kanalını bu kanala ekledi. En önemli güncellemeleri burada görünecek.
+%1 has blocked a message in %2	%1, %2 içinde bir mesajı engelledi
+%1 has flagged a message in %2	%1, %2 içinde bir mesajı işaretledi
+%1 is now a speaker.	%1 artık bir konuşmacı.
+%1 joined %2 and has been a subscriber of %3 for %4 month!|%1 joined %2 and has been a subscriber of %3 for %4 months!	%1, %2 aboneliğine katıldı ve %4 aydır %3 abonesi!|%1, %2 aboneliğine katıldı ve %4 aydır %3 abonesi!
+%1 joined %2 as a subscriber of %3!	%1, %3 abonesi olarak %2 aboneliğine katıldı!
+%1 just boosted the server %2 times!	%1 sunucuya %2 kez takviye yaptı!
+%1 kicked %2	%1, %2 kişisini attı
+%1 new message since %2|%1 new messages since %2	%2 tarihinden beri %1 yeni mesaj|%2 tarihinden beri %1 yeni mesaj
+%1 of %2 slot used|%1 of %2 slots used	%2 yerin %1 tanesi kullanıldı|%2 yerin %1 tanesi kullanıldı
+%1 pinned %2 to this channel. See all %3.	%1 bu kanala %2 sabitledi. Tümünü gör: %3.
+%1 reacted with %2	%1 şu tepkiyi verdi: %2
+%1 removed %2 from the group.	%1, %2 kişisini gruptan çıkardı.
+%1 renewed %2 and has been a subscriber of %3 for %4 month!|%1 renewed %2 and has been a subscriber of %3 for %4 months!	%1, %2 aboneliğini yeniledi ve %4 aydır %3 abonesi!|%1, %2 aboneliğini yeniledi ve %4 aydır %3 abonesi!
+%1 renewed %2 in their %3 membership!	%1, %3 üyeliğinde %2 aboneliğini yeniledi!
+%1 reported a raid in %2.	%1, %2 içinde bir baskın bildirdi.
+%1 requested to speak.	%1 konuşma isteği gönderdi.
+%1 resolved an Activity Alert in %2.	%1, %2 içindeki bir Etkinlik Uyarısını çözdü.
+%1 said %2	%1 şunu söyledi: %2
+%1 started %2	%1 şunu başlattı: %2
+%1 started a call that lasted %2.	%1 %2 süren bir arama başlattı.
+%1 started a thread: %2. See all %3.	%1 bir alt başlık başlattı: %2. Tümünü gör: %3.
+%1 unbanned %2	%1, %2 kişisinin yasağını kaldırdı
+%1 updated %2	%1 şunu güncelledi: %2
+%1 updated a channel	%1 bir kanalı güncelledi
+%1 updated a role	%1 bir rolü güncelledi
+%1 updated a webhook	%1 bir webhook'u güncelledi
+%1 updated an emoji	%1 bir emojiyi güncelledi
+%1 updated the roles of %2	%1, %2 kişisinin rollerini güncelledi
+%1 updated the server	%1 sunucuyu güncelledi
+%1 vote · %2|%1 votes · %2	%1 oy · %2|%1 oy · %2
+%1 wants to make you the owner of %2. You'll be able to manage everything about it, and they'll stay a member.	%1 seni %2 sunucusunun sahibi yapmak istiyor. Her şeyini yönetebileceksin, o da üye olarak kalacak.
+%1's poll %2 has closed.	%1 kişisinin %2 anketi sona erdi.
+%1, %2 and %3	%1, %2 ve %3
+%1, %2 at %3	%1, %2 %3
+%1, %2, and %3 are typing...	%1, %2 ve %3 yazıyor...
+%1: %2	%1: %2
+%: a number	%: bir sayı
+%: a whole number	%: bir tam sayı
+%: pick a channel	%: bir kanal seç
+%: pick a member	%: bir üye seç
+%: pick a role	%: bir rol seç
+%: true or false	%: doğru veya yanlış
+%d ago	%g önce
+%d left	%g kaldı
+%h	%sa
+%h ago	%sa önce
+%h left	%sa kaldı
+%m	%dk
+%m ago	%dk önce
+%m left	%dk kaldı
+%mo ago	%ay önce
+%s	%sn
+(edited)	(düzenlendi)
+/% takes no options.	/% seçenek almaz.
+/%1 needs %2:	/%1 için %2 gerekli:
+1 Day	1 Gün
+1 Hour	1 Saat
+1 Message	1 Mesaj
+1 Week	1 Hafta
+1 day	1 gün
+1 hour	1 saat
+1 minute	1 dakika
+1 use	1 kullanım
+1 week	1 hafta
+10 Minutes	10 Dakika
+10 minutes	10 dakika
+10 uses	10 kullanım
+100 uses	100 kullanım
+12 hours	12 saat
+12-hour	12 saat
+15 minutes	15 dakika
+2 hours	2 saat
+2 to 4 letters or numbers	2 ila 4 harf veya rakam
+2 weeks	2 hafta
+24 Hours	24 Saat
+24 hours	24 saat
+24-hour	24 saat
+25 uses	25 kullanım
+3 Days	3 Gün
+3 days	3 gün
+30 days	30 gün
+30 minutes	30 dakika
+3:00 PM	ÖS 3:00
+4 hours	4 saat
+5 Minutes	5 Dakika
+5 minutes	5 dakika
+5 uses	5 kullanım
+50 uses	50 kullanım
+6 hours	6 saat
+6-digit authentication code	6 haneli doğrulama kodu
+60 Seconds	60 Saniye
+60 seconds	60 saniye
+7 days	7 gün
+8 hours	8 saat
+8-digit backup code	8 haneli yedek kod
+@ OFF	@ KAPALI
+@ ON	@ AÇIK
+@MENTIONS	@BAHSETMELER
+@everyone · applies to all server members	@everyone · tüm sunucu üyelerine uygulanır
+A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button.	Ctrl, Alt, Shift veya Cmd ile bir tuş, tek başına bir değiştirici tuş ya da orta veya yan fare tuşu.
+A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button. Works in every app.	Ctrl, Alt, Shift veya Cmd ile bir tuş, tek başına bir değiştirici tuş ya da orta veya yan fare tuşu. Her uygulamada çalışır.
+A role needs a name.	Rolün bir adı olmalı.
+A webhook needs a name.	Webhook'un bir adı olmalı.
+A wild % appeared.	Vahşi bir % ortaya çıktı.
+ACTION	EYLEM
+ACTIVE INVITE LINKS	ETKİN DAVET BAĞLANTILARI
+ALL	TÜMÜ
+ALL THE BITS! Going above 64 kbps may adversely affect people on poor connections.	TÜM BİTLER! 64 kbps'nin üzerine çıkmak, bağlantısı zayıf olanları olumsuz etkileyebilir.
+AM	ÖÖ
+ANIMATED EMOJI — % SLOTS AVAILABLE	HAREKETLİ EMOJİ — % BOŞ YER
+APP	UYGULAMA
+AUDIENCE — %	DİNLEYİCİLER — %
+AUTHENTICATOR APP	KİMLİK DOĞRULAMA UYGULAMASI
+About Me	Hakkımda
+Accept	Kabul Et
+Accept Friend Request	Arkadaşlık İsteğini Kabul Et
+Accept Invite	Daveti Kabul Et
+Accept Server Ownership	Sunucu Sahipliğini Kabul Et
+Accept this message request (Friends, Message Requests) to reply.	Yanıtlamak için bu mesaj isteğini kabul et (Arkadaşlar, Mesaj İstekleri).
+Accepting...	Kabul ediliyor...
+Access	Erişim
+Accessibility	Erişilebilirlik
+Account	Hesap
+Account Removal	Hesap Kaldırma
+Activate	Etkinleştir
+Active	Etkin
+Active Now	Şu An Aktif
+Activities	Etkinlikler
+Activity Joining	Etkinliğe Katılma
+Activity Privacy	Etkinlik Gizliliği
+Activity Status	Etkinlik Durumu
+Add Answer	Cevap Ekle
+Add Emoji	Emoji Ekle
+Add Friend	Arkadaş Ekle
+Add Friend Nickname	Arkadaş Takma Adı Ekle
+Add Note	Not Ekle
+Add Reaction	Tepki Ekle
+Add Reactions	Tepki Ekle
+Add Tag	Etiket Ekle
+Add a Keybind	Tuş Ataması Ekle
+Add a Question	Soru Ekle
+Add a channel	Kanal ekle
+Add a channel to override its default notification settings	Varsayılan bildirim ayarlarını geçersiz kılmak için bir kanal ekle
+Add a description	Açıklama ekle
+Add a location, link, or something.	Bir konum, bağlantı ya da başka bir şey ekle.
+Add a role	Rol ekle
+Add an Account	Hesap Ekle
+Add an optional message...	İsteğe bağlı bir mesaj ekle...
+Add another answer	Başka bir cevap ekle
+Add at least one word to block.	Engellemek için en az bir kelime ekle.
+Add members or roles	Üye veya rol ekle
+Add this channel's updates to your server!	Bu kanalın güncellemelerini sunucuna ekle!
+Add this key to an authenticator app, then enter the code it shows.	Bu anahtarı bir kimlik doğrulama uygulamasına ekle, ardından gösterdiği kodu gir.
+Add to Favorites	Favorilere Ekle
+Add to Group DM	Grup DM'ye Ekle
+Add up to 5 traits to show off your server's interests and personality.	Sunucunun ilgi alanlarını ve kişiliğini göstermek için en fazla 5 özellik ekle.
+Add up to 50 custom emoji that anyone can use in this server. Animated GIF emoji may be used by members with Discord Nitro. Emoji names must be at least 2 characters long and can only contain alphanumeric characters and underscores. Emoji must be under 256 KB in size.	Bu sunucuda herkesin kullanabileceği en fazla 50 özel emoji ekle. Hareketli GIF emojileri Discord Nitro'ya sahip üyeler kullanabilir. Emoji adları en az 2 karakter olmalı ve yalnızca harf, rakam ve alt çizgi içerebilir. Emojiler 256 KB'tan küçük olmalı.
+Add your pronouns	Zamirlerini ekle
+Added %	% eklendi
+Adjust the size of the interface. You can also change this with % +/-.	Arayüzün boyutunu ayarla. Bunu % +/- ile de değiştirebilirsin.
+Administrator	Yönetici
+Advanced Permissions	Gelişmiş İzinler
+Advanced permissions	Gelişmiş izinler
+Age-Restricted Channel	Yaş Sınırlı Kanal
+All	Tümü
+All Actions	Tüm Eylemler
+All Messages	Tüm Mesajlar
+All Users	Tüm Kullanıcılar
+All friends	Tüm arkadaşlar
+All messages will be filtered for sensitive image-based media.	Tüm mesajlar hassas görsel içerik için filtrelenecek.
+All set. Now share your event!	Her şey hazır. Şimdi etkinliğini paylaş!
+Allow DMs from other members in servers	Sunuculardaki diğer üyelerden DM'lere izin ver
+Allow Discord to use and process my information to understand and improve Discord's services.	Discord'un hizmetlerini anlamak ve geliştirmek için bilgilerimi kullanmasına ve işlemesine izin ver.
+Allow Friend Requests from...	Şuradan Arkadaşlık İsteklerine İzin Ver...
+Allow Multiple Answers	Birden Fazla Cevaba İzin Ver
+Allow anyone to @mention this role	Herkesin bu rolden @bahsetmesine izin ver
+Allow direct messages from other members in this server.	Bu sunucudaki diğer üyelerden direkt mesajlara izin ver.
+Allow friends to join your game	Arkadaşlarının oyununa katılmasına izin ver
+Allow members to change this server's name, switch regions, view all invites, add apps to this server and create and update AutoMod rules.	Üyelerin bu sunucunun adını değiştirmesine, bölge değiştirmesine, tüm davetleri görmesine, sunucuya uygulama eklemesine ve AutoMod kuralları oluşturup güncellemesine izin ver.
+Allow members to create invite-only threads.	Üyelerin yalnızca davetle girilen alt başlıklar oluşturmasına izin ver.
+Allow members to create threads that everyone in a channel can view.	Üyelerin kanaldaki herkesin görebileceği alt başlıklar oluşturmasına izin ver.
+Allow members to send messages in text channels and create posts in forum channels.	Üyelerin metin kanallarında mesaj göndermesine ve forum kanallarında gönderi oluşturmasına izin ver.
+Allow members to send messages in threads and in posts on forum channels.	Üyelerin alt başlıklarda ve forum kanallarındaki gönderilerde mesaj göndermesine izin ver.
+Allow message requests from server members you may not know	Tanımıyor olabileceğin sunucu üyelerinden gelen mesaj isteklerine izin ver
+Allow voice channel participants to join your game	Ses kanalı katılımcılarının oyununa katılmasına izin ver
+Allowed words	İzin verilen kelimeler
+Allows apps that members have added to their account to post messages. When disabled, the messages will be private.	Üyelerin hesaplarına eklediği uygulamaların mesaj göndermesine izin verir. Devre dışıyken mesajlar gizli olur.
+Allows links that members share to show embedded content in text channels.	Üyelerin paylaştığı bağlantıların metin kanallarında gömülü içerik göstermesine izin verir.
+Allows members to add custom emoji, stickers, and sounds in this server.	Üyelerin bu sunucuya özel emoji, çıkartma ve ses eklemesine izin verir.
+Allows members to add new emoji reactions to a message. If this permission is disabled, members can still react using any existing reactions on a message.	Üyelerin bir mesaja yeni emoji tepkileri eklemesine izin verir. Bu izin devre dışıysa üyeler yine de mesajdaki mevcut tepkilerle tepki verebilir.
+Allows members to be more easily heard in voice channels. When activated, the volume of others without this permission will be automatically lowered.	Üyelerin ses kanallarında daha kolay duyulmasını sağlar. Etkinleştirildiğinde bu izne sahip olmayanların ses seviyesi otomatik olarak düşürülür.
+Allows members to change the nicknames of other members.	Üyelerin diğer üyelerin takma adlarını değiştirmesine izin verir.
+Allows members to change their own nickname, a custom name for just this server.	Üyelerin yalnızca bu sunucuya özel bir ad olan kendi takma adlarını değiştirmesine izin verir.
+Allows members to change this channel's name, description, and settings. They can also delete it.	Üyelerin bu kanalın adını, açıklamasını ve ayarlarını değiştirmesine izin verir. Kanalı silebilirler de.
+Allows members to change this channel's permissions.	Üyelerin bu kanalın izinlerini değiştirmesine izin verir.
+Allows members to create and edit voice channel status.	Üyelerin ses kanalı durumu oluşturmasına ve düzenlemesine izin verir.
+Allows members to create events.	Üyelerin etkinlik oluşturmasına izin verir.
+Allows members to create new roles and edit or delete roles lower than their highest role. Also allows members to change permissions of individual channels that they have access to.	Üyelerin yeni roller oluşturmasına ve en yüksek rollerinden düşük rolleri düzenlemesine veya silmesine izin verir. Ayrıca erişebildikleri kanalların izinlerini değiştirmelerine de izin verir.
+Allows members to create polls.	Üyelerin anket oluşturmasına izin verir.
+Allows members to create, edit, or delete channels.	Üyelerin kanal oluşturmasına, düzenlemesine veya silmesine izin verir.
+Allows members to create, edit, or delete webhooks, which can post messages from other apps or sites into this server.	Üyelerin, başka uygulama veya sitelerden bu sunucuya mesaj gönderebilen webhook'ları oluşturmasına, düzenlemesine veya silmesine izin verir.
+Allows members to deafen other members in voice channels, which means they won't be able to speak or hear others.	Üyelerin ses kanallarında diğer üyeleri sağırlaştırmasına izin verir; bu üyeler konuşamaz ve başkalarını duyamaz.
+Allows members to delete or remove embeds from messages by other members.	Üyelerin diğer üyelerin mesajlarını silmesine veya mesajlardaki gömülü içerikleri kaldırmasına izin verir.
+Allows members to disconnect or move other members between voice channels that the member with this permission has access to.	Üyelerin diğer üyelerin bağlantısını kesmesine veya onları bu izne sahip üyenin erişebildiği ses kanalları arasında taşımasına izin verir.
+Allows members to edit and cancel events.	Üyelerin etkinlikleri düzenlemesine ve iptal etmesine izin verir.
+Allows members to edit or remove custom emoji, stickers, and sounds in this server.	Üyelerin bu sunucudaki özel emoji, çıkartma ve sesleri düzenlemesine veya kaldırmasına izin verir.
+Allows members to invite new people to this server.	Üyelerin bu sunucuya yeni kişiler davet etmesine izin verir.
+Allows members to join voice channels and hear others.	Üyelerin ses kanallarına katılmasına ve başkalarını duymasına izin verir.
+Allows members to mute other members in voice channels for everyone.	Üyelerin ses kanallarında diğer üyeleri herkes için susturmasına izin verir.
+Allows members to permanently ban and delete the message history of other members from this server.	Üyelerin diğer üyeleri bu sunucudan kalıcı olarak yasaklamasına ve mesaj geçmişlerini silmesine izin verir.
+Allows members to pin or unpin any message.	Üyelerin herhangi bir mesajı sabitlemesine veya sabitlemesini kaldırmasına izin verir.
+Allows members to read previous messages sent in channels. If this permission is disabled, members only see messages sent when they are online. This does not fully apply to threads and forum posts.	Üyelerin kanallarda gönderilmiş önceki mesajları okumasına izin verir. Bu izin devre dışıysa üyeler yalnızca çevrimiçiyken gönderilen mesajları görür. Bu, alt başlıklar ve forum gönderileri için tam olarak geçerli değildir.
+Allows members to remove other members from this server. Kicked members will be able to rejoin if they have another invite.	Üyelerin diğer üyeleri bu sunucudan çıkarmasına izin verir. Atılan üyeler başka bir davetleri varsa yeniden katılabilir.
+Allows members to rename, delete, close, and turn on slow mode for threads and posts. They can also view private threads.	Üyelerin alt başlıkları ve gönderileri yeniden adlandırmasına, silmesine, kapatmasına ve yavaş modu açmasına izin verir. Gizli alt başlıkları da görebilirler.
+Allows members to send messages without being affected by slowmode.	Üyelerin yavaş moddan etkilenmeden mesaj göndermesine izin verir.
+Allows members to send sounds from server soundboard.	Üyelerin sunucu ses panelinden ses göndermesine izin verir.
+Allows members to send text-to-speech messages by starting a message with /tts. These messages can be heard by anyone focused on the channel.	Üyelerin mesaja /tts ile başlayarak metin okuma mesajları göndermesine izin verir. Bu mesajları kanala odaklanmış herkes duyabilir.
+Allows members to send voice messages.	Üyelerin sesli mesaj göndermesine izin verir.
+Allows members to share their video, screen share, or stream a game in this server.	Üyelerin bu sunucuda video paylaşmasına, ekran paylaşmasına veya oyun yayınlamasına izin verir.
+Allows members to speak in voice channels by simply talking. If this permission is disabled, members are required to use Push-to-talk. Good for controlling background noise or noisy members.	Üyelerin ses kanallarında sadece konuşarak sesini iletmesine izin verir. Bu izin devre dışıysa üyelerin Bas-Konuş kullanması gerekir. Arka plan gürültüsünü veya gürültülü üyeleri kontrol etmek için idealdir.
+Allows members to talk in voice channels. If this permission is disabled, members are default muted until somebody with the "Mute Members" permission un-mutes them.	Üyelerin ses kanallarında konuşmasına izin verir. Bu izin devre dışıysa üyeler, "Üyeleri Sustur" iznine sahip biri susturmayı kaldırana kadar varsayılan olarak susturulur.
+Allows members to upload files or media in text channels.	Üyelerin metin kanallarına dosya veya medya yüklemesine izin verir.
+Allows members to use @everyone (everyone in the server) or @here (only online members in that channel). They can also @mention all roles, even if the role's "Allow anyone to mention this role" permission is disabled.	Üyelerin @everyone (sunucudaki herkes) veya @here (yalnızca o kanaldaki çevrimiçi üyeler) kullanmasına izin verir. Rolün "Herkesin bu rolden bahsetmesine izin ver" izni devre dışı olsa bile tüm rollerden @bahsedebilirler.
+Allows members to use commands from applications, including slash commands and context menu commands.	Üyelerin eğik çizgi komutları ve bağlam menüsü komutları dahil uygulama komutlarını kullanmasına izin verir.
+Allows members to use emoji from other servers, if they're a Discord Nitro member.	Discord Nitro üyesiyse üyelerin diğer sunuculardaki emojileri kullanmasına izin verir.
+Allows members to use sounds from other servers, if they're a Discord Nitro member.	Discord Nitro üyesiyse üyelerin diğer sunuculardaki sesleri kullanmasına izin verir.
+Allows members to use stickers from other servers, if they're a Discord Nitro member.	Discord Nitro üyesiyse üyelerin diğer sunuculardaki çıkartmaları kullanmasına izin verir.
+Allows members to view Server Insights, which shows data on community growth, engagement, and more. This will allow them to see certain data about channel activity, even for channels they cannot access.	Üyelerin topluluk büyümesi, etkileşim ve daha fazlasıyla ilgili verileri gösteren Sunucu Analizleri'ni görmesine izin verir. Bu, erişemedikleri kanallar dahil kanal etkinliğine dair bazı verileri görmelerini sağlar.
+Allows members to view a record of who made which changes in this server.	Üyelerin bu sunucuda kimin hangi değişiklikleri yaptığının kaydını görmesine izin verir.
+Allows members to view channels by default (excluding private channels).	Üyelerin kanalları varsayılan olarak görmesine izin verir (gizli kanallar hariç).
+Allows members to view these channels by default. Disabling this for @everyone will make the category private.	Üyelerin bu kanalları varsayılan olarak görmesine izin verir. Bunu @everyone için devre dışı bırakmak kategoriyi gizli yapar.
+Allows members to view this channel by default. Disabling this for @everyone will make this channel private.	Üyelerin bu kanalı varsayılan olarak görmesine izin verir. Bunu @everyone için devre dışı bırakmak bu kanalı gizli yapar.
+Always	Her Zaman
+An emoji name, like smile	Bir emoji adı, örneğin smile
+An encrypted file couldn't be opened.|% encrypted files couldn't be opened.	Şifreli bir dosya açılamadı.|% şifreli dosya açılamadı.
+An error occurred, please try again.	Bir hata oluştu, lütfen tekrar dene.
+An error occurred. Please try again.	Bir hata oluştu. Lütfen tekrar dene.
+Announcement	Duyuru
+Announcement Channel	Duyuru Kanalı
+Answer	Cevap
+Answers	Cevaplar
+Anyone can join your server directly through Server Discovery	Herkes Sunucu Keşfi üzerinden sunucuna doğrudan katılabilir
+Anyone can use	Herkes kullanabilir
+Anyone with access to this text channel will be able to see the notifications.	Bu metin kanalına erişimi olan herkes bildirimleri görebilecek.
+App Directory	Uygulama Dizini
+Appearance	Görünüm
+Appends (╯°□°)╯︵ ┻━┻ to your message.	Mesajına (╯°□°)╯︵ ┻━┻ ekler.
+Appends ¯\\_(ツ)_/¯ to your message.	Mesajına ¯\\_(ツ)_/¯ ekler.
+Appends ┬─┬ノ( º _ ºノ) to your message.	Mesajına ┬─┬ノ( º _ ºノ) ekler.
+Applications	Uygulamalar
+Apply to Join	Katılmak için Başvur
+Approve	Onayla
+Apps	Uygulamalar
+Apps Permissions	Uygulama İzinleri
+Archived	Arşivlendi
+Archived Threads	Arşivlenmiş Alt Başlıklar
+Are you building a Community? Convert to a Community Server to access additional administrative tools that can help you moderate, run, and grow your server.	Bir Topluluk mu kuruyorsun? Sunucunu yönetmene, moderasyon yapmana ve büyütmene yardımcı olacak ek yönetim araçlarına erişmek için Topluluk Sunucusuna dönüştür.
+Are you sure that you want to delete your account? This will immediately log you out of your account and you will not be able to log in again.	Hesabını silmek istediğinden emin misin? Bu işlem hesabından hemen çıkış yapmanı sağlar ve bir daha giriş yapamazsın.
+Are you sure that you want to disable your account? This will immediately log you out and make your account inaccessible to anyone.	Hesabını devre dışı bırakmak istediğinden emin misin? Bu işlem hemen çıkış yapmanı sağlar ve hesabını herkes için erişilemez yapar.
+Are you sure you want to ban @%1 from %2? They won't be able to come back until the ban is lifted.	@%1 kullanıcısını %2 sunucusundan yasaklamak istediğinden emin misin? Yasak kaldırılana kadar geri dönemeyecek.
+Are you sure you want to delete %? This action cannot be undone.	% silinsin mi? Bu işlem geri alınamaz.
+Are you sure you want to delete %? This cannot be undone.	% silinsin mi? Bu geri alınamaz.
+Are you sure you want to delete :%:? This cannot be undone.	:%: silinsin mi? Bu geri alınamaz.
+Are you sure you want to delete the rule %? This cannot be undone.	% kuralı silinsin mi? Bu geri alınamaz.
+Are you sure you want to delete this message?	Bu mesajı silmek istediğinden emin misin?
+Are you sure you want to delete this role? This action cannot be undone.	Bu rolü silmek istediğinden emin misin? Bu işlem geri alınamaz.
+Are you sure you want to delete this template? Its link will stop working.	Bu şablonu silmek istediğinden emin misin? Bağlantısı çalışmayı bırakacak.
+Are you sure you want to kick @%1 from %2? They will be able to rejoin again with a new invite.	@%1 kullanıcısını %2 sunucusundan atmak istediğinden emin misin? Yeni bir davetle tekrar katılabilecek.
+Are you sure you want to logout?	Çıkış yapmak istediğinden emin misin?
+Are you sure you want to remove all embeds on this message? This will remove them for everyone.	Bu mesajdaki tüm gömülü içerikleri kaldırmak istediğinden emin misin? Herkes için kaldırılacaklar.
+Are you sure you want to remove all of the reactions for this emoji from this message?	Bu mesajdan bu emojiye ait tüm tepkileri kaldırmak istediğinden emin misin?
+Are you sure you want to remove all the reactions on this message?	Bu mesajdaki tüm tepkileri kaldırmak istediğinden emin misin?
+Are you sure you want to revoke the invite %? Nobody will be able to join with it.	% davetini iptal etmek istediğinden emin misin? Kimse onunla katılamayacak.
+Ask for a new invite	Yeni bir davet iste
+Ask new members what they're here for; each answer gives them channels and roles.	Yeni üyelere neden burada olduklarını sor; her cevap onlara kanallar ve roller verir.
+Attach Files	Dosya Ekle
+Attachment removed	Ek kaldırıldı
+Attachments	Ekler
+Audit Log	Denetim Kaydı
+Authorized Apps	Yetkili Uygulamalar
+Auto	Otomatik
+AutoMod	AutoMod
+Automatic	Otomatik
+Automatic Gain Control	Otomatik Kazanç Kontrolü
+Automatically determine input sensitivity	Giriş hassasiyetini otomatik belirle
+Automatically enable Streamer Mode if OBS or XSplit are running	OBS veya XSplit çalışıyorsa Yayıncı Modunu otomatik etkinleştir
+Automatically filter suspected spam messages	Şüpheli spam mesajlarını otomatik filtrele
+Automatically move members to this channel and mute them when they have been idle for longer than the inactive timeout. This does not affect browsers.	Üyeler hareketsizlik süresinden daha uzun süre boşta kaldığında onları otomatik olarak bu kanala taşı ve sustur. Bu, tarayıcıları etkilemez.
+Automatically open fastcord when your computer starts up	Bilgisayarın açıldığında fastcord'u otomatik başlat
+Automatically scan and delete messages sent in this server that contain explicit media.	Bu sunucuda gönderilen ve müstehcen medya içeren mesajları otomatik tara ve sil.
+Avatar	Avatar
+BACK	GERİ
+BACKUP CODES	YEDEK KODLAR
+Back	Geri
+Back / forward	Geri / ileri
+Backup codes can only be used one time each and are for emergency access to your account!	Yedek kodların her biri yalnızca bir kez kullanılabilir ve hesabına acil durum erişimi içindir!
+Backups	Yedekler
+Ban	Yasakla
+Ban %	Yasakla: %
+Ban '%' from Server	Sunucudan Yasakla: '%'
+Ban Member	Üyeyi Yasakla
+Ban Members	Üyeleri Yasakla
+Banner	Afiş
+Banner Color	Afiş Rengi
+Bans	Yasaklar
+Bitrate	Bit Hızı
+Block	Engelle
+Block Commonly Flagged Words	Sık İşaretlenen Kelimeleri Engelle
+Block Custom Words	Özel Kelimeleri Engelle
+Block Mention Spam	Bahsetme Spamını Engelle
+Block Suspected Spam Content	Şüpheli Spam İçeriği Engelle
+Block Words in Member Profile Names	Üye Profil Adlarındaki Kelimeleri Engelle
+Block message	Mesajı engelle
+Blocked	Engellendi
+Blocked Users	Engellenen Kullanıcılar
+Blocked by your content filters	İçerik filtrelerin tarafından engellendi
+Blocked message	Engellenmiş mesaj
+Blocked words	Engellenen kelimeler
+Blocked words in names	Adlarda engellenen kelimeler
+Blocks messages containing % word.|Blocks messages containing % words.	% kelime içeren mesajları engeller.|% kelime içeren mesajları engeller.
+Blocks messages suspected to be spam.	Spam olduğundan şüphelenilen mesajları engeller.
+Blocks messages with more than % mentions.	%'den fazla bahsetme içeren mesajları engeller.
+Blocks words from Discord's commonly flagged lists.	Discord'un sık işaretlenen listelerindeki kelimeleri engeller.
+Blocks words in member profile names.	Üye profil adlarındaki kelimeleri engeller.
+Blur	Bulanıklaştır
+Blur Background	Arka Planı Bulanıklaştır
+Blur what's behind you on camera. Only your camera is changed.	Kamerada arkanda kalanları bulanıklaştır. Yalnızca kameran değişir.
+Bold / italic / underline	Kalın / italik / altı çizili
+Bots and Apps	Botlar ve Uygulamalar
+Browse	Göz At
+Browse Channels	Kanallara Göz At
+Built-In	Yerleşik
+Bulgarian	Bulgarca
+By creating a server, you agree to Discord's Community Guidelines.	Sunucu oluşturarak Discord'un Topluluk Kurallarını kabul etmiş olursun.
+By enabling the widget, your server profile will be visible to others outside of your server members. You can control Profile privacy in Server Settings > Profile.	Widget'ı etkinleştirdiğinde sunucu profilin sunucu üyelerin dışındaki kişilere de görünür olur. Profil gizliliğini Sunucu Ayarları > Profil bölümünden kontrol edebilirsin.
+By making a category private, only select members and roles will be able to view this category. Linked channels in this category will automatically match to this setting.	Bir kategoriyi gizli yaptığında yalnızca seçilen üyeler ve roller bu kategoriyi görebilir. Bu kategorideki bağlı kanallar otomatik olarak bu ayara uyar.
+By making a channel private, only select members and roles will be able to view this channel.	Bir kanalı gizli yaptığında yalnızca seçilen üyeler ve roller bu kanalı görebilir.
+By making a channel private, only select members and roles will have access to view or connect to this channel.	Bir kanalı gizli yaptığında yalnızca seçilen üyeler ve roller bu kanalı görebilir veya ona bağlanabilir.
+Bypass Slowmode	Yavaş Modu Atla
+CHANNEL OR CATEGORY	KANAL VEYA KATEGORİ
+CONFIRM NEW PASSWORD	YENİ ŞİFREYİ ONAYLA
+CURRENT PASSWORD	MEVCUT ŞİFRE
+Call	Ara
+Cancel	İptal
+Cancel Event	Etkinliği İptal Et
+Cancel Friend Request	Arkadaşlık İsteğini İptal Et
+Careful — you have unsaved changes!	Dikkat — kaydedilmemiş değişikliklerin var!
+Category Name	Kategori Adı
+Category deleted	Kategori silindi
+Change %	Değiştir: %
+Change Avatar	Avatarı Değiştir
+Change Nickname	Takma Adı Değiştir
+Change Password	Şifreyi Değiştir
+Change Server Icon	Sunucu Simgesini Değiştir
+Channel	Kanal
+Channel Name	Kanal Adı
+Channel Notification Overrides	Kanal Bildirim İstisnaları
+Channel Topic	Kanal Konusu
+Channel Type	Kanal Türü
+Channel deleted	Kanal silindi
+Channel unmuted	Kanalın sesi açıldı
+Channels	Kanallar
+Channels & Roles	Kanallar ve Roller
+Channels Followed (%)	Takip Edilen Kanallar (%)
+Channels matching #%	#% ile eşleşen kanallar
+Chat	Sohbet
+Chat Font Scaling	Sohbet Yazı Tipi Ölçeği
+Check your email for a login link	Giriş bağlantısı için e-postanı kontrol et
+Check your phone!	Telefonunu kontrol et!
+Checking the file…	Dosya kontrol ediliyor…
+Chinese, China	Çince, Çin
+Chinese, Taiwan	Çince, Tayvan
+Choose Image	Görsel Seç
+Choose a link people can use to join, discord.gg/<code>.	İnsanların katılmak için kullanabileceği bir bağlantı seç, discord.gg/<kod>.
+Choose a server	Bir sunucu seç
+Choose the language you want Discord to display.	Discord'un görüntüleneceği dili seç.
+Choose what happens to images and videos Discord detects as explicit.	Discord'un müstehcen olarak algıladığı görsel ve videolara ne olacağını seç.
+Clear	Temizle
+Clear Custom Status	Özel Durumu Temizle
+Clear after	Şu süreden sonra temizle
+Clear permissions	İzinleri temizle
+Click Again to Reset	Sıfırlamak için Tekrar Tıkla
+Click any channel, then pick a request whose name starts with "messages" or "science".	Herhangi bir kanala tıkla, ardından adı "messages" veya "science" ile başlayan bir istek seç.
+Click to add a note	Not eklemek için tıkla
+Click to see attachment	Eki görmek için tıkla
+Close DM	DM'yi Kapat
+Collapse	Daralt
+Collapse All Categories	Tüm Kategorileri Daralt
+Collapse Category	Kategoriyi Daralt
+Commands	Komutlar
+Commands matching /%	/% ile eşleşen komutlar
+Community Overview	Topluluk Genel Bakışı
+Community Updates Channel	Topluluk Güncellemeleri Kanalı
+Community servers follow Discord's Community Guidelines.	Topluluk sunucuları Discord'un Topluluk Kurallarına uyar.
+Community servers have more tools to help you moderate and grow your server.	Topluluk sunucularında sunucunu yönetmene ve büyütmene yardımcı olacak daha fazla araç bulunur.
+Compact	Kompakt
+Compare	Karşılaştır
+Compare these with %, in person or on a call. If they match, no one can read this DM in between.	Bunları % ile yüz yüze veya bir aramada karşılaştır. Eşleşirlerse aradaki hiç kimse bu DM'yi okuyamaz.
+Configure system event messages sent to your server.	Sunucuna gönderilen sistem etkinliği mesajlarını yapılandır.
+Confirm	Onayla
+Confirm Request	İsteği Onayla
+Confirm your age to join this server.	Bu sunucuya katılmak için yaşını onayla.
+Confirming...	Onaylanıyor...
+Connect	Bağlan
+Connect these accounts and unlock special Discord integrations. The sign-in opens in your browser.	Bu hesapları bağla ve özel Discord entegrasyonlarının kilidini aç. Giriş tarayıcında açılır.
+Connected Apps	Bağlı Uygulamalar
+Connecting	Bağlanıyor
+Connecting...	Bağlanıyor...
+Connecting…	Bağlanıyor…
+Connection Info	Bağlantı Bilgisi
+Connection lost. Messages may be out of date.	Bağlantı kesildi. Mesajlar güncel olmayabilir.
+Connections	Bağlantılar
+Content Filters	İçerik Filtreleri
+Continue	Devam Et
+Control who can see your profile info, like your bio and connected accounts.	Biyografin ve bağlı hesapların gibi profil bilgilerini kimlerin görebileceğini kontrol et.
+Copied	Kopyalandı
+Copy	Kopyala
+Copy Category ID	Kategori ID'sini Kopyala
+Copy Channel ID	Kanal ID'sini Kopyala
+Copy Event Link	Etkinlik Bağlantısını Kopyala
+Copy Image	Görseli Kopyala
+Copy Image Link	Görsel Bağlantısını Kopyala
+Copy Link	Bağlantıyı Kopyala
+Copy Media Link	Medya Bağlantısını Kopyala
+Copy Message ID	Mesaj ID'sini Kopyala
+Copy Message Link	Mesaj Bağlantısını Kopyala
+Copy Server ID	Sunucu ID'sini Kopyala
+Copy Text	Metni Kopyala
+Copy User ID	Kullanıcı ID'sini Kopyala
+Copy Username	Kullanıcı Adını Kopyala
+Copy Webhook URL	Webhook URL'sini Kopyala
+Copy curl Command	curl Komutunu Kopyala
+Copy the event link below to invite people to your event. This also acts as a server invite link.	İnsanları etkinliğine davet etmek için aşağıdaki etkinlik bağlantısını kopyala. Bu aynı zamanda bir sunucu davet bağlantısıdır.
+Copy your account's token once from Discord in a web browser.	Hesabının token'ını bir kez web tarayıcısındaki Discord'dan kopyala.
+Couldn't accept encryption.	Şifreleme kabul edilemedi.
+Couldn't cancel the event.	Etkinlik iptal edilemedi.
+Couldn't change avatar	Avatar değiştirilemedi
+Couldn't create an invite link.	Davet bağlantısı oluşturulamadı.
+Couldn't create an invite.	Davet oluşturulamadı.
+Couldn't delete the channel: %	Kanal silinemedi: %
+Couldn't encrypt the message.	Mesaj şifrelenemedi.
+Couldn't join %: %	Katılınamadı (%1): %2
+Couldn't load onboarding.	Katılım ekranı yüklenemedi.
+Couldn't load the AutoMod rules.	AutoMod kuralları yüklenemedi.
+Couldn't load the applications.	Uygulamalar yüklenemedi.
+Couldn't load the audit log.	Denetim kaydı yüklenemedi.
+Couldn't load the bans.	Yasaklar yüklenemedi.
+Couldn't load the invites.	Davetler yüklenemedi.
+Couldn't load the members.	Üyeler yüklenemedi.
+Couldn't load the role's members.	Rolün üyeleri yüklenemedi.
+Couldn't load the server rules.	Sunucu kuralları yüklenemedi.
+Couldn't load the server's tag.	Sunucu etiketi yüklenemedi.
+Couldn't load the template.	Şablon yüklenemedi.
+Couldn't load the webhooks.	Webhook'lar yüklenemedi.
+Couldn't move the channel	Kanal taşınamadı
+Couldn't play it here, so it opened in your browser.	Burada oynatılamadı, bu yüzden tarayıcında açıldı.
+Couldn't reach %1: %2 Retrying.	Ulaşılamadı — %1: %2 Yeniden deneniyor.
+Couldn't reach Discord. Check your connection and try again.	Discord'a ulaşılamadı. Bağlantını kontrol edip tekrar dene.
+Couldn't reach Discord. Try again.	Discord'a ulaşılamadı. Tekrar dene.
+Couldn't reach the server.	Sunucuya ulaşılamadı.
+Couldn't reach the server. Check your connection and try again.	Sunucuya ulaşılamadı. Bağlantını kontrol edip tekrar dene.
+Couldn't save the file.	Dosya kaydedilemedi.
+Couldn't save the image.	Görsel kaydedilemedi.
+Couldn't save the token.	Token kaydedilemedi.
+Couldn't turn on encryption.	Şifreleme açılamadı.
+Couldn't upload emoji	Emoji yüklenemedi
+Cozy	Rahat
+Create	Oluştur
+Create Category	Kategori Oluştur
+Create Channel	Kanal Oluştur
+Create DM	DM Oluştur
+Create Emoji	Emoji Oluştur
+Create Event	Etkinlik Oluştur
+Create Events	Etkinlik Oluştur
+Create Expressions	İfade Oluştur
+Create Group DM	Grup DM Oluştur
+Create Invite	Davet Oluştur
+Create My Own	Kendim Oluşturayım
+Create Poll	Anket Oluştur
+Create Polls	Anket Oluştur
+Create Private Threads	Gizli Alt Başlık Oluştur
+Create Public Threads	Herkese Açık Alt Başlık Oluştur
+Create Role	Rol Oluştur
+Create Rule	Kural Oluştur
+Create Thread	Alt Başlık Oluştur
+Create Webhook	Webhook Oluştur
+Create Your Server	Sunucunu Oluştur
+Create a poll	Anket oluştur
+Create a space for organized discussions	Düzenli tartışmalar için bir alan oluştur
+Create one for me	Benim için oluştur
+Created by %	Oluşturan: %
+Created on %1 by %2	%1 tarihinde %2 tarafından oluşturuldu
+Creating an invite link…	Davet bağlantısı oluşturuluyor…
+Creating an invite...	Davet oluşturuluyor...
+Creating...	Oluşturuluyor...
+Creating…	Oluşturuluyor…
+Creation Date	Oluşturulma Tarihi
+Croatian	Hırvatça
+Current Device	Mevcut Cihaz
+Custom Invite Link	Özel Davet Bağlantısı
+Customize Your Server	Sunucunu Özelleştir
+Customize how your server appears in invite links and, if enabled, in Server Discovery and Announcement Channel messages	Sunucunun davet bağlantılarında ve etkinse Sunucu Keşfi ile Duyuru Kanalı mesajlarında nasıl görüneceğini özelleştir
+Customize your server with integrations. Manage webhooks, followed channels and apps.	Sunucunu entegrasyonlarla özelleştir. Webhook'ları, takip edilen kanalları ve uygulamaları yönet.
+Cut	Kes
+Czech	Çekçe
+DAVE v%, % members	DAVE v%1, %2 üye
+DEFAULT KEYBINDS	VARSAYILAN TUŞ ATAMALARI
+DM closed	DM kapatıldı
+Danish	Danca
+Data & Privacy	Veri ve Gizlilik
+Date	Tarih
+Deafen	Sağırlaştır
+Deafen Members	Üyeleri Sağırlaştır
+Deauthorize	Yetkiyi Kaldır
+Decline	Reddet
+Default	Varsayılan
+Default Channels	Varsayılan Kanallar
+Default Layout	Varsayılan Düzen
+Default Notification Settings	Varsayılan Bildirim Ayarları
+Default Permissions	Varsayılan İzinler
+Default Sort Order	Varsayılan Sıralama
+Default Themes	Varsayılan Temalar
+Default notifications become Only @mentions.	Varsayılan bildirimler Yalnızca @bahsetmeler olur.
+Delete	Sil
+Delete '%'	Sil: '%'
+Delete Account	Hesabı Sil
+Delete Category	Kategoriyi Sil
+Delete Channel	Kanalı Sil
+Delete Emoji	Emojiyi Sil
+Delete Invite	Daveti Sil
+Delete Message	Mesajı Sil
+Delete Message History	Mesaj Geçmişini Sil
+Delete Question	Soruyu Sil
+Delete Role	Rolü Sil
+Delete Rule	Kuralı Sil
+Delete Server	Sunucuyu Sil
+Delete Sticker	Çıkartmayı Sil
+Delete Template	Şablonu Sil
+Delete Thread	Alt Başlığı Sil
+Delete Webhook	Webhook'u Sil
+Deleted message	Silinmiş mesaj
+Describe your sticker	Çıkartmanı açıkla
+Description	Açıklama
+Description (alt text)	Açıklama (alternatif metin)
+Description (optional)	Açıklama (isteğe bağlı)
+Detects a burst of mention spam across the server and locks it down.	Sunucu genelinde ani bahsetme spamını algılar ve sunucuyu kilitler.
+Developer	Geliştirici
+Developer Mode	Geliştirici Modu
+Developer Mode exposes context menu items helpful for people writing apps using the Discord API.	Geliştirici Modu, Discord API ile uygulama yazanlar için faydalı bağlam menüsü öğelerini gösterir.
+Devices	Cihazlar
+Direct Message (DM) Permissions	Direkt Mesaj (DM) İzinleri
+Direct Messages	Direkt Mesajlar
+Direct messages from friends	Arkadaşlardan gelen direkt mesajlar
+Direct messages from others	Diğerlerinden gelen direkt mesajlar
+Disable	Devre Dışı Bırak
+Disable Account	Hesabı Devre Dışı Bırak
+Disable All Notification Sounds	Tüm Bildirim Seslerini Kapat
+Disable Community	Topluluğu Devre Dışı Bırak
+Disable all notifications	Tüm bildirimleri kapat
+Disable all sound effects	Tüm ses efektlerini kapat
+Disabling your account means you can recover it at any time after taking this action.	Hesabını devre dışı bırakırsan bu işlemden sonra istediğin zaman geri alabilirsin.
+Disconnect	Bağlantıyı Kes
+Disconnect From Voice Channel	Ses Kanalından Ayrıl
+Disconnected	Bağlantı Kesildi
+Discord account	Discord hesabı
+Discord asked for a captcha, which fastcord can't show. Log in with the QR code instead.	Discord bir captcha istedi, fastcord bunu gösteremiyor. Bunun yerine QR koduyla giriş yap.
+Discord asked for a captcha, which fastcord can't show. Try on discord.com.	Discord bir captcha istedi, fastcord bunu gösteremiyor. discord.com'da dene.
+Discord can filter out some messages that contain spam. These messages go to your Spam inbox.	Discord spam içeren bazı mesajları filtreleyebilir. Bu mesajlar Spam gelen kutuna gider.
+Discord didn't accept the saved login. Log in again.	Discord kayıtlı girişi kabul etmedi. Tekrar giriş yap.
+Discord failed to unpin that message for some reason. Sorry about that.	Discord bir nedenden dolayı bu mesajın sabitlemesini kaldıramadı. Bunun için üzgünüz.
+Discord will prioritize this server in search to users who speak the selected language.	Discord, aramalarda bu sunucuyu seçilen dili konuşan kullanıcılara öncelikli gösterir.
+Discord's terms don't allow third-party clients, so using one can get an account flagged.	Discord'un koşulları üçüncü taraf istemcilere izin vermez; bu yüzden birini kullanmak hesabının işaretlenmesine yol açabilir.
+Discoverable	Keşfedilebilir
+Dismiss	Kapat
+Dismiss message	Mesajı kapat
+Display	Görüntü
+Display Images, Videos and Lolcats	Görselleri, Videoları ve Komik Kedileri Göster
+Display Name	Görünen Ad
+Display name	Görünen ad
+Display on profile	Profilde göster
+Display role members separately from online members	Rol üyelerini çevrimiçi üyelerden ayrı göster
+Displays text with emphasis.	Metni vurgulu gösterir.
+Do Not Disturb	Rahatsız Etmeyin
+Do not filter	Filtreleme
+Do not filter direct messages	Direkt mesajları filtreleme
+Don't Delete Any	Hiçbirini Silme
+Don't clear	Temizleme
+Don't show role colors	Rol renklerini gösterme
+Done	Bitti
+Download	İndir
+Drop a file here, or browse	Bir dosyayı buraya bırak veya göz at
+Duration	Süre
+Dutch	Felemenkçe
+EDIT ROLE — %	ROLÜ DÜZENLE — %
+EMAIL OR PHONE NUMBER	E-POSTA VEYA TELEFON NUMARASI
+EMOJI MATCHING	EŞLEŞEN EMOJİLER
+ENTER THE 6-DIGIT CODE	6 HANELİ KODU GİR
+EXPIRE AFTER	SÜRE SONU
+EXPIRES	SONA ERİŞ
+Ease the chat and lists toward where you scroll. Off, they jump there at once (always, when your device asks for reduced motion).	Sohbet ve listeler kaydırdığın yere yumuşakça ilerler. Kapalıyken oraya anında atlar (cihazın azaltılmış hareket istediğinde her zaman).
+Echo Cancellation	Yankı Engelleme
+Edit	Düzenle
+Edit Category	Kategoriyi Düzenle
+Edit Channel	Kanalı Düzenle
+Edit Friend Nickname	Arkadaş Takma Adını Düzenle
+Edit Message	Mesajı Düzenle
+Edit Per-server Profile	Sunucu Profilini Düzenle
+Edit Profile	Profili Düzenle
+Edit Profiles	Profilleri Düzenle
+Edit Sound	Sesi Düzenle
+Edit Thread	Alt Başlığı Düzenle
+Edit User Profile	Kullanıcı Profilini Düzenle
+Edit invite link.	Davet bağlantısını düzenle.
+Edit your last message	Son mesajını düzenle
+Email	E-posta
+Embed Links	Bağlantı Yerleştir
+Embed an HTML widget on your website to display your online members, voice channels, and invite link.	Çevrimiçi üyelerini, ses kanallarını ve davet bağlantını göstermek için web sitene bir HTML widget'ı yerleştir.
+Emoji	Emoji
+Emoji / GIF / sticker picker	Emoji / GIF / çıkartma seçici
+Enable Authenticator App	Kimlik Doğrulama Uygulamasını Etkinleştir
+Enable Community	Topluluğu Etkinleştir
+Enable Community to access Server Discovery	Sunucu Keşfi'ne erişmek için Topluluğu etkinleştir
+Enable Desktop Notifications	Masaüstü Bildirimlerini Etkinleştir
+Enable Invites	Davetleri Etkinleştir
+Enable Onboarding	Katılım Ekranını Etkinleştir
+Enable Reduced Motion	Azaltılmış Hareketi Etkinleştir
+Enable Server Widget	Sunucu Widget'ını Etkinleştir
+Enable Streamer Mode	Yayıncı Modunu Etkinleştir
+Enable Unread Message Badge	Okunmamış Mesaj Rozetini Etkinleştir
+Encrypt this DM	Bu DM'yi şifrele
+Encrypted message	Şifreli mesaj
+Encrypted messages are limited to % bytes for now.	Şifreli mesajlar şimdilik % baytla sınırlı.
+End Date	Bitiş Tarihi
+End Event	Etkinliği Bitir
+End Poll Now	Anketi Şimdi Bitir
+End Time	Bitiş Saati
+End-to-end encrypted	Uçtan uca şifreli
+End-to-end encryption	Uçtan uca şifreleme
+Engagement	Etkileşim
+English, UK	İngilizce, Birleşik Krallık
+English, USA	İngilizce, ABD
+Enter Discord Auth Code	Discord Doğrulama Kodunu Gir
+Enter Discord Backup Code	Discord Yedek Kodunu Gir
+Enter a location	Bir konum gir
+Enter a message to start the conversation!	Sohbeti başlatmak için bir mesaj yaz!
+Enter an invite below to join an existing server	Mevcut bir sunucuya katılmak için aşağıya bir davet gir
+Enter server name	Sunucu adını gir
+Enter your current password and a new password.	Mevcut şifreni ve yeni bir şifre gir.
+Error	Hata
+Est. %	Kuruluş: %
+Event Info	Etkinlik Bilgisi
+Event Topic	Etkinlik Konusu
+Event cancelled	Etkinlik iptal edildi
+Event is over	Etkinlik sona erdi
+Events	Etkinlikler
+Events Permissions	Etkinlik İzinleri
+Every answer needs a title.	Her cevabın bir başlığı olmalı.
+Every question needs a title and at least one answer.	Her sorunun bir başlığı ve en az bir cevabı olmalı.
+Everyone	Herkes
+Everyone in this channel connects to the selected region. Automatic picks the best one for whoever starts the call.	Bu kanaldaki herkes seçilen bölgeye bağlanır. Otomatik, aramayı başlatan kişi için en iyisini seçer.
+Everyone welcome %!	Herkes hoş geldin desin, %!
+Everyone who joins sees these channels, whatever they answer.	Katılan herkes, ne cevap verirse versin bu kanalları görür.
+Exempt a channel	Bir kanalı muaf tut
+Exempt a role	Bir rolü muaf tut
+Exemptions	Muafiyetler
+Expand (% lines)	Genişlet (% satır)
+Expand (% of % lines)	Genişlet (%1/%2 satır)
+Expired	Süresi Doldu
+Explicit image filter	Müstehcen görsel filtresi
+Expression	İfade
+FRAME RATE	KARE HIZI
+Failed to follow the channel, please try again.	Kanal takip edilemedi, lütfen tekrar dene.
+Fastcord couldn't be installed.	Fastcord yüklenemedi.
+Favorites	Favoriler
+File	Dosya
+File saved.	Dosya kaydedildi.
+Filename	Dosya adı
+Fill out the details of your event.	Etkinliğinin ayrıntılarını doldur.
+Filter by Action	Eyleme Göre Filtrele
+Filter by User	Kullanıcıya Göre Filtrele
+Filter direct messages from everyone	Herkesten gelen direkt mesajları filtrele
+Filter direct messages from non-friends	Arkadaş olmayanlardan gelen direkt mesajları filtrele
+Filter messages from all members	Tüm üyelerden gelen mesajları filtrele
+Filter messages from server members without roles	Rolü olmayan sunucu üyelerinden gelen mesajları filtrele
+Find or start a conversation	Bir sohbet bul ya da başlat
+Find the perfect emoji	En uygun emojiyi bul
+Find the perfect reaction	En uygun tepkiyi bul
+Find the perfect sticker	En uygun çıkartmayı bul
+Finding the video%	Video aranıyor%
+Finish	Bitir
+Finishing touches	Son dokunuşlar
+Finnish	Fince
+Fit more messages on screen at one time. #IRC	Ekrana aynı anda daha fazla mesaj sığdır. #IRC
+Flagged as spam	Spam olarak işaretlendi
+Flags	İşaretler
+Folder Color	Klasör Rengi
+Folder Name	Klasör Adı
+Folder Settings	Klasör Ayarları
+Folder removed	Klasör kaldırıldı
+Follow	Takip Et
+Followed!	Takip edildi!
+Food & Drink	Yiyecek ve İçecek
+For 1 Hour	1 Saatliğine
+For 15 Minutes	15 Dakikalığına
+For 24 Hours	24 Saatliğine
+For 3 Days	3 Günlüğüne
+For 3 Hours	3 Saatliğine
+For 8 Hours	8 Saatliğine
+Forever	Süresiz
+Forgot your password?	Şifreni mi unuttun?
+Forum	Forum
+Forward	İlet
+Forward To	Şuraya İlet
+Forwarded	İletildi
+French	Fransızca
+Frequently Used	Sık Kullanılanlar
+Friend Nickname	Arkadaş Takma Adı
+Friend Request Permissions	Arkadaşlık İsteği İzinleri
+Friend Request Sent	Arkadaşlık İsteği Gönderildi
+Friend removed	Arkadaş kaldırıldı
+Friend request cancelled	Arkadaşlık isteği iptal edildi
+Friend request ignored	Arkadaşlık isteği yok sayıldı
+Friends	Arkadaşlar
+Friends & All Servers	Arkadaşlar ve Tüm Sunucular
+Friends & Small Servers Only	Yalnızca Arkadaşlar ve Küçük Sunucular
+Friends Only	Yalnızca Arkadaşlar
+Friends can ask to join or join the game you're playing.	Arkadaşların oynadığın oyuna katılmak için istek gönderebilir veya katılabilir.
+Friends come online	Arkadaşlar çevrimiçi olduğunda
+Friends of friends	Arkadaşların arkadaşları
+From User	Kullanıcıdan
+GIFs	GIF'ler
+GIFs can't be sent encrypted yet.	GIF'ler henüz şifreli gönderilemiyor.
+Gallery view	Galeri görünümü
+General	Genel
+General Category Permissions	Genel Kategori İzinleri
+General Channel Permissions	Genel Kanal İzinleri
+General Server Permissions	Genel Sunucu İzinleri
+Generate Template	Şablon Oluştur
+Generate a New Link	Yeni Bağlantı Oluştur
+German	Almanca
+Get a copy of your data. It can take up to 30 days to prepare, and a download link is emailed to you when it's ready.	Verilerinin bir kopyasını al. Hazırlanması 30 güne kadar sürebilir; hazır olduğunda indirme bağlantısı e-postana gönderilir.
+Give new members a quick way to find the channels and roles that matter to them.	Yeni üyelere kendileri için önemli kanalları ve rolleri hızlıca bulmanın bir yolunu sun.
+Give your new server a personality with a name. You can always change it later.	Yeni sunucuna bir adla kişilik kazandır. Bunu daha sonra istediğin zaman değiştirebilirsin.
+Glad you're here, %.	Burada olmana sevindik, %.
+Go Back	Geri Dön
+Go To Channel	Kanala Git
+Go back	Geri dön
+Go forward	İleri git
+Go to Server	Sunucuya Git
+Good to see you, %.	Seni görmek güzel, %.
+Got It	Anladım
+Grant temporary membership	Geçici üyelik ver
+Greek	Yunanca
+Hang out together with voice, video, and screen share	Ses, görüntü ve ekran paylaşımıyla birlikte takıl
+Hang out with voice, video, screenshare, and Go Live.	Ses, görüntü, ekran paylaşımı ve Yayına Geç ile takıl.
+Happening Now	Şu An Gerçekleşiyor
+Have an invite already?	Zaten bir davetin var mı?
+Help	Yardım
+Here's a preview of your event.	İşte etkinliğinin önizlemesi.
+Hey, just double checking that you want to pin this message to #% for posterity and greatness?	Hey, bu mesajı gelecek nesiller ve ihtişam adına #% kanalına sabitlemek istediğinden emin misin?
+Hey, just double checking that you want to pin this message to the current channel for posterity and greatness?	Hey, bu mesajı gelecek nesiller ve ihtişam adına bu kanala sabitlemek istediğinden emin misin?
+Hide	Gizle
+Hide After Inactivity	Hareketsizlikten Sonra Gizle
+Hide Chat	Sohbeti Gizle
+Hide Fastcord window from screen capture	Fastcord penceresini ekran yakalamadan gizle
+Hide Muted Channels	Susturulmuş Kanalları Gizle
+Hide invite links to my Discord servers	Discord sunucularımın davet bağlantılarını gizle
+Hide my personal information, such as email, connected accounts, and notes	E-posta, bağlı hesaplar ve notlar gibi kişisel bilgilerimi gizle
+Hides Fastcord windows from most screen capture software.	Fastcord pencerelerini çoğu ekran yakalama yazılımından gizler.
+High	Yüksek
+Highest	En Yüksek
+Highlights provide occasional updates when your friends are chatting in busy servers, and more.	Öne Çıkanlar, arkadaşların kalabalık sunucularda sohbet ettiğinde ve daha fazlasında ara sıra güncellemeler sunar.
+Hindi	Hintçe
+History	Geçmiş
+Hitting X makes fastcord minimize to the system tray instead of closing.	X'e basmak fastcord'u kapatmak yerine sistem tepsisine küçültür.
+Hm, didn’t work. Double check that the username is correct.	Hmm, olmadı. Kullanıcı adının doğru olduğundan emin ol.
+Host	Ev Sahibi
+Host events with an audience	Dinleyicili etkinlikler düzenle
+How Discord Uses My Data	Discord Verilerimi Nasıl Kullanır
+How can people join your server?	İnsanlar sunucuna nasıl katılabilir?
+How did your server get started? Why should people join?	Sunucun nasıl başladı? İnsanlar neden katılmalı?
+Hungarian	Macarca
+I acknowledge that by transferring ownership of this server to %, it officially belongs to them.	Bu sunucunun sahipliğini % kişisine devrederek sunucunun resmi olarak ona ait olacağını kabul ediyorum.
+I agree and understand	Anladım ve kabul ediyorum
+I'm new here, say hi!	Burada yeniyim, merhaba de!
+I'm sure, use a backup code	Eminim, yedek kod kullan
+IMAGE	GÖRSEL
+INPUT DEVICE	GİRİŞ CİHAZI
+INPUT MODE	GİRİŞ MODU
+INPUT SENSITIVITY	GİRİŞ HASSASİYETİ
+INPUT VOLUME	GİRİŞ SES SEVİYESİ
+INVITE CODE	DAVET KODU
+INVITE LINK	DAVET BAĞLANTISI
+INVITER	DAVET EDEN
+INVITES SHOULD LOOK LIKE	DAVETLER ŞÖYLE GÖRÜNMELİ
+Icon	Simge
+Idle	Boşta
+If Streamer Mode is enabled...	Yayıncı Modu etkinse...
+If you do not have access to any other methods, the button below will activate in % second.|If you do not have access to any other methods, the button below will activate in % seconds.	Başka bir yönteme erişimin yoksa aşağıdaki düğme % saniye içinde etkinleşecek.|Başka bir yönteme erişimin yoksa aşağıdaki düğme % saniye içinde etkinleşecek.
+If you do not have access to any other methods, use the other button below to proceed.	Başka bir yönteme erişimin yoksa devam etmek için aşağıdaki diğer düğmeyi kullan.
+Ignore	Yok Say
+Ignore Friend Request	Arkadaşlık İsteğini Yok Say
+Ignored Users	Yok Sayılan Kullanıcılar
+Ignored message	Yok sayılan mesaj
+Image saved.	Görsel kaydedildi.
+Important updates for people in and out of the server	Sunucunun içindeki ve dışındaki kişiler için önemli güncellemeler
+In Channel	Kanalda
+Inactive Channel	Hareketsiz Kanal
+Inactive Timeout	Hareketsizlik Zaman Aşımı
+Inbox	Gelen Kutusu
+Incoming Call...	Gelen Arama...
+Incoming Friend Request	Gelen Arkadaşlık İsteği
+Indonesian	Endonezce
+Insert Timestamp	Zaman Damgası Ekle
+Install	Yükle
+Install Fastcord to open it from the Start menu.	Başlat menüsünden açmak için Fastcord'u yükle.
+Installing…	Yükleniyor…
+Instructions Sent	Talimatlar Gönderildi
+Insults and Slurs	Hakaret ve Aşağılayıcı Sözler
+Integrations	Entegrasyonlar
+Interested	İlgileniyorum
+Invalid Invite	Geçersiz Davet
+Invalid date or time	Geçersiz tarih veya saat
+Invisible	Görünmez
+Invite	Davet Et
+Invite Channel	Davet Kanalı
+Invite Invalid	Davet Geçersiz
+Invite Only	Yalnızca Davetle
+Invite People	İnsanları Davet Et
+Invite friends to %	Arkadaşlarını % sunucusuna davet et
+Invite to Server	Sunucuya Davet Et
+Invite to Speak	Konuşmaya Davet Et
+Invites	Davetler
+Invites are currently paused for this server. Please try again later.	Bu sunucu için davetler şu anda duraklatıldı. Lütfen daha sonra tekrar dene.
+Invites are paused: nobody can join with an invite link until they're enabled again.	Davetler duraklatıldı: tekrar etkinleştirilene kadar kimse davet bağlantısıyla katılamaz.
+It's quiet for now...	Şimdilik sessiz...
+Italian	İtalyanca
+JOINED DISCORD	DISCORD'A KATILDI
+JSON API	JSON API
+January|February|March|April|May|June|July|August|September|October|November|December	Ocak|Şubat|Mart|Nisan|Mayıs|Haziran|Temmuz|Ağustos|Eylül|Ekim|Kasım|Aralık
+Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec	Oca|Şub|Mar|Nis|May|Haz|Tem|Ağu|Eyl|Eki|Kas|Ara
+Japanese	Japonca
+Jitter	Titreşim
+Join	Katıl
+Join Call	Aramaya Katıl
+Join Server	Sunucuya Katıl
+Join Thread	Alt Başlığa Katıl
+Join Voice	Sese Katıl
+Join a Server	Bir Sunucuya Katıl
+Join the call	Aramaya katıl
+Joined Threads	Katılınan Alt Başlıklar
+Joining…	Katılınıyor…
+Jump	Git
+Jump To Present	Şimdiye Git
+Jump to oldest unread message	En eski okunmamış mesaja git
+KEYBIND	TUŞ ATAMASI
+Keep Current Permissions	Mevcut İzinleri Koru
+Keep these somewhere safe. Each code signs you in once if you lose your authenticator app; they are shown only now.	Bunları güvenli bir yerde sakla. Kimlik doğrulama uygulamanı kaybedersen her kod seni bir kez giriş yaptırır; yalnızca şimdi gösteriliyorlar.
+Keep your server private, or open it up for more people to join.	Sunucunu gizli tut ya da daha fazla kişinin katılması için herkese aç.
+Keybinds	Tuş Atamaları
+Keybinds only work while fastcord is focused. To use them in other apps, allow fastcord under Input Monitoring in System Settings, then restart fastcord.	Tuş atamaları yalnızca fastcord odaktayken çalışır. Diğer uygulamalarda kullanmak için Sistem Ayarları'ndaki Giriş İzleme bölümünde fastcord'a izin ver, ardından fastcord'u yeniden başlat.
+Keybinds only work while fastcord is focused: this desktop doesn't let apps see keys pressed in other windows.	Tuş atamaları yalnızca fastcord odaktayken çalışır: bu masaüstü, uygulamaların diğer pencerelerde basılan tuşları görmesine izin vermiyor.
+Keybinds work in every app, also while fastcord is in the background.	Tuş atamaları her uygulamada, fastcord arka plandayken de çalışır.
+Keyboard Shortcuts	Klavye Kısayolları
+Keyboard shortcuts	Klavye kısayolları
+Keyword: %	Anahtar kelime: %
+Kick	At
+Kick %	At: %
+Kick '%' from Server	Sunucudan At: '%'
+Kick Member	Üyeyi At
+Kick, Approve, and Reject Members	Üyeleri At, Onayla ve Reddet
+Korean	Korece
+LIVE	CANLI
+Language	Dil
+Language & Time	Dil ve Saat
+Last sync: %	Son eşitleme: %
+Leave Group	Gruptan Ayrıl
+Leave Server	Sunucudan Ayrıl
+Leave Thread	Alt Başlıktan Ayrıl
+Leaving Discord	Discord'dan Ayrılıyorsun
+Left %	Ayrıldı: %
+Let everyone know how to use this channel!	Herkese bu kanalın nasıl kullanılacağını anlat!
+Let's Check	Kontrol Edelim
+Level %!	Seviye %!
+Limits	Sınırlar
+Limits the number of users that can connect to this voice channel. Users with the Move Members permission ignore this limit and can move other users into the channel.	Bu ses kanalına bağlanabilecek kullanıcı sayısını sınırlar. Üyeleri Taşı iznine sahip kullanıcılar bu sınırı yok sayar ve diğer kullanıcıları kanala taşıyabilir.
+Linked Roles	Bağlı Roller
+List view	Liste görünümü
+Lithuanian	Litvanca
+Live Now	Şu An Canlı
+Loading sounds…	Sesler yükleniyor…
+Loading...	Yükleniyor...
+Loading…	Yükleniyor…
+Location	Konum
+Log In	Giriş Yap
+Log Out	Çıkış Yap
+Log Out All Known Devices	Bilinen Tüm Cihazlardan Çıkış Yap
+Log in	Giriş yap
+Log in to Discord in your web browser.	Web tarayıcında Discord'a giriş yap.
+Log in with QR Code	QR Koduyla Giriş Yap
+Log in with a token	Token ile giriş yap
+Log out of all known devices	Bilinen tüm cihazlardan çıkış yap
+Logged-in Devices	Giriş Yapılmış Cihazlar
+Logging in as %	% olarak giriş yapılıyor
+Logging in…	Giriş yapılıyor…
+Login or password is invalid.	Giriş bilgisi veya şifre geçersiz.
+Looking for screens…	Ekranlar aranıyor…
+Lotus Mode	Lotus Modu
+Low	Düşük
+Lower Hand	Eli İndir
+MAX NUMBER OF USES	MAKSİMUM KULLANIM SAYISI
+MEMBER SINCE	ÜYELİK TARİHİ
+MEMBERS	ÜYELER
+MUTE	SUSTUR
+Main Profile	Ana Profil
+Make a selection	Bir seçim yap
+Manage Accounts	Hesapları Yönet
+Manage Channel	Kanalı Yönet
+Manage Channels	Kanalları Yönet
+Manage Events	Etkinlikleri Yönet
+Manage Expressions	İfadeleri Yönet
+Manage Members	Üyeleri Yönet
+Manage Messages	Mesajları Yönet
+Manage Nicknames	Takma Adları Yönet
+Manage Permissions	İzinleri Yönet
+Manage Roles	Rolleri Yönet
+Manage Server	Sunucuyu Yönet
+Manage Threads and Posts	Alt Başlıkları ve Gönderileri Yönet
+Manage Webhooks	Webhook'ları Yönet
+Manage settings that help keep your server active.	Sunucunun aktif kalmasına yardımcı olan ayarları yönet.
+Mark All as Read	Tümünü Okundu İşaretle
+Mark As Read	Okundu İşaretle
+Mark Folder As Read	Klasörü Okundu İşaretle
+Mark Unread	Okunmadı İşaretle
+Mark a message unread	Bir mesajı okunmadı işaretle
+Mark as Verified	Doğrulandı İşaretle
+Mark as spoiler	Spoiler olarak işaretle
+Mark channel read	Kanalı okundu işaretle
+Mark server read	Sunucuyu okundu işaretle
+Marked as read	Okundu işaretlendi
+Marks your message as a spoiler.	Mesajını spoiler olarak işaretler.
+Match your device's light or dark mode.	Cihazının açık veya koyu moduna uy.
+Max file size is % MB please.	Maksimum dosya boyutu % MB, lütfen.
+Measuring	Ölçülüyor
+Medium	Orta
+Member Since	Üyelik Tarihi
+Members	Üyeler
+Members can pick more than one answer	Üyeler birden fazla cevap seçebilir
+Members can wear your server's tag next to their name across Discord.	Üyeler sunucunun etiketini Discord genelinde adlarının yanında taşıyabilir.
+Members in timeout can't send messages, react, join voice or speak until it ends.	Zaman aşımındaki üyeler süre bitene kadar mesaj gönderemez, tepki veremez, sese katılamaz veya konuşamaz.
+Members in timeout can't send messages, react, join voice or start threads until it ends.	Zaman aşımındaki üyeler süre bitene kadar mesaj gönderemez, tepki veremez, sese katılamaz veya alt başlık başlatamaz.
+Members matching @%	@% ile eşleşen üyeler
+Members must answer this question to join.	Üyeler katılmak için bu soruyu cevaplamalı.
+Members of the server must meet the following criteria before they can send messages in text channels or initiate a direct message conversation. If a member has an assigned role this does not apply.	Sunucu üyelerinin metin kanallarında mesaj gönderebilmesi veya direkt mesaj başlatabilmesi için aşağıdaki koşulları karşılaması gerekir. Atanmış bir rolü olan üyeler için bu geçerli değildir.
+Members use the colour of the highest role they have on the roles list.	Üyeler, rol listesindeki en yüksek rollerinin rengini kullanır.
+Members use the colour of the highest role they have on this list. Drag roles, or use the arrows, to reorder them.	Üyeler, bu listedeki en yüksek rollerinin rengini kullanır. Sıralamak için rolleri sürükle veya okları kullan.
+Members will be restricted to sending one message and creating one thread per this interval, unless they have the Bypass Slowmode permission.	Yavaş Modu Atla iznine sahip olmayan üyeler bu aralıkta yalnızca bir mesaj gönderebilir ve bir alt başlık oluşturabilir.
+Members with a matching name can't talk or interact until they change it.	Adı eşleşen üyeler adlarını değiştirene kadar konuşamaz veya etkileşimde bulunamaz.
+Members with this permission will have every permission and will also bypass all channel specific permissions or restrictions (for example, these members would get access to all private channels). This is a dangerous permission to grant.	Bu izne sahip üyeler tüm izinlere sahip olur ve kanala özel tüm izinleri veya kısıtlamaları da atlar (örneğin bu üyeler tüm gizli kanallara erişebilir). Bu, verilmesi tehlikeli bir izindir.
+Members — %	Üyeler — %
+Membership Permissions	Üyelik İzinleri
+Mention	Bahset
+Mention %	Bahset: %
+Mention @everyone, @here, and All Roles	@everyone, @here ve Tüm Rollerden Bahset
+Mention limit	Bahsetme sınırı
+Mention raid protection	Bahsetme baskını koruması
+Mention removed	Bahsetme kaldırıldı
+Mentions	Bahsetmeler
+Mentions User	Kullanıcıdan Bahsediyor
+Message	Mesaj
+Message #%	#% kanalına mesaj gönder
+Message %	% kişisine mesaj gönder
+Message @%	@% kişisine mesaj gönder
+Message @% (encrypted)	@% kişisine mesaj gönder (şifreli)
+Message @% (not encrypted)	@% kişisine mesaj gönder (şifresiz)
+Message Contains	Mesaj İçeriği
+Message Display	Mesaj Görünümü
+Message Requests	Mesaj İstekleri
+Message deleted	Mesaj silindi
+Message failed to send.	Mesaj gönderilemedi.
+Message link copied: paste it into Discord's report form	Mesaj bağlantısı kopyalandı: Discord'un bildirim formuna yapıştır
+Message request ignored	Mesaj isteği yok sayıldı
+Message unpinned	Mesajın sabitlemesi kaldırıldı
+Messages Failed To Load	Mesajlar Yüklenemedi
+Messages from members you may not know go to Message Requests.	Tanımıyor olabileceğin üyelerden gelen mesajlar Mesaj İstekleri'ne gider.
+Messages from people you may not know go to Message Requests instead of your DMs.	Tanımıyor olabileceğin kişilerden gelen mesajlar DM'lerin yerine Mesaj İstekleri'ne gider.
+Messages from server members without a role will be filtered for sensitive image-based media.	Rolü olmayan sunucu üyelerinden gelen mesajlar hassas görsel içerik için filtrelenecek.
+Messages in servers	Sunuculardaki mesajlar
+Messages will not be filtered for sensitive image-based media.	Mesajlar hassas görsel içerik için filtrelenmeyecek.
+Messaging Permissions	Mesajlaşma İzinleri
+Minimize to Tray	Tepsiye Küçült
+Mobile Push Notifications	Mobil Anlık Bildirimler
+Moderation	Moderasyon
+Moderators must have two-factor authentication enabled to ban, kick, or timeout members and delete messages.	Moderatörlerin üyeleri yasaklaması, atması, zaman aşımına uğratması ve mesaj silmesi için iki faktörlü kimlik doğrulamayı etkinleştirmiş olması gerekir.
+Moderators only	Yalnızca moderatörler
+Modern, beautiful, and easy on your eyes.	Modern, güzel ve gözünü yormaz.
+Modify Attachment	Eki Düzenle
+Motion	Hareket
+Move Members	Üyeleri Taşı
+Move To	Şuraya Taşı
+Move to Audience	Dinleyicilere Taşı
+Multi-Factor Authentication	Çok Faktörlü Kimlik Doğrulama
+Must also be a member of this server for longer than 10 minutes.	Ayrıca 10 dakikadan uzun süredir bu sunucunun üyesi olmalı.
+Must also be registered on Discord for longer than 5 minutes.	Ayrıca 5 dakikadan uzun süredir Discord'a kayıtlı olmalı.
+Must have a verified email on their Discord account.	Discord hesabında doğrulanmış bir e-posta olmalı.
+Must have a verified phone on their Discord account.	Discord hesabında doğrulanmış bir telefon olmalı.
+Mute	Sustur
+Mute %	Sustur: %
+Mute Category	Kategoriyi Sustur
+Mute Channel	Kanalı Sustur
+Mute Members	Üyeleri Sustur
+Mute New Events	Yeni Etkinlikleri Sustur
+Mute Server	Sunucuyu Sustur
+Mute Thread	Alt Başlığı Sustur
+Muted until %1, %2	Şu zamana kadar susturuldu: %1, %2
+Muting a server prevents unread indicators and notifications from appearing unless you are mentioned.	Bir sunucuyu susturmak, senden bahsedilmedikçe okunmamış göstergelerinin ve bildirimlerin görünmesini engeller.
+Mutual Friends	Ortak Arkadaşlar
+Mutual Servers	Ortak Sunucular
+My Account	Hesabım
+My server	Sunucum
+NAME	AD
+NEW	YENİ
+NEW PASSWORD	YENİ ŞİFRE
+NO ACTIVE INVITE LINKS	ETKİN DAVET BAĞLANTISI YOK
+NOTHING	HİÇBİR ŞEY
+Name	Ad
+Name your sound	Sesine bir ad ver
+Name your sticker	Çıkartmana bir ad ver
+Nature	Doğa
+Navigate Back	Geri Git
+Navigate Forward	İleri Git
+Need an account?	Hesaba mı ihtiyacın var?
+Network	Ağ
+Never	Asla
+Nevermind	Boş Ver
+New Category	Yeni Kategori
+New Group DM	Yeni Grup DM
+New Post	Yeni Gönderi
+New Thread	Yeni Alt Başlık
+New Webhook	Yeni Webhook
+New members must read and agree to these before they can talk.	Yeni üyeler konuşabilmek için bunları okuyup kabul etmeli.
+New members pick channels and roles from your questions when they join.	Yeni üyeler katıldıklarında sorularından kanal ve rol seçer.
+New tag	Yeni etiket
+New threads will stop showing in the channel list after being inactive for the specified duration.	Yeni alt başlıklar belirtilen süre boyunca hareketsiz kaldıktan sonra kanal listesinde görünmeyi bırakır.
+Newest	En Yeni
+Next	İleri
+Nickname	Takma Ad
+Nicknames are visible to everyone on this server. Do not change them unless you are enforcing a naming system or clearing a bad nickname.	Takma adlar bu sunucudaki herkes tarafından görülebilir. Bir adlandırma sistemi uygulamıyorsan veya uygunsuz bir takma adı temizlemiyorsan bunları değiştirme.
+No GIFs found	GIF bulunamadı
+No Inactive Channel	Hareketsiz Kanal Yok
+No Invite	Davet Yok
+No Keybind Set	Tuş Ataması Yok
+No System Messages	Sistem Mesajı Yok
+No applications waiting	Bekleyen başvuru yok
+No apps have been added to this server.	Bu sunucuya hiç uygulama eklenmemiş.
+No bans	Yasak yok
+No bans match your search	Aramanla eşleşen yasak yok
+No emoji found	Emoji bulunamadı
+No favorites yet	Henüz favori yok
+No file chosen	Dosya seçilmedi
+No friends in common	Ortak arkadaş yok
+No limit	Sınır yok
+No logs yet	Henüz kayıt yok
+No members found	Üye bulunamadı
+No members have this role yet.	Henüz bu role sahip üye yok.
+No message requests.	Mesaj isteği yok.
+No one is speaking yet	Henüz kimse konuşmuyor
+No one's around right now.	Şu anda kimse yok.
+No one's here yet	Henüz burada kimse yok
+No posts match	Eşleşen gönderi yok
+No posts yet	Henüz gönderi yok
+No questions yet.	Henüz soru yok.
+No reason given	Sebep belirtilmedi
+No results	Sonuç yok
+No results found	Sonuç bulunamadı
+No servers in common	Ortak sunucu yok
+No sounds found	Ses bulunamadı
+No sounds yet.	Henüz ses yok.
+No spam. Nice.	Spam yok. Harika.
+No stickers found	Çıkartma bulunamadı
+No stickers yet	Henüz çıkartma yok
+Nobody can join this server with an invite link until the pause ends or you enable invites again.	Duraklatma bitene veya davetleri tekrar etkinleştirene kadar kimse bu sunucuya davet bağlantısıyla katılamaz.
+Nobody has mentioned you recently.	Son zamanlarda kimse senden bahsetmedi.
+Noise Suppression	Gürültü Engelleme
+Noise Suppression: Off	Gürültü Engelleme: Kapalı
+Noise Suppression: On	Gürültü Engelleme: Açık
+None	Hiçbiri
+Norwegian	Norveççe
+Not Now	Şimdi Değil
+Not connected to % yet.	Henüz % ile bağlantı yok.
+Not encrypted	Şifreli değil
+Not encrypted: Discord can read this message	Şifreli değil: Discord bu mesajı okuyabilir
+Not end-to-end encrypted	Uçtan uca şifreli değil
+Not me, start over	Ben değilim, baştan başla
+Note	Not
+Note (only visible to you)	Not (yalnızca sen görebilirsin)
+Note: Members with the "Mention @everyone, @here, and All Roles" permission will always be able to ping this role.	Not: "@everyone, @here ve Tüm Rollerden Bahset" iznine sahip üyeler bu rolü her zaman etiketleyebilir.
+Nothing	Hiçbir şey
+Notification Settings	Bildirim Ayarları
+Notification settings changed	Bildirim ayarları değiştirildi
+Notifications	Bildirimler
+Notify everyone online who has permission to view this channel.	Bu kanalı görme iznine sahip çevrimiçi herkesi bilgilendir.
+Notify everyone who has permission to view this channel.	Bu kanalı görme iznine sahip herkesi bilgilendir.
+Notify me when...	Beni şu durumda bilgilendir...
+Notify users with this role who have permission to view this channel.	Bu role sahip olup bu kanalı görme iznine sahip kullanıcıları bilgilendir.
+OUTPUT DEVICE	ÇIKIŞ CİHAZI
+OUTPUT VOLUME	ÇIKIŞ SES SEVİYESİ
+Objects	Nesneler
+Off	Kapalı
+Offline	Çevrimdışı
+Oh yeah. Pin it	Evet. Sabitle
+Okay	Tamam
+Oldest	En Eski
+On click	Tıklayınca
+On servers I moderate	Moderatörü olduğum sunucularda
+Onboarding	Katılım Ekranı
+One rule per line, for example: Be respectful	Her satıra bir kural, örneğin: Saygılı ol
+Ongoing call	Devam eden arama
+Online	Çevrimiçi
+Only @mentions	Yalnızca @bahsetmeler
+Only servers and channels you have webhook permissions in are shown.	Yalnızca webhook iznine sahip olduğun sunucular ve kanallar gösterilir.
+Only you can see the nickname you give %.	% için verdiğin takma adı yalnızca sen görebilirsin.
+Only you can see this · 	Bunu yalnızca sen görebilirsin ·
+Oops!	Hay aksi!
+Open Chat	Sohbeti Aç
+Open Image Link	Görsel Bağlantısını Aç
+Open Link	Bağlantıyı Aç
+Open Logs Folder	Kayıt Klasörünü Aç
+Open Media Link	Medya Bağlantısını Aç
+Open Server Insights	Sunucu Analizleri'ni Aç
+Open Settings	Ayarları Aç
+Open discord.com	discord.com'u Aç
+Open in Browser	Tarayıcıda Aç
+Open in YouTube	YouTube'da Aç
+Open the developer tools (Cmd+Option+I) and choose the Network tab.	Geliştirici araçlarını aç (Cmd+Option+I) ve Ağ sekmesini seç.
+Open the developer tools (Ctrl+Shift+I) and choose the Network tab.	Geliştirici araçlarını aç (Ctrl+Shift+I) ve Ağ sekmesini seç.
+Or, send a server invite link to a friend	Ya da bir arkadaşına sunucu davet bağlantısı gönder
+Original message was deleted	Orijinal mesaj silindi
+Other Active Threads	Diğer Etkin Alt Başlıklar
+Other Devices	Diğer Cihazlar
+Outgoing Friend Request	Giden Arkadaşlık İsteği
+Overview	Genel Bakış
+PASSWORD	ŞİFRE
+PM	ÖS
+PRIVACY CODE	GİZLİLİK KODU
+PTT Activate	Bas-Konuş Etkin
+PTT Deactivate	Bas-Konuş Devre Dışı
+PUSH TO TALK RELEASE DELAY	BAS-KONUŞ BIRAKMA GECİKMESİ
+Packet loss	Paket kaybı
+Packets received	Alınan paketler
+Packets sent	Gönderilen paketler
+Page %	Sayfa %
+Password	Şifre
+Password and Authentication	Şifre ve Kimlik Doğrulama
+Passwords do not match!	Şifreler eşleşmiyor!
+Paste	Yapıştır
+Paste an emoji (optional)	Bir emoji yapıştır (isteğe bağlı)
+Paste your token	Token'ını yapıştır
+Pause Invites	Davetleri Duraklat
+Pending	Bekleyen
+People	İnsanlar
+People can join your server directly with an invite	İnsanlar sunucuna bir davetle doğrudan katılabilir
+People in a voice channel with you can join the game you're playing.	Seninle aynı ses kanalındaki kişiler oynadığın oyuna katılabilir.
+People must submit an application and be approved to join	İnsanların katılmak için başvuru gönderip onaylanması gerekir
+People who applied to join, waiting for a moderator.	Katılmak için başvuran ve bir moderatörü bekleyen kişiler.
+Per-server Profiles	Sunucu Profilleri
+Permissions	İzinler
+Permissions not synced with category: 	İzinler kategoriyle eşitlenmedi:
+Permissions synced with category: 	İzinler kategoriyle eşitlendi:
+Permissions: %	İzinler: %
+Phone Number	Telefon Numarası
+Pick a channel	Bir kanal seç
+Pick a channel for the alerts.	Uyarılar için bir kanal seç.
+Pick at least one response.	En az bir yanıt seç.
+Pin It. Pin It Good.	Sabitle. İyice Sabitle.
+Pin Message	Mesajı Sabitle
+Pin Messages	Mesajları Sabitle
+Ping	Ping
+Ping: % ms	Ping: % ms
+Ping: measuring…	Ping: ölçülüyor…
+Pinned Messages	Sabitlenmiş Mesajlar
+Play Here	Burada Oynat
+Play Soundboard Through My Mic	Ses Panelini Mikrofonumdan Çal
+Play YouTube videos here with yt-dlp? It needs yt-dlp installed, and connects to YouTube from your computer. Settings > Chat can change this.	YouTube videoları burada yt-dlp ile oynatılsın mı? yt-dlp'nin yüklü olması gerekir ve bilgisayarından YouTube'a bağlanır. Bunu Ayarlar > Sohbet bölümünden değiştirebilirsin.
+Play YouTube videos in fastcord with yt-dlp	YouTube videolarını fastcord'da yt-dlp ile oynat
+Please enter a valid invite link or invite code.	Lütfen geçerli bir davet bağlantısı veya davet kodu gir.
+Please try again later.	Lütfen daha sonra tekrar dene.
+Polish	Lehçe
+Poll closed	Anket kapandı
+Portuguese, Brazilian	Portekizce, Brezilya
+Post	Gönderi
+Post Guidelines	Gönderi Kuralları
+Post from a script	Bir betikten gönder
+Post messages that reach servers outside your own. Members can follow this channel, so the posts you publish here appear in their servers.	Kendi sunucunun dışındaki sunuculara ulaşan mesajlar gönder. Üyeler bu kanalı takip edebilir; böylece burada yayımladığın gönderiler onların sunucularında görünür.
+Post title	Gönderi başlığı
+Posting...	Gönderiliyor...
+Press a shortcut…	Bir kısayola bas…
+Previous	Önceki
+Previous / next channel	Önceki / sonraki kanal
+Previous / next channel with mentions	Bahsetme içeren önceki / sonraki kanal
+Previous / next server	Önceki / sonraki sunucu
+Previous / next unread channel	Önceki / sonraki okunmamış kanal
+Previous 12 Hours	Son 12 Saat
+Previous 24 Hours	Son 24 Saat
+Previous 3 Days	Son 3 Gün
+Previous 6 Hours	Son 6 Saat
+Previous 7 Days	Son 7 Gün
+Previous Hour	Son 1 Saat
+Priority Speaker	Öncelikli Konuşmacı
+Privacy Settings	Gizlilik Ayarları
+Private Category	Gizli Kategori
+Private Channel	Gizli Kanal
+Private Profile	Gizli Profil
+Profile	Profil
+Profile Banner	Profil Afişi
+Profile Privacy	Profil Gizliliği
+Profiles	Profiller
+Prompt members to reply to welcome messages with a sticker.	Üyeleri hoş geldin mesajlarına çıkartmayla yanıt vermeye teşvik et.
+Pronouns	Zamirler
+Protect your Discord account with an extra layer of security. Once configured, you'll be required to enter your password and complete one additional step in order to sign in.	Discord hesabını ek bir güvenlik katmanıyla koru. Ayarlandıktan sonra giriş yapmak için şifreni girmen ve ek bir adımı tamamlaman gerekecek.
+Protip:	İpucu:
+Publish	Yayımla
+Push to Mute	Bas-Sustur
+Push to Talk	Bas-Konuş
+Push to Talk (Normal)	Bas-Konuş (Normal)
+Q: %	S: %
+Question	Soru
+Questions	Sorular
+ROLES	ROLLER
+ROLES — %	ROLLER — %
+ROLES/MEMBERS	ROLLER/ÜYELER
+RTC Connecting	RTC Bağlanıyor
+Read Message History	Mesaj Geçmişini Oku
+Reason	Sebep
+Reason for Ban	Yasaklama Sebebi
+Reason for Kick	Atma Sebebi
+Reason for Timeout	Zaman Aşımı Sebebi
+Reason: %	Sebep: %
+Received	Alındı
+Recently Active	Son Zamanlarda Aktif
+Reconnect	Yeniden Bağlan
+Record Keybind	Tuş Atamasını Kaydet
+Reduce the saturation of colors within the application, for those with color sensitivities.	Renk hassasiyeti olanlar için uygulamadaki renklerin doygunluğunu azalt.
+Reduces the amount of animation and motion effects. On whenever your device asks for reduced motion.	Animasyon ve hareket efektlerini azaltır. Cihazın azaltılmış hareket istediğinde her zaman açıktır.
+Region Override	Bölge Geçersiz Kılma
+Register	Kaydol
+Reject	Reddet
+Rejoin	Yeniden Katıl
+Related Emoji	İlgili Emoji
+Relevant	İlgili
+Remove	Kaldır
+Remove %	Kaldır: %
+Remove All Embeds	Tüm Gömülü İçerikleri Kaldır
+Remove All Reactions	Tüm Tepkileri Kaldır
+Remove Answer	Cevabı Kaldır
+Remove Attachment	Eki Kaldır
+Remove Authenticator App	Kimlik Doğrulama Uygulamasını Kaldır
+Remove Avatar	Avatarı Kaldır
+Remove Embeds	Gömülü İçerikleri Kaldır
+Remove Friend	Arkadaşı Çıkar
+Remove From Group	Gruptan Çıkar
+Remove Icon	Simgeyi Kaldır
+Remove Reaction	Tepkiyi Kaldır
+Remove Reactions	Tepkileri Kaldır
+Remove Reactions for Emoji	Emojiye Ait Tepkileri Kaldır
+Remove Server	Sunucuyu Kaldır
+Remove Spoiler	Spoiler'ı Kaldır
+Remove Timeout	Zaman Aşımını Kaldır
+Remove Vote	Oyu Kaldır
+Remove all embeds	Tüm gömülü içerikleri kaldır
+Remove from Favorites	Favorilerden Kaldır
+Remove notification override for %	% için bildirim istisnasını kaldır
+Remove the files added before encryption was on: they'd go unencrypted.	Şifreleme açılmadan önce eklenen dosyaları kaldır: şifresiz gönderilirler.
+Remove the files added while encryption was on: they'd arrive as unreadable ciphertext.	Şifreleme açıkken eklenen dosyaları kaldır: okunamaz şifreli metin olarak ulaşırlar.
+Removing…	Kaldırılıyor…
+Repeated encrypted message	Tekrarlanan şifreli mesaj
+Reply	Yanıtla
+Replying to	Yanıtlanıyor:
+Report Message	Mesajı Bildir
+Request Data	Veri İste
+Request all of my Data	Tüm Verilerimi İste
+Request to Speak	Konuşma İsteği
+Requests	İstekler
+Require 2FA for moderator actions	Moderatör eylemleri için 2FA zorunlu olsun
+Require members to agree to the server rules	Üyelerin sunucu kurallarını kabul etmesi zorunlu olsun
+Require people to select tags when posting	Gönderi paylaşırken etiket seçmek zorunlu olsun
+Required	Zorunlu
+Resend SMS?	SMS tekrar gönderilsin mi?
+Reset	Sıfırla
+Reset Friend Nickname	Arkadaş Takma Adını Sıfırla
+Reset Voice Settings	Ses Ayarlarını Sıfırla
+Resolving Invite	Davet Çözümleniyor
+Responses	Yanıtlar
+Retry	Tekrar Dene
+Retry Now	Şimdi Tekrar Dene
+Return to call	Aramaya dön
+Return to the connected call	Bağlı olunan aramaya dön
+Reveal	Göster
+Review	İncele
+Revoke	İptal Et
+Revoke Ban	Yasağı Kaldır
+Revoke Invite	Daveti İptal Et
+Revoke the ban? They will be able to join again with an invite.	Yasak kaldırılsın mı? Bir davetle tekrar katılabilecek.
+Ring	Çaldır
+Ringing…	Çalıyor…
+Role Color	Rol Rengi
+Role Colors	Rol Renkleri
+Role Icon	Rol Simgesi
+Role name	Rol adı
+Roles	Roller
+Romanian, Romania	Rumence, Romanya
+Rule: %	Kural: %
+Rules or Guidelines Channel	Kurallar veya Yönergeler Kanalı
+Russian	Rusça
+SELECT A CHANNEL	BİR KANAL SEÇ
+SELECT A SERVER	BİR SUNUCU SEÇ
+SERVER NAME	SUNUCU ADI
+SOUNDBOARD VOLUME	SES PANELİ SES SEVİYESİ
+STATIC EMOJI — % SLOTS AVAILABLE	SABİT EMOJİ — % BOŞ YER
+Safety Notifications Channel	Güvenlik Bildirimleri Kanalı
+Safety Number	Güvenlik Numarası
+Safety Setup	Güvenlik Kurulumu
+Safety checks	Güvenlik kontrolleri
+Same as Device Theme	Cihaz Temasıyla Aynı
+Saturation	Doygunluk
+Save	Kaydet
+Save Changes	Değişiklikleri Kaydet
+Save Image	Görseli Kaydet
+Saving...	Kaydediliyor...
+Saving…	Kaydediliyor…
+Scan this with the Discord mobile app to log in instantly.	Anında giriş yapmak için bunu Discord mobil uygulamasıyla tara.
+Schedule an event for any planned activity in your server.	Sunucundaki planlı her etkinlik için bir etkinlik planla.
+Screen	Ekran
+Screen sharing isn't supported on this platform yet.	Ekran paylaşımı bu platformda henüz desteklenmiyor.
+Scroll chat	Sohbeti kaydır
+Search	Ara
+Search %	Ara: %
+Search Bans by User ID or Username	Yasakları Kullanıcı ID'si veya Kullanıcı Adıyla Ara
+Search Klipy	Klipy'de Ara
+Search Options	Arama Seçenekleri
+Search by username or id	Kullanıcı adı veya ID ile ara
+Search for friends	Arkadaş ara
+Search members to add (press Enter)	Eklenecek üyeleri ara (Enter'a bas)
+Search or create a post...	Gönderi ara veya oluştur...
+Search sounds	Ses ara
+Searching...	Aranıyor...
+Select Friends	Arkadaş Seç
+Select a Language	Dil Seç
+Select a channel	Bir kanal seç
+Select a channel or category…	Bir kanal veya kategori seç…
+Select one answer	Bir cevap seç
+Select one or more answers	Bir veya daha fazla cevap seç
+Select where you want these updates to go. You can remove this at any time in Server Settings > Integrations > Channels Followed.	Bu güncellemelerin nereye gideceğini seç. Bunu istediğin zaman Sunucu Ayarları > Entegrasyonlar > Takip Edilen Kanallar bölümünden kaldırabilirsin.
+Select where you want to share this message.	Bu mesajı nerede paylaşmak istediğini seç.
+Send	Gönder
+Send Friend Request	Arkadaşlık İsteği Gönder
+Send Messages and Create Posts	Mesaj Gönder ve Gönderi Oluştur
+Send Messages in Threads and Posts	Alt Başlıklarda ve Gönderilerde Mesaj Gönder
+Send New Key	Yeni Anahtar Gönder
+Send Text-to-Speech Messages	Metin Okuma Mesajları Gönder
+Send Voice Messages	Sesli Mesaj Gönder
+Send a random welcome message when someone joins this server.	Biri bu sunucuya katıldığında rastgele bir hoş geldin mesajı gönder.
+Send a server invite link to a friend	Bir arkadaşına sunucu davet bağlantısı gönder
+Send an alert	Uyarı gönder
+Send helpful tips for server setup.	Sunucu kurulumu için faydalı ipuçları gönder.
+Send messages, images, GIFs, emoji, opinions, and puns	Mesaj, görsel, GIF, emoji, fikir ve kelime oyunları gönder
+Sending...	Gönderiliyor...
+Sent	Gönderildi
+Sent a file	Bir dosya gönderdi
+Sent a sticker	Bir çıkartma gönderdi
+Sent — %	Gönderilen — %
+Server	Sunucu
+Server Avatar	Sunucu Avatarı
+Server Deafen	Sunucuda Sağırlaştır
+Server Deafened	Sunucuda Sağırlaştırıldı
+Server Guide	Sunucu Rehberi
+Server ID	Sunucu ID'si
+Server Info	Sunucu Bilgisi
+Server Insights	Sunucu Analizleri
+Server Insights is hosted on a separate website so that it's easier to share links and browse cross platform.	Sunucu Analizleri, bağlantı paylaşmak ve farklı platformlarda gezinmek daha kolay olsun diye ayrı bir web sitesinde barındırılır.
+Server Mute	Sunucuda Sustur
+Server Muted	Sunucuda Susturuldu
+Server Nickname	Sunucu Takma Adı
+Server Notification Settings	Sunucu Bildirim Ayarları
+Server Primary Language	Sunucunun Ana Dili
+Server Profile	Sunucu Profili
+Server Rules	Sunucu Kuralları
+Server Settings	Sunucu Ayarları
+Server Tag	Sunucu Etiketi
+Server Template	Sunucu Şablonu
+Server Widget	Sunucu Widget'ı
+Server members	Sunucu üyeleri
+Server members can only send you friend requests from servers where you also allow Direct Messages.	Sunucu üyeleri sana yalnızca Direkt Mesajlara da izin verdiğin sunuculardan arkadaşlık isteği gönderebilir.
+Server name must be between 2 and 100 characters.	Sunucu adı 2 ile 100 karakter arasında olmalı.
+Server unmuted	Sunucunun sesi açıldı
+Sessions	Oturumlar
+Set Custom Status	Özel Durum Ayarla
+Set Voice Channel Status	Ses Kanalı Durumu Ayarla
+Set a custom status	Özel durum ayarla
+Set up AutoMod to automatically filter messages in this server with the rules below. Members with Manage Server or Administrator are exempt.	Bu sunucudaki mesajları aşağıdaki kurallarla otomatik filtrelemesi için AutoMod'u ayarla. Sunucuyu Yönet veya Yönetici iznine sahip üyeler muaftır.
+Sets camera video quality for all channel participants. Choose Auto for optimal performance.	Tüm kanal katılımcıları için kamera görüntü kalitesini ayarlar. En iyi performans için Otomatik'i seç.
+Setting up encryption: % needs to open fastcord once.	Şifreleme ayarlanıyor: % fastcord'u bir kez açmalı.
+Several people are typing...	Birkaç kişi yazıyor...
+Severe Profanity	Ağır Küfür
+Sexual Content	Cinsel İçerik
+Share	Paylaş
+Share Event	Etkinliği Paylaş
+Share Your Screen	Ekranını Paylaş
+Share my full profile with	Tam profilimi şunlarla paylaş
+Share your detected activities with others	Algılanan etkinliklerini başkalarıyla paylaş
+Show	Göster
+Show Chat	Sohbeti Göster
+Show a system notification for messages that would notify you (DMs, mentions, servers set to all messages).	Seni bilgilendirecek mesajlar için sistem bildirimi göster (DM'ler, bahsetmeler, tüm mesajlara ayarlı sunucular).
+Show embeds and preview website links pasted into chat	Sohbete yapıştırılan web sitesi bağlantılarının gömülü içeriğini ve önizlemesini göster
+Show emoji reactions on messages	Mesajlarda emoji tepkilerini göster
+Show message	Mesajı göster
+Show messages	Mesajları göster
+Show role colors in names	Rol renklerini adlarda göster
+Show role colors next to names	Rol renklerini adların yanında göster
+Show spoiler content	Spoiler içeriği göster
+Show the game or app you're using on your profile and in member lists.	Kullandığın oyunu veya uygulamayı profilinde ve üye listelerinde göster.
+Shows a red badge on the app icon when you have unread mentions.	Okunmamış bahsetmelerin olduğunda uygulama simgesinde kırmızı bir rozet gösterir.
+Silence every sound and notification and hide all badges and unread marks, so fastcord never asks for your attention.	Tüm sesleri ve bildirimleri sustur, tüm rozetleri ve okunmamış işaretlerini gizle; böylece fastcord hiç dikkatini istemez.
+Slow down! Are you sure?	Yavaş ol! Emin misin?
+Slowmode	Yavaş Mod
+Slowmode is enabled	Yavaş mod etkin
+Slowmode is enabled. Members can send one message every % hour.|Slowmode is enabled. Members can send one message every % hours.	Yavaş mod etkin. Üyeler her % saatte bir mesaj gönderebilir.|Yavaş mod etkin. Üyeler her % saatte bir mesaj gönderebilir.
+Slowmode is enabled. Members can send one message every % minute.|Slowmode is enabled. Members can send one message every % minutes.	Yavaş mod etkin. Üyeler her % dakikada bir mesaj gönderebilir.|Yavaş mod etkin. Üyeler her % dakikada bir mesaj gönderebilir.
+Slowmode is enabled. Members can send one message every % second.|Slowmode is enabled. Members can send one message every % seconds.	Yavaş mod etkin. Üyeler her % saniyede bir mesaj gönderebilir.|Yavaş mod etkin. Üyeler her % saniyede bir mesaj gönderebilir.
+Smooth Scrolling	Yumuşak Kaydırma
+So no one gets lost on where to go.	Böylece kimse nereye gideceğini şaşırmaz.
+Some older devices may not be shown here	Bazı eski cihazlar burada gösterilmeyebilir
+Someone	Biri
+Something went wrong	Bir şeyler ters gitti
+Something went wrong (HTTP %).	Bir şeyler ters gitti (HTTP %).
+Something went wrong. Try again.	Bir şeyler ters gitti. Tekrar dene.
+Somewhere Else	Başka Bir Yer
+Sorry, we couldn't load the first message in this thread	Üzgünüz, bu alt başlıktaki ilk mesajı yükleyemedik
+Sort: Date Posted	Sırala: Gönderilme Tarihi
+Sort: Recent Activity	Sırala: Son Etkinlik
+Sound Name	Ses Adı
+Sound names must be between 2 and 32 characters.	Ses adları 2 ile 32 karakter arasında olmalı.
+Soundboard	Ses Paneli
+Sounds	Sesler
+Sounds must be 5.2 seconds or shorter.	Sesler en fazla 5,2 saniye olmalı.
+Sounds must be under 512 KB.	Sesler 512 KB'tan küçük olmalı.
+Source	Kaynak
+Space between message groups	Mesaj grupları arasındaki boşluk
+Spam	Spam
+Spam Filters	Spam Filtreleri
+Spanish	İspanyolca
+Spanish, LATAM	İspanyolca, Latin Amerika
+Speak	Konuş
+Speak Message	Mesajı Seslendir
+Spoiler Attachment	Spoiler Eki
+Spoiler Content	Spoiler İçerik
+Stage	Sahne
+Start Date	Başlangıç Tarihi
+Start Event	Etkinliği Başlat
+Start Minimized	Küçültülmüş Başlat
+Start Time	Başlangıç Saati
+Starting in %m	%dk içinde başlıyor
+State	Durum
+Stickers	Çıkartmalar
+Stickers can be used by anyone in this server. Upload a PNG, APNG, GIF or Lottie JSON file of up to 512 KB; it shows at 320x320.	Çıkartmaları bu sunucudaki herkes kullanabilir. En fazla 512 KB boyutunda bir PNG, APNG, GIF veya Lottie JSON dosyası yükle; 320x320 olarak gösterilir.
+Stickers can't be sent encrypted yet.	Çıkartmalar henüz şifreli gönderilemiyor.
+Stickers must be PNG, APNG, GIF or Lottie JSON files.	Çıkartmalar PNG, APNG, GIF veya Lottie JSON dosyası olmalı.
+Stop Recording	Kaydı Durdur
+Stop Streaming	Yayını Durdur
+Stop Testing	Testi Durdur
+Stop Video	Videoyu Durdur
+Stop Watching	İzlemeyi Bırak
+Storage	Depolama
+Stream Settings	Yayın Ayarları
+Streamer Mode	Yayıncı Modu
+Streamer Mode Enabled	Yayıncı Modu Etkin
+Streamer Mode hides your personal info so others watching your stream can't see it.	Yayıncı Modu kişisel bilgilerini gizler, böylece yayınını izleyenler onları göremez.
+Streamer Mode is enabled. Usernames have been truncated.	Yayıncı Modu etkin. Kullanıcı adları kısaltıldı.
+Success! Your friend request to % was sent.	Başarılı! % kullanıcısına arkadaşlık isteğin gönderildi.
+Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday	Pazar|Pazartesi|Salı|Çarşamba|Perşembe|Cuma|Cumartesi
+Sun|Mon|Tue|Wed|Thu|Fri|Sat	Paz|Pzt|Sal|Çar|Per|Cum|Cmt
+Support has arrived!	Destek geldi!
+Suppress @everyone and @here	@everyone ve @here'i Engelle
+Suppress All Role @mentions	Tüm Rol @Bahsetmelerini Engelle
+Suppress Highlights	Öne Çıkanları Engelle
+Suppress Notifications	Bildirimleri Engelle
+Suppress background noise from your mic.	Mikrofonundaki arka plan gürültüsünü engelle.
+Swedish	İsveççe
+Switch Accounts	Hesap Değiştir
+Switch between accounts on this device.	Bu cihazdaki hesaplar arasında geçiş yap.
+Symbols	Semboller
+Sync Now	Şimdi Eşitle
+Sync Permissions	İzinleri Eşitle
+Sync Template	Şablonu Eşitle
+Sync permissions?	İzinler eşitlensin mi?
+System	Sistem
+System Messages	Sistem Mesajları
+System Messages Channel	Sistem Mesajları Kanalı
+System icon for new server members.	Yeni sunucu üyeleri için sistem simgesi.
+THREAD NAME	ALT BAŞLIK ADI
+Tag	Etiket
+Tags	Etiketler
+Tags (pick at least one)	Etiketler (en az birini seç)
+Tags let members organize their posts. Members pick them when they post; moderated tags only moderators can apply.	Etiketler üyelerin gönderilerini düzenlemesini sağlar. Üyeler gönderi paylaşırken etiket seçer; moderasyonlu etiketleri yalnızca moderatörler uygulayabilir.
+Tap the link in your email to sign in instantly — no password needed.	Anında giriş yapmak için e-postandaki bağlantıya dokun — şifre gerekmez.
+Tell people a little more about your event. Markdown, new lines, and links are supported.	İnsanlara etkinliğin hakkında biraz daha bilgi ver. Markdown, yeni satırlar ve bağlantılar desteklenir.
+Tell the world a bit about this server.	Dünyaya bu sunucu hakkında biraz bilgi ver.
+Template Description	Şablon Açıklaması
+Template Link	Şablon Bağlantısı
+Template Title	Şablon Başlığı
+Templates are an easy way to share your server setup and help anyone create a server instantly. When someone uses your server template link, they create a new server pre-filled with the same channels, roles, permissions, and settings as yours. Messages, members and your server's icon aren't copied.	Şablonlar, sunucu kurulumunu paylaşmanın ve herkesin anında sunucu oluşturmasına yardımcı olmanın kolay bir yoludur. Biri sunucu şablonu bağlantını kullandığında seninkiyle aynı kanallar, roller, izinler ve ayarlarla önceden doldurulmuş yeni bir sunucu oluşturur. Mesajlar, üyeler ve sunucu simgen kopyalanmaz.
+Temporary members are automatically kicked when they disconnect unless a role has been assigned	Geçici üyeler, bir rol atanmadıkça bağlantıları kesildiğinde otomatik olarak atılır
+Test Video	Videoyu Test Et
+Text	Metin
+Text Channel Permissions	Metin Kanalı İzinleri
+Text channel, external link, or in-person location.	Metin kanalı, harici bağlantı veya fiziksel konum.
+Thai	Tayca
+That channel isn't on this server anymore.	Bu kanal artık bu sunucuda değil.
+That file couldn't be read as an MP3 or OGG sound.	Bu dosya MP3 veya OGG ses olarak okunamadı.
+That file couldn't be read. Avatars must be PNG, JPEG, GIF or WEBP images.	Bu dosya okunamadı. Avatarlar PNG, JPEG, GIF veya WEBP görseli olmalı.
+That file couldn't be read. Banners must be PNG, JPEG, GIF or WEBP images.	Bu dosya okunamadı. Afişler PNG, JPEG, GIF veya WEBP görseli olmalı.
+That file couldn't be read. Emoji must be a PNG, JPEG, GIF, WEBP or AVIF image.	Bu dosya okunamadı. Emojiler PNG, JPEG, GIF, WEBP veya AVIF görseli olmalı.
+That file couldn't be read. Images must be PNG, JPEG, GIF or WEBP files.	Bu dosya okunamadı. Görseller PNG, JPEG, GIF veya WEBP dosyası olmalı.
+That file couldn't be read. Server icons must be PNG, JPEG, GIF or WEBP images.	Bu dosya okunamadı. Sunucu simgeleri PNG, JPEG, GIF veya WEBP görseli olmalı.
+That file is too large. Emoji must be under 256 KB.	Bu dosya çok büyük. Emojiler 256 KB'tan küçük olmalı.
+That file is too large. Stickers must be under 512 KB.	Bu dosya çok büyük. Çıkartmalar 512 KB'tan küçük olmalı.
+That image is too large.	Bu görsel çok büyük.
+That image is too large. Avatars must be under %.	Bu görsel çok büyük. Avatarlar en fazla % olmalı.
+That image is too large. Banners must be under 10 MB.	Bu görsel çok büyük. Afişler 10 MB'tan küçük olmalı.
+That image is too large. Server icons must be under 512 KB.	Bu görsel çok büyük. Sunucu simgeleri 512 KB'tan küçük olmalı.
+That isn't a valid fastcord invite.	Bu geçerli bir fastcord daveti değil.
+That's too long to send encrypted.	Bu, şifreli gönderilemeyecek kadar uzun.
+The Pin Is Stuck!	Raptiye Takıldı!
+The badge chosen in the official client stays as it is.	Resmi istemcide seçilen rozet olduğu gibi kalır.
+The invite is invalid or has expired.	Davet geçersiz veya süresi dolmuş.
+The mention limit is between 1 and 50.	Bahsetme sınırı 1 ile 50 arasındadır.
+The most important updates from this channel will now show up directly in your server. Enjoy!	Bu kanalın en önemli güncellemeleri artık doğrudan sunucunda görünecek. Keyfini çıkar!
+The owner	Sahip
+The related emoji must be one emoji.	İlgili emoji tek bir emoji olmalı.
+The results were tied	Sonuçlar berabere
+The selected channel has too many webhooks. Please remove a webhook or select another channel.	Seçilen kanalda çok fazla webhook var. Lütfen bir webhook'u kaldır veya başka bir kanal seç.
+The server	Sunucu
+The start time must be in the future.	Başlangıç saati gelecekte olmalı.
+The thread stops showing in the channel list after being inactive for this long.	Alt başlık bu kadar süre hareketsiz kaldıktan sonra kanal listesinde görünmeyi bırakır.
+Theme	Tema
+There are no active threads.	Etkin alt başlık yok.
+There are no archived threads.	Arşivlenmiş alt başlık yok.
+There are no pending friend requests.	Bekleyen arkadaşlık isteği yok.
+There are no upcoming events.	Yaklaşan etkinlik yok.
+There is no identity key.	Kimlik anahtarı yok.
+There was no winner	Kazanan yok
+These are all the devices that are currently logged-in with your Discord account. Log out of devices that you don't recognize.	Bunlar şu anda Discord hesabınla giriş yapılmış tüm cihazlar. Tanımadığın cihazlardan çıkış yap.
+They said: %	Dedi ki: %
+This account needs a passkey or security key, which fastcord can't use. Log in with the QR code instead.	Bu hesap bir geçiş anahtarı veya güvenlik anahtarı gerektiriyor, fastcord bunları kullanamıyor. Bunun yerine QR koduyla giriş yap.
+This channel contains adult content that may not be suitable for all audiences. You must be 18 or older to view it.	Bu kanal herkese uygun olmayabilecek yetişkin içerik barındırıyor. Görüntülemek için 18 yaşında veya daha büyük olmalısın.
+This channel doesn't have any pinned messages... yet.	Bu kanalda henüz sabitlenmiş mesaj yok... şimdilik.
+This device can't open this message.	Bu cihaz bu mesajı açamıyor.
+This device's encryption keys couldn't be unlocked, so earlier encrypted DMs can't be opened here.	Bu cihazın şifreleme anahtarlarının kilidi açılamadı, bu yüzden önceki şifreli DM'ler burada açılamıyor.
+This event will auto start when it's time.	Bu etkinlik zamanı geldiğinde otomatik başlayacak.
+This extra step shows it's really you.	Bu ek adım gerçekten sen olduğunu gösterir.
+This interaction failed	Bu etkileşim başarısız oldu
+This invite may be expired, or you might not have permission to join.	Bu davetin süresi dolmuş olabilir veya katılma iznin olmayabilir.
+This is the beginning of your direct message history with %.	% ile direkt mesaj geçmişinin başlangıcı.
+This is the channel we send system event messages to.	Sistem etkinliği mesajlarını gönderdiğimiz kanal budur.
+This is the start of the #% channel.	#% kanalının başlangıcı.
+This is where Discord sends updates for moderators and admins of Community servers.	Discord, Topluluk sunucularının moderatörleri ve yöneticileri için güncellemeleri buraya gönderir.
+This is where you'll show members your server rules or guidelines.	Üyelere sunucu kurallarını veya yönergelerini burada göstereceksin.
+This link is taking you to the following website	Bu bağlantı seni şu web sitesine götürüyor
+This option is not available for Community Servers.	Bu seçenek Topluluk Sunucuları için kullanılamaz.
+This role is managed by an integration and can't be edited here.	Bu rol bir entegrasyon tarafından yönetiliyor ve burada düzenlenemez.
+This server has been removed from Server Discovery because it no longer passes all the requirements. Check Server Settings for more details.	Bu sunucu artık tüm gereksinimleri karşılamadığı için Sunucu Keşfi'nden kaldırıldı. Daha fazla ayrıntı için Sunucu Ayarları'na bak.
+This server has failed Discovery activity requirements for 1 week. If this server fails for 4 weeks in a row, it will be automatically removed from Discovery.	Bu sunucu 1 haftadır Keşif etkinlik gereksinimlerini karşılamıyor. 4 hafta üst üste karşılamazsa Keşif'ten otomatik olarak kaldırılacak.
+This server has failed Discovery activity requirements for 3 weeks in a row. If this server fails for 1 more week, it will be removed from Discovery.	Bu sunucu 3 haftadır üst üste Keşif etkinlik gereksinimlerini karşılamıyor. 1 hafta daha karşılamazsa Keşif'ten kaldırılacak.
+This server has no voice channels.	Bu sunucuda ses kanalı yok.
+This server is currently full.	Bu sunucu şu anda dolu.
+This server is currently full. Please try again later.	Bu sunucu şu anda dolu. Lütfen daha sonra tekrar dene.
+This server is eligible for Server Discovery again and has been automatically relisted!	Bu sunucu yeniden Sunucu Keşfi için uygun ve otomatik olarak tekrar listelendi!
+This server is not available in your location.	Bu sunucu bulunduğun konumda kullanılamıyor.
+This server's features are limited	Bu sunucunun özellikleri sınırlı
+This setting is applied when you join a new server. It does not apply retroactively to your existing servers.	Bu ayar yeni bir sunucuya katıldığında uygulanır. Mevcut sunucularına geriye dönük uygulanmaz.
+This template has unsynced changes.	Bu şablonda eşitlenmemiş değişiklikler var.
+This thread is locked.	Bu alt başlık kilitli.
+This voice channel is full.	Bu ses kanalı dolu.
+This will determine whether members who have not explicitly set their notification settings receive a notification for every message sent in this server or not.	Bu, bildirim ayarlarını kendisi belirlememiş üyelerin bu sunucuda gönderilen her mesaj için bildirim alıp almayacağını belirler.
+This will transfer ownership of %1 to %2. This cannot be undone!	Bu işlem %1 sahipliğini %2 kişisine devredecek. Bu geri alınamaz!
+Thread Name	Alt Başlık Adı
+Thread deleted	Alt başlık silindi
+Threads	Alt Başlıklar
+Time	Saat
+Time format	Saat biçimi
+Timeout	Zaman Aşımı
+Timeout %	Zaman Aşımı: %
+Timeout Members	Üyelere Zaman Aşımı Uygula
+Timeout member	Üyeye zaman aşımı uygula
+Times show as %.	Saatler % olarak gösterilir.
+To log them out, please change your password	Onlardan çıkış yapmak için lütfen şifreni değiştir
+To protect your members, Community servers need these, and enabling sets them:	Üyelerini korumak için Topluluk sunucularında bunlar gerekir ve etkinleştirmek bunları ayarlar:
+Today	Bugün
+Today at %	Bugün %
+Toggle Deafen	Sağırlaştırmayı Aç/Kapat
+Toggle Go Live Streaming	Yayına Geç'i Aç/Kapat
+Toggle Mute	Susturmayı Aç/Kapat
+Toggle Streamer Mode	Yayıncı Modunu Aç/Kapat
+Toggle Voice Activity Mode	Ses Etkinliği Modunu Aç/Kapat
+Toggle deafen	Sağırlaştırmayı aç/kapat
+Toggle inbox	Gelen kutusunu aç/kapat
+Toggle member list	Üye listesini aç/kapat
+Toggle mute	Susturmayı aç/kapat
+Toggle pins	Sabitlenenleri aç/kapat
+Tomorrow at %	Yarın %
+Too fast! Wait a bit and try again.	Çok hızlı! Biraz bekleyip tekrar dene.
+Too many uploads!	Çok fazla yükleme!
+Trait %	Özellik %
+Traits	Özellikler
+Transfer Ownership	Sahipliği Devret
+Travel & Places	Seyahat ve Yerler
+Treat the token like a password: anyone who has it controls your account. fastcord keeps it only on this computer.	Token'a şifre gibi davran: ona sahip olan herkes hesabını kontrol eder. fastcord onu yalnızca bu bilgisayarda saklar.
+Trending GIFs	Popüler GIF'ler
+Trust % links from now on	Bundan sonra % bağlantılarına güven
+Try Again	Tekrar Dene
+Try searching for something else	Başka bir şey aramayı dene
+Try searching for...	Şunu aramayı dene...
+Try sending a new invite	Yeni bir davet göndermeyi dene
+Turkish	Türkçe
+Turn off encryption	Şifrelemeyi kapat
+Turns this back into a regular server. Community-only features stop working.	Bunu normal bir sunucuya geri çevirir. Topluluğa özel özellikler çalışmayı bırakır.
+Two-factor authentication is enabled on this account.	Bu hesapta iki faktörlü kimlik doğrulama etkin.
+Type the username of a friend	Bir arkadaşının kullanıcı adını yaz
+Type your answer	Cevabını yaz
+UPLOADED BY	YÜKLEYEN
+USES	KULLANIM
+Uh oh, you don't have webhook permissions in any server you're in. Ask your server admin to give you the permission or ask them to come follow themselves!	Eyvah, bulunduğun hiçbir sunucuda webhook iznin yok. Sunucu yöneticinden sana izin vermesini ya da gelip kendisinin takip etmesini iste!
+Uh-oh. Looks like you've been banned.	Eyvah. Görünüşe göre yasaklanmışsın.
+Ukrainian	Ukraynaca
+Unable to accept invite	Davet kabul edilemiyor
+Unassigned	Atanmamış
+Unban Member	Üyenin Yasağını Kaldır
+Unblock	Engeli Kaldır
+Undeafen	Sağırlaştırmayı Kaldır
+Under Request Headers, copy the value of "authorization" and paste it below.	Request Headers altında "authorization" değerini kopyala ve aşağıya yapıştır.
+Undo	Geri Al
+Unignore	Yok Saymayı Kaldır
+Unknown	Bilinmiyor
+Unknown channel	Bilinmeyen kanal
+Unmute	Susturmayı Kaldır
+Unmute Category	Kategorinin Susturmasını Kaldır
+Unmute Channel	Kanalın Susturmasını Kaldır
+Unmute Server	Sunucunun Susturmasını Kaldır
+Unmute Thread	Alt Başlığın Susturmasını Kaldır
+Unpin Message	Mesajın Sabitlemesini Kaldır
+Unreads	Okunmamışlar
+Unrestricted	Kısıtlamasız
+Until %	% tarihine kadar
+Until %1 at %2	%1 %2 saatine kadar
+Until I turn it back on	Tekrar açana kadar
+Until tomorrow at %	Yarın % saatine kadar
+Untitled question	Başlıksız soru
+Unverify	Doğrulamayı Kaldır
+Update %	Güncelle: %
+Update Channel	Kanalı Güncelle
+Update Emoji	Emojiyi Güncelle
+Update Member	Üyeyi Güncelle
+Update Member Roles	Üye Rollerini Güncelle
+Update Role	Rolü Güncelle
+Update Server	Sunucuyu Güncelle
+Update Webhook	Webhook'u Güncelle
+Update your password	Şifreni güncelle
+Upload	Yükle
+Upload Emoji	Emoji Yükle
+Upload Sound	Ses Yükle
+Upload Sticker	Çıkartma Yükle
+Upload a File	Dosya Yükle
+Upload a Sound	Ses Yükle
+Upload a file	Dosya yükle
+Upload custom sound reactions that anyone in this server can use. MP3 or OGG files, up to 512 KB and 5.2 seconds.	Bu sunucudaki herkesin kullanabileceği özel ses tepkileri yükle. MP3 veya OGG dosyaları, en fazla 512 KB ve 5,2 saniye.
+Upload to %	Şuraya yükle: %
+Uploaded a file	Bir dosya yükledi
+Uploading...	Yükleniyor...
+Use Application Commands	Uygulama Komutlarını Kullan
+Use Category Default	Kategori Varsayılanını Kullan
+Use External Apps	Harici Uygulamaları Kullan
+Use External Emoji	Harici Emoji Kullan
+Use External Sounds	Harici Sesleri Kullan
+Use External Stickers	Harici Çıkartmaları Kullan
+Use Server Default	Sunucu Varsayılanını Kullan
+Use Soundboard	Ses Panelini Kullan
+Use Voice Activity	Ses Etkinliğini Kullan
+Use a backup code	Yedek kod kullan
+Use a code sent to your phone	Telefonuna gönderilen kodu kullan
+Use a passkey or security key	Geçiş anahtarı veya güvenlik anahtarı kullan
+Use data to improve Discord	Discord'u geliştirmek için verileri kullan
+Use roles to group your server members and assign permissions.	Sunucu üyelerini gruplamak ve izin atamak için rolleri kullan.
+Use your authenticator app	Kimlik doğrulama uygulamanı kullan
+Used % times.|Used % times.	% kez kullanıldı.|% kez kullanıldı.
+User Join	Kullanıcı Katılımı
+User Leave	Kullanıcı Ayrılışı
+User Limit	Kullanıcı Sınırı
+User Moved	Kullanıcı Taşındı
+User Volume	Kullanıcı Ses Seviyesi
+User blocked	Kullanıcı engellendi
+User unblocked	Kullanıcının engeli kaldırıldı
+Username	Kullanıcı Adı
+Username is available. Nice!	Kullanıcı adı müsait. Harika!
+Username is unavailable. Try adding numbers, letters, underscores _ , or periods.	Kullanıcı adı müsait değil. Rakam, harf, alt çizgi _ veya nokta eklemeyi dene.
+Users will need to confirm they are of over the legal age to view in the content in this channel.\nAge-restricted channels are exempt from the explicit content filter.	Kullanıcıların bu kanaldaki içeriği görmek için yasal yaşın üzerinde olduklarını onaylaması gerekecek.\nYaş sınırlı kanallar müstehcen içerik filtresinden muaftır.
+Uses the yt-dlp you installed to play YouTube links in the chat instead of opening your browser. It connects to YouTube from your computer.	YouTube bağlantılarını tarayıcını açmak yerine sohbette oynatmak için yüklediğin yt-dlp'yi kullanır. Bilgisayarından YouTube'a bağlanır.
+VOICE PROCESSING	SES İŞLEME
+Verification Level	Doğrulama Seviyesi
+Verified	Doğrulandı
+Verify with something else	Başka bir yöntemle doğrula
+Video	Video
+Video Quality	Video Kalitesi
+Vietnamese	Vietnamca
+View Audit Log	Denetim Kaydını Görüntüle
+View Channel	Kanalı Görüntüle
+View Channels	Kanalları Görüntüle
+View Details	Ayrıntıları Görüntüle
+View Full Profile	Tam Profili Görüntüle
+View Poll	Anketi Görüntüle
+View Profile	Profili Görüntüle
+View Reactions	Tepkileri Görüntüle
+View Server Insights	Sunucu Analizlerini Görüntüle
+Visit Site	Siteyi Ziyaret Et
+Visual Density	Görsel Yoğunluk
+Voice	Ses
+Voice & Video	Ses ve Görüntü
+Voice Activity	Ses Etkinliği
+Voice Channel	Ses Kanalı
+Voice Channel Permissions	Ses Kanalı İzinleri
+Voice Connected	Sese Bağlanıldı
+Voice Disconnected	Ses Bağlantısı Kesildi
+Volume	Ses Seviyesi
+Vote	Oy Ver
+Waiting for a server	Sunucu bekleniyor
+Wants to message you	Sana mesaj göndermek istiyor
+Watch Stream	Yayını İzle
+Wave to say hi!	Merhaba demek için el salla!
+We appreciate the enthusiasm, but...	Hevesini takdir ediyoruz ama...
+We couldn't load the profile for this server.	Bu sunucunun profilini yükleyemedik.
+We recommend an image of at least 512x512.	En az 512x512 boyutunda bir görsel öneriyoruz.
+We sent instructions to change your password to %, please check both your inbox and spam folder.	Şifreni değiştirme talimatlarını % adresine gönderdik, lütfen hem gelen kutunu hem de spam klasörünü kontrol et.
+We're so excited to see you again!	Seni tekrar gördüğümüz için çok mutluyuz!
+We've sent a message to %.  Please enter the code you received.	% numarasına bir mesaj gönderdik.  Lütfen aldığın kodu gir.
+Webhooks (%)	Webhook'lar (%)
+Webhooks are a simple way to post messages from other apps and websites into this server.	Webhook'lar, başka uygulama ve web sitelerinden bu sunucuya mesaj göndermenin basit bir yoludur.
+Welcome %. Say hi!	Hoş geldin %. Merhaba de!
+Welcome back!	Tekrar hoş geldin!
+Welcome to #%!	#% kanalına hoş geldin!
+Welcome to the beginning of the % group.	% grubunun başlangıcına hoş geldin.
+Welcome, %. We hope you brought pizza.	Hoş geldin %. Umarız pizza getirmişsindir.
+What brings you here?	Seni buraya ne getirdi?
+What can people do in this server?	İnsanlar bu sunucuda neler yapabilir?
+What question do you want to ask?	Hangi soruyu sormak istiyorsun?
+What's cookin'?	Neler pişiyor?
+What's your event about?	Etkinliğin ne hakkında?
+What's your event?	Etkinliğin ne?
+When a friend starts an activity—like playing a game or hanging out on voice—we'll show it here!	Bir arkadaşın oyun oynamak veya seste takılmak gibi bir etkinliğe başladığında burada göstereceğiz!
+When enabled, only server members can view profile content. Non-members won't be able to see this content unless they have an invite.	Etkinleştirildiğinde profil içeriğini yalnızca sunucu üyeleri görebilir. Üye olmayanlar bir davetleri olmadıkça bu içeriği göremez.
+When you put a user in timeout they will not be able to send messages in chat, reply within threads, react to messages, or speak in voice or Stage channels.	Bir kullanıcıya zaman aşımı uyguladığında sohbette mesaj gönderemez, alt başlıklarda yanıt veremez, mesajlara tepki veremez ve ses ya da Sahne kanallarında konuşamaz.
+Where is your event?	Etkinliğin nerede?
+Where would you like to go?	Nereye gitmek istersin?
+Who is this server for? E.g. School Club, Artists' Community	Bu sunucu kimin için? Örn. Okul Kulübü, Sanatçılar Topluluğu
+Winning answer · %1%2	Kazanan cevap · %1%2
+Words that are never blocked, separated by commas	Asla engellenmeyen kelimeler, virgülle ayrılmış
+Words to block, separated by commas	Engellenecek kelimeler, virgülle ayrılmış
+Words to block, separated by commas (* matches anything)	Engellenecek kelimeler, virgülle ayrılmış (* her şeyle eşleşir)
+Would you like to sync %1 permissions with %2?	%1 izinleri %2 ile eşitlensin mi?
+Yay you made it, %!	Yaşasın, geldin %!
+Yesterday at %	Dün %
+You	Sen
+You accepted %'s friend request.	% kişisinin arkadaşlık isteğini kabul ettin.
+You are at the % server limit.	% sunucu sınırındasın.
+You are banned from this server.	Bu sunucudan yasaklandın.
+You aren't in that server. Ask a member for an invite.	O sunucuda değilsin. Bir üyeden davet iste.
+You can add % more friend.|You can add % more friends.	% arkadaş daha ekleyebilirsin.|% arkadaş daha ekleyebilirsin.
+You can add comments before uploading.\nHold shift to upload directly.	Yüklemeden önce yorum ekleyebilirsin.\nDoğrudan yüklemek için Shift'e basılı tut.
+You can add friends with their Discord username.	Arkadaşlarını Discord kullanıcı adlarıyla ekleyebilirsin.
+You can add up to 5 accounts.	En fazla 5 hesap ekleyebilirsin.
+You can hold down shift when clicking % to bypass this confirmation entirely.	Bu onayı tamamen atlamak için % düğmesine tıklarken Shift'e basılı tutabilirsin.
+You can only edit roles below your highest role.	Yalnızca en yüksek rolünün altındaki rolleri düzenleyebilirsin.
+You can only upload % files at a time!	Aynı anda yalnızca % dosya yükleyebilirsin!
+You can use markdown and links if you'd like.	İstersen markdown ve bağlantı kullanabilirsin.
+You can't join this server because of your age group.	Yaş grubun nedeniyle bu sunucuya katılamazsın.
+You can't unblock the Wumpus.	Wumpus'un engelini kaldıramazsın.
+You cannot friend yourself	Kendini arkadaş olarak ekleyemezsin
+You can’t react and super react with the same emoji. There’s a lot of emoji to choose from, so maybe try another one.	Aynı emojiyle hem tepki hem süper tepki veremezsin. Seçebileceğin bir sürü emoji var, belki başka birini denersin.
+You do not have permission to send messages in this channel.	Bu kanalda mesaj gönderme iznin yok.
+You don't have any friends to add!	Ekleyebileceğin hiç arkadaşın yok!
+You don't have permission to do that.	Bunu yapma iznin yok.
+You haven't added a display name yet.	Henüz bir görünen ad eklemedin.
+You haven't added a phone number yet.	Henüz bir telefon numarası eklemedin.
+You haven't added an email yet.	Henüz bir e-posta eklemedin.
+You haven't authorized any apps.	Henüz hiçbir uygulamaya yetki vermedin.
+You haven't blocked anyone.	Kimseyi engellemedin.
+You haven't connected any accounts yet.	Henüz hiçbir hesap bağlamadın.
+You haven't ignored anyone.	Kimseyi yok saymadın.
+You missed a call from %1 that lasted %2.	%1 kişisinden gelen ve %2 süren bir aramayı kaçırdın.
+You must be at least 18 years old to view this channel.	Bu kanalı görüntülemek için en az 18 yaşında olmalısın.
+You must leave a server first to join.	Katılmak için önce bir sunucudan ayrılmalısın.
+You need to add one or more rules.	Bir veya daha fazla kural eklemelisin.
+You received an invite, but...	Bir davet aldın ama...
+You said: %	Dedin ki: %
+You sent an invite to a self-hosted server	Kendi barındırılan bir sunucuya davet gönderdin
+You sent an invite, but	Bir davet gönderdin ama
+You sent an invite, but...	Bir davet gönderdin ama...
+You will appear offline	Çevrimdışı görüneceksin
+You will not receive desktop notifications	Masaüstü bildirimleri almayacaksın
+You'll have to log back in on all logged out devices.	Çıkış yapılan tüm cihazlarda tekrar giriş yapman gerekecek.
+You're Viewing Older Messages	Eski Mesajları Görüntülüyorsun
+You're all caught up!	Her şeyi gördün!
+You're already in that server.	Zaten o sunucudasın.
+You're doing that too fast. Try again in a moment.	Bunu çok hızlı yapıyorsun. Birazdan tekrar dene.
+You're not in any servers yet.	Henüz hiçbir sunucuda değilsin.
+You're offline: no invite link.	Çevrimdışısın: davet bağlantısı yok.
+You're timed out until %.	% tarihine kadar zaman aşımındasın.
+You've been invited to a self-hosted server	Kendi barındırılan bir sunucuya davet edildin
+You've been invited to join	Katılmaya davet edildin
+You've been invited to speak	Konuşmaya davet edildin
+You've been invited, but	Davet edildin ama
+Your files are too powerful	Dosyaların çok güçlü
+Your full profile is visible to friends and any server you join with 200 or fewer members. Everyone else sees a limited version.	Tam profilin arkadaşlarına ve katıldığın 200 veya daha az üyeli sunuculara görünür. Diğer herkes sınırlı bir sürümü görür.
+Your full profile is visible to friends and any server you join.	Tam profilin arkadaşlarına ve katıldığın tüm sunuculara görünür.
+Your full profile is visible to friends. Everyone else sees a limited version.	Tam profilin arkadaşlarına görünür. Diğer herkes sınırlı bir sürümü görür.
+Your invite link expires after %.	Davet bağlantının süresi % sonra dolar.
+Your invite link expires in %.	Davet bağlantının süresi % içinde dolar.
+Your invite link expires in %1, or after %2.	Davet bağlantının süresi %1 içinde veya %2 sonra dolar.
+Your invite link expires in 7 days.	Davet bağlantının süresi 7 gün içinde dolar.
+Your invite link will never expire.	Davet bağlantının süresi asla dolmaz.
+Your last request was on %.	Son isteğin % tarihindeydi.
+Your message is too long (% / %).	Mesajın çok uzun (%1 / %2).
+Your reaction was not added because there are too many reactions on this message.	Bu mesajda çok fazla tepki olduğu için tepkin eklenmedi.
+Your request from % is being prepared.	% tarihli isteğin hazırlanıyor.
+Your server is where you and your friends hang out. Make yours and start talking.	Sunucun, arkadaşlarınla takıldığın yerdir. Kendi sunucunu oluştur ve sohbete başla.
+Your sounds go out with your voice, mixed into your microphone, instead of as soundboard sounds.	Seslerin ses paneli sesi olarak değil, mikrofonuna karıştırılarak sesinle birlikte gider.
+Zoom level	Yakınlaştırma seviyesi
+a channel	bir kanal
+a command	bir komut
+a day	bir gün
+a day ago	bir gün önce
+a few seconds	birkaç saniye
+a few seconds ago	birkaç saniye önce
+a message	bir mesaj
+a minute	bir dakika
+a minute ago	bir dakika önce
+a month ago	bir ay önce
+a year ago	bir yıl önce
+an hour	bir saat
+an hour ago	bir saat önce
+by %	% tarafından
+cancel	iptal et
+channel	kanal
+delete message	mesajı sil
+escape to %1 • enter to %2	Esc: %1 • Enter: %2
+fastcord quit unexpectedly last time. The report is in the logs folder (Settings, under Log Out).	fastcord geçen sefer beklenmedik şekilde kapandı. Rapor kayıt klasöründe (Ayarlar, Çıkış Yap'ın altında).
+fastcord starts in the background and stays out of your way.	fastcord arka planda başlar ve yoluna çıkmaz.
+from %	kaynak: %
+in %	% içinde
+in % day|in % days	% gün içinde|% gün içinde
+in % hour|in % hours	% saat içinde|% saat içinde
+in % minute|in % minutes	% dakika içinde|% dakika içinde
+in % month|in % months	% ay içinde|% ay içinde
+in % year|in % years	% yıl içinde|% yıl içinde
+in a day	bir gün içinde
+in a few seconds	birkaç saniye içinde
+in a minute	bir dakika içinde
+in a month	bir ay içinde
+in a year	bir yıl içinde
+in an hour	bir saat içinde
+just now	az önce
+less than an hour ago	bir saatten kısa süre önce
+link, embed or file	bağlantı, gömülü içerik veya dosya
+on %	% tarihinde
+pinned messages	sabitlenmiş mesajlar
+remove embeds	gömülü içerikleri kaldır
+save	kaydet
+someone	biri
+specific date	belirli bir tarih
+this server	bu sunucu
+threads	alt başlıklar
+true or false	doğru veya yanlış
+unknown	bilinmiyor
+unknown channel	bilinmeyen kanal
+unknown-user	bilinmeyen-kullanıcı
+used	kullanıldı
+user	kullanıcı
+• Media from all members is scanned by the explicit image filter.	• Tüm üyelerden gelen medya müstehcen görsel filtresi tarafından taranır.
+• Members must have a verified email on their Discord account.	• Üyelerin Discord hesabında doğrulanmış bir e-posta olmalı.
+← Back to %	← Geri dön: %
+← Back to login	← Girişe dön

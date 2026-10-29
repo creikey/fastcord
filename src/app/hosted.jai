@@ -96,7 +96,7 @@ hosted_frame :: () {
 				continue;
 			} else {
 				// A server we're in that is down or refusing for now: try again later, saying so once.
-				if !h.backoff toast_show(tprint(L("Couldn't reach %: %% Retrying."), ifx h.title then h.title else h.inv.host, h.error, ifx ends_with(h.error, ".") then "" else "."), false);
+				if !h.backoff toast_show(tprint(L("Couldn't reach %1: %2 Retrying."), ifx h.title then h.title else h.inv.host, tprint("%1%2", h.error, ifx ends_with(h.error, ".") then "" else ".")), false);
 				h.backoff = clamp(h.backoff * 2, 5, 300);
 				h.retry_at = platform.time_now() + h.backoff;
 			}

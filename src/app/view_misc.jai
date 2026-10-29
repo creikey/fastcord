@@ -582,6 +582,7 @@ status_until :: (end_ms: s64) -> string {
 // a 252px nav (profile, search, sections) and a content pane with a 48px title bar.
 SET_INSET :: 40;
 SET_NAV_W :: 252;
+set_nav_need: float32;
 SET_TITLE_H :: 48;
 SET_CONTENT_MAX_W :: 696;
 SET_SWATCH :: 48;
@@ -612,7 +613,9 @@ settings_modal :: () {
 		ui.signal(m);
 		{ ui.parent(m); defer ui.pop_parent();
 			nav := ui.box("nav", .Scroll_Y | .Clip);
-			nav.semantic_size = .[ui.px(SET_NAV_W), ui.pct(1)];
+			// wider for a language whose page names don't fit (the widest name, measured on the last layout)
+			nav.semantic_size = .[ui.px(clamp(set_nav_need, SET_NAV_W, SET_NAV_W + 100)), ui.pct(1)];
+			set_nav_need = 0;
 			nav.layout_axis = .Y;
 			ui.signal(nav);
 			{ ui.parent(nav); defer ui.pop_parent();
@@ -664,7 +667,8 @@ settings_modal :: () {
 							spacer(.X, 8);
 							icon("i", it.icon, 20, c);
 							spacer(.X, 8);
-							label(it.shown, .Medium, 16, c, 20);
+							lb := label(it.shown, .Medium, 16, c, 20);
+							if lb.prev_layout set_nav_need = max(set_nav_need, lb.prev_layout.width + 16 + 8 + 20 + 8 + 12 + 16);
 						}
 						spacer(.X, 16);
 					}
