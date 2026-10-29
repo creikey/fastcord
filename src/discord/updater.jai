@@ -1,9 +1,10 @@
 // ---- the native updater ----
 // The official client's updater (updater.node: Rust, reqwest + hyper 1 + native-tls) asks updates.discord.com for
 // the manifest at launch, retries a failed check on the splash's Backoff(1 s, 30 s) and checks again every
-// hour. When the manifest offers a newer host it downloads that host's package (the delta from the host it
-// runs, else the full one), checks its SHA-256 and installs it at the next start; fastcord fetches the same
-// package, hashes and discards it, and runs the offered host from its next launch (identity_learn_offered).
+// hour. When the manifest offers a newer host it downloads that host's package and every installed module's
+// (deltas from what it runs, else full ones), four at a time, checks their SHA-256 and installs them at the
+// next start; fastcord fetches the same packages, hashes and discards them, and runs the offered host from its
+// next launch (identity_learn_offered).
 // Its connections are the OS's TLS (src/ostls) and HTTP/1.1 as hyper writes it: the request line, then
 // accept, user-agent, accept-encoding and host, lower case, in that order (captured: Windows 1.0.9266 and
 // macOS 0.0.419 against a local NEW_UPDATE_ENDPOINT).
@@ -21,7 +22,9 @@ Updater :: struct {
 	// The rest belongs to the check job, which one worker runs at a time.
 	backoff_ms: s64; // Backoff's current delay, 0 = not failing
 	next_check_ms: s64;
-	fetched: string; // the host version whose package came through this launch
+	fetched: string; // the host version whose packages came through this launch
+	modules: [..]Updater_Module; // installed module versions, from a manifest for the running host
+	mu: locks.Mutex; // idle, shared by the parallel downloads
 	idle: [..]Updater_Conn;
 }
 
@@ -58,6 +61,8 @@ updater_run :: (c: *Client, j: *Job) {
 		}
 	}
 	j.not_before = u.next_check_ms;
+	locks.lock(*u.mu);
+	defer locks.unlock(*u.mu);
 	i := 0;
 	while i < u.idle.count {
 		it := u.idle[i];
@@ -81,6 +86,8 @@ updater_backoff :: (current: s64, r: float) -> s64 {
 updater_destroy :: (c: *Client) {
 	for c.updater.idle updater_drop(it);
 	array_free(c.updater.idle);
+	for c.updater.modules free(it.name,, context.default_allocator);
+	array_free(c.updater.modules);
 	free(c.updater.fetched,, context.default_allocator);
 }
 
@@ -100,9 +107,9 @@ updater_request :: (host: string, path: string) -> http.Request {
 	return .{method = "GET", scheme = "https", authority = host, path = path, headers = array_copy(http.Header.[.{"accept", "*/*"}, .{"user-agent", "Discord-Updater/1"}, .{"accept-encoding", "gzip"}, .{"host", host}],, temp)};
 }
 
-// updater_check: the manifest, then the offered host's package if it is newer than the one fastcord reports.
-// False when the check should be retried: no answer, a status other than 200, or a package that did not come
-// through intact. A 200 whose body is not a usable manifest counts as done (guess).
+// updater_check: the manifest, then the packages of the offered host if it is newer than the one fastcord
+// reports. False when the check should be retried: no answer, a status other than 200, or a package that did
+// not come through intact. A 200 whose body is not a usable manifest counts as done (guess).
 updater_check :: (c: *Client) -> bool {
 	resp, err := updater_get(c, UPDATER_HOST, updater_manifest_path(c), UPDATER_MANIFEST_MAX);
 	defer http.response_destroy(*resp);
@@ -114,40 +121,87 @@ updater_check :: (c: *Client) -> bool {
 	locks.lock(*c.id.mu);
 	running := copy_string(c.id.platform.client_version,, temp);
 	locks.unlock(*c.id.mu);
-	pkg, newer := updater_package(vmap(v), running);
-	if !newer || pkg.version == c.updater.fetched return true;
-	// a failed download is tried once more at once ("Host download failed (attempt 1), retrying")
-	for 1..2 if updater_download(c, pkg) {
-		free(c.updater.fetched,, context.default_allocator);
-		c.updater.fetched = copy_string(pkg.version,, context.default_allocator);
+	u := *c.updater;
+	version, pkgs := updater_packages(vmap(v), running, u.modules);
+	if !version {
+		updater_learn_modules(u, vmap(v), running);
 		return true;
 	}
-	return false;
+	if version == u.fetched return true;
+	if !updater_download_all(c, pkgs) return false;
+	free(u.fetched,, context.default_allocator);
+	u.fetched = copy_string(version,, context.default_allocator);
+	return true;
 }
 
+// UPDATER_ON_DEMAND: the modules the desktop core installs at every launch on top of the manifest's
+// required_modules (its InstallModule commands in the updater log). A macOS install then has 15: every one
+// the manifest lists but discord_ndi and discord_sysimg (the test profile's installer.db).
+UPDATER_ON_DEMAND :: string.["discord_webauthn", "discord_krisp", "discord_game_utils", "discord_cloudsync", "discord_rpc", "discord_dispatch", "discord_modules", "discord_zstd"];
+UPDATER_PARALLEL :: 4; // downloads at once, each on its own connection (captured)
+UPDATER_MAX_MODULES :: 128;
+
 Updater_Package :: struct {
-	version: string;
 	host: string;
 	path: string;
 	sha256: [32]u8;
 }
 
-// updater_package: the package the updater installs to go from running to the manifest's host: the delta
-// whose host_version is running, else the full package; newer is false when the manifest's host is not newer
-// or names no package fastcord would fetch (an https URL on the default port, a 64-hex-digit hash).
-updater_package :: (m: etf.Map, running: string) -> Updater_Package, newer: bool {
-	pkg: Updater_Package;
+Updater_Module :: struct {
+	name: string;
+	version: s64;
+}
+
+// updater_packages: what the updater downloads to go from running to the manifest's host, when that is newer
+// (version "" otherwise): the host's package first, then each installed module's in a random order (the
+// updater walks a Rust HashMap). Each is the delta from the running host (for a module, from the module version
+// installed, else the newest such delta), else the full package. A package fastcord would not fetch (not an
+// https URL on the default port, no 64-hex-digit hash) drops the host update, or skips that module.
+updater_packages :: (m: etf.Map, running: string, installed: []Updater_Module) -> version: string, []Updater_Package {
+	pkgs: [..]Updater_Package;
+	pkgs.allocator = temp;
 	full := vmap(vget(m, "full"));
 	ok, offered := updater_version(vget(full, "host_version"));
 	have, current := host_version_parse(running);
-	if !ok || !have || !version_less(current, offered) return pkg, false;
-	pkg.version = tprint("%.%.%", offered[0], offered[1], offered[2]);
-	src := full;
-	deltas := flist(m, "deltas");
+	if !ok || !have || !version_less(current, offered) return "", pkgs;
+	host, hok := updater_pick(full, flist(m, "deltas"), current, -1);
+	if !hok return "", pkgs;
+	array_add(*pkgs, host);
+	required := flist(m, "required_modules");
+	modules := vmap(vget(m, "modules"));
+	if modules.count > UPDATER_MAX_MODULES || required.count > UPDATER_MAX_MODULES return "", pkgs;
+	for mod: modules {
+		if mod.key.kind != .String continue;
+		name := mod.key.s;
+		wanted := array_find(UPDATER_ON_DEMAND, name);
+		for required if it.kind == .String && it.s == name wanted = true;
+		if !wanted continue;
+		from := -1;
+		for installed if it.name == name from = it.version;
+		pkg, pok := updater_pick(vmap(vget(vmap(mod.value), "full")), flist(vmap(mod.value), "deltas"), current, from);
+		if pok array_add(*pkgs, pkg);
+	}
+	for < i: 2..pkgs.count - 1 {
+		k := 1 + cast(int) (random_get_zero_to_one_open() * i);
+		pkgs[i], pkgs[k] = pkgs[k], pkgs[i];
+	}
+	return tprint("%.%.%", offered[0], offered[1], offered[2]), pkgs;
+}
+
+// updater_pick: the delta from host current (and from module version from, when >= 0), else full.
+updater_pick :: (full: etf.Map, deltas: []V, current: [3]s64, from: s64) -> Updater_Package, bool {
+	pkg: Updater_Package;
 	if deltas.count > 64 return pkg, false;
+	src := full;
+	best := -1;
 	for deltas {
-		dok, from := updater_version(vget(vmap(it), "host_version"));
-		if dok && !version_less(from, current) && !version_less(current, from) src = vmap(it);
+		d := vmap(it);
+		dok, h := updater_version(vget(d, "host_version"));
+		if !dok || version_less(h, current) || version_less(current, h) continue;
+		mv := vget(d, "module_version");
+		n := ifx mv.kind == .Int then mv.i else 0;
+		if (from >= 0 && n != from) || n <= best continue;
+		src, best = d, n;
 	}
 	url := vget(src, "url");
 	hash := vget(src, "package_sha256");
@@ -159,6 +213,47 @@ updater_package :: (m: etf.Map, running: string) -> Updater_Package, newer: bool
 	}
 	pkg.host, pkg.path = https_url_parts(url.s);
 	return pkg, pkg.host != "";
+}
+
+// updater_learn_modules: a manifest for the host fastcord runs lists the module versions an up-to-date install
+// of it has, the ones its module deltas start from at the next update.
+updater_learn_modules :: (u: *Updater, m: etf.Map, running: string) {
+	ok, h := updater_version(vget(vmap(vget(m, "full")), "host_version"));
+	have, current := host_version_parse(running);
+	modules := vmap(vget(m, "modules"));
+	if !ok || !have || version_less(h, current) || version_less(current, h) || modules.count > UPDATER_MAX_MODULES return;
+	for u.modules free(it.name,, context.default_allocator);
+	array_reset(*u.modules);
+	for modules {
+		v := vget(vmap(vget(vmap(it.value), "full")), "module_version");
+		if it.key.kind != .String || v.kind != .Int || it.key.s.count > 64 continue;
+		array_add(*u.modules, .{copy_string(it.key.s,, context.default_allocator), v.i},, context.default_allocator);
+	}
+}
+
+// updater_download_all: UPDATER_PARALLEL packages at a time, each tried once more at once when it fails ("Host
+// download failed (attempt 1), retrying"); false when one never came through.
+updater_download_all :: (c: *Client, pkgs: []Updater_Package) -> bool {
+	Work :: struct { c: *Client; pkgs: []Updater_Package; mu: locks.Mutex; next: int; failed: bool; }
+	w := Work.{c = c, pkgs = pkgs};
+	run :: (w: *Work) {
+		while true {
+			locks.lock(*w.mu);
+			i := w.next;
+			w.next += 1;
+			locks.unlock(*w.mu);
+			if i >= w.pkgs.count break;
+			if updater_download(w.c, w.pkgs[i]) || updater_download(w.c, w.pkgs[i]) continue;
+			locks.lock(*w.mu);
+			w.failed = true;
+			locks.unlock(*w.mu);
+		}
+	}
+	threads: [UPDATER_PARALLEL - 1]*Thread;
+	for * threads it.* = spawn(*w, run);
+	run(*w);
+	for threads locks.join(it);
+	return !w.failed;
 }
 
 updater_version :: (v: V) -> bool, [3]s64 {
@@ -225,12 +320,14 @@ updater_get :: (c: *Client, host: string, path: string, max_body: int, sink := h
 	u := *c.updater;
 	for attempt: 0..1 {
 		conn: *http.H1_Conn;
+		locks.lock(*u.mu);
 		for u.idle if it.host == host {
 			conn = it.conn;
 			free(it.host,, context.default_allocator);
 			array_unordered_remove_by_index(*u.idle, it_index);
 			break;
 		}
+		locks.unlock(*u.mu);
 		kept := conn != null;
 		if !conn {
 			tcp, derr := netio.dial_tcp(host, 443, public_only = true);
@@ -243,7 +340,9 @@ updater_get :: (c: *Client, host: string, path: string, max_body: int, sink := h
 		conn.limits.max_body = max_body;
 		resp, err := http.h1_round_trip(conn, req, sink);
 		if err == .None && conn.reusable {
+			locks.lock(*u.mu);
 			array_add(*u.idle, .{copy_string(host,, context.default_allocator), conn, now_ms()},, context.default_allocator);
+			locks.unlock(*u.mu);
 		} else {
 			http.h1_destroy(conn);
 			free(conn,, context.default_allocator);

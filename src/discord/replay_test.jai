@@ -3474,14 +3474,34 @@ updater_wire :: (t: *T) {
 	path := "/distributions/app/manifests/latest?install_id=3f1c9a52-7d4e-4b8a-9c21-5e6f0a1b2c3d&channel=stable&platform=osx&arch=arm64&platform_version=27.0.1&client_version=96312";
 	expect(t, http.h1_serialize_request(*b, updater_request(UPDATER_HOST, path)) == .None, "serializes");
 	expect(t, builder_to_string(*b,, temp) == tprint("GET % HTTP/1.1\r\naccept: */*\r\nuser-agent: Discord-Updater/1\r\naccept-encoding: gzip\r\nhost: updates.discord.com\r\n\r\n", path), "request line and headers in hyper's order");
-	m, err := etf.from_json("{\"full\":{\"host_version\":[0,0,420],\"package_sha256\":\"11111111111111111111111111111111111111111111111111111111111111aa\",\"url\":\"https://stable.dl2.discordapp.net/distro/app/stable/osx/universal/0.0.420/full.distro\"},\"deltas\":[{\"host_version\":[0,0,418],\"package_sha256\":\"2222222222222222222222222222222222222222222222222222222222222222\",\"url\":\"https://stable.dl2.discordapp.net/distro/app/stable/osx/universal/0.0.420/from/0.0.418\"},{\"host_version\":[0,0,419],\"package_sha256\":\"3333333333333333333333333333333333333333333333333333333333333333\",\"url\":\"https://stable.dl2.discordapp.net/distro/app/stable/osx/universal/0.0.420/from/0.0.419\"}]}",, temp);
+	H :: "\"package_sha256\":\"4444444444444444444444444444444444444444444444444444444444444444\"";
+	P :: "/distro/app/stable/osx/universal/0.0.420";
+	U :: #run join("https://stable.dl2.discordapp.net", P);
+	m, err := etf.from_json(join("{\"full\":{\"host_version\":[0,0,420],\"package_sha256\":\"11111111111111111111111111111111111111111111111111111111111111aa\",\"url\":\"", U, "/full.distro\"},\"deltas\":[{\"host_version\":[0,0,418],\"package_sha256\":\"2222222222222222222222222222222222222222222222222222222222222222\",\"url\":\"", U, "/from/0.0.418\"},{\"host_version\":[0,0,419],\"package_sha256\":\"3333333333333333333333333333333333333333333333333333333333333333\",\"url\":\"", U, "/from/0.0.419\"}],",
+		"\"required_modules\":[\"discord_voice\",\"discord_utils\"],\"modules\":{",
+		"\"discord_voice\":{\"full\":{\"host_version\":[0,0,420],\"module_version\":2,", H, ",\"url\":\"", U, "/discord_voice/2/full.distro\"},\"deltas\":[{\"host_version\":[0,0,419],\"module_version\":1,", H, ",\"url\":\"", U, "/discord_voice/2/from/0.0.419/1\"},{\"host_version\":[0,0,418],\"module_version\":1,", H, ",\"url\":\"", U, "/discord_voice/2/from/0.0.418/1\"}]},",
+		"\"discord_utils\":{\"full\":{\"host_version\":[0,0,420],\"module_version\":1,", H, ",\"url\":\"", U, "/discord_utils/1/full.distro\"},\"deltas\":[]},",
+		"\"discord_krisp\":{\"full\":{\"host_version\":[0,0,420],\"module_version\":1,", H, ",\"url\":\"", U, "/discord_krisp/1/full.distro\"},\"deltas\":[{\"host_version\":[0,0,419],\"module_version\":1,", H, ",\"url\":\"", U, "/discord_krisp/1/from/0.0.419/1\"}]},",
+		"\"discord_ndi\":{\"full\":{\"host_version\":[0,0,420],\"module_version\":1,", H, ",\"url\":\"", U, "/discord_ndi/1/full.distro\"},\"deltas\":[]}}}",, temp),, temp);
 	if !expect(t, err == .None, "manifest parses") return;
-	pkg, newer := updater_package(vmap(m), "0.0.419");
-	expect(t, newer && pkg.version == "0.0.420" && pkg.host == "stable.dl2.discordapp.net" && pkg.path == "/distro/app/stable/osx/universal/0.0.420/from/0.0.419" && pkg.sha256[0] == 0x33, "the delta from the running host");
-	pkg, newer = updater_package(vmap(m), "0.0.417");
-	expect(t, newer && pkg.path == "/distro/app/stable/osx/universal/0.0.420/full.distro" && pkg.sha256[31] == 0xaa, "else the full package");
-	_, newer = updater_package(vmap(m), "0.0.420");
-	expect(t, !newer, "nothing for the host it runs");
+	version, pkgs := updater_packages(vmap(m), "0.0.419", .[]);
+	if !expect(t, version == "0.0.420" && pkgs.count == 4, "the host and the installed modules: required, then ones installed on demand, not discord_ndi") return;
+	expect(t, pkgs[0].host == "stable.dl2.discordapp.net" && pkgs[0].path == join(P, "/from/0.0.419",, temp) && pkgs[0].sha256[0] == 0x33, "the host's delta from the running host comes first");
+	paths: [..]string;
+	paths.allocator = temp;
+	for 1..3 array_add(*paths, pkgs[it].path);
+	expect(t, array_find(paths, join(P, "/discord_voice/2/from/0.0.419/1",, temp)) && array_find(paths, join(P, "/discord_utils/1/full.distro",, temp)) && array_find(paths, join(P, "/discord_krisp/1/from/0.0.419/1",, temp)), "each module's delta from the running host, else its full package");
+	_, pkgs = updater_packages(vmap(m), "0.0.419", .[.{"discord_voice", 2}]);
+	for pkgs if contains(it.path, "discord_voice") expect(t, ends_with(it.path, "/discord_voice/2/full.distro"), "no delta from an installed module version that isn't listed");
+	_, pkgs = updater_packages(vmap(m), "0.0.417", .[]);
+	expect(t, pkgs.count == 4 && pkgs[0].path == join(P, "/full.distro",, temp) && pkgs[0].sha256[31] == 0xaa, "else the full package");
+	version, _ = updater_packages(vmap(m), "0.0.420", .[]);
+	expect(t, version == "", "nothing for the host it runs");
+	u: Updater;
+	updater_learn_modules(*u, vmap(m), "0.0.420");
+	expect(t, u.modules.count == 4 && u.modules[0].name == "discord_voice" && u.modules[0].version == 2, "a manifest for the running host gives the installed module versions");
+	for u.modules free(it.name,, context.default_allocator);
+	array_free(u.modules);
 	host, _ := https_url_parts("http://stable.dl2.discordapp.net/x");
 	host2, _ := https_url_parts("https://stable.dl2.discordapp.net:8443/x");
 	expect(t, host == "" && host2 == "", "only https on the default port");
@@ -3506,7 +3526,7 @@ updater_schedule :: (t: *T) {
 			hex.allocator = temp;
 			for crypto.sha256(cast([]u8) "package") print_to_builder(*hex, "%", formatInt(it, base = 16, minimum_digits = 2));
 			h := builder_to_string(*hex,, temp);
-			append_string(*resp.body, tprint("{\"full\":{\"host_version\":[0,0,420],\"package_sha256\":\"%\",\"url\":\"https://dl.example/full\"},\"deltas\":[{\"host_version\":[0,0,419],\"package_sha256\":\"%\",\"url\":\"https://dl.example/delta\"}],\"metadata_version\":96400}", h, h));
+			append_string(*resp.body, tprint("{\"full\":{\"host_version\":[0,0,420],\"package_sha256\":\"%\",\"url\":\"https://dl.example/full\"},\"deltas\":[{\"host_version\":[0,0,419],\"package_sha256\":\"%\",\"url\":\"https://dl.example/delta\"}],\"required_modules\":[\"discord_voice\"],\"modules\":{\"discord_voice\":{\"full\":{\"host_version\":[0,0,420],\"module_version\":1,\"package_sha256\":\"%\",\"url\":\"https://dl.example/voice\"},\"deltas\":[]}},\"metadata_version\":96400}", h, h, h));
 		} else {
 			append_string(*resp.body, r.package_body);
 		}
@@ -3527,17 +3547,19 @@ updater_schedule :: (t: *T) {
 	rec.package_body = "corrupt";
 	c.updater.next_check_ms = 0;
 	updater_run(c, j);
-	expect(t, rec.calls.count == 5 && rec.calls[3] == "dl.example/delta" && rec.calls[4] == "dl.example/delta", "a bad package is fetched twice");
+	n := 0;
+	for rec.calls if it == "dl.example/delta" || it == "dl.example/voice" n += 1;
+	expect(t, rec.calls.count == 7 && n == 4, "each bad package, host and module, is fetched twice");
 	expect(t, c.updater.backoff_ms > 0 && !c.updater.fetched, "and the check fails");
 	rec.package_body = "package";
 	c.updater.next_check_ms = 0;
 	t1 := now_ms();
 	updater_run(c, j);
-	expect(t, rec.calls.count == 7 && c.updater.fetched == "0.0.420" && c.updater.backoff_ms == 0, "the delta from 0.0.419 comes through");
+	expect(t, rec.calls.count == 10 && c.updater.fetched == "0.0.420" && c.updater.backoff_ms == 0, "the host's delta from 0.0.419 and the module come through");
 	expect(t, j.not_before >= t1 + UPDATER_CHECK_MS && j.not_before <= now_ms() + UPDATER_CHECK_MS, "the next check in an hour");
 	c.updater.next_check_ms = 0;
 	updater_run(c, j);
-	expect(t, rec.calls.count == 8, "a fetched package is not fetched again");
+	expect(t, rec.calls.count == 11, "fetched packages are not fetched again");
 	expect(t, rec.headers_ok, "every request has the updater's headers");
 	job_free(j);
 	client_destroy(c);

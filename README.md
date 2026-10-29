@@ -177,7 +177,7 @@ The official client's native updater (`updater.node`, Rust) is not Chrome: its m
 downloads are HTTP/1.1 over the OS's TLS with native-tls's settings. fastcord sends them through `src/ostls`
 on the same libraries, so the hello is the OS's by construction; on macOS it equals the official updater's
 but for the random (`ostls_client_hello`), and the request is byte for byte the captured one (`updater_wire`).
-Windows (SChannel) and Linux (libssl) are type-checked only.
+On Windows SChannel's hello equals the 1.0.9266 capture too; Linux (libssl) is type-checked only.
 
 ## Releasing
 
