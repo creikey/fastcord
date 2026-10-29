@@ -141,6 +141,11 @@ window_minimize :: () { win.ShowWindow(w.hwnd, win.SW_MINIMIZE); }
 window_maximized :: () -> bool { return w.hwnd && IsZoomed(w.hwnd) != 0; }
 window_toggle_maximize :: () { win.ShowWindow(w.hwnd, xx ifx window_maximized() then win.SW_RESTORE else win.SW_MAXIMIZE); }
 window_close :: () { PostMessageW(w.hwnd, win.WM_CLOSE, 0, 0); }
+// Brings the window to the front, also from the tray.
+window_show :: () {
+    win.ShowWindow(w.hwnd, xx ifx IsIconic(w.hwnd) then win.SW_RESTORE else win.SW_SHOW);
+    SetForegroundWindow(w.hwnd);
+}
 
 // The window's restored rect (screen pixels; also while maximized or minimized) and whether it is maximized.
 window_placement :: () -> Window_Placement, bool {
@@ -157,7 +162,73 @@ window_placement_restore :: (p: Window_Placement) {
     w.has_restore = true;
 }
 
+// Makes this exe the per-user handler of scheme:// links (HKCU\Software\Classes). With if_free, only when no
+// other app has it (the official client registers discord://) or it already names a fastcord.
+url_handler_register :: (scheme: string, if_free := false) {
+    key := tprint("Software\\Classes\\%", scheme);
+    command := tprint("Software\\Classes\\%\\shell\\open\\command", scheme);
+    if if_free {
+        buf: [1024]u8;
+        n: u32 = buf.count;
+        if reg.RegGetValueA(reg.HKEY_CURRENT_USER, temp_c_string(command), null, reg.RRF_RT_REG_SZ, null, buf.data, *n) == 0 {
+            if !contains(to_lower_copy(string.{n, buf.data},, temp), "fastcord") return;
+        } else if reg.RegGetValueA(reg.HKEY_CURRENT_USER, temp_c_string(key), null, 0xffff, null, null, null) == 0 return;
+    }
+    exe := system.get_path_of_running_executable();
+    set :: (path: string, name: string, value: string) {
+        k: win.HKEY;
+        if RegCreateKeyExW(reg.HKEY_CURRENT_USER, wide(path), 0, null, 0, reg.KEY_WRITE, null, *k, null) != 0 return;
+        v, _, bytes := utf8_to_wide(value,, temp);
+        zero: u16;
+        if !v v = *zero;
+        RegSetValueExW(k, ifx name then wide(name) else null, 0, REG_SZ, xx v, xx (bytes + 2));
+        reg.RegCloseKey(k);
+    }
+    set(key, "", tprint("URL:% link", scheme));
+    set(key, "URL Protocol", "");
+    set(command, "", tprint("\"%\" \"%%1\"", replace(exe, "/", "\\",, temp)));
+}
+
+RegCreateKeyExW :: (key: win.HKEY, sub: *u16, reserved: u32, class: *u16, options: u32, sam: u32, attrs: *void, out: *win.HKEY, disposition: *u32) -> s32 #foreign advapi32;
+RegSetValueExW :: (key: win.HKEY, name: *u16, reserved: u32, type: u32, data: *u8, bytes: u32) -> s32 #foreign advapi32;
+REG_SZ :: 1;
+advapi32 :: #system_library "advapi32";
+
 #scope_module
+
+// A named mutex says who is first; WM_COPYDATA to its window (whose class is named after the <state>)
+// carries the message.
+os_instance_claim :: (name: string, message: string) -> bool {
+    w.class_name = copy_string(name);
+    mutex := CreateMutexW(null, 0, wide(tprint("Local\\%", name)));
+    if !mutex || win.GetLastError() != ERROR_ALREADY_EXISTS return true; // first: the handle stays open
+    win.CloseHandle(mutex);
+    for 1..30 { // it may still be creating its window
+        hwnd := FindWindowW(wide(name), null);
+        if hwnd {
+            pid: u32;
+            GetWindowThreadProcessId(hwnd, *pid);
+            AllowSetForegroundWindow(pid); // we are the foreground launch; let it take the foreground
+            cds := COPYDATASTRUCT.{dwData = COPYDATA_OPEN, cbData = xx message.count, lpData = message.data};
+            result: u64;
+            SendMessageTimeoutW(hwnd, WM_COPYDATA, 0, cast(win.LPARAM) *cds, SMTO_ABORTIFHUNG, 5000, *result);
+            return false;
+        }
+        win.Sleep(100);
+    }
+    return false;
+}
+
+CreateMutexW :: (attrs: *void, initial_owner: s32, name: *u16) -> *void #foreign kernel32;
+FindWindowW :: (class: *u16, title: *u16) -> win.HWND #foreign user32;
+GetWindowThreadProcessId :: (hwnd: win.HWND, pid: *u32) -> u32 #foreign user32;
+AllowSetForegroundWindow :: (pid: u32) -> s32 #foreign user32;
+SendMessageTimeoutW :: (hwnd: win.HWND, msg: u32, wp: win.WPARAM, lp: win.LPARAM, flags: u32, timeout_ms: u32, result: *u64) -> s64 #foreign user32;
+COPYDATASTRUCT :: struct { dwData: u64; cbData: u32; lpData: *void; }
+WM_COPYDATA :: 0x4A;
+SMTO_ABORTIFHUNG :: 2;
+ERROR_ALREADY_EXISTS :: 183;
+COPYDATA_OPEN :: 0x4643_4f50; // 'FCOP'
 
 SetConsoleCtrlHandler :: (handler: (ctrl: u32) -> s32 #c_call, add: s32) -> s32 #foreign kernel32;
 
@@ -183,7 +254,7 @@ os_init ::(title: string, width: int, height: int) -> bool {
     w.big_icon = LoadImageW(w.instance, cast(*u16) 2, IMAGE_ICON, big, big, 0);
     w.small_icon = LoadImageW(w.instance, cast(*u16) 2, IMAGE_ICON, w.small_size, w.small_size, 0);
     w.icon_hook = SetWindowsHookExW(WH_CBT, xx icon_hook, null, win.GetCurrentThreadId());
-    class_name := wide("fastcord");
+    class_name := wide(ifx w.class_name then w.class_name else "fastcord");
     wc := win.WNDCLASSEXW.{
         cbSize = size_of(win.WNDCLASSEXW),
         style = win.CS_HREDRAW | win.CS_VREDRAW | win.CS_OWNDC,
@@ -394,6 +465,7 @@ os_apply_cursor :: () {
 
 win :: #import "Windows";
 reg :: #import "Windows_Registry";
+system :: #import "System";
 imagefmt :: #import "imagefmt";
 #import "Windows_Utf8";
 
@@ -576,6 +648,7 @@ w: struct {
     hwnd: win.HWND;
     restore: Window_Placement; // set before init by window_placement_restore
     has_restore: bool;
+    class_name: string; // set by instance_claim: names the <state>
     instance: win.HINSTANCE;
     frame_wait: *void; // swap chain frame-latency waitable (set by gfx)
     frame_ready: bool; // os_wait already took this frame's signal from frame_wait
@@ -668,11 +741,6 @@ tray_notify :: (op: u32) -> bool {
         if !tip[it] break;
     }
     return Shell_NotifyIconW(op, *nid) != 0;
-}
-
-window_show :: () {
-    win.ShowWindow(w.hwnd, xx ifx IsIconic(w.hwnd) then win.SW_RESTORE else win.SW_SHOW);
-    SetForegroundWindow(w.hwnd);
 }
 
 tray_menu :: () {
@@ -1024,6 +1092,12 @@ wndproc :: (hwnd: win.HWND, msg: u32, wp: win.WPARAM, lp: win.LPARAM) -> win.LRE
         case WM_FC_WAKE;
             atomic_store(*w.wake_posted, false);
             return 0;
+        case WM_COPYDATA;
+            cds := cast(*COPYDATASTRUCT) lp;
+            if cds.dwData != COPYDATA_OPEN || cds.cbData > INSTANCE_MESSAGE_MAX return 0;
+            push_event(.{kind = .Open_Url, text = .{cds.cbData, cds.lpData}, time = time_now()});
+            request_frame();
+            return 1;
         case WM_FC_TRAY;
             ev := lp & 0xffff;
             if ev == win.WM_LBUTTONUP || ev == NIN_BALLOONUSERCLICK window_show();

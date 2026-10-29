@@ -602,15 +602,7 @@ handle_span_clicks :: (b: *ui.Box, toks: []Token, message_id: dc.Snowflake = 0, 
 		}
 		if tk.kind == {
 		case .Link;
-			url := ifx tk.url then tk.url else tk.text;
-			code := invite_link_code(url);
-			ch, msg := message_link(url);
-			if code != "" invite_link_clicked(code, message_id);
-			else if open_fc_link(url) {}
-			else if begins_with(url, "fc://") add_server_join_with(url);
-			else if ch && msg jump_to_message(ch.id, msg);
-			else if ch select_channel(ch.guild_id, ch.id);
-			else open_url(url);
+			follow_link(ifx tk.url then tk.url else tk.text, message_id);
 		case .User_Mention;
 			r := ui.Rect.{e.pos.x, e.pos.y - 10, e.pos.x + 1, e.pos.y + 10};
 			open_profile(tk.id, r);
@@ -619,6 +611,32 @@ handle_span_clicks :: (b: *ui.Box, toks: []Token, message_id: dc.Snowflake = 0, 
 			if c select_channel(c.guild_id, c.id);
 		}
 	}
+}
+
+// A link clicked in a message: invites and channel links open in fastcord, other web links in the browser.
+// An fc:// invite opens Join a Server filled in, never joining by itself.
+follow_link :: (url: string, message_id: dc.Snowflake, browser := true) {
+	code := invite_link_code(url);
+	ch, msg := message_link(url);
+	if code != "" invite_link_clicked(code, message_id);
+	else if open_fc_link(url) {}
+	else if begins_with(url, "fc://") add_server_join_with(url);
+	else if ch && msg jump_to_message(ch.id, msg);
+	else if ch select_channel(ch.guild_id, ch.id);
+	else if browser open_url(url);
+}
+
+// A link opened outside fastcord (another app, a second launch): fc:// and discord:// only. A discord://
+// link's path is a discord.com route (discord://-/channels/<guild>/<channel>, discord:///invite/<code>).
+open_launch_url :: (url: string) {
+	u := url;
+	if begins_with_nocase(u, "discord:") {
+		advance(*u, "discord:".count);
+		while begins_with(u, "/") advance(*u, 1);
+		if begins_with(u, "-/") advance(*u, 2);
+		u = tprint("https://discord.com/%", u);
+	} else if !begins_with_nocase(u, "fc://") return;
+	follow_link(u, 0, browser = false);
 }
 
 human_size :: (n: int) -> string {

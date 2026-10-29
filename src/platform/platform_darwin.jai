@@ -76,6 +76,15 @@ window_placement :: () -> Window_Placement, bool {
 
 window_placement_restore :: (p: Window_Placement) { m.normal = p; }
 
+// Brings the window to the front (another launch, a link opened elsewhere).
+window_show :: () {
+    if !m.window return;
+    if msg(bool, m.window, "isMiniaturized") msg(Void, m.window, "deminiaturize:", cast(Id) null);
+    msg(Void, m.window, "makeKeyAndOrderFront:", cast(Id) null);
+    if responds(m.app, "activate") msg(Void, m.app, "activate");
+    else msg(Void, m.app, "activateIgnoringOtherApps:", true);
+}
+
 #scope_module
 
 os_init :: (title: string, width: int, height: int) -> bool {
@@ -653,6 +662,7 @@ register_classes :: () {
     a := objc.allocate_class(cls("NSObject"), "FCAppDelegate");
     add(a, "applicationShouldTerminate:", app_should_terminate, "Q@:@");
     add(a, "applicationShouldTerminateAfterLastWindowClosed:", view_no1, "B@:@");
+    add(a, "application:openURLs:", app_open_urls, "v@:@@");
     objc.register_class(a);
 }
 
@@ -921,6 +931,16 @@ win_did_change_screen :: (self: Id, cmd: SEL, n: Id) #c_call {
     if !m.view return;
     update_size_and_scale();
     update_refresh_rate();
+}
+
+// fc:// and discord:// links (CFBundleURLTypes) opened in other apps, delivered to the running app.
+app_open_urls :: (self: Id, cmd: SEL, app: Id, urls: Id) #c_call {
+    c := s.ctx; push_context,defer_pop c;
+    for 0..cast(int) msg(NSUInteger, urls, "count") - 1 {
+        u := to_jai_string(msg(Id, msg(Id, urls, "objectAtIndex:", cast(NSUInteger) it), "absoluteString"), temp);
+        if u.count <= INSTANCE_MESSAGE_MAX push_event(.{kind = .Open_Url, text = u, time = time_now()});
+    }
+    request_frame();
 }
 
 app_should_terminate :: (self: Id, cmd: SEL, sender: Id) -> NSUInteger #c_call {

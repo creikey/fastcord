@@ -339,6 +339,10 @@ INFO_PLIST :: #string XML
 	<key>NSMicrophoneUsageDescription</key><string>Fastcord uses the microphone for voice chat.</string>
 	<key>NSCameraUsageDescription</key><string>Fastcord uses the camera for video calls.</string>
 	<key>LSApplicationCategoryType</key><string>public.app-category.social-networking</string>
+	<key>CFBundleURLTypes</key><array>
+		<dict><key>CFBundleURLName</key><string>fastcord invite</string><key>CFBundleURLSchemes</key><array><string>fc</string></array></dict>
+		<dict><key>CFBundleURLName</key><string>Discord link</string><key>CFBundleURLSchemes</key><array><string>discord</string></array></dict>
+	</array>
 </dict>
 </plist>
 XML

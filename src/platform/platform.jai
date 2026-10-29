@@ -46,6 +46,7 @@ Event_Kind :: enum u8 {
     Drag_Leave;  // the drag left the window, was cancelled or dropped (after its File_Drop events)
     Tray_Mute;   // the tray menu's Mute or Deafen was picked (Windows)
     Tray_Deafen;
+    Open_Url;    // another launch or app handed us a URL (text; "" = only show the window): instance_claim
 }
 
 Event :: struct {

@@ -15,6 +15,7 @@ Exec=fastcord %U
 Icon=fastcord
 Terminal=false
 Categories=Network;InstantMessaging;Chat;
+MimeType=x-scheme-handler/fc;x-scheme-handler/discord;
 StartupWMClass=fastcord
 """
 
@@ -28,6 +29,11 @@ install -m 755 "$here/fastcord" "$prefix/bin/fastcord"
 install -m 644 "$here/fastcord.png" "$prefix/share/icons/hicolor/256x256/apps/fastcord.png"
 sed "s|^Exec=fastcord|Exec=$prefix/bin/fastcord|" "$here/fastcord.desktop" > "$prefix/share/applications/fastcord.desktop"
 command -v update-desktop-database >/dev/null 2>&1 && update-desktop-database "$prefix/share/applications" 2>/dev/null || true
+# fc:// links open fastcord; discord:// ones only when no other app (the official client) has them
+if command -v xdg-mime >/dev/null 2>&1; then
+  xdg-mime default fastcord.desktop x-scheme-handler/fc || true
+  [ -z "$(xdg-mime query default x-scheme-handler/discord 2>/dev/null)" ] && xdg-mime default fastcord.desktop x-scheme-handler/discord || true
+fi
 echo "Installed $prefix/bin/fastcord (open Fastcord from your app menu)"
 """
 

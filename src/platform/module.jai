@@ -8,6 +8,7 @@
 locks :: #import "locks";
 
 #load "platform.jai";
+#load "instance.jai";
 #if OS == .MACOS {
     objc :: #import "platform_objc";
     #load "ns_darwin.jai";

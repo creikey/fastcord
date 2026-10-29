@@ -86,6 +86,17 @@ window_placement :: () -> Window_Placement, bool {
 
 window_placement_restore :: (p: Window_Placement) { xs.normal = p; }
 
+// Brings the window to the front: mapped, then _NET_ACTIVE_WINDOW asks the window manager (EWMH).
+window_show :: () {
+    if s.headless || !xs.win return;
+    X.MapWindow(xs.d, xs.win);
+    ev: XEvent;
+    ev.xclient = .{type = ClientMessage, window = xs.win, message_type = xs.a._NET_ACTIVE_WINDOW, format = 32};
+    ev.xclient.l[0] = 1; // from an application
+    X.SendEvent(xs.d, xs.root, 0, SubstructureRedirectMask | SubstructureNotifyMask, *ev);
+    X.Flush(xs.d);
+}
+
 #scope_module
 
 os_init :: (title: string, width: int, height: int) -> bool {
@@ -506,6 +517,8 @@ SelectionClear :: 29;
 SelectionRequest :: 30;
 SelectionNotify :: 31;
 ClientMessage :: 33;
+SubstructureNotifyMask :: 1 << 19;
+SubstructureRedirectMask :: 1 << 20;
 MappingNotify :: 34;
 
 PropertyChangeMask :: 0x400000;
@@ -526,7 +539,7 @@ Atoms :: struct {
     WM_PROTOCOLS, WM_DELETE_WINDOW, _NET_WM_NAME, _NET_WM_PID, UTF8_STRING, TEXT, CLIPBOARD, TARGETS, INCR,
     XdndAware, XdndEnter, XdndPosition, XdndStatus, XdndLeave, XdndDrop, XdndFinished, XdndSelection,
     XdndTypeList, XdndActionCopy, FC_SELECTION, _NET_WM_STATE, _NET_WM_STATE_MAXIMIZED_VERT,
-    _NET_WM_STATE_MAXIMIZED_HORZ, _NET_WM_STATE_FULLSCREEN: Atom;
+    _NET_WM_STATE_MAXIMIZED_HORZ, _NET_WM_STATE_FULLSCREEN, _NET_ACTIVE_WINDOW: Atom;
     text_plain, uri_list, gnome_files, png: Atom;
 }
 ATOM_NAMES :: string.["text/plain;charset=utf-8", "text/uri-list", "x-special/gnome-copied-files", "image/png"];

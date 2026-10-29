@@ -447,6 +447,14 @@ module were read.
 |---|---|---|---|
 | Closing the window hides it to the tray (the client's "Minimize to Tray", on by default; fastcord has no setting); a left click on the tray icon shows it; the right-click menu has Open, Mute and Deafen (checked while on; Mute shows checked while deafened) and Quit (the client's also has voice settings and update check); the icon gets a red dot while there are unread mentions | guess | desktop core `app.asar` (not the web bundle) | `platform_windows.jai` `tray_menu`, `set_badge` |
 
+## Desktop host: single instance and links
+
+| Rule | Kind | Anchor in the client | fastcord |
+|---|---|---|---|
+| One running client: a second launch hands its URL argument to the first (`second-instance`) and exits; the first shows its window. On macOS a link opened elsewhere arrives as `open-url` | code (desktop host `app.asar`) | `requestSingleInstanceLock`, `extractUrlFromArgs` | `platform/instance.jai` `instance_claim`, `app_main.jai` `.Open_Url` |
+| A `discord://` link's path is a web route: `discord://-/channels/<guild>/<channel>[/<message>]`, `discord:///invite/<code>`; routes fastcord has no screen for only show the window | guess | `handleOpenUrl` (desktop core, not cached) | `view_chat.jai` `open_launch_url` |
+| fastcord claims `discord://` only where no other app has it (the official client registers it at install), and `fc://` always | guess (fastcord-only) | none | `platform_windows.jai` `url_handler_register`, `tools/package_linux.py` |
+
 ## Login and logout
 
 Fixture: `traffic/account_edits.jsonl` windows `logout` and `login_submit`

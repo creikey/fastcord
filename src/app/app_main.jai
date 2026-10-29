@@ -19,6 +19,7 @@ App :: struct {
 	// opens it once READY is in.
 	start_guild, start_channel: dc.Snowflake;
 	start_pending: bool;
+	launch_url: string; // an fc:// or discord:// link from the command line or a later launch, opened once READY is in
 	login_error: string;
 	offline_store: dc.Store;
 	chats: Table(dc.Snowflake, Chat_State);
@@ -108,6 +109,7 @@ Options :: struct {
 	sweep_out: string; // report directory (default build/sweep)
 	serve: string; // run a self-hosted server from this file instead of the app
 	port: int;
+	url: string; // an fc:// or discord:// link to open (the OS's URL handler passes it)
 }
 
 parse_options :: () -> Options {
@@ -158,6 +160,8 @@ parse_options :: () -> Options {
 			o.serve = v;
 		} else if flag("-port:") {
 			o.port = parse_int_prefix(v);
+		} else if begins_with_nocase(a, "fc://") || begins_with_nocase(a, "discord:") {
+			o.url = a;
 		} else {
 			bench_parse_flag(a);
 		}
@@ -184,6 +188,13 @@ main :: () {
 		while true sleep_milliseconds(1000 * 60 * 60);
 	}
 	headless := opt.shot != "" || bench.on;
+	if !headless && !platform.instance_claim(app_state_dir(), opt.url) return; // the running one takes it
+	app.launch_url = copy_string(opt.url);
+	// macOS: Info.plist's CFBundleURLTypes; Linux: the desktop entry's MimeType (tools/package_linux.py).
+	#if OS == .WINDOWS if !headless && FASTCORD_VERSION != "dev" {
+		platform.url_handler_register("fc");
+		platform.url_handler_register("discord", if_free = true);
+	}
 	sw, sh := settings_load(headless);
 	if sw >= 400 && sh >= 300 {
 		// an old save may be below today's minimum window size
@@ -317,6 +328,11 @@ frame :: () {
 		ch := dc.channel_get(store(), app.start_channel);
 		if ch select_channel(ch.guild_id, ch.id);
 	}
+	if app.launch_url && store().ready && !app.needs_login {
+		open_launch_url(app.launch_url);
+		free(app.launch_url);
+		app.launch_url = "";
+	}
 	hosted_frame();
 	encrypted_frame();
 	if app.client != null {
@@ -354,6 +370,12 @@ frame :: () {
 			toggle_self_mute();
 		case .Tray_Deafen;
 			app.self_deaf = !app.self_deaf;
+		case .Open_Url;
+			platform.window_show();
+			if e.text != "" {
+				free(app.launch_url);
+				app.launch_url = copy_string(e.text);
+			}
 		case .Focus_Gained; #through; case .Focus_Lost;
 			app.focused = e.kind == .Focus_Gained;
 			app.focus_gained = app.focused;
