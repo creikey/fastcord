@@ -19,8 +19,10 @@ MAX_PACKET :: 16384; // The most any carrier may set as its largest packet.
 
 Kind :: enum u8 { Hello :: 1; Init :: 2; Msg :: 3; }
 
-// The first plaintext byte says what a ratchet message holds.
-Content :: enum u8 { Text :: 0; Accept :: 1; }
+// The first plaintext byte says what a ratchet message holds. Text is the text alone; every later kind
+// has a Body (encode_body): a message with a reply or files is a Post, and Edit, Delete, React and Unreact
+// name their target, the delivery they change.
+Content :: enum u8 { Text :: 0; Accept :: 1; Post :: 2; Edit :: 3; Delete :: 4; React :: 5; Unreact :: 6; }
 SILENT :: cast(u8) 0x80; // Set on the Content byte: sent with @silent, so no sound or notification on any carrier.
 
 HEADER_BYTES :: 40;
@@ -33,27 +35,157 @@ MSG_PREFIX_BYTES :: 2 + 16;
 // prefix, header and tag, the Content byte and the padding's 0x80.
 max_text :: (limit: int) -> int { return limit - MSG_PREFIX_BYTES - HEADER_BYTES - TAG_BYTES - 2; }
 
-// A ratchet plaintext is the Content byte, the text, then ISO/IEC 7816-4 padding (0x80, then zeros) up to
-// a multiple of PAD_BLOCK, as Signal pads: the carrier sees a message's length to the block, not the byte.
-// limit caps the plaintext, so a text near the carrier's largest packet pads only up to what fits.
+// A Body, after the Content byte: target and reply (u8 length, then the carrier's delivery ID), a u8 count
+// of files, each key[32] digest[32] size[u32 LE] width[u16 LE] height[u16 LE] flags[u8] name (u8 length)
+// mime (u8 length) description (u16 LE length), then the text to the end.
+Body :: struct {
+	content: Content;
+	silent: bool;
+	target: string; // Edit, Delete, React, Unreact: the delivery they change.
+	reply: string;  // The delivery this one answers.
+	files: []File;
+	text: string;   // React and Unreact: the emoji.
+}
+
+// A File is sent as its own ciphertext (seal_file), uploaded wherever the carrier keeps files, in the order
+// of the Body's files; only the message holds its key, its BLAKE3 digest and what it really is.
+File :: struct {
+	key: [32]u8;
+	digest: [32]u8; // Of the ciphertext.
+	size: s64;      // Of the plaintext.
+	width, height: int;
+	spoiler: bool;
+	name, mime, description: string;
+}
+
+MAX_FILES :: 10;
+MAX_FILE :: 500 << 20; // The most any carrier takes in one file today (Discord with Nitro).
+MAX_TARGET :: 64;
+MAX_REACTION :: 128;
+FILE_BLOCK :: 4096; // A file is padded with zeros to a multiple of this before sealing, as text is to PAD_BLOCK.
+FILE_CONTEXT :: "fastcord 2026-10-29 e2e file v1";
+
+encode_body :: (b: Body) -> []u8 {
+	out: [..]u8;
+	out.allocator = temp;
+	array_add(*out, (cast(u8) b.content) | (ifx b.silent then SILENT else 0));
+	if b.content == .Text { array_add(*out, ..cast([]u8) b.text); return out; }
+	if b.content == .Accept return out;
+	add_str :: (out: *[..]u8, s: string, wide := false) {
+		array_add(out, xx (s.count & 0xFF));
+		if wide array_add(out, xx (s.count >> 8));
+		array_add(out, ..cast([]u8) s);
+	}
+	add_str(*out, b.target);
+	add_str(*out, b.reply);
+	array_add(*out, xx b.files.count);
+	for f: b.files {
+		array_add(*out, ..f.key); array_add(*out, ..f.digest);
+		for 0..3 array_add(*out, xx ((f.size >> (8 * it)) & 0xFF));
+		for v: int.[f.width, f.height] { array_add(*out, xx (v & 0xFF)); array_add(*out, xx ((v >> 8) & 0xFF)); }
+		array_add(*out, xx f.spoiler);
+		add_str(*out, f.name); add_str(*out, f.mime); add_str(*out, f.description, wide = true);
+	}
+	array_add(*out, ..cast([]u8) b.text);
+	return out;
+}
+
+// parse_body reads a Content byte and its Body, checking every length and field before using it. The
+// strings point into pt; files are in temp.
+parse_body :: (pt: []u8) -> Body, bool {
+	b: Body;
+	if pt.count < 1 || (pt[0] & ~SILENT) > xx Content.Unreact return b, false;
+	b.content, b.silent = xx (pt[0] & ~SILENT), (pt[0] & SILENT) != 0;
+	r := array_view(pt, 1, pt.count - 1);
+	if b.content == .Text { b.text = xx r; return b, valid_utf8(b.text); }
+	if b.content == .Accept return b, r.count == 0;
+	ok := true;
+	bytes :: (n: int) -> []u8 #expand {
+		if n > `r.count { `ok = false; return .[]; }
+		v := array_view(`r, 0, n);
+		`r.data += n; `r.count -= n;
+		return v;
+	}
+	num :: (n: int) -> int #expand { v := 0; for < bytes(n) v = (v << 8) | it; return v; }
+	str :: (wide := false) -> string #expand { return xx bytes(num(ifx wide then 2 else 1)); }
+	b.target = str();
+	b.reply = str();
+	n := num(1);
+	if n > MAX_FILES return b, false;
+	files := NewArray(n, File,, temp);
+	for * files {
+		memcpy(it.key.data, bytes(32).data, ifx ok then 32 else 0);
+		memcpy(it.digest.data, bytes(32).data, ifx ok then 32 else 0);
+		it.size = num(4);
+		it.width = num(2);
+		it.height = num(2);
+		it.spoiler = num(1) == 1;
+		it.name = str();
+		it.mime = str();
+		it.description = str(wide = true);
+		ok &&= it.size <= MAX_FILE && it.name.count && valid_utf8(it.name) && valid_utf8(it.description) && printable(it.mime)
+			&& find_index_of_any_from_left(it.name, "/\\\x00") < 0;
+		if !ok break;
+	}
+	b.files = files;
+	b.text = xx r;
+	if !ok || b.target.count > MAX_TARGET || b.reply.count > MAX_TARGET || !valid_utf8(b.text) return b, false;
+	if b.content == {
+		case .Post;    return b, !b.target.count && (b.text.count || files.count);
+		case .Edit;    return b, b.target.count && (b.text.count || files.count);
+		case .Delete;  return b, b.target.count && !b.reply.count && !files.count && !b.text.count;
+		case;          return b, b.target.count && !b.reply.count && !files.count && b.text.count && b.text.count <= MAX_REACTION;
+	}
+}
+
+// A ratchet plaintext is a Content byte and its body, then ISO/IEC 7816-4 padding (0x80, then zeros) up
+// to a multiple of PAD_BLOCK, as Signal pads: the carrier sees a message's length to the block, not the
+// byte. limit caps the plaintext, so a message near the carrier's largest packet pads only up to what fits.
 PAD_BLOCK :: 160;
 
-pad :: (content: Content, text: string, limit: int, silent := false) -> []u8 {
-	n := min(limit, (text.count + 2 + PAD_BLOCK - 1) / PAD_BLOCK * PAD_BLOCK);
-	assert(text.count + 2 <= n);
+pad :: (body: []u8, limit: int) -> []u8 {
+	n := min(limit, (body.count + 1 + PAD_BLOCK - 1) / PAD_BLOCK * PAD_BLOCK);
+	assert(body.count + 1 <= n);
 	pt := NewArray(n, u8,, temp);
-	pt[0] = (cast(u8) content) | (ifx silent then SILENT else 0);
-	memcpy(pt.data + 1, text.data, text.count);
-	pt[text.count + 1] = 0x80;
+	memcpy(pt.data, body.data, body.count);
+	pt[body.count] = 0x80;
 	return pt;
 }
 
-// unpad returns the Content byte and text, or false when the padding is malformed.
+// unpad returns the Content byte and body, or false when the padding is malformed.
 unpad :: (pt: []u8) -> []u8, bool {
 	n := pt.count;
 	while n > 0 && pt[n - 1] == 0 n -= 1;
 	if n < 2 || pt[n - 1] != 0x80 return .[], false;
 	return array_view(pt, 0, n - 1), true;
+}
+
+// sealed_size is a file's ciphertext size: padded to the block, then the tag.
+sealed_size :: (size: s64) -> s64 { return (size + FILE_BLOCK - 1) / FILE_BLOCK * FILE_BLOCK + TAG_BYTES; }
+
+// seal_file encrypts data under a new key with ChaCha20-Poly1305 (the key is used once, so the nonce is
+// zero) and fills f's key, digest and size. The ciphertext is on the heap.
+seal_file :: (data: []u8, f: *File) -> []u8 {
+	n := sealed_size(data.count);
+	out := NewArray(n, u8);
+	memcpy(out.data, data.data, data.count);
+	crypto.random_bytes(f.key);
+	f.size = data.count;
+	pt := array_view(out, 0, n - TAG_BYTES);
+	ok := file_aead(true, f.key, pt, pt, array_view(out, n - TAG_BYTES, TAG_BYTES));
+	assert(ok);
+	f.digest = crypto.blake3(out);
+	return out;
+}
+
+// open_file checks a downloaded ciphertext's size and digest, then decrypts it; the plaintext is on the
+// heap, f.size bytes in a buffer of the padded size.
+open_file :: (f: File, ct: []u8) -> []u8, bool {
+	if f.size > MAX_FILE || ct.count != sealed_size(f.size) || !same(crypto.blake3(ct), f.digest) return .[], false;
+	out := NewArray(ct.count - TAG_BYTES, u8, false);
+	if !file_aead(false, f.key, array_view(ct, 0, out.count), out, array_view(ct, out.count, TAG_BYTES)) { array_free(out); return .[], false; }
+	out.count = f.size;
+	return out, true;
 }
 
 // Double Ratchet, Signal spec section 3.5: the most message keys one message may skip over.
@@ -447,6 +579,35 @@ aead :: (seal: bool, mk: [32]u8, ad: [AD_BYTES]u8, header: []u8, src: []u8, dst:
 	nonce := array_view(kn, 32, 12);
 	if seal return crypto.seal(*a, dst, tag, nonce, full_ad, src);
 	return crypto.open(*a, dst, nonce, full_ad, src, tag);
+}
+
+file_aead :: (seal: bool, key: [32]u8, src: []u8, dst: []u8, tag: []u8) -> bool {
+	a: crypto.Aead;
+	if !crypto.aead_init(*a, .CHACHA20_POLY1305, key) return false;
+	defer crypto.aead_destroy(*a);
+	nonce: [12]u8;
+	if seal return crypto.seal(*a, dst, tag, nonce, xx FILE_CONTEXT, src);
+	return crypto.open(*a, dst, nonce, xx FILE_CONTEXT, src, tag);
+}
+
+valid_utf8 :: (s: string) -> bool {
+	i := 0;
+	while i < s.count {
+		c := s[i];
+		n := ifx c < 0x80 then 1 else ifx (c & 0xE0) == 0xC0 then 2 else ifx (c & 0xF0) == 0xE0 then 3 else ifx (c & 0xF8) == 0xF0 then 4 else 0;
+		if n == 0 || i + n > s.count return false;
+		for 1..n-1 if (s[i + it] & 0xC0) != 0x80 return false;
+		cp := ifx n == 1 then cast(u32) c else cast(u32) c & (cast(u32) 0xFF >> (n + 1));
+		for 1..n-1 cp = (cp << 6) | (s[i + it] & 0x3F);
+		if (n == 2 && cp < 0x80) || (n == 3 && cp < 0x800) || (n == 4 && (cp < 0x10000 || cp > 0x10FFFF)) || (cp >= 0xD800 && cp <= 0xDFFF) return false;
+		i += n;
+	}
+	return true;
+}
+
+printable :: (s: string) -> bool {
+	for cast([]u8) s if it < 0x20 || it > 0x7E return false;
+	return true;
 }
 
 open_message :: (s: *Session, mk: [32]u8, m: []u8, pt: []u8) -> bool {

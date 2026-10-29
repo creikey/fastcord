@@ -92,9 +92,9 @@ Op :: enum u8 {
 	Set_Verified;  // conv, peer_root, verified: marks conv.peer's root verified or not, and clears key_changed
 	Hello;         // conv, me -> packet, or result Too_Long when a Hello doesn't fit the carrier
 	Accept;        // conv (peer: who sent the Hello), me, packet = the Hello -> packet
-	Send;          // conv, me, text = plaintext -> packet, or result No_Session / Too_Long
+	Send;          // conv, me, content, text, target, reply, files -> packet, or result No_Session / Too_Long / Failed (an Edit or Delete of what isn't ours)
 	Sent;          // packet: handed to its carrier, so it leaves the outbox
-	Receive;       // conv, from, delivery, me, packet -> result, content, out_text
+	Receive;       // conv, from, delivery, me, packet -> result, content, out_text, target, reply, files
 	Outbox;        // -> outbox: packets committed but never handed to their carrier, to send again after a crash
 	Search;        // conv, text = words -> hits: the conversation's texts holding every word, ignoring ASCII case
 	Bundle;        // conv (carrier and me only), me -> packet: a Hello any conversation on the carrier may answer, for the carrier to keep
@@ -110,7 +110,7 @@ Result :: enum u8 {
 	Failed;
 }
 
-Outbox_Item :: struct { carrier, conversation, packet: string; }
+Outbox_Item :: struct { carrier, conversation, packet: string; replaces: string; silent: bool; } // replaces: the delivery an Edit or Delete rewrites
 Hit :: struct { delivery, author, text: string; } // author: the party that sent it
 
 // The caller fills the inputs, submits, and once done reads the outputs and calls free_request.
@@ -124,12 +124,15 @@ Request :: struct {
 	text: string;
 	packet: string;
 	silent: bool; // Send: sent with @silent. Receive: the sender asked for no sound or notification.
+	content: Content; // Send: what to send (Text upgrades to Post with a reply or files). Receive: what came.
+	target: string; // Edit, Delete, React, Unreact: the delivery they change. An Edit or Delete replaces it, so the carrier rewrites that delivery in place.
+	reply: string;
+	files: [..]File; // Strings on the heap.
 	encrypted: bool;
 	verified: bool;
 	peer_root: [32]u8;
 
 	result: Result;
-	content: Content;
 	out_text: string;
 	has_session: bool;
 	accepted: bool;
@@ -150,8 +153,10 @@ request :: (op: Op, conv := Conversation.{}, text := "", packet := "") -> *Reque
 
 free_request :: (r: *Request) {
 	crypto.zero(*r.me);
-	for string.[r.conv.carrier, r.conv.id, r.conv.me, r.conv.peer, r.from, r.delivery, r.text, r.out_text, r.packet] free(it);
-	for r.outbox { free(it.carrier); free(it.conversation); free(it.packet); }
+	for string.[r.conv.carrier, r.conv.id, r.conv.me, r.conv.peer, r.from, r.delivery, r.text, r.out_text, r.packet, r.target, r.reply] free(it);
+	for * r.files { crypto.zero(*it.key); free(it.name); free(it.mime); free(it.description); }
+	array_free(r.files);
+	for r.outbox { free(it.carrier); free(it.conversation); free(it.packet); free(it.replaces); }
 	array_free(r.outbox);
 	for r.hits { free(it.delivery); free(it.author); crypto.zero(xx it.text); free(it.text); }
 	array_free(r.hits);
@@ -214,6 +219,8 @@ ALTER TABLE plaintexts ADD COLUMN conversation BLOB;
 ALTER TABLE plaintexts ADD COLUMN author BLOB;
 CREATE INDEX plaintexts_conversation ON plaintexts(conversation);
 SQL,
+	// An Edit or Delete rewrites its target delivery; a resend after a crash keeps @silent.
+	"ALTER TABLE outbox ADD COLUMN replaces BLOB; ALTER TABLE outbox ADD COLUMN silent INTEGER NOT NULL DEFAULT 0;",
 ];
 
 // Search opens at most this many of a conversation's texts and returns at most MAX_HITS of them.
@@ -296,14 +303,24 @@ run_request :: (d: *Db, r: *Request) {
 			first := INIT_PREFIX_BYTES + HEADER_BYTES + TAG_BYTES;
 			if first + 2 > p.limit { r.result = .Too_Long; return; }
 			s: Session;
-			s, ok = accept(r.me, hello, binding(r.conv, r.conv.me, r.conv.peer), pad(.Accept, "", p.limit - first), *p);
+			r.content = .Accept;
+			s, ok = accept(r.me, hello, binding(r.conv, r.conv.me, r.conv.peer), pad(encode_body(.{content = .Accept}), p.limit - first), *p);
 			defer crypto.zero(*s);
 			if !ok { r.result = .Failed; return; }
 			free(r.packet);
 			r.packet = copy_string(xx bytes(*p),, context.default_allocator);
-			if !commit_sent(d, r, conv, *s, true, hello.root, hello.id, .Accept, "") r.result = .Failed;
+			if !commit_sent(d, r, conv, *s, true, hello.root, hello.id, encode_body(.{content = .Accept})) r.result = .Failed;
 		case .Send;
-			if r.text.count > max_text(r.conv.limit) { r.result = .Too_Long; return; }
+			if r.content == .Text && (r.reply.count || r.files.count) r.content = .Post;
+			body := encode_body(.{r.content, r.silent, r.target, r.reply, r.files, r.text});
+			_, valid := parse_body(body);
+			if !valid || r.content == .Accept { r.result = .Failed; return; }
+			if body.count + 1 > r.conv.limit - MSG_PREFIX_BYTES - HEADER_BYTES - TAG_BYTES { r.result = .Too_Long; return; }
+			// Only our own message is edited or deleted.
+			if replaces(r.content) && query_int(db, "SELECT 1 FROM plaintexts WHERE delivery = ? AND conversation = ? AND author = ? LIMIT 1;", cast([]u8) r.target, conv, cast([]u8) r.conv.me) != 1 {
+				r.result = .Failed;
+				return;
+			}
 			st := sqlite.prepare(db, "SELECT id, state FROM sessions WHERE conversation = ? ORDER BY updated DESC LIMIT 1;");
 			s: Session;
 			found := sqlite.bind_all(st, conv) && sqlite.step(st) == .Row
@@ -313,7 +330,7 @@ run_request :: (d: *Db, r: *Request) {
 			if !found { r.result = .No_Session; return; }
 			p: Packet;
 			p.limit = r.conv.limit;
-			pt := pad(.Text, r.text, p.limit - MSG_PREFIX_BYTES - HEADER_BYTES - TAG_BYTES, silent = r.silent);
+			pt := pad(body, p.limit - MSG_PREFIX_BYTES - HEADER_BYTES - TAG_BYTES);
 			defer crypto.zero(pt);
 			head: [2]u8 = .[VERSION, xx Kind.Msg];
 			memcpy(p.data.data, head.data, 2);
@@ -322,18 +339,19 @@ run_request :: (d: *Db, r: *Request) {
 			if !encrypt(*s, pt, *p) { r.result = .Failed; return; }
 			r.packet = copy_string(xx bytes(*p),, context.default_allocator);
 			none: [32]u8;
-			if !commit_sent(d, r, conv, *s, false, none, none, .Text, r.text) r.result = .Failed;
+			if !commit_sent(d, r, conv, *s, false, none, none, body) r.result = .Failed;
 		case .Sent;
 			sqlite.run(db, "DELETE FROM outbox WHERE hash = ?;", cast([]u8) crypto.blake3(xx r.packet));
 		case .Receive;
 			receive(d, r, conv);
 		case .Outbox;
-			st := sqlite.prepare(db, "SELECT conversation, packet FROM outbox;");
+			st := sqlite.prepare(db, "SELECT conversation, packet, replaces, silent FROM outbox;");
 			while sqlite.step(st) == .Row {
 				c := cast(string) sqlite.col_blob(st, 0);
 				nul := find_index_from_left(c, 0);
 				if nul < 0 continue;
-				array_add(*r.outbox, .{copy_string(slice(c, 0, nul)), copy_string(slice(c, nul + 1, c.count - nul - 1)), copy_string(xx sqlite.col_blob(st, 1))});
+				array_add(*r.outbox, .{copy_string(slice(c, 0, nul)), copy_string(slice(c, nul + 1, c.count - nul - 1)), copy_string(xx sqlite.col_blob(st, 1)),
+					copy_string(xx sqlite.col_blob(st, 2)), sqlite.col_int(st, 3) != 0});
 			}
 			sqlite.finalize(st);
 		case .Search;
@@ -346,8 +364,10 @@ run_request :: (d: *Db, r: *Request) {
 				pt := NewArray(b.count - SEAL_BYTES, u8,, temp);
 				defer crypto.zero(pt);
 				hash := sqlite.col_blob(st, 0);
-				if hash.count != 32 || !unseal(d, ad("plaintexts", hash), b, pt) || (pt[0] & ~SILENT) != xx Content.Text continue;
-				text := to_string(pt.data + 1, pt.count - 1);
+				if hash.count != 32 || !unseal(d, ad("plaintexts", hash), b, pt) continue;
+				body, ok := parse_body(pt);
+				if !ok || (body.content != .Text && body.content != .Post && body.content != .Edit) || !body.text continue;
+				text := body.text;
 				lower := to_lower_copy(text,, temp);
 				defer crypto.zero(xx lower);
 				found := true;
@@ -361,7 +381,7 @@ run_request :: (d: *Db, r: *Request) {
 // commit_sent stores the advanced session, our plaintext and the outbox entry in one transaction, before
 // the packet can leave: a crash after the send but before the save would encrypt the next message with
 // the same key.
-commit_sent :: (d: *Db, r: *Request, conv: []u8, s: *Session, new: bool, peer_root: [32]u8, hello_id: [32]u8, content: Content, text: string) -> bool {
+commit_sent :: (d: *Db, r: *Request, conv: []u8, s: *Session, new: bool, peer_root: [32]u8, hello_id: [32]u8, body: []u8) -> bool {
 	db := d.sql;
 	hash := crypto.blake3(xx r.packet);
 	peer := key(r.conv.carrier, r.conv.peer);
@@ -369,8 +389,8 @@ commit_sent :: (d: *Db, r: *Request, conv: []u8, s: *Session, new: bool, peer_ro
 		&& (ifx new then sqlite.run(db, "INSERT INTO sessions(id, conversation, peer, peer_root, hello_id, state, updated) VALUES(?, ?, ?, ?, ?, ?, ?);",
 				cast([]u8) s.id, conv, peer, cast([]u8) peer_root, cast([]u8) hello_id, seal(d, ad("sessions", s.id), s), now_ms())
 			else sqlite.run(db, "UPDATE sessions SET state = ?, updated = ? WHERE id = ?;", seal(d, ad("sessions", s.id), s), now_ms(), cast([]u8) s.id))
-		&& store_plaintext(d, hash, "", content, text, r.silent, conv, r.conv.me)
-		&& sqlite.run(db, "INSERT INTO outbox(hash, conversation, packet) VALUES(?, ?, ?);", cast([]u8) hash, conv, cast([]u8) r.packet)
+		&& store_plaintext(d, hash, ifx replaces(r.content) then r.target else "", body, conv, r.conv.me)
+		&& sqlite.run(db, "INSERT INTO outbox(hash, conversation, packet, replaces, silent) VALUES(?, ?, ?, nullif(?, X''), ?);", cast([]u8) hash, conv, cast([]u8) r.packet, cast([]u8) r.target, r.silent)
 		&& (!new || (set_encrypted(db, conv, true) && note_peer(db, peer, peer_root)))
 		&& sqlite.exec(db, "COMMIT;");
 	if !ok { log_error("e2e: cannot save a sent message: %", sqlite.errmsg(db)); sqlite.exec(db, "ROLLBACK;"); }
@@ -387,7 +407,7 @@ receive :: (d: *Db, r: *Request, conv: []u8) {
 		first := copy_string(xx sqlite.col_blob(st, 0),, temp);
 		b := sqlite.col_blob(st, 1);
 		pt := NewArray(max(b.count - SEAL_BYTES, 0), u8,, temp);
-		ok := unseal(d, ad("plaintexts", hash), b, pt) && take_plaintext(r, pt, stored = true);
+		ok := unseal(d, ad("plaintexts", hash), b, pt) && take_plaintext(r, pt);
 		crypto.zero(pt);
 		sqlite.finalize(st);
 		if !ok { r.result = .Failed; return; }
@@ -433,12 +453,13 @@ receive :: (d: *Db, r: *Request, conv: []u8) {
 			skipped: [..]Skipped;
 			skipped.allocator = temp;
 			pt := NewArray(i.message.count - HEADER_BYTES - TAG_BYTES, u8,, temp);
-			if !decrypt(*s, i.message, pt, *skipped) || !take_plaintext(r, pt) { r.result = .Undecryptable; return; }
+			body: []u8;
+			if !decrypt(*s, i.message, pt, *skipped) || !opened(r, pt, *body) { r.result = .Undecryptable; return; }
 			ok = sqlite.exec(db, "BEGIN;")
 				&& sqlite.run(db, "INSERT INTO sessions(id, conversation, peer, peer_root, hello_id, state, updated) VALUES(?, ?, ?, ?, ?, ?, ?);",
 					cast([]u8) s.id, conv, from, cast([]u8) i.root, cast([]u8) i.hello_id, seal(d, ad("sessions", s.id), *s), now_ms())
 				&& store_skipped(d, s.id, skipped)
-				&& store_plaintext(d, hash, r.delivery, r.content, r.out_text, r.silent, conv, r.from)
+				&& store_plaintext(d, hash, r.delivery, body, conv, r.from)
 				&& set_encrypted(db, conv, true)
 				&& note_peer(db, from, i.root)
 				&& sqlite.run(db, "UPDATE prekeys SET answered = ? WHERE hello_id = ? AND answered = 0;", now_ms(), cast([]u8) i.hello_id)
@@ -469,22 +490,23 @@ receive :: (d: *Db, r: *Request, conv: []u8) {
 			sqlite.finalize(st);
 			defer crypto.zero(*mk);
 			ok: bool;
+			body: []u8;
 			if has_mk {
-				if !decrypt_skipped(*s, mk, m, pt) || !take_plaintext(r, pt) { r.result = .Undecryptable; return; }
+				if !decrypt_skipped(*s, mk, m, pt) || !opened(r, pt, *body) { r.result = .Undecryptable; return; }
 				ok = sqlite.exec(db, "BEGIN;")
 					&& sqlite.run(db, "DELETE FROM skipped WHERE session = ? AND dh = ? AND n = ?;", cast([]u8) id, cast([]u8) h.dh, cast(s64) h.n)
-					&& store_plaintext(d, hash, r.delivery, r.content, r.out_text, r.silent, conv, r.from)
+					&& store_plaintext(d, hash, r.delivery, body, conv, r.from)
 					&& sqlite.exec(db, "COMMIT;");
 			} else {
 				next := s;
 				defer crypto.zero(*next);
 				skipped: [..]Skipped;
 				skipped.allocator = temp;
-				if !decrypt(*next, m, pt, *skipped) || !take_plaintext(r, pt) { r.result = .Undecryptable; return; }
+				if !decrypt(*next, m, pt, *skipped) || !opened(r, pt, *body) { r.result = .Undecryptable; return; }
 				ok = sqlite.exec(db, "BEGIN;")
 					&& sqlite.run(db, "UPDATE sessions SET state = ?, updated = ? WHERE id = ?;", seal(d, ad("sessions", id), *next), now_ms(), cast([]u8) id)
 					&& store_skipped(d, id, skipped)
-					&& store_plaintext(d, hash, r.delivery, r.content, r.out_text, r.silent, conv, r.from)
+					&& store_plaintext(d, hash, r.delivery, body, conv, r.from)
 					&& sqlite.exec(db, "COMMIT;");
 				for * skipped crypto.zero(*it.mk);
 			}
@@ -494,27 +516,35 @@ receive :: (d: *Db, r: *Request, conv: []u8) {
 	}
 }
 
-// take_plaintext splits off the Content byte, and the padding of one just decrypted. Text must be UTF-8,
-// since it goes to the markdown parser.
-take_plaintext :: (r: *Request, padded: []u8, stored := false) -> bool {
-	pt, ok := padded, true;
-	if !stored pt, ok = unpad(padded);
-	if !ok || pt.count < 1 || (pt[0] & ~SILENT) > xx Content.Accept return false;
-	r.content, r.silent = xx (pt[0] & ~SILENT), (pt[0] & SILENT) != 0;
-	text := to_string(pt.data + 1, pt.count - 1);
-	if !valid_utf8(text) || (r.content == .Accept && text.count) return false;
-	r.out_text = copy_string(text);
+// take_plaintext reads a Content byte and Body into the request's outputs.
+take_plaintext :: (r: *Request, pt: []u8) -> bool {
+	b, ok := parse_body(pt);
+	if !ok return false;
+	r.content, r.silent, r.out_text, r.target, r.reply = b.content, b.silent, copy_string(b.text), copy_string(b.target), copy_string(b.reply);
+	for b.files {
+		f := array_add(*r.files);
+		f.* = it;
+		f.name, f.mime, f.description = copy_string(it.name), copy_string(it.mime), copy_string(it.description);
+	}
 	return true;
 }
 
-// A plaintext is sealed as the Content byte then the text, the form take_plaintext reads. delivery is
-// empty (NULL) for our own send until the carrier hands it back; author is the party that sent it.
-store_plaintext :: (d: *Db, hash: [32]u8, delivery: string, content: Content, text: string, silent: bool, conv: []u8, author: string) -> bool {
-	pt := NewArray(text.count + 1, u8, false,, temp);
-	defer crypto.zero(pt);
-	pt[0] = (cast(u8) content) | (ifx silent then SILENT else 0);
-	memcpy(pt.data + 1, text.data, text.count);
-	sealed := seal(d, ad("plaintexts", hash), pt);
+// opened takes the plaintext of a packet just decrypted: its padding goes, and an Edit or Delete must name
+// the delivery it arrived as, so the carrier can't move it onto another message.
+opened :: (r: *Request, padded: []u8, body: *[]u8) -> bool {
+	ok: bool;
+	body.*, ok = unpad(padded);
+	return ok && take_plaintext(r, body.*) && (!replaces(r.content) || r.target == r.delivery);
+}
+
+replaces :: (c: Content) -> bool { return c == .Edit || c == .Delete; }
+
+// A plaintext is sealed as its Content byte and Body, the form take_plaintext reads. delivery is empty
+// (NULL) for our own send until the carrier hands it back; author is the party that sent it. An Edit or
+// Delete takes the place of what its delivery held before, which is deleted.
+store_plaintext :: (d: *Db, hash: [32]u8, delivery: string, body: []u8, conv: []u8, author: string) -> bool {
+	sealed := seal(d, ad("plaintexts", hash), body);
+	if replaces(xx (body[0] & ~SILENT)) && !sqlite.run(d.sql, "DELETE FROM plaintexts WHERE delivery = ? AND conversation = ?;", cast([]u8) delivery, conv) return false;
 	if !delivery.count return sqlite.run(d.sql, "INSERT INTO plaintexts(hash, sealed, conversation, author) VALUES(?, ?, ?, ?);", cast([]u8) hash, sealed, conv, cast([]u8) author);
 	return sqlite.run(d.sql, "INSERT INTO plaintexts(hash, delivery, sealed, conversation, author) VALUES(?, ?, ?, ?, ?);", cast([]u8) hash, cast([]u8) delivery, sealed, conv, cast([]u8) author);
 }
@@ -614,21 +644,6 @@ query_int :: (db: *sqlite.DB, sql: string, args: ..Any) -> s64 {
 }
 
 now_ms :: () -> s64 { return to_milliseconds(current_time_consensus()); }
-
-valid_utf8 :: (s: string) -> bool {
-	i := 0;
-	while i < s.count {
-		c := s[i];
-		n := ifx c < 0x80 then 1 else ifx (c & 0xE0) == 0xC0 then 2 else ifx (c & 0xF0) == 0xE0 then 3 else ifx (c & 0xF8) == 0xF0 then 4 else 0;
-		if n == 0 || i + n > s.count return false;
-		for 1..n-1 if (s[i + it] & 0xC0) != 0x80 return false;
-		cp := ifx n == 1 then cast(u32) c else cast(u32) c & (cast(u32) 0xFF >> (n + 1));
-		for 1..n-1 cp = (cp << 6) | (s[i + it] & 0x3F);
-		if (n == 2 && cp < 0x80) || (n == 3 && cp < 0x800) || (n == 4 && (cp < 0x10000 || cp > 0x10FFFF)) || (cp >= 0xD800 && cp <= 0xDFFF) return false;
-		i += n;
-	}
-	return true;
-}
 
 loop :: (d: *Db) {
 	if d.path != ":memory:" make_directory_if_it_does_not_exist(path_strip_filename(d.path), recursive = true);

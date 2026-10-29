@@ -311,6 +311,8 @@ conversation :: (dir: string, max: int) {
 	print("carrier (largest packet %): % delivered, % opened, % dropped, % replays, % forgeries\n", limit, delivered, opened, dropped, replays, forgeries);
 	check(opened > 200 && replays > 10 && forgeries > 5, "the carrier exercised every case");
 
+	contents(*a, *b);
+
 	// Outbox: a packet committed but not handed to the carrier is offered again; once sent it's gone.
 	s := send(*a, *b, "crash before send");
 	in_outbox :: (o: *e2e.Request, packet: string) -> bool {
@@ -419,6 +421,130 @@ conversation :: (dir: string, max: int) {
 	for file_list(tag) if contains(it, "a.db.sealed-") aside = true;
 	check(aside, "the sealed database is kept beside it");
 	stop(a.d);
+}
+
+// post sends a message of any kind from c to peer.
+post :: (c: *Client, peer: *Client, content: e2e.Content, text := "", target := "", reply := "", files: []e2e.File = .[]) -> *e2e.Request {
+	r := e2e.request(.Send, .{CARRIER, CONV, c.party, peer.party, limit}, text);
+	r.me, r.content, r.target, r.reply = c.me, content, copy_string(target), copy_string(reply);
+	for files {
+		f := array_add(*r.files);
+		f.* = it;
+		f.name, f.mime, f.description = copy_string(it.name), copy_string(it.mime), copy_string(it.description);
+	}
+	e2e.submit(c.d, r);
+	wait(r);
+	return r;
+}
+
+// contents: replies, files, edits, deletes and reactions, each inside the packet (E2E 7).
+contents :: (a: *Client, b: *Client) {
+	// Echo and deliver: the sender's own copy claims the delivery, then the peer opens it.
+	land :: (from: *Client, to: *Client, s: *e2e.Request, at := "") -> *e2e.Request {
+		id := ifx at then at else copy_string(delivery());
+		ask(from, .Receive, s.packet, from = from, peer = to, at = id);
+		return receive(to, s.packet, from, id);
+	}
+	original := post(a, b, .Text, "first draft");
+	orig_at := copy_string(delivery());
+	r := land(a, b, original, orig_at);
+	check(r.result == .Ok && r.content == .Text && r.out_text == "first draft", "a plain text stays Text");
+
+	// A reply names the delivery it answers, inside the packet.
+	s := post(b, a, .Text, "answer", reply = orig_at);
+	r = land(b, a, s);
+	check(r.result == .Ok && r.content == .Post && r.reply == orig_at && r.out_text == "answer", "a reply carries its target");
+
+	// Files: the ciphertext goes wherever the carrier keeps files; the message holds key, digest and what it is.
+	data := cast([]u8) repeat("picture bytes ", 1000);
+	f := e2e.File.{width = 640, height = 480, spoiler = true, name = "cat.png", mime = "image/png", description = "a cat"};
+	ct := e2e.seal_file(data, *f);
+	check(ct.count == e2e.sealed_size(data.count) && ct.count % e2e.FILE_BLOCK == e2e.TAG_BYTES && !contains(xx ct, "picture"), "a file is sealed, padded to the block");
+	s = post(a, b, .Text, "look", files = .[f]);
+	r = land(a, b, s);
+	check(r.result == .Ok && r.content == .Post && r.files.count == 1 && r.out_text == "look", "a message carries its file");
+	if r.files.count {
+		g := r.files[0];
+		check(g.name == "cat.png" && g.mime == "image/png" && g.description == "a cat" && g.width == 640 && g.height == 480 && g.spoiler && g.size == data.count, "the file's name, type, size and dimensions arrive");
+		got, ok := e2e.open_file(g, ct);
+		check(ok && got.count == data.count && memcmp(got.data, data.data, data.count) == 0, "the file opens");
+		bad := array_copy(ct,, temp);
+		bad[7] ^= 1;
+		_, ok = e2e.open_file(g, bad);
+		check(!ok, "a changed ciphertext is refused");
+		_, ok = e2e.open_file(g, array_view(ct, 0, ct.count - 1));
+		check(!ok, "a cut ciphertext is refused");
+		huge := g;
+		huge.size = e2e.MAX_FILE + 1;
+		_, ok = e2e.open_file(huge, ct);
+		check(!ok, "a file over the cap is refused before allocating");
+		other := g;
+		other.key[0] ^= 1;
+		_, ok = e2e.open_file(other, ct);
+		check(!ok, "the wrong key is refused");
+	}
+	r = receive(b, s.packet, a);
+	check(r.result == .Repeated, "a file message replayed as another delivery");
+
+	// An Edit rewrites its own delivery: the carrier edits the message in place.
+	edit := post(a, b, .Edit, "final", target = orig_at);
+	check(edit.result == .Ok, "editing our message");
+	moved := receive(b, edit.packet, a);
+	check(moved.result == .Undecryptable, "an edit moved onto another delivery doesn't open");
+	edit = post(a, b, .Edit, "final", target = orig_at);
+	r = land(a, b, edit, orig_at);
+	check(r.result == .Ok && r.content == .Edit && r.target == orig_at && r.out_text == "final", "the edit opens in place");
+	found := ask(b, .Search, peer = a, text = "draft");
+	check(found.hits.count == 0, "the old text is gone from search");
+	found = ask(b, .Search, peer = a, text = "final");
+	check(found.hits.count == 1 && found.hits[0].delivery == orig_at, "and the new one is found");
+	theirs := post(b, a, .Edit, "not mine", target = orig_at);
+	check(theirs.result == .Failed, "editing the peer's message is refused");
+
+	// Delete: the delivery is rewritten into a Delete, and its plaintext goes.
+	del := post(a, b, .Delete, target = orig_at);
+	r = land(a, b, del, orig_at);
+	check(r.result == .Ok && r.content == .Delete && r.target == orig_at, "a delete opens in place");
+	found = ask(b, .Search, peer = a, text = "final");
+	check(found.hits.count == 0, "a deleted text isn't found");
+
+	// Reactions are their own packets, naming the message they're on.
+	react := post(b, a, .React, "+1", target = orig_at);
+	r = land(b, a, react);
+	check(r.result == .Ok && r.content == .React && r.target == orig_at && r.out_text == "+1", "a reaction");
+	r = land(b, a, post(b, a, .Unreact, "+1", target = orig_at));
+	check(r.result == .Ok && r.content == .Unreact, "and taking it back");
+	check(post(b, a, .React, "", target = orig_at).result == .Failed && post(b, a, .React, "x").result == .Failed, "a reaction needs an emoji and a target");
+
+	// The outbox keeps an Edit's target and @silent for a resend after a crash.
+	again := post(a, b, .Text, "to edit");
+	again_at := copy_string(delivery());
+	land(a, b, again, again_at);
+	e := e2e.request(.Send, .{CARRIER, CONV, a.party, b.party, limit}, "edited quietly");
+	e.me, e.content, e.target, e.silent = a.me, e2e.Content.Edit, copy_string(again_at), true;
+	e2e.submit(a.d, e);
+	wait(e);
+	o := ask(a, .Outbox);
+	kept := false;
+	for o.outbox if it.packet == e.packet kept = it.replaces == again_at && it.silent;
+	check(kept, "the outbox keeps what an edit replaces and @silent");
+	ask(a, .Sent, e.packet);
+
+	// Bodies come from the peer: no malformed one opens, and none crashes.
+	random_seed(11);
+	for 1..2000 {
+		n := cast(int) (random_get() % 200);
+		junk := NewArray(n, u8,, temp);
+		for * junk it.* = xx (random_get() & 0xFF);
+		if n junk[0] = xx (2 + random_get() % 5);
+		e2e.parse_body(junk);
+	}
+	for x: string.["\x02", "\x02\x00\x00\x00", "\x03\x00\x00\x00hi", "\x04\x01d\x00\x00x", "\x05\x01d\x00\x00", "\x02\x00\x00\x0b", "\x07\x00\x00\x00", "\x02\x00\x00\x01"] {
+		_, ok := e2e.parse_body(xx x);
+		check(!ok, tprint("bad body % refused", it_index));
+	}
+	_, ok := e2e.parse_body(e2e.encode_body(.{content = .Post, files = .[f], text = "ok"}));
+	check(ok, "a good body parses");
 }
 
 // tiny: a carrier whose largest packet is smaller than a Hello refuses cleanly instead of sending a cut one.
