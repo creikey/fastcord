@@ -1016,6 +1016,7 @@ member_row :: (gid: dc.Snowflake, uid: dc.Snowflake, owner := false) {
 			if !ok { color = T("--interactive-text-default"); }
 			if offline { color = with_alpha(color, 0.3); }
 			custom := user_custom_status(uid);
+			if !custom custom = user_game(uid); // else what they're doing ("Playing X")
 			u := dc.user_get(s, uid);
 			bot := u && u.bot;
 			col := ui.box("col");
@@ -1026,7 +1027,8 @@ member_row :: (gid: dc.Snowflake, uid: dc.Snowflake, owner := false) {
 			nr := row("nr");
 			nr.semantic_size = .[ui.pct(1), ui.px(20)];
 			{ ui.parent(nr); defer ui.pop_parent();
-				label(ellipsize(name, .Medium, 16, w), .Medium, 16, color, 20);
+				label(ellipsize(name, .Medium, 16, w - 20), .Medium, 16, color, 20);
+				role_icon(gid, uid, 16);
 				if owner {
 					spacer(.X, 4);
 					icon("crown", "crown", 14, T("--text-feedback-warning"));

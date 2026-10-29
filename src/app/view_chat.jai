@@ -198,6 +198,31 @@ member_color :: (guild_id: dc.Snowflake, user_id: dc.Snowflake, raw := false) ->
 	return rgb_u32(color), true;
 }
 
+// After a member's name (chat and the member list): the icon of their highest role that has one, its
+// image else its unicode emoji, in a server with ROLE_ICONS; the role's name on hover.
+role_icon :: (guild_id: dc.Snowflake, user_id: dc.Snowflake, size: float32) {
+	s := store();
+	mem := dc.member_get(s, guild_id, user_id);
+	g := dc.guild_get(s, guild_id);
+	if !mem || !g || on_hosted() || !dc.guild_has_feature(g, "ROLE_ICONS") return;
+	best: *dc.Role;
+	for rid: mem.roles for * g.roles if it.id == rid && (it.icon || it.unicode_emoji) && (!best || it.position > best.position) best = it;
+	if !best return;
+	spacer(.X, 4);
+	b: *ui.Box;
+	hash := best.icon;
+	safe := hash.count > 0 && hash.count <= 64;
+	for cast([]u8) hash if !is_alnum(it) && it != #char "_" safe = false;
+	if safe {
+		b = ui.box("roleicon", .Draw_Background);
+		b.semantic_size = .[ui.px(size), ui.px(size)];
+		set_remote_image(b, tprint("https://cdn.discordapp.com/role-icons/%/%.webp?size=%&quality=lossless", best.id, hash, cast(int) size * 2));
+	} else if best.unicode_emoji {
+		b = emoji_box("roleicon", .{name = best.unicode_emoji}, size);
+	} else return;
+	if ui.mouse_over(b) tooltip_below(best.name, b.rect);
+}
+
 rgb_u32 :: (c: u32) -> ui.Color {
 	return .{cast(float32) ((c >> 16) & 0xff) / 255, cast(float32) ((c >> 8) & 0xff) / 255, cast(float32) (c & 0xff) / 255, 1};
 }
@@ -1933,6 +1958,7 @@ message_header :: (m: *dc.Message) {
 		u := dc.user_get(store(), m.author_id);
 		if !m.webhook_name server_tag(u);
 		if u && u.bot app_tag();
+		if !m.webhook_name { ch := dc.channel_get(store(), m.channel_id); if ch role_icon(ch.guild_id, m.author_id, 20); }
 		new_member_badge(m);
 		spacer(.X, 8);
 		// copies as "Name — 4:56 AM" like the client's hidden separator

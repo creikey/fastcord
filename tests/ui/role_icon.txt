@@ -1,0 +1,6 @@
+# Runs on role_icon.jsonl (a ROLE_ICONS server whose champion role has a 🏆 icon). The icon follows Robin's
+# name in chat and in the member list (in the shot), and his member row says what he's playing.
+wait 5
+settle 1
+expect_visible "Playing Minecraft"
+shot build/ui-role_icon.png
