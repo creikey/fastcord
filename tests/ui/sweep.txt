@@ -111,6 +111,9 @@ screen settings_logout tests/ui/chat.jsonl channel=1546820603343016006
   wait 5
   click 338 683
   wait 20
+  move 160 400
+  scroll 0 -600
+  wait 10
   click_text "Log Out"
   wait 20
 screen add_server tests/ui/chat.jsonl channel=1546820603343016006

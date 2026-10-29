@@ -1,0 +1,23 @@
+# Settings nav search finds pages by the settings on them: "24-hour" shows Language & Time, "spam"
+# shows Messaging Permissions, and neither shows Voice & Video.
+wait 5
+click 338 683
+wait 20
+click_text "Search"
+wait 3
+type 24-hour
+wait 5
+expect_visible "Language & Time"
+expect_not_visible "Voice & Video"
+key backspace
+key backspace
+key backspace
+key backspace
+key backspace
+key backspace
+key backspace
+type spam
+wait 5
+expect_visible "Messaging Permissions"
+expect_not_visible "Voice & Video"
+shot build/ui-settings_search_terms_nav.png

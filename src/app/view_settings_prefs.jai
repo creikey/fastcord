@@ -43,12 +43,33 @@ settings_nav_search :: () {
 	}
 }
 
-// Nav item visible under the search text (case-insensitive substring).
+// Nav item visible under the search text (case-insensitive substring of its name, or of the
+// settings on its page: the client's search terms).
 settings_nav_match :: (name: string) -> bool {
-	q := trim(ui.editor_text(*nav.search));
+	q := to_lower_copy(trim(ui.editor_text(*nav.search)),, temp);
 	if q == "" { return true; }
-	return contains(to_lower_copy(name,, temp), to_lower_copy(q,, temp));
+	if contains(to_lower_copy(name,, temp), q) return true;
+	for SETTINGS_TERMS if it[0] == name && contains(it[1], q) return true;
+	return false;
 }
+
+// What each page holds, for the nav's search (lower case).
+SETTINGS_TERMS :: [2]string.[
+	.["Account", "username, display name, email, phone, password, two-factor, 2fa, authenticator, backup codes, disable account, delete account"],
+	.["Profiles", "avatar, banner, banner color, about me, bio, pronouns, display name, per-server profiles, server nickname"],
+	.["Data & Privacy", "use data to improve discord, usage statistics, profile privacy, share my full profile"],
+	.["Messaging Permissions", "content filters, explicit, spam, direct messages, dms, message requests, friend requests, privacy & safety"],
+	.["Appearance", "theme, dark, light, same as device theme, smooth scrolling"],
+	.["Voice & Video", "microphone, input device, output device, volume, camera, noise suppression, echo cancellation, push to talk, soundboard"],
+	.["Chat", "embeds, link previews, reactions, spoilers"],
+	.["Notifications", "desktop notifications, sounds, unread badge, lotus mode, friends online"],
+	.["Keybinds", "shortcuts, keyboard, push to talk, mute, deafen"],
+	.["Accessibility", "zoom, message group spacing, role colors, reduced motion, animation"],
+	.["Language & Time", "language, locale, time format, 12-hour, 24-hour, clock"],
+	.["Devices", "logged-in devices, sessions, log out of device"],
+	.["Connected Apps", "connections, authorized apps, github, steam, spotify, twitch, youtube, xbox, playstation, deauthorize"],
+	.["Developer", "developer mode, copy id"],
+];
 
 // "Log Out" at the bottom of the nav (red, like the client), below a divider.
 settings_nav_logout :: () {

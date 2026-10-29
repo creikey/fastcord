@@ -38,6 +38,9 @@ expect_visible "Hide"
 click_text "Notifications"
 wait 20
 expect_visible "Enable Desktop Notifications"
+move 160 400
+scroll 0 -600
+wait 10
 click_text "Log Out"
 wait 20
 expect_visible "Are you sure you want to logout?"
