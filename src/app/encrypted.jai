@@ -90,6 +90,25 @@ encrypted_packet :: (channel_id: dc.Snowflake, content: string) -> bool {
 	return ch && ch.kind == .DM && ch.recipient_ids.count == 1;
 }
 
+// e2e_mark: in a 1:1 DM that has used encryption, whether a message was encrypted, so a plain one
+// sent mid-conversation (by Discord, the peer, or while encryption was off) never reads as private.
+E2E_Mark :: enum u8 { None; Encrypted; Plain; }
+e2e_mark :: (m: *dc.Message) -> E2E_Mark {
+	ch := dc.channel_get(store(), m.channel_id);
+	if !encrypted_dm(ch) return .None;
+	if encrypted_packet(m.channel_id, m.content) && !m.forwarded return .Encrypted;
+	e := encrypted_channel(ch.id);
+	return ifx e.encrypted || e.has_session then .Plain else .None;
+}
+
+// e2e_mark_icon draws a message's mark as a small icon, with what it means on hover.
+e2e_mark_icon :: (mark: E2E_Mark, size: float32) {
+	if mark == .None return;
+	enc := mark == .Encrypted;
+	ic := icon("e2e", ifx enc then "lock" else "warning", size, T(ifx enc then "--text-feedback-positive" else "--text-feedback-warning"), .Clickable);
+	if ui.signal(ic).hovering tooltip_below(ifx enc then "End-to-end encrypted" else "Not encrypted: Discord can read this message", ic.rect);
+}
+
 // encrypted_open asks once for a packet's plaintext (again after a session it waited for appears) and
 // returns what is known so far: null or pending until the request comes back, or for good with no identity.
 encrypted_open :: (id: dc.Snowflake, channel_id: dc.Snowflake, packet: string, author: dc.Snowflake) -> *Shown {

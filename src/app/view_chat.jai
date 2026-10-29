@@ -1355,14 +1355,19 @@ message_row :: (m: *dc.Message, grouped: bool, new_day: bool, show_new: bool) ->
 					av.flags |= .Floating_X | .Floating_Y;
 					av.fixed_pos = .{16, 2};
 				}
-			} else if hovered {
+			} else if hovered || e2e_mark(m) != .None {
 				gutter.layout_axis = .X;
 				gutter.cross_align = .Center;
 				{ ui.parent(gutter); defer ui.pop_parent();
 					filler(.X);
-					gt := label(format_timestamp(m.id, true), .Medium, 11, T("--text-muted"), MSG_LINE_H);
-					if ui.mouse_over(gt) tooltip_below(full_timestamp(dc.snowflake_time_ms(m.id)), gt.rect);
-					spacer(.X, 8);
+					if hovered {
+						gt := label(format_timestamp(m.id, true), .Medium, 11, T("--text-muted"), MSG_LINE_H);
+						if ui.mouse_over(gt) tooltip_below(full_timestamp(dc.snowflake_time_ms(m.id)), gt.rect);
+						spacer(.X, 8);
+					} else {
+						e2e_mark_icon(e2e_mark(m), 14); // the mark stays on follow-ups
+						spacer(.X, 12);
+					}
 				}
 			}
 			content := ui.box("content");
@@ -1552,6 +1557,9 @@ message_header :: (m: *dc.Message) {
 			bell := icon("silent", "bell-slash", 16, T("--chat-text-muted"), .Clickable);
 			if ui.signal(bell).hovering tooltip_below("Suppress Notifications", bell.rect);
 		}
+		mark := e2e_mark(m);
+		if mark != .None { spacer(.X, 4); e2e_mark_icon(mark, 16); }
+		if mark == .Plain { spacer(.X, 4); label("Not encrypted", .Medium, 12, T("--text-feedback-warning"), 20); }
 	}
 }
 
@@ -2107,6 +2115,7 @@ composer :: (ch: *dc.Channel, cs: *Chat_State) {
 			placeholder := ifx ch.kind == .DM then tprint("Message @%", dm_name(ch)) else tprint("Message #%", ch.name);
 			if ch.kind == .Group_DM placeholder = tprint("Message %", dm_name(ch));
 			if encrypting(ch) placeholder = tprint("Message @% (encrypted)", dm_name(ch));
+			else if encrypted_dm(ch) && encrypted_channel(ch.id).has_session placeholder = tprint("Message @% (not encrypted)", dm_name(ch));
 			// An edit whose message left this channel (switched away, deleted) would hold the composer forever.
 			if ma.editing != 0 && find_message(ma.editing) == null ma.editing = 0;
 			// Up in an empty composer edits your last message, like the client

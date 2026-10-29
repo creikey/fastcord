@@ -1,0 +1,12 @@
+# E2E safety: in a DM that uses encryption every message says whether it was encrypted, follow-ups
+# included, so a plain one never reads as private.
+open 1800000000000000001
+wait 20
+expect_not_visible "Not encrypted"
+encrypted
+incoming fc-AwMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+incoming plain
+move 1100 400
+wait 20
+expect_visible "Not encrypted"
+shot build/ui-dm_e2e_marks.png
