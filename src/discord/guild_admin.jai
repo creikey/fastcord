@@ -966,6 +966,18 @@ ban_member :: (c: *Client, guild_id: Snowflake, user_id: Snowflake, reason: stri
 	job_submit(c, j);
 }
 
+// timeout_member: PATCH /guilds/{g}/members/{u} {"communication_disabled_until": ISO time}, or null to
+// remove it, with the reason in X-Audit-Log-Reason; GUILD_MEMBER_UPDATE carries the result.
+timeout_member :: (c: *Client, guild_id: Snowflake, user_id: Snowflake, until_ms: s64, reason: string) {
+	j := job_new(.Api, .None);
+	j.method = "PATCH";
+	j.path = job_str(j, tprint("/guilds/%/members/%", guild_id, user_id));
+	j.body = cast([]u8) job_str(j, ifx until_ms then tprint("{\"communication_disabled_until\":\"%\"}", ms_to_iso(until_ms)) else "{\"communication_disabled_until\":null}");
+	j.content_type = "application/json";
+	audit_reason(j, reason);
+	job_submit(c, j);
+}
+
 audit_reason :: (j: *Job, reason: string) {
 	r := trim(reason);
 	if !r return;

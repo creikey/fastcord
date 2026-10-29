@@ -1,17 +1,20 @@
-// Kick and Ban from the user menu, each behind a confirm with an optional reason. The same requests drive
-// Discord and `fastcord -serve`, which answers both for its owner.
+// Kick, Ban and Timeout from the user menu, each behind a confirm with an optional reason (Remove Timeout
+// goes at once). The same requests drive Discord and `fastcord -serve`, which answers kick and ban for its owner.
 
 Moderation :: struct {
 	user: dc.Snowflake;
 	guild: dc.Snowflake;
 	ban: bool;
+	timeout: bool; // the Timeout modal (ban false)
 	ed: ui.Editor;
-	history: int; // Ban: an index into BAN_HISTORY, how much of their recent messages goes too.
+	history: int; // Ban: an index into BAN_HISTORY, how much of their recent messages goes too; Timeout: into TIMEOUTS.
 	history_open: bool;
 	history_anchor: ui.Rect;
 }
 
-BAN_HISTORY :: struct { secs: int; name: string; }.[
+Mod_Option :: struct { secs: int; name: string; }
+TIMEOUTS :: Mod_Option.[.{60, "60 Seconds"}, .{300, "5 Minutes"}, .{600, "10 Minutes"}, .{3600, "1 Hour"}, .{86400, "1 Day"}, .{604800, "1 Week"}];
+BAN_HISTORY :: Mod_Option.[
 	.{0, "Don't Delete Any"}, .{3600, "Previous Hour"}, .{21600, "Previous 6 Hours"}, .{43200, "Previous 12 Hours"},
 	.{86400, "Previous 24 Hours"}, .{259200, "Previous 3 Days"}, .{604800, "Previous 7 Days"},
 ];
@@ -26,13 +29,19 @@ moderation_menu_items :: (uid: dc.Snowflake, items: *[..]string) {
 	if u == null return;
 	if dc.can_moderate(store(), gid, uid, dc.PERM_KICK_MEMBERS) array_add(items, tprint("Kick %", u.username));
 	if dc.can_moderate(store(), gid, uid, dc.PERM_BAN_MEMBERS) array_add(items, tprint("Ban %", u.username));
+	if dc.can_moderate(store(), gid, uid, dc.PERM_MODERATE_MEMBERS) array_add(items, ifx dc.timed_out(store(), gid, uid) then "Remove Timeout" else tprint("Timeout %", u.username));
 }
 
 // moderation_menu_click opens the confirm for a clicked item; false if the item isn't one of ours.
 moderation_menu_click :: (uid: dc.Snowflake, item: string) -> bool {
+	if item == "Remove Timeout" {
+		if net_action() dc.timeout_member(app.client, app.view.guild, uid, 0, "");
+		return true;
+	}
 	ban := begins_with(item, "Ban ");
-	if !ban && !begins_with(item, "Kick ") return false;
-	modr.user, modr.guild, modr.ban = uid, app.view.guild, ban;
+	timeout := begins_with(item, "Timeout ");
+	if !ban && !timeout && !begins_with(item, "Kick ") return false;
+	modr.user, modr.guild, modr.ban, modr.timeout = uid, app.view.guild, ban, timeout;
 	modr.history, modr.history_open = 0, false;
 	ui.editor_set_text(*modr.ed, "");
 	return true;
@@ -55,7 +64,8 @@ moderation_modal :: () {
 	}
 	W :: 440;
 	PAD :: 24;
-	verb := ifx modr.ban then "Ban" else "Kick";
+	verb := ifx modr.ban then "Ban" else ifx modr.timeout then "Timeout" else "Kick";
+	opts: []Mod_Option = ifx modr.timeout then cast([]Mod_Option) TIMEOUTS else cast([]Mod_Option) BAN_HISTORY;
 	d := ui.box("modrmodal", .Draw_Background | .Draw_Border | .Floating_X | .Floating_Y | .Overlay | .Clickable);
 	d.semantic_size = .[ui.px(W), ui.children()];
 	d.fixed_pos = .{(app.ui.window.x - W) / 2, (app.ui.window.y - (d.rect.y1 - d.rect.y0)) / 2};
@@ -94,10 +104,11 @@ moderation_modal :: () {
 		return ui.signal(b).clicked;
 	}
 	spacer(.Y, PAD);
-	text_row("t", tprint("% '%' from Server", verb, u.username), .Semibold, 20, 24, T("--text-strong"));
+	text_row("t", ifx modr.timeout then tprint("Timeout %", u.username) else tprint("% '%' from Server", verb, u.username), .Semibold, 20, 24, T("--text-strong"));
 	spacer(.Y, 8);
 	sub := ifx modr.ban
 		then tprint("Are you sure you want to ban @% from %? They won't be able to come back until the ban is lifted.", u.username, g.name)
+		else ifx modr.timeout then "Members in timeout can't send messages, react, join voice or start threads until it ends."
 		else tprint("Are you sure you want to kick @% from %? They will be able to rejoin again with a new invite.", u.username, g.name);
 	text_row("sub", sub, .Normal, 14, 18, T("--text-default"));
 	spacer(.Y, 16);
@@ -124,9 +135,9 @@ moderation_modal :: () {
 		}
 		spacer(.X, PAD);
 	}
-	if modr.ban {
+	if modr.ban || modr.timeout {
 		spacer(.Y, 16);
-		text_row("hlbl", "Delete Message History", .Semibold, 14, 18, T("--text-strong"));
+		text_row("hlbl", ifx modr.timeout then "Duration" else "Delete Message History", .Semibold, 14, 18, T("--text-strong"));
 		spacer(.Y, 8);
 		hr := row("histrow");
 		hr.semantic_size = .[ui.pct(1), ui.px(40)];
@@ -143,7 +154,7 @@ moderation_modal :: () {
 			modr.history_anchor = dd.rect;
 			{ ui.parent(dd); defer ui.pop_parent();
 				spacer(.X, 12);
-				label(BAN_HISTORY[modr.history].name, .Normal, 16, T("--text-strong"), 20);
+				label(opts[modr.history].name, .Normal, 16, T("--text-strong"), 20);
 				filler(.X);
 				icon("chev", ifx modr.history_open then "chevron-small-up" else "chevron-small-down", 20, T("--interactive-icon-default"));
 				spacer(.X, 12);
@@ -167,6 +178,7 @@ moderation_modal :: () {
 		reason := ui.editor_text(*modr.ed);
 		if net_action() {
 			if modr.ban dc.ban_member(app.client, modr.guild, modr.user, reason, BAN_HISTORY[modr.history].secs);
+			else if modr.timeout dc.timeout_member(app.client, modr.guild, modr.user, dc.now_ms() + TIMEOUTS[modr.history].secs * 1000, reason);
 			else dc.kick_member(app.client, modr.guild, modr.user, reason);
 		}
 		modr.user = 0;
@@ -194,7 +206,8 @@ ban_history_list :: () {
 		modr.history_open = false;
 		return;
 	}
-	h := cast(float32) BAN_HISTORY.count * 36 + 8;
+	opts: []Mod_Option = ifx modr.timeout then cast([]Mod_Option) TIMEOUTS else cast([]Mod_Option) BAN_HISTORY;
+	h := cast(float32) opts.count * 36 + 8;
 	list := ui.box("histlist", .Draw_Background | .Draw_Border | .Draw_Shadow | .Floating_X | .Floating_Y | .Overlay | .Clickable);
 	list.semantic_size = .[ui.px(r.x1 - r.x0), ui.px(h)];
 	list.fixed_pos = .{r.x0, ifx r.y1 + 4 + h > app.ui.window.y then r.y0 - 4 - h else r.y1 + 4};
@@ -209,7 +222,7 @@ ban_history_list :: () {
 	ui.signal(list);
 	ui.parent(list); defer ui.pop_parent();
 	spacer(.Y, 4);
-	for opt, i: BAN_HISTORY {
+	for opt, i: opts {
 		ui.id_scope(cast(u64) i + 1);
 		defer ui.pop_seed();
 		sel := i == modr.history;

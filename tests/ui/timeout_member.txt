@@ -1,0 +1,16 @@
+# Run with -fixture:tests/ui/chat.jsonl. The owner's user menu on another member offers Timeout, which
+# opens a confirm with a duration and a reason.
+wait 5
+settle 1
+rclick 468 130
+settle 1
+expect_visible "Timeout robin"
+click_text "Timeout robin"
+settle 1
+expect_visible "Duration"
+click_text "60 Seconds"
+settle 1
+click_text "1 Hour"
+settle 1
+expect_visible "1 Hour"
+shot build/ui-timeout_member.png

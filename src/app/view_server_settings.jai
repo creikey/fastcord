@@ -1516,7 +1516,7 @@ member_menu :: (g: *dc.Guild) {
 	ss.menu_user = 0;
 	if pick == {
 	case "kick"; #through; case "ban";
-		modr.user, modr.guild, modr.ban = uid, g.id, pick == "ban";
+		modr.user, modr.guild, modr.ban, modr.timeout = uid, g.id, pick == "ban", false;
 		modr.history, modr.history_open = 0, false;
 		ui.editor_set_text(*modr.ed, "");
 		ss.reload_after_modr = true;

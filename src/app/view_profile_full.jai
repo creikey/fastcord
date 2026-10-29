@@ -716,7 +716,7 @@ user_context_menu :: () {
 			sig := ui.signal(r);
 			{ ui.parent(r); defer ui.pop_parent();
 				spacer(.X, 8);
-				danger := begins_with(it, "Kick ") || begins_with(it, "Ban ");
+				danger := begins_with(it, "Kick ") || begins_with(it, "Ban ") || begins_with(it, "Timeout ");
 				label(it, .Medium, 14, ifx danger then T("--text-feedback-critical") else ifx sig.hovering then T("--interactive-text-active") else T("--interactive-text-default"), 18);
 			}
 			if sig.clicked && moderation_menu_click(uid, it) {
