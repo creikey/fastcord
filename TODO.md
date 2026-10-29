@@ -403,7 +403,6 @@
 - [ ] Threads: no Join / Leave Thread and no thread member list; the thread menu lacks Mute, Notification Settings, Close/Lock and Edit Tags.
 - [ ] Voice: server mute and deafen are never shown, in the panel or beside participants.
 - [ ] Bug: a message whose send failed gets a duplicate when the server's echo arrives late; the failure clears `pending` and `upsert_message` matches the nonce only on pending messages (`store.jai`).
-- [ ] Member list: don't show the grey offline dot in a server's member sidebar, as the official client doesn't.
 - [ ] HTTP/2: closing a connection gives up after 5 s and leaks it while a reader is still blocked (`http/h2.jai`).
 - [ ] Undo, not confirm (fastcord-only): one shared mechanism for destructive actions. Apply the change locally at once and hold the server write ~5 s behind an "Undo" toast (and Ctrl+Z); flush pending writes on quit. Then drop the confirm modals it replaces, and drop the destructive-action exception from act on press. Today Delete and Unpin modals confirm on Enter, and Shift-click skips them.
 - [ ] macOS, Linux: the profiler's sampling timer is a stub, and the hang watchdog writes only a hint, not the other threads' stacks.
@@ -742,3 +741,4 @@
 - [x] Traffic: when the updater manifest offers a newer host, fastcord fetches (hashes and discards) every installed module's package too, as the official updater does: the manifest's `required_modules` plus the eight the desktop core installs on demand, each the delta from the running host and module version (else full), host first and modules in random order, four downloads at a time on their own connections, each retried once on a bad hash (captured on macOS with a slowed local endpoint; `updater_wire`, `updater_schedule`).
 - [x] Bug (Windows): files that already exist are now rewritten. `write_file_atomic` (`cookies.jai`), `settings_save` and alt-svc's save replace the file with File_Utilities' `atomic_file_replace_or_just_rename_if_destination_file_does_not_exist` (`ReplaceFileW`) instead of `MoveFileW`, and a failed write removes its `.tmp` (test `file_atomic_replace`, passes on Windows and macOS).
 - [x] Links: hovering a link, mention or hidden spoiler in a message shows the hand cursor, not the I-beam (`ui.State.span_cursor`; scripts gained `expect_cursor`, `tests/ui/span_clicks.txt`).
+- [x] Member list: offline members, in servers and group DMs, draw a dimmed avatar with no grey status dot, as the official client does (`member_row`; `tests/ui/rail/group_dm_members.txt` clicks the group DM where it now sits).

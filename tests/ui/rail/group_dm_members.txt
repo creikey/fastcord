@@ -3,5 +3,5 @@
 wait 5
 click 36 52
 wait 10
-click 170 322
+click 180 203
 wait 30

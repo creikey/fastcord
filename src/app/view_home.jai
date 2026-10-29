@@ -717,7 +717,8 @@ member_row :: (gid: dc.Snowflake, uid: dc.Snowflake) {
 		offline := user_status(uid) == .Offline;
 		{ ui.parent(item); defer ui.pop_parent();
 			spacer(.X, 8);
-			av := avatar_with_status("av", uid, 32, ifx sig.hovering then T("--background-base-low") else T("--background-base-lower"));
+			// offline members: a dimmed avatar with no status dot, as the official client draws them
+			av := ifx offline then avatar_box("av", uid, 32) else avatar_with_status("av", uid, 32, ifx sig.hovering then T("--background-base-low") else T("--background-base-lower"));
 			if offline { av.opacity = 0.3; }
 			spacer(.X, 12);
 			name := dc.user_name(s, uid, gid, "unknown");
