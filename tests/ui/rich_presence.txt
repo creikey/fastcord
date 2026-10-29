@@ -1,0 +1,17 @@
+# Rich presence: the profile popout shows what the user is doing as a card (header, art, name, details,
+# state with the party, elapsed time); a Spotify activity shows the song, artist, album and a progress bar.
+dispatch PRESENCE_UPDATE {"user":{"id":"1000000000020971521"},"status":"online","activities":[{"type":0,"name":"Celeste","application_id":"1600000000000000100","details":"Chapter 7","state":"Climbing","party":{"size":[2,4]},"timestamps":{"start":1793015400000},"assets":{"large_image":"1600000000000000101","large_text":"Summit"}}]}
+wait 30
+click 466 129
+wait 20
+expect_visible "Celeste"
+expect_visible "Climbing (2 of 4)"
+expect_visible "10:00 elapsed"
+shot build/ui-rich_presence-game.png
+dispatch PRESENCE_UPDATE {"user":{"id":"1000000000020971521"},"status":"online","activities":[{"type":2,"name":"Spotify","details":"Song Title","state":"Some Artist","sync_id":"4uLU6hMCjMI75M1A2tKUQC","timestamps":{"start":1793015940000,"end":1793016180000},"assets":{"large_image":"spotify:ab67616d0000b273abc","large_text":"Great Album"}}]}
+wait 5
+expect_visible "Listening to Spotify"
+expect_visible "by Some Artist"
+expect_visible "1:00"
+expect_visible "4:00"
+shot build/ui-rich_presence-spotify.png

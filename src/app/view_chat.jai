@@ -40,12 +40,20 @@ MSG_BOOST :: 8; // 8: boosted (content: how many times), 9-11: and reached level
 MSG_CHANNEL_FOLLOW :: 12; // CHANNEL_FOLLOW_ADD: content is the followed channel's name
 MSG_DISCOVERY_FIRST :: 14; // 14-17: removed from / back in Server Discovery, and its two grace-period warnings
 MSG_THREAD_CREATED :: 18; // content is the thread's name, message_reference.channel_id the thread
+MSG_THREAD_STARTER :: 21; // the thread's first message: the parent message (store.jai), a notice when it's gone
+MSG_INVITE_REMINDER :: 22; // GUILD_INVITE_REMINDER: the client doesn't draw it
+MSG_AUTOMOD :: 24; // AUTO_MODERATION_ACTION: an auto_moderation_message embed
+MSG_ROLE_SUB :: 25; // ROLE_SUBSCRIPTION_PURCHASE
 MSG_STAGE_FIRST :: 27; // 27-31: STAGE_START, STAGE_END, STAGE_SPEAKER, STAGE_RAISE_HAND, STAGE_TOPIC
+MSG_INCIDENT_FIRST :: 36; // 36-39: security actions enabled / disabled, raid reported, false alarm
 
 // Drawn as a one-line notice (system_notice), not a message with an avatar.
-is_notice :: (kind: int) -> bool {
+is_notice :: (m: *dc.Message) -> bool {
+	kind := m.kind;
+	if kind == MSG_THREAD_STARTER return m.referenced_id != 0;
 	return kind == MSG_CALL || kind == MSG_PIN || kind == MSG_MEMBER_JOIN || kind == MSG_FRIEND_ACCEPTED || (kind >= MSG_RECIPIENT_ADD && kind <= MSG_ICON_CHANGE) || kind == MSG_POLL_RESULT
-		|| (kind >= MSG_BOOST && kind <= MSG_CHANNEL_FOLLOW) || (kind >= MSG_DISCOVERY_FIRST && kind <= MSG_THREAD_CREATED) || (kind >= MSG_STAGE_FIRST && kind <= MSG_STAGE_FIRST + 4);
+		|| (kind >= MSG_BOOST && kind <= MSG_CHANNEL_FOLLOW) || (kind >= MSG_DISCOVERY_FIRST && kind <= MSG_THREAD_CREATED) || (kind >= MSG_STAGE_FIRST && kind <= MSG_STAGE_FIRST + 4)
+		|| kind == MSG_AUTOMOD || kind == MSG_ROLE_SUB || (kind >= MSG_INCIDENT_FIRST && kind <= MSG_INCIDENT_FIRST + 3);
 }
 CALL_ROW_H :: 26; // call notice content row (official item: 2 + 26 + 2)
 COMPOSER_H :: 58; // official form height (1px border included): 22px line + 18px padding
@@ -1144,7 +1152,7 @@ stamps: struct {
 // Groups with the previous message: same author, within 7 minutes, plain message type, not a reply.
 continues_group :: (prev: *dc.Message, m: *dc.Message) -> bool {
 	// A webhook posting under another name starts a new group, as the official client's isGrouped does.
-	if prev == null || prev.author_id != m.author_id || prev.webhook_name != m.webhook_name || is_notice(prev.kind) return false;
+	if prev == null || prev.author_id != m.author_id || prev.webhook_name != m.webhook_name || is_notice(prev) return false;
 	if m.referenced_id != 0 || (m.kind != 0 && m.kind != 19) return false;
 	if dc.snowflake_time_ms(m.id) - dc.snowflake_time_ms(prev.id) > GROUP_WINDOW_MS return false;
 	return day_of(prev.id) == day_of(m.id);
@@ -1330,7 +1338,7 @@ message_list :: (channel_id: dc.Snowflake, cs: *Chat_State) {
 			for i: max(i0, 0)..i1 {
 				m := *msgs[i];
 				ui.id_scope(m.id); defer ui.pop_seed();
-				if message_held(m.id) || encrypted_hidden(m) { // deleted, behind Undo, or an encrypted reaction or delete
+				if message_held(m.id) || encrypted_hidden(m) || m.kind == MSG_INVITE_REMINDER { // deleted, behind Undo, an encrypted reaction or delete
 					ok, old := table_find(*cs.heights, m.id);
 					if ok cs.height_sum -= old;
 					table_set(*cs.heights, m.id, 0);
@@ -1344,7 +1352,7 @@ message_list :: (channel_id: dc.Snowflake, cs: *Chat_State) {
 				show_new := cs.unread_after != 0 && m.id > cs.unread_after && (prev == null || prev.id <= cs.unread_after) && m.author_id != s.me;
 				grouped := continues_group(prev, m) && !show_new;
 				// consecutive call notices stack with no group gap
-				if is_notice(m.kind) grouped = prev != null && prev.kind == m.kind && !new_day && !show_new;
+				if is_notice(m) grouped = prev != null && prev.kind == m.kind && !new_day && !show_new;
 				// a run of blocked or ignored authors' messages is one collapsed row, measured on its first
 				hide := hidden_kind(m);
 				row: *ui.Box;
@@ -1638,7 +1646,7 @@ message_row :: (m: *dc.Message, grouped: bool, new_day: bool, show_new: bool) ->
 				command_used_line(m);
 			}
 		}
-		if m.referenced_id != 0 && !is_notice(m.kind) { // a pin notice references the pinned message: no reply line
+		if m.referenced_id != 0 && !is_notice(m) { // a pin notice references the pinned message: no reply line
 			rr := row("replyrow");
 			rr.semantic_size = .[ui.pct(1), ui.px(22)];
 			{ ui.parent(rr); defer ui.pop_parent();
@@ -1646,7 +1654,7 @@ message_row :: (m: *dc.Message, grouped: bool, new_day: bool, show_new: bool) ->
 				reply_preview(m);
 			}
 		}
-		if is_notice(m.kind) {
+		if is_notice(m) {
 			system_notice(m);
 			if m.kind == MSG_POLL_RESULT poll_result_card(m);
 			if m.kind == MSG_MEMBER_JOIN wave_button(m);
@@ -1770,8 +1778,11 @@ system_notice :: (m: *dc.Message) {
 			case MSG_NAME_CHANGE; #through; case MSG_ICON_CHANGE; ic_name, ic_color = "pencil", T("--text-muted");
 			case MSG_POLL_RESULT; ic_name, ic_color = "analytics", T("--text-muted");
 			case MSG_CHANNEL_FOLLOW; ic_name, ic_color = "announcements", T("--text-muted");
-			case MSG_THREAD_CREATED; ic_name, ic_color = "thread", T("--text-muted");
+			case MSG_THREAD_CREATED; #through; case MSG_THREAD_STARTER; ic_name, ic_color = "thread", T("--text-muted");
+			case MSG_AUTOMOD; ic_name, ic_color = "flag", T("--text-muted");
+			case MSG_ROLE_SUB; ic_name, ic_color = "star", T("--text-muted");
 		}
+		if m.kind >= MSG_INCIDENT_FIRST && m.kind <= MSG_INCIDENT_FIRST + 3 then ic_name, ic_color = "flag", T("--text-muted");
 		if m.kind >= MSG_BOOST && m.kind <= MSG_BOOST + 3 then ic_name, ic_color = "star", T("--text-muted");
 		if m.kind >= MSG_DISCOVERY_FIRST && m.kind <= MSG_DISCOVERY_FIRST + 3 then ic_name, ic_color = ifx m.kind == MSG_DISCOVERY_FIRST + 1 then "compass" else "warning", T("--text-muted");
 		if m.kind >= MSG_STAGE_FIRST && m.kind <= MSG_STAGE_FIRST + 4 then ic_name, ic_color = "stage", T("--text-muted");
@@ -1892,6 +1903,55 @@ system_notice :: (m: *dc.Message) {
 			name(*spans, strong, m.author_id, m.channel_id);
 			add(*spans, muted, STAGE[k]);
 			if k == 0 || k == 1 || k == 4 add(*spans, strong, m.content);
+		} else if m.kind == MSG_THREAD_STARTER {
+			add(*spans, muted, "Sorry, we couldn't load the first message in this thread");
+		} else if m.kind == MSG_AUTOMOD {
+			// the client's AutoMod alert: the rule's fields ride on the embed (decision_outcome "flagged" or not)
+			e := ifx m.embeds.count then *m.embeds[0] else null;
+			add(*spans, strong, "AutoMod");
+			add(*spans, muted, ifx automod_field(e, "decision_outcome") == "flagged" then " has flagged a message in " else " has blocked a message in ");
+			ch := dc.channel_get(store(), automod_channel(m));
+			add(*spans, strong, ifx ch then tprint("#%", ch.name) else "a channel");
+			if ch spans[spans.count - 1].id = 6;
+			add(*spans, muted, "\n");
+			name(*spans, strong, m.author_id, m.channel_id);
+			add(*spans, muted, ": ");
+			add(*spans, .{font = F(.Normal), size = MSG_FONT, color = T("--text-default")}, ifx e then e.description else "");
+			rule, kw := automod_field(e, "rule_name"), automod_field(e, "keyword");
+			if rule add(*spans, muted, tprint("\nRule: %", rule));
+			if kw add(*spans, muted, tprint(" · Keyword: %", kw));
+		} else if m.kind == MSG_ROLE_SUB {
+			// the client's lines, with the server's name not a link to its subscriptions page
+			ch := dc.channel_get(store(), m.channel_id);
+			g := ifx ch then dc.guild_get(store(), ch.guild_id) else null;
+			name(*spans, strong, m.author_id, m.channel_id);
+			add(*spans, muted, ifx m.sub_renewal then " renewed " else " joined ");
+			add(*spans, strong, m.content);
+			if m.sub_months > 0 {
+				add(*spans, muted, " and has been a subscriber of ");
+				add(*spans, strong, ifx g then g.name else "this server");
+				add(*spans, muted, tprint(Lp(" for % month!", " for % months!", m.sub_months), m.sub_months));
+			} else {
+				add(*spans, muted, ifx m.sub_renewal then " in their " else " as a subscriber of ");
+				add(*spans, strong, ifx g then g.name else "this server");
+				add(*spans, muted, ifx m.sub_renewal then " membership!" else "!");
+			}
+		} else if m.kind >= MSG_INCIDENT_FIRST && m.kind <= MSG_INCIDENT_FIRST + 3 {
+			// sent as AutoMod: enabling carries the end time as content
+			k := m.kind - MSG_INCIDENT_FIRST;
+			name(*spans, strong, m.author_id, m.channel_id);
+			if k == 0 {
+				until := dc.iso_to_ms(m.content);
+				add(*spans, muted, ifx until > 0 then tprint(" enabled security actions until %.", format_time_ms(until)) else " enabled security actions.");
+			} else if k == 1 {
+				add(*spans, muted, " disabled security actions.");
+			} else {
+				ch := dc.channel_get(store(), m.channel_id);
+				g := ifx ch then dc.guild_get(store(), ch.guild_id) else null;
+				add(*spans, muted, ifx k == 2 then " reported a raid in " else " resolved an Activity Alert in ");
+				add(*spans, strong, ifx g then g.name else "this server");
+				add(*spans, muted, ".");
+			}
 		} else if missed {
 			add(*spans, muted, "You missed a call from ");
 			name(*spans, strong, m.author_id, m.channel_id);
@@ -1931,12 +1991,25 @@ system_notice :: (m: *dc.Message) {
 					th := dc.channel_get(store(), m.forward_channel_id);
 					if th select_channel(th.guild_id, th.id);
 				case 5; threads_browser_toggle(m.channel_id, header_thread_rect);
+				case 6;
+					ch := dc.channel_get(store(), automod_channel(m));
+					if ch select_channel(ch.guild_id, ch.id);
 			}
 			if tl.spans[si].user == null continue;
 			open_profile(cast(dc.Snowflake) tl.spans[si].user, .{e.pos.x, e.pos.y - 10, e.pos.x + 1, e.pos.y + 10});
 		}
 		spacer(.X, 48);
 	}
+}
+
+// An AutoMod alert's embed field (rule_name, keyword, channel_id, decision_outcome), "" when absent.
+automod_field :: (e: *dc.Embed, name: string) -> string {
+	if e for e.fields if it.name == name return it.value;
+	return "";
+}
+automod_channel :: (m: *dc.Message) -> dc.Snowflake {
+	v, ok := string_to_int(automod_field(ifx m.embeds.count then *m.embeds[0] else null, "channel_id"), T = u64);
+	return ifx ok then v else 0;
 }
 
 message_header :: (m: *dc.Message, with_time := true) {

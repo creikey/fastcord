@@ -106,6 +106,141 @@ open_profile :: (uid: dc.Snowflake, anchor: ui.Rect, source := Profile_Source.Ot
 	dc.fetch_profile(app.client, uid, app.view.guild);
 }
 
+// ---- rich presence ----
+
+// activity_asset_url: an activity's image key as a URL: an app asset id (app-assets), "mp:<path>" (an outside
+// image through the media proxy) or "spotify:<id>" (album art); "" for anything else.
+activity_asset_url :: (app_id: dc.Snowflake, key: string, size: int) -> string {
+	safe :: (s: string, slash: bool) -> bool {
+		if !s return false;
+		for cast([]u8) s if !(is_alnum(it) || it == #char "_" || it == #char "-" || it == #char "." || (slash && it == #char "/")) return false;
+		return true;
+	}
+	if begins_with(key, "mp:") && safe(slice(key, 3, key.count - 3), true) && !contains(key, "..") return tprint("%/%", dc.MEDIA_PROXY, slice(key, 3, key.count - 3));
+	if begins_with(key, "spotify:") && safe(slice(key, 8, key.count - 8), false) return tprint("https://i.scdn.co/image/%", slice(key, 8, key.count - 8));
+	_, ok := dc.parse_u64(key);
+	if ok && app_id return tprint("%/app-assets/%/%.png?size=%", dc.CDN, app_id, key, size);
+	return "";
+}
+
+// "1:05" / "1:02:05" for a duration.
+clock_span :: (ms: s64) -> string {
+	t := max(ms, 0) / 1000;
+	if t >= 3600 return tprint("%:%:%", t / 3600, formatInt((t / 60) % 60, minimum_digits = 2), formatInt(t % 60, minimum_digits = 2));
+	return tprint("%:%", t / 60, formatInt(t % 60, minimum_digits = 2));
+}
+
+// The profile's rich presence card (popout and full profile): what the user is playing, listening to or
+// watching, with its art, details, state, party and time; Spotify's with a progress bar, its song opening
+// in Spotify. pad: the card's side margin.
+activity_card :: (a: *dc.Activity, pad: float32) {
+	spotify := a.kind == 2 && a.name == "Spotify";
+	HEADS :: string.["Playing", "Live on", "Listening to", "Watching", "", "Competing in"];
+	head := ifx a.kind == 1 || a.kind == 2 then tprint("% %", HEADS[a.kind], a.name) else HEADS[a.kind];
+	now := wall_ms();
+	if a.start_ms || a.end_ms request_wake(platform.time_now() + 1); // the time moves each second
+	outer := row("activity");
+	outer.semantic_size = .[ui.pct(1), ui.children()];
+	ui.parent(outer); defer ui.pop_parent();
+	spacer(.X, pad);
+	card := ui.box("card", .Draw_Background);
+	card.semantic_size = .[ui.fill(), ui.children()];
+	card.layout_axis = .X;
+	card.style.bg = T("--background-mod-subtle");
+	card.style.radius = all4(8);
+	{ ui.parent(card); defer ui.pop_parent();
+		spacer(.X, 12);
+		inner := ui.box("inner");
+		inner.semantic_size = .[ui.fill(), ui.children()];
+		inner.layout_axis = .Y;
+		spacer(.X, 12);
+		ui.parent(inner); defer ui.pop_parent();
+		spacer(.Y, 10);
+		defer spacer(.Y, 12);
+		label(head, .Semibold, 12, T("--text-muted"), 16);
+		spacer(.Y, 8);
+		body := row("body");
+		body.semantic_size = .[ui.pct(1), ui.children()];
+		body.cross_align = .Center;
+		{ ui.parent(body); defer ui.pop_parent();
+			art := ui.box("art", .Draw_Background);
+			art.semantic_size = .[ui.px(64), ui.px(64)];
+			art.style.radius = all4(8);
+			art.style.bg = T("--background-mod-normal");
+			set_remote_image(art, activity_asset_url(a.app_id, a.large_image, 128));
+			if a.large_text && ui.mouse_over(art) tooltip_below(a.large_text, art.rect);
+			small := activity_asset_url(a.app_id, a.small_image, 64);
+			if small { ui.parent(art); defer ui.pop_parent();
+				sm := ui.box("small", .Floating_X | .Floating_Y | .Draw_Background);
+				sm.semantic_size = .[ui.px(22), ui.px(22)];
+				sm.fixed_pos = .{48, 48};
+				sm.style.radius = all4(11);
+				sm.style.bg = card.style.bg;
+				set_remote_image(sm, small);
+				if a.small_text && ui.mouse_over(sm) tooltip_below(a.small_text, sm.rect);
+			}
+			spacer(.X, 12);
+			col := ui.box("col");
+			col.semantic_size = .[ui.fill(), ui.children()];
+			col.layout_axis = .Y;
+			ui.parent(col); defer ui.pop_parent();
+			line :: (id: string, text: string, font: Font_Id, color: ui.Color) -> *ui.Box {
+				l := label(tprint("%##%", text, id), font, 14, color, 18);
+				l.semantic_size[ui.Axis.X] = ui.pct(1);
+				l.flags |= .Selectable_Text;
+				return l;
+			}
+			party := ifx a.party[1] > 0 then tprint(" (% of %)", a.party[0], a.party[1]) else "";
+			if spotify {
+				song := line("song", a.details, .Semibold, T("--text-strong"));
+				if a.sync_id && dc.is_hash(a.sync_id) {
+					song.flags |= .Clickable;
+					song.hover_cursor = .Pointer;
+					if ui.signal(song).clicked open_url(tprint("https://open.spotify.com/track/%", a.sync_id));
+				}
+				if a.state line("artist", tprint("by %", a.state), .Normal, T("--text-default"));
+				if a.large_text line("album", tprint("on %", a.large_text), .Normal, T("--text-default"));
+			} else {
+				line("name", a.name, .Semibold, T("--text-strong"));
+				if a.details line("details", a.details, .Normal, T("--text-default"));
+				if a.state || party line("state", tprint("%1%2", a.state, party), .Normal, T("--text-default"));
+				if a.end_ms > now line("time", tprint("% left", clock_span(a.end_ms - now)), .Normal, T("--text-default"));
+				else if a.start_ms && a.start_ms <= now line("time", tprint("% elapsed", clock_span(now - a.start_ms)), .Normal, T("--text-default"));
+			}
+		}
+		if spotify && a.start_ms && a.end_ms > a.start_ms {
+			// the song's progress, with the time played and its length
+			spacer(.Y, 10);
+			total := a.end_ms - a.start_ms;
+			done := clamp(now - a.start_ms, 0, total);
+			bar := ui.box("bar", .Draw_Background);
+			bar.semantic_size = .[ui.pct(1), ui.px(4)];
+			bar.style.radius = all4(2);
+			bar.style.bg = T("--background-mod-strong");
+			{ ui.parent(bar); defer ui.pop_parent();
+				fill := ui.box("fill", .Draw_Background);
+				fill.semantic_size = .[ui.pct(cast(float32) done / cast(float32) total), ui.px(4)];
+				fill.style.radius = all4(2);
+				fill.style.bg = T("--text-strong");
+			}
+			spacer(.Y, 4);
+			times := row("times");
+			times.semantic_size = .[ui.pct(1), ui.px(16)];
+			ui.parent(times); defer ui.pop_parent();
+			label(clock_span(done), .Normal, 12, T("--text-muted"), 16);
+			filler(.X);
+			label(clock_span(total), .Normal, 12, T("--text-muted"), 16);
+		}
+	}
+	spacer(.X, pad);
+}
+
+// The user's rich presence activity while they're online, else null.
+rich_activity :: (uid: dc.Snowflake) -> *dc.Activity {
+	p := table_find_pointer(*store().presences, uid);
+	return ifx p && p.rich.kind >= 0 && p.status != .Offline then *p.rich else null;
+}
+
 // user_banner_url: in a server, the member's per-server banner replaces theirs ("" for none).
 user_banner_url :: (uid: dc.Snowflake, guild: dc.Snowflake, hash_: string) -> string {
 	mem := ifx guild then dc.member_get(store(), guild, uid) else null;
@@ -253,6 +388,11 @@ profile_popout :: () {
 				cl.semantic_size[ui.Axis.X] = ui.fill();
 				cl.sel_order = 3;
 				spacer(.X, 16);
+			}
+			act := ifx hook then null else rich_activity(uid);
+			if act {
+				spacer(.Y, 12);
+				activity_card(act, 16);
 			}
 			gm := dc.member_get(s, app.view.guild, uid);
 			about := ifx gm && gm.bio then gm.bio else u.bio; // the server's profile first

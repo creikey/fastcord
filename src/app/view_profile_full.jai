@@ -447,6 +447,11 @@ section_title :: (text: string) {
 
 profile_about :: (uid: dc.Snowflake, u: *dc.User, prof: Pf_Profile) {
 	spacer(.Y, PF_PAD);
+	act := rich_activity(uid);
+	if act {
+		activity_card(act, PF_PAD + 8);
+		spacer(.Y, 16);
+	}
 	bio := ifx prof.bio != "" then prof.bio else u.bio;
 	if bio != "" {
 		section_title(L("About Me"));
