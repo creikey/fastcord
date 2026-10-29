@@ -237,7 +237,7 @@ main :: () {
 		}
 	}
 
-	rest :: (method: string, path: string, body: string, token: string) -> int, string #expand {
+	rest :: (method: string, path: string, body: string, token: string, event := "") -> int, string #expand {
 		session := dial(`pin, serve.ALPN);
 		if !session return -1, "";
 		defer tls.close(session);
@@ -245,7 +245,7 @@ main :: () {
 		http.h1_init(*h, tls.stream(session));
 		defer http.h1_destroy(*h, false);
 		req := http.Request.{method = method, path = path, authority = `id, body = cast([]u8) body,
-			headers = .[.{"authorization", token}, .{"Content-Type", "application/json"}, .{"Content-Length", tprint("%", body.count)}]};
+			headers = .[.{"authorization", token}, .{"Content-Type", "application/json"}, .{"Content-Length", tprint("%", body.count)}, .{"X-GitHub-Event", event}]};
 		resp, err := http.h1_round_trip(*h, req);
 		if err != .None return -2, "";
 		return resp.status, copy_string(cast(string) resp.body,, temp);
@@ -953,6 +953,20 @@ main :: () {
 	rest("DELETE", tprint("%/messages/%", hook_url, field(etf.from_json(body), "id").s), "", "");
 	status, body = rest("POST", hook_url, "{\"content\": \"x\", \"allowed_mentions\": {\"parse\": [\"users\"], \"users\": [\"1\"]}}", "");
 	check(status == 400, tprint("allowed_mentions can't name users both ways: % %", status, body));
+	// GitHub's and Slack's formats, at the URLs Discord gives them.
+	status, body = rest("POST", tprint("%/github", hook_url), "{\"zen\": \"hi\", \"hook_id\": 1}", "", "ping");
+	check(status == 204, tprint("GitHub's ping posts nothing: % %", status, body));
+	PUSH :: "{\"ref\": \"refs/heads/main\", \"compare\": \"https://github.com/a/b/compare/1...2\", \"repository\": {\"full_name\": \"a/b\"}, \"sender\": {\"login\": \"octo\"}, \"commits\": [{\"id\": \"0123456789abcdef\", \"url\": \"https://github.com/a/b/commit/0123456\", \"message\": \"Fix the build\\n\\nLong body\", \"author\": {\"name\": \"Octo Cat\"}}]}";
+	status, body = rest("POST", tprint("%/github?wait=true", hook_url), PUSH, "", "push");
+	check(status == 200 && contains(body, "\"title\":\"[a/b:main] 1 new commit\"") && contains(body, "[`0123456`](https://github.com/a/b/commit/0123456) Fix the build - Octo Cat") && contains(body, "\"name\":\"octo\"") && contains(body, "\"username\":\"GitHub\""),
+		tprint("a GitHub push becomes an embed: % %", status, body));
+	rest("DELETE", tprint("%/messages/%", hook_url, field(etf.from_json(body), "id").s), "", "");
+	status, body = rest("POST", tprint("%/slack?wait=true", hook_url), "{\"text\": \"Deployed <https://x.test/run/1|run 1>\", \"username\": \"Deployer\", \"attachments\": [{\"title\": \"prod\", \"color\": \"#36a64f\", \"fields\": [{\"title\": \"Took\", \"value\": \"2m\", \"short\": true}]}]}", "");
+	check(status == 200 && contains(body, "\"content\":\"Deployed [run 1](https://x.test/run/1)\"") && contains(body, "\"title\":\"prod\"") && contains(body, "\"color\":3581519") && contains(body, "\"value\":\"2m\"") && contains(body, "\"username\":\"Deployer\""),
+		tprint("a Slack-style post becomes content and embeds: % %", status, body));
+	rest("DELETE", tprint("%/messages/%", hook_url, field(etf.from_json(body), "id").s), "", "");
+	status, body = rest("GET", tprint("%/github", hook_url), "", "");
+	check(status == 405, tprint("the GitHub URL only takes posts: %", status));
 	// curl and CI tools speak plain HTTP/1.1: they reach webhooks and nothing else.
 	plain_rest :: (method: string, path: string, body: string) -> int #expand {
 		session := dial(`pin, "http/1.1");

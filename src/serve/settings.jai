@@ -483,7 +483,7 @@ audit_logs :: (c: *Conn, req: http.Request, query: string) -> bool {
 	return json_reply(c, 200, etf.vmap(etf.map_done(*m)));
 }
 
-// PATCH /api/v9/webhooks/{id} {name?, channel_id?}: the owner renames a webhook or moves it to another text
+// PATCH /api/v9/webhooks/{id} {name?, channel_id?}: Manage Webhooks renames a webhook or moves it to another text
 // channel (Server Settings' Integrations).
 edit_webhook :: (c: *Conn, req: http.Request, user: s64, id: s64) -> bool {
 	s := c.server;
@@ -496,7 +496,7 @@ edit_webhook :: (c: *Conn, req: http.Request, user: s64, id: s64) -> bool {
 	channel, cok := string_to_int(ifx chan_v.kind == .String then chan_v.s else "", T = s64);
 	if has_chan && !cok return json_error(c, 400, 50035, "Invalid Form Body");
 	locks.guard(*s.db_mu);
-	if owner_id(s) != user return json_error(c, 403, 50013, "Missing Permissions");
+	if !can_locked(s, user, P_MANAGE_WEBHOOKS) return json_error(c, 403, 50013, "Missing Permissions");
 	st := sqlite.prepare(s.db, tprint("% WHERE w.id = ?;", WEBHOOK_SELECT));
 	sqlite.bind_all(st, id);
 	found := sqlite.step(st) == .Row;

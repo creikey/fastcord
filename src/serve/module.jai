@@ -22,6 +22,7 @@ mls :: #import "voice_mls";
 #load "soundboard.jai";
 #load "expressions.jai";
 #load "roles.jai";
+#load "webhook_formats.jai";
 
 ALPN :: "fc/1";
 HEARTBEAT_INTERVAL_MS :: 41_250;
@@ -2661,10 +2662,13 @@ webhook :: (c: *Conn, req: http.Request) -> bool {
 	parts := split(advance(path, find_index_from_left(path, "webhooks/") + "webhooks/".count), "/",, temp);
 	id, ok := string_to_int(parts[0], T = s64);
 	own: s64;
+	// .../{token}/github and /slack take those services' payloads (webhook_formats.jai).
+	format := ifx parts.count == 3 && parts[1] && (parts[2] == "github" || parts[2] == "slack") then parts[2] else "";
 	if ok && parts.count == 4 && parts[1] && parts[2] == "messages" {
 		own, ok = string_to_int(parts[3], T = s64);
 		if !ok || own <= 0 return json_error(c, 404, 10008, "Unknown Message");
-	} else if !ok || parts.count > 2 || (parts.count == 2 && !parts[1]) return json_error(c, 404, 0, "404: Not Found");
+	} else if !ok || (parts.count > 2 && !format) || (parts.count == 2 && !parts[1]) return json_error(c, 404, 0, "404: Not Found");
+	if format && req.method != "POST" return json_error(c, 405, 0, "405: Method Not Allowed");
 	by_token := parts.count >= 2;
 	user: s64;
 	if !by_token {
@@ -2688,6 +2692,11 @@ webhook :: (c: *Conn, req: http.Request) -> bool {
 		err: etf.Error;
 		v, err = etf.from_json(cast(string) req.body,, temp);
 		if err != .None || v.kind != .Map return json_error(c, 400, 50035, "Invalid Form Body");
+		if format {
+			event, _ := http.header_get(req.headers, "x-github-event");
+			v = ifx format == "github" then github_post(event, v) else slack_post(v);
+			if v.kind != .Map return respond(c, 204, json = false); // An event Discord doesn't show, such as GitHub's ping.
+		}
 		am, has_am := etf.map_get(v.map, "allowed_mentions");
 		if has_am && am.kind != .Nil {
 			if am.kind != .Map return json_error(c, 400, 50035, "Invalid Form Body");
