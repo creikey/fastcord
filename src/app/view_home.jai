@@ -1151,6 +1151,39 @@ block_confirm_modal :: () {
 CHW_ICON :: 68;
 PERM_MANAGE_CHANNELS :: (cast(u64)(1)) << 4;
 
+// The start of a group DM's history: its icon, name and "Welcome to the beginning of the <name> group."
+GDW_H :: 16 + 80 + 8 + 40 + 8 + 20;
+
+group_dm_welcome :: (ch: *dc.Channel) {
+	w := ui.box("gdwelcome");
+	w.semantic_size = .[ui.pct(1), ui.px(GDW_H)];
+	w.layout_axis = .Y;
+	ui.parent(w); defer ui.pop_parent();
+	spacer(.Y, 16);
+	r := row("icon");
+	r.semantic_size = .[ui.pct(1), ui.px(80)];
+	{ ui.parent(r); defer ui.pop_parent(); spacer(.X, 16); group_dm_icon("gi", ch, 80); }
+	spacer(.Y, 8);
+	name := dm_name(ch);
+	h := row("h");
+	h.semantic_size = .[ui.pct(1), ui.px(40)];
+	{ ui.parent(h); defer ui.pop_parent(); spacer(.X, 16); label(name, .Bold, 32, T("--text-strong"), 40); }
+	spacer(.Y, 8);
+	t := row("t");
+	t.semantic_size = .[ui.pct(1), ui.px(20)];
+	{ ui.parent(t); defer ui.pop_parent();
+		spacer(.X, 16);
+		b := ui.box("text", .Wrap_Text);
+		b.semantic_size = .[ui.fill(), ui.text_size()];
+		b.style.line_height = 20;
+		ui.set_spans(b, ui.Span.[
+			.{text = "Welcome to the beginning of the ", font = F(.Normal), size = 16, color = T("--text-muted")},
+			.{text = name, font = F(.Semibold), size = 16, color = T("--text-muted")},
+			.{text = " group.", font = F(.Normal), size = 16, color = T("--text-muted")},
+		]);
+	}
+}
+
 channel_welcome_height :: (ch: *dc.Channel) -> float32 {
 	h: float32 = 16 + CHW_ICON + 8 + 40 + 8 + 20;
 	if (my_guild_permissions(ch.guild_id) & PERM_MANAGE_CHANNELS) != 0 { h += 8 + 20; }

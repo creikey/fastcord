@@ -1098,6 +1098,8 @@ message_list :: (channel_id: dc.Snowflake, cs: *Chat_State) {
 		if welcome_ch.kind == {
 		case .DM;
 			if welcome_ch.recipient_ids.count == 1 welcome_h = DMW_H;
+		case .Group_DM;
+			welcome_h = GDW_H;
 		case .Guild_Text; #through; case .Guild_Announcement;
 			welcome_h = channel_welcome_height(welcome_ch);
 		}
@@ -1182,7 +1184,7 @@ message_list :: (channel_id: dc.Snowflake, cs: *Chat_State) {
 					spacer(.Y, SKEL_OLDER_H - 3 * SKEL_MSG_H);
 					for k: 0..2 skeleton_message(k);
 				} else if welcome_ch != null {
-					if welcome_ch.kind == .DM { dm_welcome(welcome_ch); } else { channel_welcome(welcome_ch); }
+					if welcome_ch.kind == .DM { dm_welcome(welcome_ch); } else if welcome_ch.kind == .Group_DM { group_dm_welcome(welcome_ch); } else { channel_welcome(welcome_ch); }
 					spacer(.Y, DMW_GAP);
 				} else {
 					spacer(.Y, TOP_PAD);
