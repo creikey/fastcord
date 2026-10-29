@@ -1,11 +1,14 @@
-// Direct messages between members. Serve is only their carrier: every DM message is an end-to-end
-// encrypted packet in its `fc-` text form (`src/fc_text`), and anything else is refused, so serve relays
-// and stores what it can't read. Files are ciphertext too (E2E 7): they upload as for a channel and are
-// kept as opaque bytes, named DM_FILE_NAME whatever the client says, up to MAX_DM_FILE_BYTES per DM, the
-// oldest going first. An edit replaces a packet with another, which is how E2E edits and deletes. DMs live apart from the guild's channels and messages, so nothing
-// guild-wide (READY's channels, search, mentions, audit) lists them; only the two members see a DM, its
-// messages, typing and read state. Messages wait here for a member who is offline, up to MAX_DM_MESSAGES
-// per DM, the oldest going first.
+// Direct messages between members: 1:1 DMs and group DMs of up to MAX_GROUP members. Serve is only their
+// carrier: every DM message is an end-to-end encrypted packet in its `fc-` text form (`src/fc_text`), and
+// anything else is refused, so serve relays and stores what it can't read. A group's packets are the same:
+// its members' pairwise sessions and sender keys (E2E 8) are theirs, and serve hands every packet to every
+// member. Files are ciphertext too (E2E 7): they upload as for a channel and are kept as opaque bytes,
+// named DM_FILE_NAME whatever the client says, up to MAX_DM_FILE_BYTES per DM, the oldest going first. An
+// edit replaces a packet with another, which is how E2E edits and deletes. DMs live apart from the guild's
+// channels and messages, so nothing guild-wide (READY's channels, search, mentions, audit) lists them; only
+// a DM's members see it, its messages, typing and read state. Messages wait here for a member who is
+// offline, up to MAX_DM_MESSAGES per DM, the oldest going first. A group's name and icon aren't
+// encrypted: serve keeps them, as Discord does.
 
 DM_SCHEMA :: #string SQL
 CREATE TABLE IF NOT EXISTS dms(id INTEGER PRIMARY KEY, a INTEGER NOT NULL, b INTEGER NOT NULL, UNIQUE(a, b));
@@ -13,14 +16,20 @@ CREATE TABLE IF NOT EXISTS dm_messages(id INTEGER PRIMARY KEY, dm INTEGER NOT NU
 CREATE INDEX IF NOT EXISTS dm_messages_dm ON dm_messages(dm, id);
 CREATE TABLE IF NOT EXISTS dm_closed(dm INTEGER NOT NULL, user INTEGER NOT NULL, PRIMARY KEY(dm, user));
 CREATE TABLE IF NOT EXISTS e2e_bundles(user INTEGER PRIMARY KEY, bundle TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS groups(id INTEGER PRIMARY KEY, owner INTEGER NOT NULL, name TEXT, icon TEXT, icon_type TEXT, icon_data BLOB);
+CREATE TABLE IF NOT EXISTS group_members(dm INTEGER NOT NULL, user INTEGER NOT NULL, PRIMARY KEY(dm, user));
+CREATE INDEX IF NOT EXISTS group_members_user ON group_members(user);
 SQL
 
 MAX_DM_MESSAGES :: 10000;
 MAX_DM_FILE_BYTES :: 1 << 30;
 DM_FILE_NAME :: "encrypted.bin";
-DM :: 1; // Discord's channel type.
+DM :: 1; // Discord's channel types.
+GROUP_DM :: 3;
+MAX_GROUP :: 10; // A group's members, its creator included, as on Discord.
+MAX_GROUP_NAME :: 100;
 
-// dm_peer_locked is the other member of DM dm, or 0 when it isn't a DM of user's. The caller holds db_mu.
+// dm_peer_locked is the other member of 1:1 DM dm, or 0 when it isn't a 1:1 DM of user's. The caller holds db_mu.
 dm_peer_locked :: (s: *Server, dm: s64, user: s64) -> s64 {
 	st := sqlite.prepare(s.db, "SELECT CASE WHEN a = ?2 THEN b ELSE a END FROM dms WHERE id = ?1 AND (a = ?2 OR b = ?2);");
 	defer sqlite.finalize(st);
@@ -28,38 +37,126 @@ dm_peer_locked :: (s: *Server, dm: s64, user: s64) -> s64 {
 	return ifx sqlite.step(st) == .Row then sqlite.col_int(st, 0) else 0;
 }
 
-// dm_value is a DM as Discord sends it to one of its members, with the other as its recipient.
-dm_value_locked :: (s: *Server, dm: s64, peer: s64) -> etf.Value {
-	name := "";
-	st := sqlite.prepare(s.db, "SELECT name FROM users WHERE id = ?;");
-	sqlite.bind(st, 1, peer);
-	if sqlite.step(st) == .Row name = copy_string(sqlite.col_text(st, 0),, temp);
+// group_members_locked lists group dm's members still on the server (temp), oldest first; none for a 1:1 DM.
+group_members_locked :: (s: *Server, dm: s64) -> [..]s64 {
+	out: [..]s64;
+	out.allocator = temp;
+	st := sqlite.prepare(s.db, "SELECT g.user FROM group_members g JOIN users u ON u.id = g.user WHERE g.dm = ? AND u.left = 0 AND u.banned = 0 ORDER BY g.rowid;");
+	sqlite.bind(st, 1, dm);
+	while out.count < MAX_GROUP && sqlite.step(st) == .Row array_add(*out, sqlite.col_int(st, 0));
 	sqlite.finalize(st);
+	return out;
+}
+
+// dm_others_locked: the members of DM dm but user (temp), when user is one; group says it's a group DM.
+dm_others_locked :: (s: *Server, dm: s64, user: s64) -> others: [..]s64, member: bool, group: bool {
+	peer := dm_peer_locked(s, dm, user);
+	if peer {
+		others: [..]s64;
+		others.allocator = temp;
+		array_add(*others, peer);
+		return others, true, false;
+	}
+	all := group_members_locked(s, dm);
+	found, i := array_find(all, user);
+	if found array_ordered_remove_by_index(*all, i);
+	else all.count = 0;
+	return all, found, found;
+}
+
+dm_member_locked :: (s: *Server, dm: s64, user: s64) -> bool {
+	_, member := dm_others_locked(s, dm, user);
+	return member;
+}
+
+name_locked :: (s: *Server, user: s64) -> string {
+	st := sqlite.prepare(s.db, "SELECT name FROM users WHERE id = ?;");
+	defer sqlite.finalize(st);
+	sqlite.bind(st, 1, user);
+	return ifx sqlite.step(st) == .Row then copy_string(sqlite.col_text(st, 0),, temp) else "";
+}
+
+on_server_locked :: (s: *Server, user: s64) -> bool {
+	st := sqlite.prepare(s.db, "SELECT 1 FROM users WHERE id = ? AND left = 0 AND banned = 0;");
+	defer sqlite.finalize(st);
+	sqlite.bind(st, 1, user);
+	return sqlite.step(st) == .Row;
+}
+
+// dm_value is a DM as Discord sends it to viewer, one of its members, with the others as its recipients.
+dm_value_locked :: (s: *Server, dm: s64, viewer: s64) -> etf.Value {
+	others, _, group := dm_others_locked(s, dm, viewer);
+	recipients := NewArray(others.count, etf.Value,, temp);
+	for others recipients[it_index] = user_value(s, it, name_locked(s, it));
 	last: s64;
-	st = sqlite.prepare(s.db, "SELECT max(id) FROM dm_messages WHERE dm = ?;");
+	st := sqlite.prepare(s.db, "SELECT max(id) FROM dm_messages WHERE dm = ?;");
 	sqlite.bind(st, 1, dm);
 	if sqlite.step(st) == .Row last = sqlite.col_int(st, 0);
 	sqlite.finalize(st);
-	recipients := NewArray(1, etf.Value,, temp);
-	recipients[0] = user_value(s, peer, name);
-	m := etf.map_builder(5,, temp);
+	m := etf.map_builder(8,, temp);
 	etf.map_put(*m, "id", snow(dm));
-	etf.map_put(*m, "type", etf.vint(DM));
+	etf.map_put(*m, "type", etf.vint(ifx group then GROUP_DM else DM));
 	etf.map_put(*m, "last_message_id", ifx last then snow(last) else .{});
 	etf.map_put(*m, "flags", etf.vint(0));
 	etf.map_put(*m, "recipients", etf.vlist(recipients));
+	if group {
+		st = sqlite.prepare(s.db, "SELECT owner, name, icon FROM groups WHERE id = ?;");
+		sqlite.bind(st, 1, dm);
+		if sqlite.step(st) == .Row {
+			etf.map_put(*m, "owner_id", snow(sqlite.col_int(st, 0)));
+			etf.map_put(*m, "name", ifx sqlite.col_is_null(st, 1) then etf.Value.{} else etf.vstring(copy_string(sqlite.col_text(st, 1),, temp)));
+			etf.map_put(*m, "icon", ifx sqlite.col_is_null(st, 2) then etf.Value.{} else etf.vstring(copy_string(sqlite.col_text(st, 2),, temp)));
+		}
+		sqlite.finalize(st);
+	}
 	return etf.vmap(etf.map_done(*m));
 }
 
-// READY's private_channels: the member's DMs they haven't closed.
+// READY's private_channels: the member's 1:1 DMs they haven't closed, and their groups.
 dm_list_locked :: (s: *Server, user: s64) -> etf.Value {
-	list: [..]etf.Value;
-	list.allocator = temp;
-	st := sqlite.prepare(s.db, "SELECT id, CASE WHEN a = ?1 THEN b ELSE a END FROM dms WHERE (a = ?1 OR b = ?1) AND id NOT IN (SELECT dm FROM dm_closed WHERE user = ?1);");
+	ids: [..]s64;
+	ids.allocator = temp;
+	st := sqlite.prepare(s.db, "SELECT id FROM dms WHERE (a = ?1 OR b = ?1) AND id NOT IN (SELECT dm FROM dm_closed WHERE user = ?1) UNION ALL SELECT dm FROM group_members WHERE user = ?1;");
 	sqlite.bind(st, 1, user);
-	while sqlite.step(st) == .Row array_add(*list, dm_value_locked(s, sqlite.col_int(st, 0), sqlite.col_int(st, 1)));
+	while sqlite.step(st) == .Row array_add(*ids, sqlite.col_int(st, 0));
 	sqlite.finalize(st);
+	list := NewArray(ids.count, etf.Value,, temp);
+	for ids list[it_index] = dm_value_locked(s, it, user);
 	return etf.vlist(list);
+}
+
+// send_dm_value sends each of users DM dm as they see it, as event t.
+send_dm_value :: (s: *Server, users: []s64, dm: s64, t: string) {
+	for users {
+		v: etf.Value;
+		{
+			locks.guard(*s.db_mu);
+			v = dm_value_locked(s, dm, it);
+		}
+		send_to(s, .[it], t, v);
+	}
+}
+
+// plus is users and one more (temp).
+plus :: (users: []s64, user: s64) -> [..]s64 {
+	out: [..]s64;
+	out.allocator = temp;
+	array_add(*out, ..users);
+	array_add(*out, user);
+	return out;
+}
+
+// recipient_event is CHANNEL_RECIPIENT_ADD's or _REMOVE's {channel_id, user}.
+recipient_event :: (s: *Server, dm: s64, user: s64) -> etf.Value {
+	name: string;
+	{
+		locks.guard(*s.db_mu);
+		name = name_locked(s, user);
+	}
+	d := etf.map_builder(2,, temp);
+	etf.map_put(*d, "channel_id", snow(dm));
+	etf.map_put(*d, "user", user_value(s, user, name));
+	return etf.vmap(etf.map_done(*d));
 }
 
 DM_SELECT :: "SELECT m.id, m.dm, m.author, u.name, m.content, m.nonce, m.flags, m.edited FROM dm_messages m JOIN users u ON u.id = m.author";
@@ -84,8 +181,9 @@ row_dm_message :: (s: *Server, st: *sqlite.Stmt, with_nonce := false) -> etf.Val
 	return etf.vmap(etf.map_done(*m));
 }
 
-// POST /api/v9/users/@me/channels {recipients: [id]} opens the DM with another member, making it the
-// first time; it stays closed for them until its first message.
+// POST /api/v9/users/@me/channels {recipients: [id...]}: one member opens the DM with them, making it the
+// first time (it stays closed for them until its first message); none or several make a new group DM of
+// at most MAX_GROUP, owned by its creator.
 open_dm :: (c: *Conn, req: http.Request) -> bool {
 	s := c.server;
 	token, _ := http.header_get(req.headers, "authorization");
@@ -94,48 +192,180 @@ open_dm :: (c: *Conn, req: http.Request) -> bool {
 	v, err := etf.from_json(cast(string) req.body,, temp);
 	if err != .None || v.kind != .Map return json_error(c, 400, 50035, "Invalid Form Body");
 	r, _ := etf.map_get(v.map, "recipients");
-	// One recipient: a group DM needs E2E's sender keys first.
-	if r.kind != .List || r.list.count != 1 || r.list[0].kind != .String return json_error(c, 400, 50035, "Invalid Form Body");
-	peer, ok := string_to_int(r.list[0].s, T = s64);
-	if !ok || peer == user return json_error(c, 400, 50035, "Invalid Form Body");
+	if r.kind != .List || r.list.count > MAX_GROUP - 1 return json_error(c, 400, 50035, "Invalid Form Body");
+	ids: [..]s64;
+	ids.allocator = temp;
+	for r.list {
+		id, ok := string_to_int(ifx it.kind == .String then it.s else "", T = s64);
+		if !ok || id == user || array_find(ids, id) return json_error(c, 400, 50035, "Invalid Form Body");
+		array_add(*ids, id);
+	}
+	ch: etf.Value;
+	members: [..]s64;
+	members.allocator = temp;
+	group: s64;
+	{
+		locks.guard(*s.db_mu);
+		for ids if !on_server_locked(s, it) return json_error(c, 400, 50007, "Cannot send messages to this user");
+		if ids.count != 1 {
+			group = snowflake(s);
+			array_add(*members, user);
+			array_add(*members, ..ids);
+			ok := sqlite.exec(s.db, "BEGIN;") && sqlite.run(s.db, "INSERT INTO groups(id, owner) VALUES(?, ?);", group, user);
+			for members ok = ok && sqlite.run(s.db, "INSERT INTO group_members(dm, user) VALUES(?, ?);", group, it);
+			if !ok || !sqlite.exec(s.db, "COMMIT;") { sqlite.exec(s.db, "ROLLBACK;"); return json_error(c, 500, 0, "500: Internal Server Error"); }
+			ch = dm_value_locked(s, group, user);
+		} else {
+			peer := ids[0];
+			a, b := min(user, peer), max(user, peer);
+			st := sqlite.prepare(s.db, "SELECT id FROM dms WHERE a = ? AND b = ?;");
+			sqlite.bind_all(st, a, b);
+			dm := ifx sqlite.step(st) == .Row then sqlite.col_int(st, 0) else 0;
+			sqlite.finalize(st);
+			if !dm {
+				dm = snowflake(s);
+				ok := sqlite.exec(s.db, "BEGIN;")
+					&& sqlite.run(s.db, "INSERT INTO dms(id, a, b) VALUES(?, ?, ?);", dm, a, b)
+					&& sqlite.run(s.db, "INSERT INTO dm_closed(dm, user) VALUES(?, ?);", dm, peer)
+					&& sqlite.exec(s.db, "COMMIT;");
+				if !ok { sqlite.exec(s.db, "ROLLBACK;"); return json_error(c, 500, 0, "500: Internal Server Error"); }
+			}
+			sqlite.run(s.db, "DELETE FROM dm_closed WHERE dm = ? AND user = ?;", dm, user);
+			ch = dm_value_locked(s, dm, user);
+		}
+	}
+	send_to(s, .[user], "CHANNEL_CREATE", ch);
+	if members send_dm_value(s, array_view(members, 1), group, "CHANNEL_CREATE");
+	return json_reply(c, 200, ch);
+}
+
+// group_route answers what only a group DM has, for one of its members: leaving it (DELETE, ?silent is
+// all the same here), its name, icon and owner (PATCH; only the owner hands it on), and adding or, for the
+// owner, removing members (PUT/DELETE recipients/{user}). Each member is told of what changed: the one who
+// joined or went gets CHANNEL_CREATE or CHANNEL_DELETE, the others CHANNEL_RECIPIENT_ADD or _REMOVE.
+group_route :: (c: *Conn, req: http.Request, user: s64, others: []s64, dm: s64, parts: []string) -> bool {
+	s := c.server;
+	owner: s64;
+	{
+		locks.guard(*s.db_mu);
+		st := sqlite.prepare(s.db, "SELECT owner FROM groups WHERE id = ?;");
+		sqlite.bind(st, 1, dm);
+		if sqlite.step(st) == .Row owner = sqlite.col_int(st, 0);
+		sqlite.finalize(st);
+	}
+	if parts.count == 3 && parts[1] == "recipients" && (req.method == "PUT" || req.method == "DELETE") {
+		who, ok := string_to_int(parts[2], T = s64);
+		if !ok return json_error(c, 404, 0, "404: Not Found");
+		ch: etf.Value;
+		if req.method == "PUT" {
+			if array_find(others, who) || who == user return respond(c, 204, json = false);
+			if others.count + 1 >= MAX_GROUP return json_error(c, 400, 50035, "Invalid Form Body");
+			{
+				locks.guard(*s.db_mu);
+				if !on_server_locked(s, who) return json_error(c, 400, 50007, "Cannot send messages to this user");
+				if !sqlite.run(s.db, "INSERT OR IGNORE INTO group_members(dm, user) VALUES(?, ?);", dm, who) return json_error(c, 500, 0, "500: Internal Server Error");
+			}
+			send_dm_value(s, .[who], dm, "CHANNEL_CREATE");
+			send_to(s, plus(others, user), "CHANNEL_RECIPIENT_ADD", recipient_event(s, dm, who));
+			return respond(c, 204, json = false);
+		}
+		if who == user return leave_group(c, user, others, dm, owner);
+		if user != owner return json_error(c, 403, 50013, "Missing Permissions");
+		if !array_find(others, who) return json_error(c, 404, 10013, "Unknown User");
+		{
+			locks.guard(*s.db_mu);
+			ch = dm_value_locked(s, dm, who);
+			if !sqlite.run(s.db, "DELETE FROM group_members WHERE dm = ? AND user = ?;", dm, who) return json_error(c, 500, 0, "500: Internal Server Error");
+		}
+		send_to(s, .[who], "CHANNEL_DELETE", ch);
+		rest := plus(others, user);
+		array_ordered_remove_by_value(*rest, who);
+		send_to(s, rest, "CHANNEL_RECIPIENT_REMOVE", recipient_event(s, dm, who));
+		return respond(c, 204, json = false);
+	}
+	if parts.count != 1 return json_error(c, 404, 0, "404: Not Found");
+	if req.method == "DELETE" return leave_group(c, user, others, dm, owner);
+	if req.method != "PATCH" return json_error(c, 405, 0, "405: Method Not Allowed");
+	v, err := etf.from_json(cast(string) req.body,, temp);
+	if err != .None || v.kind != .Map return json_error(c, 400, 50035, "Invalid Form Body");
+	name_v, has_name := etf.map_get(v.map, "name");
+	icon_v, has_icon := etf.map_get(v.map, "icon");
+	owner_v, has_owner := etf.map_get(v.map, "owner");
+	name := ifx name_v.kind == .String then trim(name_v.s) else "";
+	if has_name && ((name_v.kind != .String && name_v.kind != .Nil) || name.count > MAX_GROUP_NAME) return json_error(c, 400, 50035, "Invalid Form Body");
+	icon: []u8;
+	format: imagefmt.Format;
+	if has_icon && icon_v.kind != .Nil {
+		ok: bool;
+		icon, format, ok = image_data_uri(ifx icon_v.kind == .String then icon_v.s else "", ICON_MAX_BYTES);
+		if !ok return json_error(c, 400, 50035, "Invalid Form Body");
+	}
+	new_owner: s64;
+	if has_owner {
+		ok: bool;
+		new_owner, ok = string_to_int(ifx owner_v.kind == .String then owner_v.s else "", T = s64);
+		if user != owner return json_error(c, 403, 50013, "Missing Permissions");
+		if !ok || !array_find(others, new_owner) return json_error(c, 400, 50035, "Invalid Form Body");
+	}
+	{
+		locks.guard(*s.db_mu);
+		ok := sqlite.exec(s.db, "BEGIN;")
+			&& (!has_name || sqlite.run(s.db, "UPDATE groups SET name = nullif(?, '') WHERE id = ?;", name, dm))
+			&& (!has_icon || (ifx icon
+				then sqlite.run(s.db, "UPDATE groups SET icon = ?, icon_type = ?, icon_data = ? WHERE id = ?;", image_hash(format), IMAGE_TYPES[cast(int) format], icon, dm)
+				else sqlite.run(s.db, "UPDATE groups SET icon = NULL, icon_type = NULL, icon_data = NULL WHERE id = ?;", dm)))
+			&& (!has_owner || sqlite.run(s.db, "UPDATE groups SET owner = ? WHERE id = ?;", new_owner, dm))
+			&& sqlite.exec(s.db, "COMMIT;");
+		if !ok { sqlite.exec(s.db, "ROLLBACK;"); return json_error(c, 500, 0, "500: Internal Server Error"); }
+	}
+	send_dm_value(s, plus(others, user), dm, "CHANNEL_UPDATE");
 	ch: etf.Value;
 	{
 		locks.guard(*s.db_mu);
-		st := sqlite.prepare(s.db, "SELECT 1 FROM users WHERE id = ? AND left = 0 AND banned = 0;");
-		sqlite.bind(st, 1, peer);
-		member := sqlite.step(st) == .Row;
-		sqlite.finalize(st);
-		if !member return json_error(c, 400, 50007, "Cannot send messages to this user");
-		a, b := min(user, peer), max(user, peer);
-		st = sqlite.prepare(s.db, "SELECT id FROM dms WHERE a = ? AND b = ?;");
-		sqlite.bind_all(st, a, b);
-		dm := ifx sqlite.step(st) == .Row then sqlite.col_int(st, 0) else 0;
-		sqlite.finalize(st);
-		if !dm {
-			dm = snowflake(s);
-			ok = sqlite.exec(s.db, "BEGIN;")
-				&& sqlite.run(s.db, "INSERT INTO dms(id, a, b) VALUES(?, ?, ?);", dm, a, b)
-				&& sqlite.run(s.db, "INSERT INTO dm_closed(dm, user) VALUES(?, ?);", dm, peer)
-				&& sqlite.exec(s.db, "COMMIT;");
-			if !ok { sqlite.exec(s.db, "ROLLBACK;"); return json_error(c, 500, 0, "500: Internal Server Error"); }
-		}
-		sqlite.run(s.db, "DELETE FROM dm_closed WHERE dm = ? AND user = ?;", dm, user);
-		ch = dm_value_locked(s, dm, peer);
+		ch = dm_value_locked(s, dm, user);
 	}
-	send_to(s, .[user], "CHANNEL_CREATE", ch);
+	return json_reply(c, 200, ch);
+}
+
+// leave_group takes user out of the group: an owner's goes to the member who joined first after them, and
+// a group with no one left goes with its messages and files.
+leave_group :: (c: *Conn, user: s64, others: []s64, dm: s64, owner: s64) -> bool {
+	s := c.server;
+	ch: etf.Value;
+	{
+		locks.guard(*s.db_mu);
+		ch = dm_value_locked(s, dm, user);
+		ok := sqlite.exec(s.db, "BEGIN;")
+			&& sqlite.run(s.db, "DELETE FROM group_members WHERE dm = ? AND user = ?;", dm, user)
+			&& (user != owner || !others.count || sqlite.run(s.db, "UPDATE groups SET owner = ? WHERE id = ?;", others[0], dm));
+		if ok && !others.count {
+			ok = sqlite.run(s.db, "DELETE FROM attachments WHERE message IN (SELECT id FROM dm_messages WHERE dm = ?);", dm)
+				&& sqlite.run(s.db, "DELETE FROM dm_messages WHERE dm = ?;", dm)
+				&& sqlite.run(s.db, "DELETE FROM group_members WHERE dm = ?;", dm)
+				&& sqlite.run(s.db, "DELETE FROM groups WHERE id = ?;", dm);
+		}
+		if !ok || !sqlite.exec(s.db, "COMMIT;") { sqlite.exec(s.db, "ROLLBACK;"); return json_error(c, 500, 0, "500: Internal Server Error"); }
+	}
+	send_to(s, .[user], "CHANNEL_DELETE", ch);
+	if others.count {
+		send_to(s, others, "CHANNEL_RECIPIENT_REMOVE", recipient_event(s, dm, user));
+		if user == owner send_dm_value(s, others, dm, "CHANNEL_UPDATE");
+	}
 	return json_reply(c, 200, ch);
 }
 
 // dm_route answers everything under /api/v9/channels/{dm}/ for one of its members: closing it, message
-// pages, sending, deleting their own, typing and acks.
-dm_route :: (c: *Conn, req: http.Request, user: s64, peer: s64, dm: s64, parts: []string, query: string) -> bool {
+// pages, sending, deleting their own, typing and acks, and in a group what group_route does.
+dm_route :: (c: *Conn, req: http.Request, user: s64, others: []s64, group: bool, dm: s64, parts: []string, query: string) -> bool {
 	s := c.server;
+	everyone := plus(others, user);
+	if group && (parts.count == 1 || (parts.count >= 2 && parts[1] == "recipients")) return group_route(c, req, user, others, dm, parts);
 	if parts.count == 1 && req.method == "DELETE" {
 		ch: etf.Value;
 		{
 			locks.guard(*s.db_mu);
 			sqlite.run(s.db, "INSERT OR IGNORE INTO dm_closed(dm, user) VALUES(?, ?);", dm, user);
-			ch = dm_value_locked(s, dm, peer);
+			ch = dm_value_locked(s, dm, user);
 		}
 		send_to(s, .[user], "CHANNEL_DELETE", ch);
 		return json_reply(c, 200, ch);
@@ -145,7 +375,7 @@ dm_route :: (c: *Conn, req: http.Request, user: s64, peer: s64, dm: s64, parts: 
 		etf.map_put(*d, "channel_id", snow(dm));
 		etf.map_put(*d, "user_id", snow(user));
 		etf.map_put(*d, "timestamp", etf.vint(to_seconds(current_time_consensus() - APOLLO_TIME_FOR_JAN_1_1970)));
-		send_to(s, .[peer], "TYPING_START", etf.vmap(etf.map_done(*d)));
+		send_to(s, others, "TYPING_START", etf.vmap(etf.map_done(*d)));
 		return respond(c, 204, json = false);
 	}
 	if parts.count == 2 && parts[1] == "attachments" && req.method == "POST" return request_uploads(c, req, user, dm, dm = true);
@@ -174,7 +404,7 @@ dm_route :: (c: *Conn, req: http.Request, user: s64, peer: s64, dm: s64, parts: 
 			if sqlite.step(st) == .Row m = row_dm_message(s, st);
 			sqlite.finalize(st);
 		}
-		send_to(s, .[user, peer], "MESSAGE_UPDATE", m);
+		send_to(s, everyone, "MESSAGE_UPDATE", m);
 		return json_reply(c, 200, m);
 	}
 	if parts.count == 3 && req.method == "DELETE" {
@@ -192,7 +422,7 @@ dm_route :: (c: *Conn, req: http.Request, user: s64, peer: s64, dm: s64, parts: 
 		d := etf.map_builder(2,, temp);
 		etf.map_put(*d, "id", snow(message));
 		etf.map_put(*d, "channel_id", snow(dm));
-		send_to(s, .[user, peer], "MESSAGE_DELETE", etf.vmap(etf.map_done(*d)));
+		send_to(s, everyone, "MESSAGE_DELETE", etf.vmap(etf.map_done(*d)));
 		return respond(c, 204, json = false);
 	}
 	if parts.count != 2 return json_error(c, 404, 0, "404: Not Found");
@@ -254,14 +484,10 @@ dm_route :: (c: *Conn, req: http.Request, user: s64, peer: s64, dm: s64, parts: 
 	reopened := false;
 	{
 		locks.guard(*s.db_mu);
-		st := sqlite.prepare(s.db, "SELECT 1 FROM users WHERE id = ? AND left = 0 AND banned = 0;");
-		sqlite.bind(st, 1, peer);
-		member := sqlite.step(st) == .Row;
-		sqlite.finalize(st);
-		if !member return json_error(c, 400, 50007, "Cannot send messages to this user");
+		if !group && !on_server_locked(s, others[0]) return json_error(c, 400, 50007, "Cannot send messages to this user");
 		// A resend whose first reply was lost gets the message it already made.
 		if nonce_s {
-			st = sqlite.prepare(s.db, tprint("% WHERE m.author = ? AND m.nonce = ? AND m.dm = ? AND m.id > ?;", DM_SELECT));
+			st := sqlite.prepare(s.db, tprint("% WHERE m.author = ? AND m.nonce = ? AND m.dm = ? AND m.id > ?;", DM_SELECT));
 			sqlite.bind_all(st, user, nonce_s, dm, id - (NONCE_WINDOW_MS << 22));
 			if sqlite.step(st) == .Row {
 				m = row_dm_message(s, st, with_nonce = true);
@@ -271,11 +497,13 @@ dm_route :: (c: *Conn, req: http.Request, user: s64, peer: s64, dm: s64, parts: 
 			}
 			sqlite.finalize(st);
 		}
-		st = sqlite.prepare(s.db, "SELECT 1 FROM dm_closed WHERE dm = ? AND user = ?;");
-		sqlite.bind_all(st, dm, peer);
-		reopened = sqlite.step(st) == .Row;
-		sqlite.finalize(st);
-		// Each unread DM message counts as a mention for the peer, as on Discord; the author has read it.
+		if !group {
+			st := sqlite.prepare(s.db, "SELECT 1 FROM dm_closed WHERE dm = ? AND user = ?;");
+			sqlite.bind_all(st, dm, others[0]);
+			reopened = sqlite.step(st) == .Row;
+			sqlite.finalize(st);
+		}
+		// Each unread DM message counts as a mention for the other members, as on Discord; the author has read it.
 		ok := sqlite.exec(s.db, "BEGIN;")
 			&& sqlite.run(s.db, "INSERT INTO dm_messages(id, dm, author, content, nonce, flags) VALUES(?, ?, ?, ?, nullif(?, ''), ?);", id, dm, user, content.s, nonce_s, flags);
 		if atts.kind == .List for a: atts.list {
@@ -293,27 +521,42 @@ dm_route :: (c: *Conn, req: http.Request, user: s64, peer: s64, dm: s64, parts: 
 			&& sqlite.run(s.db, "DELETE FROM attachments WHERE message IN (SELECT id FROM dm_messages WHERE dm = ?1 AND id NOT IN (SELECT id FROM dm_messages WHERE dm = ?1 ORDER BY id DESC LIMIT ?2));", dm, MAX_DM_MESSAGES)
 			&& sqlite.run(s.db, "DELETE FROM dm_messages WHERE dm = ?1 AND id NOT IN (SELECT id FROM dm_messages WHERE dm = ?1 ORDER BY id DESC LIMIT ?2);", dm, MAX_DM_MESSAGES)
 			&& sqlite.run(s.db, "DELETE FROM attachments WHERE id IN (SELECT id FROM (SELECT a.id, sum(a.size) OVER (ORDER BY a.id DESC) AS total FROM attachments a JOIN dm_messages m ON m.id = a.message WHERE m.dm = ?) WHERE total > ?);", dm, MAX_DM_FILE_BYTES)
-			&& sqlite.run(s.db, "DELETE FROM dm_closed WHERE dm = ?;", dm)
-			&& sqlite.run(s.db, "INSERT INTO read_states(user, channel, last, mentions) VALUES(?, ?, 0, 1) ON CONFLICT(user, channel) DO UPDATE SET mentions = mentions + 1;", peer, dm)
+			&& sqlite.run(s.db, "DELETE FROM dm_closed WHERE dm = ?;", dm);
+		for others ok = ok && sqlite.run(s.db, "INSERT INTO read_states(user, channel, last, mentions) VALUES(?, ?, 0, 1) ON CONFLICT(user, channel) DO UPDATE SET mentions = mentions + 1;", it, dm);
+		ok = ok
 			&& sqlite.run(s.db, "INSERT OR REPLACE INTO read_states(user, channel, last, mentions) VALUES(?, ?, ?, 0);", user, dm, id)
 			&& sqlite.exec(s.db, "COMMIT;");
 		if !ok { sqlite.exec(s.db, "ROLLBACK;"); return json_error(c, 500, 0, "500: Internal Server Error"); }
-		st = sqlite.prepare(s.db, tprint("% WHERE m.id = ?;", DM_SELECT));
+		st := sqlite.prepare(s.db, tprint("% WHERE m.id = ?;", DM_SELECT));
 		sqlite.bind(st, 1, id);
 		if sqlite.step(st) == .Row m = row_dm_message(s, st, with_nonce = true);
 		sqlite.finalize(st);
 	}
-	if reopened {
-		ch: etf.Value;
-		{
-			locks.guard(*s.db_mu);
-			ch = dm_value_locked(s, dm, user);
-		}
-		send_to(s, .[peer], "CHANNEL_CREATE", ch);
-	}
-	send_to(s, .[user, peer], "MESSAGE_CREATE", m);
+	if reopened send_dm_value(s, others, dm, "CHANNEL_CREATE");
+	send_to(s, everyone, "MESSAGE_CREATE", m);
 	etf.to_json(m, *sb);
 	return respond(c, 200, builder_to_string(*sb,, temp));
+}
+
+// GET /channel-icons/{dm}/{hash}.{ext}: a group's icon, served as the server's: the random hash is what
+// makes it unguessable.
+group_icon :: (c: *Conn, path: string) -> bool {
+	s := c.server;
+	parts := split(advance(path, "/channel-icons/".count), "/",, temp);
+	dm, ok := string_to_int(parts[0], T = s64);
+	if !ok || parts.count != 2 return json_error(c, 404, 0, "404: Not Found");
+	hash := parts[1];
+	dot := find_index_from_left(hash, #char ".");
+	if dot >= 0 hash.count = dot;
+	locks.guard(*s.db_mu);
+	st := sqlite.prepare(s.db, "SELECT icon_type, icon_data FROM groups WHERE id = ? AND icon = ?;");
+	defer sqlite.finalize(st);
+	sqlite.bind_all(st, dm, hash);
+	if sqlite.step(st) != .Row return json_error(c, 404, 0, "404: Not Found");
+	c.reply_status, c.reply_json = 200, false;
+	c.reply_type = copy_string(sqlite.col_text(st, 0),, temp);
+	c.reply_body = copy_string(cast(string) sqlite.col_blob(st, 1),, temp);
+	return true;
 }
 
 // Each member's prekey bundle: an E2E Hello any of their DMs may answer, so a DM can start while they're

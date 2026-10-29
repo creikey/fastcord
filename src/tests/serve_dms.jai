@@ -1,6 +1,8 @@
 // DMs on a self-hosted server: jai build.jai - run src/tests/serve_dms.jai, then build/serve_dms. Serve
-// carries only `fc-` packets between two members: it refuses plaintext, shows a DM to no one else, keeps
+// carries only `fc-` packets between members: it refuses plaintext, shows a DM to no one else, keeps
 // messages for a member who is offline, and the real client gets them through READY and the gateway.
+// Group DMs run end to end: four members with real keys answer each other's bundles and talk under
+// sender keys through serve, one joining later and one removed.
 // Writes only under build/serve_dms_test.
 #import "Basic";
 #import "File";
@@ -8,6 +10,7 @@
 #import "String";
 #import "Hash_Table";
 discord :: #import "discord";
+e2e :: #import "e2e";
 etf :: #import "etf";
 fc_text :: #import "fc_text";
 http :: #import "http";
@@ -220,6 +223,189 @@ main :: () {
 
 	discord.client_destroy(a);
 	discord.client_destroy(b);
+
+	// ---- Group DMs, end to end (E2E 8): real identities and e2e databases, serve as their only carrier ----
+	// Each member publishes a bundle; pairwise sessions start by answering one, in the group; then each
+	// sends under a sender key of their own, given to the others inside those sessions.
+	Member :: struct { name, token, id: string; key: keys.Keypair; d: *e2e.Db; me: e2e.Identity; after: string; }
+	CARRIER :: "fc:test";
+	wait :: (j: *e2e.Job) { while !e2e.is_done(j) sleep_milliseconds(1); }
+	user_id :: (token: string) -> string #expand {
+		c := connect(token);
+		id := tprint("%", c.store.me);
+		discord.client_destroy(c);
+		return id;
+	}
+	g_join :: (name: string) -> Member #expand {
+		m: Member;
+		m.name, m.key = name, keys.generate(name);
+		m.token = login_with(serve.first_invite(`s), m.key, name);
+		m.id = user_id(m.token);
+		m.d = e2e.start(":memory:");
+		m.me = e2e.identity_of(m.key);
+		r := e2e.request(.Bundle, .{carrier = CARRIER, me = m.id, limit = e2e.MAX_PACKET});
+		r.me = m.me;
+		e2e.submit(m.d, r);
+		wait(r);
+		st, _ := rest("PUT", "/api/v9/users/@me/e2e-bundle", tprint("{\"bundle\": \"%\"}", fc_text.encode(xx r.packet)), m.token);
+		check(r.result == .Ok && st == 204, tprint("% publishes a bundle: %", name, st));
+		e2e.free_request(r);
+		return m;
+	}
+	g_post :: (m: *Member, group: string, packet: string) -> int #expand {
+		st, _ := rest("POST", tprint("/api/v9/channels/%/messages", group), tprint("{\"content\": \"%\"}", fc_text.encode(xx packet)), m.token);
+		return st;
+	}
+	// answer: m starts a session with peer by answering peer's bundle, the Init going to the group.
+	g_answer :: (m: *Member, peer: *Member, group: string) #expand {
+		st, got := rest("GET", tprint("/api/v9/users/%/e2e-bundle", peer.id), "", m.token);
+		v := etf.from_json(got,, temp);
+		bundle, ok := fc_text.decode(ifx v.kind == .Map then etf.map_get(v.map, "bundle").s else "", fc_text.MAX_BUNDLE);
+		r := e2e.request(.Accept, .{CARRIER, group, m.id, peer.id, fc_text.MAX_PACKET}, packet = xx bundle);
+		r.me = m.me;
+		e2e.submit(m.d, r);
+		wait(r);
+		check(st == 200 && ok && r.result == .Ok && g_post(m, group, r.packet) == 200, tprint("% answers %'s bundle in the group", m.name, peer.name));
+		e2e.free_request(r);
+	}
+	g_send :: (m: *Member, group: string, text: string, members: ..*Member) -> packets: int #expand {
+		r := e2e.request(.Send, .{CARRIER, group, m.id, "", fc_text.MAX_PACKET}, text);
+		r.me = m.me;
+		for members array_add(*r.members, copy_string(it.id));
+		e2e.submit(m.d, r);
+		wait(r);
+		n := r.packets.count;
+		ok := r.result == .Ok;
+		for r.packets ok = ok && g_post(m, group, it) == 200;
+		check(ok, tprint("% sends \"%\" (%)", m.name, text, r.result));
+		e2e.free_request(r);
+		return n;
+	}
+	// read: what m opens of the group's messages since last time, as "author: text" lines (No_Session
+	// for a message m can't open yet); pairwise packets for others and gifts aren't listed.
+	g_read :: (m: *Member, group: string) -> string #expand {
+		st, got := rest("GET", tprint("/api/v9/channels/%/messages?limit=100%", group, ifx m.after then tprint("&after=%", m.after) else ""), "", m.token);
+		out: String_Builder;
+		out.allocator = temp;
+		if st != 200 { print_to_builder(*out, "HTTP %", st); return builder_to_string(*out,, temp); }
+		list := etf.from_json(got,, temp);
+		if list.kind != .List return "";
+		for < list.list {
+			id := etf.map_get(it.map, "id").s;
+			author := etf.map_get(etf.map_get(it.map, "author").map, "id").s;
+			packet, ok := fc_text.decode(etf.map_get(it.map, "content").s);
+			m.after = copy_string(id);
+			if !ok continue;
+			r := e2e.request(.Receive, .{CARRIER, group, m.id, author, fc_text.MAX_PACKET}, packet = xx packet);
+			r.me, r.from, r.delivery = m.me, copy_string(author), copy_string(id);
+			e2e.submit(m.d, r);
+			wait(r);
+			name := author;
+			for `everyone if it.id == author name = it.name;
+			if r.result == .Ok && (r.content == .Text || r.content == .Post) print_to_builder(*out, "%: %\n", name, r.out_text);
+			else if r.result == .No_Session && packet[1] == 4 print_to_builder(*out, "%: No_Session\n", name);
+			e2e.free_request(r);
+		}
+		return builder_to_string(*out,, temp);
+	}
+	ann := g_join("Ann");
+	ben := g_join("Ben");
+	cy := g_join("Cy");
+	dee := g_join("Dee");
+	everyone := (*Member).[*ann, *ben, *cy, *dee];
+
+	ids :: (members: ..*Member) -> string {
+		out: [..]string;
+		out.allocator = temp;
+		for members array_add(*out, tprint("\"%\"", it.id));
+		return join(..out, separator = ", ",, temp);
+	}
+	status, body = rest("POST", "/api/v9/users/@me/channels", tprint("{\"recipients\": [%, %]}", ids(*ben), ids(*ben)), ann.token);
+	check(status == 400, tprint("no one twice: %", status));
+	ten: [10]string;
+	for * ten it.* = tprint("\"%\"", 1000 + it_index);
+	status, body = rest("POST", "/api/v9/users/@me/channels", tprint("{\"recipients\": [%]}", join(..ten, separator = ", ",, temp)), ann.token);
+	check(status == 400, tprint("at most ten in a group: %", status));
+	status, body = rest("POST", "/api/v9/users/@me/channels", tprint("{\"recipients\": [%]}", ids(*ben, *cy)), ann.token);
+	v := etf.from_json(body,, temp);
+	group := id_of(body);
+	check(status == 200 && v.kind == .Map && etf.map_get(v.map, "type").i == 3 && etf.map_get(v.map, "owner_id").s == ann.id && etf.map_get(v.map, "recipients").list.count == 2,
+		tprint("Ann makes a group DM with Ben and Cy: % %", status, body));
+	gb := connect(ben.token);
+	gch := discord.channel_get(*gb.store, discord.parse_snowflake(group));
+	check(gch && gch.kind == .Group_DM && gch.recipient_ids.count == 2 && tprint("%", gch.owner_id) == ann.id, "READY lists it for Ben as a group of three, Ann's");
+
+	// Only packets, and only its members.
+	status, body = rest("POST", tprint("/api/v9/channels/%/messages", group), "{\"content\": \"hi all in the clear\"}", ann.token);
+	check(status == 400, tprint("no plaintext in a group: %", status));
+	status, body = rest("GET", tprint("/api/v9/channels/%/messages", group), "", dee.token);
+	check(status == 404 || status == 403, tprint("Dee isn't in it: %", status));
+
+	// Sessions: Ann answers Ben's and Cy's bundles, Ben answers Cy's.
+	g_answer(*ann, *ben, group);
+	g_answer(*ann, *cy, group);
+	g_answer(*ben, *cy, group);
+	for everyone if it.name != "Dee" g_read(it, group);
+	check(g_send(*ann, group, "hello group", *ben, *cy) == 3, "Ann's first send gives her chain to both, then the message");
+	check(g_read(*ben, group) == "Ann: hello group\n", "Ben reads it");
+	check(g_read(*cy, group) == "Ann: hello group\n", "and Cy");
+	g_send(*ben, group, "from ben", *ann, *cy);
+	g_send(*cy, group, "from cy", *ann, *ben);
+	check(g_read(*ann, group) == "Ann: hello group\nBen: from ben\nCy: from cy\n", "Ann reads everyone's");
+	check(g_read(*ben, group) == "Ben: from ben\nCy: from cy\n", "so does Ben");
+	g_read(*cy, group);
+
+	// Dee joins later: Ben's client hears of it. She gets nothing from before her session, nor from Ben,
+	// whose new chain (the members changed) she has no session for, until she answers his bundle.
+	status, body = rest("PUT", tprint("/api/v9/channels/%/recipients/%", group, dee.id), "", ben.token);
+	check(status == 204, tprint("any member adds another: %", status));
+	for 1..300 { if gch.recipient_ids.count == 3 break; pump(gb); gch = discord.channel_get(*gb.store, discord.parse_snowflake(group)); }
+	check(gch && gch.recipient_ids.count == 3, "CHANNEL_RECIPIENT_ADD reaches Ben's client");
+	check(!contains(g_read(*dee, group), "hello group"), "Dee can't read what came before her");
+	g_answer(*ann, *dee, group);
+	g_read(*dee, group);
+	check(g_send(*ann, group, "welcome dee", *ben, *cy, *dee) == 4, "a member joining rotates Ann's chain, given to all three");
+	g_send(*ben, group, "ben to four", *ann, *cy, *dee);
+	got := g_read(*dee, group);
+	check(got == "Ann: welcome dee\nBen: No_Session\n", tprint("Dee reads Ann's, not yet Ben's: %", got));
+	g_answer(*dee, *ben, group);
+	g_read(*ben, group);
+	check(g_send(*ben, group, "now dee too", *ann, *cy, *dee) == 4, "a new session rotates Ben's chain");
+	check(g_read(*dee, group) == "Ben: now dee too\n", "and Dee reads Ben from then on");
+	g_read(*ann, group); g_read(*cy, group);
+
+	// Cy is removed, by the owner only: she can't fetch the group, and Ann's next chain isn't hers.
+	status, body = rest("DELETE", tprint("/api/v9/channels/%/recipients/%", group, cy.id), "", ben.token);
+	check(status == 403, tprint("only the owner removes: %", status));
+	status, body = rest("DELETE", tprint("/api/v9/channels/%/recipients/%", group, cy.id), "", ann.token);
+	check(status == 204, tprint("Ann removes Cy: %", status));
+	for 1..300 { if gch.recipient_ids.count == 2 break; pump(gb); gch = discord.channel_get(*gb.store, discord.parse_snowflake(group)); }
+	check(gch && gch.recipient_ids.count == 2, "CHANNEL_RECIPIENT_REMOVE reaches Ben's client");
+	status, body = rest("GET", tprint("/api/v9/channels/%/messages", group), "", cy.token);
+	check(status == 404 || status == 403, tprint("Cy can't fetch it any more: %", status));
+	cy_after := ann.after;
+	check(g_send(*ann, group, "without cy", *ben, *dee) == 3, "a member leaving rotates the chain");
+	check(contains(g_read(*ben, group), "Ann: without cy\n"), "Ben reads on");
+	// Even handed every packet (a server that kept serving her), Cy opens nothing.
+	cy.token = ann.token; // read as Ann's fetch, opened with Cy's keys
+	cy.after = cy_after;
+	check(!contains(g_read(*cy, group), "without cy"), "the one removed reads nothing after");
+
+	// Name, owner and leaving.
+	status, body = rest("PATCH", tprint("/api/v9/channels/%", group), "{\"name\": \"the plan\"}", ben.token);
+	check(status == 200 && contains(body, "\"name\":\"the plan\""), tprint("a member renames it: % %", status, body));
+	status, body = rest("PATCH", tprint("/api/v9/channels/%", group), tprint("{\"owner\": \"%\"}", ben.id), ben.token);
+	check(status == 403, tprint("only the owner hands it on: %", status));
+	status, body = rest("PATCH", tprint("/api/v9/channels/%", group), tprint("{\"owner\": \"%\"}", ben.id), ann.token);
+	check(status == 200 && contains(body, tprint("\"owner_id\":\"%\"", ben.id)), tprint("Ann makes Ben the owner: % %", status, body));
+	status, body = rest("DELETE", tprint("/api/v9/channels/%", group), "", ben.token);
+	check(status == 200, tprint("Ben leaves: %", status));
+	status, body = rest("GET", tprint("/api/v9/channels/%/messages", group), "", ben.token);
+	check(status == 404 || status == 403, tprint("Ben is out: %", status));
+	status, body = rest("PATCH", tprint("/api/v9/channels/%", group), "{\"name\": null}", dee.token);
+	check(status == 200 && contains(body, tprint("\"owner_id\":\"%\"", ann.id)) && contains(body, "\"name\":null"), tprint("the owner's leaving hands it to the oldest member: % %", status, body));
+	discord.client_destroy(gb);
+	for everyone { e2e.stop(it.d); while !e2e.stopped(it.d) sleep_milliseconds(1); e2e.destroy(it.d); }
 	http.h1_destroy(*h, true);
 	serve.stop(s);
 	if failed { print("serve_dms: % failed\n", failed); exit(1); }

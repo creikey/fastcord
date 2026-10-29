@@ -815,7 +815,7 @@ serve_conn :: (c: *Conn) {
 			if !logout(c, req) return;
 			continue;
 		}
-		if begins_with(req.path, "/upload/") || begins_with(req.path, "/attachments/") || begins_with(req.path, "/api/v9/attachments/") || begins_with(req.path, "/icons/") || begins_with(req.path, "/avatars/") || begins_with(req.path, "/emojis/") || begins_with(req.path, "/soundboard-sounds/") || begins_with(req.path, "/stickers/") {
+		if begins_with(req.path, "/upload/") || begins_with(req.path, "/attachments/") || begins_with(req.path, "/api/v9/attachments/") || begins_with(req.path, "/icons/") || begins_with(req.path, "/avatars/") || begins_with(req.path, "/channel-icons/") || begins_with(req.path, "/emojis/") || begins_with(req.path, "/soundboard-sounds/") || begins_with(req.path, "/stickers/") {
 			if !files(c, req) return;
 			continue;
 		}
@@ -2230,12 +2230,13 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 	parts := split(rest, "/",, temp);
 	channel, ok := string_to_int(parts[0], T = s64);
 	if ok {
-		peer: s64;
+		others: [..]s64;
+		member, group: bool;
 		{
 			locks.guard(*s.db_mu);
-			peer = dm_peer_locked(s, channel, user);
+			others, member, group = dm_others_locked(s, channel, user);
 		}
-		if peer return dm_route(c, req, user, peer, channel, parts, query); // dms.jai
+		if member return dm_route(c, req, user, others, group, channel, parts, query); // dms.jai
 	}
 	// A channel its member can't see answers 403 to everything in it, as Discord's Missing Access.
 	perms: u64;
@@ -3968,6 +3969,10 @@ files :: (c: *Conn, req: http.Request) -> bool {
 		c.reply_body = copy_string(cast(string) sqlite.col_blob(st, 1),, temp);
 		return true;
 	}
+	if begins_with(path, "/channel-icons/") {
+		if req.method != "GET" return json_error(c, 405, 0, "405: Method Not Allowed");
+		return group_icon(c, path); // dms.jai
+	}
 	// GET /emojis/{id}.{ext}: a custom emoji, whatever the extension and size asked for. Like Discord's, an
 	// emoji is public to whoever knows its ID.
 	if begins_with(path, "/soundboard-sounds/") {
@@ -4268,7 +4273,7 @@ guild_settings_locked :: (s: *Server, user: s64) -> etf.Value {
 store_ack :: (s: *Server, user: s64, channel: s64, message: s64, count: int, is_manual: bool) -> int {
 	{
 		locks.guard(*s.db_mu);
-		if channel_locked(s, channel).kind == .Nil && !dm_peer_locked(s, channel, user) return 404;
+		if channel_locked(s, channel).kind == .Nil && !dm_member_locked(s, channel, user) return 404;
 		if !sqlite.run(s.db, "INSERT OR REPLACE INTO read_states(user, channel, last, mentions) VALUES(?, ?, ?, ?);", user, channel, message, count) return 500;
 	}
 	send_ack(s, user, channel, message, count, is_manual);
