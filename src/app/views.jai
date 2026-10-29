@@ -1624,6 +1624,7 @@ overlays :: () {
 	if tsg.channel != 0 { timestamp_gen_modal(); }
 	if cstatus.open { custom_status_modal(); }
 	if fwd.msg != 0 { forward_modal(); }
+	if bottles.msg != 0 bottle_modal();
 	if shortcuts_open { shortcuts_modal(); }
 	if view_reactions.msg != 0 { view_reactions_modal(); }
 	if app.profile_user != 0 { profile_popout(); }

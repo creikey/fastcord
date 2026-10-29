@@ -1,0 +1,24 @@
+# Runs on bottle.jsonl. A bottle shows as a card with Open in place of its `fc-` text; opening one whose
+# key never came says so. Any message with text can be put in a bottle.
+wait 5
+settle 1
+expect_visible "Message in a Bottle"
+expect_not_visible "creikey.com/fastcord"
+shot build/ui-bottle-card.png
+click 755 592
+wait 30
+settle 1
+expect_visible "It isn't for you, or its key hasn't reached you yet."
+expect_not_visible "Open"
+shot build/ui-bottle-closed.png
+rclick 600 370
+wait 10
+expect_visible "Put in a Bottle"
+click_text "Put in a Bottle"
+wait 10
+expect_visible "Who Can Open It"
+expect_visible "A reader needs an encrypted DM with you. Turn on encryption in your DM with them first."
+shot build/ui-bottle-modal.png
+key escape
+wait 10
+expect_not_visible "Who Can Open It"

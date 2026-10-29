@@ -44,6 +44,7 @@
 % minute|% minutes
 % month ago|% months ago
 % of %
+% reader|% readers
 % removed the custom group name.
 % started a call.
 % still can't be reached. Its address may have changed: ask its owner for a new invite.
@@ -192,6 +193,7 @@ A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse 
 A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button. Works in every app.
 A new channel will be created with the same permissions, user limit and bitrate as 
 A new version of fastcord is out. Click the pill to open the download page; fastcord never updates itself.
+A reader needs an encrypted DM with you. Turn on encryption in your DM with them first.
 A role needs a name.
 A webhook needs a name.
 A wild % appeared.
@@ -337,6 +339,7 @@ Answer questions to get roles and see channels.
 Answers
 Anyone can join your server directly through Server Discovery
 Anyone can use##mod
+Anyone where you post it sees the bottle. Only the people you pick can open it.
 Anyone with access to this text channel will be able to see the notifications.
 App Directory##appdir
 Appearance
@@ -426,6 +429,7 @@ Blur Background
 Blur what's behind you on camera. Only your camera is changed.
 Bold / italic / underline
 Bots and Apps
+Bottle It
 Browse Channels
 Browse##browse
 Browse##sbbrowse
@@ -586,6 +590,7 @@ Couldn't reach the server. Check your connection and try again.
 Couldn't save the file.
 Couldn't save the image.
 Couldn't save the token.
+Couldn't seal the bottle.
 Couldn't turn on encryption.
 Couldn't upload emoji
 Cover Image
@@ -782,6 +787,7 @@ Enable Unread Message Badge
 Encrypt this DM
 Encrypted message
 Encrypted messages are limited to % bytes for now.
+Encryption is still starting. Try again in a moment.
 End Date
 End Event
 End Poll Now
@@ -1000,6 +1006,7 @@ Invites
 Invites are currently paused for this server. Please try again later.
 Invites are paused: nobody can join with an invite link until they're enabled again.
 Invites carry the address members connect to. Behind a home router, forward the port (TCP and UDP) to this machine and put your public address or a DNS name here; a dynamic DNS name keeps working when your address changes.
+It isn't for you, or its key hasn't reached you yet.
 It's quiet for now...##t
 Italian
 JOINED DISCORD
@@ -1157,6 +1164,8 @@ Message Display
 Message Requests
 Message deleted
 Message failed to send.
+Message in a Bottle
+Message in a bottle
 Message link copied: paste it into Discord's report form
 Message request ignored
 Message unpinned
@@ -1308,9 +1317,11 @@ Online
 Only @mentions
 Only selected members and roles will be able to view this channel.
 Only servers and channels you have webhook permissions in are shown.
+Only the people it's for can open it.
 Only you can see the nickname you give %.
 Only you can see this · 
 Oops!
+Open
 Open Chat
 Open Download Page
 Open Image Link
@@ -1325,6 +1336,7 @@ Open in Browser##ob
 Open in YouTube##ytno
 Open the developer tools (Cmd+Option+I) and choose the Network tab.
 Open the developer tools (Ctrl+Shift+I) and choose the Network tab.
+Opening…
 Or, send a server invite link to a friend
 Original message was deleted
 Other Active Threads
@@ -1386,6 +1398,7 @@ Port % (TCP for the server, UDP for voice)
 Portuguese, Brazilian
 Post
 Post Guidelines
+Post In
 Post from a script
 Post messages that reach servers outside your own. Members can follow this channel, so the posts you publish here appear in their servers.
 Post title
@@ -1421,6 +1434,7 @@ Push to Mute
 Push to Talk
 Push to Talk (Normal)
 Put % in place of the server as it is now? Everything since that backup is lost, though the current state is backed up first. Everyone reconnects.
+Put in a Bottle
 Q: %
 Question
 Question % of %
@@ -1764,6 +1778,7 @@ That image is too large. Avatars must be under %.
 That image is too large. Banners must be under 10 MB.
 That image is too large. Server icons must be under 512 KB.
 That isn't a valid fastcord invite.
+That's too long for a bottle.
 That's too long to send encrypted.
 The Pin Is Stuck!
 The Update pill comes back after that.
@@ -1789,9 +1804,11 @@ There was no winner
 These are all the devices that are currently logged-in with your Discord account. Log out of devices that you don't recognize.
 They said: %
 This account needs a passkey or security key, which fastcord can't use. Log in with the QR code instead.
+This bottle is damaged.
 This channel contains adult content that may not be suitable for all audiences. You must be 18 or older to view it.
 This channel doesn't have any pinned messages... yet.
 This device can't open this message.
+This device doesn't have its key.
 This device's encryption keys couldn't be unlocked, so earlier encrypted DMs can't be opened here.
 This event will auto start when it's time.
 This extra step shows it's really you.
@@ -2018,6 +2035,7 @@ When enabled, only server members can view profile content. Non-members won't be
 When you put a user in timeout they will not be able to send messages in chat, reply within threads, react to messages, or speak in voice or Stage channels.
 Where is your event?
 Where would you like to go?
+Who Can Open It
 Who is connected now, and from where. Ending a member's sessions signs every device of theirs out; their key signs them back in, so to keep someone out, ban them.
 Who is this server for? E.g. School Club, Artists' Community
 Winning answer · %1%2
@@ -2089,6 +2107,8 @@ Your invite link expires in %1, or after %2.
 Your invite link expires in 7 days.
 Your invite link will never expire.
 Your last request was on %.
+Your message could not be delivered because you don't share a server with the recipient. Add them as a friend, or join a server you're both in, to message them.
+Your message could not be delivered. This is usually because you don't share a server with the recipient or the recipient is only accepting direct messages from friends.
 Your message is too long (% / %).
 Your reaction was not added because there are too many reactions on this message.
 Your request from % is being prepared.

@@ -2364,7 +2364,7 @@ md_free :: (e: *Md_Cached) {
 // terms: search words to highlight (search result cards).
 // Compact puts the author's name at the start of the first block when that is plain text.
 compact_name_inline :: (m: *dc.Message) -> bool {
-	if m.content == "" || m.forwarded || begins_with(packet_text(m.content), fc_text.PREFIX) return false;
+	if m.content == "" || m.forwarded || begins_with(packet_text(m.content), fc_text.PREFIX) || is_bottle(m.content) return false;
 	blocks := md_cached(m.content);
 	return blocks.count > 0 && blocks[0].kind == .Paragraph && !(blocks.count == 1 && is_emoji_only(blocks[0].tokens));
 }
@@ -2374,7 +2374,8 @@ NAME_SPAN : u64 : 0xffff_ffff_ffff_ffe0; // compact's name span at the start of 
 message_body :: (m: *dc.Message, terms: []string = .[], decrypted := false, name_inline := false) {
 	if m.content == "" return;
 	if !decrypted {
-		handled, plaintext := encrypted_body(m);
+		handled, plaintext := bottle_body(m);
+		if !handled handled, plaintext = encrypted_body(m);
 		if plaintext != "" {
 			plain := m.*;
 			plain.content = plaintext;

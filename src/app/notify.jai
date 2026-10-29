@@ -122,7 +122,7 @@ notify_message :: (s: *dc.Store, m: *dc.New_Message) {
 
 // Content as plain text with <@id>/<@&id>/<#id> resolved, or a stand-in for media-only messages.
 notification_body :: (s: *dc.Store, m: *dc.New_Message) -> string {
-	if encrypted_packet(m.channel_id, m.content) return shown_text(m.id, m.channel_id, m.content);
+	if encrypted_packet(m.channel_id, m.content) || is_bottle(m.content) return shown_text(m.id, m.channel_id, m.content);
 	if m.content == "" {
 		if m.sticker return L("Sent a sticker");
 		if m.attachments > 0 return L("Uploaded a file");
