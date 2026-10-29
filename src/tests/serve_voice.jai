@@ -86,15 +86,15 @@ main :: () {
 	check(in_channel(*a, b.cl.store.me) && in_channel(*b, a.cl.store.me), "each sees the other's voice state");
 
 	// Each connects its voice with a tone for a microphone, as the app does once VOICE_SERVER_UPDATE is in.
-	for m: members {
+	connect :: (m: *Member) #expand {
 		info, _, got := discord.voice_server_info(m.cl);
 		for 1..500 { if got break; pump(); info, _, got = discord.voice_server_info(m.cl); }
-		check(got, "VOICE_SERVER_UPDATE");
-		if !got continue;
+		`check(got, "VOICE_SERVER_UPDATE");
+		if !got return;
 		m.conn = voice.voice_connect(.{endpoint = info.endpoint, token = info.token, guild_or_channel_id = xx info.guild_or_channel_id,
 			user_id = xx info.user_id, session_id = info.session_id, channel_id = xx info.channel_id}, .{
 			no_audio_devices = true,
-			hosted = .{host = hosted.host, port = hosted.port, server_id = hosted.server_id, pin = hosted.pin},
+			hosted = .{host = `hosted.host, port = `hosted.port, server_id = `hosted.server_id, pin = `hosted.pin},
 			callback_data = m,
 			capture = (data: *void, out: []float32) -> int {
 				m := cast(*Member) data;
@@ -110,6 +110,7 @@ main :: () {
 				if codec == .H264 && keyframe && au.count > 4000 atomic_add(*(cast(*Member) data).frames, 1);
 			}});
 	}
+	for members connect(it);
 	if failed { serve.stop(s); exit(1); }
 	for 1..1000 { if atomic_load(*a.heard) > 25 && atomic_load(*b.heard) > 25 break; pump(); }
 	for members {
@@ -120,7 +121,13 @@ main :: () {
 	speaking := voice.speaking_users(a.conn,, temp);
 	check(array_find(speaking, xx b.cl.store.me), tprint("the owner sees the member speaking: %", speaking));
 	stats := voice.get_stats(a.conn);
-	check(stats.transport_failures == 0 && stats.remote_users == 1, tprint("clean media: % failures, % users", stats.transport_failures, stats.remote_users));
+	check(stats.transport_failures == 0 && stats.e2ee_failures == 0 && stats.remote_users == 1, tprint("clean media: % failures, % E2EE failures, % users", stats.transport_failures, stats.e2ee_failures, stats.remote_users));
+	// DAVE: serve delivered the MLS messages, so both are in one group and the audio was end-to-end encrypted.
+	for members {
+		e := voice.e2ee_status(it.conn,, temp);
+		check(e.active && e.protocol_version == 1 && e.members == 2, tprint("end-to-end encrypted: % v% % members", e.active, e.protocol_version, e.members));
+	}
+	check(voice.privacy_code(a.conn,, temp) == voice.privacy_code(b.conn,, temp), "both show the same privacy code");
 
 	// Camera: the owner turns it on; the member learns of it from op 12 and gets every frame, in H.264.
 	check(voice.video_codec(a.conn) == .H264, tprint("the call's video codec: %", voice.video_codec(a.conn)));
@@ -193,6 +200,18 @@ main :: () {
 	discord.voice_leave(b.cl);
 	for 1..500 { if !in_channel(*a, b.cl.store.me) && voice.get_stats(a.conn).remote_users == 0 break; pump(); }
 	check(!in_channel(*a, b.cl.store.me) && voice.get_stats(a.conn).remote_users == 0, "a leave reaches the others");
+	for 1..500 { if voice.e2ee_status(a.conn,, temp).members == 1 break; pump(); }
+	check(voice.e2ee_status(a.conn,, temp).members == 1, "the member's leaf leaves the group");
+
+	// The member comes back: a new connection, added to the group again, heard again.
+	discord.voice_join(b.cl, guild, channel);
+	connect(*b);
+	before := atomic_load(*a.heard);
+	for 1..1000 { if atomic_load(*a.heard) > before + 25 && voice.e2ee_status(b.conn,, temp).members == 2 break; pump(); }
+	check(atomic_load(*a.heard) > before + 25, "the member is heard again after rejoining");
+	check(voice.e2ee_status(a.conn,, temp).members == 2 && voice.e2ee_status(b.conn,, temp).active, "and is back in the group");
+	voice.voice_disconnect(b.conn);
+	discord.voice_leave(b.cl);
 
 	// Deleting the channel ends the owner's call.
 	req.method, req.path, req.body = "DELETE", tprint("/api/v9/channels/%", channel), .[];

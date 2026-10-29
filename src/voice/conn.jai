@@ -47,7 +47,7 @@ Dial_Proc :: #type (host: string, port: int) -> netio.Stream, bool;
 
 // A self-hosted server (fastcord -serve): the voice gateway is at its own address over TLS 1.3 with ALPN fc/1,
 // SNI = server_id and only the certificate whose BLAKE3 is pin; media goes to that host whatever READY's ip
-// says; and a call without DAVE is accepted, since serve doesn't run DAVE yet.
+// says; and a call without DAVE is accepted, from a server that predates serve's DAVE.
 Hosted :: struct {
     host: string;
     port: int;

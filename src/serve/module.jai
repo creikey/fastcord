@@ -14,6 +14,7 @@ locks :: #import "locks";
 netio :: #import "netio";
 sqlite :: #import "sqlite";
 tls :: #import "tls";
+mls :: #import "voice_mls";
 
 #load "unfurl.jai";
 #load "settings.jai";
@@ -60,6 +61,7 @@ Server :: struct {
 	voice_mu: locks.Mutex;
 	voice_states: [..]Voice_State;
 	voice_sessions: [..]*Voice_Session;
+	dave_groups: [..]*Dave_Group;
 	udp: *netio.Udp; // Media, on the listener's port number.
 	udp_thread: *Thread;
 	udp_stop: bool;  // Atomic.
@@ -391,7 +393,8 @@ stop :: (s: *Server) {
 	for * s.activities set_activities(it, .[]);
 	array_free(s.activities);
 	array_free(s.voice_states);
-	array_free(s.voice_sessions); // Each session ended with its connection.
+	array_free(s.voice_sessions); // Each session ended with its connection, and each room's group with its last.
+	array_free(s.dave_groups);
 	close(s);
 }
 
@@ -1910,7 +1913,8 @@ writer :: (c: *Conn) {
 		c.out_bytes = 0;
 		locks.unlock(*c.mu);
 		for batch {
-			if !stop && http.ws_send(c.out_ws, ifx c.text then http.Ws_Message_Type.Text else .Binary, it) != .None {
+			// A voice gateway's frames are JSON text, but for DAVE's binary ones, which start with a zero byte.
+			if !stop && http.ws_send(c.out_ws, ifx c.text && it[0] == #char "{" then http.Ws_Message_Type.Text else .Binary, it) != .None {
 				stop = true;
 				locks.lock(*c.mu);
 				c.closing = true;

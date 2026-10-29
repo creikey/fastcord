@@ -2,12 +2,14 @@
 // stack unchanged: op 4 on the gateway gives a voice state and VOICE_SERVER_UPDATE; the voice gateway is a
 // WebSocket on this listener (/?v=9, JSON as Discord's) and media is UDP on the same port number. Serve only
 // forwards: each packet is opened with its sender's transport key and sealed again with each listener's, and
-// never decoded. There is no DAVE yet, so the host could listen in, as it can read every channel.
+// never decoded. Media is end-to-end encrypted with DAVE besides (dave.jai): serve only delivers each room's
+// MLS messages, as Discord's voice gateway does, and never holds a group secret.
 //
 // Go Live is the same, as on Discord: gateway ops 18-20 give a stream its own room (its rtc_server_id), which
 // the streamer and each viewer join with a second voice connection.
 
 #load "../voice/rtp.jai"; // Discord's RTP framing and transport encryption, shared with the client.
+#load "dave.jai";
 
 VOICE :: 2;
 // Voice gateway opcodes and speaking flags, as src/voice/gateway.jai names them.
@@ -53,6 +55,11 @@ Voice_Session :: struct {
 	video: bool;
 	window_ms: s64; // The current second of sending, and what it held.
 	window_packets, window_bytes: int;
+	// DAVE (dave.jai).
+	key_package: []u8; // The member's latest KeyPackage (op 26), heap; empty once it has a leaf.
+	in_group: bool;    // Holds a leaf in the room's group: founded it, or was welcomed.
+	adding: bool;      // Its key package is in the proposals in flight.
+	ready: bool;       // Acked the transition in flight (op 23).
 }
 
 // voice_states_value is READY's voice_states; the caller holds db_mu, which comes before voice_mu.
@@ -261,7 +268,10 @@ voice_gateway :: (c: *Conn, req: http.Request) {
 		msg.count = 0;
 		type, err := http.ws_recv(ws, *msg);
 		if err != .None return;
-		if type != .Text continue; // DAVE's binary ops: serve runs no DAVE yet.
+		if type != .Text {
+			if vs && msg.count >= 1 && !dave_binary(s, vs, msg[0], array_view(msg, 1, msg.count - 1)) { http.ws_close(ws, 4005, "Invalid DAVE message."); return; }
+			continue;
+		}
 		v, jerr := etf.from_json(cast(string) msg,, temp);
 		if jerr != .None || v.kind != .Map { http.ws_close(ws, 4002, "Failed to decode payload."); return; }
 		op, _ := etf.map_get(v.map, "op");
@@ -285,6 +295,7 @@ voice_gateway :: (c: *Conn, req: http.Request) {
 				if mode == .None { http.ws_close(ws, 4016, "Unknown encryption mode."); return; }
 				key: [32]u8;
 				crypto.random_bytes(key);
+				first := vs.mode == .None;
 				{
 					locks.guard(*s.voice_mu);
 					transport_init(*vs.tc, mode, key);
@@ -296,8 +307,9 @@ voice_gateway :: (c: *Conn, req: http.Request) {
 				id: [16]u8;
 				crypto.random_bytes(id);
 				// H.264 is the codec every fastcord can send and show, so a call never needs a second.
-				voice_send(c, tprint("{\"op\":4,\"d\":{\"mode\":\"%\",\"secret_key\":[%],\"audio_codec\":\"opus\",\"video_codec\":\"H264\",\"media_session_id\":\"%\",\"dave_protocol_version\":0}}",
-					mode_name(mode), builder_to_string(*b,, temp), hex(id,, temp)));
+				voice_send(c, tprint("{\"op\":4,\"d\":{\"mode\":\"%\",\"secret_key\":[%],\"audio_codec\":\"opus\",\"video_codec\":\"H264\",\"media_session_id\":\"%\",\"dave_protocol_version\":%}}",
+					mode_name(mode), builder_to_string(*b,, temp), hex(id,, temp), DAVE_VERSION));
+				if first dave_joined(s, vs);
 			case OP_SPEAKING;
 				sp := field(d, "speaking");
 				locks.lock(*s.voice_mu);
@@ -315,6 +327,10 @@ voice_gateway :: (c: *Conn, req: http.Request) {
 				vs.video = on;
 				room_send(s, vs, video_text(vs));
 				locks.unlock(*s.voice_mu);
+			case OP_READY_FOR_TRANSITION; #through;
+			case OP_INVALID_COMMIT_WELCOME;
+				t := field(d, "transition_id");
+				if t.kind == .Int dave_ack(s, vs, t.i, op.i == OP_READY_FOR_TRANSITION);
 			case OP_RESUME; // Sessions don't outlive their socket: the client connects again.
 				http.ws_close(ws, 4006, "Session is no longer valid.");
 				return;
@@ -371,6 +387,7 @@ voice_identify :: (c: *Conn, server_id: etf.Value, user_id: etf.Value, session_i
 		for s.voice_sessions if it.ssrc == vs.ssrc taken = true;
 		if !taken break;
 	}
+	kick_locked(s, user, room); // A connection this one replaces, whose member's leaf would otherwise be doubled.
 	array_add(*s.voice_sessions, vs);
 	atomic_store(*c.authed, true);
 	// The client sends media to the invite's address, so READY's ip is unused.
@@ -399,7 +416,9 @@ voice_session_end :: (s: *Server, vs: *Voice_Session) {
 	locks.guard(*s.voice_mu);
 	array_unordered_remove_by_value(*s.voice_sessions, vs);
 	room_send(s, vs, tprint("{\"op\":13,\"d\":{\"user_id\":\"%\"}}", vs.user));
+	dave_left(s, vs);
 	transport_reset(*vs.tc);
+	array_free(vs.key_package);
 	free(vs);
 }
 
@@ -408,6 +427,7 @@ voice_udp :: (s: *Server) {
 	buf, plain, sealed: [2048]u8;
 	while !atomic_load(*s.udp_stop) {
 		reset_temporary_storage();
+		dave_tick(s); // At least every receive timeout.
 		n, addr, port := netio.udp_recv(s.udp, buf);
 		if n <= 0 || n > 1500 continue;
 		pkt := array_view(buf, 0, n);
