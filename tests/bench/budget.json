@@ -8,6 +8,7 @@
   "chat_hover": {"boxes": 520, "text_layouts": 70, "draw_cmds": 280, "batches": 10},
   "chat_scroll": {"boxes": 620, "text_layouts": 90, "draw_cmds": 340, "batches": 10},
   "typing": {"boxes": 520, "text_layouts": 70, "draw_cmds": 280, "batches": 10},
+  "chat_markdown": {"boxes": 970, "text_layouts": 96, "draw_cmds": 345, "batches": 10},
   "home_idle": {"boxes": 730, "text_layouts": 80, "draw_cmds": 370, "batches": 10},
   "home_hover": {"boxes": 1320, "text_layouts": 200, "draw_cmds": 680, "batches": 10},
   "dm_idle": {"boxes": 660, "text_layouts": 90, "draw_cmds": 340, "batches": 10},

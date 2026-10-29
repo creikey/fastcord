@@ -14,3 +14,10 @@ wait 5
 bench typing
 repeat 4 burst "the quick brown fox jumps "
 repeat 20 type x
+bench_off
+# Messages of unmatched markdown delimiters (*, _, ~, |, `, [, <, escapes, URL parens, ```): each frame
+# parses them again, so a parser that rescans to the end per opener makes the channel lag.
+open 1600000000000390901
+wait 30
+bench chat_markdown
+wait 60

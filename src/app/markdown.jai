@@ -84,11 +84,13 @@ md_parse :: (src: string, quoted := false) -> []Md_Block {
 		}
 	}
 	rest := src;
+	no_fence := false; // no ``` after some line, so none after a later one: each line doesn't rescan to the end
 	while rest {
 		// fenced code block
-		if begins_with(rest, "```") {
+		if begins_with(rest, "```") && !no_fence {
 			body := span(rest, 3, rest.count);
 			end := find_index_from_left(body, "```");
+			no_fence = end < 0;
 			// the client's rule: ```(lang\n)?\n*(body)\n*``` with lang [a-z0-9_+\-.#]+ and a
 			// body holding something besides newlines
 			code := ifx end >= 0 then span(body, 0, end) else "";
@@ -170,13 +172,25 @@ md_inline :: (src: string, merge := true) -> []Token {
 	// merge adjacent plain text with identical styles
 	merged: [..]Token;
 	array_reserve(*merged, p.out.count);
+	buf: [..]u8;
+	array_reserve(*buf, src.count);
 	for t: p.out {
 		if merged && t.kind == .Text {
 			prev := *merged[merged.count - 1];
 			if prev.kind == .Text && prev.styles == t.styles {
 				// tokens are slices of contiguous source only when adjacent; join otherwise
 				if prev.text.data + prev.text.count == t.text.data prev.text.count += t.text.count;
-				else prev.text = join(prev.text, t.text);
+				else {
+					// joined text goes in buf, reserved once (text tokens are slices of src, so they fit),
+					// so a run of joins (every "\*" of "\*\*\*...") appends in place instead of copying
+					if prev.text.data + prev.text.count != buf.data + buf.count {
+						start := buf.count;
+						array_add(*buf, ..cast([]u8) prev.text);
+						prev.text = string.{prev.text.count, buf.data + start};
+					}
+					array_add(*buf, ..cast([]u8) t.text);
+					prev.text.count += t.text.count;
+				}
 				continue;
 			}
 		}
@@ -291,26 +305,26 @@ Md_Parser :: struct {
 	// Linear time on hostile text (AGENTS.md's parser rule): root is md_inline's whole text, which every
 	// src inline_into sees is a slice of.
 	root: string;
-	// per DELIMS entry: no closer from no_close_from to the end of the src ending at no_close_end
-	no_close_from, no_close_end: [DELIMS.count]*u8;
-	// each "[" at root offset k closes at bmatch[k] (-1: not on its line), from one stack pass on first use
+	// each "[" or "(" at root offset k closes at bmatch[k] (-1: not on its line), from one pass on first use
 	bmatch: []s32;
 }
 
-// The "]" closing the "[" that starts s (s a slice of p.root), -1 if none on that line.
+// The "]" or ")" closing the "[" or "(" that starts s (s a slice of p.root), -1 if none on that line.
+// Brackets and parens nest separately.
 close_bracket :: (p: *Md_Parser, s: string) -> int {
 	if !p.bmatch {
 		p.bmatch = NewArray(p.root.count, s32,, temp);
 		for * p.bmatch it.* = -1;
-		stack: [..]s32;
-		stack.allocator = temp;
+		stacks: [2][..]s32;
+		for * stacks it.allocator = temp;
 		i := 0;
 		while i < p.root.count {
 			c := p.root[i];
 			if c == #char "\\" { i += 2; continue; }
-			if c == #char "\n" stack.count = 0;
-			if c == #char "[" array_add(*stack, xx i);
-			if c == #char "]" && stack.count { p.bmatch[stack[stack.count - 1]] = xx i; stack.count -= 1; }
+			if c == #char "\n" for * stacks it.count = 0;
+			k := ifx c == #char "[" || c == #char "]" then 0 else 1;
+			if c == #char "[" || c == #char "(" array_add(*stacks[k], xx i);
+			if (c == #char "]" || c == #char ")") && stacks[k] p.bmatch[pop(*stacks[k])] = xx i;
 			i += 1;
 		}
 	}
@@ -338,6 +352,14 @@ MD_MAX_DEPTH :: 16; // nested styles and masked links; deeper ones are drawn as 
 inline_into :: (p: *Md_Parser, src: string) {
 	i := 0;
 	text_start := 0;
+	// A search that found no closer from one opener rules out every later one in this src, so each
+	// unmatched delimiter or backtick costs one scan, not one per opener. Per call, as a nested src has
+	// its own end.
+	no_close_from: [DELIMS.count]int;
+	no_tick_from: [2]int; // ` and ``
+	for * no_close_from it.* = S64_MAX;
+	for * no_tick_from it.* = S64_MAX;
+	next_gt, next_lt := -1, -1; // the next '>' at or after i, the next '<' after it (src.count: none)
 	// pending(): the plain text before src[i]; take(to): continue after a rule ending at `to`
 	take :: (to: int) #expand { `i = to; `text_start = to; }
 	pending :: () -> string #expand { return span(`src, `text_start, `i); }
@@ -358,7 +380,12 @@ inline_into :: (p: *Md_Parser, src: string) {
 		// inline code: `x` or ``x``
 		if c == #char "`" {
 			ticks := ifx begins_with(here, "``") then 2 else 1;
-			end := find_index_from_left(src, span(src, i, i + ticks), i + ticks) - (i + ticks);
+			end := -1;
+			if i + ticks < no_tick_from[ticks - 1] {
+				end = find_index_from_left(src, span(src, i, i + ticks), i + ticks);
+				if end < 0 no_tick_from[ticks - 1] = i + ticks;
+				end -= i + ticks;
+			}
 			if end > 0 {
 				emit(p, .Text, pending());
 				saved := p.styles;
@@ -372,10 +399,18 @@ inline_into :: (p: *Md_Parser, src: string) {
 			}
 		}
 		// <...> entities
+		// (none holds a '<', so each '<' looks only as far as the next '>', when no '<' comes first)
 		if c == #char "<" {
-			n, ok := try_entity(p, here, pending());
-			if ok {
-				take(i + n);
+			if next_gt < i {
+				next_gt = find_index_from_left(src, #char ">", i);
+				if next_gt < 0 next_gt = src.count;
+			}
+			if next_lt <= i {
+				next_lt = find_index_from_left(src, #char "<", i + 1);
+				if next_lt < 0 next_lt = src.count;
+			}
+			if next_gt < src.count && next_gt < next_lt && try_entity(p, span(src, i, next_gt + 1), pending()) {
+				take(next_gt + 1);
 				continue;
 			}
 		}
@@ -396,17 +431,18 @@ inline_into :: (p: *Md_Parser, src: string) {
 		// bare links
 		if (c == #char "h" && (begins_with(here, "https://") || begins_with(here, "http://")) || c == #char "f" && begins_with(here, "fc://")) && (i == 0 || !is_alnum(src[i - 1])) {
 			end := i;
-			while end < src.count && src[end] != #char " " && src[end] != #char "\n" && src[end] != #char "<" end += 1;
+			opens, closes := 0, 0;
+			while end < src.count && src[end] != #char " " && src[end] != #char "\n" && src[end] != #char "<" {
+				opens += cast(int) (src[end] == #char "(");
+				closes += cast(int) (src[end] == #char ")");
+				end += 1;
+			}
 			// trailing punctuation is not part of the URL, except a ")" closing a "(" inside it (Foo_(bar))
 			while end > i {
 				t := src[end - 1];
 				if t == #char ")" {
-					opens, closes := 0, 0;
-					for k: i..end - 1 {
-						if src[k] == #char "(" opens += 1;
-						if src[k] == #char ")" closes += 1;
-					}
 					if closes <= opens break;
+					closes -= 1;
 				} else if find_index_from_left(".,:;!?'\"", t) < 0 break;
 				end -= 1;
 			}
@@ -430,12 +466,9 @@ inline_into :: (p: *Md_Parser, src: string) {
 			// underscores only work at word boundaries
 			if d.open == "_" && i > 0 && is_alnum(src[i - 1]) continue;
 			body_start := i + d.open.count;
-			// a search that found no closer from here on rules out every later one in the same src, so
-			// each unmatched delimiter costs one scan, not one per opener
-			src_end := src.data + src.count;
-			if p.no_close_end[k] == src_end && src.data + body_start >= p.no_close_from[k] continue;
+			if body_start >= no_close_from[k] continue;
 			end := find_close(src, body_start, d.open);
-			if end < 0 p.no_close_from[k], p.no_close_end[k] = src.data + body_start, src_end;
+			if end < 0 no_close_from[k] = body_start;
 			if end <= body_start continue;
 			emit(p, .Text, pending());
 			saved := p.styles;
@@ -459,14 +492,16 @@ SPACES :: " \t\n\r\x0b\x0c";
 
 find_close :: (src: string, from: int, delim: string) -> int {
 	j := from;
+	no_tick := false; // no closing ` after an opener, so none after a later one
 	while j < src.count {
 		if src[j] == #char "\\" {
 			j += 2;
 			continue;
 		}
-		if src[j] == #char "`" {
+		if src[j] == #char "`" && !no_tick {
 			// skip code spans
 			end := find_index_from_left(src, #char "`", j + 1);
+			no_tick = end < 0;
 			if end >= 0 {
 				j = end + 1;
 				continue;
@@ -493,33 +528,31 @@ is_alnum :: (c: u8) -> bool {
 	return (c >= #char "a" && c <= #char "z") || (c >= #char "A" && c <= #char "Z") || (c >= #char "0" && c <= #char "9");
 }
 
-try_entity :: (p: *Md_Parser, s: string, pending: string) -> int, bool {
-	end := find_index_from_left(s, #char ">");
-	if end < 0 return 0, false;
-	inner := span(s, 1, end);
-	n := end + 1;
-	whole := span(s, 0, n);
+// s is "<...>", with no other '<' or '>'.
+try_entity :: (p: *Md_Parser, s: string, pending: string) -> bool {
+	inner := span(s, 1, s.count - 1);
+	whole := s;
 	after :: (k: int) -> string #expand { return span(`inner, k, `inner.count); }
 	tok: Token;
 	if begins_with(inner, "@&") {
 		id, ok := dc.parse_u64(after(2));
-		if !ok return 0, false;
+		if !ok return false;
 		tok = .{kind = .Role_Mention, id = id, text = whole};
 	} else if begins_with(inner, "@") {
 		id, ok := dc.parse_u64(trim_left(after(1), "!"));
-		if !ok return 0, false;
+		if !ok return false;
 		tok = .{kind = .User_Mention, id = id, text = whole};
 	} else if begins_with(inner, "#") {
 		id, ok := dc.parse_u64(after(1));
-		if !ok return 0, false;
+		if !ok return false;
 		tok = .{kind = .Channel_Mention, id = id, text = whole};
 	} else if begins_with(inner, ":") || begins_with(inner, "a:") {
 		animated := inner[0] == #char "a";
 		body := after(ifx animated then 2 else 1);
 		colon := find_index_from_left(body, #char ":");
-		if colon <= 0 return 0, false;
+		if colon <= 0 return false;
 		id, ok := dc.parse_u64(span(body, colon + 1, body.count));
-		if !ok return 0, false;
+		if !ok return false;
 		tok = .{kind = .Custom_Emoji, id = id, name = span(body, 0, colon), animated = animated, text = whole};
 	} else if begins_with(inner, "t:") {
 		found, secs, style := split_from_left(after(2), #char ":");
@@ -528,13 +561,13 @@ try_entity :: (p: *Md_Parser, s: string, pending: string) -> int, bool {
 		colon2 := find_index_from_left(style, #char ":");
 		if colon2 >= 0 style.count = colon2;
 		v, ok := dc.parse_u64(secs);
-		if !ok return 0, false;
+		if !ok return false;
 		tok = .{kind = .Timestamp, id = v, name = ifx found then style else "f", text = whole};
 	} else if begins_with(inner, "/") {
 		colon := find_index_from_right(inner, #char ":");
-		if colon <= 1 return 0, false;
+		if colon <= 1 return false;
 		id, ok := dc.parse_u64(span(inner, colon + 1, inner.count));
-		if !ok return 0, false;
+		if !ok return false;
 		tok = .{kind = .Command, id = id, name = span(inner, 0, colon), text = whole};
 	} else if begins_with(inner, "https://") || begins_with(inner, "http://") {
 		// <url> suppresses embeds but still links
@@ -550,13 +583,13 @@ try_entity :: (p: *Md_Parser, s: string, pending: string) -> int, bool {
 		case "guide"; #through; case "home"; label = "Server Guide";
 		case "linked-roles"; label = "Linked Roles";
 		}
-		if !found || !ok || label == "" return 0, false;
+		if !found || !ok || label == "" return false;
 		tok = .{kind = .Command, name = label, text = whole};
 	}
 	emit(p, .Text, pending);
 	tok.styles = p.styles;
 	array_add(*p.out, tok);
-	return n, true;
+	return true;
 }
 
 // The client's link rule: [text](url) with balanced brackets in text and an http(s) url,
@@ -564,16 +597,9 @@ try_entity :: (p: *Md_Parser, s: string, pending: string) -> int, bool {
 masked_link :: (p: *Md_Parser, s: string) -> int, string {
 	close := close_bracket(p, s);
 	if close <= 1 || close + 1 >= s.count || s[close + 1] != #char "(" return 0, "";
-	depth := 0;
-	j := close + 2;
-	while j < s.count {
-		if s[j] == #char "\\" { j += 2; continue; }
-		if s[j] == #char "\n" return 0, "";
-		if s[j] == #char "(" depth += 1;
-		if s[j] == #char ")" { if depth == 0 break; depth -= 1; }
-		j += 1;
-	}
-	if j >= s.count return 0, "";
+	j := close_bracket(p, span(s, close + 1, s.count));
+	if j < 0 return 0, "";
+	j += close + 1;
 	url := trim(span(s, close + 2, j), SPACES);
 	sp := find_index_from_left(url, #char " ");
 	if sp >= 0 url.count = sp; // a "title" after the url

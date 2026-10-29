@@ -2,7 +2,9 @@
 # this). Its shape is a made-up heavy account: round totals, and a sidebar of 30 guilds whose sizes are
 # heavy-tailed like a real one. Pass a shape.json captured with `-shape:` to copy a real account instead
 # (counts only; keep it out of the repo). On top of that shape it adds two long channels for the chat
-# benches: guild channel 1600000000000100003 (400 messages) and DM 1300000000000100001 (300). Images
+# benches: guild channel 1600000000000100003 (400 messages) and DM 1300000000000100001 (300), plus channel
+# MARKDOWN_CHANNEL in the last guild: messages of unmatched markdown delimiters that cost a quadratic parser
+# millions of steps per frame (chat.txt's chat_markdown). Images
 # (avatars, guild icons, emoji) are generated PNGs served offline through FASTCORD_MEDIA_DIR, so the GPU
 # sees as many distinct textures as on a real account.
 # All names and text are synthetic. Changing it changes every benchmark's numbers: update tests/bench/budget.json.
@@ -285,8 +287,18 @@ muted_left = shape['muted_guilds'] - sum(1 for _, g in flat if g['muted'])
 for k in range(max(shape['guild_settings'] - len(flat), 0)):
     guild_settings.append({'guild_id': 1650000000000000001 + k, 'muted': k < muted_left, 'message_notifications': 1, 'suppress_everyone': False, 'suppress_roles': False, 'channel_overrides': []})
 
+MARKDOWN_CHANNEL = GUILDS[-1] + 900
+guild_events[-1]['channels'].append({'id': MARKDOWN_CHANNEL, 'type': 0, 'position': 999, 'parent_id': None, 'permission_overwrites': [],
+                                     'name': 'markdown', 'last_message_id': sf(base_ms)})
 for g in guild_events: ev('GUILD_CREATE', g)
 messages(BENCH_CHANNEL, GUILDS[0], users[:40] + [ready['user']], 400, base_ms)
+# 2,000-byte messages (the most a message holds) made of openers with no closer; no rng, so the rest stays put
+MARKDOWN = ['**a __b ~~c ||d `e [f <g ' * 80, '```\n' * 500, 'http://x' + ')' * 1992, '\\*' * 1000, '<' * 1999 + '>', '[a](' * 500,
+            '[' * 2000, '`' * 2000, '|' * 2000, '~' * 2000, '_' * 2000, '*' * 2000]
+for k, text in enumerate(MARKDOWN):
+    ev('MESSAGE_CREATE', {'id': sf(base_ms - (len(MARKDOWN) - k) * 1000), 'channel_id': MARKDOWN_CHANNEL, 'guild_id': GUILDS[-1], 'author': users[k],
+        'content': text, 'timestamp': '', 'edited_timestamp': None, 'type': 0, 'attachments': [], 'embeds': [], 'mentions': [],
+        'mention_everyone': False, 'flags': 0, 'tts': False, 'pinned': False})
 for mc in msg_channels:
     if mc[0] == BENCH_CHANNEL: mc[1] = None  # its read state is added below, after its messages
 
@@ -325,6 +337,7 @@ for cid, last, unread, mentions in msg_channels:
     entries.append({'id': cid, 'last_message_id': (last - (1 << 22)) if unread else last, 'mention_count': mentions, 'last_pin_timestamp': '1970-01-01T00:00:00+00:00', 'flags': 0})
 # The bench channel is read up to its newest message.
 entries.append({'id': BENCH_CHANNEL, 'last_message_id': sf(base_ms + 1000), 'mention_count': 0, 'last_pin_timestamp': '1970-01-01T00:00:00+00:00', 'flags': 0})
+entries.append({'id': MARKDOWN_CHANNEL, 'last_message_id': sf(base_ms), 'mention_count': 0, 'last_pin_timestamp': '1970-01-01T00:00:00+00:00', 'flags': 0})
 
 # ---- settings proto: replace guild folders (field 14) with the shape's sidebar ----
 
@@ -393,4 +406,4 @@ head = [{'rt': 0, 'dir': 'recv', 'etf': {'op': 0, 't': 'READY', 's': 1, 'd': rea
 os.makedirs(os.path.dirname(os.path.abspath(out_path)), exist_ok=True)
 with open(out_path, 'w', encoding='utf-8', newline='\n') as f:
     for o in head + out: f.write(json.dumps(o, ensure_ascii=False) + '\n')
-print('wrote %s (%d events) and %s; bench guild channel %d, bench DM %d' % (out_path, len(out) + 2, media_dir, BENCH_CHANNEL, DMS[0]))
+print('wrote %s (%d events) and %s; bench guild channel %d, bench DM %d, markdown channel %d' % (out_path, len(out) + 2, media_dir, BENCH_CHANNEL, DMS[0], MARKDOWN_CHANNEL))
