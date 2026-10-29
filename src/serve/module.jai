@@ -68,6 +68,9 @@ Server :: struct {
 	udp: *netio.Udp; // Media, on the listener's port number.
 	udp_thread: *Thread;
 	udp_stop: bool;  // Atomic.
+	// Rate limits by address (rate_ok).
+	rate_mu: locks.Mutex;
+	rates: Table(u64, Buckets);
 }
 
 Conn :: struct {
@@ -93,6 +96,9 @@ Conn :: struct {
 	session: [16]u8; // A gateway's session ID, random per Identify.
 	accepted: Apollo_Time;
 	authed: bool; // atomic; set by a login or a member's token.
+	login_tried: bool; // A login is one attempt per connection: each costs an SLH-DSA verify.
+	events: int; // Gateway ops received since events_since, capped like Discord's.
+	events_since: Apollo_Time;
 	reply_status: int; // The reply respond kept, 0 when none.
 	reply_body: string;
 	reply_json: bool;
@@ -100,6 +106,39 @@ Conn :: struct {
 }
 
 OUT_MAX :: 8 << 20;
+
+// Per address, once the burst is spent: a write (any request but GET) every 100 ms, a login every 5 s.
+// Loopback is exempt: whoever runs there can read the server's file anyway.
+Rate :: enum u8 { Write; Login; }
+RATE_BURST :: float64.[50, 10];
+RATE_PER_S :: float64.[10, 0.2];
+Buckets :: struct { tokens: [2]float64; at: Apollo_Time; }
+
+// limited spends one of c's address's kind tokens; true when none is left.
+limited :: (c: *Conn, kind: Rate) -> bool {
+	p := c.tcp.peer;
+	mapped := memcmp(p.data, IPV4_MAPPED.data, IPV4_MAPPED.count) == 0;
+	if (mapped && p[12] == 127) || (!mapped && memcmp(p.data, IPV6_LOOPBACK.data, 16) == 0) return false;
+	key: u64; // the IPv4 address, or the IPv6 /64 as accept_loop counts it
+	for i: 0..7 key = (key << 8) | p[ifx mapped then 8 + i else i];
+	s := c.server;
+	locks.guard(*s.rate_mu);
+	if s.rates.count > 65536 table_reset(*s.rates); // addresses seen lately
+	b, new := find_or_add(*s.rates, key);
+	now := current_time_monotonic();
+	if new b.* = .{tokens = RATE_BURST, at = now};
+	dt := to_float64_seconds(now - b.at);
+	b.at = now;
+	for * b.tokens it.* = min(it.* + dt * RATE_PER_S[it_index], RATE_BURST[it_index]);
+	if b.tokens[kind] < 1 return true;
+	b.tokens[kind] -= 1;
+	return false;
+}
+IPV6_LOOPBACK :: u8.[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1];
+
+rate_limited :: (c: *Conn) -> bool {
+	return respond(c, 429, "{\"message\": \"You are being rate limited.\", \"retry_after\": 1, \"global\": false}");
+}
 
 // open makes the server file if needed: its ID, TLS key and certificate live in it, so the invite stays
 // valid for as long as the file does. A new server is named after the file and gets #general and an
@@ -550,6 +589,8 @@ JSON_HEADERS :: http.Header.[.{"Content-Type", "application/json"}];
 // logs in; a new one needs an invite code with uses left, which makes it a member named name.
 login :: (c: *Conn, session: *tls.Session, req: http.Request) -> bool {
 	s := c.server;
+	if c.login_tried || limited(c, .Login) return rate_limited(c);
+	c.login_tried = true;
 	v, err := etf.from_json(cast(string) req.body,, temp);
 	if err != .None || v.kind != .Map return json_error(c, 400, 50035, "Invalid Form Body");
 	field :: (name: string) -> string #expand {
@@ -721,6 +762,10 @@ serve_conn :: (c: *Conn) {
 		if plain && !begins_with(req.path, "/api/webhooks/") && !begins_with(req.path, "/api/v9/webhooks/") && !begins_with(req.path, "/api/v10/webhooks/") {
 			http.h1_write_response(c.s, 404, .[], .[]);
 			return;
+		}
+		if req.method != "GET" && req.method != "HEAD" && limited(c, .Write) {
+			rate_limited(c);
+			continue;
 		}
 		if http.header_has_token(req.headers, "upgrade", "websocket") {
 			// The voice gateway is the client's /?v=9, with no encoding, on the same address.
@@ -4274,6 +4319,11 @@ gateway :: (c: *Conn, req: http.Request) {
 		msg.count = 0;
 		type, err := http.ws_recv(ws, *msg);
 		if err != .None || type != .Binary return;
+		// Discord's gateway limit: 120 events a minute, then close 4008.
+		now := current_time_monotonic();
+		if now - c.events_since > seconds_to_apollo(60) c.events_since, c.events = now, 0;
+		c.events += 1;
+		if c.events > 120 { http.ws_close(ws, 4008, "Rate limited."); return; }
 		// A compressed term would inflate up to 64 MiB from one small frame, and clients never send one.
 		if msg.count > 1 && msg[1] == xx etf.Tag.Compressed { http.ws_close(ws, 4002, "Error while decoding payload."); return; }
 		v, derr := etf.decode(msg,, temp);
