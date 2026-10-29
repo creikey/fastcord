@@ -3497,6 +3497,8 @@ updater_wire :: (t: *T) {
 	expect(t, pkgs.count == 4 && pkgs[0].path == join(P, "/full.distro",, temp) && pkgs[0].sha256[31] == 0xaa, "else the full package");
 	version, _ = updater_packages(vmap(m), "0.0.420", .[]);
 	expect(t, version == "", "nothing for the host it runs");
+	_, pkgs = updater_packages(vmap(m), "0.0.419", .[], "Windows");
+	expect(t, pkgs.count == 4, "Windows installs krisp on demand too");
 	u: Updater;
 	updater_learn_modules(*u, vmap(m), "0.0.420");
 	expect(t, u.modules.count == 4 && u.modules[0].name == "discord_voice" && u.modules[0].version == 2, "a manifest for the running host gives the installed module versions");

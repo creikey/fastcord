@@ -120,9 +120,10 @@ updater_check :: (c: *Client) -> bool {
 	if jerr != .None return true;
 	locks.lock(*c.id.mu);
 	running := copy_string(c.id.platform.client_version,, temp);
+	os := c.id.platform.os; // static
 	locks.unlock(*c.id.mu);
 	u := *c.updater;
-	version, pkgs := updater_packages(vmap(v), running, u.modules);
+	version, pkgs := updater_packages(vmap(v), running, u.modules, os);
 	if !version {
 		updater_learn_modules(u, vmap(v), running);
 		return true;
@@ -134,10 +135,17 @@ updater_check :: (c: *Client) -> bool {
 	return true;
 }
 
-// UPDATER_ON_DEMAND: the modules the desktop core installs at every launch on top of the manifest's
+// updater_on_demand: the modules the desktop core installs at every launch on top of the manifest's
 // required_modules (its InstallModule commands in the updater log). A macOS install then has 15: every one
-// the manifest lists but discord_ndi and discord_sysimg (the test profile's installer.db).
-UPDATER_ON_DEMAND :: string.["discord_webauthn", "discord_krisp", "discord_game_utils", "discord_cloudsync", "discord_rpc", "discord_dispatch", "discord_modules", "discord_zstd"];
+// the manifest lists but discord_ndi and discord_sysimg (the test profile's installer.db). A Windows install
+// has 18 (1.0.9266's installer.db, and getModuleVersions()): no webauthn, but clips, hook, media and both
+// overlays. Linux has no capture: macOS's set (guess).
+UPDATER_ON_DEMAND_MAC :: string.["discord_webauthn", "discord_krisp", "discord_game_utils", "discord_cloudsync", "discord_rpc", "discord_dispatch", "discord_modules", "discord_zstd"];
+UPDATER_ON_DEMAND_WINDOWS :: string.["discord_clips", "discord_cloudsync", "discord_desktop_overlay", "discord_dispatch", "discord_game_utils", "discord_hook", "discord_krisp", "discord_media", "discord_modules", "discord_overlay2", "discord_rpc", "discord_zstd"];
+updater_on_demand :: (os: string) -> []string {
+	if os == "Windows" return UPDATER_ON_DEMAND_WINDOWS;
+	return UPDATER_ON_DEMAND_MAC;
+}
 UPDATER_PARALLEL :: 4; // downloads at once, each on its own connection (captured)
 UPDATER_MAX_MODULES :: 128;
 
@@ -157,7 +165,7 @@ Updater_Module :: struct {
 // updater walks a Rust HashMap). Each is the delta from the running host (for a module, from the module version
 // installed, else the newest such delta), else the full package. A package fastcord would not fetch (not an
 // https URL on the default port, no 64-hex-digit hash) drops the host update, or skips that module.
-updater_packages :: (m: etf.Map, running: string, installed: []Updater_Module) -> version: string, []Updater_Package {
+updater_packages :: (m: etf.Map, running: string, installed: []Updater_Module, os := "") -> version: string, []Updater_Package {
 	pkgs: [..]Updater_Package;
 	pkgs.allocator = temp;
 	full := vmap(vget(m, "full"));
@@ -173,7 +181,7 @@ updater_packages :: (m: etf.Map, running: string, installed: []Updater_Module) -
 	for mod: modules {
 		if mod.key.kind != .String continue;
 		name := mod.key.s;
-		wanted := array_find(UPDATER_ON_DEMAND, name);
+		wanted := array_find(updater_on_demand(os), name);
 		for required if it.kind == .String && it.s == name wanted = true;
 		if !wanted continue;
 		from := -1;
