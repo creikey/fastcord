@@ -128,6 +128,7 @@ hosted_frame :: () {
 				free(h.title);
 				h.title = copy_string(g.name);
 			}
+			if g hosted_follow_address(h, g.fc_address);
 		}
 		// Leave Server ends in GUILD_DELETE for the server's one guild; forget the server with it, so the
 		// next start doesn't rejoin through the saved invite.
@@ -142,6 +143,35 @@ hosted_frame :: () {
 		}
 	}
 	if app.discord && app.discord != app.client dc.client_poll(app.discord);
+}
+
+// hosted_follow_address rewrites a saved invite to the address the owner set (fc_address, "host:port"), so the
+// server stays reachable after its home address changes. A member who reaches it on a private network keeps
+// that address: their router may not loop the public one back.
+hosted_follow_address :: (h: *Hosted_Server, address: string) {
+	colon := find_index_from_right(address, #char ":");
+	if colon <= 0 || private_host(h.inv.host) return;
+	host := slice(address, 0, colon);
+	if host.count > 2 && host[0] == #char "[" && host[host.count - 1] == #char "]" host = slice(host, 1, host.count - 2);
+	port := string_to_int(advance(address, colon + 1));
+	if !host || port <= 0 || port > 65535 || (host == h.inv.host && port == h.inv.port) return;
+	url := serve.invite_url(h.inv.pin, host, port, h.inv.id_hex, h.inv.code,, context.default_allocator);
+	inv, ok := serve.parse_invite(url);
+	if !ok { free(url); return; }
+	free(h.invite);
+	h.invite, h.inv = url, inv;
+}
+
+// private_host: loopback, link-local and private-network addresses, which only reach a server nearby.
+private_host :: (host: string) -> bool {
+	if host == "localhost" || begins_with(host, "127.") || begins_with(host, "10.") || begins_with(host, "192.168.") || begins_with(host, "169.254.") return true;
+	if begins_with(host, "172.") {
+		second := string_to_int(slice(host, 4, 3));
+		if second >= 16 && second <= 31 return true;
+	}
+	lower := to_lower_copy(host,, temp);
+	v6 := contains(lower, ":");
+	return v6 && (lower == "::1" || begins_with(lower, "fe80:") || begins_with(lower, "fc") || begins_with(lower, "fd")) || ends_with(lower, ".local") || ends_with(lower, ".lan");
 }
 
 hosted_invites :: () -> []string {

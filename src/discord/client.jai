@@ -228,6 +228,8 @@ client_create :: (cfg: Config, allocator := context.allocator) -> *Client {
 	if c.cfg.workers <= 0 c.cfg.workers = ifx cfg.hosted.host then 2 else 16;
 	c.allocator = context.allocator;
 	c.token = copy_string(cfg.token);
+	// Its own copies: a saved invite can be rewritten (a new address) while this client runs.
+	c.cfg.hosted.host, c.cfg.hosted.server_id = copy_string(cfg.hosted.host), copy_string(cfg.hosted.server_id);
 	c.voice_self.self_mute = cfg.voice_self_mute;
 	c.launch_ms = now_ms();
 	c.focused = true;
@@ -371,6 +373,8 @@ client_destroy :: (c: *Client) {
 	free(c.ack_token);
 	free(c.ready_qos_token);
 	free(c.token);
+	free(c.cfg.hosted.host);
+	free(c.cfg.hosted.server_id);
 	using c.id;
 	free(client_launch_id);
 	free(fast_connect_launch_id);
