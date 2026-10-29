@@ -7,13 +7,17 @@ Identity_State :: struct {
 }
 idk: Identity_State;
 
-// The E2E client database. Headless runs get an in-memory one, so they never touch <state>.
+// The E2E client database. Headless runs get an in-memory one, so they never touch the disk. It lives
+// beside the keys, not in <state>, which people delete to reset settings: losing it loses every encrypted
+// DM. A test account's FASTCORD_STATE keeps its own.
 e2e_db: *e2e.Db;
 
 // Headless runs (keep false) never touch the keys on disk: they get a throwaway keypair, so hosted logins
 // in tests still work.
 identity_start :: (keep := true) {
-	e2e_db = e2e.start(ifx keep then tprint("%/fastcord.db", app_state_dir()) else ":memory:", platform.request_frame);
+	old := tprint("%/fastcord.db", app_state_dir());
+	path := ifx env_var("FASTCORD_STATE") then old else tprint("%/fastcord.db", app_data_dir("e2e"));
+	e2e_db = e2e.start(ifx keep then path else ":memory:", platform.request_frame, moved_from = ifx keep && path != old then old else "");
 	if !keep {
 		dc.spawn(*idk, (s: *Identity_State) {
 			array_add(*s.list, keys.generate("Test"));

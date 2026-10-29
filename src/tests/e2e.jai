@@ -80,6 +80,16 @@ database :: (dir: string) {
 	stop(d2);
 	stop(d);
 
+	// An earlier home of the file is moved to the new path on start, keeping what it holds.
+	moved := tprint("%/moved/fastcord.db", dir);
+	d = e2e.start(moved, moved_from = path);
+	g4: Get;
+	g4.run = g.run;
+	e2e.submit(d, *g4);
+	wait(*g4);
+	check(g4.found && g4.value == 3 && !file_exists(path), "the database moves to its new home");
+	stop(d);
+
 	// A path that can't be a database fails every job instead of running it.
 	write_entire_file(tprint("%/bad.db", dir), "not a database, long enough to fill a header page...........................................");
 	d = e2e.start(tprint("%/bad.db", dir));

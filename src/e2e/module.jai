@@ -1,8 +1,9 @@
-/// End-to-end encrypted DMs (TODO.md E2E 1-8) over any carrier. E2E 1: the client database `<state>/fastcord.db` on its own thread.
+/// End-to-end encrypted DMs (TODO.md E2E 1-8) over any carrier. E2E 1: the client database `fastcord.db` on its own thread.
 #import "Basic";
 #import "Atomics";
 #import "Thread";
 #import "File";
+#import "File_Utilities";
 #import "String";
 crypto :: #import "crypto";
 keys :: #import "keys";
@@ -21,6 +22,7 @@ Job :: struct {
 
 Db :: struct {
 	path: string;
+	moved_from: string; // An earlier home of the file, moved to path on start when path doesn't exist yet.
 	wake: (); // Called on the database thread after each job, e.g. to request a UI frame.
 	thread: *Thread;
 	mu: locks.Mutex;
@@ -34,10 +36,12 @@ Db :: struct {
 	seal: crypto.Aead;
 }
 
-// start opens path (":memory:" for headless runs) on a new thread and migrates it. It never waits on disk.
-start :: (path: string, wake: () = null) -> *Db {
+// start opens path (":memory:" for headless runs) on a new thread and migrates it, first moving the file
+// there from moved_from if only that exists. It never waits on disk.
+start :: (path: string, wake: () = null, moved_from := "") -> *Db {
 	d := New(Db);
 	d.path = copy_string(path);
+	d.moved_from = copy_string(moved_from);
 	d.wake = wake;
 	d.thread = New(Thread);
 	d.thread.data = d;
@@ -71,6 +75,7 @@ destroy :: (d: *Db) {
 	thread_deinit(d.thread);
 	free(d.thread);
 	free(d.path);
+	free(d.moved_from);
 	free(d.error);
 	array_free(d.queue);
 	free(d);
@@ -624,6 +629,14 @@ valid_utf8 :: (s: string) -> bool {
 
 loop :: (d: *Db) {
 	if d.path != ":memory:" make_directory_if_it_does_not_exist(path_strip_filename(d.path), recursive = true);
+	// A WAL left by a crash goes with it; the shared-memory index is rebuilt.
+	if d.moved_from && !file_exists(d.path) && file_exists(d.moved_from) {
+		wal := tprint("%-wal", d.moved_from);
+		ok := file_move(d.moved_from, d.path) && (!file_exists(wal) || file_move(wal, tprint("%-wal", d.path)));
+		file_delete(tprint("%-shm", d.moved_from));
+		if ok log("e2e: moved % to %", d.moved_from, d.path);
+		else log_error("e2e: cannot move % to %", d.moved_from, d.path);
+	}
 	ok, sealed := open(d);
 	if sealed {
 		// Its sessions can't be read here, but the file can go back to the machine that wrote it.
