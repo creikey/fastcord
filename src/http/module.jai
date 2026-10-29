@@ -4,6 +4,7 @@
 #import "String";
 #import "Hash_Table";
 #import "Base64";
+#import "Atomics";
 brotli :: #import "brotli";
 crypto :: #import "crypto";
 inflate :: #import "inflate";

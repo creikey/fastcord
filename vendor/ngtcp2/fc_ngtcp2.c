@@ -31,6 +31,8 @@ typedef struct fc_quic_events {
     void (*goaway)(void *user);
     // The server refused 0-RTT: every open request is gone and must be submitted again once fc_quic_ready.
     void (*rejected)(void *user);
+    // The peer acknowledged n more bytes of a request stream (its headers and body), for upload progress.
+    void (*acked)(void *user, int64_t id, uint64_t n);
 } fc_quic_events;
 
 // A request body, copied at submit and freed when its stream closes or the connection is deleted.
@@ -350,6 +352,7 @@ static int recv_stream_data(ngtcp2_conn *conn, uint32_t flags, int64_t id, uint6
 static int acked_stream_data_offset(ngtcp2_conn *conn, int64_t id, uint64_t offset, uint64_t n, void *user, void *sud) {
     fc_quic *q = user;
     (void)conn, (void)offset, (void)sud;
+    if (ngtcp2_is_bidi_stream(id)) q->ev.acked(q->ev.user, id, n);
     return q->h3 && nghttp3_conn_add_ack_offset(q->h3, id, n) ? NGTCP2_ERR_CALLBACK_FAILURE : 0;
 }
 

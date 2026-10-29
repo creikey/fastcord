@@ -48,7 +48,7 @@ connect :: (host: string, port := 443, chrome_major := 0) -> *Conn, http.Error {
 	c.sock, c.wake_sock, c.peer, c.ssl = sock, wake_sock, peer, ssl;
 	c.local = udp_local(peer, local_port, loopback = true);
 	c.host = copy_string(host);
-	c.ev = .{c, on_header, on_data, on_done, on_goaway, on_rejected};
+	c.ev = .{c, on_header, on_data, on_done, on_goaway, on_rejected, on_acked};
 	rtt := cached_rtt_us(host) * 1000;
 	ip := udp_ip(*peer);
 	ztp := cached_0rtt(host,, temp);
@@ -119,7 +119,7 @@ request :: (c: *Conn, req: http.Request) -> http.Response, http.Error {
 
 	// Like Chrome, only replay-safe methods go in 0-RTT; the rest wait for the handshake.
 	safe := array_find(string.["GET", "HEAD", "OPTIONS", "TRACE"], req.method);
-	st := Stream.{resp = http.make_response(.Http3), sink = req.sink};
+	st := Stream.{resp = http.make_response(.Http3), sink = req.sink, sent = req.sent};
 	id: s64;
 	lock(c);
 	defer locks.unlock(*c.mu);
@@ -179,7 +179,7 @@ first_flight :: (host: string, chrome_major := 0) -> [][]u8 {
 	out: [..][]u8;
 	ssl := tls.new_ssl(quic_ctx(), .{alpn = string.["h3"], server_name = host}, true);
 	if !ssl return out;
-	ev := Events.{null, on_header, on_data, on_done, on_goaway, on_rejected};
+	ev := Events.{null, on_header, on_data, on_done, on_goaway, on_rejected, on_acked};
 	ip := u8.[127, 0, 0, 1];
 	q := fc_quic_new(ssl, 4, ip.data, 443, 50000, now_ns(), 0, null, 0, xx orig(chrome_major), *ev);
 	if !q return out;
@@ -250,6 +250,7 @@ Events :: struct {
 	done: (user: *void, id: s64, fin: s32, code: u64) #c_call;
 	goaway: (user: *void) #c_call;
 	rejected: (user: *void) #c_call;
+	acked: (user: *void, id: s64, n: u64) #c_call;
 }
 
 Field :: struct {
@@ -293,6 +294,7 @@ Stream :: struct {
 	interim: bool;  // inside a 1xx header section
 	field_bytes: int;
 	sink: http.Body_Sink; // the request's
+	sent: *s64;           // the request's: acknowledged stream bytes are added here
 }
 
 // The QUIC TLS context, made on first use.
@@ -438,6 +440,14 @@ on_data :: (user: *void, id: s64, p: *u8, n: u64) #c_call {
 		}
 		if st.resp.body.count + cast(int) n > MAX_RESPONSE { give_up(c, st, .Too_Large); return; }
 		array_add(*st.resp.body, ..[]u8.{xx n, p});
+	}
+}
+
+on_acked :: (user: *void, id: s64, n: u64) #c_call {
+	c := cast(*Conn) user;
+	push_context c.ctx.* {
+		_, st := table_find(*c.streams, id);
+		if st && st.sent atomic_add(st.sent, cast(s64) n);
 	}
 }
 

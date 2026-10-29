@@ -121,7 +121,7 @@ upload_draft_status :: (c: *Client, handle: u64) -> Draft_State, s64, s64, bool 
 	defer locks.unlock(*d.mu);
 	u := draft_find(d, handle);
 	if !u return .Uploading, 0, 0, false;
-	return u.state, u.sent, u.size, true;
+	return u.state, min(atomic_load(*u.sent), u.size), u.size, true;
 }
 
 // upload_draft_remove: the trash button. An uploaded file is deleted from the bucket
@@ -207,7 +207,8 @@ run_draft_upload :: (c: *Client, j: *Job) {
 	u.conv.data = .[]; // temp: gone after this job
 	u.size = f.data.count;
 	locks.unlock(*d.mu);
-	name, ok, url_ms, put_ms := upload_one(c, u.channel_id, f);
+	// u.sent climbs as the PUT goes (written here only; read under d.mu, clamped to the size)
+	name, ok, url_ms, put_ms := upload_one(c, u.channel_id, f, *u.sent);
 	locks.lock(*d.mu);
 	u.get_url_ms = url_ms;
 	u.upload_ms = put_ms;
@@ -270,7 +271,7 @@ run_draft_send :: (c: *Client, j: *Job) -> bool {
 }
 
 // One file: POST /attachments for an upload URL, then preflight + PUT. Returns upload_filename.
-upload_one :: (c: *Client, channel_id: Snowflake, f: Upload_File) -> string, bool, float64, float64 {
+upload_one :: (c: *Client, channel_id: Snowflake, f: Upload_File, sent: *s64 = null) -> string, bool, float64, float64 {
 	t0 := now_ms_f();
 	w: Json;
 	json_init(*w);
@@ -301,7 +302,7 @@ upload_one :: (c: *Client, channel_id: Snowflake, f: Upload_File) -> string, boo
 	up_url := copy_string(fstr(vmap(att[0]), "upload_url"),, temp);
 	name := copy_string(fstr(vmap(att[0]), "upload_filename"),, temp);
 	t1 := now_ms_f();
-	ok := upload_put(c, up_url, f.data);
+	ok := upload_put(c, up_url, f.data, sent);
 	return name, ok, url_ms, now_ms_f() - t1;
 }
 

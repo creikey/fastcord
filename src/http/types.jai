@@ -35,6 +35,8 @@ Request :: struct {
 	body: []u8;
 	priority: Priority;  // h2 HEADERS priority fields, h3 priority header
 	sink: Body_Sink;     // set: the response body goes here as it arrives instead of into resp.body
+	sent: *s64;          // set: bytes of the body handed to the connection so far are added here, atomically
+	                     // (h3: stream bytes the peer acknowledged, its headers included), for upload progress
 }
 
 // Body_Sink takes a response body piece by piece as it arrives, so a large download is never held whole

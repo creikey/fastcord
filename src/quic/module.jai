@@ -3,6 +3,7 @@
 #import "Basic";
 #import "Hash_Table";
 #import "Thread";
+#import "Atomics";
 http :: #import "http";
 locks :: #import "locks";
 tls :: #import "tls";

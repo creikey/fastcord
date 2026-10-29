@@ -189,7 +189,9 @@ h1_write_request :: (s: netio.Stream, req: Request) -> Error {
 	b.allocator = temp;
 	err := h1_serialize_request(*b, req);
 	if err != .None return err;
-	return map_net_error(netio.write(s, cast([]u8) builder_to_string(*b,, temp)));
+	err = map_net_error(netio.write(s, cast([]u8) builder_to_string(*b,, temp)));
+	if err == .None && req.sent atomic_add(req.sent, req.body.count);
+	return err;
 }
 
 // h1_read_head reads a status line + headers into resp (strings from context.allocator), growing the

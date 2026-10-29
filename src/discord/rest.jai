@@ -561,7 +561,8 @@ split_url :: (url: string) -> string, string, bool {
 	return host, ifx found then advance(rest, host.count) else "/", true;
 }
 
-upload_put :: (c: *Client, url: string, data: []u8) -> bool {
+// sent: the bytes sent so far go here as the PUT goes (atomically; back to 0 on a retry), for the progress bar.
+upload_put :: (c: *Client, url: string, data: []u8, sent: *s64 = null) -> bool {
 	host, path, ok := split_url(url);
 	if !ok return false;
 	pre := http.Request.{method = "OPTIONS", scheme = "https", authority = host, path = path, headers = preflight_headers(c.id.platform, "PUT", "content-type", false)};
@@ -569,9 +570,10 @@ upload_put :: (c: *Client, url: string, data: []u8) -> bool {
 	pstatus := presp.status;
 	http.response_destroy(*presp);
 	if perr != .None || pstatus >= 300 return false;
-	put := http.Request.{method = "PUT", scheme = "https", authority = host, path = path, headers = upload_put_headers(c.id.platform, data.count), body = data};
+	put := http.Request.{method = "PUT", scheme = "https", authority = host, path = path, headers = upload_put_headers(c.id.platform, data.count), body = data, sent = sent};
 	backoff := backoff_make(500, 5000);
 	for attempt: 0..2 {
+		if sent atomic_store(sent, 0);
 		resp, err := transport_round_trip(*c.transport, host, put);
 		status := resp.status;
 		http.response_destroy(*resp);

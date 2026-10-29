@@ -507,6 +507,7 @@ read_body :: (s: *Ng_Session, id: s32, buf: *u8, n: u64, flags: *u32, source: *v
 	st.body.data += k;
 	st.body.count -= k;
 	if !st.body.count flags.* |= NG_DATA_FLAG_EOF;
+	if st.req.sent push_context (cast(*H2_Conn) user).ctx.* { atomic_add(st.req.sent, k); }
 	return k;
 }
 
