@@ -1,0 +1,15 @@
+# An audio file sent to a self-hosted server in this process plays from its stream (blob_stream: the
+# player reads the bytes as they arrive).
+wait 5
+serve_join
+settle 3
+click 36 157
+settle 3
+click 700 683
+stage tests/ui/call/silence.mp3
+wait_attachments
+key enter
+settle 3
+click 475 587
+settle 2
+shot build/ui-hosted_audio.png

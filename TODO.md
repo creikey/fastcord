@@ -465,7 +465,9 @@
 - [ ] Notifications: the server modal lacks channel overrides, Suppress Highlights, Mute New Events and Mobile Push (parsed, sent only to analytics).
 - [ ] Profiles: your own full profile has no Edit Profile button; the DM side panel lacks About Me, pronouns, mutual servers and friends, and the note.
 - [ ] Friends: the Pending tab isn't split into Received and Sent.
-- [ ] Media: videos (attachments, embeds) download whole before the first frame; stream them with range requests so long clips start at once (`view_media.jai` `blob_get`).
+- [ ] Media: an MP4 whose index (the `moov` box) sits after its media still downloads whole before the first frame. Chrome's `<video>` asks for the tail with a second range request when the start has no `moov`; do that in `blob_stream`, giving the growing source holes.
+  - Done: videos and audio clips stream: the player reads the bytes as they arrive (`blob_stream` over `media.Growing_Buffer`, `dc.run_stream` with a `<video>`/`<audio>` element's headers, range `bytes=0-`), so a clip with its index first starts at once (`tests/ui/hosted_audio.txt`).
+- [ ] Hosting: a video sent to a hosted server shows as a plain file card, not a player: serve reads an image's size on arrival (`imagefmt` in `serve/module.jai`) but not a video's, and the client lays a video out only with `width` and `height`. Probe MP4/WebM/MOV dimensions with `media.probe` (or a header-only reader) when the upload lands.
 - [ ] Sounds: soundpacks work and are saved but have no picker; "User Moved" has a toggle but never plays; the "reconnect" sound is unused.
 - [ ] Media: the video player lacks download.
 - [ ] Attachments: an audio file (`.mp3`, `.wav`, not a voice message) plays in a card with no filename, size or download icon (`audio_attachment` in `view_media.jai`); the official audio card has all three in its header. `file_download` does the download.

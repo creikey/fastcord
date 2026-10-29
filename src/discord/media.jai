@@ -10,6 +10,7 @@ Media_Kind :: enum u8 {
 	Font; // @font-face from the app CSS: cors, dest font
 	Fetch; // fetch()/XHR of media json/text (lottie stickers, .riv): cors, dest empty
 	Audio; // new Audio(url) (UI sounds): no-cors, dest audio, identity encoding, range bytes=0- (206)
+	Video; // a <video> element's load: as Audio with dest video
 }
 
 Media_Request :: struct {
@@ -19,8 +20,9 @@ Media_Request :: struct {
 	referer: string; // fonts: the stylesheet URL; "" -> https://discord.com/ (cross-site) or route
 	tag: u64;
 	discard: bool; // loaded like the page does (cache included), then dropped: no result
-	save_to: string; // set: a file download streamed to this path (no cache), see run_download
+	save_to: string; // set: a file download streamed to this path (no cache), see run_stream
 	progress: *Media_Progress; // save_to's; the caller's, kept until the result arrives
+	stream: http.Body_Sink; // set: the body goes here as it arrives (no cache), see run_stream; called on a worker
 }
 
 // A download's bytes so far, written by the worker and read by the UI thread.
@@ -59,7 +61,7 @@ media_headers :: (p: Platform_Info, kind: Media_Kind, site: Fetch_Site, visible:
 	h.allocator = allocator;
 	array_reserve(*h, 20);
 	add :: (name: string, value: string) #expand { array_add(*`h, .{name, value}); }
-	if kind == .Audio {
+	if kind == .Audio || kind == .Video {
 		// netlog (join_voice_channel): /assets/<hash>.mp3 played by WebAudioSound
 		add("sec-ch-ua-platform", p.sec_ch_ua_platform);
 		add("accept-encoding", "identity;q=1, *;q=0");
@@ -69,7 +71,7 @@ media_headers :: (p: Platform_Info, kind: Media_Kind, site: Fetch_Site, visible:
 		add("accept", "*/*");
 		add("sec-fetch-site", fetch_site_name(site));
 		add("sec-fetch-mode", "no-cors");
-		add("sec-fetch-dest", "audio");
+		add("sec-fetch-dest", ifx kind == .Video then "video" else "audio");
 		add("referer", referer);
 		add("accept-language", p.accept_language);
 		if cookie add("cookie", cookie);
@@ -121,7 +123,7 @@ site_for_host :: (host: string) -> Fetch_Site {
 // after client_poll (or the wakeup).
 fetch_media :: (c: *Client, req: Media_Request) {
 	j := job_new(.Web, .Media);
-	j.media = .{url = job_str(j, req.url), kind = req.kind, visible = req.visible, referer = job_str(j, req.referer), tag = req.tag, discard = req.discard, save_to = job_str(j, req.save_to), progress = req.progress};
+	j.media = .{url = job_str(j, req.url), kind = req.kind, visible = req.visible, referer = job_str(j, req.referer), tag = req.tag, discard = req.discard, save_to = job_str(j, req.save_to), progress = req.progress, stream = req.stream};
 	j.result.tag = req.tag;
 	job_submit(c, j);
 }
@@ -298,33 +300,44 @@ media_host_ok :: (c: *Client, host: string) -> bool {
 
 // run_media executes a media job on a worker thread.
 run_media :: (c: *Client, j: *Job) {
-	if j.media.save_to { run_download(c, j); return; }
+	if j.media.save_to || j.media.stream.take { run_stream(c, j); return; }
 	status, from_cache, ctype, body := media_get(c, j.media.url, j.media.kind, j.media.visible, j.media.referer);
 	if !j.media.discard media_deliver(c, j, status, from_cache, ctype, body);
 }
 
-// run_download streams a file attachment to j.media.save_to as it arrives, counting into j.media.progress,
-// with the headers of a download the window starts (a navigation's, as Chrome's download manager sends);
-// the result has no data. A failed download leaves no file.
-run_download :: (c: *Client, j: *Job) {
+// run_stream hands a body on as it arrives, with no disk cache and no data in the result. A file download
+// (save_to) goes to that path, counted into progress, with the headers of a download the window starts
+// (a navigation's, as Chrome's download manager sends); a failed one leaves no file. Otherwise the body
+// goes to the request's stream sink, as a <video> or <audio> element loads (range bytes=0-, a 206).
+run_stream :: (c: *Client, j: *Job) {
 	m := *j.media;
 	status := 0;
 	host, path, ok := split_url(m.url);
-	f, opened := file_open(m.save_to, for_writing = true, log_errors = false);
-	if opened && ok && media_host_ok(c, host) {
-		Writer :: struct { f: *File; p: *Media_Progress; ok := true; }
-		w := Writer.{f = *f, p = m.progress};
+	f: File;
+	opened := false;
+	if m.save_to f, opened = file_open(m.save_to, for_writing = true, log_errors = false);
+	if (opened || !m.save_to) && ok && media_host_ok(c, host) {
+		Writer :: struct { f: *File; p: *Media_Progress; out: http.Body_Sink; ok := true; }
+		w := Writer.{f = *f, p = m.progress, out = m.stream};
 		take :: (data: *void, piece: []u8) -> bool {
 			w := cast(*Writer) data;
-			w.ok = w.ok && file_write(w.f, piece.data, piece.count);
+			if w.out.take w.ok = w.ok && w.out.take(w.out.data, piece);
+			else w.ok = w.ok && file_write(w.f, piece.data, piece.count);
 			if w.p atomic_add(*w.p.done, piece.count);
 			return w.ok;
 		}
+		now := now_ms();
+		cookie := cookie_header(*c.jar, host, path, true, now);
 		req := http.Request.{method = "GET", scheme = "https", authority = host, path = path, sink = .{*w, take}};
-		req.headers = document_headers(c.id.platform, cookie_header(*c.jar, host, path, true, now_ms()));
+		if m.save_to req.headers = document_headers(c.id.platform, cookie);
+		else {
+			site := site_for_host(host);
+			ref := ifx m.referer then m.referer else ifx site == .Same_Origin then client_route_referer(c) else #run join(API_ORIGIN, "/");
+			req.headers = media_headers(c.id.platform, m.kind, site, m.visible, ref, cookie, "", "");
+		}
 		resp, err := transport_round_trip(*c.transport, host, req);
 		if err == .None && resp.body take(*w, resp.body); // an encoded body, or a transport that doesn't sink
-		if err == .None && w.ok status = resp.status;
+		if err == .None && w.ok status = ifx resp.status == 206 then 200 else resp.status;
 		http.response_destroy(*resp);
 	}
 	if opened {

@@ -3,9 +3,10 @@
 Blob :: struct {
 	state: Image_State;
 	data: []u8;
+	stream: *media.Growing_Buffer; // blob_stream's: the bytes so far (data stays empty)
 }
 
-// Raw downloads (videos, audio) keyed by URL; they share the media fetch path with images.
+// Raw downloads (videos, audio, text) keyed by URL; they share the media fetch path with images.
 blobs: Table(string, Blob);
 
 Inline_Player :: struct {
@@ -47,6 +48,30 @@ blob_get :: (url: string) -> *Blob {
 	return b;
 }
 
+// blob_stream: a video or audio clip downloaded as a <video> element does (range bytes=0-), its player
+// reading the bytes as they arrive, so a long clip starts at once (when its index comes first: an MP4 with
+// the moov at the end still waits for the whole file). Offline runs read it whole, as blob_get.
+blob_stream :: (url: string, kind: dc.Media_Kind) -> *Blob {
+	b := table_find_pointer(*blobs, url);
+	if b return b;
+	c := ifx app.client then media_client(url);
+	if !c return blob_get(url);
+	key := copy_string(url);
+	b = find_or_add(*blobs, key);
+	b.state = .Loading;
+	b.stream = media.growing_create();
+	take :: (data: *void, piece: []u8) -> bool {
+		g := cast(*media.Growing_Buffer) data;
+		if g.data.count + piece.count > STREAM_MAX return false; // only this worker grows it
+		media.growing_append(g, piece);
+		return true;
+	}
+	dc.fetch_media(c, .{url = key, kind = kind, visible = true, stream = .{b.stream, take}});
+	return b;
+}
+
+STREAM_MAX :: 512 << 20;
+
 blob_decoded :: (url: string, data: []u8) {
 	b := table_find_pointer(*blobs, url);
 	if !b { array_free(data); return; }
@@ -58,7 +83,10 @@ blob_decoded :: (url: string, data: []u8) {
 blob_receive :: (r: *dc.Media_Result) -> bool {
 	b := table_find_pointer(*blobs, r.url);
 	if !b return false;
-	if r.status == 200 && r.data {
+	if b.stream {
+		media.growing_finish(b.stream, r.status == 200);
+		b.state = ifx r.status == 200 then Image_State.Ready else .Failed;
+	} else if r.status == 200 && r.data {
 		b.data = r.data;
 		r.data = .[]; // keep ownership
 		b.state = .Ready;
@@ -357,7 +385,7 @@ video_player :: (key: dc.Snowflake, url: string, poster: string, w: float32, h: 
 	ip := table_find_pointer(*players, key);
 	start :: () #expand {
 		if `ip return;
-		blob_get(url);
+		blob_stream(url, .Video);
 		`ip = table_set(*players, key, .{url = copy_string(url), poster = copy_string(poster), size = .{w, h}});
 	}
 	p := ifx ip then ip.player else null;
@@ -534,7 +562,7 @@ audio_attachment :: (a: *dc.Attachment) {
 		}
 		if ui.signal(pb).clicked {
 			if !playing {
-				blob_get(a.url);
+				blob_stream(a.url, .Audio);
 				table_set(*players, a.id, .{url = copy_string(a.url)});
 			} else if ip.player {
 				media.player_toggle(ip.player);
@@ -1062,7 +1090,7 @@ media_action_receive :: (r: *dc.Media_Result) -> bool {
 }
 
 // A file attachment's download: asked where in the Save dialog under the attachment's own name, then
-// streamed to disk by a worker (dc.run_download) while its card shows the bytes so far.
+// streamed to disk by a worker (dc.run_stream) while its card shows the bytes so far.
 File_Download :: struct {
 	url, path: string; // heap
 	size: int; // the attachment's: anything else is a cut-short download
@@ -1272,13 +1300,14 @@ close_viewer :: () {
 	viewer_url, viewer_video, viewer_link = "", "", "";
 }
 
-// The player starts once its download is in.
+// The player starts on a streamed download at once, else once the download is in.
 player_open_ready :: (ip: *Inline_Player) {
 	if ip.player return;
 	blob := table_find_pointer(*blobs, ip.url);
-	if !blob || blob.state != .Ready return;
+	if !blob || (!blob.stream && blob.state != .Ready) return;
 	ensure_audio();
-	ip.player = media.player_open(media.source_from_memory(blob.data), autoplay = true, muted = video_muted);
+	src := ifx blob.stream then media.source_from_growing(blob.stream) else media.source_from_memory(blob.data);
+	ip.player = media.player_open(src, autoplay = true, muted = video_muted);
 	media.player_set_volume(ip.player, video_volume);
 }
 
