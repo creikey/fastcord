@@ -16,10 +16,13 @@ G = [1600000000000000001 + i * 1000 for i in range(4)]
 names = ['Odin Lang', 'Pixel Art Club', 'Rust Gamedev', 'Night Owls']
 users = [{'id': 1000000000000000001 + k, 'username': n.lower(), 'global_name': n, 'avatar': None, 'discriminator': '0'}
          for k, n in enumerate(['Robin', 'Nelly', 'Sam', 'Phibi'])]
+# every guild has @everyone (its own id), here with a new server's usual member permissions
+EVERYONE_PERMS = sum(1 << b for b in (0, 6, 10, 11, 14, 15, 16, 18, 20, 21, 25, 26, 31, 35, 38))
+def EVERYONE(gid): return {'id': gid, 'name': '@everyone', 'permissions': str(EVERYONE_PERMS), 'position': 0, 'color': 0, 'hoist': False, 'managed': False, 'mentionable': False}
 for i, gid in enumerate(G):
     ch = gid + 1
     out.append(ev('GUILD_CREATE', {'id': gid, 'name': names[i], 'icon': None, 'owner_id': users[0]['id'], 'joined_at': '2026-01-0%dT00:00:00+00:00' % (i + 1),
-        'roles': [], 'emojis': [], 'stickers': [], 'features': [], 'member_count': 3,
+        'roles': [EVERYONE(gid)], 'emojis': [], 'stickers': [], 'features': [], 'member_count': 3,
         'channels': [{'id': ch, 'type': 0, 'name': 'general', 'position': 0, 'parent_id': None, 'permission_overwrites': [], 'last_message_id': None}]}))
 # guild 2 has an unread @mention, guild 3 just unread
 for i, (gi, mention) in enumerate([(1, True), (3, False)]):
