@@ -42,6 +42,7 @@ Forum_Tag :: struct {
 	name: string;
 	emoji_name: string;
 	emoji_id: Snowflake;
+	moderated: bool;
 }
 
 // A MESSAGE_CREATE kept for the notification logic (UI thread).
@@ -128,7 +129,7 @@ note_tags :: (ch: etf.Map) {
 	list.count = 0;
 	for flist(ch, "available_tags") {
 		tm := vmap(it);
-		array_add(list, .{id = fsnow(tm, "id"), name = copy_string(fstr(tm, "name")), emoji_name = copy_string(fstr(tm, "emoji_name")), emoji_id = fsnow(tm, "emoji_id")});
+		array_add(list, .{id = fsnow(tm, "id"), name = copy_string(fstr(tm, "name")), emoji_name = copy_string(fstr(tm, "emoji_name")), emoji_id = fsnow(tm, "emoji_id"), moderated = fbool(tm, "moderated")});
 	}
 }
 

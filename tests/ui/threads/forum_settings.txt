@@ -1,0 +1,27 @@
+# A forum's Channel Settings Overview: Post Guidelines, Hide After Inactivity, its tags (Bug, Idea) with
+# Moderators only and remove, Add Tag, Require tags, Default Layout and Sort Order; a change shows the bar.
+wait 5
+rclick 148 158
+wait 5
+click_text "Edit Channel"
+wait 10
+expect_visible "Post Guidelines"
+expect_visible "Hide After Inactivity"
+move 700 400
+scroll 0 -400
+wait 60
+expect_visible "Bug"
+expect_visible "Idea"
+expect_not_visible "Careful — you have unsaved changes!"
+click_text "New tag"
+type Question
+key enter
+wait 5
+expect_visible "Question"
+expect_visible "Careful — you have unsaved changes!"
+shot build/ui-threads_forum_settings.png
+click_text Reset
+wait 5
+expect_not_visible "Question"
+key escape
+wait 10

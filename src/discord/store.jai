@@ -276,7 +276,7 @@ parse_channel_into :: (s: *Store, m: etf.Map, guild_id: Snowflake = 0) -> Snowfl
 	if id == 0 return 0;
 	c, added := find_or_add(*s.channels, id);
 	if added {
-		c.* = .{id = id};
+		c.* = .{id = id, sort_order = -1};
 		c.recipient_ids.allocator = s.allocator;
 		c.overwrites.allocator = s.allocator;
 	}
@@ -296,6 +296,9 @@ parse_channel_into :: (s: *Store, m: etf.Map, guild_id: Snowflake = 0) -> Snowfl
 	if vhas(m, "user_limit") c.user_limit = fint(m, "user_limit");
 	if vhas(m, "rtc_region") set_str(s, *c.rtc_region, fstr(m, "rtc_region"));
 	if vhas(m, "video_quality_mode") c.video_quality_mode = fint(m, "video_quality_mode");
+	if vhas(m, "default_auto_archive_duration") c.default_auto_archive = fint(m, "default_auto_archive_duration");
+	if vhas(m, "default_forum_layout") c.forum_layout = fint(m, "default_forum_layout");
+	if vhas(m, "default_sort_order") c.sort_order = ifx vget(m, "default_sort_order").kind == .Int then fint(m, "default_sort_order") else -1;
 	if vhas(m, "owner_id") c.owner_id = fsnow(m, "owner_id");
 	if vhas(m, "flags") c.flags = cast(u64) fint(m, "flags");
 	if vhas(m, "status") set_channel_status(s, c, fstr(m, "status"));

@@ -123,6 +123,9 @@ Channel :: struct {
 	user_limit: int;
 	rtc_region: string; // a voice channel's region override ("" = automatic)
 	video_quality_mode: int; // 1 auto, 2 720p; 0 when Discord sent none
+	default_auto_archive: int; // minutes new threads hide after (0: never set)
+	forum_layout: int; // forums: 0 not set, 1 list, 2 gallery
+	sort_order: int; // forums: -1 not set, 0 recently active, 1 creation date
 	recipient_ids: [..]Snowflake; // DMs and group DMs
 	icon: string; // group DM icon
 	owner_id: Snowflake;

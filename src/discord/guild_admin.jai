@@ -537,15 +537,21 @@ Channel_Form :: struct {
 	rate_limit_per_user: int;
 	rtc_region: string; // voice: "" = automatic (sent as null)
 	video_quality_mode: int; // voice: 0 = never set (left out)
+	default_auto_archive_duration: int; // 0 = never set (left out)
+	default_forum_layout: int; // forums
+	default_sort_order: int; // forums: -1 = never set (null)
+	available_tags: string; // forums: the tags' JSON list; "" = the channel's (forum_tags)
 }
 
 channel_form_of :: (ch: *Channel) -> Channel_Form {
 	return .{name = ch.name, kind = ch.kind, topic = ch.topic, bitrate = ifx ch.bitrate > 0 then ch.bitrate else 64000, user_limit = ch.user_limit, nsfw = ch.nsfw, flags = ch.flags, rate_limit_per_user = ch.rate_limit_per_user,
-		rtc_region = ch.rtc_region, video_quality_mode = ch.video_quality_mode};
+		rtc_region = ch.rtc_region, video_quality_mode = ch.video_quality_mode, default_auto_archive_duration = ch.default_auto_archive,
+		default_forum_layout = ch.forum_layout, default_sort_order = ch.sort_order};
 }
 
-// {"name","type","topic","bitrate","user_limit","nsfw","flags","rate_limit_per_user"}, and for voice
-// channels "rtc_region" and "video_quality_mode" (saveChannel's order).
+// {"name","type","topic","bitrate","user_limit","nsfw","flags","rate_limit_per_user"}, then
+// "default_auto_archive_duration" once set, for voice channels "rtc_region" and "video_quality_mode", and
+// for forums "available_tags", "default_sort_order", "default_forum_layout" (saveChannel's order).
 channel_edit_body :: (f: Channel_Form) -> string {
 	w: Json;
 	json_init(*w);
@@ -558,10 +564,17 @@ channel_edit_body :: (f: Channel_Form) -> string {
 	json_kbool(*w, "nsfw", f.nsfw);
 	json_kint(*w, "flags", xx f.flags);
 	json_kint(*w, "rate_limit_per_user", f.rate_limit_per_user);
+	if f.default_auto_archive_duration json_kint(*w, "default_auto_archive_duration", f.default_auto_archive_duration);
 	if f.kind == .Guild_Voice || f.kind == .Guild_Stage_Voice {
 		if f.rtc_region json_kstr(*w, "rtc_region", f.rtc_region);
 		else json_knull(*w, "rtc_region");
 		if f.video_quality_mode json_kint(*w, "video_quality_mode", f.video_quality_mode);
+	}
+	if f.kind == .Guild_Forum || f.kind == .Guild_Media {
+		if f.available_tags { json_key(*w, "available_tags"); json_raw(*w, f.available_tags); }
+		if f.default_sort_order >= 0 json_kint(*w, "default_sort_order", f.default_sort_order);
+		else json_knull(*w, "default_sort_order");
+		json_kint(*w, "default_forum_layout", f.default_forum_layout);
 	}
 	json_obj_end(*w);
 	return json_string(*w);

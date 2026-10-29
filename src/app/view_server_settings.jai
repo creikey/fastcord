@@ -114,6 +114,7 @@ server_settings_reset_for_test :: () {
 	for * ss.traits ui.editor_destroy(it);
 	free(ss.error);
 	free(ss.chan_region);
+	tags_free();
 	array_free(ss.ows);
 	array_free(ss.cursors);
 	array_free(ss.cursor_joined);
@@ -463,6 +464,7 @@ ss: struct {
 	// Channel Settings: Overview (ss.name, ss.desc hold the name and topic) and Permissions
 	chan: dc.Channel_Form; // the Overview as edited, but for the name and topic
 	chan_region: string; // heap: chan.rtc_region's
+	chan_tags: [..]dc.Forum_Tag; // a forum's tags as edited (strings on the heap); ss.tag: a new one's name
 	ows: [..]dc.Overwrite; // the overwrites as edited
 	ow_id: dc.Snowflake; // the role or member whose permissions are shown
 	ow_adding: bool; // the Add members or roles search is open
@@ -3962,15 +3964,40 @@ chan_form :: (ch: *dc.Channel) -> dc.Channel_Form {
 	name := trim(ui.editor_text(*ss.name), "- ");
 	f.name = ifx name then dc.channel_name_normalize(name, chan_texty(ch.kind)) else ch.name;
 	f.topic = ifx has_topic(ch) then ui.editor_text(*ss.desc) else ch.topic;
+	if is_forum(ch) f.available_tags = tags_json(ss.chan_tags);
 	return f;
 }
+
+is_forum :: (ch: *dc.Channel) -> bool { return ch.kind == .Guild_Forum || ch.kind == .Guild_Media; }
+
+// A forum's tags as saveChannel sends them: {id (kept ones), name, emoji_id, emoji_name, moderated}.
+tags_json :: (tags: []dc.Forum_Tag) -> string {
+	parts := NewArray(tags.count, string,, temp);
+	for tags {
+		id := ifx it.id then tprint("\"id\":\"%\",", it.id) else "";
+		parts[it_index] = tprint("{%\"name\":%,\"emoji_id\":%,\"emoji_name\":%,\"moderated\":%}", id, dc.json_quote(it.name),
+			ifx it.emoji_id then tprint("\"%\"", it.emoji_id) else "null", ifx it.emoji_name then dc.json_quote(it.emoji_name) else "null", it.moderated);
+	}
+	return tprint("[%]", join(..parts, ",",, temp));
+}
+
+tags_free :: () {
+	for ss.chan_tags { free(it.name); free(it.emoji_name); }
+	array_reset(*ss.chan_tags);
+}
+
+ARCHIVE_MINUTES :: int.[60, 1440, 4320, 10080];
+ARCHIVE_LABELS :: string.["1 Hour", "24 Hours", "3 Days", "1 Week"];
+MAX_FORUM_TAGS :: 20;
 
 chan_overview_dirty :: () -> bool {
 	ch := dc.channel_get(store(), ss.channel);
 	if !ch return false;
 	a, b := chan_form(ch), dc.channel_form_of(ch);
 	return a.name != b.name || a.topic != b.topic || a.kind != b.kind || a.nsfw != b.nsfw || a.rate_limit_per_user != b.rate_limit_per_user
-		|| a.bitrate != b.bitrate || a.user_limit != b.user_limit || a.rtc_region != b.rtc_region || a.video_quality_mode != b.video_quality_mode;
+		|| a.bitrate != b.bitrate || a.user_limit != b.user_limit || a.rtc_region != b.rtc_region || a.video_quality_mode != b.video_quality_mode
+		|| a.flags != b.flags || a.default_auto_archive_duration != b.default_auto_archive_duration || a.default_forum_layout != b.default_forum_layout
+		|| a.default_sort_order != b.default_sort_order || (is_forum(ch) && a.available_tags != tags_json(dc.forum_tags(ch.id)));
 }
 
 chan_reset :: () {
@@ -3984,6 +4011,9 @@ chan_reset :: () {
 	ss.chan.rtc_region = ss.chan_region;
 	array_reset(*ss.ows);
 	for ch.overwrites array_add(*ss.ows, it);
+	tags_free();
+	for dc.forum_tags(ch.id) array_add(*ss.chan_tags, .{id = it.id, name = copy_string(it.name), emoji_name = copy_string(it.emoji_name), emoji_id = it.emoji_id, moderated = it.moderated});
+	ui.editor_set_text(*ss.tag, "");
 }
 
 // Save Changes: PATCH /channels/{id} with the whole form (guild_admin.jai; channel_settings_saved answers).
@@ -4036,6 +4066,17 @@ chan_overview_page :: (g: *dc.Guild) -> bool {
 		spacer(.Y, 8);
 		set_para("slowhelp", "Members will be restricted to sending one message and creating one thread per this interval, unless they have the Bypass Slowmode permission.", .Normal, 12, 16, T("--text-default"));
 	}
+	if ch.kind == .Guild_Text || ch.kind == .Guild_Announcement || is_forum(ch) {
+		spacer(.Y, 24);
+		field_title("Hide After Inactivity");
+		cur := 2; // Discord's default, 3 days
+		for ARCHIVE_MINUTES if it == ss.chan.default_auto_archive_duration cur = it_index;
+		pick := select_field("archive", ARCHIVE_LABELS, cur);
+		if pick >= 0 ss.chan.default_auto_archive_duration = ARCHIVE_MINUTES[pick];
+		spacer(.Y, 8);
+		set_para("archivehelp", "New threads will stop showing in the channel list after being inactive for the specified duration.", .Normal, 12, 16, T("--text-default"));
+	}
+	if is_forum(ch) forum_fields(ch);
 	if (ch.kind == .Guild_Text || ch.kind == .Guild_Announcement) && !on_hosted() && (dc.guild_has_feature(g, "NEWS") || dc.guild_has_feature(g, "COMMUNITY")) {
 		set_divider();
 		news := ss.chan.kind == .Guild_Announcement;
@@ -4100,6 +4141,65 @@ chan_overview_page :: (g: *dc.Guild) -> bool {
 	spacer(.Y, 8);
 	set_para("regionhelp", "Everyone in this channel connects to the selected region. Automatic picks the best one for whoever starts the call.", .Normal, 14, 18, T("--text-muted"));
 	return save;
+}
+
+// A forum's own Overview: tags, required tags, default layout and sort order.
+forum_fields :: (ch: *dc.Channel) {
+	REQUIRE_TAG :: 1 << 4;
+	set_divider();
+	section_heading("tags", "Tags", "Tags let members organize their posts. Members pick them when they post; moderated tags only moderators can apply.");
+	gone := -1;
+	for * ss.chan_tags {
+		ui.id_scope(cast(u64) it_index + 1);
+		defer ui.pop_seed();
+		r := row("tag", .Draw_Background);
+		r.semantic_size = .[ui.pct(1), ui.px(40)];
+		r.style.radius = all4(6);
+		r.style.bg = T("--background-mod-subtle");
+		ui.parent(r); defer ui.pop_parent();
+		spacer(.X, 12);
+		label(it.name, .Medium, 15, T("--text-strong"), 20);
+		if it.moderated { spacer(.X, 8); icon("lock", "lock", 14, T("--text-muted")); }
+		filler(.X);
+		if set_button(ifx it.moderated then "Anyone can use##mod" else "Moderators only##mod", .Link, true, 28) it.moderated = !it.moderated;
+		if row_icon_button("x", "x-small", danger = true) gone = it_index;
+		spacer(.X, 6);
+	}
+	if gone >= 0 {
+		free(ss.chan_tags[gone].name);
+		free(ss.chan_tags[gone].emoji_name);
+		array_ordered_remove_by_index(*ss.chan_tags, gone);
+	}
+	spacer(.Y, 8);
+	ar := row("addtag");
+	ar.semantic_size = .[ui.pct(1), ui.children()];
+	ar.style.child_gap = 8;
+	{ ui.parent(ar); defer ui.pop_parent();
+		w := ui.box("in");
+		w.semantic_size = .[ui.fill(), ui.children()];
+		res: ui.Edit_Result;
+		{ ui.parent(w); defer ui.pop_parent(); res = set_input("tagname", *ss.tag, "New tag", max_runes = 20); }
+		if res == .Escape ss.field_escape = true;
+		name := trim(ui.editor_text(*ss.tag));
+		if (set_button("Add Tag##addtag", .Secondary, name != "" && ss.chan_tags.count < MAX_FORUM_TAGS) || (res == .Submit && name)) && ss.chan_tags.count < MAX_FORUM_TAGS {
+			array_add(*ss.chan_tags, .{name = copy_string(name)});
+			ui.editor_set_text(*ss.tag, "");
+		}
+	}
+	spacer(.Y, 12);
+	if set_toggle_row("reqtag", "Require people to select tags when posting", "", (ss.chan.flags & REQUIRE_TAG) != 0) ss.chan.flags ^= REQUIRE_TAG;
+	if ch.kind == .Guild_Forum {
+		set_divider();
+		field_title("Default Layout");
+		gallery := ss.chan.default_forum_layout == 2;
+		if radio_row("list", "List view", !gallery) ss.chan.default_forum_layout = 1;
+		if radio_row("gallery", "Gallery view", gallery) ss.chan.default_forum_layout = 2;
+	}
+	set_divider();
+	field_title("Default Sort Order");
+	by_date := ss.chan.default_sort_order == 1;
+	if radio_row("recent", "Recently Active", !by_date) ss.chan.default_sort_order = 0;
+	if radio_row("created", "Creation Date", by_date) ss.chan.default_sort_order = 1;
 }
 
 // ---- Channel Settings: Permissions ----
