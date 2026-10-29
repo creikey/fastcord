@@ -253,6 +253,9 @@ sampler_report :: (s: *Sampler, top := 25, allocator := temp) -> string {
 	return builder_to_string(*b,, allocator);
 }
 
+// Procedure and source line of a code address (hang reports). Slow, and the strings are heap.
+symbol_at :: (addr: u64) -> Symbol { return symbolize(addr); }
+
 #scope_module
 
 #import "Basic";

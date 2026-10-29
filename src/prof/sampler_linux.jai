@@ -139,10 +139,32 @@ capture_thread_gated :: (t: Thread_Ref, buf: []u64, gate: *s32) -> int, bool {
 	return n, true;
 }
 
-timer_make :: () -> *void { return null; }
-timer_destroy :: (_: *void) {}
-// usleep, not nanosleep: Basic and POSIX declare nanosleep with different return types.
-timer_wait :: (_: *void, ns: s64) { usleep(cast(u32) (ns / 1000)); }
+// Samples on a fixed grid of absolute deadlines (clock_nanosleep TIMER_ABSTIME), so the time a capture
+// takes doesn't stretch the interval the way a relative sleep would.
+Timer :: struct { next: s64; } // CLOCK_MONOTONIC ns
+timer_make :: () -> *Timer {
+	t := New(Timer);
+	t.next = mono_ns();
+	return t;
+}
+timer_destroy :: (t: *Timer) { free(t); }
+timer_wait :: (t: *Timer, ns: s64) {
+	t.next = max(t.next + ns, mono_ns()); // fell behind (a slow capture): no burst to catch up
+	ts := Timespec.{t.next / 1_000_000_000, t.next % 1_000_000_000};
+	while clock_nanosleep_(CLOCK_MONOTONIC_, TIMER_ABSTIME_, *ts, null) == EINTR_ {}
+}
+mono_ns :: () -> s64 {
+	ts: Timespec;
+	clock_gettime_(CLOCK_MONOTONIC_, *ts);
+	return ts.sec * 1_000_000_000 + ts.nsec;
+}
+Timespec :: struct { sec, nsec: s64; }
+CLOCK_MONOTONIC_ :: 1;
+TIMER_ABSTIME_ :: 1;
+EINTR_ :: 4;
+clock_nanosleep_ :: (clock: s32, flags: s32, req: *Timespec, rem: *Timespec) -> s32 #foreign libc_t "clock_nanosleep";
+clock_gettime_ :: (clock: s32, ts: *Timespec) -> s32 #foreign libc_t "clock_gettime";
+libc_t :: #system_library "libc";
 
 // Procedure for a code address: the nearest dynamic symbol (libc and other shared objects), else the
 // executable-relative address, which `addr2line -fe build/fastcord-dev` resolves to a procedure and line.

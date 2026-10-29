@@ -13,6 +13,7 @@ Frame_Phase :: enum s32 {
 
 watchdog_start :: () {
 	wd.main_tid = locks.current_thread_id();
+	#if OS != .WINDOWS main_thread = prof.current_thread();
 	dc.spawn(cast(*void) null, watchdog_proc); // runs until the process exits
 }
 

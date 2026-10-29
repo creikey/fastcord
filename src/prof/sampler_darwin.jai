@@ -153,11 +153,25 @@ capture_thread_gated :: (t: Thread_Ref, buf: []u64, gate: *s32) -> int, bool {
 	return n, true;
 }
 
-timer_make :: () -> *void { return null; }
-timer_destroy :: (_: *void) {}
-// usleep, not nanosleep: Basic and POSIX declare nanosleep with different return types, and a program
-// that uses both fails to compile.
-timer_wait :: (_: *void, ns: s64) { usleep(cast(u32) (ns / 1000)); }
+// Samples on a fixed grid of absolute deadlines (mach_wait_until), so the time a capture takes doesn't
+// stretch the interval the way a relative sleep would.
+Timer :: struct { next: u64; numer, denom: u32; } // mach_absolute_time units; their ratio to ns
+timer_make :: () -> *Timer {
+	t := New(Timer);
+	mach_timebase_info(*t.numer);
+	t.next = mach_absolute_time();
+	return t;
+}
+timer_destroy :: (t: *Timer) { free(t); }
+timer_wait :: (t: *Timer, ns: s64) {
+	t.next += cast(u64) ns * t.denom / t.numer;
+	now := mach_absolute_time();
+	if t.next < now t.next = now; // fell behind (a slow capture): no burst to catch up
+	mach_wait_until(t.next);
+}
+mach_absolute_time :: () -> u64 #foreign libsystem;
+mach_wait_until :: (deadline: u64) -> s32 #foreign libsystem;
+mach_timebase_info :: (info: *u32) -> s32 #foreign libsystem; // {numer, denom}
 
 // Procedure and source line for a code address, through the private CoreSymbolication framework
 // (what Odin's core:debug/trace uses on macOS), loaded on first use.
