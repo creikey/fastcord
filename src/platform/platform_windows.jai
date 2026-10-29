@@ -156,6 +156,18 @@ tray_call_changed :: () {
     if w.tray tray_notify(NIM_MODIFY);
 }
 
+// Reads text aloud with SAPI's default voice, asynchronously, cutting off what it was saying.
+speak :: (text: string) {
+    if !w.voice {
+        CLSID_SpVoice := win.GUID.{0x96749377, 0x3391, 0x11D2, .[0x9E, 0xE3, 0x00, 0xC0, 0x4F, 0x79, 0x73, 0x96]};
+        IID_ISpVoice := win.GUID.{0x6C44DF74, 0x72B9, 0x4992, .[0xA1, 0xEC, 0xEF, 0x99, 0x6E, 0x04, 0x22, 0xD4]};
+        if CoCreateInstance(*CLSID_SpVoice, null, 1 /*CLSCTX_INPROC_SERVER*/, *IID_ISpVoice, *w.voice) < 0 return;
+    }
+    // ISpVoice::Speak (IUnknown 3 + ISpNotifySource 7 + ISpEventSource 3 + 7 before it): SPF_ASYNC |
+    // SPF_PURGEBEFORESPEAK | SPF_IS_NOT_XML, so the text is never parsed as SAPI markup
+    vt(w.voice, 20, #type (*void, *u16, u32, *u32) -> win.HRESULT #c_call)(w.voice, wide(text), 1 | 2 | 16, null);
+}
+
 // Opens a file or folder with its default app (Explorer, the file manager).
 open_path :: (path: string) { open_url(path); }
 
@@ -924,6 +936,7 @@ w: struct {
     tray: bool; // the tray icon is shown, so closing the window hides it
     taskbar_created: u32;
     taskbar: *void; // ITaskbarList3, made on the first set_badge
+    voice: *void; // ISpVoice, made on the first speak
     small_size: s32;
     big_icon: win.HICON;
     icon_hook: *void;

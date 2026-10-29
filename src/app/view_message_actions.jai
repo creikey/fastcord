@@ -595,11 +595,14 @@ message_menu :: () {
 	array_add(*items, .{label = "Copy Text", icon = "copy", sep = true});
 	if dc.can_pin_message(s, m) array_add(*items, .{label = ifx m.pinned then "Unpin Message" else "Pin Message", icon = "pin"});
 	array_add(*items, .{label = "Mark Unread", icon = "chat-mark-unread"}, .{label = "Copy Message Link", icon = "link"});
+	if m.content array_add(*items, .{label = "Speak Message", icon = "voice-normal"});
 	// MessageContextMenu's last group: Remove All Reactions (MANAGE_MESSAGES in a server channel), then Delete
 	ch := dc.channel_get(s, m.channel_id);
 	remove_all := m.reactions && ch && ch.guild_id && (dc.channel_permissions(s, ch.id) & dc.PERM_MANAGE_MESSAGES);
 	if remove_all array_add(*items, .{label = "Remove Reactions", icon = "reaction", danger = true, sub = true, sep = true}, .{label = "Remove All Reactions", icon = "reaction"});
 	if can_manage_message(m) array_add(*items, .{label = "Delete Message", icon = "trash", danger = true, sep = !remove_all});
+	// Discord's in-app report flow is uncaptured: Report Message copies the link and opens Discord's report form
+	if !own && !on_hosted() array_add(*items, .{label = "Report Message", icon = "flag", danger = true, sep = !remove_all && !can_manage_message(m)});
 	if s.settings.developer_mode array_add(*items, .{label = "Copy Message ID", icon = "id", sep = true});
 	quick := ifx sel || !reacts then .[] else quick_reactions();
 	// official: 222 wide, 8px padding, 44px quick-reaction squares, 36px rows, 17px dividers
@@ -717,6 +720,14 @@ message_menu :: () {
 				case "Copy Message Link";
 					ch := dc.channel_get(s, m.channel_id);
 					clipboard_set(channel_link(ifx ch then ch.guild_id else 0, m.channel_id, m.id));
+				case "Speak Message";
+					// the client's speakMessage: "<author> said <text>"
+					if !platform.is_headless() platform.speak(tprint("% said %", author_name(m), shown_text(m.id, m.channel_id, m.content)));
+				case "Report Message";
+					ch := dc.channel_get(s, m.channel_id);
+					clipboard_set(channel_link(ifx ch then ch.guild_id else 0, m.channel_id, m.id));
+					open_url("https://dis.gd/report");
+					toast_show("Message link copied: paste it into Discord's report form", true);
 				case "Copy Message ID";
 					clipboard_set(tprint("%", cast(u64) m.id));
 				case "Delete Message";

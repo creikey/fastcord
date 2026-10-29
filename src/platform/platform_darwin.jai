@@ -118,6 +118,20 @@ open_path :: (path: string) {
     msg(Void, msg(Id, cls("NSWorkspace"), "sharedWorkspace"), "openURL:", msg(Id, cls("NSURL"), "fileURLWithPath:", nsstr(path)));
 }
 
+// Reads text aloud with the system voice (AVSpeechSynthesizer), cutting off what it was saying.
+speak :: (text: string) {
+    synth := speech_synth;
+    if !synth {
+        synth = msg(Id, msg(Id, cls("AVSpeechSynthesizer"), "alloc"), "init");
+        if !synth return;
+        speech_synth = synth;
+    }
+    msg(bool, synth, "stopSpeakingAtBoundary:", cast(NSInteger) 0); // AVSpeechBoundaryImmediate
+    u := msg(Id, cls("AVSpeechUtterance"), "speechUtteranceWithString:", nsstr(text));
+    if u msg(Void, synth, "speakUtterance:", u);
+}
+speech_synth: Id; // kept for the app's life: speech stops when it's freed
+
 // Opens a URL in the user's default browser. NSWorkspace runs whatever it is given (apps, shares,
 // other schemes' handlers): the app's `open_url` checks the scheme.
 open_url :: (url: string) {

@@ -1,0 +1,11 @@
+# Another's message's menu has Speak Message and Report Message; Report copies the message link and opens
+# Discord's report form in the browser.
+wait 30
+rclick 700 151
+wait 10
+expect_visible "Speak Message"
+shot build/ui-message_report-menu.png
+click_text "Report Message"
+wait 3
+expect_opened_url "https://dis.gd/report"
+expect_clipboard "https://discord.com/channels/1546820558300258304/1546820603343016006/1564182629580800004"

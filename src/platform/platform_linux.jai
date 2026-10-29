@@ -109,6 +109,12 @@ set_badge :: (text: string) {
 // Opens a file or folder with its default app (Explorer, the file manager).
 open_path :: (path: string) { open_url(path); }
 
+// Reads text aloud through speech-dispatcher, cutting off what it was saying. The text goes on spd-say's
+// stdin (-e), never in its arguments, so none of it is read as an option.
+speak :: (text: string) {
+    spawn_detached("sh", "-c", "spd-say -C; printf '%s' \"$1\" | spd-say -e", "sh", text);
+}
+
 // Opens a URL in the user's default browser. xdg-open runs whatever it is given: the app's
 // `open_url` checks the scheme.
 open_url :: (url: string) {
