@@ -528,8 +528,12 @@ stroke_poly :: (r: *Rasterizer, src: []Vector2, closed_in: bool, hw: float32, ca
 // acc_line adds the signed area/cover of a line (pixel coords) to r.acc.
 // Parts left of x=0 are folded onto x=0; parts right of x=w are dropped.
 acc_line :: (r: *Rasterizer, p0: Vector2, p1: Vector2) {
-	a := p0;
-	b := p1;
+	// Hostile files (any server's Lottie sticker) reach here: drop NaN and pull far points in, so the
+	// integer casts below stay inside the canvas.
+	if p0.x != p0.x || p0.y != p0.y || p1.x != p1.x || p1.y != p1.y { return; }
+	FAR :: 1.0e7;
+	a := Vector2.{clamp(p0.x, -FAR, FAR), clamp(p0.y, -FAR, FAR)};
+	b := Vector2.{clamp(p1.x, -FAR, FAR), clamp(p1.y, -FAR, FAR)};
 	if a.y == b.y { return; }
 	h := cast(float32)(r.h);
 	w := cast(float32)(r.w);
@@ -591,6 +595,7 @@ acc_line_inside :: (r: *Rasterizer, p0: Vector2, p1: Vector2) {
 		dir = -1;
 		a, b = b, a;
 	}
+	if b.y - a.y < 1.0e-9 { return; } // no area, and the slope could overflow to inf
 	dxdy := (b.x - a.x) / (b.y - a.y);
 	x := a.x;
 	y0 := cast(int)(a.y);

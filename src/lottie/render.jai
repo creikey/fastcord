@@ -12,7 +12,13 @@ Player :: struct {
 	free: [..]Canvas; // layer buffers, all zero
 	mask: []float32; // apply_masks' scratch
 	scene: *vector.Scene; // set while record runs: draws go to the scene's layers instead of buffers
+	// This frame's work so far, capped so a hostile file can't hang the thread: layers drawn and path
+	// points rasterized (MAX_LAYER_DRAWS, MAX_POINTS).
+	layer_draws, points: int;
 }
+
+MAX_LAYER_DRAWS :: 2048;
+MAX_POINTS :: 200_000;
 
 player_init :: (p: *Player, w: int, h: int) {
 	p.* = .{w = w, h = h};
@@ -49,6 +55,7 @@ render :: (p: *Player, anim: *Animation, frame: float32) -> []u8 {
 	p.view = .[s, 0, 0, s, (cast(float32) p.w - anim.w * s) / 2, (cast(float32) p.h - anim.h * s) / 2];
 	vector.rasterizer_reset(*p.rz);
 	reset(*p.frame);
+	p.layer_draws, p.points = 0, 0;
 	push_allocator(.{flat_pool_allocator_proc, *p.frame}); // all geometry below lives until the next frame
 	canvas := take(p);
 	render_comp(p, *anim.root, frame, p.view, *canvas);
@@ -66,6 +73,7 @@ record :: (p: *Player, anim: *Animation, frame: float32, s: *vector.Scene) -> bo
 	p.view = .[sc, 0, 0, sc, (cast(float32) p.w - anim.w * sc) / 2, (cast(float32) p.h - anim.h * sc) / 2];
 	vector.rasterizer_reset(*p.rz);
 	reset(*p.frame);
+	p.layer_draws, p.points = 0, 0;
 	vector.scene_begin(s, p.w, p.h); // first: the scene keeps the caller's allocator
 	push_allocator(.{flat_pool_allocator_proc, *p.frame});
 	p.scene = s;
@@ -156,6 +164,7 @@ give :: (p: *Player, c: Canvas) {
 
 // Fills or strokes (stroke != null) path into buf with color (straight RGBA), or gradient g mapped by gm.
 paint :: (p: *Player, buf: *Canvas, path: *vector.Path, rule: vector.Fill_Rule, stroke: *vector.Stroke, color: Vector4, g: *vector.Gradient = null, gm := vector.MAT_IDENTITY) {
+	if !spend(p, path) return;
 	if p.scene {
 		grad: s32 = -1;
 		if g {
@@ -174,6 +183,12 @@ paint :: (p: *Player, buf: *Canvas, path: *vector.Path, rule: vector.Fill_Rule, 
 	} else {
 		fill(p, buf, color, cov);
 	}
+}
+
+// spend charges a path's points to this frame's budget; false once it is spent.
+spend :: (p: *Player, path: *vector.Path) -> bool {
+	p.points += path.points.count + 1;
+	return p.points <= MAX_POINTS;
 }
 
 // Composites cov * color (straight) into buf.
@@ -271,6 +286,8 @@ render_layer :: (p: *Player, c: *Comp, l: *Layer, frame: float32, m: Mat, dst: *
 	_, opacity := transform_matrix(*l.ks, frame);
 	if opacity <= 0 return .{}, 0;
 	if l.ty != 0 && l.ty != 1 && l.ty != 4 return .{}, 0;
+	p.layer_draws += 1;
+	if p.layer_draws > MAX_LAYER_DRAWS return .{}, 0;
 	if l.ty == 0 && (l.ref < 0 || p.depth > 16) return .{}, 0; // depth: self-referencing precomps
 	lm := mat_mul(m, layer_world(c, l, frame));
 	pc: *Comp;
@@ -339,6 +356,7 @@ apply_masks :: (p: *Player, l: *Layer, t: float32, lm: Mat, buf: *Canvas) {
 		for * mk: l.masks {
 			if mk.mode == #char "n" continue;
 			path := shape_to_path(eval_shape(*mk.path, t), false);
+			if !spend(p, path) break;
 			mode := mask_mode(mk.mode, first);
 			o := ev1(*mk.opacity, t, 100) / 100;
 			vector.scene_path(p.scene, *p.rz, path.verbs, path.points, lm, .Nonzero, null, mode, .[o, xx mk.inverted, 0, 0], quad_all = true);
@@ -353,6 +371,7 @@ apply_masks :: (p: *Player, l: *Layer, t: float32, lm: Mat, buf: *Canvas) {
 	for * mk: l.masks {
 		if mk.mode == #char "n" continue;
 		path := shape_to_path(eval_shape(*mk.path, t), false);
+		if !spend(p, path) break;
 		cov := vector.fill_coverage(*p.rz, path.verbs, path.points, lm, .Nonzero);
 		o := ev1(*mk.opacity, t, 100) / 100;
 		for y: b.y0..b.y1-1  for x: b.x0..b.x1-1 {
@@ -483,7 +502,8 @@ build_primitive :: (item: *Item, t: float32, m: Mat) -> *vector.Path {
 
 // Walks a group's items top to bottom: paths accumulate in `geo`, groups add
 // their (transformed) geometry, trims rewrite geo, styles snapshot geo.
-walk_items :: (items: []Item, t: float32, m: Mat, opacity: float32, geo: *[..]*Slot, draws: *[..]Draw) {
+walk_items :: (p: *Player, items: []Item, t: float32, m: Mat, opacity: float32, geo: *[..]*Slot, draws: *[..]Draw, depth := 0) {
+	assert(depth <= MAX_GROUP_DEPTH); // load stops nesting there
 	new_slot :: (path: *vector.Path) -> *Slot {
 		sl := New(Slot);
 		sl.path = path;
@@ -502,14 +522,15 @@ walk_items :: (items: []Item, t: float32, m: Mat, opacity: float32, geo: *[..]*S
 				go *= o;
 			}
 			sub: [..]*Slot;
-			walk_items(item.items, t, gm, go, *sub, draws);
+			walk_items(p, item.items, t, gm, go, *sub, draws, depth + 1);
 			array_add(geo, ..sub);
 		case .Path;
 			array_add(geo, new_slot(shape_to_path(eval_shape(*item.shape, t), item.reversed, m)));
 		case .Rect; #through; case .Ellipse; #through; case .Star;
 			array_add(geo, new_slot(build_primitive(item, t, m)));
 		case .Fill; #through; case .Stroke; #through; case .Gradient_Fill; #through; case .Gradient_Stroke;
-			array_add(draws, Draw.{item = item, paths = array_copy(geo.*), m = m, opacity = opacity});
+			p.points += geo.count; // every style copies the paths above it
+			if p.points <= MAX_POINTS  array_add(draws, Draw.{item = item, paths = array_copy(geo.*), m = m, opacity = opacity});
 		case .Trim;
 			apply_trim(item, t, geo);
 		}
@@ -519,13 +540,16 @@ walk_items :: (items: []Item, t: float32, m: Mat, opacity: float32, geo: *[..]*S
 draw_shapes :: (p: *Player, items: []Item, t: float32, m: Mat, buf: *Canvas) {
 	geo: [..]*Slot;
 	draws: [..]Draw;
-	walk_items(items, t, m, 1, *geo, *draws);
+	walk_items(p, items, t, m, 1, *geo, *draws);
 	// the first style in document order is on top
 	for < * d: draws {
 		item := d.item;
 		op := ev1(*item.opacity, t, 100) / 100 * d.opacity;
 		if op <= 0 || d.paths.count == 0 continue;
 		// merge the snapshot into one path so overlapping sub-paths fill once
+		n := 0;
+		for d.paths  n += it.path.points.count;
+		if p.points + n > MAX_POINTS break; // paint would refuse the merged path anyway
 		merged: vector.Path;
 		for d.paths {
 			array_add(*merged.verbs, ..it.path.verbs);

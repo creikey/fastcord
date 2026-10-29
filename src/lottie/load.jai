@@ -121,38 +121,42 @@ Animation :: struct {
 	pool: Flat_Pool; // everything the animation holds, the parsed JSON included
 }
 
-// load parses a Lottie JSON document; null when it is not valid JSON or not an object.
+// load parses a Lottie JSON document; null when it is too big, not valid JSON, not an object, or has no
+// sane size. Any server's sticker is untrusted: the parsed JSON takes tens of times its bytes, sizes
+// must be finite, every array counts against MAX_LOAD_BYTES (the rest is dropped), groups nest at most
+// MAX_GROUP_DEPTH deep and a comp keeps at most MAX_LAYERS layers.
 load :: (data: []u8) -> *Animation {
+	if data.count > MAX_JSON_BYTES return null;
 	anim := New(Animation);
 	push_allocator(.{flat_pool_allocator_proc, *anim.pool});
 	obj, err := etf.from_json(to_string(data.data, data.count));
-	if err != .None || obj.kind != .Map {
+	anim.w = num(obj, "w", 512);
+	anim.h = num(obj, "h", 512);
+	if err != .None || obj.kind != .Map || !sane_size(anim.w) || !sane_size(anim.h) {
 		destroy(anim);
 		return null;
 	}
-	anim.w = num(obj, "w", 512);
-	anim.h = num(obj, "h", 512);
 	anim.fr = num(obj, "fr", 60);
 	anim.ip = num(obj, "ip", 0);
 	anim.op = num(obj, "op", 60);
-	if anim.fr <= 0  anim.fr = 60;
+	if !(anim.fr > 0 && anim.fr <= 1000)  anim.fr = 60;
+	if !(abs(anim.ip) < 1.0e7 && abs(anim.op) < 1.0e7)  anim.ip, anim.op = 0, 0;
+	ld := Loader.{left = MAX_LOAD_BYTES};
 	// assets: precomps (index them first so layers can refer by id)
-	assets: Table(string, int);
 	arr := list(obj, "assets");
-	anim.assets = NewArray(arr.count, Comp);
-	for arr {
-		id := str(it, "id");
-		table_set(*assets, id, it_index);
-		anim.assets[it_index].id = id;
+	anim.assets = NewArray(room(*ld, arr.count, size_of(Comp)), Comp);
+	for * anim.assets {
+		it.id = str(arr[it_index], "id");
+		table_set(*ld.assets, it.id, it_index);
 	}
-	for arr {
-		a := *anim.assets[it_index];
-		a.w = num(it, "w", anim.w);
-		a.h = num(it, "h", anim.h);
-		a.layers = load_layers(*assets, list(it, "layers"));
+	for * anim.assets {
+		it.w = num(arr[it_index], "w", anim.w);
+		it.h = num(arr[it_index], "h", anim.h);
+		if !sane_size(it.w) || !sane_size(it.h)  it.w, it.h = anim.w, anim.h;
+		it.layers = load_layers(*ld, list(arr[it_index], "layers"));
 	}
 	anim.root.w, anim.root.h = anim.w, anim.h;
-	anim.root.layers = load_layers(*assets, list(obj, "layers"));
+	anim.root.layers = load_layers(*ld, list(obj, "layers"));
 	return anim;
 }
 
@@ -163,6 +167,26 @@ destroy :: (anim: *Animation) {
 }
 
 #scope_module
+
+MAX_JSON_BYTES :: 1024 * 1024; // Discord takes sticker files up to 512 KB
+MAX_LOAD_BYTES :: 32 * 1024 * 1024;
+MAX_GROUP_DEPTH :: 16;
+MAX_LAYERS :: 256; // per comp: a layer's parents are found by scanning its comp, every frame
+MAX_SIZE :: 16384.0;
+
+sane_size :: (v: float32) -> bool { return v >= 1 && v <= MAX_SIZE; } // false for NaN too
+
+Loader :: struct {
+	left: int; // bytes the arrays may still take
+	assets: Table(string, int);
+}
+
+// room charges up to n elements of size bytes against the budget and returns how many fit.
+room :: (ld: *Loader, n: int, size: int) -> int {
+	k := min(n, ld.left / size);
+	ld.left -= k * size;
+	return k;
+}
 
 Value :: etf.Value;
 
@@ -182,12 +206,14 @@ num :: (o: Value, key: string, def: float32) -> float32 {
 	return ifx ok then value_f32(v, def) else def;
 }
 
-value_f32 :: (v: Value, def: float32) -> float32 {
+// A number, or the first number of a list ([[[2]]] is 2).
+value_f32 :: (value: Value, def: float32) -> float32 {
+	v := value;
+	while v.kind == .List && v.list.count  v = v.list[0];
 	if v.kind == {
 		case .Float; return cast(float32) v.f;
 		case .Int;   return cast(float32) v.i;
 		case .Bool;  return ifx v.b then 1.0 else 0.0;
-		case .List;  if v.list.count  return value_f32(v.list[0], def);
 	}
 	return def;
 }
@@ -197,88 +223,92 @@ str :: (o: Value, key: string) -> string {
 	return ifx v.kind == .String then v.s else "";
 }
 
-floats :: (v: Value) -> []float32 {
+floats :: (ld: *Loader, v: Value) -> []float32 {
 	if v.kind == {
 	case .List;
-		out := NewArray(v.list.count, float32);
-		for v.list  out[it_index] = value_f32(it, 0);
+		out := NewArray(room(ld, v.list.count, size_of(float32)), float32);
+		for * out  it.* = value_f32(v.list[it_index], 0);
 		return out;
 	case .Float; #through;
 	case .Int;
-		out := NewArray(1, float32);
-		out[0] = value_f32(v, 0);
+		out := NewArray(room(ld, 1, size_of(float32)), float32);
+		if out  out[0] = value_f32(v, 0);
 		return out;
 	}
 	return .[];
 }
 
-load_prop :: (v: Value, def: []float32 = .[]) -> Prop {
+load_prop :: (ld: *Loader, v: Value, def: []float32 = .[]) -> Prop {
 	if v.kind != .Map return .{value = def};
 	k := field(v, "k");
 	animated := num(v, "a", 0) == 1;
 	if k.kind == .List && k.list.count > 0 && k.list[0].kind == .Map  animated = true;
-	if !animated return .{value = floats(k)};
+	if !animated return .{value = floats(ld, k)};
 	arr := ifx k.kind == .List then k.list else .[];
-	kfs := NewArray(arr.count, Keyframe);
-	for ko, i: arr {
-		kf := *kfs[i];
+	kfs := NewArray(room(ld, arr.count, size_of(Keyframe)), Keyframe);
+	for * kf, i: kfs {
+		ko := arr[i];
 		kf.t = num(ko, "t", 0);
-		kf.s = floats(field(ko, "s"));
+		kf.s = floats(ld, field(ko, "s"));
 		ev, has_e := field(ko, "e");
-		if has_e  kf.e = floats(ev);
+		if has_e  kf.e = floats(ld, ev);
 		kf.hold = num(ko, "h", 0) == 1;
 		oo := field(ko, "o");
 		if oo.kind == .Map {
-			kf.ox = floats(field(oo, "x"));
-			kf.oy = floats(field(oo, "y"));
+			kf.ox = floats(ld, field(oo, "x"));
+			kf.oy = floats(ld, field(oo, "y"));
 		}
 		io := field(ko, "i");
 		if io.kind == .Map {
-			kf.ix = floats(field(io, "x"));
-			kf.iy = floats(field(io, "y"));
+			kf.ix = floats(ld, field(io, "x"));
+			kf.iy = floats(ld, field(io, "y"));
 		}
 		to, has_to := field(ko, "to");
-		if has_to  kf.to = floats(to);
+		if has_to  kf.to = floats(ld, to);
 		ti, has_ti := field(ko, "ti");
-		if has_ti  kf.ti = floats(ti);
+		if has_ti  kf.ti = floats(ld, ti);
 	}
 	return .{kfs = kfs};
 }
 
-load_shape_data :: (v: Value) -> Shape_Data {
-	if v.kind != .Map {
-		if v.kind == .List && v.list.count > 0  return load_shape_data(v.list[0]);
-		return .{};
-	}
-	pts :: (v: Value) -> []Vector2 {
+load_shape_data :: (ld: *Loader, value: Value) -> Shape_Data {
+	v := value;
+	while v.kind == .List && v.list.count > 0  v = v.list[0];
+	if v.kind != .Map return .{};
+	pts :: (ld: *Loader, v: Value, n: int) -> []Vector2 {
 		arr := ifx v.kind == .List then v.list else .[];
-		out := NewArray(arr.count, Vector2);
-		for arr  if it.kind == .List && it.list.count >= 2  out[it_index] = .{value_f32(it.list[0], 0), value_f32(it.list[1], 0)};
+		out := NewArray(room(ld, min(arr.count, n), size_of(Vector2)), Vector2);
+		for * out {
+			e := arr[it_index];
+			if e.kind == .List && e.list.count >= 2  it.* = .{value_f32(e.list[0], 0), value_f32(e.list[1], 0)};
+		}
 		return out;
 	}
-	sd := Shape_Data.{v = pts(field(v, "v")), i = pts(field(v, "i")), o = pts(field(v, "o")), closed = num(v, "c", 0) == 1};
+	sd := Shape_Data.{v = pts(ld, field(v, "v"), MAX_LOAD_BYTES), closed = num(v, "c", 0) == 1};
 	n := sd.v.count;
+	sd.i, sd.o = pts(ld, field(v, "i"), n), pts(ld, field(v, "o"), n);
 	if sd.i.count < n || sd.o.count < n {
-		sd.i = NewArray(n, Vector2);
-		sd.o = NewArray(n, Vector2);
+		sd.i = NewArray(room(ld, n, size_of(Vector2)), Vector2);
+		sd.o = NewArray(room(ld, n, size_of(Vector2)), Vector2);
+		if sd.i.count < n || sd.o.count < n  return .{}; // out of budget
 	}
 	return sd;
 }
 
-load_shape_prop :: (v: Value) -> Shape_Prop {
+load_shape_prop :: (ld: *Loader, v: Value) -> Shape_Prop {
 	if v.kind != .Map return .{};
 	k := field(v, "k");
-	if k.kind != .List || k.list.count == 0 return .{value = load_shape_data(k)};
+	if k.kind != .List || k.list.count == 0 return .{value = load_shape_data(ld, k)};
 	_, keyframed := field(k.list[0], "t");
-	if !keyframed return .{value = load_shape_data(k)};
-	kfs := NewArray(k.list.count, Shape_Keyframe);
-	for ko, i: k.list {
-		kf := *kfs[i];
+	if !keyframed return .{value = load_shape_data(ld, k)};
+	kfs := NewArray(room(ld, k.list.count, size_of(Shape_Keyframe)), Shape_Keyframe);
+	for * kf, i: kfs {
+		ko := k.list[i];
 		kf.t = num(ko, "t", 0);
-		kf.s = load_shape_data(field(ko, "s"));
+		kf.s = load_shape_data(ld, field(ko, "s"));
 		ev, has_e := field(ko, "e");
 		if has_e {
-			kf.e = load_shape_data(ev);
+			kf.e = load_shape_data(ld, ev);
 			kf.has_e = true;
 		}
 		kf.hold = num(ko, "h", 0) == 1;
@@ -303,31 +333,32 @@ DEF_ZERO := float32.[0, 0, 0];
 
 zero :: (n: int) -> []float32 { return array_view(DEF_ZERO, 0, n); }
 
-load_transform :: (o: Value) -> Transform {
+load_transform :: (ld: *Loader, o: Value) -> Transform {
 	t := Transform.{
-		a = load_prop(field(o, "a"), DEF_ZERO),
-		s = load_prop(field(o, "s"), DEF_ONE),
-		o = load_prop(field(o, "o"), DEF_OPACITY),
-		sk = load_prop(field(o, "sk"), zero(1)),
-		sa = load_prop(field(o, "sa"), zero(1))
+		a = load_prop(ld, field(o, "a"), DEF_ZERO),
+		s = load_prop(ld, field(o, "s"), DEF_ONE),
+		o = load_prop(ld, field(o, "o"), DEF_OPACITY),
+		sk = load_prop(ld, field(o, "sk"), zero(1)),
+		sa = load_prop(ld, field(o, "sa"), zero(1))
 	};
 	rv, has_r := field(o, "r");
-	t.r = load_prop(ifx has_r then rv else field(o, "rz"), zero(1));
+	t.r = load_prop(ld, ifx has_r then rv else field(o, "rz"), zero(1));
 	pv := field(o, "p");
 	if num(pv, "s", 0) == 1 {
 		t.split = true;
-		t.px = load_prop(field(pv, "x"), zero(1));
-		t.py = load_prop(field(pv, "y"), zero(1));
+		t.px = load_prop(ld, field(pv, "x"), zero(1));
+		t.py = load_prop(ld, field(pv, "y"), zero(1));
 	} else {
-		t.p = load_prop(pv, DEF_ZERO);
+		t.p = load_prop(ld, pv, DEF_ZERO);
 	}
 	return t;
 }
 
-load_items :: (arr: []Value) -> []Item {
-	out: [..]Item;
-	array_reserve(*out, arr.count);
-	for o: arr {
+load_items :: (ld: *Loader, arr: []Value, depth := 0) -> []Item {
+	if depth >= MAX_GROUP_DEPTH return .[];
+	out := NewArray(room(ld, arr.count, size_of(Item)), Item);
+	n := 0;
+	for o: array_view(arr, 0, out.count) {
 		if o.kind != .Map continue;
 		item := Item.{hidden = num(o, "hd", 0) == 1};
 		ty := str(o, "ty");
@@ -337,94 +368,99 @@ load_items :: (arr: []Value) -> []Item {
 			sub := list(o, "it");
 			// the group transform is the 'tr' item
 			for s: sub  if str(s, "ty") == "tr" {
-				item.tr = load_transform(s);
+				item.tr = load_transform(ld, s);
 				item.has_tr = true;
 			}
-			item.items = load_items(sub);
+			item.items = load_items(ld, sub, depth + 1);
 		case "sh";
 			item.kind = .Path;
-			item.shape = load_shape_prop(field(o, "ks"));
+			item.shape = load_shape_prop(ld, field(o, "ks"));
 			item.reversed = num(o, "d", 1) == 3;
 		case "rc";
 			item.kind = .Rect;
-			item.p = load_prop(field(o, "p"), zero(2));
-			item.size = load_prop(field(o, "s"), zero(2));
-			item.r = load_prop(field(o, "r"), zero(1));
+			item.p = load_prop(ld, field(o, "p"), zero(2));
+			item.size = load_prop(ld, field(o, "s"), zero(2));
+			item.r = load_prop(ld, field(o, "r"), zero(1));
 			item.reversed = num(o, "d", 1) == 3;
 		case "el";
 			item.kind = .Ellipse;
-			item.p = load_prop(field(o, "p"), zero(2));
-			item.size = load_prop(field(o, "s"), zero(2));
+			item.p = load_prop(ld, field(o, "p"), zero(2));
+			item.size = load_prop(ld, field(o, "s"), zero(2));
 			item.reversed = num(o, "d", 1) == 3;
 		case "sr";
 			item.kind = .Star;
-			item.star_type = cast(int) num(o, "sy", 1);
-			item.p = load_prop(field(o, "p"), zero(2));
-			item.pt = load_prop(field(o, "pt"), zero(1));
-			item.r = load_prop(field(o, "r"), zero(1));
-			item.or_ = load_prop(field(o, "or"), zero(1));
-			item.os = load_prop(field(o, "os"), zero(1));
-			item.ir = load_prop(field(o, "ir"), zero(1));
-			item.is = load_prop(field(o, "is"), zero(1));
+			item.star_type = small_int(num(o, "sy", 1));
+			item.p = load_prop(ld, field(o, "p"), zero(2));
+			item.pt = load_prop(ld, field(o, "pt"), zero(1));
+			item.r = load_prop(ld, field(o, "r"), zero(1));
+			item.or_ = load_prop(ld, field(o, "or"), zero(1));
+			item.os = load_prop(ld, field(o, "os"), zero(1));
+			item.ir = load_prop(ld, field(o, "ir"), zero(1));
+			item.is = load_prop(ld, field(o, "is"), zero(1));
 			item.reversed = num(o, "d", 1) == 3;
 		case "fl"; #through; case "st"; #through; case "gf"; #through; case "gs";
 			item.kind = ifx ty == "fl" then .Fill else ifx ty == "st" then .Stroke else ifx ty == "gf" then .Gradient_Fill else .Gradient_Stroke;
-			item.color = load_prop(field(o, "c"), DEF_ZERO);
-			item.opacity = load_prop(field(o, "o"), DEF_OPACITY);
-			item.width = load_prop(field(o, "w"), zero(1));
+			item.color = load_prop(ld, field(o, "c"), DEF_ZERO);
+			item.opacity = load_prop(ld, field(o, "o"), DEF_OPACITY);
+			item.width = load_prop(ld, field(o, "w"), zero(1));
 			item.evenodd = num(o, "r", 1) == 2;
-			item.cap = cast(int) num(o, "lc", 2);
-			item.join = cast(int) num(o, "lj", 2);
+			item.cap = small_int(num(o, "lc", 2));
+			item.join = small_int(num(o, "lj", 2));
 			item.miter = num(o, "ml", 4);
 			if ty == "gf" || ty == "gs" {
-				item.grad_type = cast(int) num(o, "t", 1);
-				item.g_start = load_prop(field(o, "s"), zero(2));
-				item.g_end = load_prop(field(o, "e"), zero(2));
-				item.g_hl = load_prop(field(o, "h"), zero(1));
-				item.g_ha = load_prop(field(o, "a"), zero(1));
+				item.grad_type = small_int(num(o, "t", 1));
+				item.g_start = load_prop(ld, field(o, "s"), zero(2));
+				item.g_end = load_prop(ld, field(o, "e"), zero(2));
+				item.g_hl = load_prop(ld, field(o, "h"), zero(1));
+				item.g_ha = load_prop(ld, field(o, "a"), zero(1));
 				go := field(o, "g");
 				if go.kind == .Map {
-					item.g_count = cast(int) num(go, "p", 0);
-					item.g_colors = load_prop(field(go, "k"));
+					item.g_count = small_int(num(go, "p", 0));
+					item.g_colors = load_prop(ld, field(go, "k"));
 				}
 			}
 		case "tm";
 			item.kind = .Trim;
-			item.t_start = load_prop(field(o, "s"), zero(1));
-			item.t_end = load_prop(field(o, "e"), DEF_OPACITY);
-			item.t_off = load_prop(field(o, "o"), zero(1));
-			item.t_mode = cast(int) num(o, "m", 1);
+			item.t_start = load_prop(ld, field(o, "s"), zero(1));
+			item.t_end = load_prop(ld, field(o, "e"), DEF_OPACITY);
+			item.t_off = load_prop(ld, field(o, "o"), zero(1));
+			item.t_mode = small_int(num(o, "m", 1));
 		case;
 			continue; // tr (handled by the group), mm, rp, ...
 		}
-		array_add(*out, item);
+		out[n] = item;
+		n += 1;
 	}
+	out.count = n;
 	return out;
 }
 
-load_layers :: (assets: *Table(string, int), arr: []Value) -> []Layer {
-	out := NewArray(arr.count, Layer);
-	for o, i: arr {
-		l := *out[i];
-		l.ty = cast(int) num(o, "ty", 3);
-		l.ind = cast(int) num(o, "ind", cast(float32) (i + 1));
+// small_int: an enum-like field as an int; 0 unless it is a number in range (cast(int) of NaN or 1e30 isn't).
+small_int :: (v: float32) -> int { return ifx abs(v) < 1.0e6 then cast(int) v else 0; }
+
+load_layers :: (ld: *Loader, arr: []Value) -> []Layer {
+	out := NewArray(room(ld, min(arr.count, MAX_LAYERS), size_of(Layer)), Layer);
+	for * l, i: out {
+		o := arr[i];
+		l.ty = small_int(num(o, "ty", 3));
+		l.ind = small_int(num(o, "ind", cast(float32) (i + 1)));
 		pv, has_parent := field(o, "parent");
-		l.parent = ifx has_parent then cast(int) value_f32(pv, -1) else -1;
+		l.parent = ifx has_parent then small_int(value_f32(pv, -1)) else -1;
 		l.ip = num(o, "ip", 0);
 		l.op = num(o, "op", 1000000000);
 		l.st = num(o, "st", 0);
 		l.sr = num(o, "sr", 1);
-		if l.sr == 0  l.sr = 1;
-		l.ks = load_transform(field(o, "ks"));
+		if !(abs(l.sr) >= 1.0e-3 && abs(l.sr) <= 1.0e3)  l.sr = 1;
+		l.ks = load_transform(ld, field(o, "ks"));
 		l.hidden = num(o, "hd", 0) == 1;
 		l.td = num(o, "td", 0) != 0;
-		l.tt = cast(int) num(o, "tt", 0);
+		l.tt = small_int(num(o, "tt", 0));
 		l.ref = -1;
 		l.w = num(o, "w", 0);
 		l.h = num(o, "h", 0);
 		ref := str(o, "refId");
 		if ref != "" {
-			found, idx := table_find(assets, ref);
+			found, idx := table_find(*ld.assets, ref);
 			if found  l.ref = idx;
 		}
 		if l.ty == 1 {
@@ -432,16 +468,18 @@ load_layers :: (assets: *Table(string, int), arr: []Value) -> []Layer {
 			l.h = num(o, "sh", 0);
 			l.solid_color = parse_hex(str(o, "sc"));
 		}
-		l.shapes = load_items(list(o, "shapes"));
+		if !(l.w >= 0 && l.w <= MAX_SIZE && l.h >= 0 && l.h <= MAX_SIZE)  l.w, l.h = 0, 0; // a precomp then takes its asset's size
+		l.shapes = load_items(ld, list(o, "shapes"));
 		masks := list(o, "masksProperties");
-		l.masks = NewArray(masks.count, Mask);
-		for m, j: masks {
+		l.masks = NewArray(room(ld, masks.count, size_of(Mask)), Mask);
+		for * mk, j: l.masks {
+			m := masks[j];
 			mode := str(m, "mode");
-			l.masks[j] = .{
+			mk.* = .{
 				mode = ifx mode.count > 0 then mode[0] else #char "a",
 				inverted = num(m, "inv", 0) == 1,
-				path = load_shape_prop(field(m, "pt")),
-				opacity = load_prop(field(m, "o"), DEF_OPACITY)
+				path = load_shape_prop(ld, field(m, "pt")),
+				opacity = load_prop(ld, field(m, "o"), DEF_OPACITY)
 			};
 		}
 	}
