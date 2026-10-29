@@ -4,9 +4,9 @@ wait 5
 history gap 2
 wait 5
 expect_visible "You're Viewing Older Messages"
-expect_not_visible "12:54\u202fAM"
+expect_not_visible "7:54\u202fAM"
 shot build/ui-jump_to_present-gap.png
 click_text "Jump To Present"
 wait 10
 expect_not_visible "You're Viewing Older Messages"
-expect_visible "12:54\u202fAM"
+expect_visible "7:54\u202fAM"
