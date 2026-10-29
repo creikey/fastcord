@@ -19,7 +19,13 @@
 // ever signalled. Stop early by creating .secrets/supervise.stop.
 
 REPO :: "/Users/creikey/Documents/fastcord";
-DISCORD_BIN :: "/Applications/Discord.app/Contents/MacOS/Discord";
+// The official app the test instances run: the installed one, or with FASTCORD_DISCORD_APP an unpacked host
+// package (e.g. .secrets/discord-host/0.0.420/files/Discord.app, from the updater's full.distro), so a capture
+// can run a host the updater hasn't given this Mac yet.
+discord_bin :: () -> string {
+    app := to_string(getenv("FASTCORD_DISCORD_APP"));
+    return tprint("%/Contents/MacOS/Discord", ifx app then app else "/Applications/Discord.app");
+}
 TREE_LIMIT :: 2560 * 1024 * 1024;  // bytes
 SYSTEM_LOW :: 1536 * 1024 * 1024;
 POLL_MS :: 3_000;
@@ -126,7 +132,7 @@ launch_instance :: (inst: Instance) -> bool {
     SCRIPT :: "(umask 077; : >>\"$1\"); exec /usr/bin/env DISCORD_USER_DATA_DIR=\"$2\" \"$3\" --multi-instance \"$4\" \"$5\" >>\"$1\" 2>&1";
     p: Process;
     ok := create_process(*p, "/bin/sh", "-c", SCRIPT, "sh", tprint("%/.secrets/discord-%.log", REPO, inst.name),
-        tprint("%/.secrets/discord-profile-%", REPO, inst.name), DISCORD_BIN, tprint("--remote-debugging-port=%", inst.port),
+        tprint("%/.secrets/discord-profile-%", REPO, inst.name), discord_bin(), tprint("--remote-debugging-port=%", inst.port),
         tprint("--log-net-log=%", netlog));
     if !ok {
         sup_log("launch % failed", inst.name);
