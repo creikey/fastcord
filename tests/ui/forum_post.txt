@@ -1,0 +1,38 @@
+# A forum on a hosted server: the search box takes a title, Enter opens the post form with it, Post makes
+# the post and opens it; back in the forum its card shows, a search that misses hides it, and Sort
+# switches to Date Posted.
+wait 5
+serve_join
+settle 3
+click 36 157
+settle 3
+click 150 58
+settle 1
+click_text "Create Channel"
+settle 1
+click_text "Forum"
+type ideas
+click_text "Create Channel"
+settle 3
+click_text "Search or create a post..."
+type Lunch plans
+key enter
+settle 1
+click_text "Enter a message to start the conversation!"
+type Where should we go?
+shot build/ui-forum_post-form.png
+click_text "Post"
+settle 3
+expect_visible "Where should we go?"
+click_text "ideas"
+settle 3
+expect_visible "Lunch plans"
+click_text "Sort: Recent Activity"
+settle 1
+expect_visible "Sort: Date Posted"
+shot build/ui-forum_post-list.png
+click_text "Search or create a post..."
+type zzz
+settle 1
+expect_visible "No posts match"
+expect_served

@@ -108,6 +108,12 @@ thread_summary_pill :: (m: *dc.Message) {
 
 // ---- forum channels ----
 
+// A forum: "Search or create a post..." filters the posts by title as you type, and New Post (or Enter)
+// opens the post form with the typed title: tags, the first message, Post. Sort (Recent Activity or
+// Date Posted) and a tag filter sit above the cards.
+FORUM_POST_TAG :: cast(u64) 1 << 62; // Thread_Create tags of forum posts, apart from the threads browser's
+FORUM_REQUIRE_TAG :: 1 << 4; // channel flag: a post needs a tag
+
 forum_view :: (ch: *dc.Channel) {
 	s := store();
 	st := find_or_add(*forums, ch.id);
@@ -115,7 +121,25 @@ forum_view :: (ch: *dc.Channel) {
 		st.requested_archived = true;
 		dc.fetch_archived_forum_threads(app.client, ch.id, 0);
 	}
-	posts := dc.forum_threads(s, ch.id);
+	all := dc.forum_threads(s, ch.id);
+	tags := dc.forum_tags(ch.id);
+	// the search, tag filter and sort, as shown
+	q := to_lower_copy(trim(ui.editor_text(*st.query)),, temp);
+	posts: [..]dc.Snowflake;
+	posts.allocator = temp;
+	for id: all {
+		th := dc.channel_get(s, id);
+		tm := dc.thread_meta(id);
+		if !th continue;
+		if q && !contains(to_lower_copy(th.name,, temp), q) continue;
+		if st.filter.count {
+			hit := false;
+			if tm for st.filter if array_find(tm.applied_tags, it) hit = true;
+			if !hit continue;
+		}
+		array_add(*posts, id);
+	}
+	if st.by_date quick_sort(posts, (a: dc.Snowflake, b: dc.Snowflake) -> s64 { return ifx a > b then -1 else ifx a < b then 1 else 0; });
 	// first messages for the cards, 10 at a time like the client
 	if app.client != null {
 		need: [..]dc.Snowflake;
@@ -128,6 +152,8 @@ forum_view :: (ch: *dc.Channel) {
 		}
 		if need.count dc.fetch_forum_posts(app.client, ch.id, need);
 	}
+	can_post := ch.guild_id == 0 || dc.has_permission(dc.channel_permissions(s, ch.id), dc.PERM_SEND_MESSAGES);
+	if dc.guild_get(s, ch.guild_id) && !dc.guild_get(s, ch.guild_id).roles.count can_post = true; // roles not known yet
 
 	list := ui.box("forum", .Scroll_Y | .Clip);
 	list.semantic_size = .[ui.fill(), ui.pct(1)];
@@ -137,33 +163,89 @@ forum_view :: (ch: *dc.Channel) {
 		spacer(.Y, 16);
 		hdr := row("forumhdr");
 		hdr.semantic_size = .[ui.pct(1), ui.px(40)];
+		submit := false;
 		{ ui.parent(hdr); defer ui.pop_parent();
 			spacer(.X, 24);
-			sb := row("newpost", .Draw_Background | .Draw_Border);
+			sb := row("newpost", .Draw_Background | .Draw_Border | .Clickable);
 			sb.semantic_size = .[ui.fill(), ui.px(40)];
 			sb.style.bg = T("--background-base-lowest");
-			sb.style.border_color = T("--border-subtle");
+			sb.style.border_color = ifx app.ui.focus == sb.key then T("--input-border-active") else T("--border-subtle");
 			sb.style.border = 1;
 			sb.style.radius = all4(8);
+			sb.hover_cursor = .IBeam;
+			if ui.signal(sb).pressed app.ui.focus = sb.key;
 			{ ui.parent(sb); defer ui.pop_parent();
 				spacer(.X, 12);
 				icon("s", "magnifying-glass", 16, T("--text-muted"));
 				spacer(.X, 8);
-				label("Search or create a post...", .Normal, 14, T("--text-muted"), 18);
+				res := text_field("q", *st.query, "Search or create a post...", app.ui.focus == sb.key && !st.creating, 14, 18, 11);
+				if res == .Submit && can_post submit = true;
+				spacer(.X, 12);
+			}
+			if can_post {
+				spacer(.X, 8);
+				nb := row("newbtn", .Clickable | .Draw_Background | .Hot_Animation);
+				nb.semantic_size = .[ui.children(), ui.px(40)];
+				nb.style.radius = all4(8);
+				nb.style.bg = T("--background-brand");
+				nb.style.bg_hot = with_alpha(T("--background-brand"), 0.85);
+				nb.hover_cursor = .Pointer;
+				{ ui.parent(nb); defer ui.pop_parent();
+					spacer(.X, 12);
+					icon("i", "chat-plus", 18, .{1, 1, 1, 1});
+					spacer(.X, 6);
+					label("New Post", .Medium, 14, .{1, 1, 1, 1}, 18);
+					spacer(.X, 12);
+				}
+				if ui.signal(nb).clicked submit = true;
 			}
 			spacer(.X, 24);
 		}
-		spacer(.Y, 16);
+		if submit && !st.creating {
+			st.creating = true;
+			ui.editor_set_text(*st.title, trim(ui.editor_text(*st.query)));
+			st.focus_body = st.title.buf.count > 0;
+			st.focus_title = !st.focus_body;
+		}
+		if st.creating forum_post_form(ch, st, tags);
+		spacer(.Y, 12);
+		// sort and the tag filter
+		bar := row("bar");
+		bar.semantic_size = .[ui.pct(1), ui.px(28)];
+		bar.style.child_gap = 6;
+		{ ui.parent(bar); defer ui.pop_parent();
+			spacer(.X, 24 - 6);
+			for t: tags {
+				on := array_find(st.filter, t.id);
+				if forum_chip(tprint("f%", t.id), t, on) {
+					if on array_unordered_remove_by_value(*st.filter, t.id);
+					else array_add(*st.filter, t.id);
+				}
+			}
+			filler(.X);
+			sort := row("sort", .Clickable | .Draw_Background | .Hot_Animation);
+			sort.semantic_size = .[ui.children(), ui.px(28)];
+			sort.style.radius = all4(8);
+			sort.style.bg_hot = T("--background-mod-subtle");
+			sort.hover_cursor = .Pointer;
+			{ ui.parent(sort); defer ui.pop_parent();
+				spacer(.X, 8);
+				label(ifx st.by_date then "Sort: Date Posted" else "Sort: Recent Activity", .Medium, 14, T("--text-default"), 18);
+				spacer(.X, 8);
+			}
+			if ui.signal(sort).clicked st.by_date = !st.by_date;
+			spacer(.X, 24 - 6);
+		}
+		spacer(.Y, 12);
 		if !posts.count {
 			r := row("empty");
 			r.semantic_size = .[ui.pct(1), ui.px(40)];
 			{ ui.parent(r); defer ui.pop_parent();
 				filler(.X);
-				label("No posts yet", .Medium, 14, T("--text-muted"), 18);
+				label(ifx all.count then "No posts match" else "No posts yet", .Medium, 14, T("--text-muted"), 18);
 				filler(.X);
 			}
 		}
-		tags := dc.forum_tags(ch.id);
 		for id: posts {
 			th := dc.channel_get(s, id);
 			if th == null continue;
@@ -175,14 +257,156 @@ forum_view :: (ch: *dc.Channel) {
 	}
 }
 
+// The new post's reply: open it, and clear the form.
+forum_post_created :: (r: *dc.Feature_Result) {
+	st := table_find_pointer(*forums, r.channel_id);
+	if !st || r.tag != st.tag return;
+	st.busy = false;
+	app.ui.animating = true;
+	if !r.ok {
+		free(st.error);
+		st.error = copy_string(ifx dc.api_error_message(r.body) then dc.api_error_message(r.body) else "Something went wrong. Try again.");
+		return;
+	}
+	id := dc.apply_created_thread(app.client, r.body);
+	ch := dc.channel_get(store(), id);
+	st.creating = false;
+	ui.editor_set_text(*st.query, ""); ui.editor_set_text(*st.title, ""); ui.editor_set_text(*st.body, "");
+	st.tags.count = 0;
+	if ch select_channel(ch.guild_id, id);
+}
+
 #scope_file
+
 
 Forum_State :: struct {
 	requested_archived: bool;
 	requested_posts: Table(dc.Snowflake, bool);
+	query: ui.Editor; // the search box, also the new post's title
+	filter: [..]dc.Snowflake; // tags shown (any of them); none: all
+	by_date: bool; // Date Posted, else Recent Activity
+	creating: bool;
+	title, body: ui.Editor;
+	tags: [..]dc.Snowflake; // the new post's
+	focus_title, focus_body: bool;
+	busy: bool;
+	tag: u64;
+	error: string;
 }
 
 forums: Table(dc.Snowflake, Forum_State);
+
+// A tag chip: its emoji and name, filled while on.
+forum_chip :: (id: string, t: dc.Forum_Tag, on: bool) -> bool {
+	chip := row(id, .Clickable | .Draw_Background | .Draw_Border | .Hot_Animation);
+	chip.semantic_size = .[ui.children(), ui.px(28)];
+	chip.style.radius = all4(14);
+	chip.style.border = 1;
+	chip.style.border_color = ifx on then T("--background-brand") else T("--border-subtle");
+	chip.style.bg = ifx on then with_alpha(T("--background-brand"), 0.2) else .{};
+	chip.style.bg_hot = T("--background-mod-subtle");
+	chip.hover_cursor = .Pointer;
+	{ ui.parent(chip); defer ui.pop_parent();
+		spacer(.X, 10);
+		if t.emoji_name { label(t.emoji_name, .Medium, 14, T("--text-default"), 18); spacer(.X, 4); }
+		label(t.name, .Medium, 14, ifx on then T("--text-strong") else T("--text-default"), 18);
+		spacer(.X, 10);
+	}
+	return ui.signal(chip).clicked;
+}
+
+MAX_POST_TAGS :: 5;
+
+forum_post_form :: (ch: *dc.Channel, st: *Forum_State, tags: []dc.Forum_Tag) {
+	spacer(.Y, 12);
+	outer := row("postform");
+	outer.semantic_size = .[ui.pct(1), ui.children()];
+	ui.parent(outer); defer ui.pop_parent();
+	spacer(.X, 24);
+	card := ui.box("card", .Draw_Background | .Draw_Border);
+	card.semantic_size = .[ui.fill(), ui.children()];
+	card.layout_axis = .Y;
+	card.style.bg = T("--card-background-default");
+	card.style.border_color = T("--card-border-default");
+	card.style.border = 1;
+	card.style.radius = all4(8);
+	spacer(.X, 24);
+	ui.parent(card); defer ui.pop_parent();
+	inset_begin(16, 16);
+	defer inset_end(16, 16);
+	field :: (id: string, ed: *ui.Editor, placeholder: string, focus: *bool, size: float32) -> ui.Edit_Result {
+		b := row(id, .Draw_Background | .Draw_Border | .Clickable);
+		b.semantic_size = .[ui.pct(1), ui.children()];
+		b.style.bg = T("--input-background-default");
+		b.style.border_color = ifx app.ui.focus == b.key then T("--input-border-active") else T("--input-border-default");
+		b.style.border = 1;
+		b.style.radius = all4(8);
+		b.hover_cursor = .IBeam;
+		if ui.signal(b).pressed || focus.* app.ui.focus = b.key;
+		focus.* = false;
+		ui.parent(b); defer ui.pop_parent();
+		spacer(.X, 12);
+		res := text_field("f", ed, placeholder, app.ui.focus == b.key, size, size + 4, 9);
+		spacer(.X, 12);
+		return res;
+	}
+	r1 := field("title", *st.title, "Post title", *st.focus_title, 16);
+	t := ui.editor_text(*st.title);
+	cut := cut_runes(t, 100);
+	if cut.count < t.count ui.editor_set_text(*st.title, copy_string(cut,, temp));
+	if tags.count {
+		spacer(.Y, 12);
+		need := (ch.flags & FORUM_REQUIRE_TAG) != 0;
+		label(ifx need then "Tags (pick at least one)" else "Tags", .Semibold, 12, T("--text-muted"), 16);
+		spacer(.Y, 6);
+		tr := row("tags");
+		tr.semantic_size = .[ui.pct(1), ui.px(28)];
+		tr.style.child_gap = 6;
+		ui.parent(tr); defer ui.pop_parent();
+		for tg: tags {
+			on := array_find(st.tags, tg.id);
+			if forum_chip(tprint("t%", tg.id), tg, on) {
+				if on array_unordered_remove_by_value(*st.tags, tg.id);
+				else if st.tags.count < MAX_POST_TAGS array_add(*st.tags, tg.id);
+			}
+		}
+	}
+	spacer(.Y, 12);
+	r2 := field("body", *st.body, "Enter a message to start the conversation!", *st.focus_body, 16);
+	if (r1 == .Changed || r2 == .Changed) && app.client != null && net_action() dc.typing_keystroke(app.client, ch.id);
+	if st.error {
+		spacer(.Y, 8);
+		label(st.error, .Normal, 14, T("--text-feedback-critical"), 18);
+	}
+	spacer(.Y, 12);
+	title := trim(ui.editor_text(*st.title));
+	body := trim(ui.editor_text(*st.body));
+	ok := title != "" && body != "" && !st.busy && (!(ch.flags & FORUM_REQUIRE_TAG) || st.tags.count > 0 || !tags.count);
+	btns := row("btns");
+	btns.semantic_size = .[ui.pct(1), ui.px(36)];
+	btns.style.child_gap = 8;
+	ui.parent(btns); defer ui.pop_parent();
+	filler(.X);
+	cancel := row("cancel", .Clickable | .Draw_Background | .Hot_Animation);
+	cancel.semantic_size = .[ui.children(), ui.px(36)];
+	cancel.style.radius = all4(8);
+	cancel.style.bg_hot = T("--background-mod-subtle");
+	{ ui.parent(cancel); defer ui.pop_parent(); spacer(.X, 12); label("Cancel", .Medium, 14, T("--text-default"), 18); spacer(.X, 12); }
+	if ui.signal(cancel).clicked st.creating = false; // what was typed stays for the next New Post
+	go := row("post", ifx ok then .Clickable | .Draw_Background | .Hot_Animation else .Draw_Background);
+	go.semantic_size = .[ui.children(), ui.px(36)];
+	go.style.radius = all4(8);
+	go.style.bg = ifx ok then T("--background-brand") else with_alpha(T("--background-brand"), 0.5);
+	go.style.bg_hot = with_alpha(T("--background-brand"), 0.85);
+	{ ui.parent(go); defer ui.pop_parent(); spacer(.X, 16); label(ifx st.busy then "Posting..." else "Post", .Medium, 14, .{1, 1, 1, 1}, 18); spacer(.X, 16); }
+	if ok && (ui.signal(go).clicked || r1 == .Submit || r2 == .Submit) && net_action() {
+		st.busy = true;
+		st.tag = FORUM_POST_TAG | (st.tag + 1);
+		free(st.error);
+		st.error = "";
+		dc.create_forum_post(app.client, ch.id, title, mentions_convert(emoji_convert_shortcodes(body, ch.id), ch), st.tags, st.tag);
+	}
+}
 
 forum_card :: (forum: *dc.Channel, th: *dc.Channel, tags: []dc.Forum_Tag) {
 	tm := dc.thread_meta(th.id);

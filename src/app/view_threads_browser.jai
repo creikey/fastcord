@@ -71,7 +71,8 @@ thread_from_message :: (m: *dc.Message, anchor: ui.Rect) {
 
 threads_browser_receive :: (r: *dc.Feature_Result) {
 	if r.op == .Thread_Create {
-		thread_created(r);
+		if r.tag & FORUM_POST_TAG forum_post_created(r); // view_threads.jai
+		else thread_created(r);
 		return;
 	}
 	if r.channel_id != tb.channel return;

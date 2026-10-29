@@ -74,6 +74,27 @@ create_thread :: (c: *Client, parent_id: Snowflake, name: string, location := "T
 	f_submit(c, .{op = .Thread_Create, tag = tag, channel_id = parent_id, method = "POST", path = ifx message_id then channel_path(parent_id, "/messages/", snowflake_string(message_id), "/threads") else channel_path(parent_id, "/threads"), body = json_string(*w)});
 }
 
+// create_forum_post: a forum's new post, POST /channels/{forum}/threads {name, auto_archive_duration,
+// applied_tags, message: {content}}; the reply is the post (a thread whose starter message shares its ID).
+// No capture yet (traffic/CLIENT_RULES.md "Forum posts").
+create_forum_post :: (c: *Client, forum_id: Snowflake, name: string, content: string, tags: []Snowflake, tag: u64) {
+	w: Json;
+	json_init(*w);
+	json_obj(*w);
+	json_kstr(*w, "name", name);
+	json_kint(*w, "auto_archive_duration", 4320);
+	json_key(*w, "applied_tags");
+	json_arr(*w);
+	for tags json_snowflake(*w, it);
+	json_arr_end(*w);
+	json_key(*w, "message");
+	json_obj(*w);
+	json_kstr(*w, "content", content);
+	json_obj_end(*w);
+	json_obj_end(*w);
+	f_submit(c, .{op = .Thread_Create, tag = tag, channel_id = forum_id, method = "POST", path = channel_path(forum_id, "/threads"), body = json_string(*w)});
+}
+
 // apply_created_thread puts the created thread (POST reply) into the store,
 // ahead of its THREAD_CREATE, and returns its id.
 apply_created_thread :: (c: *Client, body: V) -> Snowflake {
