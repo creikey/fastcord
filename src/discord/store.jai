@@ -781,6 +781,40 @@ upsert_message :: (s: *Store, m: etf.Map) -> Snowflake {
 
 // ---- presence / voice / misc ----
 
+free_presence :: (s: *Store, p: *Presence) {
+	a := s.allocator;
+	free_str(p.activity, a);
+	free_str(p.custom, a);
+	free_str(p.game, a);
+	r := *p.rich;
+	for string.[r.name, r.details, r.state, r.large_image, r.large_text, r.small_image, r.small_text, r.sync_id] free_str(it, a);
+}
+
+// parse_activity: one rich presence activity, every string capped (another user's, so untrusted).
+parse_activity :: (s: *Store, m: etf.Map) -> Activity {
+	str :: (m: etf.Map, k: string) -> string #expand {
+		v := fstr(m, k);
+		if v.count > 128 {
+			v.count = 128;
+			while v.count > 0 && (v.data[v.count] & 0xC0) == 0x80 v.count -= 1; // on a UTF-8 boundary
+		}
+		return clone_str(v, `s.allocator);
+	}
+	ts := fmap(m, "timestamps");
+	as := fmap(m, "assets");
+	size := flist(fmap(m, "party"), "size");
+	return .{
+		kind = fint(m, "type"),
+		name = str(m, "name"), details = str(m, "details"), state = str(m, "state"),
+		app_id = fsnow(m, "application_id"),
+		start_ms = fint(ts, "start"), end_ms = fint(ts, "end"),
+		large_image = str(as, "large_image"), large_text = str(as, "large_text"),
+		small_image = str(as, "small_image"), small_text = str(as, "small_text"),
+		party = .[ifx size.count == 2 then clamp(vint(size[0]), 0, 1_000_000) else 0, ifx size.count == 2 then clamp(vint(size[1]), 0, 1_000_000) else 0],
+		sync_id = str(m, "sync_id"),
+	};
+}
+
 apply_presence :: (s: *Store, m: etf.Map, user_hint: Snowflake = 0) {
 	uid := user_hint;
 	um := fmap(m, "user");
@@ -799,9 +833,10 @@ apply_presence :: (s: *Store, m: etf.Map, user_hint: Snowflake = 0) {
 		p.web = status_from_string(fstr(cs, "web"));
 	}
 	old := table_find_pointer(*s.presences, uid);
-	if old { free_str(old.activity, s.allocator); free_str(old.custom, s.allocator); free_str(old.game, s.allocator); }
+	if old free_presence(s, old);
 	for flist(m, "activities") {
 		am := vmap(it);
+		if fint(am, "type") != 4 && p.rich.kind < 0 && fint(am, "type") >= 0 && fint(am, "type") <= 5 p.rich = parse_activity(s, am);
 		if it_index < 8 p.activity_types |= cast(u32) ((fint(am, "type") + 1) & 0xF) << (4 * it_index);
 		txt := ifx fint(am, "type") == 4 then fstr(am, "state") else fstr(am, "name");
 		if txt && !p.activity p.activity = clone_str(txt, s.allocator);
@@ -1784,7 +1819,7 @@ store_reset_session :: (s: *Store) {
 		deinit(gm);
 	}
 	table_reset(*s.members);
-	for s.presences { free_str(it.activity, a); free_str(it.custom, a); free_str(it.game, a); }
+	for * s.presences free_presence(s, it);
 	table_reset(*s.presences);
 	for s.relationships {
 		free_str(it.nickname, a);

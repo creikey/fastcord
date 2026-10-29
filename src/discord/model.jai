@@ -297,6 +297,18 @@ Presence :: struct {
 	custom: string; // the custom status (type 4): its unicode emoji, a space, its text; "" for none
 	activity_types: u32; // each activity's type + 1, a nibble each in order (user_profile_action)
 	game: string; // the first activity that isn't a custom status, as a line: "Playing X", "Listening to Spotify"
+	rich: Activity; // that activity in full, for the profile's rich presence card (kind -1: none)
+}
+
+// A presence's activity (rich presence): strings in the store allocator, each capped at 128 bytes.
+Activity :: struct {
+	kind := -1; // 0 playing, 1 streaming, 2 listening, 3 watching, 5 competing
+	name, details, state: string;
+	app_id: Snowflake;
+	start_ms, end_ms: s64; // timestamps (unix ms, 0 = none)
+	large_image, large_text, small_image, small_text: string; // asset keys: an app asset id, "mp:...", "spotify:..."
+	party: [2]int; // size: current, max (0 = none)
+	sync_id: string; // Spotify's track id
 }
 
 Read_State :: struct {
