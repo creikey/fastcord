@@ -867,7 +867,6 @@ skin_tone_menu :: () {
 			if sig.clicked {
 				saved = t;
 				ev.tone_open = false;
-				frecency_save();
 			}
 		}
 	}

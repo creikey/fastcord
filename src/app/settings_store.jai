@@ -85,6 +85,7 @@ Persisted :: struct {
 	hosted_names: Table(string, string); // self-hosted server ID (hex) -> its name, shown while it is down
 	drafts: Table(string, string); // channel -> unsent composer text, kept across restarts (not encrypted DMs')
 	keybinds: []Persisted_Keybind; // Settings > Keybinds (keybinds.jai)
+	expressions: Persisted_Expressions; // the pickers' skin tone, favourite emoji and use counts (pickers_data.jai)
 }
 
 DRAFTS_MAX :: 100;
@@ -323,6 +324,7 @@ apply_persisted :: (p: *Persisted) {
 	app.view.hide_members = p.members_hidden;
 	app.view.hide_dm_profile = p.dm_profile_hidden;
 	hosted_restore(p.hosted_servers, *p.hosted_names);
+	frecency_restore(p.expressions, st.dir);
 	pw := p.window;
 	if pw.width > 0 && pw.height > 0 platform.window_placement_restore(.{xx pw.x, xx pw.y, xx pw.width, xx pw.height, pw.maximized});
 	if p.sidebar_width > 0 app.view.sidebar_w = clamp(p.sidebar_width, SIDEBAR_MIN_W, SIDEBAR_MAX_W);
@@ -385,6 +387,7 @@ snapshot :: () -> string {
 		table_set(*p.drafts, tprint("%", cast(u64) cid), text);
 	}
 	p.keybinds = keybinds_snapshot();
+	p.expressions = frecency_snapshot();
 	wp, ok := platform.window_placement();
 	if ok p.window = .{wp.x, wp.y, wp.width, wp.height, wp.maximized};
 	return marshal_pretty(p);

@@ -6,7 +6,6 @@ expr_client :: () -> *dc.Client { return ifx on_hosted() then app.discord else a
 
 pickers_first_open :: () {
 	emoji_db_load();
-	frecency_load_local();
 	c := expr_client();
 	if c == null return;
 	// FrecencyUserSettings are loaded lazily (loadIfNecessary) when a picker needs them.

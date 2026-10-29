@@ -132,10 +132,8 @@ Frecency :: struct {
 	favorite_stickers: [..]dc.Snowflake;
 	favorite_gifs: [..]dc.Favorite_Gif;
 	skin_tone: int; // 0 = default yellow, 1..5
-	loaded_local: bool;
 	loaded_server: bool;
 	remote_seen: int; // the store's frecency.remote this was last merged with
-	dirty: bool;
 }
 
 frecency: Frecency;
@@ -156,8 +154,6 @@ frec_use :: (m: *Table(string, Frec_Entry), key: string) {
 	if e.recent.count > FRECENCY_MAX_RECENT array_ordered_remove_by_index(*e.recent, 0);
 	// the library's copy is what the server gets (settings-proto/2)
 	if app.client != null dc.frecency_use(app.client, ifx m == *frecency.reaction then .Reaction else ifx m == *frecency.sticker then .Sticker else .Emoji, key);
-	frecency.dirty = true;
-	frecency_save();
 }
 
 // frec_key_of: the frecency key of an emoji sent or reacted with: a custom emoji's id, else the unicode
@@ -242,12 +238,26 @@ frec_score_of :: (m: *Table(string, Frec_Entry), key: string) -> float64 {
 	return ifx e then frec_score(e.*, dc.now_ms()) else 0;
 }
 
-// Local persistence (offline / fixture runs never touch the file).
-frecency_load_local :: () {
-	if frecency.loaded_local return;
-	frecency.loaded_local = true;
-	if app.client == null return;
-	text, ok := read_entire_file(frecency_path(), log_errors = false,, temp);
+// Local persistence, in settings.json (offline / fixture runs never load or save it).
+Persisted_Expressions :: struct {
+	skin_tone: int;
+	favorite_emojis: []string;
+	uses: []Persisted_Frec;
+}
+Persisted_Frec :: struct { kind: string; key: string; total: int; recent: []s64; } // kind: emoji, reaction, sticker
+
+frecency_restore :: (p: Persisted_Expressions, dir: string) {
+	frecency.skin_tone = p.skin_tone;
+	for p.favorite_emojis array_add(*frecency.favorite_emojis, copy_string(it));
+	for p.uses {
+		m := ifx it.kind == "reaction" then *frecency.reaction else ifx it.kind == "sticker" then *frecency.sticker else *frecency.emoji;
+		if table_contains(m, it.key) || it.recent.count > FRECENCY_MAX_RECENT continue;
+		e := table_add(m, copy_string(it.key), .{total = it.total});
+		array_copy(*e.recent, it.recent);
+	}
+	// before settings.json kept them: <state>/expressions.txt, read once and removed
+	old := tprint("%/expressions.txt", dir);
+	text, ok := read_entire_file(old, log_errors = false,, temp);
 	if !ok return;
 	for line: split(text, "\n",, temp) {
 		f := split(trim_right(line, "\r"), "\t",, temp);
@@ -256,41 +266,32 @@ frecency_load_local :: () {
 		case "tone";
 			frecency.skin_tone = string_to_int(f[1]);
 		case "fav_emoji";
-			array_add(*frecency.favorite_emojis, copy_string(f[1]));
+			if !array_find(frecency.favorite_emojis, f[1]) array_add(*frecency.favorite_emojis, copy_string(f[1]));
 		case "emoji"; #through;
 		case "reaction"; #through;
 		case "sticker";
 			if f.count < 3 continue;
 			m := ifx f[0] == "reaction" then *frecency.reaction else ifx f[0] == "sticker" then *frecency.sticker else *frecency.emoji;
-			e: Frec_Entry;
-			e.total = string_to_int(f[2]);
+			if table_contains(m, f[1]) continue;
+			e := table_add(m, copy_string(f[1]), .{total = string_to_int(f[2])});
 			for array_view(f, 3) {
 				v, ok, rest := string_to_int(it, T = s64);
-				if ok && !rest array_add(*e.recent, v);
+				if ok && !rest && e.recent.count < FRECENCY_MAX_RECENT array_add(*e.recent, v);
 			}
-			if !table_contains(m, f[1]) table_add(m, copy_string(f[1]), e);
 		}
 	}
+	file_delete(old);
 }
 
-frecency_save :: () {
-	if app.client == null return;
-	sb: String_Builder;
-	sb.allocator = temp;
-	print_to_builder(*sb, "tone\t%\n", frecency.skin_tone);
-	for frecency.favorite_emojis print_to_builder(*sb, "fav_emoji\t%\n", it);
-	write_map :: (sb: *String_Builder, kind: string, m: Table(string, Frec_Entry)) {
-		for e, k: m {
-			print_to_builder(sb, "%\t%\t%", kind, k, e.total);
-			for e.recent print_to_builder(sb, "\t%", it);
-			append(sb, "\n");
-		}
+frecency_snapshot :: () -> Persisted_Expressions { // in temp
+	uses: [..]Persisted_Frec;
+	add :: (uses: *[..]Persisted_Frec, kind: string, m: Table(string, Frec_Entry)) {
+		for e, k: m array_add(uses, .{kind, k, e.total, e.recent});
 	}
-	write_map(*sb, "emoji", frecency.emoji);
-	write_map(*sb, "reaction", frecency.reaction);
-	write_map(*sb, "sticker", frecency.sticker);
-	write_entire_file(frecency_path(), *sb);
-	frecency.dirty = false;
+	add(*uses, "emoji", frecency.emoji);
+	add(*uses, "reaction", frecency.reaction);
+	add(*uses, "sticker", frecency.sticker);
+	return .{frecency.skin_tone, frecency.favorite_emojis, uses};
 }
 
 // Merge GET /users/@me/settings-proto/2 into the local tables (max of counts, union of uses). Another
@@ -342,4 +343,3 @@ frec_weight :: (age_ms: s64) -> float64 {
 	return 0;
 }
 
-frecency_path :: () -> string { return tprint("%/expressions.txt", app_state_dir()); }
