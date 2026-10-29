@@ -1373,6 +1373,26 @@ member_list_hostile :: (t: *T) {
 	expect_value(t, ifx ml then ml.items.count else 0, 2);
 }
 
+// A list that shrinks drops its tail: one of two members comes online, so the Offline header leaves and
+// the SYNC is one row shorter. The old last row stayed and showed as a duplicate (self-hosted servers).
+member_list_shrinks :: (t: *T) {
+	run: Replay_Run;
+	if !replay_begin(*run, t, "add_reaction", R_GUILD, R_TEXT) { return; }
+	defer replay_end(*run);
+	s := *run.c.store;
+	a :: "{\"member\":{\"user\":{\"id\":\"5\",\"username\":\"a\"}}}";
+	b :: "{\"member\":{\"user\":{\"id\":\"6\",\"username\":\"b\"}}}";
+	for string.[
+		tprint("\"groups\":[{\"id\":\"online\",\"count\":1},{\"id\":\"offline\",\"count\":1}],\"ops\":[{\"op\":\"SYNC\",\"range\":[0,3],\"items\":[{\"group\":{\"id\":\"online\",\"count\":1}},%,{\"group\":{\"id\":\"offline\",\"count\":1}},%]}]", a, b),
+		tprint("\"groups\":[{\"id\":\"online\",\"count\":2},{\"id\":\"offline\",\"count\":0}],\"ops\":[{\"op\":\"SYNC\",\"range\":[0,2],\"items\":[{\"group\":{\"id\":\"online\",\"count\":2}},%,%]}]", a, b),
+	] {
+		v, _ := etf.from_json(tprint("{\"guild_id\":\"%\",\"id\":\"everyone\",%}", R_GUILD, it),, temp);
+		apply_member_list_update(s, v.map);
+	}
+	ml := member_list_get(s, R_GUILD);
+	expect_value(t, ifx ml then ml.items.count else 0, 3);
+}
+
 history_gap :: (t: *T) {
 	run: Replay_Run;
 	if !replay_begin(*run, t, "add_reaction", R_GUILD, R_TEXT) { return; }
