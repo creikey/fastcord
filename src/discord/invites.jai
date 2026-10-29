@@ -60,18 +60,27 @@ invite_call :: (c: *Client, method: string, path: string, body: string, context_
 	return res;
 }
 
-// invite_body: the createInvite body for a modal open (key order as sent).
-invite_body :: (c: *Client, channel_id: Snowflake, location: string, max_age := INVITE_MAX_AGE) -> string {
+// The invite modal's Edit invite link: Expire After (seconds, 0 = never), Max Number of Uses (0 = no
+// limit) and Grant temporary membership.
+Invite_Settings :: struct {
+	max_age := INVITE_MAX_AGE;
+	max_uses: int;
+	temporary: bool;
+}
+
+// invite_body: the createInvite body for a modal open (key order as sent). fresh: Generate a New Link,
+// which asks for a new code ("validate": null) with the edited settings.
+invite_body :: (c: *Client, channel_id: Snowflake, location: string, settings := Invite_Settings.{}, fresh := false) -> string {
 	w: Json;
 	json_init(*w);
 	json_obj(*w);
-	code := invite_code_for(c, channel_id);
+	code := ifx fresh then "" else invite_code_for(c, channel_id);
 	if code json_kstr(*w, "validate", code); else json_knull(*w, "validate");
-	json_kint(*w, "max_age", max_age);
-	json_kint(*w, "max_uses", 0);
+	json_kint(*w, "max_age", settings.max_age);
+	json_kint(*w, "max_uses", settings.max_uses);
 	if location == INVITE_LOC_CHANNELS json_knull(*w, "target_user_id");
 	json_knull(*w, "target_type");
-	json_kbool(*w, "temporary", false);
+	json_kbool(*w, "temporary", settings.temporary);
 	json_kint(*w, "flags", 0);
 	json_obj_end(*w);
 	return json_string(*w);
@@ -106,11 +115,11 @@ create_invite :: (c: *Client, channel_id: Snowflake, location := INVITE_LOC_HEAD
 
 // create_invite_async: create_invite on the client's workers; a Rest_Result
 // {op = .Invite, channel_id, tag} follows, and invite_code_for has the code.
-create_invite_async :: (c: *Client, channel_id: Snowflake, location := INVITE_LOC_HEADER, tag: u64 = 0) {
+create_invite_async :: (c: *Client, channel_id: Snowflake, location := INVITE_LOC_HEADER, tag: u64 = 0, settings := Invite_Settings.{}, fresh := false) {
 	j := job_new(.Api, .None);
 	j.method = "POST";
 	j.path = job_str(j, channel_path(channel_id, "/invites"));
-	j.body = cast([]u8) job_str(j, invite_body(c, channel_id, location));
+	j.body = cast([]u8) job_str(j, invite_body(c, channel_id, location, settings, fresh));
 	j.content_type = "application/json";
 	j.context_b64 = job_str(j, context_location(location));
 	j.retries = 2;

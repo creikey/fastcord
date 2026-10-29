@@ -1,0 +1,23 @@
+# Runs on chat.jsonl. The invite modal's "Edit invite link." opens Expire After, Max Number of Uses and
+# Grant temporary membership; Generate a New Link asks for a new code with them and the footer says so.
+wait 5
+click 349 57
+wait 10
+expect_visible "Invite friends to Dingus Battle"
+expect_visible "Your invite link expires in 30 days."
+click_text "Edit invite link."
+wait 5
+expect_visible "EXPIRE AFTER"
+click_text "30 days"
+wait 5
+click_text "1 hour"
+wait 5
+click_text "No limit"
+wait 5
+click_text "5 uses"
+wait 5
+shot build/ui-invite_edit.png
+click_text "Generate a New Link"
+wait 5
+expect_visible "Your invite link expires in 1 hour, or after 5 uses."
+shot build/ui-invite_edit-done.png

@@ -72,6 +72,7 @@ invite_open :: (gid: dc.Snowflake, cid: dc.Snowflake, location: string) {
 	gm.inv_failed = false;
 	gm.inv_tag += 1;
 	gm.inv_loading = false;
+	gm.inv_settings, gm.inv_edit = .{}, false;
 	if net_action() {
 		gm.inv_loading = ch != 0;
 		dc.open_invite_modal(app.client, gid, ch, location, gm.inv_tag);
@@ -369,6 +370,10 @@ Guild_Menu_State :: struct {
 	inv_copied: bool;
 	inv_code: [64]u8;
 	inv_code_len: int;
+	inv_settings: dc.Invite_Settings; // the link's (the footer says them)
+	inv_edit: bool; // Edit invite link's form, with its picks below
+	inv_age, inv_uses: int; // indexes into INV_AGES / INV_USES
+	inv_temp: bool;
 	// channel bell popout
 	bell_channel: dc.Snowflake;
 	bell_anchor: ui.Rect;
@@ -1140,7 +1145,7 @@ invite_modal :: () {
 	scrim.semantic_size = .[ui.px(app.ui.window.x), ui.px(app.ui.window.y)];
 	scrim.style.bg = .{0, 0, 0, 0.7};
 	esc := escape_pressed();
-	if ui.signal(scrim).clicked || esc {
+	if (ui.signal(scrim).clicked || esc) && !select_is_open() {
 		if esc && app.client != null dc.escape_shortcut_used(app.client);
 		gm.inv_guild = 0;
 		return;
@@ -1183,6 +1188,13 @@ invite_modal :: () {
 			}
 		}
 		spacer(.Y, 20);
+		if gm.inv_edit {
+			invite_edit_form(W, PAD);
+			spacer(.Y, 20);
+		}
+	}
+	if gm.inv_edit { if select_is_open() dropdown_list(); return; } // the selects' option lists (view_server_settings.jai)
+	{ ui.parent(d); defer ui.pop_parent();
 		lr := row("lbl");
 		lr.semantic_size = .[ui.pct(1), ui.px(18)];
 		{ ui.parent(lr); defer ui.pop_parent();
@@ -1240,10 +1252,88 @@ invite_modal :: () {
 		ft.semantic_size = .[ui.pct(1), ui.px(16)];
 		{ ui.parent(ft); defer ui.pop_parent();
 			spacer(.X, PAD);
-			label("Your invite link expires in 30 days.", .Normal, 12, T("--text-muted"), 16);
+			label(invite_expiry_text(gm.inv_settings), .Normal, 12, T("--text-muted"), 16);
+			spacer(.X, 4);
+			ed := label("Edit invite link.", .Medium, 12, T("--text-link"), 16);
+			ed.flags |= .Clickable;
+			ed.hover_cursor = .Pointer;
+			if ui.signal(ed).clicked && gm.inv_channel {
+				gm.inv_edit = true;
+				gm.inv_age, gm.inv_uses, gm.inv_temp = 0, 0, gm.inv_settings.temporary;
+				for INV_AGES if it == gm.inv_settings.max_age gm.inv_age = it_index;
+				for INV_USES if it == gm.inv_settings.max_uses gm.inv_uses = it_index;
+			}
 		}
 		spacer(.Y, 20);
 	}
+}
+
+INV_AGES :: int.[1800, 3600, 21600, 43200, 86400, 604800, 2592000, 0]; // Expire After, seconds (0 = never)
+INV_AGE_NAMES :: string.["30 minutes", "1 hour", "6 hours", "12 hours", "1 day", "7 days", "30 days", "Never"];
+INV_USES :: int.[0, 1, 5, 10, 25, 50, 100]; // Max Number of Uses (0 = no limit)
+INV_USE_NAMES :: string.["No limit", "1 use", "5 uses", "10 uses", "25 uses", "50 uses", "100 uses"];
+
+// The footer, as the client words it: "expires in 7 days", "... in 1 hour, or after 5 uses", "never expire".
+invite_expiry_text :: (st: dc.Invite_Settings) -> string {
+	uses := ifx st.max_uses == 1 then "1 use" else tprint("% uses", st.max_uses);
+	if st.max_age == 0 return ifx st.max_uses then tprint("Your invite link expires after %.", uses) else "Your invite link will never expire.";
+	when := ifx st.max_age < 3600 then "30 minutes" else ifx st.max_age < 86400 then tprint("% hour%", st.max_age / 3600, ifx st.max_age < 7200 then "" else "s") else tprint("% day%", st.max_age / 86400, ifx st.max_age < 172800 then "" else "s");
+	return ifx st.max_uses then tprint("Your invite link expires in %, or after %.", when, uses) else tprint("Your invite link expires in %.", when);
+}
+
+// Edit invite link: Expire After, Max Number of Uses, Grant temporary membership; Generate a New Link asks
+// for a new code with them ("validate": null).
+invite_edit_form :: (W: float32, PAD: float32) {
+	field :: (id: string, title: string, names: []string, current: int, PAD: float32) -> int {
+		t := row(tprint("%_t", id));
+		t.semantic_size = .[ui.pct(1), ui.px(16)];
+		{ ui.parent(t); defer ui.pop_parent(); spacer(.X, PAD); label(title, .Bold, 12, T("--text-muted"), 16); }
+		spacer(.Y, 8);
+		r := row(tprint("%_r", id));
+		r.semantic_size = .[ui.pct(1), ui.px(40)];
+		ui.parent(r); defer ui.pop_parent();
+		spacer(.X, PAD);
+		f := ui.box("f");
+		f.semantic_size = .[ui.fill(), ui.px(40)];
+		f.layout_axis = .Y;
+		{ ui.parent(f); defer ui.pop_parent(); pick := select_field(id, names, current); if pick >= 0 return pick; }
+		spacer(.X, PAD);
+		return current;
+	}
+	gm.inv_age = field("inv_age", "EXPIRE AFTER", INV_AGE_NAMES, gm.inv_age, PAD);
+	spacer(.Y, 16);
+	gm.inv_uses = field("inv_uses", "MAX NUMBER OF USES", INV_USE_NAMES, gm.inv_uses, PAD);
+	spacer(.Y, 16);
+	tr := row("inv_temp");
+	tr.semantic_size = .[ui.pct(1), ui.children()];
+	{
+		ui.parent(tr); defer ui.pop_parent();
+		spacer(.X, PAD);
+		tc := ui.box("tc");
+		tc.semantic_size = .[ui.fill(), ui.children()];
+		tc.layout_axis = .Y;
+		{ ui.parent(tc); defer ui.pop_parent();
+			if set_toggle_row("inv_temp_sw", "Grant temporary membership", "Temporary members are automatically kicked when they disconnect unless a role has been assigned", gm.inv_temp) gm.inv_temp = !gm.inv_temp;
+		}
+		spacer(.X, PAD);
+	}
+	spacer(.Y, 16);
+	br := row("inv_btns");
+	br.semantic_size = .[ui.pct(1), ui.px(38)];
+	ui.parent(br); defer ui.pop_parent();
+	filler(.X);
+	if adm_button("inv_cancel", "Cancel", .Secondary) { gm.inv_edit = false; select_close(); }
+	spacer(.X, 8);
+	if adm_button("inv_gen", "Generate a New Link", .Primary) {
+		gm.inv_settings = .{max_age = INV_AGES[gm.inv_age], max_uses = INV_USES[gm.inv_uses], temporary = gm.inv_temp};
+		gm.inv_edit = false;
+		select_close();
+		gm.inv_code_len, gm.inv_copied, gm.inv_failed = 0, false, false;
+		gm.inv_tag += 1;
+		gm.inv_loading = net_action();
+		if gm.inv_loading dc.create_invite_async(app.client, gm.inv_channel, gm.inv_location, gm.inv_tag, gm.inv_settings, fresh = true);
+	}
+	spacer(.X, PAD);
 }
 
 // ---- channel header bell popout ----
