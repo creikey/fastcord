@@ -1,0 +1,13 @@
+# A join on a self-hosted server posts its join message, whose Wave to say hi! replies with a waving hand
+# (POST /channels/{id}/greet; serve has no Discord stickers).
+wait 5
+serve_join
+settle 3
+serve_member bob
+settle 3
+click 36 157
+settle 3
+click_text "Wave to say hi!"
+settle 3
+shot build/ui-hosted_greet.png
+expect_served

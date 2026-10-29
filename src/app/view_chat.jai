@@ -2201,11 +2201,12 @@ WAVE_STICKERS :: Wave_Sticker.[
 
 // Under a member's join message: "Wave to say hi!" with a sticker, which replies to the join with it
 // (hidden when the server turned off join replies, system channel flag 8, or you can't send there).
+// A hosted server has no Discord stickers: its /greet replies with a waving hand.
 wave_button :: (m: *dc.Message) {
 	s := store();
 	ch := dc.channel_get(s, m.channel_id);
 	u := dc.user_get(s, m.author_id);
-	if !ch || !ch.guild_id || on_hosted() || (u && u.bot) || composer_blocked(ch) return;
+	if !ch || !ch.guild_id || (u && u.bot) || composer_blocked(ch) return;
 	g := dc.guild_get(s, ch.guild_id);
 	if !g || (g.system_channel_flags & 8) return;
 	st := WAVE_STICKERS[(dc.snowflake_time_ms(s.me) + dc.snowflake_time_ms(m.id)) % WAVE_STICKERS.count];
@@ -2223,14 +2224,14 @@ wave_button :: (m: *dc.Message) {
 	sig := ui.signal(b);
 	{ ui.parent(b); defer ui.pop_parent();
 		spacer(.X, 12);
-		sticker_box("st", .{id = st.id, format_type = st.format}, 24, sig.hovering && app.focused);
+		if !on_hosted() sticker_box("st", .{id = st.id, format_type = st.format}, 24, sig.hovering && app.focused);
 		spacer(.X, 8);
 		label(L("Wave to say hi!"), .Medium, 14, T("--text-default"), 18);
 		spacer(.X, 12);
 	}
 	if sig.clicked && net_action() {
 		dc.greet_message(app.client, ch.guild_id, ch.id, m.id, st.id);
-		dc.track_welcome_cta(app.client, st.id, m.author_id);
+		if !on_hosted() dc.track_welcome_cta(app.client, st.id, m.author_id);
 	}
 }
 

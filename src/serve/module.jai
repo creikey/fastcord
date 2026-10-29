@@ -668,8 +668,10 @@ login :: (c: *Conn, session: *tls.Session, req: http.Request) -> bool {
 			}
 		}
 		if user && (joined || gone) {
+			// in the system channel unless Engagement turned join messages off (flag 1) or set none; a server
+			// that never set one uses its first text channel
 			welcome := snowflake(s);
-			ok := sqlite.run(s.db, tprint("INSERT INTO messages(id, channel, author, content, type) SELECT ?, id, ?, '', % FROM channels WHERE type = % ORDER BY position, id LIMIT 1;", JOINED, TEXT), welcome, user);
+			ok := sqlite.run(s.db, tprint("INSERT INTO messages(id, channel, author, content, type) SELECT ?, id, ?, '', % FROM channels WHERE type = % AND CASE WHEN EXISTS (SELECT 1 FROM meta WHERE k = 'g.system_channel_id') THEN id = (SELECT CAST(v AS INTEGER) FROM meta WHERE k = 'g.system_channel_id') AND (coalesce((SELECT CAST(v AS INTEGER) FROM meta WHERE k = 'g.system_channel_flags'), 0) & 1) = 0 ELSE 1 END ORDER BY position, id LIMIT 1;", JOINED, TEXT), welcome, user);
 			if !ok user = 0;
 			else if sqlite.changes(s.db) hello = message_locked(s, welcome, nested = false);
 		}
@@ -2263,6 +2265,7 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 	if ok && parts.count == 2 && parts[1] == "webhooks" return channel_webhooks(c, req, user, channel);
 	if ok && parts.count == 3 && parts[1] == "threads" && parts[2] == "search" && req.method == "GET" return thread_search(c, user, channel, query);
 	if ok && parts.count == 2 && parts[1] == "post-data" && req.method == "POST" return post_data(c, req, channel);
+	if ok && parts.count == 2 && parts[1] == "greet" && req.method == "POST" return greet(c, req, channel);
 	if !ok || (!typing && (parts.count < 2 || parts[1] != "messages")) return json_error(c, 404, 0, "404: Not Found");
 	if parts.count >= 3 && parts[2] == "pins" {
 		if parts.count == 3 && req.method == "GET" return list_pins(c, channel);
@@ -2908,6 +2911,33 @@ post_data :: (c: *Conn, req: http.Request, forum: s64) -> bool {
 	m := etf.map_builder(1,, temp);
 	etf.map_put(*m, "threads", etf.vmap(etf.map_done(*out)));
 	return json_reply(c, 200, etf.vmap(etf.map_done(*m)));
+}
+
+// POST /channels/{id}/greet {sticker_ids, message_reference}: a join message's "Wave to say hi!". Discord's
+// wave stickers aren't on a hosted server, so it posts a reply to the join with a waving hand, as a send
+// (same permissions and checks); not where Engagement turned join replies off (flag 8).
+greet :: (c: *Conn, req: http.Request, channel: s64) -> bool {
+	s := c.server;
+	v, err := etf.from_json(cast(string) req.body,, temp);
+	ref: etf.Value;
+	if err == .None && v.kind == .Map ref, _ = etf.map_get(v.map, "message_reference");
+	id_v: etf.Value;
+	if ref.kind == .Map id_v, _ = etf.map_get(ref.map, "message_id");
+	join, ok := string_to_int(ifx id_v.kind == .String then id_v.s else "", T = s64);
+	if !ok return json_error(c, 400, 50035, "Invalid Form Body");
+	{
+		locks.guard(*s.db_mu);
+		st := sqlite.prepare(s.db, tprint("SELECT 1 FROM messages WHERE id = ? AND channel = ? AND type = %;", JOINED));
+		sqlite.bind_all(st, join, channel);
+		ok = sqlite.step(st) == .Row;
+		sqlite.finalize(st);
+		if ok ok = (string_to_int(cast(string) meta_get(s, "g.system_channel_flags"), T = s64) & 8) == 0;
+	}
+	if !ok return json_error(c, 400, 50035, "Invalid Form Body");
+	send := req;
+	send.path = tprint("/api/v9/channels/%/messages", channel);
+	send.body = cast([]u8) tprint("{\"content\": \"👋\", \"message_reference\": {\"message_id\": \"%\"}}", join);
+	return channel_messages(c, send);
 }
 
 // POST /channels/{id}/messages/{id}/crosspost: Publish, in an announcement channel, by the author or the
