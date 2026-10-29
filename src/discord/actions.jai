@@ -45,6 +45,8 @@ select_channel :: (c: *Client, guild_id: Snowflake, channel_id: Snowflake, messa
 		l := message_list(*c.store, channel_id);
 		if !l.loaded && !l.loading fetch_messages(c, channel_id, 0, message_limit, referer = prev_referer);
 		else on_channel_page(c, channel_id, 0, false);
+		// opening a channel clears its desktop notifications before its ack (0.0.420: mark_as_read)
+		analytics_notifications_acked(c, channel_id, U64_MAX);
 		analytics_channel_opened(c, guild_id, channel_id, location = source);
 	}
 	if guild_id && guild_id != prev_guild analytics_guild_viewed(c, guild_id, channel_id);
@@ -1113,6 +1115,10 @@ voice_join :: (c: *Client, guild_id: Snowflake, channel_id: Snowflake, self_mute
 	voice_update(c, guild_id, channel_id, self_mute, self_deaf);
 	client_note_activity(c); // IdleStore VOICE_CHANNEL_SELECT
 	frecency_select(c, guild_id, channel_id); // VOICE_CHANNEL_SELECT
+	if track { // 0.0.420: a guild voice join too (join_voice_channel)
+		analytics_exposed(c, "voice call initiated");
+		analytics_exposed(c, "voice call initiated", installation = true);
+	}
 	// the voice channel's text view opens with the call
 	analytics_channel_opened(c, guild_id, channel_id, selected_guild = false);
 	if track analytics_join_voice(c, guild_id, channel_id);
@@ -1255,17 +1261,6 @@ guild_open_now :: (c: *Client, g: Snowflake) {
 	c.guild_open_promotions = false;
 }
 
-// guild_channel_notice_check: a guild text channel route rendering, for a member
-// who can manage the guild, when the guild has no system channel, loads the
-// guild's integrations (every such render: fixtures history_nav, discover,
-// threads_browser, settings, streamer_mode; never with a system channel set).
-guild_channel_notice_check :: (c: *Client, ch: *Channel) {
-	if !ch.guild_id || is_thread(ch) || (ch.kind != .Guild_Text && ch.kind != .Guild_Announcement) return;
-	g := guild_get(*c.store, ch.guild_id);
-	if !g || g.system_channel_id || (guild_permissions(*c.store, g.id) & PERM_MANAGE_GUILD) == 0 return;
-	api_get_later(c, tprint("/guilds/%/integrations?include_applications=true&include_role_connections_metadata=true", g.id), 0);
-}
-
 // on_channel_page runs when the first page of a selected channel arrives
 // (or immediately when cached): the follow-ups the official client issues
 // once the channel renders.
@@ -1273,10 +1268,6 @@ on_channel_page :: (c: *Client, channel_id: Snowflake, got: int, full: bool) {
 	_, ch := table_find(*c.store.channels, channel_id);
 	g := c.pending_guild_open;
 	if g && (ch.guild_id == g || !ch.guild_id) guild_open_now(c, g);
-	locks.lock(*c.route_mu);
-	on_route := c.route_channel == channel_id;
-	locks.unlock(*c.route_mu);
-	if on_route guild_channel_notice_check(c, *ch);
 	if full {
 		// Fill the viewport: one older page of 20.
 		msgs := messages_get(*c.store, channel_id);
@@ -1474,8 +1465,8 @@ affinities_job :: (j: *Job) {
 		defer locks.unlock(*c.job_mu);
 		a := *c.affinities;
 		a.fetching = false;
+		a.fetched_ms = now_ms(); // 0.0.420: a failure (B's 404) counts too, until the next 8 h
 		if status != 200 return;
-		a.fetched_ms = now_ms();
 		for a.users free(it.probability,, c.allocator);
 		table_reset(*a.users);
 		for flist(vmap(body), "user_affinities") {

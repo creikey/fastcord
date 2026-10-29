@@ -1,4 +1,4 @@
-// Header assembly. The orders below are the wire orders Chrome 148 produced
+// Header assembly. The orders below are the wire orders Chrome 148 and 152 produced
 // for the official client (verified with netlog captures of every REST action
 // the library performs: HTTP3_HEADERS_SENT). The interleaving of Blink- and
 // network-service-added headers is fixed per request shape, so it is encoded
@@ -22,8 +22,9 @@ Api_Headers_Input :: struct {
 	cookie: string;
 	fingerprint: string; // X-Fingerprint (logged out, once /experiments gave one)
 	// JS-set headers outside the standard set (if-none-match, cache-control,
-	// x-failed-requests, x-audit-log-reason, x-discord-original-md5 ...).
-	// Chrome places these first and moves sec-ch-ua-platform after x-installation-id.
+	// x-failed-requests, x-audit-log-reason ...). Chrome places these first and
+	// moves sec-ch-ua-platform after x-installation-id. 0.0.420 sets
+	// x-discord-original-md5 with the super properties instead: it goes after them.
 	extra: []http.Header;
 }
 
@@ -46,8 +47,11 @@ api_headers :: (p: Platform_Info, in_: Api_Headers_Input) -> []http.Header {
 	if method_sends_content_length(in_.method) || in_.has_body {
 		array_add(*h, .{"content-length", itoa(in_.body_len)});
 	}
-	if in_.extra {
-		array_add(*h, ..in_.extra);
+	late :: "x-discord-original-md5";
+	first := false;
+	for in_.extra if it.name != late first = true;
+	if first {
+		for in_.extra if it.name != late array_add(*h, it);
 		if in_.token array_add(*h, .{"authorization", in_.token});
 		if in_.installation_id array_add(*h, .{"x-installation-id", in_.installation_id});
 		array_add(*h, .{"sec-ch-ua-platform", p.sec_ch_ua_platform});
@@ -63,6 +67,7 @@ api_headers :: (p: Platform_Info, in_: Api_Headers_Input) -> []http.Header {
 	if p.timezone array_add(*h, .{"x-discord-timezone", p.timezone});
 	if in_.context_b64 array_add(*h, .{"x-context-properties", in_.context_b64});
 	if in_.super_props_b64 array_add(*h, .{"x-super-properties", in_.super_props_b64});
+	for in_.extra if it.name == late array_add(*h, it);
 	array_add(*h, .{"x-discord-locale", p.locale});
 	array_add(*h, .{"user-agent", p.browser_user_agent});
 	if in_.content_type array_add(*h, .{"content-type", in_.content_type});

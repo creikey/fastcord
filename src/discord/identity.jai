@@ -1,5 +1,5 @@
 // What the official desktop client reports about itself. Defaults are the
-// captured Discord 0.0.419 / Electron 42.11.15 / macOS 27 arm64 build.
+// captured Discord 0.0.420 / Electron 44.9.3 / macOS 27 arm64 build.
 Platform_Info :: struct {
 	os: string;
 	browser: string;
@@ -41,17 +41,17 @@ Host_Build :: struct {
 }
 
 // Pinned from captures, the fallbacks until a launch learns its install's current host (startup.jai
-// `host_manifest_loaded`, `hosts_table_loaded`). macOS: 0.0.419; Windows: 1.0.9266, read from the official
+// `host_manifest_loaded`, `hosts_table_loaded`). macOS: 0.0.420; Windows: 1.0.9266, read from the official
 // client on 2026-10-28; Linux: 1.0.167, its version from the updater and Electron from the package (no capture).
 // The web build is learnt from each launch's /app document (`app_document_loaded`).
-MAC_HOST_VERSION :: "0.0.419";
-MAC_NATIVE_BUILD :: 96312;
-MAC_ELECTRON :: "42.11.15";
-MAC_CHROME :: "148.0.7778.280";
+MAC_HOST_VERSION :: "0.0.420";
+MAC_NATIVE_BUILD :: 97026;
+MAC_ELECTRON :: "44.9.3";
+MAC_CHROME :: "152.0.7977.167";
 MAC_HOST :: Host_Build.{MAC_HOST_VERSION, MAC_NATIVE_BUILD, MAC_ELECTRON, MAC_CHROME};
 WINDOWS_HOST :: Host_Build.{"1.0.9266", 97026, "44.9.3", "152.0.7977.167"};
 LINUX_HOST :: Host_Build.{"1.0.167", 0, "44.9.3", "152.0.7977.167"};
-WEB_BUILD :: 649389; // client_build_number
+WEB_BUILD :: 653945; // client_build_number
 
 // The updater's manifest is staged per install (`install_id`); this table, which a daily GitHub workflow
 // rebuilds from each host package (tools/host_versions.py), gives a host version's Electron and Chrome.
@@ -111,7 +111,7 @@ DEFAULT_PLATFORM :: Platform_Info.{
 	os_sdk_version = "27",
 	client_build_number = WEB_BUILD,
 	native_build_number = MAC_NATIVE_BUILD,
-	sec_ch_ua = "\"Not/A)Brand\";v=\"99\", \"Chromium\";v=\"148\"",
+	sec_ch_ua = "\"Not?A_Brand\";v=\"24\", \"Chromium\";v=\"152\"",
 	sec_ch_ua_platform = "\"macOS\"",
 	accept_language = "en-US",
 	locale = "en-US",

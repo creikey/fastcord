@@ -56,7 +56,7 @@ CODECS_DESKTOP :: "[{\"name\":\"opus\",\"type\":\"audio\",\"priority\":1000,\"pa
 // Experiments from READY the client opts into (RTCConnection._chooseExperiments).
 SUPPORTED_EXPERIMENTS :: string.["fixed_keyframe_interval"];
 
-DEFAULT_USER_AGENT :: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) discord/0.0.419 Chrome/148.0.7778.280 Electron/42.11.15 Safari/537.36";
+DEFAULT_USER_AGENT :: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) discord/0.0.420 Chrome/152.0.7977.167 Electron/44.9.3 Safari/537.36";
 
 // json_str writes s as a JSON string; control bytes as \u00XX, everything else verbatim.
 json_str :: (b: *String_Builder, s: string) {

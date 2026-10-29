@@ -3,7 +3,7 @@
 // settings_pane_viewed; the first pane of an open has no origin_pane.
 //
 //   Account        build_overrides, billing/payment-sources, billing/location-info,
-//                  auth/sessions, safety-hub/@me; dismissible TINY_BRONCO_NOTICE.
+//                  auth/sessions, safety-hub/@me; dismissible PINOT_MEMBER_SETTING_NEW_BADGE, TINY_BRONCO_NOTICE.
 //                  With Streamer Mode on the page is replaced by an illustration:
 //                  no fetches, no notice.
 //   Notifications  email-settings (+ network_action_email_settings_fetch when it
@@ -69,6 +69,8 @@ settings_pane_shown :: (c: *Client, origin: Settings_Pane, dest: Settings_Pane, 
 	case .Account;
 		if !streamer_mode {
 			open_user_settings(c);
+			// 0.0.420 badges the member settings item first (fixtures settings, streamer_mode)
+			analytics_dismissible(c, "PINOT_MEMBER_SETTING_NEW_BADGE", 0, guild = true, guild_id = guild_id);
 			analytics_dismissible(c, "TINY_BRONCO_NOTICE", 0, guild = true, guild_id = guild_id);
 		}
 		settings_pane_viewed(c, origin, dest, guild_id, channel_id);

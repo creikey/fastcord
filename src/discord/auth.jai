@@ -717,7 +717,10 @@ auth_on_ready :: (c: *Client, ready: s64) -> bool {
 		}
 		j.path = job_str(j, startup_expand(c, path));
 		j.not_before = ready + e.at_ms;
-		if begins_with(e.path, "/users/@me/billing/user-offer") analytics_schedule(c, j.not_before, "fetch_user_offer_started", "\"call_location\":\"PremiumManager\"");
+		if begins_with(e.path, "/users/@me/billing/user-offer") {
+			j.on_body = user_offer_loaded;
+			analytics_schedule(c, j.not_before, "fetch_user_offer_started", "\"call_location\":\"PremiumManager\"");
+		}
 		job_submit(c, j);
 	}
 	return true;

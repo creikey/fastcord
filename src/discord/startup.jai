@@ -61,7 +61,7 @@ STARTUP_REQUESTS :: Startup_Entry.[
 	.{.Launch, 776, .Api_Get, "", "/quests/decision?placement=1&client_heartbeat_session_id={hb}&client_ad_session_id={ad}", "", .Same_Origin, "{\"connection_type\":\"unknown\"}", ALL_ROUTES, (Startup_Flag.Verified_Only), "ads decision"},
 	.{.Ready, 0, .Web_Get, "status.discord.com", "/api/v2/scheduled-maintenances/upcoming.json", "", .Same_Site, "", ALL_ROUTES, 0, ""},
 	.{.Ready, 2, .Api_Get, "", "/users/%40me/badges", "", .Same_Origin, "", ALL_ROUTES, 0, ""},
-	.{.Ready, 1, .Api_Get, "", "/users/@me/affinities/v2/users", "", .Same_Origin, "", (Route_Kind.Home), (Startup_Flag.Affinities), "when stale (a 404, as B's, never refreshes)"},
+	.{.Ready, 1, .Api_Get, "", "/users/@me/affinities/v2/users", "", .Same_Origin, "", (Route_Kind.Home), (Startup_Flag.Affinities), "when stale (8 h since the last attempt, a 404 included)"},
 	.{.Ready, 2062, .Api_Get, "", "/users/@me/affinities/v2/users", "", .Same_Origin, "", (Route_Kind.Home), (Startup_Flag.Affinities), ""},
 	.{.Ready, 2385, .Api_Get, "", "/users/@me/referrals/eligibility", "", .Same_Origin, "", (Route_Kind.Home), (Startup_Flag.Unverified_Only), "re-polled ~320 ms after the cluster"},
 	// DevTools shows both preflights first, then the requests in fetch order
@@ -243,6 +243,7 @@ schedule_startup :: (c: *Client, anchor: Startup_Anchor) {
 		if anchor == .Ready && route == .Home && e.at_ms >= 2000 j.not_before += 230;
 		// PremiumManager tracks the fetch as it starts (fixtures: batch +21-49 ms)
 		if begins_with(e.path, "/users/@me/billing/user-offer") {
+			j.on_body = user_offer_loaded;
 			analytics_schedule(c, j.not_before, "fetch_user_offer_started", "\"call_location\":\"PremiumManager\"");
 			// NotificationPermissionStore reads the OS permission in the same step; fastcord
 			// asks for it on its first notification (synthesized: enabled)

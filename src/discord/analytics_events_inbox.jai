@@ -105,6 +105,8 @@ track_thread_creation_started :: (c: *Client, channel_id: Snowflake, location: s
 	aw_channel(*w, c, channel_id, false);
 	json_kstr(*w, "location", location);
 	aw_track(c, "thread_creation_started", *w);
+	// the form opens in the channel's resizable side panel (0.0.420: fixture threads_browser)
+	analytics_exposed(c, "ChannelChatResizableSidebar", "2026-09-friends-sidebar");
 }
 
 // Back / forward: keyboard_shortcut_used (keybind only), then app_back_forward_navigated.

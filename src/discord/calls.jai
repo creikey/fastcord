@@ -41,6 +41,9 @@ calls_dispatch :: (c: *Client, name: string, data: V) {
 	case "CALL_CREATE"; #through; case "CALL_UPDATE";
 		d := vmap(data);
 		call_apply(c, d);
+		// CALL_CREATE carries the call's voice states (0.0.420's capture sent B no VOICE_STATE_UPDATE
+		// for A, who started it)
+		if name == "CALL_CREATE" for flist(d, "voice_states") apply_voice_state(*c.store, vmap(it));
 		cid := fsnow(d, "channel_id");
 		if name == "CALL_CREATE" && cid != 0 && c.social.ring_on_create == cid {
 			c.social.ring_on_create = 0;

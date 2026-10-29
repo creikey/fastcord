@@ -482,6 +482,7 @@ Frecency_State :: struct {
 	readies: u64;
 	connected: bool;
 	startup_ms, periodic_ms: s64; // drawn once, as the bundle does at module load
+	reactions_read: bool; // the UI read the reaction frecency since the last proto (frecency_reactions_shown)
 }
 
 FRECENCY_FIELD :: u32.[4, 6, 12, 13];
@@ -506,6 +507,10 @@ frecency_use :: (c: *Client, kind: Frecency_Kind, key: string) {
 	use(c, kind, key, now);
 	if kind == .Reaction use(c, .Emoji, key, now);
 }
+
+// frecency_reactions_shown: the UI read the frecent reactions (quick reactions on the hover toolbar
+// or a message menu), which computes the reaction history's frecency for the next write.
+frecency_reactions_shown :: (c: *Client) { c.store.frecency.reactions_read = true; }
 
 // frecency_select: FrecencyStore on CHANNEL_SELECT / VOICE_CHANNEL_SELECT: a channel or guild other
 // than the last selected one is a use (0: home, a DM's guild, leaving voice).
@@ -594,6 +599,7 @@ frecency_overwrite :: (f: *Frecency_State, b64: string, saved: bool, now: s64) -
 		f.pending.count = 0;
 	}
 	f.loaded = true;
+	f.reactions_read = false; // the history is reloaded uncomputed
 	free(f.proto);
 	f.proto = copy_string(b64);
 	server := frecency_maps(fs);
@@ -690,7 +696,7 @@ frecency_delta :: (f: *Frecency_State, now: s64) -> []u8 {
 	root := pb_new();
 	for * h, k: f.history {
 		if !has[k] continue;
-		if k == xx Frecency_Kind.Reaction frecency_compute_reactions(h, now);
+		if k == xx Frecency_Kind.Reaction frecency_compute_reactions(h, now, f.reactions_read);
 		m := pb_new();
 		frecency_encode_map(*m, h.*, fixed_keys = k == xx Frecency_Kind.Sticker || k == xx Frecency_Kind.Guild_Channel);
 		pb_msg(*root, FRECENCY_FIELD[k], m);
@@ -729,9 +735,11 @@ frecency_free_items :: (h: *[..]Frecency_Item) {
 }
 
 // frecency_compute_reactions: Frecency.compute of EmojiStore's reaction history (bonus 100,
-// calculateMaxTotalUse): every fixture's write carries these computed values (the reaction bar
-// reads them), while emoji and guild/channel entries go as loaded (frecency -1).
-frecency_compute_reactions :: (h: *[..]Frecency_Item, now: s64) {
+// calculateMaxTotalUse): every fixture's write carries the computed scores. Their frecency is set
+// once the UI has read the frecent reactions since the last proto (0.0.420: the hover toolbar's and
+// the context menu's quick reactions); before that it stays -1, like emoji and guild/channel entries
+// (fixture reply: a write before any hover). 0.0.419 computed it in every write.
+frecency_compute_reactions :: (h: *[..]Frecency_Item, now: s64, read: bool) {
 	max_total := 0;
 	for h.* max_total = max(max_total, it.total_uses);
 	i := 0;
@@ -746,7 +754,7 @@ frecency_compute_reactions :: (h: *[..]Frecency_Item, now: s64) {
 			score += ifx days <= 3 then 100 else ifx days <= 15 then 70 else ifx days <= 30 then 50 else ifx days <= 45 then 30 else ifx days <= 80 then 10 else 1;
 		}
 		it.score = score;
-		it.frecency = cast(int) (1000 * (cast(float64) it.total_uses / max_total * 0.2 + cast(float64) score / 1000 * 0.8));
+		if read it.frecency = cast(int) (1000 * (cast(float64) it.total_uses / max_total * 0.2 + cast(float64) score / 1000 * 0.8));
 		if score continue;
 		i -= 1;
 		free(it.key);

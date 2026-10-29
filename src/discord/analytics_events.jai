@@ -1013,7 +1013,7 @@ analytics_guild_viewed :: (c: *Client, guild_id: Snowflake, channel_id: Snowflak
 		if !ch || ch.kind == .Guild_Category || is_thread(ch) continue;
 		perms := channel_permissions(s, cid);
 		if (ch.kind == .Guild_Text || ch.kind == .Guild_Announcement) && has_permission(perms, PERM_VIEW_CHANNEL | PERM_SEND_MESSAGES) postable += 1;
-		if cid != channel_id && channel_unread(s, cid) array_add(*unread, cid); // the viewed channel is read
+		if channel_unread(s, cid) array_add(*unread, cid); // the viewed channel too, read only after (mark_as_read, inbox)
 	}
 	w := aw_begin();
 	json_kint(*w, "postable_channels", postable);
@@ -1249,6 +1249,10 @@ analytics_audio_input_initialized :: (c: *Client) {
 	if !v.rtc_id || !v.devices.input return;
 	// the official engine's state names run a step ahead of our connection's here
 	client_set_rtc_state(c, .Rtc_Connecting);
+	// the media engine reads these as it connects (0.0.420: fixture join_voice_channel)
+	analytics_exposed(c, "media_engine_connect", "2026-02-process-boost-on-voice");
+	analytics_exposed(c, "updateVoiceFidelityCaps", "2026-08-audio-fidelity");
+	analytics_exposed(c, "RTCConnection", "2026-09-single-cpu-copy");
 	m := aw_begin();
 	json_kstr(*m, "device_name", tprint("default (%)", v.devices.input));
 	json_kint(*m, "time_to_initialized_ms", 0);
@@ -2004,11 +2008,14 @@ analytics_streamer_settings_updated :: (c: *Client, n: Streamer_Mode_Analytics, 
 
 // analytics_app_notice: app_notice_viewed / app_notice_primary_cta_opened /
 // app_notice_closed for a notice bar (notice_type "STREAMER_MODE",
-// "UNVERIFIED_ACCOUNT"...); guild_id: the route's guild, 0 for none (key left out).
+// "UNVERIFIED_ACCOUNT"...); guild_id: the route's guild, 0 for none (key left out); then the
+// account's trial offer, when it has one (fixture streamer_mode).
 analytics_app_notice :: (c: *Client, event: string, notice_type: string, guild_id: Snowflake = 0) {
 	w := aw_begin();
 	json_kstr(*w, "notice_type", notice_type);
 	if guild_id != 0 json_ksnow(*w, "guild_id", guild_id);
+	trial := atomic_load(*c.promo.trial_id);
+	if trial json_ksnow(*w, "trial_id", trial);
 	aw_track(c, event, *w);
 }
 
@@ -2501,15 +2508,15 @@ analytics_client_heartbeat :: (c: *Client) {
 	aw_track(c, "client_heartbeat", *w);
 }
 
-// dismissible_content_shown_before_connection_open: the "For Later" coachmark
-// checked before CONNECTION_OPEN, with the route's guild; on a private route the
-// DM list's Orbs and Shop button popovers too (verified accounts: promo_shop_entry).
+// dismissible_content_shown_before_connection_open: on a private route, the DM list's Orbs and Shop
+// button popovers, checked before CONNECTION_OPEN (verified accounts). 0.0.420 no longer checks the
+// "For Later" coachmark (0.0.419: on every route, first).
 analytics_before_connection_open :: (c: *Client) {
 	locks.lock(*c.route_mu);
 	g := c.route_guild;
 	locks.unlock(*c.route_mu);
-	for string.["FOR_LATER_POPOUT_COACHMARK", "PREMIUM_ORBS_UPSELL_POPOVER", "WISHLIST_SHOP_BUTTON_POPOVER"] {
-		if it_index > 0 && (g || !c.account_verified) break;
+	if g || !c.account_verified return;
+	for string.["PREMIUM_ORBS_UPSELL_POPOVER", "WISHLIST_SHOP_BUTTON_POPOVER"] {
 		w := aw_begin();
 		json_kstr(*w, "content_type", it);
 		json_knull(*w, "group_name");
@@ -2539,6 +2546,11 @@ analytics_ready_payload :: (c: *Client, data: V, is_reconnect: bool) {
 	ident_bytes := cast(s64) synth_between(*a.synth, 1020, 1110);
 	lag := cast(s64) synth_between(*a.synth, cast(float64) ifx fast then 15 else 55, cast(float64) ifx fast then 50 else 90);
 	locks.unlock(*a.mu);
+	// a channel route's READY handlers render the channel first: ~105 ms more (0.0.420 fixtures: READY -
+	// socket creation - the sum is 554-668 ms on channel routes, 386-460 at Home)
+	locks.lock(*c.route_mu);
+	if c.route_channel lag += 105;
+	locks.unlock(*c.route_mu);
 	if f.raw == 0 {
 		bytes, err := etf.encode(data,, temp);
 		if err == .None f.raw = bytes.count + 1;

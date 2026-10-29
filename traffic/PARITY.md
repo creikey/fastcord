@@ -1,9 +1,12 @@
 # Traffic parity: fastcord vs the official client
 
 The official client's traffic for each scenario is recorded in
-`traffic/<scenario>.jsonl` (Discord desktop 0.0.419 / Chrome 148, scrubbed;
-31 of 33 carry netlog wire header order and `conn` facts). Two separate ways
-compare fastcord with them.
+`traffic/<scenario>.jsonl` (Discord desktop 0.0.420, native build 97026, web build
+653945 / Electron 44.9.3 / Chrome 152, recorded 2026-10-28, scrubbed; they carry netlog wire
+header order and `conn` facts). `account_edits` is still the 0.0.419 / Chrome 148 recording (no
+netlog): its username change and password login can't be re-run by the capture tool. The 0.0.420 instances ran with their windows
+in front (client_app_state "focused"; the 0.0.419 ones mostly behind other windows), so
+`replay_begin` takes the focus state from each fixture. Two separate ways compare fastcord with them.
 
 ## 1. Offline parity tests (day to day, no network)
 
@@ -157,7 +160,8 @@ quests entry point's hovers (`quest_hover`, `quest_hover_off`). A served quest's
 experiment exposures and the voice invite suggestions' impression are sent as
 their (unshown) components load and render, and checked like any other event.
 The quest bar's viewability impressions (`quest_content_loaded` / `_viewed` /
-`_view_time`) are never sent; no fixture has them. `analytics_never`
+`_view_time`) are never sent, though 0.0.420 launches send them (`R_SCI_NEVER`
+allows them in every window). `analytics_never`
 (analytics.jai) names the never-sent events, with those of UI fastcord does not
 have. `send_message_roundtrip` (10 %), `quest_decision_roundtrip` (18 %) and
 `quest_bar_render_delay` (10 %, focused windows) are sampled and disabled offline.
@@ -220,7 +224,7 @@ Events sent now, by scenario:
 | voice / DM calls | channel_opened, join_voice_channel, permissions_requested (app, mic opened), dismissible_content_shown (CUSTOM_CALL_SOUNDS_PICKER_UPSELL), impression_voice_invite_suggestions_entrypoint (guild voice), network_action_embedded_activities_fetch_shelf (calls: guild_id "" / null), ring_call_accepted, call_button_clicked; `client_rtc_state` from the app's voice connection |
 | voice connection (app: `voice_analytics_frame` from src/voice's timeline) | video_layout_toggled (caller of a DM call), voice_connection_connecting, audio_input_initialized, voice_connection_remote_streams_created, voice_connection_success, voice_connection_ttc_collected, media_session_joined, secure_frames_transition, start_speaking, start_listening; on leave hotspot_hidden, leave_voice_channel, voice_codec_detected, voice_disconnect |
 | launch | libdiscore_loaded, app_native_crash, client_heartbeat (when the scripts load, then every 15 min; on login), at the app's takeover client_ad_heartbeat, a kept HELLO's gateway_connected and dismissible_content_shown_before_connection_open, session_start_client + gateway_connected when the app identifies (a late socket), ready_payload_received (every READY), app_ui_viewed (a channel: takeover +295 ms or with the metric; Home: READY +320 ms), app_web_perf_startup_metrics (READY +60 ms), notification_permission_status (with fetch_user_offer_started) |
-| experiments | experiment_user / installation_evaluation_exposed for READY's apex assignments: app open, the READY stores and first render, dm/gdm list rendered, voice call initiated, PrivateChannelCallDuration, experimentStoreUpdate (guild joined), the new guild's setup progress; once per evaluation, location and experiment (persisted) |
+| experiments | experiment_user / installation_evaluation_exposed for READY's apex assignments: app open, the READY stores and first render, dm/gdm list rendered, voice call initiated, PrivateChannelCallDuration, the new guild's setup progress; once per evaluation, location and experiment (persisted) |
 | quick switcher | quickswitcher_closed, quickswitcher_result_selected |
 | emoji pickers | hotspot_hidden FAVORITE_EMOJI_TOOLTIP (pick: once, a reaction pick twice; close) |
 | create guild | network_action_guild_create, nuo_transition |
@@ -422,9 +426,8 @@ one long session they already happened earlier, as they would for a real user.
   the parent. Delete Thread loads `/guilds/{id}/roles/member-counts`.
 - Op 43 and the guild-open set are sent on the first entry into a guild per session only
   (history_nav, discover: re-entering sends neither).
-- A guild text channel route render loads `/guilds/{id}/integrations?...` when we can manage the
-  guild and it has no system channel. Every fixture agrees: all owner fixtures with the system channel
-  unset send it, and none with it set does.
+- 0.0.420 no longer loads `/guilds/{id}/integrations?...` when a guild text channel renders (0.0.419 did
+  for an owner of a guild without a system channel); only a new guild loads it.
 - Every Friends open after the first loads the premium-guild entitlements again.
 - A jump loads `messages?limit=30&around=` (was 50; the value is not compared).
 - UI science via `analytics_track`, with the official property order (guild and channel metadata
@@ -466,7 +469,7 @@ settings tabs other than Overview.
 
 | Area | Difference | Reason |
 |---|---|---|
-| Telemetry | Not sent: quest hovers; the quest bar's viewability impressions (`quest_content_loaded` / `_viewed` / `_view_time`, in no fixture) | No faked engagement with sponsored content (AGENTS.md; `analytics_never`, `R_SCI_NEVER`). |
+| Telemetry | Not sent: quest hovers; the quest bar's viewability impressions (`quest_content_loaded` / `_viewed` / `_view_time`, sent by 0.0.420 launches) | No faked engagement with sponsored content (AGENTS.md; `analytics_never`, `R_SCI_NEVER`). |
 | Quest bar | A launch's decision only: no 30 s re-check that fetches it again after its TTL (~40 min) | Not modelled yet (TODO.md). |
 | Telemetry | Not sent: `voice_invite_suggestions_entrypoint_closed`, `impression_voice_invite_suggestions_popover` | Pointer interactions with the voice invite suggestions (closing it, hovering the voice area), whose entry point impression is sent. |
 | Shop art | The Edit Profiles Shop product images and the Shop entry's hover art (`collectibles-shop` CDN images) | The product images are the editor's cycling previews of nameplates, decorations, effects and frames, whose picking hook is in no cached bundle chunk (TODO.md); the hover art needs a hover. Images are not compared (`R_IGNORE`). |
@@ -492,9 +495,9 @@ settings tabs other than Overview.
 | New web build | The official client downloads the new build's scripts, styles and wasm; fastcord only reads the document's build number | Fetching the whole bundle has no use without a web engine. Warm-cache launches (every launch but the first after a deploy) send the same two requests. |
 | Inbox | No Bookmarks / Reminders tabs | No saved-message flows yet. Mark All as Read uses `/read-states/ack-bulk`, which is not captured for the Inbox. |
 | Inbox science | `ack_messages.guild_unread_statuses` reports every guild's unread setting as 1 (all messages) | The unread-setting resolution is not modelled (CLIENT_RULES guess). |
-| Threads | New thread opens as the main view, not a side view | The Referer is `/channels/{g}/{thread}` instead of `.../{parent}/threads/{thread}`. Returning to the parent re-renders it, which adds integrations to close_thread_view (allow-listed). |
+| Threads | New thread opens as the main view, not a side view | The Referer is `/channels/{g}/{thread}` instead of `.../{parent}/threads/{thread}`. Returning to the parent re-renders it. |
 | Threads | First-view thread ack (`flags: 2`) | Fastcord acks only unread channels in a focused window (allow-listed in delete_thread_menu). |
-| Discover | No `discoverable-guilds`, `discovery/categories` or CDN splashes and icons; no integrations on return | The compass opens https://discord.com/servers in the browser and the app never leaves the channel (allow-listed in parity_discover). |
+| Discover | No `discoverable-guilds`, `discovery/categories` or CDN splashes and icons | The compass opens https://discord.com/servers in the browser and the app never leaves the channel (allow-listed in parity_discover). |
 | Jump to an unloaded channel | Normal page plus `around=`, instead of `around=` alone | Not captured as an action window. Only the loaded-channel jump is tested. |
 | Settings open | `impression_modal_root_legacy` (variant `renderModalSpinner`) | The settings chunk's lazy-load spinner: in `settings` but not in `streamer_mode`'s identical open. |
 | Edit Profiles | `games?game_ids`, `applications/public`, `oauth2/tokens` | Driven by profile widget data (as for full profiles). |

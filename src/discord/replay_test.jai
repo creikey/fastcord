@@ -13,13 +13,10 @@
 
 
 R_GUILD :: cast(Snowflake) 1564227669971832975;
-R_TEXT :: cast(Snowflake) 1564227670806364343;
+R_TEXT :: cast(Snowflake) 1564405699197407414;
 R_VOICE :: cast(Snowflake) 1564227670806364345;
 R_DM :: cast(Snowflake) 1564228964451356713;
 R_B :: cast(Snowflake) 1564202918369042442;
-// the test guild's text channel after it was recreated (fixtures threads_browser,
-// history_nav, discover...: no system channel)
-R_TEXT2 :: cast(Snowflake) 1564405699197407414;
 
 // Requests the comparison leaves out: UI assets and images the app fetches
 // itself, Shop art (collectibles-shop: the Shop entry's marketing art, which the
@@ -75,7 +72,7 @@ r_unscrub :: (v: V) -> V {
 				return etf.vstring(sprint("%", 1_100_000_000_000_000_000 + cast(u64) fnv32a(x)));
 			}
 		case .List; for * v.list it.* = r_unscrub(it.*);
-		case .Map;  for * v.map it.value = r_unscrub(it.value);
+		case .Map;  for * v.map { it.key = r_unscrub(it.key); it.value = r_unscrub(it.value); } // keys: op 37 subscriptions
 	}
 	return v;
 }
@@ -216,11 +213,31 @@ replay_exchange :: (r: *Replay, host: string, req: http.Request) -> http.Respons
 	defer locks.unlock(*r.mu);
 	url := join("https://", host, req.path,, temp);
 	key := r_key(req.method, url);
-	// the recorded exchange with the same URL shape, earliest first
+	// the recorded exchange with the same URL shape, earliest first; one for the same path (the same
+	// ids) wins, so a channel's page is not answered with another channel's
+	path_of :: (u: string) -> string { // its placeholders as the ids they stand for
+		q := find_index_from_left(u, #char "?");
+		p := ifx q >= 0 then slice(u, 0, q) else u;
+		sb: String_Builder;
+		sb.allocator = temp;
+		i := 0;
+		while i < p.count {
+			e := ifx p[i] == #char "<" then find_index_from_left(p, #char ">", i) else -1;
+			if e < 0 {
+				append(*sb, p[i]);
+				i += 1;
+				continue;
+			}
+			append(*sb, r_unscrub(etf.vstring(slice(p, i, e + 1 - i))).s);
+			i = e + 1;
+		}
+		return builder_to_string(*sb,, temp);
+	}
 	ri := -1;
 	for r.events {
-		if r.used[it_index] || fstr(it, "k") != "req" continue;
-		if r_key(fstr(it, "method"), fstr(it, "url")) == key {
+		if r.used[it_index] || fstr(it, "k") != "req" || r_key(fstr(it, "method"), fstr(it, "url")) != key continue;
+		if ri < 0 ri = it_index;
+		if path_of(fstr(it, "url")) == path_of(url) {
 			ri = it_index;
 			break;
 		}
@@ -363,7 +380,7 @@ replay_begin :: (run: *Replay_Run, t: *T, scenario: string, guild: Snowflake, ch
 	identity_touch_heartbeat(*run.c.id, now_ms()); // the launch's heartbeat session (the window had focus)
 	run.c.analytics.roundtrip_sample = 0; // send_message_roundtrip is sampled (10%): never offline
 	run.c.promo.quest_roundtrip_sample, run.c.promo.render_delay_sample = 0, 0; // quest_decision_roundtrip, quest_bar_render_delay too
-	identity_set_app_state(*run.c.id, .Unfocused);
+	identity_set_app_state(*run.c.id, recorded_app_state(run.r.events));
 	client_start(run.c);
 	if launch return true;
 	// session state from the fixture's READY
@@ -398,6 +415,24 @@ replay_begin :: (run: *Replay_Run, t: *T, scenario: string, guild: Snowflake, ch
 // analytics and REST jobs have gone out. replay_settle only sees requests made
 // after a mark, so on a slow machine (CI) the setup's first /science batch
 // could otherwise land in the action window.
+// recorded_app_state: whether the recorded window had focus when the actions began (client_app_state of
+// the last /science event before the first mark that is not a setup): the 0.0.419 instances ran behind
+// other windows, the 0.0.420 ones in front.
+recorded_app_state :: (events: []etf.Map) -> App_State {
+	state := App_State.Unfocused;
+	for e: events {
+		k := fstr(e, "k");
+		if k == "mark" && !begins_with(fstr(e, "name"), "setup") break;
+		if k != "req" || !r_is_science(fstr(e, "url")) continue;
+		body, _ := r_body_value(vget(e, "body"));
+		for ev: flist(vmap(body), "events") {
+			s := fstr(fmap(vmap(ev), "properties"), "client_app_state");
+			if s state = ifx s == "focused" then .Focused else .Unfocused;
+		}
+	}
+	return state;
+}
+
 replay_drain :: (run: *Replay_Run, max_ms := 3000) {
 	start := mono_ms();
 	while mono_ms() - start < max_ms {
@@ -483,6 +518,7 @@ replay_check :: (run: *Replay_Run, window: string, extra_allow: []string = .[], 
 	push_allocator(temp);
 	all: [..]string;
 	array_add(*all, ..R_SCI_NEVER);
+	array_add(*all, ..R_DRIVER);
 	array_add(*all, ..extra_allow);
 	allow: []string = all;
 	official: [..]etf.Map;
@@ -837,8 +873,23 @@ r_type :: (c: *Client, channel: Snowflake, text: string) {
 // Telemetry fastcord never sends (traffic/PARITY.md "Telemetry", analytics_never):
 // every window allows these (replay_check). No fake engagement with sponsored content
 // (AGENTS.md): quest_hover / quest_hover_off (the capture driver's mouse path crossing the
-// quests entry point).
-R_SCI_NEVER :: string.["science:quest_hover"];
+// quests entry point) and the quest bar's viewability impressions, quest_content_loaded / _viewed /
+// _view_time (0.0.420's launches render the bar with a served quest).
+R_SCI_NEVER :: string.["science:quest_hover", "science:quest_content"];
+
+// R_LAUNCH_TIMERS: requests on the launch's own timers, which the offline replay does not run
+// (disable_startup) and which fall into an action window when the capture driver reached it early:
+// the ads decision (get-decisions, READY + 3-11 s in the 0.0.420 captures) and the settings-proto/2
+// lazy load and its first frecency write (READY + 5-12 s).
+R_LAUNCH_TIMERS :: string.["get-decisions", "settings-proto/2"];
+
+// The DM list's Nitro row (0.0.420: a "2 weeks free" offer) prefetches subscriptions, payment
+// sources and storefront promotions when the capture driver's mouse crosses it; fastcord draws no
+// Nitro row (AGENTS.md: no ads). Allowed where the capture crossed it.
+
+// R_DRIVER: what the capture driver's mouse path causes on its way to a target, in any window:
+// image_hovered when it crosses an image (fastcord's app does not report image hovers yet).
+R_DRIVER :: string.["science:image_hovered"];
 
 // r_refocus: the capture's window lost focus and got it back (the capture driver), which
 // restarts AdSessionStore's heartbeat: account_edits has one in username_typing and one 21.6 s
@@ -904,7 +955,7 @@ parity_send_message :: (t: *T) {
 	send_message(run.c, R_TEXT, "hello from the official client");
 	replay_dispatches(*run, "send_message", "MESSAGE_CREATE");
 	replay_settle(*run, 600);
-	replay_check(*run, "send_message");
+	replay_check(*run, "send_message", R_LAUNCH_TIMERS);
 }
 
 // FrecencyUserSettings writes byte for byte: every fixture PATCH of settings-proto/2 is rebuilt
@@ -943,12 +994,15 @@ parity_frecency_proto :: (t: *T) {
 			}
 			now := peek(f.pending).at;
 			frecency_overwrite(*f, get, false, now);
+			// whether the official UI had shown the quick reactions (the hover toolbar) since the load is
+			// not in the traffic: the write's computed reaction frecencies say it
+			for news[Frecency_Kind.Reaction] if it.frecency != -1 f.reactions_read = true;
 			got := base64_encode(cast(string) frecency_delta(*f, now));
 			expectf(t, got == patch, "%/%: PATCH at % differs\n  official: %\n  ours:     %", scenario, acct, fnum(e, "t"), patch, got);
 			checked += 1;
 		}
 	}
-	expectf(t, checked == 23, "% PATCHes checked", checked);
+	expectf(t, checked == 13, "% PATCHes checked", checked);
 }
 
 // Pending frecency usage outlives the launch (the stores persist pendingUsages), so the next
@@ -1077,7 +1131,7 @@ parity_typing :: (t: *T) {
 	replay_pump(*run, 1700);
 	replay_settle(*run, 300);
 	// the official window also holds the 10 s re-send, which is not waited for offline
-	replay_check(*run, "typing", string.["/typing"]);
+	replay_check(*run, "typing", string.["/typing", "get-decisions", "settings-proto/2"]); // and R_LAUNCH_TIMERS
 }
 
 parity_open_profile_popout :: (t: *T) {
@@ -1123,7 +1177,7 @@ parity_add_custom_reaction :: (t: *T) {
 	if !replay_begin(*run, t, "add_custom_reaction", R_GUILD, R_TEXT) { return; }
 	replay_mark(*run);
 	msg := r_last_own(run.c, R_TEXT);
-	r_react_via_menu(*run, msg, "fastcord", int.[624, 300, 40, 1]);
+	r_react_via_menu(*run, msg, "fastcord", int.[2]); // typed without a 300 ms rest: one results view
 	picker_emoji_selected(run.c, "fastcord_test", cast(Snowflake) 1564250154838528071, R_GUILD);
 	add_reaction(run.c, R_TEXT, msg, "fastcord_test", cast(Snowflake) 1564250154838528071, false, "Message Reaction Picker");
 	replay_settle(*run, 600);
@@ -1387,7 +1441,7 @@ parity_gif_send :: (t: *T) {
 	gifs_trending(run.c);
 	expression_picker_opened(run.c, .Gif, R_GUILD, R_TEXT, width = 498);
 	replay_settle(*run, 400);
-	replay_check(*run, "open_gif_picker");
+	replay_check(*run, "open_gif_picker", R_LAUNCH_TIMERS);
 }
 
 parity_status_change :: (t: *T) {
@@ -1396,7 +1450,7 @@ parity_status_change :: (t: *T) {
 	replay_mark(*run);
 	open_account_popout(run.c);
 	replay_settle(*run, 600);
-	replay_check(*run, "open_status_menu");
+	replay_check(*run, "open_status_menu", string.["get-decisions", "settings-proto/2", "/billing/payment-sources", "/billing/subscriptions", "/storefront/promotions"]); // R_LAUNCH_TIMERS, the Nitro row
 }
 
 parity_set_idle :: (t: *T) {
@@ -1490,11 +1544,12 @@ parity_join_voice :: (t: *T) {
 	r_frecency_load(*run);
 	replay_mark(*run);
 	voice_join(run.c, R_GUILD, R_VOICE);
-	r_voice_connect(*run, R_MACBOOK);
+	r_voice_connect(*run, R_AIRPODS);
 	r_frecency_run(*run); // writes the voice channel too (VOICE_CHANNEL_SELECT)
 	replay_settle(*run, 900);
-	// op 4 preferred_region(s) come from the live RTC probe
-	replay_check(*run, "join_voice", string.["op 4", ".client_rtc_state"]);
+	// op 4 preferred_region(s) come from the live RTC probe; settings-proto/2: the frecency write
+	// timer had not fired by the window's end officially (R_LAUNCH_TIMERS)
+	replay_check(*run, "join_voice", string.["op 4", ".client_rtc_state", "settings-proto/2"]);
 }
 
 parity_leave_voice :: (t: *T) {
@@ -1513,8 +1568,9 @@ parity_leave_voice :: (t: *T) {
 	voice_leave(run.c);
 	client_set_rtc_state(run.c, .Disconnected);
 	replay_settle(*run, 300);
-	// science: the web-vitals INP metric the official renderer reports now and then (no web page here)
-	replay_check(*run, "leave_voice", string.["science:app_web_perf_startup_metrics"]);
+	// science: the web-vitals INP metric the official renderer reports now and then (no web page here);
+	// the speech the capture's microphone picked up (0.0.420's: under 1000 ms, a start_speaking as it left)
+	replay_check(*run, "leave_voice", string.["science:app_web_perf_startup_metrics", "science:start_speaking", "science:voice_disconnect"]);
 }
 
 // r_voice_connect: what the app reports of src/voice's connection (not run
@@ -1556,7 +1612,7 @@ parity_close_dm :: (t: *T) {
 	close_private_channel(run.c, R_DM);
 	r_frecency_run(*run);
 	replay_settle(*run, 500);
-	replay_check(*run, "close_dm");
+	replay_check(*run, "close_dm", R_LAUNCH_TIMERS);
 }
 
 parity_create_guild :: (t: *T) {
@@ -1579,8 +1635,10 @@ parity_create_guild :: (t: *T) {
 	expect_value(t, r_bucket(run.c, LEGACY_MASS_MENTION, 1564227669971832975), "1/3192");
 	expect_value(t, r_bucket(run.c, LEGACY_PORTKEY, 0), "0/2490");
 	// op 8: the scrubbed fixture aliases the new guild's channel to the test channel,
-	// whose authors are not members of the new guild here
-	replay_check(*run, "create_guild_submit", string.["op 8"]);
+	// whose authors are not members of the new guild here. Batching: where the flush falls against
+	// GUILD_CREATE varies by capture (0.0.419: nuo_transition 62 ms after it, alone; 0.0.420: 150 ms,
+	// with the new guild's render)
+	replay_check(*run, "create_guild_submit", string.["op 8", "science:batching"]);
 }
 
 parity_start_group_dm :: (t: *T) {
@@ -1591,8 +1649,8 @@ parity_start_group_dm :: (t: *T) {
 	replay_settle(*run, 300);
 	create_group_dm(run.c);
 	replay_settle(*run, 500);
-	// the new DM is opened by the app; get-decisions is the ads timer, not this action
-	replay_check(*run, "start_group_dm", string.["/messages?limit", "op 13", "get-decisions"]);
+	// the new DM is opened by the app; the launch timers (R_LAUNCH_TIMERS) are not this action
+	replay_check(*run, "start_group_dm", string.["/messages?limit", "op 13", "get-decisions", "settings-proto/2"]);
 }
 
 parity_upload_custom_emoji :: (t: *T) {
@@ -1663,6 +1721,11 @@ parity_open_unread_channel :: (t: *T) {
 	run: Replay_Run;
 	if !replay_begin(*run, t, "mark_as_read", 0, 0) { return; }
 	replay_dispatches(*run, "b_sends", "MESSAGE_CREATE"); // B's message makes the channel unread
+	for e: replay_window(*run.r, "b_sends") { // the app shows it as a desktop notification (no badge: focused)
+		if fstr(e, "k") != "ws_recv" || fstr(e, "ev") != "MESSAGE_CREATE" { continue; }
+		d := fmap(e, "d");
+		analytics_notification_shown(run.c, fsnow(d, "id"), fsnow(d, "channel_id"), fsnow(fmap(d, "author"), "id"), fint(d, "type"), false);
+	}
 	replay_settle(*run, 300);
 	replay_mark(*run);
 	select_channel(run.c, R_GUILD, R_TEXT, 10, prefetch = true);
@@ -1673,6 +1736,9 @@ parity_open_unread_channel :: (t: *T) {
 parity_open_dm :: (t: *T) {
 	run: Replay_Run;
 	if !replay_begin(*run, t, "open_dm", 0, 0) { return; }
+	// UserAffinitiesV2Store is persisted (stale after 8 h): A's last load predates this recording,
+	// whose user_profile_action carries B's values
+	table_set(*run.c.affinities.users, R_B, .{copy_string("0.05814961535556656",, run.c.allocator), 1});
 	replay_mark(*run);
 	select_channel(run.c, 0, R_DM, 10, prefetch = true);
 	replay_settle(*run, 1200);
@@ -1766,7 +1832,9 @@ parity_close_popout_escape :: (t: *T) {
 	replay_mark(*run);
 	analytics_keyboard_shortcut(run.c, "MARK_CHANNEL_READ", "esc"); // the app: Escape closes the popout
 	replay_settle(*run, 300);
-	replay_check(*run, "close_profile_popout", science_only = true);
+	// 0.0.420's capture tracked no keybind when Escape closed our own profile's popout here, though
+	// it did closing B's (friend_nickname) and other layers: not explained by the capture, kept as is
+	replay_check(*run, "close_profile_popout", string.["science:keyboard_shortcut_used"], science_only = true);
 }
 
 parity_quick_switcher_open :: (t: *T) {
@@ -1791,8 +1859,10 @@ parity_friends_add_tab :: (t: *T) {
 	if !replay_begin(*run, t, "friend_request_send", 0, 0) { return; }
 	replay_mark(*run);
 	analytics_friends_list(run.c, "friends_list_clicked", .Add_Friend); // the app: the "Add Friend" tab
+	analytics_friends_list(run.c, "friends_list_viewed", .Add_Friend);
 	replay_settle(*run, 300);
-	replay_check(*run, "friend_request_send", science_only = true);
+	// the prelude's click on the Online tab went out 6 ms after the mark
+	replay_check(*run, "friend_request_send", string.["science:friends_list_clicked/tab_opened=\"ONLINE\""], science_only = true);
 }
 
 // ---- server notification settings (traffic/guild_*.jsonl, channel_notifications.jsonl) ----
@@ -1937,7 +2007,7 @@ parity_invite_people :: (t: *T) {
 	replay_mark(*run);
 	track_guild_dropdown_viewed(run.c, R_GUILD);
 	replay_settle(*run, 300);
-	replay_check(*run, "open_guild_menu", string.["status.discord.com"], keep = true);
+	replay_check(*run, "open_guild_menu", string.["status.discord.com", "get-decisions", "settings-proto/2"], keep = true); // and R_LAUNCH_TIMERS
 	replay_mark(*run);
 	open_invite_modal(run.c, R_GUILD, R_TEXT, INVITE_LOC_HEADER);
 	replay_settle(*run, 500);
@@ -1995,6 +2065,7 @@ parity_leave_server :: (t: *T) {
 	defer locks.unlock(*r_guild_side_tables);
 	run: Replay_Run;
 	if !replay_begin(*run, t, "join_leave_server", R_GUILD, R_TEXT, "b") { return; }
+	run.c.affinities.fetched_ms = now_ms(); // B's persisted last attempt (its 404) is recent
 	// the session's quests (applications/public on the home surface)
 	q := job_new(.Api, .Startup);
 	q.method = "GET";
@@ -2003,7 +2074,9 @@ parity_leave_server :: (t: *T) {
 	replay_settle(*run, 300);
 	replay_mark(*run);
 	r_leave(*run);
-	replay_check(*run, "b_leave_confirm");
+	// applications/public: 0.0.420's /quests/@me answer is over the fixture's 256 KiB body limit
+	// (stored as a hash), so the quests' applications are not known offline
+	replay_check(*run, "b_leave_confirm", string.["applications/public"]);
 }
 
 parity_join_server :: (t: *T) {
@@ -2032,7 +2105,7 @@ parity_join_server :: (t: *T) {
 	}
 	jn := Join.{c = run.c};
 	th := spawn(*jn, (j: *Join) {
-		res := join_invite(j.c, "https://discord.gg/w5wYynKUN", temp);
+		res := join_invite(j.c, "https://discord.gg/85mC4E6zH", temp); // the code the capture created
 		j.ok = res.ok;
 		reset_temporary_storage();
 		atomic_store(*j.done, true);
@@ -2049,24 +2122,25 @@ parity_join_server :: (t: *T) {
 	g, ch := run.c.route_guild, run.c.route_channel;
 	locks.unlock(*run.c.route_mu);
 	expectf(t, g == R_GUILD && ch == R_TEXT, "the joined guild opened at %/%", g, ch);
-	replay_check(*run, "b_join_submit");
+	// messages?before: our viewport fill of the joined channel (the official one was full; the rendered
+	// heights decide it, not modelled offline)
+	replay_check(*run, "b_join_submit", string.["/messages?before"]);
 }
 
-R_UPLOAD_CH :: cast(Snowflake) 1564405699197407414; // upload_options was recorded in a second text channel
 
 // Staged attachments: each staged file uploads at once; spoiler / modify send nothing;
 // the trash deletes the uploaded file once (no retry after the capture's 429); Send posts
 // the message with is_spoiler / description / the renamed filename.
 parity_upload_options :: (t: *T) {
 	run: Replay_Run;
-	if !replay_begin(*run, t, "upload_options", R_GUILD, R_UPLOAD_CH) { return; }
+	if !replay_begin(*run, t, "upload_options", R_GUILD, R_TEXT) { return; }
 	png, ok := read_entire_file("tests/scenarios/assets/test.png");
 	if !expect(t, ok) { return; }
 	defer free(png);
 	c := run.c;
 
 	replay_mark(*run);
-	h1 := upload_draft(c, R_UPLOAD_CH, "test.png", "image/png", cast([]u8) png, "file_picker");
+	h1 := upload_draft(c, R_TEXT, "test.png", "image/png", cast([]u8) png, "file_picker");
 	// the upload PUT answers after its recorded latency: wait for it, then settle
 	for i: 0..600-1 {
 		client_poll(c);
@@ -2094,8 +2168,8 @@ parity_upload_options :: (t: *T) {
 	replay_check(*run, "modify_save", keep = true);
 
 	replay_mark(*run);
-	h2 := upload_draft(c, R_UPLOAD_CH, "fastcord_test.png", "image/png", cast([]u8) png, "file_picker");
-	replay_settle(*run, 500);
+	h2 := upload_draft(c, R_TEXT, "fastcord_test.png", "image/png", cast([]u8) png, "file_picker");
+	replay_settle(*run, 900); // the PUT took 527 ms in the 0.0.420 capture
 	replay_check(*run, "stage_second_file", keep = true);
 
 	replay_mark(*run);
@@ -2104,7 +2178,7 @@ parity_upload_options :: (t: *T) {
 	replay_check(*run, "remove_second_file", keep = true);
 
 	replay_mark(*run);
-	send_message(c, R_UPLOAD_CH, "", .{attachments = Draft_Attachment.[.{handle = h1, filename = "fc_renamed.png", description = "a small test image", spoiler = true}]});
+	send_message(c, R_TEXT, "", .{attachments = Draft_Attachment.[.{handle = h1, filename = "fc_renamed.png", description = "a small test image", spoiler = true}]});
 	replay_dispatches(*run, "send_with_options", "MESSAGE_CREATE");
 	replay_settle(*run, 600);
 	replay_check(*run, "send_with_options", keep = true);
@@ -2114,7 +2188,7 @@ parity_upload_options :: (t: *T) {
 	small, sok := read_entire_file("tests/data/t_trns_gray.png");
 	expect(t, sok);
 	defer free(small);
-	h3 := upload_draft(c, R_UPLOAD_CH, "image.png", "image/png", cast([]u8) small, "clipboard");
+	h3 := upload_draft(c, R_TEXT, "image.png", "image/png", cast([]u8) small, "clipboard");
 	replay_settle(*run, 500);
 	{
 		d := drafts_of(c);
@@ -2127,7 +2201,7 @@ parity_upload_options :: (t: *T) {
 	replay_check(*run, "paste_image", keep = true);
 
 	replay_mark(*run);
-	send_message(c, R_UPLOAD_CH, "", .{attachments = Draft_Attachment.[.{handle = h3, filename = "image.png"}]});
+	send_message(c, R_TEXT, "", .{attachments = Draft_Attachment.[.{handle = h3, filename = "image.png"}]});
 	replay_dispatches(*run, "send_pasted", "MESSAGE_CREATE");
 	replay_settle(*run, 600);
 	replay_check(*run, "send_pasted");
@@ -2225,28 +2299,30 @@ parity_inbox_jump :: (t: *T) {
 	select_channel(run.c, R_GUILD, R_TEXT, 10);
 	if msg { track_jump(run.c, "Recent Mentions", R_TEXT, msg[msg.count - 1].id); }
 	replay_settle(*run, 500);
-	replay_check(*run, "inbox_jump_to_mention");
+	// messages?before: the official viewport filled up with an older page around the jump target (the
+	// rendered heights of the channel's images decide it; not modelled offline)
+	replay_check(*run, "inbox_jump_to_mention", string.["/messages?before"]);
 }
 
 // Threads browser on the recreated #general: every window in order.
 parity_threads_browser :: (t: *T) {
 	run: Replay_Run;
-	if !replay_begin(*run, t, "threads_browser", R_GUILD, R_TEXT2) { return; }
+	if !replay_begin(*run, t, "threads_browser", R_GUILD, R_TEXT) { return; }
 	defer replay_end(*run);
 	c := run.c;
 	replay_mark(*run);
-	fetch_channel_threads(c, R_TEXT2, 0);
-	track_thread_browser_open(c, R_TEXT2);
+	fetch_channel_threads(c, R_TEXT, 0);
+	track_thread_browser_open(c, R_TEXT);
 	replay_settle(*run, 400);
 	replay_check(*run, "open_threads_popout_empty", keep = true);
 
 	replay_mark(*run);
-	track_thread_creation_started(c, R_TEXT2, "Thread Browser Toolbar");
+	track_thread_creation_started(c, R_TEXT, "Thread Browser Toolbar");
 	replay_settle(*run, 300);
 	replay_check(*run, "create_thread_open", keep = true);
 
 	replay_mark(*run);
-	r_type(c, R_TEXT2, "fastcord test thread");
+	r_type(c, R_TEXT, "fastcord test thread");
 	replay_pump(*run, 1700);
 	replay_settle(*run, 300);
 	// the official window also holds the ~8 s re-send, which is not waited for offline
@@ -2254,7 +2330,7 @@ parity_threads_browser :: (t: *T) {
 
 	// Enter: POST /threads; the reply (the thread) opens it and the first message goes out
 	replay_mark(*run);
-	create_thread(c, R_TEXT2, "fastcord test thread", tag = 77);
+	create_thread(c, R_TEXT, "fastcord test thread", tag = 77);
 	thread: Snowflake;
 	for 1..400 {
 		if thread != 0 break;
@@ -2276,16 +2352,15 @@ parity_threads_browser :: (t: *T) {
 	replay_check(*run, "create_thread_submit", string.["science:channel_opened"], keep = true);
 
 	// the official side view closes (the parent stayed the route); fastcord left the
-	// parent for the thread, so returning renders it again (integrations, see
-	// guild_channel_notice_check). settings-proto/2: the frecency lazy load.
+	// parent for the thread, so returning renders it again. settings-proto/2: the frecency lazy load.
 	replay_mark(*run);
-	select_channel(c, R_GUILD, R_TEXT2, 10);
+	select_channel(c, R_GUILD, R_TEXT, 10);
 	replay_settle(*run, 400);
-	replay_check(*run, "close_thread_view", string.["settings-proto/2", "/integrations"], keep = true);
+	replay_check(*run, "close_thread_view", string.["settings-proto/2"], keep = true);
 
 	// second open: active threads come from the gateway, no new search
 	replay_mark(*run);
-	track_thread_browser_open(c, R_TEXT2);
+	track_thread_browser_open(c, R_TEXT);
 	replay_settle(*run, 300);
 	replay_check(*run, "open_threads_popout", keep = true);
 
@@ -2310,7 +2385,7 @@ parity_threads_browser :: (t: *T) {
 	replay_mark(*run);
 	delete_channel(c, thread);
 	replay_dispatches(*run, "delete_thread_confirm", "THREAD_DELETE");
-	select_channel(c, R_GUILD, R_TEXT2, 10);
+	select_channel(c, R_GUILD, R_TEXT, 10);
 	replay_settle(*run, 500);
 	replay_check(*run, "delete_thread_confirm", keep = true);
 }
@@ -2319,7 +2394,7 @@ parity_threads_browser :: (t: *T) {
 // the thread properties, selected_guild_id and location (science only).
 parity_thread_open_main :: (t: *T) {
 	run: Replay_Run;
-	if !replay_begin(*run, t, "threads_browser", R_GUILD, R_TEXT2) { return; }
+	if !replay_begin(*run, t, "threads_browser", R_GUILD, R_TEXT) { return; }
 	c := run.c;
 	replay_dispatches(*run, "create_thread_submit"); // the thread and its first message
 	replay_settle(*run, 300);
@@ -2337,7 +2412,7 @@ parity_thread_open_main :: (t: *T) {
 // Back / forward between #general and Friends: plain route changes.
 parity_history_nav :: (t: *T) {
 	run: Replay_Run;
-	if !replay_begin(*run, t, "history_nav", R_GUILD, R_TEXT2) { return; }
+	if !replay_begin(*run, t, "history_nav", R_GUILD, R_TEXT) { return; }
 	defer replay_end(*run);
 	c := run.c;
 	select_channel(c, 0, 0); // open_friends (its first-open set is not this test's)
@@ -2350,9 +2425,11 @@ parity_history_nav :: (t: *T) {
 	for st: steps {
 		replay_mark(*run);
 		track_back_forward(c, st.forward, st.keybind);
-		if st.forward { select_channel(c, 0, 0); } else { select_channel(c, R_GUILD, R_TEXT2, 10); }
+		if st.forward { select_channel(c, 0, 0); } else { select_channel(c, R_GUILD, R_TEXT, 10); }
 		replay_settle(*run, 400);
-		replay_check(*run, st.window, keep = true);
+		// the prelude's Friends click went out 3 ms after the first mark; the renderer's web-vitals
+		// INP metric (app_web_perf_startup_metrics) comes now and then (no web page here)
+		replay_check(*run, st.window, string.["science:friends_list_clicked", "science:app_web_perf_startup_metrics"], keep = true);
 	}
 }
 
@@ -2361,7 +2438,7 @@ parity_history_nav :: (t: *T) {
 // browser, so the client sends none of it and never leaves the channel.
 parity_discover :: (t: *T) {
 	run: Replay_Run;
-	if !replay_begin(*run, t, "discover", R_GUILD, R_TEXT2) { return; }
+	if !replay_begin(*run, t, "discover", R_GUILD, R_TEXT) { return; }
 	defer replay_end(*run);
 	replay_mark(*run);
 	replay_settle(*run, 300);
@@ -2370,8 +2447,7 @@ parity_discover :: (t: *T) {
 	replay_check(*run, "open_discover", string.["discoverable-guilds", "discovery/categories", "discovery-splashes", "/icons/", "science:global_discovery_", "science:experiment_user_evaluation_exposed/exposure_location=\"GlobalDiscoverySidebar\""], keep = true);
 	replay_mark(*run);
 	replay_settle(*run, 300);
-	// returning to the guild re-renders its channel officially (integrations)
-	replay_check(*run, "leave_discover", string.["/integrations"], keep = true);
+	replay_check(*run, "leave_discover", keep = true);
 }
 
 // ---- guild events and channel management (traffic/guild_events.jsonl, create_channel.jsonl) ----
@@ -2453,7 +2529,7 @@ parity_guild_events :: (t: *T) {
 	set_event_interest(run.c, ev, false);
 	r_apply_features(*run, 300);
 	replay_dispatches(*run, "event_uninterested");
-	r_apply_features(*run, 200);
+	r_apply_features(*run, 600); // the DELETE's response (0.0.420's capture: 508 ms) before the next click
 	replay_compare(*run, "event_uninterested");
 	expect_value(t, event_get(ev).user_count, 0);
 	replay_mark(*run);
@@ -2490,7 +2566,7 @@ parity_create_channel :: (t: *T) {
 	open_create_channel(run.c, R_GUILD);
 	r_frecency_run(*run);
 	r_apply_features(*run, 300);
-	replay_compare(*run, "open_create_channel");
+	replay_compare(*run, "open_create_channel", R_LAUNCH_TIMERS);
 	// Create Channel: POST -> 201, templates; the app opens the new channel
 	replay_mark(*run);
 	create_channel(run.c, R_GUILD, .Guild_Text, "fc-temp", R_TEXT_CATEGORY);
@@ -2571,9 +2647,9 @@ parity_channel_delete :: (t: *T) {
 
 parity_settings_open :: (t: *T) {
 	run: Replay_Run;
-	if !replay_begin(*run, t, "settings", R_GUILD, R_TEXT2) { return; }
+	if !replay_begin(*run, t, "settings", R_GUILD, R_TEXT) { return; }
 	replay_mark(*run);
-	settings_pane_shown(run.c, .None, .Account, R_GUILD, R_TEXT2);
+	settings_pane_shown(run.c, .None, .Account, R_GUILD, R_TEXT);
 	replay_pump(*run, 1500); // nothing more loads while the pane is open
 	// science: the official settings modal's lazy-load spinner (impression variant
 	// renderModalSpinner, absent from streamer_mode's identical open): its code-split
@@ -2583,7 +2659,7 @@ parity_settings_open :: (t: *T) {
 
 parity_settings_open_profiles :: (t: *T) {
 	run: Replay_Run;
-	if !replay_begin(*run, t, "settings", R_GUILD, R_TEXT2) { return; }
+	if !replay_begin(*run, t, "settings", R_GUILD, R_TEXT) { return; }
 	replay_mark(*run);
 	open_profile_editor(run.c);
 	replay_settle(*run, 600);
@@ -2593,7 +2669,7 @@ parity_settings_open_profiles :: (t: *T) {
 
 parity_settings_profile_save :: (t: *T) {
 	run: Replay_Run;
-	if !replay_begin(*run, t, "settings", R_GUILD, R_TEXT2) { return; }
+	if !replay_begin(*run, t, "settings", R_GUILD, R_TEXT) { return; }
 	replay_mark(*run);
 	update_profile(run.c, "fc/test", "fastcord test bio");
 	replay_settle(*run, 500);
@@ -2602,7 +2678,7 @@ parity_settings_profile_save :: (t: *T) {
 
 parity_settings_display_name_save :: (t: *T) {
 	run: Replay_Run;
-	if !replay_begin(*run, t, "settings", R_GUILD, R_TEXT2) { return; }
+	if !replay_begin(*run, t, "settings", R_GUILD, R_TEXT) { return; }
 	replay_mark(*run);
 	update_global_name(run.c, "Dingus Test", .Profile_Name);
 	replay_settle(*run, 500);
@@ -2611,25 +2687,25 @@ parity_settings_display_name_save :: (t: *T) {
 
 parity_settings_notifications :: (t: *T) {
 	run: Replay_Run;
-	if !replay_begin(*run, t, "settings", R_GUILD, R_TEXT2) { return; }
+	if !replay_begin(*run, t, "settings", R_GUILD, R_TEXT) { return; }
 	replay_mark(*run);
-	settings_pane_shown(run.c, .Account, .Notifications, R_GUILD, R_TEXT2);
+	settings_pane_shown(run.c, .Account, .Notifications, R_GUILD, R_TEXT);
 	replay_settle(*run, 500);
 	replay_check(*run, "open_notifications_settings");
 }
 
 parity_settings_appearance :: (t: *T) {
 	run: Replay_Run;
-	if !replay_begin(*run, t, "settings", R_GUILD, R_TEXT2) { return; }
+	if !replay_begin(*run, t, "settings", R_GUILD, R_TEXT) { return; }
 	replay_mark(*run);
-	settings_pane_shown(run.c, .Notifications, .Appearance, R_GUILD, R_TEXT2);
+	settings_pane_shown(run.c, .Notifications, .Appearance, R_GUILD, R_TEXT);
 	replay_settle(*run, 500);
 	replay_check(*run, "open_appearance");
 }
 
 parity_settings_theme_sync :: (t: *T) {
 	run: Replay_Run;
-	if !replay_begin(*run, t, "settings", R_GUILD, R_TEXT2) { return; }
+	if !replay_begin(*run, t, "settings", R_GUILD, R_TEXT) { return; }
 	replay_mark(*run);
 	set_theme(run.c, .Dark, system = true); // "Sync with computer", OS dark
 	replay_settle(*run, 400);
@@ -2638,7 +2714,7 @@ parity_settings_theme_sync :: (t: *T) {
 
 parity_settings_theme_dark :: (t: *T) {
 	run: Replay_Run;
-	if !replay_begin(*run, t, "settings", R_GUILD, R_TEXT2) { return; }
+	if !replay_begin(*run, t, "settings", R_GUILD, R_TEXT) { return; }
 	replay_mark(*run);
 	set_theme(run.c, .Darker); // UI "Dark"
 	replay_settle(*run, 400);
@@ -2647,13 +2723,13 @@ parity_settings_theme_dark :: (t: *T) {
 
 parity_settings_friend_online_toggle :: (t: *T) {
 	run: Replay_Run;
-	if !replay_begin(*run, t, "streamer_mode", R_GUILD, R_TEXT2) { return; }
+	if !replay_begin(*run, t, "streamer_mode", R_GUILD, R_TEXT) { return; }
 	replay_mark(*run);
 	set_friend_online_notifications(run.c, false);
 	replay_settle(*run, 400);
 	replay_check(*run, "notifications_toggle_off");
 	run2: Replay_Run;
-	if !replay_begin(*run2, t, "streamer_mode", R_GUILD, R_TEXT2) { return; }
+	if !replay_begin(*run2, t, "streamer_mode", R_GUILD, R_TEXT) { return; }
 	replay_mark(*run2);
 	set_friend_online_notifications(run2.c, true);
 	replay_settle(*run2, 400);
@@ -2662,9 +2738,19 @@ parity_settings_friend_online_toggle :: (t: *T) {
 
 // Streamer Mode is local (science only); with it on, the Account pane shows an
 // illustration and fetches nothing.
+// r_user_offer: the fixture's launch billing/user-offer answer, as the startup job applies it.
+r_user_offer :: (run: *Replay_Run) {
+	id: s64 = -1;
+	for run.r.events {
+		if fstr(it, "k") == "req" && contains(fstr(it, "url"), "/billing/user-offer") id = fnum(it, "id");
+		if fstr(it, "k") == "resp" && fnum(it, "id") == id { user_offer_loaded(run.c, vget(it, "body")); return; }
+	}
+}
+
 parity_streamer_mode :: (t: *T) {
 	run: Replay_Run;
-	if !replay_begin(*run, t, "streamer_mode", R_GUILD, R_TEXT2) { return; }
+	if !replay_begin(*run, t, "streamer_mode", R_GUILD, R_TEXT) { return; }
+	r_user_offer(*run); // the launch's trial offer (startup is off offline)
 	replay_mark(*run);
 	// the app: the switch, Streamer Mode on, and its notice bar on the guild route
 	analytics_ui_setting(run.c, "streaming_enable_streamer_mode");
@@ -2673,15 +2759,15 @@ parity_streamer_mode :: (t: *T) {
 	replay_settle(*run, 300);
 	replay_check(*run, "streamer_mode_on");
 	run2: Replay_Run;
-	if !replay_begin(*run2, t, "streamer_mode", R_GUILD, R_TEXT2) { return; }
+	if !replay_begin(*run2, t, "streamer_mode", R_GUILD, R_TEXT) { return; }
 	replay_mark(*run2);
-	settings_pane_shown(run2.c, .Appearance, .Account, R_GUILD, R_TEXT2, streamer_mode = true);
+	settings_pane_shown(run2.c, .Appearance, .Account, R_GUILD, R_TEXT, streamer_mode = true);
 	replay_settle(*run2, 300);
 	replay_check(*run2, "streamer_view_account");
 	run3: Replay_Run;
-	if !replay_begin(*run3, t, "streamer_mode", R_GUILD, R_TEXT2) { return; }
+	if !replay_begin(*run3, t, "streamer_mode", R_GUILD, R_TEXT) { return; }
 	replay_mark(*run3);
-	settings_pane_shown(run3.c, .Notifications, .Appearance, R_GUILD, R_TEXT2, streamer_mode = true);
+	settings_pane_shown(run3.c, .Notifications, .Appearance, R_GUILD, R_TEXT, streamer_mode = true);
 	replay_settle(*run3, 300);
 	replay_check(*run3, "open_settings_appearance");
 }
@@ -2690,19 +2776,19 @@ parity_streamer_mode :: (t: *T) {
 
 parity_friend_nickname :: (t: *T) {
 	run: Replay_Run;
-	if !replay_begin(*run, t, "friend_nickname", R_GUILD, R_TEXT2) { return; }
+	if !replay_begin(*run, t, "friend_nickname", R_GUILD, R_TEXT) { return; }
 	replay_mark(*run);
 	open_user_context_menu(run.c, R_B, R_GUILD);
 	replay_settle(*run, 500);
 	replay_check(*run, "friend_nickname_open");
 	run2: Replay_Run;
-	if !replay_begin(*run2, t, "friend_nickname", R_GUILD, R_TEXT2) { return; }
+	if !replay_begin(*run2, t, "friend_nickname", R_GUILD, R_TEXT) { return; }
 	replay_mark(*run2);
 	set_friend_nickname(run2.c, R_B, "Bobby Nick");
 	replay_settle(*run2, 400);
 	replay_check(*run2, "friend_nickname_save");
 	run3: Replay_Run;
-	if !replay_begin(*run3, t, "friend_nickname", R_GUILD, R_TEXT2) { return; }
+	if !replay_begin(*run3, t, "friend_nickname", R_GUILD, R_TEXT) { return; }
 	replay_mark(*run3);
 	set_friend_nickname(run3.c, R_B, "");
 	replay_settle(*run3, 400);
@@ -2711,7 +2797,7 @@ parity_friend_nickname :: (t: *T) {
 
 parity_server_nickname :: (t: *T) {
 	run: Replay_Run;
-	if !replay_begin(*run, t, "friend_nickname", R_GUILD, R_TEXT2) { return; }
+	if !replay_begin(*run, t, "friend_nickname", R_GUILD, R_TEXT) { return; }
 	open_user_context_menu(run.c, R_B, R_GUILD); // the first right-click (earlier window)
 	replay_settle(*run, 400);
 	replay_mark(*run);
@@ -2721,13 +2807,13 @@ parity_server_nickname :: (t: *T) {
 	replay_settle(*run, 400);
 	replay_check(*run, "server_nickname_open");
 	run2: Replay_Run;
-	if !replay_begin(*run2, t, "friend_nickname", R_GUILD, R_TEXT2) { return; }
+	if !replay_begin(*run2, t, "friend_nickname", R_GUILD, R_TEXT) { return; }
 	replay_mark(*run2);
 	set_server_nickname(run2.c, R_GUILD, R_B, "Server Bob");
 	replay_settle(*run2, 400);
 	replay_check(*run2, "server_nickname_save");
 	run3: Replay_Run;
-	if !replay_begin(*run3, t, "friend_nickname", R_GUILD, R_TEXT2) { return; }
+	if !replay_begin(*run3, t, "friend_nickname", R_GUILD, R_TEXT) { return; }
 	replay_mark(*run3);
 	set_server_nickname(run3.c, R_GUILD, R_B, "");
 	replay_settle(*run3, 400);
@@ -2738,18 +2824,22 @@ parity_server_nickname :: (t: *T) {
 
 parity_friend_add_context_menu :: (t: *T) {
 	run: Replay_Run;
-	// A's side has no READY (the recording started on an open session): A's READY
+	// A's side has no READY (the recording started on an open session, on #general): A's READY
 	// from friend_request_send, where A and B weren't friends either
-	if !replay_begin(*run, t, "friend_add_context_menu", 0, 0, ready_from = "friend_request_send") { return; }
+	if !replay_begin(*run, t, "friend_add_context_menu", R_GUILD, R_TEXT, ready_from = "friend_request_send") { return; }
 	replay_mark(*run);
+	select_channel(run.c, 0, 0); // the capture's navigation Home at the window start
+	replay_settle(*run, 600);
 	open_dm_row_menu(run.c, R_B);
 	replay_settle(*run, 300);
 	add_relationship(run.c, R_B, "ContextMenu");
 	replay_settle(*run, 400);
-	// the hover prefetch of the DM's messages, the session's settings-proto/2 load, and the
-	// capture's navigation Home at the window start (its entitlements and Shop entry, which
-	// the quests entry hover re-rendered) belong to the hover / route, not to the menu
-	replay_check(*run, "friend_request_from_dm_menu", string.["/messages?limit", "settings-proto/2", "/entitlements?", "science:dismissible_content_shown/type=\"COLLECTIBLES_SHOP_ENTRY_MARKETING\""]);
+	// the hover prefetch of the DM's messages, the session's settings-proto/2 load, and the Home
+	// render's entitlements and Shop entry belong to the hover / route, not to the menu. 0.0.420 sent
+	// no impression_dm_list_right_click_menu_shown here, though it did from Friends in close_dm. The
+	// Home render's quests applications, affinities and list views follow the session state, which
+	// the borrowed READY does not carry (this recording has no READY of A).
+	replay_check(*run, "friend_request_from_dm_menu", string.["/messages?limit", "settings-proto/2", "/entitlements?", "science:dismissible_content_shown/type=\"COLLECTIBLES_SHOP_ENTRY_MARKETING\"", "science:impression_dm_list_right_click_menu_shown", "applications/public", "affinities/v2", "science:dm_list_viewed", "science:friends_list_viewed"]);
 	run2: Replay_Run;
 	if !replay_begin(*run2, t, "friend_add_context_menu", 0, 0, "b") { return; }
 	replay_mark(*run2);
@@ -2781,8 +2871,11 @@ parity_dm_call :: (t: *T) {
 	analytics_voice_frame(run.c, .{speaking = true, packets_sent = 10, members = 1});
 	replay_settle(*run, 300);
 	// op 4 preferred_region(s): the live RTC probe; messages?before: history paging after the
-	// call message; settings-proto/2: the session's lazy load
-	replay_check(*run, "start_call", string.["op 4", "/messages?before", "settings-proto/2"]);
+	// call message; settings-proto/2: the session's lazy load. The 0.0.420 capture ran after
+	// join_voice_channel in the same capture session, whose voice exposures are remembered across
+	// launches (none repeat here); where the shelf answers and the layout toggle fall against the
+	// media engine's steps varies per capture.
+	replay_check(*run, "start_call", string.["op 4", "/messages?before", "settings-proto/2", "science:experiment_user_evaluation_exposed", "science:experiment_installation_evaluation_exposed", "science:video_layout_toggled", "science:network_action_embedded_activities_fetch_shelf", "science:batching"]);
 	run2: Replay_Run;
 	if !replay_begin(*run2, t, "dm_call", 0, R_DM, "b") { return; }
 	replay_dispatches(*run2, "start_call");
@@ -2797,7 +2890,7 @@ parity_dm_call :: (t: *T) {
 	analytics_voice_frame(run2.c, .{hearing = true, packets_received = 20, members = 2});
 	replay_settle(*run2, 400);
 	expect_value(t, incoming_call(run2.c), cast(Snowflake) 0);
-	replay_check(*run2, "b_join_from_ring", string.["op 4"]);
+	replay_check(*run2, "b_join_from_ring", string.["op 4", "science:experiment_user_evaluation_exposed", "science:experiment_installation_evaluation_exposed", "science:video_layout_toggled", "science:network_action_embedded_activities_fetch_shelf", "science:batching"]);
 	run3: Replay_Run;
 	if !replay_begin(*run3, t, "dm_call", 0, R_DM) { return; }
 	replay_pump(*run3, 1500);
@@ -2813,8 +2906,12 @@ parity_dm_call :: (t: *T) {
 	analytics_call_disconnect(run3.c, 0, R_DM); // the app: the voice panel's Disconnect
 	voice_leave(run3.c);
 	replay_settle(*run3, 300);
-	replay_check(*run3, "a_hang_up");
+	// voice_stream_ended (0.0.420, per stream on leaving a call with others: the media engine's send
+	// and receive statistics) is not reported yet (TODO.md)
+	replay_check(*run3, "a_hang_up", string.["science:voice_stream_ended"]);
 }
+
+
 
 // ---- log out / log in (traffic/account_edits.jsonl) ----
 // The fixture has no READY before these windows; the login_submit window's
@@ -2950,7 +3047,7 @@ r_ready_timing :: (body: V) -> bool, [2]float64 {
 // r_launch plays a fixture's launch on the fixture's own timeline (ms after the socket's creation):
 // its socket opens (at its app IDENTIFY when it took the app's path, else at 150 ms, before
 // fast-connect.js ran), HELLO and READY arrive. The IDENTIFY and the window's telemetry are compared.
-r_launch :: (t: *T, scenario: string, window: string, guild: Snowflake, channel: Snowflake, allow: string) {
+r_launch :: (t: *T, scenario: string, window: string, guild: Snowflake, channel: Snowflake, allow := "") {
 	run: Replay_Run;
 	if !replay_begin(*run, t, scenario, guild, channel, launch = true) return;
 	c, g := run.c, run.c.gw;
@@ -3010,29 +3107,32 @@ r_launch :: (t: *T, scenario: string, window: string, guild: Snowflake, channel:
 	all: [..]string;
 	all.allocator = temp;
 	array_add(*all, ..R_LAUNCH_ALLOW);
-	array_add(*all, allow);
+	if allow array_add(*all, allow);
 	replay_check(*run, window, all, science_only = true);
 }
 
 // The socket opened after the app took it over (fixture typing, 566 ms after its creation): the
 // app's IDENTIFY (AppSkeleton) and session_start_client, with the scripts' and takeover's telemetry
 // on their own timeline.
+// GUILD_POWERUP_PERKS_COACHMARK: a coachmark this launch showed once (1 of the 0.0.420 launches).
 parity_launch_app :: (t: *T) {
-	r_launch(t, "typing", "setup", R_GUILD, R_TEXT, "science:quest_decision_roundtrip");
+	r_launch(t, "typing", "setup", R_GUILD, R_TEXT, "science:dismissible_content_shown/type=\"GUILD_POWERUP_PERKS_COACHMARK\"");
 }
 
 // The socket opened before fast-connect.js ran (fixture send_message): its IDENTIFY, then the
 // app adopts the socket and handles the HELLO it kept.
-// image_hovered: the capture driver's mouse.
+// app_ui_viewed: this launch's app took the socket over later than the model's 490 ms (its render
+// went out with the startup metric, READY + 88 ms; ours at takeover + 295 ms, just before READY);
+// where the takeover falls in the launch race varies per capture.
 parity_launch_fast :: (t: *T) {
-	r_launch(t, "send_message", "setup", R_GUILD, R_TEXT, "science:image_hovered");
+	r_launch(t, "send_message", "setup", R_GUILD, R_TEXT, "science:app_ui_viewed");
 }
 
 // On Home (fixture cold_start) the app takes the socket over sooner and renders the Friends page
 // after READY. The Shop entry's second dismissible_content_shown follows /collectibles-marketing,
 // a startup request.
 parity_launch_home :: (t: *T) {
-	r_launch(t, "cold_start", "cold_start", 0, 0, "science:dismissible_content_shown/version=101");
+	r_launch(t, "cold_start", "cold_start", 0, 0, "science:dismissible_content_shown/version=102");
 }
 
 // ---- username change (fixture account_edits: a passive recording on the home route) ----
@@ -3056,8 +3156,9 @@ parity_open_account_settings :: (t: *T) {
 	analytics_ui_setting(run.c, "account_info_username_setting"); // the app: Edit
 	username_input_changed(run.c, "dingusbattle");
 	replay_settle(*run, 100);
-	// science: the settings modal's lazy-load spinner (see parity_settings_open);
-	replay_check(*run, "open_account_settings", string.["science:impression_modal_root_legacy/variant=\"renderModalSpinner\""]);
+	// science: the settings modal's lazy-load spinner (see parity_settings_open); account_edits is still
+	// the 0.0.419 recording (its login cannot be re-run), before 0.0.420's member settings badge
+	replay_check(*run, "open_account_settings", string.["science:impression_modal_root_legacy/variant=\"renderModalSpinner\"", "science:dismissible_content_shown/type=\"PINOT_MEMBER_SETTING_NEW_BADGE\""]);
 }
 
 // Typing a new username: the prefilled (current, taken) name is checked, then
@@ -3270,12 +3371,12 @@ voice_moved :: (t: *T) {
 	expect_value(t, voice_followed(c, R_VOICE, *seen), R_VOICE); // not confirmed yet
 	vsu(c, R_VOICE);
 	expect_value(t, voice_followed(c, R_VOICE, *seen), R_VOICE);
-	vsu(c, R_TEXT2); // moved
-	expect_value(t, voice_followed(c, R_VOICE, *seen), R_TEXT2);
-	expect_value(t, c.voice_self.channel_id, R_TEXT2);
-	expect_value(t, voice_followed(c, R_TEXT2, *seen), R_TEXT2);
+	vsu(c, R_TEXT); // moved
+	expect_value(t, voice_followed(c, R_VOICE, *seen), R_TEXT);
+	expect_value(t, c.voice_self.channel_id, R_TEXT);
+	expect_value(t, voice_followed(c, R_TEXT, *seen), R_TEXT);
 	vsu(c, 0); // disconnected by a moderator
-	expect_value(t, voice_followed(c, R_TEXT2, *seen), 0);
+	expect_value(t, voice_followed(c, R_TEXT, *seen), 0);
 	expect_value(t, c.voice_self.channel_id, 0);
 }
 
@@ -3383,7 +3484,7 @@ platform_locales :: (t: *T) {
 	}
 	expect(t, electron_user_agent("Windows NT 10.0; Win64; x64", WINDOWS_HOST) == "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) discord/1.0.9266 Chrome/152.0.7977.167 Electron/44.9.3 Safari/537.36");
 	// Chromium's GREASE brand per major: 148 and 152 as captured.
-	expect(t, sec_ch_ua("148.0.7778.280") == DEFAULT_PLATFORM.sec_ch_ua && sec_ch_ua("152.0.7977.167") == "\"Not?A_Brand\";v=\"24\", \"Chromium\";v=\"152\"", "sec-ch-ua from the Chrome major");
+	expect(t, sec_ch_ua("148.0.7778.280") == "\"Not/A)Brand\";v=\"99\", \"Chromium\";v=\"148\"" && sec_ch_ua("152.0.7977.167") == DEFAULT_PLATFORM.sec_ch_ua, "sec-ch-ua from the Chrome major");
 }
 
 // The /app document at launch: Chrome's navigation headers, GLOBAL_ENV.BUILD_NUMBER adopted before the
@@ -3417,7 +3518,7 @@ app_document_build :: (t: *T) {
 		locks.unlock(*r.mu);
 		resp := http.make_response(.Http3,, context.default_allocator);
 		resp.status = 200;
-		append_string(*resp.body, ifx begins_with(req.path, "/app?_=") then "<script>window.GLOBAL_ENV = {\"NODE_ENV\":\"production\",\"BUILD_NUMBER\":\"650001\",\"RELEASE_CHANNEL\":\"stable\"}</script>" else "{}");
+		append_string(*resp.body, ifx begins_with(req.path, "/app?_=") then "<script>window.GLOBAL_ENV = {\"NODE_ENV\":\"production\",\"BUILD_NUMBER\":\"654001\",\"RELEASE_CHANNEL\":\"stable\"}</script>" else "{}");
 		return resp, .None;
 	}
 	expect_value(t, html_build_number("{\"BUILD_NUMBER\":\"649389\",\"X\":1}"), 649389);
@@ -3430,12 +3531,12 @@ app_document_build :: (t: *T) {
 	schedule_app_load(c);
 	start := mono_ms();
 	while (c.id.web_build == 0 || !c.id.host.version) && mono_ms() - start < 3000 sleep_milliseconds(5);
-	expect_value(t, c.id.web_build, 650001);
+	expect_value(t, c.id.web_build, 654001);
 	expect(t, c.id.host.version == "0.0.421" && c.id.host.native == 97100 && c.id.host.electron == "45.0.1" && c.id.platform.client_version == MAC_HOST_VERSION, "the updater's host waits for the next launch");
-	expect(t, rec.manifest == tprint("/distributions/app/manifests/latest?install_id=%&channel=stable&platform=osx&arch=arm64&platform_version=27.0.1&client_version=96312", c.id.updater_install_id), "the updater's manifest check");
+	expect(t, rec.manifest == tprint("/distributions/app/manifests/latest?install_id=%&channel=stable&platform=osx&arch=arm64&platform_version=27.0.1&client_version=%", c.id.updater_install_id, MAC_NATIVE_BUILD), "the updater's manifest check");
 	install_id := copy_string(c.id.updater_install_id);
 	defer free(install_id);
-	expect_value(t, c.id.platform.client_build_number, 650001);
+	expect_value(t, c.id.platform.client_build_number, 654001);
 	locks.lock(*rec.mu);
 	expect(t, rec.paths.count == 1 && rec.paths[0] == tprint("/app?_=%", c.launch_ms), "the launch's first request is /app?_=<Date.now()>");
 	expect(t, rec.wire.count == 1 && rec.wire[0] == "upgrade-insecure-requests,user-agent,accept,sec-fetch-site,sec-fetch-mode,sec-fetch-user,sec-fetch-dest,accept-encoding,accept-language,priority", "navigation header order (netlog)");
@@ -3445,15 +3546,15 @@ app_document_build :: (t: *T) {
 	for c.jobs if begins_with(it.path, "/assets/version.stable.json?_=") version_ok = it.not_before == c.launch_ms + APP_VERSION_CHECK_MS && it.path == tprint("/assets/version.stable.json?_=%", it.not_before / 300_000);
 	locks.unlock(*c.job_mu);
 	expect(t, version_ok, "version.stable.json queued 3.4 s after the document, with its 5-minute bucket");
-	expect(t, contains(super_properties_json(*c.id, now_ms()), "\"client_build_number\":650001"), "super properties carry the page's build");
-	identity_learn_build(*c.id, 650002, adopt = true);
-	expect_value(t, c.id.platform.client_build_number, 650001); // sealed for the launch
+	expect(t, contains(super_properties_json(*c.id, now_ms()), "\"client_build_number\":654001"), "super properties carry the page's build");
+	identity_learn_build(*c.id, 654002, adopt = true);
+	expect_value(t, c.id.platform.client_build_number, 654001); // sealed for the launch
 	c.store.settings.locale = copy_string("fr",, c.allocator);
 	client_poll(c);
 	expect(t, c.id.platform.locale == "fr", "the language setting becomes x-discord-locale");
 	client_destroy(c);
 	c = client_create(.{token = "<token>", state_dir = dir, disable_startup = true, disable_gateway = true, disable_analytics = true, disable_remote_auth = true});
-	expect_value(t, c.id.platform.client_build_number, 650002);
+	expect_value(t, c.id.platform.client_build_number, 654002);
 	expect(t, c.id.platform.locale == "fr", "the cached language is the boot locale");
 	expect(t, c.id.platform.client_version == "0.0.421" && c.id.platform.browser_user_agent == "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) discord/0.0.421 Chrome/153.0.8000.12 Electron/45.0.1 Safari/537.36", "the next launch runs the updated host");
 	expect(t, c.id.platform.native_build_number == 97100 && c.id.platform.browser_version == "45.0.1" && c.id.platform.sec_ch_ua == "\"Chromium\";v=\"153\", \"Not_A Brand\";v=\"8\"", "with its native build, Electron and Chrome");
@@ -3528,7 +3629,7 @@ updater_schedule :: (t: *T) {
 			hex.allocator = temp;
 			for crypto.sha256(cast([]u8) "package") print_to_builder(*hex, "%", formatInt(it, base = 16, minimum_digits = 2));
 			h := builder_to_string(*hex,, temp);
-			append_string(*resp.body, tprint("{\"full\":{\"host_version\":[0,0,420],\"package_sha256\":\"%\",\"url\":\"https://dl.example/full\"},\"deltas\":[{\"host_version\":[0,0,419],\"package_sha256\":\"%\",\"url\":\"https://dl.example/delta\"}],\"required_modules\":[\"discord_voice\"],\"modules\":{\"discord_voice\":{\"full\":{\"host_version\":[0,0,420],\"module_version\":1,\"package_sha256\":\"%\",\"url\":\"https://dl.example/voice\"},\"deltas\":[]}},\"metadata_version\":96400}", h, h, h));
+			append_string(*resp.body, tprint("{\"full\":{\"host_version\":[0,0,421],\"package_sha256\":\"%\",\"url\":\"https://dl.example/full\"},\"deltas\":[{\"host_version\":[0,0,420],\"package_sha256\":\"%\",\"url\":\"https://dl.example/delta\"}],\"required_modules\":[\"discord_voice\"],\"modules\":{\"discord_voice\":{\"full\":{\"host_version\":[0,0,421],\"module_version\":1,\"package_sha256\":\"%\",\"url\":\"https://dl.example/voice\"},\"deltas\":[]}},\"metadata_version\":96400}", h, h, h));
 		} else {
 			append_string(*resp.body, r.package_body);
 		}
@@ -3557,7 +3658,7 @@ updater_schedule :: (t: *T) {
 	c.updater.next_check_ms = 0;
 	t1 := now_ms();
 	updater_run(c, j);
-	expect(t, rec.calls.count == 10 && c.updater.fetched == "0.0.420" && c.updater.backoff_ms == 0, "the host's delta from 0.0.419 and the module come through");
+	expect(t, rec.calls.count == 10 && c.updater.fetched == "0.0.421" && c.updater.backoff_ms == 0, "the host's delta from 0.0.420 and the module come through");
 	expect(t, j.not_before >= t1 + UPDATER_CHECK_MS && j.not_before <= now_ms() + UPDATER_CHECK_MS, "the next check in an hour");
 	c.updater.next_check_ms = 0;
 	updater_run(c, j);

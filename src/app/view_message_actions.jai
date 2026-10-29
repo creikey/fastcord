@@ -162,6 +162,7 @@ TOOLBAR_BTN :: 28;
 
 // The three most-used reactions (frecency), topped up with the client's defaults.
 quick_reactions :: () -> []dc.Emoji {
+	if app.client != null dc.frecency_reactions_shown(app.client);
 	out: [..]dc.Emoji;
 	out.allocator = temp;
 	add :: (out: *[..]dc.Emoji, key: string) {

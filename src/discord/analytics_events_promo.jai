@@ -9,6 +9,13 @@ Promo_State :: struct {
 	shop_version: s64; // atomic: the Shop entry marketing's version, 0 until /collectibles-marketing loads
 	quest_roundtrip_sample: float64 = 0.18; // quest_decision_roundtrip: 6 of 33 launches' decisions
 	render_delay_sample: float64 = 0.1; // quest_bar_render_delay (QuestBarRenderDelayTracker: 10%)
+	trial_id: Snowflake; // atomic: the account's Nitro trial offer (billing/user-offer), 0 for none
+}
+
+// user_offer_loaded: the launch's billing/user-offer answer (worker thread). Its trial offer id goes
+// into the notice bars' app_notice_viewed (0.0.420: streamer_mode); fastcord shows no offer.
+user_offer_loaded :: (c: *Client, body: V) {
+	atomic_store(*c.promo.trial_id, fsnow(fmap(vmap(body), "user_trial_offer"), "trial_id"));
 }
 
 // ad_session_id: AdSessionStore's session (getOrCreate, called on every use): a new uuid once
@@ -32,9 +39,9 @@ AD_SESSION_TTL_MS :: 30 * 60 * 1000;
 
 // promo_shop_entry: the DM list mounted its Shop entry (a private route after a guild, a launch or
 // login on one): COLLECTIBLES_SHOP_ENTRY_MARKETING. delay_ms > 0: after the route's own views
-// (a navigation tracks it last). Unverified accounts show no Shop entry (fixture join_leave_server, B).
+// (a navigation tracks it last). 0.0.420 shows it to unverified accounts too (B; 0.0.419 did not).
 promo_shop_entry :: (c: *Client, delay_ms := 0) {
-	if c.promo.shop_mounted || !c.account_verified return;
+	if c.promo.shop_mounted return;
 	c.promo.shop_mounted = true;
 	analytics_dismissible(c, "COLLECTIBLES_SHOP_ENTRY_MARKETING", 0, guild = true, version = atomic_load(*c.promo.shop_version), delay_ms = delay_ms);
 }
@@ -53,7 +60,7 @@ promo_shop_marketing :: (c: *Client, body: V) {
 	for cast([]u8) advance(asset, min(asset.count, ASSET.count)) if !is_alnum(it) && it != #char "/" ok = false;
 	if ok fetch_media(c, .{url = asset, kind = .Image, visible = true, discard = true});
 	g, _ := route_now(c);
-	if g == 0 && c.account_verified analytics_dismissible(c, "COLLECTIBLES_SHOP_ENTRY_MARKETING", 0, guild = true, version = v.i);
+	if g == 0 analytics_dismissible(c, "COLLECTIBLES_SHOP_ENTRY_MARKETING", 0, guild = true, version = v.i);
 }
 
 // promo_call_sounds: the voice panel's call sounds picker upsell, mounted as the call opens the
