@@ -64,7 +64,7 @@ thread_from_message :: (m: *dc.Message, anchor: ui.Rect) {
 	if nl >= 0 name.count = nl;
 	if name.count > 40 {
 		name.count = 40;
-		while name.count > 0 && (name[name.count] & 0xC0) == 0x80 name.count -= 1;
+		while name.count > 0 && (name.data[name.count] & 0xC0) == 0x80 name.count -= 1;  // the first cut byte, past count
 	}
 	ui.editor_set_text(*tb.name, name);
 }
