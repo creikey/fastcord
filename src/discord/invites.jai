@@ -535,6 +535,7 @@ friends_page_viewed :: (c: *Client) {
 	}
 	append(*sb, "]");
 	analytics_track(c, "dm_list_viewed", tprint("\"num_users_visible\":%,\"num_users_visible_with_mobile_indicator\":%,\"now_playing_visible\":true,\"now_playing_num_cards\":0,\"now_playing_games_detected\":[],\"visible_user_ids\":%,\"changelog_dm_visible\":false", visible, mobile, builder_to_string(*sb,, temp)));
+	promo_shop_entry(c); // at launch (fixture cold_start); a navigation mounted it already (select_channel)
 	if !c.account_verified analytics_app_notice(c, "app_notice_viewed", "UNVERIFIED_ACCOUNT");
 	// the page opens on Online, or on Add Friend while there is nobody to list
 	people := 0;

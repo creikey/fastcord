@@ -200,8 +200,12 @@ open_profile_editor :: (c: *Client) {
 	api_get_later(c, "/widget-configs/featured", 75);
 	api_get_later(c, "/users/@me/widgets/suggested-games", 75);
 	api_get_later(c, "/users/@me/activities/statistics/applications", 265);
-	// premium_feature_try_out and the Shop / Nitro entry points' dismissible content are
-	// Nitro promotion: never sent (no ads)
+	// the editor's Nitro preview (profile effect presets) and Shop / Nitro entry points render
+	w := aw_begin();
+	json_kstr(*w, "feature_name", "preset");
+	json_kstr(*w, "feature_tier", "premium-standard");
+	aw_track(c, "premium_feature_try_out", *w);
+	promo_profile_upsells(c, 1);
 	profile_action(c, sid, "VIEW_WIDGETS_EMPTY_STATE", 0, 0, false);
 	g, ch := route_now(c);
 	impression_modal_root(c, "UserProfileModalV2", g, ch);

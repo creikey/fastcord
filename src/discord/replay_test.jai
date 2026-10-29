@@ -22,8 +22,10 @@ R_B :: cast(Snowflake) 1564202918369042442;
 R_TEXT2 :: cast(Snowflake) 1564405699197407414;
 
 // Requests the comparison leaves out: UI assets and images the app fetches
-// itself, the RTC probe and Cloudflare's page challenge. Telemetry (/science)
-// is compared on its own, per event (r_science_check).
+// itself, Shop art (collectibles-shop: the Shop entry's marketing art, which the
+// library loads and drops, its hover art and the profile editor's product images),
+// the RTC probe and Cloudflare's page challenge. Telemetry (/science) is compared
+// on its own, per event (r_science_check).
 R_IGNORE :: string.["/assets/", "collectibles-shop", "latency.discord.media", "/cdn-cgi/", "media.discordapp.net", "/app-icons/", "/emojis/", "/avatars/", "/stickers/", "images-ext"];
 
 // A replay is shared by the test thread and the client's workers: everything below mu, and every
@@ -355,6 +357,7 @@ replay_begin :: (run: *Replay_Run, t: *T, scenario: string, guild: Snowflake, ch
 	}
 	identity_touch_heartbeat(*run.c.id, now_ms()); // the launch's heartbeat session (the window had focus)
 	run.c.analytics.roundtrip_sample = 0; // send_message_roundtrip is sampled (10%): never offline
+	run.c.promo.quest_roundtrip_sample = 0; // quest_decision_roundtrip too
 	identity_set_app_state(*run.c.id, .Unfocused);
 	client_start(run.c);
 	// session state from the fixture's READY
@@ -367,6 +370,12 @@ replay_begin :: (run: *Replay_Run, t: *T, scenario: string, guild: Snowflake, ch
 			client_inject_dispatch(run.c, name, vget(e, "d"));
 			break;
 		}
+	}
+	// the session's Shop marketing, loaded READY + 2 s (startup loads are off here)
+	for e: run.r.events {
+		v, ok := r_body_value(vget(e, "body"));
+		version := fint(fmap(fmap(vmap(v), "marketings"), "0"), "version");
+		if fstr(e, "k") == "resp" && ok && version { atomic_store(*run.c.promo.shop_version, version); break; }
 	}
 	// READY's apex_experiments.installation is scrubbed from the fixtures
 	if run.c.id.installation_id == "" run.c.id.installation_id = copy_string("1100000000000000001",, run.c.allocator);
@@ -818,27 +827,18 @@ r_type :: (c: *Client, channel: Snowflake, text: string) {
 }
 
 // Telemetry fastcord never sends (traffic/PARITY.md "Telemetry", analytics_never):
-// every window allows these (replay_check). No ads (AGENTS.md):
-//   dismissible content of the Shop, Nitro and Orbs (by type), premium_upsell_viewed,
-//   impression_custom_themes_* (Nitro themes), quest_hover / quest_hover_off (the quests
-//   entry point; the hovers are the capture driver's mouse path anyway),
-//   exposures of ad / Nitro-marketing / Orbs / quests experiments (by location).
-R_SCI_NEVER :: string.[
-	"science:quest_hover", "science:premium_upsell_viewed", "science:impression_custom_themes",
-	"science:dismissible_content_shown/type=\"COLLECTIBLES_SHOP_ENTRY_MARKETING\"",
-	"science:dismissible_content_shown/type=\"CUSTOM_CALL_SOUNDS_PICKER_UPSELL\"",
-	"science:dismissible_content_shown/type=\"WISHLIST_NUX_TOOLTIP_AND_MODAL\"",
-	"science:dismissible_content_shown/type=\"USER_PROFILE_PREMIUM_AND_SHOP_ENTRY_POINTS\"",
-	"science:premium_feature_try_out",
-	"science:dismissible_content_shown/type=\"DISPLAY_NAME_STYLES_FLYWHEEL_EDIT_PROFILE_NEW_BADGE\"",
-	"science:dismissible_content_shown_before_connection_open/content_type=\"PREMIUM_ORBS_UPSELL_POPOVER\"",
-	"science:dismissible_content_shown_before_connection_open/content_type=\"WISHLIST_SHOP_BUTTON_POPOVER\"",
-	"science:experiment_user_evaluation_exposed/exposure_location=\"NitroTabButton\"",
-	"science:experiment_user_evaluation_exposed/exposure_location=\"useNoFillAd\"",
-	"science:experiment_user_evaluation_exposed/exposure_location=\"Account\"",
-	"science:experiment_user_evaluation_exposed/exposure_location=\"GlobalDiscoverySidebar\"",
-	"science:experiment_user_evaluation_exposed/experiment=\"2026-07-orbchievements\""
-];
+// every window allows these (replay_check). No fake engagement with sponsored content
+// (AGENTS.md): quest_hover / quest_hover_off (the capture driver's mouse path crossing the
+// quests entry point), and a served quest's quest_decision_received and quest bar render
+// (quest_bar_mode_changed, with the ad's ids).
+R_SCI_NEVER :: string.["science:quest_hover", "science:quest_decision_received", "science:quest_bar_mode_changed"];
+
+// r_ad_heartbeat_due: client_ad_heartbeat fires now. account_edits has one in username_typing and one
+// 21.6 s later in username_taken_check, so its trigger is not only the 5-minute timer (TODO.md).
+r_ad_heartbeat_due :: (run: *Replay_Run) {
+	run.c.focused = true;
+	run.c.analytics.next_ad_hb = now_ms();
+}
 
 // The FrecencyUserSettingsManager's startup run (READY + 10 ms-10 s, one random draw per
 // session) fell in the window after the session's lazy load: r_frecency_load before the mark,
@@ -1486,8 +1486,7 @@ parity_join_voice :: (t: *T) {
 	r_frecency_run(*run); // writes the voice channel too (VOICE_CHANNEL_SELECT)
 	replay_settle(*run, 900);
 	// op 4 preferred_region(s) come from the live RTC probe
-	// science: fastcord has no voice invite suggestions
-	replay_check(*run, "join_voice", string.["op 4", ".client_rtc_state", "science:impression_voice_invite_suggestions"]);
+	replay_check(*run, "join_voice", string.["op 4", ".client_rtc_state"]);
 }
 
 parity_leave_voice :: (t: *T) {
@@ -1737,6 +1736,7 @@ parity_quick_switcher_open :: (t: *T) {
 	// the app: Enter on the first result, the DM with B (empty query)
 	dm := channel_get(*run.c.store, R_DM);
 	analytics_quickswitcher_closed(run.c, R_GUILD, R_TEXT, "", 0, .[.{kind = .User, id = ifx dm && dm.recipient_ids then dm.recipient_ids[0] else 1, score = 3}], 0);
+	select_channel(run.c, 0, R_DM, 10); // the DM list mounts with its Shop entry
 	replay_settle(*run, 300);
 	// opening the DM is select_channel (parity_open_dm), with the DM list's view
 	// (dm_list_viewed) and the profile it shows
@@ -2322,9 +2322,9 @@ parity_discover :: (t: *T) {
 	defer replay_end(*run);
 	replay_mark(*run);
 	replay_settle(*run, 300);
-	// science: the in-app discovery page's events (entry point, servers tab views);
-	// fastcord's compass is a link to the web page, which is not that entry point
-	replay_check(*run, "open_discover", string.["discoverable-guilds", "discovery/categories", "discovery-splashes", "/icons/", "science:global_discovery_"], keep = true);
+	// science: the in-app discovery page's events (entry point, servers tab views, its
+	// sidebar's exposure); fastcord's compass is a link to the web page, not that entry point
+	replay_check(*run, "open_discover", string.["discoverable-guilds", "discovery/categories", "discovery-splashes", "/icons/", "science:global_discovery_", "science:experiment_user_evaluation_exposed/exposure_location=\"GlobalDiscoverySidebar\""], keep = true);
 	replay_mark(*run);
 	replay_settle(*run, 300);
 	// returning to the guild re-renders its channel officially (integrations)
@@ -2703,9 +2703,10 @@ parity_friend_add_context_menu :: (t: *T) {
 	replay_settle(*run, 300);
 	add_relationship(run.c, R_B, "ContextMenu");
 	replay_settle(*run, 400);
-	// the hover prefetch of the DM's messages, the session's settings-proto/2 load and the
-	// home route's entitlements belong to the hover / route, not to the menu
-	replay_check(*run, "friend_request_from_dm_menu", string.["/messages?limit", "settings-proto/2", "/entitlements?"]);
+	// the hover prefetch of the DM's messages, the session's settings-proto/2 load, and the
+	// capture's navigation Home at the window start (its entitlements and Shop entry, which
+	// the quests entry hover re-rendered) belong to the hover / route, not to the menu
+	replay_check(*run, "friend_request_from_dm_menu", string.["/messages?limit", "settings-proto/2", "/entitlements?", "science:dismissible_content_shown/type=\"COLLECTIBLES_SHOP_ENTRY_MARKETING\""]);
 	run2: Replay_Run;
 	if !replay_begin(*run2, t, "friend_add_context_menu", 0, 0, "b") { return; }
 	replay_mark(*run2);
@@ -2876,10 +2877,10 @@ parity_username_typing :: (t: *T) {
 	}
 	replay_pump(*run, 1200);
 	expect_value(t, username_check(run.c, "dingusbattle2").state, Username_Check_State.Available);
+	r_ad_heartbeat_due(*run); // the ad heartbeat the capture sent in this window
 	replay_settle(*run, 300);
-	// metrics/v2: the web client's performance metrics batch (wasm asset loads...);
-	// client_ad_heartbeat: the 5-minute ad heartbeat timer, not this action
-	replay_check(*run, "username_typing", string.["metrics/v2", "science:client_ad_heartbeat"]);
+	// metrics/v2: the web client's performance metrics batch (wasm asset loads...)
+	replay_check(*run, "username_typing", string.["metrics/v2"]);
 }
 
 // Done: PATCH /users/@me {"username","password"}; then "Edit" again (science).
@@ -2918,9 +2919,9 @@ parity_username_taken_check :: (t: *T) {
 	username_input_changed(run.c, "dingusbattle3");
 	replay_pump(*run, 1300);
 	expect_value(t, username_check(run.c, "dingusbattle3").state, Username_Check_State.Available);
+	r_ad_heartbeat_due(*run); // the ad heartbeat the capture sent in this window
 	replay_settle(*run, 300);
-	// client_ad_heartbeat: the 5-minute ad heartbeat timer, not this action
-	replay_check(*run, "username_taken_check", string.["science:client_ad_heartbeat"]);
+	replay_check(*run, "username_taken_check");
 }
 
 username_rules :: (t: *T) {

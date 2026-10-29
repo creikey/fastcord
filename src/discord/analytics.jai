@@ -635,13 +635,14 @@ client_set_accessibility :: (c: *Client, flags: u64) {
 }
 
 // Events the official client sends that fastcord never sends. Values fastcord
-// cannot measure are synthesized (Synth, traffic/CLIENT_RULES.md "Analytics"),
-// so what is left out here is left out by rule (AGENTS.md: no ads, no Activities)
-// or because fastcord has no such UI (traffic/PARITY.md "Telemetry"):
-//   dismissible_content_shown* of Shop / Nitro / Orbs content, premium_upsell_viewed, premium_feature_try_out,
-//   impression_custom_themes_*           upsells (no ads); filtered by type in the replay tests
-//   quest_hover, quest_hover_off         the quests entry point (promotions)
-//   experiment exposures of ad, Nitro-marketing and Orbs experiments (EXPERIMENT_NEVER)
-//   impression_voice_invite_suggestions_*, emoji_studio_ended, open_modal "Emoji Studio"
-//                                        UI fastcord does not have
-analytics_never :: string.["premium_upsell_viewed", "premium_feature_try_out", "quest_hover", "quest_hover_off", "impression_custom_themes", "impression_voice_invite_suggestions", "emoji_studio_ended"];
+// cannot measure are synthesized (Synth, traffic/CLIENT_RULES.md "Analytics"), and
+// promotion surfaces track as they render though nothing is drawn
+// (analytics_events_promo.jai), so what is left out here is engagement with sponsored
+// content, never faked (AGENTS.md), or needs UI fastcord does not have (traffic/PARITY.md "Telemetry"):
+//   quest_hover, quest_hover_off          hovering the quests entry point
+//   quest_decision_received, quest_bar_mode_changed
+//                                         a served quest's receipt and its quest bar rendering (ad ids)
+//   emoji_studio_ended, open_modal "Emoji Studio", voice_invite_suggestions_entrypoint_closed,
+//   impression_voice_invite_suggestions_popover
+//                                         UI fastcord does not have
+analytics_never :: string.["quest_hover", "quest_hover_off", "quest_decision_received", "quest_bar_mode_changed", "emoji_studio_ended", "voice_invite_suggestions_entrypoint_closed", "impression_voice_invite_suggestions_popover"];

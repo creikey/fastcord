@@ -13,8 +13,9 @@
 // generated) wherever it has an equivalent. What only the official client can
 // measure (Electron memory, its media engine's internals, web-bundle metrics) is
 // synthesized realistically from the fixtures, and listed as synthesized in
-// traffic/CLIENT_RULES.md "Analytics". Ads, Nitro and quest promotion events are
-// never sent (analytics_never in analytics.jai).
+// traffic/CLIENT_RULES.md "Analytics". Shop, Nitro and quest promotion telemetry
+// is sent as it renders (analytics_events_promo.jai); engagement with sponsored
+// content never is (analytics_never in analytics.jai).
 
 // PERMISSIONS_ALL_BUILD: Permissions.ALL of the client build fastcord
 // identifies as (client_build_number 649389): owners/administrators report
@@ -127,8 +128,8 @@ aw_route :: (w: *Json, c: *Client, guild_id: Snowflake, channel_id: Snowflake) {
 }
 
 // analytics_dismissible: dismissible_content_shown for a DismissibleContent type.
-// guild: write "guild_id" (null when 0). version: written when > 0.
-analytics_dismissible :: (c: *Client, kind: string, count: int, guild := false, guild_id: Snowflake = 0, version := 0) {
+// guild: write "guild_id" (null when 0). version: written when >= 0. delay_ms: tracked that much later.
+analytics_dismissible :: (c: *Client, kind: string, count: int, guild := false, guild_id: Snowflake = 0, version := -1, delay_ms := 0) {
 	w := aw_begin();
 	json_kstr(*w, "type", kind);
 	json_knull(*w, "unselected_content_types");
@@ -136,8 +137,13 @@ analytics_dismissible :: (c: *Client, kind: string, count: int, guild := false, 
 	json_kint(*w, "fatigable_content_count", 0);
 	json_kbool(*w, "bypass_fatigue", true);
 	if guild aw_ksnow_or_null(*w, "guild_id", guild_id);
-	if version > 0 json_kint(*w, "version", version);
-	aw_track(c, "dismissible_content_shown", *w);
+	if version >= 0 json_kint(*w, "version", version);
+	if !delay_ms {
+		aw_track(c, "dismissible_content_shown", *w);
+		return;
+	}
+	json_obj_end(*w);
+	analytics_schedule(c, now_ms() + delay_ms, "dismissible_content_shown", json_body(json_string(*w)));
 }
 
 aw_location :: (w: *Json, location: string, page: string, section: string) {
@@ -363,6 +369,7 @@ expression_picker_opened :: (c: *Client, kind: Picker_Kind, guild_id: Snowflake,
 		aw_search_head(*w3, c, p);
 		aw_search_tail(*w3, c, p);
 		aw_track(c, "search_opened", *w3);
+		analytics_dismissible(c, "WISHLIST_NUX_TOOLTIP_AND_MODAL", 0, guild = true, guild_id = guild_id); // the Shop wishlist tooltip
 	  case .Emoji;
 		w := aw_begin();
 		aw_search_head(*w, c, p);
@@ -374,6 +381,7 @@ expression_picker_opened :: (c: *Client, kind: Picker_Kind, guild_id: Snowflake,
 		aw_counts(*w2, counts);
 		aw_route(*w2, c, guild_id, channel_id);
 		aw_track(c, "expression_picker_opened", *w2);
+		analytics_dismissible(c, "WISHLIST_NUX_TOOLTIP_AND_MODAL", 0, guild = true, guild_id = guild_id);
 	  case .Gif;
 		w := aw_begin();
 		aw_search_head(*w, c, p);
@@ -691,6 +699,7 @@ analytics_on_profile :: (c: *Client, user_id: Snowflake) {
 			stack = string.["user profile sidebar"];
 			analytics_user_triggered(c, LEGACY_USER_REPORTING, "user profile overflow menu"); // fixture friend_nickname (setup_b)
 	}
+	if v.layout != .Sidebar promo_profile_upsells(c, xx (v.layout == .Account_Popout));
 	if v.layout == .Modal {
 		w := aw_begin();
 		json_kstr(*w, "impression_type", "page");
@@ -701,6 +710,8 @@ analytics_on_profile :: (c: *Client, user_id: Snowflake) {
 		aw_track(c, "impression_modal_root_legacy", *w);
 	}
 	profile_action(c, v, stack, "VIEW");
+	// the account popout's Edit Profile "new" badge (display name styles, a Nitro perk)
+	if v.layout == .Account_Popout analytics_dismissible(c, "DISPLAY_NAME_STYLES_FLYWHEEL_EDIT_PROFILE_NEW_BADGE", 2, guild = true);
 }
 
 profile_action :: (c: *Client, v: *Profile_View, stack: []string, action: string) {
@@ -1089,6 +1100,7 @@ analytics_permissions_requested :: (c: *Client, kind: string) {
 	w := aw_begin();
 	json_kstr(*w, "type", kind);
 	aw_track(c, "permissions_requested", *w);
+	if kind == "audio" promo_call_sounds(c); // the voice panel mounts with the call
 }
 
 // ---- the voice connection (the official media engine's events) ----
@@ -1255,6 +1267,7 @@ analytics_voice_ready :: (c: *Client, ws_ms: s64, ready_ms: s64, port: int) {
 	json_kint(*w, "number_of_users", voice_others(c, v.channel_id));
 	json_kint(*w, "duration_ms", ready_ms - v.created_ms);
 	aw_track(c, "voice_connection_remote_streams_created", *w);
+	promo_voice_invite_entrypoint(c, v.channel_id);
 }
 
 // analytics_voice_connected: SESSION_DESCRIPTION (voice_connection_success,
@@ -2005,8 +2018,8 @@ analytics_app_notice :: (c: *Client, event: string, notice_type: string, guild_i
 // assigns us are reported, with READY's evaluation id and variation (murmur3 of
 // the name, the entry's second element), once per evaluation id, location and
 // experiment, remembered across launches (identity.tsv): the fixtures' launches
-// show them only after a login or a new evaluation. Exposures of ad, Nitro
-// marketing, Orbs and quests experiments are never sent (no ads).
+// show them only after a login or a new evaluation. Ad, Nitro marketing and Orbs
+// experiments are exposed like the rest, where their (unshown) components render.
 
 // analytics_ready_experiments: READY's apex_experiments (unit 1 = user, 2 = installation).
 analytics_ready_experiments :: (c: *Client, data: V) {
@@ -2050,8 +2063,11 @@ analytics_exposures_after_ready :: (c: *Client) {
 	if home {
 		analytics_exposed(c, "dm/gdm list rendered");
 		analytics_exposed(c, "dm/gdm list rendered", installation = true);
+		analytics_exposed(c, "useNoFillAd", "2026-08-no-fill-logging");
 	}
 	analytics_exposed(c, "ActivityPanelGameCard", "2026-02-join-game-community-cta");
+	analytics_exposed(c, "Account", "2026-07-orbchievements");
+	if home for string.["2026-10-macaron", "2026-10-macaron-non-sub-marketing", "2026-10-code-blurple", "2026-10-code-blurple-marketing-holdout", "2026-09-non-nitro-file-upload-marketing"] analytics_exposed(c, "NitroTabButton", it);
 }
 
 // analytics_exposed: experiment_user_evaluation_exposed (or the installation's)
@@ -2433,19 +2449,22 @@ analytics_client_heartbeat :: (c: *Client) {
 }
 
 // dismissible_content_shown_before_connection_open: the "For Later" coachmark
-// checked before CONNECTION_OPEN, with the route's guild (the Shop and Orbs
-// upsells checked with it are never sent: no ads).
+// checked before CONNECTION_OPEN, with the route's guild; on a private route the
+// DM list's Orbs and Shop button popovers too (verified accounts: promo_shop_entry).
 analytics_before_connection_open :: (c: *Client) {
 	locks.lock(*c.route_mu);
 	g := c.route_guild;
 	locks.unlock(*c.route_mu);
-	w := aw_begin();
-	json_kstr(*w, "content_type", "FOR_LATER_POPOUT_COACHMARK");
-	json_knull(*w, "group_name");
-	json_knull(*w, "latest_version");
-	aw_ksnow_or_null(*w, "guild_id", g);
-	json_knull(*w, "snowflake_id");
-	aw_track(c, "dismissible_content_shown_before_connection_open", *w);
+	for string.["FOR_LATER_POPOUT_COACHMARK", "PREMIUM_ORBS_UPSELL_POPOVER", "WISHLIST_SHOP_BUTTON_POPOVER"] {
+		if it_index > 0 && (g || !c.account_verified) break;
+		w := aw_begin();
+		json_kstr(*w, "content_type", it);
+		json_knull(*w, "group_name");
+		json_knull(*w, "latest_version");
+		aw_ksnow_or_null(*w, "guild_id", g);
+		json_knull(*w, "snowflake_id");
+		aw_track(c, "dismissible_content_shown_before_connection_open", *w);
+	}
 }
 
 // ready_payload_received: READY's sizes and timings. Wire sizes and the unpack

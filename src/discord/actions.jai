@@ -48,6 +48,9 @@ select_channel :: (c: *Client, guild_id: Snowflake, channel_id: Snowflake, messa
 		analytics_channel_opened(c, guild_id, channel_id, location = source);
 	}
 	if guild_id && guild_id != prev_guild analytics_guild_viewed(c, guild_id, channel_id);
+	// the DM list's Shop entry mounts with a private route, after the route's own views
+	if guild_id c.promo.shop_mounted = false;
+	else promo_shop_entry(c, delay_ms = 1);
 	frecency_select(c, guild_id, channel_id); // CHANNEL_SELECT
 }
 
@@ -955,9 +958,11 @@ client_after_dispatch :: (c: *Client, name: string, data: V) {
 		locks.unlock(*c.route_mu);
 		// the route's views render on CONNECTION_OPEN: channel_opened, guild_viewed
 		// (fixtures' setup windows, right after ready_payload_received)
+		if first && !g && ch promo_shop_entry(c); // the DM list renders before the DM (fixture close_dm)
 		if first && ch analytics_channel_opened(c, g, ch);
 		if first && g analytics_guild_viewed(c, g, ch);
 		if first && !g && !ch friends_page_viewed(c); // fixture cold_start
+		if !g promo_shop_entry(c); // a login's READY renders the DM list again (fixture login_submit)
 		if ch {
 			l := message_list(*c.store, ch);
 			if !l.loaded && !l.loading fetch_messages(c, ch, 0, initial_message_limit(viewport_h(c)));
