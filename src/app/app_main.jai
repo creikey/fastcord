@@ -237,7 +237,8 @@ main :: () {
 			if !opt.service say("%\n", text);
 			serve.host_log(s, "%", text);
 		}
-		if !serve.listen(s, opt.port) {
+		// Fly.io carries UDP only to a socket bound to fly-global-services, and drops replies from any other.
+		if !serve.listen(s, opt.port, ifx env_var("FLY_APP_NAME") then "fly-global-services" else "") {
 			serve.host_log(s, "Could not listen on port % (TCP, and UDP for voice)", opt.port);
 			fail("could not listen on port % (TCP, and UDP for voice)", opt.port);
 		}

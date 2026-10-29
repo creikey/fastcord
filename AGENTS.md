@@ -69,6 +69,16 @@ the Jai is written. This file lists what is easy to miss.
 - Add as few files to `<state>` as possible: put new persisted state in an existing file
   (`settings.json`, later `fastcord.db`). Add a new file only when its secrecy differs from every
   existing one, such as the token or E2E keys, which must never share a file with plain settings.
+- An update never loses a user's data: keys, `fastcord.db` (sessions, decrypted history), settings,
+  a server's file. Dev builds count, since they run on real accounts, and "not shipped yet" is never
+  a reason to drop anything.
+  - A schema change only adds. E2E's `MIGRATIONS` fails the build on `DROP TABLE`, `DROP COLUMN` or
+    `DELETE FROM`. A table that must change shape is rebuilt with its rows copied, and only after
+    the human approves it.
+  - Back up a file before migrating it, and never overwrite a backup. A file that a newer build
+    wrote, or that won't open or unlock, is refused or set aside, never reset or deleted.
+  - A protocol or format change still reads all an earlier release wrote. That covers E2E packets of
+    every shipped version, a stored session, and old settings and keys.
 - Formats from the network (images, compression, codecs) go through vetted libraries, not hand-written
   decoders: Wuffs first, else the reference C library. Vendor upstream files unmodified in
   `vendor/<lib>/` with a small `fc_<lib>.c` wrapper and a README (URL, version, sha256, licence);

@@ -552,6 +552,7 @@ module were read.
 | Copy/Save Image fetch the `XW` URL: media.discordapp.net → cdn.discordapp.com, drop width/height/quality/size/format, add `format=png` without an extension | code | module 803316 (`XW`) | `view_media.jai` `media_action` |
 | Save Image writes to ~/Downloads without a dialog; a GIFV video offers only the link items; the items stand in their own menu (the client appends them to the message menu) | guess | `NativeUtils.saveImage` | `view_media.jai` |
 | A media load (image, emoji, clip, sound) that failed with no response, 408, 429 or 5xx is requested again when next viewed or played, 2 s after the failure and doubling per failure to 5 min; another 4xx or undecodable bytes are final until the entry is swept. The client's `<img>`/`<audio>` re-request when remounted, with no backoff | guess | — | `images.jai` `Retry`, `image_get`; `emoji.jai` `twemoji_get`; `view_media.jai` `blob_get`, `blob_stream`, `player_retry`; `sounds.jai` `sound_play_url` |
+| Audio and video attachments decode in Chromium's media stack, whose AAC decoder is FFmpeg's native one (Electron ships it as its own `libffmpeg.so` / `ffmpeg.dll`), so AAC-LC, HE-AAC and HE-AAC v2 soundtracks and .m4a files play on every OS. fastcord: AudioToolbox on macOS, Media Foundation on Windows, and on Linux the same FFmpeg decoder in its own `libfc_aac.so` beside the binary, now matching | inferred (Chromium's media code, not the bundle) | Electron's `libffmpeg` | `media/decode_linux.jai` `aac_decoder_create`, `vendor/ffmpeg` |
 
 ## Tray (Windows)
 

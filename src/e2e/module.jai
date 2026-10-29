@@ -180,7 +180,8 @@ free_request :: (r: *Request) {
 
 #scope_file
 
-// Each entry moves the schema up one version (PRAGMA user_version). Never edit a shipped entry; append.
+// Each entry moves the schema up one version (PRAGMA user_version). Never edit an entry; append. An entry
+// only adds: users' sessions and decrypted history outlive every update (the #run below).
 MIGRATIONS :: string.[
 	"CREATE TABLE meta(key TEXT PRIMARY KEY, value BLOB NOT NULL) WITHOUT ROWID;",
 	#string SQL
@@ -242,6 +243,29 @@ SQL,
 	// after a crash carries them too.
 	"CREATE TABLE outbox_files(hash BLOB NOT NULL, n INTEGER NOT NULL, data BLOB NOT NULL, PRIMARY KEY(hash, n)) WITHOUT ROWID;",
 ];
+
+// The entries that wiped users' sessions and history, before E2E shipped in v0.6.2. Never add to this:
+// a table that must change shape is rebuilt with its rows copied, and that needs the maintainer's review.
+WIPED_BEFORE_RELEASE :: int.[3, 5];
+
+#run {
+	for MIGRATIONS if !array_find(WIPED_BEFORE_RELEASE, it_index)
+		assert(only_adds(it), "e2e migration % deletes data: an update must never cost a user their sessions or history", it_index);
+}
+
+// only_adds is false if sql, in any case or spacing, drops a table or column or deletes rows.
+only_adds :: (sql: string) -> bool {
+	s: [..]u8;
+	defer array_free(s);
+	for 0..sql.count-1 {
+		c := to_upper(sql[it]);
+		if c == #char "\t" || c == #char "\r" || c == #char "\n" c = #char " ";
+		if c == #char " " && s.count && s[s.count-1] == #char " " continue;
+		array_add(*s, c);
+	}
+	norm := cast(string) s;
+	return !contains(norm, "DROP TABLE") && !contains(norm, "DROP COLUMN") && !contains(norm, "DELETE FROM");
+}
 
 // Search opens at most this many of a conversation's texts and returns at most MAX_HITS of them.
 MAX_SEARCHED :: 50000;
@@ -885,7 +909,7 @@ open :: (d: *Db) -> ok: bool, sealed: bool {
 	}
 	// secure_delete overwrites what's deleted or replaced: forward secrecy needs used message keys,
 	// old ratchet states and expired prekeys gone from the file, not left in free pages.
-	if !sqlite.exec(db, "PRAGMA secure_delete=ON;") || !migrate(db) {
+	if !sqlite.exec(db, "PRAGMA secure_delete=ON;") || !migrate(db, d.path) {
 		d.error = sprint("cannot migrate %: %", d.path, sqlite.errmsg(db));
 		sqlite.close(db);
 		return false, false;
@@ -901,7 +925,7 @@ open :: (d: *Db) -> ok: bool, sealed: bool {
 	return true, false;
 }
 
-migrate :: (db: *sqlite.DB) -> bool {
+migrate :: (db: *sqlite.DB, path: string) -> bool {
 	st := sqlite.prepare(db, "PRAGMA user_version;");
 	if !st return false;
 	version := ifx sqlite.step(st) == .Row then sqlite.col_int(st, 0) else -1;
@@ -910,6 +934,18 @@ migrate :: (db: *sqlite.DB) -> bool {
 	if version > MIGRATIONS.count {
 		log_error("e2e: the database is schema version %, newer than this fastcord's %", version, MIGRATIONS.count);
 		return false;
+	}
+	// A copy as the file was before this update, kept beside it and never overwritten, so a migration with
+	// a bug can be undone. It holds no more than the file did, sealed the same way. No copy, no migration.
+	if version > 0 && version < MIGRATIONS.count && path != ":memory:" {
+		backup := tprint("%.pre-v%", path, MIGRATIONS.count);
+		if !file_exists(backup) {
+			if !sqlite.run(db, "VACUUM INTO ?;", backup) {
+				log_error("e2e: cannot back up % before updating it: %", path, sqlite.errmsg(db));
+				return false;
+			}
+			log("e2e: backed up % to % before updating it to schema %", path, backup, MIGRATIONS.count);
+		}
 	}
 	for i: version..MIGRATIONS.count-1 {
 		ok := sqlite.exec(db, "BEGIN;") && sqlite.exec(db, MIGRATIONS[i])

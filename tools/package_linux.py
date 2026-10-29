@@ -1,12 +1,13 @@
 """Packages the Linux release: python3 -I tools/package_linux.py <binary> <out.tar.gz> [server].
 
 One tarball for every distro: fastcord/ holds the binary (glibc 2.17+, X11/EGL/fontconfig/ALSA opened at
-run time), a desktop entry, the icon and install.sh, which installs for the current user (or system-wide
+run time), libfc_aac.so from beside the binary (FFmpeg's AAC decoder, LGPL, opened with dlopen; its licence
+goes with it), a desktop entry, the icon and install.sh, which installs for the current user (or system-wide
 as root) without a package manager. With `server`, fastcord-server/ holds the same binary (-serve opens no
 display library) with a systemd unit and a README, for a headless machine. Built on any OS: file modes
 are set here, not taken from the disk.
 """
-import io, sys, tarfile, time
+import io, os, re, sys, tarfile, time
 
 DESKTOP = """[Desktop Entry]
 Type=Application
@@ -26,8 +27,11 @@ INSTALL = """#!/bin/sh
 set -e
 here=$(cd "$(dirname "$0")" && pwd)
 if [ "$(id -u)" = 0 ]; then prefix=/usr/local; else prefix="$HOME/.local"; fi
-mkdir -p "$prefix/bin" "$prefix/share/applications" "$prefix/share/icons/hicolor/256x256/apps"
-install -m 755 "$here/fastcord" "$prefix/bin/fastcord"
+mkdir -p "$prefix/bin" "$prefix/lib/fastcord" "$prefix/share/applications" "$prefix/share/icons/hicolor/256x256/apps"
+# the binary opens libfc_aac.so from its own directory
+install -m 755 "$here/fastcord" "$prefix/lib/fastcord/fastcord"
+install -m 644 "$here/libfc_aac.so" "$prefix/lib/fastcord/libfc_aac.so"
+ln -sf "$prefix/lib/fastcord/fastcord" "$prefix/bin/fastcord"
 install -m 644 "$here/fastcord.png" "$prefix/share/icons/hicolor/256x256/apps/fastcord.png"
 sed "s|^Exec=fastcord|Exec=$prefix/bin/fastcord|" "$here/fastcord.desktop" > "$prefix/share/applications/fastcord.desktop"
 command -v update-desktop-database >/dev/null 2>&1 && update-desktop-database "$prefix/share/applications" 2>/dev/null || true
@@ -47,6 +51,12 @@ Install it:        ./install.sh        (your user; as root: system-wide in /usr/
 Works on any distribution with glibc 2.17 or newer (2014+) and an X11 or Wayland desktop (through
 XWayland). Uses OpenGL 3.3 through EGL, fontconfig for fonts and ALSA (PipeWire / PulseAudio) for voice,
 all loaded at run time. Settings and the login token live in ${XDG_DATA_HOME:-~/.local/share}/fastcord.
+
+libfc_aac.so is FFmpeg's AAC decoder (video soundtracks, .m4a), licensed under the GNU LGPL 2.1 or later
+(COPYING.LGPLv2.1). fastcord loads it at run time from its own directory, so you may replace it with your
+own build; without it AAC plays silent. Its source: vendor/ffmpeg in this release's tag of
+https://github.com/creikey/fastcord (unmodified FFmpeg files and the small wrapper fc_aac.c), from
+{ffmpeg}.
 """
 
 UNIT = """[Unit]
@@ -98,11 +108,14 @@ def main():
             ("README.txt", SERVER_README.encode(), 0o644),
         ]
     else:
+        ffmpeg = re.search(r"^- Source: (\S+)", open("vendor/ffmpeg/README.md").read(), re.M).group(1)
         files += [
             ("fastcord.desktop", DESKTOP.encode(), 0o644),
             ("fastcord.png", open("assets/fastcord.png", "rb").read(), 0o644),
             ("install.sh", INSTALL.encode(), 0o755),
-            ("README.txt", README.encode(), 0o644),
+            ("README.txt", README.replace("{ffmpeg}", ffmpeg).encode(), 0o644),
+            ("libfc_aac.so", open(os.path.join(os.path.dirname(binary), "libfc_aac.so"), "rb").read(), 0o644),
+            ("COPYING.LGPLv2.1", open("vendor/ffmpeg/COPYING.LGPLv2.1", "rb").read(), 0o644),
         ]
     with tarfile.open(out, "w:gz") as tar:
         d = tarfile.TarInfo(top)

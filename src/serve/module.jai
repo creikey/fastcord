@@ -366,10 +366,11 @@ id_hex :: (s: *Server, allocator := temp) -> string { return hex(s.id,, allocato
 pin_hex ::(s: *Server, allocator := temp) -> string { return hex(s.pin,, allocator); }
 
 // listen accepts connections on a thread until stop. Port 0 picks a free port: see s.listener.port.
-listen :: (s: *Server, port: int) -> bool {
+// udp_host: the address voice binds, else every address.
+listen :: (s: *Server, port: int, udp_host := "") -> bool {
 	l, err := netio.listen_tcp(port);
 	if err != .None return false;
-	u, uerr := netio.listen_udp(l.port, 250);
+	u, uerr := netio.listen_udp(l.port, 250, udp_host);
 	if uerr != .None { netio.close_listener(l); free(l); return false; }
 	s.listener, s.udp = l, u;
 	s.udp_thread = spawn(s, voice_udp);
@@ -728,6 +729,9 @@ accept_loop :: (s: *Server) {
 // Its stream is closed by whoever reaps it (accept_loop or stop), so a shutdown never races a close.
 serve_conn :: (c: *Conn) {
 	defer atomic_store(*c.done, true);
+	// Closed now, not at the next accept's reap: a client's next request on a connection given up on
+	// (a read timing out) would otherwise get no reply and no close until its own timeout.
+	defer netio.shutdown(netio.tcp_stream(c.tcp));
 	session, _, _ := tls.accept(c.s, c.server.ctx, none_ok = true);
 	if !session return;
 	c.s = tls.stream(session);

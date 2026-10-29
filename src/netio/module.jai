@@ -176,15 +176,29 @@ Udp :: struct {
 	port: int;
 }
 
-// listen_udp binds port (0 picks one: see Udp.port). Each receive waits at most timeout_ms.
-listen_udp :: (port: int, timeout_ms: s64) -> *Udp, Error {
+// listen_udp binds port (0 picks one: see Udp.port) on host's first address, else on every address.
+// Each receive waits at most timeout_ms.
+listen_udp :: (port: int, timeout_ms: s64, host := "") -> *Udp, Error {
 	#if OS == .WINDOWS socket_init();
+	at: [16]u8;
+	if host {
+		hints: addrinfo;
+		hints.ai_family = AF_UNSPEC;
+		hints.ai_socktype = .DGRAM;
+		res: *addrinfo;
+		if getaddrinfo(temp_c_string(host), null, *hints, *res) != 0 return null, .Dial;
+		defer freeaddrinfo(res);
+		// Both sockaddr layouts put the address at a fixed offset: 4 for IPv4, 8 for IPv6.
+		addr := cast(*u8) res.ai_addr;
+		if res.ai_family == AF_INET { at[10], at[11] = 0xFF, 0xFF; memcpy(at.data + 12, addr + 4, 4); }
+		else if res.ai_family == AF_INET6 memcpy(at.data, addr + 8, 16);
+		else return null, .Dial;
+	}
 	sock := socket(AF_INET6, .DGRAM, .UDP);
 	if sock == INVALID_SOCKET return null, .Dial;
 	zero: s32 = 0;
 	setsockopt(sock, xx IPPROTO.IPV6, IPV6_V6ONLY, xx *zero, size_of(s32));
-	any: [16]u8;
-	if bind(sock, any, cast(u16) port) != 0 { close_and_reset(*sock); return null, .Dial; }
+	if bind(sock, at, cast(u16) port) != 0 { close_and_reset(*sock); return null, .Dial; }
 	u := New(Udp);
 	u.sock = sock;
 	socket_timeout(sock, timeout_ms);
