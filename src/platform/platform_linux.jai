@@ -375,6 +375,8 @@ os_wake :: () {
 
 os_frame_wait :: () { if wl.on wl_frame_wait(); }
 
+os_window_visible :: () -> bool { return ifx wl.on then !wl.hidden else xs.mapped && !xs.obscured; }
+
 // Pumps X events until there is something to do: events, a requested frame (EGL's swap waits for vsync,
 // so no sleep here), a wake from another thread, or the timeout.
 os_wait :: (timeout: float64) {
@@ -703,6 +705,15 @@ XClientMessageEvent :: struct {
 }
 #assert size_of(XClientMessageEvent) == 96;
 
+XVisibilityEvent :: struct {
+    type: s32;
+    serial: u64;
+    send_event: s32;
+    display: *void;
+    window: Window;
+    state: s32;
+}
+
 XEvent :: union {
     type: s32;
     xkey: XKeyEvent;
@@ -716,6 +727,7 @@ XEvent :: union {
     xselectionrequest: XSelectionRequestEvent;
     xselection: XSelectionEvent;
     xclient: XClientMessageEvent;
+    xvisibility: XVisibilityEvent;
     pad: [24]s64;
 }
 #assert size_of(XEvent) == 192;
@@ -729,6 +741,8 @@ LeaveNotify :: 8;
 FocusIn :: 9;
 FocusOut :: 10;
 Expose :: 12;
+VisibilityNotify :: 15;
+UnmapNotify :: 18;
 MapNotify :: 19;
 ConfigureNotify :: 22;
 PropertyNotify :: 28;
@@ -742,7 +756,7 @@ MappingNotify :: 34;
 
 PropertyChangeMask :: 0x400000;
 EVENT_MASK :: 0x1 /*KeyPress*/ | 0x2 /*KeyRelease*/ | 0x4 /*ButtonPress*/ | 0x8 /*ButtonRelease*/ | 0x20 /*LeaveWindow*/ |
-    0x40 /*PointerMotion*/ | 0x8000 /*Exposure*/ | 0x20000 /*StructureNotify*/ | 0x200000 /*FocusChange*/;
+    0x40 /*PointerMotion*/ | 0x8000 /*Exposure*/ | 0x10000 /*VisibilityChange*/ | 0x20000 /*StructureNotify*/ | 0x200000 /*FocusChange*/;
 XIMPreeditNothing :: 0x8;
 XIMStatusNothing :: 0x400;
 NotifyGrab :: 1;
@@ -784,6 +798,7 @@ xs: struct {
     fullscreen: bool; // set_fullscreen's
     ime_spot: Vector4; // the ime_rect last sent to the input method
     focused: bool;
+    mapped, obscured: bool; // MapNotify / UnmapNotify, VisibilityNotify: window_visible
     keys_down: [256]bool; // by keycode: repeats
     cursors: [#run enum_highest_value(Cursor) + 1]u64;
     last_click_time: float64;
@@ -938,9 +953,17 @@ handle :: (ev: *XEvent) {
             xs.px_w, xs.px_h = c.width, c.height;
             update_size();
             push_event(.{kind = .Resize, pos = s.size, time = now});
-        case Expose; #through;
+        case UnmapNotify;
+            xs.mapped = false;
+        case VisibilityNotify;
+            VisibilityFullyObscured :: 2;
+            xs.obscured = ev.xvisibility.state == VisibilityFullyObscured;
+            atomic_store(*s.frame_requested, true);
         case MapNotify;
+            xs.mapped = true;
             atomic_store(*s.frame_requested, true); // redraw
+        case Expose;
+            atomic_store(*s.frame_requested, true);
         case PropertyNotify;
             p := *ev.xproperty;
             if p.window != xs.root || p.atom != XA_RESOURCE_MANAGER return;

@@ -46,6 +46,7 @@ App :: struct {
 	copy_selection: bool; // the message menu's "Copy": copy the selection after this pass
 	focused_editor: *UI_Editor; // the text field that took keyboard input last frame (tests)
 	expect_drawn: string; // script check: text the next frame must draw (tests)
+	built_frames: int; // frames that built the UI (window_visible), for scripts' expect_built
 	wake_at: float64; // earliest timed repaint requested this frame (caret blink, timers); 0 = none
 	now_override_ms: s64; // -now: wall clock for timestamp formatting; 0 = real time
 	focused_field: UI_Rect; // rect of the field box behind focused_editor (tests)
@@ -434,6 +435,14 @@ frame :: () {
 		app.activity_at = 0;
 		if app.client dc.client_note_activity(app.client);
 	}
+	// Nothing of the window can be seen (minimized, in the tray, covered): no UI, animation, video decode
+	// or GPU work; the network, voice, sounds and notifications above went on. Covered on Windows is only
+	// known from a present, so its test present gets a wake.
+	if !platform.window_visible() || gfx.occluded() {
+		if gfx.occluded() request_wake(now + 0.5);
+		return;
+	}
+	app.built_frames += 1;
 	bench_pass_begin();
 	ui.begin(platform.window_size(), dt, now, evs);
 	build_ui();
@@ -982,6 +991,15 @@ script_command :: (path: string, f: []string, t: *float64, depth := 0) {
 	case "focus";
 		// focus out|in: the window loses or gains focus
 		platform.inject_event(.{kind = ifx f[1] == "out" then .Focus_Lost else .Focus_Gained});
+		return;
+	case "window";
+		// window hidden|shown: the window can't be seen (minimized, in the tray, covered) or can again
+		platform.set_headless_hidden(f[1] == "hidden");
+		app.built_frames = 0;
+		return;
+	case "expect_built";
+		// expect_built <n>: frames that built the UI since the last `window`
+		if app.built_frames != cast(int) num(f[1]) fail("%: expect_built failed: % frames built, want %", path, app.built_frames, f[1]);
 		return;
 	case "incoming";
 		// incoming <word>: another user's message arrives in the open channel, a minute after its newest

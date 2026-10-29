@@ -156,6 +156,10 @@ diag :: () -> Diag { return g.diag; }
 // texture then has its size but no contents: the glyph atlas redraws, and callers remake theirs.
 device_generation :: () -> int { return g.device_generation; }
 
+// The last present found the window wholly covered (DXGI_STATUS_OCCLUDED; Windows only), so drawing is
+// wasted until a test present, at most twice a second, finds it shown again.
+occluded :: () -> bool { return backend_occluded(); }
+
 // Headless scripts (gpu_reset): go through the recovery as if the device had been lost.
 simulate_device_loss :: () { g.lost = true; }
 

@@ -85,6 +85,7 @@ backend_target_create :: (w: s32, h: s32) -> *void {
 }
 
 backend_native_device :: () -> *void { return mt.device; }
+backend_occluded :: () -> bool { return false; } // the window's occlusion state covers it (platform.window_visible)
 backend_device_lost :: () -> bool { return false; } // TODO: MTLDevice removal (eGPU unplug)
 
 backend_wait_idle :: () {

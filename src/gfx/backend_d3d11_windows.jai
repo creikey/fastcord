@@ -76,6 +76,18 @@ backend_native_device :: () -> *void { return dx.device; }
 // new device.
 backend_device_lost :: () -> bool { return dx.lost; }
 
+DXGI_STATUS_OCCLUDED :: cast,no_check(HRESULT) 0x087A0001;
+
+backend_occluded :: () -> bool {
+    if !dx.occluded || !dx.swap return false;
+    now := platform.time_now();
+    if now - dx.occluded_test_at < 0.5 return true;
+    dx.occluded_test_at = now;
+    DXGI_PRESENT_TEST :: 0x1;
+    dx.occluded = IDXGISwapChain_Present(dx.swap, 0, DXGI_PRESENT_TEST) == DXGI_STATUS_OCCLUDED;
+    return dx.occluded;
+}
+
 backend_wait_idle :: () {
     if dx.ctx == null return;
     if dx.idle_query == null {
@@ -226,7 +238,9 @@ backend_submit :: (insts: []Instance, batches: []Batch, clear: Color, fb: [2]s32
         DXGI_ERROR_WAS_STILL_DRAWING :: cast,no_check(HRESULT) 0x887A000A;
         size_frame := platform.is_size_frame();
         hr := IDXGISwapChain_Present(dx.swap, xx ifx size_frame then 0 else 1, xx ifx size_frame then DXGI_PRESENT_DO_NOT_WAIT else 0);
-        if hr == DXGI_ERROR_WAS_STILL_DRAWING {
+        if hr == DXGI_STATUS_OCCLUDED {
+            dx.occluded, dx.occluded_test_at = true, platform.time_now();
+        } else if hr == DXGI_ERROR_WAS_STILL_DRAWING {
             platform.present_dropped();
         } else if FAILED(hr) {
             g.diag.present_fails += 1;
@@ -326,6 +340,8 @@ dx: struct {
     ctx: *ID3D11DeviceContext;
     swap: *IDXGISwapChain1;
     swap2: *IDXGISwapChain2;
+    occluded: bool; // backend_occluded
+    occluded_test_at: float64;
     rtv: *ID3D11RenderTargetView;
     back_size: [2]s32;
     offscreen: *ID3D11Texture2D;

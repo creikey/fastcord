@@ -199,6 +199,12 @@ wait_events :: (timeout_seconds: float64) {
 // Events gathered by the last wait_events. Strings inside are valid until the next wait_events.
 events :: () -> []Event { return s.current; }
 
+// False while none of the window can be seen: hidden to the tray or Dock, minimized, or covered (macOS
+// occlusion, X11 unmapped or fully obscured). The app then builds and draws nothing; the network, audio
+// and notifications go on. A change back wakes the loop.
+window_visible :: () -> bool { return ifx s.headless then !s.headless_hidden else os_window_visible(); }
+set_headless_hidden :: (hidden: bool) { s.headless_hidden = hidden; } // scripts: `window hidden|shown`
+
 // Ask for another frame at the next display refresh. Safe from any thread.
 request_frame :: () {
     atomic_store(*s.frame_requested, true);
@@ -472,6 +478,7 @@ State :: struct {
     headless_login: bool; // open_at_login in headless runs, which never touch the OS
     initialized: bool;
     headless: bool;
+    headless_hidden: bool;
     quit: bool;
     exit_callback: ();
     size: Vector2; // points

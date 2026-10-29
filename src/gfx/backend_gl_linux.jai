@@ -69,6 +69,7 @@ backend_init :: () -> bool {
 
 // The EGLDisplay (for importing video frames as EGLImages).
 backend_native_device :: () -> *void { return st.dpy; }
+backend_occluded :: () -> bool { return false; } // X11's VisibilityNotify covers it (platform.window_visible)
 backend_device_lost :: () -> bool { return false; } // TODO: GL_ARB_robustness resets
 
 backend_wait_idle :: () {

@@ -1,0 +1,11 @@
+# While the window can't be seen (minimized, in the tray, covered), frames build and draw nothing but the
+# network still runs: a message that arrives meanwhile is drawn by the first frame once it's shown again.
+wait 5
+window hidden
+incoming whilehidden
+wait 30
+expect_built 0
+window shown
+expect_drawn "whilehidden"
+wait 1
+expect_built 1

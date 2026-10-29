@@ -564,6 +564,8 @@ os_wake :: () {
 
 // Each Present signals the waitable once. A frame that skips the wait leaves a signal behind, so later
 // waits return early and frames queue up behind the GPU, adding a frame of input lag.
+os_window_visible :: () -> bool { return IsWindowVisible(w.hwnd) != 0 && IsIconic(w.hwnd) == 0; }
+
 os_frame_wait :: () {
     if w.frame_ready {
         w.frame_ready = false;
@@ -779,6 +781,7 @@ TrackPopupMenu :: (menu: win.HMENU, flags: u32, x: s32, y: s32, reserved: s32, h
 DestroyMenu :: (menu: win.HMENU) -> s32 #foreign user32;
 SetForegroundWindow :: (hwnd: win.HWND) -> s32 #foreign user32;
 IsIconic :: (hwnd: win.HWND) -> s32 #foreign user32;
+IsWindowVisible :: (hwnd: win.HWND) -> s32 #foreign user32;
 IsZoomed :: (hwnd: win.HWND) -> s32 #foreign user32;
 DwmExtendFrameIntoClientArea :: (hwnd: win.HWND, margins: *MARGINS) -> win.HRESULT #foreign dwmapi;
 

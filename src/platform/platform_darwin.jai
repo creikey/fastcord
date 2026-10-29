@@ -150,8 +150,12 @@ set_fullscreen :: (on: bool) {
 }
 is_fullscreen :: () -> bool { return m.window && (msg(NSUInteger, m.window, "styleMask") & (1 << 14)) != 0; }
 
-// False while the window is hidden (closed to the Dock) or minimized: nothing to draw.
-window_visible :: () -> bool { return !m.window || msg(bool, m.window, "isVisible"); }
+// The occlusion state's visible bit: off while the window is hidden (closed to the Dock), minimized, on
+// another Space or wholly covered by other windows.
+os_window_visible :: () -> bool {
+    NSWindowOcclusionStateVisible :: 1 << 1;
+    return !m.window || (msg(NSUInteger, m.window, "occlusionState") & NSWindowOcclusionStateVisible) != 0;
+}
 
 // Brings the window to the front (another launch, a link opened elsewhere).
 window_show :: () {
@@ -819,6 +823,7 @@ register_classes :: () {
     add(w, "windowDidResignKey:", win_did_resign_key, "v@:@");
     add(w, "windowDidChangeScreen:", win_did_change_screen, "v@:@");
     add(w, "windowDidChangeBackingProperties:", win_did_change_screen, "v@:@");
+    add(w, "windowDidChangeOcclusionState:", win_did_change_occlusion, "v@:@");
     objc.register_class(w);
 
     // ---- FCAppDelegate
@@ -1128,6 +1133,12 @@ win_did_change_screen :: (self: Id, cmd: SEL, n: Id) #c_call {
     if !m.view return;
     update_size_and_scale();
     update_refresh_rate();
+}
+
+// Seen again (or no longer): a frame, so a window that drew nothing while covered catches up at once.
+win_did_change_occlusion :: (self: Id, cmd: SEL, n: Id) #c_call {
+    c := s.ctx; push_context,defer_pop c;
+    request_frame();
 }
 
 // fc:// and discord:// links (CFBundleURLTypes) opened in other apps, delivered to the running app.
