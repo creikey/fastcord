@@ -1,0 +1,24 @@
+# On the threads fixture. Cancel Event takes the card off the list at once behind Undo (no confirm); Undo brings it back.
+wait 5
+click_text "2 Events"
+wait 10
+rclick_text "Friday game night"
+wait 10
+click_text "Cancel Event"
+wait 10
+expect_visible "Event cancelled"
+expect_not_visible "Friday game night"
+expect_visible "1 Event"
+shot build/ui-undo_cancel_event.png
+click_text "Undo"
+wait 5
+expect_visible "Friday game night"
+key escape
+wait 10
+# Delete Thread (a sidebar thread row's menu), the same way
+rclick 186 300
+wait 10
+click_text "Delete Thread"
+wait 10
+expect_visible "Thread deleted"
+shot build/ui-undo_delete_thread.png

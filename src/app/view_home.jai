@@ -67,7 +67,7 @@ home_sidebar :: () {
 				skel("name", cast(float32) (60 + (i * 41) % 80), 14);
 			}
 		}
-		dms := dc.private_channels_sorted(s);
+		dms := undo_filter(dc.private_channels_sorted(s));
 		w := ui.list_window(list, DM_ROW_PITCH, dms.count);
 		for cid: array_view(dms, w.first, w.last - w.first) {
 			// A missing channel still takes its row, keeping the window's arithmetic exact.
@@ -169,17 +169,12 @@ dm_row :: (ch: *dc.Channel) {
 				spacer(.X, 6);
 			}
 			if selected || ui.mouse_over(item) { // not sig.hovering: that ends while the X itself is hovered
-				// close DM: DELETE /channels/{id}; a group DM asks first (Leave Group)
+				// close DM or leave the group: DELETE /channels/{id}, behind Undo
 				x := ui.box("close", .Clickable);
 				x.semantic_size = .[ui.px(16), ui.px(16)];
 				xs := ui.signal(x);
 				set_icon(x, "x-small", ifx xs.hovering then T("--interactive-icon-hover") else T("--interactive-icon-default"));
-				if xs.clicked && ch.kind == .Group_DM {
-					leave_group_open(ch.id);
-				} else if xs.clicked && net_action() {
-					dc.close_private_channel(app.client, ch.id);
-					if selected { select_channel(0, 0); }
-				}
+				if xs.clicked close_private_now(ch);
 				spacer(.X, 6);
 			}
 		}

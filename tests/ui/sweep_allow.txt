@@ -70,8 +70,6 @@ silent login "cols/form 'Log In'" online the form shows its submitting state (vi
 silent login "cols/form 'Forgot your password?'" online the form shows the reset notice when the request returns
 silent * "savebar 'Save Changes'" online the label turns "Saving…" until the PATCH returns
 silent add_server_create "addsrv/foot 'Create'" online the label turns "Creating…" until GUILD_CREATE
-silent * "chandelete/btns" online adm.busy holds the modal until the DELETE returns
-silent event_cancel "evcancel/btns 'Cancel Event'" online evu.busy holds the modal until the request returns
 silent event_wizard_review "evwizard/btns 'Create Event'" online evu.busy holds the wizard until the request returns
 silent events_list "c/bottom/interested" online the pill switches at once (interest_pending) and the gateway confirms
 # applied optimistically online (the store / gateway echo changes what is drawn at once)

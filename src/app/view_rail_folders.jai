@@ -36,12 +36,12 @@ rail_entries :: () -> [..]Rail_Entry {
 	for f: s.settings.guild_folders { for f.guild_ids table_set(*listed, it, true); }
 	for gid: guild_order() {
 		if table_contains(*listed, gid) { break; }
-		array_add(*out, .{guilds = temp_list(gid)});
+		if !undo_hides(gid) array_add(*out, .{guilds = temp_list(gid)}); // left, behind Undo
 	}
 	for f: s.settings.guild_folders {
 		e := Rail_Entry.{id = f.id, name = f.name, color = f.color, has_color = f.has_color};
 		e.guilds.allocator = temp;
-		for f.guild_ids { if table_contains(*s.guilds, it) { array_add(*e.guilds, it); } }
+		for f.guild_ids { if table_contains(*s.guilds, it) && !undo_hides(it) { array_add(*e.guilds, it); } }
 		if e.guilds.count == 0 { continue; }
 		array_add(*out, e);
 	}

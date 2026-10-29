@@ -18,15 +18,16 @@ Undo :: struct {
 	a, b, c: dc.Snowflake; // what it acts on
 	s, t: string; // heap, freed with it
 	n: s64;
+	hides: bool; // a is a guild, channel or event the lists leave out meanwhile (undo_hides)
 }
 
 undos: [..]*Undo;
 
 // Holds an action. The caller has already changed what the screen shows (or relies on undo_held).
-undo_push :: (text: string, send: (u: *Undo), revert: (u: *Undo) = null, a: dc.Snowflake = 0, b: dc.Snowflake = 0, c: dc.Snowflake = 0, s := "", t := "", n := 0) -> *Undo {
+undo_push :: (text: string, send: (u: *Undo), revert: (u: *Undo) = null, a: dc.Snowflake = 0, b: dc.Snowflake = 0, c: dc.Snowflake = 0, s := "", t := "", n := 0, hides := false) -> *Undo {
 	app.net_actions += 1;
 	u := New(Undo);
-	u.* = .{text = copy_string(text), client = app.client, until = platform.time_now() + UNDO_S, send = send, revert = revert, a = a, b = b, c = c, s = copy_string(s), t = copy_string(t), n = n};
+	u.* = .{text = copy_string(text), client = app.client, until = platform.time_now() + UNDO_S, send = send, revert = revert, a = a, b = b, c = c, s = copy_string(s), t = copy_string(t), n = n, hides = hides};
 	array_add(*undos, u);
 	request_wake(u.until + 0.01);
 	return u;
@@ -36,6 +37,21 @@ undo_push :: (text: string, send: (u: *Undo), revert: (u: *Undo) = null, a: dc.S
 undo_held :: (send: (u: *Undo), a: dc.Snowflake, b: dc.Snowflake = 0) -> *Undo {
 	for undos if it.send == send && it.a == a && (b == 0 || it.b == b) return it;
 	return null;
+}
+
+// A guild left, a channel deleted or closed, an event cancelled, still behind Undo: lists leave it out.
+undo_hides :: (id: dc.Snowflake) -> bool {
+	for undos if it.hides && it.a == id return true;
+	return false;
+}
+
+// ids without the ones undo_hides (ids itself when none is held).
+undo_filter :: (ids: []dc.Snowflake) -> []dc.Snowflake {
+	if !undos return ids;
+	out: [..]dc.Snowflake;
+	out.allocator = temp;
+	for ids if !undo_hides(it) array_add(*out, it);
+	return out;
 }
 
 // Drops a held action without sending it, putting the screen back.

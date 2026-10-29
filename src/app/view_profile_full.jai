@@ -671,8 +671,7 @@ user_context_menu :: () {
 				case "Mark As Read";
 					if net_action() dc.ack_message(app.client, dm.id, dm.last_message_id, true);
 				case "Close DM";
-					if net_action() dc.close_private_channel(app.client, dm.id);
-					if app.view.channel == dm.id select_channel(0, 0);
+					close_private_now(dm);
 				case "Profile";
 					profile_full_open(uid, app.view.guild);
 				case "Mention";

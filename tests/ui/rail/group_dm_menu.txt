@@ -1,5 +1,5 @@
 # Run with -fixture:tests/ui/rail.jsonl. Right-clicking a group DM row opens its menu; Leave Group, like the
-# row's X, asks first.
+# row's X, takes it off the list at once behind Undo, and Undo brings it back.
 wait 5
 click 36 52
 wait 10
@@ -8,13 +8,14 @@ wait 5
 expect_visible "Mark As Read"
 click_text "Leave Group"
 wait 5
-expect_visible "Leave Group"
+expect_visible "Left Lil Bean, Phibi"
+expect_not_visible "3 Members"
 shot build/ui-group_dm_menu-leave.png
-click_text "Cancel"
+click_text "Undo"
 wait 5
-expect_not_visible "Leave Group"
+expect_visible "3 Members"
 move 200 203
 wait 3
 click 348 203
 wait 5
-expect_visible "Leave Group"
+expect_visible "Left Lil Bean, Phibi"

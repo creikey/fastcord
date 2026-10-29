@@ -78,7 +78,7 @@ invite_open :: (gid: dc.Snowflake, cid: dc.Snowflake, location: string) {
 	}
 }
 
-invite_modal_open :: () -> bool { return gm.inv_guild != 0 || gm.leave_guild != 0 || gm.nm_guild != 0; }
+invite_modal_open :: () -> bool { return gm.inv_guild != 0 || gm.nm_guild != 0; }
 
 invite_receive :: (r: dc.Rest_Result) {
 	if r.tag != gm.inv_tag || gm.inv_guild == 0 return;
@@ -106,7 +106,21 @@ thread_muted :: (tid: dc.Snowflake) -> bool {
 }
 
 group_dm_menu_open :: (cid: dc.Snowflake, at: ui.Vec2) { gm.gdm_menu, gm.gdm_pos = cid, at; }
-leave_group_open :: (cid: dc.Snowflake) { gm.leave_group = cid; }
+// Leave Server (DELETE /users/@me/guilds/{id} {"lurking":false}), Leave Group and Close DM
+// (DELETE /channels/{id}?silent=false): gone from the lists at once, sent after the undo window
+// (undo.jai) instead of the client's "Leave '<name>'" confirm.
+leave_guild_now :: (gid: dc.Snowflake) {
+	g := dc.guild_get(store(), gid);
+	if !g || undo_hides(gid) return;
+	undo_push(tprint("Left %", g.name), (u: *Undo) { if u.client dc.leave_guild(u.client, u.a); }, a = gid, hides = true);
+	if app.view.guild == gid go_home();
+}
+
+close_private_now :: (ch: *dc.Channel) {
+	if undo_hides(ch.id) return;
+	undo_push(ifx ch.kind == .Group_DM then tprint("Left %", dm_name(ch)) else "DM closed", (u: *Undo) { if u.client dc.close_private_channel(u.client, u.a); }, a = ch.id, hides = true);
+	if app.view.channel == ch.id select_channel(0, 0);
+}
 
 channel_menu_open :: (cid: dc.Snowflake, at: ui.Vec2) {
 	gm.chan_menu = cid;
@@ -123,14 +137,7 @@ guild_menu_overlays :: () {
 	if gm.ctx_guild != 0 { keep := use_guild_client(gm.ctx_guild); guild_context_menu(); app.client = keep; }
 	if gm.bell_channel != 0 bell_popout();
 	if gm.nm_guild != 0 { keep := use_guild_client(gm.nm_guild); notify_modal(); app.client = keep; }
-	if gm.leaving != 0 && dc.guild_get(store(), gm.leaving) == null {
-		// the client routes to Friends once the guild is gone (fixture join_leave_server)
-		if app.view.guild == gm.leaving go_home();
-		gm.leaving = 0;
-	}
 	if gm.gdm_menu != 0 group_dm_menu();
-	if gm.leave_guild != 0 { keep := use_guild_client(gm.leave_guild); leave_modal(); app.client = keep; }
-	if gm.leave_group != 0 leave_modal();
 	if gm.inv_guild != 0 { keep := use_guild_client(gm.inv_guild); invite_modal(); app.client = keep; }
 }
 
@@ -172,7 +179,6 @@ menu_item :: (id: string, text: string, right: Item_Right = .None, icon_name := 
 		spacer(.X, 8);
 		flags := ui.Box_Flags.Clickable | .Draw_Background | .Hot_Animation;
 		if disabled flags |= .Disabled;
-		if danger flags |= .Click_On_Release;
 		r := row("it", flags);
 		r.semantic_size = .[ui.fill(), ui.px(ifx sub != "" then 44 else h)];
 		r.style.radius = all4(4);
@@ -315,7 +321,7 @@ guild_menu_reset_for_test :: () { gm = .{}; }
 guild_menu_state_for_test :: () -> string {
 	b: String_Builder;
 	b.allocator = temp;
-	print_to_builder(*b, "% % % % % % % % % %", gm.menu_guild, gm.leave_guild, gm.leaving, gm.inv_guild, gm.inv_copied, gm.bell_channel, gm.bell_sub, gm.ctx_guild, gm.ctx_sub, gm.nm_guild);
+	print_to_builder(*b, "% % % % % % % % % %", gm.menu_guild, 0, 0, gm.inv_guild, gm.inv_copied, gm.bell_channel, gm.bell_sub, gm.ctx_guild, gm.ctx_sub, gm.nm_guild);
 	return builder_to_string(*b,, temp);
 }
 
@@ -339,13 +345,9 @@ Guild_Menu_State :: struct {
 	// header dropdown
 	menu_guild: dc.Snowflake;
 	menu_anchor: ui.Rect;
-	// Leave Server confirm (or Leave Group, for a group DM)
-	leave_guild: dc.Snowflake;
-	leave_group: dc.Snowflake;
 	// a group DM row's right-click menu
 	gdm_menu: dc.Snowflake;
 	gdm_pos: ui.Vec2;
-	leaving: dc.Snowflake; // DELETE sent: go home when its GUILD_DELETE removes the guild
 	// invite modal
 	inv_guild: dc.Snowflake;
 	inv_channel: dc.Snowflake;
@@ -496,7 +498,7 @@ guild_menu :: () {
 		if g.owner_id != s.me {
 			menu_sep("s3");
 			if menu_item("leave", "Leave Server", lead = "door-exit", danger = true, h = GM_HDR_ROW_H).clicked {
-				gm.leave_guild = gid;
+				leave_guild_now(gid);
 				close = true;
 			}
 		}
@@ -582,7 +584,7 @@ guild_context_menu :: () {
 			menu_sep("s4");
 			sig = menu_item("leave", "Leave Server", danger = true);
 			if sig.clicked {
-				gm.leave_guild = gid;
+				leave_guild_now(gid);
 				close = true;
 			} else if sig.hovering hover_any = true;
 		}
@@ -802,7 +804,7 @@ group_dm_menu :: () {
 		}
 		menu_sep("s1");
 		if menu_item("leave", "Leave Group", danger = true).clicked {
-			gm.leave_group = ch.id;
+			close_private_now(ch);
 			close = true;
 		}
 		if s.settings.developer_mode {
@@ -815,108 +817,6 @@ group_dm_menu :: () {
 		spacer(.Y, 8);
 	}
 	if close gm.gdm_menu = 0;
-}
-
-// ---- Leave Server / Leave Group confirm ----
-
-leave_modal :: () {
-	gid, cid := gm.leave_guild, gm.leave_group;
-	g := dc.guild_get(store(), gid);
-	ch := dc.channel_get(store(), cid);
-	name := ifx g then g.name else ifx ch then dm_name(ch) else "";
-	if !g && !ch {
-		gm.leave_guild, gm.leave_group = 0, 0;
-		return;
-	}
-	scrim := ui.box("leave_scrim", .Draw_Background | .Clickable | .Floating_X | .Floating_Y | .Overlay);
-	scrim.semantic_size = .[ui.px(app.ui.window.x), ui.px(app.ui.window.y)];
-	scrim.style.bg = .{0, 0, 0, 0.7};
-	if ui.signal(scrim).clicked || escape_pressed() {
-		gm.leave_guild, gm.leave_group = 0, 0;
-		return;
-	}
-	W :: 480;
-	PAD :: 24;
-	confirm := false;
-	d := ui.box("leavemodal", .Draw_Background | .Draw_Border | .Floating_X | .Floating_Y | .Overlay | .Clickable);
-	d.semantic_size = .[ui.px(W), ui.children()];
-	d.fixed_pos = .{(app.ui.window.x - W) / 2, (app.ui.window.y - (d.rect.y1 - d.rect.y0)) / 2};
-	d.style.bg = T("--modal-background");
-	d.style.border_color = T("--border-subtle");
-	d.style.border = 1;
-	d.style.radius = all4(12);
-	d.layout_axis = .Y;
-	ui.signal(d);
-	{ ui.parent(d); defer ui.pop_parent();
-		x := ui.box("close", .Clickable | .Floating_X | .Floating_Y);
-		x.semantic_size = .[ui.px(24), ui.px(24)];
-		x.fixed_pos = .{W - 17 - 24, 17};
-		xs := ui.signal(x);
-		set_icon(x, "x-large", ifx xs.hovering then T("--interactive-icon-hover") else T("--interactive-icon-default"));
-		if xs.clicked gm.leave_guild, gm.leave_group = 0, 0;
-		spacer(.Y, PAD + 1);
-		t := row("t");
-		t.semantic_size = .[ui.pct(1), ui.px(24)];
-		{ ui.parent(t); defer ui.pop_parent();
-			spacer(.X, PAD + 1);
-			label(ellipsize(tprint("Leave '%'", name), .Semibold, 20, W - 2 * PAD - 40), .Semibold, 20, T("--text-strong"), 24);
-		}
-		spacer(.Y, 8);
-		br := row("body");
-		br.semantic_size = .[ui.pct(1), ui.children()];
-		{ ui.parent(br); defer ui.pop_parent();
-			spacer(.X, PAD + 1);
-			b := ui.box("text", .Wrap_Text);
-			b.semantic_size = .[ui.fill(), ui.text_size()];
-			b.style.line_height = 20;
-			b.style.text_color = T("--text-subtle");
-			spans := NewArray(3, ui.Span,, temp);
-			spans[0] = .{text = "Are you sure you want to leave ", font = F(.Normal), size = 16};
-			spans[1] = .{text = name, font = F(.Bold), size = 16};
-			spans[2] = .{text = ifx g then "? You won't be able to rejoin this server unless you are re-invited." else "? You won't be able to rejoin this group unless you are re-invited.", font = F(.Normal), size = 16};
-			ui.set_spans(b, spans);
-			spacer(.X, PAD + 1);
-		}
-		spacer(.Y, 24);
-		btns := row("btns");
-		btns.semantic_size = .[ui.pct(1), ui.px(40)];
-		btns.style.child_gap = 8;
-		{ ui.parent(btns); defer ui.pop_parent();
-			spacer(.X, PAD + 1 - 8);
-			cancel := ui.box("Cancel##c", .Clickable | .Draw_Background | .Draw_Text | .Hot_Animation);
-			cancel.semantic_size = .[ui.fill(), ui.px(40)];
-			cancel.style.radius = all4(8);
-			cancel.style.font = F(.Medium);
-			cancel.style.font_size = 16;
-			cancel.style.text_align = .Center;
-			cancel.style.text_color = T("--text-strong");
-			cancel.style.bg = T("--background-mod-normal");
-			cancel.style.bg_hot = T("--background-mod-strong");
-			if ui.signal(cancel).clicked gm.leave_guild, gm.leave_group = 0, 0;
-			ok := ui.box(ifx g then "Leave Server##l" else "Leave Group##l", .Clickable | .Click_On_Release | .Draw_Background | .Draw_Text | .Hot_Animation);
-			ok.semantic_size = .[ui.fill(), ui.px(40)];
-			ok.style.radius = all4(8);
-			ok.style.font = F(.Medium);
-			ok.style.font_size = 16;
-			ok.style.text_align = .Center;
-			ok.style.text_color = .{1, 1, 1, 1};
-			ok.style.bg = T("--status-danger");
-			ok.style.bg_hot = T("--control-critical-primary-background-hover");
-			if ui.signal(ok).clicked confirm = true;
-			spacer(.X, PAD + 1 - 8);
-		}
-		spacer(.Y, PAD + 1);
-	}
-	if confirm {
-		gm.leave_guild, gm.leave_group = 0, 0;
-		if ch {
-			if net_action() dc.close_private_channel(app.client, cid);
-			if app.view.channel == cid select_channel(0, 0);
-		} else if net_action() {
-			dc.leave_guild(app.client, gid);
-			gm.leaving = gid;
-		}
-	}
 }
 
 // ---- invite modal ----

@@ -1,0 +1,14 @@
+# Run with -fixture:tests/ui/rail.jsonl. Leave Server (no confirm) goes home and takes the server off the
+# rail at once behind Undo; Undo puts it back.
+open 1600000000000001002
+wait 30
+click 200 57
+wait 10
+click_text "Leave Server"
+wait 10
+expect_visible "Friends"
+expect_visible "Left Pixel Art Club"
+shot build/ui-rail_undo_leave_server.png
+click_text "Undo"
+wait 5
+shot build/ui-rail_undo_leave_server_undone.png

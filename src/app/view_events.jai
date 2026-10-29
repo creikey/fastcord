@@ -24,7 +24,7 @@ create_event_open :: (gid: dc.Snowflake) {
 	wizard_open();
 }
 
-events_modal_open :: () -> bool { return evu.open || evu.wiz_open || evu.share_event != 0 || evu.confirm_event != 0; }
+events_modal_open :: () -> bool { return evu.open || evu.wiz_open || evu.share_event != 0; }
 
 events_reset_for_test :: () {
 	ui.editor_destroy(*evu.location);
@@ -36,12 +36,12 @@ events_reset_for_test :: () {
 }
 
 events_state_for_test :: () -> string {
-	return tprint("% % % % % % % % % %", evu.open, evu.guild, evu.wiz_open, evu.step, evu.entity, evu.channel, evu.share_event, evu.menu_event, evu.confirm_event, dc.events_epoch());
+	return tprint("% % % % % % % % % %", evu.open, evu.guild, evu.wiz_open, evu.step, evu.entity, evu.channel, evu.share_event, evu.menu_event, 0, dc.events_epoch());
 }
 
 // "1 Event" / "3 Events" / "Events": the channel list row.
 events_row_label :: (gid: dc.Snowflake) -> string {
-	n := dc.guild_events(gid).count;
+	n := shown_events(gid).count;
 	if n == 0 return "Events";
 	return tprint("% Event%", n, ifx n == 1 then "" else "s");
 }
@@ -73,14 +73,19 @@ events_receive :: (r: *dc.Feature_Result) {
 			evu.share_len = code.count;
 		}
 	case .Event_Delete;
-		if cast(dc.Snowflake)(r.tag) == evu.confirm_event {
-			evu.confirm_busy = false;
-			if r.ok evu.confirm_event = 0;
-		}
+		if !r.ok toast_show("Couldn't cancel the event.", false);
 	case .Event_Start;
 		e := dc.event_get(cast(dc.Snowflake) r.tag);
 		if r.ok && e != null && e.entity == .Voice && e.channel_id != 0 join_voice(e.guild_id, e.channel_id);
 	}
+}
+
+// The guild's scheduled events but those cancelled behind Undo.
+shown_events :: (gid: dc.Snowflake) -> []*dc.Scheduled_Event {
+	out: [..]*dc.Scheduled_Event;
+	out.allocator = temp;
+	for dc.guild_events(gid) if !undo_hides(it.id) array_add(*out, it);
+	return out;
 }
 
 // ---- Events modal ----
@@ -88,13 +93,12 @@ events_receive :: (r: *dc.Feature_Result) {
 events_modal :: () {
 	if evu.guild != 0 && (dc.guild_get(store(), evu.guild) == null || app.view.guild != evu.guild) {
 		evu.open, evu.wiz_open = false, false;
-		evu.share_event, evu.menu_event, evu.confirm_event, evu.guild = 0, 0, 0, 0;
+		evu.share_event, evu.menu_event, evu.guild = 0, 0, 0;
 		return;
 	}
 	if evu.open && !evu.wiz_open events_list_modal();
 	if evu.wiz_open wizard_modal();
 	if evu.menu_event != 0 event_menu();
-	if evu.confirm_event != 0 cancel_confirm();
 	if evu.share_event != 0 share_modal();
 }
 
@@ -243,11 +247,9 @@ Events_UI :: struct {
 	share_failed: bool;
 	share_copied: bool;
 	share_created: bool; // opened right after Create Event (else from a card's Share)
-	// card menu and cancel confirm
+	// card menu
 	menu_event: dc.Snowflake;
 	menu_pos: ui.Vec2;
-	confirm_event: dc.Snowflake;
-	confirm_busy: bool;
 }
 
 evu: Events_UI;
@@ -366,10 +368,10 @@ place_of :: (e: *dc.Scheduled_Event) -> string, string {
 }
 
 events_list_modal :: () {
-	evs := dc.guild_events(evu.guild);
+	evs := shown_events(evu.guild);
 	W :: 604;
 	H :: 400;
-	top := evu.share_event == 0 && evu.confirm_event == 0 && evu.menu_event == 0;
+	top := evu.share_event == 0 && evu.menu_event == 0;
 	if !ev_dialog_begin("events", W, H) {
 		if top evu.open = false;
 		return;
@@ -594,8 +596,9 @@ event_menu :: () {
 		if manage {
 			if menu_item("cancel", "Cancel Event", danger = true).clicked {
 				evu.menu_event = 0;
-				evu.confirm_event = e.id;
-				evu.confirm_busy = false;
+				// gone at once, DELETE /guilds/{g}/scheduled-events/{id} after the undo window (undo.jai),
+				// instead of the client's "Cancel Event?" confirm
+				undo_push("Event cancelled", (u: *Undo) { if u.client dc.cancel_scheduled_event(u.client, u.a); }, a = e.id, hides = true);
 			}
 		}
 		if menu_item("copylink", "Copy Event Link").clicked {
@@ -603,53 +606,6 @@ event_menu :: () {
 			evu.menu_event = 0;
 		}
 		spacer(.Y, 8);
-	}
-}
-
-cancel_confirm :: () {
-	if dc.event_get(evu.confirm_event) == null {
-		evu.confirm_event = 0;
-		return;
-	}
-	W :: 400;
-	if !ev_dialog_begin("evcancel", W) {
-		evu.confirm_event = 0;
-		return;
-	}
-	confirm := false;
-	{ // the dialog is the parent until here
-		defer ui.pop_parent();
-		if close_x("close", W - 24 - 16, 20) evu.confirm_event = 0;
-		spacer(.Y, 24);
-		t := row("t");
-		t.semantic_size = .[ui.pct(1), ui.px(26)];
-		{ ui.parent(t); defer ui.pop_parent();
-			spacer(.X, 24);
-			label("Cancel Event?", .Bold, 20, T("--text-strong"), 26);
-		}
-		spacer(.Y, 8);
-		b := row("b");
-		b.semantic_size = .[ui.pct(1), ui.px(20)];
-		{ ui.parent(b); defer ui.pop_parent();
-			spacer(.X, 24);
-			label("Are you sure you want to cancel this event?", .Normal, 16, T("--text-default"), 20);
-		}
-		spacer(.Y, 24);
-		btns := row("btns");
-		btns.semantic_size = .[ui.pct(1), ui.px(40)];
-		btns.style.child_gap = 8;
-		{ ui.parent(btns); defer ui.pop_parent();
-			spacer(.X, 24 - 8);
-			if wide_button("never", "Never Mind", .Secondary) evu.confirm_event = 0;
-			if wide_button("confirm", ifx evu.confirm_busy then "Cancelling..." else "Cancel Event", .Danger, !evu.confirm_busy) confirm = true;
-			spacer(.X, 24 - 8);
-		}
-		spacer(.Y, 24);
-	}
-	if adm_escape() evu.confirm_event = 0;
-	if confirm && evu.confirm_event != 0 && net_action() {
-		evu.confirm_busy = true;
-		dc.cancel_scheduled_event(app.client, evu.confirm_event);
 	}
 }
 

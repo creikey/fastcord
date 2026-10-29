@@ -1,5 +1,5 @@
 # Right-clicking a channel row or a category opens its menu; Collapse Category collapses it, and
-# Delete Channel opens the confirm.
+# Delete Channel takes it off the list behind Undo.
 wait 5
 rclick 165 199
 wait 10
@@ -26,5 +26,8 @@ rclick 165 199
 wait 10
 click_text "Delete Channel"
 wait 10
-expect_visible "Cancel"
+expect_visible "Channel deleted"
 shot
+click_text "Undo"
+wait 5
+expect_not_visible "Channel deleted"

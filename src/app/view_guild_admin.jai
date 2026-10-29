@@ -37,19 +37,16 @@ create_channel_open :: (gid: dc.Snowflake, category_id: dc.Snowflake) {
 	if app.client != null dc.open_create_channel(app.client, gid);
 }
 
-// channel_delete_open: Delete Channel / Category / Thread from a sidebar row menu. The
-// official confirm loads the guild's role member counts as it opens.
+// channel_delete_open: Delete Channel / Category / Thread (a sidebar row menu, Channel Settings). Gone
+// from the sidebar at once and DELETE /channels/{id} after the undo window (undo.jai), instead of the
+// official confirm; the role member counts that confirm loads as it opens still go now.
 channel_delete_open :: (th: *dc.Channel) {
-	if th == null return;
-	adm.modal = .Delete_Channel;
-	adm.guild = th.guild_id;
-	adm.channel = th.id;
-	adm.kind = th.kind;
-	adm.busy = false;
-	adm.from_menu = true;
-	adm.del_parent = ifx dc.is_thread(th) then th.parent_id else 0;
-	set_error("");
+	if th == null || undo_hides(th.id) return;
 	if net_action() dc.fetch_role_member_counts(app.client, th.guild_id);
+	what := ifx th.kind == .Guild_Category then "Category" else ifx dc.is_thread(th) then "Thread" else "Channel";
+	undo_push(tprint("% deleted", what), (u: *Undo) { if u.client dc.delete_channel(u.client, u.a); }, a = th.id, hides = true);
+	if app.view.channel == th.id select_channel(th.guild_id, ifx dc.is_thread(th) then th.parent_id else 0); // a thread returns to its channel
+	if server_settings_is_open() server_settings_close();
 }
 
 // channel_sync_prompt: a channel dragged into a category it isn't synced with asks "Sync permissions?";
@@ -122,12 +119,8 @@ guild_admin_receive :: (r: *dc.Feature_Result) {
 		else if !r.ok show_notice("Couldn't change avatar", result_error(r));
 		return;
 	case .Channel_Delete;
-		if adm.modal != .Delete_Channel || r.channel_id != adm.channel return;
-		if r.ok {
-			// a deleted thread returns to its parent channel
-			if app.view.channel == r.channel_id select_channel(adm.guild, ifx adm.from_menu then adm.del_parent else 0);
-			admin_close();
-		}
+		if !r.ok toast_show(tprint("Couldn't delete the channel: %", result_error(r)), false);
+		return;
 	}
 	if !r.ok {
 		adm.busy = false;
@@ -262,8 +255,6 @@ guild_admin_overlays :: () {
 	case .None;
 	case .Create_Channel;
 		create_channel_modal();
-	case .Delete_Channel;
-		delete_channel_modal();
 	case .Sync_Move;
 		sync_move_modal();
 	case .Notice;
@@ -326,7 +317,6 @@ modal_field :: (id: string, ed: *ui.Editor, placeholder: string, icon_name := ""
 Admin_Modal :: enum u8 {
 	None;
 	Create_Channel;
-	Delete_Channel;
 	Sync_Move;
 	Notice;
 }
@@ -344,8 +334,6 @@ Admin_State :: struct {
 	notice: string; // heap
 	pending_select: dc.Snowflake; // created channel to open once the gateway delivers it
 	emoji_busy: bool;
-	from_menu: bool; // delete opened from a context menu: Cancel closes
-	del_parent: dc.Snowflake; // a thread being deleted: where to go after
 	move_target: dc.Snowflake; // Sync_Move: the drop (adm.channel is the dragged channel)
 	move_after: bool;
 }
@@ -525,62 +513,6 @@ create_channel_modal :: () {
 		adm.busy = true;
 		set_error("");
 		dc.create_channel(app.client, adm.guild, adm.kind, dc.channel_name_normalize(name, text_named(adm.kind)), adm.channel);
-	}
-}
-
-delete_channel_modal :: () {
-	ch := dc.channel_get(store(), adm.channel);
-	if ch == null {
-		// a thread gone before the reply (THREAD_DELETE first): leave it as the reply would
-		if adm.from_menu && adm.busy && app.view.channel == adm.channel select_channel(adm.guild, adm.del_parent);
-		admin_close();
-		return;
-	}
-	W :: 400;
-	what := ifx ch.kind == .Guild_Category then "Category" else ifx dc.is_thread(ch) then "Thread" else "Channel";
-	if !adm_modal_begin("chandelete", W, tprint("Delete %", what)) {
-		admin_close();
-		return;
-	}
-	confirm := false;
-	spacer(.Y, 8);
-	br := row("body");
-	br.semantic_size = .[ui.pct(1), ui.children()];
-	{ ui.parent(br); defer ui.pop_parent();
-		spacer(.X, 25);
-		b := ui.box("text", .Wrap_Text);
-		b.semantic_size = .[ui.fill(), ui.text_size()];
-		b.style.line_height = 20;
-		b.style.text_color = T("--text-default");
-		spans := NewArray(3, ui.Span,, temp);
-		spans[0] = .{text = "Are you sure you want to delete ", font = F(.Normal), size = 16};
-		spans[1] = .{text = ifx text_named(ch.kind) && !dc.is_thread(ch) then tprint("#%", ch.name) else ch.name, font = F(.Bold), size = 16};
-		spans[2] = .{text = "? This cannot be undone.", font = F(.Normal), size = 16};
-		ui.set_spans(b, spans);
-		spacer(.X, 25);
-	}
-	error_line();
-	spacer(.Y, 24);
-	btns := row("btns");
-	btns.semantic_size = .[ui.pct(1), ui.px(40)];
-	btns.style.child_gap = 8;
-	{ ui.parent(btns); defer ui.pop_parent();
-		spacer(.X, 25 - 8);
-		if wide_button("cancel", "Cancel", .Secondary) adm.modal = .None;
-		if wide_button("confirm", ifx adm.busy then "Deleting..." else tprint("Delete %", what), .Danger, !adm.busy) confirm = true;
-		spacer(.X, 25 - 8);
-	}
-	spacer(.Y, 24);
-	adm_modal_end();
-	if adm_escape() adm.modal = .None;
-	if adm.modal == .None {
-		admin_close();
-		return;
-	}
-	if confirm && !adm.busy && net_action() {
-		adm.busy = true;
-		set_error("");
-		dc.delete_channel(app.client, ch.id);
 	}
 }
 

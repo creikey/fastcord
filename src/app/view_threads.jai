@@ -14,7 +14,7 @@ sidebar_thread_rows :: (ch: *dc.Channel, gid: dc.Snowflake) {
 	ids := dc.joined_threads(s, ch.id);
 	for tid, i: ids {
 		th := dc.channel_get(s, tid);
-		if th == null continue;
+		if th == null || undo_hides(tid) continue;
 		ui.id_scope(cast(u64) tid);
 		defer ui.pop_seed();
 		selected := app.view.channel == tid;

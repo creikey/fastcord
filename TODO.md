@@ -329,7 +329,6 @@
 - [ ] Tray (Linux): the icon doesn't show the call state (gray, green while talking, red while muted) the Windows tray does, nor a dot for unread mentions: it only sets Status NeedsAttention. Needs IconPixmap (ARGB32) icons drawn like `badge_icon` (`platform_linux.jai` `tray_prop`).
   - Done: on macOS closing hides the window and fastcord keeps running; the Dock icon reopens it, Cmd+Q quits, and nothing is drawn while hidden or minimized (`win_should_close`, `app_reopen`, `window_visible`).
 - [ ] Profiles: the popout shows no roles, with no add/remove role.
-- [ ] Undo: Leave Server, Delete Channel / Category / Thread and Cancel Event (confirm modals today).
 - [ ] System messages: a call message offers no "Join the call" while the call is still going and you aren't in it.
 - [ ] Settings: no per-server profiles (the client's Per-server Profiles tab: nickname, avatar, banner, About Me and pronouns for one server, `PATCH /guilds/{id}/profile/@me`).
   - Done: Profiles changes the avatar (Change / Remove Avatar), the banner (Nitro accounts only) and the Banner Color (palette or `#rrggbb`, with the preview), `tests/ui/settings_profiles.txt`.
@@ -424,7 +423,6 @@
 - [ ] Member list: rows lack the activity line ("Playing X") and role icons.
 - [ ] Channel settings: forum and media channels lack their own Overview fields (Tags, Default Reaction, Default Layout and Sort Order, Require Tags), and text channels lack Hide After Inactivity (the default thread archive time); Channel Settings' Overview shows only name, guidelines, slowmode and Age-Restricted for them.
 - [ ] Free emoji (fastcord-only, like Vencord's FakeNitro): let a non-Nitro user send any emoji, including the picker's locked ones (`pickers_emoji.jai`), from any server. Send it as a masked CDN link (`[name](https://cdn.discordapp.com/emojis/<id>.webp?size=48&name=<name>)`, `.gif`/`animated=true` when animated), so official clients show the image. Copy the exact format from Vencord's `src/plugins/fakeNitro` so Vencord users see real emoji. On receipt, draw those links as inline emoji (the official client shows a link and an image embed), so FakeNitro and fastcord messages look native. Real emoji stay real when the user can use them.
-- [ ] Undo: closing a DM and leaving a group DM (closing a DM is immediate; leaving a group asks first, `view_home.jai`).
 - [ ] Events: no Edit Event or End Event; the wizard has no Stage location or cover image.
 - [ ] Embeds: the title (drawn as a link) and links and mentions in the description don't respond to clicks (`view_media.jai`).
 - [ ] Go Live viewer: the official client shows the stream's quality ("720p 30FPS") and a LIVE badge in the call header while watching; fastcord shows neither.
@@ -841,3 +839,5 @@
 - [x] Video: H.265 is advertised as decodable only where `media.video_codec_supported(.HEVC)` (on Windows, the HEVC Video Extensions), so the SFU can't pick a codec whose every camera stays black (`codecs_json` in `voice/gateway.jai`, `Options.no_hevc_decode`; checked on Windows with the extensions installed, and `src/tests/voice_wire.jai` prints the list without).
 - [x] Channels: dragging a channel into a category it isn't synced with (when it was synced, or uncategorized, and you manage roles in both) asks "Sync permissions?"; Sync Permissions sends the move with `lock_permissions`, which serve honours too (`dc.move_asks_sync`, `sync_move_modal`).
 - [x] Channels: channels without View Channel are no longer listed (Discord sends every channel of a server; the sidebar, switcher, autocomplete, forward and search lists all use `guild_channels_sorted`), and a category whose channels are all hidden goes too unless you manage channels (`hidden_channels_unlisted`).
+- [x] Undo: Leave Server, Delete Channel / Category / Thread and Cancel Event no longer confirm: they leave the rail, sidebar or events list at once and send after 5 s (`leave_guild_now`, `channel_delete_open`, `undo_hides`; `tests/ui/rail/undo_leave_server.txt`, `tests/ui/chat_threads.txt`, `tests/ui/channel_menu.txt`). Danger menu items now act on press like the rest.
+- [x] Undo: closing a DM (row X, user menu) and leaving a group DM (row X, row menu; no confirm now) take it off the list at once and send after 5 s (`close_private_now`; `tests/ui/rail/group_dm_menu.txt`).

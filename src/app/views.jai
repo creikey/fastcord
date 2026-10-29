@@ -870,7 +870,7 @@ channel_sidebar :: (gid: dc.Snowflake) {
 		hide := hide_muted(gid);
 		for cid: dc.guild_channels_sorted(s, gid) {
 			ch := dc.channel_get(s, cid);
-			if ch == null { continue; }
+			if ch == null || undo_hides(cid) { continue; } // deleted, behind Undo
 			// Hide Muted Channels: muted channels (own or category mute) go, the open one stays
 			if hide && cid != app.view.channel && dc.channel_effectively_muted(s, gid, cid, now) { continue; }
 			{ ui.id_scope(cast(u64)(cid)); defer ui.pop_seed();
