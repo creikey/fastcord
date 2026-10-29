@@ -28,6 +28,20 @@ add_server_is_open :: () -> bool { return asv.step != .Closed; }
 
 add_server_open :: () { add_server_step(.Choose); }
 
+// The client's invite accept errors by code (its d() beside the join failure titles).
+invite_error_text :: (code: int) -> string {
+	if code == {
+	case 30001; return "You must leave a server first to join.";
+	case 30019; return "This server is currently full. Please try again later.";
+	case 50095; return "This server is not available in your location.";
+	case 40069; return "Invites are currently paused for this server. Please try again later.";
+	case 20024; return "You can't join this server because of your age group.";
+	case 20086; return "Confirm your age to join this server.";
+	case 40007; return "You are banned from this server.";
+	}
+	return "Unable to accept invite";
+}
+
 // add_server_join_with opens Join a Server filled in with an invite, for the user to confirm.
 add_server_join_with :: (invite: string) {
 	add_server_step(.Join);
@@ -59,8 +73,12 @@ add_server_overlay :: () {
 			ui.editor_set_text(*asv.invite_ed, "");
 		} else if j.res.status == 0 {
 			set_err("Couldn't reach Discord. Try again.");
-		} else {
+		} else if j.res.captcha {
+			set_err(CAPTCHA_TEXT);
+		} else if j.res.error_code == 10006 || j.res.status == 404 {
 			set_err("The invite is invalid or has expired.");
+		} else {
+			set_err(invite_error_text(j.res.error_code));
 		}
 		free_job(j);
 	}

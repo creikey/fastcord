@@ -79,6 +79,8 @@ Rest_Result :: struct {
 	op: Rest_Op;
 	ok: bool;
 	status: int; // HTTP status, 0 = network failure
+	error_code: int; // a failure's JSON "code" (Discord's error codes)
+	captcha: bool; // the failure asks for a captcha (captcha_key), which needs a webview: never shown
 	channel_id: Snowflake;
 	message_id: Snowflake;
 	user_id: Snowflake;

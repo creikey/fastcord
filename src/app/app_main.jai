@@ -924,10 +924,11 @@ script_command :: (path: string, f: []string, t: *float64, depth := 0) {
 		s.changed += 1;
 		return;
 	case "net";
-		// net hold|fail|ok: how offline requests end (requests.jai)
+		// net hold|fail|ok|captcha: how offline requests end (requests.jai); captcha fails asking for one
 		if f[1] == {
 		case "fail"; req_offline = .Fail;
 		case "ok"; req_offline = .Ok;
+		case "captcha"; req_offline = .Captcha;
 		case; req_offline = .Hold;
 		}
 		return;

@@ -625,7 +625,8 @@ add_friend_view :: () {
 			{ ui.parent(r4); defer ui.pop_parent();
 				spacer(.X, 30);
 				if sent == .Failed {
-					label("Hm, didn’t work. Double check that the username is correct.", .Normal, 14, T("--text-feedback-critical"), 18);
+					code, captcha := req_error(ADD_FRIEND_REQ);
+					label(ifx captcha then CAPTCHA_TEXT else ifx code == 50096 then "You cannot friend yourself" else "Hm, didn’t work. Double check that the username is correct.", .Normal, 14, T("--text-feedback-critical"), 18);
 				} else {
 					t := ui.box("ok");
 					t.semantic_size = .[ui.text_size(0, 0), ui.px(18)];

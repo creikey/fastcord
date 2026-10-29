@@ -11,7 +11,7 @@
 Req_State :: enum u8 { None; Pending; Failed; Done; }
 
 // Offline (fixture) runs have no network: scripts pick how requests end (`net hold|fail|ok`).
-Req_Offline :: enum u8 { Hold; Fail; Ok; }
+Req_Offline :: enum u8 { Hold; Fail; Ok; Captcha; }
 
 req_offline: Req_Offline;
 
@@ -21,6 +21,16 @@ req_state :: (key: string) -> Req_State, int {
 	if !r return .None, 0;
 	return r.state, r.status;
 }
+
+// A failed request's error code, and whether Discord asked for a captcha.
+req_error :: (key: string) -> code: int, captcha: bool {
+	r := req_find(key);
+	if !r return 0, false;
+	return r.code, r.captcha;
+}
+
+// Discord asked for a captcha (hCaptcha, bound to discord.com): fastcord has no webview to show it.
+CAPTCHA_TEXT :: "Discord asked for a captcha, which fastcord can't show. Try on discord.com.";
 
 // Forget a finished request (the control shows its normal state again).
 req_clear :: (key: string) {
@@ -44,7 +54,7 @@ req_begin :: (key: string, inline_error := false) -> bool {
 	req_seq += 1;
 	r.tag = REQ_TAG | req_seq;
 	r.state = .Pending;
-	r.status = 0;
+	r.status, r.code, r.captcha = 0, 0, false;
 	r.jobs = 0;
 	r.frame = app.frame;
 	r.inline_error = inline_error;
@@ -70,8 +80,8 @@ req_result :: (r: dc.Rest_Result) -> bool {
 		it.jobs -= 1;
 		if !r.ok {
 			it.state = .Failed;
-			it.status = r.status;
-			if !it.inline_error req_toast_show(r.status);
+			it.status, it.code, it.captcha = r.status, r.error_code, r.captcha;
+			if !it.inline_error req_toast_show(r.status, r.captcha);
 		} else if it.jobs <= 0 {
 			it.state = .Done;
 		}
@@ -84,7 +94,8 @@ req_frame :: () {
 	if app.client != null || req_offline == .Hold return;
 	for * reqs if it.state == .Pending && it.frame < app.frame {
 		it.state = ifx req_offline == .Ok then .Done else .Failed;
-		if it.state == .Failed && !it.inline_error req_toast_show(0);
+		it.captcha = req_offline == .Captcha;
+		if it.state == .Failed && !it.inline_error req_toast_show(0, it.captcha);
 	}
 }
 
@@ -183,6 +194,8 @@ Req :: struct {
 	jobs: int; // submitted and not yet answered
 	state: Req_State;
 	status: int;
+	code: int;
+	captcha: bool;
 	frame: u64;
 	inline_error: bool;
 }
@@ -197,6 +210,6 @@ req_find :: (key: string) -> *Req {
 	return null;
 }
 
-req_toast_show :: (status: int) {
-	toast_show(ifx status == 429 then "You're doing that too fast. Try again in a moment." else "Something went wrong. Try again.", false);
+req_toast_show :: (status: int, captcha := false) {
+	toast_show(ifx captcha then CAPTCHA_TEXT else ifx status == 429 then "You're doing that too fast. Try again in a moment." else "Something went wrong. Try again.", false);
 }

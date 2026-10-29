@@ -1,0 +1,13 @@
+# A request Discord answers with a captcha (captcha_key) says so instead of looking like any failure:
+# fastcord has no webview to show one. Add Friend shows it under the field.
+go_home
+wait 5
+click_text "Add Friend"
+wait 5
+click_text "You can add friends with their Discord username."
+wait 2
+type robin
+net captcha
+key enter
+wait 5
+expect_visible "Discord asked for a captcha, which fastcord can't show. Try on discord.com."

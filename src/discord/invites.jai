@@ -33,6 +33,8 @@ Invite_Result :: struct {
 	inviter_id: Snowflake;
 	size_total: int; // approximate_member_count (with_counts)
 	size_online: int; // approximate_presence_count
+	error_code: int; // a failure's JSON "code"
+	captcha: bool; // the failure asks for a captcha
 }
 
 // invite_call: a blocking api_call whose body becomes an Invite_Result (code in allocator).
@@ -43,6 +45,7 @@ invite_call :: (c: *Client, method: string, path: string, body: string, context_
 		free(r.arena);
 	}
 	res := Invite_Result.{status = r.status, ok = r.ok};
+	res.error_code, res.captcha = api_error(r);
 	if !r.ok return res;
 	m := vmap(r.body);
 	res.code = copy_string(fstr(m, "code"),, allocator);
@@ -460,7 +463,7 @@ join_invite :: (c: *Client, input: string, allocator := context.allocator, membe
 	analytics_track(c, "invite_opened", tprint("\"invite_code\":%", json_quote(code)));
 	typed := trim(input);
 	inv := resolve_invite(c, code, temp, typed);
-	if !inv.ok return .{status = inv.status};
+	if !inv.ok return .{status = inv.status, error_code = inv.error_code, captcha = inv.captcha};
 	is_member := array_find(member_of, inv.guild_id);
 	in_ := json_quote(typed);
 	analytics_track(c, "network_action_invite_resolve", tprint("\"status_code\":%,\"url\":%,\"request_method\":\"get\",\"resolved\":true,\"guild_id\":\"%\",\"channel_id\":\"%\",\"channel_type\":%,\"inviter_id\":\"%\",\"code\":%,\"input_value\":%,\"authenticated\":true,\"size_total\":%,\"size_online\":%,\"invite_type\":\"Server Invite\",\"user_banned\":false,\"user_is_member\":%,\"location\":\"Join Guild\"", inv.status, json_quote(tprint("/invites/%", code)), inv.guild_id, inv.channel_id, inv.channel_type, inv.inviter_id, json_quote(code), in_, inv.size_total, inv.size_online, is_member));

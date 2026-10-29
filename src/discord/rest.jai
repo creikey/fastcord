@@ -239,6 +239,13 @@ api_call :: (c: *Client, method: string, path: string, body: []u8, content_type:
 
 MAX_RETRY_AFTER_MS :: 60_000;
 
+// api_error: a failed call's error code, and whether it asks for a captcha (HTTPUtils' captcha
+// interceptor: a body with captcha_key, any endpoint).
+api_error :: (r: Api_Response) -> code: int, captcha: bool {
+	if r.ok || r.body.kind != .Map return 0, false;
+	return fint(r.body.map, "code"), vhas(r.body.map, "captcha_key");
+}
+
 // client_nap waits ms on a worker; false when the client is quitting (the wait ends at once).
 client_nap :: (c: *Client, ms: s64) -> bool {
 	until := now_ms() + ms;
@@ -252,6 +259,7 @@ push_result :: (c: *Client, j: *Job, r: Api_Response) {
 	res := j.result;
 	res.ok = r.ok;
 	res.status = r.status;
+	res.error_code, res.captcha = api_error(r);
 	if r.body.kind == .Map && res.id == 0 res.id = fsnow(r.body.map, "id");
 	client_push_event(c, .{kind = .Rest, data = r.body, arena = r.arena, result = res});
 }
