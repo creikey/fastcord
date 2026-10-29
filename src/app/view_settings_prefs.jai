@@ -138,6 +138,16 @@ notifications_page :: () {
 	}
 }
 
+// The client's System panel, General category (Windows and Linux; macOS has Login Items instead).
+system_page :: () {
+	if set_page_begin("systempage") {
+		set_heading("General");
+		on := platform.open_at_login();
+		if set_toggle_row("openatlogin", "Automatically open fastcord when your computer starts up", "", on) platform.set_open_at_login(!on);
+		set_page_end();
+	}
+}
+
 // ---- shared widgets ----
 
 // A settings page: scrolls, content centered at SET_CONTENT_MAX_W (narrower in small windows).

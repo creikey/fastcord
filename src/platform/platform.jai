@@ -388,6 +388,7 @@ rgba_to_dibv5 :: (rgba: []u8, width: int, height: int, out: []u8) {
 #scope_module
 
 State :: struct {
+    headless_login: bool; // open_at_login in headless runs, which never touch the OS
     initialized: bool;
     headless: bool;
     quit: bool;

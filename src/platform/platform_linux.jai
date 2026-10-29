@@ -97,6 +97,27 @@ window_show :: () {
     X.Flush(xs.d);
 }
 
+// Open at login: an XDG autostart entry ($XDG_CONFIG_HOME/autostart), as the official client writes.
+open_at_login :: () -> bool {
+    if s.headless return s.headless_login;
+    return file_exists(autostart_path());
+}
+
+set_open_at_login :: (on: bool) {
+    if s.headless { s.headless_login = on; return; }
+    p := autostart_path();
+    if !on { file_delete(p); return; }
+    make_directory_if_it_does_not_exist(path_strip_filename(p), recursive = true);
+    exe := replace(replace(get_path_of_running_executable(), "\\", "\\\\",, temp), "\"", "\\\"",, temp);
+    write_entire_file(p, tprint("[Desktop Entry]\nType=Application\nName=Fastcord\nExec=\"%\"\nIcon=fastcord\nTerminal=false\nX-GNOME-Autostart-enabled=true\n", exe));
+}
+
+autostart_path :: () -> string {
+    xdg := to_string(getenv("XDG_CONFIG_HOME"));
+    if !begins_with(xdg, "/") xdg = tprint("%/.config", to_string(getenv("HOME")));
+    return tprint("%/autostart/fastcord.desktop", xdg);
+}
+
 #scope_module
 
 os_init :: (title: string, width: int, height: int) -> bool {
@@ -297,6 +318,9 @@ os_apply_cursor :: () {
 #scope_file
 
 #import "Process";
+#import "File";
+#import "File_Utilities";
+#import "System";
 #import "Thread";
 #import "POSIX"; // dlopen (libdl in glibc 2.17, which the link adds), poll, eventfd
 

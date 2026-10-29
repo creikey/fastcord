@@ -174,22 +174,41 @@ url_handler_register :: (scheme: string, if_free := false) {
             if !contains(to_lower_copy(string.{n, buf.data},, temp), "fastcord") return;
         } else if reg.RegGetValueA(reg.HKEY_CURRENT_USER, temp_c_string(key), null, 0xffff, null, null, null) == 0 return;
     }
-    exe := system.get_path_of_running_executable();
-    set :: (path: string, name: string, value: string) {
-        k: win.HKEY;
-        if RegCreateKeyExW(reg.HKEY_CURRENT_USER, wide(path), 0, null, 0, reg.KEY_WRITE, null, *k, null) != 0 return;
-        v, _, bytes := utf8_to_wide(value,, temp);
-        zero: u16;
-        if !v v = *zero;
-        RegSetValueExW(k, ifx name then wide(name) else null, 0, REG_SZ, xx v, xx (bytes + 2));
-        reg.RegCloseKey(k);
-    }
-    set(key, "", tprint("URL:% link", scheme));
-    set(key, "URL Protocol", "");
-    set(command, "", tprint("\"%\" \"%%1\"", replace(exe, "/", "\\",, temp)));
+    reg_set(key, "", tprint("URL:% link", scheme));
+    reg_set(key, "URL Protocol", "");
+    reg_set(command, "", tprint("% \"%%1\"", exe_quoted()));
+}
+
+// Open at login: a value in HKCU's Run key, as the official client's "Automatically open Discord" sets.
+open_at_login :: () -> bool {
+    if s.headless return s.headless_login;
+    return reg.RegGetValueA(reg.HKEY_CURRENT_USER, RUN_KEY, "fastcord", reg.RRF_RT_REG_SZ, null, null, null) == 0;
+}
+
+set_open_at_login :: (on: bool) {
+    if s.headless { s.headless_login = on; return; }
+    if on { reg_set(RUN_KEY, "fastcord", exe_quoted()); return; }
+    k: win.HKEY;
+    if RegCreateKeyExW(reg.HKEY_CURRENT_USER, wide(RUN_KEY), 0, null, 0, reg.KEY_WRITE, null, *k, null) != 0 return;
+    RegDeleteValueW(k, wide("fastcord"));
+    reg.RegCloseKey(k);
+}
+
+RUN_KEY :: "Software\\Microsoft\\Windows\\CurrentVersion\\Run";
+exe_quoted :: () -> string { return tprint("\"%\"", replace(system.get_path_of_running_executable(), "/", "\\",, temp)); }
+
+reg_set :: (path: string, name: string, value: string) {
+    k: win.HKEY;
+    if RegCreateKeyExW(reg.HKEY_CURRENT_USER, wide(path), 0, null, 0, reg.KEY_WRITE, null, *k, null) != 0 return;
+    v, _, bytes := utf8_to_wide(value,, temp);
+    zero: u16;
+    if !v v = *zero;
+    RegSetValueExW(k, ifx name then wide(name) else null, 0, REG_SZ, xx v, xx (bytes + 2));
+    reg.RegCloseKey(k);
 }
 
 RegCreateKeyExW :: (key: win.HKEY, sub: *u16, reserved: u32, class: *u16, options: u32, sam: u32, attrs: *void, out: *win.HKEY, disposition: *u32) -> s32 #foreign advapi32;
+RegDeleteValueW :: (key: win.HKEY, name: *u16) -> s32 #foreign advapi32;
 RegSetValueExW :: (key: win.HKEY, name: *u16, reserved: u32, type: u32, data: *u8, bytes: u32) -> s32 #foreign advapi32;
 REG_SZ :: 1;
 advapi32 :: #system_library "advapi32";

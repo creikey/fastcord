@@ -453,6 +453,7 @@ module were read.
 |---|---|---|---|
 | One running client: a second launch hands its URL argument to the first (`second-instance`) and exits; the first shows its window. On macOS a link opened elsewhere arrives as `open-url` | code (desktop host `app.asar`) | `requestSingleInstanceLock`, `extractUrlFromArgs` | `platform/instance.jai` `instance_claim`, `app_main.jai` `.Open_Url` |
 | A `discord://` link's path is a web route: `discord://-/channels/<guild>/<channel>[/<message>]`, `discord:///invite/<code>`; routes fastcord has no screen for only show the window | guess | `handleOpenUrl` (desktop core, not cached) | `view_chat.jai` `open_launch_url` |
+| Settings > System > General: "Automatically open Discord when your computer starts up" on Windows and Linux only (`usePredicate: isDesktop && !isMac`); the panel itself is absent on macOS here, since fastcord has none of its other categories there. "Start Discord minimized" (Windows) and "Minimize Discord to System Tray" sit beside it | code | `OS_OPEN_ON_STARTUP`, `SYSTEM_GENERAL_CATEGORY` | `view_settings_prefs.jai` `system_page`, `platform` `open_at_login` |
 | fastcord claims `discord://` only where no other app has it (the official client registers it at install), and `fc://` always | guess (fastcord-only) | none | `platform_windows.jai` `url_handler_register`, `tools/package_linux.py` |
 
 ## Login and logout
