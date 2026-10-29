@@ -373,6 +373,7 @@ Req :: enum u8 {
 	Vanity; // GET /guilds/{id}/vanity-url
 	Onboarding; // GET /guilds/{id}/onboarding
 	Regions; // GET /guilds/{id}/regions (Channel Settings: Region Override)
+	Applications; // GET /guilds/{id}/requests?status=SUBMITTED (Access: Apply to Join)
 	COUNT;
 	Save :: 100; // a page's Save Changes
 	Save_Widget;
@@ -532,6 +533,8 @@ section_enter :: (g: *dc.Guild) {
 	case .Access;
 		ss.loading[Req.Verification] = false;
 		load(g, .Verification, tprint("/guilds/%/member-verification?with_guild=false", g.id));
+		ss.loading[Req.Applications] = false;
+		if reviews_applications(g) load(g, .Applications, tprint("/guilds/%/requests?status=SUBMITTED&limit=25", g.id));
 	case .Tag;
 		load(g, .Profile, tprint("/guilds/%/profile", g.id));
 	case .Onboarding;
@@ -3285,14 +3288,23 @@ access_dirty :: () -> bool {
 	return trim(join(..access_rules(), "\n",, temp)) != saved || ss.require_rules != on;
 }
 
+// Apply to Join's applications are reviewed by members who can kick (the client's check).
+reviews_applications :: (g: *dc.Guild) -> bool {
+	return dc.guild_has_feature(g, "MEMBER_VERIFICATION_MANUAL_APPROVAL") && (dc.guild_permissions(store(), g.id) & dc.PERM_KICK_MEMBERS) != 0;
+}
+
 access_page :: (g: *dc.Guild) {
 	page_subtitle("Keep your server private, or open it up for more people to join.");
 	section_heading("join", "How can people join your server?", "");
-	radio_choice("invite", "Invite Only", "People can join your server directly with an invite", true);
-	radio_choice("apply", "Apply to Join", "People must submit an application and be approved to join", false, false);
-	radio_choice("disc", "Discoverable", ifx dc.guild_has_feature(g, "COMMUNITY") then "Anyone can join your server directly through Server Discovery" else "Enable Community to access Server Discovery", false, false);
+	// the server's access type as the client reads it from its features; switching it is the official client's
+	public := dc.guild_has_feature(g, "COMMUNITY") && dc.guild_has_feature(g, "DISCOVERABLE");
+	apply := !public && dc.guild_has_feature(g, "MEMBER_VERIFICATION_MANUAL_APPROVAL") && dc.guild_has_feature(g, "MEMBER_VERIFICATION_GATE_ENABLED");
+	radio_choice("invite", "Invite Only", "People can join your server directly with an invite", !public && !apply, false);
+	radio_choice("apply", "Apply to Join", "People must submit an application and be approved to join", apply, false);
+	radio_choice("disc", "Discoverable", ifx dc.guild_has_feature(g, "COMMUNITY") then "Anyone can join your server directly through Server Discovery" else "Enable Community to access Server Discovery", public, false);
 	set_divider();
 	if !loading_or(.Verification, "Couldn't load the server rules.") return;
+	if reviews_applications(g) applications_section(g);
 	if set_toggle_row("require", "Require members to agree to the server rules", "New members must read and agree to these before they can talk.", ss.require_rules) ss.require_rules = !ss.require_rules;
 	spacer(.Y, 16);
 	field_title("Server Rules");
@@ -3302,14 +3314,100 @@ access_page :: (g: *dc.Guild) {
 access_save :: (g: *dc.Guild) {
 	rules := access_rules();
 	if ss.require_rules && !rules.count { ss_error("You need to add one or more rules."); return; }
-	fields := "[]";
+	parts: [..]string;
+	parts.allocator = temp;
 	if rules.count {
 		vals: [..]string;
 		vals.allocator = temp;
 		for rules array_add(*vals, dc.json_quote(it));
-		fields = tprint("[{\"field_type\":\"TERMS\",\"label\":\"Read and agree to the server rules\",\"values\":[%],\"required\":true}]", join(..vals, ",",, temp));
+		array_add(*parts, tprint("{\"field_type\":\"TERMS\",\"label\":\"Read and agree to the server rules\",\"values\":[%],\"required\":true}", join(..vals, ",",, temp)));
 	}
-	save_call(g, .Save, "PATCH", tprint("/guilds/%/member-verification", g.id), tprint("{\"form_fields\":%,\"enabled\":%}", fields, ss.require_rules));
+	// Apply to Join's questions go back as they came
+	r := reply(.Verification);
+	if r for dc.flist(dc.vmap(r.body), "form_fields") {
+		if dc.fstr(dc.vmap(it), "field_type") == "TERMS" continue;
+		sb: String_Builder;
+		sb.allocator = temp;
+		etf.to_json(it, *sb);
+		array_add(*parts, builder_to_string(*sb,, temp));
+	}
+	save_call(g, .Save, "PATCH", tprint("/guilds/%/member-verification", g.id), tprint("{\"form_fields\":[%],\"enabled\":%}", join(..parts, ",",, temp), ss.require_rules));
+}
+
+// Apply to Join: the questions (read-only here) and the applications waiting, each approved or rejected
+// with PATCH /guilds/{id}/requests/{request} {action} (the client's updateGuildJoinRequest).
+applications_section :: (g: *dc.Guild) {
+	section_heading("apps", "Applications", "People who applied to join, waiting for a moderator.");
+	v := reply(.Verification);
+	if v for dc.flist(dc.vmap(v.body), "form_fields") {
+		f := dc.vmap(it);
+		if dc.fstr(f, "field_type") == "TERMS" continue;
+		ui.id_scope(cast(u64) it_index + 1);
+		defer ui.pop_seed();
+		set_para("q", tprint("Q: %", dc.fstr(f, "label")), .Medium, 14, 18, T("--text-default"));
+		spacer(.Y, 4);
+	}
+	spacer(.Y, 8);
+	if !loading_or(.Applications, "Couldn't load the applications.") { set_divider(); return; }
+	list := dc.flist(dc.vmap(reply(.Applications).body), "guild_join_requests");
+	if !list.count ss_empty("No applications waiting");
+	for list {
+		req := dc.vmap(it);
+		id := dc.fsnow(req, "id");
+		if !id id = dc.fsnow(req, "join_request_id");
+		ui.id_scope(cast(u64) id);
+		defer ui.pop_seed();
+		card := ui.box("app", .Draw_Background);
+		card.semantic_size = .[ui.pct(1), ui.children()];
+		card.layout_axis = .Y;
+		card.style.radius = all4(8);
+		card.style.bg = T("--background-mod-subtle");
+		ui.parent(card); defer ui.pop_parent();
+		inner := row("i");
+		inner.semantic_size = .[ui.pct(1), ui.children()];
+		ui.parent(inner); defer ui.pop_parent();
+		spacer(.X, 16);
+		col := ui.box("c");
+		col.semantic_size = .[ui.fill(), ui.children()];
+		col.layout_axis = .Y;
+		{ ui.parent(col); defer ui.pop_parent();
+			spacer(.Y, 12);
+			hr := row("u");
+			hr.semantic_size = .[ui.pct(1), ui.px(40)];
+			{ ui.parent(hr); defer ui.pop_parent();
+				user_cell(dc.fmap(req, "user"));
+				label(ss_date(dc.iso_to_ms(dc.fstr(req, "created_at"))), .Normal, 12, T("--text-muted"), 16);
+			}
+			for dc.flist(req, "form_responses") {
+				f := dc.vmap(it);
+				if dc.fstr(f, "field_type") == "TERMS" continue;
+				ui.id_scope(cast(u64) it_index + 1);
+				defer ui.pop_seed();
+				spacer(.Y, 8);
+				label(dc.fstr(f, "label"), .Semibold, 13, T("--text-strong"), 18);
+				answer := dc.fstr(f, "response");
+				if !answer { // multiple choice: the picked value's index
+					vals := dc.flist(f, "values");
+					n := dc.fint(f, "response");
+					if n >= 0 && n < vals.count answer = dc.vstr(vals[n]);
+				}
+				set_para("a", ifx answer then answer else "—", .Normal, 14, 18, T("--text-default"));
+			}
+			spacer(.Y, 12);
+			br := row("b");
+			br.semantic_size = .[ui.pct(1), ui.px(36)];
+			br.style.child_gap = 8;
+			{ ui.parent(br); defer ui.pop_parent();
+				path := tprint("/guilds/%/requests/%", g.id, id);
+				if set_button("Approve##ok", .Positive, !ss.busy && id != 0, 32) ss_action(g, .Applications, "PATCH", path, "{\"action\":\"APPROVED\"}");
+				if set_button("Reject##no", .Danger, !ss.busy && id != 0, 32) ss_action(g, .Applications, "PATCH", path, "{\"action\":\"REJECTED\"}");
+			}
+			spacer(.Y, 12);
+		}
+		spacer(.X, 16);
+		spacer(.Y, 8);
+	}
+	set_divider();
 }
 
 // ---- Server Tag (GUILD_TAGS) and Custom Invite Link (VANITY_URL) ----

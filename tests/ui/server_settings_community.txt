@@ -1,5 +1,6 @@
 # Server Settings on a Community server (the fixture with COMMUNITY and NEWS): Community Overview,
 # Onboarding (enable, default channels, a question opened and edited, answers with channels and roles),
+# Access with Apply to Join's questions and an application to review,
 # and the Announcement Channel switch in Channel Settings.
 wait 5
 click 200 57
@@ -39,6 +40,15 @@ expect_visible "Untitled question"
 expect_visible "Careful — you have unsaved changes!"
 click_text Reset
 wait 5
+click_text "Access"
+wait 10
+settings_reply Verification {"version":"2026-10-01T00:00:00.000000+00:00","form_fields":[{"field_type":"TERMS","label":"Read and agree to the server rules","values":["Be nice"],"required":true},{"field_type":"PARAGRAPH","label":"Why do you want to join?","required":true}],"enabled":true}
+settings_reply Applications {"total":1,"guild_join_requests":[{"id":"1565300000000000001","user_id":"1546820603343016200","user":{"id":"1546820603343016200","username":"sam","global_name":"Sam"},"created_at":"2026-10-28T10:00:00.000000+00:00","application_status":"SUBMITTED","form_responses":[{"field_type":"TERMS","label":"Read and agree to the server rules","values":["Be nice"],"response":true},{"field_type":"PARAGRAPH","label":"Why do you want to join?","response":"I like dingus battles"}]}]}
+wait 5
+expect_visible "Q: Why do you want to join?"
+expect_visible "I like dingus battles"
+expect_visible "Approve"
+shot build/ui-server_settings_access_apply.png
 click_text "Server Insights"
 wait 10
 click_text "Open Server Insights"
