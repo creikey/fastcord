@@ -1,4 +1,5 @@
-// User Settings pages kept in the synced settings proto: Language & Time and Developer. Each edit
+// User Settings pages kept in the synced settings proto (Language & Time, Developer, Messaging
+// Permissions) and the ones that load from REST (Logged-in Devices, Connected Apps). Each edit
 // goes through dc.set_* (settings_put: the whole category, as the client's updateAsync).
 
 // The client's enabled languages (getAvailableLocales: code, native name, English name), in its order.
@@ -59,6 +60,80 @@ developer_page :: () {
 	if set_toggle_row("devmode", "Developer Mode", "Developer Mode exposes context menu items helpful for people writing apps using the Discord API.", on) {
 		if net_action() dc.set_developer_mode(app.client, !on);
 		else s.settings.developer_mode = !on;
+	}
+}
+
+// proto_put: a settings-proto edit from a page (offline runs change only the local copy).
+proto_put :: (cat: u32, num: u32, encoded: []u8, sub: u32 = 0) {
+	if net_action() dc.settings_put(app.client, cat, num, encoded, sub);
+	else dc.settings_proto_edit(store(), cat, num, encoded, sub);
+}
+
+// Messaging Permissions (MESSAGING_PERMISSIONS_PANEL, the old Privacy & Safety): Content Filters,
+// Spam Filters, DM permissions and Friend Request Permissions, all in the settings proto
+// (text_and_images is category 6, privacy 8).
+messaging_page :: () {
+	if !set_page_begin("msgpage") return;
+	defer set_page_end();
+	s := store();
+	set_heading("Content Filters");
+	set_para("cfhelp", "Choose what happens to images and videos Discord detects as explicit.", .Normal, 14, 18, T("--text-muted"));
+	spacer(.Y, 16);
+	FILTER :: string.["Show", "Blur", "Block"];
+	PLACES :: string.["Messages in servers", "Direct messages from friends", "Direct messages from others"];
+	for PLACES {
+		k := cast(u32) it_index + 1;
+		v, set := dc.settings_value(s, 6, 29, k); // explicit_content_settings: 1 guilds, 2 friend DMs, 3 other DMs
+		// unset: blur everywhere without NSFW access, else block other DMs (as analytics_events.jai reads it)
+		cur := ifx set && v >= 1 && v <= 3 then cast(int) v - 1 else ifx s.settings.nsfw_blocked then 1 else ifx k == 3 then 2 else 0;
+		label(it, .Medium, 16, T("--text-strong"), 20);
+		spacer(.Y, 8);
+		pick := select_field(tprint("explicit%", k), FILTER, cur);
+		if pick >= 0 && pick != cur proto_put(6, 29, dc.pb_field_uint(k, xx (pick + 1)), sub = k);
+		spacer(.Y, 16);
+	}
+	spacer(.Y, 24);
+	set_heading("Spam Filters");
+	label("Automatically filter suspected spam messages", .Medium, 16, T("--text-strong"), 20);
+	spacer(.Y, 4);
+	set_para("spamhelp", "Discord can filter out some messages that contain spam. These messages go to your Spam inbox.", .Normal, 14, 18, T("--text-muted"));
+	spacer(.Y, 8);
+	SPAM :: string.["Filter direct messages from everyone", "Filter direct messages from non-friends", "Do not filter direct messages"];
+	SPAM_V :: u64.[3, 2, 1]; // DmSpamFilterV2: FRIENDS_AND_NON_FRIENDS, NON_FRIENDS, DISABLED
+	sv, sset := dc.settings_value(s, 6, 27);
+	if !sset || sv == 0 sv = cast(u64) ifx s.settings.nsfw_blocked then 3 else 2; // DEFAULT_UNSET
+	scur := 1;
+	for SPAM_V if it == sv scur = it_index;
+	spick := select_field("spam", SPAM, scur);
+	if spick >= 0 && spick != scur proto_put(6, 27, dc.pb_field_uint(27, SPAM_V[spick]));
+	spacer(.Y, 40);
+	set_heading("Direct Message (DM) Permissions");
+	restricted, _ := dc.settings_value(s, 8, 4); // default_guilds_restricted
+	if set_toggle_row("guilddms", "Allow DMs from other members in servers", "This setting is applied when you join a new server. It does not apply retroactively to your existing servers.", restricted == 0) {
+		proto_put(8, 4, dc.pb_field_uint(4, xx (restricted == 0)));
+	}
+	set_divider();
+	mr, _ := dc.settings_value(s, 8, 17, 1); // default_message_request_restricted (BoolValue)
+	if set_toggle_row("msgreq", "Allow message requests from server members you may not know", "Messages from people you may not know go to Message Requests instead of your DMs.", mr == 0) {
+		proto_put(8, 17, dc.pb_field_bool_value(17, mr == 0));
+	}
+	spacer(.Y, 40);
+	set_heading("Friend Request Permissions");
+	label("Allow Friend Requests from...", .Semibold, 12, T("--text-muted"), 16);
+	spacer(.Y, 12);
+	MUTUAL_FRIENDS :: cast(u64) 2; MUTUAL_GUILDS :: cast(u64) 4; NO_RELATION :: cast(u64) 8; ALL :: cast(u64) 14;
+	flags, fset := dc.settings_value(s, 8, 11, 1); // friend_source_flags (UInt32Value); unset: everyone
+	if !fset flags = ALL;
+	everyone := (flags & NO_RELATION) != 0;
+	put_flags :: (f: u64) { proto_put(8, 11, dc.pb_field_msg(11, dc.pb_field_uint(1, f))); }
+	if set_toggle_row("frall", "Everyone", "", everyone) put_flags(ifx everyone then ALL & ~NO_RELATION else ALL);
+	set_divider();
+	mf := everyone || (flags & MUTUAL_FRIENDS) != 0;
+	if set_toggle_row("frmf", "Friends of friends", "", mf) put_flags(ifx mf then flags & ~(MUTUAL_FRIENDS | NO_RELATION) else flags | MUTUAL_FRIENDS);
+	set_divider();
+	mg := everyone || (flags & MUTUAL_GUILDS) != 0;
+	if set_toggle_row("frmg", "Server members", "Server members can only send you friend requests from servers where you also allow Direct Messages.", mg) {
+		put_flags(ifx mg then flags & ~(MUTUAL_GUILDS | NO_RELATION) else flags | MUTUAL_GUILDS);
 	}
 }
 

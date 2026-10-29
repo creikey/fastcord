@@ -468,7 +468,7 @@ settings_modal :: () {
 				settings_nav_search(); // view_settings_prefs.jai: filters the items below
 				spacer(.Y, 8);
 				// 0.0.419: Streamer Mode is a section of Appearance (its sub-nav), not a page
-				items := Settings_Item.[.{"Account", "user-circle"}, .{"Profiles", "pencil"}, .{"Appearance", "paint-palette"}, .{"Voice & Video", "microphone"}, .{"Notifications", "bell"}, .{"Keybinds", "key"}, .{"Accessibility", "eye"}, .{"System", "screen"}, .{"Language & Time", "clock"}, .{"Devices", "phone"}, .{"Connected Apps", "link"}, .{"Developer", "angle-brackets"}];
+				items := Settings_Item.[.{"Account", "user-circle"}, .{"Profiles", "pencil"}, .{"Messaging Permissions", "lock"}, .{"Appearance", "paint-palette"}, .{"Voice & Video", "microphone"}, .{"Notifications", "bell"}, .{"Keybinds", "key"}, .{"Accessibility", "eye"}, .{"System", "screen"}, .{"Language & Time", "clock"}, .{"Devices", "phone"}, .{"Connected Apps", "link"}, .{"Developer", "angle-brackets"}];
 				for items {
 					if it.name == "System" && OS == .MACOS continue; // the client's System panel: Windows and Linux
 					if !settings_nav_match(it.name) && !(it.name == "Appearance" && settings_nav_match("Streamer Mode")) { continue; }
@@ -543,6 +543,8 @@ settings_modal :: () {
 					developer_page();
 				} else if settings_page == "Devices" {
 					devices_page();
+				} else if settings_page == "Messaging Permissions" {
+					messaging_page();
 				} else if settings_page == "Connected Apps" {
 					connected_apps_page();
 				}

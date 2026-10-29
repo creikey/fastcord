@@ -1,0 +1,23 @@
+# Settings > Messaging Permissions: content and spam filters (selects), DMs from server members and
+# friend request sources (switches), all kept in the settings proto. The fixture account has no NSFW
+# access, so unset filters show their strictest defaults.
+wait 5
+click 338 683
+wait 20
+click_text "Messaging Permissions"
+wait 10
+expect_visible "Content Filters"
+click_text "Filter direct messages from everyone"
+wait 5
+click_text "Do not filter direct messages"
+wait 5
+expect_visible "Do not filter direct messages"
+move 760 400
+scroll 0 -800
+wait 10
+click_text "Allow DMs from other members in servers"
+wait 5
+click_text "Everyone"
+wait 5
+expect_visible "Friends of friends"
+shot build/ui-settings_messaging_bottom.png

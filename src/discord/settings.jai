@@ -163,15 +163,32 @@ pb_field_string_value :: (num: u32, v: string) -> []u8 {
 // settings_put edits field `num` of category `cat` (a PreloadedUserSettings field) as
 // updateAsync does: the delta carries the whole category as it now is, with the change
 // (`encoded`: the whole field, empty to unset it), applied locally at once, saved after delay_ms.
-settings_put :: (c: *Client, cat: u32, num: u32, encoded: []u8, delay_ms := SETTINGS_DELAY_INFREQUENT_MS) {
+settings_put :: (c: *Client, cat: u32, num: u32, encoded: []u8, sub: u32 = 0, delay_ms := SETTINGS_DELAY_INFREQUENT_MS) {
 	assert(cat < 64 && cat != 2 && cat != 7 && cat != 11 && cat != 14); // those are written from Settings_Edit's own fields
-	s := *c.store;
-	f := protobuf.find(s.settings.proto, cat);
-	body := protobuf.with_field(f.bytes, num, encoded,, temp);
-	settings_proto_set(s, protobuf.with_field(s.settings.proto, cat, pb_field_msg(cat, body),, temp));
+	settings_proto_edit(*c.store, cat, num, encoded, sub);
 	c.settings_edit.cats |= (cast(u64) 1) << cat;
-	s.changed += 1;
 	settings_mark(c, delay_ms);
+}
+
+// settings_proto_edit: the local half of settings_put (offline runs use it alone). A nested field
+// (`sub` > 0) is field `sub` of message field `num`, the rest of that message kept.
+settings_proto_edit :: (s: *Store, cat: u32, num: u32, encoded: []u8, sub: u32 = 0) {
+	f := protobuf.find(s.settings.proto, cat);
+	field := encoded;
+	if sub {
+		inner := protobuf.find(f.bytes, num);
+		field = pb_field_msg(num, protobuf.with_field(inner.bytes, sub, encoded,, temp));
+	}
+	body := protobuf.with_field(f.bytes, num, field,, temp);
+	settings_proto_set(s, protobuf.with_field(s.settings.proto, cat, pb_field_msg(cat, body),, temp));
+	s.changed += 1;
+}
+
+// settings_value: a varint at path in the kept proto (a wrapper's value: its field 1 last), and
+// whether it is set.
+settings_value :: (s: *Store, path: ..u32) -> u64, bool {
+	f, ok := protobuf.find_path(s.settings.proto, ..path);
+	return f.value, ok;
 }
 
 #scope_module
