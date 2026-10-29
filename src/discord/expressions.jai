@@ -374,6 +374,44 @@ decode_item_map :: (b: []u8) -> []Frecency_Item {
 	return out;
 }
 
+// gif_favorites_write: PATCH settings-proto/2 with only field 2 (favorite_gifs: the whole map, keeping
+// hide_tooltip); the reply, the full proto, replaces the loaded one, as for soundboard favourites.
+gif_favorites_write :: (c: *Client, gifs: []Favorite_Gif) {
+	if !c.store.frecency.loaded return;
+	raw, _ := base64_decode(c.store.frecency.proto,, temp);
+	inner := pb_new();
+	for gifs {
+		g := pb_new();
+		protobuf.write_uint(*g, 1, cast(u64) it.format);
+		protobuf.write_string(*g, 2, it.src);
+		protobuf.write_uint(*g, 3, cast(u64) it.width);
+		protobuf.write_uint(*g, 4, cast(u64) it.height);
+		protobuf.write_uint(*g, 5, cast(u64) it.order);
+		e := pb_new();
+		protobuf.write_string(*e, 1, it.url);
+		pb_msg(*e, 2, g);
+		pb_msg(*inner, 1, e);
+	}
+	tip, tok := protobuf.find_path(cast([]u8) raw, 2, 2);
+	if tok && tip.value protobuf.write_uint(*inner, 2, tip.value);
+	root := pb_new();
+	pb_msg(*root, 2, inner);
+	w: Json;
+	json_init(*w);
+	json_obj(*w);
+	json_kstr(*w, "settings", base64_encode(cast(string) root.buf,, temp));
+	json_obj_end(*w);
+	j := job_new(.Api, .Settings);
+	j.result.tag = SOUNDBOARD_FAVORITES_TAG; // a partial write whose reply replaces the proto
+	j.method = "PATCH";
+	j.path = "/users/@me/settings-proto/2";
+	j.body = cast([]u8) job_str(j, json_string(*w));
+	j.content_type = "application/json";
+	job_submit(c, j);
+	merged := protobuf.with_field(cast([]u8) raw, 2, root.buf,, temp);
+	set_str(*c.store, *c.store.frecency.proto, base64_encode(cast(string) merged,, temp));
+}
+
 decode_favorite_gif :: (b: []u8) -> Favorite_Gif {
 	g: Favorite_Gif;
 	r := protobuf.Reader.{buf = b};

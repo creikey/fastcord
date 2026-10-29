@@ -53,6 +53,7 @@ Gif_View :: struct {
 	suggestions: [..]string;
 	suggested_for: string;
 	scroll: Pk_Scroll;
+	unstarred: [..]string; // Favorites view: stars emptied there (owned urls); they go when the view is left
 }
 
 gv: Gif_View;
@@ -217,6 +218,7 @@ set_cover_image :: (b: *ui.Box, url: string) {
 gif_query :: () -> string { return trim(ui.editor_text(*pk.search[Picker_Tab.Gif])); }
 
 reset_results :: (kind: Gif_Result_Kind) {
+	gif_unstar_flush();
 	fini(*gv.results_pool);
 	Initialize(*gv.results);
 	Initialize(*gv.suggestions);
@@ -387,7 +389,26 @@ gif_results :: (list: *ui.Box, view: ui.Rect, cols: int, col_w: float32) {
 			cell.style.border = ifx sig.hovering then 1.0 else 0.0;
 			cell.style.border_color = T("--border-strong");
 			set_cover_image(cell, gif_render_url(it.src, it.gif_src));
-			if sig.clicked gif_select(it, (app.ui_mods & .Shift) != 0);
+			// the favourite star, top right on hover (always on a favourite): toggles it
+			fav := gif_favorite_index(it.url) >= 0 && !array_find(gv.unstarred, it.url);
+			star_clicked := false;
+			if sig.hovering || ui.mouse_over(cell) {
+				ui.parent(cell); defer ui.pop_parent();
+				st := ui.box("star", .Clickable | .Floating_X | .Floating_Y | .Draw_Background | .Hot_Animation);
+				st.semantic_size = .[ui.px(28), ui.px(28)];
+				st.fixed_pos = .{col_w - 32, 4};
+				st.style.radius = all4(6);
+				st.style.bg = .{0, 0, 0, 0.5};
+				st.style.bg_hot = .{0, 0, 0, 0.7};
+				ssig := ui.signal(st);
+				star_clicked = ssig.clicked;
+				if ssig.hovering tooltip_below(ifx fav then "Remove from Favorites" else "Add to Favorites", st.rect);
+				ui.parent(st); defer ui.pop_parent();
+				ic := icon("i", "star", 18, ifx fav then ui.Color.{0xf0 / 255.0, 0xb2 / 255.0, 0x32 / 255.0, 1} else .{1, 1, 1, 0.9}, .Floating_X | .Floating_Y);
+				ic.fixed_pos = .{5, 5};
+			}
+			if star_clicked gif_favorite_toggle(it, fav);
+			else if sig.clicked gif_select(it, (app.ui_mods & .Shift) != 0);
 		}
 		if footer && items.count > 0 {
 			f := ui.box("footer", .Floating_X | .Floating_Y);
@@ -427,6 +448,40 @@ gif_results :: (list: *ui.Box, view: ui.Rect, cols: int, col_w: float32) {
 }
 
 #scope_export
+
+gif_favorite_index :: (url: string) -> int {
+	for frecency.favorite_gifs if it.url == url return it_index;
+	return -1;
+}
+
+// A star click: add to the front, or remove; in the Favorites view an emptied star keeps the GIF in
+// place until the view is left, so a second click undoes it with nothing written.
+gif_favorite_toggle :: (g: Gif_Item, fav: bool) {
+	if gv.kind == .Favorites && fav { array_add(*gv.unstarred, copy_string(g.url)); return; }
+	for gv.unstarred if it == g.url { free(it); remove it; return; } // starred back before leaving
+	if fav {
+		i := gif_favorite_index(g.url);
+		if i >= 0 array_ordered_remove_by_index(*frecency.favorite_gifs, i);
+	} else {
+		order := 0;
+		for frecency.favorite_gifs order = max(order, it.order);
+		video := ends_with(g.src, ".mp4") || ends_with(g.src, ".webm") || contains(g.src, ".mp4?") || contains(g.src, ".webm?");
+		array_insert_at(*frecency.favorite_gifs, .{url = copy_string(g.url), src = copy_string(g.src), format = ifx video then 2 else 1, width = g.width, height = g.height, order = order + 1}, 0);
+	}
+	if app.client dc.gif_favorites_write(app.client, frecency.favorite_gifs);
+}
+
+// Leaving the Favorites view (or closing the picker): the emptied stars' GIFs go, in one write.
+gif_unstar_flush :: () {
+	if !gv.unstarred return;
+	for u: gv.unstarred {
+		i := gif_favorite_index(u);
+		if i >= 0 array_ordered_remove_by_index(*frecency.favorite_gifs, i);
+		free(u);
+	}
+	array_reset(*gv.unstarred);
+	if app.client dc.gif_favorites_write(app.client, frecency.favorite_gifs);
+}
 
 // The client's onSelectGIF (chunk "n_"): shift-click inserts the url into the
 // composer, otherwise the url is sent as its own message; then POST /gifs/select,

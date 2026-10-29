@@ -1,0 +1,25 @@
+# Run with FASTCORD_MEDIA_DIR=tests/ui/media. A GIF's hover star adds it to Favorites (a front-page tile
+# appears); in the Favorites view an emptied star keeps the GIF until the view is left, then it goes.
+wait 20
+click 898 683
+wait 20
+click 612 338
+wait 20
+move 600 330
+wait 5
+click 709 289
+wait 5
+click 516 238
+wait 10
+expect_visible "Favorites"
+click_text "Favorites"
+wait 10
+move 600 330
+wait 5
+shot build/ui-media_gif_favorites.png
+click 709 289
+wait 5
+expect_visible "Favorites"
+click 516 238
+wait 10
+expect_not_visible "Favorites"

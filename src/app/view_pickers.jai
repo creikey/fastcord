@@ -161,6 +161,7 @@ picker_set_tab :: (tab: Picker_Tab) {
 picker_close :: () {
 	if !picker_is_open() return;
 	pk.closing = true;
+	gif_unstar_flush();
 	if app.client != null dc.picker_closed(app.client);
 	if pk.mode == .Reaction app.reaction_target = 0;
 	// only if the picker still has the keyboard: the press that closed it may have focused a field
