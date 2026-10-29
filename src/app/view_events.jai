@@ -775,11 +775,9 @@ wizard_open :: () {
 	if app.client != null dc.open_create_event(app.client, evu.guild);
 }
 
-// The voice channels an event can be held in: none on a hosted server, whose events are all Somewhere Else.
 voice_channels :: (gid: dc.Snowflake) -> []dc.Snowflake {
 	out: [..]dc.Snowflake;
 	out.allocator = temp;
-	if on_hosted() return out;
 	s := store();
 	for id: dc.guild_channels_sorted(s, gid) {
 		ch := dc.channel_get(s, id);

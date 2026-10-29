@@ -122,6 +122,7 @@ open :: (path: string) -> *Server, bool {
 	sqlite.exec(db, "ALTER TABLE messages ADD COLUMN type INTEGER NOT NULL DEFAULT 0;");
 	sqlite.exec(db, "ALTER TABLE messages ADD COLUMN flags INTEGER NOT NULL DEFAULT 0;");
 	sqlite.exec(db, "ALTER TABLE channels ADD COLUMN topic TEXT NOT NULL DEFAULT '';");
+	sqlite.exec(db, "ALTER TABLE events ADD COLUMN channel INTEGER;");
 	sqlite.exec(db, "ALTER TABLE channels ADD COLUMN type INTEGER NOT NULL DEFAULT 0;");
 	sqlite.exec(db, "ALTER TABLE channels ADD COLUMN parent INTEGER;");
 	sqlite.exec(db, "ALTER TABLE channels ADD COLUMN owner INTEGER;");
@@ -444,7 +445,7 @@ CREATE TABLE IF NOT EXISTS attachments(id INTEGER PRIMARY KEY, message INTEGER N
 	size INTEGER NOT NULL, width INTEGER NOT NULL, height INTEGER NOT NULL, description TEXT NOT NULL, data BLOB NOT NULL);
 CREATE INDEX IF NOT EXISTS attachments_message ON attachments(message);
 CREATE TABLE IF NOT EXISTS events(id INTEGER PRIMARY KEY, creator INTEGER NOT NULL, name TEXT NOT NULL, description TEXT NOT NULL, location TEXT NOT NULL,
-	start INTEGER NOT NULL, end INTEGER NOT NULL, status INTEGER NOT NULL);
+	start INTEGER NOT NULL, end INTEGER NOT NULL, status INTEGER NOT NULL, channel INTEGER);
 CREATE TABLE IF NOT EXISTS rsvps(event INTEGER NOT NULL, user INTEGER NOT NULL, PRIMARY KEY(event, user));
 CREATE TABLE IF NOT EXISTS snapshot_files(message INTEGER NOT NULL, attachment INTEGER NOT NULL);
 CREATE INDEX IF NOT EXISTS snapshot_files_message ON snapshot_files(message);
@@ -818,16 +819,18 @@ serve_conn :: (c: *Conn) {
 }
 
 // Scheduled events. Until roles land (Hosting 4) only the owner creates them, the owner or the creator
-// edits, starts, ends and cancels them, and anyone marks themselves Interested. Hosted servers have no
-// voice or stage channels, so every event takes place Somewhere Else (entity type 3).
+// edits, starts, ends and cancels them, and anyone marks themselves Interested. An event takes place in a voice
+// channel (entity type 2), which has no end and ends once the channel empties, or Somewhere Else (3), with
+// an end. Both start on time by themselves (archive_idle).
 MAX_EVENTS :: 100; // Scheduled and active at once, as on Discord.
+IN_VOICE :: 2;
 EXTERNAL :: 3;
 EVENT_SCHEDULED :: 1;
 EVENT_ACTIVE :: 2;
 EVENT_COMPLETED :: 3;
 EVENT_CANCELED :: 4;
 
-EVENT_SELECT :: "SELECT e.id, e.creator, u.name, e.name, e.description, e.location, e.start, e.end, e.status, (SELECT count(*) FROM rsvps r WHERE r.event = e.id) FROM events e JOIN users u ON u.id = e.creator";
+EVENT_SELECT :: "SELECT e.id, e.creator, u.name, e.name, e.description, e.location, e.start, e.end, e.status, (SELECT count(*) FROM rsvps r WHERE r.event = e.id), coalesce(e.channel, 0) FROM events e JOIN users u ON u.id = e.creator";
 
 // iso_ms writes unix milliseconds as Discord writes timestamps.
 iso_ms :: (unix_ms: s64) -> string {
@@ -882,23 +885,24 @@ parse_iso :: (text: string) -> s64, bool {
 
 row_event :: (s: *Server, st: *sqlite.Stmt) -> etf.Value {
 	creator := sqlite.col_int(st, 1);
+	channel := sqlite.col_int(st, 10);
 	m := etf.map_builder(16,, temp);
 	etf.map_put(*m, "id", snow(sqlite.col_int(st, 0)));
 	etf.map_put(*m, "guild_id", snow(s.guild));
-	etf.map_put(*m, "channel_id", .{});
+	etf.map_put(*m, "channel_id", ifx channel then snow(channel) else etf.Value.{});
 	etf.map_put(*m, "creator_id", snow(creator));
 	etf.map_put(*m, "creator", user_value(s, creator, copy_string(sqlite.col_text(st, 2),, temp)));
 	etf.map_put(*m, "name", etf.vstring(copy_string(sqlite.col_text(st, 3),, temp)));
 	etf.map_put(*m, "description", etf.vstring(copy_string(sqlite.col_text(st, 4),, temp)));
 	etf.map_put(*m, "scheduled_start_time", etf.vstring(iso_ms(sqlite.col_int(st, 6))));
-	etf.map_put(*m, "scheduled_end_time", etf.vstring(iso_ms(sqlite.col_int(st, 7))));
+	etf.map_put(*m, "scheduled_end_time", ifx channel then etf.Value.{} else etf.vstring(iso_ms(sqlite.col_int(st, 7))));
 	etf.map_put(*m, "privacy_level", etf.vint(2));
 	etf.map_put(*m, "status", etf.vint(sqlite.col_int(st, 8)));
-	etf.map_put(*m, "entity_type", etf.vint(EXTERNAL));
+	etf.map_put(*m, "entity_type", etf.vint(ifx channel then IN_VOICE else EXTERNAL));
 	etf.map_put(*m, "entity_id", .{});
 	meta := etf.map_builder(1,, temp);
 	etf.map_put(*meta, "location", etf.vstring(copy_string(sqlite.col_text(st, 5),, temp)));
-	etf.map_put(*m, "entity_metadata", etf.vmap(etf.map_done(*meta)));
+	etf.map_put(*m, "entity_metadata", ifx channel then etf.Value.{} else etf.vmap(etf.map_done(*meta)));
 	etf.map_put(*m, "user_count", etf.vint(sqlite.col_int(st, 9)));
 	etf.map_put(*m, "recurrence_rule", .{});
 	return etf.vmap(etf.map_done(*m));
@@ -973,6 +977,8 @@ scheduled_events :: (c: *Conn, req: http.Request) -> bool {
 		end_s, _ := str("scheduled_end_time");
 		kind, _ := etf.map_get(v.map, "entity_type");
 		meta, _ := etf.map_get(v.map, "entity_metadata");
+		channel_s, _ := str("channel_id");
+		channel, _ := string_to_int(channel_s, T = s64);
 		location: string;
 		if meta.kind == .Map {
 			l, _ := etf.map_get(meta.map, "location");
@@ -981,10 +987,12 @@ scheduled_events :: (c: *Conn, req: http.Request) -> bool {
 		name = trim(name);
 		start, ok_start := parse_iso(start_s);
 		end, ok_end := parse_iso(end_s);
+		in_voice := kind.kind == .Int && kind.i == IN_VOICE;
+		if in_voice && !end_s location, end, ok_end = "", 0, true; // A voice event has no place or end.
 		now := now_ms(s) + DISCORD_EPOCH_MS;
 		if !ok_name || !ok_desc || !name || name.count > 100 || !text_ok(name) || description.count > 1000 || !text_ok(description, lines = true)
-			|| kind.kind != .Int || kind.i != EXTERNAL || !location || location.count > 100 || !text_ok(location)
-			|| !ok_start || !ok_end || start < now - 60_000 || end <= start || end - start > 366 * 86_400_000 {
+			|| kind.kind != .Int || !(in_voice && channel > 0) && !(kind.i == EXTERNAL && location && location.count <= 100 && text_ok(location))
+			|| !ok_start || !ok_end || start < now - 60_000 || (!in_voice && (end <= start || end - start > 366 * 86_400_000)) {
 			return json_error(c, 400, 50035, "Invalid Form Body");
 		}
 		event: etf.Value;
@@ -992,12 +1000,13 @@ scheduled_events :: (c: *Conn, req: http.Request) -> bool {
 		{
 			locks.guard(*s.db_mu);
 			if owner_id(s) != user return json_error(c, 403, 50013, "Missing Permissions");
+			if in_voice && channel_type_locked(s, channel) != VOICE return json_error(c, 400, 50035, "Invalid Form Body");
 			st := sqlite.prepare(s.db, tprint("SELECT count(*) FROM events WHERE status IN (%, %);", EVENT_SCHEDULED, EVENT_ACTIVE));
 			n := ifx sqlite.step(st) == .Row then sqlite.col_int(st, 0) else 0;
 			sqlite.finalize(st);
 			if n >= MAX_EVENTS return json_error(c, 400, 30038, tprint("Maximum number of guild events reached (%)", MAX_EVENTS));
 			ok := sqlite.exec(s.db, "BEGIN;")
-				&& sqlite.run(s.db, tprint("INSERT INTO events(id, creator, name, description, location, start, end, status) VALUES(?, ?, ?, ?, ?, ?, ?, %);", EVENT_SCHEDULED), id, user, name, description, location, start, end)
+				&& sqlite.run(s.db, tprint("INSERT INTO events(id, creator, name, description, location, start, end, status, channel) VALUES(?, ?, ?, ?, ?, ?, ?, %, nullif(?, 0));", EVENT_SCHEDULED), id, user, name, description, location, start, end, ifx in_voice then channel else 0)
 				&& sqlite.run(s.db, "INSERT INTO rsvps(event, user) VALUES(?, ?);", id, user)
 				&& sqlite.exec(s.db, "COMMIT;");
 			if !ok { sqlite.exec(s.db, "ROLLBACK;"); return json_error(c, 500, 0, "500: Internal Server Error"); }
@@ -1082,13 +1091,14 @@ scheduled_events :: (c: *Conn, req: http.Request) -> bool {
 	{
 		locks.guard(*s.db_mu);
 		if owner_id(s) != user && creator != user return json_error(c, 403, 50013, "Missing Permissions");
-		st := sqlite.prepare(s.db, "SELECT name, description, location, start, end, status FROM events WHERE id = ?;");
+		st := sqlite.prepare(s.db, "SELECT name, description, location, start, end, status, coalesce(channel, 0) FROM events WHERE id = ?;");
 		sqlite.bind(st, 1, id);
 		if sqlite.step(st) != .Row { sqlite.finalize(st); return json_error(c, 404, 10070, "Unknown Guild Scheduled Event"); }
 		name := copy_string(sqlite.col_text(st, 0),, temp);
 		description := copy_string(sqlite.col_text(st, 1),, temp);
 		location := copy_string(sqlite.col_text(st, 2),, temp);
-		start, end, status := sqlite.col_int(st, 3), sqlite.col_int(st, 4), sqlite.col_int(st, 5);
+		start, end, status, channel := sqlite.col_int(st, 3), sqlite.col_int(st, 4), sqlite.col_int(st, 5), sqlite.col_int(st, 6);
+		kind := ifx channel then IN_VOICE else EXTERNAL;
 		sqlite.finalize(st);
 		bad := false;
 		for v.map {
@@ -1112,6 +1122,7 @@ scheduled_events :: (c: *Conn, req: http.Request) -> bool {
 			case "entity_metadata";
 				l: etf.Value;
 				if val.kind == .Map l, _ = etf.map_get(val.map, "location");
+				if val.kind == .Nil { location = ""; continue; }
 				if l.kind != .String || !trim(l.s) || trim(l.s).count > 100 || !text_ok(trim(l.s)) bad = true;
 				if !bad location = trim(l.s);
 			case "status";
@@ -1120,15 +1131,23 @@ scheduled_events :: (c: *Conn, req: http.Request) -> bool {
 				if !((status == EVENT_SCHEDULED && (next == EVENT_ACTIVE || next == EVENT_CANCELED)) || (status == EVENT_ACTIVE && next == EVENT_COMPLETED) || next == status) bad = true;
 				status = next;
 			case "entity_type";
-				if val.kind != .Int || val.i != EXTERNAL bad = true;
+				if val.kind != .Int || (val.i != EXTERNAL && val.i != IN_VOICE) bad = true;
+				kind = val.i;
+			case "channel_id";
+				ok: bool;
+				channel, ok = string_to_int(ifx val.kind == .String then val.s else "0", T = s64);
+				if !ok bad = true;
 			case "privacy_level"; #through;
-			case "channel_id"; #through;
 			case "recurrence_rule";
 			case; bad = true;
 			}
 		}
-		if bad || end <= start || end - start > 366 * 86_400_000 return json_error(c, 400, 50035, "Invalid Form Body");
-		if !sqlite.run(s.db, "UPDATE events SET name = ?, description = ?, location = ?, start = ?, end = ?, status = ? WHERE id = ?;", name, description, location, start, end, status, id) {
+		// A voice event needs a voice channel and keeps no place or end; one Somewhere Else needs both.
+		if kind == IN_VOICE { location, end = "", 0; } else channel = 0;
+		if bad || (kind == IN_VOICE && channel_type_locked(s, channel) != VOICE) || (kind == EXTERNAL && (!location || end <= start || end - start > 366 * 86_400_000)) {
+			return json_error(c, 400, 50035, "Invalid Form Body");
+		}
+		if !sqlite.run(s.db, "UPDATE events SET name = ?, description = ?, location = ?, start = ?, end = ?, status = ?, channel = nullif(?, 0) WHERE id = ?;", name, description, location, start, end, status, channel, id) {
 			return json_error(c, 500, 0, "500: Internal Server Error");
 		}
 		event = event_locked(s, id);
@@ -1603,12 +1622,26 @@ archive_idle :: (s: *Server) {
 		for ids if sqlite.run(s.db, "UPDATE channels SET archived = 1, archived_at = ? WHERE id = ?;", ms << 22, it) array_add(*threads, channel_locked(s, it));
 		ids.count = 0;
 		unix := ms + DISCORD_EPOCH_MS;
-		st = sqlite.prepare(s.db, tprint("SELECT id FROM events WHERE (status = % AND start <= ?1) OR (status IN (%, %) AND end <= ?1);", EVENT_SCHEDULED, EVENT_SCHEDULED, EVENT_ACTIVE));
+		// Events start on time. Those Somewhere Else end on time; one in a voice channel ends when everyone has
+		// left it (end_voice_events), or here if it is still empty a quarter of an hour after its start.
+		st = sqlite.prepare(s.db, tprint("SELECT id, coalesce(channel, 0), status FROM events WHERE (status = % AND start <= ?1) OR (status = % AND ((channel IS NULL AND end <= ?1) OR (channel IS NOT NULL AND start <= ?1 - 900000)));", EVENT_SCHEDULED, EVENT_ACTIVE));
 		sqlite.bind_all(st, unix);
-		while sqlite.step(st) == .Row array_add(*ids, sqlite.col_int(st, 0));
+		next: [..]int;
+		next.allocator = temp;
+		while sqlite.step(st) == .Row {
+			channel, status := sqlite.col_int(st, 1), sqlite.col_int(st, 2);
+			occupied := false;
+			if status == EVENT_ACTIVE && channel {
+				locks.guard(*s.voice_mu);
+				for s.voice_states if it.channel == channel occupied = true;
+			}
+			if occupied continue;
+			array_add(*ids, sqlite.col_int(st, 0));
+			array_add(*next, ifx status == EVENT_ACTIVE then EVENT_COMPLETED else EVENT_ACTIVE);
+		}
 		sqlite.finalize(st);
 		for ids {
-			ok := sqlite.run(s.db, tprint("UPDATE events SET status = CASE WHEN end <= ? THEN % ELSE % END WHERE id = ?;", EVENT_COMPLETED, EVENT_ACTIVE), unix, it);
+			ok := sqlite.run(s.db, "UPDATE events SET status = CASE WHEN channel IS NULL AND end <= ?1 THEN ?2 ELSE ?3 END WHERE id = ?4;", unix, EVENT_COMPLETED, next[it_index], it);
 			if ok array_add(*events, event_locked(s, it));
 		}
 	}
@@ -2961,8 +2994,8 @@ removed :: (s: *Server, user: s64) {
 edit_channel :: (c: *Conn, req: http.Request, user: s64, channel: s64) -> bool {
 	s := c.server;
 	ch: etf.Value;
-	orphans, gone_threads: [..]etf.Value;
-	orphans.allocator, gone_threads.allocator = temp, temp;
+	orphans, gone_threads, gone_events: [..]etf.Value;
+	orphans.allocator, gone_threads.allocator, gone_events.allocator = temp, temp, temp;
 	starter: etf.Value; // A deleted thread's starter message, which loses its `thread`.
 	kind := -1;
 	if req.method == "PATCH" {
@@ -3024,6 +3057,11 @@ edit_channel :: (c: *Conn, req: http.Request, user: s64, channel: s64) -> bool {
 			else array_add(*ids, sqlite.col_int(st, 0));
 		}
 		sqlite.finalize(st);
+		// A voice channel's events go with it, as on Discord.
+		st = sqlite.prepare(s.db, "SELECT id FROM events WHERE channel = ?;");
+		sqlite.bind(st, 1, channel);
+		while sqlite.step(st) == .Row array_add(*gone_events, event_locked(s, sqlite.col_int(st, 0)));
+		sqlite.finalize(st);
 		// ?1 is the channel; doomed is it and its threads.
 		doomed :: "(SELECT id FROM channels WHERE id = ?1 OR (parent = ?1 AND type = 11))";
 		ok := sqlite.exec(s.db, "BEGIN;")
@@ -3037,6 +3075,8 @@ edit_channel :: (c: *Conn, req: http.Request, user: s64, channel: s64) -> bool {
 			&& sqlite.run(s.db, tprint("DELETE FROM messages WHERE channel IN %;", doomed), channel)
 			&& sqlite.run(s.db, tprint("DELETE FROM read_states WHERE channel IN %;", doomed), channel)
 			&& sqlite.run(s.db, tprint("DELETE FROM channels WHERE id IN %;", doomed), channel)
+			&& sqlite.run(s.db, "DELETE FROM rsvps WHERE event IN (SELECT id FROM events WHERE channel = ?1);", channel)
+			&& sqlite.run(s.db, "DELETE FROM events WHERE channel = ?1;", channel)
 			&& sqlite.exec(s.db, "COMMIT;");
 		if !ok { sqlite.exec(s.db, "ROLLBACK;"); return json_error(c, 500, 0, "500: Internal Server Error"); }
 		for ids array_add(*orphans, channel_locked(s, it));
@@ -3049,6 +3089,7 @@ edit_channel :: (c: *Conn, req: http.Request, user: s64, channel: s64) -> bool {
 	if req.method == "PATCH" broadcast(s, ifx thread then "THREAD_UPDATE" else "CHANNEL_UPDATE", ch);
 	else broadcast(s, ifx thread then "THREAD_DELETE" else "CHANNEL_DELETE", ch);
 	for gone_threads broadcast(s, "THREAD_DELETE", it);
+	for gone_events broadcast(s, "GUILD_SCHEDULED_EVENT_DELETE", it);
 	for orphans broadcast(s, "CHANNEL_UPDATE", it);
 	if starter.kind == .Map broadcast(s, "MESSAGE_UPDATE", starter);
 	return json_reply(c, 200, ch);

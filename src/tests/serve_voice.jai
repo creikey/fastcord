@@ -213,12 +213,41 @@ main :: () {
 	voice.voice_disconnect(b.conn);
 	discord.voice_leave(b.cl);
 
-	// Deleting the channel ends the owner's call.
-	req.method, req.path, req.body = "DELETE", tprint("/api/v9/channels/%", channel), .[];
-	req.headers = .[.{"authorization", owner_token}];
-	resp = http.h1_round_trip(*h, req);
+	// Events in the voice channel: started by hand, they end once everyone has left.
+	rest :: (method: string, path: string, body := "") -> int, etf.Value #expand {
+		`req.method, `req.path, `req.body = method, path, cast([]u8) body;
+		`req.headers = .[.{"authorization", `owner_token}, .{"Content-Type", "application/json"}, .{"Content-Length", tprint("%", body.count)}];
+		r := http.h1_round_trip(*`h, `req);
+		v, _ := etf.from_json(cast(string) r.body,, temp);
+		return r.status, v;
+	}
+	event_status :: (id: string) -> int #expand {
+		status, v := rest("GET", tprint("/api/v9/guilds/%/scheduled-events/%", `s.guild, id));
+		if status != 200 return -status;
+		f, _ := etf.map_get(v.map, "status");
+		return f.i;
+	}
+	events := tprint("/api/v9/guilds/%/scheduled-events", s.guild);
+	new_event := tprint("{\"name\": \"Hang\", \"privacy_level\": 2, \"scheduled_start_time\": \"2030-01-01T00:00:00.000Z\", \"entity_type\": 2, \"channel_id\": \"%\"}", channel);
+	status, made_event := rest("POST", events, new_event);
+	id_e, _ := etf.map_get(made_event.map, "id");
+	kind_e, _ := etf.map_get(made_event.map, "entity_type");
+	check(status == 200 && kind_e.i == 2, tprint("create an event in the voice channel: %", status));
+	status = rest("PATCH", tprint("%/%", events, id_e.s), "{\"status\": 2}");
+	check(status == 200 && event_status(id_e.s) == 2, "start it");
+	discord.voice_leave(a.cl);
+	for 1..300 { if event_status(id_e.s) == 3 break; pump(); }
+	check(event_status(id_e.s) == 3, "the event ends once the channel is empty");
+
+	// Deleting the channel ends the owner's call, and takes its events with it.
+	discord.voice_join(a.cl, guild, channel);
+	for 1..500 { if in_channel(*a, a.cl.store.me) break; pump(); }
+	status, made_event = rest("POST", events, new_event);
+	id_e, _ = etf.map_get(made_event.map, "id");
+	status = rest("DELETE", tprint("/api/v9/channels/%", channel));
 	for 1..500 { if !in_channel(*a, a.cl.store.me) break; pump(); }
-	check(resp.status == 200 && !in_channel(*a, a.cl.store.me), tprint("deleting the channel ends its calls: %", resp.status));
+	check(status == 200 && !in_channel(*a, a.cl.store.me), tprint("deleting the channel ends its calls: %", status));
+	check(event_status(id_e.s) == -404, "and deletes its events");
 
 	voice.voice_disconnect(a.conn);
 	for members discord.client_destroy(it.cl);

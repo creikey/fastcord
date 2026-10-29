@@ -102,11 +102,13 @@ voice_state_update :: (c: *Conn, d: etf.Value) {
 	} else if ch.kind != .Nil return;
 	flag :: (m: etf.Map, k: string) -> bool { v, _ := etf.map_get(m, k); return v.kind == .Bool && v.b; }
 	state, server, gone: etf.Value;
+	left_channel: s64; // The channel the member left, if they did.
 	{
 		locks.guard(*s.voice_mu);
 		vs: *Voice_State;
 		at := -1;
 		for * s.voice_states if it.user == c.user { vs, at = it, it_index; }
+		if vs && vs.channel != channel left_channel = vs.channel;
 		if !channel {
 			if !vs return;
 			gone = end_locked(s, vs);
@@ -136,6 +138,28 @@ voice_state_update :: (c: *Conn, d: etf.Value) {
 	if gone.kind == .Map broadcast(s, "STREAM_DELETE", gone);
 	broadcast(s, "VOICE_STATE_UPDATE", state);
 	if server.kind == .Map dispatch(c, "VOICE_SERVER_UPDATE", server);
+	if left_channel end_voice_events(s, left_channel);
+}
+
+// end_voice_events completes the events going on in channel once everyone has left it, as Discord does.
+end_voice_events :: (s: *Server, channel: s64) {
+	ended: [..]etf.Value;
+	ended.allocator = temp;
+	{
+		locks.guard(*s.db_mu);
+		{
+			locks.guard(*s.voice_mu);
+			for s.voice_states if it.channel == channel return;
+		}
+		ids: [..]s64;
+		ids.allocator = temp;
+		st := sqlite.prepare(s.db, tprint("SELECT id FROM events WHERE channel = ? AND status = %;", EVENT_ACTIVE));
+		sqlite.bind(st, 1, channel);
+		while sqlite.step(st) == .Row array_add(*ids, sqlite.col_int(st, 0));
+		sqlite.finalize(st);
+		for ids if sqlite.run(s.db, tprint("UPDATE events SET status = % WHERE id = ?;", EVENT_COMPLETED), it) array_add(*ended, event_locked(s, it));
+	}
+	for ended broadcast(s, "GUILD_SCHEDULED_EVENT_UPDATE", it);
 }
 
 // voice_leave ends user's voice state, when only gateway (null: any) holds it: that gateway closed, the
@@ -143,6 +167,8 @@ voice_state_update :: (c: *Conn, d: etf.Value) {
 voice_leave :: (s: *Server, user: s64, gateway: *Conn = null, channel: s64 = 0) {
 	left, gone: [..]etf.Value;
 	left.allocator, gone.allocator = temp, temp;
+	channels: [..]s64;
+	channels.allocator = temp;
 	{
 		locks.guard(*s.voice_mu);
 		for * s.voice_states {
@@ -150,11 +176,13 @@ voice_leave :: (s: *Server, user: s64, gateway: *Conn = null, channel: s64 = 0) 
 			ended := end_locked(s, it);
 			if ended.kind == .Map array_add(*gone, ended);
 			array_add(*left, voice_state_value(s, null, it.user));
+			array_add_if_unique(*channels, it.channel);
 			remove it;
 		}
 	}
 	for gone broadcast(s, "STREAM_DELETE", it);
 	for left broadcast(s, "VOICE_STATE_UPDATE", it);
+	for channels end_voice_events(s, it);
 }
 
 // kick_locked closes the voice WebSockets of user (0: anyone) in room (0: any), whose threads then end their
