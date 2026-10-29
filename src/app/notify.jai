@@ -34,9 +34,12 @@ notify_tick :: () {
 		app.client = prev;
 		remove it;
 	}
-	// dock badge: unread mentions, on every connection
+	// dock badge: unread mentions, on every connection, and incoming friend requests
 	total := 0;
-	for c: connections() for c.store.read_states total += max(it.mention_count, 0);
+	for c: connections() {
+		for c.store.read_states total += max(it.mention_count, 0);
+		for c.store.relationships if it.kind == .Incoming_Request total += 1;
+	}
 	if notify_prefs.badge_off || notify_prefs.lotus total = 0; // Settings > Notifications > Unread Message Badge
 	if !ns.badge_set || total != ns.badge {
 		ns.badge = total;
