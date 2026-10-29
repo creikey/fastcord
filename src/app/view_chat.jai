@@ -2516,6 +2516,13 @@ forward_block :: (m: *dc.Message) {
 	if m.sticker_ids message_stickers_view(m);
 	if m.attachments attachments_view(m);
 	if m.embeds embeds_view(m);
+	if m.forward_author_id {
+		at := dc.iso_to_ms(m.forward_timestamp);
+		spacer(.Y, 2);
+		name := name_in(m.forward_author_id, m.channel_id, L("Unknown"));
+		label(ifx at > 0 then tprint("% • %", name, format_time_ms(at)) else name, .Medium, 12, T("--text-muted"), 18);
+		return;
+	}
 	ch := dc.channel_get(s, m.forward_channel_id);
 	if ch == null || ch.name == "" return;
 	spacer(.Y, 2);

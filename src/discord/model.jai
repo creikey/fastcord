@@ -280,6 +280,7 @@ Message :: struct {
 	forward_channel_id: Snowflake; // also THREAD_CREATED's (type 18) thread
 	forward_message_id: Snowflake;
 	forward_timestamp: string; // the original's timestamp
+	forward_author_id: Snowflake; // an encrypted forward's original author, from inside its packet (the app sets it)
 	flags: u64;
 	nonce: string;
 	webhook_name: string; // a webhook's name for this message alone ("" otherwise); each post may pick its own
