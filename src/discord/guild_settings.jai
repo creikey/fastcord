@@ -365,6 +365,27 @@ set_guild_hide_muted :: (c: *Client, gid: Snowflake, on: bool) {
 	c.store.changed += 1;
 }
 
+// The modal's other switches (updateGuildNotificationSettings): notify_highlights (1 off, 2 on),
+// mute_scheduled_events, mobile_push. No capture: no science event (its "_old" fields are unknown).
+set_guild_highlights :: (c: *Client, gid: Snowflake, on: bool) {
+	v := ifx on then HIGHLIGHTS_ENABLED else HIGHLIGHTS_DISABLED;
+	patch_guild_settings(c, gid, tprint("{\"notify_highlights\":%}", v));
+	ensure_settings(*c.store, gid).notify_highlights = v;
+	c.store.changed += 1;
+}
+set_guild_mute_events :: (c: *Client, gid: Snowflake, on: bool) {
+	patch_guild_settings(c, gid, tprint("{\"mute_scheduled_events\":%}", on));
+	ensure_settings(*c.store, gid).mute_scheduled_events = on;
+	c.store.changed += 1;
+}
+set_guild_mobile_push :: (c: *Client, gid: Snowflake, on: bool) {
+	patch_guild_settings(c, gid, tprint("{\"mobile_push\":%}", on));
+	ensure_settings(*c.store, gid).mobile_push = on;
+	c.store.changed += 1;
+}
+HIGHLIGHTS_DISABLED :: 1;
+HIGHLIGHTS_ENABLED :: 2;
+
 // No capture covers the suppress switches: the write follows the same endpoint;
 // no science event is sent (its label is unknown, and values are never invented).
 set_guild_suppress_everyone :: (c: *Client, gid: Snowflake, on: bool) {

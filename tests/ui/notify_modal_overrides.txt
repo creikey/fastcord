@@ -1,0 +1,20 @@
+# The server's Notification Settings modal: Suppress Highlights, Mute New Events and Mobile Push after the
+# suppress switches, then Channel Notification Overrides with a channel picker. The body scrolls.
+wait 5
+click 200 57
+wait 10
+click_text "Notification Settings"
+wait 10
+expect_visible "Server Notification Settings"
+scroll 0 -2000
+move 640 400
+scroll 0 -2000
+wait 30
+expect_visible "Suppress Highlights"
+expect_visible "Mute New Events"
+expect_visible "Channel Notification Overrides"
+click_text "Select a channel or category…"
+wait 10
+scroll 0 -2000
+wait 30
+expect_visible "dingus-battle"

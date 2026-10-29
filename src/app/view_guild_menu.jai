@@ -342,6 +342,9 @@ Sub :: enum u8 {
 }
 
 Guild_Menu_State :: struct {
+	// Notification Settings modal: its body's height last frame, and the override picker open
+	nm_body_h: float32 = 600;
+	nm_picking: bool;
 	// header dropdown
 	menu_guild: dc.Snowflake;
 	menu_anchor: ui.Rect;
@@ -696,6 +699,17 @@ notify_modal :: () {
 		}
 		spacer(.Y, 24);
 		hline("h0");
+		// the rest scrolls when it doesn't fit the window
+		body := ui.box("body", .Scroll_Y | .Clip);
+		body.semantic_size = .[ui.pct(1), ui.px(min(gm.nm_body_h, app.ui.window.y - 200))];
+		body.layout_axis = .Y;
+		ui.signal(body);
+		ui.parent(body);
+		inner := ui.box("inner");
+		inner.semantic_size = .[ui.pct(1), ui.children()];
+		inner.layout_axis = .Y;
+		if inner.rect.y1 > inner.rect.y0 gm.nm_body_h = inner.rect.y1 - inner.rect.y0;
+		ui.parent(inner);
 		spacer(.Y, 20);
 		{ ui.parent(padded("mute")); defer ui.pop_parent();
 			spacer(.X, PAD);
@@ -757,9 +771,24 @@ notify_modal :: () {
 				if set_toggle_row("supall", "Suppress @everyone and @here", "", sup) && net_action() dc.set_guild_suppress_everyone(app.client, gid, !sup);
 				spacer(.Y, 16);
 				if set_toggle_row("suproles", "Suppress All Role @mentions", "", supr) && net_action() dc.set_guild_suppress_roles(app.client, gid, !supr);
+				spacer(.Y, 16);
+				suph := gs != null && gs.notify_highlights == dc.HIGHLIGHTS_DISABLED;
+				if set_toggle_row("suphl", "Suppress Highlights", "Highlights provide occasional updates when your friends are chatting in busy servers, and more.", suph) && net_action() dc.set_guild_highlights(app.client, gid, suph);
+				spacer(.Y, 16);
+				mev := gs != null && gs.mute_scheduled_events;
+				if set_toggle_row("muteev", "Mute New Events", "", mev) && net_action() dc.set_guild_mute_events(app.client, gid, !mev);
+				spacer(.Y, 16);
+				push := gs == null || gs.mobile_push;
+				if set_toggle_row("push", "Mobile Push Notifications", "", push) && net_action() dc.set_guild_mobile_push(app.client, gid, !push);
 			}
 			spacer(.X, PAD);
 		}
+		spacer(.Y, 20);
+		hline("h3");
+		spacer(.Y, 24);
+		notify_overrides(gid, W, PAD);
+		ui.pop_parent();
+		ui.pop_parent();
 		spacer(.Y, 24);
 		{ ui.parent(padded("done")); defer ui.pop_parent();
 			spacer(.X, PAD);
@@ -776,6 +805,162 @@ notify_modal :: () {
 			spacer(.X, PAD);
 		}
 		spacer(.Y, PAD);
+	}
+}
+
+// Channel Notification Overrides: a picker adds a channel or category; each override's row has its
+// level (All, Only @mentions, Nothing), Mute and a remove button.
+notify_overrides :: (gid: dc.Snowflake, W: float32, PAD: float32) {
+	s := store();
+	now := wall_ms();
+	gs := dc.guild_settings_get(s, gid);
+	{ r := row("ohdr"); r.semantic_size = .[ui.pct(1), ui.children()]; ui.parent(r); defer ui.pop_parent();
+		spacer(.X, PAD);
+		label("Channel Notification Overrides", .Semibold, 16, T("--text-strong"), 20);
+	}
+	spacer(.Y, 8);
+	{ r := row("odesc"); r.semantic_size = .[ui.pct(1), ui.children()]; ui.parent(r); defer ui.pop_parent();
+		spacer(.X, PAD);
+		label("Add a channel to override its default notification settings", .Normal, 14, T("--text-muted"), 18);
+	}
+	spacer(.Y, 8);
+	// the picker: a field that opens a list of channels and categories without an override
+	pick := row("opick", .Clickable);
+	pick.semantic_size = .[ui.pct(1), ui.px(40)];
+	psig := ui.signal(pick);
+	{ ui.parent(pick); defer ui.pop_parent();
+		spacer(.X, PAD);
+		f := row("field", .Draw_Background | .Draw_Border);
+		f.semantic_size = .[ui.fill(), ui.px(40)];
+		f.style.bg = T("--input-background-default");
+		f.style.border = 1;
+		f.style.border_color = T("--input-border-default");
+		f.style.radius = all4(8);
+		{ ui.parent(f); defer ui.pop_parent();
+			spacer(.X, 12);
+			label("Select a channel or category…", .Normal, 14, T("--text-muted"), 18);
+			filler(.X);
+			icon("chev", "chevron-small-down", 18, T("--interactive-icon-default"));
+			spacer(.X, 8);
+		}
+		spacer(.X, PAD);
+	}
+	if psig.clicked gm.nm_picking = !gm.nm_picking;
+	if gm.nm_picking {
+		wrap := row("owrap");
+		wrap.semantic_size = .[ui.pct(1), ui.children()];
+		ui.parent(wrap); defer ui.pop_parent();
+		spacer(.X, PAD);
+		list := ui.box("olist", .Scroll_Y | .Clip | .Draw_Background | .Draw_Border);
+		list.semantic_size = .[ui.fill(), ui.px(200)];
+		list.style.radius = all4(8);
+		list.layout_axis = .Y;
+		list.style.bg = T("--background-surface-high");
+		list.style.border = 1;
+		list.style.border_color = T("--border-subtle");
+		ui.signal(list);
+		defer spacer(.X, PAD);
+		ui.parent(list); defer ui.pop_parent();
+		for cid: dc.guild_channels_sorted(s, gid) {
+			ch := dc.channel_get(s, cid);
+			if !ch || dc.channel_override_get(s, gid, cid) || (ch.kind == .Guild_Voice || ch.kind == .Guild_Stage_Voice) continue;
+			ui.id_scope(cast(u64) cid); defer ui.pop_seed();
+			r := row("opt", .Clickable | .Draw_Background | .Hot_Animation);
+			r.semantic_size = .[ui.pct(1), ui.px(32)];
+			r.style.bg_hot = T("--background-mod-subtle");
+			{ ui.parent(r); defer ui.pop_parent();
+				spacer(.X, 12);
+				icon("ic", ifx ch.kind == .Guild_Category then "folder" else channel_icon_name(ch), 16, T("--channel-icon"));
+				spacer(.X, 8);
+				label(ellipsize(ifx ch.kind == .Guild_Category then to_upper_copy(ch.name,, temp) else ch.name, .Medium, 14, W - 2 * PAD - 60), .Medium, 14, T("--text-default"), 18);
+			}
+			if ui.signal(r).clicked {
+				gm.nm_picking = false;
+				// the client adds the channel at the server's level, as an override that can then change
+				if net_action() dc.set_channel_notify_level(app.client, gid, cid, dc.guild_notify_level(s, gid));
+			}
+		}
+	}
+	if !gs return;
+	any := false;
+	for o: gs.overrides {
+		if !dc.mute_active(o.muted, o.mute_end_ms, now) && o.message_notifications == dc.NOTIFY_INHERIT continue;
+		ch := dc.channel_get(s, o.channel_id);
+		if !ch continue;
+		if !any {
+			any = true;
+			spacer(.Y, 12);
+			{ r := row("ocols"); r.semantic_size = .[ui.pct(1), ui.children()]; ui.parent(r); defer ui.pop_parent();
+				spacer(.X, PAD);
+				label("CHANNEL OR CATEGORY", .Bold, 12, T("--text-muted"), 16);
+				filler(.X);
+				for string.["ALL", "@MENTIONS", "NOTHING", "MUTE"] {
+					c := ui.box(tprint("%##c%", it, it_index), .Draw_Text);
+					c.semantic_size = .[ui.px(60), ui.px(16)];
+					c.style.font, c.style.font_size, c.style.text_color = F(.Bold), 10, T("--text-muted");
+					c.style.text_align = .Center;
+				}
+				spacer(.X, 24 + PAD);
+			}
+		}
+		ui.id_scope(cast(u64) o.channel_id); defer ui.pop_seed();
+		spacer(.Y, 4);
+		r := row("orow");
+		r.semantic_size = .[ui.pct(1), ui.px(36)];
+		ui.parent(r); defer ui.pop_parent();
+		spacer(.X, PAD);
+		label(ellipsize(ifx ch.kind == .Guild_Category then to_upper_copy(ch.name,, temp) else ch.name, .Medium, 14, W - 2 * PAD - 4 * 60 - 40), .Medium, 14, T("--text-default"), 18);
+		filler(.X);
+		level := ifx o.message_notifications == dc.NOTIFY_INHERIT then dc.resolved_notify_level(s, gid, o.channel_id) else o.message_notifications;
+		for i: 0..2 {
+			ui.id_scope(cast(u64) i + 1); defer ui.pop_seed();
+			cell := row("cell", .Clickable);
+			cell.semantic_size = .[ui.px(60), ui.px(36)];
+			sig := ui.signal(cell);
+			ui.parent(cell); defer ui.pop_parent();
+			filler(.X);
+			rb := ui.box("rb", .Draw_Border);
+			rb.semantic_size = .[ui.px(18), ui.px(18)];
+			rb.style.radius = all4(9);
+			rb.style.border = 2;
+			rb.style.border_color = ifx level == i then T("--background-brand") else T("--interactive-icon-default");
+			if level == i {
+				ui.parent(rb); defer ui.pop_parent();
+				dot := ui.box("dot", .Draw_Background | .Floating_X | .Floating_Y);
+				dot.semantic_size = .[ui.px(8), ui.px(8)];
+				dot.fixed_pos = .{5, 5};
+				dot.style.radius = all4(4);
+				dot.style.bg = T("--background-brand");
+			}
+			filler(.X);
+			if sig.clicked && o.message_notifications != i && net_action() dc.set_channel_notify_level(app.client, gid, o.channel_id, i);
+		}
+		muted := dc.mute_active(o.muted, o.mute_end_ms, now);
+		mc := row("mute", .Clickable);
+		mc.semantic_size = .[ui.px(60), ui.px(36)];
+		msig := ui.signal(mc);
+		{ ui.parent(mc); defer ui.pop_parent();
+			filler(.X);
+			cb := ui.box("cb", .Draw_Border | .Draw_Background);
+			cb.semantic_size = .[ui.px(18), ui.px(18)];
+			cb.style.radius = all4(4);
+			cb.style.border = 2;
+			cb.style.border_color = ifx muted then T("--background-brand") else T("--interactive-icon-default");
+			cb.style.bg = ifx muted then T("--background-brand") else .{};
+			if muted set_icon(cb, "checkmark-large", .{1, 1, 1, 1});
+			filler(.X);
+		}
+		if msig.clicked && net_action() dc.set_channel_muted(app.client, gid, o.channel_id, !muted, now_ms = now);
+		x := ui.box("rm", .Clickable);
+		x.semantic_size = .[ui.px(24), ui.px(24)];
+		xs := ui.signal(x);
+		set_icon(x, "x-small", ifx xs.hovering then T("--interactive-icon-hover") else T("--interactive-icon-default"));
+		if xs.hovering tooltip_below(tprint("Remove notification override for %", ch.name), x.rect);
+		if xs.clicked && net_action() {
+			if muted dc.set_channel_muted(app.client, gid, o.channel_id, false, now_ms = now);
+			if o.message_notifications != dc.NOTIFY_INHERIT dc.set_channel_notify_level(app.client, gid, o.channel_id, dc.NOTIFY_INHERIT);
+		}
+		spacer(.X, PAD);
 	}
 }
 
