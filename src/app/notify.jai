@@ -37,7 +37,8 @@ notify_tick :: () {
 	// dock badge: unread mentions, on every connection, and incoming friend requests
 	total := 0;
 	for c: connections() {
-		for c.store.read_states total += max(it.mention_count, 0);
+		// only channels still there: a server you left or a DM you closed keeps its read state
+		for c.store.read_states if dc.channel_get(*c.store, it.channel_id) total += max(it.mention_count, 0);
 		for c.store.relationships if it.kind == .Incoming_Request total += 1;
 	}
 	if notify_prefs.badge_off || notify_prefs.lotus total = 0; // Settings > Notifications > Unread Message Badge

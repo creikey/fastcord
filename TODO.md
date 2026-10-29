@@ -281,7 +281,6 @@
 - [ ] Video: fastcord's own real camera (AVFoundation) and screen capture (ScreenCaptureKit) are untested live; the live tests used the synthetic pattern.
 - [ ] Invites: no "Edit invite link" (expiry, max uses, temporary); always 30 days, unlimited. No friend list with Invite buttons.
 - [ ] Servers: Discovery opens the web page (`view_add_server.jai`); Create Server has no templates, purpose step or icon upload.
-- [ ] Badges: the taskbar badge counts mentions in servers you left and DMs you closed (read states are never dropped), plus stale counts in read channels. Replying from another device leaves a stale red badge, because your own message doesn't zero `mention_count` (`store.jai`, `CLIENT_RULES.md`).
 - [ ] Call view: no popout (the call, or one stream, in a window of its own; the platform layer has one window today). Done: the header's own tools (Show Chat), fullscreen (the bar's button, Escape leaves), the text-in-voice side panel.
 - [ ] Group DMs: "Add Friends to DM" does nothing (`add_group_recipient` / `remove_group_recipient` are unused); no rename, new icon, Remove from Group or Transfer Ownership.
 - [ ] Moderation: the user menu has no Timeout, Roles, Mention, Invite to Server or local Mute.
@@ -811,3 +810,4 @@
 - [x] Connection: when the gateway drops after READY, a warning bar under the title bar says "Connection lost. Messages may be out of date." with Reconnect (skipping the backoff), or "Connecting..." while it reconnects; a quick resume shows nothing (`connection_notice`, `tests/ui/connection_notice.txt`).
 - [x] Apps: slash-command and context-menu replies show "<user> used /command" on the reply spine above them (`command_used_line`, `tests/ui/command_reply.txt`).
 - [x] Group DMs: the start of a group DM's history shows its icon, name and "Welcome to the beginning of the <name> group." (`group_dm_welcome`, `tests/ui/rail/group_dm_members.txt`).
+- [x] Badges: the dock / taskbar badge counts only channels that still exist (not servers you left or DMs you closed), and a message of your own, from any device, marks its channel read locally as ReadStateStore does, so replying elsewhere clears the badge (`actions.jai` MESSAGE_CREATE, `notify.jai`).

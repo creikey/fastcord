@@ -1078,7 +1078,15 @@ client_after_dispatch :: (c: *Client, name: string, data: V) {
 		viewing := c.route_channel == fsnow(d, "channel_id") && !c.route_scrolled_up; // shouldAutomaticallyAck: "Not at bottom"
 		locks.unlock(*c.route_mu);
 		cid, mid := fsnow(d, "channel_id"), fsnow(d, "id");
-		if fsnow(fmap(d, "author"), "id") == c.store.me return;
+		if fsnow(fmap(d, "author"), "id") == c.store.me {
+			// our own message, from here or another device: the channel is read up to it (ReadStateStore
+			// acks it locally, sending nothing), so a badge from before it clears
+			rs := find_or_add(*c.store.read_states, cid);
+			rs.channel_id = cid;
+			if mid > rs.last_message_id rs.last_message_id = mid;
+			rs.mention_count = 0;
+			return;
+		}
 		if viewing && c.focused && !c.idle_sent { // shouldAutomaticallyAck: never while idle
 			ack_message(c, cid, mid, location = ACK_INCOMING_MESSAGE);
 			return;
