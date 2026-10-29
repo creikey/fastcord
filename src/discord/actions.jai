@@ -1442,6 +1442,7 @@ open_full_profile :: (c: *Client, user_id: Snowflake, guild_id: Snowflake, via :
 // the click), and a guild miss tracks its two cache_fetch events as the fetch starts.
 COMMAND_INDEX_DELAY_MS :: 80;
 open_message_context_menu :: (c: *Client, guild_id: Snowflake, message_menu := false) {
+	if c.cfg.hosted.host return; // a hosted server has no application commands
 	delay: s64 = ifx message_menu then COMMAND_INDEX_DELAY_MS else 0;
 	if guild_id && !table_contains(*c.command_index_guilds, guild_id) {
 		table_set(*c.command_index_guilds, guild_id, true);

@@ -1522,7 +1522,7 @@ row_message :: (s: *Server, st: *sqlite.Stmt, nested := false, viewer: s64 = 0, 
 		reactions = etf.vlist(list);
 	}
 	return message_value(s, id, sqlite.col_int(st, 1), sqlite.col_int(st, 2), copy_string(sqlite.col_text(st, 3),, temp),
-		copy_string(sqlite.col_text(st, 4),, temp), sqlite.col_int(st, 5), reply, referenced, nonce, reactions, etf.vlist(mentioned), sqlite.col_int(st, 7) != 0, !sqlite.col_is_null(st, 8), kind, attachments_locked(s, id), embeds_locked(s, id, (sqlite.col_int(st, 10) & SUPPRESS_EMBEDS) != 0), sqlite.col_int(st, 10),
+		copy_string(sqlite.col_text(st, 4),, temp), sqlite.col_int(st, 5), reply, referenced, nonce, reactions, etf.vlist(mentioned), sqlite.col_int(st, 7) != 0, !sqlite.col_is_null(st, 8), kind, attachments_locked(s, id), ifx kind == POLL_RESULT then poll_result_embeds_locked(s, reply) else embeds_locked(s, id, (sqlite.col_int(st, 10) & SUPPRESS_EMBEDS) != 0), sqlite.col_int(st, 10),
 		ifx sqlite.col_is_null(st, 11) then etf.Value.{} else channel_locked(s, id), sqlite.col_int(st, 12) != 0, copy_string(sqlite.col_text(st, 13),, temp), copy_string(sqlite.col_text(st, 14),, temp),
 		ifx sqlite.col_is_null(st, 15) then etf.Value.{} else poll_locked(s, id, viewer));
 }
@@ -1712,7 +1712,7 @@ archive_idle :: (s: *Server) {
 	if ms < next || !compare_and_swap(*s.next_sweep, next, ms + 60 * 1000) return;
 	threads, events: [..]etf.Value;
 	threads.allocator, events.allocator = temp, temp;
-	polls: []etf.Value;
+	polls, results: []etf.Value;
 	{
 		locks.guard(*s.db_mu);
 		ids: [..]s64;
@@ -1746,9 +1746,10 @@ archive_idle :: (s: *Server) {
 			ok := sqlite.run(s.db, "UPDATE events SET status = CASE WHEN channel IS NULL AND end <= ?1 THEN ?2 ELSE ?3 END WHERE id = ?4;", unix, EVENT_COMPLETED, next[it_index], it);
 			if ok array_add(*events, event_locked(s, it));
 		}
-		polls = close_polls_locked(s);
+		polls, results = close_polls_locked(s);
 	}
 	for polls broadcast(s, "MESSAGE_UPDATE", it);
+	for results broadcast(s, "MESSAGE_CREATE", it);
 	for threads broadcast(s, "THREAD_UPDATE", it);
 	for events broadcast(s, "GUILD_SCHEDULED_EVENT_UPDATE", it);
 }

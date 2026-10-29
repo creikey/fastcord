@@ -107,6 +107,18 @@ main :: () {
 	check(status == 204, tprint("the author ends it: % %", status, body));
 	for 1..300 { if stored().poll.finalized break; pump(); }
 	check(stored().poll.finalized && stored().poll.answers[1].count == 2, "MESSAGE_UPDATE finalizes it with the results");
+	result :: () -> *discord.Message #expand {
+		ok, l := table_find(*`b.store.messages, `channel);
+		if ok for * l.messages if it.kind == 46 && it.referenced_id == `message return it;
+		return null;
+	}
+	for 1..300 { if result() break; pump(); }
+	r := result();
+	won := false;
+	if r for e: r.embeds if e.kind == "poll_result" for e.fields if it.name == "victor_answer_text" && it.value == "Tacos" won = true;
+	check(r && won, "a result message (type 46) names the winner");
+	status, body = rest("GET", tprint("%?limit=50", messages), "", member_token);
+	check(contains(body, "\"type\":46") && contains(body, "\"total_votes\"") && contains(body, "\"value\":\"2\""), tprint("and fetches carry it: %", body));
 	discord.poll_vote(b, channel, message, .[]);
 	status, body = rest("PUT", tprint("/api/v9/channels/%/polls/%/answers/@me", channel, poll_id), "{\"answer_ids\": []}", member_token);
 	check(status == 400, tprint("no votes once closed: %", status));

@@ -129,7 +129,7 @@ poll_route :: (c: *Conn, req: http.Request, user: s64, channel: s64, parts: []st
 	Change :: struct { added: bool; answer: s64; }
 	changes: [..]Change;
 	changes.allocator = temp;
-	updated: etf.Value;
+	updated, result: etf.Value;
 	{
 		locks.guard(*s.db_mu);
 		st := sqlite.prepare(s.db, "SELECT p.answers, p.expiry, p.multiselect, p.finalized, m.author FROM polls p JOIN messages m ON m.id = p.message WHERE p.message = ? AND m.channel = ?;");
@@ -168,6 +168,7 @@ poll_route :: (c: *Conn, req: http.Request, user: s64, channel: s64, parts: []st
 			if closed return json_error(c, 400, 520001, "Poll expired");
 			if !sqlite.run(s.db, "UPDATE polls SET expiry = ?, finalized = 1 WHERE message = ?;", now_ms(s) + DISCORD_EPOCH_MS, message) return json_error(c, 500, 0, "500: Internal Server Error");
 			updated = message_locked(s, message, nested = false);
+			result = poll_result_locked(s, message);
 		} else {
 			if closed return json_error(c, 400, 520001, "Poll expired");
 			count := 0;
@@ -193,6 +194,7 @@ poll_route :: (c: *Conn, req: http.Request, user: s64, channel: s64, parts: []st
 	}
 	if updated.kind == .Map {
 		broadcast(s, "MESSAGE_UPDATE", updated);
+		if result.kind == .Map broadcast(s, "MESSAGE_CREATE", result);
 		return respond(c, 204, json = false);
 	}
 	for changes {
@@ -207,16 +209,84 @@ poll_route :: (c: *Conn, req: http.Request, user: s64, channel: s64, parts: []st
 	return respond(c, 204, json = false);
 }
 
-// close_polls_locked finalizes the polls past their expiry and returns their messages, for MESSAGE_UPDATE.
-close_polls_locked :: (s: *Server) -> []etf.Value {
-	out: [..]etf.Value;
-	out.allocator = temp;
+// close_polls_locked finalizes the polls past their expiry and returns their messages, for MESSAGE_UPDATE,
+// and the result messages it posted, for MESSAGE_CREATE.
+close_polls_locked :: (s: *Server) -> updated: []etf.Value, results: []etf.Value {
+	out, results: [..]etf.Value;
+	out.allocator, results.allocator = temp, temp;
 	ids: [..]s64;
 	ids.allocator = temp;
 	st := sqlite.prepare(s.db, "SELECT message FROM polls WHERE finalized = 0 AND expiry <= ?;");
 	sqlite.bind_all(st, now_ms(s) + DISCORD_EPOCH_MS);
 	while sqlite.step(st) == .Row array_add(*ids, sqlite.col_int(st, 0));
 	sqlite.finalize(st);
-	for ids if sqlite.run(s.db, "UPDATE polls SET finalized = 1 WHERE message = ?;", it) array_add(*out, message_locked(s, it, nested = false));
-	return out;
+	for ids if sqlite.run(s.db, "UPDATE polls SET finalized = 1 WHERE message = ?;", it) {
+		array_add(*out, message_locked(s, it, nested = false));
+		r := poll_result_locked(s, it);
+		if r.kind == .Map array_add(*results, r);
+	}
+	return out, results;
+}
+
+// A closed poll's result message, as Discord posts one: type 46 from the poll's author, referencing the
+// poll, its embed built from the votes when sent (poll_result_embeds_locked). Nil if it couldn't be made.
+POLL_RESULT :: 46;
+
+poll_result_locked :: (s: *Server, poll: s64) -> etf.Value {
+	id := snowflake(s);
+	if !sqlite.run(s.db, "INSERT INTO messages(id, channel, author, content, reply, type) SELECT ?, channel, author, '', id, ? FROM messages WHERE id = ?;", id, POLL_RESULT, poll) return .{};
+	return message_locked(s, id, nested = false);
+}
+
+// The result message's `embeds`: one of type poll_result whose fields name the question, the total and,
+// unless it's tied or had no votes, the winning answer and its votes, all as strings, as Discord sends them.
+poll_result_embeds_locked :: (s: *Server, poll: s64) -> etf.Value {
+	st := sqlite.prepare(s.db, "SELECT question, answers FROM polls WHERE message = ?;");
+	sqlite.bind_all(st, poll);
+	if sqlite.step(st) != .Row { sqlite.finalize(st); return etf.vlist(.[]); }
+	question := copy_string(sqlite.col_text(st, 0),, temp);
+	answers, _ := etf.from_json(copy_string(sqlite.col_text(st, 1),, temp),, temp);
+	sqlite.finalize(st);
+	total, top, top_answer, tied := 0, 0, 0, false;
+	st = sqlite.prepare(s.db, "SELECT answer, count(*) FROM poll_votes WHERE message = ? GROUP BY answer;");
+	sqlite.bind_all(st, poll);
+	while sqlite.step(st) == .Row {
+		n := sqlite.col_int(st, 1);
+		total += n;
+		if n > top { top, top_answer, tied = n, sqlite.col_int(st, 0), false; }
+		else if n == top tied = true;
+	}
+	sqlite.finalize(st);
+	fields: [..]etf.Value;
+	fields.allocator = temp;
+	field :: (fields: *[..]etf.Value, name: string, value: string) {
+		f := etf.map_builder(3,, temp);
+		etf.map_put(*f, "name", etf.vstring(name));
+		etf.map_put(*f, "value", etf.vstring(value));
+		etf.map_put(*f, "inline", etf.vbool(false));
+		array_add(fields, etf.vmap(etf.map_done(*f)));
+	}
+	field(*fields, "poll_question_text", question);
+	field(*fields, "victor_answer_votes", tprint("%", ifx tied then 0 else top));
+	field(*fields, "total_votes", tprint("%", total));
+	if top && !tied && answers.kind == .List for answers.list {
+		if it.kind != .Map continue;
+		aid, _ := etf.map_get(it.map, "answer_id");
+		if aid.kind != .Int || aid.i != top_answer continue;
+		media, _ := etf.map_get(it.map, "poll_media");
+		text, emoji: etf.Value;
+		if media.kind == .Map { text, _ = etf.map_get(media.map, "text"); emoji, _ = etf.map_get(media.map, "emoji"); }
+		field(*fields, "victor_answer_id", tprint("%", top_answer));
+		field(*fields, "victor_answer_text", ifx text.kind == .String then text.s else "");
+		name: etf.Value;
+		if emoji.kind == .Map name, _ = etf.map_get(emoji.map, "name");
+		if name.kind == .String field(*fields, "victor_answer_emoji_name", name.s);
+	}
+	e := etf.map_builder(3,, temp);
+	etf.map_put(*e, "type", etf.vstring("poll_result"));
+	etf.map_put(*e, "content_scan_version", etf.vint(0));
+	etf.map_put(*e, "fields", etf.vlist(fields));
+	list := NewArray(1, etf.Value,, temp);
+	list[0] = etf.vmap(etf.map_done(*e));
+	return etf.vlist(list);
 }

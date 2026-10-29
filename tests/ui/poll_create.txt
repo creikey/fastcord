@@ -1,5 +1,6 @@
 # The composer's "+" menu on a hosted server, then Create Poll: a question, two answers, 1 week and several
-# answers allowed; Post sends Discord's poll shape and serve's copy shows under the new message.
+# answers allowed; Post sends Discord's poll shape and serve's copy shows under the new message. Ending it
+# after a vote posts serve's result message (type 46), drawn with the winner.
 wait 5
 serve_join
 settle 3
@@ -29,4 +30,13 @@ settle 3
 expect_visible "Lunch?"
 expect_visible "Select one or more answers"
 expect_visible "Tacos"
+click_text "Tacos"
+click_text "Vote"
+settle 2
+rclick_text "Lunch?"
+settle 1
+click_text "End Poll Now"
+settle 3
+expect_visible "Winning answer · 100%"
+expect_visible "View Poll"
 expect_served

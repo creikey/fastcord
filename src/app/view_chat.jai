@@ -15,10 +15,11 @@ MSG_RECIPIENT_REMOVE :: 2;
 MSG_NAME_CHANGE :: 4;
 MSG_ICON_CHANGE :: 5;
 MSG_MEMBER_JOIN :: 7; // USER_JOIN: "Welcome, Name. We hope you brought pizza."
+MSG_POLL_RESULT :: 46; // "Name's poll Question has closed." with the winner (polls.jai)
 
 // Drawn as a one-line notice (system_notice), not a message with an avatar.
 is_notice :: (kind: int) -> bool {
-	return kind == MSG_CALL || kind == MSG_PIN || kind == MSG_MEMBER_JOIN || kind == MSG_FRIEND_ACCEPTED || (kind >= MSG_RECIPIENT_ADD && kind <= MSG_ICON_CHANGE);
+	return kind == MSG_CALL || kind == MSG_PIN || kind == MSG_MEMBER_JOIN || kind == MSG_FRIEND_ACCEPTED || (kind >= MSG_RECIPIENT_ADD && kind <= MSG_ICON_CHANGE) || kind == MSG_POLL_RESULT;
 }
 CALL_ROW_H :: 26; // call notice content row (official item: 2 + 26 + 2)
 COMPOSER_H :: 58; // official form height (1px border included): 22px line + 18px padding
@@ -1456,7 +1457,7 @@ message_row :: (m: *dc.Message, grouped: bool, new_day: bool, show_new: bool) ->
 			}
 		}
 		spacer(.Y, 2);
-		if m.referenced_id != 0 && m.kind != MSG_PIN { // a pin notice references the pinned message: no reply line
+		if m.referenced_id != 0 && m.kind != MSG_PIN && m.kind != MSG_POLL_RESULT { // a pin notice references the pinned message: no reply line
 			rr := row("replyrow");
 			rr.semantic_size = .[ui.pct(1), ui.px(22)];
 			{ ui.parent(rr); defer ui.pop_parent();
@@ -1466,6 +1467,7 @@ message_row :: (m: *dc.Message, grouped: bool, new_day: bool, show_new: bool) ->
 		}
 		if is_notice(m.kind) {
 			system_notice(m);
+			if m.kind == MSG_POLL_RESULT poll_result_card(m);
 			spacer(.Y, 2);
 			return r0;
 		}
@@ -1579,6 +1581,7 @@ system_notice :: (m: *dc.Message) {
 			case MSG_RECIPIENT_ADD; #through; case MSG_MEMBER_JOIN; ic_name = "arrow-large-right";
 			case MSG_RECIPIENT_REMOVE; ic_name, ic_color = "arrow-large-left", T("--status-danger");
 			case MSG_NAME_CHANGE; #through; case MSG_ICON_CHANGE; ic_name, ic_color = "pencil", T("--text-muted");
+			case MSG_POLL_RESULT; ic_name, ic_color = "analytics", T("--text-muted");
 		}
 		{ ui.parent(g); defer ui.pop_parent();
 			ic := icon("ic", ic_name, 16, ic_color);
@@ -1642,6 +1645,11 @@ system_notice :: (m: *dc.Message) {
 		} else if m.kind == MSG_ICON_CHANGE {
 			name(*spans, strong, m.author_id, m.channel_id);
 			add(*spans, muted, " changed the group icon.");
+		} else if m.kind == MSG_POLL_RESULT {
+			name(*spans, strong, m.author_id, m.channel_id);
+			add(*spans, muted, "'s poll ");
+			add(*spans, strong, poll_result_field(m, "poll_question_text"));
+			add(*spans, muted, " has closed.");
 		} else if pin {
 			// "a message" jumps to the pinned message and "pinned messages" opens the pins (span ids 1, 2)
 			name(*spans, strong, m.author_id, m.channel_id);

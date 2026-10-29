@@ -106,7 +106,57 @@ poll_time_left :: (ms: s64) -> string {
 	return tprint("%m left", max(1, ms / 60_000));
 }
 
-// ---- Create a poll: the composer "+" menu's Create Poll, laid out like the client's modal ----
+// ---- A poll's result message (type 46): its embed "poll_result" carries the question, the winner and the counts ----
+
+poll_result_field :: (m: *dc.Message, name: string) -> string {
+	for e: m.embeds if e.kind == "poll_result" for e.fields if it.name == name return it.value;
+	return "";
+}
+
+// Under the notice: the winning answer with its share, or no winner, and View Poll (jumps to the poll).
+poll_result_card :: (m: *dc.Message) {
+	total := string_to_int(poll_result_field(m, "total_votes"));
+	votes := string_to_int(poll_result_field(m, "victor_answer_votes"));
+	winner := poll_result_field(m, "victor_answer_text");
+	r := row("pollres");
+	r.semantic_size = .[ui.pct(1), ui.children()];
+	ui.parent(r); defer ui.pop_parent();
+	spacer(.X, MSG_GUTTER);
+	card := row("card", .Draw_Background | .Draw_Border);
+	card.semantic_size = .[ui.px(POLL_W), ui.px(64)];
+	card.style.bg = T("--embed-background");
+	card.style.border_color = T("--border-subtle");
+	card.style.border = 1;
+	card.style.radius = all4(8);
+	card.cross_align = .Center;
+	{ ui.parent(card); defer ui.pop_parent();
+		spacer(.X, 16);
+		col := ui.box("col");
+		col.semantic_size = .[ui.fill(), ui.children()];
+		col.layout_axis = .Y;
+		{ ui.parent(col); defer ui.pop_parent();
+			if winner && total > 0 {
+				t := row("t");
+				t.semantic_size = .[ui.pct(1), ui.px(20)];
+				{ ui.parent(t); defer ui.pop_parent();
+					icon("ck", "checkmark-small-bold", 18, T("--status-positive"));
+					spacer(.X, 4);
+					emoji := poll_result_field(m, "victor_answer_emoji_name");
+					if emoji && !poll_result_field(m, "victor_answer_emoji_id") label(tprint("% ", emoji), .Normal, 16, T("--text-default"), 20);
+					label(winner, .Semibold, 16, T("--text-strong"), 20);
+				}
+				label(tprint("Winning answer · %1%2", (votes * 100 + total / 2) / total, "%"), .Normal, 14, T("--text-muted"), 18);
+			} else {
+				label(ifx total > 0 then "The results were tied" else "There was no winner", .Semibold, 16, T("--text-strong"), 20);
+				label(tprint("% vote%", total, ifx total == 1 then "" else "s"), .Normal, 14, T("--text-muted"), 18);
+			}
+		}
+		if m.referenced_id && poll_button("view", "View Poll", false) jump_to_message(m.channel_id, m.referenced_id);
+		spacer(.X, 16);
+	}
+}
+
+// ---- Create a poll:the composer "+" menu's Create Poll, laid out like the client's modal ----
 // What was typed stays until the poll is posted, so closing the modal loses nothing.
 
 POLL_DURATIONS :: struct { text: string; hours: int; }.[
