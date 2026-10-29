@@ -131,7 +131,7 @@ dm_row :: (ch: *dc.Channel) {
 		sig := ui.signal(item);
 		if sig.clicked { select_channel(0, ch.id, prefetch = true); }
 		// 1:1 DM rows: the user menu (Add Friend, friend nickname, ...)
-		if sig.right_clicked && ch.kind == .DM && ch.recipient_ids.count > 0 { open_user_menu(ch.recipient_ids[0], app.ui.mouse, dm_row = true); }
+		if sig.right_clicked && ch.kind == .DM && ch.recipient_ids.count > 0 { open_user_menu(ch.recipient_ids[0], app.ui.mouse, dm = ch.id); }
 		if sig.right_clicked && ch.kind == .Group_DM { group_dm_menu_open(ch.id, app.ui.mouse); }
 		unread := dc.channel_unread(store(), ch.id);
 		color := ifx selected || sig.hovering || unread then T("--interactive-text-active") else T("--channels-default");

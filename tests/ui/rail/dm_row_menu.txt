@@ -1,0 +1,9 @@
+# Run with -fixture:tests/ui/rail.jsonl. A 1:1 DM row's menu offers Mark As Read (while unread) and Close DM.
+wait 5
+click 36 52
+wait 10
+rclick 180 291
+wait 5
+expect_visible "Mark As Read"
+expect_visible "Close DM"
+shot build/ui-rail_dm_row_menu.png

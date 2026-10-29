@@ -495,7 +495,7 @@
 - [ ] Logs: many errors bypass the log file: about 40 `print(..., to_standard_error = true)` calls (voice connection, pickers, video capture, icons) write only to stderr, which a GUI launch loses. Route the app's and libraries' error prints through `log_error` so `fastcord.log` has them, keeping message text and tokens out.
 - [ ] Crash reporter: the handler runs inside the crashing process, so a stack overflow (no alternate signal stack) or a smashed heap loses the report, and nothing offers to send it. Happenlance's model (`C:\Work\Happenlance\Happenlance\src\crash_handler.cpp`, Phillip's machine only) is a watcher subprocess that outlives the crash, reads the stack from outside (MiniDumpWriteDump, Mach, ptrace) and shows a dialog; also add `sigaltstack` for the main thread meanwhile.
 - [ ] Stage: no stage instance (the live stage's topic, Start Stage / End Stage, `POST /stage-instances`); a stage shows no topic and can't be started as an event.
-- [ ] DMs: the 1:1 DM row's menu (`open_user_menu` with `dm_row`) has no Mark As Read, Mute @user or Close DM. Notifications already honour a muted DM (its override under the null guild), but nothing can set one.
+- [ ] DMs: the 1:1 DM row's menu has no Mute @user. Notifications already honour a muted DM (its override under the null guild), but nothing can set one; check the guild key the client PATCHes for DMs first.
 - [-] Cancelled (AGENTS.md: nothing that needs a webview): Embeds: YouTube (and other iframe) videos open in the browser instead of playing in the card.
 - [-] Cancelled (Google shut the Tenor API down on 2026-06-30, with no new keys since January, which is why Discord's `/gifs/search` went Klipy-only; sent Tenor links still embed): GIFs (fastcord-only): search Tenor as well as Klipy.
 - [-] Cancelled (AGENTS.md: no Activities): Voice and Call view: no Activities (in-call apps and games) and no Activities button.
@@ -803,3 +803,4 @@
 - [x] Notifications: the dock / taskbar badge counts incoming friend requests on top of unread mentions (`notify.jai`).
 - [x] Notifications: "Hide Muted Channels" is account state, as in the official client (`toggleCollapseGuild` PATCHes `hide_muted_channels`): read from the server settings and saved there, no longer device-local.
 - [x] Links: right-clicking a link in a message opens the message menu with Copy Link and Open Link first (`ma.menu_link`, `tests/ui/link_menu.txt`).
+- [x] DMs: the 1:1 DM row's menu offers Mark As Read (while unread) and Close DM, and drops Message (`open_user_menu` `dm`, `tests/ui/rail/dm_row_menu.txt`).

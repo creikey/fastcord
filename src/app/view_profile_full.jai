@@ -56,6 +56,7 @@ Pf_State :: struct {
 	profiles: Table(dc.Snowflake, Pf_Profile);
 	menu_user: dc.Snowflake; // user context menu
 	menu_pos: ui.Vec2;
+	menu_dm: dc.Snowflake; // opened from this 1:1 DM's row: Mark As Read and Close DM too
 	note: ui.Editor; // the Note field while focused
 	note_focused: bool;
 }
@@ -574,11 +575,13 @@ profile_mutual_friends :: (uid: dc.Snowflake, prof: Pf_Profile) {
 // open_user_menu: right-click / "More" on a user. In a guild the menu loads the
 // member's popout data (dc.open_user_context_menu); from a DM row only the note and
 // the user command index (dm_row: fixture friend_add_context_menu).
-open_user_menu :: (uid: dc.Snowflake, at: ui.Vec2, dm_row := false) {
+// dm: the 1:1 DM whose row was right-clicked (0 elsewhere).
+open_user_menu :: (uid: dc.Snowflake, at: ui.Vec2, dm: dc.Snowflake = 0) {
 	pf.menu_user = uid;
 	pf.menu_pos = at;
+	pf.menu_dm = dm;
 	if app.client == null || uid == 0 { return; }
-	if dm_row { dc.open_dm_row_menu(app.client, uid); } else if app.view.guild != 0 { dc.open_user_context_menu(app.client, uid, app.view.guild); }
+	if dm { dc.open_dm_row_menu(app.client, uid); } else if app.view.guild != 0 { dc.open_user_context_menu(app.client, uid, app.view.guild); }
 }
 
 user_menu_open :: () -> bool { return pf.menu_user != 0; }
@@ -591,10 +594,13 @@ user_context_menu :: () {
 	s := store();
 	items: [..]string;
 	items.allocator = temp;
+	dm := dc.channel_get(s, pf.menu_dm);
+	if dm && dc.channel_unread(s, dm.id) { array_add(*items, "Mark As Read"); }
 	array_add(*items, "Profile");
-	if uid != s.me && !on_hosted() { array_add(*items, "Message"); }
+	if uid != s.me && !on_hosted() && !dm { array_add(*items, "Message"); }
 	fn := friend_nick_menu_item(uid);
 	if fn != "" { array_add(*items, fn); }
+	if dm { array_add(*items, "Close DM"); }
 	if uid != s.me && !on_hosted() {
 		rel := table_find_pointer(*s.relationships, uid);
 		if !rel || rel.kind == .None || rel.kind == .Implicit { array_add(*items, "Add Friend"); }
@@ -648,6 +654,11 @@ user_context_menu :: () {
 				pf.menu_user = 0;
 			} else if sig.clicked {
 				if it == {
+				case "Mark As Read";
+					if net_action() dc.ack_message(app.client, dm.id, dm.last_message_id, true);
+				case "Close DM";
+					if net_action() dc.close_private_channel(app.client, dm.id);
+					if app.view.channel == dm.id select_channel(0, 0);
 				case "Profile";
 					profile_full_open(uid, app.view.guild);
 				case "Message";
