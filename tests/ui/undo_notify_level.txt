@@ -1,0 +1,13 @@
+# The bell's notification radios apply at once and hold the settings PATCH behind Undo, which puts the
+# old level back; so does Unmute, keeping a timed mute's end.
+wait 5
+click 919 57
+wait 10
+shot build/ui-undo_notify_level_0.png
+click_text "Only @mentions"
+wait 5
+expect_visible "Notification settings changed"
+shot build/ui-undo_notify_level.png
+click_text "Undo"
+wait 5
+expect_not_visible "Notification settings changed"

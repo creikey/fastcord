@@ -557,7 +557,7 @@ guild_context_menu :: () {
 			end: s64 = ifx gs != null then gs.mute_end_ms else 0;
 			sig = menu_item("mute", "Unmute Server", sub = muted_until(end));
 			if sig.clicked {
-				if net_action() dc.set_guild_muted(app.client, gid, false, now_ms = now);
+				unmute_now(gid);
 				close = true;
 			} else if sig.hovering hover_any = true;
 		} else {
@@ -618,7 +618,7 @@ guild_context_menu :: () {
 			spacer(.Y, 8);
 			for name, i: NOTIFY_NAMES {
 				if menu_item(name, name, ifx level == i then .Radio_On else .Radio_Off).clicked && level != i {
-					if net_action() dc.set_guild_notify_level(app.client, gid, i);
+					notify_level_now(gid, 0, i);
 					close = true;
 				}
 			}
@@ -755,7 +755,7 @@ notify_modal :: () {
 				spacer(.X, 12);
 				label(name, .Medium, 16, ifx on || sig.hovering then T("--text-strong") else T("--text-default"), 20);
 			}
-			if sig.clicked && level != i && net_action() dc.set_guild_notify_level(app.client, gid, i);
+			if sig.clicked && level != i notify_level_now(gid, 0, i);
 		}
 		spacer(.Y, 20);
 		hline("h2");
@@ -964,6 +964,58 @@ notify_overrides :: (gid: dc.Snowflake, W: float32, PAD: float32) {
 	}
 }
 
+// ---- held settings writes ----
+
+// Unmute (server, channel, category, thread) and the notification-level radios: shown at once, the
+// settings PATCH waits behind Undo (undo.jai), which puts back what the click dropped: a timed mute's
+// end, the previous level. The write is sent from the old state, so its analytics carry the old values.
+unmute_now :: (gid: dc.Snowflake, cid: dc.Snowflake = 0) {
+	s := store();
+	gs := dc.ensure_settings(s, gid);
+	o := ifx cid then dc.ensure_override(gs, cid) else null;
+	end := ifx o then o.mute_end_ms else gs.mute_end_ms;
+	local_mute(s, gid, cid, false, end);
+	undo_push(ifx cid then "Channel unmuted" else "Server unmuted", (u: *Undo) {
+		if !u.client return;
+		local_mute(*u.client.store, u.a, u.b, true, u.n);
+		if u.b dc.set_channel_muted(u.client, u.a, u.b, false); else dc.set_guild_muted(u.client, u.a, false);
+	}, (u: *Undo) { local_mute(ifx u.client then *u.client.store else store(), u.a, u.b, true, u.n); }, a = gid, b = cid, n = end);
+}
+
+notify_level_now :: (gid: dc.Snowflake, cid: dc.Snowflake, level: int) {
+	s := store();
+	old := local_level(s, gid, cid, level);
+	undo_push("Notification settings changed", (u: *Undo) {
+		if !u.client return;
+		local_level(*u.client.store, u.a, u.b, u.n);
+		if u.b dc.set_channel_notify_level(u.client, u.a, u.b, xx u.c); else dc.set_guild_notify_level(u.client, u.a, xx u.c);
+	}, (u: *Undo) { local_level(ifx u.client then *u.client.store else store(), u.a, u.b, u.n); }, a = gid, b = cid, c = xx level, n = old);
+}
+
+#scope_file
+local_mute :: (s: *dc.Store, gid: dc.Snowflake, cid: dc.Snowflake, muted: bool, end: s64) {
+	gs := dc.ensure_settings(s, gid);
+	if cid {
+		o := dc.ensure_override(gs, cid);
+		o.muted, o.mute_end_ms = muted, end;
+		dc.rebuild_muted(gs);
+	} else {
+		gs.muted, gs.mute_end_ms = muted, end;
+	}
+	s.changed += 1;
+}
+
+// Sets the level locally; returns the old one.
+local_level :: (s: *dc.Store, gid: dc.Snowflake, cid: dc.Snowflake, level: int) -> int {
+	gs := dc.ensure_settings(s, gid);
+	p := ifx cid then *dc.ensure_override(gs, cid).message_notifications else *gs.message_notifications;
+	old := p.*;
+	p.* = xx level;
+	s.changed += 1;
+	return old;
+}
+#scope_export
+
 // ---- group DM row menu ----
 
 // Right-clicking a group DM row: Mark As Read, Leave Group, and Copy Channel ID in developer mode.
@@ -1163,7 +1215,7 @@ bell_popout :: () {
 			end := ifx o then o.mute_end_ms else 0;
 			sig = menu_item("mute", "Unmute Channel", sub = muted_until(end));
 			if sig.clicked {
-				if net_action() dc.set_channel_muted(app.client, gid, cid, false, now_ms = now);
+				unmute_now(gid, cid);
 				close = true;
 			} else if sig.hovering hover_any = true;
 		} else {
@@ -1176,13 +1228,13 @@ bell_popout :: () {
 		def_text := ifx has_cat then "Use Category Default" else "Use Server Default";
 		sig = menu_item("default", def_text, ifx level == dc.NOTIFY_INHERIT then .Radio_On else .Radio_Off, sub = NOTIFY_NAMES[clamp(def, 0, 2)]);
 		if sig.clicked {
-			if level != dc.NOTIFY_INHERIT && net_action() dc.set_channel_notify_level(app.client, gid, cid, dc.NOTIFY_INHERIT);
+			if level != dc.NOTIFY_INHERIT notify_level_now(gid, cid, dc.NOTIFY_INHERIT);
 			close = level != dc.NOTIFY_INHERIT;
 		} else if sig.hovering hover_any = true;
 		for name, i: NOTIFY_NAMES {
 			sig = menu_item(name, name, ifx level == i then .Radio_On else .Radio_Off);
 			if sig.clicked {
-				if level != i && net_action() dc.set_channel_notify_level(app.client, gid, cid, i);
+				if level != i notify_level_now(gid, cid, i);
 				close = level != i;
 			} else if sig.hovering hover_any = true;
 		}
@@ -1388,7 +1440,7 @@ channel_menu :: () {
 			o := dc.channel_override_get(s, gid, ch.id);
 			sig = menu_item("mute", tprint("Unmute %", what), sub = muted_until(ifx o then o.mute_end_ms else 0));
 			if sig.clicked {
-				if net_action() dc.set_channel_muted(app.client, gid, ch.id, false, now_ms = now);
+				unmute_now(gid, ch.id);
 				close = true;
 			} else if sig.hovering hover_any = true;
 		} else {
@@ -1447,12 +1499,12 @@ channel_menu :: () {
 			spacer(.Y, 8);
 			def_text := ifx ch.parent_id != 0 then "Use Category Default" else "Use Server Default";
 			if menu_item("default", def_text, ifx level == dc.NOTIFY_INHERIT then .Radio_On else .Radio_Off, sub = NOTIFY_NAMES[clamp(def, 0, 2)]).clicked && level != dc.NOTIFY_INHERIT {
-				if net_action() dc.set_channel_notify_level(app.client, gid, ch.id, dc.NOTIFY_INHERIT);
+				notify_level_now(gid, ch.id, dc.NOTIFY_INHERIT);
 				close = true;
 			}
 			for name, i: NOTIFY_NAMES {
 				if menu_item(name, name, ifx level == i then .Radio_On else .Radio_Off).clicked && level != i {
-					if net_action() dc.set_channel_notify_level(app.client, gid, ch.id, i);
+					notify_level_now(gid, ch.id, i);
 					close = true;
 				}
 			}
