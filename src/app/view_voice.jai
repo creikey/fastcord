@@ -136,7 +136,6 @@ voice_headless :: () -> bool { return vc.headless; }
 voice_audio_ready :: () -> bool { return vc.audio_ready; }
 
 voice_frame :: () {
-	voice_settings_frame(vc.conn, vc.headless, vc.audio_ready);
 	cl := call_client();
 	if cl == null { return; }
 	if !vc.auto_checked && cl.store.ready {

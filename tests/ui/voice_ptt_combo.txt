@@ -1,0 +1,21 @@
+# Settings > Voice & Video > Push to Talk: the shortcut records a key with its modifiers ("Shift+A"), or a
+# side mouse button ("Mouse4").
+wait 5
+click 338 683
+wait 20
+click_text "Voice & Video"
+wait 20
+click_text "Push to Talk"
+wait 5
+click_text "Record Keybind"
+wait 3
+shot build/ui-voice_ptt_combo_rec.png
+key a shift
+wait 5
+shot build/ui-voice_ptt_combo_key.png
+expect_visible "Shift+A"
+click_text "Record Keybind"
+wait 3
+xbutton 1
+wait 5
+expect_visible "Mouse4"

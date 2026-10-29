@@ -348,6 +348,7 @@ frame :: () {
 		voice_frame();
 		login_check_auth();
 	}
+	voice_settings_frame(voice_conn(), voice_headless(), voice_audio_ready()); // also offline: push to talk, the meter
 	video_frame();
 	req_frame();
 	t_media := platform.time_now();

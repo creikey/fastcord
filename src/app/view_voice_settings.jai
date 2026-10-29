@@ -36,6 +36,8 @@ Voice_Settings :: struct {
 	// input mode (MediaEngineStore: mode VOICE_ACTIVITY | PUSH_TO_TALK, delay 20 ms)
 	ptt_mode: bool;
 	ptt_key: platform.Key; // .None = unbound (the client has no default keybind)
+	ptt_mods: platform.Mod; // held with ptt_key: a combo
+	ptt_mouse: platform.Mouse_Button; // a mouse button instead (Middle, X1, X2; Left = none)
 	ptt_delay_ms: float32;
 	ptt_held: bool;
 	recording_key: bool;
@@ -61,7 +63,7 @@ voice_settings_restore :: (p: *Persisted_Voice) {
 	vs.echo, vs.noise, vs.agc = p.echo, p.noise, p.agc;
 	vs.soundboard_volume, vs.soundboard_mic = clamp(p.soundboard_volume, 0, 100), p.soundboard_mic;
 	vs.ptt_mode = p.mode == "PUSH_TO_TALK";
-	for enum_names(platform.Key) if it == p.ptt_key vs.ptt_key = cast(platform.Key) enum_values_as_s64(platform.Key)[it_index];
+	ptt_parse(p.ptt_key);
 	vs.ptt_delay_ms = clamp(cast(float32) p.ptt_delay_ms, 0, 2000);
 	id := device_by_uid(true, p.input_device);
 	if id != 0 audio.select_device(true, id);
@@ -88,7 +90,7 @@ voice_settings_snapshot :: (p: *Persisted_Voice) {
 	p.echo, p.noise, p.agc = vs.echo, vs.noise, vs.agc;
 	p.soundboard_volume, p.soundboard_mic = vs.soundboard_volume, vs.soundboard_mic;
 	p.mode = ifx vs.ptt_mode then "PUSH_TO_TALK" else "VOICE_ACTIVITY";
-	p.ptt_key = tprint("%", vs.ptt_key);
+	p.ptt_key = ptt_name();
 	p.ptt_delay_ms = cast(int) vs.ptt_delay_ms;
 	p.user_volume, p.user_muted = .{}, .{};
 	for v, k: vs.user_volume if v != 100 table_set(*p.user_volume, tprint("%", cast(u64) k), v);
@@ -119,7 +121,7 @@ voice_settings_frame :: (conn: *voice.Conn, headless: bool, audio_ready: bool) {
 	if !page_open || headless {
 		if vs.meter_owner && conn == null audio.capture_stop();
 		vs.meter_owner = false;
-		vs.reset_armed = false;
+		if !page_open vs.reset_armed = false;
 		voice.mic_processing_free(*vs.proc);
 		return;
 	}
@@ -158,6 +160,34 @@ voice_settings_frame :: (conn: *voice.Conn, headless: bool, audio_ready: bool) {
 	tau: float32 = ifx target > vs.meter_shown then 0.03 else 0.15;
 	vs.meter_shown += (target - vs.meter_shown) * (1 - exp(-app.dt / tau));
 	platform.request_frame();
+}
+
+// ptt_name: the push-to-talk binding as settings.json keeps it and the page shows it: "Ctrl+Shift+A",
+// "Mouse4", or "" when unbound. ptt_parse reads it back (a bare key name from before combos too).
+ptt_name :: () -> string {
+	if vs.ptt_mouse != .Left return tprint("Mouse%", cast(int) vs.ptt_mouse + 1);
+	if vs.ptt_key == .None return "";
+	sb: String_Builder;
+	sb.allocator = temp;
+	for m: platform.Mod.[.Ctrl, .Alt, .Shift, .Cmd] if vs.ptt_mods & m print_to_builder(*sb, "%+", m);
+	print_to_builder(*sb, "%", vs.ptt_key);
+	return builder_to_string(*sb,, temp);
+}
+
+ptt_parse :: (s: string) {
+	vs.ptt_key, vs.ptt_mods, vs.ptt_mouse = platform.Key.None, 0, platform.Mouse_Button.Left;
+	parts := split(s, "+",, temp);
+	for parts {
+		last := it_index == parts.count - 1;
+		if !last {
+			for m: platform.Mod.[.Ctrl, .Alt, .Shift, .Cmd] if it == tprint("%", m) vs.ptt_mods |= m;
+		} else if begins_with(it, "Mouse") {
+			n := string_to_int(advance(it, 5));
+			if n >= 3 && n <= 5 vs.ptt_mouse = cast(platform.Mouse_Button) (n - 1);
+		} else {
+			for enum_names(platform.Key) if it == parts[parts.count - 1] vs.ptt_key = cast(platform.Key) enum_values_as_s64(platform.Key)[it_index];
+		}
+	}
 }
 
 mic_test_stop :: () {
@@ -495,13 +525,20 @@ ptt_input :: () {
 		if e.kind == {
 		case .Key_Down;
 			if vs.recording_key {
-				if e.key != .Escape && e.key != .None vs.ptt_key = e.key;
+				if e.key != .Escape && e.key != .None vs.ptt_key, vs.ptt_mods, vs.ptt_mouse = e.key, e.mods, platform.Mouse_Button.Left;
 				vs.recording_key = false;
 				continue;
 			}
-			if vs.ptt_key != .None && e.key == vs.ptt_key vs.ptt_held = true;
+			if vs.ptt_key != .None && e.key == vs.ptt_key && (e.mods & vs.ptt_mods) == vs.ptt_mods vs.ptt_held = true;
 		case .Key_Up;
 			if e.key == vs.ptt_key vs.ptt_held = false;
+		case .Mouse_Down;
+			// the middle and side buttons can be bound; left and right stay the UI's
+			if e.button < .Middle continue;
+			if vs.recording_key { vs.ptt_key, vs.ptt_mods, vs.ptt_mouse = platform.Key.None, 0, e.button; vs.recording_key = false; continue; }
+			if e.button == vs.ptt_mouse vs.ptt_held = true;
+		case .Mouse_Up;
+			if vs.ptt_mouse != .Left && e.button == vs.ptt_mouse vs.ptt_held = false;
 		case .Focus_Lost;
 			vs.ptt_held = false;
 		}
@@ -675,16 +712,16 @@ keybind_row :: () {
 			if ui.signal(b).clicked vs.recording_key = !vs.recording_key;
 			{ ui.parent(b); defer ui.pop_parent();
 				spacer(.X, 12);
-				name := "No Keybind Set";
-				if vs.ptt_key != .None name = tprint("%", vs.ptt_key);
-				if vs.recording_key name = "Press a key…";
+				name := ptt_name();
+				if !name name = "No Keybind Set";
+				if vs.recording_key name = "Press a shortcut…";
 				label(name, .Medium, 16, T("--text-default"), 20);
 				filler(.X);
 				label(ifx vs.recording_key then "Stop Recording" else "Record Keybind", .Semibold, 14, T("--text-strong"), 18);
 				spacer(.X, 12);
 			}
 			spacer(.Y, 6);
-			label("Works while Fastcord is focused.", .Normal, 12, T("--text-muted"), 16);
+			label("A key with Ctrl, Alt, Shift or Cmd, or a middle or side mouse button. Works while Fastcord is focused.", .Normal, 12, T("--text-muted"), 16).flags |= .Wrap_Text;
 		}
 		spacer(.X, 20);
 		d := ui.box("delay");
