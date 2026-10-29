@@ -42,7 +42,59 @@ watchdog_gfx :: () {
 	locks.unlock(*gfx_report_mu);
 }
 
+// fastcord's log for bug reports: what goes through the logger (log_error and the like) also lands in
+// <data>/logs/fastcord.log, which the watchdog thread appends each second; past LOG_MAX it is renamed
+// fastcord.old.log and a new one starts. Log lines name errors and paths, never tokens, cookies or message
+// text. main installs it as context.logger, so every thread started after it inherits it.
+log_to_file :: (message: string, data: *void, info: Log_Info) {
+	runtime_support_default_logger(message, data, info); // stderr, as before
+	locks.guard(*lg.mu);
+	lg.pending.allocator = context.default_allocator; // never a caller's pushed temp
+	if builder_string_length(*lg.pending) + message.count > LOG_PENDING_MAX return; // a flood within one second
+	t := to_calendar(current_time_consensus(), .UTC);
+	print_to_builder(*lg.pending, "%-%-% %:%:%Z %\n", t.year, two(t.month_starting_at_0 + 1), two(t.day_of_month_starting_at_0 + 1), two(t.hour), two(t.minute), two(t.second), trim_right(message, "\n"));
+}
+
+LOG_MAX :: 1 << 20;
+LOG_PENDING_MAX :: 64 * 1024;
+
 #scope_file
+
+lg: struct {
+	mu: locks.Mutex;
+	pending: String_Builder; // heap
+};
+
+two :: (x: s64) -> string { return tprint("%", formatInt(x, minimum_digits = 2)); }
+
+// Watchdog thread: appends what was logged since the last second.
+flush_log :: () {
+	text: string;
+	{
+		locks.guard(*lg.mu);
+		if builder_string_length(*lg.pending) == 0 return;
+		text = builder_to_string(*lg.pending,, context.default_allocator);
+	}
+	defer free(text);
+	dir := app_data_dir("logs");
+	make_directory_if_it_does_not_exist(dir, recursive = true);
+	path := tprint("%/fastcord.log", dir);
+	f, ok := file_open(path, for_writing = true, keep_existing_content = true, log_errors = false);
+	if !ok return;
+	size := file_length(f);
+	if size + text.count > LOG_MAX {
+		file_close(*f);
+		old := tprint("%/fastcord.old.log", dir);
+		file_delete(old);
+		file_move(path, old);
+		f, ok = file_open(path, for_writing = true, log_errors = false);
+		if !ok return;
+		size = 0;
+	}
+	file_set_position(f, size);
+	file_write(*f, text);
+	file_close(*f);
+}
 
 wd: struct {
 	main_tid: int;
@@ -102,6 +154,7 @@ write_gfx_report :: () {
 watchdog_proc :: (_: *void) {
 	while true {
 		sleep_milliseconds(1000);
+		flush_log();
 		write_gfx_report();
 		reset_temporary_storage();
 		start := atomic_load(*wd.frame_start);

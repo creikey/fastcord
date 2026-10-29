@@ -73,6 +73,9 @@ notify_show :: (title: string, body: string, id: string) -> bool {
 }
 set_badge :: (text: string) {}
 
+// Opens a file or folder with its default app (Explorer, the file manager).
+open_path :: (path: string) { open_url(path); }
+
 // Opens a URL in the user's default browser. xdg-open runs whatever it is given: the app's
 // `open_url` checks the scheme.
 open_url :: (url: string) {

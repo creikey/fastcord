@@ -190,6 +190,7 @@ main :: () {
 	headless := opt.shot != "" || bench.on;
 	if !headless && !platform.instance_claim(app_state_dir(), opt.url) return; // the running one takes it
 	app.launch_url = copy_string(opt.url);
+	if !headless context.logger = log_to_file; // watchdog.jai: <data>/logs/fastcord.log
 	// macOS: Info.plist's CFBundleURLTypes; Linux: the desktop entry's MimeType (tools/package_linux.py).
 	#if OS == .WINDOWS if !headless && FASTCORD_VERSION != "dev" {
 		platform.url_handler_register("fc");

@@ -82,6 +82,30 @@ settings_nav_logout :: () {
 		}
 		spacer(.X, 16);
 	}
+	// Where the client prints its build: the version, and the log a bug report needs (watchdog.jai).
+	spacer(.Y, 16);
+	info := row("buildinfo");
+	info.semantic_size = .[ui.pct(1), ui.px(16)];
+	{ ui.parent(info); defer ui.pop_parent();
+		spacer(.X, 24);
+		label(tprint("fastcord %", FASTCORD_VERSION), .Normal, 12, T("--text-muted"), 16);
+	}
+	logs := row("openlogs");
+	logs.semantic_size = .[ui.pct(1), ui.px(16)];
+	{ ui.parent(logs); defer ui.pop_parent();
+		spacer(.X, 24);
+		l := label("Open Logs Folder", .Normal, 12, T("--text-link"), 16);
+		l.flags |= .Clickable;
+		l.hover_cursor = .Pointer;
+		if ui.signal(l).clicked {
+			app.ext_actions += 1;
+			if !platform.is_headless() {
+				dir := app_data_dir("logs");
+				make_directory_if_it_does_not_exist(dir, recursive = true);
+				platform.open_path(dir);
+			}
+		}
+	}
 }
 
 // ---- Notifications ----
