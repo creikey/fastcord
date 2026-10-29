@@ -8,7 +8,7 @@
 
 // Bump SCHEMA_VERSION whenever a table or a column is added, and add the column to COLUMNS: a file at an
 // older version is backed up, then migrated in one transaction; a file at a newer one is refused.
-SCHEMA_VERSION :: 1;
+SCHEMA_VERSION :: 2;
 
 Column :: struct { table: string; def: string; }
 // Columns added after their table was first shipped, for files made before them. New files get them from
@@ -53,6 +53,12 @@ COLUMNS :: Column.[
 	.{"channels", "tags TEXT"},
 	.{"embeds", "rich TEXT"},
 	.{"dm_messages", "edited INTEGER"},
+	// schema 2
+	.{"channels", "flags INTEGER NOT NULL DEFAULT 0"},
+	.{"channels", "sort_order INTEGER"},
+	.{"channels", "forum_layout INTEGER NOT NULL DEFAULT 0"},
+	.{"invites", "temporary INTEGER NOT NULL DEFAULT 0"},
+	.{"users", "temporary INTEGER NOT NULL DEFAULT 0"},
 ];
 
 Host :: struct {

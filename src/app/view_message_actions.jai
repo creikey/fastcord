@@ -773,8 +773,18 @@ edit_result :: (r: dc.Rest_Result) {
 	else if ma.editing == 0 { m := find_message(r.message_id); if m start_edit(m); }
 }
 
-// A message whose Delete (or, for pins, Unpin) is held: lists leave it out.
-message_held :: (id: dc.Snowflake, unpin := false) -> bool { return undo_held(send_delete, id) || (unpin && undo_held(send_unpin, id)); }
+// Deletes sent and not yet answered: the message stays hidden until it's gone from the store, so it never
+// shows again between the Undo window and the server's reply. A failed one shows again (delete_result).
+deleting: [..]dc.Snowflake;
+
+// A message whose Delete (or, for pins, Unpin) is held or on its way: lists leave it out.
+message_held :: (id: dc.Snowflake, unpin := false) -> bool { return undo_held(send_delete, id) || array_find(deleting, id) || (unpin && undo_held(send_unpin, id)); }
+
+// A delete's reply: answered, the message is gone (the store dropped it) or, failed, back.
+delete_result :: (r: dc.Rest_Result) { array_unordered_remove_by_value(*deleting, r.message_id); }
+
+// An encrypted delete is committed: its message now hides as a Delete (encrypted_hidden).
+delete_committed :: (id: dc.Snowflake) { array_unordered_remove_by_value(*deleting, id); }
 
 Confirm :: enum u8 { Pin; Remove_Embeds; Remove_Reactions; Remove_Emoji_Reactions; }
 
@@ -870,7 +880,13 @@ pin_now :: (m: *dc.Message, pin: bool) {
 
 send_delete :: (u: *Undo) {
 	if u.client && encrypted_edit(u.b, u.a, "", delete = true) return; // edited into a Delete, as E2E 7 says
-	if u.client { req_begin(DELETE_REQ); dc.delete_message(u.client, u.b, u.a); req_end(); return; }
+	if u.client {
+		array_add_if_unique(*deleting, u.a);
+		req_begin(DELETE_REQ);
+		dc.delete_message(u.client, u.b, u.a);
+		req_end();
+		return;
+	}
 	l := table_find_pointer(*store().messages, u.b); // offline (fixture) runs: gone as MESSAGE_DELETE would make it
 	i := ifx l then dc.message_index(l, u.a) else -1;
 	if i < 0 return;

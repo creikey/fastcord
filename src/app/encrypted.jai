@@ -180,6 +180,7 @@ encrypted_frame :: () {
 				if dm && dm.kind == .Group_DM && !ch.hello_asked && !begins_with(r.conv.carrier, HOSTED) send_hello(dm.id);
 			case .Send;
 				if r.result != .Ok {
+					if r.content == .Delete delete_committed(dc.parse_snowflake(r.target)); // not deleted: it shows again
 					toast_show(ifx r.result == .Too_Long then L("That's too long to send encrypted.") else L("Couldn't encrypt the message."), false);
 					_, atts := table_remove(*ee.attachments, r);
 					free(atts.data);
@@ -455,6 +456,7 @@ encrypted_edit :: (channel_id: dc.Snowflake, id: dc.Snowflake, text: string, del
 	r := e2e.request(.Send, conversation(channel_id, limit = fc_text.MAX_PACKET), ifx delete then "" else text);
 	group_members(r, dc.channel_get(store(), channel_id));
 	r.me, r.content, r.target = my_identity(), ifx delete then e2e.Content.Delete else .Edit, sprint("%", id);
+	if delete array_add_if_unique(*deleting, id); // hidden until it's committed (send_packet)
 	if !delete {
 		r.reply = ifx sh.reply then sprint("%", sh.reply) else "";
 		r.files = files_copy(sh.files);
@@ -889,6 +891,7 @@ send_packet :: (r: *e2e.Request, result: e2e.Result, text: string, content := e2
 		dc.edit_message(c, channel, target, carrier_text(r.conv.carrier, r.packet));
 		sh := table_find_pointer(*ee.shown, target);
 		if sh { free(sh.text); sh.text, sh.content = copy_string(text), content; } // until the edit comes back
+		if content == .Delete delete_committed(target);
 		e2e_submit(e2e.request(.Sent, packet = r.packet));
 		return;
 	}

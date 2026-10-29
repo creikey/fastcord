@@ -606,10 +606,11 @@ login :: (c: *Conn, session: *tls.Session, req: http.Request) -> bool {
 			owner_key := meta_get(s, "owner_root");
 			owner := owner_key.count == 32 && memcmp(owner_key.data, root.data, 32) == 0;
 			by_key := owner;
+			temporary := false; // Grant temporary membership: kicked on disconnecting with no role (gateway_ended)
 			if !owner {
-				st = sqlite.prepare(s.db, tprint("SELECT owner FROM invites WHERE code = ? AND %;", INVITE_LIVE));
+				st = sqlite.prepare(s.db, tprint("SELECT owner, temporary FROM invites WHERE code = ? AND %;", INVITE_LIVE));
 				sqlite.bind(st, 1, field("code"));
-				if sqlite.step(st) == .Row owner = sqlite.col_int(st, 0) != 0;
+				if sqlite.step(st) == .Row owner, temporary = sqlite.col_int(st, 0) != 0, sqlite.col_int(st, 1) != 0;
 				sqlite.finalize(st);
 			}
 			if !owner && invites_paused_locked(s) {
@@ -619,11 +620,11 @@ login :: (c: *Conn, session: *tls.Session, req: http.Request) -> bool {
 			} else if !name || name.count > 32 || !text_ok(name) {
 				status, code, message = 400, 50035, "Invalid Form Body";
 			} else if gone {
-				if !sqlite.run(s.db, "UPDATE users SET left = 0 WHERE id = ?;", user) user = 0;
+				if !sqlite.run(s.db, "UPDATE users SET left = 0, temporary = ? WHERE id = ?;", cast(int) temporary, user) user = 0;
 			} else {
 				user = snowflake(s);
 				joined = true;
-				if !sqlite.run(s.db, "INSERT INTO users(id, root, signing_pub, name, joined_name) VALUES(?, ?, ?, ?, ?4);", user, cast([]u8) root, cast([]u8) pub, name) user = 0;
+				if !sqlite.run(s.db, "INSERT INTO users(id, root, signing_pub, name, joined_name, temporary) VALUES(?, ?, ?, ?, ?4, ?5);", user, cast([]u8) root, cast([]u8) pub, name, cast(int) temporary) user = 0;
 				else { locks.guard(*s.avatar_mu); table_set(*s.handles, user, member_handle(root)); }
 				if user && owner && !meta_put(s, "owner", tprint("%", user)) user = 0;
 				if user && by_key && !sqlite.run(s.db, "DELETE FROM meta WHERE k = 'owner_root';") user = 0;
@@ -1592,10 +1593,11 @@ TEXT :: 0;
 CATEGORY :: 4;
 ANNOUNCEMENT :: 5; // A text channel whose messages can be published (crossposted); no followers here.
 FORUM :: 15; // Takes no messages itself: each post is a thread whose starter message shares its ID.
+REQUIRE_TAG :: 1 << 4; // A forum's flag: every post carries a tag.
 CROSSPOSTED :: 1 << 0;
 THREAD :: 11; // Public, under a text channel; one started from a message takes that message's ID.
 
-CHANNEL_SELECT :: "SELECT c.id, c.name, c.position, c.topic, (SELECT max(id) FROM messages WHERE channel = c.id), c.type, c.parent, coalesce(c.owner, 0), CASE WHEN c.type = 11 THEN (SELECT count(*) FROM messages WHERE channel = c.id) END, c.slowmode, c.nsfw, c.archived, c.locked, c.archive_after, coalesce(c.archived_at, c.id), c.tags, c.bitrate, c.user_limit FROM channels c";
+CHANNEL_SELECT :: "SELECT c.id, c.name, c.position, c.topic, (SELECT max(id) FROM messages WHERE channel = c.id), c.type, c.parent, coalesce(c.owner, 0), CASE WHEN c.type = 11 THEN (SELECT count(*) FROM messages WHERE channel = c.id) END, c.slowmode, c.nsfw, c.archived, c.locked, c.archive_after, coalesce(c.archived_at, c.id), c.tags, c.bitrate, c.user_limit, c.flags, c.sort_order, c.forum_layout FROM channels c";
 
 row_channel :: (s: *Server, st: *sqlite.Stmt, member := etf.Value.{}) -> etf.Value {
 	kind := sqlite.col_int(st, 5);
@@ -1613,11 +1615,13 @@ row_channel :: (s: *Server, st: *sqlite.Stmt, member := etf.Value.{}) -> etf.Val
 	// A forum's tags, and the ones a post carries: JSON kept as forum_tags_locked and applied_tags_locked wrote it.
 	tags, _ := etf.from_json(copy_string(sqlite.col_text(st, 15),, temp),, temp);
 	if kind == THREAD && tags.kind == .List etf.map_put(*m, "applied_tags", tags);
+	if kind != THREAD etf.map_put(*m, "flags", etf.vint(sqlite.col_int(st, 18)));
+	if texty etf.map_put(*m, "default_auto_archive_duration", etf.vint(sqlite.col_int(st, 13)));
 	if kind == FORUM {
 		etf.map_put(*m, "available_tags", ifx tags.kind == .List then tags else etf.vlist(.[]));
 		etf.map_put(*m, "default_reaction_emoji", .{});
-		etf.map_put(*m, "default_sort_order", .{});
-		etf.map_put(*m, "default_forum_layout", etf.vint(0));
+		etf.map_put(*m, "default_sort_order", ifx sqlite.col_is_null(st, 19) then etf.Value.{} else etf.vint(sqlite.col_int(st, 19)));
+		etf.map_put(*m, "default_forum_layout", etf.vint(sqlite.col_int(st, 20)));
 		etf.map_put(*m, "default_thread_rate_limit_per_user", etf.vint(0));
 	}
 	if kind == VOICE || kind == STAGE { etf.map_put(*m, "bitrate", etf.vint(sqlite.col_int(st, 16))); etf.map_put(*m, "user_limit", etf.vint(sqlite.col_int(st, 17))); }
@@ -2717,6 +2721,9 @@ create_thread :: (c: *Conn, req: http.Request, user: s64, parent: s64, message: 
 	raw, _ := etf.map_get(v.map, "name");
 	kind_v, has_kind := etf.map_get(v.map, "type");
 	post_v, has_post := etf.map_get(v.map, "message");
+	after_v, has_after := etf.map_get(v.map, "auto_archive_duration");
+	after := ifx after_v.kind == .Int then after_v.i else 0;
+	if has_after && after_v.kind != .Nil && !(after == 60 || after == 1440 || after == 4320 || after == 10080) return json_error(c, 400, 50035, "Invalid Form Body");
 	name := ifx raw.kind == .String then trim(raw.s) else "";
 	if !name || name.count > 100 || !text_ok(name) || (has_kind && !(kind_v.kind == .Int && kind_v.i == THREAD)) return json_error(c, 400, 50035, "Invalid Form Body");
 	content: etf.Value;
@@ -2739,6 +2746,12 @@ create_thread :: (c: *Conn, req: http.Request, user: s64, parent: s64, message: 
 			ok: bool;
 			applied, ok = applied_tags_locked(s, 0, applied_v, (perms & P_MANAGE_THREADS) != 0, parent);
 			if !ok return json_error(c, 400, 50035, "Invalid Form Body");
+			// Require Tags asks for one only where the forum has some.
+			st := sqlite.prepare(s.db, tprint("SELECT 1 FROM channels WHERE id = ? AND flags & % AND coalesce(tags, '[]') != '[]';", REQUIRE_TAG));
+			sqlite.bind_all(st, parent);
+			required := sqlite.step(st) == .Row;
+			sqlite.finalize(st);
+			if required && !applied return json_error(c, 400, 40067, "A tag is required to create a forum post in this channel");
 		}
 		id := message;
 		if message {
@@ -2752,7 +2765,10 @@ create_thread :: (c: *Conn, req: http.Request, user: s64, parent: s64, message: 
 		} else {
 			id = snowflake(s);
 		}
-		if !sqlite.run(s.db, "INSERT INTO channels(id, name, position, type, parent, owner, tags) VALUES(?, ?, 0, ?, ?, ?, nullif(?, ''));", id, name, THREAD, parent, user, applied) return json_error(c, 500, 0, "500: Internal Server Error");
+		// A thread hides after its parent's Hide After Inactivity unless it names its own.
+		made := sqlite.run(s.db, "INSERT INTO channels(id, name, position, type, parent, owner, tags, archive_after) VALUES(?1, ?2, 0, ?3, ?4, ?5, nullif(?6, ''), coalesce(nullif(?7, 0), (SELECT archive_after FROM channels WHERE id = ?4), 4320));",
+			id, name, THREAD, parent, user, applied, after);
+		if !made return json_error(c, 500, 0, "500: Internal Server Error");
 		if forum {
 			everyone := (contains(content.s, "@everyone") || contains(content.s, "@here")) && (perms & P_MENTION_EVERYONE) != 0;
 			ok := sqlite.run(s.db, "INSERT INTO messages(id, channel, author, content, everyone) VALUES(?1, ?1, ?, ?, ?);", id, user, content.s, cast(int) everyone);
@@ -3532,7 +3548,7 @@ manage_invites :: (c: *Conn, req: http.Request) -> bool {
 invites_locked :: (s: *Server, only: s64) -> etf.Value {
 	list: [..]etf.Value;
 	list.allocator = temp;
-	st := sqlite.prepare(s.db, tprint("SELECT code, uses_left, inviter, channel, max_age, expires FROM invites WHERE owner = 0 AND % AND (?1 = 0 OR channel = ?1) ORDER BY rowid;", INVITE_LIVE));
+	st := sqlite.prepare(s.db, tprint("SELECT code, uses_left, inviter, channel, max_age, expires, temporary FROM invites WHERE owner = 0 AND % AND (?1 = 0 OR channel = ?1) ORDER BY rowid;", INVITE_LIVE));
 	sqlite.bind_all(st, only);
 	defer sqlite.finalize(st);
 	while sqlite.step(st) == .Row {
@@ -3548,6 +3564,7 @@ invites_locked :: (s: *Server, only: s64) -> etf.Value {
 		etf.map_put(*m, "max_age", etf.vint(sqlite.col_int(st, 4)));
 		expires := sqlite.col_int(st, 5);
 		etf.map_put(*m, "expires_at", ifx expires then etf.vstring(iso(((expires * 1000) - DISCORD_EPOCH_MS) << 22)) else .{});
+		etf.map_put(*m, "temporary", etf.vbool(sqlite.col_int(st, 6) != 0));
 		array_add(*list, etf.vmap(etf.map_done(*m)));
 	}
 	return etf.vlist(list);
@@ -3562,6 +3579,23 @@ remove_member_locked :: (s: *Server, user: s64, banned: bool) -> bool {
 		&& sqlite.exec(s.db, "COMMIT;");
 	if !ok sqlite.exec(s.db, "ROLLBACK;");
 	return ok;
+}
+
+// temporary_left: a member who joined by a temporary invite (Grant temporary membership) and whose last
+// gateway closed is kicked unless they were given a role meanwhile, as on Discord; one with a role stays for good.
+temporary_left :: (s: *Server, user: s64) {
+	{
+		locks.guard(*s.db_mu);
+		st := sqlite.prepare(s.db, "SELECT EXISTS (SELECT 1 FROM member_roles WHERE user = ?1) FROM users WHERE id = ?1 AND temporary = 1 AND left = 0;");
+		sqlite.bind_all(st, user);
+		found := sqlite.step(st) == .Row;
+		kept := found && sqlite.col_int(st, 0) != 0;
+		sqlite.finalize(st);
+		if !found return;
+		if kept { sqlite.run(s.db, "UPDATE users SET temporary = 0 WHERE id = ?;", user); return; }
+		if !remove_member_locked(s, user, banned = false) return;
+	}
+	removed(s, user);
 }
 
 // removed tells a member's gateways their guild is gone, and everyone else the member list changed.
@@ -3583,9 +3617,11 @@ removed :: (s: *Server, user: s64) {
 }
 
 // PATCH /api/v9/channels/{id} {name?, topic?, rate_limit_per_user?, nsfw?, bitrate?, user_limit?,
-// permission_overwrites?} and DELETE /api/v9/channels/{id}, with Manage Channels (and Manage Roles to replace the
-// overwrites, as Sync Now does). Bitrate (8-96 kbps) and the user limit (0-99) keep only on voice channels: the
-// client's whole-form save sends them for every type. The last channel can't be deleted, so the server always
+// default_auto_archive_duration?, flags?, default_sort_order?, default_forum_layout?, permission_overwrites?} and
+// DELETE /api/v9/channels/{id}, with Manage Channels (and Manage Roles to replace the overwrites, as Sync Now does).
+// The client's whole-form save sends every field for every type, so each keeps only where it applies: bitrate
+// (8-96 kbps) and the user limit (0-99) on voice channels, the thread default on text, announcement and forum
+// channels, and a forum's Require Tags flag, sort order and layout on forums. The last channel can't be deleted, so the server always
 // has somewhere to talk.
 edit_channel :: (c: *Conn, req: http.Request, user: s64, channel: s64) -> bool {
 	s := c.server;
@@ -3610,6 +3646,15 @@ edit_channel :: (c: *Conn, req: http.Request, user: s64, channel: s64) -> bool {
 		bitrate, has_bitrate := etf.map_get(v.map, "bitrate");
 		limit, has_limit := etf.map_get(v.map, "user_limit");
 		ow_v, has_ows := etf.map_get(v.map, "permission_overwrites");
+		def_after, has_def_after := etf.map_get(v.map, "default_auto_archive_duration");
+		flags_v, has_flags := etf.map_get(v.map, "flags");
+		sort_v, has_sort := etf.map_get(v.map, "default_sort_order");
+		layout_v, has_layout := etf.map_get(v.map, "default_forum_layout");
+		archive_ok :: (v: etf.Value) -> bool { return v.kind == .Int && (v.i == 60 || v.i == 1440 || v.i == 4320 || v.i == 10080); }
+		if (has_def_after && !archive_ok(def_after)) || (has_flags && !(flags_v.kind == .Int && flags_v.i >= 0 && flags_v.i <= 0xFFFF_FFFF))
+			|| (has_sort && sort_v.kind != .Nil && !(sort_v.kind == .Int && (sort_v.i == 0 || sort_v.i == 1))) || (has_layout && !(layout_v.kind == .Int && layout_v.i >= 0 && layout_v.i <= 2)) {
+			return json_error(c, 400, 50035, "Invalid Form Body");
+		}
 		if (has_bitrate && !(bitrate.kind == .Int && bitrate.i >= 8000 && bitrate.i <= 96000)) || (has_limit && !(limit.kind == .Int && limit.i >= 0 && limit.i <= 99)) return json_error(c, 400, 50035, "Invalid Form Body");
 		ows: [..]Overwrite;
 		ows.allocator = temp;
@@ -3622,7 +3667,7 @@ edit_channel :: (c: *Conn, req: http.Request, user: s64, channel: s64) -> bool {
 			}
 		}
 		if (has_slow && !(slow.kind == .Int && slow.i >= 0 && slow.i <= 21600)) || (has_nsfw && nsfw.kind != .Bool) return json_error(c, 400, 50035, "Invalid Form Body");
-		if (has_archived && archived.kind != .Bool) || (has_locked && locked.kind != .Bool) || (has_after && !(after.kind == .Int && (after.i == 60 || after.i == 1440 || after.i == 4320 || after.i == 10080))) {
+		if (has_archived && archived.kind != .Bool) || (has_locked && locked.kind != .Bool) || (has_after && !archive_ok(after)) {
 			return json_error(c, 400, 50035, "Invalid Form Body");
 		}
 		locks.guard(*s.db_mu);
@@ -3648,6 +3693,10 @@ edit_channel :: (c: *Conn, req: http.Request, user: s64, channel: s64) -> bool {
 			&& (!has_slow || sqlite.run(s.db, "UPDATE channels SET slowmode = ? WHERE id = ?;", slow.i, channel))
 			&& (!has_nsfw || sqlite.run(s.db, "UPDATE channels SET nsfw = ? WHERE id = ?;", cast(int) nsfw.b, channel))
 			&& (!has_after || sqlite.run(s.db, "UPDATE channels SET archive_after = ? WHERE id = ?;", after.i, channel))
+			&& (!has_def_after || !(kind == TEXT || kind == ANNOUNCEMENT || kind == FORUM) || sqlite.run(s.db, "UPDATE channels SET archive_after = ? WHERE id = ?;", def_after.i, channel))
+			&& (!has_flags || kind != FORUM || sqlite.run(s.db, "UPDATE channels SET flags = ? WHERE id = ?;", flags_v.i & REQUIRE_TAG, channel))
+			&& (!has_sort || kind != FORUM || sqlite.run(s.db, "UPDATE channels SET sort_order = nullif(?, -1) WHERE id = ?;", ifx sort_v.kind == .Int then sort_v.i else -1, channel))
+			&& (!has_layout || kind != FORUM || sqlite.run(s.db, "UPDATE channels SET forum_layout = ? WHERE id = ?;", layout_v.i, channel))
 			&& (!has_bitrate || !voice || sqlite.run(s.db, "UPDATE channels SET bitrate = ? WHERE id = ?;", bitrate.i, channel))
 			&& (!has_limit || !voice || sqlite.run(s.db, "UPDATE channels SET user_limit = ? WHERE id = ?;", limit.i, channel))
 			&& (!has_locked || sqlite.run(s.db, "UPDATE channels SET locked = ? WHERE id = ?;", cast(int) locked.b, channel))
@@ -3746,6 +3795,9 @@ create_invite :: (c: *Conn, req: http.Request, user: s64, name: string, channel:
 	uses, _ := etf.map_get(v.map, "max_uses");
 	age, _ := etf.map_get(v.map, "max_age");
 	validate, _ := etf.map_get(v.map, "validate");
+	temp_v, has_temp := etf.map_get(v.map, "temporary");
+	if has_temp && temp_v.kind != .Bool && temp_v.kind != .Nil return json_error(c, 400, 50035, "Invalid Form Body");
+	temporary := temp_v.kind == .Bool && temp_v.b;
 	max_uses := ifx uses.kind == .Int then uses.i else 0;
 	max_age := ifx age.kind == .Int then age.i else 86400;
 	if max_uses < 0 || max_uses > 100 || max_age < 0 || max_age > 2592000 return json_error(c, 400, 50035, "Invalid Form Body");
@@ -3762,8 +3814,8 @@ create_invite :: (c: *Conn, req: http.Request, user: s64, name: string, channel:
 		if ch.kind == .Nil return json_error(c, 404, 10003, "Unknown Channel");
 		if !can_locked(s, user, P_CREATE_INSTANT_INVITE, channel) return json_error(c, 403, 50013, "Missing Permissions");
 		if validate.kind == .String {
-			st := sqlite.prepare(s.db, tprint("SELECT code, max_age, expires FROM invites WHERE code = ? AND inviter = ? AND channel = ? AND %;", INVITE_LIVE));
-			sqlite.bind_all(st, validate.s, user, channel);
+			st := sqlite.prepare(s.db, tprint("SELECT code, max_age, expires FROM invites WHERE code = ? AND inviter = ? AND channel = ? AND temporary = ? AND %;", INVITE_LIVE));
+			sqlite.bind_all(st, validate.s, user, channel, cast(int) temporary);
 			if sqlite.step(st) == .Row {
 				code = copy_string(sqlite.col_text(st, 0),, temp);
 				max_age = sqlite.col_int(st, 1);
@@ -3776,8 +3828,8 @@ create_invite :: (c: *Conn, req: http.Request, user: s64, name: string, channel:
 			crypto.random_bytes(bytes);
 			code = hex(bytes,, temp);
 			expires = ifx max_age then to_seconds(current_time_consensus() - APOLLO_TIME_FOR_JAN_1_1970) + max_age else 0;
-			if !sqlite.run(s.db, "INSERT INTO invites(code, uses_left, inviter, channel, max_age, expires) VALUES(?, ?, ?, ?, ?, ?);",
-					code, ifx max_uses then max_uses else -1, user, channel, max_age, expires) {
+			if !sqlite.run(s.db, "INSERT INTO invites(code, uses_left, inviter, channel, max_age, expires, temporary) VALUES(?, ?, ?, ?, ?, ?, ?);",
+					code, ifx max_uses then max_uses else -1, user, channel, max_age, expires, cast(int) temporary) {
 				return json_error(c, 500, 0, "500: Internal Server Error");
 			}
 		}
@@ -3796,7 +3848,7 @@ create_invite :: (c: *Conn, req: http.Request, user: s64, name: string, channel:
 	etf.map_put(*m, "max_age", etf.vint(max_age));
 	etf.map_put(*m, "expires_at", ifx expires then etf.vstring(iso(((expires * 1000) - DISCORD_EPOCH_MS) << 22)) else .{});
 	etf.map_put(*m, "max_uses", etf.vint(max_uses));
-	etf.map_put(*m, "temporary", etf.vbool(false));
+	etf.map_put(*m, "temporary", etf.vbool(temporary));
 	return json_reply(c, 200, etf.vmap(etf.map_done(*m)));
 }
 
@@ -4685,11 +4737,14 @@ gateway :: (c: *Conn, req: http.Request) {
 		was := c.user;
 		c.ws = null;
 		c.user = 0;
+		last := true;
+		for c.server.conns if it.ws && it.user == was last = false;
 		locks.unlock(*c.server.mu);
 		end_writer(c, ws);
 		if was {
 			voice_leave(c.server, was, c);
 			broadcast(c.server, "GUILD_MEMBER_LIST_UPDATE", member_list_value(c.server));
+			if last temporary_left(c.server, was);
 		}
 	}
 

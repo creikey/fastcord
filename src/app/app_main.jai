@@ -715,14 +715,17 @@ script_command :: (path: string, f: []string, t: *float64, depth := 0) {
 		}
 	case "expect_visible"; #through; case "expect_not_visible";
 		want := unquote(join_args(f));
-		vis := false;
-		for b: app.ui.order {
-			if b.text == want && (b.flags & .Draw_Text) && box_visible(b) {
-				vis = true;
-				break;
-			}
+		if text_shown(want) != (f[0] == "expect_visible") script_fail(path, "% failed: \"%\"", f[0], want);
+		return;
+	case "never_visible";
+		// never_visible <seconds> "<text>": real-time frames, none of which may show it (a one-frame flash fails)
+		want := unquote(join_args(array_view(f, 1)));
+		start := current_time_monotonic();
+		while to_float64_seconds(current_time_monotonic() - start) < num(f[1]) {
+			script_frame(t);
+			if text_shown(want) { script_fail(path, "never_visible failed: \"%\"", want); return; }
+			sleep_milliseconds(4);
 		}
-		if vis != (f[0] == "expect_visible") script_fail(path, "% failed: \"%\"", f[0], want);
 		return;
 	case "expect_in_window";
 		// the box (by label or id) lies entirely inside the window, unclipped
@@ -1261,6 +1264,12 @@ find_text_box :: (want: string) -> *ui.Box {
 
 // Visible area of a box: clipped by its Clip ancestors and the window, and not
 // under an overlay (popout, modal) unless it is part of one.
+// A box drawing exactly this text is on screen.
+text_shown :: (want: string) -> bool {
+	for b: app.ui.order if b.text == want && (b.flags & .Draw_Text) && box_visible(b) return true;
+	return false;
+}
+
 box_visible :: (b: *ui.Box) -> bool {
 	r := ui.intersect(ui.visible_rect(b), .{0, 0, app.ui.window.x, app.ui.window.y});
 	if r.x1 - r.x0 < 1 || r.y1 - r.y0 < 1 || b.opacity <= 0.01 return false;
@@ -1359,6 +1368,8 @@ handle_results_of :: (c: *dc.Client) {
 			invite_receive(r);
 		case .Edit_Message;
 			edit_result(r);
+		case .Delete_Message;
+			delete_result(r);
 		case .Add_Reaction;
 			reaction_refused(r);
 		}
