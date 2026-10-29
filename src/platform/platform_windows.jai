@@ -169,6 +169,25 @@ window_minimize :: () { win.ShowWindow(w.hwnd, win.SW_MINIMIZE); }
 window_maximized :: () -> bool { return w.hwnd && IsZoomed(w.hwnd) != 0; }
 window_toggle_maximize :: () { win.ShowWindow(w.hwnd, xx ifx window_maximized() then win.SW_RESTORE else win.SW_MAXIMIZE); }
 window_close :: () { PostMessageW(w.hwnd, win.WM_CLOSE, 0, 0); }
+// The OS's fullscreen (a video's fullscreen takes the whole screen): the window covers its monitor, then
+// gets its old placement back.
+set_fullscreen :: (on: bool) {
+    if !w.hwnd || on == w.fullscreen return;
+    w.fullscreen = on;
+    if !on {
+        SetWindowPlacement(w.hwnd, *w.before_fullscreen);
+        return;
+    }
+    w.before_fullscreen = .{length = size_of(WINDOWPLACEMENT)};
+    GetWindowPlacement(w.hwnd, *w.before_fullscreen);
+    if IsZoomed(w.hwnd) win.ShowWindow(w.hwnd, win.SW_RESTORE); // else WM_NCCALCSIZE insets a maximized frame
+    mi := win.MONITORINFO.{cbSize = size_of(win.MONITORINFO)};
+    win.GetMonitorInfoW(win.MonitorFromWindow(w.hwnd, win.MONITOR_DEFAULTTONEAREST), *mi);
+    r := mi.rcMonitor;
+    win.SetWindowPos(w.hwnd, null, r.left, r.top, r.right - r.left, r.bottom - r.top, win.SWP_FRAMECHANGED | win.SWP_NOZORDER);
+}
+is_fullscreen :: () -> bool { return w.fullscreen; }
+
 // Brings the window to the front, also from the tray.
 window_show :: () {
     win.ShowWindow(w.hwnd, xx ifx IsIconic(w.hwnd) then win.SW_RESTORE else win.SW_SHOW);
@@ -697,6 +716,8 @@ w: struct {
     restore: Window_Placement; // set before init by window_placement_restore
     has_restore: bool;
     class_name: string; // set by instance_claim: names the <state>
+    fullscreen: bool;
+    before_fullscreen: WINDOWPLACEMENT;
     instance: win.HINSTANCE;
     frame_wait: *void; // swap chain frame-latency waitable (set by gfx)
     frame_ready: bool; // os_wait already took this frame's signal from frame_wait

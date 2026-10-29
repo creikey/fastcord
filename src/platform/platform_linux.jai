@@ -104,6 +104,20 @@ window_placement :: () -> Window_Placement, bool {
 
 window_placement_restore :: (p: Window_Placement) { xs.normal = p; }
 
+// The OS's fullscreen (a video's fullscreen takes the whole screen), asked of the window manager (EWMH).
+set_fullscreen :: (on: bool) {
+    if s.headless || !xs.win || on == xs.fullscreen return;
+    xs.fullscreen = on;
+    ev: XEvent;
+    ev.xclient = .{type = ClientMessage, window = xs.win, message_type = xs.a._NET_WM_STATE, format = 32};
+    ev.xclient.l[0] = xx on; // _NET_WM_STATE_ADD / _REMOVE
+    ev.xclient.l[1] = xx xs.a._NET_WM_STATE_FULLSCREEN;
+    ev.xclient.l[3] = 1; // from an application
+    X.SendEvent(xs.d, xs.root, 0, SubstructureRedirectMask | SubstructureNotifyMask, *ev);
+    X.Flush(xs.d);
+}
+is_fullscreen :: () -> bool { return xs.fullscreen; }
+
 // Brings the window to the front: mapped, then _NET_ACTIVE_WINDOW asks the window manager (EWMH).
 window_show :: () {
     if s.headless || !xs.win return;
@@ -602,6 +616,7 @@ xs: struct {
     wake_fd: s32 = -1;
     px_w, px_h: s32;
     normal: Window_Placement; // the client area when neither maximized nor full screen (root pixels)
+    fullscreen: bool; // set_fullscreen's
     focused: bool;
     keys_down: [256]bool; // by keycode: repeats
     cursors: [#run enum_highest_value(Cursor) + 1]u64;

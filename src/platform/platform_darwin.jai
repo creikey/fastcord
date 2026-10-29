@@ -92,6 +92,14 @@ window_placement :: () -> Window_Placement, bool {
 
 window_placement_restore :: (p: Window_Placement) { m.normal = p; }
 
+// The OS's fullscreen (a video's fullscreen takes the whole screen). is_fullscreen turns false when the
+// user leaves it another way (the green button, Escape, a Space switch).
+set_fullscreen :: (on: bool) {
+    if !m.window || on == is_fullscreen() return;
+    msg(Void, m.window, "toggleFullScreen:", cast(Id) null);
+}
+is_fullscreen :: () -> bool { return m.window && (msg(NSUInteger, m.window, "styleMask") & (1 << 14)) != 0; }
+
 // False while the window is hidden (closed to the Dock) or minimized: nothing to draw.
 window_visible :: () -> bool { return !m.window || msg(bool, m.window, "isVisible"); }
 

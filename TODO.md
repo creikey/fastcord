@@ -490,7 +490,6 @@
 - [ ] Notifications: the server modal lacks channel overrides, Suppress Highlights, Mute New Events and Mobile Push (parsed, sent only to analytics).
 - [ ] Channels: a collapsed category also hides its unread and occupied voice channels; only the selected one stays (`views.jai`).
 - [ ] Profiles: your own full profile has no Edit Profile button; the DM side panel lacks About Me, pronouns, mutual servers and friends, and the note.
-- [ ] Media: a video's fullscreen fills the window, not the screen (no native fullscreen on any platform) (`view_media.jai` `video_fullscreen`).
 - [ ] Friends: the Pending tab isn't split into Received and Sent.
 - [ ] Bug: jumping to a message (search, pins, reply) can land off target. `jump_apply` estimates unmeasured rows at 26px while rendering uses the measured average, and it stops steering after 8 frames (`view_search.jai`). Also, off-screen row heights aren't invalidated on width change, so scrolling after a resize shifts content.
 - [ ] Member list: only the first 100 rows load; it subscribes `[0, 99]` once and never asks for more ranges while scrolling (`view_home.jai`).
@@ -782,3 +781,4 @@
 - [x] Embeds: a linked title shows the hand and an underline on hover and opens its link like a message link (in-app for Discord links); links and mentions in descriptions already followed clicks through `handle_span_clicks` (`tests/ui/media/embed_title_link.txt`).
 - [x] Scrolling: a middle click in any vertical scroll area (the message list included) drops an anchor marker; moving the mouse above or below it scrolls that way, faster the farther, and any click or Escape ends it (`ui.autoscroll_step`, `autoscroll_marker`; `tests/ui/autoscroll.txt`).
 - [x] Chat: age-restricted channels (and their threads) show an "Age-Restricted Channel" gate until you continue, remembered per server in settings.json, and with only Nevermind when the account's `nsfw_allowed` is false (`nsfw_gate`, `tests/ui/rail/nsfw_gate.txt`; the rail fixture gained #after-dark).
+- [x] Media: a video's fullscreen takes the whole screen through the OS's fullscreen (macOS `toggleFullScreen:`, Windows covering the monitor and restoring the placement, Linux `_NET_WM_STATE_FULLSCREEN`), unless the window already was fullscreen; leaving either way leaves both (`platform.set_fullscreen`, `media_overlays`). Built on all three; not clicked through on a desktop.

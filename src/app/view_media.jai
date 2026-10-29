@@ -31,6 +31,8 @@ audio_ready: bool;
 video_volume: float32 = 1;
 video_muted: bool;
 fullscreen_video: dc.Snowflake; // the player shown fullscreen, 0 if none
+video_os_full: bool; // fullscreen_video put the window in the OS's fullscreen (media_overlays)
+video_os_full_t: float64;
 
 blob_get :: (url: string) -> *Blob {
 	b := table_find_pointer(*blobs, url);
@@ -718,6 +720,18 @@ open_viewer :: (url: string, size: Int2, video := "", link := "", msg: dc.Snowfl
 }
 
 media_overlays :: () {
+	// A fullscreen video takes the screen (the OS's fullscreen), unless the window already was; leaving
+	// either way leaves both.
+	if platform.is_headless() {
+	} else if fullscreen_video && !video_os_full && !platform.is_fullscreen() {
+		platform.set_fullscreen(true);
+		video_os_full, video_os_full_t = true, app.ui.time;
+	} else if video_os_full && !fullscreen_video {
+		platform.set_fullscreen(false);
+		video_os_full = false;
+	} else if video_os_full && !platform.is_fullscreen() && app.ui.time - video_os_full_t > 2 {
+		fullscreen_video, video_os_full = 0, false; // the user left the OS's fullscreen (macOS animates in first)
+	}
 	if fullscreen_video video_fullscreen();
 	if viewer_url != "" image_viewer();
 	if mm.open media_menu();
