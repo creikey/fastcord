@@ -8,6 +8,7 @@ main :: () {
     print("%\n", voice.msg_resume("tok", "sid", 18446744073709551615, 1, -1));
     print("%\n", voice.msg_select_protocol("1.2.3.4", 50000, .Aes256_Gcm_Rtpsize, "abc-def", .["fixed_keyframe_interval", "x"]));
     print("%\n", voice.msg_codecs((1 << cast(int) voice.Video_Codec.H265) | (1 << cast(int) voice.Video_Codec.VP8)));
+    print("%\n", voice.msg_codecs(0, no_hevc_decode = true));
     print("%\n", voice.msg_heartbeat(1793010000123, 42));
     print("%\n", voice.msg_speaking(1, 4294967295));
     print("%\n", voice.msg_transition(23, 7));

@@ -47,8 +47,16 @@ SPEAKING_PRIORITY :: 4;
 
 // Codec list exactly as the desktop client sends it in SELECT_PROTOCOL. Windows doesn't offer to send
 // H.265: it has no encoder for it (src/video), and the server picks one codec for the whole call. Linux
-// has no H.265 at all (src/media decodes H.264 only).
-CODECS_JSON :: #run ifx OS == .WINDOWS then replace(CODECS_DESKTOP, "\"rtx_payload_type\":104,\"encode\":true", "\"rtx_payload_type\":104,\"encode\":false")
+// has no H.265 at all (src/media decodes H.264 only). codecs_json also drops H.265 decoding where this
+// machine has no decoder for it (Windows without the Store's HEVC Video Extensions): offered anyway, the
+// server could pick H.265 for the call and every camera would stay black.
+codecs_json :: (no_hevc_decode: bool) -> string {
+    if !no_hevc_decode return CODECS_JSON;
+    s := replace(CODECS_JSON, "\"rtx_payload_type\":104,\"encode\":true,\"decode\":true", "\"rtx_payload_type\":104,\"encode\":true,\"decode\":false",, temp);
+    return replace(s, "\"rtx_payload_type\":104,\"encode\":false,\"decode\":true", "\"rtx_payload_type\":104,\"encode\":false,\"decode\":false",, temp);
+}
+
+CODECS_JSON ::#run ifx OS == .WINDOWS then replace(CODECS_DESKTOP, "\"rtx_payload_type\":104,\"encode\":true", "\"rtx_payload_type\":104,\"encode\":false")
 	else ifx OS == .LINUX then replace(CODECS_DESKTOP, "\"rtx_payload_type\":104,\"encode\":true,\"decode\":true", "\"rtx_payload_type\":104,\"encode\":false,\"decode\":false")
 	else CODECS_DESKTOP;
 CODECS_DESKTOP :: "[{\"name\":\"opus\",\"type\":\"audio\",\"priority\":1000,\"payload_type\":120},{\"name\":\"AV1\",\"type\":\"video\",\"priority\":1000,\"payload_type\":101,\"rtx_payload_type\":102,\"encode\":false,\"decode\":true},{\"name\":\"H265\",\"type\":\"video\",\"priority\":2000,\"payload_type\":103,\"rtx_payload_type\":104,\"encode\":true,\"decode\":true},{\"name\":\"H264\",\"type\":\"video\",\"priority\":3000,\"payload_type\":105,\"rtx_payload_type\":106,\"encode\":true,\"decode\":true},{\"name\":\"VP8\",\"type\":\"video\",\"priority\":4000,\"payload_type\":107,\"rtx_payload_type\":108,\"encode\":true,\"decode\":true}]";
@@ -107,8 +115,8 @@ msg_video :: (audio_ssrc: u32, video_ssrc: u32, rtx_ssrc: u32, on: bool, width: 
 // msg_codecs: op 14 from the client, the codec list again with the codecs our encoder can't do (a bit per
 // Video_Codec) marked encode:false. The official client sends it when its encoder fails; the server answers
 // with op 14 and a new video_codec.
-msg_codecs :: (cant_encode: u8) -> string {
-    codecs := CODECS_JSON;
+msg_codecs :: (cant_encode: u8, no_hevc_decode := false) -> string {
+    codecs := codecs_json(no_hevc_decode);
     for VIDEO_PT if it && cant_encode & (1 << it_index) {
         codecs = replace(codecs, tprint("\"rtx_payload_type\":%,\"encode\":true", it + 1), tprint("\"rtx_payload_type\":%,\"encode\":false", it + 1),, temp);
     }
@@ -120,12 +128,12 @@ msg_resume :: (token: string, session_id: string, server_id: u64, channel_id: u6
         ",\"server_id\":", snowflake(server_id), ",\"channel_id\":", snowflake(channel_id), ",\"seq_ack\":", seq_ack, "}}");
 }
 
-msg_select_protocol :: (address: string, port: int, mode: Mode, rtc_connection_id: string, experiments: []string) -> string {
+msg_select_protocol :: (address: string, port: int, mode: Mode, rtc_connection_id: string, experiments: []string, no_hevc_decode := false) -> string {
     b: String_Builder;
     b.allocator = temp;
     append(*b, json_msg("{\"op\":1,\"d\":{\"protocol\":\"udp\",\"data\":{\"address\":", Str.{address}, ",\"port\":", port,
         ",\"mode\":", Str.{mode_name(mode)}, "},\"address\":", Str.{address}, ",\"port\":", port, ",\"mode\":", Str.{mode_name(mode)},
-        ",\"codecs\":", CODECS_JSON, ",\"rtc_connection_id\":", Str.{rtc_connection_id}, ",\"experiments\":["));
+        ",\"codecs\":", codecs_json(no_hevc_decode), ",\"rtc_connection_id\":", Str.{rtc_connection_id}, ",\"experiments\":["));
     for experiments {
         if it_index append(*b, ",");
         json_str(*b, it);

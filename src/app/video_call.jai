@@ -74,6 +74,7 @@ stream_sink := true;
 // voice_video_options: what every voice connection needs for receiving video.
 add_video_options :: (o: *voice.Options, stream: bool) {
 	o.video = on_remote_frame;
+	o.no_hevc_decode = !media.video_codec_supported(.HEVC);
 	o.callback_data = ifx stream then *stream_sink else *cam_sink;
 }
 
