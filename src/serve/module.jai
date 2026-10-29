@@ -854,6 +854,10 @@ serve_conn :: (c: *Conn) {
 			if !open_dm(c, req) return; // dms.jai
 			continue;
 		}
+		if begins_with(req.path, "/api/v9/users/") && ends_with(req.path, "/e2e-bundle") {
+			if !e2e_bundle(c, req) return; // dms.jai
+			continue;
+		}
 		if req.method == "GET" && begins_with(req.path, "/api/v9/users/") && req.path.count > "/api/v9/users/".count && is_digit(req.path["/api/v9/users/".count]) {
 			if !user_profile(c, req) return;
 			continue;

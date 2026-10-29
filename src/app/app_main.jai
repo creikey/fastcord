@@ -869,13 +869,21 @@ script_command :: (path: string, f: []string, t: *float64, depth := 0) {
 		hosted_join(serve.invite_url(s, "127.0.0.1", s.listener.port, serve.owner_invite(s)));
 		return;
 	case "serve_member";
-		// serve_member <name>: another member joins the serve_join server with a fresh key, on a thread.
-		if !script_server || f.count != 2 script_fail(path, "serve_member: needs serve_join and a name");
-		Member :: struct { invite: string; name: string; }
+		// serve_member <name> [bundle]: another member joins the serve_join server with a fresh key, on a
+		// thread; with bundle, serve also keeps an E2E prekey bundle of theirs.
+		if !script_server || f.count < 2 script_fail(path, "serve_member: needs serve_join and a name");
+		Member :: struct { invite: string; name: string; bundle: bool; }
 		m := New(Member);
 		m.invite = serve.invite_url(script_server, "127.0.0.1", script_server.listener.port, serve.first_invite(script_server), allocator = context.default_allocator);
-		m.name = copy_string(f[1]);
-		dc.spawn(m, (m: *Member) { serve.member_login(serve.parse_invite(m.invite), keys.generate(m.name), m.name); });
+		m.name, m.bundle = copy_string(f[1]), f.count > 2 && f[2] == "bundle";
+		dc.spawn(m, (m: *Member) {
+			k := keys.generate(m.name);
+			serve.member_login(serve.parse_invite(m.invite), k, m.name);
+			p: e2e.Packet;
+			p.limit = fc_text.MAX_PACKET;
+			e2e.make_hello(e2e.identity_of(k), *p);
+			if m.bundle serve.bundle_for_test(script_server, m.name, fc_text.encode(e2e.bytes(*p)));
+		});
 		return;
 	case "expect_served";
 		if !script_server script_fail(path, "expect_served: no serve_join");

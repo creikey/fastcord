@@ -97,6 +97,7 @@ Op :: enum u8 {
 	Receive;       // conv, from, delivery, me, packet -> result, content, out_text
 	Outbox;        // -> outbox: packets committed but never handed to their carrier, to send again after a crash
 	Search;        // conv, text = words -> hits: the conversation's texts holding every word, ignoring ASCII case
+	Bundle;        // conv (carrier and me only), me -> packet: a Hello any conversation on the carrier may answer, for the carrier to keep
 }
 
 Result :: enum u8 {
@@ -243,8 +244,8 @@ key :: (carrier: string, id: string) -> []u8 {
 // valid: a conversation the request can use. Parties are needed only by the ops that bind a session.
 valid :: (r: *Request) -> bool {
 	c := r.conv;
-	if !c.carrier.count || find_index_from_left(c.carrier, 0) >= 0 || !c.id.count || c.limit > MAX_PACKET return false;
-	if r.op == .Hello || r.op == .Accept || r.op == .Send || r.op == .Receive
+	if !c.carrier.count || find_index_from_left(c.carrier, 0) >= 0 || (!c.id.count && r.op != .Bundle) || c.limit > MAX_PACKET return false;
+	if r.op == .Hello || r.op == .Bundle || r.op == .Accept || r.op == .Send || r.op == .Receive
 		return c.me.count && c.limit > 0 && (r.op != .Accept || c.peer.count) && (r.op != .Receive || r.from.count);
 	return true;
 }
@@ -270,7 +271,9 @@ run_request :: (d: *Db, r: *Request) {
 			// Only the root the person compared: one that changed meanwhile stays unverified and flagged.
 			if !sqlite.run(db, "UPDATE peers SET verified = ?, changed = 0 WHERE party = ? AND root = ?;", r.verified, key(r.conv.carrier, r.conv.peer), cast([]u8) r.peer_root)
 				r.result = .Failed;
-		case .Hello;
+		case .Hello; #through;
+		case .Bundle;
+			// A bundle's prekeys are the carrier's (`carrier NUL`, no conversation), so any DM there can answer it.
 			prune_prekeys(db);
 			p: Packet;
 			p.limit = r.conv.limit;
@@ -281,7 +284,7 @@ run_request :: (d: *Db, r: *Request) {
 			ok := sqlite.exec(db, "BEGIN;")
 				&& sqlite.run(db, "INSERT INTO prekeys(hello_id, conversation, sealed, created) VALUES(?, ?, ?, ?);",
 					cast([]u8) id, conv, seal(d, ad("prekeys", id), *pre), now_ms())
-				&& set_encrypted(db, conv, true)
+				&& (r.op == .Bundle || set_encrypted(db, conv, true))
 				&& sqlite.exec(db, "COMMIT;");
 			if !ok { sqlite.exec(db, "ROLLBACK;"); r.result = .Failed; return; }
 			r.packet = copy_string(xx bytes(*p),, context.default_allocator);
@@ -416,9 +419,9 @@ receive :: (d: *Db, r: *Request, conv: []u8) {
 			i, ok := parse_init(packet);
 			if !ok || mine { r.result = .Undecryptable; return; }
 			if query_int(db, "SELECT 1 FROM sessions WHERE id = ?;", cast([]u8) i.session) == 1 { r.result = .Repeated; return; }
-			st := sqlite.prepare(db, "SELECT sealed FROM prekeys WHERE hello_id = ? AND conversation = ?;");
+			st := sqlite.prepare(db, "SELECT sealed FROM prekeys WHERE hello_id = ? AND conversation IN (?, ?);");
 			pre: Prekeys;
-			found := sqlite.bind_all(st, cast([]u8) i.hello_id, conv) && sqlite.step(st) == .Row
+			found := sqlite.bind_all(st, cast([]u8) i.hello_id, conv, key(r.conv.carrier, "")) && sqlite.step(st) == .Row
 				&& unseal(d, ad("prekeys", i.hello_id), sqlite.col_blob(st, 0), *pre);
 			sqlite.finalize(st);
 			defer crypto.zero(*pre);

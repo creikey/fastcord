@@ -373,6 +373,22 @@ conversation :: (dir: string, max: int) {
 	ask(*b, .Hello, peer = *a);
 	check(count(b.d, "SELECT count(*) FROM prekeys;") == 1, "an answered hello's prekeys go after a day");
 
+	// A bundle: B's Hello, kept by the carrier, answered in conversations it was never sent in, while B is away.
+	bundle := ask(*b, .Bundle, id = "");
+	check(bundle.result == .Ok && bundle.packet.count == e2e.HELLO_BYTES, "a bundle is a Hello");
+	carol := Client.{d = e2e.start(tprint("%/c.db", tag)), me = e2e.identity_of(keys.generate("C")), party = "carol"};
+	for who: (*Client).[*a, *carol] {
+		id := tprint("bundled by %", who.party);
+		init := ask(who, .Accept, bundle.packet, peer = *b, id = id);
+		first := ask(who, .Send, peer = *b, id = id, text = "first, via the bundle");
+		check(init.result == .Ok && first.result == .Ok, "a bundle is answered with a message at once");
+		r = receive(*b, init.packet, who, id = id);
+		check(r.result == .Ok && r.content == .Accept, "the bundle's owner opens the init later");
+		r = receive(*b, first.packet, who, id = id);
+		check(r.result == .Ok && r.out_text == "first, via the bundle", "and what followed it");
+	}
+	stop(carol.d);
+
 	// Sessions survive a restart.
 	stop(a.d);
 	a.d = e2e.start(tprint("%/a.db", tag));

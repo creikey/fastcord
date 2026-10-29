@@ -572,6 +572,12 @@ Feature_Op :: enum u8 {
 	Guild_Settings; // server_settings.jai
 	Sticker_Upload;
 	Channel_Order; // guild_admin.jai reorder_channels
+	E2E_Bundle; // e2e_bundle_call
+}
+
+// e2e_bundle_call: a hosted server's prekey bundles, PUT /users/@me/e2e-bundle or GET /users/{id}/e2e-bundle.
+e2e_bundle_call :: (c: *Client, method: string, path: string, body := "", tag: u64 = 0) {
+	f_submit(c, .{op = .E2E_Bundle, tag = tag, method = method, path = path, body = body});
 }
 
 Feature_Result :: struct {

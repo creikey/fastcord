@@ -29,12 +29,20 @@ Encrypted_Channel :: struct {
 	hello_asked: bool; // A hosted DM sent its Hello by itself.
 }
 
+// A hosted server keeps each member's prekey bundle (serve's `e2e_bundle`), a Hello any of their DMs may
+// answer, so a DM starts with a message even while its other member is offline. It's published at each
+// login, again once one was answered (its prekeys go a day later), and every BUNDLE_S at the latest
+// (unanswered prekeys go after a week).
+Bundled :: struct { client: *dc.Client; at: float64; }
+BUNDLE_S :: 3 * 24 * 3600.0;
+
 Encrypted_State :: struct {
 	shown: Table(dc.Snowflake, Shown); // By message ID; a sent message is first keyed by its nonce.
 	channels: Table(dc.Snowflake, Encrypted_Channel);
 	inflight: [..]*e2e.Request;
 	generation: int; // Bumped when a session appears, so messages that were waiting for it retry.
 	outbox_asked: [..]*dc.Client; // Each connection's outbox is sent once it's ready.
+	bundled: [..]Bundled; // Hosted connections that published a prekey bundle, and when.
 	told_set_aside: bool;
 }
 ee: Encrypted_State;
@@ -48,6 +56,16 @@ encrypted_frame :: () {
 	for c: connections() if c.store.ready && !array_find(ee.outbox_asked, c) {
 		array_add(*ee.outbox_asked, c);
 		e2e_submit(e2e.request(.Outbox, .{carrier = carrier_name(c)}));
+	}
+	for ee.bundled if !array_find(connections(), it.client) || platform.time_now() - it.at > BUNDLE_S remove it;
+	if identity_ready() for c: connections() if c.cfg.hosted.host && c.store.ready {
+		published := false;
+		for ee.bundled if it.client == c published = true;
+		if published continue;
+		array_add(*ee.bundled, .{c, platform.time_now()});
+		r := e2e.request(.Bundle, .{carrier = carrier_name(c), me = tprint("%", c.store.me), limit = fc_text.MAX_PACKET});
+		r.me = my_identity();
+		e2e_submit(r);
 	}
 	// Requests finish in submit order, so taking them from the front keeps sends in order.
 	while ee.inflight.count && e2e.is_done(ee.inflight[0]) {
@@ -67,6 +85,7 @@ encrypted_frame :: () {
 				if r.result == .Ok && r.content == .Accept && r.from != r.conv.me {
 					ee.generation += 1;
 					ch.encrypted, ch.has_session, ch.loaded = true, true, false; // Reload for the peer's root.
+					for ee.bundled if carrier_name(it.client) == r.conv.carrier remove it; // maybe ours was answered: publish another
 				}
 				// On a hosted server every DM is encrypted, so a peer's Hello is answered without asking.
 				if r.result == .Hello && !r.accepted && r.from != r.conv.me && begins_with(r.conv.carrier, HOSTED) && identity_ready() {
@@ -89,6 +108,9 @@ encrypted_frame :: () {
 				send_packet(r, .Ok, r.text);
 			case .Search;
 				search_add_decrypted(r); // view_search.jai
+			case .Bundle;
+				c := carrier_client(r.conv.carrier);
+				if c && r.result == .Ok dc.e2e_bundle_call(c, "PUT", "/users/@me/e2e-bundle", tprint("{\"bundle\": \"%\"}", fc_text.encode(xx r.packet,, temp)));
 			case .Outbox;
 				// Packets saved before a crash, never handed to their carrier: their keys are spent, so send them now.
 				c := carrier_client(r.conv.carrier);
@@ -172,7 +194,11 @@ encrypting :: (ch: *dc.Channel) -> bool {
 	if !encrypted_dm(ch) return false;
 	if !on_hosted() return encrypted_channel(ch.id).encrypted;
 	e := encrypted_channel(ch.id);
-	if e.loaded && !e.encrypted && !e.has_session && !e.hello_asked && identity_ready() && e2e_db send_hello(ch.id);
+	if e.loaded && !e.encrypted && !e.has_session && !e.hello_asked && identity_ready() && e2e_db && ch.recipient_ids.count {
+		// The peer's bundle if serve has one (encrypted_bundle_receive), else a Hello for them to answer.
+		find_or_add(*ee.channels, ch.id).hello_asked = true;
+		dc.e2e_bundle_call(app.client, "GET", tprint("/users/%/e2e-bundle", ch.recipient_ids[0]), tag = ch.id);
+	}
 	return true;
 }
 
@@ -199,6 +225,19 @@ encrypted_toggle :: (dm: *dc.Channel) {
 		return;
 	}
 	send_hello(dm.id);
+}
+
+// encrypted_bundle_receive answers the peer's bundle a hosted DM asked for, which starts the session at once,
+// or sends a Hello when they have none.
+encrypted_bundle_receive :: (r: *dc.Feature_Result) {
+	if !r.tag return; // a published one
+	bundle: []u8;
+	ok := false;
+	if r.ok bundle, ok = fc_text.decode(dc.fstr(dc.vmap(r.body), "bundle"));
+	if !ok { send_hello(r.tag); return; }
+	q := e2e.request(.Accept, conversation(r.tag), packet = xx bundle);
+	q.me = my_identity();
+	e2e_submit(q);
 }
 
 // send_hello starts a new session in a DM: the first time, or after this device lost the old one.

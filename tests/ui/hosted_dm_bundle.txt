@@ -1,0 +1,19 @@
+# A hosted DM with a member who published a prekey bundle starts at once, though they're offline: no
+# Hello waits for an answer, and a message goes out encrypted.
+wait 5
+serve_join
+serve_member Bob bundle
+settle 3
+click 36 157
+settle 3
+click 1089 244
+settle 2
+click_text "Message @Bob"
+settle 3
+expect_visible "You accepted encryption."
+type hello there
+key enter
+settle 2
+expect_visible "hello there"
+shot build/ui-hosted_dm_bundle.png
+expect_served

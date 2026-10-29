@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS dms(id INTEGER PRIMARY KEY, a INTEGER NOT NULL, b INT
 CREATE TABLE IF NOT EXISTS dm_messages(id INTEGER PRIMARY KEY, dm INTEGER NOT NULL, author INTEGER NOT NULL, content TEXT NOT NULL, nonce TEXT, flags INTEGER NOT NULL DEFAULT 0);
 CREATE INDEX IF NOT EXISTS dm_messages_dm ON dm_messages(dm, id);
 CREATE TABLE IF NOT EXISTS dm_closed(dm INTEGER NOT NULL, user INTEGER NOT NULL, PRIMARY KEY(dm, user));
+CREATE TABLE IF NOT EXISTS e2e_bundles(user INTEGER PRIMARY KEY, bundle TEXT NOT NULL);
 SQL
 
 MAX_DM_MESSAGES :: 10000;
@@ -266,4 +267,54 @@ dm_route :: (c: *Conn, req: http.Request, user: s64, peer: s64, dm: s64, parts: 
 	send_to(s, .[user, peer], "MESSAGE_CREATE", m);
 	etf.to_json(m, *sb);
 	return respond(c, 200, builder_to_string(*sb,, temp));
+}
+
+// Each member's prekey bundle: an E2E Hello any of their DMs may answer, so a DM can start while they're
+// offline. PUT /api/v9/users/@me/e2e-bundle {bundle} replaces theirs; GET /api/v9/users/{id}/e2e-bundle
+// gives another member's. Serve checks only that it's a Hello of the member's own key: the 32 bytes after
+// the packet's version and kind are their root.
+e2e_bundle :: (c: *Conn, req: http.Request) -> bool {
+	s := c.server;
+	token, _ := http.header_get(req.headers, "authorization");
+	user := session_user(c, token);
+	if !user return json_error(c, 401, 0, "401: Unauthorized");
+	who := slice(req.path, "/api/v9/users/".count, req.path.count - "/api/v9/users/".count - "/e2e-bundle".count);
+	if req.method == "PUT" && who == "@me" {
+		v, err := etf.from_json(cast(string) req.body,, temp);
+		b: etf.Value;
+		if err == .None && v.kind == .Map b, _ = etf.map_get(v.map, "bundle");
+		if b.kind != .String return json_error(c, 400, 50035, "Invalid Form Body");
+		packet, ok := fc_text.decode(b.s);
+		if !ok || packet.count < 34 || packet[1] != HELLO_KIND return json_error(c, 400, 50035, "Invalid Form Body");
+		locks.guard(*s.db_mu);
+		st := sqlite.prepare(s.db, "SELECT root FROM users WHERE id = ?;");
+		sqlite.bind(st, 1, user);
+		mine := sqlite.step(st) == .Row && sqlite.col_blob(st, 0).count == 32 && memcmp(sqlite.col_blob(st, 0).data, packet.data + 2, 32) == 0;
+		sqlite.finalize(st);
+		if !mine return json_error(c, 400, 50035, "Invalid Form Body");
+		if !sqlite.run(s.db, "INSERT OR REPLACE INTO e2e_bundles(user, bundle) VALUES(?, ?);", user, b.s) return json_error(c, 500, 0, "500: Internal Server Error");
+		return respond(c, 204, json = false);
+	}
+	id, ok := string_to_int(who, T = s64);
+	if req.method != "GET" || !ok return json_error(c, 404, 0, "404: Not Found");
+	bundle := "";
+	{
+		locks.guard(*s.db_mu);
+		st := sqlite.prepare(s.db, "SELECT b.bundle FROM e2e_bundles b JOIN users u ON u.id = b.user WHERE b.user = ? AND u.left = 0 AND u.banned = 0;");
+		sqlite.bind(st, 1, id);
+		if sqlite.step(st) == .Row bundle = copy_string(sqlite.col_text(st, 0),, temp);
+		sqlite.finalize(st);
+	}
+	if !bundle return json_error(c, 404, 10013, "Unknown User");
+	m := etf.map_builder(1,, temp);
+	etf.map_put(*m, "bundle", etf.vstring(bundle));
+	return json_reply(c, 200, etf.vmap(etf.map_done(*m)));
+}
+
+HELLO_KIND :: 1; // E2E's packet kind of a Hello (src/e2e/protocol.jai).
+
+// Tests only (the app's serve_member script command): the bundle of the member called name, unchecked.
+bundle_for_test :: (s: *Server, name: string, bundle: string) {
+	locks.guard(*s.db_mu);
+	sqlite.run(s.db, "INSERT OR REPLACE INTO e2e_bundles(user, bundle) SELECT id, ? FROM users WHERE name = ?;", bundle, name);
 }

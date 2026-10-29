@@ -31,12 +31,15 @@ main :: () {
 	if failed exit(1);
 	port := s.listener.port;
 	hosted := discord.Hosted.{host = "127.0.0.1", port = port, pin = s.pin, server_id = serve.id_hex(s,, context.default_allocator)};
-	login :: (code: string, name: string) -> string #expand {
+	login_with :: (code: string, k: keys.Keypair, name: string) -> string #expand {
 		inv, _ := serve.parse_invite(serve.invite_url(`s, "127.0.0.1", `port, code));
-		return serve.member_login(inv, keys.generate(name), name);
+		return serve.member_login(inv, k, name);
 	}
+	login :: (code: string, name: string) -> string #expand { return login_with(code, keys.generate(name), name); }
 	a_token := login(serve.owner_invite(s), "Alice");
-	b_token := login(serve.first_invite(s), "Bob");
+	b_key := keys.generate("Bob");
+	b_root := b_key.root;
+	b_token := login_with(serve.first_invite(s), b_key, "Bob");
 	c_token := login(serve.first_invite(s), "Carol");
 	check(a_token != "" && b_token != "" && c_token != "", "three join");
 
@@ -168,6 +171,24 @@ main :: () {
 	status, body = rest("POST", messages, tprint("{\"content\": \"%\"}", fc_text.encode(cast([]u8) "\x04\x03 again")), a_token);
 	for 1..300 { if array_find(b.store.private_channels, dm) break; pump(b); }
 	check(array_find(b.store.private_channels, dm), "a new message reopens it with CHANNEL_CREATE");
+
+	// Prekey bundles: a Hello of the member's own key only, which other members fetch.
+	status, body = rest("GET", tprint("/api/v9/users/%/e2e-bundle", bob), "", a_token);
+	check(status == 404, tprint("no bundle yet: %", status));
+	bob_key := keys.generate("Bob's other key");
+	fake: [34]u8;
+	fake[0], fake[1] = 4, 1;
+	memcpy(fake.data + 2, bob_key.root.data, 32);
+	status, body = rest("PUT", "/api/v9/users/@me/e2e-bundle", tprint("{\"bundle\": \"%\"}", fc_text.encode(fake)), b_token);
+	check(status == 400, tprint("a Hello of another key is refused: %", status));
+	status, body = rest("PUT", "/api/v9/users/@me/e2e-bundle", "{\"bundle\": \"hello\"}", b_token);
+	check(status == 400, tprint("so is anything but a packet: %", status));
+	memcpy(fake.data + 2, b_root.data, 32);
+	bundle := fc_text.encode(fake);
+	status, body = rest("PUT", "/api/v9/users/@me/e2e-bundle", tprint("{\"bundle\": \"%\"}", bundle), b_token);
+	check(status == 204, tprint("Bob publishes his: %", status));
+	status, body = rest("GET", tprint("/api/v9/users/%/e2e-bundle", bob), "", a_token);
+	check(status == 200 && contains(body, bundle), tprint("Alice fetches it: % %", status, body));
 
 	discord.client_destroy(a);
 	discord.client_destroy(b);
