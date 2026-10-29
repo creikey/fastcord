@@ -691,7 +691,7 @@ handle_span_clicks :: (b: *ui.Box, toks: []Token, message_id: dc.Snowflake = 0, 
 				free(ma.hover_link);
 				ma.hover_link, ma.hover_link_frame = copy_string(ifx tk.url then tk.url else tk.text), app.frame;
 			}
-			if ((tk.styles & .Spoiler) && !spoiler_revealed(toks, cast(int) id)) || tk.kind == .Link || tk.kind == .User_Mention || tk.kind == .Channel_Mention
+			if ((tk.styles & .Spoiler) && !spoiler_revealed(toks, cast(int) id)) || tk.kind == .Link || tk.kind == .User_Mention || tk.kind == .Channel_Mention || (tk.kind == .Command && tk.id)
 				app.ui.span_cursor = .Pointer;
 		}
 	}
@@ -717,6 +717,10 @@ handle_span_clicks :: (b: *ui.Box, toks: []Token, message_id: dc.Snowflake = 0, 
 		case .Channel_Mention;
 			c := dc.channel_get(store(), tk.id);
 			if c select_channel(c.guild_id, c.id);
+		case .Command;
+			// a slash command's chip (</name sub:id>) puts "/name sub " in the composer, for its options
+			ch := dc.channel_get(store(), app.view.channel);
+			if tk.id && ch && !composer_blocked(ch) ui.editor_insert(*chat_state(ch.id).editor, tprint("% ", tk.name));
 		}
 	}
 }

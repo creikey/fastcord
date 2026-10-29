@@ -1,0 +1,11 @@
+# Runs on command_chip.jsonl. Clicking a slash command's chip (</roll:id>) in a message puts "/roll " in
+# the composer, ready for its options.
+wait 5
+settle 1
+move 485 610
+wait 2
+expect_cursor Pointer
+click 485 610
+wait 3
+expect_input "/roll "
+shot build/ui-command_chip.png
