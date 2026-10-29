@@ -29,6 +29,7 @@ Db :: struct {
 	stopping: bool;
 	stopped: s32;
 	error: string; // Set by the database thread before it marks jobs failed; read it after a job's done.
+	set_aside: s32; // The file was sealed to another user or machine and a new one started: old sessions are gone.
 	sql: *sqlite.DB; // This and seal belong to the database thread.
 	seal: crypto.Aead;
 }
@@ -597,6 +598,7 @@ loop :: (d: *Db) {
 		d.error = .{};
 		ok = file_move(d.path, aside) && open(d);
 		free(aside);
+		atomic_store(*d.set_aside, 1);
 	}
 	db := d.sql;
 	if ok prune_prekeys(db);

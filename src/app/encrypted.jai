@@ -35,11 +35,16 @@ Encrypted_State :: struct {
 	inflight: [..]*e2e.Request;
 	generation: int; // Bumped when a session appears, so messages that were waiting for it retry.
 	outbox_asked: [..]*dc.Client; // Each connection's outbox is sent once it's ready.
+	told_set_aside: bool;
 }
 ee: Encrypted_State;
 
 encrypted_frame :: () {
 	if !e2e_db return;
+	if !ee.told_set_aside && atomic_load(*e2e_db.set_aside) {
+		ee.told_set_aside = true;
+		toast_show("This device's encryption keys couldn't be unlocked, so earlier encrypted DMs can't be opened here.", false);
+	}
 	for c: connections() if c.store.ready && !array_find(ee.outbox_asked, c) {
 		array_add(*ee.outbox_asked, c);
 		e2e_submit(e2e.request(.Outbox, .{carrier = carrier_name(c)}));
@@ -86,7 +91,7 @@ encrypted_frame :: () {
 				// Packets saved before a crash, never handed to their carrier: their keys are spent, so send them now.
 				c := carrier_client(r.conv.carrier);
 				for r.outbox if c && it.carrier == r.conv.carrier {
-					dc.send_message(c, dc.parse_snowflake(it.conversation), fc_text.encode(xx it.packet,, temp));
+					dc.send_message(c, dc.parse_snowflake(it.conversation), carrier_text(it.carrier, it.packet));
 					e2e_submit(e2e.request(.Sent, packet = it.packet));
 				}
 		}
@@ -96,8 +101,15 @@ encrypted_frame :: () {
 // encrypted_packet: an `fc-` message in a Discord 1:1 DM, whose raw text must never be shown, copied
 // or edited.
 encrypted_packet :: (channel_id: dc.Snowflake, content: string) -> bool {
-	return begins_with(content, fc_text.PREFIX) && encrypted_dm(dc.channel_get(store(), channel_id));
+	return begins_with(packet_text(content), fc_text.PREFIX) && encrypted_dm(dc.channel_get(store(), channel_id));
 }
+
+// A Hello on Discord starts with HELLO_NOTE, so someone on the official client sees what the code under it
+// is. It goes only with a Hello, which is sent only when someone turns encryption on.
+HELLO_NOTE :: "Encryption request from fastcord, a Discord client (creikey.com/fastcord). Only fastcord can read the code below.\n";
+
+// packet_text is a message's `fc-` text, without a Hello's note.
+packet_text :: (content: string) -> string { return ifx begins_with(content, HELLO_NOTE) then advance(content, HELLO_NOTE.count) else content; }
 
 // e2e_mark: in a 1:1 DM that has used encryption, whether a message was encrypted, so a plain one
 // sent mid-conversation (by Discord, the peer, or while encryption was off) never reads as private.
@@ -125,7 +137,7 @@ encrypted_open :: (id: dc.Snowflake, channel_id: dc.Snowflake, packet: string, a
 	retry := sh && sh.result == .No_Session && sh.generation != ee.generation && !sh.pending;
 	if (!sh || retry) && e2e_db && identity_ready() {
 		sh = find_or_add(*ee.shown, id);
-		bytes, ok := fc_text.decode(packet);
+		bytes, ok := fc_text.decode(packet_text(packet));
 		if !ok { free(sh.text); sh.* = .{result = .Undecryptable}; return sh; }
 		sh.pending = true;
 		r := e2e.request(.Receive, conversation(channel_id), packet = xx bytes);
@@ -158,12 +170,7 @@ encrypting :: (ch: *dc.Channel) -> bool {
 	if !encrypted_dm(ch) return false;
 	if !on_hosted() return encrypted_channel(ch.id).encrypted;
 	e := encrypted_channel(ch.id);
-	if e.loaded && !e.encrypted && !e.has_session && !e.hello_asked && identity_ready() && e2e_db {
-		find_or_add(*ee.channels, ch.id).hello_asked = true;
-		r := e2e.request(.Hello, conversation(ch.id));
-		r.me = my_identity();
-		e2e_submit(r);
-	}
+	if e.loaded && !e.encrypted && !e.has_session && !e.hello_asked && identity_ready() && e2e_db send_hello(ch.id);
 	return true;
 }
 
@@ -189,7 +196,13 @@ encrypted_toggle :: (dm: *dc.Channel) {
 		e2e_submit(r);
 		return;
 	}
-	r := e2e.request(.Hello, conversation(dm.id));
+	send_hello(dm.id);
+}
+
+// send_hello starts a new session in a DM: the first time, or after this device lost the old one.
+send_hello :: (dm_id: dc.Snowflake) {
+	find_or_add(*ee.channels, dm_id).hello_asked = true;
+	r := e2e.request(.Hello, conversation(dm_id));
 	r.me = my_identity();
 	e2e_submit(r);
 }
@@ -215,7 +228,7 @@ encrypted_send :: (dm: *dc.Channel, text: string, has_attachments: bool, silent:
 // encrypted_body draws an `fc-` message in a 1:1 DM, or returns its plaintext for message_body to draw.
 // false leaves the raw text to message_body.
 encrypted_body :: (m: *dc.Message) -> handled: bool, plaintext: string {
-	if !begins_with(m.content, fc_text.PREFIX) return false, "";
+	if !begins_with(packet_text(m.content), fc_text.PREFIX) return false, "";
 	if !encrypted_dm(dc.channel_get(store(), m.channel_id)) return false, "";
 	sh := ifx m.pending then table_find_pointer(*ee.shown, m.id) else encrypted_open(m.id, m.channel_id, m.content, m.author_id);
 	muted :: (text: string) { label(text, .Normal, MSG_FONT, T("--text-muted"), MSG_LINE_H); }
@@ -225,6 +238,20 @@ encrypted_body :: (m: *dc.Message) -> handled: bool, plaintext: string {
 	if sh.result == .Ok && sh.content == .Text return true, sh.text;
 	if sh.result == .Ok { muted(tprint("% accepted encryption.", name)); return true, ""; }
 	if sh.result == .Repeated { muted("Repeated encrypted message"); return true, ""; }
+	if sh.result == .No_Session && !mine {
+		// Its session isn't here: a new device, a reinstall, or a lost fastcord.db. A new Hello makes a new
+		// one, which both sides then use; or the message's Init may just not have loaded yet.
+		r := row("lost");
+		r.semantic_size = .[ui.pct(1), ui.children()];
+		r.cross_align = .Center;
+		ui.parent(r); defer ui.pop_parent();
+		muted("This device can't open this message.");
+		if !encrypted_channel(m.channel_id).hello_asked && !on_hosted() {
+			spacer(.X, 12);
+			if adm_button("rekey", "Send New Key", .Secondary) && identity_ready() && net_action() send_hello(m.channel_id);
+		}
+		return true, "";
+	}
 	if sh.result != .Hello { muted("Encrypted message"); return true, ""; }
 	if mine || sh.accepted { muted(tprint("% turned on encryption.", name)); return true, ""; }
 	r := row("hello");
@@ -240,7 +267,7 @@ encrypted_body :: (m: *dc.Message) -> handled: bool, plaintext: string {
 	}
 	spacer(.X, 12);
 	if adm_button("accept", "Accept", .Primary) && identity_ready() && net_action() {
-		hello, ok := fc_text.decode(m.content);
+		hello, ok := fc_text.decode(packet_text(m.content));
 		if ok {
 			sh.accepted = true;
 			q := e2e.request(.Accept, conversation(m.channel_id, m.author_id), packet = xx hello);
@@ -346,6 +373,13 @@ HOSTED :: "fc:";
 
 carrier_name :: (c: *dc.Client) -> string { return ifx c && c.cfg.hosted.host then tprint("%1%2", HOSTED, c.cfg.hosted.server_id) else DISCORD; }
 
+// carrier_text is a packet as a message: `fc-` text, with the note before a Hello on Discord.
+carrier_text :: (carrier: string, packet: string) -> string {
+	text := fc_text.encode(xx packet,, temp);
+	hello := packet.count >= 2 && packet[1] == xx e2e.Kind.Hello;
+	return ifx hello && carrier == DISCORD then tprint("%1%2", HELLO_NOTE, text) else text;
+}
+
 carrier_client :: (name: string) -> *dc.Client {
 	for connections() if carrier_name(it) == name return it;
 	return null;
@@ -374,7 +408,7 @@ send_packet :: (r: *e2e.Request, result: e2e.Result, text: string, content := e2
 	c := carrier_client(r.conv.carrier);
 	if !c return; // The outbox sends it on the next start.
 	// The carrier's own flag too, so its push stays quiet; it says nothing about the content.
-	nonce := dc.send_message(c, dc.parse_snowflake(r.conv.id), fc_text.encode(xx r.packet,, temp), .{flags = ifx r.silent then SUPPRESS_NOTIFICATIONS else 0});
+	nonce := dc.send_message(c, dc.parse_snowflake(r.conv.id), carrier_text(r.conv.carrier, r.packet), .{flags = ifx r.silent then SUPPRESS_NOTIFICATIONS else 0});
 	sh := find_or_add(*ee.shown, nonce);
 	free(sh.text);
 	sh.* = .{result = result, content = content, text = copy_string(text), silent = r.silent};

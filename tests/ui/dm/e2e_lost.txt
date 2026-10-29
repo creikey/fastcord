@@ -1,0 +1,9 @@
+# E2E: a message whose session this device doesn't have (a new machine, a lost fastcord.db) says so, with
+# Send New Key to start a new session instead of staying "Encrypted message" for good.
+open 1800000000000000001
+wait 20
+incoming fc-BAMAAQIDBAUGBwgJCgsMDQ4PAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHgAAAAAAAAAAAAAAAAAAAAA
+settle 2
+expect_visible "This device can't open this message."
+expect_visible "Send New Key"
+shot build/ui-dm_e2e_lost.png
