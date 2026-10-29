@@ -211,8 +211,17 @@ main :: () {
 		check(newer != "" && status == 200, tprint("the newly named key joins with no invite and owns the server: %", status));
 		status, body = rest("GET", HOST, "", named);
 		check(status == 403, tprint("and the old owner is a member: %", status));
+		// Delete Server: the typed name must match; the file goes to the trash and whoever runs it stops.
+		status, body = rest("POST", tprint("%/delete", HOST), "{\"name\": \"wrong\"}", newer);
+		check(status == 400 && !s.host.deleted, tprint("Delete Server needs the server's name: %", status));
+		status, body = rest("POST", tprint("%/delete", HOST), "{\"name\": \"owned\"}", newer);
+		check(status == 204 && s.host.deleted, tprint("Delete Server: % %", status, body));
+		trash := file_list(serve.trash_dir(tprint("%/owned.db", DIR)));
+		check(trash.count == 1 && contains(trash[0], "owned-"), tprint("the deleted server is in the trash: %", trash));
 	}
 	serve.stop(s);
+	serve.finish_delete(tprint("%/owned.db", DIR));
+	check(!file_exists(tprint("%/owned.db", DIR)), "its file is gone once it stops");
 	if failed { print("serve_host: % failed\n", failed); exit(1); }
 	print("serve_host: ok\n");
 }

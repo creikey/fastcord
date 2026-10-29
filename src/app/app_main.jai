@@ -248,7 +248,12 @@ main :: () {
 		note("Voice uses UDP on the same port number, so forward both TCP and UDP %.", s.listener.port);
 		note("Webhooks take posts from curl and other tools pinned to this server: curl -k --pinnedpubkey % ...", serve.webhook_pin(s));
 		if !opt.service say("Press Ctrl-C or close this console to stop the server.\n");
-		while true sleep_milliseconds(1000 * 60 * 60);
+		while !s.host.deleted sleep_milliseconds(1000);
+		// The owner deleted it from Server Settings: a copy is in the trash; the file and any service go.
+		serve.stop(s);
+		serve.finish_delete(opt.serve);
+		if !opt.service say("The owner deleted the server. Its file is in % for 30 days.\n", serve.trash_dir(opt.serve));
+		exit(0);
 	}
 	headless := opt.shot != "" || bench.on;
 	#if OS == .WINDOWS if opt.uninstall { platform.uninstall(app_data_dir(""), !platform.instance_claim(app_state_dir(), "")); return; }

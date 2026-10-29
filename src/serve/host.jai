@@ -64,6 +64,22 @@ Host :: struct {
 	maint_wake: locks.Cond;
 	maint_stop: bool;
 	maint_thread: *Thread;
+	deleted: bool; // Atomic: the owner deleted the server; its file is in the trash, and whoever runs it stops.
+}
+
+TRASH_DAYS :: 30;
+
+// trash_dir: deleted servers' files, beside the server's, kept TRASH_DAYS.
+trash_dir :: (file: string) -> string { return tprint("%fastcord-trash", path_strip_filename(file)); }
+
+// finish_delete is what runs the server does once the owner deleted it (host.deleted): the server stopped,
+// its file and journal go (a copy is in the trash), and so does its service, so nothing makes a new empty
+// server at the same path.
+finish_delete :: (file: string) {
+	path := copy_string(file,, temp);
+	for string.["", "-wal", "-shm"] file_delete(tprint("%1%2", path, it));
+	file_log(path, "Deleted by its owner; its file is in % for % days", trash_dir(path), TRASH_DAYS);
+	install_service(path, 0, uninstall = true);
 }
 
 LOG_MAX :: 1 << 20; // Past this, the log moves to <file>.log.1 and starts again.
@@ -551,6 +567,7 @@ maintain :: (s: *Server) {
 		if current_time_monotonic() >= next_cleanup {
 			cleanup(s);
 			vacuum_if_worth_it(s);
+			empty_trash(s.host.path);
 			next_cleanup = current_time_monotonic() + seconds_to_apollo(3600);
 		}
 		locks.lock(*s.host.maint_mu);
@@ -671,6 +688,7 @@ host_route :: (c: *Conn, req: http.Request) -> bool {
 		return respond(c, 204, json = false);
 	}
 	if path == "/log" && req.method == "GET" return host_log_tail(c);
+	if path == "/delete" && req.method == "POST" return host_delete(c, req);
 	return json_error(c, 404, 0, "404: Not Found");
 }
 
@@ -762,6 +780,7 @@ host_settings :: (c: *Conn, req: http.Request) -> bool {
 		}
 		if !ok || !sqlite.exec(s.db, "COMMIT;") { sqlite.exec(s.db, "ROLLBACK;"); return json_error(c, 500, 0, "500: Internal Server Error"); }
 		etf.map_put(*g, "fc_address", etf.vstring(invite_authority_locked(s)));
+		host_log(s, "The owner changed the host settings: %", cast(string) req.body);
 	}
 	broadcast(s, "GUILD_UPDATE", etf.vmap(etf.map_done(*g))); // every member's Invite button follows the address
 	return respond(c, 204, json = false);
@@ -894,6 +913,44 @@ address_text :: (p: [16]u8) -> string {
 	b.allocator = temp;
 	for i: 0..7 print_to_builder(*b, "%1%2", ifx i then ":" else "", formatInt((cast(int) p[2 * i] << 8) | p[2 * i + 1], base = 16));
 	return builder_to_string(*b,, temp);
+}
+
+// POST /delete {name}: Delete Server, with the server's name typed as on Discord. The file is copied to the
+// trash (VACUUM INTO), every member is told the guild is gone, and host.deleted tells whoever runs the server to
+// stop it and remove the file (finish_delete).
+host_delete :: (c: *Conn, req: http.Request) -> bool {
+	s := c.server;
+	v, err := etf.from_json(cast(string) req.body,, temp);
+	name: etf.Value;
+	if err == .None && v.kind == .Map name = etf.map_get(v.map, "name");
+	{
+		locks.guard(*s.db_mu);
+		if name.kind != .String || name.s != s.name return json_error(c, 400, 50035, "Invalid Form Body");
+		dir := trash_dir(s.host.path);
+		t := to_calendar(current_time_consensus(), .UTC);
+		to := tprint("%/%-%3%4%5-%6%7%8.db", dir, path_strip_extension(path_filename(s.host.path)), t.year, pad2(t.month_starting_at_0 + 1),
+			pad2(t.day_of_month_starting_at_0 + 1), pad2(t.hour), pad2(t.minute), pad2(t.second));
+		if !make_directory_if_it_does_not_exist(dir, recursive = true) || file_exists(to) || !sqlite.run(s.db, "VACUUM INTO ?;", to) {
+			return host_error(c, 500, tprint("Couldn't move the server to the trash: %", sqlite.errmsg(s.db)));
+		}
+		owner_only(to);
+		host_log(s, "The owner deleted the server; its file is in % for % days", to, TRASH_DAYS);
+	}
+	g := etf.map_builder(1,, temp);
+	etf.map_put(*g, "id", snow(s.guild));
+	broadcast(s, "GUILD_DELETE", etf.vmap(etf.map_done(*g)));
+	atomic_store(*s.host.deleted, true);
+	return respond(c, 204, json = false);
+}
+
+// empty_trash drops deleted servers older than TRASH_DAYS from the trash beside file.
+empty_trash :: (file: string) {
+	dir := trash_dir(file);
+	if !file_exists(dir) return;
+	for file_list(dir,, temp) {
+		t, _, ok := file_modtime_and_size(it);
+		if ok && ends_with(it, ".db") && to_seconds(current_time_consensus() - t) > TRASH_DAYS * 86400 file_delete(it);
+	}
 }
 
 LOG_TAIL :: 16 << 10;

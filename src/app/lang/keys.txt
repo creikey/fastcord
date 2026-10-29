@@ -652,6 +652,7 @@ Default Themes
 Default notifications become Only @mentions.
 Delete
 Delete % File##fdel|Delete % Files##fdel
+Delete %? It stops for everyone, and its file goes to a trash folder on the machine that runs it, kept for 30 days.
 Delete '%'
 Delete Account
 Delete Account##delete
@@ -668,6 +669,7 @@ Delete Role
 Delete Role##delrole
 Delete Rule
 Delete Server
+Delete Server##hdelete
 Delete Sticker
 Delete Template
 Delete Template##deltpl

@@ -8,8 +8,9 @@
 // install_service registers (or with uninstall, removes) the service for the server file; the message says
 // what happened or why not.
 install_service :: (file: string, port: int, uninstall: bool) -> bool, string {
-	path, got := get_absolute_path(file);
-	if !got return false, tprint("can't find %", file);
+	// The file is gone by the time a deleted server's service is removed, so this can't ask the file system.
+	absolute := begins_with(file, "/") || begins_with(file, "\\") || (file.count > 2 && file[1] == #char ":");
+	path := ifx absolute then file else tprint("%/%", get_working_directory(), file);
 	exe := get_path_of_running_executable();
 	name := service_name(path);
 	#if OS == .MACOS {
@@ -17,6 +18,7 @@ install_service :: (file: string, port: int, uninstall: bool) -> bool, string {
 		home := to_string(getenv("HOME"));
 		plist := tprint("%/Library/LaunchAgents/%.plist", home, label);
 		domain := tprint("gui/%", getuid());
+		if uninstall && !file_exists(plist) return false, tprint("% isn't installed", label);
 		run_command("launchctl", "bootout", tprint("%/%", domain, label));
 		if uninstall {
 			file_delete(plist);
@@ -33,6 +35,7 @@ install_service :: (file: string, port: int, uninstall: bool) -> bool, string {
 		if !config config = tprint("%/.config", to_string(getenv("HOME")));
 		dir := tprint("%/systemd/user", config);
 		if uninstall {
+			if !file_exists(tprint("%/%", dir, unit)) return false, tprint("% isn't installed", unit);
 			run_command("systemctl", "--user", "disable", "--now", unit);
 			file_delete(tprint("%/%", dir, unit));
 			run_command("systemctl", "--user", "daemon-reload");
@@ -48,6 +51,7 @@ install_service :: (file: string, port: int, uninstall: bool) -> bool, string {
 	} else #if OS == .WINDOWS {
 		task := tprint("Fastcord %", name);
 		if uninstall {
+			if run_command("schtasks", "/Query", "/TN", task, capture_and_return_output = true).exit_code != 0 return false, tprint("the task % isn't installed", task);
 			run_command("schtasks", "/End", "/TN", task);
 			if run_command("schtasks", "/Delete", "/TN", task, "/F").exit_code != 0 return false, tprint("schtasks couldn't remove the task %", task);
 			return true, tprint("Removed the task %. The server file and its backups stay.", task);

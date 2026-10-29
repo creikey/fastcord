@@ -1955,7 +1955,7 @@ ss_confirm_modal :: (g: *dc.Guild) {
 	case .Delete_Emoji; title, body, button = L("Delete Emoji"), tprint(L("Are you sure you want to delete :%:? This cannot be undone."), t), L("Delete");
 	case .Timeout; title, body, button = tprint(L("Timeout %"), t), L("Members in timeout can't send messages, react, join voice or speak until it ends."), L("Timeout");
 	case .Transfer; title, body, button = L("Transfer Ownership"), ifx on_hosted() then tprint(L("% becomes the owner once they accept on their device. You'll stay a member."), t) else tprint(L("This will transfer ownership of %1 to %2. This cannot be undone!"), g.name, t), L("Transfer Ownership");
-	case .Delete_Server; title, body, button = tprint(L("Delete '%'"), g.name), tprint(L("Are you sure you want to delete %? This action cannot be undone."), g.name), L("Delete Server");
+	case .Delete_Server; title, body, button = tprint(L("Delete '%'"), g.name), ifx on_hosted() then tprint(L("Delete %? It stops for everyone, and its file goes to a trash folder on the machine that runs it, kept for 30 days."), g.name) else tprint(L("Are you sure you want to delete %? This action cannot be undone."), g.name), L("Delete Server");
 	case .Pause_Invites; title, body, button = L("Pause Invites"), L("Nobody can join this server with an invite link until the pause ends or you enable invites again."), L("Pause Invites");
 	case .Delete_Role; title, body, button = tprint(L("Delete '%'"), t), L("Are you sure you want to delete this role? This action cannot be undone."), L("Delete");
 	case .Delete_Rule; title, body, button = L("Delete Rule"), tprint(L("Are you sure you want to delete the rule %? This cannot be undone."), t), L("Delete");
@@ -2043,7 +2043,9 @@ ss_confirm_modal :: (g: *dc.Guild) {
 		until := dc.ms_to_iso(wall_ms() + TIMEOUTS[ss.confirm_pick].secs * 1000);
 		ss_action(g, .Members, "PATCH", tprint("/guilds/%/members/%", g.id, id), tprint("{\"communication_disabled_until\":\"%\"}", until), reason);
 	case .Transfer; ss_action(g, .COUNT, "PATCH", tprint("/guilds/%", g.id), tprint("{\"owner_id\":\"%\",\"code\":null}", id));
-	case .Delete_Server; ss_action(g, .COUNT, "POST", tprint("/guilds/%/delete", g.id));
+	case .Delete_Server;
+		if on_hosted() ss_action(g, .COUNT, "POST", "/fc/host/delete", tprint("{\"name\":%}", dc.json_quote(g.name)));
+		else ss_action(g, .COUNT, "POST", tprint("/guilds/%/delete", g.id));
 	case .Delete_Role; ss_action(g, .Role_Counts, "DELETE", tprint("/guilds/%/roles/%", g.id, id));
 	case .Delete_Rule; ss_action(g, .Automod, "DELETE", tprint("/guilds/%/auto-moderation/rules/%", g.id, id));
 	case .Delete_Webhook; ss.hook_id = 0; ss_action(g, .Webhooks, "DELETE", tprint("/webhooks/%", id));
@@ -5040,29 +5042,33 @@ host_page :: (g: *dc.Guild, s: Server_Section) -> bool {
 			if set_button(L("Refresh##lrefresh"), .Secondary) { ss.loading[Req.Host_Log] = false; load(g, .Host_Log, "/fc/host/log"); }
 		}
 		spacer(.Y, 8);
-		if !loading_or(.Host_Log, L("Couldn't load the log.")) return false;
-		text := dc.fstr(dc.vmap(reply(.Host_Log).body), "log");
-		// the last lines, newest last
-		lines := split(text, "\n",, temp);
-		first := max(0, lines.count - 40);
-		box := ui.box("log", .Draw_Background);
-		box.semantic_size = .[ui.pct(1), ui.children()];
-		box.layout_axis = .Y;
-		box.style.bg = T("--background-base-lowest");
-		box.style.radius = all4(8);
-		ui.parent(box); defer ui.pop_parent();
-		spacer(.Y, 8);
-		for i: first..lines.count - 1 if lines[i] {
-			ui.id_scope(xx i);
-			defer ui.pop_seed();
-			r := row("l");
-			r.semantic_size = .[ui.pct(1), ui.children()];
-			ui.parent(r); defer ui.pop_parent();
-			spacer(.X, 12);
-			set_para("t", lines[i], .Mono, 12, 16, T("--text-default"));
-			spacer(.X, 12);
-		}
-		spacer(.Y, 8);
+		if loading_or(.Host_Log, L("Couldn't load the log.")) host_log_lines();
+		spacer(.Y, 32);
+		if set_button(L("Delete Server##hdelete"), .Danger, !ss.busy) ss_confirm_open(.Delete_Server, 0, "");
 	}
 	return submit;
+}
+
+// The log's last lines, newest last, in a dark box.
+host_log_lines :: () {
+	lines := split(dc.fstr(dc.vmap(reply(.Host_Log).body), "log"), "\n",, temp);
+	first := max(0, lines.count - 40);
+	box := ui.box("log", .Draw_Background);
+	box.semantic_size = .[ui.pct(1), ui.children()];
+	box.layout_axis = .Y;
+	box.style.bg = T("--background-base-lowest");
+	box.style.radius = all4(8);
+	ui.parent(box); defer ui.pop_parent();
+	spacer(.Y, 8);
+	for i: first..lines.count - 1 if lines[i] {
+		ui.id_scope(xx i);
+		defer ui.pop_seed();
+		r := row("l");
+		r.semantic_size = .[ui.pct(1), ui.children()];
+		ui.parent(r); defer ui.pop_parent();
+		spacer(.X, 12);
+		set_para("t", lines[i], .Mono, 12, 16, T("--text-default"));
+		spacer(.X, 12);
+	}
+	spacer(.Y, 8);
 }
