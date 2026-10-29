@@ -56,6 +56,9 @@ Persisted :: struct {
 	tray_close_off: bool; // System > Minimize to Tray, off
 	install_declined: bool; // Not Now on the Windows install bar (update.jai)
 	zoom: int = 100; // Accessibility > Zoom level, percent (ZOOM_SCALES)
+	reduce_motion: bool; // Accessibility > Reduced Motion
+	role_colors: int; // Accessibility > role colours: 0 in names, 1 next to names, 2 hidden
+	group_spacing: int = 16; // Accessibility > Space between message groups, px
 	notify: Persisted_Notify;
 	voice: Persisted_Voice;
 	sounds: Persisted_Sounds;
@@ -159,7 +162,8 @@ device_by_uid :: (input: bool, uid: string) -> u32 {
 
 // settings_frame: theme sync + save when something changed (checked twice a second).
 settings_frame :: () {
-	app.ui.instant_scroll = smooth_scroll_off || system_reduce_motion;
+	app.ui.instant_scroll = smooth_scroll_off || system_reduce_motion || a11y.reduce_motion;
+	app.ui.reduce_motion = system_reduce_motion || a11y.reduce_motion;
 	if platform.is_headless() return;
 	theme_sync();
 	now := platform.time_now();
@@ -303,6 +307,8 @@ apply_persisted :: (p: *Persisted) {
 	platform.set_close_to_tray(!tray_close_off);
 	install_declined = p.install_declined;
 	zoom_set(p.zoom);
+	a11y.reduce_motion, a11y.role_colors = p.reduce_motion, clamp(p.role_colors, 0, 2);
+	a11y.group_spacing = ifx array_find(GROUP_SPACINGS, p.group_spacing) then p.group_spacing else 16;
 	notify_prefs = p.notify;
 	voice_settings_restore(*p.voice);
 	keybinds_restore(p.keybinds, p.voice.ptt_key);
@@ -344,6 +350,7 @@ snapshot :: () -> string {
 	p.start_minimized, p.tray_close_off = start_minimized, tray_close_off;
 	p.install_declined = install_declined;
 	p.zoom = zoom_pct;
+	p.reduce_motion, p.role_colors, p.group_spacing = a11y.reduce_motion, a11y.role_colors, a11y.group_spacing;
 	p.notify = notify_prefs;
 	voice_settings_snapshot(*p.voice);
 	sounds_snapshot(*p.sounds);

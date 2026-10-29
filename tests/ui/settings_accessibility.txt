@@ -1,0 +1,21 @@
+# Settings > Accessibility: space between message groups (24px spreads the chat), role colours next
+# to names, and Reduced Motion.
+wait 5
+click 338 683
+wait 20
+click_text "Accessibility"
+wait 10
+click_text "16px"
+wait 5
+click_text "24px"
+wait 5
+click_text "Show role colors in names"
+wait 5
+click_text "Show role colors next to names"
+wait 5
+click_text "Enable Reduced Motion"
+wait 5
+shot build/ui-settings_accessibility_page.png
+key escape
+wait 10
+expect_visible "Robin"

@@ -298,7 +298,8 @@
   - Done: Messaging Permissions (the old Privacy & Safety): Content Filters, the spam filter, DMs and message requests from server members, Friend Request Permissions (`tests/ui/settings_messaging.txt`).
 - [ ] Settings: the nav's search matches only page names (`settings_nav_match`); the client's search also finds the settings inside pages ("24-hour" → Language & Time, "Developer Mode" → Developer, "spam" → Messaging Permissions), using each setting's search terms.
 - [ ] Mentions: the "@" autocomplete lacks `@game` / `@time`, fuzzy matches and pills in the composer (`traffic/CLIENT_RULES.md` "Composer mentions").
-- [ ] Appearance: no compact mode, chat font scaling, message spacing, or accessibility options (reduced motion, saturation, role colours).
+- [ ] Appearance: no compact message display (synced: `text_and_images.message_display_compact`), chat font scaling (chat text alone, apart from Zoom) or saturation.
+  - Done: Accessibility has Space between message groups (0-24 px), role colours (in names, a dot next to names, or none) and Reduced Motion (animations jump; always on when the OS asks), kept in `settings.json` (`tests/ui/settings_accessibility.txt`).
 - [ ] GIFs: chat GIFs (GIFV embeds and GIF attachments) have no favourite star; only the picker's tiles do.
 - [ ] Localisation: translate the whole UI into every language the official client offers (its Language settings list, about 30), with Discord's own strings from the bundle so wording matches, and follow the account's `locale` setting.
 - [ ] Locale: dates ignore the language. Every date is US month/day/year ("10/24/2026", `view_chat.jai` `format_time_ms`, `format_unix`, status expiry, mutes, events), where the client formats by locale (en-GB "24/10/2026", de "24.10.2026"), so a UK or European user reads 10/11 the wrong way round.

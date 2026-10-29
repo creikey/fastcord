@@ -1,7 +1,8 @@
 // Cozy message layout, measured from the official client.
 MSG_GUTTER :: 72; // content x offset
 MSG_AVATAR :: 40;
-MSG_GROUP_GAP :: 17; // space above the first message of a group
+MSG_GROUP_GAP :: 17; // space above the first message of a group (by default: group_gap())
+group_gap :: () -> float32 { return cast(float32) a11y.group_spacing + 1; } // Accessibility > Space between message groups
 MSG_LINE_H :: 22;
 MSG_FONT :: 16;
 MSG_SCROLL_GUTTER :: 16;
@@ -169,8 +170,10 @@ author_color :: (m: *dc.Message) -> ui.Color {
 	return T("--text-strong");
 }
 
-// Highest-position colored role.
-member_color :: (guild_id: dc.Snowflake, user_id: dc.Snowflake) -> ui.Color, bool {
+// Highest-position colored role, unless Accessibility shows role colours next to names or not at all
+// (raw: the colour regardless).
+member_color :: (guild_id: dc.Snowflake, user_id: dc.Snowflake, raw := false) -> ui.Color, bool {
+	if a11y.role_colors != 0 && !raw return .{}, false;
 	s := store();
 	mem := dc.member_get(s, guild_id, user_id);
 	g := dc.guild_get(s, guild_id);
@@ -1305,7 +1308,7 @@ hidden_row :: (msgs: []dc.Message, i: int, kind: string, new_day: bool, show_new
 	r0.layout_axis = .Y;
 	ui.parent(r0); defer ui.pop_parent();
 	if new_day || show_new divider_row(msgs[i].id, new_day, show_new);
-	else spacer(.Y, MSG_GROUP_GAP - 2);
+	else spacer(.Y, group_gap() - 2);
 	r := row("hidden");
 	r.semantic_size = .[ui.pct(1), ui.px(22)];
 	ui.parent(r); defer ui.pop_parent();
@@ -1456,7 +1459,7 @@ message_row :: (m: *dc.Message, grouped: bool, new_day: bool, show_new: bool) ->
 		if new_day || show_new {
 			divider_row(m.id, new_day, show_new);
 		} else if !grouped {
-			spacer(.Y, MSG_GROUP_GAP - 2);
+			spacer(.Y, group_gap() - 2);
 		}
 		// the list item proper: hover/highlight cover it, not the group gap above (a margin in the client)
 		li := ui.box("li", .Draw_Background);
@@ -1755,6 +1758,17 @@ message_header :: (m: *dc.Message) {
 		nsig := ui.signal(n);
 		if nsig.clicked open_profile(m.author_id, n.rect, .Message_Author, m.id, m.webhook_name);
 		if nsig.right_clicked && !m.webhook_name open_user_menu(m.author_id, app.ui.mouse);
+		if a11y.role_colors == 1 { // the role's colour as a dot after the name
+			ch := dc.channel_get(store(), m.channel_id);
+			rc, ok := member_color(ifx ch then ch.guild_id else 0, m.author_id, raw = true);
+			if ok {
+				spacer(.X, 4);
+				d := ui.box("roledot", .Draw_Background);
+				d.semantic_size = .[ui.px(8), ui.px(8)];
+				d.style.radius = all4(4);
+				d.style.bg = rc;
+			}
+		}
 		u := dc.user_get(store(), m.author_id);
 		if !m.webhook_name server_tag(u);
 		if u && u.bot app_tag();

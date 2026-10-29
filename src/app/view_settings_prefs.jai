@@ -162,7 +162,15 @@ notifications_page :: () {
 	}
 }
 
-// The client's Accessibility panel, Visual Density category: only Zoom level so far.
+// Accessibility's device settings beyond zoom (settings.json).
+a11y: struct {
+	reduce_motion: bool;
+	role_colors: int; // 0 in names, 1 next to names, 2 hidden
+	group_spacing := 16;
+};
+GROUP_SPACINGS :: int.[0, 4, 8, 16, 24];
+
+// The client's Accessibility panel: Zoom level, message group spacing, role colours, Reduced Motion.
 accessibility_page :: () {
 	if set_page_begin("a11ypage") {
 		set_heading("Visual Density");
@@ -186,6 +194,24 @@ accessibility_page :: () {
 				m.flags |= .Floating_X;
 				m.fixed_pos.x = w * (it - ZOOM_SCALES[0]) / (ZOOM_SCALES[ZOOM_SCALES.count - 1] - ZOOM_SCALES[0]) - 8;
 			}
+		}
+		spacer(.Y, 32);
+		label("Space between message groups", .Medium, 16, T("--text-strong"), 20);
+		spacer(.Y, 8);
+		SPACING_NAMES :: string.["0px", "4px", "8px", "16px", "24px"];
+		cur := 3;
+		for GROUP_SPACINGS if it == a11y.group_spacing cur = it_index;
+		pick := select_field("groupspacing", SPACING_NAMES, cur);
+		if pick >= 0 a11y.group_spacing = GROUP_SPACINGS[pick];
+		spacer(.Y, 40);
+		set_heading("Role Colors");
+		ROLE_NAMES :: string.["Show role colors in names", "Show role colors next to names", "Don't show role colors"];
+		rpick := select_field("rolecolors", ROLE_NAMES, a11y.role_colors);
+		if rpick >= 0 a11y.role_colors = rpick;
+		spacer(.Y, 40);
+		set_heading("Motion");
+		if set_toggle_row("reducemotion", "Enable Reduced Motion", "Reduces the amount of animation and motion effects. On whenever your device asks for reduced motion.", a11y.reduce_motion || system_reduce_motion, system_reduce_motion) {
+			a11y.reduce_motion = !a11y.reduce_motion;
 		}
 		set_page_end();
 	}

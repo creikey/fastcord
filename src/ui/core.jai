@@ -339,6 +339,7 @@ State :: struct {
 	span_cursor: Cursor; // a link or mention under the mouse in selectable text: wins over the I-beam unless dragging
 	animating: bool;
 	instant_scroll: bool; // scroll boxes jump to their target instead of easing
+	reduce_motion: bool; // animate() jumps to its target (Accessibility > Reduced Motion)
 	overlay_under_mouse: bool; // last frame's overlay (popout, modal, menu) covers the mouse
 	animating_loc: Source_Code_Location; // last animate() still in motion (debugging idle wakeups)
 	scroll_consumed: bool;
@@ -712,7 +713,7 @@ set_focus :: (b: *Box) { context.ui.focus = b.key; }
 // Frame-rate independent exponential approach. rate is ~1/seconds to settle.
 animate :: (v: *float32, target: float32, rate: float32 = 18, loc := #caller_location) {
 	s := context.ui;
-	if abs(v.* - target) < 0.001 {
+	if abs(v.* - target) < 0.001 || s.reduce_motion {
 		v.* = target;
 		return;
 	}
