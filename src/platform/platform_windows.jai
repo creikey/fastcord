@@ -77,16 +77,43 @@ open_file_dialog :: (allow_multiple := true, allocator := context.allocator) -> 
     return out;
 }
 
-// Toast notifications and the taskbar overlay badge are not implemented yet (they need an AppUserModelID and
-// WinRT's ToastNotificationManager). The app still plays the notification sound.
-notify_show :: (title: string, body: string, id: string) -> bool { return false; }
+// A notification through the tray icon's balloon, which Windows 10 and 11 show as a toast (Action Center,
+// Focus Assist) with no AppUserModelID or Start menu shortcut. Clicking it opens the window. Each one replaces
+// the last, so `id` is unused. The app plays the notification sound itself.
+notify_show :: (title: string, body: string, id: string) -> bool {
+    if s.headless || !w.tray return false;
+    nid := NOTIFYICONDATAW.{cbSize = size_of(NOTIFYICONDATAW), hWnd = w.hwnd, uID = 1, uFlags = NIF_INFO};
+    nid.dwInfoFlags = NIIF_USER | NIIF_LARGE_ICON | NIIF_NOSOUND;
+    nid.hBalloonIcon = w.big_icon;
+    copy_wide :: (dst: []u16, str: string) {
+        src := wide(ifx str then str else " "); // an empty szInfo removes the balloon
+        n := 0;
+        while src[n] && n < dst.count - 1 n += 1;
+        if n == dst.count - 1 && n > 0 && src[n - 1] >= 0xD800 && src[n - 1] < 0xDC00 n -= 1; // half a pair
+        memcpy(dst.data, src, n * 2);
+        dst[n] = 0;
+    }
+    copy_wide(nid.szInfoTitle, title);
+    copy_wide(nid.szInfo, body);
+    return Shell_NotifyIconW(NIM_MODIFY, *nid) != 0;
+}
 
-// Puts a red dot on the tray icon while text isn't "" (unread mentions).
+// Puts a red dot on the tray icon and on the taskbar button (ITaskbarList3 overlay) while text isn't ""
+// (unread mentions).
 set_badge :: (text: string) {
     if s.headless || !w.small_icon return;
     if w.tray_badge_icon DestroyIcon(w.tray_badge_icon);
     w.tray_badge_icon = ifx text then badge_icon(w.small_icon) else null;
     if w.tray tray_notify(NIM_MODIFY);
+    if !w.taskbar {
+        CLSID_TaskbarList := win.GUID.{0x56FDF344, 0xFD6D, 0x11D0, .[0x95, 0x8A, 0x00, 0x60, 0x97, 0xC9, 0xA0, 0x90]};
+        IID_ITaskbarList3 := win.GUID.{0xEA1AFB91, 0x9E28, 0x4B86, .[0x90, 0xE9, 0x9E, 0x9F, 0x8A, 0x5E, 0xEF, 0xAF]};
+        if CoCreateInstance(*CLSID_TaskbarList, null, 1 /*CLSCTX_INPROC_SERVER*/, *IID_ITaskbarList3, *w.taskbar) < 0 return;
+        vt(w.taskbar, 3, #type (*void) -> win.HRESULT #c_call)(w.taskbar); // HrInit
+    }
+    dot := ifx text then badge_icon(null) else null;
+    defer if dot DestroyIcon(dot); // the taskbar keeps its own copy
+    vt(w.taskbar, 18, #type (*void, win.HWND, win.HICON, *u16) -> win.HRESULT #c_call)(w.taskbar, w.hwnd, dot, ifx text then wide("Unread mentions") else null); // SetOverlayIcon
 }
 
 // Opens a URL in the user's default browser.
@@ -206,6 +233,8 @@ os_shutdown :: () {
     if w.tray tray_notify(NIM_DELETE);
     w.tray = false;
     if w.hwnd && w.drop_registered RevokeDragDrop(w.hwnd);
+    release(w.taskbar);
+    w.taskbar = null;
     if w.hwnd win.DestroyWindow(w.hwnd);
     if w.icon_hook UnhookWindowsHookEx(w.icon_hook);
     for win.HICON.[w.big_icon, w.small_icon, w.tray_badge_icon] if it DestroyIcon(it);
@@ -462,6 +491,11 @@ NIM_DELETE :: 2;
 NIF_MESSAGE :: 1;
 NIF_ICON :: 2;
 NIF_TIP :: 4;
+NIF_INFO :: 0x10;
+NIIF_USER :: 4;
+NIIF_NOSOUND :: 0x10;
+NIIF_LARGE_ICON :: 0x20;
+NIN_BALLOONUSERCLICK :: WM_USER + 5;
 SM_CXSMICON :: 49;
 SM_CXICON :: 11;
 SetWindowsHookExW :: (id: s32, proc: *void, mod: win.HINSTANCE, thread: u32) -> *void #foreign user32;
@@ -565,6 +599,7 @@ w: struct {
     cf_png: u32;
     tray: bool; // the tray icon is shown, so closing the window hides it
     taskbar_created: u32;
+    taskbar: *void; // ITaskbarList3, made on the first set_badge
     small_size: s32;
     big_icon: win.HICON;
     icon_hook: *void;
@@ -668,24 +703,27 @@ tray_menu :: () {
     }
 }
 
-// base with a red dot in its bottom-right corner, as the official tray icon shows unread mentions.
+// base with a red dot in its bottom-right corner, as the official tray icon shows unread mentions; with no
+// base, the dot alone filling the icon (the taskbar overlay).
 badge_icon :: (base: win.HICON) -> win.HICON {
-    ii: win.ICONINFO;
-    if win.GetIconInfo(base, *ii) == .FALSE return null;
-    defer { win.DeleteObject(ii.hbmColor); win.DeleteObject(ii.hbmMask); }
     n := w.small_size;
-    bmi: win.BITMAPINFO;
-    bmi.bmiHeader = .{biSize = size_of(win.BITMAPINFOHEADER), biWidth = n, biHeight = -n, biPlanes = 1, biBitCount = 32};
     px := NewArray(n * n, u32,, temp);
-    dc := win.GetDC(null);
-    got := win.GetDIBits(dc, ii.hbmColor, 0, xx n, px.data, *bmi, win.DIB_RGB_COLORS);
-    win.ReleaseDC(null, dc);
-    if got != n return null;
+    if base {
+        ii: win.ICONINFO;
+        if win.GetIconInfo(base, *ii) == .FALSE return null;
+        defer { win.DeleteObject(ii.hbmColor); win.DeleteObject(ii.hbmMask); }
+        bmi: win.BITMAPINFO;
+        bmi.bmiHeader = .{biSize = size_of(win.BITMAPINFOHEADER), biWidth = n, biHeight = -n, biPlanes = 1, biBitCount = 32};
+        dc := win.GetDC(null);
+        got := win.GetDIBits(dc, ii.hbmColor, 0, xx n, px.data, *bmi, win.DIB_RGB_COLORS);
+        win.ReleaseDC(null, dc);
+        if got != n return null;
+    }
     // Straight (not premultiplied) BGRA, so blend the dot over each pixel with its alpha.
     ch :: (v: u32, shift: u32, dot: float, a: float, cov: float, oa: float) -> u32 {
         return (cast(u32) ((dot * cov + cast(float) ((v >> shift) & 0xff) * a * (1 - cov)) / oa + 0.5)) << shift;
     }
-    r := cast(float) n * 0.24;
+    r := cast(float) n * ifx base then 0.24 else 0.5;
     c := cast(float) n - r;
     for y: 0..n-1 for x: 0..n-1 {
         dx, dy := cast(float) x + 0.5 - c, cast(float) y + 0.5 - c;
@@ -991,7 +1029,7 @@ wndproc :: (hwnd: win.HWND, msg: u32, wp: win.WPARAM, lp: win.LPARAM) -> win.LRE
             return 0;
         case WM_FC_TRAY;
             ev := lp & 0xffff;
-            if ev == win.WM_LBUTTONUP window_show();
+            if ev == win.WM_LBUTTONUP || ev == NIN_BALLOONUSERCLICK window_show();
             else if ev == win.WM_RBUTTONUP tray_menu();
             return 0;
         case win.WM_QUERYENDSESSION;
