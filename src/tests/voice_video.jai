@@ -7,6 +7,14 @@ dave :: #import "voice_dave";
 
 main :: () {
     ok := true;
+    // VideoToolbox's 1280x720 Constrained Baseline SPS has no VUI; it goes out with the bitstream restriction
+    // WebRTC's receiver would otherwise write in (so DAVE's authenticated bytes stay as sent)
+    sps_in  :: u8.[0, 0, 0, 1, 0x27, 0x42, 0xc0, 0x1f, 0xab, 0x40, 0x28, 0x02, 0xdc, 0x80, 0, 0, 0, 1, 0x28, 0xce, 0x3c, 0x80];
+    sps_out :: u8.[0, 0, 0, 1, 0x27, 0x42, 0xc0, 0x1f, 0xab, 0x40, 0x28, 0x02, 0xdd, 0x00, 0xda, 0x08, 0x84, 0x6a, 0, 0, 0, 1, 0x28, 0xce, 0x3c, 0x80];
+    vui := voice.h264_add_vui(sps_in);
+    ok &= check(vui.count == sps_out.count && memcmp(vui.data, sps_out.data, vui.count) == 0, "SPS gets a VUI: %", vui);
+    again := voice.h264_add_vui(vui);
+    ok &= check(again.count == vui.count && memcmp(again.data, vui.data, vui.count) == 0, "an SPS with a VUI stays");
     for codec: voice.Video_Codec.[.H264, .H265] {
         au := fake_au(codec);
         frame, nals := voice.with_long_start_codes(au);

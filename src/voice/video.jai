@@ -104,6 +104,121 @@ h264_slice_header_bytes :: (p: []u8) -> int {
     return min(bit / 8 + 1, p.count);
 }
 
+// h264_add_vui: the access unit with each SPS that has no VUI given one carrying only a bitstream
+// restriction (max_num_reorder_frames 0, max_dec_frame_buffering = max_num_ref_frames), exactly what
+// WebRTC's receiver writes in (SpsVuiRewriter). Sent as is, the receiver rewrites it, and under DAVE the
+// changed bytes fail the frame's authentication: every keyframe is lost and the tile shows "Failed to
+// start camera" (Error 2012). An SPS it can't read, or that has a VUI already, stays as it is. In temp.
+h264_add_vui :: (au: []u8) -> []u8 {
+    nals := annexb_nals(au);
+    out: [..]u8;
+    out.allocator = temp;
+    array_reserve(*out, au.count + 16 * nals.count);
+    for nals {
+        nal := array_view(au, it.start, it.end - it.start);
+        array_add(*out, 0, 0, 0, 1);
+        sps, ok := ifx nal.count && (nal[0] & 0x1f) == 7 then sps_with_vui(nal);
+        array_add(*out, ..ifx ok then sps else nal);
+    }
+    return out;
+}
+
+#scope_file
+
+Bits :: struct { b: []u8; pos: int; bad: bool; }
+
+bit :: (r: *Bits) -> int {
+    if r.pos >= r.b.count * 8 { r.bad = true; return 0; }
+    v := (r.b[r.pos / 8] >> (7 - r.pos % 8)) & 1;
+    r.pos += 1;
+    return v;
+}
+
+bits :: (r: *Bits, n: int) -> int { v := 0; for 1..n v = (v << 1) | bit(r); return v; }
+
+ue :: (r: *Bits) -> int {
+    zeros := 0;
+    while !bit(r) && !r.bad { zeros += 1; if zeros > 31 { r.bad = true; return 0; } }
+    return (1 << zeros) - 1 + bits(r, zeros);
+}
+
+put_bit :: (w: *[..]u8, pos: *int, v: int) {
+    if pos.* % 8 == 0 array_add(w, 0);
+    if v w.*[pos.* / 8] |= cast(u8) (0x80 >> (pos.* % 8));
+    pos.* += 1;
+}
+
+put_ue :: (w: *[..]u8, pos: *int, v: int) {
+    n := 0;
+    while (v + 1) >> (n + 1) n += 1;
+    for 1..n put_bit(w, pos, 0);
+    for < 0..n put_bit(w, pos, ((v + 1) >> it) & 1);
+}
+
+sps_with_vui :: (nal: []u8) -> []u8, bool {
+    // the RBSP: emulation prevention bytes out
+    rbsp: [..]u8;
+    rbsp.allocator = temp;
+    zeros := 0;
+    for nal {
+        if it_index == 0 continue;
+        if zeros >= 2 && it == 3 { zeros = 0; continue; }
+        array_add(*rbsp, it);
+        zeros = ifx it == 0 then zeros + 1 else 0;
+    }
+    r := Bits.{b = rbsp};
+    profile := bits(*r, 8);
+    bits(*r, 16); // constraint flags, level
+    ue(*r);       // seq_parameter_set_id
+    if array_find(int.[100, 110, 122, 244, 44, 83, 86, 118, 128, 138, 139, 134, 135], profile) {
+        if ue(*r) == 3 bit(*r); // chroma_format_idc, separate_colour_plane_flag
+        ue(*r); ue(*r); bit(*r);
+        if bit(*r) return .[], false; // scaling matrices: not worth parsing for a VUI
+    }
+    ue(*r); // log2_max_frame_num_minus4
+    poc := ue(*r);
+    if poc == 0 ue(*r);
+    else if poc == 1 {
+        bit(*r); ue(*r); ue(*r); // se() reads as ue() bit for bit
+        n := ue(*r);
+        if n > 255 return .[], false;
+        for 1..n ue(*r);
+    }
+    refs := ue(*r);
+    bit(*r); ue(*r); ue(*r); // gaps, width, height
+    if !bit(*r) bit(*r);     // frame_mbs_only_flag, mb_adaptive_frame_field_flag
+    bit(*r);                 // direct_8x8_inference_flag
+    if bit(*r) for 1..4 ue(*r);
+    vui_at := r.pos;
+    if bit(*r) || r.bad || refs > 16 return .[], false;
+
+    w: [..]u8;
+    w.allocator = temp;
+    pos := 0;
+    rd := Bits.{b = rbsp};
+    while rd.pos < vui_at put_bit(*w, *pos, bit(*rd));
+    put_bit(*w, *pos, 1); // vui_parameters_present_flag
+    for 1..8 put_bit(*w, *pos, 0); // aspect, overscan, signal, chroma loc, timing, nal hrd, vcl hrd, pic_struct
+    put_bit(*w, *pos, 1); // bitstream_restriction_flag
+    put_bit(*w, *pos, 1); // motion_vectors_over_pic_boundaries_flag
+    for v: int.[2, 1, 16, 16, 0, refs] put_ue(*w, *pos, v); // as WebRTC writes them
+    put_bit(*w, *pos, 1); // rbsp_stop_one_bit, then zeros to the byte
+
+    // back to a NAL unit: the header, and emulation prevention bytes in
+    out: [..]u8;
+    out.allocator = temp;
+    array_add(*out, nal[0]);
+    zeros = 0;
+    for w {
+        if zeros >= 2 && it <= 3 { array_add(*out, 3); zeros = 0; }
+        array_add(*out, it);
+        zeros = ifx it == 0 then zeros + 1 else 0;
+    }
+    return out, true;
+}
+
+#scope_export
+
 // dave_clear_ranges: libdave's codec_utils for frames whose NAL units all
 // carry 4-byte start codes. Start codes stay clear; in H.264 slices the NAL
 // header and the slice header's start, in H.265 VCL units the 2-byte header;

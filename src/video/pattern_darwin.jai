@@ -45,6 +45,7 @@ paint :: (pb: CFRef, n: int) {
 	defer CVPixelBufferUnlockBaseAddress(pb, 0);
 	w := cast(int) CVPixelBufferGetWidth(pb);
 	h := cast(int) CVPixelBufferGetHeight(pb);
+	noisy := contains(to_string(getenv("FASTCORD_VIDEO_TEST")), "noise");
 	shift := n * 8;
 	bx := (n * 12) % max(w - h / 4, 1);
 	by := h / 2 - h / 8;
@@ -58,13 +59,19 @@ paint :: (pb: CFRef, n: int) {
 				px, py := x * sub, y * sub;
 				bar := BARS[((px + shift) * 8 / w) % 8];
 				box := px >= bx && px < bx + h / 4 && py >= by && py < by + h / 4;
-				if plane == 0 row[x] = ifx box then 235 else bar[0];
+				if plane == 0 {
+					row[x] = ifx box then 235 else bar[0];
+					// FASTCORD_VIDEO_TEST=...noise: sensor-like grain, so frames are as heavy as a real camera's
+					if noisy { hsh := cast,no_check(u32) ((px * 73856093) ^ (py * 19349663) ^ (n * 83492791)); hsh ^= hsh >> 13; hsh *= 0x5bd1e995; row[x] = cast(u8) clamp(cast(int) row[x] + cast(int) (hsh >> 27) - 16, 16, 235); }
+				}
 				else { row[2 * x] = ifx box then 128 else bar[1]; row[2 * x + 1] = ifx box then 128 else bar[2]; }
 			}
 		}
 	}
 }
 
+getenv :: (name: *u8) -> *u8 #foreign libc;
+libc :: #system_library "libc";
 CVPixelBufferCreate :: (alloc: CFRef, w: u64, h: u64, fmt: u32, attrs: CFRef, out: *CFRef) -> s32 #foreign CoreVideo;
 CVPixelBufferLockBaseAddress :: (pb: CFRef, flags: u64) -> s32 #foreign CoreVideo;
 CVPixelBufferUnlockBaseAddress :: (pb: CFRef, flags: u64) -> s32 #foreign CoreVideo;

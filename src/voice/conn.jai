@@ -1613,7 +1613,7 @@ send_video :: (c: *Conn, codec: Video_Codec, au: []u8, ts_90k: u32) {
     if codec != .H264 && codec != .H265 return;
     locks.guard(*c.vmu);
     if !c.video_on || !c.video_ssrc || !c.udp_open return;
-    frame, nals := with_long_start_codes(au);
+    frame, nals := with_long_start_codes(ifx codec == .H264 then h264_add_vui(au) else au);
     if !nals.count return;
     enc := NewArray(frame.count + 256, u8, false,, temp);
     fl := DAVE.session_encrypt(*c.dave, frame, enc, dave_clear_ranges(codec, frame, nals));
