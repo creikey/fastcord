@@ -1,0 +1,7 @@
+# Runs on attachment_mosaic.jsonl (with FASTCORD_MEDIA_DIR=tests/ui/media for the pictures). Five image
+# attachments draw as one mosaic, a row of 2 over a row of 3, and a tile opens the viewer on all five.
+wait 20
+shot build/ui-attachment_mosaic.png
+click 646 550
+wait 20
+expect_visible "4 / 5"

@@ -71,7 +71,16 @@ blob_receive :: (r: *dc.Media_Result) -> bool {
 // Message attachments: videos, audio, images (GIFs animate), other files as cards; max_w narrows them
 // (search results).
 attachments_view :: (m: *dc.Message, max_w: float32 = 400) {
+	// two or more plain images share one mosaic, as in the client
+	grid: [..]int;
+	grid.allocator = temp;
+	for * a, i: m.attachments if mosaic_image(a) array_add(*grid, i);
+	if grid.count >= 2 {
+		attachment_mosaic(m, grid, min(max_w, 400));
+		spacer(.Y, 4);
+	}
 	for * a, i: m.attachments {
+		if grid.count >= 2 && mosaic_image(a) continue;
 		if !is_audio(a) && a.width > 0 && a.height > 0 && is_spoiler(a) && !table_find_pointer(*revealed_spoilers, a.id) {
 			w := cast(float32) a.width;
 			h := cast(float32) a.height;
@@ -156,6 +165,61 @@ attachments_view :: (m: *dc.Message, max_w: float32 = 400) {
 }
 
 is_video ::(a: *dc.Attachment) -> bool { return begins_with(a.content_type, "video/"); }
+
+// A plain image (not a video, audio clip or spoiler): what joins a message's mosaic.
+mosaic_image :: (a: *dc.Attachment) -> bool { return !is_video(a) && !is_audio(a) && !is_spoiler(a) && a.width > 0 && a.height > 0; }
+
+// Several images as the client's mosaic, gw wide with 4 px gaps: rows of 2 and 3 (5: 2+3, 6: 3+3,
+// 8: 2+3+3, 9: 3x3), a lone first row on top for 7 and 10, and 3 as one large tile beside two
+// stacked. Tiles crop their image to fill; a click opens the viewer on the message's images.
+attachment_mosaic :: (m: *dc.Message, idx: []int, gw: float32) {
+	GAP :: 4;
+	tile :: (k: int, w: float32, h: float32) #expand {
+		a := *m.attachments[idx[k]];
+		img := media_box(tprint("mos%", k), attachment_image_url(a, cast(int) w, cast(int) h), "", w, h);
+		set_remote_image(img, attachment_image_url(a, cast(int) w, cast(int) h), cover = true);
+		sig := ui.signal(img);
+		if sig.clicked open_viewer(ifx a.proxy_url then a.proxy_url else a.url, .{a.width, a.height}, link = a.url, msg = m.id);
+		if sig.right_clicked media_menu_open(a.url, a.url);
+	}
+	n := min(idx.count, 10);
+	box := ui.box("mosaic");
+	box.semantic_size = .[ui.px(gw), ui.children()];
+	box.layout_axis = .Y;
+	ui.parent(box); defer ui.pop_parent();
+	if n == 3 {
+		r := row("r3");
+		big := (gw - GAP) * 2 / 3;
+		small := gw - GAP - big;
+		r.semantic_size = .[ui.px(gw), ui.px(big)];
+		ui.parent(r); defer ui.pop_parent();
+		tile(0, big, big);
+		spacer(.X, GAP);
+		col := ui.box("c");
+		col.semantic_size = .[ui.px(small), ui.px(big)];
+		col.layout_axis = .Y;
+		ui.parent(col); defer ui.pop_parent();
+		tile(1, small, (big - GAP) / 2);
+		spacer(.Y, GAP);
+		tile(2, small, (big - GAP) / 2);
+		return;
+	}
+	ROWS :: ([]int).[.[], .[], .[2], .[], .[2, 2], .[2, 3], .[3, 3], .[1, 3, 3], .[2, 3, 3], .[3, 3, 3], .[1, 3, 3, 3]];
+	k := 0;
+	for cols, ri: ROWS[n] {
+		if ri spacer(.Y, GAP);
+		tw := (gw - GAP * (cols - 1)) / cols;
+		th := ifx cols == 1 then gw * 0.5625 else tw; // a lone tile 16:9, the rest square
+		r := row(tprint("r%", ri));
+		r.semantic_size = .[ui.px(gw), ui.px(th)];
+		ui.parent(r); defer ui.pop_parent();
+		for c: 0..cols - 1 {
+			if c spacer(.X, GAP);
+			tile(k, tw, th);
+			k += 1;
+		}
+	}
+}
 is_spoiler :: (a: *dc.Attachment) -> bool { return begins_with(a.filename, "SPOILER_") || (a.flags & 8) != 0; }
 
 // A spoilered attachment: the image blurred (url "" for a file: a plain box) under a "SPOILER" pill until
