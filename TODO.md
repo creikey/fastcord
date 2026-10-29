@@ -370,7 +370,6 @@
 - [ ] Markdown: clicking a slash-command or server page chip (`/name`, Channels & Roles, Browse Channels, Server Guide) does nothing; it should fill the composer or open that page.
 - [ ] Chat: an age-gated channel still loads its messages behind the gate (the official mounts no chat until you agree), and age-restricted servers (`nsfw_level` 3) aren't gated (`nsfw_gated`).
 - [ ] Video: frames go out as one unpaced burst on the same UDP socket as the mic (`send_video`, no pacer or audio priority); on a slow uplink a keyframe can delay or drop voice packets.
-- [ ] Notifications: a channel can only be muted from the open channel's header bell.
 - [ ] Friends: the "New Group DM" header icon isn't clickable; Active Now is always the empty card.
 - [ ] Attachments: downloading a file reuses the Save Image path (`media_save` in `view_media.jai`): the whole file is held in memory and sent with image request headers, with no progress, and a name without an extension gets `format=png` appended. Stream big files to disk as a document download instead.
 - [ ] Chat: welcome messages aren't shown properly.
@@ -470,7 +469,6 @@
   - Everything sent here is traffic the official client sends: capture it first, and log the rules in `traffic/CLIENT_RULES.md`.
 - [ ] Composer: no slowmode cooldown, indicator or SLOWMODE_RATE_LIMITED handling.
 - [ ] Video: Go Live stream audio (soundshare), stream previews (`/streams/{key}/preview`), and watching more than one stream.
-- [ ] Notifications: a channel's own notification level (All / Only @mentions / Nothing) is ignored for sounds and notifications; only the server level is read (`sounds.jai`). The channel, category, server chain already exists in `analytics_events.jai`.
 - [ ] GIFs (fastcord-only): sort favourites most-recently-used first, not by Discord's `order` (`pickers_data.jai` sorts by `order`). Record a GIF's last use when it's sent, locally, and keep favouriting order as the tie-break for never-used ones. Don't write the MRU order back, so official clients keep theirs.
 - [ ] Speed: one message can make a channel lag for everyone viewing it. Every frame re-parses each visible message's markdown (`view_chat.jai` `message_body` calls `md_parse`), and unmatched delimiters make that quadratic. Each unmatched `*`, `_`, `~~` or `||` rescans to the end of the text (`markdown.jai` `find_close`), and each `[` to the end of its line (`find_close_bracket`), so 2,000 `*` in a row cost about 2 million checks per parse. Make matching linear (per delimiter, remember where no closer exists) and keep each message's parsed blocks until its content changes. Add a bench fixture with such messages, and a budget.
 - [ ] Settings sync: `USER_SETTINGS_PROTO_UPDATE` type 2 (favourite GIFs, emoji frecency) is ignored, so other devices' changes need a restart.
@@ -510,6 +508,7 @@
 - [ ] GPU: macOS and Linux never notice a lost device (`backend_device_lost` is false in `backend_metal_darwin.jai` and `backend_gl_linux.jai`). Unplugging an eGPU or switching GPUs on a MacBook with `MTLDeviceWasRemovedNotification`, and a GL context reset (`GL_ARB_robustness`, NVIDIA after suspend) leave the window black or frozen. Report it there and gfx's `recover_device` does the rest. Lottie stills, upload thumbnails and scene targets also come back empty until they are remade (only images, icons and emoji are dropped).
 - [-] Cancelled (duplicate: done with the ticked channel autocomplete item): Composer: `#channel` autocomplete; only `:emoji` is handled (`emoji_autocomplete.jai`).
 - [-] Cancelled (duplicate: done in 0659873f, settings.json keeps video_volume and video_muted): Media: the video volume and mute reset on restart; the client keeps them (`view_media.jai` `video_volume`).
+- [-] Cancelled (duplicate: the channel row menu already has Mute Channel / Category with durations): Notifications: a channel can only be muted from the open channel's header bell.
 - [x] Voice: play the join and leave sounds when other users enter or leave the voice channel (they played on macOS only; Windows and Linux now decode the MP3s with minimp3).
 - [x] Mentions: typing `@name` sends plain text that pings no one; send it as a real mention (`<@id>`), with an autocomplete popup for users and roles as you type `@`.
 - [x] Events: invite links to a scheduled event (`?event=<id>`) show the event's card.
@@ -798,3 +797,4 @@
 - [x] Bug: when the open server goes away (kicked, banned, left elsewhere) the view goes home, and when the open channel is deleted it moves to the server's first text channel (or Friends for a DM), instead of a Friends page beside an empty sidebar (`view_gone_check`; Discord only, hosted servers keep their down page; untested offline, fixtures have no client).
 - [x] Bug: a send marked failed whose echo arrives late is replaced by it instead of showing twice (`upsert_message` matches the nonce on failed messages too; test `failed_send_echo`).
 - [x] Polls: a closed poll's result message (type 46) draws as "Name's poll Question has closed." with the winner and its share (or no winner, or a tie) and View Poll; serve posts one when a poll expires or is ended, its `poll_result` embed built from the votes (`poll_result_card`, `serve/polls.jai` `poll_result_locked`, `src/tests/serve_polls.jai`, `tests/ui/poll_create.txt`). A hosted client no longer asks its server for Discord's application command index when a message or user menu opens.
+- [x] Notifications: sounds and desktop notifications follow the channel's own level, else its category's, else the server's, and stay quiet for a muted channel or category (`message_notifies`).

@@ -220,14 +220,15 @@ message_notifies :: (m: *dc.New_Message) -> bool {
 	r := table_find_pointer(*s.relationships, m.author_id);
 	if r && (r.kind == .Blocked || r.ignored) return false;
 	if m.guild_id == 0 return true; // DMs / group DMs
-	level := 1;
-	g := dc.guild_get(s, m.guild_id);
-	if g level = g.default_message_notifications;
 	gs := table_find_pointer(*s.guild_settings, m.guild_id);
-	if gs {
-		if gs.muted || array_find(gs.muted_channels, m.channel_id) return false;
-		if gs.message_notifications <= 2 level = gs.message_notifications;
-	}
+	if gs && (gs.muted || array_find(gs.muted_channels, m.channel_id)) return false;
+	if dc.channel_effectively_muted(s, m.guild_id, m.channel_id, dc.now_ms()) return false;
+	// the level: the channel's own, else its category's, else the server's
+	level := dc.channel_notify_level(s, m.guild_id, m.channel_id);
+	ch := dc.channel_get(s, m.channel_id);
+	if level == dc.NOTIFY_INHERIT && ch && ch.parent_id level = dc.channel_notify_level(s, m.guild_id, ch.parent_id);
+	if level == dc.NOTIFY_INHERIT level = dc.guild_notify_level(s, m.guild_id);
+	if level > 2 { g := dc.guild_get(s, m.guild_id); level = ifx g then g.default_message_notifications else 1; } // the server's own null: its default
 	if level == 0 return true;
 	if level == 2 return false;
 	if m.mentions_me || m.mention_everyone return true;
