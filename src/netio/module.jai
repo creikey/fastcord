@@ -170,6 +170,58 @@ close_listener :: (l: *Listener) {
 	close_and_reset(*l.sock);
 }
 
+// A UDP socket on every IPv6 and IPv4 address, for a server: addresses are 16 bytes, IPv4 as ::ffff:a.b.c.d.
+Udp :: struct {
+	sock: Socket;
+	port: int;
+}
+
+// listen_udp binds port (0 picks one: see Udp.port). Each receive waits at most timeout_ms.
+listen_udp :: (port: int, timeout_ms: s64) -> *Udp, Error {
+	#if OS == .WINDOWS socket_init();
+	sock := socket(AF_INET6, .DGRAM, .UDP);
+	if sock == INVALID_SOCKET return null, .Dial;
+	zero: s32 = 0;
+	setsockopt(sock, xx IPPROTO.IPV6, IPV6_V6ONLY, xx *zero, size_of(s32));
+	any: [16]u8;
+	if bind(sock, any, cast(u16) port) != 0 { close_and_reset(*sock); return null, .Dial; }
+	u := New(Udp);
+	u.sock = sock;
+	socket_timeout(sock, timeout_ms);
+	a: sockaddr_in6;
+	#if OS == .WINDOWS n: s32 = size_of(sockaddr_in6);
+	else n: socklen_t = size_of(sockaddr_in6);
+	getsockname(sock, cast(*sockaddr) *a, *n);
+	u.port = ntohs(a.sin6_port);
+	return u, .None;
+}
+
+// udp_recv: one datagram into buf and who sent it; n <= 0 on a timeout or error.
+udp_recv :: (u: *Udp, buf: []u8) -> n: int, addr: [16]u8, port: int {
+	a: sockaddr_in6;
+	#if OS == .WINDOWS n: s32 = size_of(sockaddr_in6);
+	else n: socklen_t = size_of(sockaddr_in6);
+	got := recvfrom(u.sock, buf.data, xx buf.count, 0, cast(*sockaddr) *a, *n);
+	addr: [16]u8;
+	memcpy(addr.data, *a.sin6_addr, 16);
+	return got, addr, ntohs(a.sin6_port);
+}
+
+udp_send :: (u: *Udp, data: []u8, addr: [16]u8, port: int) {
+	a: sockaddr_in6;
+	#if OS == .MACOS a.sin6_len = size_of(sockaddr_in6);
+	a.sin6_family = AF_INET6;
+	a.sin6_port = htons(cast(u16) port);
+	memcpy(*a.sin6_addr, addr.data, 16);
+	sendto(u.sock, data.data, xx data.count, 0, cast(*sockaddr) *a, size_of(sockaddr_in6));
+}
+
+// close_udp: once no thread is in udp_recv (its timeout bounds the wait).
+close_udp :: (u: *Udp) {
+	close_and_reset(*u.sock);
+	free(u);
+}
+
 #scope_file
 
 #import "Basic";
@@ -178,8 +230,9 @@ close_listener :: (l: *Listener) {
 #if OS != .WINDOWS #import "POSIX";
 locks :: #import "locks";
 
-tcp_set_timeout :: (data: *void, timeout_ms: s64) {
-	t := cast(*Tcp) data;
+tcp_set_timeout :: (data: *void, timeout_ms: s64) { socket_timeout((cast(*Tcp) data).sock, timeout_ms); }
+
+socket_timeout :: (sock: Socket, timeout_ms: s64) {
 	#if OS == .WINDOWS {
 		v: u32 = xx timeout_ms;
 	} else {
@@ -187,8 +240,8 @@ tcp_set_timeout :: (data: *void, timeout_ms: s64) {
 		v.tv_sec = xx (timeout_ms / 1000);
 		v.tv_usec = xx ((timeout_ms % 1000) * 1000);
 	}
-	setsockopt(t.sock, SOL_SOCKET, SO_RCVTIMEO, xx *v, size_of(type_of(v)));
-	setsockopt(t.sock, SOL_SOCKET, SO_SNDTIMEO, xx *v, size_of(type_of(v)));
+	setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, xx *v, size_of(type_of(v)));
+	setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, xx *v, size_of(type_of(v)));
 }
 
 // tcp_shutdown: shutdown(2) both directions; a blocked recv returns 0 (.Closed).

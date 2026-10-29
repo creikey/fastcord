@@ -7,6 +7,7 @@ teardown_busy :: () -> bool { return atomic_load(*teardowns) > 0; }
 
 client_release :: (c: *dc.Client) {
 	if c == null return;
+	voice_client_gone(c);
 	teardown_start(c, (c: *dc.Client) { dc.client_destroy(c); teardown_done(); });
 }
 

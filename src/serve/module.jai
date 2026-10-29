@@ -16,6 +16,7 @@ sqlite :: #import "sqlite";
 tls :: #import "tls";
 
 #load "unfurl.jai";
+#load "voice.jai";
 
 ALPN :: "fc/1";
 HEARTBEAT_INTERVAL_MS :: 41_250;
@@ -53,6 +54,13 @@ Server :: struct {
 	avatar_mu: locks.Mutex;
 	avatars: Table(s64, string);
 	handles: Table(s64, [8]u8);
+	// Voice (voice.jai). voice_mu comes after db_mu and before any Conn's mu; s.mu is never taken under it.
+	voice_mu: locks.Mutex;
+	voice_states: [..]Voice_State;
+	voice_sessions: [..]*Voice_Session;
+	udp: *netio.Udp; // Media, on the listener's port number.
+	udp_thread: *Thread;
+	udp_stop: bool;  // Atomic.
 }
 
 Conn :: struct {
@@ -74,6 +82,8 @@ Conn :: struct {
 	closing: bool;
 	out_ws: *http.Ws_Conn; // The writer's socket, fixed for its life (unlike ws).
 	writer: *Thread;
+	text: bool;      // The writer sends text frames: a voice gateway.
+	session: [16]u8; // A gateway's session ID, random per Identify.
 	accepted: Apollo_Time;
 	authed: bool; // atomic; set by a login or a member's token.
 	reply_status: int; // The reply respond kept, 0 when none.
@@ -344,7 +354,10 @@ pin_hex ::(s: *Server, allocator := temp) -> string { return hex(s.pin,, allocat
 listen :: (s: *Server, port: int) -> bool {
 	l, err := netio.listen_tcp(port);
 	if err != .None return false;
-	s.listener = l;
+	u, uerr := netio.listen_udp(l.port, 250);
+	if uerr != .None { netio.close_listener(l); free(l); return false; }
+	s.listener, s.udp = l, u;
+	s.udp_thread = spawn(s, voice_udp);
 	s.accept_thread = spawn(s, accept_loop);
 	s.unfurl_thread = spawn(s, unfurler);
 	return true;
@@ -361,6 +374,9 @@ stop :: (s: *Server) {
 		locks.cond_signal(*s.unfurl_wake);
 		locks.unlock(*s.unfurl_mu);
 		locks.join(s.unfurl_thread);
+		atomic_store(*s.udp_stop, true);
+		locks.join(s.udp_thread);
+		netio.close_udp(s.udp);
 	}
 	// The accept thread has returned, so nothing else touches conns now.
 	for s.conns netio.shutdown(netio.tcp_stream(it.tcp)); // Not it.s: its thread may be replacing it.
@@ -372,6 +388,8 @@ stop :: (s: *Server) {
 	array_free(s.conns);
 	for * s.activities set_activities(it, .[]);
 	array_free(s.activities);
+	array_free(s.voice_states);
+	array_free(s.voice_sessions); // Each session ended with its connection.
 	close(s);
 }
 
@@ -692,7 +710,9 @@ serve_conn :: (c: *Conn) {
 			return;
 		}
 		if http.header_has_token(req.headers, "upgrade", "websocket") {
-			gateway(c, req);
+			// The voice gateway is the client's /?v=9, with no encoding, on the same address.
+			if req.path == "/?v=9" voice_gateway(c, req);
+			else gateway(c, req);
 			return;
 		}
 		if req.method == "POST" && req.path == "/api/v9/fc/login" {
@@ -1449,8 +1469,9 @@ mention_ids :: (content: string) -> [..]s64 {
 	return out;
 }
 
-// Until roles land (Hosting 4) everyone may read, write, react, embed, attach and make invites.
-EVERYONE_PERMISSIONS :: (1 << 0) | (1 << 6) | (1 << 10) | (1 << 11) | (1 << 14) | (1 << 15) | (1 << 16) | (1 << 18) | (1 << 26) | (1 << 35) | (1 << 38);
+// Until roles land (Hosting 4) everyone may read, write, react, embed, attach, make invites, and in voice
+// connect, speak, use voice activity and stream.
+EVERYONE_PERMISSIONS :: (1 << 0) | (1 << 6) | (1 << 9) | (1 << 10) | (1 << 11) | (1 << 14) | (1 << 15) | (1 << 16) | (1 << 18) | (1 << 20) | (1 << 21) | (1 << 25) | (1 << 26) | (1 << 35) | (1 << 38);
 
 // Channel types, as Discord numbers them.
 TEXT :: 0;
@@ -1470,6 +1491,7 @@ row_channel :: (s: *Server, st: *sqlite.Stmt, member := etf.Value.{}) -> etf.Val
 	if kind == TEXT etf.map_put(*m, "topic", etf.vstring(copy_string(sqlite.col_text(st, 3),, temp)));
 	if kind == TEXT || kind == THREAD etf.map_put(*m, "rate_limit_per_user", etf.vint(sqlite.col_int(st, 9)));
 	if kind == TEXT etf.map_put(*m, "nsfw", etf.vbool(sqlite.col_int(st, 10) != 0));
+	if kind == VOICE { etf.map_put(*m, "bitrate", etf.vint(64000)); etf.map_put(*m, "user_limit", etf.vint(0)); }
 	if !sqlite.col_is_null(st, 4) etf.map_put(*m, "last_message_id", snow(sqlite.col_int(st, 4)));
 	etf.map_put(*m, "parent_id", ifx sqlite.col_is_null(st, 6) then etf.Value.{} else snow(sqlite.col_int(st, 6)));
 	if kind == THREAD {
@@ -1615,7 +1637,7 @@ thread_search :: (c: *Conn, user: s64, parent: s64, query: string) -> bool {
 	return json_reply(c, 200, etf.vmap(etf.map_done(*m)));
 }
 
-ready_value ::(s: *Server, user: s64, name: string) -> etf.Value {
+ready_value ::(s: *Server, user: s64, name: string, session: [16]u8) -> etf.Value {
 	locks.guard(*s.db_mu);
 	channels, threads: [..]etf.Value;
 	channels.allocator, threads.allocator = temp, temp;
@@ -1651,7 +1673,8 @@ ready_value ::(s: *Server, user: s64, name: string) -> etf.Value {
 	etf.map_put(*g, "threads", etf.vlist(threads));
 	etf.map_put(*g, "guild_scheduled_events", events_locked(s));
 	etf.map_put(*g, "roles", etf.vlist(roles));
-	guilds := NewArray(1, etf.Value,, temp);
+	etf.map_put(*g, "voice_states", voice_states_value(s));
+	guilds :=NewArray(1, etf.Value,, temp);
 	guilds[0] = etf.vmap(etf.map_done(*g));
 
 	entries: [..]etf.Value;
@@ -1686,7 +1709,7 @@ ready_value ::(s: *Server, user: s64, name: string) -> etf.Value {
 	etf.map_put(*d, "v", etf.vint(9));
 	etf.map_put(*d, "user", user_value(s, user, name));
 	etf.map_put(*d, "guilds", etf.vlist(guilds));
-	etf.map_put(*d, "session_id", etf.vstring(tprint("%", user)));
+	etf.map_put(*d, "session_id", etf.vstring(hex(session,, temp)));
 	return etf.vmap(etf.map_done(*d));
 }
 
@@ -1877,7 +1900,7 @@ writer :: (c: *Conn) {
 		c.out_bytes = 0;
 		locks.unlock(*c.mu);
 		for batch {
-			if !stop && http.ws_send(c.out_ws, .Binary, it) != .None {
+			if !stop && http.ws_send(c.out_ws, ifx c.text then http.Ws_Message_Type.Text else .Binary, it) != .None {
 				stop = true;
 				locks.lock(*c.mu);
 				c.closing = true;
@@ -1939,7 +1962,7 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 	}
 	{
 		locks.guard(*s.db_mu);
-		st := sqlite.prepare(s.db, tprint("SELECT 1 FROM channels WHERE id = ? AND type IN (%, %);", TEXT, THREAD));
+		st := sqlite.prepare(s.db, tprint("SELECT 1 FROM channels WHERE id = ? AND type IN (%, %, %);", TEXT, THREAD, VOICE));
 		sqlite.bind(st, 1, channel);
 		ok = sqlite.step(st) == .Row;
 		sqlite.finalize(st);
@@ -2241,7 +2264,8 @@ channel_name :: (raw: string) -> string {
 	return ifx n.count <= 100 then n else "";
 }
 
-// POST /api/v9/guilds/{id}/channels {name, type}: the owner adds a text channel at the end.
+// POST /api/v9/guilds/{id}/channels {name, type, parent_id?}: the owner adds a text or voice channel, or a
+// category, at the end.
 create_channel :: (c: *Conn, req: http.Request) -> bool {
 	s := c.server;
 	token, _ := http.header_get(req.headers, "authorization");
@@ -2256,9 +2280,9 @@ create_channel :: (c: *Conn, req: http.Request) -> bool {
 	parent: s64;
 	has_parent := false;
 	if parent_v.kind == .String parent, has_parent = string_to_int(parent_v.s, T = s64);
-	// Categories keep the name as typed; text channels get Discord's lowercase-dashed form.
-	name := ifx raw.kind != .String then "" else ifx kind == CATEGORY then trim(raw.s) else channel_name(raw.s);
-	if !name || name.count > 100 || !text_ok(name) || (kind != TEXT && kind != CATEGORY) || (has_parent && kind != TEXT) return json_error(c, 400, 50035, "Invalid Form Body");
+	// Categories and voice channels keep the name as typed; text channels get Discord's lowercase-dashed form.
+	name := ifx raw.kind != .String then "" else ifx kind == CATEGORY || kind == VOICE then trim(raw.s) else channel_name(raw.s);
+	if !name || name.count > 100 || !text_ok(name) || (kind != TEXT && kind != VOICE && kind != CATEGORY) || (has_parent && kind == CATEGORY) return json_error(c, 400, 50035, "Invalid Form Body");
 	ch: etf.Value;
 	{
 		locks.guard(*s.db_mu);
@@ -2949,6 +2973,7 @@ removed :: (s: *Server, user: s64) {
 			it.user = 0;
 		}
 	}
+	voice_leave(s, user);
 	broadcast(s, "GUILD_MEMBER_LIST_UPDATE", member_list_value(s));
 }
 
@@ -2989,7 +3014,7 @@ edit_channel :: (c: *Conn, req: http.Request, user: s64, channel: s64) -> bool {
 		// A thread's starter may rename, archive and reopen it too, until the owner locks it.
 		by_starter := kind == THREAD && !has_topic && !has_slow && !has_nsfw && !has_locked && !was_locked && thread_owner_locked(s, channel) == user;
 		if owner_id(s) != user && !by_starter return json_error(c, 403, 50013, "Missing Permissions");
-		name := ifx raw.kind != .String then "" else ifx kind == CATEGORY || kind == THREAD then trim(raw.s) else channel_name(raw.s);
+		name := ifx raw.kind != .String then "" else ifx kind == CATEGORY || kind == THREAD || kind == VOICE then trim(raw.s) else channel_name(raw.s);
 		if (has_name && (!name || name.count > 100 || !text_ok(name))) || (has_topic && topic.kind == .String && (topic.s.count > 1024 || !text_ok(topic.s, lines = true))) return json_error(c, 400, 50035, "Invalid Form Body");
 		ok := (!has_name || sqlite.run(s.db, "UPDATE channels SET name = ? WHERE id = ?;", name, channel))
 			&& (!has_topic || sqlite.run(s.db, "UPDATE channels SET topic = ? WHERE id = ?;", ifx topic.kind == .String then topic.s else "", channel))
@@ -3040,6 +3065,7 @@ edit_channel :: (c: *Conn, req: http.Request, user: s64, channel: s64) -> bool {
 	} else {
 		return json_error(c, 405, 0, "405: Method Not Allowed");
 	}
+	if req.method == "DELETE" && kind == VOICE voice_leave(s, 0, channel = channel); // After db_mu: it takes s.mu.
 	thread := kind == THREAD;
 	if req.method == "PATCH" broadcast(s, ifx thread then "THREAD_UPDATE" else "CHANNEL_UPDATE", ch);
 	else broadcast(s, ifx thread then "THREAD_DELETE" else "CHANNEL_DELETE", ch);
@@ -3973,15 +3999,11 @@ gateway :: (c: *Conn, req: http.Request) {
 		c.ws = null;
 		c.user = 0;
 		locks.unlock(*c.server.mu);
-		locks.lock(*c.mu);
-		c.closing = true;
-		locks.cond_signal(*c.wake);
-		locks.unlock(*c.mu);
-		locks.join(c.writer);
-		for c.out free(it.data,, context.default_allocator);
-		array_free(c.out);
-		http.ws_destroy(ws);
-		if was broadcast(c.server, "GUILD_MEMBER_LIST_UPDATE", member_list_value(c.server));
+		end_writer(c, ws);
+		if was {
+			voice_leave(c.server, was, c);
+			broadcast(c.server, "GUILD_MEMBER_LIST_UPDATE", member_list_value(c.server));
+		}
 	}
 
 	hello := etf.map_builder(,, temp);
@@ -4020,11 +4042,12 @@ gateway :: (c: *Conn, req: http.Request) {
 				locks.lock(*c.server.mu);
 				c.ws = ws;
 				c.user = user;
+				crypto.random_bytes(c.session);
 				set_presence_locked(c.server, c, presence, identify = true);
 				locks.lock(*c.mu);
 				locks.unlock(*c.server.mu);
 				c.seq += 1;
-				ok := queue(c, frame(0, ready_value(c.server, user, name), c.seq, "READY"));
+				ok := queue(c, frame(0, ready_value(c.server, user, name, c.session), c.seq, "READY"));
 				locks.unlock(*c.mu);
 				if !ok return;
 				broadcast(c.server, "GUILD_MEMBER_LIST_UPDATE", member_list_value(c.server));
@@ -4036,11 +4059,25 @@ gateway :: (c: *Conn, req: http.Request) {
 				changed := set_presence_locked(c.server, c, d);
 				locks.unlock(*c.server.mu);
 				if changed broadcast(c.server, "GUILD_MEMBER_LIST_UPDATE", member_list_value(c.server));
+			case 4;
+				if c.ws voice_state_update(c, d);
 			case 6; // No resume: an invalid session makes the client identify again.
 				if !send(ws, 9, etf.vbool(false)) return;
-			case; // Voice states and the rest are Discord-only; ignore them.
+			case; // The rest are Discord-only; ignore them.
 		}
 	}
+}
+
+// end_writer stops c's writer thread and frees what it hadn't sent, then ws.
+end_writer :: (c: *Conn, ws: *http.Ws_Conn) {
+	locks.lock(*c.mu);
+	c.closing = true;
+	locks.cond_signal(*c.wake);
+	locks.unlock(*c.mu);
+	locks.join(c.writer);
+	for c.out free(it.data,, context.default_allocator);
+	array_free(c.out);
+	http.ws_destroy(ws);
 }
 
 // frame encodes a gateway payload in temp; empty if it can't be encoded.
