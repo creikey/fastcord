@@ -342,6 +342,11 @@ State :: struct {
 	overlay_under_mouse: bool; // last frame's overlay (popout, modal, menu) covers the mouse
 	animating_loc: Source_Code_Location; // last animate() still in motion (debugging idle wakeups)
 	scroll_consumed: bool;
+	// Middle-click autoscroll: the scroll box it drives (0 = off), where it was clicked, and whether the
+	// box was declared last frame (a box that went away ends it).
+	autoscroll: Key;
+	autoscroll_anchor: Vec2;
+	autoscroll_seen: bool;
 	selection: Selection;
 	selection_color: Color;
 	scrollbar_thin_thumb, scrollbar_auto_thumb, scrollbar_auto_track: Color; // set by the app from its theme
@@ -390,8 +395,17 @@ begin :: (window: Vec2, dt: float32, time: float64, events: []Input_Event) {
 	s.mouse_prev = s.mouse;
 	s.wake_at = 0;
 	s.events.count = 0;
+	if s.autoscroll && !s.autoscroll_seen s.autoscroll = 0;
+	s.autoscroll_seen = false;
 	for e: events {
 		array_add(*s.events, e);
+		// Any click or Escape ends autoscroll, and does nothing else.
+		if s.autoscroll && (e.kind == .Mouse_Down || (e.kind == .Key_Down && e.key == .Escape)) {
+			s.autoscroll = 0;
+			s.events[s.events.count - 1].consumed = true;
+			if e.kind == .Mouse_Down s.swallow_up = true;
+			continue;
+		}
 		if e.kind == {
 			case .Mouse_Move;
 				s.mouse = e.pos;
@@ -678,7 +692,8 @@ signal :: (b: *Box) -> Signal {
 	sig.dragging = s.active == b.key;
 	if sig.dragging sig.drag_delta = s.mouse - s.press_pos;
 
-	// scrolling: the innermost scrollable under the mouse takes the wheel; one behind an open overlay doesn't
+	// scrolling: the innermost scrollable under the mouse takes the wheel and a middle click (autoscroll);
+	// one behind an open overlay doesn't
 	if (b.flags & SCROLL) && !s.scroll_consumed && mouse_over(b) {
 		for * e: s.events {
 			if e.kind != .Scroll || e.consumed continue;
@@ -687,6 +702,7 @@ signal :: (b: *Box) -> Signal {
 			e.consumed = true;
 		}
 	}
+	if b.flags & .Scroll_Y b.view_off_target.y += autoscroll_step(b);
 	return sig;
 }
 
@@ -890,7 +906,33 @@ scrollbar :: (host: *Box, kind: Scrollbar_Kind, off: *float32, target: *float32,
 
 // Has any box requested another frame (animation, smooth scroll)?
 needs_frame :: () -> bool { return context.ui.animating; }
-cursor :: () -> Cursor { return context.ui.cursor; }
+cursor :: () -> Cursor { return ifx context.ui.autoscroll then .Resize_V else context.ui.cursor; }
+
+// Middle-click autoscroll, as browsers do on Windows, for a box that scrolls vertically (Scroll_Y boxes get
+// it in signal; lists that scroll themselves call it): a middle click over b drops the anchor, and while it
+// runs this returns how far to scroll this frame (points, + = down), faster the farther the mouse is
+// above or below the anchor. Any click or Escape ends it (begin).
+autoscroll_step :: (b: *Box) -> float32 {
+	s := context.ui;
+	if !b.key return 0;
+	if !s.autoscroll && !s.scroll_consumed && mouse_over(b) {
+		for * e: s.events if !e.consumed && e.kind == .Mouse_Down && e.button == .Middle {
+			s.autoscroll, s.autoscroll_anchor = b.key, e.pos;
+			e.consumed = true;
+			break;
+		}
+	}
+	if s.autoscroll != b.key return 0;
+	s.autoscroll_seen = true;
+	s.animating = true;
+	dy := s.mouse.y - s.autoscroll_anchor.y;
+	DEAD :: 12;
+	if abs(dy) <= DEAD return 0;
+	return (dy - ifx dy > 0 then DEAD else -DEAD) * 8 * s.dt;
+}
+
+// Where a middle click started autoscroll (the app draws its marker there); false when it is off.
+autoscroll_anchor :: () -> Vec2, bool { return context.ui.autoscroll_anchor, context.ui.autoscroll != 0; }
 
 // Concatenates span texts into the box text so selection/copy see them.
 // The spans are copied, so callers may pass slice literals.

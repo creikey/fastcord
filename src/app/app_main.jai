@@ -673,11 +673,12 @@ script_command :: (path: string, f: []string, t: *float64) {
 		th, ok := theme_by_name(f[1]);
 		if !ok || th != app.theme.name script_fail(path, "expect_theme % failed: got %", f[1], app.theme.name);
 		return;
-	case "rclick";
+	case "rclick"; #through; case "mclick";
 		p := Vector2.{num(f[1]), num(f[2])};
+		b := ifx f[0] == "rclick" then platform.Mouse_Button.Right else .Middle;
 		platform.inject_event(.{kind = .Mouse_Move, pos = p});
-		platform.inject_event(.{kind = .Mouse_Down, pos = p, button = .Right, click_count = 1});
-		platform.inject_event(.{kind = .Mouse_Up, pos = p, button = .Right, click_count = 1});
+		platform.inject_event(.{kind = .Mouse_Down, pos = p, button = b, click_count = 1});
+		platform.inject_event(.{kind = .Mouse_Up, pos = p, button = b, click_count = 1});
 	case "xbutton";
 		// xbutton 1|2: the mouse's back / forward button
 		b := ifx f[1] == "2" then platform.Mouse_Button.X2 else .X1;

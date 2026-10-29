@@ -210,9 +210,27 @@ history_step :: (forward: bool, trigger := "nav_button") {
 	}
 }
 
+// The middle-click autoscroll anchor (ui core): a round marker with up and down chevrons.
+autoscroll_marker :: () {
+	at, on := ui.autoscroll_anchor();
+	if !on return;
+	m := ui.box("autoscroll", .Draw_Background | .Draw_Border | .Floating_X | .Floating_Y | .Overlay);
+	m.semantic_size = .[ui.px(28), ui.px(28)];
+	m.fixed_pos = at - .{14, 14};
+	m.layout_axis = .Y;
+	m.style.bg = T("--background-surface-high");
+	m.style.border = 1;
+	m.style.border_color = T("--border-strong");
+	m.style.radius = all4(14);
+	ui.parent(m); defer ui.pop_parent();
+	icon("up", "chevron-small-up", 14, T("--interactive-icon-default"));
+	icon("down", "chevron-small-down", 14, T("--interactive-icon-default"));
+}
+
 build_ui :: () {
 	root := ui.top_parent();
 	root.layout_axis = .Y;
+	autoscroll_marker(); // an overlay: drawn last wherever it is declared
 	app.ui.scrollbar_thin_thumb = T("--scrollbar-thin-thumb");
 	app.ui.scrollbar_auto_thumb = T("--scrollbar-auto-thumb");
 	app.ui.scrollbar_auto_track = T("--scrollbar-auto-track");

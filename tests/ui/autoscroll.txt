@@ -1,0 +1,9 @@
+# Middle-click autoscroll: a middle click in the message list drops the anchor, moving the mouse above it
+# scrolls up (faster the farther), and the shot shows the marker while it runs.
+wait 5
+mclick 700 400
+wait 2
+move 700 150
+wait 30
+expect_visible "Welcome to #dingus-battle!"
+expect_cursor Resize_V

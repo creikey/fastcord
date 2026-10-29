@@ -897,6 +897,7 @@ message_list :: (channel_id: dc.Snowflake, cs: *Chat_State) {
 	view_h := list.rect.y1 - list.rect.y0;
 	if view_h <= 0 view_h = app.ui.window.y;
 
+	cs.scroll_target -= ui.autoscroll_step(list); // middle-click autoscroll
 	// wheel input over the list
 	if ui.mouse_over(list) {
 		for * e: app.ui.events {
