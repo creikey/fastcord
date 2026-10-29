@@ -9,8 +9,16 @@ client_release :: (c: *dc.Client, logout := false) {
 	if c == null return;
 	undo_flush(c);
 	voice_client_gone(c);
-	if logout teardown_start(c, (c: *dc.Client) { dc.hosted_logout(c); dc.client_destroy(c); teardown_done(); });
-	else teardown_start(c, (c: *dc.Client) { dc.client_destroy(c); teardown_done(); });
+	Release :: struct { c: *dc.Client; join: *void; logout: bool; }
+	r := New(Release);
+	r.* = .{c, add_server_take_join(c), logout};
+	teardown_start(r, (r: *Release) {
+		add_server_join_wait(r.join); // a join in flight still uses the client
+		if r.logout dc.hosted_logout(r.c);
+		dc.client_destroy(r.c);
+		free(r);
+		teardown_done();
+	});
 }
 
 voice_release :: (c: *voice.Conn) {

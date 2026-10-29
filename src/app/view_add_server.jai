@@ -51,19 +51,35 @@ add_server_join_with :: (invite: string) {
 // Rail "Discover": server discovery lives on the website (no in-app directory).
 discover_open :: () { open_url("https://discord.com/servers"); }
 
-// Logging out while a join is in flight: the worker still uses the client, so it
-// releases it when done. True when the worker took it over.
-add_server_take_client :: (c: *dc.Client) -> bool {
+// Releasing a client (logging out, switching accounts) while a join is in flight on it: the worker
+// still uses the client, so its teardown waits for the join (add_server_join_wait, teardown.jai) and
+// the join's result is dropped.
+add_server_take_join :: (c: *dc.Client) -> *void {
 	j := asv.job;
-	if j == null || j.client != c return false;
+	if j == null || j.client != c return null;
 	asv.job = null;
-	ok := compare_and_swap(*j.state, JOIN_RUNNING, JOIN_RELEASE);
-	if !ok free_job(j); // already done: the caller releases the client
-	return ok;
+	return j;
 }
 
-// Per frame (overlay pass): finished requests, pending navigation, then the modal.
+add_server_join_wait :: (p: *void) {
+	if p == null return;
+	j := cast(*Join_Job) p;
+	while atomic_load(*j.state) != JOIN_DONE sleep_milliseconds(10);
+	free_job(j);
+}
+
+// Per frame (overlay pass): finished requests, pending navigation, then the modal. Create and Join
+// (a Discord invite) are Discord's while a hosted server is open; an fc:// invite joins in hosted.jai.
 add_server_overlay :: () {
+	keep, g0 := app.client, app.view.guild;
+	if app.discord app.client = app.discord;
+	add_server_frame();
+	if app.view.guild == g0 app.client = keep; // unless it opened the new server
+}
+
+#scope_file
+
+add_server_frame :: () {
 	j := asv.job;
 	if j != null && atomic_load(*j.state) == JOIN_DONE {
 		asv.job = null;
@@ -105,6 +121,8 @@ add_server_overlay :: () {
 	if asv.step != .Closed add_server_modal();
 }
 
+#scope_export
+
 centered :: (id: string, text: string, font: Font_Id, size: float32, line_h: float32, color: ui.Color) {
 	b := set_para(id, text, font, size, line_h, color);
 	b.style.text_align = .Center;
@@ -114,7 +132,6 @@ centered :: (id: string, text: string, font: Font_Id, size: float32, line_h: flo
 
 JOIN_RUNNING :: 0;
 JOIN_DONE :: 1;
-JOIN_RELEASE :: 2; // the client was logged out mid-request: the worker releases it
 
 Join_Job :: struct {
 	client: *dc.Client;
@@ -136,12 +153,13 @@ asv: struct {
 };
 
 add_server_step :: (st: Add_Server_Step) {
-	if app.client != null {
+	c := ifx app.discord then app.discord else app.client; // the rail's + while a hosted server is open too
+	if c != null {
 		if st == {
 		case .Choose;
-			dc.guild_add_step(app.client, .Templates, ifx asv.step == .Closed then 0 else asv.step_ms);
+			dc.guild_add_step(c, .Templates, ifx asv.step == .Closed then 0 else asv.step_ms);
 		case .Join;
-			dc.guild_add_step(app.client, .Join, asv.step_ms);
+			dc.guild_add_step(c, .Join, asv.step_ms);
 		}
 	}
 	asv.step = st;
@@ -170,11 +188,8 @@ join_start :: (input: string) {
 	asv.job = j;
 	dc.spawn(j, (j: *Join_Job) {
 		j.res = dc.join_invite(j.client, j.input, member_of = j.member_of);
-		if !compare_and_swap(*j.state, JOIN_RUNNING, JOIN_DONE) {
-			client_release(j.client);
-			free_job(j);
-		}
 		reset_temporary_storage();
+		atomic_swap(*j.state, JOIN_DONE); // j may be freed from here (add_server_join_wait)
 		platform.request_frame();
 	});
 }
