@@ -6,6 +6,7 @@ Platform_Info :: struct {
 	release_channel: string;
 	client_version: string;
 	os_version: string;
+	os_product_version: string; // the native updater's platform_version where it differs: macOS's ("27.0.1")
 	os_arch: string;
 	app_arch: string;
 	system_locale: string;
@@ -99,6 +100,7 @@ DEFAULT_PLATFORM :: Platform_Info.{
 	release_channel = "stable",
 	client_version = MAC_HOST_VERSION,
 	os_version = "27.0.0",
+	os_product_version = "27.0.1",
 	os_arch = "arm64",
 	app_arch = "arm64",
 	system_locale = "en-US",

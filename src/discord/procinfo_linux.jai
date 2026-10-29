@@ -39,6 +39,7 @@ process_exe_paths :: () -> []string {
 // strings live for the process.
 linux_platform :: () -> Platform_Info {
 	p := DEFAULT_PLATFORM;
+	p.os_product_version = ""; // the updater sends os_version
 	p.os = "Linux";
 	u: utsname;
 	if uname(*u) == 0 p.os_version = copy_string(to_string(u.release.data));

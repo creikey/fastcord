@@ -3282,7 +3282,7 @@ app_document_build :: (t: *T) {
 	while (c.id.web_build == 0 || !c.id.host.version) && mono_ms() - start < 3000 sleep_milliseconds(5);
 	expect_value(t, c.id.web_build, 650001);
 	expect(t, c.id.host.version == "0.0.421" && c.id.host.native == 97100 && c.id.host.electron == "45.0.1" && c.id.platform.client_version == MAC_HOST_VERSION, "the updater's host waits for the next launch");
-	expect(t, rec.manifest == tprint("/distributions/app/manifests/latest?channel=stable&platform=osx&arch=arm64&install_id=%", c.id.updater_install_id), "the updater's manifest check");
+	expect(t, rec.manifest == tprint("/distributions/app/manifests/latest?install_id=%&channel=stable&platform=osx&arch=arm64&platform_version=27.0.1&client_version=96312", c.id.updater_install_id), "the updater's manifest check");
 	install_id := copy_string(c.id.updater_install_id);
 	defer free(install_id);
 	expect_value(t, c.id.platform.client_build_number, 650001);
@@ -3314,6 +3314,128 @@ app_document_build :: (t: *T) {
 	for rec.wire free(it);
 	array_free(rec.paths);
 	array_free(rec.wire);
+}
+
+// updater_wire: the native updater's manifest request, byte for byte as hyper wrote it (macOS 0.0.419 and
+// Windows 1.0.9266 against a local NEW_UPDATE_ENDPOINT), and the package it fetches for a newer host.
+updater_wire :: (t: *T) {
+	b: String_Builder;
+	b.allocator = temp;
+	path := "/distributions/app/manifests/latest?install_id=3f1c9a52-7d4e-4b8a-9c21-5e6f0a1b2c3d&channel=stable&platform=osx&arch=arm64&platform_version=27.0.1&client_version=96312";
+	expect(t, http.h1_serialize_request(*b, updater_request(UPDATER_HOST, path)) == .None, "serializes");
+	expect(t, builder_to_string(*b,, temp) == tprint("GET % HTTP/1.1\r\naccept: */*\r\nuser-agent: Discord-Updater/1\r\naccept-encoding: gzip\r\nhost: updates.discord.com\r\n\r\n", path), "request line and headers in hyper's order");
+	m, err := etf.from_json("{\"full\":{\"host_version\":[0,0,420],\"package_sha256\":\"11111111111111111111111111111111111111111111111111111111111111aa\",\"url\":\"https://stable.dl2.discordapp.net/distro/app/stable/osx/universal/0.0.420/full.distro\"},\"deltas\":[{\"host_version\":[0,0,418],\"package_sha256\":\"2222222222222222222222222222222222222222222222222222222222222222\",\"url\":\"https://stable.dl2.discordapp.net/distro/app/stable/osx/universal/0.0.420/from/0.0.418\"},{\"host_version\":[0,0,419],\"package_sha256\":\"3333333333333333333333333333333333333333333333333333333333333333\",\"url\":\"https://stable.dl2.discordapp.net/distro/app/stable/osx/universal/0.0.420/from/0.0.419\"}]}",, temp);
+	if !expect(t, err == .None, "manifest parses") return;
+	pkg, newer := updater_package(vmap(m), "0.0.419");
+	expect(t, newer && pkg.version == "0.0.420" && pkg.host == "stable.dl2.discordapp.net" && pkg.path == "/distro/app/stable/osx/universal/0.0.420/from/0.0.419" && pkg.sha256[0] == 0x33, "the delta from the running host");
+	pkg, newer = updater_package(vmap(m), "0.0.417");
+	expect(t, newer && pkg.path == "/distro/app/stable/osx/universal/0.0.420/full.distro" && pkg.sha256[31] == 0xaa, "else the full package");
+	_, newer = updater_package(vmap(m), "0.0.420");
+	expect(t, !newer, "nothing for the host it runs");
+	host, _ := https_url_parts("http://stable.dl2.discordapp.net/x");
+	host2, _ := https_url_parts("https://stable.dl2.discordapp.net:8443/x");
+	expect(t, host == "" && host2 == "", "only https on the default port");
+}
+
+// updater_schedule: the launch check, the splash's Backoff(1 s, 30 s) after failures, then hourly; a newer
+// host's package is fetched through a hash with the updater's request shape, and once more if it is bad.
+updater_schedule :: (t: *T) {
+	expect(t, updater_backoff(0, 0) == 1000 && updater_backoff(0, 0.999) == 2998 && updater_backoff(20_000, 1) == 30_000 && updater_backoff(30_000, 0.5) == 30_000, "Backoff.fail with jitter");
+	Rec :: struct { mu: locks.Mutex; status: int; calls: [..]string; headers_ok: bool; package_body: string; }
+	rec := Rec.{headers_ok = true};
+	rt :: (data: *void, host: string, req: http.Request) -> http.Response, http.Error {
+		r := cast(*Rec) data;
+		locks.lock(*r.mu);
+		defer locks.unlock(*r.mu);
+		array_add(*r.calls, join(host, req.path,, context.default_allocator),, context.default_allocator);
+		r.headers_ok = r.headers_ok && req.headers.count == 4 && req.headers[1].value == "Discord-Updater/1" && req.headers[3].value == host;
+		resp := http.make_response(.Http1_1,, context.default_allocator);
+		resp.status = r.status;
+		if host == UPDATER_HOST {
+			hex: String_Builder;
+			hex.allocator = temp;
+			for crypto.sha256(cast([]u8) "package") print_to_builder(*hex, "%", formatInt(it, base = 16, minimum_digits = 2));
+			h := builder_to_string(*hex,, temp);
+			append_string(*resp.body, tprint("{\"full\":{\"host_version\":[0,0,420],\"package_sha256\":\"%\",\"url\":\"https://dl.example/full\"},\"deltas\":[{\"host_version\":[0,0,419],\"package_sha256\":\"%\",\"url\":\"https://dl.example/delta\"}],\"metadata_version\":96400}", h, h));
+		} else {
+			append_string(*resp.body, r.package_body);
+		}
+		return resp, .None;
+	}
+	dir := "build/test_updater_state";
+	file_delete(tprint("%/identity.tsv", dir));
+	c := client_create(.{token = "<token>", state_dir = dir, disable_startup = true, disable_gateway = true, disable_analytics = true, disable_remote_auth = true, round_tripper = .{*rec, rt}});
+	j := job_new(.Web, .Startup);
+	rec.status = 503;
+	t0 := now_ms();
+	updater_run(c, j);
+	expect(t, j.requeue && j.not_before >= t0 + 1000 && j.not_before <= now_ms() + 3000, "a failed check is retried in 1-3 s");
+	c.updater.next_check_ms = 0;
+	updater_run(c, j);
+	expect(t, c.updater.backoff_ms >= 1000 && c.updater.backoff_ms <= 9000, "then backs off further");
+	rec.status = 200;
+	rec.package_body = "corrupt";
+	c.updater.next_check_ms = 0;
+	updater_run(c, j);
+	expect(t, rec.calls.count == 5 && rec.calls[3] == "dl.example/delta" && rec.calls[4] == "dl.example/delta", "a bad package is fetched twice");
+	expect(t, c.updater.backoff_ms > 0 && !c.updater.fetched, "and the check fails");
+	rec.package_body = "package";
+	c.updater.next_check_ms = 0;
+	t1 := now_ms();
+	updater_run(c, j);
+	expect(t, rec.calls.count == 7 && c.updater.fetched == "0.0.420" && c.updater.backoff_ms == 0, "the delta from 0.0.419 comes through");
+	expect(t, j.not_before >= t1 + UPDATER_CHECK_MS && j.not_before <= now_ms() + UPDATER_CHECK_MS, "the next check in an hour");
+	c.updater.next_check_ms = 0;
+	updater_run(c, j);
+	expect(t, rec.calls.count == 8, "a fetched package is not fetched again");
+	expect(t, rec.headers_ok, "every request has the updater's headers");
+	job_free(j);
+	client_destroy(c);
+	for rec.calls free(it,, context.default_allocator);
+	array_free(rec.calls);
+}
+
+// ostls_client_hello: the OS library's ClientHello to a local listener equals the official updater's, captured
+// with SNI "localhost" (macOS 0.0.419: SecureTransport; Windows 1.0.9266: SChannel), but for the random. Linux
+// has no capture: its libssl's hello is only checked to be one.
+ostls_client_hello :: (t: *T) {
+	#if OS == .MACOS WANT :: "16030100a4010000a00303000000000000000000000000000000000000000000000000000000000000000000002c00ffc02cc02bc024c023c00ac009c008c030c02fc028c027c014c013c012009d009c003d003c0035002f000a0100004b0000000e000c0000096c6f63616c686f7374000a00080006001700180019000b00020100000d00120010040102010501060104030203050306030005000501000000000012000000170000";
+	else #if OS == .WINDOWS WANT :: "16030300a00100009c03030000000000000000000000000000000000000000000000000000000000000000000024c02cc02bc030c02fc024c023c028c027c00ac009c014c013009d009c003d003c0035002f0100004f0000000e000c0000096c6f63616c686f7374000a00080006001d00170018000b00020100000d001a00180804080508060401050102010403050302030202060106030023000000170000ff01000100";
+	else WANT :: "";
+	l, lerr := netio.listen_tcp(0);
+	if !expect(t, lerr == .None, "listens") return;
+	Dial :: struct { port: int; err: ostls.Error; }
+	d := Dial.{port = l.port};
+	th := spawn(*d, (d: *Dial) {
+		tcp, err := netio.dial_tcp("localhost", d.port);
+		if err != .None { d.err = .Handshake; return; }
+		s, terr := ostls.connect(netio.tcp_stream(tcp), "localhost");
+		d.err = terr;
+		if terr == .None netio.close(s);
+	});
+	conn, aerr := netio.accept_tcp(l);
+	got: [..]u8;
+	got.allocator = temp;
+	if aerr == .None {
+		s := netio.tcp_stream(conn);
+		buf: [4096]u8;
+		while got.count < 5 || got.count < 5 + ((cast(int) got[3]) << 8 | got[4]) {
+			n, rerr := netio.read(s, buf);
+			if rerr != .None break;
+			array_add(*got, ..array_view(buf, 0, n));
+		}
+		netio.close(s);
+	}
+	locks.join(th);
+	netio.close_listener(l);
+	free(l);
+	expect(t, d.err != .None, "the handshake stops at the listener");
+	if !expect(t, got.count > 43 && got[0] == 0x16 && got[5] == 1, "a ClientHello") return;
+	for 11..42 got[it] = 0;
+	hex: String_Builder;
+	hex.allocator = temp;
+	for got print_to_builder(*hex, "%", formatInt(it, base = 16, minimum_digits = 2));
+	if WANT expectf(t, builder_to_string(*hex,, temp) == WANT, "the official updater's ClientHello, got %", builder_to_string(*hex,, temp));
 }
 
 // quic_chrome_initials: our first flight has the layout of Chrome 148's (QUICHE's multi-packet chaos protection,

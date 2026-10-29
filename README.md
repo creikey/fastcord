@@ -21,6 +21,7 @@ webview. Metal on macOS, Direct3D 11 on Windows, OpenGL (EGL) on Linux.
 | `build.jai` | The whole build: C libraries, the app, tools, tests, benches, releases. |
 | `src/netio` | `Stream` interface (read/write/close) + TCP. Every protocol sits on a `Stream`. |
 | `src/tls`, `src/quic` | TLS and QUIC over vendored BoringSSL and ngtcp2, configured like Chrome (the official client is Electron); OS trust store. |
+| `src/ostls` | TLS through the OS's own library (SecureTransport, SChannel, the system libssl), set up as Rust's native-tls does, for the native updater's requests. |
 | `src/inflate`, `src/zstd`, `src/brotli` | Decoders (Wuffs, zstd, brotli): the gateway uses zstd-stream; HTTP responses may be gzip/br/zstd. |
 | `src/crypto` | Hashes, HMAC/HKDF, AEADs, P-256, SLH-DSA, X25519 over BoringSSL; BLAKE3. |
 | `src/keys` | Identity keypairs for self-hosted servers: the BLAKE3 Merkle root, durable key files beside `<state>`. |
@@ -171,6 +172,12 @@ patches that do this are listed in their `vendor/*/README.md`.
 
 Packet numbers come from one counter across the Initial, Handshake and 1-RTT spaces with none skipped, as
 QUICHE's do (`QuicPacketCreator::NextSendingPacketNumber`). No known fingerprint gap remains against Chrome.
+
+The official client's native updater (`updater.node`, Rust) is not Chrome: its manifest checks and package
+downloads are HTTP/1.1 over the OS's TLS with native-tls's settings. fastcord sends them through `src/ostls`
+on the same libraries, so the hello is the OS's by construction; on macOS it equals the official updater's
+but for the random (`ostls_client_hello`), and the request is byte for byte the captured one (`updater_wire`).
+Windows (SChannel) and Linux (libssl) are type-checked only.
 
 ## Releasing
 

@@ -111,16 +111,7 @@ client_route_kind :: (guild: Snowflake, channel: Snowflake) -> Route_Kind {
 APP_VERSION_CHECK_MS :: 3400;
 
 schedule_app_load :: (c: *Client) {
-	p := identity_platform(*c.id);
-	m := job_new(.Web, .Startup);
-	m.host_manifest = true;
-	m.method = "GET";
-	m.host = "updates.discord.com";
-	locks.lock(*c.id.mu);
-	m.path = job_str(m, tprint("/distributions/app/manifests/latest?channel=stable&platform=%&arch=%&install_id=%", updater_platform(p), p.app_arch, c.id.updater_install_id));
-	locks.unlock(*c.id.mu);
-	m.not_before = c.launch_ms;
-	job_submit(c, m);
+	updater_schedule(c);
 	h := job_new(.Web, .Startup);
 	h.hosts_table = true;
 	h.method = "GET";

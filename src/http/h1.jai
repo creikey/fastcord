@@ -33,15 +33,22 @@ h1_destroy :: (c: *H1_Conn, close_stream := true) {
 	if close_stream netio.close(c.s);
 }
 
+// Body_Sink takes a response body piece by piece as it arrives, so a large download is never held whole
+// (resp.body stays empty); returning false abandons the response.
+Body_Sink :: struct {
+	data: *void;
+	take: (data: *void, piece: []u8) -> bool;
+}
+
 // h1_round_trip writes req and reads the response on a keep-alive connection.
-h1_round_trip :: (c: *H1_Conn, req: Request) -> Response, Error {
+h1_round_trip :: (c: *H1_Conn, req: Request, sink := Body_Sink.{}) -> Response, Error {
 	if !c.reusable return .{}, .Closed;
 	err := h1_write_request(c.s, req);
 	if err != .None {
 		c.reusable = false;
 		return .{}, err;
 	}
-	resp, keep, rerr := h1_read_response(*c.r, req.method, c.limits,, c.allocator);
+	resp, keep, rerr := h1_read_response(*c.r, req.method, c.limits, sink,, c.allocator);
 	err = rerr;
 	c.reusable = keep && err == .None && resp.status != 101;
 	return resp, err;
@@ -227,7 +234,7 @@ h1_read_head :: (r: *Reader, resp: *Response, limits: H1_Limits) -> Error {
 
 // h1_read_response reads a full response (skipping 1xx except 101) and its body, from context.allocator.
 // keep_alive reports whether the connection can carry another request.
-h1_read_response :: (r: *Reader, method: string, limits: H1_Limits) -> Response, keep_alive: bool, Error {
+h1_read_response :: (r: *Reader, method: string, limits: H1_Limits, sink := Body_Sink.{}) -> Response, keep_alive: bool, Error {
 	resp := make_response(.Http1_1);
 	while true {
 		err := h1_read_head(r, *resp, limits);
@@ -252,18 +259,18 @@ h1_read_response :: (r: *Reader, method: string, limits: H1_Limits) -> Response,
 		// chunked must be the final coding; anything else is close-delimited
 		found, _, last := split_from_right(te, #char ",");
 		if equal_nocase(trim(last), "chunked") {
-			err = read_chunked(r, *resp, limits);
+			err = read_chunked(r, *resp, limits, sink);
 		} else {
-			err = read_until_close(r, *resp, limits);
+			err = read_until_close(r, *resp, limits, sink);
 			keep_alive = false;
 		}
 	} else if has_cl {
 		n, ok := parse_content_length(resp.headers);
 		if !ok                     err = .Protocol;
 		else if n > limits.max_body err = .Too_Large;
-		else                        err = read_body_n(r, *resp.body, n);
+		else                        err = read_body_n(r, *resp.body, n, sink);
 	} else {
-		err = read_until_close(r, *resp, limits);
+		err = read_until_close(r, *resp, limits, sink);
 		keep_alive = false;
 	}
 	if err != .None {
@@ -295,25 +302,38 @@ parse_content_length :: (headers: []Header) -> int, bool {
 }
 
 // read_body_n appends exactly n bytes, growing in steps so a lying length can't force a huge allocation.
-read_body_n :: (r: *Reader, body: *[..]u8, n: int) -> Error {
+read_body_n :: (r: *Reader, body: *[..]u8, n: int, sink := Body_Sink.{}) -> Error {
 	left := n;
 	while left > 0 {
 		step := min(left, 64 << 10);
 		err := read_exact(r, grow(body, step));
+		if err == .None err = to_sink(body, sink);
 		if err != .None return err;
 		left -= step;
 	}
 	return .None;
 }
 
-read_until_close :: (r: *Reader, resp: *Response, limits: H1_Limits) -> Error {
+// to_sink hands what body holds to a sink, if there is one, and empties it.
+to_sink :: (body: *[..]u8, sink: Body_Sink) -> Error {
+	if !sink.take || !body.count return .None;
+	ok := sink.take(sink.data, body.*);
+	body.count = 0;
+	return ifx ok then .None else .Closed;
+}
+
+read_until_close :: (r: *Reader, resp: *Response, limits: H1_Limits, sink := Body_Sink.{}) -> Error {
 	tmp: [16 * 1024]u8 = ---;
+	total := 0;
 	while true {
 		n, err := read_some(r, tmp);
 		if err == .Closed return .None;
 		if err != .None return err;
-		if resp.body.count + n > limits.max_body return .Too_Large;
+		total += n;
+		if total > limits.max_body return .Too_Large;
 		array_add(*resp.body, ..array_view(tmp, 0, n));
+		err = to_sink(*resp.body, sink);
+		if err != .None return err;
 	}
 	return .None;
 }
@@ -321,8 +341,9 @@ read_until_close :: (r: *Reader, resp: *Response, limits: H1_Limits) -> Error {
 // read_chunked moves the reader's buffered bytes onto the end of the body and lets phr_decode_chunked
 // decode them in place. Bytes after the last chunk and its trailers (discarded) belong to the next
 // response: they are still in the reader's buffer, so they are given back by rewinding r.start.
-read_chunked :: (r: *Reader, resp: *Response, limits: H1_Limits) -> Error {
+read_chunked :: (r: *Reader, resp: *Response, limits: H1_Limits, sink := Body_Sink.{}) -> Error {
 	dec := Phr_Chunked_Decoder.{consume_trailer = 1};
+	total := 0;
 	while true {
 		if r.start == r.end {
 			err := fill(r);
@@ -335,12 +356,13 @@ read_chunked :: (r: *Reader, resp: *Response, limits: H1_Limits) -> Error {
 		n := cast(u64) raw;
 		ret := phr_decode_chunked(*dec, resp.body.data + done, *n);
 		resp.body.count = done + cast(int) n;
+		total += cast(int) n;
 		if ret == -1 return .Protocol;
-		if resp.body.count > limits.max_body return .Too_Large;
-		if ret >= 0 {
-			r.start -= ret;
-			return .None;
-		}
+		if total > limits.max_body return .Too_Large;
+		if ret >= 0 r.start -= ret;
+		err := to_sink(*resp.body, sink);
+		if err != .None return err;
+		if ret >= 0 return .None;
 	}
 	return .None;
 }
