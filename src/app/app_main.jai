@@ -358,7 +358,8 @@ frame :: () {
 	}
 	platform.set_tray_voice(app.self_mute || app.self_deaf, app.self_deaf);
 	// one batch per drop (the 10-file cap applies to the batch)
-	if drops.count > 0 && app.view.channel != 0 && !app.needs_login stage_paths(app.view.channel, drops, "drag_and_drop");
+	taken := drops.count > 0 && server_settings_is_open() && sound_settings_drop(drops); // Add Sound's file
+	if !taken && drops.count > 0 && app.view.channel != 0 && !app.needs_login stage_paths(app.view.channel, drops, "drag_and_drop");
 	evs := map_events(platform.events());
 	for evs app.ui_mods = it.mods;
 	for evs if it.kind == .Key_Down || it.kind == .Text app.caret_reset_t = now;

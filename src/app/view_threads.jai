@@ -342,6 +342,8 @@ features_receive_of :: (c: *dc.Client) {
 			events_receive(r); // view_events.jai (dc.guild_admin_apply first)
 		case .Guild_Aux; #through; case .Channel_Create; #through; case .Channel_Edit; #through; case .Channel_Delete; #through; case .Avatar_Edit; #through; case .Emoji_Upload;
 			guild_admin_receive(r);
+		case .Sound_Upload; #through; case .Sound_Edit; #through; case .Sound_Delete;
+			sound_settings_receive(r); // view_server_soundboard.jai
 		case .Guild_Edit;
 			if app.client != null dc.guild_admin_apply(app.client, r);
 			server_settings_receive(r); // view_server_settings.jai

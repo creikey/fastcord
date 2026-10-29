@@ -656,7 +656,7 @@ attachments_overlays :: () {
 				att.notice = .None;
 			}
 		}
-	} else if att.drag && ch != null {
+	} else if att.drag && ch != null && !server_settings_is_open() {
 		where_ := ifx ch.kind == .DM then tprint("@%", dm_name(ch)) else ifx ch.kind == .Group_DM then dm_name(ch) else tprint("#%", ch.name);
 		upload_card_overlay("att_drag", tprint("Upload to %", where_), "You can add comments before uploading.\nHold shift to upload directly.", T("--background-brand"), "file-up", false);
 	}

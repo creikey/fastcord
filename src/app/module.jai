@@ -98,6 +98,7 @@ voice :: #import "voice";
 #load "view_settings_account.jai";
 #load "view_settings_prefs.jai";
 #load "view_server_settings.jai";
+#load "view_server_soundboard.jai";
 #load "view_streamer.jai";
 #load "view_switcher.jai";
 #load "view_threads.jai";

@@ -423,7 +423,7 @@ section_shown :: (g: *dc.Guild, s: Server_Section) -> bool {
 // The sections fastcord has a page for (see the note at the top).
 page_exists :: (s: Server_Section) -> bool {
 	if s == {
-	case .Profile; #through; case .Engagement;
+	case .Profile; #through; case .Engagement; #through; case .Soundboard;
 		return true;
 	}
 	return false;
@@ -436,6 +436,8 @@ page_body :: (g: *dc.Guild, s: Server_Section, w: float32) -> bool {
 		return profile_page(g, w);
 	case .Engagement;
 		engagement_page(g);
+	case .Soundboard;
+		sound_settings_page(g, w); // view_server_soundboard.jai
 	}
 	return false;
 }

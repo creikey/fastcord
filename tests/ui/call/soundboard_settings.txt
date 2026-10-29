@@ -1,0 +1,17 @@
+# Server Settings > Soundboard lists the server's sounds; a file dropped on the page opens Upload Sound
+# with it, checked (length shown) and its name filled in.
+wait 5
+click 200 57
+wait 10
+click_text "Server Settings"
+wait 10
+click_text "Soundboard"
+wait 10
+expect_visible "vine boom"
+expect_visible "7 of 8 slots used"
+drop tests/ui/call/silence.mp3
+wait 60
+expect_visible "Upload a Sound"
+expect_visible "silence.mp3"
+expect_visible "1.0 seconds"
+shot

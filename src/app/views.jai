@@ -1378,6 +1378,7 @@ overlays :: () {
 	events_modal();
 	server_settings_layer(); // under the admin modals, which open over it
 	guild_admin_overlays();
+	sound_settings_modal(); // view_server_soundboard.jai: over the Server Settings layer
 	attachments_overlays(); // attachments.jai: Modify modal, drag target, limit notices
 	req_toast(); // requests.jai: a failed request, on top
 	// Escape that no layer took (the composer hands it on): the keybind is global, so it acts on the

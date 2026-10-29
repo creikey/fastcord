@@ -10,7 +10,7 @@
   - Done: Engagement (System Messages channel and flags, Default Notification Settings, Inactive Channel and Timeout, Server Widget) on Discord and hosted; serve keeps the fields, audits every change and lists them (`GET /guilds/{id}/audit-logs`, `serve/settings.jai`).
   - Emoji: list with uploader, upload (`POST /guilds/{id}/emojis`, 256 KB, static and animated slots), rename and delete (`PATCH`/`DELETE /guilds/{id}/emojis/{id}`), role-restricted emoji shown read-only.
   - Stickers: upload PNG/APNG/GIF/Lottie with name, related emoji and description (`POST /guilds/{id}/stickers` multipart), edit and delete.
-  - Soundboard: list, upload (mp3/ogg, 512 KB, 5.2 s, name, emoji, volume; `POST /guilds/{id}/soundboard-sounds`), edit and delete, preview.
+  - Done: Soundboard: list with emoji, volume and uploader, preview, upload (mp3/ogg, 512 KB, 5.2 s checked on a worker, name, emoji, volume; `POST /guilds/{id}/soundboard-sounds`), edit and delete, on Discord and hosted servers (`view_server_soundboard.jai`).
   - Members: searchable list with join date, joined via, roles and the row menu (Kick, Ban, Timeout, Roles, Transfer Ownership for the owner, with the official confirm).
   - Roles: list with member counts, Create Role, drag to reorder (`PATCH /guilds/{id}/roles` positions), each role's Display (name, colour, icon if feature, hoist, mentionable), Permissions (every flag with the official descriptions, Clear Permissions), Links, Manage Members (add/remove), Delete; the @everyone default permissions; View Server As Role.
   - Invites: every invite with inviter, uses, expiry; Revoke; Pause Invites (`invites_disabled`).
@@ -482,7 +482,6 @@
   - Never send the proxy's credentials anywhere but the proxy.
 - [ ] Connection: when the gateway drops, nothing shows it; the app silently goes stale while `gateway.jai` reconnects (no UI reads `Gw_State`). Show the official client's "Connecting..." / offline state.
 - [ ] Bug: after a re-identify, typing indicators, threads and activities stop for every server visited earlier, and the member sidebar freezes. `subscribe_guild` skips servers already in `c.subs.guilds`, and the member list resubscribes only when empty (`actions.jai`, `view_home.jai`).
-- [ ] Soundboard: let Add Sound (uploading a new sound to a server) take its file by drag and drop onto the dialog, as well as through the file picker. The official client only offers the picker; this is a fastcord-only extra, so it goes in `traffic/CLIENT_RULES.md` as such. Reuse the composer's file drop (`attachments.jai`).
 - [ ] Friends: no Blocked list or unblock outside a DM header; no friend suggestions.
 - [ ] Profiles: the user menu lacks Remove Friend, Block/Unblock, Call, Invite to Server, Mention, Add Note and Ignore (a comment in `view_home.jai` claims some exist).
 - [ ] Friends: rows show only Online/Idle, never the custom status or activity; the "Friends" item in the DM sidebar has no pending-request badge.
@@ -756,3 +755,4 @@
 - [x] Sounds: the UI sounds decode at the right pitch on Windows: 440 Hz MP3 tones at 22.05, 44.1 and 48 kHz come out of `decode_sound` (minimp3) and the player's decoder at 440 Hz and the right length, checked by counting zero crossings of the decoded samples rather than by ear. Linux runs the same decoder; its ALSA output (48 kHz f32) wasn't measured.
 - [x] Windows: TLS chain validation through CryptoAPI is checked on a real machine: `src/tests/tls_verify.jai` passes on Windows 11 (2026-10-29), accepting badssl.com's good and discord.com's certificates and refusing wrong-host, self-signed, untrusted-root, expired and revoked ones. It passes on macOS too.
 - [x] History: a jump to an older message (search, pins, replies, links) shows that stretch alone behind a gap with the "You're Viewing Older Messages / Jump To Present" bar, loads newer pages with `after=` while scrolling down, and Jump to Present shows the stored present again (`gap_after`, `apply_around`, `jump_to_present`; `tests/ui/jump_to_present.txt`, test `history_gap`). This also fixes jumping from search then scrolling down leaping straight to the present.
+- [x] Soundboard: Upload a Sound (Server Settings > Soundboard) takes its file by drag and drop onto the page or the dialog as well as Browse (fastcord-only; `sound_settings_drop`).
