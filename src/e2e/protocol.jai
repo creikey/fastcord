@@ -21,6 +21,7 @@ Kind :: enum u8 { Hello :: 1; Init :: 2; Msg :: 3; }
 
 // The first plaintext byte says what a ratchet message holds.
 Content :: enum u8 { Text :: 0; Accept :: 1; }
+SILENT :: cast(u8) 0x80; // Set on the Content byte: sent with @silent, so no sound or notification on any carrier.
 
 HEADER_BYTES :: 40;
 TAG_BYTES :: 16;
@@ -35,11 +36,11 @@ INIT_PLAINTEXT :: MAX_PACKET - INIT_PREFIX_BYTES - HEADER_BYTES - TAG_BYTES;
 // a multiple of PAD_BLOCK, as Signal pads: Discord sees a message's length to the block, not the byte.
 PAD_BLOCK :: 160;
 
-pad :: (content: Content, text: string, limit := MAX_PLAINTEXT) -> []u8 {
+pad :: (content: Content, text: string, limit := MAX_PLAINTEXT, silent := false) -> []u8 {
 	n := min(limit, (text.count + 2 + PAD_BLOCK - 1) / PAD_BLOCK * PAD_BLOCK);
 	assert(text.count + 2 <= n);
 	pt := NewArray(n, u8,, temp);
-	pt[0] = xx content;
+	pt[0] = (cast(u8) content) | (ifx silent then SILENT else 0);
 	memcpy(pt.data + 1, text.data, text.count);
 	pt[text.count + 1] = 0x80;
 	return pt;

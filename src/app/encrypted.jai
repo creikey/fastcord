@@ -6,6 +6,7 @@ Shown :: struct {
 	result: e2e.Result;
 	content: e2e.Content;
 	text: string;
+	silent: bool; // Sent with @silent, said inside the packet.
 	accepted: bool;
 	key_changed: bool; // A Hello whose root isn't the one this peer had.
 	pending: bool;
@@ -53,7 +54,7 @@ encrypted_frame :: () {
 			case .Receive;
 				sh := find_or_add(*ee.shown, r.message);
 				free(sh.text);
-				sh.* = .{result = r.result, content = r.content, text = copy_string(r.out_text), accepted = r.accepted, key_changed = r.key_changed, generation = ee.generation};
+				sh.* = .{result = r.result, content = r.content, text = copy_string(r.out_text), silent = r.silent, accepted = r.accepted, key_changed = r.key_changed, generation = ee.generation};
 				if r.result == .Ok && r.content == .Accept && r.author != r.me_user {
 					ee.generation += 1;
 					ch.encrypted, ch.has_session, ch.loaded = true, true, false; // Reload for the peer's root.
@@ -86,6 +87,13 @@ encrypted_packet :: (channel_id: dc.Snowflake, content: string) -> bool {
 	if !begins_with(content, e2e.PREFIX) || !app.discord return false;
 	ch := dc.channel_get(*app.discord.store, channel_id);
 	return ch && ch.kind == .DM && ch.recipient_ids.count == 1;
+}
+
+// encrypted_silent: an opened packet whose sender asked for no sound or notification, whatever the
+// carrier's flags say.
+encrypted_silent :: (id: dc.Snowflake) -> bool {
+	sh := table_find_pointer(*ee.shown, id);
+	return sh && !sh.pending && sh.result == .Ok && sh.silent;
 }
 
 // shown_text is a message's content as drawn outside the message list (previews, notifications, copies).
@@ -130,14 +138,14 @@ encrypted_toggle :: (dm: *dc.Channel) {
 
 // encrypted_send takes over the composer's send in an encrypted DM. It returns false to keep the text,
 // e.g. while the peer hasn't accepted yet.
-encrypted_send :: (dm: *dc.Channel, text: string, has_attachments: bool) -> bool {
+encrypted_send :: (dm: *dc.Channel, text: string, has_attachments: bool, silent: bool) -> bool {
 	ch := encrypted_channel(dm.id);
 	if !ch.has_session { toast_show(tprint("% hasn't accepted encryption yet.", dm_name(dm)), false); return false; }
 	if has_attachments { toast_show("Files can't be sent encrypted yet.", false); return false; }
 	if text.count > e2e.MAX_TEXT_BYTES { toast_show(tprint("Encrypted messages are limited to % bytes for now.", e2e.MAX_TEXT_BYTES), false); return false; }
 	if !identity_ready() return false;
 	r := e2e.request(.Send, dm.id, text);
-	r.me = my_identity();
+	r.me, r.silent = my_identity(), silent;
 	e2e_submit(r);
 	return true;
 }
@@ -288,9 +296,10 @@ e2e_submit :: (r: *e2e.Request) {
 // it from the outbox.
 send_packet :: (r: *e2e.Request, result: e2e.Result, text: string, content := e2e.Content.Text) {
 	if !app.discord return; // The outbox sends it on the next start.
-	nonce := dc.send_message(app.discord, r.channel, r.packet);
+	// Discord's own flag too, so its push stays quiet; it says nothing about the content.
+	nonce := dc.send_message(app.discord, r.channel, r.packet, .{flags = ifx r.silent then SUPPRESS_NOTIFICATIONS else 0});
 	sh := find_or_add(*ee.shown, nonce);
 	free(sh.text);
-	sh.* = .{result = result, content = content, text = copy_string(text)};
+	sh.* = .{result = result, content = content, text = copy_string(text), silent = r.silent};
 	e2e_submit(e2e.request(.Sent, r.channel, r.packet));
 }

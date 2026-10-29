@@ -425,11 +425,6 @@ composer_send :: (ch: *dc.Channel, text: string) -> bool {
 	atts, ready := attachments_for_send(ch.id);
 	if !ready { return false; } // a file is still being read
 	if text == "" && !atts return false;
-	if encrypting(ch) {
-		if !encrypted_send(ch, text, atts.count > 0) return false;
-		ma.replying = 0;
-		return true;
-	}
 	opts: dc.Send_Options;
 	// "@silent " in front sends it without a sound or push for anyone; the prefix itself isn't sent.
 	body := text;
@@ -437,6 +432,11 @@ composer_send :: (ch: *dc.Channel, text: string) -> bool {
 		body = trim_left(advance(body, "@silent".count));
 		opts.flags |= SUPPRESS_NOTIFICATIONS;
 		if body == "" && !atts return false;
+	}
+	if encrypting(ch) {
+		if !encrypted_send(ch, body, atts.count > 0, opts.flags != 0) return false;
+		ma.replying = 0;
+		return true;
 	}
 	if ma.replying != 0 {
 		opts.reply_to = ma.replying;

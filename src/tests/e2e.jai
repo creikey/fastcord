@@ -170,6 +170,22 @@ conversation :: (dir: string) {
 	r = ask(*b, .Receive, early.packet, a.user, early_id);
 	check(r.result == .Ok && r.out_text == "early", "waiting msg opens after the init");
 
+	// @silent travels inside the packet, so it holds whatever the carrier does with its flags.
+	quiet := e2e.request(.Send, CHANNEL, "shh");
+	quiet.me, quiet.me_user, quiet.silent = a.me, a.user, true;
+	e2e.submit(a.d, quiet);
+	wait(quiet);
+	r = ask(*b, .Receive, quiet.packet, a.user, next_message);
+	check(r.result == .Ok && r.out_text == "shh" && r.silent, "silent message opens silent");
+	r = ask(*b, .Receive, quiet.packet, a.user, next_message);
+	check(r.result == .Ok && r.silent, "silent kept with the stored plaintext");
+	next_message += 1;
+	r = ask(*a, .Receive, quiet.packet, a.user, next_message);
+	check(r.result == .Ok && r.silent, "own silent echo");
+	next_message += 1;
+	r = ask(*b, .Receive, early.packet, a.user, early_id);
+	check(!r.silent, "plain message isn't silent");
+
 	reposted := ask(*a, .Send, "mine");
 	r = ask(*a, .Receive, reposted.packet, b.user, next_message);
 	check(r.result == .Repeated, "our packet reposted by the peer before our echo isn't shown as theirs");

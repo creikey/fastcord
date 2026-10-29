@@ -109,6 +109,7 @@ Request :: struct {
 	me_user: u64; // Our Discord user ID.
 	channel, peer, author, message: u64;
 	text: string;
+	silent: bool; // Send: sent with @silent. Receive: the sender asked for no sound or notification.
 	encrypted: bool;
 	verified: bool;
 	peer_root: [32]u8;
@@ -244,7 +245,7 @@ run_request :: (d: *Db, r: *Request) {
 			if !found { r.result = .No_Session; return; }
 			p: Packet;
 			p.count = 0;
-			pt := pad(.Text, r.text);
+			pt := pad(.Text, r.text, silent = r.silent);
 			defer crypto.zero(pt);
 			head: [2]u8 = .[VERSION, xx Kind.Msg];
 			memcpy(p.data.data, head.data, 2);
@@ -276,7 +277,7 @@ commit_sent :: (d: *Db, r: *Request, s: *Session, new: bool, peer_root: [32]u8, 
 		&& (ifx new then sqlite.run(db, "INSERT INTO sessions(id, channel, peer, peer_root, hello_id, state, updated) VALUES(?, ?, ?, ?, ?, ?, ?);",
 				cast([]u8) s.id, r.channel, r.peer, cast([]u8) peer_root, cast([]u8) hello_id, seal(d, ad("sessions", s.id), s), now_ms())
 			else sqlite.run(db, "UPDATE sessions SET state = ?, updated = ? WHERE id = ?;", seal(d, ad("sessions", s.id), s), now_ms(), cast([]u8) s.id))
-		&& store_plaintext(d, hash, 0, content, text)
+		&& store_plaintext(d, hash, 0, content, text, r.silent)
 		&& sqlite.run(db, "INSERT INTO outbox(hash, channel, packet) VALUES(?, ?, ?);", cast([]u8) hash, r.channel, r.packet)
 		&& (!new || (set_encrypted(db, r.channel, true) && note_peer(db, r.peer, peer_root)))
 		&& sqlite.exec(db, "COMMIT;");
@@ -342,7 +343,7 @@ receive :: (d: *Db, r: *Request) {
 				&& sqlite.run(db, "INSERT INTO sessions(id, channel, peer, peer_root, hello_id, state, updated) VALUES(?, ?, ?, ?, ?, ?, ?);",
 					cast([]u8) s.id, r.channel, r.author, cast([]u8) i.root, cast([]u8) i.hello_id, seal(d, ad("sessions", s.id), *s), now_ms())
 				&& store_skipped(d, s.id, skipped)
-				&& store_plaintext(d, hash, r.message, r.content, r.out_text)
+				&& store_plaintext(d, hash, r.message, r.content, r.out_text, r.silent)
 				&& set_encrypted(db, r.channel, true)
 				&& note_peer(db, r.author, i.root)
 				&& sqlite.run(db, "UPDATE prekeys SET answered = ? WHERE hello_id = ? AND answered = 0;", now_ms(), cast([]u8) i.hello_id)
@@ -377,7 +378,7 @@ receive :: (d: *Db, r: *Request) {
 				if !decrypt_skipped(*s, mk, m, pt) || !take_plaintext(r, pt) { r.result = .Undecryptable; return; }
 				ok = sqlite.exec(db, "BEGIN;")
 					&& sqlite.run(db, "DELETE FROM skipped WHERE session = ? AND dh = ? AND n = ?;", cast([]u8) id, cast([]u8) h.dh, cast(s64) h.n)
-					&& store_plaintext(d, hash, r.message, r.content, r.out_text)
+					&& store_plaintext(d, hash, r.message, r.content, r.out_text, r.silent)
 					&& sqlite.exec(db, "COMMIT;");
 			} else {
 				next := s;
@@ -388,7 +389,7 @@ receive :: (d: *Db, r: *Request) {
 				ok = sqlite.exec(db, "BEGIN;")
 					&& sqlite.run(db, "UPDATE sessions SET state = ?, updated = ? WHERE id = ?;", seal(d, ad("sessions", id), *next), now_ms(), cast([]u8) id)
 					&& store_skipped(d, id, skipped)
-					&& store_plaintext(d, hash, r.message, r.content, r.out_text)
+					&& store_plaintext(d, hash, r.message, r.content, r.out_text, r.silent)
 					&& sqlite.exec(db, "COMMIT;");
 				for * skipped crypto.zero(*it.mk);
 			}
@@ -403,8 +404,8 @@ receive :: (d: *Db, r: *Request) {
 take_plaintext :: (r: *Request, padded: []u8, stored := false) -> bool {
 	pt, ok := padded, true;
 	if !stored pt, ok = unpad(padded);
-	if !ok || pt.count < 1 || pt[0] > xx Content.Accept return false;
-	r.content = xx pt[0];
+	if !ok || pt.count < 1 || (pt[0] & ~SILENT) > xx Content.Accept return false;
+	r.content, r.silent = xx (pt[0] & ~SILENT), (pt[0] & SILENT) != 0;
 	text := to_string(pt.data + 1, pt.count - 1);
 	if !valid_utf8(text) || (r.content == .Accept && text.count) return false;
 	r.out_text = copy_string(text);
@@ -412,10 +413,10 @@ take_plaintext :: (r: *Request, padded: []u8, stored := false) -> bool {
 }
 
 // A plaintext is sealed as the Content byte then the text, the form take_plaintext reads.
-store_plaintext :: (d: *Db, hash: [32]u8, message: u64, content: Content, text: string) -> bool {
+store_plaintext :: (d: *Db, hash: [32]u8, message: u64, content: Content, text: string, silent: bool) -> bool {
 	pt := NewArray(text.count + 1, u8, false,, temp);
 	defer crypto.zero(pt);
-	pt[0] = xx content;
+	pt[0] = (cast(u8) content) | (ifx silent then SILENT else 0);
 	memcpy(pt.data + 1, text.data, text.count);
 	return sqlite.run(d.sql, "INSERT INTO plaintexts(hash, message, sealed) VALUES(?, ?, ?);", cast([]u8) hash, message, seal(d, ad("plaintexts", hash), pt));
 }

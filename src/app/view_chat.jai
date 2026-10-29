@@ -1547,7 +1547,7 @@ message_header :: (m: *dc.Message) {
 		ts.sel_order = m.id * 8 + 1;
 		ts.sel_join = " — ";
 		if ui.mouse_over(ts) tooltip_below(full_timestamp(dc.snowflake_time_ms(m.id)), ts.rect);
-		if m.flags & SUPPRESS_NOTIFICATIONS {
+		if m.flags & SUPPRESS_NOTIFICATIONS || encrypted_silent(m.id) {
 			spacer(.X, 4);
 			bell := icon("silent", "bell-slash", 16, T("--chat-text-muted"), .Clickable);
 			if ui.signal(bell).hovering tooltip_below("Suppress Notifications", bell.rect);
