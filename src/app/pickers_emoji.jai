@@ -799,7 +799,10 @@ emoji_select :: (item: Pk_Emoji, keep_open: bool) {
 	name := ifx item.uni >= 0 then text else item.name;
 	key := frec_key(item);
 	if app.client != null dc.picker_emoji_selected(app.client, item.name, item.id, item.guild, item.animated, item.locked);
-	if pk.mode == .Reaction {
+	if pk.mode == .Status {
+		frec_use(*frecency.emoji, key);
+		custom_status_set_emoji(ifx item.id then item.name else text, item.id); // custom_status.jai
+	} else if pk.mode == .Reaction {
 		frec_use(*frecency.reaction, key);
 		if app.client != null {
 			m := find_message(pk.message);

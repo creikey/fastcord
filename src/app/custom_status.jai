@@ -1,22 +1,25 @@
-// Set a custom status: the account popout's "Set Custom Status" opens a modal with the text and when it
-// clears (Today, 4 hours, 1 hour, 30 minutes or never); Save sends it through dc.set_custom_status, which
-// writes the settings proto and the presence. An emoji the status already has is kept.
+// Set a custom status: the account popout's "Set Custom Status" opens a modal with an emoji (the
+// emoji picker), the text and when it clears (a select: Today, 4 hours, 1 hour, 30 minutes or never);
+// Save sends it through dc.set_custom_status, which writes the settings proto and the presence.
 
 cstatus: struct {
 	open: bool;
 	ed: ui.Editor;
 	clear_after: dc.Clear_After;
+	emoji_name: string; // heap: a unicode emoji, or a custom emoji's name
+	emoji_id: dc.Snowflake;
 };
 
 CUSTOM_STATUS_MAX :: 128; // characters
 
-CLEAR_AFTER_CHOICES :: struct { k: dc.Clear_After; name: string; }.[
-	.{.Today, "Today"}, .{.Hours_4, "4 hours"}, .{.Hour_1, "1 hour"}, .{.Minutes_30, "30 minutes"}, .{.Dont_Clear, "Don't clear"},
-];
+CLEAR_AFTER_CHOICES :: dc.Clear_After.[.Today, .Hours_4, .Hour_1, .Minutes_30, .Dont_Clear];
+CLEAR_AFTER_NAMES :: string.["Today", "4 hours", "1 hour", "30 minutes", "Don't clear"];
 
 custom_status_open :: () {
 	st := *store().settings;
-	ui.editor_set_text(*cstatus.ed, ifx custom_status_active(st) then st.custom_status_text else "");
+	active := custom_status_active(st);
+	ui.editor_set_text(*cstatus.ed, ifx active then st.custom_status_text else "");
+	custom_status_set_emoji(ifx active then st.custom_status_emoji else "", ifx active then st.custom_status_emoji_id else 0);
 	cstatus.clear_after = .Today;
 	cstatus.open = true;
 	app.profile_user = 0;
@@ -36,17 +39,22 @@ custom_status_active :: (st: *dc.User_Settings) -> bool {
 custom_status_line :: () -> string {
 	st := *store().settings;
 	if !custom_status_active(st) return "";
-	if st.custom_status_emoji && st.custom_status_text return tprint("% %", st.custom_status_emoji, st.custom_status_text);
-	return ifx st.custom_status_text then st.custom_status_text else st.custom_status_emoji;
+	emoji := ifx st.custom_status_emoji_id then "" else st.custom_status_emoji; // a custom emoji's name isn't text to show
+	if emoji && st.custom_status_text return tprint("% %", emoji, st.custom_status_text);
+	return ifx st.custom_status_text then st.custom_status_text else emoji;
 }
 
-set_my_custom_status :: (text: string, clear_after: dc.Clear_After) {
+custom_status_set_emoji :: (name: string, id: dc.Snowflake) {
+	free(cstatus.emoji_name);
+	cstatus.emoji_name, cstatus.emoji_id = copy_string(name), id;
+}
+
+// set_my_custom_status: the text and emoji (none of both clears it) until clear_after.
+set_my_custom_status :: (text: string, clear_after: dc.Clear_After, emoji_name := "", emoji_id: dc.Snowflake = 0) {
 	st := *store().settings;
-	cs := dc.Custom_Status.{text = text, clear_after = clear_after};
-	if text != "" || custom_status_active(st) cs.emoji_name, cs.emoji_id = st.custom_status_emoji, st.custom_status_emoji_id;
-	if text == "" cs = .{}; // clearing drops the emoji too
+	cs := dc.Custom_Status.{text = text, clear_after = clear_after, emoji_name = emoji_name, emoji_id = emoji_id};
 	now := wall_ms();
-	if cs.text {
+	if cs.text || cs.emoji_name {
 		if clear_after == {
 		case .Today;      cs.expires_at_ms = now + 86_400_000 - local_ms(now) % 86_400_000; // local midnight
 		case .Hours_4;    cs.expires_at_ms = now + 4 * 3_600_000;
@@ -101,6 +109,27 @@ custom_status_modal :: () {
 	{
 		r := padded("inrow", 40);
 		ui.parent(r); defer ui.pop_parent();
+		// the emoji button: the chosen emoji, or the smiley; it opens the emoji picker over the modal
+		eb := ui.box("emoji", .Clickable | .Draw_Background | .Hot_Animation);
+		eb.semantic_size = .[ui.px(40), ui.px(40)];
+		eb.style.radius = all4(8);
+		eb.style.bg_hot = T("--background-mod-subtle");
+		eb.hover_cursor = .Pointer;
+		if ui.signal(eb).clicked picker_open(.Status, .Emoji, app.view.channel, 0, eb.rect);
+		{ ui.parent(eb); defer ui.pop_parent();
+			if cstatus.emoji_name {
+				spacer(.X, 8);
+				g := ui.box("glyph", .Wrap_Text);
+				g.semantic_size = .[ui.px(24), ui.px(40)];
+				g.style.line_height = 40;
+				blocks := md_parse(ifx cstatus.emoji_id then tprint("<:%:%>", cstatus.emoji_name, cstatus.emoji_id) else cstatus.emoji_name);
+				if blocks.count ui.set_spans(g, tokens_to_spans(blocks[0].tokens, .Normal, 22, null));
+			} else {
+				spacer(.X, 10);
+				icon("smile", "reaction", 20, T("--interactive-icon-default"));
+			}
+		}
+		spacer(.X, 8);
 		field := row("input", .Draw_Background | .Draw_Border | .Clickable);
 		field.semantic_size = .[ui.fill(), ui.px(40)];
 		field.style.bg = T("--input-background-default");
@@ -124,24 +153,17 @@ custom_status_modal :: () {
 	{ r := padded("clbl", 18); ui.parent(r); defer ui.pop_parent(); label("Clear after", .Semibold, 14, T("--text-strong"), 18); }
 	spacer(.Y, 8);
 	{
-		r := padded("clear", 32);
+		r := padded("clear", 40);
 		ui.parent(r); defer ui.pop_parent();
-		for CLEAR_AFTER_CHOICES {
-			if it_index spacer(.X, 8);
-			sel := cstatus.clear_after == it.k;
-			b := ui.box(tprint("%##ca%", it.name, it_index), .Clickable | .Draw_Background | .Draw_Border | .Draw_Text | .Hot_Animation);
-			b.semantic_size = .[ui.text_size(12), ui.px(32)];
-			b.style.radius = all4(8);
-			b.style.font = F(.Medium);
-			b.style.font_size = 14;
-			b.style.text_align = .Center;
-			b.style.text_color = ifx sel then T("--text-strong") else T("--text-default");
-			b.style.bg = ifx sel then T("--background-mod-strong") else T("--input-background-default");
-			b.style.bg_hot = T("--background-mod-strong");
-			b.style.border = 1;
-			b.style.border_color = ifx sel then T("--input-border-active") else T("--border-subtle");
-			if ui.signal(b).clicked cstatus.clear_after = it.k;
+		cur := 0;
+		for CLEAR_AFTER_CHOICES if it == cstatus.clear_after cur = it_index;
+		col := ui.box("sel");
+		col.semantic_size = .[ui.fill(), ui.px(40)];
+		{ ui.parent(col); defer ui.pop_parent();
+			pick := select_field("clearafter", CLEAR_AFTER_NAMES, cur);
+			if pick >= 0 cstatus.clear_after = CLEAR_AFTER_CHOICES[pick];
 		}
+		spacer(.X, PAD);
 	}
 	spacer(.Y, PAD);
 	btns := row("btns", .Draw_Background);
@@ -155,10 +177,12 @@ custom_status_modal :: () {
 		if modal_button("Save##save", 96, T("--background-brand"), with_alpha(T("--background-brand"), 0.85), .{1, 1, 1, 1}) save = true;
 		spacer(.X, PAD - 8);
 	}
+	if select_is_open() dropdown_list(); // the Clear after list, over the modal
 	if save && cstatus.open {
-		set_my_custom_status(trim(ui.editor_text(*cstatus.ed)), cstatus.clear_after);
+		set_my_custom_status(trim(ui.editor_text(*cstatus.ed)), cstatus.clear_after, cstatus.emoji_name, cstatus.emoji_id);
 		cstatus.open = false;
 	}
+	if !cstatus.open select_close();
 }
 
 // A modal's footer button (Cancel, Save...): w wide, 38 tall.

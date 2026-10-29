@@ -1,5 +1,6 @@
-# The account popout's Set Custom Status opens the modal; Save shows the status in the user panel,
-# and Clear Custom Status removes it.
+# The account popout's Set Custom Status opens the modal: an emoji from the picker, the text and a
+# Clear after choice from its select; Save shows the status in the user panel, and Clear Custom Status
+# removes it.
 wait 5
 click 112 683
 wait 20
@@ -7,15 +8,25 @@ click_text "Set Custom Status"
 wait 10
 expect_visible "Set a custom status"
 type shipping fastcord
+click_text "Today"
+wait 5
 click_text "1 hour"
-wait 2
+wait 5
+expect_visible "1 hour"
+click 454 317
+wait 20
+expect_visible "Find the perfect emoji"
+type rocket
+wait 10
+key enter
+wait 10
 shot build/shots/cs1.png
 click_text "Save"
 wait 10
-expect_visible "shipping fastcord"
+expect_visible "🚀 shipping fastcord"
 click 112 683
 wait 20
 click_text "Clear Custom Status"
 wait 10
-expect_not_visible "shipping fastcord"
+expect_not_visible "🚀 shipping fastcord"
 expect_visible "Set Custom Status"

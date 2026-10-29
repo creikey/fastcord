@@ -50,6 +50,7 @@ Picker_Mode :: enum u8 {
 	Composer;
 	Reaction;
 	Edit; // the inline message editor's emoji button: emoji only, inserts into the edit box
+	Status; // the custom status modal's emoji button: emoji only, picks the status emoji
 }
 
 Picker_State :: struct {
