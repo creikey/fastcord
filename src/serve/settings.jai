@@ -100,8 +100,9 @@ MEMBER_SEARCH_MAX :: 1000;
 // Who may open Server Settings' Members (the client's canAccessMemberSafetyPage, as fastcord guesses it).
 MEMBERS_PAGE_PERMS :: P_MANAGE_GUILD | P_MANAGE_ROLES | P_KICK_MEMBERS | P_BAN_MEMBERS | P_MODERATE_MEMBERS | P_MANAGE_NICKNAMES;
 
-// POST /api/v9/guilds/{id}/members-search {or_query: {usernames: {or_query: [..]}, user_id: {..}}, limit}:
-// Server Settings' Members, newest first, in Discord's shape. For anyone who may open the page (the owner).
+// POST /api/v9/guilds/{id}/members-search {or_query: {usernames: {or_query: [..]}, user_id: {..}}, limit,
+// after?: {guild_joined_at, user_id}}: Server Settings' Members, newest first, in Discord's shape; a later
+// page starts after the member `after` names (here IDs are join times). For anyone who may open the page.
 members_search :: (c: *Conn, req: http.Request) -> bool {
 	s := c.server;
 	user := owner_session(c, req);
@@ -114,6 +115,9 @@ members_search :: (c: *Conn, req: http.Request) -> bool {
 		if lv.kind != .Int || lv.i < 1 || lv.i > MEMBER_SEARCH_MAX return json_error(c, 400, 50035, "Invalid Form Body");
 		limit = cast(int) lv.i;
 	}
+	after_v, _ := etf.map_get(v.map, "after");
+	after_id_v, _ := etf.map_get(after_v.map, "user_id");
+	after_id, _ := string_to_int(ifx after_id_v.kind == .String then after_id_v.s else "", T = s64);
 	and, _ := etf.map_get(v.map, "and_query");
 	role_q, _ := etf.map_get(and.map, "role_ids");
 	role_terms, _ := etf.map_get(role_q.map, "and_query");
@@ -167,7 +171,7 @@ members_search :: (c: *Conn, req: http.Request) -> bool {
 		}
 		if missing continue;
 		total += 1;
-		if list.count >= limit continue;
+		if (after_id && id >= after_id) || list.count >= limit continue;
 		m := etf.map_builder(4,, temp);
 		etf.map_put(*m, "user", u);
 		etf.map_put(*m, "joined_at", etf.vstring(iso(id)));
