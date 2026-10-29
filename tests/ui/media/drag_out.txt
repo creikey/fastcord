@@ -1,0 +1,13 @@
+# Dragging an attachment's image is a drag out of the window (macOS hands over the file; headless runs
+# have no drag source), not a click: the viewer stays shut. A plain click still opens it.
+wait 20
+down 520 340
+move 540 360
+move 580 400
+up 580 400
+wait 5
+expect_not_visible "Open in Browser"
+click 520 340
+wait 20
+expect_visible "Open in Browser"
+shot build/ui-media_drag_out.png

@@ -136,8 +136,10 @@ attachments_view :: (m: *dc.Message, max_w: float32 = 400) {
 			h := cast(float32) a.height;
 			sc := min(1.0, min(max_w / w, 300 / h));
 			img := media_box(tprint("att%", i), attachment_image_url(a, cast(int) (w * sc), cast(int) (h * sc)), "", w * sc, h * sc);
+			img.flags |= .Click_On_Release;
 			sig := ui.signal(img);
-			if sig.clicked open_viewer(ifx a.proxy_url then a.proxy_url else a.url, .{a.width, a.height}, link = a.url, msg = m.id);
+			dragged := drag_out_gesture(sig, a.url, a.filename);
+			if sig.clicked && !dragged open_viewer(ifx a.proxy_url then a.proxy_url else a.url, .{a.width, a.height}, link = a.url, msg = m.id);
 			if sig.right_clicked media_menu_open(a.url, a.url);
 			if a.description {
 				ui.parent(img);
@@ -156,8 +158,9 @@ attachments_view :: (m: *dc.Message, max_w: float32 = 400) {
 			}
 			spacer(.Y, 4);
 		} else if !text_attachment(a, i, max_w) {
-			f := row(tprint("file%", i), .Draw_Background | .Draw_Border);
+			f := row(tprint("file%", i), .Draw_Background | .Draw_Border | .Clickable);
 			f.semantic_size = .[ui.px(min(432.0, max_w + 32)), ui.px(72)];
+			drag_out_gesture(ui.signal(f), a.url, a.filename);
 			f.style.bg = T("--background-surface-high");
 			f.style.border_color = T("--border-subtle");
 			f.style.border = 1;
@@ -291,6 +294,30 @@ text_attachment :: (a: *dc.Attachment, i: int, max_w: float32) -> bool {
 
 text_open: [..]dc.Snowflake; // text previews expanded, by attachment id
 
+// Dragging an image or file out of the window hands over the file (platform.drag_out; macOS so far): its
+// bytes are fetched only where it's dropped, by drag_write. True once the press became such a drag, so
+// its release isn't a click.
+drag_out_gesture :: (sig: ui.Signal, url: string, name: string) -> bool {
+	if sig.pressed drag_out_started = false;
+	if sig.dragging && !drag_out_started && abs(sig.drag_delta.x) + abs(sig.drag_delta.y) >= 8 {
+		drag_out_started = true;
+		drag_client = ifx app.client then media_client(url);
+		platform.drag_out(url, name, drag_write);
+	}
+	return drag_out_started;
+}
+
+drag_out_started: bool;
+drag_client: *dc.Client; // the dragged file's connection, set on the UI thread before the drag
+
+// drag_write: platform.Drag_Write, on the drop's queue (not the UI thread): the file as the page loads it.
+drag_write :: (url: string, path: string) -> bool {
+	if !drag_client return false;
+	image := array_find(string.["png", "jpg", "jpeg", "gif", "webp", "avif", "bmp"], url_ext(url));
+	status, _, _, body := dc.media_get(drag_client, url, ifx image then dc.Media_Kind.Image else .Fetch, false, "");
+	return status == 200 && body.count > 0 && write_entire_file(path, body.data, body.count);
+}
+
 is_video ::(a: *dc.Attachment) -> bool { return begins_with(a.content_type, "video/"); }
 
 // A plain image (not a video, audio clip or spoiler): what joins a message's mosaic.
@@ -305,8 +332,10 @@ attachment_mosaic :: (m: *dc.Message, idx: []int, gw: float32) {
 		a := *m.attachments[idx[k]];
 		img := media_box(tprint("mos%", k), attachment_image_url(a, cast(int) w, cast(int) h), "", w, h);
 		set_remote_image(img, attachment_image_url(a, cast(int) w, cast(int) h), cover = true);
+		img.flags |= .Click_On_Release;
 		sig := ui.signal(img);
-		if sig.clicked open_viewer(ifx a.proxy_url then a.proxy_url else a.url, .{a.width, a.height}, link = a.url, msg = m.id);
+		dragged := drag_out_gesture(sig, a.url, a.filename);
+		if sig.clicked && !dragged open_viewer(ifx a.proxy_url then a.proxy_url else a.url, .{a.width, a.height}, link = a.url, msg = m.id);
 		if sig.right_clicked media_menu_open(a.url, a.url);
 	}
 	n := min(idx.count, 10);

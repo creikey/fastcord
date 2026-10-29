@@ -46,6 +46,56 @@ save_file_dialog :: (name: string, allocator := context.allocator) -> string {
     return to_jai_string(msg(Id, msg(Id, panel, "URL"), "path"), allocator);
 }
 
+// drag_out starts dragging a file out of the window (an image or attachment onto the desktop, a folder or
+// another app), from inside a mouse drag. The file is a promise (NSFilePromiseProvider): only where it's
+// dropped does `write` run, on a queue of its own (not the UI thread), to put url's bytes at path; it
+// returns false on failure. The app's mouse button is released, since the drag takes the rest of it.
+// False where there's no drag source (headless, or the platform has none).
+Drag_Write :: #type (url: string, path: string) -> bool;
+
+drag_out :: (url: string, name: string, write: Drag_Write) -> bool {
+    if s.headless || !url || !name || !cls("NSFilePromiseProvider") return false;
+    ev := msg(Id, msg(Id, cls("NSApplication"), "sharedApplication"), "currentEvent");
+    if !ev return false;
+    free(drag.url); free(drag.name);
+    drag.url, drag.name, drag.write = copy_string(url), copy_string(name), write;
+    if !drag.ts.data {
+        drag.ctx = context;
+        drag.ctx.stack_trace = null;
+        drag.ts.data, drag.ts.size = alloc(256 * 1024), 256 * 1024;
+        drag.ctx.temporary_storage = *drag.ts;
+        drag.queue = objc.new_obj("NSOperationQueue");
+        drag.delegate = objc.new_obj("FCFilePromiseDelegate");
+    }
+    ext := name;
+    dot := find_index_from_right(name, #char ".");
+    advance(*ext, ifx dot >= 0 then dot + 1 else name.count);
+    uti := "public.data";
+    if ext {
+        t := msg(Id, cls("UTType"), "typeWithFilenameExtension:", nsstr(ext));
+        if t uti = to_jai_string(msg(Id, t, "identifier"), temp);
+    }
+    provider := msg(Id, msg(Id, cls("NSFilePromiseProvider"), "alloc"), "initWithFileType:delegate:", nsstr(uti), drag.delegate);
+    defer msg(Void, provider, "release");
+    item := msg(Id, msg(Id, cls("NSDraggingItem"), "alloc"), "initWithPasteboardWriter:", provider);
+    defer msg(Void, item, "release");
+    p := msg(NSPoint, m.view, "convertPoint:fromView:", msg(NSPoint, ev, "locationInWindow"), cast(Id) null);
+    icon := msg(Id, msg(Id, cls("NSWorkspace"), "sharedWorkspace"), "iconForFileType:", nsstr(ifx ext then ext else "public.data"));
+    msg(Void, item, "setDraggingFrame:contents:", NSRect.{.{p.x - 24, p.y - 24}, .{48, 48}}, icon);
+    session := msg(Id, m.view, "beginDraggingSessionWithItems:event:source:", msg(Id, cls("NSArray"), "arrayWithObject:", item), ev, m.view);
+    if !session return false;
+    push_event(.{kind = .Mouse_Up, button = .Left, pos = view_point(msg(NSPoint, ev, "locationInWindow")), time = time_now()});
+    return true;
+}
+
+drag: struct {
+    url, name: string; // heap: the promise being dragged
+    write: Drag_Write;
+    queue, delegate: Id;
+    ctx: #Context; // the promise's queue runs with its own temporary storage
+    ts: Temporary_Storage;
+};
+
 // Modal "open file" panel. Returns absolute paths (empty if cancelled).
 open_file_dialog :: (allow_multiple := true, allocator := context.allocator) -> []string {
     if s.headless return .[];
@@ -749,10 +799,18 @@ register_classes :: () {
     add(v, "draggingUpdated:", dnd_updated, "Q@:@");
     add(v, "draggingExited:", dnd_exited, "v@:@");
     add(v, "performDragOperation:", dnd_perform, "B@:@");
+    add(v, "draggingSession:sourceOperationMaskForDraggingContext:", drag_source_mask, "Q@:@q");
 
     p := objc.objc_getProtocol("NSTextInputClient");
     if p objc.class_addProtocol(v, p);
     objc.register_class(v);
+
+    // ---- FCFilePromiseDelegate: drag_out's file, written where it's dropped
+    fp := objc.allocate_class(cls("NSObject"), "FCFilePromiseDelegate");
+    add(fp, "filePromiseProvider:fileNameForType:", promise_name, "@@:@@");
+    add(fp, "filePromiseProvider:writePromiseToURL:completionHandler:", promise_write, "v@:@@@?");
+    add(fp, "operationQueueForFilePromiseProvider:", promise_queue, "@@:@");
+    objc.register_class(fp);
 
     // ---- FCWindowDelegate
     w := objc.allocate_class(cls("NSObject"), "FCWindowDelegate");
@@ -1007,6 +1065,32 @@ dnd_perform :: (self: Id, cmd: SEL, info: Id) -> bool #c_call {
     for urls push_event(.{kind = .File_Drop, text = to_jai_string(msg(Id, it, "path"), temp), pos = pos, time = time_now()});
     push_event(.{kind = .Drag_Leave, time = time_now()});
     return ok;
+}
+
+// ---- Drag source (drag_out)
+
+drag_source_mask :: (self: Id, cmd: SEL, session: Id, ctx: NSInteger) -> NSUInteger #c_call { return 1; } // copy
+
+promise_name :: (self: Id, cmd: SEL, provider: Id, type: Id) -> Id #c_call {
+    c := s.ctx; push_context,defer_pop c; // AppKit asks on the main thread
+    return nsstr(drag.name);
+}
+
+promise_queue :: (self: Id, cmd: SEL, provider: Id) -> Id #c_call { return drag.queue; }
+
+Block_Literal :: struct { isa: *void; flags: s32; reserved: s32; invoke: *void; }
+
+// On drag.queue: fetch and write the file, then tell AppKit (the completion block takes an NSError, nil
+// when it worked).
+promise_write :: (self: Id, cmd: SEL, provider: Id, url: Id, done: *Block_Literal) #c_call {
+    push_context drag.ctx {
+        path := to_jai_string(msg(Id, url, "path"), temp);
+        ok := drag.write && drag.write(drag.url, path);
+        err: Id;
+        if !ok err = msg(Id, cls("NSError"), "errorWithDomain:code:userInfo:", nsstr("fastcord"), cast(NSInteger) 1, cast(Id) null);
+        (cast(#type (b: *Block_Literal, e: Id) #c_call) done.invoke)(done, err);
+        reset_temporary_storage();
+    }
 }
 
 // ---- Window / app delegates
