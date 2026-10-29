@@ -170,6 +170,37 @@ video_frame_from_pixbuf :: (pixbuf: *void) -> Video_Frame {
 	return f;
 }
 
+// A decoder's I420 picture (odd sizes rounded down to even) copied into a new Metal-compatible NV12
+// CVPixelBuffer.
+frame_from_i420 :: (y: *u8, u: *u8, v: *u8, ys: int, uvs: int, w: int, h: int) -> Video_Frame, bool {
+	pf := cast(s32) audio.fourcc("420v");
+	pfn := CFNumberCreate(null, 3, *pf);
+	empty := dict(.[], .[]);
+	attrs := dict(.[kCVPixelBufferPixelFormatTypeKey, kCVPixelBufferMetalCompatibilityKey, kCVPixelBufferIOSurfacePropertiesKey], .[pfn, kCFBooleanTrue, empty]);
+	defer { CFRelease(attrs); CFRelease(empty); CFRelease(pfn); }
+	w, h = w & ~1, h & ~1;
+	pb: CFRef;
+	if CVPixelBufferCreate(null, xx w, xx h, xx pf, attrs, *pb) != 0 || !pb return .{}, false;
+	CVPixelBufferLockBaseAddress(pb, 0);
+	dy := cast(*u8) CVPixelBufferGetBaseAddressOfPlane(pb, 0);
+	dys := cast(int) CVPixelBufferGetBytesPerRowOfPlane(pb, 0);
+	for row: 0..h - 1 memcpy(dy + row * dys, y + row * ys, w);
+	duv := cast(*u8) CVPixelBufferGetBaseAddressOfPlane(pb, 1);
+	duvs := cast(int) CVPixelBufferGetBytesPerRowOfPlane(pb, 1);
+	for row: 0..h / 2 - 1 {
+		su, sv, d := u + row * uvs, v + row * uvs, duv + row * duvs;
+		for x: 0..w / 2 - 1 { d[2 * x] = su[x]; d[2 * x + 1] = sv[x]; }
+	}
+	CVPixelBufferUnlockBaseAddress(pb, 0);
+	return .{pixbuf = pb, width = w, height = h, yuv = ifx h >= 720 then .BT709 else .BT601}, true;
+}
+
+CVPixelBufferCreate :: (alloc: CFRef, w: u64, h: u64, fmt: u32, attrs: CFRef, out: *CFRef) -> s32 #foreign CoreVideo;
+CVPixelBufferLockBaseAddress :: (pb: CFRef, flags: u64) -> s32 #foreign CoreVideo;
+CVPixelBufferUnlockBaseAddress :: (pb: CFRef, flags: u64) -> s32 #foreign CoreVideo;
+CVPixelBufferGetBaseAddressOfPlane :: (pb: CFRef, plane: u64) -> *void #foreign CoreVideo;
+CVPixelBufferGetBytesPerRowOfPlane :: (pb: CFRef, plane: u64) -> u64 #foreign CoreVideo;
+
 video_frame_release :: (f: *Video_Frame) {
 	if f.pixbuf CFRelease(f.pixbuf);
 	f.pixbuf = null;

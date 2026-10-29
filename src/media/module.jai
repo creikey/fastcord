@@ -23,6 +23,7 @@ opus :: #import "opus";
 	#load "frame_nv12.jai";
 	#load "decode_none.jai";
 }
+#load "decode_sw.jai";
 #load "demux.jai";
 #load "mkv.jai";
 #load "mp4.jai";

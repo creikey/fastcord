@@ -64,8 +64,23 @@ nal_type :: (codec: Video_Codec, first: u8) -> int {
     return ifx codec == .H265 then cast(int) ((first >> 1) & 0x3f) else cast(int) (first & 0x1f);
 }
 
-// is_keyframe: an IDR / IRAP picture or parameter sets (a decoder can start here).
+// is_keyframe: an IDR / IRAP picture or parameter sets (a decoder can start here); VP8's key frame bit
+// (clear in the frame's first byte), AV1's sequence header.
 is_keyframe :: (codec: Video_Codec, au: []u8) -> bool {
+    if codec == .VP8 return au.count > 0 && (au[0] & 1) == 0;
+    if codec == .AV1 {
+        i := 0;
+        while i < au.count {
+            h := au[i];
+            if ((h >> 3) & 0xf) == 1 return true;  // OBU_SEQUENCE_HEADER
+            i += 1 + cast(int) ((h >> 2) & 1);
+            if !(h & 2) return false;  // no size field: the rest is this OBU
+            n, j, ok := leb128(au, i);
+            if !ok return false;
+            i = j + n;
+        }
+        return false;
+    }
     for annexb_nals(au) {
         if it.start >= it.end continue;
         t := nal_type(codec, au[it.start]);
@@ -188,9 +203,12 @@ Video_Rx :: struct {
     seq_init: bool;
     need_key: bool = true;
     last_pli_ms: s64;
-    au: [..]u8;          // the frame so far, Annex B
+    au: [..]u8;          // the frame so far: Annex B, VP8's frame, or AV1's OBUs with size fields
+    av1_obu: [..]u8;     // AV1: an OBU element split across packets, so far
     frames: u64;
 }
+
+MAX_VIDEO_FRAME :: 8 << 20; // a frame past this is dropped, whatever the sender claims
 
 // rx_video_packet adds one RTP payload; returns the finished access unit (in
 // rx.au, valid until the next call) when the marker packet completes a frame.
@@ -209,11 +227,12 @@ rx_video_packet :: (rx: *Video_Rx, codec: Video_Codec, seq: u16, ts: u32, marker
         rx.ts = ts;
         rx.codec = codec;
         rx.au.count = 0;
+        rx.av1_obu.count = 0;
         rx.broken = gap;  // this frame's first packets may be the lost ones
     } else if gap {
         rx.broken = true;
     }
-    if !p.count || !depacketize(rx, codec, p) rx.broken = true;
+    if !rx.broken && (!p.count || !depacketize(rx, codec, p) || rx.au.count > MAX_VIDEO_FRAME) rx.broken = true;
     if !marker return .[], false;
     rx.in_frame = false;
     if rx.broken {
@@ -272,7 +291,76 @@ depacketize :: (rx: *Video_Rx, codec: Video_Codec, p: []u8) -> bool {
         }
         return false;
     }
-    return false;  // VP8 / AV1: not decoded here
+    if codec == .VP8 {  // RFC 7741: the payload descriptor, then the frame's bytes
+        i := 1;
+        if p[0] & 0x80 {  // X: an extension byte with I, L, T, K
+            if p.count < 2 return false;
+            x := p[1];
+            i = 2;
+            if x & 0x80 { if i >= p.count return false; i += ifx p[i] & 0x80 then 2 else 1; }  // PictureID, 7 or 15 bits
+            if x & 0x40 i += 1;  // TL0PICIDX
+            if x & 0x30 i += 1;  // TID, Y, KEYIDX
+        }
+        if i > p.count || (!rx.au.count && !(p[0] & 0x10)) return false;  // a frame starts with S set
+        array_add(*rx.au, ..array_view(p, i));
+        return true;
+    }
+    if codec == .AV1 {  // AV1 RTP: an aggregation header (Z Y W N), then OBU elements
+        z, y, w := (p[0] & 0x80) != 0, (p[0] & 0x40) != 0, cast(int) ((p[0] >> 4) & 3);
+        if z != (rx.av1_obu.count > 0) return false;  // a continuation without its start, or a start never ended
+        i, k := 1, 0;
+        while i < p.count {
+            k += 1;
+            n := p.count - i;  // the last element when W counts them
+            if w == 0 || k < w {
+                m, j, ok := leb128(p, i);
+                if !ok || m > p.count - j return false;
+                n, i = m, j;
+            }
+            array_add(*rx.av1_obu, ..array_view(p, i, n));
+            i += n;
+            if i >= p.count && y break;  // continues in the next packet
+            if !av1_obu_add(rx, rx.av1_obu) return false;
+            rx.av1_obu.count = 0;
+        }
+        return true;
+    }
+    return false;
+}
+
+// av1_obu_add appends one whole OBU to the frame with its size field, as WebRTC's depacketizer does
+// (RTP leaves it out). Temporal delimiters and tile lists aren't sent and are dropped if they are.
+av1_obu_add :: (rx: *Video_Rx, obu: []u8) -> bool {
+    if !obu.count return false;
+    h := obu[0];
+    hdr := 1 + cast(int) ((h >> 2) & 1);
+    if obu.count < hdr return false;
+    t := (h >> 3) & 0xf;
+    if t == 2 || t == 8 return true;
+    if h & 2 { array_add(*rx.au, ..obu); return true; }  // already sized
+    array_add(*rx.au, h | 2);
+    if hdr == 2 array_add(*rx.au, obu[1]);
+    n := obu.count - hdr;
+    while true {
+        b := cast(u8) (n & 0x7f);
+        n >>= 7;
+        if n { array_add(*rx.au, b | 0x80); } else { array_add(*rx.au, b); break; }
+    }
+    array_add(*rx.au, ..array_view(obu, hdr));
+    return true;
+}
+
+// leb128 reads an AV1 leb128 at b[i] (at most 8 bytes, below 2^31): the value and the index after it.
+leb128 :: (b: []u8, i: int) -> value: int, next: int, ok: bool {
+    v := 0;
+    for 0..7 {
+        if i + it >= b.count return 0, 0, false;
+        c := b[i + it];
+        v |= (cast(int) (c & 0x7f)) << (7 * it);
+        if v >= 1 << 31 return 0, 0, false;
+        if !(c & 0x80) return v, i + it + 1, true;
+    }
+    return 0, 0, false;
 }
 
 // ---------------------------------------------------------------------------

@@ -54,14 +54,9 @@ video_decode :: (vd: *Video_Decoder, data: []u8, pts: float64, dts: float64, dur
 	r := fc_h264_dec_decode(vd.dec, vd.annexb.data, xx vd.annexb.count, cast(s64) (pts * 1_000_000), *y, *u, *v, *ys, *uvs, *w, *h, *ts);
 	if r < 0 { vd.errors += 1; return false; }
 	if r == 1 && w >= 2 && h >= 2 {
-		f := yuv.nv12_create(w, h);
-		for row: 0..f.height - 1 memcpy(f.data.data + row * f.width, y + row * ys, f.width);
-		uv := f.data.data + f.width * f.height;
-		for row: 0..f.height / 2 - 1 {
-			su, sv, d := u + row * uvs, v + row * uvs, uv + row * f.width;
-			for x: 0..f.width / 2 - 1 { d[2 * x] = su[x]; d[2 * x + 1] = sv[x]; }
-		}
-		array_add(*vd.out, .{pts = cast(float64) ts / 1_000_000, dur = dur, pixbuf = f, width = f.width, height = f.height, yuv = ifx f.height >= 720 then .BT709 else .BT601});
+		f := frame_from_i420(y, u, v, ys, uvs, w, h);
+		f.pts, f.dur = cast(float64) ts / 1_000_000, dur;
+		array_add(*vd.out, f);
 	}
 	return true;
 }

@@ -1,0 +1,1 @@
+-w -std=c11 -I vendor/dav1d/fc -I vendor/dav1d -I vendor/dav1d/include

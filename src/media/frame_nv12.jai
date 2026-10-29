@@ -15,6 +15,18 @@ video_frame_from_pixbuf :: (pixbuf: *void) -> Video_Frame {
 	return .{pixbuf = f, width = f.width, height = f.height, yuv = ifx f.height >= 720 then .BT709 else .BT601};
 }
 
+// A decoder's I420 picture (odd sizes rounded down to even) copied into a new NV12 frame.
+frame_from_i420 :: (y: *u8, u: *u8, v: *u8, ys: int, uvs: int, w: int, h: int) -> Video_Frame, bool {
+	f := yuv.nv12_create(w & ~1, h & ~1);
+	for row: 0..f.height - 1 memcpy(f.data.data + row * f.width, y + row * ys, f.width);
+	uv := f.data.data + f.width * f.height;
+	for row: 0..f.height / 2 - 1 {
+		su, sv, d := u + row * uvs, v + row * uvs, uv + row * f.width;
+		for x: 0..f.width / 2 - 1 { d[2 * x] = su[x]; d[2 * x + 1] = sv[x]; }
+	}
+	return .{pixbuf = f, width = f.width, height = f.height, yuv = ifx f.height >= 720 then .BT709 else .BT601}, true;
+}
+
 video_frame_release :: (f: *Video_Frame) {
 	yuv.nv12_release(cast(*yuv.Nv12) f.pixbuf);
 	f.pixbuf = null;

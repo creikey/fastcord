@@ -19,6 +19,7 @@ Remote_Video :: struct {
 	mu: locks.Mutex; // decoder and params (UDP thread) vs. reset (UI)
 	codec: voice.Video_Codec;
 	dec: *media.Video_Decoder;
+	sw: *media.Sw_Decoder; // VP8, AV1
 	params: [3][..]u8;
 	nparams: int;
 	want_key: bool; // atomic: decoding failed, ask the sender for a keyframe
@@ -416,7 +417,8 @@ remote_reset :: (rv: *Remote_Video) {
 	{
 		locks.guard(*rv.mu);
 		media.video_decoder_destroy(rv.dec);
-		rv.dec = null;
+		media.sw_decoder_destroy(rv.sw);
+		rv.dec, rv.sw = null, null;
 		rv.nparams = 0;
 	}
 	locks.guard(*vid.mu);
@@ -451,9 +453,25 @@ show_pending :: (pending: *media.Video_Frame, img: *media.Video_Image, shown_ms:
 
 // on_remote_frame: voice.Options.video, on a connection's UDP thread.
 on_remote_frame :: (data: *void, uid: u64, codec: voice.Video_Codec, au: []u8, keyframe: bool) {
-	if codec != .H264 && codec != .H265 return;
+	if codec == .None return;
 	stream := (cast(*bool) data).*;
 	rv := remote_video(ifx stream then *vid.streams else *vid.cams, uid);
+	frames: [..]media.Video_Frame;
+	frames.allocator = temp;
+	if codec == .VP8 || codec == .AV1 {
+		// in software (libvpx, dav1d): a new decoder at each keyframe after a codec change or failure
+		locks.lock(*rv.mu);
+		if keyframe && (!rv.sw || rv.codec != codec) {
+			media.sw_decoder_destroy(rv.sw);
+			rv.sw = media.sw_decoder_create(ifx codec == .VP8 then media.Codec.VP8 else .AV1);
+			rv.codec = codec;
+		}
+		ok := rv.sw && rv.codec == codec && media.sw_decode(rv.sw, au, *frames);
+		locks.unlock(*rv.mu);
+		if !ok { atomic_store(*rv.want_key, true); return; }
+		show_latest(rv, frames);
+		return;
+	}
 	h265 := codec == .H265;
 	params: [3][]u8;
 	np := 0;
@@ -483,8 +501,6 @@ on_remote_frame :: (data: *void, uid: u64, codec: voice.Video_Codec, au: []u8, k
 		for * rv.params { it.count = 0; if it_index < np array_add(it, ..params[it_index]); }
 		rv.nparams = np;
 	}
-	frames: [..]media.Video_Frame;
-	frames.allocator = temp;
 	ok := rv.dec && avcc.count && media.video_decode(rv.dec, avcc, 0, 0, 0);
 	if ok media.video_decoder_take(rv.dec, *frames);
 	locks.unlock(*rv.mu);
@@ -492,11 +508,16 @@ on_remote_frame :: (data: *void, uid: u64, codec: voice.Video_Codec, au: []u8, k
 		if avcc.count atomic_store(*rv.want_key, true);
 		return;
 	}
+	show_latest(rv, frames);
+}
+
+// show_latest keeps the newest decoded frame for the UI thread and drops the rest.
+show_latest :: (rv: *Remote_Video, frames: []media.Video_Frame) {
 	if !frames.count return;
 	for 0..frames.count - 2 media.video_frame_release(*frames[it]);
 	locks.lock(*vid.mu);
 	media.video_frame_release(*rv.pending);
-	rv.pending = peek(frames);
+	rv.pending = frames[frames.count - 1];
 	locks.unlock(*vid.mu);
 	platform.request_frame();
 }

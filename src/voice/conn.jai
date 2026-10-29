@@ -318,7 +318,7 @@ voice_disconnect :: (c: *Conn) {
     transport_reset(*c.rx_crypto);
     for c.users destroy_user(c, it);
     deinit(*c.users);
-    for c.video_rx { array_free(it.au); free(it); }
+    for c.video_rx { array_free(it.au); array_free(it.av1_obu); free(it); }
     deinit(*c.video_rx);
     deinit(*c.video_users);
     deinit(*c.user_ssrc);
@@ -1712,7 +1712,7 @@ on_remote_video :: (c: *Conn, uid: u64, d: etf.Value) {
 drop_video_rx :: (c: *Conn, uid: u64) {
     gone: [..]u32;
     gone.allocator = temp;
-    for c.video_rx if it.user_id == uid { array_add(*gone, it.ssrc); array_free(it.au); free(it); }
+    for c.video_rx if it.user_id == uid { array_add(*gone, it.ssrc); array_free(it.au); array_free(it.av1_obu); free(it); }
     for gone table_remove(*c.video_rx, it);
 }
 
