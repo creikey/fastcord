@@ -151,7 +151,7 @@ invite_card :: (id: string, code: string, p: dc.Invite_Preview, m: *dc.Message) 
 			invite_counts(p);
 			spacer(.Y, 2);
 			t := utc_calendar(local_ms(dc.snowflake_time_ms(p.guild_id)));
-			label(tprint("Est. % %", string.["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][t.month_starting_at_0], t.year), .Normal, 14, T("--text-muted"), 18);
+			label(tprint(L("Est. %"), date_format(replace(i18n_fmt().my, "{month}", "{mon}",, temp), t)), .Normal, 14, T("--text-muted"), 18);
 			spacer(.Y, 16);
 			member := is_member_of(p);
 			if wide_button("join", ifx member then "Go to Server" else ifx p.joining then "Joining…" else "Join Server", T("--status-positive-background")) && !p.joining && net_action() {

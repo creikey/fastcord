@@ -346,6 +346,7 @@ frame :: () {
 	app.frame += 1;
 	app.wake_at = 0;
 	app.focused_editor = null;
+	i18n_frame();
 
 	t_poll := platform.time_now();
 	if app.connect_pending && !teardown_busy() connect();

@@ -82,15 +82,14 @@ format_time_ms :: (unix_ms: s64, short := false) -> string {
 	day := ms / 86_400_000;
 	today := local_ms(wall_ms()) / 86_400_000;
 	if day == today return clock;
-	if day == today - 1 return tprint("Yesterday at %", clock);
-	return tprint("%/%/% %", t.month_starting_at_0 + 1, t.day_of_month_starting_at_0 + 1, t.year, clock);
+	if day == today - 1 return tprint(L("Yesterday at %"), clock);
+	return tprint("% %", date_format(i18n_fmt().numeric, t), clock);
 }
 
 // "Tuesday, October 27, 2026 3:04 PM" (moment's LLLL): the tooltip on message times and "(edited)".
 full_timestamp :: (unix_ms: s64) -> string {
-	DAYS :: string.["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 	t := utc_calendar(local_ms(unix_ms));
-	return tprint("%, % %, % %", DAYS[t.day_of_week_starting_at_0], MONTHS[t.month_starting_at_0], t.day_of_month_starting_at_0 + 1, t.year, clock_text(t));
+	return date_format(i18n_fmt().full, t, clock_text(t));
 }
 
 // Unix ms now (or the -now: override).
@@ -100,10 +99,10 @@ wall_ms :: () -> s64 { return ifx app.now_override_ms then app.now_override_ms e
 // and a selection is read (copy, scripts) after the frame's temp memory is gone.
 header_timestamp :: (id: dc.Snowflake) -> string {
 	today := local_ms(wall_ms()) / 86_400_000;
-	if today != stamps.day || use_24h() != stamps.h24 {
+	if today != stamps.day || use_24h() != stamps.h24 || i18n_fmt() != stamps.fmt {
 		for stamps.texts free(it);
 		table_reset_keeping_memory(*stamps.texts);
-		stamps.day, stamps.h24 = today, use_24h();
+		stamps.day, stamps.h24, stamps.fmt = today, use_24h(), i18n_fmt();
 	}
 	p, added := find_or_add(*stamps.texts, id);
 	if added p.* = copy_string(format_timestamp(id));
@@ -617,14 +616,14 @@ markdown_key :: (ed: *ui.Editor, e: ui.Input_Event) -> bool {
 format_unix :: (secs: s64, style: string) -> string {
 	t := utc_calendar(local_ms(secs * 1000));
 	clock := clock_text(t);
-	date := tprint("% %, %", MONTHS[t.month_starting_at_0], t.day_of_month_starting_at_0 + 1, t.year);
+	date := date_format(i18n_fmt().long, t);
 	if style == {
 	case "t";
 		return clock;
 	case "T";
 		return clock_text(t, seconds = true);
 	case "d";
-		return tprint("%/%/%", t.month_starting_at_0 + 1, t.day_of_month_starting_at_0 + 1, t.year);
+		return date_format(i18n_fmt().numeric, t);
 	case "D";
 		return date;
 	case "F";
@@ -640,19 +639,19 @@ format_unix :: (secs: s64, style: string) -> string {
 relative_time :: (delta_secs: s64) -> string {
 	s := abs(delta_secs);
 	m, h, d := (s + 30) / 60, (s + 1800) / 3600, (s + 43200) / 86400;
-	text: string;
-	if s < 45 text = "a few seconds";
-	else if s < 90 text = "a minute";
-	else if m < 45 text = tprint("% minutes", m);
-	else if m < 90 text = "an hour";
-	else if h < 22 text = tprint("% hours", h);
-	else if h < 36 text = "a day";
-	else if d < 26 text = tprint("% days", d);
-	else if d < 45 text = "a month";
-	else if d < 320 text = tprint("% months", (d + 15) / 30);
-	else if d < 548 text = "a year";
-	else text = tprint("% years", (d + 182) / 365);
-	return ifx delta_secs > 0 then tprint("in %", text) else tprint("% ago", text);
+	in := delta_secs > 0;
+	if s < 45 return ifx in then L("in a few seconds") else L("a few seconds ago");
+	if s < 90 return ifx in then L("in a minute") else L("a minute ago");
+	if m < 45 return tprint(ifx in then Lp("in % minute", "in % minutes", m) else Lp("% minute ago", "% minutes ago", m), m);
+	if m < 90 return ifx in then L("in an hour") else L("an hour ago");
+	if h < 22 return tprint(ifx in then Lp("in % hour", "in % hours", h) else Lp("% hour ago", "% hours ago", h), h);
+	if h < 36 return ifx in then L("in a day") else L("a day ago");
+	if d < 26 return tprint(ifx in then Lp("in % day", "in % days", d) else Lp("% day ago", "% days ago", d), d);
+	if d < 45 return ifx in then L("in a month") else L("a month ago");
+	if d < 320 { n := (d + 15) / 30; return tprint(ifx in then Lp("in % month", "in % months", n) else Lp("% month ago", "% months ago", n), n); }
+	if d < 548 return ifx in then L("in a year") else L("a year ago");
+	n := (d + 182) / 365;
+	return tprint(ifx in then Lp("in % year", "in % years", n) else Lp("% year ago", "% years ago", n), n);
 }
 
 // Spoilers revealed by a click, keyed by where their run of tokens starts in the
@@ -1015,7 +1014,7 @@ divider_row :: (id: dc.Snowflake, new_day: bool, show_new: bool) {
 		if new_day {
 			spacer(.X, 8);
 			t := utc_calendar(local_ms(dc.snowflake_time_ms(id)));
-			label(tprint("% %, %", MONTHS[t.month_starting_at_0], t.day_of_month_starting_at_0 + 1, t.year), .Semibold, 12, ifx show_new then T("--status-danger") else T("--text-muted"), 13);
+			label(date_format(i18n_fmt().long, t), .Semibold, 12, ifx show_new then T("--status-danger") else T("--text-muted"), 13);
 			spacer(.X, 8);
 			l2 := ui.box("l2", .Draw_Background);
 			l2.semantic_size = .[ui.fill(), ui.px(1)];
@@ -1100,24 +1099,6 @@ quote_bar_draw :: (b: *ui.Box, user: *void) {
 
 // ms is already shifted to local time, so the UTC breakdown is the local one.
 utc_calendar :: (ms: s64) -> Calendar_Time { return to_calendar(dc.UNIX_EPOCH + seconds_to_apollo(ms / 1000)); }
-// "3:04 PM", or "15:04" on a 24-hour clock (Language & Time > Time format).
-clock_text :: (t: Calendar_Time, seconds := false, sep := " ") -> string {
-	m := tprint("%", formatInt(t.minute, minimum_digits = 2));
-	if seconds m = tprint("%:%", m, formatInt(t.second, minimum_digits = 2));
-	if use_24h() return tprint("%:%", formatInt(t.hour, minimum_digits = 2), m);
-	h := t.hour % 12;
-	return tprint("%:%%%", ifx h then h else 12, m, sep, ifx t.hour >= 12 then "PM" else "AM");
-}
-
-// use_24h: the Time format setting; Auto follows the language's own clock, as Intl does (CLDR:
-// these languages of the client's list use 12 hours).
-use_24h :: () -> bool {
-	st := *store().settings;
-	if st.hour_cycle != .Auto return st.hour_cycle == .H23;
-	for string.["en-US", "es-419", "hi", "ko", "zh-TW", "el"] if (ifx st.locale then st.locale else "en-US") == it return false;
-	return true;
-}
-
 // A search, pins or inbox card's text: the chat's blocks, with the search terms highlighted.
 card_body :: (m: *dc.Message, terms: []string) { message_body(m, terms); }
 
@@ -1137,10 +1118,9 @@ hidden_kind :: (m: *dc.Message) -> string {
 stamps: struct {
 	day: s64;
 	h24: bool; // the texts' clock (Time format)
+	fmt: *Locale_Formats; // and language
 	texts: Table(dc.Snowflake, string);
 };
-
-MONTHS :: string.["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
 // Groups with the previous message: same author, within 7 minutes, plain message type, not a reply.
 continues_group :: (prev: *dc.Message, m: *dc.Message) -> bool {

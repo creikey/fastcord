@@ -1057,7 +1057,6 @@ profile_banner_color :: (uid: dc.Snowflake) -> ui.Color {
 DMP_COL_W :: 320;
 dmp_note: ui.Editor; // the DM profile column's note field (note_field)
 dmp_note_focused: bool;
-MONTH_SHORT := string.["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 DMP_INSET :: 7;
 DMP_BANNER_H :: 105;
 DMP_PAD :: 19;
@@ -1175,7 +1174,7 @@ dm_profile_panel :: (uid: dc.Snowflake) {
 				spacer(.Y, 6);
 				created := local_ms(dc.snowflake_time_ms(uid));
 				t := to_calendar(APOLLO_TIME_FOR_JAN_1_1970 + milliseconds_to_apollo(created), .UTC);
-				line("since", tprint("% %, %", MONTH_SHORT[t.month_starting_at_0], t.day_of_month_starting_at_0 + 1, t.year), .Normal, 14, 18, T("--text-default"));
+				line("since", date_medium(t), .Normal, 14, 18, T("--text-default"));
 				spacer(.Y, 16);
 				if !on_hosted() { // a hosted server keeps no notes
 					line("note_h", "Note (only visible to you)", .Semibold, 12, 16, T("--text-strong"));

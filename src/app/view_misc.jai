@@ -433,9 +433,9 @@ status_until :: (end_ms: s64) -> string {
 	t := cal(end_ms);
 	now := wall_ms();
 	tm := clock_text(t);
-	if same_day(t, cal(now)) return tprint("Until %", tm);
-	if same_day(t, cal(now + 86_400_000)) return tprint("Until tomorrow at %", tm);
-	return tprint("Until %/%/% at %", t.month_starting_at_0 + 1, t.day_of_month_starting_at_0 + 1, formatInt(t.year % 100, minimum_digits = 2), tm);
+	if same_day(t, cal(now)) return tprint(L("Until %"), tm);
+	if same_day(t, cal(now + 86_400_000)) return tprint(L("Until tomorrow at %"), tm);
+	return tprint(L("Until %1 at %2"), date_format(i18n_fmt().numeric, t), tm);
 }
 
 // Settings: a floating modal like the visual-refresh client's (1200x640 at 1280x720):

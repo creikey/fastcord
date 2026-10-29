@@ -25,7 +25,7 @@ language_page :: () {
 	set_heading("Language");
 	label("Select a Language", .Medium, 16, T("--text-strong"), 20);
 	spacer(.Y, 4);
-	set_para("langhelp", "Choose the language you want Discord to display. fastcord itself is in English for now.", .Normal, 14, 18, T("--text-muted"));
+	set_para("langhelp", "Choose the language you want Discord to display.", .Normal, 14, 18, T("--text-muted"));
 	spacer(.Y, 12);
 	names := NewArray(LANGUAGES.count, string,, temp); // read again by dropdown_list after the page
 	cur := 0; // en-US when unset

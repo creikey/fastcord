@@ -622,8 +622,7 @@ profile_mutual_friends :: (uid: dc.Snowflake, prof: Pf_Profile) {
 // "Oct 26, 2026"
 short_date :: (ms: s64) -> string {
 	t := utc_calendar(local_ms(ms));
-	MONTHS :: string.["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-	return tprint("% %, %", MONTHS[t.month_starting_at_0], t.day_of_month_starting_at_0 + 1, t.year);
+	return date_medium(t);
 }
 
 // ---- user context menu (right-click on a member / author) ----

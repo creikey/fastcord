@@ -154,6 +154,11 @@ Keep the UI immediate-mode. Make each pass cheaper instead of caching results ac
 - Idiomatic Jai: Jai's own modules, `temp` only for data that dies before its thread's reset; see
   `src/STYLE.md`.
 - Errors are small enums or bools, not strings.
+- UI text is English in the source and wrapped where it is shown: `L("Save")`, `Lp("% member",
+  "% members", n)` for counts, `%1 %2` where a translation may reorder arguments; dates through
+  `date_format` and the language's `LOCALE_FORMATS`. After adding or changing text, run
+  `python3 -I tools/i18n.py extract` (rewrites `src/app/lang/keys.txt`) and translate the new keys
+  (`tools/i18n.py missing <code>`, `check`); a key not yet in a language shows in English.
 - Secrets (tokens, passwords, raw captures) live only in `.secrets/` and `discord_credentials.txt`,
   both gitignored. Never commit them.
 

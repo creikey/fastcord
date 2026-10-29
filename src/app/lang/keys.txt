@@ -1,0 +1,37 @@
+% day ago|% days ago
+% hour ago|% hours ago
+% minute ago|% minutes ago
+% month ago|% months ago
+% year ago|% years ago
+%1, %2 at %3
+AM
+Est. %
+January|February|March|April|May|June|July|August|September|October|November|December
+Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec
+Muted until %1, %2
+PM
+Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday
+Sun|Mon|Tue|Wed|Thu|Fri|Sat
+Today at %
+Tomorrow at %
+Until %
+Until %1 at %2
+Until tomorrow at %
+Yesterday at %
+a day ago
+a few seconds ago
+a minute ago
+a month ago
+a year ago
+an hour ago
+in % day|in % days
+in % hour|in % hours
+in % minute|in % minutes
+in % month|in % months
+in % year|in % years
+in a day
+in a few seconds
+in a minute
+in a month
+in a year
+in an hour

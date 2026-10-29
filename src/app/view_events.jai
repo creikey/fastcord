@@ -277,12 +277,10 @@ clock_text :: (local_ms: s64) -> string {
 	return clock_text(calendar(local_ms));
 }
 
-MONTHS :: string.["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
 // "Oct 26, 2026" (local)
 date_text :: (ms: s64) -> string {
 	t := calendar(local_ms(ms));
-	return tprint("% %, %", MONTHS[t.month_starting_at_0], t.day_of_month_starting_at_0 + 1, t.year);
+	return date_medium(t);
 }
 
 // "Today at 3:00 PM", "Tomorrow at ...", "Mon, Oct 27 at 3:00 PM" in local time.
@@ -291,11 +289,10 @@ event_when :: (ms: s64) -> string {
 	clock := clock_text(local);
 	day := local / 86_400_000;
 	today := local_ms(wall_ms()) / 86_400_000;
-	if day == today return tprint("Today at %", clock);
-	if day == today + 1 return tprint("Tomorrow at %", clock);
-	DAYS :: string.["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+	if day == today return tprint(L("Today at %"), clock);
+	if day == today + 1 return tprint(L("Tomorrow at %"), clock);
 	t := calendar(local);
-	return tprint("%, % % at %", DAYS[t.day_of_week_starting_at_0], MONTHS[t.month_starting_at_0], t.day_of_month_starting_at_0 + 1, clock);
+	return tprint(L("%1, %2 at %3"), weekday_name(t.day_of_week_starting_at_0, short = true), date_format(replace(i18n_fmt().dm, "{month}", "{mon}",, temp), t), clock);
 }
 
 // "Starting in 41m" within the hour, else the start time.
