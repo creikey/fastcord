@@ -349,6 +349,10 @@ replay_begin :: (run: *Replay_Run, t: *T, scenario: string, guild: Snowflake, ch
 	});
 	client_set_viewport(run.c, 1280, 720);
 	client_set_accessibility(run.c, accessibility_flags(.{})); // light OS, store defaults: the fixtures' 524416
+	// the recorded instances had read these legacy experiments since their last login
+	for string.["guild|2025-08_portkey_enabled|0|ChannelRenderer", "user|2023-09_iar_user_reporting|user profile overflow menu"] {
+		table_set(*run.c.analytics.exposed, copy_string(it,, run.c.analytics.allocator), true);
+	}
 	identity_touch_heartbeat(*run.c.id, now_ms()); // the launch's heartbeat session (the window had focus)
 	run.c.analytics.roundtrip_sample = 0; // send_message_roundtrip is sampled (10%): never offline
 	identity_set_app_state(*run.c.id, .Unfocused);
@@ -1558,10 +1562,18 @@ parity_create_guild :: (t: *T) {
 	replay_settle(*run, 1100); // GUILD_CREATE follows the POST's response
 	replay_dispatches(*run, "create_guild_submit", "GUILD_CREATE");
 	replay_settle(*run, 900);
+	// the fixture's buckets and hashes: the new guild's (filters fail, the hash in no range
+	// of portkey's population: 0; mass mention's second, filterless population: 1) and a DM's
+	r_bucket :: (c: *Client, name: string, gid: Snowflake) -> string {
+		b, h := legacy_guild_bucket(c, legacy_entry(*c.analytics, true, name), name, gid);
+		return tprint("%/%", b, h);
+	}
+	expect_value(t, r_bucket(run.c, LEGACY_PORTKEY, 1564227669971832975), "0/4968");
+	expect_value(t, r_bucket(run.c, LEGACY_MASS_MENTION, 1564227669971832975), "1/3192");
+	expect_value(t, r_bucket(run.c, LEGACY_PORTKEY, 0), "0/2490");
 	// op 8: the scrubbed fixture aliases the new guild's channel to the test channel,
-	// whose authors are not members of the new guild here; science: the legacy guild
-	// experiments' triggers need their population filters evaluated (not modelled)
-	replay_check(*run, "create_guild_submit", string.["op 8", "science:experiment_guild_triggered"]);
+	// whose authors are not members of the new guild here
+	replay_check(*run, "create_guild_submit", string.["op 8"]);
 }
 
 parity_start_group_dm :: (t: *T) {
@@ -2817,8 +2829,8 @@ parity_login_submit :: (t: *T) {
 	replay_check(*run, "login_submit", string.[
 		// the Friends activity feed (games the friends play) is not modelled
 		"applications/public", "/games?",
-		// not modelled: the session-start event and the Friends activity feed's game profiles
-		"science:session_start_client", "science:game_profile_entry_point_available"
+		// not modelled: the Friends activity feed's game profiles
+		"science:game_profile_entry_point_available"
 	]);
 }
 

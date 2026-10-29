@@ -1010,13 +1010,20 @@ client_after_dispatch :: (c: *Client, name: string, data: V) {
 			}
 		}
 		guild_created_followups(c, gid);
-		// a new guild shows its setup progress: the sidebar's action rows, then the
-		// channel's welcome area (fixture create_guild)
+		// a new guild shows its power-ups and setup progress: the sidebar's action
+		// rows, then the channel's welcome area (fixture create_guild)
+		analytics_guild_triggered(c, LEGACY_PORTKEY, gid, "GuildPowerupsManager", "manual");
+		analytics_guild_triggered(c, LEGACY_PORTKEY, gid, "GuildPowerupsConstants");
 		analytics_exposed(c, "useGuildActionRows", "2026-09-server-onboarding-setup-progress");
+		analytics_guild_triggered(c, LEGACY_PORTKEY, gid, "useGuildActionRows");
+		analytics_guild_triggered(c, LEGACY_MASS_MENTION, gid, "dd4beb_3", "auto");
+		for string.["GuildPowerupsBoostCount", "GuildSidebar", "ChannelRenderer"] analytics_guild_triggered(c, LEGACY_PORTKEY, gid, it);
+		analytics_guild_triggered(c, LEGACY_PORTKEY, gid, "maybeGetGameServerHostingGuildEligiblePopoutDCF", delay_ms = 640);
 		analytics_exposed(c, "useWelcomeAreaSteps", "2026-09-server-onboarding-setup-progress", delay_ms = 650);
 		// the new guild renders at once: op 43 and its guild-open set go out with the
 		// page fetch, the subscription right after (fixture create_guild)
 		select_channel(c, gid, ch, initial_message_limit(viewport_h(c)), prefetch = true);
+		for string.["useGuildPowerupsChannelListPopout", "useGuildPowerupNewPerkMarketingVersion"] analytics_guild_triggered(c, LEGACY_PORTKEY, gid, it);
 		if c.pending_guild_open == gid guild_open_now(c, gid);
 	case "MESSAGE_ACK";
 		d := vmap(data);

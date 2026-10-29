@@ -58,6 +58,10 @@ Analytics :: struct {
 	eval_user, eval_installation: string;
 	variations: Table(u32, s64);
 	exposed: Table(string, bool); // exposures already tracked ("<evaluation>|<location>|<experiment>", persisted)
+	// READY's legacy experiments that fastcord reads (ETF lists of their entries) and session_id
+	legacy_user, legacy_guild: []u8;
+	ready_session: string;
+	session_start: bool; // a login's session_start_client waits for gateway_connected
 	gdm_entry: Gdm_Entry;
 	gdm_searches: int;
 	gdm_pending: bool;
@@ -195,6 +199,9 @@ analytics_destroy :: (a: *Analytics) {
 	deinit(*a.variations);
 	for v, k: a.exposed free(k);
 	deinit(*a.exposed);
+	free(a.legacy_user.data);
+	free(a.legacy_guild.data);
+	free(a.ready_session);
 }
 
 // client_uuid_next: the next client_uuid (see the top), in temp.
@@ -401,6 +408,11 @@ analytics_gateway_connected :: (c: *Client, failed_attempts: int, url: string, i
 	json_obj_end(*w);
 	props := json_body(json_string(*w));
 	if !is_fast_connect {
+		locks.lock(*c.analytics.mu);
+		start := c.analytics.session_start;
+		c.analytics.session_start = false;
+		locks.unlock(*c.analytics.mu);
+		if start analytics_track(c, "session_start_client", "");
 		analytics_track(c, "gateway_connected", props);
 		return;
 	}

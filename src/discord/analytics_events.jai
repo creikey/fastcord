@@ -687,7 +687,9 @@ analytics_on_profile :: (c: *Client, user_id: Snowflake) {
 			if v.source_session stack = string.["username", "user profile popout", "user profile modal v2"];
 			else stack = string.["user profile modal v2"];
 		case .Account_Popout; stack = string.["account", "user profile account popout"];
-		case .Sidebar;        stack = string.["user profile sidebar"];
+		case .Sidebar;
+			stack = string.["user profile sidebar"];
+			analytics_user_triggered(c, LEGACY_USER_REPORTING, "user profile overflow menu"); // fixture friend_nickname (setup_b)
 	}
 	if v.layout == .Modal {
 		w := aw_begin();
@@ -915,6 +917,7 @@ analytics_channel_opened :: (c: *Client, guild_id: Snowflake, channel_id: Snowfl
 	s := *c.store;
 	ch := channel_get(s, channel_id);
 	if !ch return;
+	if !guild_id analytics_guild_triggered(c, LEGACY_PORTKEY, 0, "ChannelRenderer"); // fixture friend_nickname (setup_b)
 	now := now_ms();
 	w := aw_begin();
 	thread := is_thread(ch);
@@ -2024,6 +2027,7 @@ analytics_ready_experiments :: (c: *Client, data: V) {
 		}
 	}
 	locks.unlock(*a.mu);
+	legacy_ready(a, data);
 	// the stores that read experiments as CONNECTION_OPEN is handled (fixture account_edits/login_submit)
 	analytics_exposed(c, "app open");
 	analytics_exposed(c, "app open", installation = true);
@@ -2081,6 +2085,238 @@ analytics_exposed :: (c: *Client, location: string, experiment := "", installati
 	}
 	json_obj_end(*w);
 	analytics_schedule(c, now_ms() + delay_ms, event, json_body(json_string(*w)));
+}
+
+// ---- legacy experiment triggers ----
+// READY's legacy experiments: `experiments` (the user's: [hash, revision, bucket,
+// override, population, hash_result, aa_mode, trigger_debugging, holdout_name,
+// holdout_revision, holdout_bucket]) and `guild_experiments` (rollouts each guild
+// is bucketed into: [hash, hash_key, revision, populations, overrides,
+// overrides_formatted, holdout_name, holdout_bucket, aa_mode, trigger_debugging]).
+// A read is tracked as experiment_user_triggered / experiment_guild_triggered
+// (exposure "auto" or "manual"), or experiment_guild_triggered_fallback where a
+// manually exposed experiment is read elsewhere; once per experiment, guild and
+// location until logout, like the exposures. Only the experiments fastcord reads
+// are kept.
+
+LEGACY_PORTKEY :: "2025-08_portkey_enabled";
+LEGACY_MASS_MENTION :: "2022-11_default_disable_mass_mention";
+LEGACY_USER_REPORTING :: "2023-09_iar_user_reporting";
+LEGACY_NAMES :: string.[LEGACY_PORTKEY, LEGACY_MASS_MENTION, LEGACY_USER_REPORTING];
+LEGACY_MAX_ENTRIES :: 4096; // READY lists about 25 of each
+LEGACY_MAX_POPULATIONS :: 64;
+LEGACY_MAX_FILTERS :: 32;
+
+// legacy_ready: keep READY's entries for LEGACY_NAMES, and its session id.
+legacy_ready :: (a: *Analytics, data: V) {
+	d := vmap(data);
+	keep :: (list: []V) -> []u8 {
+		if list.count > LEGACY_MAX_ENTRIES return .[];
+		mine: [..]V;
+		mine.allocator = temp;
+		for list {
+			e := vlist(it);
+			if !e.count || e[0].kind != .Int continue;
+			for name: LEGACY_NAMES if e[0].i == cast(s64) murmur3_32(name) array_add(*mine, it);
+		}
+		bytes, err := etf.encode(etf.vlist(mine));
+		return ifx err == .None then bytes else .[];
+	}
+	user := keep(flist(d, "experiments"),, a.allocator);
+	guild := keep(flist(d, "guild_experiments"),, a.allocator);
+	session := copy_string(fstr(d, "session_id"),, a.allocator);
+	locks.lock(*a.mu);
+	free(a.legacy_user.data,, a.allocator);
+	free(a.legacy_guild.data,, a.allocator);
+	free(a.ready_session,, a.allocator);
+	a.legacy_user, a.legacy_guild, a.ready_session = user, guild, session;
+	locks.unlock(*a.mu);
+}
+
+// legacy_entry: READY's entry for experiment name (temp), empty when READY has none.
+legacy_entry :: (a: *Analytics, guild: bool, name: string) -> []V {
+	locks.lock(*a.mu);
+	bytes := array_copy(ifx guild then a.legacy_guild else a.legacy_user,, temp);
+	locks.unlock(*a.mu);
+	if !bytes.count return .[];
+	v, err := etf.decode(bytes,, temp);
+	if err != .None return .[];
+	for vlist(v) {
+		e := vlist(it);
+		if e.count && e[0].kind == .Int && e[0].i == cast(s64) murmur3_32(name) return e;
+	}
+	return .[];
+}
+
+// legacy_guild_bucket: the guild's bucket in a guild_experiments entry and the
+// hash it was placed by (murmur3 of "<hash_key or name>:<guild id>" % 10000; a
+// DM hashes an empty id). An override's guild list decides first, then the first
+// overrides_formatted group whose population puts the hash in a range, then the
+// first population whose filters pass (a hash in none of its ranges: bucket 0).
+// -1 = not eligible: no population passes, a -1 range, or a malformed entry.
+legacy_guild_bucket :: (c: *Client, e: []V, name: string, guild_id: Snowflake) -> bucket: s64, hash: s64 {
+	if e.count < 8 || e[2].kind != .Int return -1, 0;
+	if e[1].kind != .Nil && e[1].kind != .String return -1, 0;
+	if e[6].kind != .Nil return -1, 0; // a holdout's rule is not captured: not tracked
+	key := ifx e[1].kind == .String then e[1].s else name;
+	h := cast(s64) (murmur3_32(tprint("%:%", key, ifx guild_id then tprint("%", guild_id) else "")) % 10000);
+	for vlist(e[4]) {
+		m := vmap(it);
+		b := vget(m, "b");
+		if b.kind != .Int || b.i < -1 return -1, h;
+		for flist(m, "k") if guild_id && vsnow(it) == guild_id return b.i, h;
+	}
+	for group: vlist(e[5]) {
+		passed, b := legacy_populations(c, vlist(group), h, guild_id);
+		if passed && b != LEGACY_NO_RANGE return b, h;
+	}
+	passed, b := legacy_populations(c, vlist(e[3]), h, guild_id);
+	if !passed return -1, h;
+	if b == LEGACY_NO_RANGE return 0, h;
+	return b, h;
+}
+
+LEGACY_NO_RANGE :: -2;
+
+// legacy_populations: [[[bucket, [{s, e}...]]...], filters] each; the first
+// whose filters all pass places the hash (s <= hash < e), else LEGACY_NO_RANGE.
+legacy_populations :: (c: *Client, pops: []V, h: s64, guild_id: Snowflake) -> passed: bool, bucket: s64 {
+	if pops.count > LEGACY_MAX_POPULATIONS return false, 0;
+	for pops {
+		p := vlist(it);
+		if p.count < 2 return false, 0;
+		filters := vlist(p[1]);
+		if filters.count > LEGACY_MAX_FILTERS return false, 0;
+		pass := true;
+		for filters if !legacy_filter(c, vlist(it), guild_id) { pass = false; break; }
+		if !pass continue;
+		for r: vlist(p[0]) {
+			rb := vlist(r);
+			if rb.count < 2 || rb[0].kind != .Int || rb[0].i < -1 return false, 0;
+			for vlist(rb[1]) {
+				s, e := vget(vmap(it), "s"), vget(vmap(it), "e");
+				if s.kind == .Int && e.kind == .Int && s.i <= h && h < e.i return true, rb[0].i;
+			}
+		}
+		return true, LEGACY_NO_RANGE;
+	}
+	return false, 0;
+}
+
+// legacy_filter: [filter, [[key, value]...]], filters and keys named by murmur3
+// of their names. Unknown filters fail.
+legacy_filter :: (c: *Client, f: []V, guild_id: Snowflake) -> bool {
+	if f.count < 2 || f[0].kind != .Int return false;
+	arg :: (f: []V, key: s64) -> V {
+		for vlist(f[1]) {
+			kv := vlist(it);
+			if kv.count == 2 && kv[0].kind == .Int && kv[0].i == key return kv[1];
+		}
+		return .{};
+	}
+	// min_id / max_id: inclusive, null = open; anything but a non-negative integer fails
+	in_range :: (f: []V, x: u64) -> bool {
+		lo, hi := arg(f, 3399957344), arg(f, 1238858341);
+		l, lok := etf.as_u64(lo);
+		u, uok := etf.as_u64(hi);
+		return (lo.kind == .Nil || (lok && x >= l)) && (hi.kind == .Nil || (uok && x <= u));
+	}
+	g := guild_get(*c.store, guild_id);
+	if f[0].i == {
+		case 1604612045; // guild_has_feature {guild_features}
+			if g for want: vlist(arg(f, 1183251248)) for g.features if it == vstr(want) return true;
+			return false;
+		case 2404720969; // guild_id_range
+			return guild_id != 0 && in_range(f, guild_id);
+		case 2918402255; // guild_member_count_range
+			return in_range(f, cast(u64) ifx g then max(g.member_count, 0) else 0);
+		case 3013771838; // guild_ids
+			for vlist(arg(f, 3013771838)) if guild_id && vsnow(it) == guild_id return true;
+			return false;
+		case 188952590; // guild_has_vanity_url {target}: fastcord keeps no vanity codes (a new guild has none)
+			t := arg(f, 188952590);
+			return t.kind == .Bool && !t.b;
+	}
+	return false;
+}
+
+// legacy_first: true the first time key is tracked (until logout).
+legacy_first :: (a: *Analytics, key: string) -> bool {
+	locks.lock(*a.mu);
+	defer locks.unlock(*a.mu);
+	if table_contains(*a.exposed, key) return false;
+	table_set(*a.exposed, copy_string(key,, a.allocator), true);
+	return true;
+}
+
+// legacy_assignment: the properties every legacy trigger shares after its hash.
+legacy_assignment :: (w: *Json, a: *Analytics, exposure: string) {
+	locks.lock(*a.mu);
+	session := copy_string(a.ready_session,, temp);
+	locks.unlock(*a.mu);
+	json_kbool(w, "excluded", false);
+	json_kstr(w, "exposure_type", exposure);
+	json_kstr(w, "assignment_source", "ready_payload");
+	json_kstr(w, "assignment_session_id", session);
+	json_kbool(w, "assignment_loaded_from_cache", false);
+}
+
+// analytics_guild_triggered: a read of guild experiment name for guild_id (0: a
+// DM) at location. exposure "auto" / "manual" track experiment_guild_triggered,
+// "auto_fallback" its _fallback.
+analytics_guild_triggered :: (c: *Client, name: string, guild_id: Snowflake, location: string, exposure := "auto_fallback", delay_ms := 0) {
+	a := *c.analytics;
+	e := legacy_entry(a, true, name);
+	if !e.count return;
+	bucket, h := legacy_guild_bucket(c, e, name, guild_id);
+	if bucket < 0 || !legacy_first(a, tprint("guild|%|%|%", name, guild_id, location)) return;
+	w := aw_begin();
+	json_kstr(*w, "name", name);
+	json_kint(*w, "revision", e[2].i);
+	json_kint(*w, "bucket", bucket);
+	json_kstr(*w, "guild_id", ifx guild_id then tprint("%", guild_id) else "");
+	aw_strs(*w, "location_stack", string.[]);
+	json_kint(*w, "hash_result", h);
+	legacy_assignment(*w, a, exposure);
+	json_knull(*w, "holdout_name");
+	json_kstr(*w, "location", location);
+	event := ifx exposure == "auto_fallback" then "experiment_guild_triggered_fallback" else "experiment_guild_triggered";
+	if !delay_ms {
+		aw_track(c, event, *w);
+		return;
+	}
+	json_obj_end(*w);
+	analytics_schedule(c, now_ms() + delay_ms, event, json_body(json_string(*w)));
+}
+
+// analytics_user_triggered: a read of the user's experiment name at location
+// (exposure "auto"), with READY's assignment.
+analytics_user_triggered :: (c: *Client, name: string, location: string) {
+	a := *c.analytics;
+	e := legacy_entry(a, false, name);
+	if e.count < 6 return;
+	for 1..5 if e[it].kind != .Int return;
+	if e[2].i < 0 || !legacy_first(a, tprint("user|%|%", name, location)) return;
+	opt :: (w: *Json, e: []V, i: int, k: string) {
+		v: V;
+		if i < e.count v = e[i];
+		if v.kind == .Int json_kint(w, k, v.i);
+		else if v.kind == .String json_kstr(w, k, v.s);
+		else json_knull(w, k);
+	}
+	w := aw_begin();
+	json_kstr(*w, "name", name);
+	json_kint(*w, "revision", e[1].i);
+	json_kint(*w, "population", e[4].i);
+	json_kint(*w, "bucket", e[2].i);
+	aw_strs(*w, "location_stack", string.[]);
+	json_kint(*w, "hash_result", e[5].i);
+	legacy_assignment(*w, a, "auto");
+	opt(*w, e, 8, "holdout_name");
+	opt(*w, e, 9, "holdout_revision");
+	opt(*w, e, 10, "holdout_bucket");
+	json_kstr(*w, "location", location);
+	aw_track(c, "experiment_user_triggered", *w);
 }
 
 // murmur3_32: MurmurHash3 x86 32-bit, seed 0 (the apex assignment key of an experiment name).
@@ -2156,6 +2392,16 @@ analytics_launch_identify :: (c: *Client) {
 		analytics_schedule(c, at, "", "");
 		free(pending,, a.allocator);
 	}
+}
+
+// analytics_login: a login's response carried the token. The heartbeat scheduler
+// starts with the session, and session_start_client goes out just before the
+// session's gateway_connected (fixtures account_edits/login_submit).
+analytics_login :: (c: *Client) {
+	analytics_client_heartbeat(c);
+	locks.lock(*c.analytics.mu);
+	c.analytics.session_start = true;
+	locks.unlock(*c.analytics.mu);
 }
 
 // client_heartbeat: ClientHeartbeatScheduler, at launch, on login and every 15 min.

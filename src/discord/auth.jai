@@ -345,11 +345,11 @@ auth_apply :: (c: *Client, e: *Event) {
 		case .Login;
 			analytics_network_action(c, "network_action_user_login", r.status, body, "/auth/login", "post");
 			auth_login_result(c, r.status, body, false);
-			if fstr(body, "token") analytics_client_heartbeat(c); // the scheduler starts with the session
+			if fstr(body, "token") analytics_login(c);
 		case .Mfa;
 			analytics_network_action(c, "network_action_user_login_mfa", r.status, body, tprint("/auth/mfa/%", mfa_kind_name(a.mfa_kind)), "post");
 			auth_login_result(c, r.status, body, true);
-			if fstr(body, "token") analytics_client_heartbeat(c);
+			if fstr(body, "token") analytics_login(c);
 		case .Sms_Send;
 			ev := Auth_Event.{kind = .Sms_Sent, phone = fstr(body, "phone")};
 			if !r.ok ev.message = auth_message(r.status, body);
