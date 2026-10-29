@@ -7,6 +7,7 @@ UPDATE_INTERVAL_MS :: 6 * 60 * 60 * 1000;
 Update_State :: struct {
 	mu: locks.Mutex;
 	latest: string; // newest release tag seen, owned
+	notes: string; // its release body (tools/release_notes.py's markdown), owned
 	available: bool;
 	dismissed: bool;
 	t: float32;
@@ -20,6 +21,7 @@ update_start :: () {
 	fake := env_var("FASTCORD_FAKE_UPDATE");
 	if fake != "" {
 		upd.latest = copy_string(fake);
+		upd.notes = "## Chat\n- Replies show the message they answer\n\n## Voice\n- Noise suppression stays on after a reconnect";
 		upd.available = true;
 		return;
 	}
@@ -79,15 +81,15 @@ install_notice :: () {
 	filler(.X);
 }
 
-// GET https://api.github.com/repos/<repo>/releases/latest -> tag_name.
-fetch_latest_tag :: (repo: string) -> string, bool {
+// GET https://api.github.com/repos/<repo>/releases/latest -> tag_name and body.
+fetch_latest_tag :: (repo: string) -> tag: string, notes: string, ok: bool {
 	host :: "api.github.com";
 	tcp, derr := netio.dial_tcp(host, 443);
-	if derr != .None return "", false;
+	if derr != .None return "", "", false;
 	sess, terr := tls.connect(netio.tcp_stream(tcp), tls.Config.{alpn = string.["http/1.1"], server_name = host});
 	if terr != .None {
 		netio.close(netio.tcp_stream(tcp));
-		return "", false;
+		return "", "", false;
 	}
 	conn: http.H1_Conn;
 	http.h1_init(*conn, tls.stream(sess));
@@ -101,13 +103,15 @@ fetch_latest_tag :: (repo: string) -> string, bool {
 	};
 	resp, herr := http.h1_round_trip(*conn, req);
 	defer http.response_destroy(*resp);
-	if herr != .None || resp.status != 200 return "", false;
+	if herr != .None || resp.status != 200 return "", "", false;
 	http.decode_body(*resp);
 	v, jerr := etf.from_json(string.{resp.body.count, resp.body.data},, temp);
-	if jerr != .None || v.kind != .Map return "", false;
+	if jerr != .None || v.kind != .Map return "", "", false;
 	t, ok := etf.map_get(v.map, "tag_name");
-	if !ok || t.kind != .String return "", false;
-	return copy_string(t.s), true;
+	if !ok || t.kind != .String || t.s.count > 64 return "", "", false;
+	b, bok := etf.map_get(v.map, "body");
+	notes := ifx bok && b.kind == .String then slice(b.s, 0, min(b.s.count, 4096)) else "";
+	return copy_string(t.s), copy_string(notes), true;
 }
 
 // Compares "v1.2.3" style tags numerically; non-numeric parts compare as 0.
@@ -122,11 +126,13 @@ version_newer :: (a: string, b: string) -> bool {
 	return false;
 }
 
-// Small "Update" pill in the title bar's right corner; opens the download page.
+// Small "Update" pill in the title bar's right corner; hovering shows what changed, clicking opens the
+// download page.
 update_button :: () {
 	locks.lock(*upd.mu);
 	show := upd.available && !upd.dismissed;
 	latest := copy_string(upd.latest,, temp);
+	notes := copy_string(upd.notes,, temp);
 	locks.unlock(*upd.mu);
 	if !show return;
 	ui.animate(*upd.t, 1, 20);
@@ -144,6 +150,7 @@ update_button :: () {
 		label(tprint(L("Update %"), latest), .Semibold, 12, .{1, 1, 1, 1}, 16);
 		spacer(.X, 10);
 	}
+	if sig.hovering && notes update_notes(notes, b.rect);
 	if sig.clicked open_url(UPDATE_PAGE);
 	if sig.right_clicked upd.dismissed = true;
 	spacer(.X, 8);
@@ -151,13 +158,57 @@ update_button :: () {
 
 #scope_file
 
+// The release body under the pill: "## Area" headings and "- change" lines, at most 14 of them (the
+// compare link and anything past that left out).
+update_notes :: (notes: string, r: ui.Rect) {
+	W :: 360;
+	card := ui.box("update_notes", .Draw_Background | .Draw_Border | .Draw_Shadow | .Floating_X | .Floating_Y | .Overlay);
+	card.semantic_size = .[ui.px(W), ui.children()];
+	p := ui.top_parent();
+	card.fixed_pos = .{clamp(r.x1 - W, 8, app.ui.window.x - W - 8) - p.rect.x0, r.y1 + 8 - p.rect.y0};
+	card.layout_axis = .Y;
+	card.style.bg = T("--background-surface-highest");
+	card.style.border_color = T("--border-subtle");
+	card.style.border = 1;
+	card.style.radius = all4(8);
+	card.style.shadow_color = .{0, 0, 0, 0.3};
+	card.style.shadow_blur = 12;
+	ui.parent(card); defer ui.pop_parent();
+	spacer(.Y, 8);
+	n := 0;
+	for line: split(notes, "\n",, temp) {
+		l := trim(line);
+		if !l || begins_with(l, "All changes:") continue;
+		n += 1;
+		if n > 14 break;
+		heading := begins_with(l, "#");
+		text := ifx heading then trim(trim_left(l, "#")) else ifx begins_with(l, "- ") then join("• ", advance(l, 2),, temp) else l;
+		rw := row(tprint("n%", n));
+		rw.semantic_size = .[ui.pct(1), ui.children()];
+		{ ui.parent(rw); defer ui.pop_parent();
+			spacer(.X, 12);
+			t := ui.box(tprint("%##t", text), .Draw_Text | .Wrap_Text);
+			t.semantic_size = .[ui.fill(), ui.text_size()];
+			t.style.font = F(ifx heading then .Semibold else .Normal);
+			t.style.font_size = 14;
+			t.style.line_height = 18;
+			t.style.text_color = T(ifx heading then "--text-strong" else "--text-default");
+			spacer(.X, 12);
+		}
+		spacer(.Y, cast(float32) ifx heading then 2 else 4);
+	}
+	spacer(.Y, 4);
+}
+
 update_loop :: (_: *void) {
 	while true {
-		tag, ok := fetch_latest_tag(UPDATE_REPO);
+		tag, notes, ok := fetch_latest_tag(UPDATE_REPO);
 		if ok {
 			locks.lock(*upd.mu);
 			free(upd.latest);
+			free(upd.notes);
 			upd.latest = tag;
+			upd.notes = notes;
 			upd.available = version_newer(tag, FASTCORD_VERSION);
 			locks.unlock(*upd.mu);
 			if upd.available platform.request_frame();

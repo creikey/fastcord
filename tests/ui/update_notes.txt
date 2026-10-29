@@ -1,0 +1,8 @@
+# The Update pill (FASTCORD_FAKE_UPDATE) shows the release's notes on hover.
+wait 3
+expect_not_visible "Replies show the message they answer"
+move_text "Update v9.9.9"
+wait 3
+expect_visible "Chat"
+expect_visible "• Replies show the message they answer"
+shot build/ui-update_notes.png
