@@ -464,7 +464,6 @@
   - Your Spotify status: needs the Spotify connection (Settings > Connections), then follow what Spotify is playing, the way the official client does, and send it as a Listening activity.
   - Privacy: the "Share my activity" switch and its per-server overrides decide all of it. Defaults match the official client.
   - Everything sent here is traffic the official client sends: capture it first, and log the rules in `traffic/CLIENT_RULES.md`.
-- [ ] Composer: no slowmode cooldown, indicator or SLOWMODE_RATE_LIMITED handling.
 - [ ] Video: Go Live stream audio (soundshare), stream previews (`/streams/{key}/preview`), and watching more than one stream.
 - [ ] GIFs (fastcord-only): sort favourites most-recently-used first, not by Discord's `order` (`pickers_data.jai` sorts by `order`). Record a GIF's last use when it's sent, locally, and keep favouriting order as the tie-break for never-used ones. Don't write the MRU order back, so official clients keep theirs.
 - [ ] Speed: one message can make a channel lag for everyone viewing it. Every frame re-parses each visible message's markdown (`view_chat.jai` `message_body` calls `md_parse`), and unmatched delimiters make that quadratic. Each unmatched `*`, `_`, `~~` or `||` rescans to the end of the text (`markdown.jai` `find_close`), and each `[` to the end of its line (`find_close_bracket`), so 2,000 `*` in a row cost about 2 million checks per parse. Make matching linear (per delimiter, remember where no closer exists) and keep each message's parsed blocks until its content changes. Add a bench fixture with such messages, and a budget.
@@ -804,3 +803,4 @@
 - [x] Notifications: "Hide Muted Channels" is account state, as in the official client (`toggleCollapseGuild` PATCHes `hide_muted_channels`): read from the server settings and saved there, no longer device-local.
 - [x] Links: right-clicking a link in a message opens the message menu with Copy Link and Open Link first (`ma.menu_link`, `tests/ui/link_menu.txt`).
 - [x] DMs: the 1:1 DM row's menu offers Mark As Read (while unread) and Close DM, and drops Message (`open_user_menu` `dm`, `tests/ui/rail/dm_row_menu.txt`).
+- [x] Composer: slowmode. Unless you bypass it (Manage Messages or Channels, Manage Threads in a thread), the typing row says "Slowmode is enabled" with the interval on hover, a send starts the cooldown shown as m:ss, and Enter during it keeps the text; a SLOWMODE_RATE_LIMITED 429 is re-sent after its Retry-After. Tooltips now stay inside the window (`slowmode_secs`, `tests/ui/slowmode.txt`).

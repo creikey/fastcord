@@ -39,7 +39,8 @@ tooltip_below :: (text: string, r: ui.Rect, above := false) {
 	tip := row("tipb###tooltip_below", .Draw_Background | .Draw_Shadow | .Floating_X | .Floating_Y | .Overlay);
 	tip.semantic_size = .[ui.children(), ui.px(32)];
 	p := ui.top_parent();
-	tip.fixed_pos = .{r.x0 - 40 - p.rect.x0, (ifx above then r.y0 - 40 else r.y1 + 8) - p.rect.y0};
+	// kept inside the window by last frame's width
+	tip.fixed_pos = .{min(r.x0 - 40, app.ui.window.x - 8 - (tip.rect.x1 - tip.rect.x0)) - p.rect.x0, (ifx above then r.y0 - 40 else r.y1 + 8) - p.rect.y0};
 	tip.style.bg = T("--background-surface-highest");
 	tip.style.radius = all4(8);
 	tip.style.shadow_color = .{0, 0, 0, 0.3};

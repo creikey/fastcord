@@ -451,6 +451,7 @@ composer_send :: (ch: *dc.Channel, text: string) -> bool {
 	}
 	opts.attachments = atts;
 	nonce := dc.send_message(app.client, ch.id, body, opts);
+	if slowmode_secs(ch) table_set(*slow_until, ch.id, wall_ms() + slowmode_secs(ch) * 1000);
 	ma.replying = 0;
 	attachments_sent(ch.id, ifx atts then nonce else 0);
 	return true;

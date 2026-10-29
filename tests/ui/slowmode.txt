@@ -1,0 +1,6 @@
+# A channel with a 10 second slowmode, for a member who can't bypass it: the typing row says it's on, and
+# its tooltip gives the interval. (Offline runs don't send, so the countdown after a send isn't shown here.)
+wait 5
+expect_visible "Slowmode is enabled"
+move_text "Slowmode is enabled"
+wait 2

@@ -2198,32 +2198,49 @@ typing_line :: (channel_id: dc.Snowflake) {
 	s := store();
 	t := row("typing", .Floating_X | .Floating_Y | .Anchor_End_Y);
 	t.semantic_size = .[ui.pct(1), ui.px(TYPING_H)];
-	typers := dc.typing_users(s, channel_id);
-	if !typers return;
-	ui.parent(t); defer ui.pop_parent();
-	spacer(.X, 16);
 	names: [..]string;
 	names.allocator = temp;
-	for typers {
+	for dc.typing_users(s, channel_id) {
 		if it.user_id == s.me continue;
 		name := name_in(it.user_id, channel_id, "");
 		if name array_add(*names, name);
 	}
-	if !names return;
-	msg: string;
-	if names.count == {
-	case 1;
-		msg = tprint("% is typing...", names[0]);
-	case 2;
-		msg = tprint("% and % are typing...", names[0], names[1]);
-	case 3;
-		msg = tprint("%, %, and % are typing...", names[0], names[1], names[2]);
-	case;
-		msg = "Several people are typing...";
+	ch := dc.channel_get(s, channel_id);
+	slow := ifx ch then slowmode_secs(ch) else 0;
+	if !names && !slow return;
+	ui.parent(t); defer ui.pop_parent();
+	spacer(.X, 16);
+	if names {
+		msg: string;
+		if names.count == {
+		case 1;
+			msg = tprint("% is typing...", names[0]);
+		case 2;
+			msg = tprint("% and % are typing...", names[0], names[1]);
+		case 3;
+			msg = tprint("%, %, and % are typing...", names[0], names[1], names[2]);
+		case;
+			msg = "Several people are typing...";
+		}
+		pulsing_dots(T("--text-default")); // requests.jai
+		spacer(.X, 4);
+		label(msg, .Medium, 14, T("--text-default"), 24);
 	}
-	pulsing_dots(T("--text-default")); // requests.jai
-	spacer(.X, 4);
-	label(msg, .Medium, 14, T("--text-default"), 24);
+	if slow {
+		// the client's slowmode notice: the cooldown left after a send, else that it's on
+		filler(.X);
+		left := slowmode_left_ms(ch);
+		icon("clk", "clock", 16, T("--text-muted"));
+		spacer(.X, 4);
+		text := ifx left > 0 then tprint("%:%", left / 60_000, formatInt((left / 1000) % 60, minimum_digits = 2)) else "Slowmode is enabled";
+		b := label(text, .Medium, 12, T("--text-muted"), 24);
+		if ui.mouse_over(b) {
+			n, unit := ifx slow < 60 then slow else ifx slow < 3600 then slow / 60 else slow / 3600, ifx slow < 60 then "second" else ifx slow < 3600 then "minute" else "hour";
+			tooltip_below(tprint("Slowmode is enabled. Members can send one message every % %%.", n, unit, ifx n == 1 then "" else "s"), b.rect, above = true);
+		}
+		if left > 0 request_wake(app.ui.time + (left % 1000 + 1) / 1000.0);
+		spacer(.X, 16);
+	}
 }
 
 // The length Discord checks: JavaScript's, in UTF-16 units (an emoji outside the BMP counts 2).
@@ -2367,7 +2384,9 @@ composer :: (ch: *dc.Channel, cs: *Chat_State) {
 			me := dc.user_get(s, s.me);
 			limit := ifx me && me.premium_type == 2 then 4000 else 2000;
 			length := utf16_length(ui.editor_text(*cs.editor));
-			if res == .Submit && length > limit {
+			if res == .Submit && slowmode_left_ms(ch) > 0 {
+				// still cooling down: the text stays for when it can go
+			} else if res == .Submit && length > limit {
 				toast_show(tprint("Your message is too long (% / %).", length, limit), false);
 			} else if res == .Submit {
 				text := trim(ui.editor_text(*cs.editor), " \t\n\r\x0b\x0c");
@@ -2425,6 +2444,24 @@ composer :: (ch: *dc.Channel, cs: *Chat_State) {
 
 // The composer's "+" menu: Upload a File, Create Thread, Create Poll, each where it's allowed.
 plus_menu: struct { channel: dc.Snowflake; anchor: ui.Rect; };
+
+// Slowmode: seconds between a member's messages here, or 0 when it's off or they bypass it (Manage
+// Messages or Manage Channels; Manage Threads in a thread). The cooldown starts at each send.
+slow_until: Table(dc.Snowflake, s64);
+
+slowmode_secs :: (ch: *dc.Channel) -> int {
+	if ch.rate_limit_per_user <= 0 || ch.guild_id == 0 return 0;
+	g := dc.guild_get(store(), ch.guild_id);
+	if !g || !g.roles.count return 0;
+	perms := dc.channel_permissions(store(), ch.id);
+	bypass := dc.PERM_MANAGE_MESSAGES | dc.PERM_MANAGE_CHANNELS | ifx dc.is_thread(ch) then dc.PERM_MANAGE_THREADS else 0;
+	return ifx perms & bypass then 0 else min(ch.rate_limit_per_user, 21600);
+}
+
+slowmode_left_ms :: (ch: *dc.Channel) -> s64 {
+	_, until := table_find(*slow_until, ch.id);
+	return ifx slowmode_secs(ch) then max(0, until - wall_ms()) else 0;
+}
 
 // Why the composer can't send here, or "" when it can: Send Messages (in a thread, Send Messages in Threads),
 // and a locked thread needs Manage Threads. A server whose roles haven't arrived blocks nothing.
