@@ -22,6 +22,7 @@ Shown :: struct {
 	key_changed: bool; // A Hello whose root isn't the one this peer had.
 	pending: bool;
 	generation: int; // ee.generation when a No_Session result came back.
+	kind: u8; // The packet's (e2e.Kind), once opened or not.
 	edited: string; // The message's edited_timestamp when it was opened: an edit brings a new packet.
 	reply: dc.Snowflake;
 	files: [..]e2e.File;
@@ -140,15 +141,19 @@ encrypted_frame :: () {
 				shown_free(sh);
 				sh.* = .{result = r.result, content = r.content, text = copy_string(r.out_text), silent = r.silent, accepted = r.accepted, key_changed = r.key_changed, generation = ee.generation,
 					edited = edited, reply = dc.parse_snowflake(r.reply), files = files_copy(r.files), packet = ifx r.result == .Hello then copy_string(r.packet),
-					stickers = stickers_of(r.stickers)};
+					stickers = stickers_of(r.stickers), kind = ifx r.packet.count > 1 then r.packet[1]};
+				if r.result == .Ok && r.content == .Sender_Key && r.from != r.conv.me ee.generation += 1; // a group's messages waiting for this chain retry
 				if r.result == .Ok && (r.content == .React || r.content == .Unreact) reaction_note(dc.parse_snowflake(r.target), dc.parse_snowflake(r.from), r.out_text, id, r.content == .React);
 				if r.result == .Ok && r.content == .Accept && r.from != r.conv.me {
 					ee.generation += 1;
 					ch.encrypted, ch.has_session, ch.loaded = true, true, false; // Reload for the peer's root.
 					for ee.bundled if carrier_name(it.client) == r.conv.carrier remove it; // maybe ours was answered: publish another
 				}
-				// On a hosted server every DM is encrypted, so a peer's Hello is answered without asking.
-				if r.result == .Hello && !r.accepted && r.from != r.conv.me && begins_with(r.conv.carrier, HOSTED) && identity_ready() {
+				// On a hosted server every DM is encrypted, so a peer's Hello is answered without asking; so is a
+				// member's in a group we encrypt (E2E 8), as each pair needs a session.
+				dm := dc.channel_get(store(), dc.parse_snowflake(r.conv.id));
+				auto := begins_with(r.conv.carrier, HOSTED) || (dm && dm.kind == .Group_DM && ch.encrypted);
+				if r.result == .Hello && !r.accepted && r.from != r.conv.me && auto && identity_ready() {
 					sh.accepted = true;
 					q := e2e.request(.Accept, .{r.conv.carrier, r.conv.id, r.conv.me, r.from, fc_text.MAX_PACKET}, packet = r.packet);
 					q.me = my_identity();
@@ -163,6 +168,9 @@ encrypted_frame :: () {
 				ee.generation += 1;
 				ch.encrypted, ch.has_session, ch.loaded = true, true, false;
 				send_packet(r, .Ok, "", .Accept);
+				// In a group the others need a session with us too: our own Hello, once.
+				dm := dc.channel_get(store(), dc.parse_snowflake(r.conv.id));
+				if dm && dm.kind == .Group_DM && !ch.hello_asked send_hello(dm.id);
 			case .Send;
 				if r.result != .Ok {
 					toast_show(ifx r.result == .Too_Long then L("That's too long to send encrypted.") else L("Couldn't encrypt the message."), false);
@@ -315,7 +323,11 @@ encrypted_silent :: (id: dc.Snowflake) -> bool {
 encrypted_hidden :: (m: *dc.Message) -> bool {
 	if !encrypted_packet(m.channel_id, m.content) return false;
 	sh := table_find_pointer(*ee.shown, m.id);
-	return sh && !sh.pending && sh.result == .Ok && (sh.content == .Delete || sh.content == .React || sh.content == .Unreact);
+	if !sh || sh.pending return false;
+	if sh.result == .Ok return sh.content == .Delete || sh.content == .React || sh.content == .Unreact || sh.content == .Sender_Key;
+	// In a group, the pairwise packets between two other members aren't ours to show.
+	ch := dc.channel_get(store(), m.channel_id);
+	return ch && ch.kind == .Group_DM && ((sh.result == .No_Session && sh.kind == xx e2e.Kind.Msg) || (sh.result == .Undecryptable && sh.kind == xx e2e.Kind.Init));
 }
 
 // encrypted_editable: an opened message of ours, which Edit rewrites into a new packet.
@@ -417,6 +429,7 @@ encrypted_react :: (m: *dc.Message, e: dc.Emoji, toggle: bool) -> bool {
 	view := encrypted_view(m);
 	if toggle for view.reactions if it.me && dc.emoji_matches(it.emoji, e.id, e.name) on = false;
 	r := e2e.request(.Send, conversation(ch.id), emoji);
+	group_members(r, ch);
 	r.me, r.content, r.target = my_identity(), ifx on then e2e.Content.React else .Unreact, sprint("%", m.id);
 	e2e_submit(r);
 	reaction_note(m.id, store().me, emoji, dc.snowflake_from_ms(dc.now_ms()), on);
@@ -431,6 +444,7 @@ encrypted_edit :: (channel_id: dc.Snowflake, id: dc.Snowflake, text: string, del
 	sh := table_find_pointer(*ee.shown, id);
 	if !sh || sh.pending || sh.result != .Ok || !is_text(sh.content) || !identity_ready() return true;
 	r := e2e.request(.Send, conversation(channel_id, limit = fc_text.MAX_PACKET), ifx delete then "" else text);
+	group_members(r, dc.channel_get(store(), channel_id));
 	r.me, r.content, r.target = my_identity(), ifx delete then e2e.Content.Delete else .Edit, sprint("%", id);
 	if !delete {
 		r.reply = ifx sh.reply then sprint("%", sh.reply) else "";
@@ -448,7 +462,13 @@ shown_text :: (id: dc.Snowflake, channel_id: dc.Snowflake, content: string) -> s
 	return L("Encrypted message");
 }
 
-encrypted_dm :: (ch: *dc.Channel) -> bool { return ch && ch.kind == .DM && ch.recipient_ids.count == 1; }
+// encrypted_dm: a DM that can be encrypted: a 1:1 DM, or a group DM (E2E 8, on Discord).
+encrypted_dm :: (ch: *dc.Channel) -> bool { return ch && ((ch.kind == .DM && ch.recipient_ids.count == 1) || ch.kind == .Group_DM); }
+
+// group_members gives a Send in a group DM its other members, each of whom gets our sender key.
+group_members :: (r: *e2e.Request, ch: *dc.Channel) {
+	if ch && ch.kind == .Group_DM for ch.recipient_ids array_add(*r.members, sprint("%", it));
+}
 
 // encrypting: what the composer sends in this channel goes encrypted. A hosted DM always does, and sends
 // its Hello the first time it's shown.
@@ -586,6 +606,7 @@ encrypted_post :: (dm: *dc.Channel, text: string, silent: bool, reply: dc.Snowfl
 	if text.count > most { toast_show(tprint(L("Encrypted messages are limited to % bytes for now."), most), false); return false; }
 	if !identity_ready() return false;
 	r := e2e.request(.Send, conversation(dm.id), text);
+	group_members(r, dm);
 	r.me, r.silent, r.reply = my_identity(), silent, ifx reply then sprint("%", reply) else "";
 	r.files = files_copy(files);
 	for * r.files if it.name.count > 200 { free(it.name); it.name = copy_string("file"); } // a Body holds names to 255 bytes
@@ -672,7 +693,7 @@ encrypted_verify :: (dm_id: dc.Snowflake, verified: bool) {
 // encrypted_profile is the safety number section of a 1:1 DM's profile panel (E2E 4): 60 digits both
 // people should see alike, compared in person or on a call, then marked Verified.
 encrypted_profile :: (dm: *dc.Channel, pad: float32) {
-	if !encrypted_dm(dm) || !identity_ready() return;
+	if !encrypted_dm(dm) || dm.kind != .DM || !identity_ready() return;
 	ch := encrypted_channel(dm.id);
 	if !ch.has_peer return;
 	line ::(id: string, pad: float32) -> *ui.Box {
@@ -719,7 +740,7 @@ encrypted_profile :: (dm: *dc.Channel, pad: float32) {
 
 // encrypted_warning sits atop the composer while the peer's identity root is new and unconfirmed.
 encrypted_warning :: (dm: *dc.Channel) {
-	if !encrypted_dm(dm) return;
+	if !encrypted_dm(dm) || dm.kind != .DM return;
 	ch := encrypted_channel(dm.id);
 	if !ch.key_changed return;
 	bar := row("keychanged");
@@ -794,6 +815,12 @@ send_packet :: (r: *e2e.Request, result: e2e.Result, text: string, content := e2
 	c := carrier_client(r.conv.carrier);
 	if !c return; // The outbox sends it on the next start.
 	channel := dc.parse_snowflake(r.conv.id);
+	// In a group, our new sender key goes first, one packet per member (E2E 8).
+	for i: 0..r.packets.count - 2 {
+		gift := find_or_add(*ee.shown, post_packet(c, channel, r.conv.carrier, r.packets[i], true));
+		gift.* = .{result = .Ok, content = .Sender_Key, sent = true}; // hidden while it's on its way
+		e2e_submit(e2e.request(.Sent, packet = r.packets[i]));
+	}
 	if content == .Edit || content == .Delete {
 		target := dc.parse_snowflake(r.target);
 		dc.edit_message(c, channel, target, carrier_text(r.conv.carrier, r.packet));

@@ -183,6 +183,7 @@
 @everyone · applies to all server members
 A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button.
 A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button. Works in every app.
+A new channel will be created with the same permissions, user limit and bitrate as 
 A role needs a name.
 A webhook needs a name.
 A wild % appeared.
@@ -699,6 +700,7 @@ Done##done
 Done##save
 Download
 Drop a file here, or browse
+Duplicate Channel
 Duration
 Dutch
 EDIT ROLE — %
@@ -1244,6 +1246,7 @@ One rule per line, for example: Be respectful
 Ongoing call
 Online
 Only @mentions
+Only selected members and roles will be able to view this channel.
 Only servers and channels you have webhook permissions in are shown.
 Only you can see the nickname you give %.
 Only you can see this · 
