@@ -37,7 +37,7 @@ wait 10
 key escape
 wait 10
 expect_not_visible "Server Notification Settings"
-# Hide Muted Channels toggles a local setting; unmuted channels stay
+# Hide Muted Channels toggles the account setting; unmuted channels stay
 click 200 57
 wait 10
 click_text "Hide Muted Channels"

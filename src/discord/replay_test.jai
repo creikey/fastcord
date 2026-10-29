@@ -4109,3 +4109,42 @@ quic_chrome_transport_params :: (t: *T) {
 	}
 }
 
+
+// shouldNotify's channel rules (channel_notifies): mutes with their end, the channel > category > server
+// level chain, voice chats, and Suppress @everyone / role @mentions.
+notify_rules :: (t: *T) {
+	s: Store;
+	store_init(*s, temp);
+	G, CAT, TXT, VC :: cast(Snowflake) 10, 11, 12, 13;
+	NOW :: 1_000_000;
+	table_set(*s.guilds, G, .{id = G, default_message_notifications = NOTIFY_ALL});
+	table_set(*s.channels, CAT, .{id = CAT, kind = .Guild_Category, guild_id = G});
+	table_set(*s.channels, TXT, .{id = TXT, kind = .Guild_Text, guild_id = G, parent_id = CAT});
+	table_set(*s.channels, VC, .{id = VC, kind = .Guild_Voice, guild_id = G});
+	n :: (s: *Store, cid: Snowflake, direct := false, everyone := false, open: Snowflake = 0) -> bool {
+		return channel_notifies(s, G, cid, open, direct, everyone, .[], NOW);
+	}
+	expect(t, n(*s, TXT), "server default All Messages");
+	expect(t, !n(*s, VC) && n(*s, VC, open = VC), "a voice chat's messages only while it is open");
+	gs := ensure_settings(*s, G);
+	ensure_override(gs, CAT).message_notifications = NOTIFY_MENTIONS;
+	expect(t, !n(*s, TXT) && n(*s, TXT, direct = true), "the category's level");
+	ensure_override(gs, TXT).message_notifications = NOTIFY_ALL;
+	expect(t, n(*s, TXT), "the channel's own level wins");
+	ensure_override(gs, TXT).message_notifications = NOTIFY_MENTIONS;
+	gs.suppress_everyone = true;
+	expect(t, !n(*s, TXT, everyone = true) && n(*s, TXT, direct = true), "suppressed @everyone");
+	gs.suppress_everyone = false;
+	expect(t, n(*s, TXT, everyone = true), "@everyone");
+	o := ensure_override(gs, CAT);
+	o.muted, o.mute_end_ms = true, NOW - 1;
+	expect(t, n(*s, TXT, direct = true), "an expired category mute");
+	o.mute_end_ms = NOW + 1;
+	expect(t, !n(*s, TXT, direct = true), "a muted category silences mentions too");
+	o.muted = false;
+	gs.muted, gs.mute_end_ms = true, 0;
+	expect(t, !n(*s, TXT, direct = true), "a muted server");
+	gs.muted = false;
+	ensure_override(gs, TXT).message_notifications = NOTIFY_NOTHING;
+	expect(t, !n(*s, TXT, direct = true), "Nothing");
+}

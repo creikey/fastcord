@@ -40,10 +40,14 @@ guild_context_open :: (gid: dc.Snowflake, at: ui.Vec2) {
 
 guild_notify_modal_open :: (gid: dc.Snowflake) { gm.nm_guild = gid; }
 
-// "Hide Muted Channels" (device-local, per guild)
+// "Hide Muted Channels" is account state (hide_muted_channels), saved like the client's toggleCollapseGuild.
+hide_muted :: (gid: dc.Snowflake) -> bool {
+	gs := dc.guild_settings_get(store(), gid);
+	return gs && gs.hide_muted_channels;
+}
+
 hide_muted_toggle :: (gid: dc.Snowflake) {
-	hide := find_or_add(*app.view.hide_muted, gid);
-	hide.* = !hide.*; // saved by settings_frame
+	if net_action() dc.set_guild_hide_muted(app.client, gid, !hide_muted(gid));
 }
 
 bell_popout_toggle :: (cid: dc.Snowflake, anchor: ui.Rect) {
@@ -312,7 +316,6 @@ guild_menu_state_for_test :: () -> string {
 	b: String_Builder;
 	b.allocator = temp;
 	print_to_builder(*b, "% % % % % % % % % %", gm.menu_guild, gm.leave_guild, gm.leaving, gm.inv_guild, gm.inv_copied, gm.bell_channel, gm.bell_sub, gm.ctx_guild, gm.ctx_sub, gm.nm_guild);
-	for hide, gid: app.view.hide_muted print_to_builder(*b, " %=%", gid, hide);
 	return builder_to_string(*b,, temp);
 }
 
@@ -487,7 +490,7 @@ guild_menu :: () {
 			close = true;
 		}
 		menu_sep("s2");
-		_, hide := table_find(*app.view.hide_muted, gid);
+		hide := hide_muted(gid);
 		if menu_item("hidemuted", "Hide Muted Channels", ifx hide then .Check_On else .Check_Off, lead = "eye-slash", h = GM_HDR_ROW_H).clicked {
 			hide_muted_toggle(gid);
 		}
@@ -563,7 +566,7 @@ guild_context_menu :: () {
 		if nt.hovering hover_sub = .Notify;
 		if nt.clicked gm.ctx_sub = .Notify;
 		if nt.hovering || nt.clicked gm.ctx_sub_y = nt.box.rect.y0;
-		_, hide := table_find(*app.view.hide_muted, gid);
+		hide := hide_muted(gid);
 		sig = menu_item("hidemuted", "Hide Muted Channels", ifx hide then .Check_On else .Check_Off);
 		if sig.clicked {
 			hide_muted_toggle(gid);

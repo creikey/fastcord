@@ -967,9 +967,7 @@ analytics_channel_opened :: (c: *Client, guild_id: Snowflake, channel_id: Snowfl
 	json_kbool(*w, "channel_is_muted", channel_is_muted(s, gid, channel_id, now));
 	json_kbool(*w, "channel_is_nsfw", ch.nsfw);
 	json_kbool(*w, "channel_is_spoiler", false);
-	level := channel_notify_level(s, gid, channel_id);
-	if level == NOTIFY_INHERIT && ch.parent_id != 0 level = channel_notify_level(s, gid, ch.parent_id);
-	if level == NOTIFY_INHERIT level = guild_notify_level(s, gid);
+	level := resolved_notify_level(s, gid, channel_id);
 	json_kint(*w, "channel_resolved_unread_setting", UNREAD_SETTING_ALL_MESSAGES);
 	json_kstr(*w, "channel_preset", preset_name(level));
 	json_ksnow(*w, "guild_id", gid);

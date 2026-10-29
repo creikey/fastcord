@@ -210,35 +210,15 @@ message_client :: (m: *dc.New_Message) -> *dc.Client {
 	return app.client;
 }
 
-// message_notifies: the client's notification rule for one message
-// (message_notifications: 0 all, 1 only mentions, 2 nothing, 3 = guild default), shared by the
-// message sound and desktop notifications: never for @silent messages or blocked or ignored authors.
+// message_notifies: the client's shouldNotify for one message, shared by the message sound and desktop
+// notifications: never for @silent messages or blocked or ignored authors, else dc.channel_notifies.
 message_notifies :: (m: *dc.New_Message) -> bool {
 	s := *message_client(m).store;
 	if m.author_id == s.me || m.author_id == 0 return false;
 	if m.flags & SUPPRESS_NOTIFICATIONS return false;
 	r := table_find_pointer(*s.relationships, m.author_id);
 	if r && (r.kind == .Blocked || r.ignored) return false;
-	if m.guild_id == 0 return true; // DMs / group DMs
-	gs := table_find_pointer(*s.guild_settings, m.guild_id);
-	now := dc.now_ms();
-	// a mention you haven't suppressed: @you, @everyone / @here, one of your roles
-	mention := m.mentions_me;
-	if m.mention_everyone && !(gs && gs.suppress_everyone) mention = true;
-	if !(gs && gs.suppress_roles) for r: m.mention_roles if array_find(dc.my_guild_roles(m.guild_id), r) mention = true;
-	// muted (a timed mute only until it ends; the server, the channel, its category or a thread's parent): mentions only
-	ch := dc.channel_get(s, m.channel_id);
-	muted := dc.guild_is_muted(s, m.guild_id, now) || dc.channel_effectively_muted(s, m.guild_id, m.channel_id, now) || (gs && array_find(gs.muted_channels, m.channel_id));
-	if !muted && ch && dc.is_thread(ch) muted = dc.channel_effectively_muted(s, m.guild_id, ch.parent_id, now);
-	if muted return mention;
-	// the level: the channel's own, else its category's, else the server's
-	level := dc.channel_notify_level(s, m.guild_id, m.channel_id);
-	if level == dc.NOTIFY_INHERIT && ch && ch.parent_id level = dc.channel_notify_level(s, m.guild_id, ch.parent_id);
-	if level == dc.NOTIFY_INHERIT level = dc.guild_notify_level(s, m.guild_id);
-	if level > 2 { g := dc.guild_get(s, m.guild_id); level = ifx g then g.default_message_notifications else 1; } // the server's own null: its default
-	if level == 0 return true;
-	if level == 2 return false;
-	return mention;
+	return dc.channel_notifies(s, m.guild_id, m.channel_id, app.view.channel, m.mentions_me, m.mention_everyone, m.mention_roles, wall_ms());
 }
 
 #scope_file

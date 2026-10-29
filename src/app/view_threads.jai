@@ -18,7 +18,8 @@ sidebar_thread_rows :: (ch: *dc.Channel, gid: dc.Snowflake) {
 		ui.id_scope(cast(u64) tid);
 		defer ui.pop_seed();
 		selected := app.view.channel == tid;
-		unread := dc.channel_unread(s, tid);
+		muted := dc.channel_effectively_muted(s, gid, tid, wall_ms()); // its own mute or its channel's
+		unread := dc.channel_unread(s, tid) && !muted;
 		outer := row("thread");
 		outer.semantic_size = .[ui.pct(1), ui.px(CHANNEL_ROW_PITCH)];
 		{ ui.parent(outer); defer ui.pop_parent();
@@ -45,7 +46,7 @@ sidebar_thread_rows :: (ch: *dc.Channel, gid: dc.Snowflake) {
 			if sig.clicked select_channel(gid, tid);
 			if sig.right_clicked thread_menu_open(tid, app.ui.mouse);
 			color := ifx selected || unread then T("--interactive-text-active")
-				else ifx sig.hovering then T("--interactive-text-hover") else T("--channels-default");
+				else ifx sig.hovering then T("--interactive-text-hover") else ifx muted then T("--interactive-muted") else T("--channels-default");
 			{ ui.parent(item); defer ui.pop_parent();
 				spacer(.X, 8);
 				label(ellipsize(th.name, .Medium, 16, app.view.sidebar_w - 90), ifx unread || selected then .Semibold else .Medium, 16, color, 20);

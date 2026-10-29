@@ -150,18 +150,59 @@ channel_effectively_muted :: (s: *Store, gid: Snowflake, cid: Snowflake, now_ms:
 	return ch && ch.parent_id && channel_is_muted(s, gid, ch.parent_id, now_ms);
 }
 
+// isGuildOrCategoryOrChannelMuted: the server, the channel or its parent (a thread's channel, a
+// channel's category).
+guild_or_channel_muted :: (s: *Store, gid: Snowflake, cid: Snowflake, now_ms: s64) -> bool {
+	return (gid != 0 && guild_is_muted(s, gid, now_ms)) || channel_effectively_muted(s, gid, cid, now_ms);
+}
+
 // Server-level level: the user's setting, else the guild's default.
 guild_notify_level :: (s: *Store, gid: Snowflake) -> int {
 	gs := guild_settings_get(s, gid);
-	if gs return gs.message_notifications;
+	if gs && gs.message_notifications <= NOTIFY_NOTHING return gs.message_notifications;
 	g := guild_get(s, gid);
 	return ifx g then g.default_message_notifications else NOTIFY_ALL;
+}
+
+// resolvedMessageNotifications: the channel's own level, else its parent's, else the server's.
+resolved_notify_level :: (s: *Store, gid: Snowflake, cid: Snowflake) -> int {
+	level := channel_notify_level(s, gid, cid);
+	ch := channel_get(s, cid);
+	if level == NOTIFY_INHERIT && ch && ch.parent_id level = channel_notify_level(s, gid, ch.parent_id);
+	return ifx level == NOTIFY_INHERIT then guild_notify_level(s, gid) else level;
+}
+
+// MentionUtils.isMentioned with the server's Suppress @everyone / Suppress Role @mentions: a direct
+// mention always counts, @everyone/@here and my roles only when not suppressed.
+is_mentioned :: (s: *Store, gid: Snowflake, direct: bool, everyone: bool, roles: []Snowflake) -> bool {
+	if direct return true;
+	gs := ifx gid then guild_settings_get(s, gid);
+	if everyone && !(gs && gs.suppress_everyone) return true;
+	if !roles.count || (gs && gs.suppress_roles) return false;
+	mine := my_guild_roles(gid);
+	for roles if array_find(mine, it) return true;
+	return false;
 }
 
 // The channel's own override level (NOTIFY_INHERIT when none).
 channel_notify_level :: (s: *Store, gid: Snowflake, cid: Snowflake) -> int {
 	o := channel_override_get(s, gid, cid);
 	return ifx o then o.message_notifications else NOTIFY_INHERIT;
+}
+
+// shouldNotify's channel half for a message (direct: it @mentions me): a muted DM, or a muted server,
+// category, channel or thread's channel, is silent even for mentions (allowNoMessages), as is the level
+// Nothing. All Messages notifies for everything (a voice channel's chat only while it is open), else
+// only mentions, with the server's Suppress @everyone and Suppress Role @mentions.
+channel_notifies :: (s: *Store, gid: Snowflake, cid: Snowflake, open: Snowflake, direct: bool, everyone: bool, roles: []Snowflake, now_ms: s64) -> bool {
+	if gid == 0 return !channel_is_muted(s, 0, cid, now_ms);
+	if guild_or_channel_muted(s, gid, cid, now_ms) return false;
+	level := resolved_notify_level(s, gid, cid);
+	if level == NOTIFY_NOTHING return false;
+	ch := channel_get(s, cid);
+	voice := ch && (ch.kind == .Guild_Voice || ch.kind == .Guild_Stage_Voice);
+	if level == NOTIFY_ALL && (!voice || cid == open) return true;
+	return is_mentioned(s, gid, direct, everyone, roles);
 }
 
 // ---- local (optimistic) updates ----
@@ -315,6 +356,13 @@ store_set_collapsed :: (s: *Store, gid: Snowflake, cid: Snowflake, collapsed: bo
 set_category_collapsed :: (c: *Client, gid: Snowflake, cid: Snowflake, collapsed: bool) {
 	patch_guild_settings(c, gid, tprint("{\"channel_overrides\":{\"%\":{\"collapsed\":%}}}", cid, collapsed));
 	store_set_collapsed(*c.store, gid, cid, collapsed);
+}
+
+// toggleCollapseGuild: saveUserGuildSettings(gid, {hide_muted_channels}); no capture, no science event.
+set_guild_hide_muted :: (c: *Client, gid: Snowflake, on: bool) {
+	patch_guild_settings(c, gid, tprint("{\"hide_muted_channels\":%}", on));
+	ensure_settings(*c.store, gid).hide_muted_channels = on;
+	c.store.changed += 1;
 }
 
 // No capture covers the suppress switches: the write follows the same endpoint;

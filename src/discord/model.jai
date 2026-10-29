@@ -318,7 +318,7 @@ Guild_Settings :: struct {
 	mobile_push: bool;
 	notify_highlights: int;
 	mute_scheduled_events: bool;
-	hide_muted_channels: bool; // the server's value (the app keeps its own local toggle)
+	hide_muted_channels: bool; // "Hide Muted Channels"
 }
 
 Typing :: struct {

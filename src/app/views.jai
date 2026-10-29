@@ -32,7 +32,6 @@ View_State :: struct {
 	channel: dc.Snowflake; // selected channel in the current guild, or DM channel at home
 	last_channel: Table(dc.Snowflake, dc.Snowflake); // guild -> last selected channel
 	friends_tab: Friends_Tab;
-	hide_muted: Table(dc.Snowflake, bool); // guild -> "Hide Muted Channels" (device-local)
 	nsfw_agreed: Table(dc.Snowflake, bool); // guilds whose age-restricted channels you agreed to see (device-local)
 	hide_members: bool;
 	hide_dm_profile: bool; // 1:1 DM user profile column (header toggle)
@@ -837,12 +836,12 @@ channel_sidebar :: (gid: dc.Snowflake) {
 			spacer(.X, 16);
 		}
 		now := wall_ms();
-		_, hide_muted := table_find(*app.view.hide_muted, gid);
+		hide := hide_muted(gid);
 		for cid: dc.guild_channels_sorted(s, gid) {
 			ch := dc.channel_get(s, cid);
 			if ch == null { continue; }
 			// Hide Muted Channels: muted channels (own or category mute) go, the open one stays
-			if hide_muted && cid != app.view.channel && dc.channel_effectively_muted(s, gid, cid, now) { continue; }
+			if hide && cid != app.view.channel && dc.channel_effectively_muted(s, gid, cid, now) { continue; }
 			{ ui.id_scope(cast(u64)(cid)); defer ui.pop_seed();
 				if ch.kind == .Guild_Category {
 					category_row(ch);
