@@ -27,6 +27,8 @@ mls :: #import "voice_mls";
 #load "webhook_formats.jai";
 #load "polls.jai";
 #load "dms.jai";
+#load "host.jai";
+#load "install.jai";
 
 ALPN :: "fc/1";
 HEARTBEAT_INTERVAL_MS :: 41_250;
@@ -80,6 +82,7 @@ Server :: struct {
 	// Rate limits by address (rate_ok).
 	rate_mu: locks.Mutex;
 	rates: Table(u64, Buckets);
+	host: Host; // host.jai
 }
 
 Conn :: struct {
@@ -153,61 +156,15 @@ rate_limited :: (c: *Conn) -> bool {
 // open makes the server file if needed: its ID, TLS key and certificate live in it, so the invite stays
 // valid for as long as the file does. A new server is named after the file and gets #general and an
 // unlimited invite.
-open :: (path: string) -> *Server, bool {
-	db, ok := sqlite.open(path);
-	if !ok return null, false;
+open :: (path: string) -> *Server, bool, error: string {
+	db, ok, err := sqlite.open(path, exclusive = true);
+	if !ok return null, false, ifx contains(err, "locked") then "this server is already running" else err;
 	s := New(Server);
 	s.db = db;
-	if !sqlite.exec(db, SCHEMA) || !sqlite.exec(db, SOUND_SCHEMA) || !sqlite.exec(db, SETTINGS_SCHEMA) || !sqlite.exec(db, STICKER_SCHEMA) || !sqlite.exec(db, ROLE_SCHEMA) || !sqlite.exec(db, POLL_SCHEMA) || !sqlite.exec(db, THREAD_MEMBER_SCHEMA) || !sqlite.exec(db, DM_SCHEMA) { close(s); return null, false; }
-	// Files made before these columns; each fails harmlessly once it exists.
-	sqlite.exec(db, "ALTER TABLE users ADD COLUMN left INTEGER NOT NULL DEFAULT 0;");
-	sqlite.exec(db, "ALTER TABLE users ADD COLUMN banned INTEGER NOT NULL DEFAULT 0;");
-	sqlite.exec(db, "ALTER TABLE users ADD COLUMN ban_reason TEXT;");
-	sqlite.exec(db, "ALTER TABLE users ADD COLUMN timeout_until INTEGER;");
-	sqlite.exec(db, "ALTER TABLE users ADD COLUMN joined_name TEXT;");
-	sqlite.exec(db, "ALTER TABLE users ADD COLUMN avatar TEXT;");
-	sqlite.exec(db, "ALTER TABLE users ADD COLUMN avatar_type TEXT;");
-	sqlite.exec(db, "ALTER TABLE users ADD COLUMN avatar_data BLOB;");
-	sqlite.exec(db, "ALTER TABLE messages ADD COLUMN reply INTEGER;");
-	sqlite.exec(db, "ALTER TABLE messages ADD COLUMN everyone INTEGER NOT NULL DEFAULT 0;");
-	sqlite.exec(db, "ALTER TABLE messages ADD COLUMN pinned_at INTEGER;");
-	sqlite.exec(db, "ALTER TABLE messages ADD COLUMN type INTEGER NOT NULL DEFAULT 0;");
-	sqlite.exec(db, "ALTER TABLE messages ADD COLUMN flags INTEGER NOT NULL DEFAULT 0;");
-	sqlite.exec(db, "ALTER TABLE channels ADD COLUMN topic TEXT NOT NULL DEFAULT '';");
-	sqlite.exec(db, "ALTER TABLE events ADD COLUMN channel INTEGER;");
-	sqlite.exec(db, "ALTER TABLE channels ADD COLUMN type INTEGER NOT NULL DEFAULT 0;");
-	sqlite.exec(db, "ALTER TABLE channels ADD COLUMN parent INTEGER;");
-	sqlite.exec(db, "ALTER TABLE channels ADD COLUMN owner INTEGER;");
-	sqlite.exec(db, "ALTER TABLE channels ADD COLUMN slowmode INTEGER NOT NULL DEFAULT 0;");
-	sqlite.exec(db, "ALTER TABLE channels ADD COLUMN nsfw INTEGER NOT NULL DEFAULT 0;");
-	sqlite.exec(db, "ALTER TABLE channels ADD COLUMN archived INTEGER NOT NULL DEFAULT 0;");
-	sqlite.exec(db, "ALTER TABLE channels ADD COLUMN locked INTEGER NOT NULL DEFAULT 0;");
-	sqlite.exec(db, "ALTER TABLE channels ADD COLUMN archive_after INTEGER NOT NULL DEFAULT 4320;");
-	sqlite.exec(db, "ALTER TABLE channels ADD COLUMN archived_at INTEGER;");
-	sqlite.exec(db, "ALTER TABLE channels ADD COLUMN bitrate INTEGER NOT NULL DEFAULT 64000;");
-	sqlite.exec(db, "ALTER TABLE channels ADD COLUMN user_limit INTEGER NOT NULL DEFAULT 0;");
-	sqlite.exec(db, "ALTER TABLE invites ADD COLUMN owner INTEGER NOT NULL DEFAULT 0;");
-	sqlite.exec(db, "ALTER TABLE invites ADD COLUMN inviter INTEGER;");
-	sqlite.exec(db, "ALTER TABLE invites ADD COLUMN channel INTEGER;");
-	sqlite.exec(db, "ALTER TABLE invites ADD COLUMN max_age INTEGER NOT NULL DEFAULT 0;");
-	sqlite.exec(db, "ALTER TABLE invites ADD COLUMN expires INTEGER NOT NULL DEFAULT 0;");
-	sqlite.exec(db, "ALTER TABLE messages ADD COLUMN nonce TEXT;");
-	sqlite.exec(db, "ALTER TABLE messages ADD COLUMN webhook INTEGER NOT NULL DEFAULT 0;");
-	sqlite.exec(db, "ALTER TABLE messages ADD COLUMN username TEXT;");
-	sqlite.exec(db, "ALTER TABLE messages ADD COLUMN snapshot TEXT;");
-	sqlite.exec(db, "ALTER TABLE messages ADD COLUMN stickers TEXT;");
-	sqlite.exec(db, "ALTER TABLE channels ADD COLUMN tags TEXT;");
-	sqlite.exec(db, "ALTER TABLE embeds ADD COLUMN rich TEXT;");
-	sqlite.exec(db, "ALTER TABLE dm_messages ADD COLUMN edited INTEGER;");
-	sqlite.exec(db, "CREATE INDEX IF NOT EXISTS messages_everyone ON messages(id) WHERE everyone = 1;");
-	sqlite.exec(db, "CREATE INDEX IF NOT EXISTS messages_nonce ON messages(author, nonce) WHERE nonce IS NOT NULL;");
-	st := sqlite.prepare(db, "SELECT 1 FROM sqlite_master WHERE name = 'message_text';");
-	indexed := sqlite.step(st) == .Row;
-	sqlite.finalize(st);
-	if !sqlite.exec(db, SEARCH_SCHEMA) || (!indexed && !sqlite.exec(db, "INSERT INTO message_text(message_text) VALUES('rebuild');")) {
-		close(s);
-		return null, false;
-	}
+	s.host.path = copy_string(path);
+	s.host.started = current_time_consensus();
+	migrated, why := migrate(s);
+	if !migrated { close(s); return null, false, why; }
 
 	id := meta_get(s, "id");
 	key := meta_get(s, "tls_key");
@@ -215,7 +172,7 @@ open :: (path: string) -> *Server, bool {
 	if id.count != 16 || key.count != 32 || !cert.count {
 		crypto.random_bytes(s.id);
 		priv, _, made := crypto.p256_generate();
-		if !made { close(s); return null, false; }
+		if !made { close(s); return null, false, "couldn't make a key"; }
 		cert = tls.selfsigned_cert(priv,, temp);
 		key = array_copy(cast([]u8) priv,, temp);
 		code: [6]u8;
@@ -229,23 +186,14 @@ open :: (path: string) -> *Server, bool {
 			&& sqlite.run(db, "INSERT INTO channels(id, name, position) VALUES(?, 'general', 0);", snowflake(s))
 			&& sqlite.run(db, "INSERT INTO invites(code, uses_left) VALUES(?, -1);", hex(code,, temp))
 			&& sqlite.exec(db, "COMMIT;");
-		if !ok { close(s); return null, false; }
+		if !ok { close(s); return null, false, copy_string(sqlite.errmsg(db),, temp); }
 	} else {
 		memcpy(s.id.data, id.data, 16);
 	}
 	s.guild = string_to_int(cast(string) meta_get(s, "guild_id"), T = s64);
-	s.name = copy_string(cast(string) meta_get(s, "name"));
-	if !s.guild { close(s); return null, false; }
+	if !s.guild { close(s); return null, false, "the file has no guild ID"; }
 	sqlite.run(db, "INSERT OR IGNORE INTO roles(id, name, position, permissions) VALUES(?, '@everyone', 0, ?);", s.guild, EVERYONE_PERMISSIONS);
-	st = sqlite.prepare(db, "SELECT max((SELECT coalesce(max(id), 0) FROM users), (SELECT coalesce(max(id), 0) FROM channels), (SELECT coalesce(max(id), 0) FROM attachments), (SELECT coalesce(max(max(id), coalesce(max(edited), 0), coalesce(max(pinned_at), 0)), 0) FROM messages));");
-	if sqlite.step(st) == .Row s.last_id = max(s.guild, sqlite.col_int(st, 0));
-	sqlite.finalize(st);
-	st = sqlite.prepare(db, "SELECT id, avatar FROM users WHERE avatar IS NOT NULL;");
-	while sqlite.step(st) == .Row table_set(*s.avatars, sqlite.col_int(st, 0), copy_string(sqlite.col_text(st, 1)));
-	sqlite.finalize(st);
-	st = sqlite.prepare(db, "SELECT u.id, u.root FROM users u WHERE NOT EXISTS(SELECT 1 FROM webhooks w WHERE w.id = u.id);");
-	while sqlite.step(st) == .Row table_set(*s.handles, sqlite.col_int(st, 0), member_handle(sqlite.col_blob(st, 1)));
-	sqlite.finalize(st);
+	load_caches_locked(s);
 	// Until someone claims the server, a one-use owner invite exists; the host joins with it first.
 	if !meta_get(s, "owner") && !owner_invite(s) {
 		code: [16]u8;
@@ -258,8 +206,8 @@ open :: (path: string) -> *Server, bool {
 	s.spki = crypto.sha256(p256_spki(cert));
 	s.ctx = tls.server_ctx(k, cert, ALPN, "http/1.1");
 	crypto.zero(k);
-	if !s.ctx { close(s); return null, false; }
-	return s, true;
+	if !s.ctx { close(s); return null, false, "couldn't set up TLS"; }
+	return s, true, "";
 }
 
 // p256_spki finds the SubjectPublicKeyInfo of a P-256 key in our own certificate (selfsigned_cert): its
@@ -423,6 +371,7 @@ listen :: (s: *Server, port: int) -> bool {
 	s.listener, s.udp = l, u;
 	s.udp_thread = spawn(s, voice_udp);
 	s.accept_thread = spawn(s, accept_loop);
+	s.host.maint_thread = spawn(s, maintain);
 	s.unfurl_thread = spawn(s, unfurler);
 	return true;
 }
@@ -433,6 +382,7 @@ stop :: (s: *Server) {
 		netio.close_listener(s.listener);
 		locks.join(s.accept_thread);
 		free(s.listener);
+		maintain_stop(s);
 		locks.lock(*s.unfurl_mu);
 		s.unfurl_stop = true;
 		locks.cond_signal(*s.unfurl_wake);
@@ -464,6 +414,7 @@ close :: (s: *Server) {
 	if s.ctx tls.SSL_CTX_free(s.ctx);
 	sqlite.close(s.db);
 	free(s.name);
+	free(s.host.path);
 	for s.avatars free(it);
 	deinit(*s.avatars);
 	deinit(*s.handles);
@@ -822,6 +773,10 @@ serve_conn :: (c: *Conn) {
 		if begins_with(req.path, tprint("/api/v9/guilds/%/soundboard-sounds", c.server.guild)) || req.path == "/api/v9/soundboard-default-sounds"
 				|| (begins_with(req.path, "/api/v9/channels/") && (ends_with(req.path, "/send-soundboard-sound") || ends_with(req.path, "/voice-channel-effects"))) {
 			if !soundboard(c, req) return;
+			continue;
+		}
+		if begins_with(req.path, HOST_BASE) {
+			if !host_route(c, req) return;
 			continue;
 		}
 		if begins_with(req.path, "/api/v9/channels/") {
@@ -3836,7 +3791,6 @@ create_invite :: (c: *Conn, req: http.Request, user: s64, name: string, channel:
 // the client PUTs the bytes there, then names the upload in the message it sends. The URLs carry the
 // authority themselves, since a hosted client sends its token only to /api: a random token to upload, and a
 // random key to read the stored file back.
-MAX_UPLOAD :: 10 << 20; // Bytes per file, as on Discord without Nitro.
 MAX_UPLOADS :: 10;      // Files per message.
 UPLOAD_TTL_S :: 86400;  // An upload no message claimed by then is dropped.
 
@@ -3864,7 +3818,8 @@ request_uploads :: (c: *Conn, req: http.Request, user: s64, channel: s64, dm := 
 			sqlite.exec(s.db, "ROLLBACK;");
 			return json_error(c, 400, 50035, "Invalid Form Body");
 		}
-		if size.i <= 0 || size.i > MAX_UPLOAD {
+		// The owner's limits (host.jai): files this transaction already added count toward the quotas.
+		if size.i <= 0 || size.i > limit_locked(s, "max_upload_mb") * MB || !upload_quota_ok_locked(s, user, size.i) {
 			sqlite.exec(s.db, "ROLLBACK;");
 			return json_error(c, 413, 40005, "Request entity too large");
 		}

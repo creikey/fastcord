@@ -5,19 +5,27 @@ DB :: struct {}
 Stmt :: struct {}
 
 // open makes the file if needed, in WAL mode with synchronous=FULL: a commit is on disk before it returns.
-// exclusive holds the file locked against every other connection until close; it must be set before WAL
-// is entered to take effect at once.
-open :: (path: string, exclusive := false) -> *DB, bool {
+// exclusive holds the file locked against every other connection until close, taken here; a file another
+// connection holds fails with "database is locked". readonly opens an existing file as it is, journal untouched.
+// On failure, error says why (in temp).
+open :: (path: string, exclusive := false, readonly := false) -> *DB, bool, error: string {
 	db: *DB;
-	if sqlite3_open_v2(temp_c_string(path), *db, OPEN_READWRITE | OPEN_CREATE | OPEN_NOMUTEX, null) != OK {
+	flags: s32 = xx ifx readonly then OPEN_READONLY | OPEN_NOMUTEX else OPEN_READWRITE | OPEN_CREATE | OPEN_NOMUTEX;
+	if sqlite3_open_v2(temp_c_string(path), *db, flags, null) != OK {
+		e := copy_string(errmsg(db),, temp);
 		sqlite3_close_v2(db);
-		return null, false;
+		return null, false, e;
 	}
 	sqlite3_busy_timeout(db, 5000);
-	ok := (!exclusive || exec(db, "PRAGMA locking_mode=EXCLUSIVE;"))
-		&& exec(db, "PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA foreign_keys=ON;");
-	if !ok { sqlite3_close_v2(db); return null, false; }
-	return db, true;
+	ok := readonly || ((!exclusive || exec(db, "PRAGMA locking_mode=EXCLUSIVE;"))
+		&& exec(db, "PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA foreign_keys=ON;")
+		&& (!exclusive || exec(db, "BEGIN EXCLUSIVE; COMMIT;")));
+	if !ok {
+		e := copy_string(errmsg(db),, temp);
+		sqlite3_close_v2(db);
+		return null, false, e;
+	}
+	return db, true, "";
 }
 
 close :: (db: *DB) { sqlite3_close_v2(db); }
@@ -102,6 +110,7 @@ OK :: 0;
 ROW :: 100;
 DONE :: 101;
 NULL_TYPE :: 5;
+OPEN_READONLY :: 0x1;
 OPEN_READWRITE :: 0x2;
 OPEN_CREATE :: 0x4;
 OPEN_NOMUTEX :: 0x8000;

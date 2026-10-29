@@ -25,7 +25,7 @@ webview. Metal on macOS, Direct3D 11 on Windows, OpenGL (EGL) on Linux.
 | `src/inflate`, `src/zstd`, `src/brotli` | Decoders (Wuffs, zstd, brotli): the gateway uses zstd-stream; HTTP responses may be gzip/br/zstd. |
 | `src/crypto` | Hashes, HMAC/HKDF, AEADs, P-256, SLH-DSA, X25519 over BoringSSL; BLAKE3. |
 | `src/keys` | Identity keypairs for self-hosted servers: the BLAKE3 Merkle root, durable key files beside `<state>`. |
-| `src/serve`, `src/sqlite` | `fastcord -serve:<file> [-port:N]`, a self-hosted server: one SQLite file, TLS 1.3 under a pinned self-signed certificate, ALPN `fc/1`; voice media on UDP at the same port number. Checked by `src/tests/serve.jai` and `src/tests/serve_voice.jai`. How to host one: the site's [Self-hosting](https://creikey.com/fastcord/#self-hosting) section. |
+| `src/serve`, `src/sqlite` | `fastcord -serve:<file> [-port:N] [-backups:<dir>] [-install \| -uninstall]`, a self-hosted server: one SQLite file (numbered schema, rolling `VACUUM INTO` backups, a log beside it), TLS 1.3 under a pinned self-signed certificate, ALPN `fc/1`; voice media on UDP at the same port number. Checked by `src/tests/serve.jai` and `src/tests/serve_voice.jai`. How to host one: the site's [Self-hosting](https://creikey.com/fastcord/#self-hosting) section. |
 | `src/etf` | Erlang External Term Format codec (gateway uses `encoding=etf`) and JSON. |
 | `src/http` | HTTP/1.1, HTTP/2, HTTP/3, WebSocket over vendored picohttpparser, nghttp2, nghttp3, wslay. |
 | `src/discord` | Unofficial Discord library: REST, gateway, telemetry, voice, state store. |

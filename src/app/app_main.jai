@@ -111,6 +111,10 @@ Options :: struct {
 	sweep_out: string; // report directory (default build/sweep)
 	serve: string; // run a self-hosted server from this file instead of the app
 	port: int;
+	backups: string;      // -backups:<dir>: where the server keeps its rolling backups (host.jai)
+	install: bool;        // -serve:<file> -install: run it as a service from now on (serve install.jai)
+	serve_uninstall: bool; // -serve:<file> -uninstall: remove that service
+	service: bool;        // run by that service: no console, the log only
 	url: string; // an fc:// or discord:// link to open (the OS's URL handler passes it)
 	start_minimized: bool; // --start-minimized: the login item of Start Minimized
 	uninstall: bool; // --uninstall: Apps & Features' Uninstall (Windows)
@@ -165,6 +169,14 @@ parse_options :: () -> Options {
 			o.serve = v;
 		} else if flag("-port:") {
 			o.port = parse_int_prefix(v);
+		} else if flag("-backups:") {
+			o.backups = v;
+		} else if a == "-install" {
+			o.install = true;
+		} else if a == "-uninstall" {
+			o.serve_uninstall = true;
+		} else if a == "-service" {
+			o.service = true;
 		} else if a == "--start-minimized" {
 			o.start_minimized = true;
 		} else if a == "--uninstall" {
@@ -184,18 +196,39 @@ main :: () {
 	dc.record_process_start(); // once, before the first client
 	opt := parse_options();
 	if opt.serve {
-		serve_console();
-		s, ok := serve.open(opt.serve);
-		if !ok fail("could not open the server file %", opt.serve);
-		if !serve.listen(s, opt.port) fail("could not listen on port % (TCP, and UDP for voice)", opt.port);
+		if !opt.service serve_console();
+		if opt.install || opt.serve_uninstall {
+			ok, message := serve.install_service(opt.serve, opt.port, opt.serve_uninstall);
+			say("%\n", message);
+			exit(xx ifx ok then 0 else 1);
+		}
+		s, ok, err := serve.open(opt.serve);
+		if !ok {
+			serve.file_log(opt.serve, "Could not open the server file: %", err);
+			fail("could not open the server file %: %", opt.serve, err);
+		}
+		s.host.version = VERSION;
+		if opt.backups && !serve.set_backup_dir(s, opt.backups) fail("could not set the backup folder");
+		// Each line goes to the console and to the log beside the file, which a service has instead.
+		note :: (format: string, args: ..Any) #expand {
+			text := tprint(format, ..args);
+			if !opt.service say("%\n", text);
+			serve.host_log(s, "%", text);
+		}
+		if !serve.listen(s, opt.port) {
+			serve.host_log(s, "Could not listen on port % (TCP, and UDP for voice)", opt.port);
+			fail("could not listen on port % (TCP, and UDP for voice)", opt.port);
+		}
+		host, port := serve.invite_address(s);
+		mine := host != "localhost";
 		first := serve.first_invite(s);
-		if first say("Serving % on port %. Invite (put your address in place of localhost):\n%\n", opt.serve, s.listener.port, serve.invite_url(s, "localhost", s.listener.port, first));
-		else say("Serving % on port %. No invite works any more: members make new ones from the Invite button.\n", opt.serve, s.listener.port);
+		if first note("Serving % (fastcord %) on port %. Invite%:\n%", opt.serve, VERSION, s.listener.port, ifx mine then "" else " (put your address in place of localhost)", serve.invite_url(s, host, port, first));
+		else note("Serving % (fastcord %) on port %. No invite works any more: members make new ones from the Invite button.", opt.serve, VERSION, s.listener.port);
 		owner := serve.owner_invite(s);
-		if owner say("Join with this one yourself first, to own the server (it works once):\n%\n", serve.invite_url(s, "localhost", s.listener.port, owner));
-		say("Voice uses UDP on the same port number, so forward both TCP and UDP %.\n", s.listener.port);
-		say("Webhooks take posts from curl and other tools pinned to this server: curl -k --pinnedpubkey % ...\n", serve.webhook_pin(s));
-		say("Press Ctrl-C or close this console to stop the server.\n");
+		if owner note("Join with this one yourself first, to own the server (it works once):\n%", serve.invite_url(s, host, port, owner));
+		note("Voice uses UDP on the same port number, so forward both TCP and UDP %.", s.listener.port);
+		note("Webhooks take posts from curl and other tools pinned to this server: curl -k --pinnedpubkey % ...", serve.webhook_pin(s));
+		if !opt.service say("Press Ctrl-C or close this console to stop the server.\n");
 		while true sleep_milliseconds(1000 * 60 * 60);
 	}
 	headless := opt.shot != "" || bench.on;

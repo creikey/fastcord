@@ -77,10 +77,11 @@ Run it as a service (as root):
     systemctl enable --now fastcord-server
     journalctl -u fastcord-server              (the invites; also in /var/lib/fastcord/server.db.log)
 
-Open or forward TCP 4433, and put the machine's public address or DNS name in place of localhost in the
-invite. Join first with the one-use owner invite to own the server. The whole server is the one file:
-stop the service and copy /var/lib/fastcord/server.db to back it up. To update, replace the binary and
-restart the service.
+Open or forward TCP and UDP 4433 (UDP carries voice). Join first with the one-use owner invite to own
+the server, then set its public address or DNS name in Server Settings > Network so invites carry it.
+The whole server is the one file. It backs itself up daily to /var/lib/fastcord/server-backups (the last
+7, each checked; -backups:<dir> in ExecStart for another disk), and the owner can back up and restore
+from Server Settings. To update, replace the binary and restart the service.
 """
 
 def main():
