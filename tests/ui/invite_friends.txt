@@ -1,0 +1,13 @@
+# Runs on invite_friends.jsonl (chat.jsonl with three friends). The invite modal lists friends not in the
+# server with a search; Invite (disabled offline, with no link yet) sends the link in a DM with them.
+wait 5
+click 349 57
+wait 10
+expect_visible "Casey"
+expect_visible "Or, send a server invite link to a friend"
+shot build/ui-invite_friends.png
+type bl
+wait 5
+expect_visible "Blair"
+expect_not_visible "Casey"
+shot build/ui-invite_friends-search.png

@@ -73,6 +73,8 @@ invite_open :: (gid: dc.Snowflake, cid: dc.Snowflake, location: string) {
 	gm.inv_tag += 1;
 	gm.inv_loading = false;
 	gm.inv_settings, gm.inv_edit = .{}, false;
+	gm.inv_sent.count = 0;
+	ui.editor_set_text(*gm.inv_search, "");
 	if net_action() {
 		gm.inv_loading = ch != 0;
 		dc.open_invite_modal(app.client, gid, ch, location, gm.inv_tag);
@@ -374,6 +376,9 @@ Guild_Menu_State :: struct {
 	inv_edit: bool; // Edit invite link's form, with its picks below
 	inv_age, inv_uses: int; // indexes into INV_AGES / INV_USES
 	inv_temp: bool;
+	inv_search: ui.Editor; // the friend list's search
+	inv_sent: [..]dc.Snowflake; // friends sent the link (Invite became Sent)
+	inv_send_url: string; // heap: the link sent once a new DM channel is made (INVITE_DM_TAG)
 	// channel bell popout
 	bell_channel: dc.Snowflake;
 	bell_anchor: ui.Rect;
@@ -1195,11 +1200,12 @@ invite_modal :: () {
 	}
 	if gm.inv_edit { if select_is_open() dropdown_list(); return; } // the selects' option lists (view_server_settings.jai)
 	{ ui.parent(d); defer ui.pop_parent();
+		listed := invite_friends(g.id, W, PAD);
 		lr := row("lbl");
 		lr.semantic_size = .[ui.pct(1), ui.px(18)];
 		{ ui.parent(lr); defer ui.pop_parent();
 			spacer(.X, PAD);
-			label(L("Send a server invite link to a friend"), .Semibold, 14, T("--text-default"), 18);
+			label(ifx listed then L("Or, send a server invite link to a friend") else L("Send a server invite link to a friend"), .Semibold, 14, T("--text-default"), 18);
 		}
 		spacer(.Y, 8);
 		fr := row("fieldrow");
@@ -1266,6 +1272,92 @@ invite_modal :: () {
 		}
 		spacer(.Y, 20);
 	}
+}
+
+// The client's friend list in the invite modal: a search and friends not in the server, each with Invite,
+// which sends the link in your DM with them (InviteQueue: ensurePrivateChannel, then the link as a message).
+// False when there's no one to list.
+invite_friends :: (gid: dc.Snowflake, W: float32, PAD: float32) -> bool {
+	MAX_ROWS :: 6;
+	uname :: (uid: dc.Snowflake) -> string { u := dc.user_get(store(), uid); return ifx u then u.username else ""; }
+	s := store();
+	url := invite_url(); // none yet (creating, offline): Invite waits for it
+	q := trim(ui.editor_text(*gm.inv_search));
+	ids: [..]dc.Snowflake;
+	ids.allocator = temp;
+	total := 0;
+	for rel, uid: s.relationships {
+		if rel.kind != .Friend || dc.member_get(s, gid, uid) continue;
+		total += 1;
+		if q && fuzzy_score(q, dc.user_name(s, uid)) < 0 && fuzzy_score(q, uname(uid)) < 0 continue;
+		array_add(*ids, uid);
+	}
+	if !total return false;
+	quick_sort(ids, (a: dc.Snowflake, b: dc.Snowflake) -> s64 { return compare(to_lower_copy(dc.user_name(store(), a),, temp), to_lower_copy(dc.user_name(store(), b),, temp)); });
+	sr := row("invsearch");
+	sr.semantic_size = .[ui.pct(1), ui.px(40)];
+	{ ui.parent(sr); defer ui.pop_parent();
+		spacer(.X, PAD);
+		field := row("field", .Draw_Background | .Draw_Border | .Clickable);
+		field.semantic_size = .[ui.fill(), ui.px(40)];
+		field.style.bg = T("--input-background-default");
+		field.style.border_color = T("--input-border-active");
+		field.style.border = 1;
+		field.style.radius = all4(8);
+		field.hover_cursor = .IBeam;
+		app.ui.focus = field.key; // else the composer under the modal keeps the keys
+		{ ui.parent(field); defer ui.pop_parent();
+			spacer(.X, 12);
+			text_field("f", *gm.inv_search, L("Search for friends"), true, 16, 20, 10, T("--input-placeholder-text-default"));
+			spacer(.X, 12);
+		}
+		spacer(.X, PAD);
+	}
+	spacer(.Y, 8);
+	for uid: ids {
+		if it_index >= MAX_ROWS break;
+		r := row(tprint("invf_%", uid), .Draw_Background | .Hot_Animation | .Clickable);
+		r.semantic_size = .[ui.pct(1), ui.px(44)];
+		r.cross_align = .Center;
+		r.style.bg_hot = T("--background-mod-subtle");
+		ui.signal(r);
+		ui.parent(r); defer ui.pop_parent();
+		spacer(.X, PAD);
+		avatar_box("av", uid, 32);
+		spacer(.X, 12);
+		label(ellipsize(dc.user_name(s, uid), .Medium, 16, W - 2 * PAD - 220), .Medium, 16, T("--text-strong"), 20);
+		spacer(.X, 8);
+		label(ellipsize(uname(uid), .Normal, 14, 120), .Normal, 14, T("--text-muted"), 18);
+		filler(.X);
+		sent := array_find(gm.inv_sent, uid);
+		if adm_button("inv", ifx sent then L("Sent") else L("Invite"), .Secondary, enabled = !sent && url != "") && net_action() {
+			array_add(*gm.inv_sent, uid);
+			free(gm.inv_send_url);
+			gm.inv_send_url = copy_string(url);
+			dm := dc.open_dm(app.client, uid, "Invite Modal", INVITE_DM_TAG);
+			if dm invite_send_dm(dm);
+		}
+		spacer(.X, PAD);
+	}
+	if !ids {
+		nr := row("none");
+		nr.semantic_size = .[ui.pct(1), ui.px(44)];
+		ui.parent(nr); defer ui.pop_parent();
+		spacer(.X, PAD);
+		label(L("No results"), .Normal, 14, T("--text-muted"), 44);
+	}
+	spacer(.Y, 16);
+	return true;
+}
+
+INVITE_DM_TAG :: cast(u64) 0x1d17_0000_0000_0001; // open_dm for an invite: its result sends the link
+
+// The invite link as a message in a DM, end-to-end encrypted where the DM is.
+invite_send_dm :: (dm: dc.Snowflake) {
+	ch := dc.channel_get(store(), dm);
+	if !ch || !gm.inv_send_url return;
+	if encrypting(ch) encrypted_send(ch, gm.inv_send_url, false);
+	else dc.send_message(app.client, dm, gm.inv_send_url);
 }
 
 INV_AGES :: int.[1800, 3600, 21600, 43200, 86400, 604800, 2592000, 0]; // Expire After, seconds (0 = never)
