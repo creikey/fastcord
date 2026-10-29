@@ -37,6 +37,7 @@ Jump :: struct {
 	channel: dc.Snowflake;
 	message: dc.Snowflake;
 	frames: int;
+	settled: int; // frames the measured target has held
 	requested: bool;
 }
 
@@ -70,29 +71,36 @@ jump_to_message :: (channel_id: dc.Snowflake, message_id: dc.Snowflake) {
 
 // Called by the message list before it settles the scroll: steer
 // scroll_target so the jump target sits in the middle of the viewport.
-jump_apply :: (channel_id: dc.Snowflake, cs: *Chat_State, msgs: []dc.Message, view_h: float32, bottom_pad: float32) {
+// Centers the jumped-to message, estimating unmeasured rows as the list does (guess), and keeps steering
+// until it and the half view below it are measured and the target has held for a few frames.
+jump_apply :: (channel_id: dc.Snowflake, cs: *Chat_State, msgs: []dc.Message, view_h: float32, bottom_pad: float32, guess: float32) {
 	if jump.channel != channel_id || jump.message == 0 { return; }
 	idx := -1;
 	for m, i: msgs { if m.id == jump.message { idx = i; } }
+	jump.frames += 1;
 	if idx < 0 {
 		// not loaded yet (around= in flight); give up after a while
-		jump.frames += 1;
 		if jump.frames > 600 { jump = .{}; }
 		return;
 	}
 	below := bottom_pad;
+	measured := true;
 	for i: idx + 1..msgs.count-1 {
 		ok, h := table_find(*cs.heights, msgs[i].id);
-		below += ifx ok then h else MSG_LINE_H + 4;
+		if !ok && below < view_h / 2 measured = false;
+		below += ifx ok then h else guess;
 	}
 	ok, h := table_find(*cs.heights, msgs[idx].id);
-	if !ok { h = MSG_LINE_H + 4; }
-	cs.scroll_target = max(0.0, below + h / 2 - view_h / 2);
+	if !ok { h = guess; measured = false; }
+	target := max(0.0, below + h / 2 - view_h / 2);
+	jump.settled = ifx measured && abs(target - cs.scroll_target) < 0.5 then jump.settled + 1 else 0;
+	cs.scroll_target = target;
 	app.ui.animating = true;
-	// keep steering until the rows around it have been measured
-	jump.frames += 1;
-	if jump.frames > 8 { jump = .{}; }
+	if jump.settled > 3 || jump.frames > 240 { jump = .{}; }
 }
+
+// A jump still placing its message (the list must not shift the scroll under it).
+jump_steering :: (channel_id: dc.Snowflake) -> bool { return jump.channel == channel_id && jump.message != 0; }
 
 jump_highlighted :: (id: dc.Snowflake) -> bool {
 	if id != highlight_id { return false; }

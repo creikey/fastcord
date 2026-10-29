@@ -36,8 +36,8 @@ Chat_State :: struct {
 	unread_after: dc.Snowflake; // read marker when the channel was opened ("NEW" divider)
 	opened: bool;
 	marker_stale: bool; // the window lost focus with the channel read: the next unread message moves the marker
-	shown_newest: dc.Snowflake; // the newest row last frame, and whether a jump's gap was open then:
-	shown_gap: bool;            // newer pages of a jumped-to stretch land below without moving the view
+	shown_newest: dc.Snowflake; // the newest row last frame: rows added below, scrolled up, don't move the view
+	shown_gap: bool;            // and whether a jump's gap was open then
 }
 
 chat_state :: (channel_id: dc.Snowflake) -> *Chat_State { return find_or_add(*app.chats, channel_id); }
@@ -1116,7 +1116,8 @@ message_list :: (channel_id: dc.Snowflake, cs: *Chat_State) {
 	for msgs total += est(cs, it.id, guess);
 	gap := l && l.gap_after != 0;
 	newest := ifx msgs then msgs[msgs.count - 1].id else 0;
-	if cs.shown_gap && cs.shown_newest && newest > cs.shown_newest && cs.scroll_target > 0 {
+	// scrolled up, what is being read stays put: rows added below move the bottom-based scroll with them
+	if cs.shown_newest && newest > cs.shown_newest && cs.scroll_target > 0 {
 		added: float32;
 		for < msgs { if it.id <= cs.shown_newest break; added += est(cs, it.id, guess); }
 		cs.scroll_from_bottom += added;
@@ -1124,7 +1125,8 @@ message_list :: (channel_id: dc.Snowflake, cs: *Chat_State) {
 	}
 	cs.shown_newest, cs.shown_gap = newest, gap;
 	max_scroll := max(0.0, total - view_h);
-	jump_apply(channel_id, cs, msgs, view_h, BOTTOM_PAD);
+	jump_apply(channel_id, cs, msgs, view_h, BOTTOM_PAD, guess);
+	steering := jump_steering(channel_id);
 	cs.scroll_target = clamp(cs.scroll_target, 0, max_scroll);
 	if app.ui.instant_scroll cs.scroll_from_bottom = cs.scroll_target;
 	else ui.animate(*cs.scroll_from_bottom, cs.scroll_target, 40);
@@ -1226,6 +1228,14 @@ message_list :: (channel_id: dc.Snowflake, cs: *Chat_State) {
 					h := ifx row then row.rect.y1 - row.rect.y0 else 0;
 					ok, old := table_find(*cs.heights, m.id);
 					if !ok || abs(old - h) > 0.5 {
+						// Scrolled up, a row starting below the top of the view that grows or shrinks (an
+						// embed or reaction landing, a first measure, a new width) would push the text being
+						// read: the scroll, measured from the bottom, takes the difference.
+						if cs.scroll_target > 0 && !steering && row && row.rect.y0 > list.rect.y0 {
+							d := h - ifx ok then old else guess;
+							cs.scroll_from_bottom += d;
+							cs.scroll_target += d;
+						}
 						cs.height_sum += h;
 						if ok cs.height_sum -= old;
 						table_set(*cs.heights, m.id, h);

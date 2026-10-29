@@ -1,0 +1,22 @@
+# Scrolled up reading history, messages arriving below don't push the text being read up.
+wait 5
+key pageup
+wait 30
+expect_visible "Welcome to #dingus-battle!"
+incoming one
+wait 5
+incoming two
+wait 5
+incoming three
+wait 5
+incoming four
+wait 5
+incoming five
+wait 5
+incoming six
+wait 5
+incoming seven
+wait 5
+incoming eight
+wait 20
+expect_visible "Welcome to #dingus-battle!"
