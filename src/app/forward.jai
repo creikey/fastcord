@@ -18,10 +18,10 @@ forward_open :: (m: *dc.Message) {
 	ui.editor_set_text(*fwd.note, "");
 }
 
-// can_forward: only plain messages and replies that the server has, as the official menu offers it.
-// An encrypted message can't be forwarded: the destination would get a packet nobody there can open.
+// can_forward: only plain messages and replies that the server has, as the official menu offers it. An
+// encrypted one goes re-encrypted for its destination (encrypted_forward), so only once we've opened it.
 can_forward :: (m: *dc.Message) -> bool {
-	return !m.pending && !m.failed && !m.forwarded && (m.kind == 0 || m.kind == 19) && !encrypted_packet(m.channel_id, m.content);
+	return !m.pending && !m.failed && !m.forwarded && (m.kind == 0 || m.kind == 19) && (!encrypted_packet(m.channel_id, m.content) || encrypted_editable(m));
 }
 
 Forward_Item :: struct {
@@ -70,10 +70,12 @@ forward_send :: () {
 	src := dc.channel_get(s, fwd.channel);
 	opts: dc.Send_Options;
 	opts.forward_message, opts.forward_channel, opts.forward_guild = fwd.msg, fwd.channel, ifx src then src.guild_id else 0;
-	if net_action() {
-		dc.send_message(app.client, fwd.dest, "", opts);
+	m := find_message(fwd.msg);
+	dest := dc.channel_get(s, fwd.dest);
+	if net_action() && m && dest {
+		if encrypted_packet(m.channel_id, m.content) encrypted_forward(m, dest);
+		else dc.send_message(app.client, fwd.dest, "", opts);
 		note := trim(ui.editor_text(*fwd.note));
-		dest := dc.channel_get(s, fwd.dest);
 		if note && encrypting(dest) encrypted_send(dest, note, false);
 		else if note dc.send_message(app.client, fwd.dest, note);
 	}
@@ -178,6 +180,24 @@ forward_modal :: () {
 	res = input("note", *fwd.note, L("Add an optional message..."), true);
 	if res == .Submit && fwd.dest send = true;
 	if res == .Escape fwd.msg = 0;
+	src := find_message(fwd.msg);
+	if src && fwd.dest && encrypted_packet(src.channel_id, src.content) && !encrypting(dc.channel_get(store(), fwd.dest)) {
+		// Leaving E2E: said before it goes.
+		spacer(.Y, 12);
+		w := row("leaving");
+		w.semantic_size = .[ui.pct(1), ui.children()];
+		{ ui.parent(w); defer ui.pop_parent();
+			icon("warn", "warning", 16, T("--text-feedback-warning"));
+			spacer(.X, 8);
+			who := ifx on_hosted() then L("This message is end-to-end encrypted. Forwarding it here sends it unencrypted, so the server's host can read it.") else L("This message is end-to-end encrypted. Forwarding it here sends it unencrypted, so Discord can read it.");
+			p := ui.box(tprint("%##leavingtext", who), .Draw_Text | .Wrap_Text);
+			p.semantic_size = .[ui.fill(), ui.text_size()];
+			p.style.font = F(.Normal);
+			p.style.font_size = 14;
+			p.style.line_height = 18;
+			p.style.text_color = T("--text-default");
+		}
+	}
 	spacer(.Y, 16);
 	buttons := row("buttons");
 	buttons.semantic_size = .[ui.pct(1), ui.children()];

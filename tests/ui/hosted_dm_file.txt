@@ -1,6 +1,7 @@
 # E2E 7: in a hosted DM an image goes as ciphertext (serve keeps only encrypted.bin); our own copy
 # downloads it back, checks its digest, decrypts it and shows it as an image. A reply, an edit and a
-# reaction go inside packets too.
+# reaction go inside packets too. Forwarding it to a channel warns that it leaves encryption; to the DM it
+# goes re-encrypted, the image sealed anew.
 wait 5
 serve_join
 serve_member Bob bundle
@@ -45,4 +46,27 @@ settle 4
 move 600 640
 settle 1
 shot build/ui-hosted_dm_file.png
+rclick 600 440
+settle 1
+click_text "Forward"
+settle 2
+type general
+settle 1
+key enter
+settle 2
+shot build/ui-hosted_dm_file-leaving.png
+key escape
+settle 1
+rclick 600 440
+settle 1
+click_text "Forward"
+settle 2
+type Bob
+settle 1
+key enter
+settle 1
+key tab
+key enter
+settle 6
+shot build/ui-hosted_dm_file-forwarded.png
 expect_served

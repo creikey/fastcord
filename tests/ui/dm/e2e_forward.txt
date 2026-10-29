@@ -1,5 +1,5 @@
-# E2E: an encrypted message can't be forwarded (the destination would get a packet nobody there can
-# open); a plain one still can.
+# E2E: an encrypted message we can't open can't be forwarded (an opened one goes re-encrypted for its
+# destination, or plain after a warning); a plain one still can.
 open 1800000000000000001
 wait 20
 incoming fc-AwMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA

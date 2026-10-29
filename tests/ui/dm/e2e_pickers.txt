@@ -1,4 +1,5 @@
-# E2E: in an encrypted DM the GIF and sticker pickers send nothing in the clear; they say so instead.
+# E2E: in an encrypted DM the GIF and sticker pickers send nothing in the clear: a sticker goes as its ID
+# inside a packet and a GIF as a file the sender fetches (here it has no file to fetch, which it says).
 open 1800000000000000002
 wait 10
 encrypted
@@ -6,12 +7,11 @@ wait 10
 click 883 683
 wait 20
 pick sticker 749054660769218631
-expect_drawn "Stickers can't be sent encrypted yet."
 wait 2
 click 843 683
 wait 20
 pick gif https://tenor.com/view/cat-12345
-expect_drawn "GIFs can't be sent encrypted yet."
+expect_drawn "Couldn't get that GIF."
 wait 10
 expect_not_visible "https://tenor.com/view/cat-12345"
 shot build/ui-dm_e2e_pickers-toast.png

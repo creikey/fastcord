@@ -511,6 +511,13 @@ contents :: (a: *Client, b: *Client) {
 	}
 	r = receive(b, s.packet, a);
 	check(r.result == .Repeated, "a file message replayed as another delivery");
+	s = e2e.request(.Send, .{CARRIER, CONV, a.party, b.party, limit});
+	s.me = a.me;
+	array_add(*s.stickers, copy_string("sticker\x00one"));
+	e2e.submit(a.d, s);
+	wait(s);
+	r = land(a, b, s);
+	check(r.result == .Ok && r.content == .Post && r.stickers.count == 1 && r.stickers[0] == "sticker\x00one" && !r.out_text, "a sticker alone, named as the carrier names it");
 
 	// An Edit rewrites its own delivery: the carrier edits the message in place.
 	edit := post(a, b, .Edit, "final", target = orig_at);

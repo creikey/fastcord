@@ -32,6 +32,15 @@ note_sticker_items :: (s: *Store, l: []V) {
 	}
 }
 
+// note_sticker records a sticker named elsewhere than sticker_items (inside an encrypted message).
+note_sticker :: (id: Snowflake, name: string, format_type: int) {
+	a := context.default_allocator;
+	locks.lock(*sticker_mu);
+	defer locks.unlock(*sticker_mu);
+	sticker_items.allocator = a;
+	if id && !table_contains(*sticker_items, id) table_set(*sticker_items, id, .{id = id, name = clone_str(name, a), format_type = format_type});
+}
+
 // Metadata for a sticker id seen in a message (or a guild's stickers).
 sticker_item :: (s: *Store, id: Snowflake) -> Sticker_Item, bool {
 	locks.lock(*sticker_mu);

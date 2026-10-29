@@ -9,7 +9,8 @@
 // Inside the packet (E2E 7): a reply names its message; files upload as ciphertext attachments named
 // ENCRYPTED_NAME, in the packet's order, and open into `blobs` under an E2E_URL key that is never fetched;
 // an edit or delete edits the message itself into a new packet; a reaction is a packet of its own, hidden
-// from the list and drawn on the message it names.
+// from the list and drawn on the message it names. A sticker goes as its ID, a GIF as a file the sender
+// fetched, and a forward as a new message re-encrypted for its destination.
 
 Shown :: struct {
 	result: e2e.Result;
@@ -25,6 +26,7 @@ Shown :: struct {
 	reply: dc.Snowflake;
 	files: [..]e2e.File;
 	packet: string; // A Hello's, for Accept: its text may only name an attachment.
+	stickers: [..]dc.Snowflake;
 }
 
 Encrypted_Channel :: struct {
@@ -57,7 +59,10 @@ Encrypted_State :: struct {
 	reactions: Table(dc.Snowflake, [..]E2E_Reaction); // By the message they're on.
 	attachments: Table(*e2e.Request, []dc.Draft_Attachment); // A Send's uploads, until its packet goes.
 	opening: [..]*Open_File;
+	gifs: [..]Gif_Fetch; // GIFs being fetched to go as encrypted files
 }
+
+Gif_Fetch :: struct { channel: dc.Snowflake; url: string; width, height: int; mime: string; }
 
 // The latest encrypted reaction of one person with one emoji on a message: the newest delivery wins.
 E2E_Reaction :: struct { user: dc.Snowflake; emoji: string; at: dc.Snowflake; on: bool; }
@@ -82,6 +87,22 @@ ee: Encrypted_State;
 encrypted_frame :: () {
 	if !e2e_db return;
 	encrypted_files_frame();
+	for g: ee.gifs {
+		b := table_find_pointer(*blobs, g.url);
+		if b && b.state == .Loading continue;
+		dm := dc.channel_get(store(), g.channel);
+		if b && b.state == .Ready && app.client && dm {
+			f := e2e.File.{width = g.width, height = g.height, name = tprint("tenor.%", slice(g.mime, 6, g.mime.count - 6)), mime = g.mime};
+			ct := e2e.seal_file(b.data, *f);
+			draft := dc.upload_draft(app.client, g.channel, ENCRYPTED_NAME, "application/octet-stream", ct, "gif_picker");
+			array_free(ct);
+			encrypted_post(dm, "", false, files = .[f], atts = .[.{handle = draft, filename = ENCRYPTED_NAME}]);
+		} else {
+			toast_show(L("Couldn't get that GIF."), false);
+		}
+		free(g.url);
+		remove g;
+	}
 	if !ee.told_set_aside && atomic_load(*e2e_db.set_aside) {
 		ee.told_set_aside = true;
 		toast_show(L("This device's encryption keys couldn't be unlocked, so earlier encrypted DMs can't be opened here."), false);
@@ -118,7 +139,8 @@ encrypted_frame :: () {
 				sh.edited = "";
 				shown_free(sh);
 				sh.* = .{result = r.result, content = r.content, text = copy_string(r.out_text), silent = r.silent, accepted = r.accepted, key_changed = r.key_changed, generation = ee.generation,
-					edited = edited, reply = dc.parse_snowflake(r.reply), files = files_copy(r.files), packet = ifx r.result == .Hello then copy_string(r.packet)};
+					edited = edited, reply = dc.parse_snowflake(r.reply), files = files_copy(r.files), packet = ifx r.result == .Hello then copy_string(r.packet),
+					stickers = stickers_of(r.stickers)};
 				if r.result == .Ok && (r.content == .React || r.content == .Unreact) reaction_note(dc.parse_snowflake(r.target), dc.parse_snowflake(r.from), r.out_text, id, r.content == .React);
 				if r.result == .Ok && r.content == .Accept && r.from != r.conv.me {
 					ee.generation += 1;
@@ -322,6 +344,9 @@ encrypted_view :: (m: *dc.Message) -> *dc.Message {
 	if packet v.attachments = ([..]dc.Attachment).{}; // ciphertext: only what opens is shown
 	if opened {
 		v.referenced_id = sh.reply;
+		v.sticker_ids = ([..]dc.Snowflake).{};
+		v.sticker_ids.allocator = temp;
+		for sh.stickers array_add(*v.sticker_ids, it);
 		atts: [..]dc.Attachment;
 		atts.allocator = temp;
 		for f, i: sh.files {
@@ -478,14 +503,74 @@ send_hello :: (dm_id: dc.Snowflake) {
 // (already uploading as ciphertext). It returns false to keep the text, e.g. while the peer hasn't
 // accepted yet.
 encrypted_send :: (dm: *dc.Channel, text: string, silent: bool, reply: dc.Snowflake = 0, atts: []dc.Draft_Attachment = .[]) -> bool {
+	files, sealed := attachments_sealed(dm.id, true);
+	if !atts files = .[]; // a forward's note takes none of the composer's
+	if !sealed && atts { toast_show(L("Remove the files added before encryption was on: they'd go unencrypted."), false); return false; }
+	return encrypted_post(dm, text, silent, reply, files, atts);
+}
+
+// encrypted_sticker sends a sticker in an encrypted DM: its ID, format and name inside the packet.
+encrypted_sticker :: (dm: *dc.Channel, id: dc.Snowflake, format_type: int, name: string) {
+	encrypted_post(dm, "", false, stickers = .[tprint("% % %", id, format_type, name)]);
+}
+
+// encrypted_gif fetches a GIF (only the sender contacts its host) to send it as an encrypted file: its
+// GIF rendition, else its video one.
+encrypted_gif :: (dm: *dc.Channel, gif: string, video: string, width: int, height: int) {
+	if !encrypted_channel(dm.id).has_session { encrypted_post(dm, "", false); return; } // says why
+	url := ifx gif then gif else video;
+	if !url { toast_show(L("Couldn't get that GIF."), false); return; }
+	mime := ifx gif then "image/gif" else ifx ends_with(video, ".mp4") then "video/mp4" else "video/webm";
+	array_add(*ee.gifs, .{dm.id, copy_string(url), width, height, mime});
+	blob_get(url);
+}
+
+// encrypted_forward re-encrypts our copy of an encrypted message for dest: as an encrypted message when
+// dest is encrypted, else as a plain one (the forward modal has warned). Its opened files go again, sealed
+// anew or plain.
+encrypted_forward :: (m: *dc.Message, dest: *dc.Channel) {
+	sh := table_find_pointer(*ee.shown, m.id);
+	if !sh || sh.pending || sh.result != .Ok || !is_text(sh.content) || !app.client return;
+	sealing := encrypting(dest);
+	files: [..]e2e.File;
+	files.allocator = temp;
+	atts: [..]dc.Draft_Attachment;
+	atts.allocator = temp;
+	for sh.files {
+		b := table_find_pointer(*blobs, file_key(it));
+		if !b || b.state != .Ready continue;
+		f := it;
+		name := clean_filename(it.name, "file");
+		if sealing {
+			ct := e2e.seal_file(b.data, *f);
+			array_add(*atts, .{handle = dc.upload_draft(app.client, dest.id, ENCRYPTED_NAME, "application/octet-stream", ct, "forward"), filename = ENCRYPTED_NAME});
+			array_add(*files, f);
+			array_free(ct);
+		} else {
+			array_add(*atts, .{handle = dc.upload_draft(app.client, dest.id, name, it.mime, b.data, "forward"), filename = name, spoiler = it.spoiler});
+		}
+	}
+	if sealing {
+		stickers: [..]string;
+		stickers.allocator = temp;
+		for sh.stickers {
+			item, ok := dc.sticker_item(store(), it);
+			array_add(*stickers, tprint("% % %", it, ifx ok then item.format_type else 1, ifx ok then item.name else ""));
+		}
+		encrypted_post(dest, sh.text, false, files = files, atts = atts, stickers = stickers);
+	} else {
+		dc.send_message(app.client, dest.id, sh.text, .{attachments = atts, sticker_ids = sh.stickers});
+	}
+}
+
+// encrypted_post sends one encrypted message: text, a reply, files with their uploads (atts, in the same
+// order) and stickers. false, with a toast, while it can't go.
+encrypted_post :: (dm: *dc.Channel, text: string, silent: bool, reply: dc.Snowflake = 0, files: []e2e.File = .[], atts: []dc.Draft_Attachment = .[], stickers: []string = .[]) -> bool {
 	ch := encrypted_channel(dm.id);
 	if !ch.has_session {
 		toast_show(tprint(ifx on_hosted() then L("Setting up encryption: % needs to open fastcord once.") else L("% hasn't accepted encryption yet."), dm_name(dm)), false);
 		return false;
 	}
-	files, sealed := attachments_sealed(dm.id, true);
-	if !atts files = .[]; // a forward's note takes none of the composer's
-	if !sealed && atts { toast_show(L("Remove the files added before encryption was on: they'd go unencrypted."), false); return false; }
 	most := e2e.max_text(e2e.MAX_PACKET);
 	if text.count > most { toast_show(tprint(L("Encrypted messages are limited to % bytes for now."), most), false); return false; }
 	if !identity_ready() return false;
@@ -493,6 +578,7 @@ encrypted_send :: (dm: *dc.Channel, text: string, silent: bool, reply: dc.Snowfl
 	r.me, r.silent, r.reply = my_identity(), silent, ifx reply then sprint("%", reply) else "";
 	r.files = files_copy(files);
 	for * r.files if it.name.count > 200 { free(it.name); it.name = copy_string("file"); } // a Body holds names to 255 bytes
+	for stickers array_add(*r.stickers, copy_string(it));
 	if atts table_set(*ee.attachments, r, array_copy(atts)); // their names are ENCRYPTED_NAME: static
 	e2e_submit(r);
 	return true;
@@ -709,7 +795,8 @@ send_packet :: (r: *e2e.Request, result: e2e.Result, text: string, content := e2
 	nonce := post_packet(c, channel, r.conv.carrier, r.packet, r.silent, atts);
 	sh := find_or_add(*ee.shown, nonce);
 	shown_free(sh);
-	sh.* = .{result = result, content = content, text = copy_string(text), silent = r.silent, reply = dc.parse_snowflake(r.reply), files = files_copy(r.files), sent = true};
+	sh.* = .{result = result, content = content, text = copy_string(text), silent = r.silent, reply = dc.parse_snowflake(r.reply), files = files_copy(r.files), sent = true,
+		stickers = stickers_of(r.stickers)};
 	e2e_submit(e2e.request(.Sent, packet = r.packet));
 }
 
@@ -727,7 +814,22 @@ post_packet :: (c: *dc.Client, channel: dc.Snowflake, carrier: string, packet: s
 
 is_text :: (c: e2e.Content) -> bool { return c == .Text || c == .Post || c == .Edit; }
 
+// stickers_of reads the stickers a packet names as "id format name", noting each for the renderer.
+stickers_of :: (named: []string) -> [..]dc.Snowflake {
+	out: [..]dc.Snowflake;
+	for named {
+		f := split(it, " ",, temp);
+		if f.count < 2 continue;
+		id, format := dc.parse_snowflake(f[0]), string_to_int(f[1]);
+		if !id || format < 1 || format > 4 continue;
+		dc.note_sticker(id, ifx f.count > 2 then slice(it, f[0].count + f[1].count + 2, it.count - f[0].count - f[1].count - 2) else "", format);
+		array_add(*out, id);
+	}
+	return out;
+}
+
 shown_free :: (sh: *Shown) {
+	array_free(sh.stickers);
 	free(sh.text);
 	free(sh.packet);
 	free(sh.edited);

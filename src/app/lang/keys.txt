@@ -1,4 +1,5 @@
 
+ for now.
  · required
 % (requested to speak)
 % (required)
@@ -533,6 +534,7 @@ Couldn't create an invite link.
 Couldn't create an invite.
 Couldn't delete the channel: %
 Couldn't encrypt the message.
+Couldn't get that GIF.
 Couldn't join %: %
 Couldn't load onboarding.
 Couldn't load the AutoMod rules.
@@ -570,7 +572,6 @@ Create Events
 Create Expressions
 Create Group DM
 Create Invite
-Create My Own
 Create Poll
 Create Polls
 Create Private Threads
@@ -818,6 +819,8 @@ For 24 Hours
 For 3 Days
 For 3 Hours
 For 8 Hours
+For a club or community
+For me and my friends
 Forever
 Forgot your password?
 Forum
@@ -841,7 +844,6 @@ Friends come online
 Friends of friends
 From User
 GIFs
-GIFs can't be sent encrypted yet.
 Gallery view
 General
 General Category Permissions
@@ -918,6 +920,7 @@ Ignored message
 Image saved.
 Important updates for people in and out of the server
 In Channel
+In order to help you with your setup, is your new server for just a few friends or a larger community?
 Inactive Channel
 Inactive Timeout
 Inbox
@@ -1213,6 +1216,7 @@ Not encrypted
 Not encrypted: Discord can read this message
 Not end-to-end encrypted
 Not me, start over
+Not sure? You can 
 Note
 Note (only visible to you)
 Note: Members with the "Mention @everyone, @here, and All Roles" permission will always be able to ping this role.
@@ -1445,6 +1449,7 @@ SELECT A CHANNEL
 SELECT A SERVER
 SERVER NAME
 SOUNDBOARD VOLUME
+START FROM A TEMPLATE
 STATIC EMOJI — % SLOTS AVAILABLE
 Safety Notifications Channel
 Safety Number
@@ -1598,7 +1603,6 @@ Starting in %m
 State
 Stickers
 Stickers can be used by anyone in this server. Upload a PNG, APNG, GIF or Lottie JSON file of up to 512 KB; it shows at 320x320.
-Stickers can't be sent encrypted yet.
 Stickers must be PNG, APNG, GIF or Lottie JSON files.
 Stop Recording
 Stop Streaming
@@ -1638,6 +1642,7 @@ Tags
 Tags (pick at least one)
 Tags let members organize their posts. Members pick them when they post; moderated tags only moderators can apply.
 Tap the link in your email to sign in instantly — no password needed.
+Tell Us More About Your Server
 Tell people a little more about your event. Markdown, new lines, and links are supported.
 Tell the world a bit about this server.
 Template Description
@@ -1701,6 +1706,8 @@ This is the start of the #% channel.
 This is where Discord sends updates for moderators and admins of Community servers.
 This is where you'll show members your server rules or guidelines.
 This link is taking you to the following website
+This message is end-to-end encrypted. Forwarding it here sends it unencrypted, so Discord can read it.
+This message is end-to-end encrypted. Forwarding it here sends it unencrypted, so the server's host can read it.
 This option is not available for Community Servers.
 This role is managed by an integration and can't be edited here.
 This server has been removed from Server Discovery because it no longer passes all the requirements. Check Server Settings for more details.
@@ -2024,6 +2031,7 @@ pinned messages
 pt-BR
 remove embeds
 save
+skip this question
 someone
 specific date
 sv-SE

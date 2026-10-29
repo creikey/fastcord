@@ -417,8 +417,9 @@ sticker_inspector :: (secs: []St_Section) {
 sticker_select :: (item: Pk_Sticker, keep_open: bool) {
 	if item.locked return;
 	frec_use(*frecency.sticker, tprint("%", item.id));
-	if encrypting(dc.channel_get(store(), pk.channel)) {
-		toast_show(L("Stickers can't be sent encrypted yet."), false);
+	ch := dc.channel_get(store(), pk.channel);
+	if encrypting(ch) {
+		encrypted_sticker(ch, item.id, item.format_type, item.name);
 	} else if app.client != null {
 		ids := NewArray(1, dc.Snowflake,, temp);
 		ids[0] = item.id;

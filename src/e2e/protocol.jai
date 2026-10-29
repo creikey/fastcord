@@ -41,7 +41,8 @@ max_text :: (limit: int) -> int { return limit - MSG_PREFIX_BYTES - HEADER_BYTES
 
 // A Body, after the Content byte: target and reply (u8 length, then the carrier's delivery ID), a u8 count
 // of files, each key[32] digest[32] size[u32 LE] width[u16 LE] height[u16 LE] flags[u8] name (u8 length)
-// mime (u8 length) description (u16 LE length), then the text to the end.
+// mime (u8 length) description (u16 LE length), a u8 count of stickers (u8 length each), then the text to
+// the end.
 Body :: struct {
 	content: Content;
 	silent: bool;
@@ -49,6 +50,7 @@ Body :: struct {
 	reply: string;  // The delivery this one answers.
 	files: []File;
 	text: string;   // React and Unreact: the emoji.
+	stickers: []string; // Opaque, as the carrier names them.
 }
 
 // A File is sent as its own ciphertext (seal_file), uploaded wherever the carrier keeps files, in the order
@@ -66,6 +68,7 @@ MAX_FILES :: 10;
 MAX_FILE :: 500 << 20; // The most any carrier takes in one file today (Discord with Nitro).
 MAX_TARGET :: 64;
 MAX_REACTION :: 128;
+MAX_STICKERS :: 3;
 FILE_BLOCK :: 4096; // A file is padded with zeros to a multiple of this before sealing, as text is to PAD_BLOCK.
 FILE_CONTEXT :: "fastcord 2026-10-29 e2e file v1";
 
@@ -90,6 +93,8 @@ encode_body :: (b: Body) -> []u8 {
 		array_add(*out, xx f.spoiler);
 		add_str(*out, f.name); add_str(*out, f.mime); add_str(*out, f.description, wide = true);
 	}
+	array_add(*out, xx b.stickers.count);
+	for b.stickers add_str(*out, it);
 	array_add(*out, ..cast([]u8) b.text);
 	return out;
 }
@@ -132,13 +137,19 @@ parse_body :: (pt: []u8) -> Body, bool {
 		if !ok break;
 	}
 	b.files = files;
+	n = num(1);
+	if n > MAX_STICKERS return b, false;
+	stickers := NewArray(n, string,, temp);
+	for * stickers { it.* = str(); ok &&= it.count && valid_utf8(it.*); }
+	b.stickers = stickers;
 	b.text = xx r;
 	if !ok || b.target.count > MAX_TARGET || b.reply.count > MAX_TARGET || !valid_utf8(b.text) return b, false;
+	some := b.text.count || files.count || stickers.count;
 	if b.content == {
-		case .Post;    return b, !b.target.count && (b.text.count || files.count);
-		case .Edit;    return b, b.target.count && (b.text.count || files.count);
-		case .Delete;  return b, b.target.count && !b.reply.count && !files.count && !b.text.count;
-		case;          return b, b.target.count && !b.reply.count && !files.count && b.text.count && b.text.count <= MAX_REACTION;
+		case .Post;    return b, !b.target.count && some;
+		case .Edit;    return b, b.target.count && some;
+		case .Delete;  return b, b.target.count && !b.reply.count && !files.count && !stickers.count && !b.text.count;
+		case;          return b, b.target.count && !b.reply.count && !files.count && !stickers.count && b.text.count && b.text.count <= MAX_REACTION;
 	}
 }
 

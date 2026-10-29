@@ -128,6 +128,7 @@ Request :: struct {
 	target: string; // Edit, Delete, React, Unreact: the delivery they change. An Edit or Delete replaces it, so the carrier rewrites that delivery in place.
 	reply: string;
 	files: [..]File; // Strings on the heap.
+	stickers: [..]string;
 	encrypted: bool;
 	verified: bool;
 	peer_root: [32]u8;
@@ -156,6 +157,8 @@ free_request :: (r: *Request) {
 	for string.[r.conv.carrier, r.conv.id, r.conv.me, r.conv.peer, r.from, r.delivery, r.text, r.out_text, r.packet, r.target, r.reply] free(it);
 	for * r.files { crypto.zero(*it.key); free(it.name); free(it.mime); free(it.description); }
 	array_free(r.files);
+	for r.stickers free(it);
+	array_free(r.stickers);
 	for r.outbox { free(it.carrier); free(it.conversation); free(it.packet); free(it.replaces); }
 	array_free(r.outbox);
 	for r.hits { free(it.delivery); free(it.author); crypto.zero(xx it.text); free(it.text); }
@@ -311,8 +314,8 @@ run_request :: (d: *Db, r: *Request) {
 			r.packet = copy_string(xx bytes(*p),, context.default_allocator);
 			if !commit_sent(d, r, conv, *s, true, hello.root, hello.id, encode_body(.{content = .Accept})) r.result = .Failed;
 		case .Send;
-			if r.content == .Text && (r.reply.count || r.files.count) r.content = .Post;
-			body := encode_body(.{r.content, r.silent, r.target, r.reply, r.files, r.text});
+			if r.content == .Text && (r.reply.count || r.files.count || r.stickers.count) r.content = .Post;
+			body := encode_body(.{r.content, r.silent, r.target, r.reply, r.files, r.text, r.stickers});
 			_, valid := parse_body(body);
 			if !valid || r.content == .Accept { r.result = .Failed; return; }
 			if body.count + 1 > r.conv.limit - MSG_PREFIX_BYTES - HEADER_BYTES - TAG_BYTES { r.result = .Too_Long; return; }
@@ -526,6 +529,7 @@ take_plaintext :: (r: *Request, pt: []u8) -> bool {
 		f.* = it;
 		f.name, f.mime, f.description = copy_string(it.name), copy_string(it.mime), copy_string(it.description);
 	}
+	for b.stickers array_add(*r.stickers, copy_string(it));
 	return true;
 }
 
