@@ -1,0 +1,30 @@
+# A masked link to a host that isn't Discord's (here hidden behind user info: discord.com@example.org)
+# asks first: "Leaving Discord" shows the real target with Go Back / Visit Site and "Trust ... links";
+# a masked link to discord.com opens at once.
+open 1700000000000000002
+wait 30
+click 580 609
+wait 5
+expect_not_visible "Leaving Discord"
+expect_opened_url "https://discord.com/developers"
+click 503 609
+wait 5
+expect_visible "Leaving Discord"
+expect_visible "Trust example.org links from now on"
+shot build/ui-leaving_discord.png
+click_text "Go Back"
+wait 5
+expect_not_visible "Leaving Discord"
+expect_opened_url "https://discord.com/developers"
+click 503 609
+wait 5
+click_text "Trust example.org links from now on"
+click_text "Visit Site"
+wait 5
+expect_opened_url "https://discord.com@example.org/docs"
+click 580 609
+wait 5
+click 503 609
+wait 5
+expect_not_visible "Leaving Discord"
+expect_opened_url "https://discord.com@example.org/docs"

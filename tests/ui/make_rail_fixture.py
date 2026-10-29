@@ -59,6 +59,12 @@ out.append(ev('RELATIONSHIP_ADD', {'id': quinn['id'], 'type': 4, 'user': quinn, 
 with open(os.path.join(here, 'rail.jsonl'), 'w', encoding='utf-8', newline='\n') as f:
     for o in out: f.write(json.dumps(o) + '\n')
 print('wrote rail.jsonl', len(out))
+# leaving_discord.jsonl: the rail fixture plus a masked link in Sam's DM (the Leaving Discord dialog)
+link = ev('MESSAGE_CREATE', {'id': sf(base_ms + 6500 * 1000, 99), 'channel_id': 1700000000000000002, 'author': users[2],
+    'content': 'see [the docs](https://discord.com@example.org/docs) and [ours](https://discord.com/developers)', 'timestamp': '', 'edited_timestamp': None,
+    'type': 0, 'attachments': [], 'embeds': [], 'mentions': [], 'mention_everyone': False, 'flags': 0, 'tts': False, 'pinned': False})
+with open(os.path.join(here, 'leaving_discord.jsonl'), 'w', encoding='utf-8', newline='\n') as f:
+    for o in out + [link]: f.write(json.dumps(o) + '\n')
 # message_requests.jsonl: the rail fixture plus a message request, a spam DM, a blocked user, an incoming
 # friend request and a friend playing a game (Message Requests, Blocked, Pending, Active Now)
 strangers = [{'id': 1000000000000000020 + k, 'username': n.lower(), 'global_name': n, 'avatar': None, 'discriminator': '0'}

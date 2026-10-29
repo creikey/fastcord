@@ -679,7 +679,7 @@ handle_span_clicks :: (b: *ui.Box, toks: []Token, message_id: dc.Snowflake = 0, 
 		}
 		if tk.kind == {
 		case .Link;
-			follow_link(ifx tk.url then tk.url else tk.text, message_id);
+			follow_link(ifx tk.url then tk.url else tk.text, message_id, masked = tk.url != "" && tk.url != tk.text);
 		case .User_Mention;
 			r := ui.Rect.{e.pos.x, e.pos.y - 10, e.pos.x + 1, e.pos.y + 10};
 			open_profile(tk.id, r);
@@ -692,7 +692,8 @@ handle_span_clicks :: (b: *ui.Box, toks: []Token, message_id: dc.Snowflake = 0, 
 
 // A link clicked in a message: invites and channel links open in fastcord, other web links in the browser.
 // An fc:// invite opens Join a Server filled in, never joining by itself.
-follow_link :: (url: string, message_id: dc.Snowflake, browser := true) {
+// masked: a [text](url) link whose text isn't its target: an untrusted host asks first ("Leaving Discord").
+follow_link :: (url: string, message_id: dc.Snowflake, browser := true, masked := false) {
 	code := invite_link_code(url);
 	ch, msg := message_link(url);
 	if code != "" invite_link_clicked(code, message_id);
@@ -700,7 +701,101 @@ follow_link :: (url: string, message_id: dc.Snowflake, browser := true) {
 	else if begins_with(url, "fc://") add_server_join_with(url);
 	else if ch && msg jump_to_message(ch.id, msg);
 	else if ch select_channel(ch.guild_id, ch.id);
+	else if browser && masked && !host_trusted(url_host(url)) { free(leaving.url); leaving = .{url = copy_string(url)}; }
 	else if browser open_url(url);
+}
+
+// The host of an http(s) URL, lowercased ("" for anything else). User info goes ("https://discord.com@evil.example"
+// is evil.example), as do the port and everything after the authority.
+url_host :: (url: string) -> string {
+	rest := url;
+	if begins_with_nocase(rest, "https://") advance(*rest, 8);
+	else if begins_with_nocase(rest, "http://") advance(*rest, 7);
+	else return "";
+	end := 0;
+	while end < rest.count && rest[end] != #char "/" && rest[end] != #char "?" && rest[end] != #char "#" && rest[end] != #char "\\" end += 1;
+	auth := slice(rest, 0, end);
+	at := find_index_from_right(auth, #char "@");
+	if at >= 0 advance(*auth, at + 1);
+	colon := find_index_from_left(auth, #char ":");
+	if colon >= 0 auth.count = colon;
+	return to_lower_copy(auth,, temp);
+}
+
+// MaskedLinkStore.isTrustedDomain: Discord's own hosts and the ones you chose to trust.
+host_trusted :: (host: string) -> bool {
+	if host == "" return false;
+	for DISCORD_HOSTS if host == it || ends_with(host, tprint(".%", it)) return true;
+	for trusted_domains if host == it return true;
+	return false;
+}
+
+DISCORD_HOSTS :: string.["discord.com", "discordapp.com", "discord.gg", "discord.gift", "discord.new", "discord.media", "discordapp.net", "discord.co", "discord.dev", "discordstatus.com", "dis.gd"];
+TRUSTED_DOMAINS_MAX :: 500;
+trusted_domains: [..]string; // hosts trusted from the Leaving Discord dialog (owned; settings.json keeps them)
+leaving: struct { url: string; trust: bool; }; // the open Leaving Discord dialog (url heap; "" closed)
+
+// "Leaving Discord": the masked link's real target, "Trust <host> links from now on", Go Back / Visit Site.
+leaving_modal :: () {
+	if leaving.url == "" return;
+	host := url_host(leaving.url);
+	close := false;
+	if !adm_modal_begin("leaving", 440, "Leaving Discord") {
+		close = true;
+	} else {
+		spacer(.Y, 8);
+		{ r := row("body"); r.semantic_size = .[ui.pct(1), ui.children()]; ui.parent(r); defer ui.pop_parent();
+			spacer(.X, 25);
+			label("This link is taking you to the following website", .Normal, 16, T("--text-default"), 20);
+		}
+		spacer(.Y, 12);
+		{ r := row("urlrow"); r.semantic_size = .[ui.pct(1), ui.children()]; ui.parent(r); defer ui.pop_parent();
+			spacer(.X, 25);
+			b := ui.box("url", .Draw_Background | .Draw_Text | .Wrap_Text);
+			b.semantic_size = .[ui.fill(), ui.text_size(12)];
+			b.text = leaving.url;
+			b.style.bg = T("--background-base-lowest");
+			b.style.radius = all4(4);
+			b.style.padding = .{8, 8};
+			b.style.font = F(.Normal);
+			b.style.font_size = 14;
+			b.style.line_height = 18;
+			b.style.text_color = T("--text-strong");
+			spacer(.X, 25);
+		}
+		spacer(.Y, 12);
+		{ r := row("trust", .Clickable); r.semantic_size = .[ui.pct(1), ui.px(24)]; ui.parent(r); defer ui.pop_parent();
+			if ui.signal(r).clicked leaving.trust = !leaving.trust;
+			spacer(.X, 25);
+			cb := ui.box("cb", .Draw_Background | .Draw_Border);
+			cb.semantic_size = .[ui.px(20), ui.px(20)];
+			cb.style.radius = all4(4);
+			cb.style.border = ifx leaving.trust then 0.0 else 1.0;
+			cb.style.border_color = T("--checkbox-border-default");
+			cb.style.bg = ifx leaving.trust then T("--background-brand") else .{};
+			if leaving.trust { ui.parent(cb); defer ui.pop_parent(); i := ui.box("i", .Floating_X | .Floating_Y); i.semantic_size = .[ui.px(18), ui.px(18)]; i.fixed_pos = .{1, 1}; set_icon(i, "checkmark-small", .{1, 1, 1, 1}); }
+			spacer(.X, 8);
+			label(tprint("Trust % links from now on", host), .Normal, 14, T("--text-default"), 18);
+		}
+		spacer(.Y, 24);
+		btns := row("btns");
+		btns.semantic_size = .[ui.pct(1), ui.px(40)];
+		btns.style.child_gap = 8;
+		{ ui.parent(btns); defer ui.pop_parent();
+			spacer(.X, 25 - 8);
+			if wide_button("back", "Go Back", .Secondary) close = true;
+			if wide_button("visit", "Visit Site", .Primary) {
+				if leaving.trust && host != "" && !host_trusted(host) && trusted_domains.count < TRUSTED_DOMAINS_MAX array_add(*trusted_domains, copy_string(host));
+				open_url(leaving.url);
+				close = true;
+			}
+			spacer(.X, 25 - 8);
+		}
+		spacer(.Y, 24);
+		adm_modal_end();
+		if adm_escape() close = true;
+	}
+	if close { free(leaving.url); leaving = .{}; }
 }
 
 // A link opened outside fastcord (another app, a second launch): fc:// and discord:// only. A discord://
@@ -922,7 +1017,7 @@ channel_escape :: (ch: *dc.Channel) {
 }
 
 modal_open :: () -> bool {
-	return sw.open || attachments_modal_open() || ma.confirming != 0 || app.settings_open || viewer_url != "" || invite_modal_open() || invite_accept_open() || add_server_is_open() || events_modal_open() || guild_admin_modal_open() || server_settings_is_open() || fnick.user != 0 || modr.user != 0 || tsg.channel != 0 || cstatus.open || folder_modal_open() || shortcuts_open || view_reactions.msg != 0 || npoll.channel != 0;
+	return sw.open || leaving.url != "" || attachments_modal_open() || ma.confirming != 0 || app.settings_open || viewer_url != "" || invite_modal_open() || invite_accept_open() || add_server_is_open() || events_modal_open() || guild_admin_modal_open() || server_settings_is_open() || fnick.user != 0 || modr.user != 0 || tsg.channel != 0 || cstatus.open || folder_modal_open() || shortcuts_open || view_reactions.msg != 0 || npoll.channel != 0;
 }
 
 // The hover toolbar drawn this pass, and the one from the pass before (rows test the
