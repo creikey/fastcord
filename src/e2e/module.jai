@@ -100,6 +100,7 @@ Op :: enum u8 {
 	Bundle;        // conv (carrier and me only), me -> packet: a Hello any conversation on the carrier may answer, for the carrier to keep
 	Bottle;        // conv (carrier, where it goes, and me), text -> packet, a Bottle anyone may see, and out_text its digest, whose key is kept as ours; Too_Long when it doesn't fit. A Send of Bottle_Key with text the digest gives a reader the key.
 	Unbottle;      // conv (carrier, where it is), from, packet -> result Ok and out_text, opened with the key from gave us; No_Session with none
+	Gifts;         // conv (carrier; an empty ID for all its conversations) -> gifts: Bottle keys that waited for a session there, to Send again
 }
 
 Result :: enum u8 {
@@ -114,6 +115,7 @@ Result :: enum u8 {
 
 Outbox_Item :: struct { carrier, conversation, packet: string; replaces: string; silent: bool; files: [..]string; } // replaces: the delivery an Edit or Delete rewrites; files: what Send's uploads held
 Hit :: struct { delivery, author, text: string; } // author: the party that sent it
+Gift :: struct { conversation, digest: string; }
 
 // The caller fills the inputs, submits, and once done reads the outputs and calls free_request.
 Request :: struct {
@@ -142,6 +144,8 @@ Request :: struct {
 	encrypted: bool;
 	verified: bool;
 	peer_root: [32]u8;
+	quiet: bool; // Hello, Accept: a session only to give a Bottle's key, which leaves the conversation's encryption as it was. Receive: an Init answering such a Hello.
+	waiting: bool; // Send of a Bottle_Key with no session: another key already waited there, so a session is already being made.
 
 	result: Result;
 	out_text: string;
@@ -152,6 +156,7 @@ Request :: struct {
 	outbox: [..]Outbox_Item;
 	hits: [..]Hit;
 	peers: [..]string; // Load: every party we have a session with in conv (in a group, who gets our sender key).
+	gifts: [..]Gift;
 }
 
 // request makes a heap Request owning copies of conv, text and packet.
@@ -182,6 +187,8 @@ free_request :: (r: *Request) {
 	array_free(r.hits);
 	for r.peers free(it);
 	array_free(r.peers);
+	for r.gifts { free(it.conversation); free(it.digest); }
+	array_free(r.gifts);
 	free(r);
 }
 
@@ -254,6 +261,9 @@ SQL,
 	// Each Bottle's key by its digest and the party who gave it (us, for our own), so a Bottle opens only as
 	// from its giver.
 	"CREATE TABLE bottle_keys(digest BLOB NOT NULL, giver BLOB NOT NULL, sealed BLOB NOT NULL, created INTEGER NOT NULL, PRIMARY KEY(digest, giver)) WITHOUT ROWID;",
+	// A Bottle's keys for readers we have no session with yet, given once one exists; and Hellos made only
+	// for that, whose sessions leave encryption off.
+	"CREATE TABLE bottle_gifts(digest BLOB NOT NULL, conversation BLOB NOT NULL, created INTEGER NOT NULL, PRIMARY KEY(digest, conversation)) WITHOUT ROWID; ALTER TABLE prekeys ADD COLUMN quiet INTEGER NOT NULL DEFAULT 0;",
 ];
 
 // The entries that wiped users' sessions and history, before E2E shipped in v0.6.2. Never add to this:
@@ -307,7 +317,7 @@ key :: (carrier: string, id: string) -> []u8 {
 // valid: a conversation the request can use. Parties are needed only by the ops that bind a session.
 valid :: (r: *Request) -> bool {
 	c := r.conv;
-	if !c.carrier.count || find_index_from_left(c.carrier, 0) >= 0 || (!c.id.count && r.op != .Bundle) || c.limit > MAX_PACKET return false;
+	if !c.carrier.count || find_index_from_left(c.carrier, 0) >= 0 || (!c.id.count && r.op != .Bundle && r.op != .Gifts) || c.limit > MAX_PACKET return false;
 	if r.op == .Hello || r.op == .Bundle || r.op == .Accept || r.op == .Send || r.op == .Receive || r.op == .Bottle
 		return c.me.count && c.limit > 0 && (r.op != .Accept || c.peer.count) && (r.op != .Receive || r.from.count);
 	if r.op == .Unbottle return r.from.count > 0;
@@ -354,9 +364,9 @@ run_request :: (d: *Db, r: *Request) {
 			if !fits { r.result = .Too_Long; return; }
 			id := crypto.blake3(bytes(*p));
 			ok := sqlite.exec(db, "BEGIN;")
-				&& sqlite.run(db, "INSERT INTO prekeys(hello_id, conversation, sealed, created) VALUES(?, ?, ?, ?);",
-					cast([]u8) id, conv, seal(d, ad("prekeys", id), *pre), now_ms())
-				&& (r.op == .Bundle || set_encrypted(db, conv, true))
+				&& sqlite.run(db, "INSERT INTO prekeys(hello_id, conversation, sealed, created, quiet) VALUES(?, ?, ?, ?, ?);",
+					cast([]u8) id, conv, seal(d, ad("prekeys", id), *pre), now_ms(), r.quiet)
+				&& (r.op == .Bundle || r.quiet || set_encrypted(db, conv, true))
 				&& sqlite.exec(db, "COMMIT;");
 			if !ok { sqlite.exec(db, "ROLLBACK;"); r.result = .Failed; return; }
 			r.packet = copy_string(xx bytes(*p),, context.default_allocator);
@@ -409,7 +419,15 @@ run_request :: (d: *Db, r: *Request) {
 				&& unseal(d, ad("sessions", sqlite.col_blob(st, 0)), sqlite.col_blob(st, 1), *s);
 			sqlite.finalize(st);
 			defer crypto.zero(*s);
-			if !found { r.result = .No_Session; return; }
+			if !found {
+				// A Bottle's key waits for the session the caller now makes, then goes with Gifts.
+				if r.content == .Bottle_Key {
+					r.waiting = query_int(db, "SELECT 1 FROM bottle_gifts WHERE conversation = ? LIMIT 1;", conv) == 1;
+					if !sqlite.run(db, "INSERT OR IGNORE INTO bottle_gifts(digest, conversation, created) VALUES(?, ?, ?);", cast([]u8) r.text, conv, now_ms()) { r.result = .Failed; return; }
+				}
+				r.result = .No_Session;
+				return;
+			}
 			p: Packet;
 			p.limit = r.conv.limit;
 			pt := pad(body, p.limit - MSG_PREFIX_BYTES - HEADER_BYTES - TAG_BYTES);
@@ -504,8 +522,23 @@ run_request :: (d: *Db, r: *Request) {
 			if ok b, ok = parse_body(body);
 			if !ok || b.content != .Text { r.result = .Undecryptable; return; }
 			r.content, r.out_text = Content.Text, copy_string(b.text);
+		case .Gifts;
+			// A reader who never answers in a month won't: their keys stop waiting.
+			sqlite.run(db, "DELETE FROM bottle_gifts WHERE created < ?;", now_ms() - GIFT_WAIT_MS);
+			all := key(r.conv.carrier, "");
+			st := sqlite.prepare(db, ifx r.conv.id.count then "SELECT conversation, digest FROM bottle_gifts WHERE conversation = ?1 AND ?2 > 0 LIMIT 1000;"
+				else "SELECT conversation, digest FROM bottle_gifts WHERE substr(conversation, 1, ?2) = ?1 LIMIT 1000;");
+			sqlite.bind_all(st, ifx r.conv.id.count then conv else all, all.count);
+			while sqlite.step(st) == .Row {
+				c := cast(string) sqlite.col_blob(st, 0);
+				if c.count <= all.count continue;
+				array_add(*r.gifts, .{copy_string(advance(c, all.count)), copy_string(xx sqlite.col_blob(st, 1))});
+			}
+			sqlite.finalize(st);
 	}
 }
+
+GIFT_WAIT_MS :: 30 * 24 * 3600 * 1000;
 
 // store_bottle_key keeps the key to a Bottle a peer gave us over our pairwise session (a Bottle_Key message).
 store_bottle_key :: (d: *Db, r: *Request, from: []u8) -> bool {
@@ -529,7 +562,8 @@ commit_sent :: (d: *Db, r: *Request, conv: []u8, s: *Session, new: bool, peer_ro
 		&& store_plaintext(d, hash, in_place_target(r), body, conv, r.conv.me)
 		&& sqlite.run(db, "INSERT INTO outbox(hash, conversation, packet, replaces, silent) VALUES(?, ?, ?, nullif(?, X''), ?);", cast([]u8) hash, conv, cast([]u8) r.packet, cast([]u8) in_place_target(r), r.silent || r.detached)
 		&& outbox_files(db, hash, r.uploads)
-		&& (!new || (set_encrypted(db, conv, true) && note_peer(db, peer, peer_root) && forget_own_sender_key(db, r, conv)))
+		&& (!new || ((r.quiet || set_encrypted(db, conv, true)) && note_peer(db, peer, peer_root) && forget_own_sender_key(db, r, conv)))
+		&& (r.content != .Bottle_Key || sqlite.run(db, "DELETE FROM bottle_gifts WHERE digest = ? AND conversation = ?;", cast([]u8) r.text, conv))
 		&& sqlite.exec(db, "COMMIT;");
 	if !ok { log_error("e2e: cannot save a sent message: %", sqlite.errmsg(db)); sqlite.exec(db, "ROLLBACK;"); }
 	return ok;
@@ -594,10 +628,11 @@ receive :: (d: *Db, r: *Request, conv: []u8) {
 			i, ok := parse_init(packet);
 			if !ok || mine { r.result = .Undecryptable; return; }
 			if query_int(db, "SELECT 1 FROM sessions WHERE id = ?;", cast([]u8) i.session) == 1 { r.result = .Repeated; return; }
-			st := sqlite.prepare(db, "SELECT sealed FROM prekeys WHERE hello_id = ? AND conversation IN (?, ?);");
+			st := sqlite.prepare(db, "SELECT sealed, quiet FROM prekeys WHERE hello_id = ? AND conversation IN (?, ?);");
 			pre: Prekeys;
 			found := sqlite.bind_all(st, cast([]u8) i.hello_id, conv, key(r.conv.carrier, "")) && sqlite.step(st) == .Row
 				&& unseal(d, ad("prekeys", i.hello_id), sqlite.col_blob(st, 0), *pre);
+			r.quiet = found && sqlite.col_int(st, 1) != 0;
 			sqlite.finalize(st);
 			defer crypto.zero(*pre);
 			if !found { r.result = .Undecryptable; return; }
@@ -615,7 +650,7 @@ receive :: (d: *Db, r: *Request, conv: []u8) {
 					cast([]u8) s.id, conv, from, cast([]u8) i.root, cast([]u8) i.hello_id, seal(d, ad("sessions", s.id), *s), now_ms())
 				&& store_skipped(d, s.id, skipped)
 				&& store_plaintext(d, hash, r.delivery, body, conv, r.from, r.order, r)
-				&& set_encrypted(db, conv, true)
+				&& (r.quiet || set_encrypted(db, conv, true))
 				&& note_peer(db, from, i.root)
 				&& forget_own_sender_key(db, r, conv)
 				&& sqlite.run(db, "UPDATE prekeys SET answered = ? WHERE hello_id = ? AND answered = 0;", now_ms(), cast([]u8) i.hello_id)

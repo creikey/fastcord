@@ -193,7 +193,6 @@ A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse 
 A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button. Works in every app.
 A new channel will be created with the same permissions, user limit and bitrate as 
 A new version of fastcord is out. Click the pill to open the download page; fastcord never updates itself.
-A reader needs an encrypted DM with you. Turn on encryption in your DM with them first.
 A role needs a name.
 A webhook needs a name.
 A wild % appeared.
@@ -559,6 +558,7 @@ Couldn't create an invite.
 Couldn't delete the channel: %
 Couldn't encrypt the message.
 Couldn't get that GIF.
+Couldn't give %'s key to a bottle.
 Couldn't join %: %
 Couldn't load onboarding.
 Couldn't load the AutoMod rules.
@@ -1258,6 +1258,7 @@ No members found
 No members have this role yet.
 No message requests.
 No one else is on this server yet.
+No one found. Readers come from your friends, your DMs and where you post it.
 No one is speaking yet
 No one's around right now.
 No one's here yet
@@ -2002,6 +2003,7 @@ Voice Disconnected
 Volume
 Vote
 Wait! Are you human?
+Waiting for % to send its key.
 Waiting for a server
 Wants to message you
 Watch Stream

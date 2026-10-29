@@ -825,6 +825,46 @@ bottles :: (dir: string) {
 	check(unbottle(*b, forged, *a).result == .No_Session, "a changed bottle has no key");
 	check(unbottle(*b, "\x04\x05", *a).result == .Undecryptable, "a bottle too short to hold anything");
 
+	// A reader with no session: the key waits, a quiet handshake makes one without turning encryption on,
+	// then the waiting keys go.
+	dee := Client.{d = e2e.start(tprint("%/d.db", tag)), me = e2e.identity_of(keys.generate("D")), party = "dee"};
+	AD :: "dm ad";
+	second := ask(*a, .Bottle, id = PLACE, text = "for dee too");
+	w := give(*a, *dee, AD, bottle.out_text);
+	check(w.result == .No_Session && !w.waiting, "a key for one with no session waits");
+	w = give(*a, *dee, AD, second.out_text);
+	check(w.result == .No_Session && w.waiting, "a second waits behind the first");
+	limit = e2e.MAX_PACKET;
+	hello := e2e.request(.Hello, .{CARRIER, AD, a.party, dee.party, limit});
+	hello.me, hello.quiet = a.me, true;
+	e2e.submit(a.d, hello);
+	wait(hello);
+	accept := e2e.request(.Accept, .{CARRIER, AD, dee.party, a.party, limit}, packet = hello.packet);
+	accept.me, accept.quiet = dee.me, true;
+	e2e.submit(dee.d, accept);
+	wait(accept);
+	check(accept.result == .Ok, "the reader answers the quiet hello");
+	r = receive(*a, accept.packet, *dee, id = AD);
+	check(r.result == .Ok && r.content == .Accept && r.quiet, "its init says it was quiet");
+	for c: (*Client).[*a, *dee] {
+		l := ask(c, .Load, id = AD);
+		check(l.has_session && !l.encrypted, "a quiet session leaves encryption off");
+	}
+	all := ask(*a, .Gifts, id = "");
+	check(all.gifts.count == 2 && all.gifts[0].conversation == AD, tprint("every waiting key is listed (%)", all.gifts.count));
+	pending := ask(*a, .Gifts, id = AD);
+	check(pending.gifts.count == 2, "and by conversation");
+	for pending.gifts {
+		g := give(*a, *dee, AD, it.digest);
+		check(g.result == .Ok, "a waiting key goes once the session exists");
+		check(receive(*dee, g.packet, *a, id = AD).content == .Bottle_Key, "and arrives");
+	}
+	check(ask(*a, .Gifts, id = AD).gifts.count == 0, "given keys stop waiting");
+	limit = fc_text.MAX_PACKET;
+	check(unbottle(*dee, bottle.packet, *a).out_text == "for ben", "the late reader opens the first bottle");
+	check(unbottle(*dee, second.packet, *a).out_text == "for dee too", "and the second");
+	stop(dee.d);
+
 	most := e2e.max_bottle_text(limit);
 	check(ask(*a, .Bottle, id = PLACE, text = repeat("x", most + 1)).result == .Too_Long, "a bottle over the carrier's packet refused");
 	full := ask(*a, .Bottle, id = PLACE, text = repeat("x", most));

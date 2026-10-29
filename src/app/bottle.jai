@@ -1,8 +1,13 @@
 // Bottles: a message sealed for the people its sender picks, posted in any channel, DM or group. Anyone
 // sees the bottle; only its readers can open it. The `e2e` module seals it under a key used once (a
 // Bottle packet, `fc-` text after BOTTLE_NOTE) and gives each reader that key as a hidden, silent message
-// of their encrypted 1:1 DM with the sender, so a reader must have one. Open looks the key up, and when it
-// isn't there yet, loads that DM to find it. A bottle opens only as from the one who gave its key.
+// of their 1:1 DM with the sender, over its session. Open looks the key up, and when it isn't there yet,
+// loads that DM to find it. A bottle opens only as from the one who gave its key.
+//
+// A reader with no session yet needs no encrypted DM: the key waits in fastcord.db while the sender makes
+// one that leaves the DM's encryption off (a quiet Hello, hidden in the DM; on a hosted server the
+// reader's bundle). The reader's Open answers it, and the sender, watching that DM, gives the waiting keys
+// once the answer comes, so on Discord both must be online once after the reader clicks Open.
 
 BOTTLE_NOTE :: "Message in a bottle from fastcord (creikey.com/fastcord). Only the people it's for can open it.\n";
 BOTTLE_PICKS :: 6;
@@ -14,8 +19,19 @@ Bottle_Open :: struct {
 	text: string;
 	generation: int; // bottles.generation when a No_Session result came back.
 	looked: bool;    // The DM with its author was searched for the key.
-	dm: dc.Snowflake; // That DM, while it loads and its packets open.
+	looking: bool;   // That DM loads and its packets open.
+	waiting: bool;   // We answered the author's key exchange: the key comes once they're online.
+	dm: dc.Snowflake; // The DM with its author.
 }
+
+// Key_Wait: a reader's key, until the DM it goes in is made.
+Key_Wait :: struct { user: dc.Snowflake; digest: string; at: float64; }
+
+// A DM whose keys wait for its session: its packets are opened as they come, to see the answer.
+Key_Watch :: struct { dm: dc.Snowflake; fetched: bool; }
+
+BOTTLE_DM_TAG :: cast(u64) 0xb077_1e00_0000_0001; // open_dm for a reader's key: bottle_frame finds the DM
+
 
 Bottle_Job :: struct {
 	r: *e2e.Request;
@@ -35,6 +51,9 @@ Bottle_State :: struct {
 	opened: Table(dc.Snowflake, Bottle_Open); // By message ID.
 	jobs: [..]Bottle_Job;
 	generation: int; // Bumped when a Bottle_Key arrives, so bottles that had none look again.
+	no_dm: [..]Key_Wait;
+	watch: [..]Key_Watch;
+	gifts_asked: [..]*dc.Client; // Each connection's waiting keys are tried once it's ready.
 }
 
 bottles: Bottle_State;
@@ -71,20 +90,30 @@ bottle_dm :: (user: dc.Snowflake) -> dc.Snowflake {
 	return 0;
 }
 
-// bottle_candidates: who may be a reader, best match first: each person we have an encrypted 1:1 DM with.
+// bottle_candidates: who may be a reader, best match first: friends, DMs, and the members of where it's posted.
 bottle_candidates :: (query: string) -> []dc.Snowflake {
+	s := store();
+	users: [..]dc.Snowflake;
+	users.allocator = temp;
+	for rel, uid: s.relationships if rel.kind == .Friend array_add(*users, uid);
+	for s.private_channels {
+		ch := dc.channel_get(s, it);
+		if ch && ch.kind == .DM && ch.recipient_ids.count == 1 array_add_if_unique(*users, ch.recipient_ids[0]);
+	}
+	dest := dc.channel_get(s, bottles.dest);
+	if dest && dest.kind == .Group_DM for dest.recipient_ids array_add_if_unique(*users, it);
+	ml := ifx dest && dest.guild_id then dc.member_list_get(s, dest.guild_id, ifx on_hosted() then "everyone" else dc.member_list_id(s, dest));
+	if ml for ml.items if it.user_id array_add_if_unique(*users, it.user_id);
 	Pick :: struct { user: dc.Snowflake; score: int; }
 	picks: [..]Pick;
 	picks.allocator = temp;
-	s := store();
-	for s.private_channels {
-		ch := dc.channel_get(s, it);
-		if !ch || ch.kind != .DM || ch.recipient_ids.count != 1 || !encrypted_channel(ch.id).has_session continue;
-		sc := fuzzy_score(query, dm_name(ch));
-		if sc < 0 && !array_find(bottles.readers, ch.recipient_ids[0]) continue;
+	for users {
+		if it == s.me continue;
+		sc := fuzzy_score(query, dc.user_name(s, it, ifx dest then dest.guild_id else 0, "unknown"));
+		if sc < 0 && !array_find(bottles.readers, it) continue;
 		at := picks.count;
 		while at > 0 && picks[at - 1].score < sc at -= 1;
-		array_insert_at(*picks, .{ch.recipient_ids[0], sc}, at);
+		array_insert_at(*picks, .{it, sc}, at);
 	}
 	out := NewArray(min(picks.count, BOTTLE_PICKS), dc.Snowflake,, temp);
 	for * out it.* = picks[it_index].user;
@@ -104,8 +133,26 @@ bottle_send :: () {
 }
 
 // bottle_frame takes finished bottle requests: a sealed bottle is posted and its key given to each reader;
-// an opened one is kept for its message.
+// an opened one is kept for its message. It also moves waiting keys along.
 bottle_frame :: () {
+	for bottles.no_dm {
+		dm := bottle_dm(it.user);
+		if dm bottle_give(dm, it.digest);
+		else if platform.time_now() - it.at < 60 continue;
+		else toast_show(tprint(L("Couldn't give %'s key to a bottle."), dc.user_name(store(), it.user, 0, "unknown")), false);
+		free(it.digest);
+		remove it;
+	}
+	for * w: bottles.watch {
+		l := table_find_pointer(*store().messages, w.dm);
+		if !w.fetched && app.client && (!l || (!l.loaded && !l.loading)) { w.fetched = true; dc.fetch_messages(app.client, w.dm); }
+		if l encrypted_prepare(w.dm, l.messages);
+	}
+	c := app.client;
+	if c && c.store.ready && identity_ready() && !array_find(bottles.gifts_asked, c) {
+		array_add(*bottles.gifts_asked, c);
+		e2e_submit(e2e.request(.Gifts, .{carrier = carrier_name(c)}));
+	}
 	for j: bottles.jobs {
 		if !e2e.is_done(j.r) continue;
 		r := j.r;
@@ -130,11 +177,42 @@ bottle_post :: (r: *e2e.Request, readers: []dc.Snowflake) {
 	// The keys go out after the bottle: each Send is posted once it's committed (send_packet).
 	dc.send_message(c, dc.parse_snowflake(r.conv.id), tprint("%1%2", BOTTLE_NOTE, fc_text.encode(xx r.packet,, temp)));
 	for readers {
-		dm := bottle_dm(it);
-		if !dm continue;
-		g := e2e.request(.Send, conversation(dm), r.out_text);
-		g.me, g.content, g.silent = my_identity(), e2e.Content.Bottle_Key, true;
-		e2e_submit(g);
+		dm := dc.open_dm(c, it, "Bottle", BOTTLE_DM_TAG);
+		if dm bottle_give(dm, r.out_text);
+		else array_add(*bottles.no_dm, .{it, copy_string(r.out_text), platform.time_now()});
+	}
+}
+
+// bottle_give gives the key named by digest (ours) to the reader of a 1:1 DM, or keeps it waiting there.
+bottle_give :: (dm: dc.Snowflake, digest: string) {
+	g := e2e.request(.Send, conversation(dm), digest);
+	g.me, g.content, g.silent = my_identity(), e2e.Content.Bottle_Key, true;
+	e2e_submit(g);
+}
+
+// bottle_no_session: a key waits for a session in its DM. The first to wait there starts one.
+bottle_no_session :: (r: *e2e.Request) {
+	dm := dc.parse_snowflake(r.conv.id);
+	found := false;
+	for bottles.watch if it.dm == dm found = true;
+	if !found array_add(*bottles.watch, .{dm = dm});
+	c := carrier_client(r.conv.carrier);
+	if r.waiting || !c || c != app.client return;
+	if !begins_with(r.conv.carrier, HOSTED) { send_hello(dm, quiet = true); return; }
+	// A hosted DM is always encrypted: the reader's bundle, else a Hello they answer by themselves.
+	peer := dc.parse_snowflake(r.conv.peer);
+	find_or_add(*ee.channels, dm).hello_asked = true;
+	dc.e2e_bundle_call(c, "GET", tprint("/users/%/e2e-bundle", peer), channel_id = dm, tag = xx peer);
+}
+
+bottle_unwatch :: (dm: dc.Snowflake) { for bottles.watch if it.dm == dm remove it; }
+
+// bottle_gifts gives the keys that waited for a session: those of one DM once it has one, or all at start.
+bottle_gifts :: (r: *e2e.Request) {
+	if carrier_client(r.conv.carrier) != app.client return;
+	for r.gifts {
+		dm := dc.parse_snowflake(it.conversation);
+		if dm && dc.channel_get(store(), dm) bottle_give(dm, it.digest);
 	}
 }
 
@@ -158,7 +236,11 @@ bottle_body :: (m: *dc.Message) -> handled: bool, plaintext: string {
 		e2e.submit(e2e_db, r);
 	}
 	if ok && sh.clicked && !sh.pending && sh.result == .No_Session && sh.generation != bottles.generation ask();
-	if ok && sh.dm && !sh.pending bottle_look(sh, m);
+	if ok && sh.looking && !sh.pending bottle_look(sh, m);
+	if ok && sh.waiting && sh.result == .No_Session {
+		l := table_find_pointer(*store().messages, sh.dm);
+		if l encrypted_prepare(sh.dm, l.messages); // the key, when it comes, bumps the generation
+	}
 	if sh.clicked && !sh.pending && sh.result == .Ok return true, sh.text;
 
 	card := row("bottle", .Draw_Background | .Draw_Border);
@@ -179,9 +261,10 @@ bottle_body :: (m: *dc.Message) -> handled: bool, plaintext: string {
 			label(L("Message in a Bottle"), .Semibold, chat_px(15), T("--text-strong"), chat_px(20));
 			why := "";
 			if !ok                                   why = L("This bottle is damaged.");
-			else if sh.pending || sh.dm              why = L("Opening…");
+			else if sh.pending || sh.looking         why = L("Opening…");
 			else if !sh.clicked                      why = L("Only the people it's for can open it.");
 			else if sh.result == .No_Session && mine why = L("This device doesn't have its key.");
+			else if sh.result == .No_Session && sh.waiting why = tprint(L("Waiting for % to send its key."), author_name(m));
 			else if sh.result == .No_Session         why = L("It isn't for you, or its key hasn't reached you yet.");
 			else                                     why = L("This bottle is damaged.");
 			label(why, .Normal, chat_px(14), T("--text-muted"), chat_px(18));
@@ -194,16 +277,38 @@ bottle_body :: (m: *dc.Message) -> handled: bool, plaintext: string {
 		}
 		spacer(.X, 12);
 	}
-	// No key here yet: it may be in the DM with the author, not loaded or not yet opened. Once.
+	// No key here yet: it may be in the DM with the author, not loaded or not yet opened. Once. Still none:
+	// answer the author's key exchange there, if they sent one.
 	if ok && sh.clicked && !sh.pending && sh.result == .No_Session && !mine && !sh.looked {
 		sh.looked = true;
 		sh.dm = bottle_dm(m.author_id);
+		sh.looking = sh.dm != 0;
 		if sh.dm && app.client {
 			l := table_find_pointer(*store().messages, sh.dm);
 			if !l || (!l.loaded && !l.loading) dc.fetch_messages(app.client, sh.dm);
 		}
+	} else if ok && sh.clicked && !sh.pending && sh.result == .No_Session && !mine && !sh.looking && !sh.waiting && sh.dm {
+		sh.waiting = bottle_answer(sh.dm, m.author_id);
 	}
 	return true, "";
+}
+
+// bottle_answer accepts the author's newest key exchange for bottles in our DM, quietly; false if none.
+bottle_answer :: (dm: dc.Snowflake, author: dc.Snowflake) -> bool {
+	l := table_find_pointer(*store().messages, dm);
+	if !l || !identity_ready() return false;
+	for < * l.messages if it.author_id == author && begins_with(it.content, BOTTLE_HELLO_NOTE) {
+		hello := table_find_pointer(*ee.shown, it.id);
+		if !hello || hello.pending || hello.result != .Hello continue;
+		if !hello.accepted && hello.packet {
+			hello.accepted = true;
+			q := e2e.request(.Accept, conversation(dm, author, fc_text.MAX_PACKET), packet = hello.packet);
+			q.me, q.quiet, q.silent = my_identity(), true, true;
+			e2e_submit(q);
+		}
+		return true;
+	}
+	return false;
 }
 
 // bottle_look opens the packets of the DM where a bottle's key may be. Once they all have, the bottle is
@@ -212,12 +317,12 @@ bottle_look :: (sh: *Bottle_Open, m: *dc.Message) {
 	l := table_find_pointer(*store().messages, sh.dm);
 	if l && l.loading return;
 	settled := true;
-	if l for * l.messages if !it.pending && it.author_id == m.author_id && begins_with(it.content, fc_text.PREFIX) {
+	if l for * l.messages if !it.pending && it.author_id == m.author_id && begins_with(packet_text(it.content), fc_text.PREFIX) {
 		o := encrypted_open(it.id, it.channel_id, it.content, it.author_id, it.edited_timestamp);
 		if !o || o.pending settled = false;
 	}
 	if !settled return;
-	sh.dm = 0;
+	sh.looking = false;
 	sh.generation -= 1; // Ask once more, whatever came.
 }
 
@@ -354,7 +459,7 @@ bottle_modal :: () {
 	if !people {
 		padded("none");
 		spacer(.Y, 8);
-		wrapped("nonetext", L("A reader needs an encrypted DM with you. Turn on encryption in your DM with them first."), T("--text-muted"));
+		wrapped("nonetext", L("No one found. Readers come from your friends, your DMs and where you post it."), T("--text-muted"));
 		unpad();
 	}
 	spacer(.Y, 16);

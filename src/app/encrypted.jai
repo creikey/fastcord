@@ -164,8 +164,10 @@ encrypted_frame :: () {
 				if r.result == .Ok && (r.content == .React || r.content == .Unreact) reaction_note(dc.parse_snowflake(r.target), dc.parse_snowflake(r.from), r.out_text, id, r.content == .React);
 				if r.result == .Ok && r.content == .Accept && r.from != r.conv.me {
 					ee.generation += 1;
-					ch.encrypted, ch.has_session, ch.loaded = true, true, false; // Reload for the peer's root.
+					ch.has_session, ch.loaded = true, false; // Reload for the peer's root.
+					if !r.quiet ch.encrypted = true;
 					for ee.bundled if carrier_name(it.client) == r.conv.carrier remove it; // maybe ours was answered: publish another
+					e2e_submit(e2e.request(.Gifts, r.conv));
 				}
 				// On a hosted server every DM is encrypted, so a peer's Hello is answered without asking; so is a
 				// member's in a group we encrypt (E2E 8), as each pair needs a session. A hosted group member
@@ -181,18 +183,21 @@ encrypted_frame :: () {
 				}
 			case .Hello;
 				if r.result != .Ok { toast_show(L("Couldn't turn on encryption."), false); continue; }
-				ch.encrypted = true;
+				if !r.quiet ch.encrypted = true;
 				send_packet(r, .Hello, "");
 			case .Accept;
 				if r.result != .Ok { toast_show(L("Couldn't accept encryption."), false); continue; }
 				ee.generation += 1;
-				ch.encrypted, ch.has_session, ch.loaded = true, true, false;
+				ch.has_session, ch.loaded = true, false;
+				if !r.quiet ch.encrypted = true;
 				send_packet(r, .Ok, "", .Accept);
+				e2e_submit(e2e.request(.Gifts, r.conv));
 				// In a group on Discord the others need a session with us too: our own Hello, once. On a hosted
 				// server each answers our bundle instead (encrypting).
 				dm := dc.channel_get(store(), dc.parse_snowflake(r.conv.id));
 				if dm && dm.kind == .Group_DM && !ch.hello_asked && !begins_with(r.conv.carrier, HOSTED) send_hello(dm.id);
 			case .Send;
+				if r.content == .Bottle_Key && r.result == .No_Session { bottle_no_session(r); continue; }
 				if r.result != .Ok {
 					if r.content == .Delete delete_committed(dc.parse_snowflake(r.target)); // not deleted: it shows again
 					toast_show(ifx r.result == .Too_Long then L("That's too long to send encrypted.") else L("Couldn't encrypt the message."), false);
@@ -200,7 +205,10 @@ encrypted_frame :: () {
 					free(atts.data);
 					continue;
 				}
+				if r.content == .Bottle_Key bottle_unwatch(dc.parse_snowflake(r.conv.id));
 				send_packet(r, .Ok, r.text, r.content);
+			case .Gifts;
+				bottle_gifts(r);
 			case .Search;
 				search_add_decrypted(r); // view_search.jai
 			case .Bundle;
@@ -277,8 +285,14 @@ encrypted_packet :: (channel_id: dc.Snowflake, content: string) -> bool {
 // is. It goes only with a Hello, which is sent only when someone turns encryption on.
 HELLO_NOTE :: "Encryption request from fastcord, a Discord client (creikey.com/fastcord). Only fastcord can read the code below.\n";
 
+// A Hello only to give a bottle's key (quiet) has a note of its own, and the DM hides it.
+BOTTLE_HELLO_NOTE :: "Key exchange from fastcord (creikey.com/fastcord) for a message in a bottle. Only fastcord can read the code below.\n";
+
 // packet_text is a message's `fc-` text, without a Hello's note.
-packet_text :: (content: string) -> string { return ifx begins_with(content, HELLO_NOTE) then advance(content, HELLO_NOTE.count) else content; }
+packet_text :: (content: string) -> string {
+	if begins_with(content, HELLO_NOTE) return advance(content, HELLO_NOTE.count);
+	return ifx begins_with(content, BOTTLE_HELLO_NOTE) then advance(content, BOTTLE_HELLO_NOTE.count) else content;
+}
 
 // e2e_mark: in a 1:1 DM that has used encryption, whether a message was encrypted, so a plain one
 // sent mid-conversation (by Discord, the peer, or while encryption was off) never reads as private.
@@ -347,8 +361,12 @@ encrypted_silent :: (id: dc.Snowflake) -> bool {
 // list skips it.
 encrypted_hidden :: (m: *dc.Message) -> bool {
 	if !encrypted_packet(m.channel_id, m.content) return false;
+	if begins_with(m.content, BOTTLE_HELLO_NOTE) return true;
 	sh := table_find_pointer(*ee.shown, m.id);
 	if !sh || sh.pending return false;
+	// An Accept where encryption is off made a session only for a bottle's key.
+	e := encrypted_channel(m.channel_id);
+	if sh.result == .Ok && sh.content == .Accept && e.loaded && !e.encrypted return true;
 	if sh.result == .Ok return sh.content == .Delete || sh.content == .React || sh.content == .Unreact || sh.content == .Sender_Key || sh.content == .Bottle_Key || sh.detached;
 	// In a group, the pairwise packets between two other members aren't ours to show.
 	ch := dc.channel_get(store(), m.channel_id);
@@ -571,11 +589,12 @@ encrypted_bundle_receive :: (r: *dc.Feature_Result) {
 	e2e_submit(q);
 }
 
-// send_hello starts a new session in a DM: the first time, or after this device lost the old one.
-send_hello :: (dm_id: dc.Snowflake) {
+// send_hello starts a new session in a DM: the first time, or after this device lost the old one. A quiet
+// one only gives bottles' keys, and leaves encryption off.
+send_hello :: (dm_id: dc.Snowflake, quiet := false) {
 	find_or_add(*ee.channels, dm_id).hello_asked = true;
 	r := e2e.request(.Hello, conversation(dm_id));
-	r.me = my_identity();
+	r.me, r.quiet, r.silent = my_identity(), quiet, quiet;
 	e2e_submit(r);
 }
 
@@ -858,10 +877,10 @@ carrier_name :: (c: *dc.Client) -> string { return ifx c && c.cfg.hosted.host th
 
 // carrier_text is a packet as a message: `fc-` text, or the hash of the attachment that carries it, with
 // the note before a Hello on Discord.
-carrier_text :: (carrier: string, packet: string) -> string {
+carrier_text :: (carrier: string, packet: string, quiet := false) -> string {
 	text := ifx packet.count > fc_text.MAX_PACKET then fc_text.attached(crypto.blake3(xx packet),, temp) else fc_text.encode(xx packet,, temp);
 	hello := packet.count >= 2 && packet[1] == xx e2e.Kind.Hello;
-	return ifx hello && carrier == DISCORD then tprint("%1%2", HELLO_NOTE, text) else text;
+	return ifx hello && carrier == DISCORD then tprint("%1%2", ifx quiet then BOTTLE_HELLO_NOTE else HELLO_NOTE, text) else text;
 }
 
 carrier_client :: (name: string) -> *dc.Client {
@@ -920,7 +939,7 @@ send_packet :: (r: *e2e.Request, result: e2e.Result, text: string, content := e2
 		return;
 	}
 	// The carrier's own flag too, so its push stays quiet; it says nothing about the content.
-	nonce := post_packet(c, channel, r.conv.carrier, r.packet, r.silent, atts);
+	nonce := post_packet(c, channel, r.conv.carrier, r.packet, r.silent, atts, r.quiet);
 	sh := find_or_add(*ee.shown, nonce);
 	shown_free(sh);
 	sh.* = .{result = result, content = content, text = copy_string(text), silent = r.silent, reply = dc.parse_snowflake(r.reply), files = files_copy(r.files), sent = true,
@@ -930,14 +949,14 @@ send_packet :: (r: *e2e.Request, result: e2e.Result, text: string, content := e2
 
 // post_packet sends a packet as a new message after atts; one larger than a message is uploaded as its
 // last attachment. The carrier's own @silent flag too, so its push stays quiet; it says nothing of the content.
-post_packet :: (c: *dc.Client, channel: dc.Snowflake, carrier: string, packet: string, silent: bool, atts: []dc.Draft_Attachment = .[]) -> dc.Snowflake {
+post_packet :: (c: *dc.Client, channel: dc.Snowflake, carrier: string, packet: string, silent: bool, atts: []dc.Draft_Attachment = .[], quiet := false) -> dc.Snowflake {
 	all := atts;
 	if packet.count > fc_text.MAX_PACKET {
 		all = NewArray(atts.count + 1, dc.Draft_Attachment,, temp);
 		memcpy(all.data, atts.data, atts.count * size_of(dc.Draft_Attachment));
 		all[atts.count] = .{handle = dc.upload_draft(c, channel, fc_text.ATTACHMENT_NAME, "application/octet-stream", xx packet), filename = fc_text.ATTACHMENT_NAME};
 	}
-	return dc.send_message(c, channel, carrier_text(carrier, packet), .{flags = ifx silent then SUPPRESS_NOTIFICATIONS else 0, attachments = all});
+	return dc.send_message(c, channel, carrier_text(carrier, packet, quiet), .{flags = ifx silent then SUPPRESS_NOTIFICATIONS else 0, attachments = all});
 }
 
 is_text :: (c: e2e.Content) -> bool { return c == .Text || c == .Post || c == .Edit; }

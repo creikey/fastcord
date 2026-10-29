@@ -1358,6 +1358,7 @@ handle_results_of :: (c: *dc.Client) {
 		if r.op == {
 		case .Open_Dm;
 			if r.ok && r.id != 0 && r.tag == INVITE_DM_TAG invite_send_dm(r.id);
+			else if r.tag == BOTTLE_DM_TAG {} // bottle_frame finds the DM
 			else if r.ok && r.id != 0 && app.pending_dm_user != 0 {
 				select_channel(0, r.id);
 				profile_full_close_for(app.pending_dm_user); // it waited with its Message button pending
