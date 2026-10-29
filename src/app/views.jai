@@ -1517,7 +1517,7 @@ overlays :: () {
 		if e.mods == .Shift && !app.settings_open {
 			dc.analytics_keyboard_shortcut(app.client, "MARK_SERVER_READ", "shift+esc");
 			gid := app.view.guild;
-			if gid != 0 && guild_has_unread(gid) && net_action() dc.ack_guild(app.client, gid, source = "");
+			if gid != 0 && guild_has_unread(gid) mark_guild_read(gid, source = "");
 		} else if app.settings_open || app.view.channel != 0 {
 			dc.analytics_keyboard_shortcut(app.client, ifx app.settings_open then "POP_LAYER" else "MARK_CHANNEL_READ", "esc");
 		}

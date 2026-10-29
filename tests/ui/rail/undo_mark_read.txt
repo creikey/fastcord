@@ -1,0 +1,12 @@
+# Run with -fixture:tests/ui/rail.jsonl. A server's Mark As Read clears its unread pill and badge at
+# once behind Undo; Undo brings them back.
+wait 5
+rclick 36 254
+wait 10
+click_text "Mark As Read"
+wait 5
+expect_visible "Marked as read"
+shot build/ui-rail_undo_mark_read.png
+click_text "Undo"
+wait 5
+shot build/ui-rail_undo_mark_read_undone.png

@@ -183,13 +183,13 @@ inbox_popout :: () {
 						icon("i", "double-checkmark", 20, ifx msig.hovering then T("--interactive-icon-hover") else T("--interactive-icon-default"));
 					}
 					if msig.hovering { tooltip_below("Mark All as Read", mb.rect); }
-					if msig.clicked && net_action() {
+					if msig.clicked {
 						for c: inbox_clients() {
 							if !c continue;
 							ids: [..]dc.Snowflake;
 							ids.allocator = temp;
 							for rows { if it.channel != 0 && it.client == c { array_add(*ids, it.channel); } }
-							if ids.count dc.ack_channels(c, ids);
+							if ids.count mark_read_now(c, ids);
 						}
 					}
 				}

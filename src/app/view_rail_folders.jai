@@ -654,7 +654,7 @@ folder_menu :: () {
 	ui.parent(menu); defer ui.pop_parent();
 	spacer(.Y, 8);
 	if menu_item("read", "Mark Folder As Read", disabled = !unread).clicked {
-		if net_action() for e.guilds if guild_has_unread(it) dc.ack_guild(app.client, it);
+		for e.guilds if guild_has_unread(it) mark_guild_read(it);
 		fm.menu = 0;
 	}
 	menu_sep("s1");

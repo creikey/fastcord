@@ -542,7 +542,7 @@ guild_context_menu :: () {
 		spacer(.Y, 8);
 		sig = menu_item("read", "Mark As Read", disabled = !guild_has_unread(gid));
 		if sig.clicked {
-			if net_action() dc.ack_guild(app.client, gid);
+			mark_guild_read(gid);
 			close = true;
 		} else if sig.hovering hover_any = true;
 		menu_sep("s1");
@@ -981,6 +981,54 @@ unmute_now :: (gid: dc.Snowflake, cid: dc.Snowflake = 0) {
 		if u.b dc.set_channel_muted(u.client, u.a, u.b, false); else dc.set_guild_muted(u.client, u.a, false);
 	}, (u: *Undo) { local_mute(ifx u.client then *u.client.store else store(), u.a, u.b, true, u.n); }, a = gid, b = cid, n = end);
 }
+
+#scope_export
+// Mark As Read over many channels (a server or folder's menu, Shift+Escape, the Inbox's Mark All as
+// Read): read at once, the POST /read-states/ack-bulk waits behind Undo, which puts the unread markers
+// and mention counts back. The ack goes from the old state, so it lists the same channels.
+mark_guild_read :: (gid: dc.Snowflake, source := "Guild List") {
+	g := dc.guild_get(store(), gid);
+	if g mark_read_now(app.client, g.channels, source);
+}
+
+mark_read_now :: (c: *dc.Client, ids: []dc.Snowflake, source := "Guild List") {
+	s := ifx c then *c.store else store();
+	snap := New([..]dc.Read_State);
+	for cid: ids if dc.channel_unread(s, cid) {
+		rs := table_find_pointer(*s.read_states, cid);
+		array_add(snap, ifx rs then rs.* else .{channel_id = cid});
+	}
+	if !snap.count { array_free(snap.*); free(snap); return; }
+	for snap.* {
+		ch := dc.channel_get(s, it.channel_id);
+		rs := find_or_add(*s.read_states, it.channel_id);
+		rs.channel_id, rs.last_message_id, rs.mention_count = it.channel_id, ifx ch then ch.last_message_id else it.last_message_id, 0;
+	}
+	s.changed += 1;
+	u := undo_push("Marked as read", (u: *Undo) {
+		ids := read_restore(u);
+		if u.client dc.ack_channels(u.client, ids, u.s);
+	}, (u: *Undo) { read_restore(u); }, s = source, p = snap);
+	u.client = c;
+}
+
+// Puts the read states back; returns their channels (temp) and frees the snapshot.
+read_restore :: (u: *Undo) -> []dc.Snowflake {
+	snap := cast(*[..]dc.Read_State) u.p;
+	s := ifx u.client then *u.client.store else store();
+	ids: [..]dc.Snowflake;
+	ids.allocator = temp;
+	for snap.* {
+		find_or_add(*s.read_states, it.channel_id).* = it;
+		array_add(*ids, it.channel_id);
+	}
+	s.changed += 1;
+	array_free(snap.*);
+	free(snap);
+	return ids;
+}
+
+#scope_file
 
 notify_level_now :: (gid: dc.Snowflake, cid: dc.Snowflake, level: int) {
 	s := store();
