@@ -152,6 +152,13 @@ shutdown :: () {
 stats :: () -> Frame_Stats { return g.stats; }
 diag :: () -> Diag { return g.diag; }
 
+// Changes when the GPU device was lost and made again (a driver update or reset, a GPU switch). Every
+// texture then has its size but no contents: the glyph atlas redraws, and callers remake theirs.
+device_generation :: () -> int { return g.device_generation; }
+
+// Headless scripts (gpu_reset): go through the recovery as if the device had been lost.
+simulate_device_loss :: () { g.lost = true; }
+
 // Live textures (for benchmarks: each distinct texture costs per-draw-call driver work).
 texture_count :: () -> int {
     n := 0;
@@ -185,7 +192,8 @@ end_frame :: () {
     g.in_frame = false;
     g.stats.instances = g.instances.count;
     g.stats.draw_calls = g.batches.count;
-    backend_submit(g.instances, g.batches, g.clear, g.fb_size, g.scenes);
+    if !g.lost backend_submit(g.instances, g.batches, g.clear, g.fb_size, g.scenes);
+    if g.lost || backend_device_lost() g.lost = !recover_device(); // else retried next frame
     g.frame_index += 1;
     g.stats.frames += 1;
     // Release textures that no in-flight frame can reference anymore.
@@ -263,7 +271,7 @@ texture_create :: (w: int, h: int, format: Texture_Format, pixels: []u8 = .[], p
 target_create :: (w: int, h: int) -> Texture {
     native := backend_target_create(cast(s32) w, cast(s32) h);
     if native == null return 0;
-    return add_texture(.{native = native, w = cast(s32) w, h = cast(s32) h, format = .RGBA8, alive = true});
+    return add_texture(.{native = native, w = cast(s32) w, h = cast(s32) h, format = .RGBA8, alive = true, target = true});
 }
 
 // Whether this backend draws vector scenes on the GPU; when not, callers rasterize on the CPU.
@@ -343,6 +351,7 @@ Tex_Slot :: struct {
     alive: bool;
     release: (user: *void); // external (wrapped) textures
     user: *void;
+    target: bool; // from target_create
 }
 
 Pending_Destroy :: struct {
@@ -370,7 +379,31 @@ g: struct {
     white: Texture;
     stats: Frame_Stats;
     diag: Diag;
+    lost: bool; // the device is gone and not made again yet: nothing is submitted
+    device_generation: int;
 };
+
+// A new device, swap chain and shaders after the old device was lost; each live texture is made again at its
+// size, empty. False when the new device can't be made yet.
+recover_device :: () -> bool {
+    for g.destroy_queue destroy_now(it);
+    g.destroy_queue.count = 0;
+    for * g.textures if it.alive && !it.release && it.native {
+        backend_texture_destroy(it.native);
+        it.native = null;
+    }
+    backend_shutdown();
+    if !backend_init() return false;
+    for * g.textures if it.alive && !it.release {
+        it.native = ifx it.target then backend_target_create(it.w, it.h) else backend_texture_create(it.w, it.h, it.format, .[]);
+        if !it.native it.alive = false;
+    }
+    white := u8.[255, 255, 255, 255];
+    if texture_alive(g.white) backend_texture_update(g.textures[g.white].native, .RGBA8, 0, 0, 1, 1, white, 4);
+    tx.reset_atlas = true;
+    g.device_generation += 1;
+    return true;
+}
 
 texture_alive :: (t: Texture) -> bool { return t != 0 && t < g.textures.count && g.textures[t].alive; }
 

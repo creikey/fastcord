@@ -13,5 +13,10 @@ operator == :: (a: ui.Rect, b: ui.Rect) -> bool { return a.x0 == b.x0 && a.y0 ==
 Name_Px :: struct { name: string; px: int; }
 Name_Px_Map :: Table(Name_Px, gfx.Texture, given_hash_function = (k: Name_Px) -> u32 { return get_hash(k.name, get_hash(k.px)); }, given_compare_function = (a: Name_Px, b: Name_Px) -> bool { return a.name == b.name && a.px == b.px; });
 
+name_px_drop :: (m: *Name_Px_Map) {
+	for tex, k: m.* { gfx.texture_destroy(tex); free(k.name); }
+	table_reset(m);
+}
+
 // App.ui would shadow the ui module inside its own declaration.
 Ui_State :: ui.State;

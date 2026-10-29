@@ -67,6 +67,7 @@ backend_init :: () -> bool {
 
 // The EGLDisplay (for importing video frames as EGLImages).
 backend_native_device :: () -> *void { return st.dpy; }
+backend_device_lost :: () -> bool { return false; } // TODO: GL_ARB_robustness resets
 
 backend_wait_idle :: () {
     if st.ctx  gl.Finish();

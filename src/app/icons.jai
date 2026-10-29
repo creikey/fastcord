@@ -36,6 +36,8 @@ box_icon_name :: (b: *ui.Box) -> string {
 	return (cast(*Icon_Draw) b.custom_user).name;
 }
 
+icon_textures_lost :: () { name_px_drop(*icon_cache); } // a lost GPU device (textures_lost)
+
 #scope_file
 
 // Icons from assets/icons (Phosphor, MIT; see its README), embedded so the binary is

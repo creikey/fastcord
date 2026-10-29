@@ -40,6 +40,10 @@ image_get :: (url: string, visible := true) -> *Remote_Image {
 
 // Called each frame: finished loads go to the decode workers, decoded images become textures.
 images_receive :: () {
+	if app.gpu_generation != gfx.device_generation() {
+		app.gpu_generation = gfx.device_generation();
+		textures_lost();
+	}
 	for c: connections() for * r: dc.client_take_media(c) {
 		defer dc.media_result_free(c, r);
 		if media_action_receive(r) continue;
@@ -63,6 +67,24 @@ images_receive :: () {
 	decode_upload();
 	lottie_sweep();
 	gifv_frame();
+}
+
+// The GPU device was lost and made again, so every texture is empty: drop the images (they load again,
+// from the HTTP cache) and the icons and emoji (redrawn on use).
+textures_lost :: () {
+	for * im, url: images {
+		for im.frames gfx.texture_destroy(it);
+		if !im.frames gfx.texture_destroy(im.tex);
+		gfx.texture_destroy(im.blur_tex);
+		array_free(im.frames);
+		array_free(im.durations);
+		array_free(im.blur);
+		free(url);
+	}
+	table_reset(*images);
+	icon_textures_lost();
+	twemoji_textures_lost();
+	app.ui.animating = true;
 }
 
 // Current frame texture (animated images advance with time).

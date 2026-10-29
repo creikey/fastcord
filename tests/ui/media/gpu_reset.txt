@@ -1,0 +1,7 @@
+# After the GPU device is lost (a driver update, a TDR, a GPU switch) the window draws again: a new
+# device, the glyph atlas redrawn, images and icons remade (gfx recover_device, images textures_lost).
+wait 20
+shot build/ui-media_gpu_reset_before.png
+gpu_reset
+wait 30
+shot build/ui-media_gpu_reset.png

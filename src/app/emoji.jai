@@ -387,6 +387,8 @@ offline_media :: (url: string) -> []u8, bool {
 	return cast([]u8) data, ok;
 }
 
+twemoji_textures_lost :: () { name_px_drop(*tw_tex); } // a lost GPU device (textures_lost)
+
 #scope_file
 
 FE0F :: "️"; // U+FE0F VARIATION SELECTOR-16

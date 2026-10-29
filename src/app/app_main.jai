@@ -8,6 +8,7 @@ App :: struct {
 	last_time: float64;
 	dt: float32; // this frame's step (app.ui.dt is 0 after the second, drawn UI pass)
 	frame: u64;
+	gpu_generation: int; // gfx.device_generation the textures were made on
 	view: View_State;
 	client: *dc.Client; // nil when offline (fixture / tests); a self-hosted server's while one of its guilds is open
 	discord: *dc.Client; // Discord's own client (hosted.jai)
@@ -842,6 +843,8 @@ script_command :: (path: string, f: []string, t: *float64) {
 		return;
 	case "scroll";
 		platform.inject_event(.{kind = .Scroll, delta = .{num(f[1]), num(f[2])}, precise = true});
+	case "gpu_reset"; // as after a driver update: a new GPU device, every texture empty
+		gfx.simulate_device_loss();
 	case "wait";
 		if env_var("FASTCORD_FRAMES") { // real time: frames that save a PNG run long
 			start := current_time_monotonic();

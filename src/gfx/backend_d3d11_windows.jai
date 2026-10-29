@@ -72,6 +72,10 @@ backend_init :: () -> bool {
 
 backend_native_device :: () -> *void { return dx.device; }
 
+// DXGI_ERROR_DEVICE_REMOVED or _RESET came back (a driver update, a TDR timeout, a GPU switch): gfx makes a
+// new device.
+backend_device_lost :: () -> bool { return dx.lost; }
+
 backend_wait_idle :: () {
     if dx.ctx == null return;
     if dx.idle_query == null {
@@ -91,6 +95,7 @@ backend_wait_idle :: () {
 }
 
 backend_shutdown :: () {
+    if dx.swap2 platform.set_frame_wait_handle(null); // the swap chain's, released below
     safe_release(dx.rtv);
     safe_release(dx.swap2);
     safe_release(dx.swap);
@@ -233,6 +238,7 @@ backend_submit :: (insts: []Instance, batches: []Batch, clear: Color, fb: [2]s32
 }
 
 backend_texture_create :: (w: s32, h: s32, format: Texture_Format, pixels: []u8) -> *void {
+    if !dx.device return null; // lost, not made again yet
     td := D3D11_TEXTURE2D_DESC.{
         Width = xx w, Height = xx h, MipLevels = 1, ArraySize = 1,
         Format = ifx format == .R8 then DXGI_FORMAT.R8_UNORM else ifx format == .RG8 then DXGI_FORMAT.R8G8_UNORM else .R8G8B8A8_UNORM,
@@ -257,6 +263,7 @@ backend_texture_create :: (w: s32, h: s32, format: Texture_Format, pixels: []u8)
 }
 
 backend_texture_update :: (native: *void, format: Texture_Format, x: s32, y: s32, w: s32, h: s32, pixels: []u8, stride: s32) {
+    if !native return;
     box := D3D11_BOX.{left = xx x, top = xx y, front = 0, right = xx (x + w), bottom = xx (y + h), back = 1};
     ID3D11DeviceContext_UpdateSubresource(dx.ctx, cast(*D3D_Tex, native).tex, 0, *box, pixels.data, xx stride, 0);
 }
@@ -334,6 +341,7 @@ dx: struct {
     swap_flags: DXGI_SWAP_CHAIN_FLAG;
     timers: [GPU_TIMERS]Gpu_Timer;
     idle_query: *ID3D11Query;
+    lost: bool;
 
     scene_vs: *ID3D11VertexShader;
     scene_ps: *ID3D11PixelShader; // null: no scenes
@@ -510,6 +518,7 @@ compile :: (src: string, entry: string, target: string) -> string {
 note_failure :: (hr: HRESULT) {
     g.diag.last_hresult = hr;
     g.diag.device_removed = ID3D11Device_GetDeviceRemovedReason(dx.device);
+    if g.diag.device_removed != S_OK dx.lost = true;
 }
 
 ensure_target :: (fb: [2]s32) -> bool {
@@ -519,7 +528,8 @@ ensure_target :: (fb: [2]s32) -> bool {
     if dx.swap {
         ID3D11DeviceContext_OMSetRenderTargets(dx.ctx, 0, null, null);
         if dx.back_size[0] || dx.back_size[1] {
-            if FAILED(IDXGISwapChain_ResizeBuffers(dx.swap, 0, xx fb[0], xx fb[1], .UNKNOWN, xx dx.swap_flags)) return false;
+            hr := IDXGISwapChain_ResizeBuffers(dx.swap, 0, xx fb[0], xx fb[1], .UNKNOWN, xx dx.swap_flags);
+            if FAILED(hr) { note_failure(hr); return false; }
         }
         IDXGISwapChain_GetBuffer(dx.swap, 0, *uid(ID3D11Texture2D_UUID), cast(**void) *tex);
     } else {
