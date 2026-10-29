@@ -1,0 +1,16 @@
+# Clicking the voice panel's status opens its connection info; a press outside closes it, and the channel
+# name under the status goes to the call.
+wait 5
+in_voice 1546820558950371411
+wait 5
+click 100 579
+wait 5
+expect_visible "Connection Info"
+expect_visible "Server"
+shot build/ui-call_connection_info_open.png
+click 900 300
+wait 5
+expect_not_visible "Connection Info"
+click_text "General / Dingus Battle"
+wait 10
+expect_visible "Watch Stream"

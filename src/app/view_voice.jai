@@ -362,7 +362,8 @@ voice_panel :: () {
 		info.style.radius = all4(8);
 		info.style.bg_hot = T("--background-mod-subtle");
 		isig := ui.signal(info);
-		if isig.clicked voice_return();
+		if isig.clicked vc.info_open = !vc.info_open; // connection info
+		vc.info_anchor = info.rect;
 		{ ui.parent(info); defer ui.pop_parent();
 			spacer(.X, 6);
 			icon("sig", sig_icon, 20, color);
@@ -380,10 +381,13 @@ voice_panel :: () {
 					where_ = dm_name(ch);
 				}
 				t := ifx plain then label("Not end-to-end encrypted", .Normal, 12, T("--text-feedback-warning"), 14) else label(where_, .Normal, 12, T("--text-muted"), 14);
-				t.flags |= .Clip;
+				t.flags |= .Clip | .Clickable; // the channel's name goes to the call
+				tsig := ui.signal(t);
+				if tsig.hovering t.style.text_color = T("--text-default");
+				if tsig.clicked voice_return();
 			}
 		}
-		if isig.hovering {
+		if isig.hovering && !vc.info_open {
 			tip := row("pingtip", .Draw_Background | .Draw_Shadow | .Floating_X | .Floating_Y | .Overlay);
 			tip.semantic_size = .[ui.children(), ui.px(32)];
 			tip.fixed_pos = .{8, -40};
@@ -400,6 +404,20 @@ voice_panel :: () {
 				spacer(.X, 12);
 			}
 		}
+		// Noise Suppression, as a quick toggle (Voice & Video's switch)
+		nb := ui.box("noise", .Clickable | .Draw_Background | .Hot_Animation);
+		nb.semantic_size = .[ui.px(32), ui.px(32)];
+		nb.style.radius = all4(8);
+		nb.style.bg_hot = T("--background-mod-subtle");
+		nb.layout_axis = .X;
+		nb.cross_align = .Center;
+		nsig := ui.signal(nb);
+		{ ui.parent(nb); defer ui.pop_parent();
+			spacer(.X, 6);
+			icon("i", "waveform", 20, ifx vs.noise then T("--text-feedback-positive") else T("--interactive-icon-default"));
+		}
+		if nsig.hovering tooltip_below(ifx vs.noise then "Noise Suppression: On" else "Noise Suppression: Off", nb.rect, above = true);
+		if nsig.clicked vs.noise = !vs.noise;
 		b := ui.box("disconnect", .Clickable | .Draw_Background | .Hot_Animation);
 		b.semantic_size = .[ui.px(32), ui.px(32)];
 		b.style.radius = all4(8);
@@ -446,6 +464,87 @@ voice_panel :: () {
 	div := ui.box("div", .Draw_Background);
 	div.semantic_size = .[ui.pct(1), ui.px(1)];
 	div.style.bg = T("--border-subtle");
+}
+
+// voice_info_popout: the panel's connection info: the voice server, ping, packets, loss and jitter, and
+// end-to-end encryption with the call's privacy code. A press outside or Escape closes it.
+voice_info_popout :: () {
+	if !vc.info_open return;
+	if !app.voice_channel || outside_pressed("vinfo_scrim") || escape_pressed() {
+		vc.info_open = false;
+		return;
+	}
+	W :: cast(float32) 300;
+	p := ui.box("vinfo", .Draw_Background | .Draw_Border | .Draw_Shadow | .Floating_X | .Floating_Y | .Overlay | .Clickable);
+	h := p.rect.y1 - p.rect.y0; // last frame's
+	p.semantic_size = .[ui.px(W), ui.children()];
+	p.fixed_pos = .{vc.info_anchor.x0, max(8.0, vc.info_anchor.y0 - h - 8)};
+	p.layout_axis = .Y;
+	p.style.bg = T("--background-surface-higher");
+	p.style.border = 1;
+	p.style.border_color = T("--border-subtle");
+	p.style.radius = all4(8);
+	p.style.shadow_color = .{0, 0, 0, 0.3};
+	p.style.shadow_blur = 16;
+	ui.signal(p);
+	ui.parent(p); defer ui.pop_parent();
+	line :: (k: string, v: string) {
+		r := row(k);
+		r.semantic_size = .[ui.pct(1), ui.px(22)];
+		ui.parent(r); defer ui.pop_parent();
+		spacer(.X, 16);
+		label(k, .Medium, 13, T("--text-muted"), 18);
+		filler(.X);
+		label(tprint("%##v", v), .Semibold, 13, T("--text-default"), 18);
+		spacer(.X, 16);
+	}
+	spacer(.Y, 12);
+	hdr := row("hdr");
+	hdr.semantic_size = .[ui.pct(1), ui.px(22)];
+	{ ui.parent(hdr); defer ui.pop_parent(); spacer(.X, 16); label("Connection Info", .Semibold, 16, T("--text-strong"), 20); }
+	spacer(.Y, 8);
+	host: string;
+	if call_client() {
+		info, _, ok := dc.voice_server_info(call_client());
+		if ok host = info.endpoint;
+	}
+	if find_index_from_left(host, #char ":") > 0 host.count = find_index_from_left(host, #char ":");
+	line("Server", ifx host then host else "Waiting for a server");
+	if !vc.conn {
+		line("State", "Connecting");
+	} else {
+		st := voice.get_stats(vc.conn);
+		ping := ifx st.rtt_ms > 0 then st.rtt_ms else st.ws_ping_ms;
+		line("State", tprint("%", voice.state(vc.conn)));
+		line("Ping", ifx ping > 0 then tprint("% ms", ping) else "Measuring");
+		line("Packets sent", tprint("%", st.packets_sent));
+		line("Packets received", tprint("%", st.packets_received));
+		j := st.jitter;
+		heard := j.received + j.lost;
+		line("Packet loss", ifx heard then tprint("%\%", formatFloat(100.0 * j.lost / heard, trailing_width = 1)) else "0%");
+		line("Jitter", tprint("% ms", formatFloat(j.jitter_ms, trailing_width = 1)));
+		e := voice.e2ee_status(vc.conn,, temp);
+		line("End-to-end encryption", ifx e.active then tprint("DAVE v%, % members", e.protocol_version, e.members) else "Off");
+		if e.active && e.privacy_code {
+			spacer(.Y, 6);
+			r := row("pc");
+			r.semantic_size = .[ui.pct(1), ui.px(18)];
+			{ ui.parent(r); defer ui.pop_parent(); spacer(.X, 16); label("PRIVACY CODE", .Semibold, 12, T("--text-muted"), 16); }
+			// grouped in fives, as the official client shows it
+			sb: String_Builder;
+			sb.allocator = temp;
+			for i: 0..e.privacy_code.count - 1 {
+				if i && i % 5 == 0 append(*sb, " ");
+				append(*sb, e.privacy_code[i]);
+			}
+			code := builder_to_string(*sb,, temp);
+			cr := row("code");
+			cr.semantic_size = .[ui.pct(1), ui.px(22)];
+			{ ui.parent(cr); defer ui.pop_parent(); spacer(.X, 16); label(tprint("%##code", code), .Semibold, 15, T("--text-strong"), 20); }
+		}
+	}
+	spacer(.Y, 12);
+	request_wake(platform.time_now() + 1); // the numbers move
 }
 
 voice_reset_for_test :: () { vc = .{headless = true}; }
@@ -563,6 +662,8 @@ Voice_App :: struct {
 		target: video.Screen_Target;
 		until: s64;
 	};
+	info_open: bool; // the panel's connection info
+	info_anchor: ui.Rect;
 	restore_camera, restore_screen: bool; // Rejoin turns these back on once connected
 	restore_target: video.Screen_Target;
 }
