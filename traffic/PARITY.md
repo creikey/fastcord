@@ -116,6 +116,12 @@ in parallel): they use the heap allocator and are torn down with the last client
   `/quests/decision` served a quest: `quest_decision_received`, the unshown quest
   bar's logotype, `quest_bar_mode_changed` and hero art (the rest of the window,
   the launch, is allowed).
+  Then the bar's 30 s check past the TTL: unfocused, the decision is cleared and
+  the bar unmounts (`quest_bar_mode_changed` mode null); focused, `/quests/@me` and
+  the decision go again ("questBar-interval").
+- `editor_previews`: Edit Profiles' preloaded Shop previews, built from
+  `tests/data/collectibles_categories.json` with the capture's picks, against
+  open_profiles.
 
 `replay_begin(..., acct = "b")` replays a two-sided fixture as B (B's READY and
 windows). All pass. A test that fails prints what differs from the official client
@@ -130,7 +136,6 @@ window (capture tooling) and a `parity_<feature>` test.
 ### Telemetry (`/science`)
 
 Per window, `r_science_check` compares our batches with the official ones:
-
 - the sequence of event `type`s (aligned, so a missing or extra event is named);
 - each event's property keys and their order, the decorations included;
 - every value's JSON type, and the value of constant-valued properties:
@@ -163,7 +168,7 @@ The quest bar's viewability impressions (`quest_content_loaded` / `_viewed` /
 `_view_time`) are never sent, though 0.0.420 launches send them (`R_SCI_NEVER`
 allows them in every window). `analytics_never`
 (analytics.jai) names the never-sent events, with those of UI fastcord does not
-have. `send_message_roundtrip` (10 %), `quest_decision_roundtrip` (18 %) and
+have. `send_message_roundtrip` (10 %), `quest_decision_roundtrip` (10 %) and
 `quest_bar_render_delay` (10 %, focused windows) are sampled and disabled offline.
 
 Every event needs the window's viewport and the accessibility flags: the
@@ -470,9 +475,8 @@ settings tabs other than Overview.
 | Area | Difference | Reason |
 |---|---|---|
 | Telemetry | Not sent: quest hovers; the quest bar's viewability impressions (`quest_content_loaded` / `_viewed` / `_view_time`, sent by 0.0.420 launches) | No faked engagement with sponsored content (AGENTS.md; `analytics_never`, `R_SCI_NEVER`). |
-| Quest bar | A launch's decision only: no 30 s re-check that fetches it again after its TTL (~40 min) | Not modelled yet (TODO.md). |
 | Telemetry | Not sent: `voice_invite_suggestions_entrypoint_closed`, `impression_voice_invite_suggestions_popover` | Pointer interactions with the voice invite suggestions (closing it, hovering the voice area), whose entry point impression is sent. |
-| Shop art | The Edit Profiles Shop product images and the Shop entry's hover art (`collectibles-shop` CDN images) | The product images are the editor's cycling previews of nameplates, decorations, effects and frames, whose picking hook is in no cached bundle chunk (TODO.md); the hover art needs a hover. Images are not compared (`R_IGNORE`). |
+| Shop art | `collectibles-shop` CDN images are not compared (`R_IGNORE`) | The Edit Profiles previews are random picks (one per empty field; `editor_previews` checks the URLs and their order against open_profiles with the capture's picks; the fixture has no categories body); the Shop entry's hover art needs a hover, and the editor's next previews a hovered field; users' avatar decorations (`<sku>/static`) are not drawn (TODO.md). |
 | Telemetry | Not sent: legacy experiment triggers (`experiment_guild_triggered*`, `experiment_user_triggered`), `session_start_client`, the web-vitals INP `app_web_perf_startup_metrics`, `/metrics/v2` | Not modelled yet (allow-listed where a window has them). |
 | Telemetry | Electron memory, JS heap, crash reporter, web-bundle sizes and script costs, the media engine's versions, internal timings and audio statistics | Synthesized from the fixtures (traffic/CLIENT_RULES.md "Analytics"). |
 | Telemetry | Settings modal `impression_modal_root_legacy` (variant `renderModalSpinner`) | The settings chunk's lazy-load spinner; allow-listed in parity_settings_open / parity_open_account_settings. |

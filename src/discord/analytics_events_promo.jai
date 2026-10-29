@@ -7,9 +7,11 @@
 Promo_State :: struct {
 	shop_mounted: bool; // the DM list (private routes) shows its Shop entry (UI thread)
 	shop_version: s64; // atomic: the Shop entry marketing's version, 0 until /collectibles-marketing loads
-	quest_roundtrip_sample: float64 = 0.18; // quest_decision_roundtrip: 6 of 33 launches' decisions
+	quest_roundtrip_sample: float64 = 0.1; // quest_decision_roundtrip (QuestRequestTracker: 10%)
 	render_delay_sample: float64 = 0.1; // quest_bar_render_delay (QuestBarRenderDelayTracker: 10%)
 	trial_id: Snowflake; // atomic: the account's Nitro trial offer (billing/user-offer), 0 for none
+	bar: Quest_Bar;
+	editor_held: u8; // atomic: Editor_Held of the open profile editor
 }
 
 // user_offer_loaded: the launch's billing/user-offer answer (worker thread). Its trial offer id goes
@@ -50,7 +52,7 @@ promo_shop_entry :: (c: *Client, delay_ms := 0) {
 // is the DM list's Shop entry: its art loads at once (and is dropped), and a shown entry tracks
 // itself again with the marketing's version.
 promo_shop_marketing :: (c: *Client, body: V) {
-	ASSET :: "https://cdn.discordapp.com/media/v1/collectibles-shop/";
+	ASSET :: SHOP_CDN;
 	m := fmap(fmap(vmap(body), "marketings"), "0");
 	v := vget(m, "version");
 	if v.kind != .Int || v.i <= 0 || v.i > 1_000_000 return;
@@ -96,80 +98,154 @@ promo_profile_upsells :: (c: *Client, count: int) {
 	analytics_dismissible(c, "USER_PROFILE_PREMIUM_AND_SHOP_ENTRY_POINTS", count);
 }
 
-// promo_quest_roundtrip: QuestBar's /quests/decision answered (worker thread). Sampled: 6 of the
-// 33 captured launches track it, with no other difference between them.
-promo_quest_roundtrip :: (c: *Client, j: *Job, r: Api_Response) {
-	if random_get_zero_to_one_open() >= c.promo.quest_roundtrip_sample return;
-	m := vmap(r.body);
-	id := fstr(m, "request_id");
-	if !promo_token_ok(id) id = "";
-	served := vget(m, "quest").kind == .Map;
-	w := aw_begin();
-	json_kstr(*w, "endpoint", "/quests/decision");
-	json_kbool(*w, "was_successful", r.ok);
-	json_kint(*w, "api_latency_ms", cast(s64) (now_ms_f() - j.started_ms));
-	json_kstr(*w, "mobile_network_type", "unknown");
-	json_kstr(*w, "caller_source", "questBar-open");
-	if id json_kstr(*w, "ad_request_id", id); else json_knull(*w, "ad_request_id");
-	json_kint(*w, "fetched_at", now_ms());
-	json_knull(*w, "previous_ad_request_id");
-	json_knull(*w, "previous_fetched_at");
-	json_kstr(*w, "transition_case", ifx served then "null_to_serve" else "null_to_no_serve");
-	json_kbool(*w, "is_foregrounded", c.focused);
-	aw_track(c, "quest_decision_roundtrip", *w);
+// ---- the quest bar (account panel, placement 1) ----
+// AdDeliveryStore keeps the placement's decision; the bar renders its quest. useQuestBarFetch
+// asks at mount ("questBar-open", the launch or login request) and every 30 s, restarted when
+// the decision changes, checks it: once older than its TTL it refetches (/quests/@me, then the
+// decision, "questBar-interval") in a focused window, or clears it when unfocused, which
+// unmounts a shown bar. A failed request is retried no sooner than a 30 s .. 10 min backoff.
+// The bar's mode tracker reports its mount (collapsed) and unmount (null); nothing else of it
+// is sent without engagement. Shared by the workers and the UI thread (mu).
+
+Quest_Bar :: struct {
+	mu: locks.Mutex;
+	started: bool; // the placement asked once (launch, login): the bar is mounted
+	fetching: bool;
+	caller: string; // the pending request's caller_source (a literal)
+	visible_guilds: bool; // the last request listed the sidebar's guilds (the login's form)
+	fetched_at: s64; // the decision's fetchedAt (its request's start; a cleared one: when cleared), 0 = none
+	ttl_ms: s64;
+	decision: [64]u8; // its request_id ("" when cleared)
+	decision_len: int;
+	quest: Snowflake; // the quest it serves, 0 = none
+	shown_at: s64; // when the bar's mode tracker mounts (assets loaded), 0 = no bar
+	props: [..]u8; // the shown quest's leading properties (quest_id .. quest_status)
+	check_at: s64; // the next 30 s check
+	retry_at: s64; // canRefreshAd after a failure
+	backoff_ms: s64;
+	delay_at: s64; // QuestBarRenderDelayTracker reports (stop or its 30 s timeout), 0 = idle
+	delay_quest: Snowflake;
+	delay_ms: s64; // the duration it reports
 }
 
-// promo_quest_decision: QuestBar's /quests/decision answered (worker thread, after its roundtrip).
-// fetchQuestToDeliver tracks a delivered quest (creative_type 1, or the bare `quest` when there
-// is no creative or a bounty without its experiment) as received. The account panel's quest bar
-// then mounts collapsed: its logotype loads, and once its assets have loaded the bar shows,
-// tracks quest_bar_mode_changed and loads its hero art (fixture upload_custom_emoji, setup:
-// decision +31 ms and +330 ms). Its render delay tracker reports 10% of the renders in a focused
-// window. No-fill decisions and the get-decisions placement render nothing. The server only
-// delivers live quests, so expiry is not checked. The bar's impressions (quest_content_loaded /
-// _viewed / _view_time), hovers and clicks are never sent.
-promo_quest_decision :: (c: *Client, r: Api_Response) {
-	VISIBLE_MS :: 330; // the bar's assets loaded (logotype, hero video): its mode tracker mounts
-	AT_REST_MS :: 130; // its visibility spring (tension 250, friction 10, clamped) at rest
+QUEST_CHECK_MS :: 30_000;
+QUEST_TTL_MAX_MS :: 6 * 3600 * 1000;
+QUEST_VISIBLE_MS :: 330; // the bar's assets loaded (logotype, hero video): its mode tracker mounts
+QUEST_AT_REST_MS :: 130; // its visibility spring (tension 250, friction 10, clamped) at rest
+
+// promo_quest_decision: the placement's /quests/decision answered (worker thread).
+// recordQuestRequestApiResponse (quest_decision_roundtrip, 10 %), then for a served quest
+// quest_decision_received, and the bar: the previous quest's unmounts, a new one mounts.
+promo_quest_decision :: (c: *Client, j: *Job, r: Api_Response) {
+	b := *c.promo.bar;
+	now := now_ms();
+	start := cast(s64) j.started_ms;
 	m := vmap(r.body);
+	// fetchQuestToDeliver: a quest creative, or the bare quest when there is no creative or a
+	// bounty without its experiment; no-fill and other creatives serve nothing
 	cr := fmap(m, "creative");
 	ctype := fint(cr, "creative_type");
 	q := ifx cr && ctype == 1 then fmap(cr, "creative_content") else ifx !cr || ctype == 3 then fmap(m, "quest") else .[];
-	id := fsnow(q, "id");
 	req := fstr(m, "request_id");
-	if !id || !promo_token_ok(req) return;
+	if !promo_token_ok(req) req = "";
+	id := ifx r.ok && req then fsnow(q, "id") else 0;
+	us := fmap(q, "user_status");
+	shows := id && vget(us, "claimed_at").kind != .String && !(fint(us, "dismissed_quest_content") & 2); // useQuestBarVisibility
+
+	locks.lock(*b.mu);
+	prev := ifx b.fetched_at == 0 then "null" else ifx b.quest then "quest" else "no_serve";
+	prev_id := copy_string(string.{b.decision_len, b.decision.data},, temp);
+	prev_at, prev_quest, caller := b.fetched_at, b.quest, ifx b.caller then b.caller else "questBar-open";
+	b.started, b.fetching, b.caller = true, false, "";
+	b.visible_guilds = contains(j.path, "&visible_guild_ids=");
+	if b.check_at == 0 b.check_at = now + QUEST_CHECK_MS;
+	unmount: string;
+	mount := false;
+	if !r.ok {
+		// AdDeliveryStore FAILURE: the decision stays; Backoff(30 s, 10 min) with jitter
+		if b.backoff_ms == 0 b.backoff_ms = QUEST_CHECK_MS;
+		b.backoff_ms = min(b.backoff_ms + cast(s64) (2 * b.backoff_ms * random_get_zero_to_one_open()), 600_000);
+		b.retry_at = now + b.backoff_ms;
+	} else {
+		t := fint(m, "response_ttl_seconds") * 1000;
+		b.fetched_at, b.ttl_ms = start, ifx t > 0 && t < QUEST_TTL_MAX_MS then t else QUEST_TTL_MAX_MS;
+		b.decision_len = min(req.count, b.decision.count);
+		memcpy(b.decision.data, req.data, b.decision_len);
+		b.backoff_ms, b.retry_at = 0, 0;
+		b.check_at = now + QUEST_CHECK_MS; // the decision changed: the interval restarts
+		if prev_quest != id || !b.shown_at {
+			unmount = quest_bar_unmount_locked(c, now);
+			if shows {
+				mount = true;
+				b.shown_at = now + QUEST_VISIBLE_MS;
+				b.delay_at, b.delay_ms = now + QUEST_VISIBLE_MS + QUEST_AT_REST_MS, QUEST_VISIBLE_MS + QUEST_AT_REST_MS;
+			}
+		} else if id {
+			b.delay_at, b.delay_ms = now + QUEST_CHECK_MS, QUEST_CHECK_MS; // the same bar: the tracker times out
+		}
+		if !id b.delay_at = 0; // no bar: the tracker is cleared
+		b.quest = id;
+		b.delay_quest = id;
+	}
+	locks.unlock(*b.mu);
+
+	if random_get_zero_to_one_open() < c.promo.quest_roundtrip_sample {
+		cur := ifx id then "quest" else "no_serve";
+		w := aw_begin();
+		json_kstr(*w, "endpoint", "/quests/decision");
+		json_kbool(*w, "was_successful", r.ok);
+		json_kint(*w, "api_latency_ms", now - start);
+		json_kstr(*w, "mobile_network_type", "unknown");
+		json_kstr(*w, "caller_source", caller);
+		if r.ok && req json_kstr(*w, "ad_request_id", req); else json_knull(*w, "ad_request_id");
+		json_kint(*w, "fetched_at", start);
+		if prev_id json_kstr(*w, "previous_ad_request_id", prev_id); else json_knull(*w, "previous_ad_request_id");
+		if prev_at json_kint(*w, "previous_fetched_at", prev_at); else json_knull(*w, "previous_fetched_at");
+		json_kstr(*w, "transition_case", ifx prev == "quest" && cur == "quest" then (ifx prev_quest == id then "same_quest" else "different_quest") else tprint("%_to_%", prev, cur));
+		json_kbool(*w, "is_foregrounded", c.focused);
+		aw_track(c, "quest_decision_roundtrip", *w);
+	}
+	if !id return;
 	w := aw_begin();
 	json_ksnow(*w, "quest_id", id);
 	json_ksnow(*w, "ad_content_id", id);
 	json_kint(*w, "creative_type", 1);
-	json_kstr(*w, "caller_source", "questBar-open");
+	json_kstr(*w, "caller_source", caller);
 	json_kstr(*w, "ad_request_id", req);
 	aw_track(c, "quest_decision_received", *w);
+	if unmount analytics_track(c, "quest_bar_mode_changed", unmount);
+	if !mount return;
 
-	// useQuestBarVisibility: hidden once claimed or dismissed (QUEST_BAR's bit)
-	us := fmap(q, "user_status");
-	if vget(us, "claimed_at").kind == .String || (fint(us, "dismissed_quest_content") & 2) return;
-	now := now_ms();
 	assets := fmap(q, "assets");
 	promo_quest_asset(c, fstr(assets, ifx c.store.settings.theme == .Light then "logotype_light" else "logotype_dark"), 0);
-	promo_quest_asset(c, fstr(assets, "hero"), now + VISIBLE_MS);
-
+	promo_quest_asset(c, fstr(assets, "hero"), now + QUEST_VISIBLE_MS);
 	// QuestsAnalyticsUtils: the quest, the ad session, the decision's ad identifiers, then the mode
 	tasks := fmap(fmap(q, "task_config_v2"), "tasks");
-	session := ad_session_id(c);
-	w = aw_begin();
-	json_ksnow(*w, "quest_id", id);
-	json_kstr(*w, "quest_type", ifx vhas(tasks, "WATCH_VIDEO") || vhas(tasks, "WATCH_VIDEO_ON_MOBILE") then "VIDEO" else "GAMEPLAY");
-	json_key(*w, "application_ids");
-	json_arr(*w);
+	lead := aw_begin();
+	json_ksnow(*lead, "quest_id", id);
+	json_kstr(*lead, "quest_type", ifx vhas(tasks, "WATCH_VIDEO") || vhas(tasks, "WATCH_VIDEO_ON_MOBILE") then "VIDEO" else "GAMEPLAY");
+	json_key(*lead, "application_ids");
+	json_arr(*lead);
 	apps: [..]Snowflake;
 	apps.allocator = temp;
 	for tasks for flist(vmap(it.value), "applications") {
 		app := fsnow(vmap(it), "id");
-		if app && apps.count < 64 && array_add_if_unique(*apps, app) json_snowflake(*w, app);
+		if app && apps.count < 64 && array_add_if_unique(*apps, app) json_snowflake(*lead, app);
 	}
-	json_arr_end(*w);
-	json_kstr(*w, "quest_status", ifx vget(us, "completed_at").kind == .String then "COMPLETED" else ifx vget(us, "enrolled_at").kind == .String then "ENROLLED" else "NONE");
+	json_arr_end(*lead);
+	json_kstr(*lead, "quest_status", ifx vget(us, "completed_at").kind == .String then "COMPLETED" else ifx vget(us, "enrolled_at").kind == .String then "ENROLLED" else "NONE");
+	json_obj_end(*lead);
+	props := json_body(json_string(*lead));
+	locks.lock(*b.mu);
+	if b.quest == id {
+		b.props.allocator, b.props.count = c.allocator, 0;
+		append_string(*b.props, props);
+	}
+	locks.unlock(*b.mu);
+
+	session := ad_session_id(c);
+	w = aw_begin();
+	json_raw_props(*w, props);
 	json_kstr(*w, "client_ad_session_id", session);
 	json_kstr(*w, "billing_session_id", session); // the quest bar's placement bills to the ad session
 	json_ksnow(*w, "ad_content_id", id);
@@ -187,12 +263,100 @@ promo_quest_decision :: (c: *Client, r: Api_Response) {
 	json_kstr(*w, "mode", "collapsed");
 	json_knull(*w, "previous_mode");
 	json_obj_end(*w);
-	analytics_schedule(c, now + VISIBLE_MS, "quest_bar_mode_changed", json_body(json_string(*w)));
+	analytics_schedule(c, now + QUEST_VISIBLE_MS, "quest_bar_mode_changed", json_body(json_string(*w)));
+}
 
-	// QuestBarRenderDelayTracker: from the decision until the bar is visible and at rest
-	if c.focused && random_get_zero_to_one_open() < c.promo.render_delay_sample {
-		analytics_schedule(c, now + VISIBLE_MS + AT_REST_MS, "quest_bar_render_delay", tprint("\"ad_creative_id\":\"%\",\"ad_creative_type\":1,\"timeout\":false,\"duration\":%", id, VISIBLE_MS + AT_REST_MS));
+// quest_bar_unmount_locked: the shown bar goes (mu held): its mode tracker's cleanup, mode null.
+// The decision no longer matches the quest, so the ad ids are the defaults (is_targeted false).
+// Returns the event's properties ("" when no tracker had mounted).
+quest_bar_unmount_locked :: (c: *Client, now: s64) -> string {
+	b := *c.promo.bar;
+	shown := b.shown_at && b.shown_at <= now && b.props.count;
+	props := copy_string(cast(string) b.props,, temp);
+	b.shown_at, b.props.count = 0, 0;
+	if !shown return "";
+	session := ad_session_id(c);
+	w := aw_begin();
+	json_raw_props(*w, props);
+	json_kstr(*w, "client_ad_session_id", session);
+	json_kstr(*w, "billing_session_id", session);
+	json_ksnow(*w, "ad_content_id", b.quest);
+	json_kbool(*w, "is_targeted", false);
+	json_kint(*w, "creative_type", 1);
+	json_kint(*w, "content_id", 10);
+	json_kstr(*w, "content_name", "QUEST_BAR_V2");
+	json_knull(*w, "mode");
+	json_kstr(*w, "previous_mode", "collapsed");
+	json_obj_end(*w);
+	return json_body(json_string(*w));
+}
+
+// json_raw_props appends pre-encoded `"k":v,...` properties to an open object.
+json_raw_props :: (w: *Json, props: string) {
+	if !props return;
+	if w.comma[w.depth] array_add(*w.buf, #char ",");
+	w.comma[w.depth] = true;
+	append_string(*w.buf, props);
+}
+
+// promo_quest_tick: the bar's 30 s check and its render delay tracker (UI thread, client_poll).
+promo_quest_tick :: (c: *Client, now: s64) {
+	b := *c.promo.bar;
+	if !b.started return;
+	locks.lock(*b.mu);
+	delay: s64;
+	delay_quest: Snowflake;
+	if b.delay_at && now >= b.delay_at {
+		delay, delay_quest, b.delay_at = b.delay_ms, b.delay_quest, 0;
 	}
+	unmount: string;
+	fetch, visible := false, false;
+	if now >= b.check_at {
+		b.check_at = now + QUEST_CHECK_MS;
+		if b.fetched_at == 0 || b.fetched_at + b.ttl_ms < now {
+			if !c.focused {
+				if b.fetched_at { // QUESTS_CLEAR_EXPIRED_QUEST_TO_DELIVER: nothing served for another TTL
+					unmount = quest_bar_unmount_locked(c, now);
+					b.fetched_at, b.decision_len, b.quest, b.delay_at = now, 0, 0, 0;
+				}
+			} else if !b.fetching && now >= b.retry_at {
+				b.fetching, b.caller, fetch, visible = true, "questBar-interval", true, b.visible_guilds;
+			}
+		}
+	}
+	locks.unlock(*b.mu);
+	// QuestBarRenderDelayTracker.stopTracking: only a focused window reports, 10 % of the time
+	if delay && c.focused && random_get_zero_to_one_open() < c.promo.render_delay_sample {
+		analytics_track(c, "quest_bar_render_delay", tprint("\"ad_creative_id\":\"%\",\"ad_creative_type\":1,\"timeout\":%,\"duration\":%", delay_quest, ifx delay == QUEST_CHECK_MS then "true" else "false", delay));
+	}
+	if unmount analytics_track(c, "quest_bar_mode_changed", unmount);
+	if !fetch return;
+	api_get_later(c, "/quests/@me", 0); // fetchCurrentQuests, then the decision
+	path := "/quests/decision?placement=1&client_heartbeat_session_id={hb}&client_ad_session_id={ad}";
+	if visible {
+		sb: String_Builder;
+		sb.allocator = temp;
+		append(*sb, path);
+		for sidebar_guild_ids(*c.store) print_to_builder(*sb, "&visible_guild_ids=%", it);
+		path = builder_to_string(*sb,, temp);
+	}
+	j := job_new(.Api, .Startup);
+	j.method = "GET";
+	j.path = job_str(j, startup_expand(c, path));
+	j.context_b64 = job_str(j, context_b64("{\"connection_type\":\"unknown\"}"));
+	job_submit(c, j);
+}
+
+// promo_quest_reset: logging out unmounts the account panel and resets AdDeliveryStore; the
+// next login asks again.
+promo_quest_reset :: (c: *Client) {
+	b := *c.promo.bar;
+	locks.lock(*b.mu);
+	array_reset(*b.props);
+	b.started, b.fetching, b.caller, b.visible_guilds = false, false, "", false;
+	b.fetched_at, b.ttl_ms, b.decision_len, b.quest, b.shown_at = 0, 0, 0, 0, 0;
+	b.check_at, b.retry_at, b.backoff_ms, b.delay_at = 0, 0, 0, 0;
+	locks.unlock(*b.mu);
 }
 
 // promo_quest_asset: a quest asset ("quests/<id>/<id>.<ext>" on the CDN) loaded as the bar renders
@@ -211,4 +375,96 @@ promo_token_ok :: (s: string) -> bool {
 	if !s || s.count > 64 return false;
 	for cast([]u8) s if !is_alnum(it) && it != #char "-" return false;
 	return true;
+}
+
+// ---- Edit Profiles' collectible previews ----
+// Each empty Nameplate, Avatar Decoration, Profile Effect and Profile Frame field of the profile
+// editor previews Shop items (useCyclingPreview): once the shop's categories load it shuffles
+// the field's items (lodash shuffle, first 25) and preloads the first; it shows one, and
+// preloads the next, only while hovered (not sent). So one random item per empty field loads,
+// in that order (fixture settings, open_profiles). A field's items: the categories' products
+// (variant groups flattened, bundles' items included) of its item type, one per sku; the
+// decorations with an asset. The official lists put the user's purchases first; fastcord
+// leaves them out (they are in the shop too).
+
+SHOP_CDN :: "https://cdn.discordapp.com/media/v1/collectibles-shop/";
+
+// Editor_Held: the fields the profile already fills (the editor's profile answer), by item type.
+Editor_Held :: enum_flags u8 { Decoration; Effect; Nameplate; Frame; }
+
+// editor_preview_items: each item type's items in the categories answer (0 decoration,
+// 1 effect, 2 nameplate, 3 frame).
+editor_preview_items :: (body: V) -> [4][..]etf.Map {
+	out: [4][..]etf.Map;
+	for * out it.allocator = temp;
+	seen: Table(Snowflake, bool);
+	seen.allocator = temp;
+	add :: (items: []V) #expand {
+		for v: items {
+			it := vmap(v);
+			t, sku := fint(it, "type"), fsnow(it, "sku_id");
+			if t < 0 || t > 3 || !sku || `out[t].count >= 5000 continue;
+			if t == 0 && !fstr(it, "asset") continue;
+			if table_find_pointer(*`seen, sku) continue;
+			table_set(*`seen, sku, true);
+			array_add(*`out[t], it);
+		}
+	}
+	for cat: flist(vmap(body), "categories") for p: flist(vmap(cat), "products") {
+		pm := vmap(p);
+		variants := flist(pm, "variants");
+		if fint(pm, "type") == 2000 && variants for variants add(flist(vmap(it), "items"));
+		else add(flist(pm, "items"));
+	}
+	return out;
+}
+
+// editor_preview_urls: what a field preloads for its item (type as above).
+editor_preview_urls :: (item: etf.Map, type: int) -> []string {
+	urls: [..]string;
+	urls.allocator = temp;
+	sku := fsnow(item, "sku_id");
+	if type == {
+		case 0; array_add(*urls, tprint("%1%2/animated", SHOP_CDN, sku)); // the decoration, animated
+		case 2; array_add(*urls, tprint("%1%2/static", SHOP_CDN, sku));
+		case 1;
+			src := fstr(item, "thumbnailPreviewSrc");
+			ok := begins_with(src, SHOP_CDN) && src.count <= SHOP_CDN.count + 128;
+			for cast([]u8) advance(src, min(src.count, SHOP_CDN.count)) if !is_alnum(it) && it != #char "/" ok = false;
+			if ok array_add(*urls, src);
+		case 3; // the frame's layers that are not responsive
+			for flist(item, "layers") {
+				l := vmap(it);
+				id := fsnow(l, "id");
+				if id && !fbool(l, "responsive") && urls.count < 16 array_add(*urls, tprint("%1%2/%3/static", SHOP_CDN, sku, id));
+			}
+	}
+	return urls;
+}
+
+// promo_editor_previews: the editor's categories answered (worker thread).
+promo_editor_previews :: (c: *Client, body: V) {
+	held := cast(Editor_Held) atomic_load(*c.promo.editor_held);
+	lists := editor_preview_items(body);
+	for type: int.[2, 0, 1, 3] {
+		if held & cast(Editor_Held) (1 << type) || !lists[type] continue;
+		pick := lists[type][random_get() % cast(u64) lists[type].count];
+		for editor_preview_urls(pick, type) fetch_media(c, .{url = it, kind = .Image, visible = true, discard = true});
+	}
+}
+
+// promo_editor_held: the editor's profile answered (worker thread): the fields it fills.
+promo_editor_held :: (c: *Client, body: V) {
+	m := vmap(body);
+	user, profile := fmap(m, "user"), fmap(m, "user_profile");
+	h: Editor_Held;
+	if fmap(user, "avatar_decoration_data") h |= .Decoration;
+	if fmap(fmap(user, "collectibles"), "nameplate") h |= .Nameplate;
+	if fmap(profile, "profile_effect") h |= .Effect;
+	for flist(profile, "collectibles") {
+		t := fint(vmap(it), "type");
+		if t == 1 h |= .Effect;
+		if t == 3 h |= .Frame;
+	}
+	atomic_store(*c.promo.editor_held, cast(u8) h);
 }
