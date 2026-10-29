@@ -833,7 +833,12 @@ channel_sidebar :: (gid: dc.Snowflake) {
 					category_row(ch);
 					continue;
 				}
-				if ch.parent_id != 0 && cid != app.view.channel && dc.category_collapsed(s, gid, ch.parent_id) { continue; }
+				// a collapsed category keeps the open channel, unread ones and voice channels with people in them
+				if ch.parent_id != 0 && cid != app.view.channel && dc.category_collapsed(s, gid, ch.parent_id) {
+					shown := dc.channel_unread(s, cid) && !dc.channel_effectively_muted(s, gid, cid, now);
+					if !shown && (ch.kind == .Guild_Voice || ch.kind == .Guild_Stage_Voice) for v: s.voice_states if v.channel_id == cid { shown = true; break; }
+					if !shown continue;
+				}
 				if dc.is_thread(ch) { continue; } // drawn under their parent
 				channel_row(ch, gid);
 				sidebar_thread_rows(ch, gid);

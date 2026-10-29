@@ -479,7 +479,6 @@
 - [ ] Settings sync: `USER_SETTINGS_PROTO_UPDATE` type 2 (favourite GIFs, emoji frecency) is ignored, so other devices' changes need a restart.
 - [ ] Reactions: the controls ignore the ADD_REACTIONS permission; no modals for TOO_MANY_REACTIONS or the burst "Oops!" (`CLIENT_RULES.md`).
 - [ ] Notifications: the server modal lacks channel overrides, Suppress Highlights, Mute New Events and Mobile Push (parsed, sent only to analytics).
-- [ ] Channels: a collapsed category also hides its unread and occupied voice channels; only the selected one stays (`views.jai`).
 - [ ] Profiles: your own full profile has no Edit Profile button; the DM side panel lacks About Me, pronouns, mutual servers and friends, and the note.
 - [ ] Friends: the Pending tab isn't split into Received and Sent.
 - [ ] Bug: jumping to a message (search, pins, reply) can land off target. `jump_apply` estimates unmeasured rows at 26px while rendering uses the measured average, and it stops steering after 8 frames (`view_search.jai`). Also, off-screen row heights aren't invalidated on width change, so scrolling after a resize shifts content.
@@ -798,3 +797,4 @@
 - [x] Composer: without Send Messages (Send Messages in Threads in a thread), or in a locked thread without Manage Threads, the composer shows why in place of its text area, with no buttons; files (the "+" menu, drops, pastes) need Attach Files. An archived thread that isn't locked still takes a message, which reopens it, as on Discord (`composer_blocked`, `can_attach`, `tests/ui/composer_no_send.txt`).
 - [x] Replies: the hover toolbar is declared last in the message row, floating at its top, so it covers a reply's quoted line instead of drawing under it (`tests/ui/forward/reply_toolbar.txt`).
 - [x] Calls: picture-in-picture: in a call with another channel open, the watched stream (else someone's camera) plays in a 320 px player over the app, dragged to the nearest corner, and a click returns to the call (`call_pip`). Not verified on a screenshot: the fixtures have no video. Pop Out into its own window stays with the Call view popout item.
+- [x] Channels: a collapsed category keeps listing the open channel, voice channels with people in them and unread channels that aren't muted (`channel_sidebar`).
