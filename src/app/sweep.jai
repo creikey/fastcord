@@ -182,9 +182,11 @@ app_reset_state :: () {
 	events_reset_for_test();
 	guild_admin_reset_for_test();
 	server_settings_reset_for_test();
-	edit_menu_state = .{};
+	edit_menu_state, plus_menu = .{}, .{};
+	tsg.channel = 0;
 	chat_toolbar, chat_toolbar_prev = .{}, .{};
 	req_reset_for_test();
+	undo_reset_for_test();
 	fnick = .{};
 	attachments_reset_for_test();
 	media_reset_for_test();

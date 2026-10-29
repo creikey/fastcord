@@ -214,6 +214,7 @@ screen thread_menu tests/ui/chat_threads.jsonl channel=1546820603343016006
   wait 30
   rclick 186 300
   wait 10
+# Delete Thread deletes at once behind the Undo toast
 screen thread_delete tests/ui/chat_threads.jsonl channel=1546820603343016006
   wait 30
   rclick 186 300

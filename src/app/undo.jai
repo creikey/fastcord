@@ -84,6 +84,12 @@ undo_frame :: () {
 	}
 }
 
+// Drops every held action unsent (tests starting afresh).
+undo_reset_for_test :: () {
+	for undos undo_free(it);
+	array_reset(*undos);
+}
+
 // The toast for the newest held action: its line and Undo. Ctrl+Z / Cmd+Z that no field took undoes it.
 undo_toast :: () {
 	u: *Undo;

@@ -55,6 +55,10 @@ dead * "gctx/notify/it 'Notification Settings'" hover already opened the notific
 hover * "gctx/notify/it 'Notification Settings'" the notification submenu stays open after the pointer leaves the menu
 dead * "bell/mute/it 'Mute Channel'" hover already opened the duration submenu
 hover * "bell/mute/it 'Mute Channel'" the duration submenu stays open after the pointer leaves the popout
+dead * "tmenu/mute/it 'Mute Thread'" hover already opened the duration submenu
+hover * "tmenu/mute/it 'Mute Thread'" the duration submenu stays open after the pointer leaves the menu
+dead * "tmenu/notify/it 'Notification Settings'" hover already opened the notification submenu
+hover * "tmenu/notify/it 'Notification Settings'" the notification submenu stays open after the pointer leaves the menu
 
 # input-looking boxes that aren't editors
 input * "profile/info/msgrow 'Message @" opens the DM (a network action) like the client; not an editor
