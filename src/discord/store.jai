@@ -39,6 +39,9 @@ Store :: struct {
 	// echoes are skipped: the store already shows the outcome, and an old echo arriving
 	// after a newer click would undo it (on, off, on ended off).
 	reaction_echoes: Table(u64, int);
+	soundboard: [..]Soundboard_Sound; // every guild's sounds and the default ones (soundboard.jai)
+	soundboard_epoch: u64; // bumped when they change
+	effects: [..]Voice_Effect; // sounds others played, for the app (take_voice_effects)
 }
 
 reaction_key :: (message_id: Snowflake, e: Emoji, burst: bool) -> u64 {
@@ -67,6 +70,8 @@ store_init :: (s: *Store, allocator := context.allocator) {
 	s.sessions.allocator = allocator;
 	s.settings.guild_folders.allocator = allocator;
 	s.settings.guild_positions.allocator = allocator;
+	s.soundboard.allocator = allocator;
+	s.effects.allocator = allocator;
 }
 
 // set_str replaces a store string with a copy of v.
@@ -348,6 +353,7 @@ parse_guild_into :: (s: *Store, m: etf.Map) -> Snowflake {
 	}
 	if vhas(m, "emojis") parse_emojis(s, g, flist(m, "emojis"));
 	if vhas(m, "stickers") parse_stickers(s, g, flist(m, "stickers"));
+	if vhas(m, "soundboard_sounds") soundboard_set_guild(s, id, flist(m, "soundboard_sounds")); // self-hosted READY
 	if vhas(m, "channels") {
 		g.channels.count = 0;
 		for flist(m, "channels") {
@@ -1156,6 +1162,7 @@ remove_guild :: (s: *Store, gid: Snowflake) {
 	free_guild(s, g);
 	table_remove(*s.guilds, gid);
 	array_ordered_remove_by_value(*s.guild_order, gid);
+	if gid soundboard_drop_guild(s, gid);
 	gm := table_find_pointer(*s.members, gid);
 	if gm {
 		for * gm.* free_member(s, it);
@@ -1380,7 +1387,7 @@ store_apply_dispatch :: (s: *Store, name: string, data: V, now: s64) -> bool {
 				break;
 			}
 		case;
-			return false;
+			return soundboard_dispatch(s, name, d);
 	}
 	return true;
 }
@@ -1541,6 +1548,7 @@ store_destroy :: (s: *Store) {
 	push_allocator(s.allocator);
 	store_reset_session(s);
 	frecency_free(s);
+	soundboard_free(s);
 	deinit(*s.reaction_echoes);
 	extras_destroy();
 	a := s.allocator;

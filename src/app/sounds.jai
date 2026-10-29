@@ -91,21 +91,26 @@ sound_disabled :: (name: string) -> bool {
 
 // sound_play: SoundUtils.playSound(name, 0.4). Loads on first use.
 sound_play :: (name: string) {
-	if platform.is_headless() || app.client == null || sound_disabled(name) return;
+	if sound_disabled(name) return;
 	hash, ok := sound_asset(pack_name(name));
-	if !ok return;
-	url := tprint("https://discord.com/assets/%.mp3", hash);
+	if ok sound_play_url(tprint("https://discord.com/assets/%.mp3", hash), SOUND_VOLUME);
+}
+
+// sound_play_url: plays an mp3 or ogg file at volume (0..1, before the output volume), loading it on
+// first use; with conn, through that call's mic as well (voice.mix_in).
+sound_play_url :: (url: string, volume: float32, conn: *voice.Conn = null) {
+	if platform.is_headless() || app.client == null || volume <= 0 return;
 	found := table_find_pointer(*snd.sounds, url);
 	if !found {
 		s := New(Sound);
-		s.play_when_ready = true;
+		s.ready_volume, s.ready_conn = volume, conn;
 		table_set(*snd.sounds, copy_string(url), s);
 		dc.fetch_media(media_client(url), dc.Media_Request.{url = url, kind = .Audio, tag = SOUND_TAG});
 		return;
 	}
 	s := found.*;
-	if s.state == .Loading s.play_when_ready = true;
-	else if s.state == .Ready start(s);
+	if s.state == .Loading s.ready_volume, s.ready_conn = volume, conn;
+	else if s.state == .Ready start(s, volume, conn);
 }
 
 // sounds_receive: media results for sound assets (called from images_receive).
@@ -117,10 +122,10 @@ sounds_receive :: (r: *dc.Media_Result) -> bool {
 		s.state = .Failed;
 		return true;
 	}
-	s.pcm = decode_mp3(r.data);
+	s.pcm = media.decode_sound(r.data);
 	s.state = ifx s.pcm.count > 0 then .Ready else .Failed;
-	if s.state == .Ready && s.play_when_ready start(s);
-	s.play_when_ready = false;
+	if s.state == .Ready && s.ready_volume > 0 start(s, s.ready_volume, s.ready_conn);
+	s.ready_volume = 0;
 	return true;
 }
 
@@ -149,6 +154,7 @@ sounds_frame :: () {
 	}
 	voice_members();
 	message_sounds();
+	soundboard_frame();
 }
 
 // app_new_messages: this frame's MESSAGE_CREATEs from others (dc.take_new_messages,
@@ -235,7 +241,8 @@ Sound_State :: enum u8 {
 Sound :: struct {
 	state: Sound_State;
 	pcm: []float32; // stereo 48 kHz
-	play_when_ready: bool;
+	ready_volume: float32; // > 0: play at this volume once loaded
+	ready_conn: *voice.Conn; // and through this call's mic (start checks it is still the call)
 }
 
 Playing :: struct {
@@ -283,34 +290,17 @@ pack_name :: (name: string) -> string {
 	return name;
 }
 
-start :: (s: *Sound) {
+start :: (s: *Sound, volume: float32, conn: *voice.Conn) {
+	if conn && conn == voice_conn() {
+		mono := NewArray(s.pcm.count / 2, float32,, temp);
+		for * mono it.* = (s.pcm[it_index * 2] + s.pcm[it_index * 2 + 1]) * 0.5 * volume;
+		voice.mix_in(conn, mono);
+	}
 	if !audio.init() return;
 	src := audio.source_create();
 	if src == 0 return;
-	audio.source_set_volume(src, SOUND_VOLUME);
+	audio.source_set_volume(src, volume);
 	array_add(*snd.playing, .{source = src, pcm = s.pcm});
-}
-
-decode_mp3 :: (data: []u8) -> []float32 {
-	src := media.source_from_memory(data);
-	d, st := media.demux_open(*src);
-	if d == null || st == .Error return .[];
-	defer media.demux_destroy(d);
-	while media.demux_scan(d) == .Progress {}
-	track := -1;
-	for d.tracks if it.kind == .Audio { track = it_index; break; }
-	if track < 0 return .[];
-	dec, ok := media.audio_decoder_create(*d.tracks[track]);
-	if !ok return .[];
-	defer media.audio_decoder_destroy(dec);
-	out: [..]float32;
-	pkt: [..]u8;
-	pkt.allocator = temp;
-	for d.tracks[track].packets {
-		if media.demux_read(d, it, *pkt) != .Ok break;
-		media.audio_decode(dec, pkt, *out);
-	}
-	return out;
 }
 
 feed :: () {

@@ -207,6 +207,8 @@ Conn :: struct {
     denoiser: *void;            // RNNoise state, made on first use (audio thread)
     agc: Agc;                   // (audio thread)
     input_gain: float32 = 1;    // software input volume (1 = unchanged)
+    mix: [..]float32;           // mono 48 kHz sent after the mic's processing (mix_in; under mu)
+    mix_pos: int;
     input_limiter: audio.Limiter;
     input_db: float32 = -127;   // level of the last mic frame (after gain)
     vad_open: bool;
@@ -315,6 +317,7 @@ voice_disconnect :: (c: *Conn) {
     deinit(*c.settings);
     for c.experiments free(it);
     array_free(c.experiments);
+    array_free(c.mix);
     free(c.external_ip);
     c.codec.encoder_destroy(c.encoder);
     if c.aec fc_aec_destroy(c.aec);
@@ -405,6 +408,16 @@ set_push_to_talk :: (c: *Conn, enabled: bool, pressed: bool, release_delay_ms :=
     c.ptt_mode = enabled;
     if c.ptt_pressed && !pressed c.ptt_until_ms = now_ms() + release_delay_ms;
     c.ptt_pressed = pressed;
+}
+
+MIX_MAX_SAMPLES :: 48000 * 12; // queued at most (a soundboard sound is 5.2 s)
+
+// mix_in: sends mono 48 kHz samples through our mic (the soundboard's "play through my mic"), added after
+// the mic's processing, so they aren't denoised or gated; muted, nothing goes out.
+mix_in :: (c: *Conn, mono: []float32) {
+    locks.guard(*c.mu);
+    if c.mix.count - c.mix_pos + mono.count > MIX_MAX_SAMPLES return;
+    array_add(*c.mix, ..mono);
 }
 
 // set_input_gain: input volume, 0..4 (Settings > Voice > Input Volume).
@@ -1331,6 +1344,17 @@ tx_tick :: (c: *Conn, pcm: []float32) {
         for * pcm it.* *= gain;
         audio.limit(*c.input_limiter, pcm, 1);
     }
+    mixing := false;
+    {
+        locks.guard(*c.mu);
+        if c.mix_pos < c.mix.count {
+            n := min(pcm.count, c.mix.count - c.mix_pos);
+            for 0..n-1 pcm[it] = clamp(pcm[it] + c.mix[c.mix_pos + it], -1, 1);
+            c.mix_pos += n;
+            mixing = true;
+        }
+        if c.mix_pos >= c.mix.count c.mix.count, c.mix_pos = 0, 0;
+    }
     active, db := vad_process(*c.vad, pcm);
     {
         locks.guard(*c.mu);
@@ -1338,6 +1362,7 @@ tx_tick :: (c: *Conn, pcm: []float32) {
         c.vad_open = active;
         if c.ptt_mode active = c.ptt_pressed || now_ms() < c.ptt_until_ms;
     }
+    if mixing active = true;
     if muted active = false;
     c.diag.voiced += xx active;
     frame_ts := c.ts;

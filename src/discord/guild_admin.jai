@@ -701,6 +701,15 @@ image_mime :: (path: string) -> string {
 // {"image":"data:<mime>;base64,..","name":<name>} plus X-Discord-Original-MD5, all in temp.
 // status: 0 ok, -1 unreadable / not an image, -2 over EMOJI_MAX_BYTES.
 file_job_body :: (path: string, name: string, op: Feature_Op) -> string, []http.Header, int {
+	if op == .Sound_Upload {
+		// {<name, volume, emoji fields>,"sound":"data:audio/<type>;base64,.."}; the type by magic bytes
+		data, ok := read_entire_file(path, log_errors = false,, temp);
+		if !ok || !data return "", .[], -1;
+		if data.count > SOUNDBOARD_MAX_BYTES return "", .[], -2;
+		mime := sound_mime(cast([]u8) data);
+		if !mime return "", .[], -1;
+		return tprint("{%,\"sound\":\"data:%;base64,%\"}", name, mime, base64_encode(data,, temp)), .[], 0;
+	}
 	mime := image_mime(path);
 	if !mime return "", .[], -1;
 	data, ok := read_entire_file(path, log_errors = false,, temp);

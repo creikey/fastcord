@@ -1356,6 +1356,7 @@ overlays :: () {
 	invite_accept_overlay(); // view_invites.jai
 	voice_user_menu();
 	screen_picker(); // view_call.jai
+	soundboard_overlay(); // soundboard.jai
 	pins_popout();
 	threads_browser_popout();
 	inbox_popout();

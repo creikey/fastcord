@@ -1,0 +1,13 @@
+# The voice panel's soundboard button opens the picker with the server's sounds; search filters them.
+wait 5
+in_voice 1546820558950371411
+wait 10
+click 338 634
+wait 5
+expect_visible "DINGUS BATTLE"
+expect_visible "vine boom"
+shot
+type boo
+wait 3
+expect_not_visible "bruh"
+expect_visible "vine boom"

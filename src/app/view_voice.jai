@@ -38,8 +38,12 @@ voice_client_gone :: (c: *dc.Client) {
 
 // voice_join_channel: op 4 join (or move) and remember the guild for later op 4s.
 voice_join_channel :: (gid: dc.Snowflake, cid: dc.Snowflake) {
-	if !net_action() { return; }
 	if app.voice_channel == cid && vc.client == app.client { return; }
+	if voice_channel_full(cid) {
+		toast_show("This voice channel is full.", false);
+		return;
+	}
+	if !net_action() { return; }
 	call_on_selected();
 	vc.guild = gid;
 	app.voice_channel = cid;
@@ -199,9 +203,21 @@ voice_frame :: () {
 
 voice_is_speaking :: (uid: dc.Snowflake) -> bool { return table_contains(*vc.speaking, uid); }
 
+// A guild voice channel at its user limit refuses joining, unless we may move members (who can join it
+// anyway, as on Discord). A stage's limit isn't checked.
+voice_channel_full :: (cid: dc.Snowflake) -> bool {
+	s := store();
+	ch := dc.channel_get(s, cid);
+	if !ch || ch.kind != .Guild_Voice || ch.user_limit <= 0 return false;
+	if dc.has_permission(dc.channel_permissions(s, cid), dc.PERM_MOVE_MEMBERS) return false;
+	n := 0;
+	for v, uid: s.voice_states if v.channel_id == cid && uid != s.me n += 1;
+	return n >= ch.user_limit;
+}
+
 voice_panel_height :: () -> float32 {
 	if app.voice_channel == 0 return 0;
-	return cast(float32) VOICE_PANEL_H + (ifx video.SUPPORTED then cast(float32) VOICE_BUTTONS_H else 0);
+	return cast(float32) VOICE_PANEL_H + VOICE_BUTTONS_H;
 }
 
 // Avatar with the green "speaking" ring (inset 2 px green + 1 px surface gap).
@@ -320,12 +336,12 @@ voice_panel :: () {
 		}
 		spacer(.X, 8);
 	}
-	if video.SUPPORTED {
-		can_video := vc.conn != null && voice.state(vc.conn) == .Connected;
-		br := row("vbuttons");
-		br.semantic_size = .[ui.pct(1), ui.px(VOICE_BUTTONS_H)];
-		{ ui.parent(br); defer ui.pop_parent();
-			spacer(.X, 8);
+	can_video := vc.conn != null && voice.state(vc.conn) == .Connected;
+	br := row("vbuttons");
+	br.semantic_size = .[ui.pct(1), ui.px(VOICE_BUTTONS_H)];
+	{ ui.parent(br); defer ui.pop_parent();
+		spacer(.X, 8);
+		if video.SUPPORTED {
 			if voice_panel_button("video", "video", "Video", camera_on(), can_video) camera_toggle();
 			spacer(.X, 8);
 			if voice_panel_button("screen", "screen-stream", "Screen", screen_sharing(), can_video) {
@@ -334,6 +350,20 @@ voice_panel :: () {
 			}
 			spacer(.X, 8);
 		}
+		can_sb := soundboard_available();
+		sbb := row("soundboard", ifx can_sb then ui.Box_Flags.Clickable | .Draw_Background | .Hot_Animation else .Draw_Background);
+		sbb.semantic_size = .[ifx video.SUPPORTED then ui.px(40) else ui.fill(), ui.px(32)];
+		sbb.style.radius = all4(8);
+		sbb.style.bg = ifx sb.open then T("--background-mod-strong") else T("--background-mod-subtle");
+		sbb.style.bg_hot = T("--background-mod-normal");
+		sbb.cross_align = .Center;
+		if ui.signal(sbb).clicked && can_sb soundboard_toggle(sbb.rect);
+		{ ui.parent(sbb); defer ui.pop_parent();
+			filler(.X);
+			icon("i", "music", 18, ifx can_sb then T("--interactive-text-default") else T("--text-muted"));
+			filler(.X);
+		}
+		spacer(.X, 8);
 	}
 	div := ui.box("div", .Draw_Background);
 	div.semantic_size = .[ui.pct(1), ui.px(1)];

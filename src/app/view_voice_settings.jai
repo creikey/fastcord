@@ -13,6 +13,8 @@ Voice_Settings :: struct {
 	auto_sens: bool;
 	threshold_db: float32; // -100..0
 	echo, noise, agc: bool; // Voice Processing
+	soundboard_volume: float32 = 100; // 0..100 %, the sounds others play (soundboard.jai)
+	soundboard_mic: bool; // our sounds go out through the mic instead of Discord's soundboard
 	user_volume: Table(dc.Snowflake, float32); // 0..400 %
 	user_muted: Table(dc.Snowflake, bool);
 	// UI state
@@ -52,6 +54,7 @@ voice_settings_restore :: (p: *Persisted_Voice) {
 	vs.auto_sens = p.auto_sens;
 	vs.threshold_db = clamp(p.threshold_db, -100, 0);
 	vs.echo, vs.noise, vs.agc = p.echo, p.noise, p.agc;
+	vs.soundboard_volume, vs.soundboard_mic = clamp(p.soundboard_volume, 0, 100), p.soundboard_mic;
 	vs.ptt_mode = p.mode == "PUSH_TO_TALK";
 	for enum_names(platform.Key) if it == p.ptt_key vs.ptt_key = cast(platform.Key) enum_values_as_s64(platform.Key)[it_index];
 	vs.ptt_delay_ms = clamp(cast(float32) p.ptt_delay_ms, 0, 2000);
@@ -78,6 +81,7 @@ voice_settings_snapshot :: (p: *Persisted_Voice) {
 	p.auto_sens = vs.auto_sens;
 	p.threshold_db = vs.threshold_db;
 	p.echo, p.noise, p.agc = vs.echo, vs.noise, vs.agc;
+	p.soundboard_volume, p.soundboard_mic = vs.soundboard_volume, vs.soundboard_mic;
 	p.mode = ifx vs.ptt_mode then "PUSH_TO_TALK" else "VOICE_ACTIVITY";
 	p.ptt_key = tprint("%", vs.ptt_key);
 	p.ptt_delay_ms = cast(int) vs.ptt_delay_ms;
@@ -232,6 +236,11 @@ voice_settings_page :: () {
 				toggle_row("noise", "Noise Suppression", "Suppress background noise from your mic.", *vs.noise);
 				spacer(.Y, 8);
 				toggle_row("agc", "Automatic Gain Control", "", *vs.agc);
+				spacer(.Y, 32);
+				section_title("SOUNDBOARD VOLUME");
+				slider("sbvol", *vs.soundboard_volume, 0, 100, 660, percent(vs.soundboard_volume));
+				spacer(.Y, 16);
+				toggle_row("sbmic", "Play Soundboard Through My Mic", "Your sounds go out with your voice, mixed into your microphone, instead of as soundboard sounds.", *vs.soundboard_mic);
 				if video.SUPPORTED {
 					spacer(.Y, 32);
 					camera_test_section();

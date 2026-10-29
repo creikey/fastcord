@@ -655,6 +655,9 @@ client_apply_rest :: (c: *Client, e: *Event) {
 		case .Settings;
 			sp := ifx r.ok then fstr(vmap(e.data), "settings") else "";
 			if r.tag == FRECENCY_SETTINGS_TYPE frecency_apply(c, r.ok, sp);
+			else if r.tag == SOUNDBOARD_FAVORITES_TAG { if sp set_str(s, *s.frecency.proto, sp); }
 			else if sp apply_settings_proto(s, sp);
+		case .Soundboard;
+			if r.ok soundboard_set_guild(s, r.tag, ifx r.tag then flist(vmap(e.data), "items") else vlist(e.data));
 	}
 }

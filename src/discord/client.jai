@@ -71,6 +71,7 @@ Rest_Op :: enum u8 {
 	Settings;
 	Invite; // create_invite_async: channel_id, ok (the code: invite_code_for)
 	Auth; // login page / logout (auth.jai; result.tag = Auth_Action)
+	Soundboard; // a sound list: the default sounds (tag 0) or a guild's (tag = guild id)
 }
 
 Rest_Result :: struct {

@@ -7,6 +7,7 @@
 audio :: #import "audio";
 gfx :: #import "gfx";
 locks :: #import "locks";
+opus :: #import "opus";
 #if OS == .MACOS {
 	CoreFoundation :: #library,system,link_always "CoreFoundation";
 	CoreMedia :: #library,system,link_always "CoreMedia";
@@ -30,3 +31,4 @@ locks :: #import "locks";
 #load "probe.jai";
 #load "simple_formats.jai";
 #load "source.jai";
+#load "sound.jai";

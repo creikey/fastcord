@@ -342,6 +342,9 @@ call_controls :: (cid: dc.Snowflake) {
 		else { video.screen_targets_refresh(); vid.picker_open = true; }
 	}
 	spacer(.X, 8);
+	sbc := control("soundboard", "music", false, sb.open, soundboard_available());
+	if sbc soundboard_toggle(control_rect);
+	spacer(.X, 8);
 	if control("leave", "phone-hang-up", true, false, true) {
 		if app.client != null dc.analytics_call_disconnect(app.client, ifx dc.channel_get(store(), cid) then dc.channel_get(store(), cid).guild_id else 0, cid);
 		voice_leave_channel();
@@ -350,9 +353,11 @@ call_controls :: (cid: dc.Snowflake) {
 }
 
 // A 56x48 control: red when danger (muted / disconnect), white when on.
+control_rect: ui.Rect; // the last control()'s, for a popout it opens
 control :: (id: string, ic: string, danger: bool, on: bool, enabled: bool) -> bool {
 	b := ui.box(id, .Clickable | .Draw_Background | .Hot_Animation);
 	b.semantic_size = .[ui.px(56), ui.px(48)];
+	control_rect = b.rect;
 	b.style.radius = all4(12);
 	bg := T("--background-surface-highest");
 	fg := T("--interactive-icon-hover");

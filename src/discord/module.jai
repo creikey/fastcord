@@ -66,6 +66,7 @@ zstd :: #import "zstd";
 #load "remote_auth.jai";
 #load "rest.jai";
 #load "settings.jai";
+#load "soundboard.jai";
 #load "settings_panes.jai";
 #load "startup.jai";
 #load "stickers.jai";

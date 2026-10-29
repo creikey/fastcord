@@ -24,6 +24,8 @@ Persisted_Voice :: struct {
 	echo: bool;
 	noise: bool;
 	agc: bool;
+	soundboard_volume: float32 = 100;
+	soundboard_mic: bool;
 	mode: string; // "VOICE_ACTIVITY" | "PUSH_TO_TALK"
 	ptt_key: string; // platform.Key name
 	ptt_delay_ms: int;

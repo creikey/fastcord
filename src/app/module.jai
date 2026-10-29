@@ -68,6 +68,7 @@ voice :: #import "voice";
 #load "requests.jai";
 #load "settings_store.jai";
 #load "sounds.jai";
+#load "soundboard.jai";
 #load "stickers.jai";
 #load "sweep.jai";
 #load "video_call.jai";

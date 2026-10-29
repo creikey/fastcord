@@ -1149,7 +1149,7 @@ voice_rtc_changed :: (c: *Client, connected: bool) {
 	c.rtc_connected = connected;
 	if connected && !c.soundboard_loaded {
 		c.soundboard_loaded = true;
-		api_get_later(c, "/soundboard-default-sounds", 0);
+		soundboard_fetch_default(c);
 		if c.gw {
 			b := etf.map_builder(1,, temp);
 			etf.map_put(*b, "guild_ids", snowflake_list(c.store.guild_order));

@@ -543,6 +543,9 @@ Feature_Op :: enum u8 {
 	Guild_Edit;
 	Avatar_Edit;
 	Emoji_Upload;
+	Sound_Upload; // soundboard.jai
+	Sound_Edit;
+	Sound_Delete;
 	Mark_Unread;
 	Pin;
 	Unpin;
