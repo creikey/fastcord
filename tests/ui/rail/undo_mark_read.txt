@@ -10,3 +10,12 @@ shot build/ui-rail_undo_mark_read.png
 click_text "Undo"
 wait 5
 shot build/ui-rail_undo_mark_read_undone.png
+# A DM row's Mark As Read holds its ack behind Undo too.
+click 36 52
+wait 10
+rclick 180 203
+wait 5
+click_text "Mark As Read"
+wait 5
+expect_visible "Marked as read"
+shot build/ui-rail_undo_mark_read_dm.png

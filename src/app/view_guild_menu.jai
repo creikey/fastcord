@@ -1007,7 +1007,9 @@ mark_guild_read :: (gid: dc.Snowflake, source := "Guild List") {
 	if g mark_read_now(app.client, g.channels, source);
 }
 
-mark_read_now :: (c: *dc.Client, ids: []dc.Snowflake, source := "Guild List") {
+// ack_loc >= 0: each channel's own POST .../messages/{id}/ack instead of the bulk one (0 the menus', 1 the
+// Inbox row's ACK_INBOX), as the single-channel Mark As Read items send.
+mark_read_now :: (c: *dc.Client, ids: []dc.Snowflake, source := "Guild List", ack_loc := -1) {
 	s := ifx c then *c.store else store();
 	snap := New([..]dc.Read_State);
 	for cid: ids if dc.channel_unread(s, cid) {
@@ -1023,8 +1025,13 @@ mark_read_now :: (c: *dc.Client, ids: []dc.Snowflake, source := "Guild List") {
 	s.changed += 1;
 	u := undo_push("Marked as read", (u: *Undo) {
 		ids := read_restore(u);
-		if u.client dc.ack_channels(u.client, ids, u.s);
-	}, (u: *Undo) { read_restore(u); }, s = source, p = snap);
+		if !u.client return;
+		if u.n < 0 { dc.ack_channels(u.client, ids, u.s); return; }
+		for ids {
+			ch := dc.channel_get(*u.client.store, it);
+			if ch dc.ack_message(u.client, it, ch.last_message_id, true, ifx u.n == 1 then dc.ACK_INBOX else .{});
+		}
+	}, (u: *Undo) { read_restore(u); }, s = source, p = snap, n = ack_loc);
 	u.client = c;
 }
 
@@ -1100,7 +1107,7 @@ group_dm_menu :: () {
 		spacer(.Y, 8);
 		unread := dc.channel_unread(s, ch.id);
 		if menu_item("read", "Mark As Read", disabled = !unread).clicked {
-			if net_action() dc.ack_message(app.client, ch.id, ch.last_message_id, true);
+			mark_read_now(app.client, .[ch.id], ack_loc = 0);
 			close = true;
 		}
 		menu_sep("s1");
@@ -1348,7 +1355,7 @@ thread_menu :: () {
 		if dc.channel_unread(s, th.id) {
 			sig = menu_item("read", "Mark As Read");
 			if sig.clicked {
-				if net_action() dc.ack_message(app.client, th.id, th.last_message_id, true);
+				mark_read_now(app.client, .[th.id], ack_loc = 0);
 				close = true;
 			} else if sig.hovering hover_any = true;
 			menu_sep("s1");
@@ -1472,10 +1479,7 @@ channel_menu :: () {
 		spacer(.Y, 8);
 		sig = menu_item("read", "Mark As Read", disabled = !unread);
 		if sig.clicked {
-			if net_action() for ids {
-				c := dc.channel_get(s, it);
-				if dc.channel_unread(s, it) dc.ack_message(app.client, it, c.last_message_id, true);
-			}
+			mark_read_now(app.client, ids, ack_loc = 0);
 			close = true;
 		} else if sig.hovering hover_any = true;
 		menu_sep("s1");

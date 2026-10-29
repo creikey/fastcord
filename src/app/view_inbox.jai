@@ -518,9 +518,9 @@ unread_row :: (ch: *dc.Channel) -> clicked: bool {
 			icon("i", "checkmark-small", 20, ifx asig.hovering then T("--interactive-icon-hover") else T("--interactive-icon-default"));
 		}
 		if asig.hovering { tooltip_below("Mark As Read", ack.rect); }
-		if asig.clicked && net_action() {
-			dc.ack_message(app.client, ch.id, ch.last_message_id, true, dc.ACK_INBOX);
-			dc.track_inbox_channel_acked(app.client, ch.id);
+		if asig.clicked {
+			mark_read_now(app.client, .[ch.id], ack_loc = 1);
+			if app.client dc.track_inbox_channel_acked(app.client, ch.id);
 		}
 		spacer(.X, 10);
 	}

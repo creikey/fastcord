@@ -726,7 +726,7 @@ user_context_menu :: () {
 			} else if sig.clicked {
 				if it == {
 				case "Mark As Read";
-					if net_action() dc.ack_message(app.client, dm.id, dm.last_message_id, true);
+					mark_read_now(app.client, .[dm.id], ack_loc = 0);
 				case "Remove From Group";
 					// DELETE /channels/{id}/recipients/{user}; CHANNEL_RECIPIENT_REMOVE follows
 					if net_action() dc.remove_group_recipient(app.client, gdm_ch.id, uid);
