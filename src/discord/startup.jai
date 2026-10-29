@@ -92,7 +92,7 @@ startup_expand :: (c: *Client, path: string) -> string {
 	if contains(out, "{locale}") out = replace(out, "{locale}", identity_platform(*c.id).locale);
 	if contains(out, "{x5m}") out = replace(out, "{x5m}", tprint("%", now_ms() / 300_000 % 12));
 	if contains(out, "{hb}") out = replace(out, "{hb}", identity_heartbeat_snapshot(*c.id).uuid);
-	if contains(out, "{ad}") out = replace(out, "{ad}", c.analytics.ad_session);
+	if contains(out, "{ad}") out = replace(out, "{ad}", ad_session_id(c));
 	if contains(out, "{guild}") out = replace(out, "{guild}", tprint("%", c.start_route_guild));
 	return out;
 }

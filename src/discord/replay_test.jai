@@ -358,7 +358,7 @@ replay_begin :: (run: *Replay_Run, t: *T, scenario: string, guild: Snowflake, ch
 	}
 	identity_touch_heartbeat(*run.c.id, now_ms()); // the launch's heartbeat session (the window had focus)
 	run.c.analytics.roundtrip_sample = 0; // send_message_roundtrip is sampled (10%): never offline
-	run.c.promo.quest_roundtrip_sample = 0; // quest_decision_roundtrip too
+	run.c.promo.quest_roundtrip_sample, run.c.promo.render_delay_sample = 0, 0; // quest_decision_roundtrip, quest_bar_render_delay too
 	identity_set_app_state(*run.c.id, .Unfocused);
 	client_start(run.c);
 	if launch return true;
@@ -833,15 +833,15 @@ r_type :: (c: *Client, channel: Snowflake, text: string) {
 // Telemetry fastcord never sends (traffic/PARITY.md "Telemetry", analytics_never):
 // every window allows these (replay_check). No fake engagement with sponsored content
 // (AGENTS.md): quest_hover / quest_hover_off (the capture driver's mouse path crossing the
-// quests entry point), and a served quest's quest_decision_received and quest bar render
-// (quest_bar_mode_changed, with the ad's ids).
-R_SCI_NEVER :: string.["science:quest_hover", "science:quest_decision_received", "science:quest_bar_mode_changed"];
+// quests entry point).
+R_SCI_NEVER :: string.["science:quest_hover"];
 
-// r_ad_heartbeat_due: client_ad_heartbeat fires now. account_edits has one in username_typing and one
-// 21.6 s later in username_taken_check, so its trigger is not only the 5-minute timer (TODO.md).
-r_ad_heartbeat_due :: (run: *Replay_Run) {
-	run.c.focused = true;
-	run.c.analytics.next_ad_hb = now_ms();
+// r_refocus: the capture's window lost focus and got it back (the capture driver), which
+// restarts AdSessionStore's heartbeat: account_edits has one in username_typing and one 21.6 s
+// later in username_taken_check.
+r_refocus :: (run: *Replay_Run) {
+	client_set_focused(run.c, false);
+	client_set_focused(run.c, true);
 }
 
 // The FrecencyUserSettingsManager's startup run (READY + 10 ms-10 s, one random draw per
@@ -1606,6 +1606,41 @@ parity_upload_custom_emoji :: (t: *T) {
 	// science: the capture used server settings' Emoji Studio modal (open_modal,
 	// impression, emoji_studio_ended); fastcord uploads from the picker without it
 	replay_check(*run, "upload_emoji", string.["GET discord.com/api/v9/guilds/{id}/emojis", "science:open_modal", "science:impression_modal_root_legacy", "science:emoji_studio_ended"]);
+}
+
+// The launch's /quests/decision serves a quest (upload_custom_emoji, setup): quest_decision_received,
+// then the unshown quest bar's collapsed render (its logotype, quest_bar_mode_changed with the
+// decision's ad ids, its hero art). Only that is compared: the rest of the window is the launch.
+parity_quest_decision :: (t: *T) {
+	run: Replay_Run;
+	if !replay_begin(*run, t, "upload_custom_emoji", R_GUILD, R_TEXT) { return; }
+	allow: [..]string;
+	allow.allocator = temp;
+	for e: replay_window(*run.r, "setup") {
+		k, url := fstr(e, "k"), fstr(e, "url");
+		if k == "ws_send" array_add(*allow, tprint("op %", fnum(e, "op")));
+		if k != "req" continue;
+		if !r_is_science(url) {
+			if !contains(url, "/quests/decision") && !contains(url, "cdn.discordapp.com/quests/") array_add(*allow, r_key(fstr(e, "method"), url));
+			continue;
+		}
+		bv, _ := r_body_value(vget(e, "body"));
+		for ev: flist(vmap(bv), "events") {
+			type := fstr(vmap(ev), "type");
+			if !begins_with(type, "quest_") array_add(*allow, tprint("science:%", type));
+		}
+	}
+	replay_mark(*run);
+	for e: STARTUP_REQUESTS if begins_with(e.path, "/quests/decision?") { // the launch's request
+		j := job_new(.Api, .Startup);
+		j.method = "GET";
+		j.path = job_str(j, startup_expand(run.c, e.path));
+		j.context_b64 = job_str(j, context_b64(e.ctx_json));
+		job_submit(run.c, j);
+	}
+	replay_pump(*run, 700);
+	replay_settle(*run, 300);
+	replay_check(*run, "setup", allow);
 }
 
 // ---- telemetry of navigation and small UI events (science only: the request
@@ -3012,7 +3047,7 @@ parity_username_typing :: (t: *T) {
 	}
 	replay_pump(*run, 1200);
 	expect_value(t, username_check(run.c, "dingusbattle2").state, Username_Check_State.Available);
-	r_ad_heartbeat_due(*run); // the ad heartbeat the capture sent in this window
+	r_refocus(*run); // the window regained focus: the ad heartbeat the capture sent here
 	replay_settle(*run, 300);
 	// metrics/v2: the web client's performance metrics batch (wasm asset loads...)
 	replay_check(*run, "username_typing", string.["metrics/v2"]);
@@ -3054,7 +3089,7 @@ parity_username_taken_check :: (t: *T) {
 	username_input_changed(run.c, "dingusbattle3");
 	replay_pump(*run, 1300);
 	expect_value(t, username_check(run.c, "dingusbattle3").state, Username_Check_State.Available);
-	r_ad_heartbeat_due(*run); // the ad heartbeat the capture sent in this window
+	r_refocus(*run); // the window regained focus: the ad heartbeat the capture sent here
 	replay_settle(*run, 300);
 	replay_check(*run, "username_taken_check");
 }

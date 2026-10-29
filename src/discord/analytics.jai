@@ -495,20 +495,18 @@ analytics_tick :: (c: *Client, now: s64) {
 	analytics_ad_heartbeat(c, now);
 }
 
-// client_ad_heartbeat (AdSessionStore): every 5 min while focused, from CONNECTION_OPEN; at a
-// launch first at the app's takeover, focused or not (force).
+// client_ad_heartbeat (AdSessionStore): from CONNECTION_OPEN, at once and every 5 min while
+// focused. Losing focus stops it (client_set_focused zeroes next_ad_hb), so every return to the
+// window sends one at once and restarts the 5 minutes (fixture account_edits: 44.8 s, 21.6 s). At
+// a launch the first goes at the app's takeover, focused or not (force).
 analytics_ad_heartbeat :: (c: *Client, now: s64, force := false) {
 	a := *c.analytics;
 	if force || (c.focused && now >= a.next_ad_hb) {
 		a.next_ad_hb = now + AD_HEARTBEAT_INTERVAL_MS;
-		if a.ad_session == "" || now - a.ad_created > 12 * 3600 * 1000 {
-			free(a.ad_session,, a.allocator);
-			a.ad_session = uuid4(,, a.allocator);
-			a.ad_created = now;
-		}
+		id, created := ad_session_id(c);
 		w := aw_begin();
-		json_kstr(*w, "client_ad_session_id", a.ad_session);
-		json_kint(*w, "client_heartbeat_initialization_timestamp", a.ad_created);
+		json_kstr(*w, "client_ad_session_id", id);
+		json_kint(*w, "client_heartbeat_initialization_timestamp", created);
 		json_kint(*w, "client_heartbeat_version", 3);
 		aw_track(c, "client_ad_heartbeat", *w);
 	}
@@ -644,10 +642,10 @@ client_set_accessibility :: (c: *Client, flags: u64) {
 // promotion surfaces track as they render though nothing is drawn
 // (analytics_events_promo.jai), so what is left out here is engagement with sponsored
 // content, never faked (AGENTS.md), or needs UI fastcord does not have (traffic/PARITY.md "Telemetry"):
-//   quest_hover, quest_hover_off          hovering the quests entry point
-//   quest_decision_received, quest_bar_mode_changed
-//                                         a served quest's receipt and its quest bar rendering (ad ids)
+//   quest_hover, quest_hover_off          hovering the quests entry point or bar
+//   quest_content_loaded, quest_content_viewed, quest_content_view_time
+//                                         the quest bar's viewability impressions (billed ad views)
 //   emoji_studio_ended, open_modal "Emoji Studio", voice_invite_suggestions_entrypoint_closed,
 //   impression_voice_invite_suggestions_popover
 //                                         UI fastcord does not have
-analytics_never :: string.["quest_hover", "quest_hover_off", "quest_decision_received", "quest_bar_mode_changed", "emoji_studio_ended", "voice_invite_suggestions_entrypoint_closed", "impression_voice_invite_suggestions_popover"];
+analytics_never :: string.["quest_hover", "quest_hover_off", "quest_content_loaded", "quest_content_viewed", "quest_content_view_time", "emoji_studio_ended", "voice_invite_suggestions_entrypoint_closed", "impression_voice_invite_suggestions_popover"];
