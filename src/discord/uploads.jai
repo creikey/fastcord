@@ -266,7 +266,7 @@ run_draft_send :: (c: *Client, j: *Job) -> bool {
 	// a failed send keeps its uploaded files for Retry (the app releases them once the message is gone)
 	if r.ok for atts upload_draft_release(c, it.handle);
 	j.result.op = .Send_Message;
-	push_result(c, j, r);
+	push_result(c, j, r, body);
 	return false;
 }
 

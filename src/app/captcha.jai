@@ -1,5 +1,5 @@
-// The captcha modal ("Wait! Are you human?") for the login page: when Discord answers a login, MFA,
-// forgot-password or QR ticket request with a captcha (dc.Captcha_Required), its challenge opens in a
+// The captcha modal ("Wait! Are you human?"): when Discord answers a login, MFA, forgot-password or QR
+// ticket request (dc.Captcha_Required), or a message send (dc.send_captcha_take), with a captcha, its challenge opens in a
 // small window with the system's web view (platform webview), loaded only then. The page is shown as
 // https://discord.com/captcha, the official modal's origin, since the captcha's sitekey is Discord's,
 // and loads the provider's widget as the client's captcha component does (rqdata through setData, the
@@ -13,18 +13,36 @@ Captcha_Outcome :: enum u8 {
 	Unavailable; // no web view: captcha_unavailable_message says what to do
 }
 
-// captcha_show opens Discord's challenge (dc.Captcha_Required).
-captcha_show :: (ch: dc.Captcha) {
+// captcha_show opens Discord's challenge (dc.Captcha_Required, or a send's: for_send).
+captcha_show :: (ch: dc.Captcha, for_send := false) {
 	captcha_end();
 	cap.on = true;
+	cap.for_send = for_send;
 	cap.ch = dc.captcha_copy(ch, context.allocator);
 	platform.webview_open(L("Wait! Are you human?"), captcha_page(ch), CAPTCHA_URL, 440, 640);
 }
 
-// captcha_poll (each frame while the login page shows): what became of the captcha, and the token
-// (Solved) or what to install (Unavailable).
+// captcha_poll (each frame while logged in or on the login page): what became of the login's captcha, and
+// the token (Solved) or what to install (Unavailable). A send's is settled here and returns None; one that
+// can't be shown fails the send with a toast.
 captcha_poll :: () -> Captcha_Outcome, string {
+	if app.client && !cap.on {
+		ch, ok := dc.send_captcha_take(app.client);
+		if ok captcha_show(ch, for_send = true);
+	}
 	if !cap.on return .None, "";
+	for_send := cap.for_send;
+	outcome, text := captcha_take();
+	if !for_send return outcome, text;
+	if outcome == .Unavailable {
+		log_error("send: Discord asked for a captcha that couldn't be shown (%)", text);
+		toast_show(captcha_unavailable_message(text), false);
+	}
+	return .None, "";
+}
+
+// captcha_take: the web view's messages; the token or a cancel goes to whichever request asked.
+captcha_take :: () -> Captcha_Outcome, string {
 	for platform.webview_take() {
 		if it.kind == {
 		case .Closed;
@@ -38,8 +56,10 @@ captcha_poll :: () -> Captcha_Outcome, string {
 			case "event";
 				if app.client && array_find(CAPTCHA_EVENTS, rest) dc.analytics_captcha_event(app.client, cap.ch, rest);
 			case "token";
+				for_send := cap.for_send;
 				captcha_end();
-				if app.client dc.auth_captcha_answer(app.client, rest);
+				if app.client && for_send dc.send_captcha_answer(app.client, rest);
+				else if app.client dc.auth_captcha_answer(app.client, rest);
 				return .Solved, rest;
 			case "cancel";
 				return captcha_cancel(), "";
@@ -95,6 +115,7 @@ captcha_page :: (ch: dc.Captcha) -> string {
 
 cap: struct {
 	on: bool;
+	for_send: bool; // a message send's (dc.send_captcha_*), not the login's
 	ch: dc.Captcha;
 };
 
@@ -104,8 +125,10 @@ CAPTCHA_URL :: "https://discord.com/captcha";
 CAPTCHA_EVENTS :: string.["open", "close", "verify", "error", "chal-expire", "render"];
 
 captcha_cancel :: () -> Captcha_Outcome {
+	for_send := cap.for_send;
 	captcha_end();
-	if app.client dc.auth_captcha_cancel(app.client);
+	if app.client && for_send dc.send_captcha_cancel(app.client);
+	else if app.client dc.auth_captcha_cancel(app.client);
 	return .Cancelled;
 }
 

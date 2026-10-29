@@ -1,0 +1,33 @@
+# An encrypted edit too long to replace its message's text goes as a hidden message of its own, which the
+# message it names takes: the message shows the long text, and nothing else appears.
+wait 5
+serve_join
+serve_member Bob bundle
+settle 3
+click 36 157
+settle 3
+click 1089 244
+settle 2
+click_text "Message @Bob"
+settle 3
+expect_visible "You accepted encryption."
+type short
+key enter
+settle 2
+expect_visible "short"
+key up
+wait 5
+shot build/ui-hosted_dm_long_edit-editing.png
+key a cmd
+type long edit start word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word end
+key enter
+settle 3
+shot build/ui-hosted_dm_long_edit.png
+expect_not_visible "That's too long to send encrypted."
+expect_not_visible "Encrypted message"
+scroll 0 3000
+settle 1
+expect_visible "You accepted encryption."
+expect_not_visible "short"
+shot build/ui-hosted_dm_long_edit-top.png
+expect_served

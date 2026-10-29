@@ -257,13 +257,20 @@ client_nap :: (c: *Client, ms: s64) -> bool {
 	return !c.quit;
 }
 
-push_result :: (c: *Client, j: *Job, r: Api_Response) {
+// sent: the request's body when it isn't j.body (an upload's final send).
+push_result :: (c: *Client, j: *Job, r: Api_Response, sent: []u8 = .[]) {
 	res := j.result;
 	res.ok = r.ok;
 	res.status = r.status;
 	res.error_code, res.captcha = api_error(r);
 	if r.body.kind == .Map && res.id == 0 res.id = fsnow(r.body.map, "id");
-	client_push_event(c, .{kind = .Rest, data = r.body, arena = r.arena, result = res});
+	e := Event.{kind = .Rest, data = r.body, arena = r.arena, result = res};
+	if res.captcha && res.op == .Send_Message && r.arena {
+		a := pool_allocator(r.arena);
+		e.sent_body = copy_string(cast(string) ifx sent then sent else j.body,, a);
+		e.sent_context = copy_string(j.context_b64,, a);
+	}
+	client_push_event(c, e);
 }
 
 // cache_control_headers: fetch(cache:'no-cache') with the remembered If-None-Match (temp).
@@ -548,7 +555,7 @@ run_upload :: (c: *Client, j: *Job) {
 	body := j.message_json(j, json_string(*w));
 	r := api_call(c, "POST", j.path, body, "application/json", j.context_b64, .[], 3, 1);
 	j.result.op = .Send_Message;
-	push_result(c, j, r);
+	push_result(c, j, r, body);
 }
 
 // split_url: "https://host/path" -> host, path. The host must be a bare name, so a URL from a server can't
@@ -585,6 +592,31 @@ upload_put :: (c: *Client, url: string, data: []u8, sent: *s64 = null) -> bool {
 }
 
 // ---- applying results on the UI thread ----
+
+// send_failed marks our pending copy of a send red ("Message failed to send.").
+send_failed :: (s: *Store, channel_id: Snowflake, nonce: Snowflake) {
+	l := table_find_pointer(*s.messages, channel_id);
+	if !l return;
+	n := snowflake_string(nonce);
+	for * l.messages if it.pending && it.nonce == n {
+		it.failed = true;
+		it.pending = false;
+	}
+}
+
+// send_failure_log: why Discord refused a send, for fastcord.log (the status and its JSON answer, capped).
+send_failure_log :: (r: Rest_Result, body: V) {
+	if r.status == 0 {
+		log_error("send: message to channel % failed: no answer (network, or a file didn't upload)", r.channel_id);
+		return;
+	}
+	sb: String_Builder;
+	sb.allocator = temp;
+	etf.to_json(body, *sb);
+	text := builder_to_string(*sb,, temp);
+	if text.count > 400 text = tprint("%...", slice(text, 0, 400));
+	log_error("send: message to channel % failed: HTTP % code % %", r.channel_id, r.status, r.error_code, text);
+}
 
 client_apply_rest :: (c: *Client, e: *Event) {
 	s := *c.store;
@@ -646,16 +678,10 @@ client_apply_rest :: (c: *Client, e: *Event) {
 			if r.ok {
 				upsert_message(s, vmap(e.data));
 			} else {
-				l := table_find_pointer(*s.messages, r.channel_id);
-				if l {
-					nonce := snowflake_string(r.nonce);
-					for * l.messages {
-						if it.pending && it.nonce == nonce {
-							it.failed = true;
-							it.pending = false;
-						}
-					}
-				}
+				send_failure_log(r.*, e.data);
+				// a captcha keeps it pending, its result untagged: the retry's result completes the request
+				if send_captcha_keep(c, e) r.tag = 0;
+				else send_failed(s, r.channel_id, r.nonce);
 			}
 		case .Add_Reaction; #through;
 		case .Remove_Reaction;

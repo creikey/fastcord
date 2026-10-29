@@ -550,7 +550,7 @@ contents :: (a: *Client, b: *Client) {
 	edit := post(a, b, .Edit, "final", target = orig_at);
 	check(edit.result == .Ok, "editing our message");
 	moved := receive(b, edit.packet, a);
-	check(moved.result == .Undecryptable, "an edit moved onto another delivery doesn't open");
+	check(moved.result == .Ok && moved.content == .Edit && moved.target == orig_at, "an edit moved onto another delivery changes only the message it names");
 	edit = post(a, b, .Edit, "final", target = orig_at);
 	r = land(a, b, edit, orig_at);
 	check(r.result == .Ok && r.content == .Edit && r.target == orig_at && r.out_text == "final", "the edit opens in place");
@@ -575,6 +575,65 @@ contents :: (a: *Client, b: *Client) {
 	r = land(b, a, post(b, a, .Unreact, "+1", target = orig_at));
 	check(r.result == .Ok && r.content == .Unreact, "and taking it back");
 	check(post(b, a, .React, "", target = orig_at).result == .Failed && post(b, a, .React, "x").result == .Failed, "a reaction needs an emoji and a target");
+
+	// An Edit too long for its target's place goes as a delivery of its own, which changes only its target.
+	detach :: (c: *Client, peer: *Client, target: string, text: string) -> *e2e.Request {
+		r := e2e.request(.Send, .{CARRIER, CONV, c.party, peer.party, limit}, text);
+		r.me, r.content, r.target, r.in_place = c.me, e2e.Content.Edit, copy_string(target), 200;
+		e2e.submit(c.d, r);
+		wait(r);
+		return r;
+	}
+	// deliver: the echo and the peer's copy, as the carrier orders them.
+	deliver :: (from: *Client, to: *Client, s: *e2e.Request, order: s64) -> *e2e.Request {
+		at := copy_string(delivery());
+		fx_receive(from, from, to, CONV, at, s.packet, order);
+		return fx_receive(to, from, from, CONV, at, s.packet, order);
+	}
+	t := post(a, b, .Text, "short");
+	t_at := copy_string(delivery());
+	land(a, b, t, t_at);
+	long := repeat("long ", 100);
+	de := detach(a, b, t_at, long);
+	check(de.result == .Ok && de.detached && de.packet.count > 200, "a long edit is detached");
+	posted := false;
+	for ask(a, .Outbox).outbox if it.packet == de.packet posted = !it.replaces && it.silent;
+	check(posted, "the outbox posts it as a new, silent message");
+	ask(a, .Sent, de.packet);
+	r = deliver(a, b, de, 10);
+	check(r.result == .Ok && r.content == .Edit && r.target == t_at && r.out_text == long, "a detached edit names its target");
+	for c: (*Client).[a, b] {
+		r = fx_receive(c, a, ifx c == a then b else a, CONV, t_at, t.packet);
+		check(r.result == .Ok && r.out_text == long, "its target, refetched, opens as edited");
+	}
+	found = ask(b, .Search, peer = a, text = "long");
+	check(found.hits.count == 1 && found.hits[0].delivery == t_at, "search finds the edit at its target, once");
+	short := detach(a, b, t_at, "short again");
+	check(short.result == .Ok && short.detached, "after one detached edit, every edit of that message is");
+	ask(a, .Sent, short.packet);
+	newer := detach(a, b, t_at, "newest");
+	ask(a, .Sent, newer.packet);
+	deliver(a, b, newer, 30);
+	deliver(a, b, short, 20);
+	r = fx_receive(b, a, a, CONV, t_at, t.packet);
+	check(r.out_text == "newest", "the carrier's latest detached edit wins, whatever order they arrive in");
+	// A detached edit can arrive before its target: the target then opens as edited.
+	t2 := post(a, b, .Text, "first version");
+	t2_at := copy_string(delivery());
+	fx_receive(a, a, b, CONV, t2_at, t2.packet);
+	early_edit := detach(a, b, t2_at, "second version");
+	ask(a, .Sent, early_edit.packet);
+	deliver(a, b, early_edit, 40);
+	r = fx_receive(b, a, a, CONV, t2_at, t2.packet);
+	check(r.result == .Ok && r.out_text == "second version", "a target arriving after its detached edit opens as edited");
+	// A delete takes the detached edits' text with it.
+	del2 := post(a, b, .Delete, target = t_at);
+	land(a, b, del2, t_at);
+	found = ask(b, .Search, peer = a, text = "newest");
+	check(found.hits.count == 0, "a deleted message's detached edits aren't found");
+	check(count(b.d, "SELECT count(*) FROM plaintexts WHERE target IS NOT NULL;") >= 3, "they keep their rows");
+	r = deliver(a, b, newer, 30);
+	check(r.result == .Repeated, "a detached edit replayed as another delivery");
 
 	// The outbox keeps an Edit's target and @silent for a resend after a crash.
 	again := post(a, b, .Text, "to edit");
@@ -770,9 +829,9 @@ fx_send :: (c: *Client, id: string, peer: *Client, text := "", content := e2e.Co
 	return r;
 }
 
-fx_receive :: (to: *Client, from: *Client, peer: *Client, id: string, at: string, packet: string) -> *e2e.Request {
+fx_receive :: (to: *Client, from: *Client, peer: *Client, id: string, at: string, packet: string, order: s64 = 0) -> *e2e.Request {
 	r := e2e.request(.Receive, .{CARRIER, id, to.party, peer.party, limit}, packet = packet);
-	r.me, r.from, r.delivery = to.me, copy_string(from.party), copy_string(at);
+	r.me, r.from, r.delivery, r.order = to.me, copy_string(from.party), copy_string(at), order;
 	e2e.submit(to.d, r);
 	wait(r);
 	return r;
