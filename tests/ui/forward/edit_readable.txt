@@ -4,4 +4,4 @@ wait 10
 click 600 684
 key up
 wait 5
-expect_input "filler message 22 <t:1793030400:R> <t:1793030400:T> <t:1793030400:D> <t:1793030400:F> @dingus"
+expect_input "filler message 22 <t:1793030400:R> <t:1793030400:T> <t:1793030400:D> <t:1793030400:F> @dingus #dingus-battle"

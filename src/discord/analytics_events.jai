@@ -483,9 +483,9 @@ aw_autocomplete_head :: (w: *Json, c: *Client, channel_id: Snowflake, kind := "E
 }
 
 // The "@" popup (fixture inbox): no result counts of its own, the emoji ones are 0.
-autocomplete_mentions_open :: (c: *Client, channel_id: Snowflake) {
+autocomplete_mentions_open :: (c: *Client, channel_id: Snowflake, kind := "MENTIONS") {
 	w := aw_begin();
-	aw_autocomplete_head(*w, c, channel_id, "MENTIONS");
+	aw_autocomplete_head(*w, c, channel_id, kind);
 	json_kint(*w, "num_emoji_results", 0);
 	json_kint(*w, "num_locked_emoji_results", 0);
 	json_kint(*w, "num_sticker_results", 0);
@@ -493,10 +493,10 @@ autocomplete_mentions_open :: (c: *Client, channel_id: Snowflake) {
 	aw_track(c, "channel_autocomplete_open", *w);
 }
 
-autocomplete_mention_selected :: (c: *Client, channel_id: Snowflake) {
+autocomplete_mention_selected :: (c: *Client, channel_id: Snowflake, kind := "MENTIONS", selection := "MENTION") {
 	w := aw_begin();
-	aw_autocomplete_head(*w, c, channel_id, "MENTIONS");
-	json_kstr(*w, "selection_type", "MENTION");
+	aw_autocomplete_head(*w, c, channel_id, kind);
+	json_kstr(*w, "selection_type", selection);
 	json_kint(*w, "num_emoji_results", 0);
 	json_kint(*w, "num_sticker_results", 0);
 	json_kstr(*w, "emoji_name", "");

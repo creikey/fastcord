@@ -1,0 +1,14 @@
+# "#" in the composer lists the server's channels; typing narrows it, Enter inserts "#name " (sent as
+# <#id>, which the edit box shows as "#name" again: forward/edit_readable.txt).
+wait 5
+click 600 683
+type #ding
+wait 2
+expect_visible "Channels matching #ding"
+key enter
+type hi
+expect_input "#dingus-battle hi"
+key a cmd
+type #gen
+key tab
+expect_input "#General "

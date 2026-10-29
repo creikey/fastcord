@@ -4,7 +4,8 @@
 // @here (with Mention Everyone) and the mentionable roles. Up/Down move, Tab/Enter/click
 // insert "@username " or "@Role ", Escape hides it until the query changes. On send,
 // mentions_convert turns those back into <@id> / <@&id>. See traffic/CLIENT_RULES.md
-// "Composer mentions".
+// "Composer mentions". "#" at the start of a word lists the server's channels the same way, inserting
+// "#name", sent as <#id>.
 
 MAC_MAX :: 10; // rows, shared by members, @everyone / @here and roles
 MAC_SEARCH_MS :: 200; // op 8 debounce (trailing)
@@ -15,7 +16,7 @@ MAC_SEP_H :: 17;
 MAC_PAD :: 8;
 MAC_GAP :: 8;
 
-Mention_Kind :: enum u8 { User; Everyone; Here; Role; }
+Mention_Kind :: enum u8 { User; Everyone; Here; Role; Channel; }
 
 Mention_Item :: struct {
 	kind: Mention_Kind;
@@ -40,19 +41,42 @@ Mention_Autocomplete :: struct {
 
 mac: Mention_Autocomplete;
 
-// The "@query" word ending at the caret: byte of its '@' and the query.
+// The "@query" or "#query" word ending at the caret: byte of its '@' / '#' and the query.
 mention_ac_query :: (text: string, caret: int) -> at: int, q: string, ok: bool {
 	if caret <= 0 || caret > text.count return 0, "", false;
 	i := caret;
 	while i > 0 {
 		c := text[i - 1];
-		if c == #char "@" || is_space(c) break;
+		if c == #char "@" || c == #char "#" || is_space(c) break;
 		i -= 1;
 	}
-	if i == 0 || text[i - 1] != #char "@" return 0, "", false;
+	if i == 0 || (text[i - 1] != #char "@" && text[i - 1] != #char "#") return 0, "", false;
 	at := i - 1;
 	if at > 0 && !is_space(text[at - 1]) return 0, "", false;
 	return at, string.{caret - i, text.data + i}, true;
+}
+
+// "#q": ch's server channels you can see, not categories or threads, in sidebar order, names
+// starting with q first, then containing it (temp).
+channel_items :: (ch: *dc.Channel, q: string) -> []Mention_Item {
+	s := store();
+	out: [..]Mention_Item;
+	out.allocator = temp;
+	if !ch.guild_id return out;
+	lq := to_lower_copy(q,, temp);
+	ids := dc.guild_channels_sorted(s, ch.guild_id);
+	for pass: 0..1 for id: ids {
+		if out.count == MAC_MAX break;
+		c := dc.channel_get(s, id);
+		if !c || c.kind == .Guild_Category || !dc.has_permission(dc.channel_permissions(s, id), dc.PERM_VIEW_CHANNEL) continue;
+		name := to_lower_copy(c.name,, temp);
+		at := find_index_from_left(name, lq);
+		if lq != "" && (at < 0 || (at == 0) != (pass == 0)) continue;
+		if lq == "" && pass == 1 continue;
+		parent := dc.channel_get(s, c.parent_id);
+		array_add(*out, .{kind = .Channel, id = id, name = c.name, right = ifx parent then parent.name else "", insert = tprint("#%", c.name)});
+	}
+	return out;
 }
 
 // mention_items: what "@q" offers in ch (temp), at most MAC_MAX rows.
@@ -133,13 +157,14 @@ mention_autocomplete :: (ch: *dc.Channel, ed: *ui.Editor, focused: bool) {
 		mac.sel = 0;
 		mac.search_at = platform.time_now();
 	}
-	member_search(ch, q);
+	channels := ui.editor_text(ed)[at] == #char "#";
+	if !channels member_search(ch, q);
 	if mac.hidden && mac.dismissed == q return;
 	mac.hidden = false;
-	items := mention_items(ch, q);
+	items := ifx channels then channel_items(ch, q) else mention_items(ch, q);
 	if !items return;
 	shown = true;
-	if !mac.visible && app.client != null dc.autocomplete_mentions_open(app.client, ch.id);
+	if !mac.visible && app.client != null dc.autocomplete_mentions_open(app.client, ch.id, ifx channels then "CHANNELS" else "MENTIONS");
 	mac.visible = true;
 	mac.sel = clamp(mac.sel, 0, items.count - 1);
 	pick := -1;
@@ -160,8 +185,8 @@ mention_autocomplete :: (ch: *dc.Channel, ed: *ui.Editor, focused: bool) {
 	}
 
 	users := 0;
-	for items if it.kind == .User users += 1;
-	header := ifx q == "" then "Members" else tprint("Members matching @%", q);
+	for items if it.kind == .User || it.kind == .Channel users += 1;
+	header := ifx channels then (ifx q == "" then "Channels" else tprint("Channels matching #%", q)) else (ifx q == "" then "Members" else tprint("Members matching @%", q));
 	sep := users > 0 && users < items.count;
 	h := cast(float32) (MAC_PAD + MAC_ROW_H * items.count + MAC_PAD + (ifx users > 0 then MAC_HEADER_H else 0) + (ifx sep then MAC_SEP_H else 0));
 	pop := ui.box("mention_ac", .Floating_X | .Floating_Y | .Overlay | .Draw_Background | .Draw_Border | .Draw_Shadow | .Clickable);
@@ -215,6 +240,9 @@ mention_autocomplete :: (ch: *dc.Channel, ed: *ui.Editor, focused: bool) {
 					if item.kind == .User {
 						avatar_with_status("av", item.id, 24, ifx i == mac.sel then T("--background-mod-normal") else T("--background-surface-higher"));
 						spacer(.X, 12);
+					} else if item.kind == .Channel {
+						icon("ic", channel_icon_name(dc.channel_get(store(), item.id)), 20, T("--channel-icon"));
+						spacer(.X, 8);
 					}
 					// the name keeps its width up to half the row; the right column gets the rest
 					row_w := r.rect.x1 - r.rect.x0;
@@ -223,7 +251,7 @@ mention_autocomplete :: (ch: *dc.Channel, ed: *ui.Editor, focused: bool) {
 					label(name, .Medium, 16, color, 20);
 					filler(.X);
 					spacer(.X, 16);
-					left := ui.layout_text(F(.Medium), 16, name, -1).width + ifx item.kind == .User then 36.0 else 0.0;
+					left := ui.layout_text(F(.Medium), 16, name, -1).width + ifx item.kind == .User then 36.0 else ifx item.kind == .Channel then 28.0 else 0.0;
 					label(ellipsize(item.right, .Normal, 14, max(row_w - left - 64, 40)), .Normal, 14, T("--text-muted"), 18);
 					spacer(.X, 8);
 				}
@@ -234,14 +262,14 @@ mention_autocomplete :: (ch: *dc.Channel, ed: *ui.Editor, focused: bool) {
 	if pick < 0 return;
 	ed.mark = at;
 	ui.editor_insert(ed, tprint("% ", items[pick].insert), .Other);
-	if app.client != null dc.autocomplete_mention_selected(app.client, ch.id);
+	if app.client != null dc.autocomplete_mention_selected(app.client, ch.id, ifx channels then "CHANNELS" else "MENTIONS", ifx channels then "CHANNEL" else "MENTION");
 	mac.visible = false;
 }
 
 // mentions_convert: the sent text with "@username" (a member of ch, or a recipient) as
 // <@id> and "@Role Name" (a role of ch's guild) as <@&id>, outside code (temp).
 mentions_convert :: (text: string, ch: *dc.Channel) -> string {
-	if find_index_from_left(text, #char "@") < 0 return text;
+	if find_index_from_left(text, #char "@") < 0 && find_index_from_left(text, #char "#") < 0 return text;
 	s := store();
 	g := ifx ch.guild_id then dc.guild_get(s, ch.guild_id);
 	b: String_Builder;
@@ -259,6 +287,17 @@ mentions_convert :: (text: string, ch: *dc.Channel) -> string {
 		}
 		c := text[i];
 		if c == #char "`" && !fence tick = !tick;
+		if c == #char "#" && !fence && !tick && (i == 0 || is_space(text[i - 1])) {
+			// "#name": a channel of ch's server with exactly that name (any case)
+			n := 0;
+			while 1 + n < rest.count && (is_alnum(rest[1 + n]) || rest[1 + n] == #char "-" || rest[1 + n] == #char "_" || rest[1 + n] >= 0x80) n += 1;
+			id := ifx n > 0 then channel_by_name(ch, slice(rest, 1, n));
+			if id {
+				print_to_builder(*b, "<#%>", id);
+				i += 1 + n;
+				continue;
+			}
+		}
 		if c != #char "@" || fence || tick || (i > 0 && !is_space(text[i - 1])) {
 			append(*b, c);
 			i += 1;
@@ -316,7 +355,12 @@ mentions_readable :: (text: string, ch: *dc.Channel) -> string {
 			inner := slice(rest, 1, close - 1);
 			readable := "";
 			at_word_start := i == 0 || is_space(text[i - 1]);
-			if begins_with(inner, "@&") {
+			if begins_with(inner, "#") {
+				id, ok := dc.parse_u64(advance(inner, 1));
+				c := ifx ok then dc.channel_get(store(), id);
+				if c readable = tprint("#%", c.name);
+				if !at_word_start || mentions_convert(readable, ch) != token readable = "";
+			} else if begins_with(inner, "@&") {
 				id, ok := dc.parse_u64(advance(inner, 2));
 				g := ifx ok && ch.guild_id then dc.guild_get(store(), ch.guild_id);
 				if g for g.roles if it.id == id readable = tprint("@%", it.name);
@@ -360,6 +404,20 @@ member_search :: (ch: *dc.Channel, q: string) {
 	if !found key = copy_string(key);
 	table_set(*mac.searched, key, now);
 	dc.search_guild_members(app.client, ch.guild_id, q);
+}
+
+// A channel of ch's server named name (any case; not a category), text channels first; 0 for none.
+channel_by_name :: (ch: *dc.Channel, name: string) -> dc.Snowflake {
+	s := store();
+	g := ifx ch.guild_id then dc.guild_get(s, ch.guild_id);
+	if !g return 0;
+	best: *dc.Channel;
+	for g.channels {
+		c := dc.channel_get(s, it);
+		if !c || c.kind == .Guild_Category || !equal_nocase(c.name, name) continue;
+		if !best || (c.kind == .Guild_Text && best.kind != .Guild_Text) best = c;
+	}
+	return ifx best then best.id else 0;
 }
 
 // A member of ch's guild (or a recipient of the DM) with this exact username.

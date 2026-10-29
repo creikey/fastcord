@@ -344,7 +344,6 @@
 - [ ] Tray: Linux has no tray icon (StatusNotifierItem over D-Bus) and macOS doesn't keep running when the window closes (hide it; the Dock icon reopens it), so closing quits there. Windows has the tray.
 - [ ] Settings: keep every fastcord setting in one place so deleting them all is easy (may already be done).
 - [ ] Profiles: the popout shows no roles, with no add/remove role.
-- [ ] Composer: `#channel-name` is sent as plain text; convert it to `<#id>` on send and edit, with a `#` autocomplete like `@`, and show `<#id>` as `#name` when editing (`mentions_readable` in `mention_autocomplete.jai` leaves it raw).
 - [ ] Undo: Leave Server, Delete Channel / Category / Thread and Cancel Event (confirm modals today).
 - [ ] Media: the video volume and mute reset on restart; the client keeps them (`view_media.jai` `video_volume`).
 - [ ] System messages: missed calls say "started a call", not "You missed a call from X"; the pin notice's "a message" and "pinned messages" aren't clickable.
@@ -398,7 +397,6 @@
 - [ ] Gateway: dispatches without a handler are dropped (`store.jai` default case). Matter most: `PASSIVE_UPDATE_V1/V2` and `CHANNEL_UNREAD_UPDATE` (stale unreads and voice states in unsubscribed servers), `MESSAGE_REACTION_ADD_MANY` (lost reactions in big servers). Also `VOICE_CHANNEL_STATUS_UPDATE`, `GUILD_BAN_*`, `INVITE_*`, `WEBHOOKS_UPDATE`, `STAGE_INSTANCE_*`, `USER_NOTE_UPDATE`, `RECENT_MENTION_DELETE`, `GUILD_SOUNDBOARD_SOUNDS_UPDATE`.
 - [ ] Attachments: several images in one message stack at 400x300 each instead of the mosaic grid.
 - [ ] Bug (Windows): once, a headless live run with the camera on, while watching another camera, never exited after its final screenshot (`app_exit` after `video_shutdown`); five more runs of the same exit were clean. Take every thread's stack the next time it happens (lldb -p).
-- [ ] Composer: `#channel` autocomplete; only `:emoji` is handled (`emoji_autocomplete.jai`).
 - [ ] Threads: no Join / Leave Thread and no thread member list; the thread menu lacks Mute, Notification Settings, Close/Lock and Edit Tags.
 - [ ] Voice: server mute and deafen are never shown, in the panel or beside participants.
 - [ ] Bug: a message whose send failed gets a duplicate when the server's echo arrives late; the failure clears `pending` and `upsert_message` matches the nonce only on pending messages (`store.jai`).
@@ -543,6 +541,7 @@
 - [-] Cancelled (duplicate: done, see the ticked edit_autocomplete item): Edit: saving skips `emoji_convert_shortcodes`, so a typed `:smile:` is sent literally.
 - [ ] Code blocks: a tab indents one space on macOS (and likely Linux) but four on Windows. Only the DirectWrite backend widens tabs to stops every 4 spaces (`native_shape` in `text_dwrite_windows.jai`); CoreText and HarfBuzz shape the tab as is, so the chat fixture's `\tfmt.println` sits almost flush on macOS. Move the tab-stop pass into `gfx/text.jai` so every backend gets it.
 - [-] Cancelled (duplicate: fixed with the ticked Jump to Present item (gap tracking and after= paging)): Bug (for creikey): jumping to an old message from search, then scrolling down, leaps straight to the present. Seen: 5/13/2025 messages followed directly by October 28, 2026, with everything between missing. `apply_around` (`features.jai`) merges the `around=` page into history with no gap marker and no `after=` paging (`Message_List` has only `has_more_before`). Track a gap after the jumped-to page and load newer pages with `after=` while scrolling down, as the official client does; show "Jump to Present" meanwhile.
+- [-] Cancelled (duplicate: done with the ticked channel autocomplete item): Composer: `#channel` autocomplete; only `:emoji` is handled (`emoji_autocomplete.jai`).
 - [x] Voice: play the join and leave sounds when other users enter or leave the voice channel (they played on macOS only; Windows and Linux now decode the MP3s with minimp3).
 - [x] Mentions: typing `@name` sends plain text that pings no one; send it as a real mention (`<@id>`), with an autocomplete popup for users and roles as you type `@`.
 - [x] Events: invite links to a scheduled event (`?event=<id>`) show the event's card.
@@ -757,3 +756,4 @@
 - [x] History: a jump to an older message (search, pins, replies, links) shows that stretch alone behind a gap with the "You're Viewing Older Messages / Jump To Present" bar, loads newer pages with `after=` while scrolling down, and Jump to Present shows the stored present again (`gap_after`, `apply_around`, `jump_to_present`; `tests/ui/jump_to_present.txt`, test `history_gap`). This also fixes jumping from search then scrolling down leaping straight to the present.
 - [x] Soundboard: Upload a Sound (Server Settings > Soundboard) takes its file by drag and drop onto the page or the dialog as well as Browse (fastcord-only; `sound_settings_drop`).
 - [x] Tests: `tests/ui/shortcut_list.txt` checks labels that read the same on every platform (it expected "Ctrl+Alt+A", which macOS shows as Cmd+Alt+A), and `events_wizard.txt` passes under the suite's `TZ=UTC` (`run_logged`); it failed only when run by hand in a local zone. Both pass on macOS and Windows.
+- [x] Composer: "#" opens a channel autocomplete like "@", "#name" is sent as `<#id>` on send and edit, and the edit box shows `<#id>` as "#name" (`channel_items`, `channel_by_name`; `tests/ui/channel_autocomplete.txt`, `tests/ui/forward/edit_readable.txt`).
