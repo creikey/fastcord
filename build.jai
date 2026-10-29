@@ -187,7 +187,8 @@ compile :: (name: string, source := "", optimization := Optimization_Type.DEBUG,
 
 // release <vX.Y.Z>: the release archives this machine can build: on macOS dist/fastcord-macos.zip, a
 // universal (arm64 + x86_64) ad-hoc signed Fastcord.app; on Windows dist/fastcord-windows.zip (Fastcord.exe)
-// and dist/fastcord-linux-x86_64.tar.gz (cross-compiled). CI's release workflow uploads them.
+// and dist/fastcord-linux-x86_64.tar.gz (cross-compiled), with the same Linux binary as the headless
+// dist/fastcord-server-linux-x86_64.tar.gz. CI's release workflow uploads them.
 release :: (args: []string) -> bool {
     if args.count < 2 || !begins_with(args[1], "v") { log_error("release needs a version tag like v0.2.0"); return false; }
     version := args[1];
@@ -228,6 +229,9 @@ release :: (args: []string) -> bool {
         if run_command("llvm-objcopy", "--strip-debug", "build/fastcord-linux", "build/fastcord-linux.stripped").exit_code != 0 return false;
         if run_command(PYTHON, "-I", "tools/package_linux.py", "build/fastcord-linux.stripped", "dist/fastcord-linux-x86_64.tar.gz").exit_code != 0 return false;
         array_add(*assets, "dist/fastcord-linux-x86_64.tar.gz");
+        // The same binary for a headless machine: -serve runs before any display library is opened
+        if run_command(PYTHON, "-I", "tools/package_linux.py", "build/fastcord-linux.stripped", "dist/fastcord-server-linux-x86_64.tar.gz", "server").exit_code != 0 return false;
+        array_add(*assets, "dist/fastcord-server-linux-x86_64.tar.gz");
     } else {
         log_error("release: build on macOS (the Mac app) or Windows (Windows and Linux)");
         return false;

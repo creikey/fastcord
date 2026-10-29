@@ -1,8 +1,10 @@
-"""Packages the Linux release: python3 -I tools/package_linux.py <binary> <out.tar.gz>.
+"""Packages the Linux release: python3 -I tools/package_linux.py <binary> <out.tar.gz> [server].
 
 One tarball for every distro: fastcord/ holds the binary (glibc 2.17+, X11/EGL/fontconfig/ALSA opened at
 run time), a desktop entry, the icon and install.sh, which installs for the current user (or system-wide
-as root) without a package manager. Built on any OS: file modes are set here, not taken from the disk.
+as root) without a package manager. With `server`, fastcord-server/ holds the same binary (-serve opens no
+display library) with a systemd unit and a README, for a headless machine. Built on any OS: file modes
+are set here, not taken from the disk.
 """
 import io, sys, tarfile, time
 
@@ -47,22 +49,64 @@ XWayland). Uses OpenGL 3.3 through EGL, fontconfig for fonts and ALSA (PipeWire 
 all loaded at run time. Settings and the login token live in ${XDG_DATA_HOME:-~/.local/share}/fastcord.
 """
 
+UNIT = """[Unit]
+Description=Fastcord server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=/usr/local/bin/fastcord -serve:/var/lib/fastcord/server.db -port:4433
+Restart=on-failure
+RestartSec=5
+DynamicUser=yes
+StateDirectory=fastcord
+
+[Install]
+WantedBy=multi-user.target
+"""
+
+SERVER_README = """Fastcord server for Linux (x86_64)
+
+A self-hosted Fastcord server: one SQLite file, TLS on TCP port 4433. Needs no display, no Discord and
+no account; members join from the Fastcord app with an fc:// invite and their own key.
+
+Try it:            ./fastcord -serve:myserver.db          (prints the invites; Ctrl-C stops it)
+Run it as a service (as root):
+    install -m 755 fastcord /usr/local/bin/fastcord
+    install -m 644 fastcord-server.service /etc/systemd/system/
+    systemctl enable --now fastcord-server
+    journalctl -u fastcord-server              (the invites; also in /var/lib/fastcord/server.db.log)
+
+Open or forward TCP 4433, and put the machine's public address or DNS name in place of localhost in the
+invite. Join first with the one-use owner invite to own the server. The whole server is the one file:
+stop the service and copy /var/lib/fastcord/server.db to back it up. To update, replace the binary and
+restart the service.
+"""
+
 def main():
     binary, out = sys.argv[1], sys.argv[2]
+    server = sys.argv[3:] == ["server"]
     now = int(time.time())
-    files = [
-        ("fastcord", open(binary, "rb").read(), 0o755),
-        ("fastcord.desktop", DESKTOP.encode(), 0o644),
-        ("fastcord.png", open("assets/fastcord.png", "rb").read(), 0o644),
-        ("install.sh", INSTALL.encode(), 0o755),
-        ("README.txt", README.encode(), 0o644),
-    ]
+    top = "fastcord-server" if server else "fastcord"
+    files = [("fastcord", open(binary, "rb").read(), 0o755)]
+    if server:
+        files += [
+            ("fastcord-server.service", UNIT.encode(), 0o644),
+            ("README.txt", SERVER_README.encode(), 0o644),
+        ]
+    else:
+        files += [
+            ("fastcord.desktop", DESKTOP.encode(), 0o644),
+            ("fastcord.png", open("assets/fastcord.png", "rb").read(), 0o644),
+            ("install.sh", INSTALL.encode(), 0o755),
+            ("README.txt", README.encode(), 0o644),
+        ]
     with tarfile.open(out, "w:gz") as tar:
-        d = tarfile.TarInfo("fastcord")
+        d = tarfile.TarInfo(top)
         d.type, d.mode, d.mtime = tarfile.DIRTYPE, 0o755, now
         tar.addfile(d)
         for name, data, mode in files:
-            info = tarfile.TarInfo("fastcord/" + name)
+            info = tarfile.TarInfo(top + "/" + name)
             info.size, info.mode, info.mtime = len(data), mode, now
             tar.addfile(info, io.BytesIO(data))
     print(out)

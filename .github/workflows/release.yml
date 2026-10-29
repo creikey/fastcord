@@ -50,7 +50,8 @@ jobs:
     secrets: inherit
 
   # The Linux binary is cross-built on Windows, so it first runs here: unpacked from the draft's archive on a
-  # clean Ubuntu (Mesa's software OpenGL), headless on the chat fixture. A crash or a blank frame stops the publish.
+  # clean Ubuntu (Mesa's software OpenGL), headless on the chat fixture, after the headless server archive has
+  # served once with no display libraries. A crash or a blank frame stops the publish.
   smoke-linux:
     needs: windows-linux
     runs-on: ubuntu-latest
@@ -59,6 +60,12 @@ jobs:
       - name: Smoke test the Linux archive
         run: |
           set -euo pipefail
+          # The headless server first, before any display library is installed: it must start and print an invite.
+          mkdir -p build/smoke
+          gh release download "$VERSION" -p fastcord-server-linux-x86_64.tar.gz -D build/smoke
+          tar -xzf build/smoke/fastcord-server-linux-x86_64.tar.gz -C build/smoke
+          timeout 5 build/smoke/fastcord-server/fastcord -serve:build/smoke/server.db -port:0 > build/smoke/serve.txt || true
+          grep -q "fc://" build/smoke/serve.txt || { cat build/smoke/serve.txt; exit 1; }
           sudo apt-get update -qq
           sudo apt-get install -y -qq --no-install-recommends libegl1 libegl-mesa0 libgl1-mesa-dri libfontconfig1
           mkdir -p build/smoke

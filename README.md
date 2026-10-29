@@ -25,7 +25,7 @@ webview. Metal on macOS, Direct3D 11 on Windows, OpenGL (EGL) on Linux.
 | `src/inflate`, `src/zstd`, `src/brotli` | Decoders (Wuffs, zstd, brotli): the gateway uses zstd-stream; HTTP responses may be gzip/br/zstd. |
 | `src/crypto` | Hashes, HMAC/HKDF, AEADs, P-256, SLH-DSA, X25519 over BoringSSL; BLAKE3. |
 | `src/keys` | Identity keypairs for self-hosted servers: the BLAKE3 Merkle root, durable key files beside `<state>`. |
-| `src/serve`, `src/sqlite` | `fastcord -serve:<file> [-port:N]`, a self-hosted server: one SQLite file, TLS 1.3 under a pinned self-signed certificate, ALPN `fc/1`; voice media on UDP at the same port number. Checked by `src/tests/serve.jai` and `src/tests/serve_voice.jai`. |
+| `src/serve`, `src/sqlite` | `fastcord -serve:<file> [-port:N]`, a self-hosted server: one SQLite file, TLS 1.3 under a pinned self-signed certificate, ALPN `fc/1`; voice media on UDP at the same port number. Checked by `src/tests/serve.jai` and `src/tests/serve_voice.jai`. How to host one: the site's [Self-hosting](https://creikey.com/fastcord/#self-hosting) section. |
 | `src/etf` | Erlang External Term Format codec (gateway uses `encoding=etf`) and JSON. |
 | `src/http` | HTTP/1.1, HTTP/2, HTTP/3, WebSocket over vendored picohttpparser, nghttp2, nghttp3, wslay. |
 | `src/discord` | Unofficial Discord library: REST, gateway, telemetry, voice, state store. |
@@ -204,8 +204,8 @@ gh run watch "$(gh run list -w release.yml -L 1 --json databaseId -q '.[0].datab
 It drafts the release (notes from the commit titles since the last tag, `tools/release_notes.py`), builds `release <tag>` on a Mac runner (the Mac app) and a
 Windows runner (Windows and Linux), uploads the archives, and publishes the release once all three are in.
 The version is the tag; nothing is bumped by hand. `jai build.jai - release v0.5.0` builds the same
-archives into `dist/` locally (macOS: `fastcord-macos.zip`; Windows: `fastcord-windows.zip` and
-`fastcord-linux-x86_64.tar.gz`).
+archives into `dist/` locally (macOS: `fastcord-macos.zip`; Windows: `fastcord-windows.zip`,
+`fastcord-linux-x86_64.tar.gz` and `fastcord-server-linux-x86_64.tar.gz`).
 
 - Windows: `Fastcord.exe` (GUI subsystem, icon from `assets/fastcord.ico`), zipped. Not code-signed, so
   SmartScreen warns on first launch. It then offers to install itself per user (`%LOCALAPPDATA%\Programs\fastcord`,
@@ -213,11 +213,14 @@ archives into `dist/` locally (macOS: `fastcord-macos.zip`; Windows: `fastcord-w
 - Linux: one x86_64 binary for every distribution. It links only glibc (2.17+) and opens everything else at
   run time with `dlopen`: libwayland-client and libxkbcommon (native Wayland), else libX11, libEGL for OpenGL 3.3, fontconfig,
   libasound (ALSA, which PipeWire and PulseAudio serve), and when present libdbus (notifications, the tray, the launcher badge), libXss (idle time) and libXi (global keybinds). `tools/package_linux.py` packs it with a desktop entry (the
-  `fc://` and `discord://` handler), the icon and `install.sh` (per user in `~/.local`, or system-wide as root).
+  `fc://` and `discord://` handler), the icon and `install.sh` (per user in `~/.local`, or system-wide as root). The same binary is
+  also the headless server, `fastcord-server-linux-x86_64.tar.gz`, with a systemd unit and a README:
+  `-serve` runs before any display library is opened.
 
 The site and the in-app updater both use the latest release:
 - download links: `https://github.com/creikey/fastcord/releases/latest/download/fastcord-macos.zip`,
-  `fastcord-windows.zip`, `fastcord-linux-x86_64.tar.gz`
+  `fastcord-windows.zip`, `fastcord-linux-x86_64.tar.gz`, `fastcord-server-linux-x86_64.tar.gz` (the
+  Self-hosting section shows that button only once the latest release has it)
 - the app checks `api.github.com/repos/creikey/fastcord/releases/latest` at launch and every 6 hours;
   when the tag is newer than its own version, an **Update** pill appears in the title bar (hover: the
   release notes; right-click: dismiss). Clicking it installs the release in place (`src/selfupdate`), then

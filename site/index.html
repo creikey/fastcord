@@ -157,7 +157,10 @@
   .steps span b { color: var(--text); font-weight: 600; }
   .subhead { font-size: clamp(22px, 3.4vw, 28px); letter-spacing: -0.02em; margin: 0 0 6px; text-align: center; }
   .first { padding: 40px 0 48px; }
-  .e2e { padding: 40px 0 8px; }
+  .e2e, .host { padding: 40px 0 8px; }
+  .host .sub { color: var(--muted); text-align: center; max-width: 680px; margin: 0 auto 24px; }
+  .host .downloads { margin-top: 20px; }
+  .btn[hidden] { display: none; }
   @media (max-width: 640px) {
     .why, .steps { grid-template-columns: 1fr; gap: 8px; }
     .why div { display: flex; align-items: baseline; gap: 10px; padding: 12px 14px; text-align: left; }
@@ -248,7 +251,24 @@
       <div><b>Safety numbers</b><span>Compare 60 digits to confirm who you're talking to.</span></div>
     </div>
     <p class="fine">From the next release, for one-on-one DMs: text, files, replies, edits, deletes and reactions. Discord still sees who you message and when, and roughly how large each message and file is. Prekeys are signed with SLH-DSA. The Triple Ratchet comes next.</p>
-    <p class="fine">In progress: self-hosted servers, with federated routing between them so no central service is needed.</p>
+    <p class="fine">In progress: federated routing between self-hosted servers, so no central service is needed.</p>
+  </section>
+  <section class="host" id="self-hosting">
+    <h3 class="subhead">Self-hosting</h3>
+    <p class="sub">Fastcord can also run a server of its own: one file on your machine, with text channels, invites, pins and reactions. It speaks no Discord and needs no account; members join with their Fastcord key instead of a password.</p>
+    <div class="steps">
+      <div><b>Start it</b><span>Run the app with <b>-serve:myserver.db</b>: <b>./fastcord</b> on Linux, <b>Fastcord.app/Contents/MacOS/Fastcord</b> on macOS, <b>Fastcord.exe</b> on Windows. It makes the file on first run and prints an invite.</span></div>
+      <div><b>Open the port</b><span>It listens on TCP <b>4433</b> (<b>-port:N</b> for another). Allow it when Windows Firewall asks, and forward it on your router for friends outside your network.</span></div>
+      <div><b>Share the invite</b><span>The <b>fc://</b> link goes in <b>Add a Server → Join a Server</b>. Put your public address in place of <b>localhost</b>. Join first with the one-use owner invite to own the server.</span></div>
+    </div>
+    <p class="fine">To stop it, press Ctrl-C. To back it up, stop it and copy the file. To update, download the new release and start it again on the same file. Whoever runs a server can read its channels.</p>
+    <p class="fine">The next release adds threads, files, emoji, events, kicks and bans, the server's settings in the app, the console on Windows, and a headless Linux server.</p>
+    <div class="downloads">
+      <a class="btn" href="https://github.com/creikey/fastcord/releases/latest/download/fastcord-macos.zip">macOS</a>
+      <a class="btn" href="https://github.com/creikey/fastcord/releases/latest/download/fastcord-windows.zip">Windows</a>
+      <a class="btn" href="https://github.com/creikey/fastcord/releases/latest/download/fastcord-linux-x86_64.tar.gz">Linux</a>
+      <a class="btn" id="dl-server" hidden href="https://github.com/creikey/fastcord/releases/latest/download/fastcord-server-linux-x86_64.tar.gz">Headless server <small>Linux x86_64, systemd</small></a>
+    </div>
   </section>
 
   <section class="first">
@@ -413,7 +433,7 @@
     const ua = navigator.userAgent;
     const id = /Windows/.test(ua) ? "dl-win" : /Linux|X11/.test(ua) && !/Android/.test(ua) ? "dl-linux" : "dl-mac";
     const mine = document.getElementById(id);
-    document.querySelectorAll(".downloads .btn").forEach(b => b.classList.toggle("primary", b === mine));
+    document.querySelectorAll(".hero .downloads .btn").forEach(b => b.classList.toggle("primary", b === mine));
     mine.parentNode.prepend(mine);
   })();
   // Show the latest release tag next to the download button (best effort).
@@ -423,6 +443,8 @@
       const v = document.getElementById("version");
       if (j && j.tag_name) v.textContent = "Latest: " + j.tag_name + " · " + new Date(j.published_at).toLocaleDateString();
       else v.textContent = "No release published yet.";
+      // the headless server's button only once a release carries it
+      if (j && (j.assets || []).some(a => a.name === "fastcord-server-linux-x86_64.tar.gz")) document.getElementById("dl-server").hidden = false;
     })
     .catch(() => {});
 </script>
