@@ -1,0 +1,16 @@
+# Runs on embed_parts.jsonl (icons load with FASTCORD_MEDIA_DIR=tests/ui/media). An embed's author shows
+# its icon and links its name, the provider links too, and the footer has its icon.
+wait 10
+settle 1
+shot build/ui-embed_parts.png
+move 530 508
+wait 2
+expect_cursor Pointer
+click 530 508
+wait 3
+expect_opened_url "https://example.com/bot"
+move 495 484
+wait 2
+click 495 484
+wait 3
+expect_opened_url "https://example.com"

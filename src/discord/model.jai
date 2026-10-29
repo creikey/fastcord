@@ -226,10 +226,10 @@ Embed :: struct {
 	image_w, image_h: int;
 	video_url: string; // proxy_url when there is one, like the thumbnail and image
 	video_w, video_h: int;
-	provider: string;
-	author_name: string;
+	provider, provider_url: string;
+	author_name, author_url, author_icon: string; // the icon's proxy_url when there is one, as below
 	fields: []Embed_Field;
-	footer: string;
+	footer, footer_icon: string;
 	timestamp_ms: s64;
 }
 

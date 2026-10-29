@@ -708,10 +708,15 @@ embeds_view :: (m: *dc.Message, max_w: float32 = 400) {
 			col.layout_axis = .Y;
 			{ ui.parent(col); defer ui.pop_parent();
 				spacer(.Y, 8);
-				if e.provider label(e.provider, .Normal, 12, T("--text-muted"), 16);
+				if e.provider embed_link_text("prov", e.provider, e.provider_url, .Normal, 12, T("--text-muted"), m);
 				if e.author_name != "" {
 					spacer(.Y, 4);
-					label(e.author_name, .Semibold, 14, T("--text-strong"), 18);
+					ar := row("author");
+					ar.semantic_size = .[ui.pct(1), ui.children()];
+					ar.cross_align = .Center;
+					ui.parent(ar); defer ui.pop_parent();
+					if e.author_icon { embed_icon("aicon", e.author_icon, 24); spacer(.X, 8); }
+					embed_link_text("aname", e.author_name, e.author_url, .Semibold, 14, T("--text-strong"), m);
 				}
 				if e.title != "" {
 					spacer(.Y, 4);
@@ -823,8 +828,13 @@ embeds_view :: (m: *dc.Message, max_w: float32 = 400) {
 				}
 				if footer {
 					spacer(.Y, 8);
+					fr := row("footrow");
+					fr.semantic_size = .[ui.pct(1), ui.children()];
+					fr.cross_align = .Center;
+					ui.parent(fr); defer ui.pop_parent();
+					if e.footer_icon { embed_icon("ficon", e.footer_icon, 20); spacer(.X, 8); }
 					ft := ui.box("footer", .Wrap_Text);
-					ft.semantic_size = .[ui.pct(1), ui.text_size()];
+					ft.semantic_size = .[ui.fill(), ui.text_size()];
 					ft.style.line_height = 16;
 					ui.set_spans(ft, ui.Span.[.{text = footer, font = F(.Medium), size = 12, color = T("--text-default")}]);
 				}
@@ -844,6 +854,26 @@ embeds_view :: (m: *dc.Message, max_w: float32 = 400) {
 		}
 		spacer(.Y, 4);
 	}
+}
+
+// An embed's provider or author name: with a url, the hand and an underline on hover and a click follows it.
+embed_link_text :: (id: string, text: string, url: string, weight: Font_Id, size: float32, color: ui.Color, m: *dc.Message) {
+	t := ui.box(id, .Wrap_Text | .Selectable_Text);
+	t.semantic_size = .[ui.fill(), ui.text_size()];
+	t.style.line_height = size + 4;
+	over := url != "" && ui.mouse_over(t) && ui.span_at(t.prev_layout, app.ui.mouse) >= 0 && !ui.overlay_at(app.ui.mouse);
+	ui.set_spans(t, ui.Span.[.{text = text, font = F(weight), size = size, color = color, underline = over}]);
+	if !over return;
+	app.ui.span_cursor = .Pointer;
+	for app.ui.events if it.kind == .Mouse_Up && it.button == .Left && !it.consumed && !ui.has_selection() && ui.span_at(t.prev_layout, it.pos) >= 0 follow_link(url, m.id);
+}
+
+// The author's (24) or footer's (20) round icon.
+embed_icon :: (id: string, url: string, size: float32) {
+	b := ui.box(id, .Draw_Background);
+	b.semantic_size = .[ui.px(size), ui.px(size)];
+	b.style.radius = all4(size / 2);
+	set_remote_image(b, url);
 }
 
 // An embed's markdown (its description, a field's value): a box per block so quotes get their bar and

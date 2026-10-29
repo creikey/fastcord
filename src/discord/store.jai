@@ -194,11 +194,9 @@ free_embed :: (s: *Store, e: *Embed) {
 	free_str(e.thumbnail_url, a);
 	free_str(e.image_url, a);
 	free_str(e.video_url, a);
-	free_str(e.provider, a);
-	free_str(e.author_name, a);
+	for string.[e.provider, e.provider_url, e.author_name, e.author_url, e.author_icon, e.footer, e.footer_icon] free_str(it, a);
 	for e.fields { free_str(it.name, a); free_str(it.value, a); }
 	if e.fields.data free(e.fields.data,, a);
-	free_str(e.footer, a);
 }
 
 free_message :: (s: *Store, m: *Message) {
@@ -536,11 +534,12 @@ parse_embed :: (m: etf.Map, a: Allocator) -> Embed {
 		e.video_h = fint(vd, "height");
 	}
 	p := fmap(m, "provider");
-	if p e.provider = clone_str(fstr(p, "name"), a);
+	icon :: (o: etf.Map, a: Allocator) -> string { return clone_str(ifx vhas(o, "proxy_icon_url") then fstr(o, "proxy_icon_url") else fstr(o, "icon_url"), a); }
+	if p { e.provider = clone_str(fstr(p, "name"), a); e.provider_url = clone_str(fstr(p, "url"), a); }
 	au := fmap(m, "author");
-	if au e.author_name = clone_str(fstr(au, "name"), a);
+	if au { e.author_name = clone_str(fstr(au, "name"), a); e.author_url = clone_str(fstr(au, "url"), a); e.author_icon = icon(au, a); }
 	ft := fmap(m, "footer");
-	if ft e.footer = clone_str(fstr(ft, "text"), a);
+	if ft { e.footer = clone_str(fstr(ft, "text"), a); e.footer_icon = icon(ft, a); }
 	e.timestamp_ms = iso_to_ms(fstr(m, "timestamp"));
 	fields := flist(m, "fields");
 	if fields.count {
