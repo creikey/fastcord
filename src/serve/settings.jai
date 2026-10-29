@@ -96,6 +96,9 @@ settings_route :: (c: *Conn, req: http.Request) -> handled: bool, keep: bool {
 }
 
 MEMBER_SEARCH_MAX :: 1000;
+P_MODERATE_MEMBERS : u64 : 1 << 40;
+// Who may open Server Settings' Members (the client's canAccessMemberSafetyPage, as fastcord guesses it).
+MEMBERS_PAGE_PERMS :: P_MANAGE_GUILD | P_MANAGE_ROLES | P_KICK_MEMBERS | P_BAN_MEMBERS | P_MODERATE_MEMBERS | P_MANAGE_NICKNAMES;
 
 // POST /api/v9/guilds/{id}/members-search {or_query: {usernames: {or_query: [..]}, user_id: {..}}, limit}:
 // Server Settings' Members, newest first, in Discord's shape. For anyone who may open the page (the owner).
@@ -110,6 +113,18 @@ members_search :: (c: *Conn, req: http.Request) -> bool {
 	if has_limit {
 		if lv.kind != .Int || lv.i < 1 || lv.i > MEMBER_SEARCH_MAX return json_error(c, 400, 50035, "Invalid Form Body");
 		limit = cast(int) lv.i;
+	}
+	and, _ := etf.map_get(v.map, "and_query");
+	role_q, _ := etf.map_get(and.map, "role_ids");
+	role_terms, _ := etf.map_get(role_q.map, "and_query");
+	want_roles: [..]s64;
+	want_roles.allocator = temp;
+	if role_terms.kind == .List {
+		if role_terms.list.count > 10 return json_error(c, 400, 50035, "Invalid Form Body");
+		for role_terms.list {
+			id, ok := string_to_int(ifx it.kind == .String then it.s else "", T = s64);
+			if ok array_add(*want_roles, id);
+		}
 	}
 	or, _ := etf.map_get(v.map, "or_query");
 	names: [..]string;
@@ -127,7 +142,7 @@ members_search :: (c: *Conn, req: http.Request) -> bool {
 		}
 	}
 	locks.guard(*s.db_mu);
-	if !(perms_of_locked(s, user).base & (P_MANAGE_GUILD | P_KICK_MEMBERS | P_BAN_MEMBERS | P_MANAGE_ROLES)) return json_error(c, 403, 50013, "Missing Permissions");
+	if !can_any_locked(s, user, MEMBERS_PAGE_PERMS) return json_error(c, 403, 50013, "Missing Permissions");
 	list: [..]etf.Value;
 	list.allocator = temp;
 	total := 0;
@@ -143,12 +158,20 @@ members_search :: (c: *Conn, req: http.Request) -> bool {
 			for names if contains(to_lower_copy(name,, temp), it) || contains(handle.s, it) match = true;
 			if !match continue;
 		}
+		roles := member_roles_locked(s, id);
+		missing := false;
+		for r: want_roles {
+			has := false;
+			for roles.list if string_to_int(it.s, T = s64) == r has = true;
+			if !has missing = true;
+		}
+		if missing continue;
 		total += 1;
 		if list.count >= limit continue;
 		m := etf.map_builder(4,, temp);
 		etf.map_put(*m, "user", u);
 		etf.map_put(*m, "joined_at", etf.vstring(iso(id)));
-		etf.map_put(*m, "roles", etf.vlist(.[]));
+		etf.map_put(*m, "roles", roles);
 		etf.map_put(*m, "nick", .{});
 		etf.map_put(*m, "communication_disabled_until", timeout_value_locked(s, id));
 		e := etf.map_builder(4,, temp);
@@ -640,7 +663,8 @@ member_patch :: (c: *Conn, req: http.Request) -> bool {
 	d := etf.map_builder(4,, temp);
 	{
 		locks.guard(*s.db_mu);
-		if owner_id(s) != user || target == user return json_error(c, 403, 50013, "Missing Permissions");
+		p := perms_of_locked(s, user);
+		if target == user || target == owner_id(s) || (!p.all && (p.base & P_MODERATE_MEMBERS) == 0) || !outranks_locked(s, *p, target) return json_error(c, 403, 50013, "Missing Permissions");
 		st := sqlite.prepare(s.db, "SELECT name FROM users WHERE id = ? AND left = 0 AND signing_pub != x'';");
 		sqlite.bind(st, 1, target);
 		found := sqlite.step(st) == .Row;

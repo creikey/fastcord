@@ -879,6 +879,8 @@ main :: () {
 	check(status == 200 && contains(body, "\"key\":\"description\"") && contains(body, "\"key\":\"icon_hash\"") && contains(body, "\"action_type\":1"), tprint("every change is audited: % %", status, body));
 	status, body = rest("POST", tprint("/api/v9/guilds/%/members-search", gid), "{\"or_query\":{\"usernames\":{\"or_query\":[\"renamed\"]}},\"and_query\":{},\"limit\":250}", token);
 	check(status == 200 && contains(body, "\"total_result_count\":1") && contains(body, "\"global_name\":\"Renamed\""), tprint("Members finds a member by name: % %", status, body));
+	status, body = rest("POST", tprint("/api/v9/guilds/%/members-search", gid), "{\"or_query\":{},\"and_query\":{\"role_ids\":{\"and_query\":[\"12345\"]}},\"limit\":250}", token);
+	check(status == 200 && contains(body, "\"total_result_count\":0"), tprint("Members filters by role: % %", status, body));
 	status, body = rest("PUT", tprint("/api/v9/guilds/%/incident-actions", gid), "{\"invites_disabled_until\":\"2099-01-01T00:00:00.000Z\",\"dms_disabled_until\":null,\"lockdown_duration_hours\":24}", token);
 	check(status == 400, tprint("invites pause for at most a day: % %", status, body));
 	status, body = rest("PUT", tprint("/api/v9/guilds/%/incident-actions", gid), "{\"invites_disabled_until\":null,\"dms_disabled_until\":null,\"lockdown_duration_hours\":null}", token);

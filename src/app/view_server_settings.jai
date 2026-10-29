@@ -553,14 +553,12 @@ section_shown :: (g: *dc.Guild, s: Server_Section) -> bool {
 		return has(p, dc.PERM_MANAGE_GUILD);
 	case .Tag;
 		return has(p, dc.PERM_MANAGE_GUILD) && dc.guild_has_feature(g, "GUILD_TAGS") && !on_hosted();
-	case .Stickers;
-		return has(p, dc.PERM_MANAGE_GUILD_EXPRESSIONS | dc.PERM_CREATE_GUILD_EXPRESSIONS) && !on_hosted(); // serve keeps no stickers yet
-	case .Emoji; #through; case .Soundboard;
+	case .Stickers; #through; case .Emoji; #through; case .Soundboard;
 		return has(p, dc.PERM_MANAGE_GUILD_EXPRESSIONS | dc.PERM_CREATE_GUILD_EXPRESSIONS);
 	case .Members;
 		return has(p, dc.PERM_MANAGE_GUILD | dc.PERM_MANAGE_ROLES | dc.PERM_KICK_MEMBERS | dc.PERM_BAN_MEMBERS | dc.PERM_MODERATE_MEMBERS | dc.PERM_MANAGE_NICKNAMES);
 	case .Roles;
-		return has(p, dc.PERM_MANAGE_ROLES) && !on_hosted(); // hosted servers have only @everyone so far
+		return has(p, dc.PERM_MANAGE_ROLES);
 	case .Safety;
 		return has(p, dc.PERM_MANAGE_GUILD) && !on_hosted(); // a hosted server has no verification levels, filters or AutoMod
 	case .Templates; #through; case .Access; #through; case .Community; #through; case .Onboarding;
@@ -2185,7 +2183,11 @@ role_members_tab :: (g: *dc.Guild, r: *dc.Role, editable: bool) {
 			table_row_begin("add");
 			defer ui.pop_parent();
 			{ c := table_cell(0, 1); ui.parent(c); defer ui.pop_parent(); user_cell(u); }
-			if editable && row_icon_button("add", "plus-small") ss_action(g, .Role_Members, "PATCH", tprint("/guilds/%/roles/%/members", g.id, r.id), tprint("{\"member_ids\":[\"%\"]}", uid));
+			if editable && row_icon_button("add", "plus-small") {
+				// serve gives one member a role at a time; Discord takes the client's bulk add
+				if on_hosted() ss_action(g, .Role_Members, "PUT", tprint("/guilds/%/members/%/roles/%", g.id, uid, r.id));
+				else ss_action(g, .Role_Members, "PATCH", tprint("/guilds/%/roles/%/members", g.id, r.id), tprint("{\"member_ids\":[\"%\"]}", uid));
+			}
 		}
 		set_divider();
 	}
