@@ -127,6 +127,23 @@ slhdsa_verify :: (pub: []u8, ctx: string, msg: []u8, sig: []u8) -> bool {
     return SLHDSA_SHA2_128S_verify(sig.data, xx sig.count, pub.data, msg.data, xx msg.count, ctx.data, xx ctx.count) == 1;
 }
 
+// Ed25519 (RFC 8032): a group member's per-device signing key (E2E 8). priv is BoringSSL's 64 bytes.
+ed25519_generate :: () -> priv: [64]u8, pub: [32]u8 {
+    priv: [64]u8;
+    pub: [32]u8;
+    ED25519_keypair(pub.data, priv.data);
+    return priv, pub;
+}
+ed25519_sign :: (priv: [64]u8, msg: []u8) -> [64]u8 {
+    sig: [64]u8;
+    ok := ED25519_sign(sig.data, msg.data, xx msg.count, priv.data);
+    assert(ok == 1);
+    return sig;
+}
+ed25519_verify :: (pub: []u8, msg: []u8, sig: []u8) -> bool {
+    return pub.count == 32 && sig.count == 64 && ED25519_verify(msg.data, xx msg.count, sig.data, pub.data) == 1;
+}
+
 x25519_generate :: () -> priv: [32]u8, pub: [32]u8 {
     priv, pub: [32]u8;
     X25519_keypair(pub.data, priv.data);
@@ -182,6 +199,9 @@ fc_blake3_derive :: (ctx: *u8, p: *void, n: u64, out: *u8) #foreign bssl;
 SLHDSA_SHA2_128S_generate_key :: (pub: *u8, priv: *u8) #foreign bssl;
 SLHDSA_SHA2_128S_public_from_private :: (pub: *u8, priv: *u8) #foreign bssl;
 SLHDSA_SHA2_128S_sign :: (sig: *u8, priv: *u8, msg: *u8, mlen: u64, ctx: *u8, clen: u64) -> s32 #foreign bssl;
+ED25519_keypair :: (pub: *u8, priv: *u8) #foreign bssl;
+ED25519_sign :: (sig: *u8, msg: *u8, len: u64, priv: *u8) -> s32 #foreign bssl;
+ED25519_verify :: (msg: *u8, len: u64, sig: *u8, pub: *u8) -> s32 #foreign bssl;
 SLHDSA_SHA2_128S_verify :: (sig: *u8, slen: u64, pub: *u8, msg: *u8, mlen: u64, ctx: *u8, clen: u64) -> s32 #foreign bssl;
 X25519_keypair :: (pub: *u8, priv: *u8) #foreign bssl;
 X25519_public_from_private :: (pub: *u8, priv: *u8) #foreign bssl;

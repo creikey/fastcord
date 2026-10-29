@@ -10,6 +10,7 @@
 //     Hello: root[32] ik[32] proof[64] spk[32] pqpk[1184] sk[32] sk_proof[64] signature[7856]
 //     Init:  hello_id[32] root[32] ik[32] proof[64] ek[32] pqct[1088] header[40] ciphertext tag[16]
 //     Msg:   session[16] header[40] ciphertext tag[16]
+//     Group: key[16] n[u32 LE] ciphertext tag[16] signature[64]
 // header = dh[32] pn[u32 LE] n[u32 LE]. ik is the identity's Exchange key, proven to its root by proof.
 // hello_id is BLAKE3 of the whole Hello packet; a session's ID is BLAKE3 of the Init up to its header.
 // sk is the identity's SLH-DSA Signing key, proven to the same root, and signature is SLH-DSA over the
@@ -19,12 +20,12 @@
 VERSION :: 4;
 MAX_PACKET :: 16384; // The most any carrier may set as its largest packet.
 
-Kind :: enum u8 { Hello :: 1; Init :: 2; Msg :: 3; }
+Kind :: enum u8 { Hello :: 1; Init :: 2; Msg :: 3; Group :: 4; }
 
 // The first plaintext byte says what a ratchet message holds. Text is the text alone; every later kind
 // has a Body (encode_body): a message with a reply or files is a Post, and Edit, Delete, React and Unreact
 // name their target, the delivery they change.
-Content :: enum u8 { Text :: 0; Accept :: 1; Post :: 2; Edit :: 3; Delete :: 4; React :: 5; Unreact :: 6; }
+Content :: enum u8 { Text :: 0; Accept :: 1; Post :: 2; Edit :: 3; Delete :: 4; React :: 5; Unreact :: 6; Sender_Key :: 7; }
 SILENT :: cast(u8) 0x80; // Set on the Content byte: sent with @silent, so no sound or notification on any carrier.
 
 HEADER_BYTES :: 40;
@@ -34,6 +35,9 @@ HELLO_BYTES :: HELLO_SIGNED_BYTES + crypto.SLHDSA_SIGNATURE_BYTES;
 HELLO_CONTEXT :: "fastcord 2026-10-29 e2e signed prekeys v1";
 INIT_PREFIX_BYTES :: 2 + 32 + 32 + 32 + 64 + 32 + crypto.MLKEM768_CIPHERTEXT_BYTES;
 MSG_PREFIX_BYTES :: 2 + 16;
+GROUP_PREFIX_BYTES :: 2 + 16 + 4;
+GROUP_OVERHEAD :: GROUP_PREFIX_BYTES + TAG_BYTES + 64;
+SENDER_KEY_BYTES :: 16 + 4 + 32 + 32; // A Sender_Key body: key ID, its next n, chain key, Ed25519 public key.
 
 // max_text is the longest text one Msg holds on a carrier whose largest packet is limit: the rest is the
 // prefix, header and tag, the Content byte and the padding's 0x80.
@@ -76,7 +80,7 @@ encode_body :: (b: Body) -> []u8 {
 	out: [..]u8;
 	out.allocator = temp;
 	array_add(*out, (cast(u8) b.content) | (ifx b.silent then SILENT else 0));
-	if b.content == .Text { array_add(*out, ..cast([]u8) b.text); return out; }
+	if b.content == .Text || b.content == .Sender_Key { array_add(*out, ..cast([]u8) b.text); return out; }
 	if b.content == .Accept return out;
 	add_str :: (out: *[..]u8, s: string, wide := false) {
 		array_add(out, xx (s.count & 0xFF));
@@ -103,10 +107,11 @@ encode_body :: (b: Body) -> []u8 {
 // strings point into pt; files are in temp.
 parse_body :: (pt: []u8) -> Body, bool {
 	b: Body;
-	if pt.count < 1 || (pt[0] & ~SILENT) > xx Content.Unreact return b, false;
+	if pt.count < 1 || (pt[0] & ~SILENT) > xx Content.Sender_Key return b, false;
 	b.content, b.silent = xx (pt[0] & ~SILENT), (pt[0] & SILENT) != 0;
 	r := array_view(pt, 1, pt.count - 1);
 	if b.content == .Text { b.text = xx r; return b, valid_utf8(b.text); }
+	if b.content == .Sender_Key { b.text = xx r; return b, r.count == SENDER_KEY_BYTES; } // binary, never shown
 	if b.content == .Accept return b, r.count == 0;
 	ok := true;
 	bytes :: (n: int) -> []u8 #expand {
@@ -510,6 +515,99 @@ decrypt :: (s: *Session, m: []u8, pt: []u8, skipped: *[..]Skipped) -> bool {
 
 same :: (a: []u8, b: []u8) -> bool { return crypto.constant_time_equal(a, b); }
 
+// ---- Sender keys (E2E 8): a group's messages, after Signal's Sender Keys ----
+//
+// Each member sends under a chain of their own, given to every other member over the pairwise sessions
+// (a Sender_Key message). A Group packet's message key is the chain's n-th (KDF_CK), its AD the binding of
+// the conversation and the sender, and the whole packet is signed with the chain's Ed25519 key, so a
+// member holding the chain key still can't forge another's messages.
+
+Sender_Key :: struct {
+	id: [16]u8;
+	n: u32;
+	ck: [32]u8;
+	sign_pub: [32]u8;
+	sign_priv: [64]u8; // Ours only.
+}
+
+new_sender_key :: () -> Sender_Key {
+	k: Sender_Key;
+	crypto.random_bytes(k.id);
+	crypto.random_bytes(k.ck);
+	k.sign_priv, k.sign_pub = crypto.ed25519_generate();
+	return k;
+}
+
+// sender_key_body is what a Sender_Key message holds after its Content byte.
+sender_key_body :: (k: Sender_Key) -> string {
+	b := NewArray(SENDER_KEY_BYTES, u8,, temp);
+	memcpy(b.data, k.id.data, 16);
+	memcpy(b.data + 16, *k.n, 4);
+	memcpy(b.data + 20, k.ck.data, 32);
+	memcpy(b.data + 52, k.sign_pub.data, 32);
+	return xx b;
+}
+
+sender_key_of :: (body: string) -> Sender_Key {
+	k: Sender_Key;
+	assert(body.count == SENDER_KEY_BYTES);
+	memcpy(k.id.data, body.data, 16);
+	memcpy(*k.n, body.data + 16, 4);
+	memcpy(k.ck.data, body.data + 20, 32);
+	memcpy(k.sign_pub.data, body.data + 52, 32);
+	return k;
+}
+
+group_seal :: (k: *Sender_Key, bind: [32]u8, pt: []u8, out: *Packet) -> bool {
+	if GROUP_OVERHEAD + pt.count > out.limit return false;
+	mk: [32]u8;
+	k.ck, mk = kdf_ck(k.ck);
+	defer crypto.zero(*mk);
+	out.count = 0;
+	put(out, .[VERSION, xx Kind.Group]); put(out, k.id); put_u32(out, k.n);
+	k.n += 1;
+	header := array_view(bytes(out), 0, GROUP_PREFIX_BYTES);
+	if !group_aead(true, mk, bind, header, pt, array_view(out.data, out.count, pt.count), array_view(out.data, out.count + pt.count, TAG_BYTES)) return false;
+	out.count += pt.count + TAG_BYTES;
+	sig := crypto.ed25519_sign(k.sign_priv, bytes(out));
+	put(out, sig);
+	return true;
+}
+
+// parse_group: a Group packet's key ID and n, once its length is possible.
+parse_group :: (p: []u8) -> id: [16]u8, n: u32, ok: bool {
+	id: [16]u8;
+	if p.count < GROUP_OVERHEAD + 1 || p[0] != VERSION || p[1] != xx Kind.Group return id, 0, false;
+	memcpy(id.data, p.data + 2, 16);
+	return id, get_u32(p, 18), true;
+}
+
+// group_open checks the signature, then opens p with message key mk (from the chain, or a skipped one);
+// pt is sized p.count - GROUP_OVERHEAD.
+group_open :: (k: Sender_Key, mk: [32]u8, bind: [32]u8, p: []u8, pt: []u8) -> bool {
+	body := array_view(p, 0, p.count - 64);
+	if pt.count != p.count - GROUP_OVERHEAD || !crypto.ed25519_verify(k.sign_pub, body, array_view(p, p.count - 64, 64)) return false;
+	ct := array_view(p, GROUP_PREFIX_BYTES, pt.count);
+	return group_aead(false, mk, bind, array_view(p, 0, GROUP_PREFIX_BYTES), ct, pt, array_view(p, GROUP_PREFIX_BYTES + pt.count, TAG_BYTES));
+}
+
+// group_advance moves k's chain to message n, appending the keys it skips (at most MAX_SKIP), and returns
+// n's message key; false when n is behind the chain or too far ahead.
+group_advance :: (k: *Sender_Key, n: u32, skipped: *[..]Skipped) -> [32]u8, bool {
+	mk: [32]u8;
+	if n < k.n || n - k.n > MAX_SKIP return mk, false;
+	while k.n < n {
+		s := array_add(skipped);
+		s.n = k.n;
+		memcpy(s.dh.data, k.id.data, 16);
+		k.ck, s.mk = kdf_ck(k.ck);
+		k.n += 1;
+	}
+	k.ck, mk = kdf_ck(k.ck);
+	k.n += 1;
+	return mk, true;
+}
+
 #scope_file
 
 PQXDH_INFO :: "fastcord_PQXDH_X25519_SHA-256_ML-KEM-768";
@@ -636,6 +734,25 @@ valid_utf8 :: (s: string) -> bool {
 printable :: (s: string) -> bool {
 	for cast([]u8) s if it < 0x20 || it > 0x7E return false;
 	return true;
+}
+
+GROUP_MK_INFO :: "fastcord_SenderKey_MessageKey";
+
+group_aead :: (seal: bool, mk: [32]u8, bind: [32]u8, header: []u8, src: []u8, dst: []u8, tag: []u8) -> bool {
+	zero_salt: [32]u8;
+	prk := crypto.hkdf_extract(zero_salt, mk);
+	kn: [44]u8;
+	crypto.hkdf_expand(prk, xx GROUP_MK_INFO, kn);
+	defer { crypto.zero(*kn); crypto.zero(*prk); }
+	full_ad: [32 + GROUP_PREFIX_BYTES]u8;
+	memcpy(full_ad.data, bind.data, 32);
+	memcpy(full_ad.data + 32, header.data, GROUP_PREFIX_BYTES);
+	a: crypto.Aead;
+	if !crypto.aead_init(*a, .CHACHA20_POLY1305, array_view(kn, 0, 32)) return false;
+	defer crypto.aead_destroy(*a);
+	nonce := array_view(kn, 32, 12);
+	if seal return crypto.seal(*a, dst, tag, nonce, full_ad, src);
+	return crypto.open(*a, dst, nonce, full_ad, src, tag);
 }
 
 open_message :: (s: *Session, mk: [32]u8, m: []u8, pt: []u8) -> bool {

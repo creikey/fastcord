@@ -92,7 +92,7 @@ Op :: enum u8 {
 	Set_Verified;  // conv, peer_root, verified: marks conv.peer's root verified or not, and clears key_changed
 	Hello;         // conv, me -> packet, or result Too_Long when a Hello doesn't fit the carrier
 	Accept;        // conv (peer: who sent the Hello), me, packet = the Hello -> packet
-	Send;          // conv, me, content, text, target, reply, files -> packet, or result No_Session / Too_Long / Failed (an Edit or Delete of what isn't ours)
+	Send;          // conv, me, content, text, target, reply, files -> packet, or result No_Session / Too_Long / Failed (an Edit or Delete of what isn't ours). In a group (members), packets: our sender key for each member it's new to, then the message.
 	Sent;          // packet: handed to its carrier, so it leaves the outbox
 	Receive;       // conv, from, delivery, me, packet -> result, content, out_text, target, reply, files
 	Outbox;        // -> outbox: packets committed but never handed to their carrier, to send again after a crash
@@ -129,6 +129,8 @@ Request :: struct {
 	reply: string;
 	files: [..]File; // Strings on the heap.
 	stickers: [..]string;
+	members: [..]string; // Send in a group (E2E 8): its other parties, each given our sender key.
+	packets: [..]string; // Send in a group: every packet to hand the carrier, in order.
 	encrypted: bool;
 	verified: bool;
 	peer_root: [32]u8;
@@ -159,6 +161,10 @@ free_request :: (r: *Request) {
 	array_free(r.files);
 	for r.stickers free(it);
 	array_free(r.stickers);
+	for r.packets free(it);
+	array_free(r.packets);
+	for r.members free(it);
+	array_free(r.members);
 	for r.outbox { free(it.carrier); free(it.conversation); free(it.packet); free(it.replaces); }
 	array_free(r.outbox);
 	for r.hits { free(it.delivery); free(it.author); crypto.zero(xx it.text); free(it.text); }
@@ -224,6 +230,8 @@ CREATE INDEX plaintexts_conversation ON plaintexts(conversation);
 SQL,
 	// An Edit or Delete rewrites its target delivery; a resend after a crash keeps @silent.
 	"ALTER TABLE outbox ADD COLUMN replaces BLOB; ALTER TABLE outbox ADD COLUMN silent INTEGER NOT NULL DEFAULT 0;",
+	// E2E 8: each sender's chains in a group, ours with the members it was given to.
+	"CREATE TABLE sender_keys(conversation BLOB NOT NULL, sender BLOB NOT NULL, id BLOB NOT NULL, sealed BLOB NOT NULL, members BLOB, updated INTEGER NOT NULL, PRIMARY KEY(conversation, sender, id)) WITHOUT ROWID;",
 ];
 
 // Search opens at most this many of a conversation's texts and returns at most MAX_HITS of them.
@@ -318,6 +326,7 @@ run_request :: (d: *Db, r: *Request) {
 			body := encode_body(.{r.content, r.silent, r.target, r.reply, r.files, r.text, r.stickers});
 			_, valid := parse_body(body);
 			if !valid || r.content == .Accept { r.result = .Failed; return; }
+			if r.members { group_send(d, r, conv, body); return; }
 			if body.count + 1 > r.conv.limit - MSG_PREFIX_BYTES - HEADER_BYTES - TAG_BYTES { r.result = .Too_Long; return; }
 			// Only our own message is edited or deleted.
 			if replaces(r.content) && query_int(db, "SELECT 1 FROM plaintexts WHERE delivery = ? AND conversation = ? AND author = ? LIMIT 1;", cast([]u8) r.target, conv, cast([]u8) r.conv.me) != 1 {
@@ -394,7 +403,7 @@ commit_sent :: (d: *Db, r: *Request, conv: []u8, s: *Session, new: bool, peer_ro
 			else sqlite.run(db, "UPDATE sessions SET state = ?, updated = ? WHERE id = ?;", seal(d, ad("sessions", s.id), s), now_ms(), cast([]u8) s.id))
 		&& store_plaintext(d, hash, ifx replaces(r.content) then r.target else "", body, conv, r.conv.me)
 		&& sqlite.run(db, "INSERT INTO outbox(hash, conversation, packet, replaces, silent) VALUES(?, ?, ?, nullif(?, X''), ?);", cast([]u8) hash, conv, cast([]u8) r.packet, cast([]u8) r.target, r.silent)
-		&& (!new || (set_encrypted(db, conv, true) && note_peer(db, peer, peer_root)))
+		&& (!new || (set_encrypted(db, conv, true) && note_peer(db, peer, peer_root) && forget_own_sender_key(db, r, conv)))
 		&& sqlite.exec(db, "COMMIT;");
 	if !ok { log_error("e2e: cannot save a sent message: %", sqlite.errmsg(db)); sqlite.exec(db, "ROLLBACK;"); }
 	return ok;
@@ -465,6 +474,7 @@ receive :: (d: *Db, r: *Request, conv: []u8) {
 				&& store_plaintext(d, hash, r.delivery, body, conv, r.from)
 				&& set_encrypted(db, conv, true)
 				&& note_peer(db, from, i.root)
+				&& forget_own_sender_key(db, r, conv)
 				&& sqlite.run(db, "UPDATE prekeys SET answered = ? WHERE hello_id = ? AND answered = 0;", now_ms(), cast([]u8) i.hello_id)
 				&& sqlite.exec(db, "COMMIT;");
 			crypto.zero(cast([]u8) pt);
@@ -499,6 +509,7 @@ receive :: (d: *Db, r: *Request, conv: []u8) {
 				ok = sqlite.exec(db, "BEGIN;")
 					&& sqlite.run(db, "DELETE FROM skipped WHERE session = ? AND dh = ? AND n = ?;", cast([]u8) id, cast([]u8) h.dh, cast(s64) h.n)
 					&& store_plaintext(d, hash, r.delivery, body, conv, r.from)
+					&& store_sender_key(d, r, conv, from)
 					&& sqlite.exec(db, "COMMIT;");
 			} else {
 				next := s;
@@ -510,10 +521,13 @@ receive :: (d: *Db, r: *Request, conv: []u8) {
 					&& sqlite.run(db, "UPDATE sessions SET state = ?, updated = ? WHERE id = ?;", seal(d, ad("sessions", id), *next), now_ms(), cast([]u8) id)
 					&& store_skipped(d, id, skipped)
 					&& store_plaintext(d, hash, r.delivery, body, conv, r.from)
+					&& store_sender_key(d, r, conv, from)
 					&& sqlite.exec(db, "COMMIT;");
 				for * skipped crypto.zero(*it.mk);
 			}
 			if !ok { sqlite.exec(db, "ROLLBACK;"); r.result = .Failed; }
+		case .Group;
+			receive_group(d, r, conv, from, hash);
 		case;
 			r.result = .Undecryptable;
 	}
@@ -542,6 +556,132 @@ opened :: (r: *Request, padded: []u8, body: *[]u8) -> bool {
 }
 
 replaces :: (c: Content) -> bool { return c == .Edit || c == .Delete; }
+
+// ---- Groups (E2E 8) ----
+
+// members_key names a group's member set, in any order.
+members_key :: (members: []string) -> [32]u8 {
+	out: [32]u8;
+	for members {
+		h := crypto.blake3(xx it);
+		for b: 0..31 out[b] ^= h[b];
+	}
+	return out;
+}
+
+forget_own_sender_key :: (db: *sqlite.DB, r: *Request, conv: []u8) -> bool {
+	return sqlite.run(db, "DELETE FROM sender_keys WHERE conversation = ? AND sender = ?;", conv, key(r.conv.carrier, r.conv.me));
+}
+
+// group_send sends body under our sender key in a group. A new key (the first send, after the members
+// changed, or after a new session) goes first to every member we have a session with, each a Sender_Key
+// message of their pairwise session; then the Group packet. One transaction, as commit_sent.
+group_send :: (d: *Db, r: *Request, conv: []u8, body: []u8) {
+	db := d.sql;
+	if body.count + 1 > r.conv.limit - GROUP_OVERHEAD { r.result = .Too_Long; return; }
+	me := key(r.conv.carrier, r.conv.me);
+	members := members_key(r.members);
+	k: Sender_Key;
+	defer crypto.zero(*k);
+	st := sqlite.prepare(db, "SELECT id, sealed FROM sender_keys WHERE conversation = ? AND sender = ? AND members = ? ORDER BY updated DESC LIMIT 1;");
+	have := sqlite.bind_all(st, conv, me, cast([]u8) members) && sqlite.step(st) == .Row
+		&& unseal(d, ad("sender_keys", sqlite.col_blob(st, 0)), sqlite.col_blob(st, 1), *k);
+	sqlite.finalize(st);
+	if !sqlite.exec(db, "BEGIN;") { r.result = .Failed; return; }
+	ok := true;
+	if !have {
+		k = new_sender_key();
+		given := 0;
+		for m: r.members {
+			peer := key(r.conv.carrier, m);
+			st = sqlite.prepare(db, "SELECT id, state FROM sessions WHERE conversation = ? AND peer = ? ORDER BY updated DESC LIMIT 1;");
+			s: Session;
+			found := sqlite.bind_all(st, conv, peer) && sqlite.step(st) == .Row && unseal(d, ad("sessions", sqlite.col_blob(st, 0)), sqlite.col_blob(st, 1), *s);
+			sqlite.finalize(st);
+			defer crypto.zero(*s);
+			if !found continue;
+			gift := encode_body(.{content = .Sender_Key, text = sender_key_body(k)});
+			p: Packet;
+			p.limit = r.conv.limit;
+			pt := pad(gift, p.limit - MSG_PREFIX_BYTES - HEADER_BYTES - TAG_BYTES);
+			head: [2]u8 = .[VERSION, xx Kind.Msg];
+			memcpy(p.data.data, head.data, 2);
+			memcpy(p.data.data + 2, s.id.data, 16);
+			p.count = MSG_PREFIX_BYTES;
+			ok = ok && encrypt(*s, pt, *p);
+			crypto.zero(pt);
+			packet := bytes(*p);
+			ok = ok && sqlite.run(db, "UPDATE sessions SET state = ?, updated = ? WHERE id = ?;", seal(d, ad("sessions", s.id), *s), now_ms(), cast([]u8) s.id)
+				&& store_plaintext(d, crypto.blake3(packet), "", gift, conv, r.conv.me)
+				&& sqlite.run(db, "INSERT INTO outbox(hash, conversation, packet) VALUES(?, ?, ?);", cast([]u8) crypto.blake3(packet), conv, packet);
+			array_add(*r.packets, copy_string(xx packet));
+			given += 1;
+		}
+		if !given { sqlite.exec(db, "ROLLBACK;"); r.result = .No_Session; return; }
+	}
+	p: Packet;
+	p.limit = r.conv.limit;
+	pt := pad(body, p.limit - GROUP_OVERHEAD);
+	defer crypto.zero(pt);
+	ok = ok && group_seal(*k, binding(r.conv, r.conv.me, ""), pt, *p);
+	packet := bytes(*p);
+	ok = ok && sqlite.run(db, "INSERT OR REPLACE INTO sender_keys(conversation, sender, id, sealed, members, updated) VALUES(?, ?, ?, ?, ?, ?);",
+			conv, me, cast([]u8) k.id, seal(d, ad("sender_keys", k.id), *k), cast([]u8) members, now_ms())
+		&& store_plaintext(d, crypto.blake3(packet), "", body, conv, r.conv.me)
+		&& sqlite.run(db, "INSERT INTO outbox(hash, conversation, packet, silent) VALUES(?, ?, ?, ?);", cast([]u8) crypto.blake3(packet), conv, packet, r.silent)
+		&& sqlite.exec(db, "COMMIT;");
+	if !ok { sqlite.exec(db, "ROLLBACK;"); r.result = .Failed; for r.packets free(it); r.packets.count = 0; return; }
+	r.packet = copy_string(xx packet);
+	array_add(*r.packets, copy_string(xx packet));
+}
+
+// store_sender_key keeps a chain a member gave us over our pairwise session (a Sender_Key message).
+store_sender_key :: (d: *Db, r: *Request, conv: []u8, from: []u8) -> bool {
+	if r.content != .Sender_Key return true;
+	k := sender_key_of(r.out_text);
+	defer crypto.zero(*k);
+	return sqlite.run(d.sql, "INSERT OR REPLACE INTO sender_keys(conversation, sender, id, sealed, updated) VALUES(?, ?, ?, ?, ?);",
+		conv, from, cast([]u8) k.id, seal(d, ad("sender_keys", k.id), *k), now_ms());
+}
+
+// receive_group opens a Group packet with the chain its sender gave us: No_Session until they have.
+receive_group :: (d: *Db, r: *Request, conv: []u8, from: []u8, hash: [32]u8) {
+	db := d.sql;
+	packet: []u8 = xx r.packet;
+	id, n, ok := parse_group(packet);
+	if !ok { r.result = .Undecryptable; return; }
+	k: Sender_Key;
+	defer crypto.zero(*k);
+	st := sqlite.prepare(db, "SELECT sealed FROM sender_keys WHERE conversation = ? AND sender = ? AND id = ?;");
+	found := sqlite.bind_all(st, conv, from, cast([]u8) id) && sqlite.step(st) == .Row && unseal(d, ad("sender_keys", id), sqlite.col_blob(st, 0), *k);
+	sqlite.finalize(st);
+	if !found { r.result = ifx r.from == r.conv.me then .Undecryptable else .No_Session; return; }
+	bind := binding(r.conv, r.from, "");
+	pt := NewArray(packet.count - GROUP_OVERHEAD, u8,, temp);
+	defer crypto.zero(pt);
+	dh: [32]u8;
+	memcpy(dh.data, id.data, 16);
+	st = sqlite.prepare(db, "SELECT sealed FROM skipped WHERE session = ? AND dh = ? AND n = ?;");
+	mk: [32]u8;
+	defer crypto.zero(*mk);
+	skipped_key := sqlite.bind_all(st, cast([]u8) id, cast([]u8) dh, cast(s64) n) && sqlite.step(st) == .Row && unseal(d, skipped_ad(id, dh, n), sqlite.col_blob(st, 0), *mk);
+	sqlite.finalize(st);
+	next := k;
+	defer crypto.zero(*next);
+	skipped: [..]Skipped;
+	skipped.allocator = temp;
+	if !skipped_key mk, ok = group_advance(*next, n, *skipped);
+	body: []u8;
+	if !ok || !group_open(k, mk, bind, packet, pt) || !opened(r, pt, *body) || r.content == .Sender_Key { r.result = .Undecryptable; return; }
+	ok = sqlite.exec(db, "BEGIN;")
+		&& (ifx skipped_key then sqlite.run(db, "DELETE FROM skipped WHERE session = ? AND dh = ? AND n = ?;", cast([]u8) id, cast([]u8) dh, cast(s64) n)
+			else sqlite.run(db, "UPDATE sender_keys SET sealed = ?, updated = ? WHERE conversation = ? AND sender = ? AND id = ?;", seal(d, ad("sender_keys", id), *next), now_ms(), conv, from, cast([]u8) id)
+				&& store_skipped(d, id, skipped))
+		&& store_plaintext(d, hash, r.delivery, body, conv, r.from)
+		&& sqlite.exec(db, "COMMIT;");
+	for * skipped crypto.zero(*it.mk);
+	if !ok { sqlite.exec(db, "ROLLBACK;"); r.result = .Failed; }
+}
 
 // A plaintext is sealed as its Content byte and Body, the form take_plaintext reads. delivery is empty
 // (NULL) for our own send until the carrier hands it back; author is the party that sent it. An Edit or

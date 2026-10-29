@@ -35,6 +35,7 @@ main :: () {
 	conversation(dir, e2e.HELLO_BYTES); // the smallest that carries a signed Hello
 	conversation(dir, e2e.MAX_PACKET);  // the largest any carrier may set
 	tiny(dir);
+	group(dir);
 	if failed { print("e2e: % failed\n", failed); exit(1); }
 	print("e2e: ok\n");
 }
@@ -578,6 +579,105 @@ contents :: (a: *Client, b: *Client) {
 	}
 	_, ok := e2e.parse_body(e2e.encode_body(.{content = .Post, files = .[f], text = "ok"}));
 	check(ok, "a good body parses");
+}
+
+// group: three members over the mock carrier with sender keys (E2E 8). Each pair has a session in the group
+// conversation; a member's chain goes to the others inside those, then their messages go once to all.
+group :: (dir: string) {
+	limit = e2e.MAX_PACKET;
+	GROUP :: "group\x00conv";
+	tag := tprint("%/group", dir);
+	make_directory_if_it_does_not_exist(tag);
+	names :: string.["ann", "ben\x00", "cy"];
+	m: [3]Client;
+	for * m it.* = .{d = e2e.start(tprint("%/%.db", tag, it_index)), me = e2e.identity_of(keys.generate(names[it_index])), party = names[it_index]};
+	others :: (c: *Client, all: []Client, gone := "") -> []string {
+		out: [..]string;
+		out.allocator = temp;
+		for all if it.party != c.party && it.party != gone array_add(*out, it.party);
+		return out;
+	}
+	conv_of :: (c: *Client, peer := "") -> e2e.Conversation { return .{CARRIER, GROUP, c.party, peer, limit}; }
+	gsend :: (c: *Client, members: []string, text: string) -> *e2e.Request {
+		r := e2e.request(.Send, conv_of(c), text);
+		r.me = c.me;
+		for members array_add(*r.members, copy_string(it));
+		e2e.submit(c.d, r);
+		wait(r);
+		return r;
+	}
+	grecv :: (c: *Client, packet: string, from: *Client, at: string) -> *e2e.Request {
+		r := e2e.request(.Receive, conv_of(c, from.party), packet = packet);
+		r.me, r.from, r.delivery = c.me, copy_string(from.party), copy_string(at);
+		e2e.submit(c.d, r);
+		wait(r);
+		return r;
+	}
+	// Pairwise sessions: each member's Hello, answered by the two others.
+	for * h: m {
+		hello := e2e.request(.Hello, conv_of(h));
+		hello.me = h.me;
+		e2e.submit(h.d, hello);
+		wait(hello);
+		for * a: m if a != h {
+			init := e2e.request(.Accept, conv_of(a, h.party), packet = hello.packet);
+			init.me = a.me;
+			e2e.submit(a.d, init);
+			wait(init);
+			check(init.result == .Ok, "a member answers another's Hello");
+			check(grecv(h, init.packet, a, copy_string(delivery())).result == .Ok, "and the Init opens");
+		}
+	}
+	all := array_view(m, 0, 3);
+	first := gsend(*m[0], others(*m[0], all), "hello group");
+	check(first.result == .Ok && first.packets.count == 3, tprint("the first send gives the chain to both, then the message (% packets)", first.packets.count));
+	at := copy_string(delivery());
+	for i: 1..2 {
+		// Every member sees every packet; the gift for the other member isn't theirs to open.
+		gifts := 0;
+		for g: 0..1 {
+			gr := grecv(*m[i], first.packets[g], *m[0], copy_string(delivery()));
+			if gr.result == .Ok && gr.content == .Sender_Key gifts += 1;
+			else check(gr.result == .No_Session, tprint("another's gift waits as no session (%)", gr.result));
+		}
+		check(gifts == 1, "each member gets one gift");
+		got := grecv(*m[i], first.packet, *m[0], at);
+		check(got.result == .Ok && got.out_text == "hello group", tprint("member % opens the group message (%)", i, got.result));
+	}
+	check(grecv(*m[1], first.packet, *m[0], copy_string(delivery())).result == .Repeated, "a replay as another delivery");
+	forged := copy_string(first.packet);
+	forged[30] ^= 1;
+	check(grecv(*m[2], forged, *m[0], copy_string(delivery())).result == .Undecryptable, "a forged group message");
+	unsigned := copy_string(first.packet);
+	unsigned[unsigned.count - 1] ^= 1;
+	check(grecv(*m[1], unsigned, *m[0], copy_string(delivery())).result == .Undecryptable, "a bad signature");
+
+	// The chain is ours: later sends are one packet, and arrive in any order.
+	a2 := gsend(*m[0], others(*m[0], all), "second");
+	a3 := gsend(*m[0], others(*m[0], all), "third");
+	check(a2.packets.count == 1 && a3.packets.count == 1, "later sends reuse the chain");
+	check(grecv(*m[1], a3.packet, *m[0], copy_string(delivery())).out_text == "third", "out of order");
+	check(grecv(*m[1], a2.packet, *m[0], copy_string(delivery())).out_text == "second", "a skipped key opens the earlier one");
+
+	// A message before its chain arrives waits for it.
+	b1 := gsend(*m[1], others(*m[1], all), "from ben");
+	check(b1.packets.count == 3, "ben's first send gives his chain");
+	b_at := copy_string(delivery());
+	check(grecv(*m[2], b1.packet, *m[1], b_at).result == .No_Session, "ben's message before his chain");
+	for b1.packets grecv(*m[2], it, *m[1], copy_string(delivery()));
+	check(grecv(*m[2], b1.packet, *m[1], b_at).out_text == "from ben", "then it opens");
+	// A member's chain can't be used to speak as another member.
+	stolen := grecv(*m[2], a2.packet, *m[1], copy_string(delivery()));
+	check(stolen.result != .Ok, "ann's message shown as ben's doesn't open");
+
+	// Cy leaves: ann's next send is under a new chain, given only to ben.
+	left := gsend(*m[0], others(*m[0], all, gone = "cy"), "without cy");
+	check(left.result == .Ok && left.packets.count == 2, "a member leaving rotates the chain");
+	for left.packets grecv(*m[2], it, *m[0], copy_string(delivery()));
+	check(grecv(*m[2], left.packet, *m[0], copy_string(delivery())).result == .No_Session, "the one who left can't read on");
+	for left.packets grecv(*m[1], it, *m[0], copy_string(delivery()));
+	check(grecv(*m[1], left.packet, *m[0], copy_string(delivery())).out_text == "without cy", "the one who stayed can");
+	for * m stop(it.d);
 }
 
 // tiny: a carrier whose largest packet is smaller than a Hello refuses cleanly instead of sending a cut one.
