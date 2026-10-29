@@ -271,6 +271,8 @@ Message :: struct {
 	referenced_id: Snowflake; // reply target
 	command_user: Snowflake; // an app command's reply (types 20, 23): who used it, and its name
 	command_name: string;
+	sub_months: int; // ROLE_SUBSCRIPTION_PURCHASE (25): months subscribed (content holds the tier's name)
+	sub_renewal: bool;
 	// forwarded (message_reference type 1): the origin, and content etc. above come from the snapshot
 	forwarded: bool;
 	forward_channel_id: Snowflake; // also THREAD_CREATED's (type 18) thread

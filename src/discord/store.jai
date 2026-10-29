@@ -625,6 +625,21 @@ parse_message_fields :: (s: *Store, msg: *Message, m: etf.Map) {
 	} else if ref {
 		msg.referenced_id = fsnow(ref, "message_id");
 		if msg.kind == 18 msg.forward_channel_id = fsnow(ref, "channel_id"); // THREAD_CREATED: the thread
+		// THREAD_STARTER_MESSAGE: the parent message shown as itself, by its author; without it, a notice
+		rm := fmap(m, "referenced_message");
+		if msg.kind == 21 && rm {
+			parse_message_content(s, msg, rm);
+			ra := fmap(rm, "author");
+			if ra msg.author_id = parse_user_into(s, ra);
+			msg.referenced_id = 0;
+		}
+	}
+	rs := fmap(m, "role_subscription_data");
+	if rs {
+		tier := fstr(rs, "tier_name");
+		set_str(s, *msg.content, slice(tier, 0, min(tier.count, 100)));
+		msg.sub_months = clamp(fint(rs, "total_months_subscribed"), 0, 10_000);
+		msg.sub_renewal = fbool(rs, "is_renewal");
 	}
 	// "X used /command": interaction_metadata (its name when the API sends one), else the older interaction
 	im, old := fmap(m, "interaction_metadata"), fmap(m, "interaction");
