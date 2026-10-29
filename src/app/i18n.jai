@@ -47,7 +47,7 @@ i18n_frame :: () {
 	i18n.rule = plural_rule(code);
 	data := "";
 	file := ifx code == "es-419" then "es-ES" else code; // one Spanish for both
-	for LANG_FILES if it.code == file data = it.text;
+	for 0..LANG_FILES.count / 2 - 1 if LANG_FILES[it * 2] == file data = LANG_FILES[it * 2 + 1];
 	if !data return;
 	found: Table(string, string);
 	found.allocator = temp;
@@ -314,29 +314,37 @@ byte_compare :: (a: string, b: string) -> int {
 	return a.count - b.count;
 }
 
-Lang_File :: struct { code: string; text: string; }
-
 KEYS :: #run,host -> []string {
 	#import "Basic"; #import "File"; #import "String";
 	text := read_entire_file(tprint("%lang/keys.txt", #filepath));
 	out: [..]string;
-	for split(text, "\n") if it array_add(*out, unescape_key(it));
-	return out;
-};
-
-LANG_FILES :: #run,host -> []Lang_File {
-	#import "Basic"; #import "File"; #import "File_Utilities"; #import "String";
-	out: [..]Lang_File;
-	for file_list(tprint("%lang", #filepath)) {
-		name := path_filename(it);
-		if !ends_with(name, ".txt") || name == "keys.txt" continue;
-		array_add(*out, .{copy_string(slice(name, 0, name.count - 4)), read_entire_file(it)});
+	for split(text, "\n") if it {
+		// unescape's \n, \t and \\, inline: a host #run sees none of this file's procedures
+		sb: String_Builder;
+		i := 0;
+		while i < it.count {
+			c := it[i];
+			if c == #char "\\" && i + 1 < it.count {
+				i += 1;
+				c = it[i];
+				if c == #char "n" c = #char "\n"; else if c == #char "t" c = #char "\t";
+			}
+			append(*sb, c);
+			i += 1;
+		}
+		array_add(*out, builder_to_string(*sb));
 	}
 	return out;
 };
 
-// keys.txt's escapes, at compile time.
-unescape_key :: (s: string) -> string {
-	if !contains(s, "\\") return copy_string(s);
-	return unescape(s);
-}
+// Code, text, code, text...: a cross-compile's #run,host can only return strings and arrays of them.
+LANG_FILES :: #run,host -> []string {
+	#import "Basic"; #import "File"; #import "File_Utilities"; #import "String";
+	out: [..]string;
+	for file_list(tprint("%lang", #filepath)) {
+		name := path_filename(it);
+		if !ends_with(name, ".txt") || name == "keys.txt" continue;
+		array_add(*out, copy_string(slice(name, 0, name.count - 4)), read_entire_file(it));
+	}
+	return out;
+};
