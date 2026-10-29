@@ -413,6 +413,44 @@ device_row :: (v: dc.V, index: int, current: bool) {
 }
 #scope_export
 
+// chat_pref: a TextAndImages BoolValue (category 6), true while unset (the client's defaults).
+chat_pref :: (field: u32) -> bool {
+	_, has := dc.settings_value(store(), 6, field);
+	v, set := dc.settings_value(store(), 6, field, 1);
+	return !has || (set && v != 0);
+}
+
+// spoilers_always: TextAndImages.render_spoilers (6.4, a StringValue) is "ALWAYS".
+spoilers_always :: () -> bool {
+	f, ok := dc.settings_bytes(store(), 6, 4, 1);
+	return ok && cast(string) f == "ALWAYS";
+}
+
+// Chat: what messages show, synced (text_and_images).
+chat_page :: () {
+	if !set_page_begin("chatpage") return;
+	defer set_page_end();
+	set_heading("Display Images, Videos and Lolcats");
+	toggle :: (id: string, field: u32, title: string) {
+		on := chat_pref(field);
+		if set_toggle_row(id, title, "", on) proto_put(6, field, dc.pb_field_bool_value(field, !on));
+		set_divider();
+	}
+	toggle("embeds", 12, "Show embeds and preview website links pasted into chat");
+	toggle("reactions", 13, "Show emoji reactions on messages");
+	spacer(.Y, 24);
+	set_heading("Spoiler Content");
+	SPOILERS :: string.["On click", "On servers I moderate", "Always"];
+	SPOILER_V :: string.["ON_CLICK", "IF_MODERATOR", "ALWAYS"];
+	f, ok := dc.settings_bytes(store(), 6, 4, 1);
+	cur := 0;
+	if ok for SPOILER_V if it == cast(string) f cur = it_index;
+	label("Show spoiler content", .Medium, 16, T("--text-strong"), 20);
+	spacer(.Y, 8);
+	pick := select_field("spoilers", SPOILERS, cur);
+	if pick >= 0 && pick != cur proto_put(6, 4, dc.pb_field_string_value(4, SPOILER_V[pick]));
+}
+
 // Data & Privacy (DATA_AND_PRIVACY_PANEL): Use data to improve Discord (a consent on the account) and
 // Profile Privacy (privacy.profile_visibility, 8.32).
 data_privacy_page :: () {

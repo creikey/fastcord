@@ -634,7 +634,7 @@ spoiler_key :: (toks: []Token, i: int) -> u64 {
 }
 
 spoiler_revealed :: (toks: []Token, i: int) -> bool {
-	return table_find_pointer(*revealed_spoilers, spoiler_key(toks, i)) != null;
+	return spoilers_always() || table_find_pointer(*revealed_spoilers, spoiler_key(toks, i)) != null; // Chat > Show spoiler content
 }
 
 EDITED_SPAN : u64 : 0xffff_ffff_ffff_fff0; // the trailing " (edited)" span's id; no token index reaches it
@@ -1567,7 +1567,7 @@ message_row :: (m: *dc.Message, grouped: bool, new_day: bool, show_new: bool) ->
 				if m.attachments && !m.forwarded attachments_view(m);
 				if m.pending upload_progress_view(m);
 				if m.failed failed_send_note(m);
-				if m.embeds && !m.forwarded && !(m.flags & 4) {
+				if m.embeds && !m.forwarded && !(m.flags & 4) && chat_pref(12) { // Chat > Show embeds
 					// your own embeds get the client's hover X, "Remove all embeds" (Shift skips the confirm)
 					er := row("embeds");
 					er.semantic_size = .[ui.pct(1), ui.children()];
@@ -1596,7 +1596,7 @@ message_row :: (m: *dc.Message, grouped: bool, new_day: bool, show_new: bool) ->
 				if m.poll message_poll_view(m);
 				if m.components && !m.forwarded message_components_view(m); // components.jai
 				if m.flags & dc.MESSAGE_EPHEMERAL ephemeral_note(m);
-				if m.reactions reactions_view(m);
+				if m.reactions && chat_pref(13) reactions_view(m); // Chat > Show emoji reactions
 			}
 			spacer(.X, ifx editing then cast(float32) MSG_EDIT_PAD_R else cast(float32) MSG_PAD_R); // the edit form reaches further right
 		}

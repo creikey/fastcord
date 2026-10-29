@@ -199,6 +199,12 @@ pb_field_ids :: (num: u32, ids: []u64) -> []u8 {
 	return pb_field_msg(num, b);
 }
 
+// settings_bytes: a length-delimited value (a string) at path, viewing the kept proto.
+settings_bytes :: (s: *Store, path: ..u32) -> []u8, bool {
+	f, ok := protobuf.find_path(s.settings.proto, ..path);
+	return f.bytes, ok && f.wire == .Len;
+}
+
 // settings_value: a varint at path in the kept proto (a wrapper's value: its field 1 last), and
 // whether it is set.
 settings_value :: (s: *Store, path: ..u32) -> u64, bool {
