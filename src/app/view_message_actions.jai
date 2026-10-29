@@ -493,6 +493,7 @@ message_menu :: () {
 	if in_chat array_add(*items, .{label = "Reply", icon = "arrow-angle-left-up", sep = !own});
 	if can_forward(m) array_add(*items, .{label = "Forward", icon = "arrow-angle-right-up", sep = !in_chat});
 	if in_chat && can_thread_from(m) array_add(*items, .{label = "Create Thread", icon = "thread"});
+	if can_publish(m) array_add(*items, .{label = "Publish", icon = "announcements"});
 	// official group order: Copy Text, Pin / Unpin Message, Apps, Mark Unread, Copy Message Link
 	array_add(*items, .{label = "Copy Text", icon = "copy", sep = true});
 	if dc.can_pin_message(s, m) array_add(*items, .{label = ifx m.pinned then "Unpin Message" else "Pin Message", icon = "pin"});
@@ -619,6 +620,9 @@ message_menu :: () {
 					clipboard_set(tprint("%", cast(u64) m.id));
 				case "Delete Message";
 					if app.ui_mods & .Shift delete_now(m); else ma.confirming, ma.confirm = m.id, Confirm.Delete;
+				case "Publish";
+					if net_action() dc.crosspost_message(app.client, m.channel_id, m.id);
+					else m.flags |= 1; // offline (fixture) runs: CROSSPOSTED
 				case "Remove All Reactions";
 					if app.ui_mods & .Shift remove_reactions_now(m); else ma.confirming, ma.confirm = m.id, Confirm.Remove_Reactions;
 				}
@@ -640,6 +644,13 @@ Confirm :: enum u8 { Delete; Pin; Unpin; Remove_Embeds; Remove_Reactions; }
 remove_reactions_now :: (m: *dc.Message) {
 	if net_action() dc.remove_all_reactions(app.client, m.channel_id, m.id);
 	else array_reset(*m.reactions); // offline (fixture) runs
+}
+
+// Publish: a sent message in an announcement channel not yet crossposted (flag 1), yours or with
+// MANAGE_MESSAGES.
+can_publish :: (m: *dc.Message) -> bool {
+	ch := dc.channel_get(store(), m.channel_id);
+	return ch && ch.kind == .Guild_Announcement && !(m.flags & 1) && !m.pending && !m.failed && (m.kind == 0 || m.kind == 19) && can_manage_message(m);
 }
 
 // Yours, or in a server channel where you have MANAGE_MESSAGES.

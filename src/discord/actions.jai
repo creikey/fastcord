@@ -602,6 +602,16 @@ add_reaction :: (c: *Client, channel_id: Snowflake, message_id: Snowflake, emoji
 }
 
 // remove_reaction: DELETE .../reactions/{emoji}/{type}/%40me?location=..&burst=
+// crosspost_message: Publish in an announcement channel, POST .../crosspost (no body); the reply is
+// the message with CROSSPOSTED set.
+crosspost_message :: (c: *Client, channel_id: Snowflake, message_id: Snowflake) {
+	j := job_new(.Api, .Edit_Message);
+	j.method = "POST";
+	j.path = job_str(j, channel_path(channel_id, "/messages/", snowflake_string(message_id), "/crosspost"));
+	j.result = .{op = .Edit_Message, channel_id = channel_id, message_id = message_id};
+	job_submit(c, j);
+}
+
 // remove_all_reactions: DELETE /channels/{c}/messages/{m}/reactions (MANAGE_MESSAGES); the gateway's
 // MESSAGE_REACTION_REMOVE_ALL clears them.
 remove_all_reactions :: (c: *Client, channel_id: Snowflake, message_id: Snowflake) {

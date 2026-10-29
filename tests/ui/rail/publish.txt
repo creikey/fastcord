@@ -1,0 +1,13 @@
+# Run with -fixture:tests/ui/rail.jsonl. In an announcement channel, your message not yet published
+# offers Publish in its menu; once published it doesn't.
+wait 5
+open 1600000000000000009
+wait 20
+rclick 600 610
+wait 5
+shot build/shots/pub1.png
+click_text "Publish"
+wait 5
+rclick 600 610
+wait 5
+expect_not_visible "Publish"
