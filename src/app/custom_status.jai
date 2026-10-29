@@ -161,8 +161,7 @@ custom_status_modal :: () {
 	}
 }
 
-#scope_file
-
+// A modal's footer button (Cancel, Save...): w wide, 38 tall.
 modal_button :: (id: string, w: float32, bg: ui.Color, bg_hot: ui.Color, fg: ui.Color) -> bool {
 	b := ui.box(id, .Clickable | .Draw_Background | .Draw_Text | .Hot_Animation);
 	b.semantic_size = .[ui.px(w), ui.px(38)];

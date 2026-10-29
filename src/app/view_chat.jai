@@ -639,6 +639,52 @@ open_launch_url :: (url: string) {
 	follow_link(u, 0, browser = false);
 }
 
+// An age-restricted (NSFW) channel, or a thread in one, shows a gate until you agree for its server
+// (remembered on this device, as the client's per-guild agreement is), and always when your account
+// may not see adult content.
+nsfw_gated :: (ch: *dc.Channel) -> bool {
+	s := store();
+	p := ifx dc.is_thread(ch) then dc.channel_get(s, ch.parent_id) else ch;
+	if !p || !p.nsfw return false;
+	_, agreed := table_find(*app.view.nsfw_agreed, ch.guild_id);
+	return !agreed || s.settings.nsfw_blocked;
+}
+
+nsfw_gate :: (ch: *dc.Channel) {
+	blocked := store().settings.nsfw_blocked;
+	g := ui.box("nsfwgate");
+	g.semantic_size = .[ui.fill(), ui.pct(1)];
+	g.layout_axis = .Y;
+	ui.parent(g); defer ui.pop_parent();
+	filler(.Y);
+	center :: (id: string, h: float32) -> *ui.Box #expand {
+		r := row(id);
+		r.semantic_size = .[ui.pct(1), ui.px(h)];
+		return r;
+	}
+	{ r := center("icon", 64); ui.parent(r); defer ui.pop_parent(); filler(.X); icon("i", "warning", 64, T("--text-feedback-warning")); filler(.X); }
+	spacer(.Y, 16);
+	{ r := center("t", 28); ui.parent(r); defer ui.pop_parent(); filler(.X); label("Age-Restricted Channel", .Semibold, 24, T("--text-strong"), 28); filler(.X); }
+	spacer(.Y, 8);
+	body := ifx blocked then "You must be at least 18 years old to view this channel." else "This channel contains adult content that may not be suitable for all audiences. You must be 18 or older to view it.";
+	{ r := center("b", 20); ui.parent(r); defer ui.pop_parent(); filler(.X); label(body, .Normal, 16, T("--text-default"), 20); filler(.X); }
+	spacer(.Y, 24);
+	{
+		r := center("btns", 38);
+		ui.parent(r); defer ui.pop_parent();
+		filler(.X);
+		if modal_button("Nevermind##nsfwno", 120, T("--background-mod-normal"), T("--background-mod-strong"), T("--text-strong")) {
+			if app.view.back.count history_step(false); else go_home();
+		}
+		if !blocked {
+			spacer(.X, 12);
+			if modal_button("Continue##nsfwyes", 120, T("--background-brand"), with_alpha(T("--background-brand"), 0.85), .{1, 1, 1, 1}) table_set(*app.view.nsfw_agreed, ch.guild_id, true);
+		}
+		filler(.X);
+	}
+	filler(.Y);
+}
+
 human_size :: (n: int) -> string {
 	if n >= 1 << 20 return tprint("% MB", formatFloat(cast(float64) n / (1 << 20), trailing_width = 2, zero_removal = .NO));
 	if n >= 1 << 10 return tprint("% KB", formatFloat(cast(float64) n / (1 << 10), trailing_width = 2, zero_removal = .NO));

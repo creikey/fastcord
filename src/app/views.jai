@@ -33,6 +33,7 @@ View_State :: struct {
 	last_channel: Table(dc.Snowflake, dc.Snowflake); // guild -> last selected channel
 	friends_tab: Friends_Tab;
 	hide_muted: Table(dc.Snowflake, bool); // guild -> "Hide Muted Channels" (device-local)
+	nsfw_agreed: Table(dc.Snowflake, bool); // guilds whose age-restricted channels you agreed to see (device-local)
 	hide_members: bool;
 	hide_dm_profile: bool; // 1:1 DM user profile column (header toggle)
 	voice_chat: bool; // a voice channel's text chat beside its call view (header "chat", the row's chat button)
@@ -645,6 +646,7 @@ page :: () {
 		body.semantic_size = .[ui.pct(1), ui.fill()];
 		body.cross_align = .Start;
 		{ ui.parent(body); defer ui.pop_parent();
+			if nsfw_gated(ch) { nsfw_gate(ch); return; }
 			if ch.kind == .Guild_Forum || ch.kind == .Guild_Media { forum_view(ch); } else { chat_view(ch.id); }
 			// side columns only when the chat keeps a usable width (narrow windows
 			// used to squeeze the composer until its placeholder wrapped per letter)

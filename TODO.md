@@ -371,7 +371,7 @@
 - [ ] Group DMs: no "beginning of history" header; 5 of the 8 default icon colours fall back to the brand colour.
 - [ ] Markdown: clicking a slash-command or server page chip (`/name`, Channels & Roles, Browse Channels, Server Guide) does nothing; it should fill the composer or open that page.
 - [ ] Replies: on a hovered reply, the quoted author name and URL draw through the hover toolbar (quick reactions and message options); the toolbar should cover them.
-- [ ] Chat: NSFW channels open with no age-gate screen.
+- [ ] Chat: an age-gated channel still loads its messages behind the gate (the official mounts no chat until you agree), and age-restricted servers (`nsfw_level` 3) aren't gated (`nsfw_gated`).
 - [ ] Video: frames go out as one unpaced burst on the same UDP socket as the mic (`send_video`, no pacer or audio priority); on a slow uplink a keyframe can delay or drop voice packets.
 - [ ] Notifications: a channel can only be muted from the open channel's header bell.
 - [ ] Friends: the "New Group DM" header icon isn't clickable; Active Now is always the empty card.
@@ -781,3 +781,4 @@
 - [x] Go Live viewer: the call header shows LIVE and the watched stream's quality ("720p 30FPS", from the decoded frames) (`watched_stream_quality`; `tests/ui/call/go_live.txt`).
 - [x] Embeds: a linked title shows the hand and an underline on hover and opens its link like a message link (in-app for Discord links); links and mentions in descriptions already followed clicks through `handle_span_clicks` (`tests/ui/media/embed_title_link.txt`).
 - [x] Scrolling: a middle click in any vertical scroll area (the message list included) drops an anchor marker; moving the mouse above or below it scrolls that way, faster the farther, and any click or Escape ends it (`ui.autoscroll_step`, `autoscroll_marker`; `tests/ui/autoscroll.txt`).
+- [x] Chat: age-restricted channels (and their threads) show an "Age-Restricted Channel" gate until you continue, remembered per server in settings.json, and with only Nevermind when the account's `nsfw_allowed` is false (`nsfw_gate`, `tests/ui/rail/nsfw_gate.txt`; the rail fixture gained #after-dark).

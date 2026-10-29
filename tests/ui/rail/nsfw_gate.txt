@@ -1,0 +1,14 @@
+# Run with -fixture:tests/ui/rail.jsonl. An age-restricted channel shows a gate instead of its chat; this
+# account may not see adult content (nsfw_allowed false), so it offers only Nevermind, which goes back.
+wait 5
+open 1600000000000000009
+wait 10
+open 1600000000000000011
+wait 20
+expect_visible "Age-Restricted Channel"
+expect_not_visible "Continue"
+shot build/ui-rail_nsfw_gate.png
+click_text "Nevermind"
+wait 10
+expect_not_visible "Age-Restricted Channel"
+expect_visible "Welcome to #news!"

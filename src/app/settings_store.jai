@@ -57,6 +57,7 @@ Persisted :: struct {
 	voice: Persisted_Voice;
 	sounds: Persisted_Sounds;
 	hide_muted: []string; // guild ids with "Hide Muted Channels" on
+	nsfw_agreed: []string; // guild ids whose age-restricted channels you agreed to see
 	last_channel: Table(string, string); // guild ("0" = home) -> channel
 	route_guild: string; // the open route, reopened at the next launch (start_guild / start_channel)
 	route_channel: string;
@@ -260,6 +261,10 @@ apply_persisted :: (p: *Persisted) {
 		n, ok := dc.parse_u64(it);
 		if ok table_set(*app.view.hide_muted, cast(dc.Snowflake) n, true);
 	}
+	for p.nsfw_agreed {
+		n, ok := dc.parse_u64(it);
+		if ok table_set(*app.view.nsfw_agreed, cast(dc.Snowflake) n, true);
+	}
 	app.start_guild, app.start_channel = dc.parse_snowflake(p.route_guild), dc.parse_snowflake(p.route_channel);
 	for c, g: p.last_channel {
 		gn, ok1 := dc.parse_u64(g);
@@ -282,6 +287,9 @@ snapshot :: () -> string {
 	hm: [..]string;
 	for on, id: app.view.hide_muted if on array_add(*hm, tprint("%", cast(u64) id));
 	p.hide_muted = hm;
+	na: [..]string;
+	for _, id: app.view.nsfw_agreed array_add(*na, tprint("%", cast(u64) id));
+	p.nsfw_agreed = na;
 	for c, g: app.view.last_channel if c != 0 table_set(*p.last_channel, tprint("%", cast(u64) g), tprint("%", cast(u64) c));
 	if app.view.channel p.route_guild, p.route_channel = tprint("%", cast(u64) app.view.guild), tprint("%", cast(u64) app.view.channel);
 	ws := platform.window_size();
