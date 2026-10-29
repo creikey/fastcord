@@ -104,11 +104,12 @@ h264_slice_header_bytes :: (p: []u8) -> int {
     return min(bit / 8 + 1, p.count);
 }
 
-// h264_add_vui: the access unit with each SPS that has no VUI given one carrying only a bitstream
-// restriction (max_num_reorder_frames 0, max_dec_frame_buffering = max_num_ref_frames), exactly what
-// WebRTC's receiver writes in (SpsVuiRewriter). Sent as is, the receiver rewrites it, and under DAVE the
-// changed bytes fail the frame's authentication: every keyframe is lost and the tile shows "Failed to
-// start camera" (Error 2012). An SPS it can't read, or that has a VUI already, stays as it is. In temp.
+// h264_add_vui: the access unit with each SPS given the VUI bitstream restriction WebRTC's receiver
+// would otherwise write in (SpsVuiRewriter): max_num_reorder_frames 0, max_dec_frame_buffering =
+// max_num_ref_frames, the rest of an existing VUI kept bit for bit (cameras' carries colour info).
+// Sent as is, the receiver rewrites it, and under DAVE the changed bytes fail the frame's authentication:
+// every keyframe is lost and the tile shows "Failed to start camera" (Error 2012). An SPS it can't read,
+// or already in that form, stays as it is. In temp.
 h264_add_vui :: (au: []u8) -> []u8 {
     nals := annexb_nals(au);
     out: [..]u8;
@@ -189,19 +190,58 @@ sps_with_vui :: (nal: []u8) -> []u8, bool {
     if !bit(*r) bit(*r);     // frame_mbs_only_flag, mb_adaptive_frame_field_flag
     bit(*r);                 // direct_8x8_inference_flag
     if bit(*r) for 1..4 ue(*r);
-    vui_at := r.pos;
-    if bit(*r) || r.bad || refs > 16 return .[], false;
+    if r.bad || refs > 16 return .[], false;
+    // keep: the bits copied as they are; then what WebRTC's SpsVuiRewriter would write from there
+    keep: int;
+    no_vui, no_restriction: bool;
+    if !bit(*r) {
+        keep, no_vui, no_restriction = r.pos - 1, true, true;
+    } else {
+        if bit(*r) && bits(*r, 8) == 255 bits(*r, 32);  // aspect_ratio_idc, Extended_SAR
+        if bit(*r) bit(*r);                             // overscan
+        if bit(*r) { bits(*r, 4); if bit(*r) bits(*r, 24); } // video signal type, colour description
+        if bit(*r) { ue(*r); ue(*r); }                  // chroma sample locations
+        if bit(*r) { bits(*r, 32); bits(*r, 32); bit(*r); } // timing
+        hrd :: (r: *Bits) {
+            n := ue(r) + 1;
+            if n > 32 { r.bad = true; return; }
+            bits(r, 8);
+            for 1..n { ue(r); ue(r); bit(r); }
+            bits(r, 20);
+        }
+        nal_hrd := bit(*r);
+        if nal_hrd hrd(*r);
+        vcl_hrd := bit(*r);
+        if vcl_hrd hrd(*r);
+        if nal_hrd || vcl_hrd bit(*r); // low_delay_hrd_flag
+        bit(*r);                       // pic_struct_present_flag
+        if !bit(*r) {
+            keep, no_restriction = r.pos - 1, true;
+        } else {
+            bit(*r); for 1..4 ue(*r);
+            keep = r.pos;
+            reorder, dec := ue(*r), ue(*r);
+            if reorder == 0 && dec <= refs return .[], false; // nothing WebRTC would change
+        }
+    }
+    if r.bad return .[], false;
 
     w: [..]u8;
     w.allocator = temp;
     pos := 0;
     rd := Bits.{b = rbsp};
-    while rd.pos < vui_at put_bit(*w, *pos, bit(*rd));
-    put_bit(*w, *pos, 1); // vui_parameters_present_flag
-    for 1..8 put_bit(*w, *pos, 0); // aspect, overscan, signal, chroma loc, timing, nal hrd, vcl hrd, pic_struct
-    put_bit(*w, *pos, 1); // bitstream_restriction_flag
-    put_bit(*w, *pos, 1); // motion_vectors_over_pic_boundaries_flag
-    for v: int.[2, 1, 16, 16, 0, refs] put_ue(*w, *pos, v); // as WebRTC writes them
+    while rd.pos < keep put_bit(*w, *pos, bit(*rd));
+    if no_vui {
+        put_bit(*w, *pos, 1); // vui_parameters_present_flag
+        for 1..8 put_bit(*w, *pos, 0); // aspect, overscan, signal, chroma loc, timing, nal hrd, vcl hrd, pic_struct
+    }
+    if no_restriction {
+        put_bit(*w, *pos, 1); // bitstream_restriction_flag
+        put_bit(*w, *pos, 1); // motion_vectors_over_pic_boundaries_flag
+        for v: int.[2, 1, 16, 16] put_ue(*w, *pos, v); // as WebRTC writes them
+    }
+    put_ue(*w, *pos, 0);    // max_num_reorder_frames
+    put_ue(*w, *pos, refs); // max_dec_frame_buffering
     put_bit(*w, *pos, 1); // rbsp_stop_one_bit, then zeros to the byte
 
     // back to a NAL unit: the header, and emulation prevention bytes in

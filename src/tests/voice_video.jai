@@ -14,7 +14,23 @@ main :: () {
     vui := voice.h264_add_vui(sps_in);
     ok &= check(vui.count == sps_out.count && memcmp(vui.data, sps_out.data, vui.count) == 0, "SPS gets a VUI: %", vui);
     again := voice.h264_add_vui(vui);
-    ok &= check(again.count == vui.count && memcmp(again.data, vui.data, vui.count) == 0, "an SPS with a VUI stays");
+    ok &= check(again.count == vui.count && memcmp(again.data, vui.data, vui.count) == 0, "an SPS already in that form stays");
+    // a camera's VUI (BT.709 colour, timing, an emulation prevention byte) is kept and gets the restriction;
+    // one that allows reordering gets it lowered. Built bit by bit in Python, apart from this parser.
+    SC :: u8.[0, 0, 0, 1];
+    HEAD :: u8.[0x27, 0x42, 0xc0, 0x1f, 0xab, 0x40, 0x28, 0x02, 0xdd, 0x35, 0x01, 0x01, 0x01, 0x40, 0x00, 0x00, 0x03, 0x00, 0x40, 0x00, 0x00, 0x0f];
+    cases :: [2][]u8.[
+        .[u8.[0x01], u8.[0x03, 0x68, 0x22, 0x11, 0xa8]],
+        .[u8.[0x03, 0x68, 0x22, 0x11, 0x64, 0x80], u8.[0x03, 0x68, 0x22, 0x11, 0xa8]],
+    ];
+    for cases {
+        sps: [..]u8;
+        array_add(*sps, ..SC); array_add(*sps, ..HEAD); array_add(*sps, ..it[0]);
+        want: [..]u8;
+        array_add(*want, ..SC); array_add(*want, ..HEAD); array_add(*want, ..it[1]);
+        got := voice.h264_add_vui(sps);
+        ok &= check(got.count == want.count && memcmp(got.data, want.data, got.count) == 0, "camera VUI case %: %", it_index, got);
+    }
     for codec: voice.Video_Codec.[.H264, .H265] {
         au := fake_au(codec);
         frame, nals := voice.with_long_start_codes(au);
