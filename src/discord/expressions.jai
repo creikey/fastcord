@@ -521,6 +521,32 @@ Frecency_State :: struct {
 	connected: bool;
 	startup_ms, periodic_ms: s64; // drawn once, as the bundle does at module load
 	reactions_read: bool; // the UI read the reaction frecency since the last proto (frecency_reactions_shown)
+	remote: int; // bumped by another device's USER_SETTINGS_PROTO_UPDATE (type 2): the pickers re-read proto
+}
+
+// frecency_remote_update: USER_SETTINGS_PROTO_UPDATE type 2, another device's change (or our own
+// write's echo). A partial one replaces only the categories it carries. Before the session's load
+// there is nothing to update: the load will read the server's.
+frecency_remote_update :: (s: *Store, b64: string, partial: bool) {
+	f := *s.frecency;
+	if !f.loaded return;
+	full := b64;
+	if partial {
+		raw, ok := base64_decode(b64,, temp);
+		base, ok2 := base64_decode(f.proto,, temp);
+		if !ok || !ok2 return;
+		merged := cast([]u8) base;
+		r := protobuf.Reader.{buf = cast([]u8) raw};
+		while true {
+			start := r.pos;
+			fld, more := protobuf.next(*r);
+			if !more break;
+			merged = protobuf.with_field(merged, fld.num, array_view(cast([]u8) raw, start, r.pos - start),, temp);
+		}
+		full = base64_encode(cast(string) merged,, temp);
+	}
+	push_allocator(s.allocator);
+	if frecency_overwrite(f, full, false, now_ms()) f.remote += 1;
 }
 
 FRECENCY_FIELD :: u32.[4, 6, 12, 13];

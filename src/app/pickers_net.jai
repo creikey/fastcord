@@ -29,6 +29,11 @@ pickers_on_open_guild :: (gid: dc.Snowflake) {
 }
 
 pickers_poll :: () {
+	if app.discord != null && app.discord.store.frecency.remote != frecency.remote_seen {
+		frecency.remote_seen = app.discord.store.frecency.remote;
+		fs, ok := dc.frecency_settings_decode(app.discord.store.frecency.proto, temp);
+		if ok frecency_merge_server(fs, remote = true);
+	}
 	for c: (*dc.Client).[app.client, app.discord] {
 		if c == null || (it_index == 1 && c == app.client) continue;
 		for * r: dc.expr_take(c) {

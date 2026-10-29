@@ -134,6 +134,7 @@ Frecency :: struct {
 	skin_tone: int; // 0 = default yellow, 1..5
 	loaded_local: bool;
 	loaded_server: bool;
+	remote_seen: int; // the store's frecency.remote this was last merged with
 	dirty: bool;
 }
 
@@ -239,9 +240,17 @@ frecency_save :: () {
 	frecency.dirty = false;
 }
 
-// Merge GET /users/@me/settings-proto/2 into the local tables (max of counts, union of uses).
-frecency_merge_server :: (fs: dc.Frecency_Settings) {
+// Merge GET /users/@me/settings-proto/2 into the local tables (max of counts, union of uses). Another
+// device's update (remote) replaces the favourites, so removals there show here.
+frecency_merge_server :: (fs: dc.Frecency_Settings, remote := false) {
 	frecency.loaded_server = true;
+	if remote {
+		for frecency.favorite_emojis free(it);
+		for frecency.favorite_gifs { free(it.url); free(it.src); }
+		array_reset_keeping_memory(*frecency.favorite_emojis);
+		array_reset_keeping_memory(*frecency.favorite_stickers);
+		array_reset_keeping_memory(*frecency.favorite_gifs);
+	}
 	merge :: (m: *Table(string, Frec_Entry), items: []dc.Frecency_Item) {
 		for items {
 			e := table_find_pointer(m, it.key);

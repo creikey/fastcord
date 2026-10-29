@@ -2970,6 +2970,13 @@ parity_settings_put :: (t: *T) {
 	apply_settings_proto(*c.store, "agIIAg==", partial = true); // {appearance: {theme: LIGHT}}
 	st := *c.store.settings;
 	expect(t, st.theme == .Light && st.hour_cycle == .Auto && st.locale == "en-US" && st.status == .Online, "partial: only appearance replaced");
+	// settings-proto/2 from another device: a partial update keeps the categories it doesn't carry
+	f := *c.store.frecency;
+	f.loaded = true;
+	f.proto = copy_string("KgoKCHRodW1ic3Vw",, c.store.allocator); // {favorite_emojis: ["thumbsup"]}
+	frecency_remote_update(*c.store, "GgoKCAEAAAAAAAAA", partial = true); // {favorite_stickers: [1]}
+	fs, ok := frecency_settings_decode(f.proto, temp);
+	expect(t, ok && fs.favorite_emojis.count == 1 && fs.favorite_stickers.count == 1 && f.remote == 1, "frecency: partial update merged");
 	replay_end(*run);
 }
 

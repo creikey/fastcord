@@ -1492,6 +1492,7 @@ store_apply_dispatch :: (s: *Store, name: string, data: V, now: s64) -> bool {
 		case "USER_SETTINGS_PROTO_UPDATE";
 			sm := fmap(d, "settings");
 			if sm && fint(sm, "type") == 1 apply_settings_proto(s, fstr(sm, "proto"), fbool(d, "partial"));
+			if sm && fint(sm, "type") == FRECENCY_SETTINGS_TYPE frecency_remote_update(s, fstr(sm, "proto"), fbool(d, "partial"));
 		case "USER_GUILD_SETTINGS_UPDATE";
 			apply_guild_settings(s, d);
 		case "CHANNEL_INFO"; // op 43's reply: {guild_id, channels: [{id, status?, voice_start_time?}]}
