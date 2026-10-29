@@ -184,6 +184,7 @@ Member :: struct {
 	roles: [..]Snowflake;
 	joined_at: string;
 	flags: u64; // GuildMemberFlags: 1 DID_REJOIN
+	timeout_until_ms: s64; // communication_disabled_until (unix ms; 0 = none)
 }
 
 Attachment :: struct {

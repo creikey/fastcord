@@ -453,6 +453,7 @@ parse_member_with_id :: (s: *Store, guild_id: Snowflake, uid: Snowflake, m: etf.
 	if vhas(m, "avatar") set_str(s, *member.avatar, fstr(m, "avatar"));
 	if vhas(m, "joined_at") set_str(s, *member.joined_at, fstr(m, "joined_at"));
 	if vhas(m, "flags") member.flags = cast(u64) fint(m, "flags");
+	if vhas(m, "communication_disabled_until") member.timeout_until_ms = iso_to_ms(fstr(m, "communication_disabled_until"));
 	if vhas(m, "roles") {
 		member.roles.count = 0;
 		for flist(m, "roles") array_add(*member.roles, vsnow(it));

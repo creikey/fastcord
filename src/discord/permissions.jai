@@ -121,7 +121,17 @@ channel_permissions_of :: (s: *Store, channel_id: Snowflake, user_id: Snowflake,
 	}
 	g := guild_get(s, ch.guild_id);
 	if !g return 0;
-	return compute_overwrites(compute_base_permissions(g, user_id, roles), g.id, user_id, roles, ch.overwrites);
+	base := compute_base_permissions(g, user_id, roles);
+	perms := compute_overwrites(base, g.id, user_id, roles, ch.overwrites);
+	// a timed-out member keeps only View Channel and Read Message History (not the owner or an admin)
+	if timed_out(s, g.id, user_id) && g.owner_id != user_id && !(base & PERM_ADMINISTRATOR) perms &= PERM_VIEW_CHANNEL | PERM_READ_MESSAGE_HISTORY;
+	return perms;
+}
+
+// timed_out: when user_id's timeout in the guild ends (unix ms), 0 when they aren't timed out.
+timed_out :: (s: *Store, guild_id: Snowflake, user_id: Snowflake) -> s64 {
+	m := member_get(s, guild_id, user_id);
+	return ifx m && m.timeout_until_ms > now_ms() then m.timeout_until_ms else 0;
 }
 
 // can_set_nickname: may we change user_id's server nickname? Our own needs

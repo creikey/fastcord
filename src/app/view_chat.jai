@@ -2505,7 +2505,13 @@ slowmode_left_ms :: (ch: *dc.Channel) -> s64 {
 // and a locked thread needs Manage Threads. A server whose roles haven't arrived blocks nothing.
 composer_blocked :: (ch: *dc.Channel) -> string {
 	g := dc.guild_get(store(), ch.guild_id);
-	if !g || !g.roles.count return "";
+	if !g return "";
+	until := dc.timed_out(store(), ch.guild_id, store().me);
+	if until && g.owner_id != store().me && !(dc.guild_permissions(store(), ch.guild_id) & dc.PERM_ADMINISTRATOR) {
+		request_wake(app.ui.time + cast(float64) (until - dc.now_ms()) / 1000 + 0.05);
+		return tprint("You're timed out until %.", format_time_ms(until));
+	}
+	if !g.roles.count return "";
 	perms := dc.channel_permissions(store(), ch.id);
 	if dc.is_thread(ch) {
 		tm := dc.thread_meta(ch.id);
