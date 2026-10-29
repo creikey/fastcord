@@ -219,8 +219,19 @@ The site and the in-app updater both use the latest release:
 - download links: `https://github.com/creikey/fastcord/releases/latest/download/fastcord-macos.zip`,
   `fastcord-windows.zip`, `fastcord-linux-x86_64.tar.gz`
 - the app checks `api.github.com/repos/creikey/fastcord/releases/latest` at launch and every 6 hours;
-  when the tag is newer than its own version, an **Update** pill appears in the title bar and opens
-  creikey.com/fastcord (right-click it to dismiss). Dev builds never check.
+  when the tag is newer than its own version, an **Update** pill appears in the title bar (hover: the
+  release notes; right-click: dismiss). Clicking it installs the release in place (`src/selfupdate`), then
+  offers **Restart to Update**: it downloads `fastcord-update.txt` (each archive's SHA-256) and
+  `fastcord-update.sig`, checks the signature against the Ed25519 key pinned in `src/selfupdate`, downloads
+  the archive, checks its hash, unpacks it with the OS's archiver and swaps it in (the Mac `.app`, the
+  Windows per-user install's exe, the Linux binary; the old copy is deleted by the next launch). Where it
+  can't (no signature, a translocated Mac app, a Windows copy outside its install, a read-only folder) the
+  pill opens creikey.com/fastcord. Dev builds never check. `jai build.jai - run src/tests/selfupdate.jai`
+  then `build/selfupdate` tests the signature rules and the swap.
+- release.yml's publish job writes `fastcord-update.txt` and signs it with the `FASTCORD_UPDATE_KEY`
+  secret (the PEM of the Ed25519 key, `openssl genpkey -algorithm ed25519`). Without the secret it uploads
+  the unsigned checksums and the release can't be installed from the app. A new key needs its public half
+  in `selfupdate.PUBLIC_KEY`, and builds pinning the old key then update only by hand.
 
 Releases are ad-hoc signed and not notarized, so macOS blocks the first launch (users click **Open
 Anyway** in System Settings → Privacy & Security). Notarizing needs an Apple Developer ID; sign with

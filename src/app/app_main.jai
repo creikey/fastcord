@@ -114,7 +114,7 @@ Options :: struct {
 	url: string; // an fc:// or discord:// link to open (the OS's URL handler passes it)
 	start_minimized: bool; // --start-minimized: the login item of Start Minimized
 	uninstall: bool; // --uninstall: Apps & Features' Uninstall (Windows)
-	replace: string; // --replace:<pid>:<path>: the first launch of an install, from the copy at path
+	replace: string; // --replace:<pid>:<path>: the first launch of an install or update; path is the old copy
 }
 
 parse_options :: () -> Options {
@@ -199,12 +199,12 @@ main :: () {
 		while true sleep_milliseconds(1000 * 60 * 60);
 	}
 	headless := opt.shot != "" || bench.on;
-	#if OS == .WINDOWS {
-		if opt.uninstall { platform.uninstall(app_data_dir(""), !platform.instance_claim(app_state_dir(), "")); return; }
-		if opt.replace {
-			colon := find_index_from_left(opt.replace, ":");
-			if colon > 0 platform.replace_finish(xx parse_int_prefix(slice(opt.replace, 0, colon)), advance(opt.replace, colon + 1));
-		}
+	#if OS == .WINDOWS if opt.uninstall { platform.uninstall(app_data_dir(""), !platform.instance_claim(app_state_dir(), "")); return; }
+	if opt.replace { // a new copy's first launch: the install's (Windows) or an update's (selfupdate.restart)
+		colon := find_index_from_left(opt.replace, ":");
+		pid, old := parse_int_prefix(slice(opt.replace, 0, max(colon, 0))), advance(opt.replace, colon + 1);
+		#if OS == .WINDOWS { if colon > 0 platform.replace_finish(xx pid, old); }
+		else { if colon > 0 selfupdate.finish(xx pid, old); }
 	}
 	if !headless && !platform.instance_claim(app_state_dir(), opt.url) return; // the running one takes it
 	app.launch_url = copy_string(opt.url);

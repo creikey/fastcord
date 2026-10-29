@@ -353,15 +353,17 @@ install :: (version: string) -> bool {
 
 // Starts the installed exe, which waits for this process to end and deletes the copy it was installed from.
 launch_installed :: () {
-    params := tprint("--replace:% \"%\"", win.GetCurrentProcessId(), exe_path());
+    params := tprint("\"--replace:%:%\"", win.GetCurrentProcessId(), exe_path());
     ShellExecuteW(null, wide("open"), wide(tprint("%\\Fastcord.exe", install_dir())), wide(params), null, win.SW_SHOWNORMAL);
 }
 
-// The installed exe's first launch: once the old process (pid) has ended, its exe goes (it is in Downloads).
+// A new exe's first launch: once the old process (pid) has ended, its exe goes (the copy in Downloads after
+// the install, Fastcord.exe.old after an update).
 replace_finish :: (pid: u32, old: string) {
     h := OpenProcess(0x0010_0000 /*SYNCHRONIZE*/, 0, pid);
     if h { win.WaitForSingleObject(h, 10_000); win.CloseHandle(h); }
-    if to_lower_copy(old,, temp) != to_lower_copy(exe_path(),, temp) && ends_with(to_lower_copy(old,, temp), ".exe") win.DeleteFileW(wide(old));
+    lower := to_lower_copy(old,, temp);
+    if lower != to_lower_copy(exe_path(),, temp) && (ends_with(lower, ".exe") || ends_with(lower, ".exe.old")) win.DeleteFileW(wide(old));
 }
 
 // Apps & Features' Uninstall: asks first, removes the program, shortcut, login item, links and entry, and
