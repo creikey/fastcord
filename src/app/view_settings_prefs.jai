@@ -140,7 +140,7 @@ notifications_page :: () {
 
 // The client's System panel, General category (Windows and Linux; macOS has Login Items instead).
 system_page :: () {
-	if set_page_begin("systempage") {
+	#if OS != .MACOS if set_page_begin("systempage") {
 		set_heading("General");
 		on := platform.open_at_login();
 		if set_toggle_row("openatlogin", "Automatically open fastcord when your computer starts up", "", on) platform.set_open_at_login(!on);
