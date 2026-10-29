@@ -84,9 +84,44 @@ jobs:
 
       - name: Release
         if: env.JAI_PASSWORD != '' && inputs.release != ''
+        run: ${{ inputs.jai }} build.jai - release ${{ inputs.release }}
+
+      # Starts what was built, headless, on the chat fixture: a crash or a blank frame fails the job before
+      # anything is uploaded (tools/smoke_check.py). A release runs the binaries from their archives, both
+      # slices of the Mac app; its Linux binary, cross-built on Windows, runs in release.yml's smoke-linux job.
+      - name: Smoke test
+        if: env.JAI_PASSWORD != ''
+        env:
+          RELEASE: ${{ inputs.release }}
         run: |
-          ${{ inputs.jai }} build.jai - release ${{ inputs.release }}
-          gh release upload ${{ inputs.release }} dist/fastcord-* --clobber
+          set -euo pipefail
+          py=python3
+          if [ "$RUNNER_OS" = Windows ]; then py=python; fi
+          if [ "$RUNNER_OS" = Linux ]; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq --no-install-recommends libegl1 libegl-mesa0 libgl1-mesa-dri libfontconfig1
+          fi
+          rm -rf build/smoke
+          mkdir -p build/smoke
+          shot() {
+            "$@" -shot:build/smoke/shot.png -fixture:tests/ui/chat.jsonl -channel:1546820603343016006 -now:1793016000 -dpi:1
+            "$py" -I tools/smoke_check.py build/smoke/shot.png
+            rm -f build/smoke/shot.png
+          }
+          if [ -z "$RELEASE" ]; then
+            shot build/fastcord-dev
+          elif [ "$RUNNER_OS" = macOS ]; then
+            ditto -x -k dist/fastcord-macos.zip build/smoke
+            shot arch -arm64 build/smoke/Fastcord.app/Contents/MacOS/Fastcord
+            shot arch -x86_64 build/smoke/Fastcord.app/Contents/MacOS/Fastcord
+          else
+            /c/Windows/System32/tar.exe -xf dist/fastcord-windows.zip -C build/smoke
+            shot build/smoke/Fastcord.exe
+          fi
+
+      - name: Upload
+        if: env.JAI_PASSWORD != '' && inputs.release != ''
+        run: gh release upload ${{ inputs.release }} dist/fastcord-* --clobber
 
       - name: Delete Jai
         if: always()

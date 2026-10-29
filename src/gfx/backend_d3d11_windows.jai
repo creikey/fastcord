@@ -3,6 +3,8 @@
 backend_init :: () -> bool {
     levels := D3D_FEATURE_LEVEL.[._11_0];
     hr := D3D11CreateDevice(null, .HARDWARE, null, .BGRA_SUPPORT, levels.data, 1, D3D11_SDK_VERSION, *dx.device, null, *dx.ctx);
+    // No usable GPU driver (some VMs and remote sessions): WARP, Windows' own software rasterizer.
+    if FAILED(hr) hr = D3D11CreateDevice(null, .WARP, null, .BGRA_SUPPORT, levels.data, 1, D3D11_SDK_VERSION, *dx.device, null, *dx.ctx);
     if FAILED(hr) return false;
 
     vsb := compile(HLSL_SHADER_SRC, "vs_main", "vs_5_0");
