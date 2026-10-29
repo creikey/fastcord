@@ -140,7 +140,7 @@ lottie_get :: (id: dc.Snowflake) -> *Lottie_Sticker {
 	if !added return ls;
 	ls.* = .{state = .Loading, seen = app.ui.time};
 	// offline: a worker reads the json from FASTCORD_MEDIA_DIR
-	if app.client != null dc.expr_fetch_media(app.client, dc.sticker_url(id, 3), .Fetch, id);
+	if app.client != null dc.expr_fetch_media(app.client, sticker_file_url(id, 3), .Fetch, id);
 	else decode_submit(.{kind = .Lottie_Load, id = id, url = dc.sticker_url(id, 3, allocator = context.allocator)});
 	return ls;
 }

@@ -20,6 +20,7 @@ mls :: #import "voice_mls";
 #load "settings.jai";
 #load "voice.jai";
 #load "soundboard.jai";
+#load "expressions.jai";
 
 ALPN :: "fc/1";
 HEARTBEAT_INTERVAL_MS :: 41_250;
@@ -106,7 +107,7 @@ open :: (path: string) -> *Server, bool {
 	if !ok return null, false;
 	s := New(Server);
 	s.db = db;
-	if !sqlite.exec(db, SCHEMA) || !sqlite.exec(db, SOUND_SCHEMA) || !sqlite.exec(db, SETTINGS_SCHEMA) { close(s); return null, false; }
+	if !sqlite.exec(db, SCHEMA) || !sqlite.exec(db, SOUND_SCHEMA) || !sqlite.exec(db, SETTINGS_SCHEMA) || !sqlite.exec(db, STICKER_SCHEMA) { close(s); return null, false; }
 	// Files made before these columns; each fails harmlessly once it exists.
 	sqlite.exec(db, "ALTER TABLE users ADD COLUMN left INTEGER NOT NULL DEFAULT 0;");
 	sqlite.exec(db, "ALTER TABLE users ADD COLUMN banned INTEGER NOT NULL DEFAULT 0;");
@@ -139,6 +140,7 @@ open :: (path: string) -> *Server, bool {
 	sqlite.exec(db, "ALTER TABLE messages ADD COLUMN webhook INTEGER NOT NULL DEFAULT 0;");
 	sqlite.exec(db, "ALTER TABLE messages ADD COLUMN username TEXT;");
 	sqlite.exec(db, "ALTER TABLE messages ADD COLUMN snapshot TEXT;");
+	sqlite.exec(db, "ALTER TABLE messages ADD COLUMN stickers TEXT;");
 	sqlite.exec(db, "ALTER TABLE embeds ADD COLUMN rich TEXT;");
 	sqlite.exec(db, "CREATE INDEX IF NOT EXISTS messages_everyone ON messages(id) WHERE everyone = 1;");
 	sqlite.exec(db, "CREATE INDEX IF NOT EXISTS messages_nonce ON messages(author, nonce) WHERE nonce IS NOT NULL;");
@@ -451,7 +453,7 @@ CREATE TABLE IF NOT EXISTS embeds(message INTEGER NOT NULL, position INTEGER NOT
 	provider TEXT NOT NULL, color INTEGER NOT NULL, rich TEXT, PRIMARY KEY(message, position));
 CREATE TABLE IF NOT EXISTS channels(id INTEGER PRIMARY KEY, name TEXT NOT NULL, position INTEGER NOT NULL, topic TEXT NOT NULL DEFAULT '', type INTEGER NOT NULL DEFAULT 0, parent INTEGER, owner INTEGER, slowmode INTEGER NOT NULL DEFAULT 0, nsfw INTEGER NOT NULL DEFAULT 0,
 	archived INTEGER NOT NULL DEFAULT 0, locked INTEGER NOT NULL DEFAULT 0, archive_after INTEGER NOT NULL DEFAULT 4320, archived_at INTEGER);
-CREATE TABLE IF NOT EXISTS messages(id INTEGER PRIMARY KEY, channel INTEGER NOT NULL REFERENCES channels(id), author INTEGER NOT NULL REFERENCES users(id), content TEXT NOT NULL, edited INTEGER, reply INTEGER, everyone INTEGER NOT NULL DEFAULT 0, pinned_at INTEGER, type INTEGER NOT NULL DEFAULT 0, flags INTEGER NOT NULL DEFAULT 0, nonce TEXT, webhook INTEGER NOT NULL DEFAULT 0, username TEXT, snapshot TEXT);
+CREATE TABLE IF NOT EXISTS messages(id INTEGER PRIMARY KEY, channel INTEGER NOT NULL REFERENCES channels(id), author INTEGER NOT NULL REFERENCES users(id), content TEXT NOT NULL, edited INTEGER, reply INTEGER, everyone INTEGER NOT NULL DEFAULT 0, pinned_at INTEGER, type INTEGER NOT NULL DEFAULT 0, flags INTEGER NOT NULL DEFAULT 0, nonce TEXT, webhook INTEGER NOT NULL DEFAULT 0, username TEXT, snapshot TEXT, stickers TEXT);
 -- A webhook posts as a users row of its own, left = 1, so its messages join like any member's.
 CREATE TABLE IF NOT EXISTS webhooks(id INTEGER PRIMARY KEY, channel INTEGER NOT NULL, token TEXT NOT NULL, creator INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS read_states(user INTEGER NOT NULL, channel INTEGER NOT NULL, last INTEGER NOT NULL, mentions INTEGER NOT NULL, PRIMARY KEY(user, channel));
@@ -726,7 +728,7 @@ serve_conn :: (c: *Conn) {
 			if !login(c, session, req) return;
 			continue;
 		}
-		if begins_with(req.path, "/upload/") || begins_with(req.path, "/attachments/") || begins_with(req.path, "/api/v9/attachments/") || begins_with(req.path, "/icons/") || begins_with(req.path, "/avatars/") || begins_with(req.path, "/emojis/") || begins_with(req.path, "/soundboard-sounds/") {
+		if begins_with(req.path, "/upload/") || begins_with(req.path, "/attachments/") || begins_with(req.path, "/api/v9/attachments/") || begins_with(req.path, "/icons/") || begins_with(req.path, "/avatars/") || begins_with(req.path, "/emojis/") || begins_with(req.path, "/soundboard-sounds/") || begins_with(req.path, "/stickers/") {
 			if !files(c, req) return;
 			continue;
 		}
@@ -753,8 +755,8 @@ serve_conn :: (c: *Conn) {
 			if !search(c, req) return;
 			continue;
 		}
-		if req.method == "POST" && req.path == tprint("/api/v9/guilds/%/emojis", c.server.guild) {
-			if !create_emoji(c, req) return;
+		if begins_with(req.path, tprint("/api/v9/guilds/%/emojis", c.server.guild)) || begins_with(req.path, tprint("/api/v9/guilds/%/stickers", c.server.guild)) || begins_with(req.path, "/api/v9/stickers/") {
+			if !expressions(c, req) return; // expressions.jai
 			continue;
 		}
 		if req.method == "POST" && req.path == tprint("/api/v9/guilds/%/channels", c.server.guild) {
@@ -1307,8 +1309,12 @@ iso :: (id: s64) -> string { return iso_ms((id >> 22) + DISCORD_EPOCH_MS); }
 // the JSON forward_snapshot made: {channel_id, message_id, message}.
 message_value :: (s: *Server, id: s64, channel: s64, author: s64, author_name: string, content: string, edited: s64 = 0,
 		reply: s64 = 0, referenced := etf.Value.{}, nonce := "", reactions := etf.Value.{}, mentions := etf.Value.{}, everyone := false, pinned := false,
-		kind := DEFAULT, attachments := etf.Value.{}, embeds := etf.Value.{}, flags := 0, thread := etf.Value.{}, webhook := false, snapshot := "") -> etf.Value {
-	m := etf.map_builder(19,, temp);
+		kind := DEFAULT, attachments := etf.Value.{}, embeds := etf.Value.{}, flags := 0, thread := etf.Value.{}, webhook := false, snapshot := "", stickers := "") -> etf.Value {
+	m := etf.map_builder(20,, temp);
+	if stickers {
+		v, err := etf.from_json(stickers,, temp);
+		if err == .None && v.kind == .List etf.map_put(*m, "sticker_items", v);
+	}
 	if snapshot {
 		v, err := etf.from_json(snapshot,, temp);
 		if err == .None && v.kind == .Map {
@@ -1354,7 +1360,7 @@ message_value :: (s: *Server, id: s64, channel: s64, author: s64, author_name: s
 	return etf.vmap(etf.map_done(*m));
 }
 
-MESSAGE_SELECT :: "SELECT m.id, m.channel, m.author, coalesce(m.username, u.name), m.content, coalesce(m.edited, 0), coalesce(m.reply, 0), m.everyone, m.pinned_at, m.type, m.flags, (SELECT 1 FROM channels t WHERE t.id = m.id AND t.type = 11), m.webhook , m.snapshot FROM messages m JOIN users u ON u.id = m.author";
+MESSAGE_SELECT :: "SELECT m.id, m.channel, m.author, coalesce(m.username, u.name), m.content, coalesce(m.edited, 0), coalesce(m.reply, 0), m.everyone, m.pinned_at, m.type, m.flags, (SELECT 1 FROM channels t WHERE t.id = m.id AND t.type = 11), m.webhook , m.snapshot, m.stickers FROM messages m JOIN users u ON u.id = m.author";
 
 // Members who can't see a new message yet count it as a mention until they read past it.
 // Takes the channel, the author, whether it pings everyone, and the message.
@@ -1413,7 +1419,7 @@ row_message :: (s: *Server, st: *sqlite.Stmt, nested := false, viewer: s64 = 0, 
 	}
 	return message_value(s, id, sqlite.col_int(st, 1), sqlite.col_int(st, 2), copy_string(sqlite.col_text(st, 3),, temp),
 		copy_string(sqlite.col_text(st, 4),, temp), sqlite.col_int(st, 5), reply, referenced, nonce, reactions, etf.vlist(mentioned), sqlite.col_int(st, 7) != 0, !sqlite.col_is_null(st, 8), kind, attachments_locked(s, id), embeds_locked(s, id, (sqlite.col_int(st, 10) & SUPPRESS_EMBEDS) != 0), sqlite.col_int(st, 10),
-		ifx sqlite.col_is_null(st, 11) then etf.Value.{} else channel_locked(s, id), sqlite.col_int(st, 12) != 0, copy_string(sqlite.col_text(st, 13),, temp));
+		ifx sqlite.col_is_null(st, 11) then etf.Value.{} else channel_locked(s, id), sqlite.col_int(st, 12) != 0, copy_string(sqlite.col_text(st, 13),, temp), copy_string(sqlite.col_text(st, 14),, temp));
 }
 
 // drop_files deletes the files of the messages in set (SQL listing message IDs, which may use ?1), run
@@ -1680,6 +1686,7 @@ ready_value ::(s: *Server, user: s64, name: string, session: [16]u8) -> etf.Valu
 	etf.map_put(*g, "icon", guild_icon_locked(s));
 	etf.map_put(*g, "emojis", emoji_list_locked(s));
 	etf.map_put(*g, "soundboard_sounds", sound_list_locked(s));
+	etf.map_put(*g, "stickers", sticker_list_locked(s));
 	etf.map_put(*g, "member_count", etf.vint(members));
 	guild_fields_locked(s, *g);
 	owner := owner_id(s);
@@ -2036,7 +2043,8 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 		content, _ := etf.map_get(v.map, "content");
 		nonce, _ := etf.map_get(v.map, "nonce");
 		atts, _ := etf.map_get(v.map, "attachments");
-		has_files := atts.kind == .List && atts.list.count > 0;
+		sticker_ids, _ := etf.map_get(v.map, "sticker_ids");
+		has_files := (atts.kind == .List && atts.list.count > 0) || (sticker_ids.kind == .List && sticker_ids.list.count > 0);
 		flags_v, _ := etf.map_get(v.map, "flags");
 		if flags_v.kind != .Int && flags_v.kind != .Nil return json_error(c, 400, 50035, "Invalid Form Body");
 		// A send may set only these, as on Discord; any other bit is dropped.
@@ -2094,6 +2102,8 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 				snapshot = forward_snapshot(s, source, string_to_int(ref_channel.s, T = s64));
 				if !snapshot return json_error(c, 400, 50035, "Invalid Form Body");
 			}
+			stickers, stickers_ok := sticker_items_locked(s, sticker_ids);
+			if !stickers_ok return json_error(c, 400, 50035, "Invalid Form Body");
 			// A message reopens an archived thread, unless it's locked: then only the owner may post.
 			st := sqlite.prepare(s.db, tprint("SELECT archived, locked FROM channels WHERE id = ? AND type = %;", THREAD));
 			sqlite.bind_all(st, channel);
@@ -2125,11 +2135,11 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 				array_add_if_unique(*ids, string_to_int(author.s, T = s64));
 			}
 			ok := sqlite.exec(s.db, "BEGIN;")
-				&& sqlite.run(s.db, "INSERT INTO messages(id, channel, author, content, reply, everyone, nonce, flags, snapshot) VALUES(?, ?, ?, coalesce(?, ''), ?, ?, nullif(?, ''), ?, nullif(?, ''));", id, channel, user, content.s, reply, cast(int) everyone, nonce_s, flags, snapshot);
+				&& sqlite.run(s.db, "INSERT INTO messages(id, channel, author, content, reply, everyone, nonce, flags, snapshot, stickers) VALUES(?, ?, ?, coalesce(?, ''), ?, ?, nullif(?, ''), ?, nullif(?, ''), nullif(?, ''));", id, channel, user, content.s, reply, cast(int) everyone, nonce_s, flags, snapshot, stickers);
 			if forward && ok ok = sqlite.run(s.db, "INSERT INTO snapshot_files(message, attachment) SELECT ?, id FROM attachments WHERE message = ?;", id, source);
 			for ids if ok ok = sqlite.run(s.db, "INSERT OR IGNORE INTO mentions(message, user) SELECT ?, id FROM users WHERE id = ? AND left = 0;", id, it);
 			bad_file := false;
-			if has_files for a: atts.list {
+			if atts.kind == .List for a: atts.list {
 				if !ok break;
 				field :: (name: string) -> string #expand {
 					f, _ := etf.map_get(`a.map, name);
@@ -2621,8 +2631,9 @@ EMOJI_MAX_BYTES :: 256 * 1024; // Discord's cap per emoji.
 MAX_EMOJIS :: 50; // Static and animated each, as a server without boosts has on Discord.
 
 // emoji_value is one custom emoji as Discord sends it in a guild's list.
-emoji_value :: (id: s64, name: string, animated: bool) -> etf.Value {
-	e := etf.map_builder(6,, temp);
+emoji_value :: (id: s64, name: string, animated: bool, user := etf.Value.{}) -> etf.Value {
+	e := etf.map_builder(7,, temp);
+	if user.kind != .Nil etf.map_put(*e, "user", user);
 	etf.map_put(*e, "id", snow(id));
 	etf.map_put(*e, "name", etf.vstring(name));
 	etf.map_put(*e, "animated", etf.vbool(animated));
@@ -2633,12 +2644,16 @@ emoji_value :: (id: s64, name: string, animated: bool) -> etf.Value {
 }
 
 // The server's custom emoji, oldest first; the caller holds db_mu.
-emoji_list_locked :: (s: *Server) -> etf.Value {
+// With with_user each names its uploader, as Discord shows those who manage expressions.
+emoji_list_locked :: (s: *Server, with_user := false) -> etf.Value {
 	list: [..]etf.Value;
 	list.allocator = temp;
-	st := sqlite.prepare(s.db, "SELECT id, name, animated FROM emojis ORDER BY id;");
+	st := sqlite.prepare(s.db, "SELECT e.id, e.name, e.animated, e.user, u.name FROM emojis e JOIN users u ON u.id = e.user ORDER BY e.id;");
 	defer sqlite.finalize(st);
-	while sqlite.step(st) == .Row array_add(*list, emoji_value(sqlite.col_int(st, 0), copy_string(sqlite.col_text(st, 1),, temp), sqlite.col_int(st, 2) != 0));
+	while sqlite.step(st) == .Row {
+		user := ifx with_user then user_value(s, sqlite.col_int(st, 3), copy_string(sqlite.col_text(st, 4),, temp)) else etf.Value.{};
+		array_add(*list, emoji_value(sqlite.col_int(st, 0), copy_string(sqlite.col_text(st, 1),, temp), sqlite.col_int(st, 2) != 0, user));
+	}
 	return etf.vlist(list);
 }
 
@@ -3235,6 +3250,10 @@ files :: (c: *Conn, req: http.Request) -> bool {
 	if begins_with(path, "/soundboard-sounds/") {
 		if req.method != "GET" return json_error(c, 405, 0, "405: Method Not Allowed");
 		return sound_file(c, path);
+	}
+	if begins_with(path, "/stickers/") {
+		if req.method != "GET" return json_error(c, 405, 0, "405: Method Not Allowed");
+		return sticker_file(c, path);
 	}
 	if begins_with(path, "/emojis/") {
 		if req.method != "GET" return json_error(c, 405, 0, "405: Method Not Allowed");

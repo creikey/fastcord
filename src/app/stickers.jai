@@ -9,7 +9,7 @@
 STICKER_PX :: 160;
 
 message_sticker_url :: (id: dc.Snowflake, format_type: int, css_size := STICKER_PX) -> string {
-	if format_type == 3 return dc.sticker_url(id, 3);
+	if format_type == 3 || on_hosted() return sticker_file_url(id, format_type, css_size);
 	dpr := min(2.0, max(gfx.scale(), 1));
 	size := best_media_size(cast(int) (cast(float32) css_size * dpr));
 	ext, extra := "webp", "&quality=lossless";

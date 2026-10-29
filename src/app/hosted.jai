@@ -238,6 +238,14 @@ emoji_url :: (id: dc.Snowflake, animated: bool, size := 48) -> string {
 	return dc.custom_emoji_url(id, animated, size);
 }
 
+// A sticker's file: the selected hosted server's own, else Discord's.
+sticker_file_url :: (id: dc.Snowflake, format_type: int, size := 160) -> string {
+	if on_hosted() for hosted if it.client == app.client {
+		return tprint("https://%/stickers/%.%?size=%", it.inv.id_hex, id, ifx format_type == 3 then "json" else ifx format_type == 4 then "gif" else "png", size);
+	}
+	return dc.sticker_url(id, format_type, size);
+}
+
 // Whether the selected connection is a self-hosted server, which has no DMs or friends yet.
 on_hosted :: () -> bool { return app.client && app.client.cfg.hosted.host != ""; }
 

@@ -2193,7 +2193,6 @@ composer :: (ch: *dc.Channel, cs: *Chat_State) {
 				icon("i", "clock", 24, ifx csig.hovering then T("--interactive-icon-hover") else T("--interactive-icon-default"));
 			}
 			for name: (string.["gif", "sticker", "reaction"]) {
-				if name == "sticker" && app.client && app.client.cfg.hosted.host continue; // -serve has no stickers yet.
 				b := ui.box(name, .Clickable);
 				b.semantic_size = .[ui.px(40), ui.px(COMPOSER_H)];
 				b.layout_axis = .Y;

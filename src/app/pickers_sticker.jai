@@ -60,7 +60,7 @@ sv: Sticker_View;
 
 sticker_picker_on_show :: () {
 	sv.inspected = .[-1, 0];
-	if sv.requested return;
+	if sv.requested || on_hosted() return; // Discord's standard packs can't be sent to a hosted server.
 	sv.requested = true;
 	if app.client dc.sticker_packs_fetch(app.client);
 	else pickers_offline(.Sticker_Packs, "sticker-packs");
@@ -126,7 +126,7 @@ sticker_box :: (id: string, item: Pk_Sticker, size: float32, animate: bool) -> *
 		lottie_sticker_draw(b, item.id, animate);
 		return b;
 	}
-	url := dc.sticker_url(item.id, item.format_type, ST_URL_SIZE);
+	url := sticker_file_url(item.id, item.format_type, ST_URL_SIZE);
 	image_get(url);
 	d := New(Sticker_Draw,, temp);
 	d.* = .{url = url, animate = animate};
@@ -170,7 +170,9 @@ build_sections :: (ignore_query := false) -> []St_Section {
 		g := dc.guild_get(s, gid);
 		if g for guild_items(g, here, nitro) table_set(*all, it.id, it);
 	}
-	for p: sv.packs for p.stickers table_set(*all, it.id, it);
+	packs: []Sticker_Pack = sv.packs;
+	if on_hosted() packs = .[];
+	for p: packs for p.stickers table_set(*all, it.id, it);
 
 	secs: [..]St_Section;
 	secs.allocator = temp;
@@ -182,7 +184,7 @@ build_sections :: (ignore_query := false) -> []St_Section {
 			g := dc.guild_get(s, gid);
 			if g for guild_items(g, here, nitro) if contains(to_lower_copy(it.name,, temp), q) array_add(*hits, it);
 		}
-		for p: sv.packs for p.stickers if contains(to_lower_copy(it.name,, temp), q) array_add(*hits, it);
+		for p: packs for p.stickers if contains(to_lower_copy(it.name,, temp), q) array_add(*hits, it);
 		array_add(*secs, .{key = 1, items = hits, flat = true});
 		return secs;
 	}
