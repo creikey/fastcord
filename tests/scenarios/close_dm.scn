@@ -12,9 +12,10 @@ optional wait_gw CHANNEL_DELETE 10000
 settle 2500
 mark reopen_dm
 # reopen it through the quick switcher so later scenarios find the DM in the sidebar
+# (the full username: plain "bobbles" also matches the test group DMs, listed first)
 key k meta
 wait 1000
-type bobbles
+type ${B_NAME}
 wait 1200
 key Enter
 wait_for div[role="textbox"][aria-label^="Message @"]

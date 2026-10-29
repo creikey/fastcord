@@ -22,5 +22,6 @@ pause
 click [aria-label^="Accept friend request"]
 optional wait_for [role="dialog"] 4000
 optional click_text [role="dialog"] button | Accept
-wait_gw RELATIONSHIP_UPDATE 20000
+# 0.0.420 answers the accept with RELATIONSHIP_ADD (type 1), not RELATIONSHIP_UPDATE
+wait_gw RELATIONSHIP_ADD 20000
 settle 2000
