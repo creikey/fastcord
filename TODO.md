@@ -435,7 +435,8 @@
 - [ ] Notifications: the server modal lacks channel overrides, Suppress Highlights, Mute New Events and Mobile Push (parsed, sent only to analytics).
 - [ ] Profiles: your own full profile has no Edit Profile button; the DM side panel lacks About Me, pronouns, mutual servers and friends, and the note.
 - [ ] Hosting: a video sent to a hosted server shows as a plain file card, not a player: serve reads an image's size on arrival (`imagefmt` in `serve/module.jai`) but not a video's, and the client lays a video out only with `width` and `height`. Probe MP4/WebM/MOV dimensions with `media.probe` (or a header-only reader) when the upload lands.
-- [ ] Sounds: soundpacks work and are saved but have no picker; "User Moved" has a toggle but never plays; the "reconnect" sound is unused.
+- [ ] Sounds: soundpacks work and are saved but have no picker (Settings > Notifications).
+  - Done: "User Moved" plays when a moderator moves our call, in place of the join sound, and "reconnect" when a stage moderator invites us to speak (`sound_moved`, `sounds_frame`; built, not heard: no script hears sounds).
 - [ ] Media: voice message speed changes the pitch: `player_set_rate` resamples linearly, where the client's `<audio>` keeps it (`preservesPitch`). Time-stretch instead (WSOLA, or a vetted library) for 1.5x / 2x.
 - [ ] Servers: no rules screen, onboarding, Server Guide or Browse Channels / Channels & Roles.
 - [ ] Voice: op 4's `preferred_regions` keep the latency probe's geographic order; the official client ranks the regions with a UDP latency test (`rankRtcRegions`) and sends that order, so ours can differ (`actions.jai` `voice_self_value`).

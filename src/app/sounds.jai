@@ -160,10 +160,23 @@ sounds_frame :: () {
 		sound_play(ifx app.voice_channel != 0 then "user_join" else "disconnect");
 		snd.prev_channel = app.voice_channel;
 	}
+	// "reconnect": a stage moderator invited us to speak (the client's REQUESTED_TO_SPEAK_AND_AWAITING_USER_ACK:
+	// not suppressed, request_to_speak_timestamp set)
+	me := table_find_pointer(*call_store().voice_states, call_store().me);
+	invited := app.voice_channel && me && me.channel_id == app.voice_channel && !me.suppress && me.requested_to_speak;
+	if invited && !snd.invited sound_play("reconnect");
+	snd.invited = invited;
 	voice_members();
 	ring_sounds();
 	message_sounds();
 	soundboard_frame();
+}
+
+// The server moved our call to another channel (a moderator's Move To): "user_moved" in place of the
+// join sound (VoiceStateStore's userHasBeenMovedVersion).
+sound_moved :: (to: dc.Snowflake) {
+	snd.prev_channel = to;
+	sound_play("user_moved");
 }
 
 // app_new_messages: this frame's MESSAGE_CREATEs from others (dc.take_new_messages,
@@ -262,6 +275,7 @@ snd: struct {
 	prev_channel: dc.Snowflake;
 	members: Table(dc.Snowflake, bool); // others in our voice channel
 	members_ch: dc.Snowflake;
+	invited: bool; // a stage moderator's invitation to speak is waiting on us
 };
 
 // app_new_messages' current batch and the frame it was taken in

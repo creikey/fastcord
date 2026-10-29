@@ -168,6 +168,7 @@ voice_frame :: () {
 	if rejoin vc.seen_channel = 0;
 	followed := dc.voice_followed(cl, app.voice_channel, *vc.seen_channel);
 	if followed != app.voice_channel {
+		if followed && app.voice_channel sound_moved(followed); // sounds.jai
 		app.voice_channel = followed;
 		if !followed {
 			voice_drop();
