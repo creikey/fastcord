@@ -1141,6 +1141,8 @@ handle_results_of :: (c: *dc.Client) {
 			}
 		case .Invite;
 			invite_receive(r);
+		case .Edit_Message;
+			edit_result(r);
 		}
 		req_result(r);
 	}

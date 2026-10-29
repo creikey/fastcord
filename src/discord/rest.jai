@@ -28,6 +28,7 @@ Job :: struct {
 	context_b64: string;
 	extra: []http.Header;
 	retries: int;
+	network_aware: bool; // networkAwareRetry: 3 tries, (n * 2 s) apart, on any failure
 	not_before: s64;
 	result: Rest_Result;
 	// Web
@@ -282,6 +283,11 @@ run_api :: (c: *Client, j: *Job) {
 	j.started_ms = context.tl_dispatch_ms;
 	if j.on_start j.on_start(c, j);
 	r := api_call(c, j.method, j.path, j.body, j.content_type, j.context_b64, extra, j.retries, j.retry_429, j.no_auth, j.no_super_props, j.referer);
+	for try: 1..ifx j.network_aware then 2 else 0 {
+		if r.ok || !client_nap(c, try * 2000) break;
+		if r.arena { fini(r.arena); free(r.arena,, context.default_allocator); }
+		r = api_call(c, j.method, j.path, j.body, j.content_type, j.context_b64, extra, j.retries, j.retry_429, j.no_auth, j.no_super_props, j.referer);
+	}
 	context.tl_js_lower_auth = false;
 	if j.etag && r.status == 200 {
 		tag, ok := http.header_get(r.headers, "etag");

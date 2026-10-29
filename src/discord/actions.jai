@@ -842,6 +842,7 @@ send_ack :: (c: *Client, channel_id: Snowflake, message_id: Snowflake, now: s64,
 	json_obj_end(*w);
 	j := job_new(.Api, .Ack);
 	j.method = "POST";
+	j.network_aware = true; // ReadStateStore._ack: networkAwareRetry
 	j.path = job_str(j, channel_path(channel_id, "/messages/", snowflake_string(message_id), "/ack"));
 	j.body = cast([]u8) job_str(j, json_string(*w));
 	j.content_type = "application/json";

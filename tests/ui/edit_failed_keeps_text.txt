@@ -1,0 +1,16 @@
+# A saved edit keeps its text as a draft until Discord takes it: when the edit fails (a toast says so),
+# editing the message again brings the typed text back.
+wait 5
+net fail
+click 600 684
+key up
+wait 5
+expect_input "👍"
+type more
+key enter
+wait 5
+expect_visible "Something went wrong. Try again."
+click 600 684
+key up
+wait 5
+expect_input "👍more"

@@ -330,11 +330,12 @@ edit_box :: (m: *dc.Message) {
 		if text != "" && ch text = mentions_convert(emoji_convert_shortcodes(text, ch.id), ch);
 		if text == "" {
 			ma.confirming, ma.confirm = m.id, Confirm.Delete;
-		} else if text != m.content && net_action() {
+		} else if text != m.content && req_begin(EDIT_REQ) {
 			dc.edit_message(app.client, m.channel_id, m.id, text);
+			req_end();
 		}
-		ma.editing = 0;
-		if edit_draft.msg == m.id edit_draft.msg = 0;
+		// the typed text stays a draft until the edit lands: a failed one reopens with it (edit_result)
+		edit_stash();
 	} else if cancel {
 		edit_stash();
 	}
@@ -699,7 +700,17 @@ message_menu :: () {
 }
 
 delete_now :: (m: *dc.Message) {
-	if net_action() dc.delete_message(app.client, m.channel_id, m.id);
+	if req_begin(DELETE_REQ) { dc.delete_message(app.client, m.channel_id, m.id); req_end(); }
+}
+
+EDIT_REQ :: "edit_message";
+DELETE_REQ :: "delete_message"; // a failed delete toasts
+
+// An edit's result: done, its draft goes; failed (after a toast), the edit opens again with the text.
+edit_result :: (r: dc.Rest_Result) {
+	if edit_draft.msg != r.message_id return;
+	if r.ok edit_draft.msg = 0;
+	else if ma.editing == 0 { m := find_message(r.message_id); if m start_edit(m); }
 }
 
 Confirm :: enum u8 { Delete; Pin; Unpin; Remove_Embeds; Remove_Reactions; }
