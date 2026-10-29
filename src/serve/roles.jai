@@ -57,7 +57,10 @@ Perms_Of :: struct {
 	top: int;  // Their highest role's position; the owner outranks every role.
 	base: u64;
 	roles: [..]s64;
+	timed_out: bool; // in a timeout: View Channel and Read Message History only, as on Discord
 }
+
+TIMEOUT_PERMS :: P_VIEW_CHANNEL | P_READ_MESSAGE_HISTORY;
 
 perms_of_locked :: (s: *Server, user: s64) -> Perms_Of {
 	p: Perms_Of;
@@ -78,6 +81,7 @@ perms_of_locked :: (s: *Server, user: s64) -> Perms_Of {
 		p.top = max(p.top, sqlite.col_int(st, 2));
 	}
 	if p.base & P_ADMINISTRATOR p.all, p.base = true, P_ALL;
+	else if timeout_until_locked(s, user) > unix_now_ms() p.timed_out, p.base = true, p.base & TIMEOUT_PERMS;
 	return p;
 }
 
@@ -110,6 +114,7 @@ channel_perms_locked :: (s: *Server, p: *Perms_Of, channel: s64) -> u64 {
 	sqlite.finalize(st);
 	perms = (perms & ~deny) | allow;
 	perms = (perms & ~mine_deny) | mine_allow;
+	if p.timed_out perms &= TIMEOUT_PERMS;
 	return ifx perms & P_VIEW_CHANNEL then perms else 0;
 }
 

@@ -907,6 +907,12 @@ main :: () {
 	check(status == 200 && contains(body, "communication_disabled_until\":\"20"), tprint("the owner times a member out: % %", status, body));
 	status, body = rest("POST", messages, "{\"content\": \"let me talk\"}", other_token);
 	check(status == 403, tprint("a member in a timeout can't send: % %", status, body));
+	status, body = rest("POST", messages, "{\"content\": \"react to this\"}", token);
+	target, _ := etf.from_json(body);
+	status, body = rest("PUT", tprint("%/%/reactions/\%F0\%9F\%91\%8D/@me", messages, field(target, "id").s), "", other_token);
+	check(status == 403, tprint("nor react: % %", status, body));
+	status, body = rest("POST", tprint("/api/v9/channels/%/typing", channel), "", other_token);
+	check(status == 403, tprint("nor type: % %", status, body));
 	status, body = rest("PATCH", member_path, "{\"communication_disabled_until\":null}", token);
 	check(status == 200, tprint("the owner ends the timeout: % %", status, body));
 	status, body = rest("POST", messages, "{\"content\": \"thanks\"}", other_token);

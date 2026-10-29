@@ -642,7 +642,8 @@ timeout_value_locked :: (s: *Server, user: s64) -> etf.Value {
 
 // PATCH /api/v9/guilds/{id}/members/{user} {communication_disabled_until}: the owner times a member out
 // until a time at most 28 days ahead, or null to end it (audited with the reason given); a body without it
-// renames (Change Nickname).
+// renames (Change Nickname). While it lasts the member keeps only View Channel and Read Message History
+// (perms_of_locked), so they can't send, react, type, start threads or join voice, and leave voice now.
 member_patch :: (c: *Conn, req: http.Request) -> bool {
 	s := c.server;
 	v, err := etf.from_json(cast(string) req.body,, temp);
@@ -681,5 +682,6 @@ member_patch :: (c: *Conn, req: http.Request) -> bool {
 	}
 	member := etf.vmap(etf.map_done(*d));
 	broadcast(s, "GUILD_MEMBER_UPDATE", member);
+	if until > unix_now_ms() voice_leave(s, target);
 	return json_reply(c, 200, member);
 }
