@@ -1478,8 +1478,8 @@ mention_ids :: (content: string) -> [..]s64 {
 }
 
 // Until roles land (Hosting 4) everyone may read, write, react, embed, attach, make invites, and in voice
-// connect, speak, use voice activity and stream.
-EVERYONE_PERMISSIONS :: (1 << 0) | (1 << 6) | (1 << 9) | (1 << 10) | (1 << 11) | (1 << 14) | (1 << 15) | (1 << 16) | (1 << 18) | (1 << 20) | (1 << 21) | (1 << 25) | (1 << 26) | (1 << 35) | (1 << 38);
+// connect, speak, use voice activity, stream and play soundboard sounds.
+EVERYONE_PERMISSIONS :: (1 << 0) | (1 << 6) | (1 << 9) | (1 << 10) | (1 << 11) | (1 << 14) | (1 << 15) | (1 << 16) | (1 << 18) | (1 << 20) | (1 << 21) | (1 << 25) | (1 << 26) | (1 << 35) | (1 << 38) | (1 << 42);
 
 // Channel types, as Discord numbers them.
 TEXT :: 0;

@@ -110,6 +110,7 @@ main :: () {
 		return vs && vs.channel_id == `channel;
 	}
 	for 1..500 { if in_channel(a, b.store.me) && in_channel(b, a.store.me) break; pump(); }
+	check(discord.has_permission(discord.channel_permissions(*b.store, channel), discord.PERM_SPEAK | discord.PERM_USE_SOUNDBOARD), "members may play sounds");
 	discord.send_soundboard_sound(b, channel, sound);
 	effects: []discord.Voice_Effect;
 	for 1..300 { effects = discord.take_voice_effects(a); if effects.count break; pump(); }
