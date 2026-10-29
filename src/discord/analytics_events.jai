@@ -2563,11 +2563,12 @@ analytics_ready_payload :: (c: *Client, data: V, is_reconnect: bool) {
 		return builder_string_length(*sb);
 	}
 	// _trace: JSON strings of ["gateway-...", {micros, calls: [name, {micros, calls}, ...]}]
-	find :: (calls: []V, name: string) -> int {
+	find :: (calls: []V, name: string, depth := 0) -> int {
+		if depth > 32 return -1;
 		for i: 0..calls.count - 2 {
 			if calls[i].kind == .String && calls[i].s == name return fint(vmap(calls[i + 1]), "micros");
 			if calls[i + 1].kind == .Map {
-				r := find(flist(vmap(calls[i + 1]), "calls"), name);
+				r := find(flist(vmap(calls[i + 1]), "calls"), name, depth + 1);
 				if r >= 0 return r;
 			}
 		}

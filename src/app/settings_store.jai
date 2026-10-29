@@ -402,7 +402,8 @@ write_quoted :: (b: *String_Builder, s: string) {
 }
 
 // Fills what the JSON has; anything missing or of another kind keeps its value. Allocates in context.
-read_json :: (v: etf.Value, dst: Any) {
+read_json :: (v: etf.Value, dst: Any, depth := 0) {
+	assert(depth < 16); // follows Persisted's own nesting, whatever the file holds
 	p := dst.value_pointer;
 	if dst.type.type == {
 	case .INTEGER;
@@ -424,28 +425,28 @@ read_json :: (v: etf.Value, dst: Any) {
 		size := ai.element_type.runtime_size;
 		data := alloc(v.list.count * size);
 		memset(data, 0, v.list.count * size);
-		for v.list read_json(it, Any.{ai.element_type, data + it_index * size});
+		for v.list read_json(it, Any.{ai.element_type, data + it_index * size}, depth + 1);
 		a := cast(*Resizable_Array) p;
 		a.data, a.count = data, v.list.count;
 		if ai.array_type == .RESIZABLE a.allocated, a.allocator = v.list.count, context.allocator;
 	case .STRUCT;
 		if v.kind != .Map return;
-		if dst.type == cast(*Type_Info) type_info(Table(string, float32)) { read_table(v, cast(*Table(string, float32)) p); return; }
-		if dst.type == cast(*Type_Info) type_info(Table(string, bool))    { read_table(v, cast(*Table(string, bool)) p); return; }
-		if dst.type == cast(*Type_Info) type_info(Table(string, string))  { read_table(v, cast(*Table(string, string)) p); return; }
+		if dst.type == cast(*Type_Info) type_info(Table(string, float32)) { read_table(v, cast(*Table(string, float32)) p, depth); return; }
+		if dst.type == cast(*Type_Info) type_info(Table(string, bool))    { read_table(v, cast(*Table(string, bool)) p, depth); return; }
+		if dst.type == cast(*Type_Info) type_info(Table(string, string))  { read_table(v, cast(*Table(string, string)) p, depth); return; }
 		for m: (cast(*Type_Info_Struct) dst.type).members {
 			if m.flags & .CONSTANT continue;
 			x, ok := etf.map_get(v.map, m.name);
-			if ok read_json(x, Any.{m.type, p + m.offset_in_bytes});
+			if ok read_json(x, Any.{m.type, p + m.offset_in_bytes}, depth + 1);
 		}
 	}
 }
 
-read_table :: (v: etf.Value, t: *Table(string, $V)) {
+read_table :: (v: etf.Value, t: *Table(string, $V), depth: int) {
 	for v.map {
 		if it.key.kind != .String continue;
 		x: V;
-		read_json(it.value, Any.{type_info(V), *x});
+		read_json(it.value, Any.{type_info(V), *x}, depth + 1);
 		table_set(t, copy_string(it.key.s), x);
 	}
 }

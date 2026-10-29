@@ -39,7 +39,8 @@ Webp_Conversion :: struct {
 
 // READY: the user's variation of the conversion experiment (apex assignments [hash, variation, ...]).
 note_webp_experiment :: (c: *Client, ready: V) {
-	walk :: (v: V, out: *s32) {
+	walk :: (v: V, out: *s32, depth := 0) {
+		if depth > 32 return;
 		if v.kind == {
 			case .List;
 				x := v.list;
@@ -47,9 +48,9 @@ note_webp_experiment :: (c: *Client, ready: V) {
 					if x[1].kind == .Int out.* = cast(s32) x[1].i;
 					return;
 				}
-				for x walk(it, out);
+				for x walk(it, out, depth + 1);
 			case .Map;
-				for v.map walk(it.value, out);
+				for v.map walk(it.value, out, depth + 1);
 		}
 	}
 	variation: s32;

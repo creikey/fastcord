@@ -287,6 +287,7 @@ Md_Parser :: struct {
 	out: [..]Token;
 	styles: Inline_Style;
 	masked_links: bool;
+	depth: int; // inline_into's nesting
 }
 
 emit :: (p: *Md_Parser, kind: Token_Kind, text: string) {
@@ -302,6 +303,8 @@ DELIMS :: struct {
 
 // Bytes that can start an inline rule in inline_into; every other byte is plain text.
 MD_SPECIAL :: #run -> [256]bool { t: [256]bool; for cast([]u8) "\\`<hf@*_~|[" t[it] = true; return t; };
+
+MD_MAX_DEPTH :: 16; // nested styles and masked links; deeper ones are drawn as typed
 
 inline_into :: (p: *Md_Parser, src: string) {
 	i := 0;
@@ -348,12 +351,14 @@ inline_into :: (p: *Md_Parser, src: string) {
 			}
 		}
 		// masked links: [text](url), text styled as usual and every piece of it a link
-		if c == #char "[" && p.masked_links {
+		if c == #char "[" && p.masked_links && p.depth < MD_MAX_DEPTH {
 			n, url := masked_link(here);
 			if n > 0 {
 				emit(p, .Text, pending());
 				first := p.out.count;
+				p.depth += 1;
 				inline_into(p, span(src, i + 1, i + find_close_bracket(here)));
+				p.depth -= 1;
 				for * array_view(p.out, first, p.out.count - first) if it.kind == .Text || it.kind == .Link { it.kind = .Link; it.url = url; }
 				take(i + n);
 				continue;
@@ -392,7 +397,7 @@ inline_into :: (p: *Md_Parser, src: string) {
 		// style delimiters
 		matched := false;
 		for d: DELIMS {
-			if !begins_with(here, d.open) continue;
+			if !begins_with(here, d.open) || p.depth >= MD_MAX_DEPTH continue; // deeper styles stay text
 			// underscores only work at word boundaries
 			if d.open == "_" && i > 0 && is_alnum(src[i - 1]) continue;
 			body_start := i + d.open.count;
@@ -402,7 +407,9 @@ inline_into :: (p: *Md_Parser, src: string) {
 			saved := p.styles;
 			p.styles |= d.style;
 			if d.open == "***" p.styles |= .Italic;
+			p.depth += 1;
 			inline_into(p, span(src, body_start, end));
+			p.depth -= 1;
 			p.styles = saved;
 			take(end + d.open.count);
 			matched = true;

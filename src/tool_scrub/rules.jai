@@ -207,7 +207,8 @@ text :: (v: etf.Value) -> string {
 }
 
 // scrub_value deep-copies v with every rule applied. key is the map key v sits under.
-scrub_value :: (c: *Ctx, v: etf.Value, key: string) -> etf.Value {
+scrub_value :: (c: *Ctx, v: etf.Value, key: string, depth := 0) -> etf.Value {
+    if depth > etf.MAX_DEPTH return .{}; // dropped, never kept unscrubbed
     kind, numbered, ok := key_rule(key);
     // a structured value under a secret-looking key is recursed into instead
     if ok && v.kind != .Nil && v.kind != .Bool && v.kind != .Map && v.kind != .List {
@@ -229,7 +230,7 @@ scrub_value :: (c: *Ctx, v: etf.Value, key: string) -> etf.Value {
       case .List; #through;
       case .Tuple;
         r.list = NewArray(v.list.count, etf.Value);
-        for v.list r.list[it_index] = scrub_value(c, it, key);
+        for v.list r.list[it_index] = scrub_value(c, it, key, depth + 1);
       case .Map;
         // people who are not test accounts: no names/avatars/bios in fixtures
         id := map_str(v.map, "id");
@@ -242,13 +243,13 @@ scrub_value :: (c: *Ctx, v: etf.Value, key: string) -> etf.Value {
         for p, i: v.map {
             k := ifx p.key.kind == .String then p.key.s else "";
             out := *r.map[i];
-            out.key = scrub_value(c, p.key, "");  // keys can be ids (e.g. guild_versions)
+            out.key = scrub_value(c, p.key, "", depth + 1);  // keys can be ids (e.g. guild_versions)
             if foreign_user && user_fields(k) {
                 if k == "username" || k == "global_name" || k == "display_name" || k == "nick" out.value = etf.vstring(placeholder(c, "user", id));
             } else if foreign_author && (k == "content" || k == "attachments" || k == "embeds" || k == "components") {
                 out.value = ifx k == "content" then etf.vstring("<content>") else etf.vlist(.[]);
             } else {
-                out.value = scrub_value(c, p.value, k);
+                out.value = scrub_value(c, p.value, k, depth + 1);
             }
         }
     }
@@ -256,11 +257,12 @@ scrub_value :: (c: *Ctx, v: etf.Value, key: string) -> etf.Value {
 }
 
 // collect_foreign records ids of user objects that aren't test accounts.
-collect_foreign :: (c: *Ctx, v: etf.Value) {
-    if v.kind == .List for v.list collect_foreign(c, it);
+collect_foreign :: (c: *Ctx, v: etf.Value, depth := 0) {
+    if depth > etf.MAX_DEPTH return;
+    if v.kind == .List for v.list collect_foreign(c, it, depth + 1);
     if v.kind != .Map return;
     _, has := etf.map_get(v.map, "username");
     id := map_str(v.map, "id");
     if has && is_snowflake_digits(id) && !table_find_pointer(*c.allow, id) table_set(*c.others, copy_string(id), true);
-    for v.map collect_foreign(c, it.value);
+    for v.map collect_foreign(c, it.value, depth + 1);
 }

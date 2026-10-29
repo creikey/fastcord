@@ -461,7 +461,8 @@ convert :: (raw: string, env: string, netlogs := string.["", ""]) -> string {
 
 emit :: (out: *[..]Line, t: float64, pairs: []etf.Pair) { array_add(out, .{t, out.count, etf.vmap(pairs)}); }
 
-clone_value :: (v: etf.Value) -> etf.Value {
+clone_value :: (v: etf.Value, depth := 0) -> etf.Value {
+    if depth > etf.MAX_DEPTH return .{};
     r := v;
     if v.kind == {
       case .Big;    r.big.digits = array_copy(v.big.digits);
@@ -471,10 +472,10 @@ clone_value :: (v: etf.Value) -> etf.Value {
       case .List; #through;
       case .Tuple;
         r.list = NewArray(v.list.count, etf.Value);
-        for v.list r.list[it_index] = clone_value(it);
+        for v.list r.list[it_index] = clone_value(it, depth + 1);
       case .Map;
         r.map = NewArray(v.map.count, etf.Pair);
-        for v.map r.map[it_index] = .{clone_value(it.key), clone_value(it.value)};
+        for v.map r.map[it_index] = .{clone_value(it.key, depth + 1), clone_value(it.value, depth + 1)};
     }
     return r;
 }

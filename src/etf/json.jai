@@ -4,7 +4,9 @@
 //   JSON -> Value: objects keep key order; integer literals -> s64 (or Big), anything with a
 //   fraction/exponent -> float64; strings -> binaries.
 
-to_json :: (v: Value, sb: *String_Builder) {
+// Values nested past MAX_DEPTH (only code can build them; the decoders stop there) are written as null.
+to_json :: (v: Value, sb: *String_Builder, depth := 0) {
+    if depth > MAX_DEPTH { append(sb, "null"); return; }
     if v.kind == {
       case .Nil;      append(sb, "null");
       case .Bool;     append(sb, ifx v.b then "true" else "false");
@@ -25,7 +27,7 @@ to_json :: (v: Value, sb: *String_Builder) {
         append(sb, #char "[");
         for v.list {
             if it_index append(sb, #char ",");
-            to_json(it, sb);
+            to_json(it, sb, depth + 1);
         }
         append(sb, #char "]");
       case .Map;
@@ -37,11 +39,11 @@ to_json :: (v: Value, sb: *String_Builder) {
             } else {
                 tmp: String_Builder;
                 tmp.allocator = temp;
-                to_json(it.key, *tmp);
+                to_json(it.key, *tmp, depth + 1);
                 write_json_string(sb, builder_to_string(*tmp,, temp));
             }
             append(sb, #char ":");
-            to_json(it.value, sb);
+            to_json(it.value, sb, depth + 1);
         }
         append(sb, #char "}");
     }

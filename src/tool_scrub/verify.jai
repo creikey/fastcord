@@ -44,9 +44,10 @@ SECRET_KEYS :: string.[
     "session_id", "auth_session_id_hash", "x-fingerprint", "x-installation-id", "password", "captcha_key", "ticket",
 ];
 
-collect_secrets :: (v: etf.Value, key: string, out: *Table(string, string)) {
-    if v.kind == .List for v.list collect_secrets(it, key, out);
-    if v.kind == .Map  for v.map collect_secrets(it.value, as_str(it.key), out);
+collect_secrets :: (v: etf.Value, key: string, out: *Table(string, string), depth := 0) {
+    if depth > etf.MAX_DEPTH return;
+    if v.kind == .List for v.list collect_secrets(it, key, out, depth + 1);
+    if v.kind == .Map  for v.map collect_secrets(it.value, as_str(it.key), out, depth + 1);
     if v.kind != .String return;
     x := v.s;
     lkey := to_lower_copy(key,, temp);

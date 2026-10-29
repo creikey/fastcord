@@ -116,14 +116,15 @@ apply_account_result :: (s: *Store, r: *Feature_Result) -> string {
 // api_error_text: the first field error of a 400 body ({"errors": {"username": {"_errors":
 // [{"message": ..}]}}}), else its "message"; "" when there is none.
 api_error_text :: (body: V) -> string {
-	find :: (v: V) -> string {
+	find :: (v: V, depth := 0) -> string {
+		if depth > 32 return "";
 		m := vmap(v);
 		for flist(m, "_errors") {
 			t := fstr(vmap(it), "message");
 			if t return t;
 		}
 		for m {
-			t := find(it.value);
+			t := find(it.value, depth + 1);
 			if t return t;
 		}
 		return "";
