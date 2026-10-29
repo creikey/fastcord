@@ -327,6 +327,14 @@ guild_menu_state_for_test :: () -> string {
 
 // ---- sidebar thread row menu ----
 
+// Edit Thread: its starter until someone who manages threads locks it, or anyone who manages threads.
+can_edit_thread :: (th: *dc.Channel) -> bool {
+	if th == null || !dc.is_thread(th) return false;
+	if (dc.channel_permissions(store(), th.id) & dc.PERM_MANAGE_THREADS) != 0 return true;
+	tm := dc.thread_meta(th.id);
+	return th.owner_id == store().me && !(tm && tm.locked);
+}
+
 can_delete_thread :: (th: *dc.Channel) -> bool {
 	if th == null || !dc.is_thread(th) return false;
 	if th.owner_id == store().me && !on_hosted() return true; // -serve lets only the server's owner delete threads.
@@ -1363,6 +1371,13 @@ thread_menu :: () {
 			close = true;
 		} else if sig.hovering hover_any = true;
 		menu_sep("s3");
+		if can_edit_thread(th) {
+			sig = menu_item("edit", "Edit Thread");
+			if sig.clicked {
+				channel_settings_open(th); // view_server_settings.jai: an Overview and Delete Thread
+				close = true;
+			} else if sig.hovering hover_any = true;
+		}
 		sig = menu_item("link", "Copy Link", .Icon, "link");
 		if sig.clicked {
 			clipboard_set(channel_link(th.guild_id, th.id));

@@ -1,0 +1,24 @@
+# Edit Thread (the thread row's menu): Channel Settings with only an Overview (name kept as typed,
+# slowmode, Hide After Inactivity) and Delete Thread; a rename shows the unsaved bar, Reset clears it.
+wait 5
+rclick 186 300
+wait 5
+click_text "Edit Thread"
+wait 10
+expect_visible "Thread Name"
+expect_visible "Hide After Inactivity"
+expect_visible "Delete Thread"
+expect_not_visible "Permissions"
+expect_not_visible "Careful — you have unsaved changes!"
+click 740 152
+wait 2
+type Two
+wait 5
+expect_visible "Careful — you have unsaved changes!"
+shot build/ui-threads_edit_thread.png
+click_text Reset
+wait 5
+expect_not_visible "Careful — you have unsaved changes!"
+key escape
+wait 10
+expect_not_visible "Thread Name"

@@ -203,7 +203,7 @@ server_settings_layer :: () {
 	}
 	g := dc.guild_get(store(), ss.guild);
 	ch := dc.channel_get(store(), ss.channel);
-	allowed := ifx ss.channel then can_manage_channel(ch) else g != null && can_open_server_settings(g.id);
+	allowed := ifx ss.channel then (can_manage_channel(ch) || can_edit_thread(ch)) else g != null && can_open_server_settings(g.id);
 	if g == null || !allowed || !section_shown(g, ss.section) {
 		server_settings_close();
 		return;
@@ -247,7 +247,7 @@ server_settings_layer :: () {
 							head := GROUP_NAMES[grp];
 							if grp == 0 head = ifx g.name then g.name else "Server Settings";
 							if grp == 8 {
-								cat := dc.channel_get(store(), ch.parent_id);
+								cat := ifx dc.is_thread(ch) then cast(*dc.Channel) null else dc.channel_get(store(), ch.parent_id);
 								head = ifx cat then tprint("% %", chan_title(ch), to_upper_copy(cat.name,, temp)) else chan_title(ch);
 							}
 							if head nav_header(sec, head);
@@ -617,7 +617,7 @@ section_label :: (s: Server_Section) -> string {
 	case .Chan_Integrations; return "Integrations";
 	case .Chan_Delete;
 		ch := dc.channel_get(store(), ss.channel);
-		return ifx ch && ch.kind == .Guild_Category then "Delete Category" else "Delete Channel";
+		return ifx ch && ch.kind == .Guild_Category then "Delete Category" else ifx ch && dc.is_thread(ch) then "Delete Thread" else "Delete Channel";
 	}
 	return "";
 }
@@ -668,6 +668,7 @@ section_shown :: (g: *dc.Guild, s: Server_Section) -> bool {
 		if !ch return false;
 		cp := dc.channel_permissions(store(), ch.id);
 		cat := ch.kind == .Guild_Category;
+		if dc.is_thread(ch) return s == .Chan_Overview || (s == .Chan_Delete && can_delete_thread(ch)); // Edit Thread
 		if s == {
 		case .Chan_Permissions; return has(cp, dc.PERM_MANAGE_ROLES);
 		case .Chan_Invites; return !cat;
@@ -4054,13 +4055,14 @@ server_settings_script_reply :: (name: string, json: string) -> bool {
 
 chan_texty :: (k: dc.Channel_Type) -> bool { return k != .Guild_Voice && k != .Guild_Stage_Voice && k != .Guild_Category; }
 chan_voice :: (k: dc.Channel_Type) -> bool { return k == .Guild_Voice || k == .Guild_Stage_Voice; }
-chan_title :: (ch: *dc.Channel) -> string { return ifx chan_texty(ch.kind) then tprint("# %", ch.name) else ch.name; }
+chan_title :: (ch: *dc.Channel) -> string { return ifx chan_texty(ch.kind) && !dc.is_thread(ch) then tprint("# %", ch.name) else ch.name; }
 
 has_topic :: (ch: *dc.Channel) -> bool {
 	return ch.kind == .Guild_Text || ch.kind == .Guild_Announcement || ch.kind == .Guild_Forum || ch.kind == .Guild_Media;
 }
 
 has_slowmode :: (ch: *dc.Channel) -> bool {
+	if dc.is_thread(ch) return (dc.channel_permissions(store(), ch.id) & dc.PERM_MANAGE_THREADS) != 0; // a starter only renames
 	return ch.kind == .Guild_Text || ch.kind == .Guild_Forum || ch.kind == .Guild_Media || chan_voice(ch.kind);
 }
 
@@ -4087,7 +4089,7 @@ max_bitrate :: (g: *dc.Guild) -> int {
 chan_form :: (ch: *dc.Channel) -> dc.Channel_Form {
 	f := ss.chan;
 	name := trim(ui.editor_text(*ss.name), "- ");
-	f.name = ifx name then dc.channel_name_normalize(name, chan_texty(ch.kind)) else ch.name;
+	f.name = ifx name then dc.channel_name_normalize(name, chan_texty(ch.kind) && !dc.is_thread(ch)) else ch.name;
 	f.topic = ifx has_topic(ch) then ui.editor_text(*ss.desc) else ch.topic;
 	if is_forum(ch) f.available_tags = tags_json(ss.chan_tags);
 	return f;
@@ -4118,6 +4120,7 @@ MAX_FORUM_TAGS :: 20;
 chan_overview_dirty :: () -> bool {
 	ch := dc.channel_get(store(), ss.channel);
 	if !ch return false;
+	if dc.is_thread(ch) return thread_body(ch) != "";
 	a, b := chan_form(ch), dc.channel_form_of(ch);
 	return a.name != b.name || a.topic != b.topic || a.kind != b.kind || a.nsfw != b.nsfw || a.rate_limit_per_user != b.rate_limit_per_user
 		|| a.bitrate != b.bitrate || a.user_limit != b.user_limit || a.rtc_region != b.rtc_region || a.video_quality_mode != b.video_quality_mode
@@ -4136,27 +4139,44 @@ chan_reset :: () {
 	ss.chan.rtc_region = ss.chan_region;
 	array_reset(*ss.ows);
 	for ch.overwrites array_add(*ss.ows, it);
+	tm := dc.thread_meta(ch.id);
+	if dc.is_thread(ch) ss.chan.default_auto_archive_duration = ifx tm then tm.auto_archive_minutes else 0;
 	tags_free();
 	for dc.forum_tags(ch.id) array_add(*ss.chan_tags, .{id = it.id, name = copy_string(it.name), emoji_name = copy_string(it.emoji_name), emoji_id = it.emoji_id, moderated = it.moderated});
 	ui.editor_set_text(*ss.tag, "");
 }
 
-// Save Changes: PATCH /channels/{id} with the whole form (guild_admin.jai; channel_settings_saved answers).
+// Save Changes: PATCH /channels/{id} with the whole form (guild_admin.jai; channel_settings_saved answers);
+// a thread sends only what changed.
 chan_overview_save :: () {
 	ch := dc.channel_get(store(), ss.channel);
 	if !ch return;
 	ss.busy = true;
 	ss_error("");
-	dc.edit_channel(app.client, ch.id, chan_form(ch));
+	if dc.is_thread(ch) dc.feature_submit(app.client, .Channel_Edit, "PATCH", tprint("/channels/%", ch.id), thread_body(ch), channel_id = ch.id);
+	else dc.edit_channel(app.client, ch.id, chan_form(ch));
+}
+
+// Edit Thread's changes as a PATCH body ({name, rate_limit_per_user, auto_archive_duration}, those that
+// changed), "" when none did.
+thread_body :: (ch: *dc.Channel) -> string {
+	f := chan_form(ch);
+	tm := dc.thread_meta(ch.id);
+	parts: [..]string;
+	parts.allocator = temp;
+	if f.name != ch.name array_add(*parts, tprint("\"name\":%", dc.json_quote(f.name)));
+	if f.rate_limit_per_user != ch.rate_limit_per_user array_add(*parts, tprint("\"rate_limit_per_user\":%", f.rate_limit_per_user));
+	if f.default_auto_archive_duration != (ifx tm then tm.auto_archive_minutes else 0) array_add(*parts, tprint("\"auto_archive_duration\":%", f.default_auto_archive_duration));
+	return ifx parts.count then tprint("{%}", join(..parts, ",",, temp)) else "";
 }
 
 chan_overview_page :: (g: *dc.Guild) -> bool {
 	ch := dc.channel_get(store(), ss.channel);
 	if !ch return false;
 	save := false;
-	field_title(ifx ch.kind == .Guild_Category then "Category Name" else "Channel Name");
+	field_title(ifx ch.kind == .Guild_Category then "Category Name" else ifx dc.is_thread(ch) then "Thread Name" else "Channel Name");
 	res := set_input("name", *ss.name, ch.name, max_runes = 100);
-	if res == .Changed && chan_texty(ch.kind) {
+	if res == .Changed && chan_texty(ch.kind) && !dc.is_thread(ch) { // threads keep their names as typed
 		cur := ui.editor_text(*ss.name);
 		norm := dc.channel_name_normalize(cur, true);
 		if norm != cur ui.editor_set_text(*ss.name, norm);
@@ -4191,7 +4211,7 @@ chan_overview_page :: (g: *dc.Guild) -> bool {
 		spacer(.Y, 8);
 		set_para("slowhelp", "Members will be restricted to sending one message and creating one thread per this interval, unless they have the Bypass Slowmode permission.", .Normal, 12, 16, T("--text-default"));
 	}
-	if ch.kind == .Guild_Text || ch.kind == .Guild_Announcement || is_forum(ch) {
+	if ch.kind == .Guild_Text || ch.kind == .Guild_Announcement || is_forum(ch) || dc.is_thread(ch) {
 		spacer(.Y, 24);
 		field_title("Hide After Inactivity");
 		cur := 2; // Discord's default, 3 days
@@ -4199,7 +4219,7 @@ chan_overview_page :: (g: *dc.Guild) -> bool {
 		pick := select_field("archive", ARCHIVE_LABELS, cur);
 		if pick >= 0 ss.chan.default_auto_archive_duration = ARCHIVE_MINUTES[pick];
 		spacer(.Y, 8);
-		set_para("archivehelp", "New threads will stop showing in the channel list after being inactive for the specified duration.", .Normal, 12, 16, T("--text-default"));
+		set_para("archivehelp", ifx dc.is_thread(ch) then "The thread stops showing in the channel list after being inactive for this long." else "New threads will stop showing in the channel list after being inactive for the specified duration.", .Normal, 12, 16, T("--text-default"));
 	}
 	if is_forum(ch) forum_fields(ch);
 	if (ch.kind == .Guild_Text || ch.kind == .Guild_Announcement) && !on_hosted() && (dc.guild_has_feature(g, "NEWS") || dc.guild_has_feature(g, "COMMUNITY")) {
@@ -4208,6 +4228,7 @@ chan_overview_page :: (g: *dc.Guild) -> bool {
 		if set_toggle_row("news", "Announcement Channel", "Post messages that reach servers outside your own. Members can follow this channel, so the posts you publish here appear in their servers.", news)
 			ss.chan.kind = ifx news then .Guild_Text else .Guild_Announcement;
 	}
+	if dc.is_thread(ch) return save;
 	if ch.kind != .Guild_Category && ch.kind != .Guild_Stage_Voice && (chan_texty(ch.kind) || !on_hosted()) {
 		set_divider();
 		if set_toggle_row("nsfw", "Age-Restricted Channel", "Users will need to confirm they are of over the legal age to view in the content in this channel.\nAge-restricted channels are exempt from the explicit content filter.", ss.chan.nsfw)
