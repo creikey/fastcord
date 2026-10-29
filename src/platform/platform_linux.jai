@@ -166,6 +166,8 @@ autostart_path :: () -> string {
 
 #scope_module
 
+tray_changed :: () { if bus.state == 1 bus_post(.{tray = true}); } // the menu's checkmarks (set_tray_voice)
+
 // Global input: XInput2 raw key and button events from the root window, on a thread with its own
 // connection. Under Wayland (XWayland) they come only while an X11 window has focus.
 os_global_input :: (on: bool) -> Global_Input {
@@ -301,6 +303,7 @@ os_init :: (title: string, width: int, height: int) -> bool {
     update_size();
 
     xs.wake_fd = eventfd(0, xx (EFD.NONBLOCK | .CLOEXEC));
+    if bus_start() bus_post(.{tray = true});
     // the second connection reads the clipboard from any thread without touching the UI thread's events
     xs.clip_d = X.OpenDisplay(null);
     if xs.clip_d {
@@ -523,6 +526,8 @@ Xlib :: struct {
     CreatePixmapCursor: (d: *void, src: u64, mask: u64, fg: *XColor, bg: *XColor, x: u32, y: u32) -> u64 #c_call;
     FreePixmap: (d: *void, p: u64) -> s32 #c_call;
     DefineCursor: (d: *void, w: Window, c: u64) -> s32 #c_call;
+    WithdrawWindow: (d: *void, w: Window, screen: s32) -> s32 #c_call;
+    DefaultScreen: (d: *void) -> s32 #c_call;
     QueryExtension: (d: *void, name: *u8, opcode: *s32, event: *s32, error: *s32) -> s32 #c_call;
     GetEventData: (d: *void, cookie: *XGenericEventCookie) -> s32 #c_call;
     FreeEventData: (d: *void, cookie: *XGenericEventCookie) #c_call;
@@ -1192,6 +1197,11 @@ client_message :: (c: *XClientMessageEvent) {
     t := c.message_type;
     if t == a.WM_PROTOCOLS {
         if cast(Atom) c.l[0] == a.WM_DELETE_WINDOW {
+            if atomic_load(*bus.tray) && s.close_to_tray {
+                X.WithdrawWindow(xs.d, xs.win, X.DefaultScreen(xs.d)); // to the tray; window_show maps it again
+                X.Flush(xs.d);
+                return;
+            }
             s.quit = true;
             push_event(.{kind = .Quit, time = time_now()});
         }
@@ -1265,6 +1275,7 @@ dnd_send :: (type: Atom, data: [4]s64) {
 
 Bus_Job :: struct {
     badge: bool; // a badge update (id = its text, "" = none), else a notification
+    tray: bool; // the tray menu's checkmarks changed (or, the first time, register the tray)
     title, body, id: string; // heap
 }
 
@@ -1277,6 +1288,10 @@ bus: struct {
     thread: Thread;
     sent: [64]struct { server_id: u32; id: string; }; // recent notifications, for ActionInvoked (ring)
     sent_next: int;
+    tray: bool; // atomic: a StatusNotifierWatcher took our item, so closing hides the window
+    tray_name: string;
+    tray_rev: u32; // the menu's layout revision
+    unread: bool; // the badge: Status NeedsAttention
 };
 
 bus_post :: (j: Bus_Job) {
@@ -1324,7 +1339,9 @@ bus_proc :: (t: *Thread) -> s64 {
             jobs, bus.jobs = bus.jobs, jobs;
         }
         for jobs {
-            if it.badge send_badge(it.id); else send_notify(it);
+            if it.tray tray_job();
+            else if it.badge { send_badge(it.id); bus.unread = it.id != ""; tray_signal(false); }
+            else send_notify(it);
             free(it.title.data); free(it.body.data); free(it.id.data);
         }
         array_free(jobs);
@@ -1333,6 +1350,8 @@ bus_proc :: (t: *Thread) -> s64 {
             m := D.connection_pop_message(bus.conn);
             if !m break;
             defer D.message_unref(m);
+            if D.message_get_type(m) == 1 { tray_call(m); continue; } // a method call: the tray's
+            if D.message_is_signal(m, "org.freedesktop.DBus", "NameOwnerChanged") { tray_register(); continue; } // a new watcher
             if !D.message_is_signal(m, "org.freedesktop.Notifications", "ActionInvoked") continue;
             mi: DBus_Iter;
             server_id: u32;
@@ -1445,4 +1464,257 @@ D: struct {
     message_iter_append_basic: (it: *DBus_Iter, type: s32, value: *void) -> u32 #c_call;
     message_iter_open_container: (it: *DBus_Iter, type: s32, signature: *u8, sub: *DBus_Iter) -> u32 #c_call;
     message_iter_close_container: (it: *DBus_Iter, sub: *DBus_Iter) -> u32 #c_call;
+    message_iter_next: (it: *DBus_Iter) -> u32 #c_call;
+    message_iter_recurse: (it: *DBus_Iter, sub: *DBus_Iter) #c_call;
+    message_get_type: (m: *void) -> s32 #c_call;
+    message_get_path: (m: *void) -> *u8 #c_call;
+    message_get_interface: (m: *void) -> *u8 #c_call;
+    message_get_member: (m: *void) -> *u8 #c_call;
+    message_new_method_return: (m: *void) -> *void #c_call;
+    message_new_error: (m: *void, name: *u8, text: *u8) -> *void #c_call;
+    bus_request_name: (c: *void, name: *u8, flags: u32, e: *DBus_Error) -> s32 #c_call;
 };
+
+// ---- Tray: a StatusNotifierItem (KDE, GNOME's AppIndicator extension, waybar...) with a com.canonical.dbusmenu
+// menu like the Windows tray's: Open, Mute and Deafen checked while on, Quit. A click opens the window;
+// unread mentions set Status NeedsAttention. With no StatusNotifierWatcher there is no tray and closing quits.
+
+SNI :: "org.kde.StatusNotifierItem";
+MENU :: "com.canonical.dbusmenu";
+TRAY_ITEMS :: string.["Open Fastcord", "", "Mute", "Deafen", "", "Quit Fastcord"]; // ids 1..6; "" = separator
+
+tray_job :: () {
+    if !bus.tray_name {
+        bus.tray_name = sprint("org.kde.StatusNotifierItem-%-1", getpid());
+        err: DBus_Error;
+        D.error_init(*err);
+        D.bus_request_name(bus.conn, temp_c_string(bus.tray_name), 0, *err);
+        D.error_free(*err);
+        D.error_init(*err);
+        D.bus_add_match(bus.conn, "type='signal',interface='org.freedesktop.DBus',member='NameOwnerChanged',arg0='org.kde.StatusNotifierWatcher'", *err);
+        D.error_free(*err);
+        tray_register();
+        return;
+    }
+    bus.tray_rev += 1;
+    tray_signal(true);
+}
+
+tray_register :: () {
+    m := D.message_new_method_call("org.kde.StatusNotifierWatcher", "/StatusNotifierWatcher", "org.kde.StatusNotifierWatcher", "RegisterStatusNotifierItem");
+    if !m return;
+    defer D.message_unref(m);
+    it: DBus_Iter;
+    D.message_iter_init_append(m, *it);
+    name := temp_c_string(bus.tray_name);
+    D.message_iter_append_basic(*it, #char "s", *name);
+    err: DBus_Error;
+    D.error_init(*err);
+    reply := D.connection_send_with_reply_and_block(bus.conn, m, 2000, *err);
+    D.error_free(*err);
+    if reply D.message_unref(reply);
+    atomic_store(*bus.tray, reply != null);
+}
+
+// LayoutUpdated (u revision, i parent 0) on the menu, or NewStatus (s) on the item.
+tray_signal :: (menu: bool) {
+    if !bus.tray_name return;
+    m := ifx menu then D.message_new_signal("/MenuBar", MENU, "LayoutUpdated") else D.message_new_signal("/StatusNotifierItem", SNI, "NewStatus");
+    if !m return;
+    defer D.message_unref(m);
+    it: DBus_Iter;
+    D.message_iter_init_append(m, *it);
+    if menu {
+        zero: s32;
+        D.message_iter_append_basic(*it, #char "u", *bus.tray_rev);
+        D.message_iter_append_basic(*it, #char "i", *zero);
+    } else {
+        st := ifx bus.unread then "NeedsAttention".data else "Active".data;
+        D.message_iter_append_basic(*it, #char "s", *st);
+    }
+    D.connection_send(bus.conn, m, null);
+    D.connection_flush(bus.conn);
+}
+
+// The item's and the menu's methods and properties. Anything else gets UnknownMethod.
+tray_call :: (m: *void) {
+    path := to_string(D.message_get_path(m));
+    iface := to_string(D.message_get_interface(m));
+    member := to_string(D.message_get_member(m));
+    in, it, arr: DBus_Iter;
+    has_args := D.message_iter_init(m, *in) != 0;
+    reply := D.message_new_method_return(m);
+    if !reply return;
+    defer { D.connection_send(bus.conn, reply, null); D.connection_flush(bus.conn); D.message_unref(reply); }
+    D.message_iter_init_append(reply, *it);
+    item := path == "/StatusNotifierItem";
+    if path != "/MenuBar" && !item { unknown(m, *reply); return; }
+    if iface == "org.freedesktop.DBus.Properties" {
+        want: *u8;
+        if has_args && D.message_iter_next(*in) && D.message_iter_get_arg_type(*in) == #char "s" D.message_iter_get_basic(*in, *want); // Get's second argument
+        if member == "Get" && want { if !tray_prop(*it, item, to_string(want)) unknown(m, *reply); return; }
+        if member != "GetAll" { unknown(m, *reply); return; }
+        D.message_iter_open_container(*it, #char "a", "{sv}", *arr);
+        ITEM_PROPS :: string.["Category", "Id", "Title", "Status", "IconName", "AttentionIconName", "Menu", "ItemIsMenu"];
+        MENU_PROPS :: string.["Version", "Status", "TextDirection"];
+        names: []string = MENU_PROPS;
+        if item names = ITEM_PROPS;
+        for names {
+            e: DBus_Iter;
+            D.message_iter_open_container(*arr, #char "e", null, *e);
+            key := temp_c_string(it);
+            D.message_iter_append_basic(*e, #char "s", *key);
+            tray_prop(*e, item, it);
+            D.message_iter_close_container(*arr, *e);
+        }
+        D.message_iter_close_container(*it, *arr);
+        return;
+    }
+    if item {
+        if member == "Activate" || member == "SecondaryActivate" { push_event(.{kind = .Open_Url, time = time_now()}); request_frame(); }
+        else if member != "ContextMenu" && member != "Scroll" unknown(m, *reply);
+        return;
+    }
+    if member == {
+    case "GetLayout";
+        D.message_iter_append_basic(*it, #char "u", *bus.tray_rev);
+        menu_node(*it, 0);
+    case "GetGroupProperties";
+        D.message_iter_open_container(*it, #char "a", "(ia{sv})", *arr);
+        for 1..TRAY_ITEMS.count {
+            st: DBus_Iter;
+            id: s32 = xx it;
+            D.message_iter_open_container(*arr, #char "r", null, *st);
+            D.message_iter_append_basic(*st, #char "i", *id);
+            menu_props(*st, id);
+            D.message_iter_close_container(*arr, *st);
+        }
+        D.message_iter_close_container(*it, *arr);
+    case "Event";
+        if has_args menu_event(*in);
+    case "EventGroup"; // a(isvu)
+        if has_args && D.message_iter_get_arg_type(*in) == #char "a" {
+            ev: DBus_Iter;
+            D.message_iter_recurse(*in, *ev);
+            while D.message_iter_get_arg_type(*ev) == #char "r" {
+                f: DBus_Iter;
+                D.message_iter_recurse(*ev, *f);
+                menu_event(*f);
+                D.message_iter_next(*ev);
+            }
+        }
+        D.message_iter_open_container(*it, #char "a", "i", *arr);
+        D.message_iter_close_container(*it, *arr);
+    case "AboutToShow";
+        no: u32;
+        D.message_iter_append_basic(*it, #char "b", *no);
+    case "AboutToShowGroup";
+        for _: 0..1 { D.message_iter_open_container(*it, #char "a", "i", *arr); D.message_iter_close_container(*it, *arr); }
+    case; unknown(m, *reply);
+    }
+}
+
+unknown :: (m: *void, reply: **void) {
+    D.message_unref(reply.*);
+    reply.* = D.message_new_error(m, "org.freedesktop.DBus.Error.UnknownMethod", "unknown");
+}
+
+// A property as a variant; false if there is no such property.
+tray_prop :: (it: *DBus_Iter, item: bool, name: string) -> bool {
+    basic :: (it: *DBus_Iter, sig: *u8, value: *void) {
+        v: DBus_Iter;
+        D.message_iter_open_container(it, #char "v", sig, *v);
+        D.message_iter_append_basic(*v, sig[0], value);
+        D.message_iter_close_container(it, *v);
+    }
+    str :: (it: *DBus_Iter, sig: *u8, value: string) { p := temp_c_string(value); basic(it, sig, *p); }
+    no: u32;
+    three: u32 = 3;
+    if item {
+        if name == {
+        case "Category"; str(it, "s", "Communications");
+        case "Id"; str(it, "s", "fastcord");
+        case "Title"; str(it, "s", "Fastcord");
+        case "Status"; str(it, "s", ifx bus.unread then "NeedsAttention" else "Active");
+        case "IconName"; #through; case "AttentionIconName"; str(it, "s", "fastcord"); // the icon the desktop entry installs
+        case "Menu"; str(it, "o", "/MenuBar");
+        case "ItemIsMenu"; basic(it, "b", *no);
+        case; return false;
+        }
+        return true;
+    }
+    if name == {
+    case "Version"; basic(it, "u", *three);
+    case "Status"; str(it, "s", "normal");
+    case "TextDirection"; str(it, "s", "ltr");
+    case; return false;
+    }
+    return true;
+}
+
+// (ia{sv}av): the root (0) with every item as a child, or one item.
+menu_node :: (it: *DBus_Iter, id: s32) {
+    st, kids: DBus_Iter;
+    D.message_iter_open_container(it, #char "r", null, *st);
+    D.message_iter_append_basic(*st, #char "i", *id);
+    menu_props(*st, id);
+    D.message_iter_open_container(*st, #char "a", "v", *kids);
+    if id == 0 for 1..TRAY_ITEMS.count {
+        v: DBus_Iter;
+        D.message_iter_open_container(*kids, #char "v", "(ia{sv}av)", *v);
+        menu_node(*v, xx it); // depth 1: items have no children
+        D.message_iter_close_container(*kids, *v);
+    }
+    D.message_iter_close_container(*st, *kids);
+    D.message_iter_close_container(it, *st);
+}
+
+menu_props :: (it: *DBus_Iter, id: s32) {
+    arr: DBus_Iter;
+    D.message_iter_open_container(it, #char "a", "{sv}", *arr);
+    prop :: (arr: *DBus_Iter, key: string, sig: *u8, value: *void) {
+        e, v: DBus_Iter;
+        D.message_iter_open_container(arr, #char "e", null, *e);
+        k := temp_c_string(key);
+        D.message_iter_append_basic(*e, #char "s", *k);
+        D.message_iter_open_container(*e, #char "v", sig, *v);
+        D.message_iter_append_basic(*v, sig[0], value);
+        D.message_iter_close_container(*e, *v);
+        D.message_iter_close_container(arr, *e);
+    }
+    if id == 0 {
+        sub := "submenu".data;
+        prop(*arr, "children-display", "s", *sub);
+    } else if TRAY_ITEMS[id - 1] == "" {
+        sep := "separator".data;
+        prop(*arr, "type", "s", *sep);
+    } else {
+        text := temp_c_string(TRAY_ITEMS[id - 1]);
+        prop(*arr, "label", "s", *text);
+        if id == 3 || id == 4 {
+            check := "checkmark".data;
+            on: s32 = xx ifx id == 3 then s.tray_mute else s.tray_deaf;
+            prop(*arr, "toggle-type", "s", *check);
+            prop(*arr, "toggle-state", "i", *on);
+        }
+    }
+    D.message_iter_close_container(it, *arr);
+}
+
+// An event (i id, s type, v data, u time): a click runs its item.
+menu_event :: (f: *DBus_Iter) {
+    id: s32;
+    kind: *u8;
+    if D.message_iter_get_arg_type(f) != #char "i" return;
+    D.message_iter_get_basic(f, *id);
+    if !D.message_iter_next(f) || D.message_iter_get_arg_type(f) != #char "s" return;
+    D.message_iter_get_basic(f, *kind);
+    if to_string(kind) != "clicked" return;
+    if id == 1 push_event(.{kind = .Open_Url, time = time_now()});
+    else if id == 3 push_event(.{kind = .Tray_Mute, time = time_now()});
+    else if id == 4 push_event(.{kind = .Tray_Deafen, time = time_now()});
+    else if id == 6 { s.quit = true; push_event(.{kind = .Quit, time = time_now()}); }
+    else return;
+    request_frame();
+}
+

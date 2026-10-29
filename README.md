@@ -199,8 +199,7 @@ archives into `dist/` locally (macOS: `fastcord-macos.zip`; Windows: `fastcord-w
   SmartScreen warns on first launch.
 - Linux: one x86_64 binary for every distribution. It links only glibc (2.17+) and opens everything else at
   run time with `dlopen`: libX11 (Wayland desktops through XWayland), libEGL for OpenGL 3.3, fontconfig,
-  libasound (ALSA, which PipeWire and PulseAudio serve), and when present libdbus (notifications, the
-  launcher badge), libXss (idle time) and libXi (global keybinds). `tools/package_linux.py` packs it with a desktop entry (the
+  libasound (ALSA, which PipeWire and PulseAudio serve), and when present libdbus (notifications, the tray, the launcher badge), libXss (idle time) and libXi (global keybinds). `tools/package_linux.py` packs it with a desktop entry (the
   `fc://` and `discord://` handler), the icon and `install.sh` (per user in `~/.local`, or system-wide as root).
 
 The site and the in-app updater both use the latest release:

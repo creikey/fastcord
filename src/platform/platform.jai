@@ -44,7 +44,7 @@ Event_Kind :: enum u8 {
     Composition; // IME marked text changed; text = current marked string ("" = composition ended), composition_sel = selected byte range in text
     Drag_Enter;  // files are dragged over the window (pos = where)
     Drag_Leave;  // the drag left the window, was cancelled or dropped (after its File_Drop events)
-    Tray_Mute;   // the tray menu's Mute or Deafen was picked (Windows)
+    Tray_Mute;   // the tray menu's Mute or Deafen was picked (Windows, Linux)
     Tray_Deafen;
     Open_Url;    // another launch or app handed us a URL (text; "" = only show the window): instance_claim
     Notification_Click; // a desktop notification was clicked (text = the id notify_show got; Linux)
@@ -315,10 +315,14 @@ set_ime_rect :: (x: float32, y: float32, w: float32, h: float32) { s.ime_rect = 
 set_close_to_tray :: (on: bool) { s.close_to_tray = on; }
 start_minimized :: () { s.start_hidden = true; }
 
-// Checkmarks on the tray menu's Mute and Deafen items (Windows).
-set_tray_voice :: (mute: bool, deaf: bool) { s.tray_mute, s.tray_deaf = mute, deaf; }
+// Checkmarks on the tray menu's Mute and Deafen items (Windows, Linux).
+set_tray_voice :: (mute: bool, deaf: bool) {
+    if mute == s.tray_mute && deaf == s.tray_deaf return;
+    s.tray_mute, s.tray_deaf = mute, deaf;
+    #if OS == .LINUX if !s.headless tray_changed();
+}
 
-// The tray icon's call state, as the official client shows it (Windows; macOS and Linux have no tray).
+// The tray icon's call state, as the official client shows it (Windows; Linux's tray shows only unread mentions).
 Tray_Call :: enum u8 { None; Connected; Speaking; Muted; Deafened; }
 set_tray_call :: (c: Tray_Call) {
     if c == s.tray_call return;
