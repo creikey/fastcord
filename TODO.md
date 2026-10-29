@@ -333,7 +333,8 @@
 - [ ] Messages: a failed upload (a message with attachments) offers only Delete, not Retry, since the staged files are gone once sent (`view_chat.jai` `failed_send_note`); keep them until the send succeeds so Retry can re-upload.
 - [ ] System messages: boosts, tier-ups, channel follows, thread created, thread starter, discovery, invite reminder, AutoMod, stage events, role-subscription purchases and incident alerts render as an empty message (`view_chat.jai` `is_notice` covers only types 1-7 and 67).
 - [ ] Tray: the icon doesn't show call state. Like the official client, in a voice call it should be a gray circle that turns green while you talk. Check the bundle for whether muted and deafened show red. The icon is set in `src/platform/platform_windows.jai`. Update it only when the state changes.
-- [ ] Tray: Linux has no tray icon (StatusNotifierItem over D-Bus) and macOS doesn't keep running when the window closes (hide it; the Dock icon reopens it), so closing quits there. Windows has the tray.
+- [ ] Tray: Linux has no tray icon (StatusNotifierItem over D-Bus), so closing the window quits there. Windows has the tray.
+  - Done: on macOS closing hides the window and fastcord keeps running; the Dock icon reopens it, Cmd+Q quits, and nothing is drawn while hidden or minimized (`win_should_close`, `app_reopen`, `window_visible`).
 - [ ] Settings: keep every fastcord setting in one place so deleting them all is easy (may already be done).
 - [ ] Profiles: the popout shows no roles, with no add/remove role.
 - [ ] Undo: Leave Server, Delete Channel / Category / Thread and Cancel Event (confirm modals today).

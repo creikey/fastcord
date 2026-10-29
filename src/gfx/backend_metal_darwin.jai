@@ -145,6 +145,8 @@ backend_submit :: (insts: []Instance, batches: []Batch, clear: Color, fb: [2]s32
     if scenes.count  encode_scenes(cmd, *mt.scene_ring[(mt.ring_idx + FRAMES_IN_FLIGHT - 1) % FRAMES_IN_FLIGHT], scenes);
     target, drawable: Id;
     if mt.layer {
+        // A hidden window's layer would make nextDrawable wait a second for nothing.
+        if !platform.window_visible() return;
         // Acquire as late as possible (after CPU work) for lowest latency.
         drawable = msg(Id, mt.layer, "nextDrawable");
         if drawable == null return;

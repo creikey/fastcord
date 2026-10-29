@@ -76,6 +76,9 @@ window_placement :: () -> Window_Placement, bool {
 
 window_placement_restore :: (p: Window_Placement) { m.normal = p; }
 
+// False while the window is hidden (closed to the Dock) or minimized: nothing to draw.
+window_visible :: () -> bool { return !m.window || msg(bool, m.window, "isVisible"); }
+
 // Brings the window to the front (another launch, a link opened elsewhere).
 window_show :: () {
     if !m.window return;
@@ -663,6 +666,7 @@ register_classes :: () {
     add(a, "applicationShouldTerminate:", app_should_terminate, "Q@:@");
     add(a, "applicationShouldTerminateAfterLastWindowClosed:", view_no1, "B@:@");
     add(a, "application:openURLs:", app_open_urls, "v@:@@");
+    add(a, "applicationShouldHandleReopen:hasVisibleWindows:", app_reopen, "B@:@B");
     objc.register_class(a);
 }
 
@@ -910,10 +914,17 @@ push_quit :: () {
     push_event(.{kind = .Quit, time = time_now()});
 }
 
+// Closing hides the window and fastcord keeps running, as the official client does on macOS; the Dock icon
+// brings it back (app_reopen) and Cmd+Q quits.
 win_should_close :: (self: Id, cmd: SEL, sender: Id) -> bool #c_call {
+    msg(Void, self, "orderOut:", cast(Id) null);
+    return false;
+}
+
+app_reopen :: (self: Id, cmd: SEL, app: Id, has_visible: bool) -> bool #c_call {
     c := s.ctx; push_context,defer_pop c;
-    push_quit();
-    return false; // the app decides; it will exit its loop
+    if !has_visible window_show();
+    return true;
 }
 
 win_did_become_key :: (self: Id, cmd: SEL, n: Id) #c_call {

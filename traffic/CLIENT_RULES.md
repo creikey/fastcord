@@ -448,6 +448,7 @@ module were read.
 | Rule | Kind | Anchor in the client | fastcord |
 |---|---|---|---|
 | Closing the window hides it to the tray (the client's "Minimize to Tray", on by default; fastcord has no setting); a left click on the tray icon shows it; the right-click menu has Open, Mute and Deafen (checked while on; Mute shows checked while deafened) and Quit (the client's also has voice settings and update check); the icon gets a red dot while there are unread mentions | guess | desktop core `app.asar` (not the web bundle) | `platform_windows.jai` `tray_menu`, `set_badge` |
+| macOS: closing the window hides it and the app keeps running (the Dock icon reopens it, Cmd+Q quits), the usual Mac app behaviour the client follows | inferred (using the client) | desktop host `app.asar` | `platform_darwin.jai` `win_should_close`, `app_reopen` |
 
 ## Desktop host: single instance and links
 
