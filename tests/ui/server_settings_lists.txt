@@ -48,6 +48,19 @@ wait 5
 expect_visible "Verification Level"
 expect_visible "Must have a verified email on their Discord account."
 shot build/ui-server_settings_safety.png
+click_text "Integrations"
+wait 10
+settings_reply Webhooks [{"id":"1565281995485870001","type":1,"guild_id":"1","channel_id":"1546820603343016006","name":"Captain Hook","avatar":null,"token":"abc","user":{"id":"1546820603343016100","username":"robin","global_name":"Robin"}}]
+wait 5
+click_text "Captain Hook"
+wait 5
+expect_visible "Copy Webhook URL"
+shot build/ui-server_settings_integrations.png
+click_text "Server Template"
+wait 10
+settings_reply Templates []
+wait 5
+expect_visible "Generate Template"
 click_text "Emoji"
 wait 10
 expect_visible "Upload Emoji"

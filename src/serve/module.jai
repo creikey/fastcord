@@ -2599,6 +2599,7 @@ webhook :: (c: *Conn, req: http.Request) -> bool {
 		user = session_user(c, token);
 		if !user return json_error(c, 401, 0, "401: Unauthorized");
 	}
+	if req.method == "PATCH" && !by_token return edit_webhook(c, req, user, id); // settings.jai
 	if req.method != "GET" && req.method != "DELETE" && !(req.method == "POST" && by_token && !own) && !(req.method == "PATCH" && own) return json_error(c, 405, 0, "405: Method Not Allowed");
 
 	content, username: string;

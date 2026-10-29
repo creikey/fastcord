@@ -985,6 +985,10 @@ main :: () {
 	status, body = rest("GET", tprint("/api/v9/guilds/%/webhooks", gid), "", token);
 	listed, _ := etf.from_json(body);
 	check(status == 200 && listed.kind == .List && listed.list.count == 1, tprint("the owner lists webhooks: % %", status, body));
+	status, body = rest("PATCH", tprint("/api/v9/webhooks/%", field(hook, "id").s), "{\"name\": \"Builds\"}", other_token);
+	check(status == 403, tprint("only the owner renames webhooks: % %", status, body));
+	status, body = rest("PATCH", tprint("/api/v9/webhooks/%", field(hook, "id").s), tprint("{\"name\": \"Builds\", \"channel_id\": \"%\"}", field(react_v, "channel_id").s), token);
+	check(status == 200 && contains(body, "\"name\":\"Builds\""), tprint("the owner renames a webhook: % %", status, body));
 	status, body = rest("DELETE", hook_url, "", "");
 	check(status == 204, tprint("a webhook is deleted by its URL: % %", status, body));
 	status, body = rest("POST", hook_url, "{\"content\": \"too late\"}", "");

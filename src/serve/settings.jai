@@ -17,6 +17,7 @@ AUDIT_MEMBER_BAN_ADD :: 22;
 AUDIT_MEMBER_BAN_REMOVE :: 23;
 AUDIT_MEMBER_UPDATE :: 24;
 AUDIT_INVITE_CREATE :: 40;
+AUDIT_WEBHOOK_UPDATE :: 51;
 AUDIT_INVITE_DELETE :: 42;
 AUDIT_EMOJI_CREATE :: 60;
 AUDIT_EMOJI_UPDATE :: 61;
@@ -480,4 +481,49 @@ audit_logs :: (c: *Conn, req: http.Request, query: string) -> bool {
 	etf.map_put(*m, "users", etf.vlist(users));
 	for string.["webhooks", "integrations", "threads", "guild_scheduled_events", "application_commands", "auto_moderation_rules"] etf.map_put(*m, it, etf.vlist(.[]));
 	return json_reply(c, 200, etf.vmap(etf.map_done(*m)));
+}
+
+// PATCH /api/v9/webhooks/{id} {name?, channel_id?}: the owner renames a webhook or moves it to another text
+// channel (Server Settings' Integrations).
+edit_webhook :: (c: *Conn, req: http.Request, user: s64, id: s64) -> bool {
+	s := c.server;
+	v, err := etf.from_json(cast(string) req.body,, temp);
+	if err != .None || v.kind != .Map return json_error(c, 400, 50035, "Invalid Form Body");
+	name_v, has_name := etf.map_get(v.map, "name");
+	chan_v, has_chan := etf.map_get(v.map, "channel_id");
+	name := ifx name_v.kind == .String then trim(name_v.s) else "";
+	if has_name && (!name || name.count > 80 || !text_ok(name)) return json_error(c, 400, 50035, "Invalid Form Body");
+	channel, cok := string_to_int(ifx chan_v.kind == .String then chan_v.s else "", T = s64);
+	if has_chan && !cok return json_error(c, 400, 50035, "Invalid Form Body");
+	locks.guard(*s.db_mu);
+	if owner_id(s) != user return json_error(c, 403, 50013, "Missing Permissions");
+	st := sqlite.prepare(s.db, tprint("% WHERE w.id = ?;", WEBHOOK_SELECT));
+	sqlite.bind_all(st, id);
+	found := sqlite.step(st) == .Row;
+	old_name := ifx found then copy_string(sqlite.col_text(st, 2),, temp) else "";
+	old_chan := ifx found then sqlite.col_int(st, 1) else 0;
+	sqlite.finalize(st);
+	if !found return json_error(c, 404, 10015, "Unknown Webhook");
+	if has_chan && !text_like_locked(s, channel) return json_error(c, 400, 50035, "Invalid Form Body");
+	changes: [..]etf.Value;
+	changes.allocator = temp;
+	ok := sqlite.exec(s.db, "BEGIN;");
+	if ok && has_name && name != old_name {
+		ok = sqlite.run(s.db, "UPDATE users SET name = ? WHERE id = ?;", name, id);
+		array_add(*changes, audit_change("name", etf.vstring(old_name), etf.vstring(name)));
+	}
+	if ok && has_chan && channel != old_chan {
+		ok = sqlite.run(s.db, "UPDATE webhooks SET channel = ? WHERE id = ?;", channel, id);
+		array_add(*changes, audit_change("channel_id", snow(old_chan), snow(channel)));
+	}
+	if ok && changes.count audit_locked(s, user, AUDIT_WEBHOOK_UPDATE, id, changes, "");
+	if !ok || !sqlite.exec(s.db, "COMMIT;") {
+		sqlite.exec(s.db, "ROLLBACK;");
+		return json_error(c, 500, 0, "500: Internal Server Error");
+	}
+	st = sqlite.prepare(s.db, tprint("% WHERE w.id = ?;", WEBHOOK_SELECT));
+	defer sqlite.finalize(st);
+	sqlite.bind_all(st, id);
+	if sqlite.step(st) != .Row return json_error(c, 500, 0, "500: Internal Server Error");
+	return json_reply(c, 200, row_webhook(s, st, true));
 }

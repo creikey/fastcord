@@ -15,13 +15,13 @@
   - Done: Roles on Discord: list with member counts, Create Role, reorder (arrows, `PATCH /guilds/{id}/roles` positions), Display (name, colour, hoist, mentionable), Permissions (the client's sections, Clear permissions), Manage Members (add / remove), Delete Role, @everyone's Default Permissions. Still missing: drag to reorder, role icons, Links, View Server As Role, and roles on hosted servers (Hosting 4: serve has only @everyone).
   - Done: Invites (inviter, code, uses, expiry, Revoke, Pause / Enable Invites via `incident-actions`), hosted too (a paused server refuses new members).
   - Access: Invite Only / Apply to Join / Discoverable, server rules, join applications (member verification form).
-  - Integrations: webhooks (create, rename, avatar, channel, Copy Webhook URL, delete), followed channels, bots and apps with their command permissions. App Directory opens the system browser (no webview).
+  - Done: Integrations: webhooks (create, rename, channel, Copy Webhook URL, delete; hosted too via `PATCH /webhooks/{id}` in serve), followed channels (unfollow), bots and apps listed, App Directory in the browser. Still missing: webhook avatars, apps' command permissions.
   - Done: Safety Setup on Discord: verification level, explicit image filter, require 2FA for moderation, AutoMod rules (list, enable, delete; create Block Custom Words, Mention Spam, Suspected Spam). Still missing: DM spam filter, raid protection and CAPTCHA, Member Profile Names, actions other than block (alert channel, timeout), exempt roles and channels, editing a rule.
   - Done: Audit Log (actor, target, changes, reason; filter by user and action), on Discord and hosted (serve audits server, profile, kick / ban / unban and emoji changes). Still missing: paging and the client's per-action wording.
   - Done: Bans (searchable list with reason, Revoke Ban), on Discord and hosted. Still missing: paging past 1000.
   - Enable Community, then Community Overview (rules and updates channels, safety alerts channel, primary language, description), Onboarding (default channels, questions and prompts, Server Guide: welcome message, new member to-dos, resource pages), Server Insights (open the official web page in the system browser if no API), Discovery (eligibility checklist, categories, tags).
-  - Widget: enable, invite channel, server ID and JSON API URL, premade widget snippet.
-  - Server Template: create, sync, delete, copy link (`/guilds/{id}/templates`).
+  - Done: Widget (in Engagement, as the client has it): enable, invite channel, server ID and JSON API URL. Still missing: the premade widget snippet.
+  - Done: Server Template on Discord (create, sync, delete, copy link).
   - Custom Invite Link: vanity URL (only with `VANITY_URL`).
   - Done: Delete Server on Discord (owner only, type the name). Still missing: the MFA code prompt.
 - [ ] Hosted server settings: the owner of a self-hosted server manages all of it from Server Settings in the app, from any machine, with no console. Every page above works on hosted servers, plus a host section only hosted servers have:

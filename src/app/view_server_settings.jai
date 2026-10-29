@@ -295,6 +295,9 @@ Req :: enum u8 {
 	Role_Counts; // GET /guilds/{id}/roles/member-counts
 	Role_Members; // POST /guilds/{id}/members-search for one role
 	Automod; // GET /guilds/{id}/auto-moderation/rules
+	Webhooks; // GET /guilds/{id}/webhooks
+	Integrations; // GET /guilds/{id}/integrations
+	Templates; // GET /guilds/{id}/templates
 	COUNT;
 	Save :: 100; // a page's Save Changes
 	Save_Widget;
@@ -357,7 +360,10 @@ ss: struct {
 	role_mentionable: bool;
 	role_perms: u64;
 	role_order: [..]dc.Snowflake; // the list as reordered, top first; empty when untouched
-	words: ui.Editor; // Safety Setup: Block Custom Words
+	words: ui.Editor; // Safety Setup: Block Custom Words; Server Template: its description
+	hook_id: dc.Snowflake; // Integrations: the webhook open for editing
+	hook_name: ui.Editor; // its name; Server Template: the title
+	hook_channel: dc.Snowflake;
 	// the open confirm
 	confirm: SS_Confirm;
 	confirm_id: dc.Snowflake;
@@ -409,6 +415,13 @@ section_enter :: (g: *dc.Guild) {
 		load(g, .Emojis, tprint("/guilds/%/emojis", g.id));
 	case .Audit_Log;
 		audit_load(g);
+	case .Integrations;
+		ss.loading[Req.Webhooks] = false;
+		load(g, .Webhooks, tprint("/guilds/%/webhooks", g.id));
+		if !on_hosted() load(g, .Integrations, tprint("/guilds/%/integrations?include_applications=true&include_role_connections_metadata=true", g.id));
+	case .Templates;
+		ss.loading[Req.Templates] = false;
+		load(g, .Templates, tprint("/guilds/%/templates", g.id));
 	case .Safety;
 		ss.loading[Req.Automod] = false;
 		load(g, .Automod, tprint("/guilds/%/auto-moderation/rules", g.id));
@@ -416,7 +429,9 @@ section_enter :: (g: *dc.Guild) {
 		ss.loading[Req.Role_Counts] = false;
 		load(g, .Role_Counts, tprint("/guilds/%/roles/member-counts", g.id));
 	}
-	ss.role_id, ss.pending_role = 0, 0;
+	ss.role_id, ss.pending_role, ss.hook_id = 0, 0, 0;
+	ui.editor_set_text(*ss.hook_name, "");
+	ui.editor_set_text(*ss.words, "");
 	array_reset(*ss.role_order);
 	ui.editor_set_text(*ss.search, "");
 	ss.rename_emoji = 0;
@@ -514,7 +529,9 @@ section_shown :: (g: *dc.Guild, s: Server_Section) -> bool {
 		return has(p, dc.PERM_MANAGE_ROLES) && !on_hosted(); // hosted servers have only @everyone so far
 	case .Safety;
 		return has(p, dc.PERM_MANAGE_GUILD) && !on_hosted(); // a hosted server has no verification levels, filters or AutoMod
-	case .Invites; #through; case .Access; #through; case .Community; #through; case .Onboarding; #through; case .Templates;
+	case .Templates;
+		return has(p, dc.PERM_MANAGE_GUILD) && !on_hosted(); // templates are Discord's (discord.new links)
+	case .Invites; #through; case .Access; #through; case .Community; #through; case .Onboarding;
 		return has(p, dc.PERM_MANAGE_GUILD);
 	case .Integrations;
 		return has(p, dc.PERM_MANAGE_GUILD | dc.PERM_MANAGE_WEBHOOKS);
@@ -532,7 +549,7 @@ section_shown :: (g: *dc.Guild, s: Server_Section) -> bool {
 page_exists :: (s: Server_Section) -> bool {
 	if s == {
 	case .Profile; #through; case .Engagement; #through; case .Members; #through; case .Invites; #through; case .Bans; #through;
-	case .Emoji; #through; case .Audit_Log; #through; case .Delete; #through; case .Soundboard; #through; case .Roles; #through; case .Safety;
+	case .Emoji; #through; case .Audit_Log; #through; case .Delete; #through; case .Soundboard; #through; case .Roles; #through; case .Safety; #through; case .Integrations; #through; case .Templates;
 		return true;
 	}
 	return false;
@@ -560,6 +577,10 @@ page_body :: (g: *dc.Guild, s: Server_Section, w: float32) -> bool {
 		roles_page(g);
 	case .Safety;
 		safety_page(g);
+	case .Integrations;
+		integrations_page(g);
+	case .Templates;
+		templates_page(g);
 	case .Soundboard;
 		sound_settings_page(g, w); // view_server_soundboard.jai
 	}
@@ -578,6 +599,8 @@ form_dirty :: (g: *dc.Guild) -> bool {
 		return engagement_dirty(g) || widget_dirty();
 	case .Roles;
 		return role_dirty(g);
+	case .Integrations;
+		return hook_dirty();
 	}
 	return false;
 }
@@ -650,6 +673,10 @@ form_save :: (g: *dc.Guild) {
 		if widget_dirty() save_call(g, .Save_Widget, "PATCH", tprint("/guilds/%/widget", g.id), dc.widget_body(ss.widget_on, ss.widget_channel));
 	case .Roles;
 		roles_save(g);
+	case .Integrations;
+		name := trim(ui.editor_text(*ss.hook_name));
+		if !name { ss_error("A webhook needs a name."); return; }
+		ss_action(g, .Webhooks, "PATCH", tprint("/webhooks/%", ss.hook_id), tprint("{\"name\":%,\"channel_id\":\"%\"}", dc.json_quote(name), ss.hook_channel));
 	}
 }
 
@@ -1565,7 +1592,7 @@ ss_action :: (g: *dc.Guild, after: Req, method: string, path: string, body := ""
 	dc.guild_settings_call(app.client, g.id, xx Req.Action, method, path, body, reason);
 }
 
-SS_Confirm :: enum u8 { None; Revoke_Invite; Revoke_Ban; Delete_Emoji; Timeout; Transfer; Delete_Server; Pause_Invites; Delete_Role; Delete_Rule; }
+SS_Confirm :: enum u8 { None; Revoke_Invite; Revoke_Ban; Delete_Emoji; Timeout; Transfer; Delete_Server; Pause_Invites; Delete_Role; Delete_Rule; Delete_Webhook; Delete_Template; }
 
 ss_confirm_open :: (kind: SS_Confirm, id: dc.Snowflake, text: string) {
 	ss.confirm, ss.confirm_id = kind, id;
@@ -1593,6 +1620,8 @@ ss_confirm_modal :: (g: *dc.Guild) {
 	case .Pause_Invites; title, body, button = "Pause Invites", "Nobody can join this server with an invite link until the pause ends or you enable invites again.", "Pause Invites";
 	case .Delete_Role; title, body, button = tprint("Delete '%'", t), "Are you sure you want to delete this role? This action cannot be undone.", "Delete";
 	case .Delete_Rule; title, body, button = "Delete Rule", tprint("Are you sure you want to delete the rule %? This cannot be undone.", t), "Delete";
+	case .Delete_Webhook; title, body, button = "Delete Webhook", tprint("Are you sure you want to delete %? This action cannot be undone.", t), "Delete";
+	case .Delete_Template; title, body, button = "Delete Template", "Are you sure you want to delete this template? Its link will stop working.", "Delete Template";
 	}
 	if !adm_modal_begin("ssconfirm", 440, title) {
 		ss.confirm = .None;
@@ -1674,6 +1703,8 @@ ss_confirm_modal :: (g: *dc.Guild) {
 	case .Delete_Server; ss_action(g, .COUNT, "POST", tprint("/guilds/%/delete", g.id));
 	case .Delete_Role; ss_action(g, .Role_Counts, "DELETE", tprint("/guilds/%/roles/%", g.id, id));
 	case .Delete_Rule; ss_action(g, .Automod, "DELETE", tprint("/guilds/%/auto-moderation/rules/%", g.id, id));
+	case .Delete_Webhook; ss.hook_id = 0; ss_action(g, .Webhooks, "DELETE", tprint("/webhooks/%", id));
+	case .Delete_Template; ss_action(g, .Templates, "DELETE", tprint("/guilds/%/templates/%", g.id, t));
 	case .Pause_Invites;
 		hours := PAUSE_HOURS[ss.confirm_pick];
 		ss_action(g, .COUNT, "PUT", tprint("/guilds/%/incident-actions", g.id), tprint("{\"invites_disabled_until\":\"%\",\"dms_disabled_until\":null,\"lockdown_duration_hours\":%}", dc.ms_to_iso(wall_ms() + hours * 3600_000), hours));
@@ -2303,6 +2334,206 @@ automod_rule_body :: (r: etf.Map, enabled: bool, with_id: bool) -> string {
 automod_new_body :: (g: *dc.Guild, name: string, trigger: int, metadata: string) -> string {
 	return tprint("{\"name\":%,\"guild_id\":\"%\",\"event_type\":1,\"trigger_type\":%,\"trigger_metadata\":%,\"actions\":[{\"type\":1,\"metadata\":{}}],\"enabled\":true,\"exempt_channels\":[],\"exempt_roles\":[]}",
 		dc.json_quote(name), g.id, trigger, metadata);
+}
+
+// ---- Integrations ----
+
+WEBHOOK_NAMES :: string.["Spidey Bot", "Captain Hook"];
+
+webhook_url :: (h: etf.Map) -> string {
+	if on_hosted() {
+		cfg := app.client.cfg.hosted;
+		return tprint("https://%:%/api/webhooks/%/%", cfg.host, cfg.port, dc.fsnow(h, "id"), dc.fstr(h, "token"));
+	}
+	return tprint("https://discord.com/api/webhooks/%/%", dc.fsnow(h, "id"), dc.fstr(h, "token"));
+}
+
+hook_of :: (id: dc.Snowflake) -> etf.Map {
+	r := reply(.Webhooks);
+	if r for dc.vlist(r.body) if dc.fsnow(dc.vmap(it), "id") == id return dc.vmap(it);
+	return .[];
+}
+
+hook_dirty :: () -> bool {
+	h := hook_of(ss.hook_id);
+	return h.count > 0 && (trim(ui.editor_text(*ss.hook_name)) != dc.fstr(h, "name") || ss.hook_channel != dc.fsnow(h, "channel_id"));
+}
+
+hook_open :: (h: etf.Map) {
+	ss.hook_id = dc.fsnow(h, "id");
+	ui.editor_set_text(*ss.hook_name, dc.fstr(h, "name"));
+	ss.hook_channel = dc.fsnow(h, "channel_id");
+}
+
+integrations_page :: (g: *dc.Guild) {
+	page_subtitle("Customize your server with integrations. Manage webhooks, followed channels and apps.");
+	if !loading_or(.Webhooks, "Couldn't load the webhooks.") return;
+	hooks := dc.vlist(reply(.Webhooks).body);
+	hr := row("whead");
+	hr.semantic_size = .[ui.pct(1), ui.px(40)];
+	{ ui.parent(hr); defer ui.pop_parent();
+		n := 0;
+		for hooks if dc.fint(dc.vmap(it), "type") == 1 n += 1;
+		label(tprint("Webhooks (%)", n), .Semibold, 16, T("--text-strong"), 20);
+		filler(.X);
+		names, ids := channel_options(g, "", false);
+		if ids.count > 1 && set_button("New Webhook##new", .Primary, !ss.busy && !hook_dirty())
+			ss_action(g, .Webhooks, "POST", tprint("/channels/%/webhooks", ifx g.system_channel_id then g.system_channel_id else ids[1]), tprint("{\"name\":%}", dc.json_quote(WEBHOOK_NAMES[random_get() % 2])));
+	}
+	set_para("whelp", "Webhooks are a simple way to post messages from other apps and websites into this server.", .Normal, 14, 18, T("--text-muted"));
+	spacer(.Y, 12);
+	for hooks {
+		h := dc.vmap(it);
+		if dc.fint(h, "type") != 1 continue;
+		id := dc.fsnow(h, "id");
+		ui.id_scope(cast(u64) id);
+		defer ui.pop_seed();
+		open := ss.hook_id == id;
+		card := ui.box("hook", .Draw_Background);
+		card.semantic_size = .[ui.pct(1), ui.children()];
+		card.layout_axis = .Y;
+		card.style.radius = all4(8);
+		card.style.bg = T("--background-mod-subtle");
+		ui.parent(card); defer ui.pop_parent();
+		head := row("h", .Clickable);
+		head.semantic_size = .[ui.pct(1), ui.px(64)];
+		head.hover_cursor = .Pointer;
+		if ui.signal(head).clicked && !hook_dirty() {
+			if open ss.hook_id = 0; else hook_open(h);
+		}
+		{ ui.parent(head); defer ui.pop_parent();
+			spacer(.X, 16);
+			avatar_box("av", id, 40);
+			spacer(.X, 12);
+			col := ui.box("t");
+			col.semantic_size = .[ui.fill(), ui.children()];
+			col.layout_axis = .Y;
+			{ ui.parent(col); defer ui.pop_parent();
+				label(dc.fstr(h, "name"), .Semibold, 16, T("--text-strong"), 20);
+				u := dc.fmap(h, "user");
+				label(tprint("Created on % by %", snowflake_date(id), ifx u.count then user_display(u) else "someone"), .Normal, 12, T("--text-muted"), 16);
+			}
+			icon("chev", ifx open then "chevron-small-up" else "chevron-small-down", 20, T("--interactive-icon-default"));
+			spacer(.X, 16);
+		}
+		if !open continue;
+		inner := row("edit");
+		inner.semantic_size = .[ui.pct(1), ui.children()];
+		{ ui.parent(inner); defer ui.pop_parent();
+			spacer(.X, 16);
+			col := ui.box("f");
+			col.semantic_size = .[ui.fill(), ui.children()];
+			col.layout_axis = .Y;
+			{ ui.parent(col); defer ui.pop_parent();
+				field_title("Name");
+				if set_input("hname", *ss.hook_name, "", max_runes = 80) == .Escape ss.field_escape = true;
+				spacer(.Y, 16);
+				field_title("Channel");
+				names, ids := channel_options(g, "", false);
+				pick := select_field("hchan", array_view(names, 1, names.count - 1), max(0, index_of(ids, ss.hook_channel) - 1));
+				if pick >= 0 ss.hook_channel = ids[pick + 1];
+				spacer(.Y, 16);
+				br := row("btns");
+				br.semantic_size = .[ui.pct(1), ui.px(38)];
+				br.style.child_gap = 8;
+				{ ui.parent(br); defer ui.pop_parent();
+					if set_button("Copy Webhook URL##copy", .Secondary) clipboard_set(webhook_url(h));
+					filler(.X);
+					if set_button("Delete Webhook##del", .Danger, !ss.busy) ss_confirm_open(.Delete_Webhook, id, dc.fstr(h, "name"));
+				}
+				spacer(.Y, 16);
+			}
+			spacer(.X, 16);
+		}
+		spacer(.Y, 8);
+	}
+	followed := 0;
+	for hooks if dc.fint(dc.vmap(it), "type") == 2 followed += 1;
+	if followed {
+		set_divider();
+		label(tprint("Channels Followed (%)", followed), .Semibold, 16, T("--text-strong"), 20);
+		spacer(.Y, 12);
+		table_units(.[1]);
+		for hooks {
+			h := dc.vmap(it);
+			if dc.fint(h, "type") != 2 continue;
+			id := dc.fsnow(h, "id");
+			ui.id_scope(cast(u64) id);
+			defer ui.pop_seed();
+			table_row_begin("f");
+			defer ui.pop_parent();
+			{
+				c := table_cell(0, 1); ui.parent(c); defer ui.pop_parent();
+				src := dc.fmap(h, "source_guild");
+				ch := dc.channel_get(store(), dc.fsnow(h, "channel_id"));
+				label(tprint("% #% → #%", dc.fstr(src, "name"), dc.fstr(dc.fmap(h, "source_channel"), "name"), ifx ch then ch.name else "?"), .Medium, 14, T("--text-strong"), 18);
+			}
+			if row_icon_button("unfollow", "x-small", danger = true) ss_confirm_open(.Delete_Webhook, id, dc.fstr(h, "name"));
+		}
+	}
+	if on_hosted() return;
+	set_divider();
+	label("Bots and Apps", .Semibold, 16, T("--text-strong"), 20);
+	spacer(.Y, 12);
+	r := reply(.Integrations);
+	n := 0;
+	if r for dc.vlist(r.body) {
+		it_m := dc.vmap(it);
+		app_m := dc.fmap(it_m, "application");
+		if !app_m.count continue;
+		n += 1;
+		ui.id_scope(cast(u64) dc.fsnow(it_m, "id"));
+		defer ui.pop_seed();
+		rr := row("app");
+		rr.semantic_size = .[ui.pct(1), ui.px(40)];
+		ui.parent(rr); defer ui.pop_parent();
+		label(dc.fstr(app_m, "name"), .Medium, 14, T("--text-strong"), 18);
+		filler(.X);
+		label(tprint("Added %", ss_date(dc.iso_to_ms(dc.fstr(it_m, "synced_at")))), .Normal, 12, T("--text-muted"), 16);
+	}
+	if !n set_para("noapps", "No apps have been added to this server.", .Normal, 14, 18, T("--text-muted"));
+	spacer(.Y, 16);
+	if set_button("App Directory##appdir", .Secondary) open_url("https://discord.com/discovery/applications");
+}
+
+// ---- Server Template ----
+
+templates_page :: (g: *dc.Guild) {
+	page_subtitle("Templates are an easy way to share your server setup and help anyone create a server instantly. When someone uses your server template link, they create a new server pre-filled with the same channels, roles, permissions, and settings as yours. Messages, members and your server's icon aren't copied.");
+	if !loading_or(.Templates, "Couldn't load the template.") return;
+	list := dc.vlist(reply(.Templates).body);
+	if !list.count {
+		field_title("Template Title");
+		if set_input("ttitle", *ss.hook_name, "Who is this server for? E.g. School Club, Artists' Community", max_runes = 100) == .Escape ss.field_escape = true;
+		spacer(.Y, 16);
+		field_title("Template Description");
+		if set_input("tdesc", *ss.words, "What can people do in this server?", multiline = true, max_runes = 120, min_h = 80) == .Escape ss.field_escape = true;
+		spacer(.Y, 16);
+		name := trim(ui.editor_text(*ss.hook_name));
+		if set_button("Generate Template##gen", .Primary, name.count >= 2 && !ss.busy)
+			ss_action(g, .Templates, "POST", tprint("/guilds/%/templates", g.id), tprint("{\"name\":%,\"description\":%}", dc.json_quote(name), dc.json_quote(trim(ui.editor_text(*ss.words)))));
+		return;
+	}
+	t := dc.vmap(list[0]);
+	code := dc.fstr(t, "code");
+	field_title(dc.fstr(t, "name"));
+	desc := dc.fstr(t, "description");
+	if desc { set_para("tdesc", desc, .Normal, 14, 18, T("--text-default")); spacer(.Y, 8); }
+	field_title("Template Link");
+	copy_field("tlink", tprint("https://discord.new/%", code));
+	spacer(.Y, 8);
+	set_para("tsync", tprint("Last sync: %", ss_date(dc.iso_to_ms(dc.fstr(t, "updated_at")))), .Normal, 12, 16, T("--text-muted"));
+	if dc.fbool(t, "is_dirty") {
+		spacer(.Y, 8);
+		set_para("tdirty", "This template has unsynced changes.", .Normal, 14, 18, T("--text-feedback-warning"));
+	}
+	spacer(.Y, 16);
+	br := row("tbtns");
+	br.semantic_size = .[ui.pct(1), ui.px(38)];
+	br.style.child_gap = 8;
+	ui.parent(br); defer ui.pop_parent();
+	if set_button("Sync Template##sync", .Primary, dc.fbool(t, "is_dirty") && !ss.busy) ss_action(g, .Templates, "PUT", tprint("/guilds/%/templates/%", g.id, code));
+	if set_button("Delete Template##deltpl", .Danger, !ss.busy) ss_confirm_open(.Delete_Template, 0, code);
 }
 
 #scope_export
