@@ -388,7 +388,6 @@
 - [ ] Friends: the "New Group DM" header icon isn't clickable; Active Now is always the empty card.
 - [ ] Calls: no incoming or outgoing ringtone; Decline only hides the popup locally, so other devices keep ringing.
 - [ ] Window: macOS and Linux don't remember the window's size, position and maximised state (Windows does, via `Persisted.window`).
-- [ ] Windows: the file dialog is a stub (`platform_windows.jai` `open_file_dialog`, needs IFileOpenDialog), so the composer "+" and the server-icon picker do nothing.
 - [ ] Attachments: downloading a file reuses the Save Image path (`media_save` in `view_media.jai`): the whole file is held in memory and sent with image request headers, with no progress, and a name without an extension gets `format=png` appended. Stream big files to disk as a document download instead.
 - [ ] Chat: welcome messages aren't shown properly.
 - [ ] Sounds: check by ear on Windows and Linux that the UI sounds (now decoded by minimp3) play at the right pitch.
@@ -414,7 +413,7 @@
 - [ ] Member list: stored per server and resubscribed only when empty, so a private channel likely shows the previous channel's members.
 - [ ] Links: right-clicking a link gives no Copy Link / Open Link menu, and outside links open with no "Leaving Discord" warning.
 - [ ] Channels: no drag to reorder channels and categories.
-- [ ] Windows, Linux: "Copy Image" does nothing (`os_clipboard_set_image` is empty).
+- [ ] Linux: "Copy Image" does nothing (`os_clipboard_set_image` is empty): own CLIPBOARD and serve `image/png` (X11 and Wayland). Done: Windows puts CF_DIBV5 and "PNG" on the clipboard, decoded by imagefmt (checked on Windows: JPEG, WebP and PNG read back pixel-equal, and .NET reads the bitmap).
 - [ ] Navigation: mouse back/forward buttons do nothing; Windows reports X1/X2 but `glue.jai` drops them.
 - [ ] Apps: message components are ignored. Nothing reads a message's `components`, so bot buttons and select menus never show. Verify buttons, role pickers and music-bot controls all go missing, and servers that gate channels behind a Verify button can't be joined. Components V2 messages (flag `IS_COMPONENTS_V2`, 1 << 15) keep everything in components, with no content or embeds, so they render as empty messages.
   - Draw action rows: buttons in every style, with emoji and disabled state. Link buttons open the browser.
@@ -743,3 +742,4 @@
 - [x] Links: hovering a link, mention or hidden spoiler in a message shows the hand cursor, not the I-beam (`ui.State.span_cursor`; scripts gained `expect_cursor`, `tests/ui/span_clicks.txt`).
 - [x] Member list: offline members, in servers and group DMs, draw a dimmed avatar with no grey status dot, as the official client does (`member_row`; `tests/ui/rail/group_dm_members.txt` clicks the group DM where it now sits).
 - [x] Friends: the Pending tab shows while you have only outgoing requests, so they can be seen and cancelled (`has_pending`; `tests/ui/rail/pending_outgoing.txt`, the rail fixture gained an outgoing request).
+- [x] Windows: the file dialog is IFileOpenDialog (`platform_windows.jai` `open_file_dialog`: file-system paths, multi-select), so the composer "+" and the server-icon picker open it. Type-checked and built on Windows; not yet clicked in an interactive session (ssh has no desktop).

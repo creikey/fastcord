@@ -41,9 +41,41 @@ system_a11y :: () -> System_A11y {
     return a;
 }
 
-// Modal "open file" dialog. Returns absolute paths (empty if cancelled).
-// TODO(windows): IFileOpenDialog.
-open_file_dialog :: (allow_multiple := true, allocator := context.allocator) -> []string { return .[]; }
+// Modal "open file" dialog (IFileOpenDialog, on the UI thread's OLE apartment). Returns absolute paths
+// (empty if cancelled).
+open_file_dialog :: (allow_multiple := true, allocator := context.allocator) -> []string {
+    if s.headless return .[];
+    CLSID_FileOpenDialog := win.GUID.{0xDC1C5A9C, 0xE88A, 0x4DDE, .[0xA5, 0xA1, 0x60, 0xF8, 0x2A, 0x20, 0xAE, 0xF7]};
+    IID_IFileOpenDialog := win.GUID.{0xD57C7288, 0xD4AD, 0x4768, .[0xBE, 0x02, 0x9D, 0x96, 0x95, 0x32, 0xD9, 0x60]};
+    HR :: win.HRESULT;
+    dlg, items: *void;
+    defer { release(items); release(dlg); }
+    // IFileDialog::GetOptions (10), SetOptions (9); IModalWindow::Show (3); IFileOpenDialog::GetResults (27)
+    opts: u32;
+    if CoCreateInstance(*CLSID_FileOpenDialog, null, 1 /*CLSCTX_INPROC_SERVER*/, *IID_IFileOpenDialog, *dlg) < 0 ||
+        vt(dlg, 10, #type (*void, *u32) -> HR #c_call)(dlg, *opts) < 0 return .[];
+    opts |= 0x40 /*FOS_FORCEFILESYSTEM*/ | 0x1000 /*FOS_FILEMUSTEXIST*/;
+    if allow_multiple opts |= 0x200; // FOS_ALLOWMULTISELECT
+    if vt(dlg, 9, #type (*void, u32) -> HR #c_call)(dlg, opts) < 0 ||
+        vt(dlg, 3, #type (*void, win.HWND) -> HR #c_call)(dlg, w.hwnd) < 0 || // cancelled: ERROR_CANCELLED
+        vt(dlg, 27, #type (*void, **void) -> HR #c_call)(dlg, *items) < 0 return .[];
+    // IShellItemArray::GetCount (7), GetItemAt (8); IShellItem::GetDisplayName (5)
+    n: u32;
+    if vt(items, 7, #type (*void, *u32) -> HR #c_call)(items, *n) < 0 return .[];
+    out: [..]string;
+    out.allocator = allocator;
+    for i: 0..cast(s64) n - 1 {
+        item: *void;
+        p: *u16;
+        if vt(items, 8, #type (*void, u32, **void) -> HR #c_call)(items, xx i, *item) < 0 continue;
+        if vt(item, 5, #type (*void, u32, **u16) -> HR #c_call)(item, 0x80058000 /*SIGDN_FILESYSPATH*/, *p) >= 0 {
+            array_add(*out, utf16_to_utf8(p, -1, allocator));
+            CoTaskMemFree(p);
+        }
+        release(item);
+    }
+    return out;
+}
 
 // Toast notifications and the taskbar overlay badge are not implemented yet (they need an AppUserModelID and
 // WinRT's ToastNotificationManager). The app still plays the notification sound.
@@ -279,7 +311,29 @@ os_clipboard_image :: (allocator: Allocator) -> []u8, bool {
     return png, png.count > 0;
 }
 
-os_clipboard_set_image :: (data: []u8) {} // TODO: CF_DIBV5 (+ "PNG") from a WIC decode
+// CF_DIBV5 (straight alpha; Windows makes CF_DIB from it) and "PNG", which keeps alpha for browsers and
+// Office. Decoded by imagefmt (first frame). Worker thread.
+os_clipboard_set_image :: (data: []u8) {
+    img, err := imagefmt.decode_first_frame(data, temp, max_pixels = 16 << 20);
+    if err != .None return;
+    px := img.frames[0].pixels;
+    dib := win.GlobalAlloc(win.GMEM_MOVEABLE, xx (124 + px.count));
+    if !dib return;
+    p := cast(*u8) win.GlobalLock(dib);
+    rgba_to_dibv5(px, img.width, img.height, .{124 + px.count, p});
+    win.GlobalUnlock(dib);
+    png := ifx img.format == .PNG then data else wic_png(px, img.width, img.height, temp);
+    hpng := ifx png.count then win.GlobalAlloc(win.GMEM_MOVEABLE, xx png.count) else null;
+    if hpng {
+        memcpy(win.GlobalLock(hpng), png.data, png.count);
+        win.GlobalUnlock(hpng);
+    }
+    if !open_clipboard_any(w.hwnd) { GlobalFree(dib); GlobalFree(hpng); return; }
+    defer win.CloseClipboard();
+    win.EmptyClipboard();
+    win.SetClipboardData(win.CF_DIBV5, dib); // the clipboard owns both handles now
+    if hpng win.SetClipboardData(cf_png(), hpng);
+}
 
 os_clipboard_files :: (allocator: Allocator) -> []string {
     if !open_clipboard_any() return .[];
@@ -314,6 +368,7 @@ os_apply_cursor :: () {
 
 win :: #import "Windows";
 reg :: #import "Windows_Registry";
+imagefmt :: #import "imagefmt";
 #import "Windows_Utf8";
 
 user32 :: #system_library "user32";
@@ -342,6 +397,7 @@ IsClipboardFormatAvailable :: (format: u32) -> s32 #foreign user32;
 RegisterClipboardFormatW :: (name: *u16) -> u32 #foreign user32;
 SystemParametersInfoW :: (action: u32, param: u32, pv: *void, win_ini: u32) -> s32 #foreign user32;
 GlobalSize :: (h: *void) -> u64 #foreign kernel32;
+GlobalFree :: (h: *void) -> *void #foreign kernel32;
 ShellExecuteW :: (hwnd: win.HWND, op: *u16, file: *u16, params: *u16, dir: *u16, show: s32) -> *void #foreign shell32;
 ImmGetContext :: (hwnd: win.HWND) -> *void #foreign imm32;
 ImmReleaseContext :: (hwnd: win.HWND, himc: *void) -> s32 #foreign imm32;
@@ -647,10 +703,11 @@ cf_png :: () -> u32 {
     return w.cf_png;
 }
 
-// Opens the clipboard from a worker thread (no window): retried briefly, another process may hold it.
-open_clipboard_any :: () -> bool {
+// Opens the clipboard from a worker thread: retried briefly, another process may hold it. Writing needs the
+// window as owner (with none, SetClipboardData fails after EmptyClipboard).
+open_clipboard_any :: (owner: win.HWND = null) -> bool {
     for 1..10 {
-        if win.OpenClipboard(null) != .FALSE return true;
+        if win.OpenClipboard(owner) != .FALSE return true;
         win.Sleep(10);
     }
     return false;
