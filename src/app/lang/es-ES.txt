@@ -1,4 +1,5 @@
 # Spanish (es-ES)
+ for now.	 por ahora.
  · required	 · obligatorio
 % (requested to speak)	% (pidió hablar)
 % (required)	% (obligatorio)
@@ -176,10 +177,13 @@
 7 days	7 días
 8 hours	8 horas
 8-digit backup code	Código de respaldo de 8 dígitos
+@ OFF	@ NO
+@ ON	@ SÍ
 @MENTIONS	@MENCIONES
 @everyone · applies to all server members	@everyone · se aplica a todos los miembros del servidor
 A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button.	Una tecla con Ctrl, Alt, Mayús o Cmd, un modificador solo, o el botón central o lateral del ratón.
 A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button. Works in every app.	Una tecla con Ctrl, Alt, Mayús o Cmd, un modificador solo, o el botón central o lateral del ratón. Funciona en todas las apps.
+A new channel will be created with the same permissions, user limit and bitrate as 	Se creará un canal nuevo con los mismos permisos, límite de usuarios y tasa de bits que
 A role needs a name.	El rol necesita un nombre.
 A webhook needs a name.	El webhook necesita un nombre.
 A wild % appeared.	Ha aparecido un % salvaje.
@@ -189,6 +193,7 @@ ALL	TODO
 ALL THE BITS! Going above 64 kbps may adversely affect people on poor connections.	¡TODOS LOS BITS! Superar los 64 kbps puede perjudicar a quienes tengan una conexión mala.
 AM	a. m.
 ANIMATED EMOJI — % SLOTS AVAILABLE	EMOJIS ANIMADOS — % HUECOS DISPONIBLES
+APP	APP
 AUDIENCE — %	PÚBLICO — %
 AUTHENTICATOR APP	APP DE AUTENTICACIÓN
 About Me	Sobre mí
@@ -429,6 +434,7 @@ Category Name	Nombre de la categoría
 Category deleted	Categoría eliminada
 Change %	Cambiar %
 Change Avatar	Cambiar avatar
+Change Image	Cambiar imagen
 Change Nickname	Cambiar apodo
 Change Password	Cambiar contraseña
 Change Server Icon	Cambiar icono del servidor
@@ -476,6 +482,7 @@ Community servers have more tools to help you moderate and grow your server.	Los
 Compact	Compacto
 Compare	Comparar
 Compare these with %, in person or on a call. If they match, no one can read this DM in between.	Compáralos con %, en persona o en una llamada. Si coinciden, nadie puede leer este MD por el camino.
+Complete	Completar
 Configure system event messages sent to your server.	Configura los mensajes de eventos del sistema que se envían a tu servidor.
 Confirm	Confirmar
 Confirm Request	Confirmar solicitud
@@ -519,6 +526,7 @@ Couldn't create an invite link.	No se pudo crear un enlace de invitación.
 Couldn't create an invite.	No se pudo crear una invitación.
 Couldn't delete the channel: %	No se pudo eliminar el canal: %
 Couldn't encrypt the message.	No se pudo cifrar el mensaje.
+Couldn't get that GIF.	No se ha podido obtener ese GIF.
 Couldn't join %: %	No se pudo unir a %: %
 Couldn't load onboarding.	No se pudo cargar la incorporación.
 Couldn't load the AutoMod rules.	No se pudieron cargar las reglas de AutoMod.
@@ -529,6 +537,7 @@ Couldn't load the invites.	No se pudieron cargar las invitaciones.
 Couldn't load the members.	No se pudieron cargar los miembros.
 Couldn't load the role's members.	No se pudieron cargar los miembros del rol.
 Couldn't load the server rules.	No se pudieron cargar las normas del servidor.
+Couldn't load the server's rules.	No se han podido cargar las normas del servidor.
 Couldn't load the server's tag.	No se pudo cargar la etiqueta del servidor.
 Couldn't load the template.	No se pudo cargar la plantilla.
 Couldn't load the webhooks.	No se pudieron cargar los webhooks.
@@ -544,6 +553,7 @@ Couldn't save the image.	No se pudo guardar la imagen.
 Couldn't save the token.	No se pudo guardar el token.
 Couldn't turn on encryption.	No se pudo activar el cifrado.
 Couldn't upload emoji	No se pudo subir el emoji
+Cover Image	Imagen de portada
 Cozy	Cómodo
 Create	Crear
 Create Category	Crear categoría
@@ -555,7 +565,6 @@ Create Events	Crear eventos
 Create Expressions	Crear expresiones
 Create Group DM	Crear MD grupal
 Create Invite	Crear invitación
-Create My Own	Crear el mío
 Create Poll	Crear encuesta
 Create Polls	Crear encuestas
 Create Private Threads	Crear hilos privados
@@ -669,6 +678,7 @@ Don't show role colors	No mostrar los colores de los roles
 Done	Listo
 Download	Descargar
 Drop a file here, or browse	Suelta un archivo aquí o explora
+Duplicate Channel	Duplicar canal
 Duration	Duración
 Dutch	Neerlandés
 EDIT ROLE — %	EDITAR ROL — %
@@ -682,6 +692,7 @@ Echo Cancellation	Cancelación de eco
 Edit	Editar
 Edit Category	Editar categoría
 Edit Channel	Editar canal
+Edit Event	Editar evento
 Edit Friend Nickname	Editar apodo de amigo
 Edit Message	Editar mensaje
 Edit Per-server Profile	Editar perfil del servidor
@@ -786,6 +797,8 @@ For 24 Hours	Durante 24 horas
 For 3 Days	Durante 3 días
 For 3 Hours	Durante 3 horas
 For 8 Hours	Durante 8 horas
+For a club or community	Para un club o una comunidad
+For me and my friends	Para mis amigos y yo
 Forever	Para siempre
 Forgot your password?	¿Has olvidado tu contraseña?
 Forum	Foro
@@ -809,7 +822,6 @@ Friends come online	Amigos que se conectan
 Friends of friends	Amigos de amigos
 From User	Del usuario
 GIFs	GIF
-GIFs can't be sent encrypted yet.	Aún no se pueden enviar GIF cifrados.
 Gallery view	Vista de galería
 General	General
 General Category Permissions	Permisos generales de la categoría
@@ -830,6 +842,7 @@ Go to Server	Ir al servidor
 Good to see you, %.	Me alegro de verte, %.
 Got It	Entendido
 Grant temporary membership	Conceder membresía temporal
+Great for larger community audio events.	Ideal para eventos de audio de comunidades grandes.
 Greek	Griego
 Hang out together with voice, video, and screen share	Pasa el rato en grupo con voz, vídeo y pantalla compartida
 Hang out with voice, video, screenshare, and Go Live.	Pasa el rato con voz, vídeo, pantalla compartida y Go Live.
@@ -862,6 +875,7 @@ How did your server get started? Why should people join?	¿Cómo empezó tu serv
 Hungarian	Húngaro
 I acknowledge that by transferring ownership of this server to %, it officially belongs to them.	Entiendo que, al transferir la propiedad de este servidor a %, pasará a pertenecerle oficialmente.
 I agree and understand	Lo entiendo y acepto
+I have read and agree to the rules	He leído y acepto las normas
 I'm new here, say hi!	Soy nuevo por aquí, ¡saluda!
 I'm sure, use a backup code	Estoy seguro, usar un código de respaldo
 IMAGE	IMAGEN
@@ -885,6 +899,7 @@ Ignored message	Mensaje ignorado
 Image saved.	Imagen guardada.
 Important updates for people in and out of the server	Novedades importantes para gente de dentro y fuera del servidor
 In Channel	En el canal
+In order to help you with your setup, is your new server for just a few friends or a larger community?	Para ayudarte a configurarlo, ¿tu nuevo servidor es solo para unos pocos amigos o para una comunidad más grande?
 Inactive Channel	Canal de inactividad
 Inactive Timeout	Tiempo de inactividad
 Inbox	Bandeja de entrada
@@ -1172,6 +1187,7 @@ Not encrypted	Sin cifrar
 Not encrypted: Discord can read this message	Sin cifrar: Discord puede leer este mensaje
 Not end-to-end encrypted	Sin cifrado de extremo a extremo
 Not me, start over	No soy yo, empezar de nuevo
+Not sure? You can 	¿No lo tienes claro? Puedes
 Note	Nota
 Note (only visible to you)	Nota (solo la ves tú)
 Note: Members with the "Mention @everyone, @here, and All Roles" permission will always be able to ping this role.	Nota: los miembros con el permiso "Mencionar @everyone, @here y todos los roles" siempre podrán mencionar este rol.
@@ -1198,6 +1214,7 @@ One rule per line, for example: Be respectful	Una norma por línea, por ejemplo:
 Ongoing call	Llamada en curso
 Online	En línea
 Only @mentions	Solo @menciones
+Only selected members and roles will be able to view this channel.	Solo los miembros y roles seleccionados podrán ver este canal.
 Only servers and channels you have webhook permissions in are shown.	Solo se muestran los servidores y canales en los que tienes permisos de webhooks.
 Only you can see the nickname you give %.	Solo tú puedes ver el apodo que le pones a %.
 Only you can see this · 	Solo tú puedes ver esto ·
@@ -1311,6 +1328,7 @@ ROLES — %	ROLES — %
 ROLES/MEMBERS	ROLES/MIEMBROS
 RTC Connecting	Conectando RTC
 Read Message History	Leer el historial de mensajes
+Read and agree to the server rules	Lee y acepta las normas del servidor
 Reason	Motivo
 Reason for Ban	Motivo del baneo
 Reason for Kick	Motivo de la expulsión
@@ -1371,6 +1389,7 @@ Reset Friend Nickname	Restablecer apodo de amigo
 Reset Voice Settings	Restablecer ajustes de voz
 Resolving Invite	Resolviendo la invitación
 Responses	Respuestas
+Restart to Update	Reiniciar para actualizar
 Retry	Reintentar
 Retry Now	Reintentar ahora
 Return to call	Volver a la llamada
@@ -1396,6 +1415,7 @@ SELECT A CHANNEL	SELECCIONA UN CANAL
 SELECT A SERVER	SELECCIONA UN SERVIDOR
 SERVER NAME	NOMBRE DEL SERVIDOR
 SOUNDBOARD VOLUME	VOLUMEN DEL PANEL DE SONIDOS
+START FROM A TEMPLATE	EMPEZAR CON UNA PLANTILLA
 STATIC EMOJI — % SLOTS AVAILABLE	EMOJIS ESTÁTICOS — % HUECOS DISPONIBLES
 Safety Notifications Channel	Canal de notificaciones de seguridad
 Safety Number	Número de seguridad
@@ -1405,6 +1425,7 @@ Same as Device Theme	Igual que el tema del dispositivo
 Saturation	Saturación
 Save	Guardar
 Save Changes	Guardar cambios
+Save Event	Guardar evento
 Save Image	Guardar imagen
 Saving...	Guardando...
 Saving…	Guardando…
@@ -1513,6 +1534,7 @@ Some older devices may not be shown here	Puede que aquí no aparezcan algunos di
 Someone	Alguien
 Something went wrong	Algo ha fallado
 Something went wrong (HTTP %).	Algo ha fallado (HTTP %).
+Something went wrong. Please try again.	Algo ha salido mal. Vuelve a intentarlo.
 Something went wrong. Try again.	Algo ha fallado. Inténtalo de nuevo.
 Somewhere Else	En otro sitio
 Sorry, we couldn't load the first message in this thread	Lo sentimos, no pudimos cargar el primer mensaje de este hilo
@@ -1535,6 +1557,7 @@ Speak Message	Leer mensaje en voz alta
 Spoiler Attachment	Archivo adjunto con spoiler
 Spoiler Content	Contenido con spoiler
 Stage	Escenario
+Stage Channel	Canal de escenario
 Start Date	Fecha de inicio
 Start Event	Iniciar evento
 Start Minimized	Iniciar minimizado
@@ -1543,7 +1566,6 @@ Starting in %m	Empieza en %m
 State	Estado
 Stickers	Stickers
 Stickers can be used by anyone in this server. Upload a PNG, APNG, GIF or Lottie JSON file of up to 512 KB; it shows at 320x320.	Cualquiera en este servidor puede usar los stickers. Sube un archivo PNG, APNG, GIF o Lottie JSON de hasta 512 KB; se muestra a 320x320.
-Stickers can't be sent encrypted yet.	Aún no se pueden enviar stickers cifrados.
 Stickers must be PNG, APNG, GIF or Lottie JSON files.	Los stickers deben ser archivos PNG, APNG, GIF o Lottie JSON.
 Stop Recording	Detener grabación
 Stop Streaming	Dejar de transmitir
@@ -1556,6 +1578,8 @@ Streamer Mode	Modo streamer
 Streamer Mode Enabled	Modo streamer activado
 Streamer Mode hides your personal info so others watching your stream can't see it.	El modo streamer oculta tu información personal para que no la vea quien siga tu transmisión.
 Streamer Mode is enabled. Usernames have been truncated.	El modo streamer está activado. Los nombres de usuario se han acortado.
+Submit	Enviar
+Submitting	Enviando
 Success! Your friend request to % was sent.	¡Listo! Se ha enviado tu solicitud de amistad a %.
 Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday	domingo|lunes|martes|miércoles|jueves|viernes|sábado
 Sun|Mon|Tue|Wed|Thu|Fri|Sat	dom|lun|mar|mié|jue|vie|sáb
@@ -1583,6 +1607,7 @@ Tags	Etiquetas
 Tags (pick at least one)	Etiquetas (elige al menos una)
 Tags let members organize their posts. Members pick them when they post; moderated tags only moderators can apply.	Las etiquetas permiten a los miembros organizar sus publicaciones. Los miembros las eligen al publicar; las etiquetas moderadas solo las pueden aplicar los moderadores.
 Tap the link in your email to sign in instantly — no password needed.	Toca el enlace de tu correo para iniciar sesión al instante, sin contraseña.
+Tell Us More About Your Server	Cuéntanos más sobre tu servidor
 Tell people a little more about your event. Markdown, new lines, and links are supported.	Cuenta un poco más sobre tu evento. Se admiten Markdown, saltos de línea y enlaces.
 Tell the world a bit about this server.	Cuéntale al mundo algo sobre este servidor.
 Template Description	Descripción de la plantilla
@@ -1646,8 +1671,11 @@ This is the start of the #% channel.	Este es el comienzo del canal #%.
 This is where Discord sends updates for moderators and admins of Community servers.	Aquí es donde Discord envía novedades para los moderadores y administradores de los servidores de comunidad.
 This is where you'll show members your server rules or guidelines.	Aquí es donde mostrarás a los miembros las normas o pautas de tu servidor.
 This link is taking you to the following website	Este enlace te lleva al siguiente sitio web
+This message is end-to-end encrypted. Forwarding it here sends it unencrypted, so Discord can read it.	Este mensaje tiene cifrado de extremo a extremo. Si lo reenvías aquí, se enviará sin cifrar, así que Discord podrá leerlo.
+This message is end-to-end encrypted. Forwarding it here sends it unencrypted, so the server's host can read it.	Este mensaje tiene cifrado de extremo a extremo. Si lo reenvías aquí, se enviará sin cifrar, así que quien aloja el servidor podrá leerlo.
 This option is not available for Community Servers.	Esta opción no está disponible en los servidores de comunidad.
 This role is managed by an integration and can't be edited here.	Este rol lo gestiona una integración y no se puede editar aquí.
+This server asks a few questions before you can join. Answer them on discord.com.	Este servidor hace unas preguntas antes de que puedas unirte. Respóndelas en discord.com.
 This server has been removed from Server Discovery because it no longer passes all the requirements. Check Server Settings for more details.	Este servidor se ha quitado de Explorar servidores porque ya no cumple todos los requisitos. Consulta Ajustes del servidor para más detalles.
 This server has failed Discovery activity requirements for 1 week. If this server fails for 4 weeks in a row, it will be automatically removed from Discovery.	Este servidor lleva 1 semana sin cumplir los requisitos de actividad de Explorar. Si no los cumple durante 4 semanas seguidas, se quitará automáticamente de Explorar.
 This server has failed Discovery activity requirements for 3 weeks in a row. If this server fails for 1 more week, it will be removed from Discovery.	Este servidor lleva 3 semanas seguidas sin cumplir los requisitos de actividad de Explorar. Si no los cumple 1 semana más, se quitará de Explorar.
@@ -1745,7 +1773,9 @@ Update Role	Actualizar rol
 Update Server	Actualizar servidor
 Update Webhook	Actualizar webhook
 Update your password	Actualiza tu contraseña
+Updating…	Actualizando…
 Upload	Subir
+Upload Cover Image	Subir imagen de portada
 Upload Emoji	Subir emoji
 Upload Sound	Subir sonido
 Upload Sticker	Subir sticker
@@ -1818,6 +1848,7 @@ Wave to say hi!	¡Saluda con la mano!
 We appreciate the enthusiasm, but...	Nos encanta tu entusiasmo, pero...
 We couldn't load the profile for this server.	No pudimos cargar el perfil de este servidor.
 We recommend an image of at least 512x512.	Te recomendamos una imagen de al menos 512x512.
+We recommend an image of at least 800px wide and 320px tall.	Te recomendamos una imagen de al menos 800 px de ancho y 320 px de alto.
 We sent instructions to change your password to %, please check both your inbox and spam folder.	Hemos enviado instrucciones para cambiar tu contraseña a %. Revisa tu bandeja de entrada y la carpeta de spam.
 We're so excited to see you again!	¡Qué alegría volver a verte!
 We've sent a message to %.  Please enter the code you received.	Hemos enviado un mensaje a %.  Introduce el código que has recibido.
@@ -1876,6 +1907,7 @@ You haven't connected any accounts yet.	Aún no has conectado ninguna cuenta.
 You haven't ignored anyone.	No has ignorado a nadie.
 You missed a call from %1 that lasted %2.	Perdiste una llamada de %1 que duró %2.
 You must be at least 18 years old to view this channel.	Debes tener al menos 18 años para ver este canal.
+You must complete a few more steps before you can talk.	Tienes que completar unos pasos más antes de poder hablar.
 You must leave a server first to join.	Antes tienes que salir de algún servidor para unirte.
 You need to add one or more rules.	Tienes que añadir una o más normas.
 You received an invite, but...	Has recibido una invitación, pero...
@@ -1954,6 +1986,7 @@ on %	en %
 pinned messages	mensajes fijados
 remove embeds	quitar contenido insertado
 save	guardar
+skip this question	saltarte esta pregunta
 someone	alguien
 specific date	fecha concreta
 this server	este servidor
@@ -1961,6 +1994,7 @@ threads	hilos
 true or false	verdadero o falso
 unknown	desconocido
 unknown channel	canal desconocido
+unknown-user	usuario-desconocido
 used	usó
 user	usuario
 • Media from all members is scanned by the explicit image filter.	• El filtro de imágenes explícitas analiza el contenido multimedia de todos los miembros.

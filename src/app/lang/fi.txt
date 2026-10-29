@@ -1,4 +1,5 @@
 # Finnish (fi)
+ for now.	 toistaiseksi.
  · required	 · pakollinen
 % (requested to speak)	% (pyysi puheenvuoroa)
 % (required)	% (pakollinen)
@@ -182,6 +183,7 @@
 @everyone · applies to all server members	@everyone · koskee kaikkia palvelimen jäseniä
 A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button.	Näppäin yhdessä Ctrl-, Alt-, Shift- tai Cmd-näppäimen kanssa, pelkkä muokkausnäppäin tai hiiren keski- tai sivupainike.
 A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button. Works in every app.	Näppäin yhdessä Ctrl-, Alt-, Shift- tai Cmd-näppäimen kanssa, pelkkä muokkausnäppäin tai hiiren keski- tai sivupainike. Toimii kaikissa sovelluksissa.
+A new channel will be created with the same permissions, user limit and bitrate as 	Uusi kanava luodaan samoilla oikeuksilla, käyttäjärajalla ja bittinopeudella kuin 
 A role needs a name.	Roolilla täytyy olla nimi.
 A webhook needs a name.	Webhookilla täytyy olla nimi.
 A wild % appeared.	Villi % ilmestyi.
@@ -432,6 +434,7 @@ Category Name	Luokan nimi
 Category deleted	Luokka poistettu
 Change %	Vaihda %
 Change Avatar	Vaihda profiilikuva
+Change Image	Vaihda kuva
 Change Nickname	Vaihda lempinimi
 Change Password	Vaihda salasana
 Change Server Icon	Vaihda palvelimen kuvake
@@ -479,6 +482,7 @@ Community servers have more tools to help you moderate and grow your server.	Yht
 Compact	Tiivis
 Compare	Vertaa
 Compare these with %, in person or on a call. If they match, no one can read this DM in between.	Vertaa näitä käyttäjän % kanssa kasvotusten tai puhelussa. Jos ne täsmäävät, kukaan välissä ei voi lukea tätä yksityisviestiä.
+Complete	Valmis
 Configure system event messages sent to your server.	Määritä palvelimellesi lähetettävät järjestelmäviestit.
 Confirm	Vahvista
 Confirm Request	Vahvista pyyntö
@@ -522,6 +526,7 @@ Couldn't create an invite link.	Kutsulinkkiä ei voitu luoda.
 Couldn't create an invite.	Kutsua ei voitu luoda.
 Couldn't delete the channel: %	Kanavaa ei voitu poistaa: %
 Couldn't encrypt the message.	Viestiä ei voitu salata.
+Couldn't get that GIF.	GIF-kuvaa ei saatu haettua.
 Couldn't join %: %	Palvelimelle %1 ei voitu liittyä: %2
 Couldn't load onboarding.	Perehdytystä ei voitu ladata.
 Couldn't load the AutoMod rules.	AutoMod-sääntöjä ei voitu ladata.
@@ -532,6 +537,7 @@ Couldn't load the invites.	Kutsuja ei voitu ladata.
 Couldn't load the members.	Jäseniä ei voitu ladata.
 Couldn't load the role's members.	Roolin jäseniä ei voitu ladata.
 Couldn't load the server rules.	Palvelimen sääntöjä ei voitu ladata.
+Couldn't load the server's rules.	Palvelimen sääntöjä ei voitu ladata.
 Couldn't load the server's tag.	Palvelimen tagia ei voitu ladata.
 Couldn't load the template.	Mallia ei voitu ladata.
 Couldn't load the webhooks.	Webhookeja ei voitu ladata.
@@ -547,6 +553,7 @@ Couldn't save the image.	Kuvaa ei voitu tallentaa.
 Couldn't save the token.	Tunnusta ei voitu tallentaa.
 Couldn't turn on encryption.	Salausta ei voitu ottaa käyttöön.
 Couldn't upload emoji	Emojia ei voitu ladata palvelimelle
+Cover Image	Kansikuva
 Cozy	Väljä
 Create	Luo
 Create Category	Luo luokka
@@ -558,7 +565,6 @@ Create Events	Luo tapahtumia
 Create Expressions	Luo ilmaisuja
 Create Group DM	Luo ryhmäviesti
 Create Invite	Luo kutsu
-Create My Own	Luo oma
 Create Poll	Luo kysely
 Create Polls	Luo kyselyitä
 Create Private Threads	Luo yksityisiä ketjuja
@@ -672,6 +678,7 @@ Don't show role colors	Älä näytä roolien värejä
 Done	Valmis
 Download	Lataa
 Drop a file here, or browse	Pudota tiedosto tähän tai selaa
+Duplicate Channel	Monista kanava
 Duration	Kesto
 Dutch	Hollanti
 EDIT ROLE — %	MUOKKAA ROOLIA — %
@@ -685,6 +692,7 @@ Echo Cancellation	Kaiunpoisto
 Edit	Muokkaa
 Edit Category	Muokkaa luokkaa
 Edit Channel	Muokkaa kanavaa
+Edit Event	Muokkaa tapahtumaa
 Edit Friend Nickname	Muokkaa kaverin lempinimeä
 Edit Message	Muokkaa viestiä
 Edit Per-server Profile	Muokkaa palvelinkohtaista profiilia
@@ -789,6 +797,8 @@ For 24 Hours	24 tunniksi
 For 3 Days	3 päiväksi
 For 3 Hours	3 tunniksi
 For 8 Hours	8 tunniksi
+For a club or community	Kerholle tai yhteisölle
+For me and my friends	Minulle ja kavereilleni
 Forever	Pysyvästi
 Forgot your password?	Unohditko salasanasi?
 Forum	Foorumi
@@ -812,7 +822,6 @@ Friends come online	Kaverit tulevat paikalle
 Friends of friends	Kavereiden kaverit
 From User	Käyttäjältä
 GIFs	GIFit
-GIFs can't be sent encrypted yet.	GIFejä ei voi vielä lähettää salattuina.
 Gallery view	Gallerianäkymä
 General	Yleiset
 General Category Permissions	Luokan yleiset oikeudet
@@ -833,6 +842,7 @@ Go to Server	Siirry palvelimelle
 Good to see you, %.	Kiva nähdä, %.
 Got It	Selvä
 Grant temporary membership	Myönnä väliaikainen jäsenyys
+Great for larger community audio events.	Sopii hyvin suurempiin yhteisön äänitapahtumiin.
 Greek	Kreikka
 Hang out together with voice, video, and screen share	Hengaile yhdessä puheen, videon ja näytön jaon kera
 Hang out with voice, video, screenshare, and Go Live.	Hengaile puheen, videon, näytön jaon ja Go Liven kera.
@@ -865,6 +875,7 @@ How did your server get started? Why should people join?	Miten palvelimesi sai a
 Hungarian	Unkari
 I acknowledge that by transferring ownership of this server to %, it officially belongs to them.	Ymmärrän, että kun siirrän tämän palvelimen omistajuuden käyttäjälle %, palvelin kuuluu virallisesti hänelle.
 I agree and understand	Hyväksyn ja ymmärrän
+I have read and agree to the rules	Olen lukenut säännöt ja hyväksyn ne
 I'm new here, say hi!	Olen uusi täällä, sano hei!
 I'm sure, use a backup code	Olen varma, käytä varakoodia
 IMAGE	KUVA
@@ -888,6 +899,7 @@ Ignored message	Ohitettu viesti
 Image saved.	Kuva tallennettu.
 Important updates for people in and out of the server	Tärkeitä päivityksiä palvelimen jäsenille ja muille
 In Channel	Kanavalla
+In order to help you with your setup, is your new server for just a few friends or a larger community?	Jotta voimme auttaa sinua määrityksessä: onko uusi palvelimesi vain muutamalle kaverille vai suuremmalle yhteisölle?
 Inactive Channel	Passiivisten kanava
 Inactive Timeout	Passiivisuusaika
 Inbox	Saapuneet
@@ -1175,6 +1187,7 @@ Not encrypted	Ei salattu
 Not encrypted: Discord can read this message	Ei salattu: Discord voi lukea tämän viestin
 Not end-to-end encrypted	Ei päästä päähän salattu
 Not me, start over	En ole minä, aloita alusta
+Not sure? You can 	Etkö ole varma? Voit 
 Note	Muistiinpano
 Note (only visible to you)	Muistiinpano (näkyy vain sinulle)
 Note: Members with the "Mention @everyone, @here, and All Roles" permission will always be able to ping this role.	Huom: Jäsenet, joilla on "Mainitse @everyone, @here ja kaikki roolit" -oikeus, voivat aina pingata tätä roolia.
@@ -1201,6 +1214,7 @@ One rule per line, for example: Be respectful	Yksi sääntö riviä kohden, esim
 Ongoing call	Käynnissä oleva puhelu
 Online	Paikalla
 Only @mentions	Vain @maininnat
+Only selected members and roles will be able to view this channel.	Vain valitut jäsenet ja roolit näkevät tämän kanavan.
 Only servers and channels you have webhook permissions in are shown.	Vain palvelimet ja kanavat, joilla sinulla on webhook-oikeudet, näytetään.
 Only you can see the nickname you give %.	Vain sinä näet lempinimen, jonka annat käyttäjälle %.
 Only you can see this · 	Vain sinä näet tämän ·
@@ -1314,6 +1328,7 @@ ROLES — %	ROOLIT — %
 ROLES/MEMBERS	ROOLIT/JÄSENET
 RTC Connecting	RTC yhdistää
 Read Message History	Lue viestihistoriaa
+Read and agree to the server rules	Lue ja hyväksy palvelimen säännöt
 Reason	Syy
 Reason for Ban	Porttikiellon syy
 Reason for Kick	Poistamisen syy
@@ -1374,6 +1389,7 @@ Reset Friend Nickname	Palauta kaverin lempinimi
 Reset Voice Settings	Palauta puheasetukset
 Resolving Invite	Selvitetään kutsua
 Responses	Vastaukset
+Restart to Update	Päivitä käynnistämällä uudelleen
 Retry	Yritä uudelleen
 Retry Now	Yritä nyt uudelleen
 Return to call	Palaa puheluun
@@ -1399,6 +1415,7 @@ SELECT A CHANNEL	VALITSE KANAVA
 SELECT A SERVER	VALITSE PALVELIN
 SERVER NAME	PALVELIMEN NIMI
 SOUNDBOARD VOLUME	ÄÄNITAULUN ÄÄNENVOIMAKKUUS
+START FROM A TEMPLATE	ALOITA MALLISTA
 STATIC EMOJI — % SLOTS AVAILABLE	STAATTISET EMOJIT — % PAIKKAA VAPAANA
 Safety Notifications Channel	Turvallisuusilmoitusten kanava
 Safety Number	Turvanumero
@@ -1408,6 +1425,7 @@ Same as Device Theme	Sama kuin laitteen teema
 Saturation	Kylläisyys
 Save	Tallenna
 Save Changes	Tallenna muutokset
+Save Event	Tallenna tapahtuma
 Save Image	Tallenna kuva
 Saving...	Tallennetaan...
 Saving…	Tallennetaan…
@@ -1516,6 +1534,7 @@ Some older devices may not be shown here	Joitakin vanhempia laitteita ei ehkä n
 Someone	Joku
 Something went wrong	Jokin meni pieleen
 Something went wrong (HTTP %).	Jokin meni pieleen (HTTP %).
+Something went wrong. Please try again.	Jokin meni pieleen. Yritä uudelleen.
 Something went wrong. Try again.	Jokin meni pieleen. Yritä uudelleen.
 Somewhere Else	Jossain muualla
 Sorry, we couldn't load the first message in this thread	Valitettavasti tämän ketjun ensimmäistä viestiä ei voitu ladata
@@ -1538,6 +1557,7 @@ Speak Message	Lue viesti ääneen
 Spoiler Attachment	Spoileriliite
 Spoiler Content	Spoilerisisältö
 Stage	Stage
+Stage Channel	Stage-kanava
 Start Date	Alkamispäivä
 Start Event	Aloita tapahtuma
 Start Minimized	Käynnistä pienennettynä
@@ -1546,7 +1566,6 @@ Starting in %m	Alkaa % min kuluttua
 State	Tila
 Stickers	Tarrat
 Stickers can be used by anyone in this server. Upload a PNG, APNG, GIF or Lottie JSON file of up to 512 KB; it shows at 320x320.	Kaikki tällä palvelimella voivat käyttää tarroja. Lataa enintään 512 kt:n PNG-, APNG-, GIF- tai Lottie JSON -tiedosto; se näytetään koossa 320x320.
-Stickers can't be sent encrypted yet.	Tarroja ei voi vielä lähettää salattuina.
 Stickers must be PNG, APNG, GIF or Lottie JSON files.	Tarrojen on oltava PNG-, APNG-, GIF- tai Lottie JSON -tiedostoja.
 Stop Recording	Lopeta tallennus
 Stop Streaming	Lopeta striimaus
@@ -1559,6 +1578,8 @@ Streamer Mode	Striimaajatila
 Streamer Mode Enabled	Striimaajatila käytössä
 Streamer Mode hides your personal info so others watching your stream can't see it.	Striimaajatila piilottaa henkilötietosi, jotta striimisi katsojat eivät näe niitä.
 Streamer Mode is enabled. Usernames have been truncated.	Striimaajatila on käytössä. Käyttäjänimiä on lyhennetty.
+Submit	Lähetä
+Submitting	Lähetetään
 Success! Your friend request to % was sent.	Onnistui! Kaveripyyntösi käyttäjälle % lähetettiin.
 Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday	sunnuntai|maanantai|tiistai|keskiviikko|torstai|perjantai|lauantai
 Sun|Mon|Tue|Wed|Thu|Fri|Sat	su|ma|ti|ke|to|pe|la
@@ -1586,6 +1607,7 @@ Tags	Tunnisteet
 Tags (pick at least one)	Tunnisteet (valitse vähintään yksi)
 Tags let members organize their posts. Members pick them when they post; moderated tags only moderators can apply.	Tunnisteilla jäsenet voivat järjestellä julkaisujaan. Jäsenet valitsevat ne julkaistessaan; moderoituja tunnisteita voivat lisätä vain moderaattorit.
 Tap the link in your email to sign in instantly — no password needed.	Napauta sähköpostisi linkkiä kirjautuaksesi heti — salasanaa ei tarvita.
+Tell Us More About Your Server	Kerro lisää palvelimestasi
 Tell people a little more about your event. Markdown, new lines, and links are supported.	Kerro ihmisille vähän lisää tapahtumastasi. Markdown, rivinvaihdot ja linkit ovat tuettuja.
 Tell the world a bit about this server.	Kerro maailmalle vähän tästä palvelimesta.
 Template Description	Mallin kuvaus
@@ -1649,8 +1671,11 @@ This is the start of the #% channel.	Tästä alkaa kanava #%.
 This is where Discord sends updates for moderators and admins of Community servers.	Tänne Discord lähettää päivityksiä yhteisöpalvelimien moderaattoreille ja ylläpitäjille.
 This is where you'll show members your server rules or guidelines.	Täällä näytät jäsenille palvelimesi säännöt tai ohjeet.
 This link is taking you to the following website	Tämä linkki vie sinut seuraavalle sivustolle
+This message is end-to-end encrypted. Forwarding it here sends it unencrypted, so Discord can read it.	Tämä viesti on päästä päähän salattu. Jos välität sen tänne, se lähetetään salaamattomana, joten Discord voi lukea sen.
+This message is end-to-end encrypted. Forwarding it here sends it unencrypted, so the server's host can read it.	Tämä viesti on päästä päähän salattu. Jos välität sen tänne, se lähetetään salaamattomana, joten palvelimen ylläpitäjä voi lukea sen.
 This option is not available for Community Servers.	Tämä valinta ei ole käytettävissä yhteisöpalvelimilla.
 This role is managed by an integration and can't be edited here.	Tätä roolia hallitsee integraatio, eikä sitä voi muokata täällä.
+This server asks a few questions before you can join. Answer them on discord.com.	Tämä palvelin esittää muutaman kysymyksen ennen kuin voit liittyä. Vastaa niihin osoitteessa discord.com.
 This server has been removed from Server Discovery because it no longer passes all the requirements. Check Server Settings for more details.	Tämä palvelin on poistettu palvelinhausta, koska se ei enää täytä kaikkia vaatimuksia. Katso lisätietoja palvelimen asetuksista.
 This server has failed Discovery activity requirements for 1 week. If this server fails for 4 weeks in a row, it will be automatically removed from Discovery.	Tämä palvelin ei ole täyttänyt palvelinhaun aktiivisuusvaatimuksia 1 viikkoon. Jos se ei täytä niitä 4 viikkoa peräkkäin, se poistetaan automaattisesti palvelinhausta.
 This server has failed Discovery activity requirements for 3 weeks in a row. If this server fails for 1 more week, it will be removed from Discovery.	Tämä palvelin ei ole täyttänyt palvelinhaun aktiivisuusvaatimuksia 3 viikkoon peräkkäin. Jos se ei täytä niitä vielä viikkoon, se poistetaan palvelinhausta.
@@ -1748,7 +1773,9 @@ Update Role	Päivitä rooli
 Update Server	Päivitä palvelin
 Update Webhook	Päivitä webhook
 Update your password	Päivitä salasanasi
+Updating…	Päivitetään…
 Upload	Lataa
+Upload Cover Image	Lataa kansikuva
 Upload Emoji	Lataa emoji
 Upload Sound	Lataa ääni
 Upload Sticker	Lataa tarra
@@ -1821,6 +1848,7 @@ Wave to say hi!	Vilkuta ja sano hei!
 We appreciate the enthusiasm, but...	Arvostamme innostusta, mutta...
 We couldn't load the profile for this server.	Tämän palvelimen profiilia ei voitu ladata.
 We recommend an image of at least 512x512.	Suosittelemme vähintään 512x512-kokoista kuvaa.
+We recommend an image of at least 800px wide and 320px tall.	Suosittelemme kuvaa, joka on vähintään 800 px leveä ja 320 px korkea.
 We sent instructions to change your password to %, please check both your inbox and spam folder.	Lähetimme salasanan vaihto-ohjeet osoitteeseen %. Tarkista sekä saapuneet että roskapostikansio.
 We're so excited to see you again!	Kiva nähdä sinut taas!
 We've sent a message to %.  Please enter the code you received.	Lähetimme viestin numeroon %.  Syötä saamasi koodi.
@@ -1879,6 +1907,7 @@ You haven't connected any accounts yet.	Et ole vielä yhdistänyt yhtään tili�
 You haven't ignored anyone.	Et ole ohittanut ketään.
 You missed a call from %1 that lasted %2.	Sinulta jäi väliin käyttäjän %1 puhelu, joka kesti %2.
 You must be at least 18 years old to view this channel.	Sinun on oltava vähintään 18-vuotias nähdäksesi tämän kanavan.
+You must complete a few more steps before you can talk.	Sinun täytyy suorittaa vielä muutama vaihe ennen kuin voit puhua.
 You must leave a server first to join.	Sinun on ensin poistuttava jostain palvelimesta liittyäksesi.
 You need to add one or more rules.	Sinun on lisättävä yksi tai useampi sääntö.
 You received an invite, but...	Sait kutsun, mutta...
@@ -1957,6 +1986,7 @@ on %	albumilla %
 pinned messages	kiinnitetyt viestit
 remove embeds	poista upotukset
 save	tallenna
+skip this question	ohittaa tämän kysymyksen
 someone	joku
 specific date	tietty päivämäärä
 this server	tämä palvelin

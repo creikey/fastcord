@@ -1,4 +1,5 @@
 # Vietnamese (vi)
+ for now.	 lúc này.
  · required	 · bắt buộc
 % (requested to speak)	% (đã yêu cầu phát biểu)
 % (required)	% (bắt buộc)
@@ -182,6 +183,7 @@
 @everyone · applies to all server members	@everyone · áp dụng cho mọi thành viên máy chủ
 A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button.	Một phím kèm Ctrl, Alt, Shift hoặc Cmd, chỉ một phím bổ trợ, hoặc nút giữa hay nút bên của chuột.
 A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button. Works in every app.	Một phím kèm Ctrl, Alt, Shift hoặc Cmd, chỉ một phím bổ trợ, hoặc nút giữa hay nút bên của chuột. Hoạt động trong mọi ứng dụng.
+A new channel will be created with the same permissions, user limit and bitrate as 	Một kênh mới sẽ được tạo với cùng quyền, giới hạn người dùng và bitrate như 
 A role needs a name.	Vai trò cần có tên.
 A webhook needs a name.	Webhook cần có tên.
 A wild % appeared.	Một % hoang dã đã xuất hiện.
@@ -432,6 +434,7 @@ Category Name	Tên danh mục
 Category deleted	Đã xóa danh mục
 Change %	Đổi %
 Change Avatar	Đổi ảnh đại diện
+Change Image	Đổi ảnh
 Change Nickname	Đổi biệt danh
 Change Password	Đổi mật khẩu
 Change Server Icon	Đổi biểu tượng máy chủ
@@ -479,6 +482,7 @@ Community servers have more tools to help you moderate and grow your server.	Má
 Compact	Thu gọn
 Compare	So sánh
 Compare these with %, in person or on a call. If they match, no one can read this DM in between.	So sánh các mã này với %, gặp trực tiếp hoặc qua cuộc gọi. Nếu chúng khớp nhau, không ai ở giữa có thể đọc tin nhắn trực tiếp này.
+Complete	Hoàn tất
 Configure system event messages sent to your server.	Cấu hình tin nhắn sự kiện hệ thống gửi đến máy chủ của bạn.
 Confirm	Xác nhận
 Confirm Request	Xác nhận yêu cầu
@@ -522,6 +526,7 @@ Couldn't create an invite link.	Không thể tạo liên kết mời.
 Couldn't create an invite.	Không thể tạo lời mời.
 Couldn't delete the channel: %	Không thể xóa kênh: %
 Couldn't encrypt the message.	Không thể mã hóa tin nhắn.
+Couldn't get that GIF.	Không thể lấy GIF đó.
 Couldn't join %: %	Không thể tham gia %1: %2
 Couldn't load onboarding.	Không thể tải phần giới thiệu.
 Couldn't load the AutoMod rules.	Không thể tải quy tắc AutoMod.
@@ -532,6 +537,7 @@ Couldn't load the invites.	Không thể tải lời mời.
 Couldn't load the members.	Không thể tải thành viên.
 Couldn't load the role's members.	Không thể tải thành viên của vai trò.
 Couldn't load the server rules.	Không thể tải nội quy máy chủ.
+Couldn't load the server's rules.	Không thể tải nội quy của máy chủ.
 Couldn't load the server's tag.	Không thể tải thẻ của máy chủ.
 Couldn't load the template.	Không thể tải mẫu.
 Couldn't load the webhooks.	Không thể tải webhook.
@@ -547,6 +553,7 @@ Couldn't save the image.	Không thể lưu ảnh.
 Couldn't save the token.	Không thể lưu token.
 Couldn't turn on encryption.	Không thể bật mã hóa.
 Couldn't upload emoji	Không thể tải lên emoji
+Cover Image	Ảnh bìa
 Cozy	Thoải mái
 Create	Tạo
 Create Category	Tạo danh mục
@@ -558,7 +565,6 @@ Create Events	Tạo sự kiện
 Create Expressions	Tạo biểu tượng cảm xúc
 Create Group DM	Tạo nhóm tin nhắn
 Create Invite	Tạo lời mời
-Create My Own	Tự tạo
 Create Poll	Tạo cuộc thăm dò
 Create Polls	Tạo cuộc thăm dò
 Create Private Threads	Tạo chủ đề riêng tư
@@ -672,6 +678,7 @@ Don't show role colors	Không hiện màu vai trò
 Done	Xong
 Download	Tải xuống
 Drop a file here, or browse	Thả tệp vào đây hoặc duyệt
+Duplicate Channel	Nhân bản kênh
 Duration	Thời lượng
 Dutch	Tiếng Hà Lan
 EDIT ROLE — %	CHỈNH SỬA VAI TRÒ — %
@@ -685,6 +692,7 @@ Echo Cancellation	Khử tiếng vang
 Edit	Chỉnh sửa
 Edit Category	Chỉnh sửa danh mục
 Edit Channel	Chỉnh sửa kênh
+Edit Event	Chỉnh sửa sự kiện
 Edit Friend Nickname	Sửa biệt danh bạn bè
 Edit Message	Chỉnh sửa tin nhắn
 Edit Per-server Profile	Sửa hồ sơ theo máy chủ
@@ -789,6 +797,8 @@ For 24 Hours	Trong 24 giờ
 For 3 Days	Trong 3 ngày
 For 3 Hours	Trong 3 giờ
 For 8 Hours	Trong 8 giờ
+For a club or community	Cho câu lạc bộ hoặc cộng đồng
+For me and my friends	Cho tôi và bạn bè
 Forever	Vĩnh viễn
 Forgot your password?	Quên mật khẩu?
 Forum	Diễn đàn
@@ -812,7 +822,6 @@ Friends come online	Bạn bè trực tuyến
 Friends of friends	Bạn của bạn bè
 From User	Từ người dùng
 GIFs	GIF
-GIFs can't be sent encrypted yet.	Chưa thể gửi GIF dưới dạng mã hóa.
 Gallery view	Chế độ xem lưới
 General	Chung
 General Category Permissions	Quyền chung của danh mục
@@ -833,6 +842,7 @@ Go to Server	Đi đến máy chủ
 Good to see you, %.	Rất vui được gặp bạn, %.
 Got It	Đã hiểu
 Grant temporary membership	Cấp tư cách thành viên tạm thời
+Great for larger community audio events.	Tuyệt vời cho các sự kiện âm thanh của cộng đồng lớn.
 Greek	Tiếng Hy Lạp
 Hang out together with voice, video, and screen share	Cùng nhau trò chuyện bằng giọng nói, video và chia sẻ màn hình
 Hang out with voice, video, screenshare, and Go Live.	Trò chuyện bằng giọng nói, video, chia sẻ màn hình và Phát Trực Tiếp.
@@ -865,6 +875,7 @@ How did your server get started? Why should people join?	Máy chủ của bạn 
 Hungarian	Tiếng Hungary
 I acknowledge that by transferring ownership of this server to %, it officially belongs to them.	Tôi hiểu rằng khi chuyển quyền sở hữu máy chủ này cho %, máy chủ sẽ chính thức thuộc về họ.
 I agree and understand	Tôi đồng ý và đã hiểu
+I have read and agree to the rules	Tôi đã đọc và đồng ý với nội quy
 I'm new here, say hi!	Mình mới đến, chào mình nhé!
 I'm sure, use a backup code	Tôi chắc chắn, dùng mã dự phòng
 IMAGE	HÌNH ẢNH
@@ -888,6 +899,7 @@ Ignored message	Tin nhắn bị bỏ qua
 Image saved.	Đã lưu ảnh.
 Important updates for people in and out of the server	Cập nhật quan trọng cho mọi người trong và ngoài máy chủ
 In Channel	Trong kênh
+In order to help you with your setup, is your new server for just a few friends or a larger community?	Để giúp bạn thiết lập, máy chủ mới của bạn dành cho vài người bạn hay cho một cộng đồng lớn hơn?
 Inactive Channel	Kênh không hoạt động
 Inactive Timeout	Thời gian chờ không hoạt động
 Inbox	Hộp thư
@@ -1175,6 +1187,7 @@ Not encrypted	Không mã hóa
 Not encrypted: Discord can read this message	Không mã hóa: Discord có thể đọc tin nhắn này
 Not end-to-end encrypted	Không mã hóa đầu cuối
 Not me, start over	Không phải tôi, làm lại từ đầu
+Not sure? You can 	Không chắc? Bạn có thể 
 Note	Ghi chú
 Note (only visible to you)	Ghi chú (chỉ bạn thấy)
 Note: Members with the "Mention @everyone, @here, and All Roles" permission will always be able to ping this role.	Lưu ý: Thành viên có quyền "Đề cập @everyone, @here và tất cả vai trò" luôn có thể ping vai trò này.
@@ -1201,6 +1214,7 @@ One rule per line, for example: Be respectful	Mỗi dòng một quy tắc, ví d
 Ongoing call	Cuộc gọi đang diễn ra
 Online	Trực tuyến
 Only @mentions	Chỉ @đề cập
+Only selected members and roles will be able to view this channel.	Chỉ những thành viên và vai trò được chọn mới có thể xem kênh này.
 Only servers and channels you have webhook permissions in are shown.	Chỉ hiển thị máy chủ và kênh mà bạn có quyền webhook.
 Only you can see the nickname you give %.	Chỉ bạn mới thấy biệt danh bạn đặt cho %.
 Only you can see this · 	Chỉ bạn mới thấy nội dung này ·
@@ -1314,6 +1328,7 @@ ROLES — %	VAI TRÒ — %
 ROLES/MEMBERS	VAI TRÒ/THÀNH VIÊN
 RTC Connecting	Đang kết nối RTC
 Read Message History	Đọc lịch sử tin nhắn
+Read and agree to the server rules	Đọc và đồng ý với nội quy máy chủ
 Reason	Lý do
 Reason for Ban	Lý do cấm
 Reason for Kick	Lý do đuổi
@@ -1374,6 +1389,7 @@ Reset Friend Nickname	Đặt lại biệt danh bạn bè
 Reset Voice Settings	Đặt lại cài đặt thoại
 Resolving Invite	Đang xử lý lời mời
 Responses	Phản hồi
+Restart to Update	Khởi động lại để cập nhật
 Retry	Thử lại
 Retry Now	Thử lại ngay
 Return to call	Quay lại cuộc gọi
@@ -1399,6 +1415,7 @@ SELECT A CHANNEL	CHỌN MỘT KÊNH
 SELECT A SERVER	CHỌN MỘT MÁY CHỦ
 SERVER NAME	TÊN MÁY CHỦ
 SOUNDBOARD VOLUME	ÂM LƯỢNG BẢNG ÂM THANH
+START FROM A TEMPLATE	BẮT ĐẦU TỪ MẪU
 STATIC EMOJI — % SLOTS AVAILABLE	EMOJI TĨNH — CÒN % Ô TRỐNG
 Safety Notifications Channel	Kênh thông báo an toàn
 Safety Number	Mã số an toàn
@@ -1408,6 +1425,7 @@ Same as Device Theme	Giống chủ đề thiết bị
 Saturation	Độ bão hòa
 Save	Lưu
 Save Changes	Lưu thay đổi
+Save Event	Lưu sự kiện
 Save Image	Lưu ảnh
 Saving...	Đang lưu...
 Saving…	Đang lưu…
@@ -1516,6 +1534,7 @@ Some older devices may not be shown here	Một số thiết bị cũ có thể k
 Someone	Ai đó
 Something went wrong	Đã xảy ra sự cố
 Something went wrong (HTTP %).	Đã xảy ra sự cố (HTTP %).
+Something went wrong. Please try again.	Đã xảy ra sự cố. Vui lòng thử lại.
 Something went wrong. Try again.	Đã xảy ra sự cố. Hãy thử lại.
 Somewhere Else	Nơi khác
 Sorry, we couldn't load the first message in this thread	Rất tiếc, không thể tải tin nhắn đầu tiên trong chủ đề này
@@ -1538,6 +1557,7 @@ Speak Message	Đọc tin nhắn
 Spoiler Attachment	Tệp đính kèm tiết lộ
 Spoiler Content	Nội dung tiết lộ
 Stage	Sân khấu
+Stage Channel	Kênh Sân khấu
 Start Date	Ngày bắt đầu
 Start Event	Bắt đầu sự kiện
 Start Minimized	Khởi động thu nhỏ
@@ -1546,7 +1566,6 @@ Starting in %m	Bắt đầu sau % phút
 State	Trạng thái
 Stickers	Nhãn dán
 Stickers can be used by anyone in this server. Upload a PNG, APNG, GIF or Lottie JSON file of up to 512 KB; it shows at 320x320.	Mọi người trong máy chủ này đều dùng được nhãn dán. Tải lên tệp PNG, APNG, GIF hoặc Lottie JSON tối đa 512 KB; nhãn dán hiển thị ở kích thước 320x320.
-Stickers can't be sent encrypted yet.	Chưa thể gửi nhãn dán dưới dạng mã hóa.
 Stickers must be PNG, APNG, GIF or Lottie JSON files.	Nhãn dán phải là tệp PNG, APNG, GIF hoặc Lottie JSON.
 Stop Recording	Dừng ghi
 Stop Streaming	Dừng phát trực tiếp
@@ -1559,6 +1578,8 @@ Streamer Mode	Chế độ Stream
 Streamer Mode Enabled	Đã bật Chế độ Stream
 Streamer Mode hides your personal info so others watching your stream can't see it.	Chế độ Stream ẩn thông tin cá nhân của bạn để người xem stream không thấy được.
 Streamer Mode is enabled. Usernames have been truncated.	Chế độ Stream đang bật. Tên người dùng đã được rút gọn.
+Submit	Gửi
+Submitting	Đang gửi
 Success! Your friend request to % was sent.	Thành công! Đã gửi lời mời kết bạn đến %.
 Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday	Chủ Nhật|Thứ Hai|Thứ Ba|Thứ Tư|Thứ Năm|Thứ Sáu|Thứ Bảy
 Sun|Mon|Tue|Wed|Thu|Fri|Sat	CN|T2|T3|T4|T5|T6|T7
@@ -1586,6 +1607,7 @@ Tags	Thẻ
 Tags (pick at least one)	Thẻ (chọn ít nhất một)
 Tags let members organize their posts. Members pick them when they post; moderated tags only moderators can apply.	Thẻ giúp thành viên sắp xếp bài đăng. Thành viên chọn thẻ khi đăng bài; thẻ kiểm duyệt chỉ người kiểm duyệt mới gắn được.
 Tap the link in your email to sign in instantly — no password needed.	Nhấn vào liên kết trong email để đăng nhập ngay — không cần mật khẩu.
+Tell Us More About Your Server	Cho chúng tôi biết thêm về máy chủ của bạn
 Tell people a little more about your event. Markdown, new lines, and links are supported.	Kể thêm cho mọi người về sự kiện của bạn. Hỗ trợ Markdown, xuống dòng và liên kết.
 Tell the world a bit about this server.	Giới thiệu đôi chút về máy chủ này với mọi người.
 Template Description	Mô tả mẫu
@@ -1649,8 +1671,11 @@ This is the start of the #% channel.	Đây là khởi đầu của kênh #%.
 This is where Discord sends updates for moderators and admins of Community servers.	Đây là nơi Discord gửi cập nhật cho người kiểm duyệt và quản trị viên của máy chủ cộng đồng.
 This is where you'll show members your server rules or guidelines.	Đây là nơi bạn trình bày nội quy hoặc hướng dẫn máy chủ cho thành viên.
 This link is taking you to the following website	Liên kết này sẽ đưa bạn đến trang web sau
+This message is end-to-end encrypted. Forwarding it here sends it unencrypted, so Discord can read it.	Tin nhắn này được mã hóa đầu cuối. Chuyển tiếp đến đây sẽ gửi nó ở dạng không mã hóa, nên Discord có thể đọc được.
+This message is end-to-end encrypted. Forwarding it here sends it unencrypted, so the server's host can read it.	Tin nhắn này được mã hóa đầu cuối. Chuyển tiếp đến đây sẽ gửi nó ở dạng không mã hóa, nên chủ host máy chủ có thể đọc được.
 This option is not available for Community Servers.	Tùy chọn này không có cho máy chủ cộng đồng.
 This role is managed by an integration and can't be edited here.	Vai trò này được một tích hợp quản lý và không thể chỉnh sửa ở đây.
+This server asks a few questions before you can join. Answer them on discord.com.	Máy chủ này có vài câu hỏi trước khi bạn có thể tham gia. Hãy trả lời trên discord.com.
 This server has been removed from Server Discovery because it no longer passes all the requirements. Check Server Settings for more details.	Máy chủ này đã bị gỡ khỏi Khám phá máy chủ vì không còn đáp ứng mọi yêu cầu. Xem Cài đặt máy chủ để biết thêm chi tiết.
 This server has failed Discovery activity requirements for 1 week. If this server fails for 4 weeks in a row, it will be automatically removed from Discovery.	Máy chủ này đã không đạt yêu cầu hoạt động của Khám phá trong 1 tuần. Nếu không đạt 4 tuần liên tiếp, máy chủ sẽ tự động bị gỡ khỏi Khám phá.
 This server has failed Discovery activity requirements for 3 weeks in a row. If this server fails for 1 more week, it will be removed from Discovery.	Máy chủ này đã không đạt yêu cầu hoạt động của Khám phá 3 tuần liên tiếp. Nếu không đạt thêm 1 tuần nữa, máy chủ sẽ bị gỡ khỏi Khám phá.
@@ -1748,7 +1773,9 @@ Update Role	Cập nhật vai trò
 Update Server	Cập nhật máy chủ
 Update Webhook	Cập nhật webhook
 Update your password	Cập nhật mật khẩu của bạn
+Updating…	Đang cập nhật…
 Upload	Tải lên
+Upload Cover Image	Tải lên ảnh bìa
 Upload Emoji	Tải lên emoji
 Upload Sound	Tải lên âm thanh
 Upload Sticker	Tải lên nhãn dán
@@ -1821,6 +1848,7 @@ Wave to say hi!	Vẫy tay chào nào!
 We appreciate the enthusiasm, but...	Chúng tôi rất cảm kích sự nhiệt tình, nhưng...
 We couldn't load the profile for this server.	Không thể tải hồ sơ cho máy chủ này.
 We recommend an image of at least 512x512.	Chúng tôi khuyên dùng ảnh tối thiểu 512x512.
+We recommend an image of at least 800px wide and 320px tall.	Chúng tôi khuyên dùng ảnh rộng ít nhất 800px và cao ít nhất 320px.
 We sent instructions to change your password to %, please check both your inbox and spam folder.	Chúng tôi đã gửi hướng dẫn đổi mật khẩu đến %, vui lòng kiểm tra cả hộp thư đến và thư mục spam.
 We're so excited to see you again!	Rất vui được gặp lại bạn!
 We've sent a message to %.  Please enter the code you received.	Chúng tôi đã gửi tin nhắn đến %.  Vui lòng nhập mã bạn nhận được.
@@ -1879,6 +1907,7 @@ You haven't connected any accounts yet.	Bạn chưa kết nối tài khoản nà
 You haven't ignored anyone.	Bạn chưa bỏ qua ai.
 You missed a call from %1 that lasted %2.	Bạn đã lỡ một cuộc gọi từ %1 kéo dài %2.
 You must be at least 18 years old to view this channel.	Bạn phải từ 18 tuổi trở lên để xem kênh này.
+You must complete a few more steps before you can talk.	Bạn cần hoàn tất thêm vài bước nữa trước khi có thể trò chuyện.
 You must leave a server first to join.	Bạn phải rời một máy chủ trước để tham gia.
 You need to add one or more rules.	Bạn cần thêm một hoặc nhiều quy tắc.
 You received an invite, but...	Bạn đã nhận được lời mời, nhưng...
@@ -1957,6 +1986,7 @@ on %	vào %
 pinned messages	tin nhắn đã ghim
 remove embeds	gỡ nội dung nhúng
 save	lưu
+skip this question	bỏ qua câu hỏi này
 someone	ai đó
 specific date	ngày cụ thể
 this server	máy chủ này

@@ -1,4 +1,5 @@
 # Chinese, Traditional (zh-TW)
+ for now.	。
  · required	 · 必填
 % (requested to speak)	%（請求發言）
 % (required)	%（必填）
@@ -182,6 +183,7 @@
 @everyone · applies to all server members	@everyone · 套用至所有伺服器成員
 A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button.	搭配 Ctrl、Alt、Shift 或 Cmd 的按鍵、單一修飾鍵，或滑鼠中鍵、側鍵。
 A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button. Works in every app.	搭配 Ctrl、Alt、Shift 或 Cmd 的按鍵、單一修飾鍵，或滑鼠中鍵、側鍵。在所有應用程式中都有效。
+A new channel will be created with the same permissions, user limit and bitrate as 	將建立一個新頻道，其權限、人數上限和位元率與此頻道相同：
 A role needs a name.	身分組需要名稱。
 A webhook needs a name.	Webhook 需要名稱。
 A wild % appeared.	野生的 % 出現了。
@@ -432,6 +434,7 @@ Category Name	類別名稱
 Category deleted	類別已刪除
 Change %	變更 %
 Change Avatar	變更大頭貼
+Change Image	變更圖片
 Change Nickname	變更暱稱
 Change Password	變更密碼
 Change Server Icon	變更伺服器圖示
@@ -479,6 +482,7 @@ Community servers have more tools to help you moderate and grow your server.	社
 Compact	緊湊
 Compare	比對
 Compare these with %, in person or on a call. If they match, no one can read this DM in between.	請與 % 當面或在通話中比對這些數字。如果一致，就沒有人能在中途讀取這則私訊。
+Complete	完成
 Configure system event messages sent to your server.	設定傳送到你伺服器的系統事件訊息。
 Confirm	確認
 Confirm Request	確認請求
@@ -522,6 +526,7 @@ Couldn't create an invite link.	無法建立邀請連結。
 Couldn't create an invite.	無法建立邀請。
 Couldn't delete the channel: %	無法刪除頻道：%
 Couldn't encrypt the message.	無法加密訊息。
+Couldn't get that GIF.	無法取得該 GIF。
 Couldn't join %: %	無法加入 %1：%2
 Couldn't load onboarding.	無法載入新手引導。
 Couldn't load the AutoMod rules.	無法載入 AutoMod 規則。
@@ -532,6 +537,7 @@ Couldn't load the invites.	無法載入邀請。
 Couldn't load the members.	無法載入成員。
 Couldn't load the role's members.	無法載入身分組成員。
 Couldn't load the server rules.	無法載入伺服器規則。
+Couldn't load the server's rules.	無法載入伺服器規則。
 Couldn't load the server's tag.	無法載入伺服器標籤。
 Couldn't load the template.	無法載入範本。
 Couldn't load the webhooks.	無法載入 Webhook。
@@ -547,6 +553,7 @@ Couldn't save the image.	無法儲存圖片。
 Couldn't save the token.	無法儲存權杖。
 Couldn't turn on encryption.	無法開啟加密。
 Couldn't upload emoji	無法上傳表情符號
+Cover Image	封面圖片
 Cozy	舒適
 Create	建立
 Create Category	建立類別
@@ -558,7 +565,6 @@ Create Events	建立活動
 Create Expressions	建立表情
 Create Group DM	建立群組私訊
 Create Invite	建立邀請
-Create My Own	自己建立
 Create Poll	建立投票
 Create Polls	建立投票
 Create Private Threads	建立私人討論串
@@ -672,6 +678,7 @@ Don't show role colors	不顯示身分組顏色
 Done	完成
 Download	下載
 Drop a file here, or browse	將檔案拖放到這裡，或瀏覽
+Duplicate Channel	複製頻道
 Duration	持續時間
 Dutch	荷蘭文
 EDIT ROLE — %	編輯身分組 — %
@@ -685,6 +692,7 @@ Echo Cancellation	回音消除
 Edit	編輯
 Edit Category	編輯類別
 Edit Channel	編輯頻道
+Edit Event	編輯活動
 Edit Friend Nickname	編輯好友暱稱
 Edit Message	編輯訊息
 Edit Per-server Profile	編輯伺服器專屬個人資料
@@ -789,6 +797,8 @@ For 24 Hours	24 小時
 For 3 Days	3 天
 For 3 Hours	3 小時
 For 8 Hours	8 小時
+For a club or community	給社團或社群
+For me and my friends	給我和我的朋友
 Forever	永久
 Forgot your password?	忘記密碼了嗎？
 Forum	論壇
@@ -812,7 +822,6 @@ Friends come online	好友上線時
 Friends of friends	好友的好友
 From User	來自使用者
 GIFs	GIF
-GIFs can't be sent encrypted yet.	目前還無法以加密方式傳送 GIF。
 Gallery view	圖庫檢視
 General	一般
 General Category Permissions	一般類別權限
@@ -833,6 +842,7 @@ Go to Server	前往伺服器
 Good to see you, %.	很高興見到你，%。
 Got It	知道了
 Grant temporary membership	授予臨時成員資格
+Great for larger community audio events.	非常適合大型社群的語音活動。
 Greek	希臘文
 Hang out together with voice, video, and screen share	用語音、視訊和螢幕分享一起聊天
 Hang out with voice, video, screenshare, and Go Live.	用語音、視訊、螢幕分享和直播一起聊天。
@@ -865,6 +875,7 @@ How did your server get started? Why should people join?	你的伺服器是怎�
 Hungarian	匈牙利文
 I acknowledge that by transferring ownership of this server to %, it officially belongs to them.	我了解將此伺服器的擁有權轉移給 % 後，它將正式歸對方所有。
 I agree and understand	我同意並了解
+I have read and agree to the rules	我已閱讀並同意規則
 I'm new here, say hi!	我是新來的，跟我打聲招呼吧！
 I'm sure, use a backup code	我確定，使用備用碼
 IMAGE	圖片
@@ -888,6 +899,7 @@ Ignored message	已忽略的訊息
 Image saved.	圖片已儲存。
 Important updates for people in and out of the server	給伺服器內外人士的重要更新
 In Channel	所在頻道
+In order to help you with your setup, is your new server for just a few friends or a larger community?	為了協助你完成設定，你的新伺服器是給幾個朋友使用，還是給更大的社群使用？
 Inactive Channel	閒置頻道
 Inactive Timeout	閒置逾時
 Inbox	收件匣
@@ -1175,6 +1187,7 @@ Not encrypted	未加密
 Not encrypted: Discord can read this message	未加密：Discord 可以讀取這則訊息
 Not end-to-end encrypted	未端對端加密
 Not me, start over	不是我，重新開始
+Not sure? You can 	不確定嗎？你可以先
 Note	備註
 Note (only visible to you)	備註（只有你看得到）
 Note: Members with the "Mention @everyone, @here, and All Roles" permission will always be able to ping this role.	注意：擁有「提及 @everyone、@here 和所有身分組」權限的成員一律可以標註此身分組。
@@ -1201,6 +1214,7 @@ One rule per line, for example: Be respectful	每行一條規則，例如：尊�
 Ongoing call	通話進行中
 Online	線上
 Only @mentions	僅限 @提及
+Only selected members and roles will be able to view this channel.	只有選取的成員和身分組才能檢視此頻道。
 Only servers and channels you have webhook permissions in are shown.	只會顯示你擁有 Webhook 權限的伺服器和頻道。
 Only you can see the nickname you give %.	只有你看得到你給 % 取的暱稱。
 Only you can see this · 	只有你看得到 ·
@@ -1314,6 +1328,7 @@ ROLES — %	身分組 — %
 ROLES/MEMBERS	身分組/成員
 RTC Connecting	RTC 連線中
 Read Message History	讀取訊息紀錄
+Read and agree to the server rules	閱讀並同意伺服器規則
 Reason	原因
 Reason for Ban	停權原因
 Reason for Kick	踢出原因
@@ -1374,6 +1389,7 @@ Reset Friend Nickname	重設好友暱稱
 Reset Voice Settings	重設語音設定
 Resolving Invite	正在解析邀請
 Responses	回應
+Restart to Update	重新啟動以更新
 Retry	重試
 Retry Now	立即重試
 Return to call	返回通話
@@ -1399,6 +1415,7 @@ SELECT A CHANNEL	選擇頻道
 SELECT A SERVER	選擇伺服器
 SERVER NAME	伺服器名稱
 SOUNDBOARD VOLUME	音效板音量
+START FROM A TEMPLATE	從範本開始
 STATIC EMOJI — % SLOTS AVAILABLE	靜態表情符號 — 剩餘 % 個空位
 Safety Notifications Channel	安全通知頻道
 Safety Number	安全碼
@@ -1408,6 +1425,7 @@ Same as Device Theme	與裝置主題相同
 Saturation	飽和度
 Save	儲存
 Save Changes	儲存變更
+Save Event	儲存活動
 Save Image	儲存圖片
 Saving...	儲存中...
 Saving…	儲存中…
@@ -1516,6 +1534,7 @@ Some older devices may not be shown here	部分較舊的裝置可能不會顯示
 Someone	某人
 Something went wrong	發生錯誤
 Something went wrong (HTTP %).	發生錯誤（HTTP %）。
+Something went wrong. Please try again.	發生錯誤，請再試一次。
 Something went wrong. Try again.	發生錯誤，請再試一次。
 Somewhere Else	其他地方
 Sorry, we couldn't load the first message in this thread	抱歉，無法載入此討論串的第一則訊息
@@ -1538,6 +1557,7 @@ Speak Message	朗讀訊息
 Spoiler Attachment	劇透附件
 Spoiler Content	劇透內容
 Stage	舞台
+Stage Channel	舞台頻道
 Start Date	開始日期
 Start Event	開始活動
 Start Minimized	啟動時縮小
@@ -1546,7 +1566,6 @@ Starting in %m	% 分鐘後開始
 State	狀態
 Stickers	貼圖
 Stickers can be used by anyone in this server. Upload a PNG, APNG, GIF or Lottie JSON file of up to 512 KB; it shows at 320x320.	此伺服器中的所有人都能使用貼圖。請上傳 512 KB 以內的 PNG、APNG、GIF 或 Lottie JSON 檔案；顯示大小為 320x320。
-Stickers can't be sent encrypted yet.	目前還無法以加密方式傳送貼圖。
 Stickers must be PNG, APNG, GIF or Lottie JSON files.	貼圖必須是 PNG、APNG、GIF 或 Lottie JSON 檔案。
 Stop Recording	停止錄製
 Stop Streaming	停止直播
@@ -1559,6 +1578,8 @@ Streamer Mode	實況模式
 Streamer Mode Enabled	已啟用實況模式
 Streamer Mode hides your personal info so others watching your stream can't see it.	實況模式會隱藏你的個人資訊，讓觀看你直播的人看不到。
 Streamer Mode is enabled. Usernames have been truncated.	已啟用實況模式。使用者名稱已被截斷。
+Submit	提交
+Submitting	正在提交
 Success! Your friend request to % was sent.	成功！已向 % 送出好友邀請。
 Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday	星期日|星期一|星期二|星期三|星期四|星期五|星期六
 Sun|Mon|Tue|Wed|Thu|Fri|Sat	週日|週一|週二|週三|週四|週五|週六
@@ -1586,6 +1607,7 @@ Tags	標籤
 Tags (pick at least one)	標籤（至少選擇一個）
 Tags let members organize their posts. Members pick them when they post; moderated tags only moderators can apply.	標籤可以讓成員整理貼文。成員在發文時選擇標籤；受管理的標籤只有管理員能套用。
 Tap the link in your email to sign in instantly — no password needed.	點擊電子郵件中的連結即可立即登入 — 不需要密碼。
+Tell Us More About Your Server	告訴我們更多關於你的伺服器的資訊
 Tell people a little more about your event. Markdown, new lines, and links are supported.	向大家多介紹一點你的活動。支援 Markdown、換行和連結。
 Tell the world a bit about this server.	向全世界介紹一下這個伺服器。
 Template Description	範本說明
@@ -1649,8 +1671,11 @@ This is the start of the #% channel.	這是 #% 頻道的開頭。
 This is where Discord sends updates for moderators and admins of Community servers.	Discord 會在這裡傳送給社群伺服器管理員的更新。
 This is where you'll show members your server rules or guidelines.	你會在這裡向成員展示伺服器規則或守則。
 This link is taking you to the following website	此連結將帶你前往下列網站
+This message is end-to-end encrypted. Forwarding it here sends it unencrypted, so Discord can read it.	此訊息已端對端加密。轉發到這裡會以未加密的形式傳送，Discord 將能讀取。
+This message is end-to-end encrypted. Forwarding it here sends it unencrypted, so the server's host can read it.	此訊息已端對端加密。轉發到這裡會以未加密的形式傳送，伺服器的主機將能讀取。
 This option is not available for Community Servers.	社群伺服器無法使用此選項。
 This role is managed by an integration and can't be edited here.	此身分組由整合功能管理，無法在這裡編輯。
+This server asks a few questions before you can join. Answer them on discord.com.	此伺服器要求你在加入前回答幾個問題。請在 discord.com 上作答。
 This server has been removed from Server Discovery because it no longer passes all the requirements. Check Server Settings for more details.	此伺服器已不再符合所有條件，因此已從伺服器探索中移除。請查看伺服器設定以了解詳情。
 This server has failed Discovery activity requirements for 1 week. If this server fails for 4 weeks in a row, it will be automatically removed from Discovery.	此伺服器已有 1 週未達探索的活躍度要求。若連續 4 週未達標，將自動從探索中移除。
 This server has failed Discovery activity requirements for 3 weeks in a row. If this server fails for 1 more week, it will be removed from Discovery.	此伺服器已連續 3 週未達探索的活躍度要求。若再 1 週未達標，將從探索中移除。
@@ -1748,7 +1773,9 @@ Update Role	更新身分組
 Update Server	更新伺服器
 Update Webhook	更新 Webhook
 Update your password	更新你的密碼
+Updating…	正在更新…
 Upload	上傳
+Upload Cover Image	上傳封面圖片
 Upload Emoji	上傳表情符號
 Upload Sound	上傳音效
 Upload Sticker	上傳貼圖
@@ -1821,6 +1848,7 @@ Wave to say hi!	揮手打聲招呼吧！
 We appreciate the enthusiasm, but...	我們很感謝你的熱情，但是...
 We couldn't load the profile for this server.	無法載入此伺服器的個人資料。
 We recommend an image of at least 512x512.	建議使用至少 512x512 的圖片。
+We recommend an image of at least 800px wide and 320px tall.	建議使用寬至少 800px、高至少 320px 的圖片。
 We sent instructions to change your password to %, please check both your inbox and spam folder.	我們已將變更密碼的說明寄到 %，請檢查你的收件匣和垃圾郵件資料夾。
 We're so excited to see you again!	很高興再次見到你！
 We've sent a message to %.  Please enter the code you received.	我們已傳送訊息到 %。請輸入你收到的代碼。
@@ -1879,6 +1907,7 @@ You haven't connected any accounts yet.	你還沒有連結任何帳號。
 You haven't ignored anyone.	你還沒有忽略任何人。
 You missed a call from %1 that lasted %2.	你錯過了 %1 的來電，通話持續 %2。
 You must be at least 18 years old to view this channel.	你必須年滿 18 歲才能查看此頻道。
+You must complete a few more steps before you can talk.	你需要再完成幾個步驟才能發言。
 You must leave a server first to join.	你必須先離開一個伺服器才能加入。
 You need to add one or more rules.	你需要新增一條或多條規則。
 You received an invite, but...	你收到了邀請，但是...
@@ -1957,6 +1986,7 @@ on %	收錄於 %
 pinned messages	釘選的訊息
 remove embeds	移除嵌入內容
 save	儲存
+skip this question	跳過這個問題
 someone	某人
 specific date	特定日期
 this server	此伺服器

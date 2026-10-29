@@ -1,4 +1,5 @@
 # Swedish (sv-SE)
+ for now.	 så länge.
  · required	 · obligatoriskt
 % (requested to speak)	% (vill tala)
 % (required)	% (obligatoriskt)
@@ -182,6 +183,7 @@
 @everyone · applies to all server members	@everyone · gäller alla servermedlemmar
 A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button.	En tangent med Ctrl, Alt, Skift eller Cmd, en modifierartangent ensam eller en mitten- eller sidoknapp på musen.
 A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button. Works in every app.	En tangent med Ctrl, Alt, Skift eller Cmd, en modifierartangent ensam eller en mitten- eller sidoknapp på musen. Fungerar i alla appar.
+A new channel will be created with the same permissions, user limit and bitrate as 	En ny kanal skapas med samma behörigheter, användargräns och bithastighet som 
 A role needs a name.	En roll behöver ett namn.
 A webhook needs a name.	En webhook behöver ett namn.
 A wild % appeared.	En vild % dök upp.
@@ -432,6 +434,7 @@ Category Name	Kategorinamn
 Category deleted	Kategori raderad
 Change %	Ändra %
 Change Avatar	Byt avatar
+Change Image	Byt bild
 Change Nickname	Ändra smeknamn
 Change Password	Byt lösenord
 Change Server Icon	Byt serverikon
@@ -479,6 +482,7 @@ Community servers have more tools to help you moderate and grow your server.	Com
 Compact	Kompakt
 Compare	Jämför
 Compare these with %, in person or on a call. If they match, no one can read this DM in between.	Jämför dessa med %, personligen eller i ett samtal. Om de stämmer kan ingen läsa det här DM:et på vägen.
+Complete	Slutför
 Configure system event messages sent to your server.	Konfigurera systemmeddelanden som skickas till din server.
 Confirm	Bekräfta
 Confirm Request	Bekräfta förfrågan
@@ -522,6 +526,7 @@ Couldn't create an invite link.	Kunde inte skapa en inbjudningslänk.
 Couldn't create an invite.	Kunde inte skapa en inbjudan.
 Couldn't delete the channel: %	Kunde inte radera kanalen: %
 Couldn't encrypt the message.	Kunde inte kryptera meddelandet.
+Couldn't get that GIF.	Kunde inte hämta den GIF:en.
 Couldn't join %: %	Kunde inte gå med i %: %
 Couldn't load onboarding.	Kunde inte läsa in introduktionen.
 Couldn't load the AutoMod rules.	Kunde inte läsa in AutoMod-reglerna.
@@ -532,6 +537,7 @@ Couldn't load the invites.	Kunde inte läsa in inbjudningarna.
 Couldn't load the members.	Kunde inte läsa in medlemmarna.
 Couldn't load the role's members.	Kunde inte läsa in rollens medlemmar.
 Couldn't load the server rules.	Kunde inte läsa in serverns regler.
+Couldn't load the server's rules.	Kunde inte läsa in serverns regler.
 Couldn't load the server's tag.	Kunde inte läsa in serverns tagg.
 Couldn't load the template.	Kunde inte läsa in mallen.
 Couldn't load the webhooks.	Kunde inte läsa in webhooks.
@@ -547,6 +553,7 @@ Couldn't save the image.	Kunde inte spara bilden.
 Couldn't save the token.	Kunde inte spara token.
 Couldn't turn on encryption.	Kunde inte aktivera kryptering.
 Couldn't upload emoji	Kunde inte ladda upp emoji
+Cover Image	Omslagsbild
 Cozy	Mysig
 Create	Skapa
 Create Category	Skapa kategori
@@ -558,7 +565,6 @@ Create Events	Skapa evenemang
 Create Expressions	Skapa uttryck
 Create Group DM	Skapa grupp-DM
 Create Invite	Skapa inbjudan
-Create My Own	Skapa en egen
 Create Poll	Skapa omröstning
 Create Polls	Skapa omröstningar
 Create Private Threads	Skapa privata trådar
@@ -672,6 +678,7 @@ Don't show role colors	Visa inte rollfärger
 Done	Klar
 Download	Ladda ner
 Drop a file here, or browse	Släpp en fil här eller bläddra
+Duplicate Channel	Duplicera kanal
 Duration	Varaktighet
 Dutch	Nederländska
 EDIT ROLE — %	REDIGERA ROLL — %
@@ -685,6 +692,7 @@ Echo Cancellation	Ekoreducering
 Edit	Redigera
 Edit Category	Redigera kategori
 Edit Channel	Redigera kanal
+Edit Event	Redigera evenemang
 Edit Friend Nickname	Redigera smeknamn för vän
 Edit Message	Redigera meddelande
 Edit Per-server Profile	Redigera serverprofil
@@ -789,6 +797,8 @@ For 24 Hours	I 24 timmar
 For 3 Days	I 3 dagar
 For 3 Hours	I 3 timmar
 For 8 Hours	I 8 timmar
+For a club or community	För en klubb eller community
+For me and my friends	För mig och mina vänner
 Forever	För alltid
 Forgot your password?	Glömt lösenordet?
 Forum	Forum
@@ -812,7 +822,6 @@ Friends come online	Vänner kommer online
 Friends of friends	Vänners vänner
 From User	Från användare
 GIFs	GIF:ar
-GIFs can't be sent encrypted yet.	GIF:ar kan inte skickas krypterade än.
 Gallery view	Gallerivy
 General	Allmänt
 General Category Permissions	Allmänna kategoribehörigheter
@@ -833,6 +842,7 @@ Go to Server	Gå till server
 Good to see you, %.	Kul att se dig, %.
 Got It	Uppfattat
 Grant temporary membership	Ge tillfälligt medlemskap
+Great for larger community audio events.	Perfekt för större ljudevenemang i communityn.
 Greek	Grekiska
 Hang out together with voice, video, and screen share	Häng tillsammans med röst, video och skärmdelning
 Hang out with voice, video, screenshare, and Go Live.	Häng med röst, video, skärmdelning och Go Live.
@@ -865,6 +875,7 @@ How did your server get started? Why should people join?	Hur startade din server
 Hungarian	Ungerska
 I acknowledge that by transferring ownership of this server to %, it officially belongs to them.	Jag förstår att när jag överför ägarskapet för servern till % tillhör den officiellt hen.
 I agree and understand	Jag godkänner och förstår
+I have read and agree to the rules	Jag har läst och godkänner reglerna
 I'm new here, say hi!	Jag är ny här, säg hej!
 I'm sure, use a backup code	Jag är säker, använd en reservkod
 IMAGE	BILD
@@ -888,6 +899,7 @@ Ignored message	Ignorerat meddelande
 Image saved.	Bilden sparades.
 Important updates for people in and out of the server	Viktiga uppdateringar för folk på och utanför servern
 In Channel	I kanalen
+In order to help you with your setup, is your new server for just a few friends or a larger community?	För att hjälpa dig med inställningarna: är din nya server för några få vänner eller en större community?
 Inactive Channel	Inaktiv kanal
 Inactive Timeout	Inaktivitetsgräns
 Inbox	Inkorg
@@ -1175,6 +1187,7 @@ Not encrypted	Inte krypterat
 Not encrypted: Discord can read this message	Inte krypterat: Discord kan läsa det här meddelandet
 Not end-to-end encrypted	Inte end-to-end-krypterat
 Not me, start over	Inte jag, börja om
+Not sure? You can 	Osäker? Du kan 
 Note	Anteckning
 Note (only visible to you)	Anteckning (syns bara för dig)
 Note: Members with the "Mention @everyone, @here, and All Roles" permission will always be able to ping this role.	Obs! Medlemmar med behörigheten "Nämn @everyone, @here och alla roller" kan alltid pinga den här rollen.
@@ -1201,6 +1214,7 @@ One rule per line, for example: Be respectful	En regel per rad, till exempel: Va
 Ongoing call	Pågående samtal
 Online	Online
 Only @mentions	Bara @omnämnanden
+Only selected members and roles will be able to view this channel.	Endast valda medlemmar och roller kan se den här kanalen.
 Only servers and channels you have webhook permissions in are shown.	Bara servrar och kanaler där du har webhookbehörighet visas.
 Only you can see the nickname you give %.	Bara du kan se smeknamnet du ger %.
 Only you can see this · 	Bara du kan se detta ·
@@ -1314,6 +1328,7 @@ ROLES — %	ROLLER — %
 ROLES/MEMBERS	ROLLER/MEDLEMMAR
 RTC Connecting	RTC ansluter
 Read Message History	Läs meddelandehistorik
+Read and agree to the server rules	Läs och godkänn serverns regler
 Reason	Anledning
 Reason for Ban	Anledning till bannlysning
 Reason for Kick	Anledning till utsparkning
@@ -1374,6 +1389,7 @@ Reset Friend Nickname	Återställ smeknamn för vän
 Reset Voice Settings	Återställ röstinställningar
 Resolving Invite	Löser upp inbjudan
 Responses	Svar
+Restart to Update	Starta om för att uppdatera
 Retry	Försök igen
 Retry Now	Försök igen nu
 Return to call	Tillbaka till samtalet
@@ -1399,6 +1415,7 @@ SELECT A CHANNEL	VÄLJ EN KANAL
 SELECT A SERVER	VÄLJ EN SERVER
 SERVER NAME	SERVERNAMN
 SOUNDBOARD VOLUME	LJUDBORDSVOLYM
+START FROM A TEMPLATE	BÖRJA MED EN MALL
 STATIC EMOJI — % SLOTS AVAILABLE	STATISKA EMOJIS — % PLATSER LEDIGA
 Safety Notifications Channel	Kanal för säkerhetsaviseringar
 Safety Number	Säkerhetsnummer
@@ -1408,6 +1425,7 @@ Same as Device Theme	Samma som enhetens tema
 Saturation	Mättnad
 Save	Spara
 Save Changes	Spara ändringar
+Save Event	Spara evenemang
 Save Image	Spara bild
 Saving...	Sparar...
 Saving…	Sparar…
@@ -1516,6 +1534,7 @@ Some older devices may not be shown here	Vissa äldre enheter kanske inte visas 
 Someone	Någon
 Something went wrong	Något gick fel
 Something went wrong (HTTP %).	Något gick fel (HTTP %).
+Something went wrong. Please try again.	Något gick fel. Försök igen.
 Something went wrong. Try again.	Något gick fel. Försök igen.
 Somewhere Else	Någon annanstans
 Sorry, we couldn't load the first message in this thread	Tyvärr kunde vi inte läsa in det första meddelandet i tråden
@@ -1538,6 +1557,7 @@ Speak Message	Läs upp meddelande
 Spoiler Attachment	Spoilerbilaga
 Spoiler Content	Spoilerinnehåll
 Stage	Scen
+Stage Channel	Scenkanal
 Start Date	Startdatum
 Start Event	Starta evenemang
 Start Minimized	Starta minimerad
@@ -1546,7 +1566,6 @@ Starting in %m	Startar om %m
 State	Status
 Stickers	Klistermärken
 Stickers can be used by anyone in this server. Upload a PNG, APNG, GIF or Lottie JSON file of up to 512 KB; it shows at 320x320.	Klistermärken kan användas av alla på servern. Ladda upp en PNG-, APNG-, GIF- eller Lottie JSON-fil på upp till 512 kB; den visas i 320x320.
-Stickers can't be sent encrypted yet.	Klistermärken kan inte skickas krypterade än.
 Stickers must be PNG, APNG, GIF or Lottie JSON files.	Klistermärken måste vara PNG-, APNG-, GIF- eller Lottie JSON-filer.
 Stop Recording	Sluta spela in
 Stop Streaming	Sluta streama
@@ -1559,6 +1578,8 @@ Streamer Mode	Streamerläge
 Streamer Mode Enabled	Streamerläge på
 Streamer Mode hides your personal info so others watching your stream can't see it.	Streamerläget döljer din personliga info så att de som tittar på din stream inte kan se den.
 Streamer Mode is enabled. Usernames have been truncated.	Streamerläget är på. Användarnamn har kortats.
+Submit	Skicka
+Submitting	Skickar
 Success! Your friend request to % was sent.	Klart! Din vänförfrågan till % har skickats.
 Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday	söndag|måndag|tisdag|onsdag|torsdag|fredag|lördag
 Sun|Mon|Tue|Wed|Thu|Fri|Sat	sön|mån|tis|ons|tors|fre|lör
@@ -1586,6 +1607,7 @@ Tags	Taggar
 Tags (pick at least one)	Taggar (välj minst en)
 Tags let members organize their posts. Members pick them when they post; moderated tags only moderators can apply.	Med taggar kan medlemmar ordna sina inlägg. Medlemmar väljer dem när de publicerar; modererade taggar kan bara moderatorer sätta.
 Tap the link in your email to sign in instantly — no password needed.	Tryck på länken i mejlet för att logga in direkt — inget lösenord behövs.
+Tell Us More About Your Server	Berätta mer om din server
 Tell people a little more about your event. Markdown, new lines, and links are supported.	Berätta lite mer om ditt evenemang. Markdown, radbrytningar och länkar stöds.
 Tell the world a bit about this server.	Berätta lite för världen om den här servern.
 Template Description	Mallbeskrivning
@@ -1649,8 +1671,11 @@ This is the start of the #% channel.	Det här är början på kanalen #%.
 This is where Discord sends updates for moderators and admins of Community servers.	Hit skickar Discord uppdateringar till moderatorer och administratörer på communityservrar.
 This is where you'll show members your server rules or guidelines.	Här visar du medlemmarna serverns regler eller riktlinjer.
 This link is taking you to the following website	Länken tar dig till följande webbplats
+This message is end-to-end encrypted. Forwarding it here sends it unencrypted, so Discord can read it.	Det här meddelandet är end-to-end-krypterat. Om du vidarebefordrar det hit skickas det okrypterat, så Discord kan läsa det.
+This message is end-to-end encrypted. Forwarding it here sends it unencrypted, so the server's host can read it.	Det här meddelandet är end-to-end-krypterat. Om du vidarebefordrar det hit skickas det okrypterat, så serverns värd kan läsa det.
 This option is not available for Community Servers.	Det här alternativet är inte tillgängligt för communityservrar.
 This role is managed by an integration and can't be edited here.	Rollen hanteras av en integration och kan inte redigeras här.
+This server asks a few questions before you can join. Answer them on discord.com.	Den här servern ställer några frågor innan du kan gå med. Svara på dem på discord.com.
 This server has been removed from Server Discovery because it no longer passes all the requirements. Check Server Settings for more details.	Servern har tagits bort från Serverupptäckt eftersom den inte längre uppfyller alla krav. Se Serverinställningar för mer information.
 This server has failed Discovery activity requirements for 1 week. If this server fails for 4 weeks in a row, it will be automatically removed from Discovery.	Servern har inte uppfyllt aktivitetskraven för Serverupptäckt på 1 vecka. Om servern inte uppfyller dem 4 veckor i rad tas den automatiskt bort från Serverupptäckt.
 This server has failed Discovery activity requirements for 3 weeks in a row. If this server fails for 1 more week, it will be removed from Discovery.	Servern har inte uppfyllt aktivitetskraven för Serverupptäckt 3 veckor i rad. Om servern inte uppfyller dem ytterligare 1 vecka tas den bort från Serverupptäckt.
@@ -1748,7 +1773,9 @@ Update Role	Uppdatera roll
 Update Server	Uppdatera server
 Update Webhook	Uppdatera webhook
 Update your password	Uppdatera ditt lösenord
+Updating…	Uppdaterar…
 Upload	Ladda upp
+Upload Cover Image	Ladda upp omslagsbild
 Upload Emoji	Ladda upp emoji
 Upload Sound	Ladda upp ljud
 Upload Sticker	Ladda upp klistermärke
@@ -1821,6 +1848,7 @@ Wave to say hi!	Vinka för att säga hej!
 We appreciate the enthusiasm, but...	Vi uppskattar entusiasmen, men...
 We couldn't load the profile for this server.	Vi kunde inte läsa in profilen för den här servern.
 We recommend an image of at least 512x512.	Vi rekommenderar en bild på minst 512x512.
+We recommend an image of at least 800px wide and 320px tall.	Vi rekommenderar en bild som är minst 800 px bred och 320 px hög.
 We sent instructions to change your password to %, please check both your inbox and spam folder.	Vi har skickat instruktioner för att byta lösenord till %. Kolla både inkorgen och skräpposten.
 We're so excited to see you again!	Vad kul att se dig igen!
 We've sent a message to %.  Please enter the code you received.	Vi har skickat ett meddelande till %.  Ange koden du fick.
@@ -1879,6 +1907,7 @@ You haven't connected any accounts yet.	Du har inte anslutit några konton än.
 You haven't ignored anyone.	Du har inte ignorerat någon.
 You missed a call from %1 that lasted %2.	Du missade ett samtal från %1 som varade %2.
 You must be at least 18 years old to view this channel.	Du måste vara minst 18 år för att se den här kanalen.
+You must complete a few more steps before you can talk.	Du måste slutföra några steg till innan du kan prata.
 You must leave a server first to join.	Du måste lämna en server först för att gå med.
 You need to add one or more rules.	Du måste lägga till en eller flera regler.
 You received an invite, but...	Du fick en inbjudan, men...
@@ -1933,7 +1962,6 @@ by %	av %
 cancel	avbryt
 channel	kanal
 delete message	radera meddelande
-dingus@example.com	namn@exempel.se
 discord.gg/	discord.gg/
 en-GB	en-GB
 en-US	en-US
@@ -1963,6 +1991,7 @@ pinned messages	fästa meddelanden
 pt-BR	pt-BR
 remove embeds	ta bort inbäddningar
 save	spara
+skip this question	hoppa över frågan
 someone	någon
 specific date	specifikt datum
 sv-SE	sv-SE
@@ -1970,8 +1999,8 @@ this server	den här servern
 threads	trådar
 true or false	sant eller falskt
 unknown	okänd
-unknown-user	okänd-användare
 unknown channel	okänd kanal
+unknown-user	okänd-användare
 used	använd
 user	användare
 zh-CN	zh-CN

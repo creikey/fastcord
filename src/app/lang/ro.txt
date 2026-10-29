@@ -1,4 +1,5 @@
 # Romanian (ro)
+ for now.	 deocamdată.
  · required	 · obligatoriu
 % (requested to speak)	% (a cerut să vorbească)
 % (required)	% (obligatoriu)
@@ -182,6 +183,7 @@
 @everyone · applies to all server members	@everyone · se aplică tuturor membrilor serverului
 A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button.	O tastă cu Ctrl, Alt, Shift sau Cmd, doar un modificator sau un buton de mouse din mijloc ori lateral.
 A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button. Works in every app.	O tastă cu Ctrl, Alt, Shift sau Cmd, doar un modificator sau un buton de mouse din mijloc ori lateral. Funcționează în orice aplicație.
+A new channel will be created with the same permissions, user limit and bitrate as 	Se va crea un canal nou cu aceleași permisiuni, limită de utilizatori și bitrate ca 
 A role needs a name.	Rolul are nevoie de un nume.
 A webhook needs a name.	Webhookul are nevoie de un nume.
 A wild % appeared.	Un % sălbatic a apărut.
@@ -432,6 +434,7 @@ Category Name	Numele categoriei
 Category deleted	Categorie ștearsă
 Change %	Schimbă %
 Change Avatar	Schimbă avatarul
+Change Image	Schimbă imaginea
 Change Nickname	Schimbă porecla
 Change Password	Schimbă parola
 Change Server Icon	Schimbă pictograma serverului
@@ -479,6 +482,7 @@ Community servers have more tools to help you moderate and grow your server.	Ser
 Compact	Compact
 Compare	Compară
 Compare these with %, in person or on a call. If they match, no one can read this DM in between.	Compară-le cu %, în persoană sau într-un apel. Dacă se potrivesc, nimeni nu poate citi acest mesaj direct pe drum.
+Complete	Finalizează
 Configure system event messages sent to your server.	Configurează mesajele de sistem trimise pe serverul tău.
 Confirm	Confirmă
 Confirm Request	Confirmă cererea
@@ -522,6 +526,7 @@ Couldn't create an invite link.	Linkul de invitație nu a putut fi creat.
 Couldn't create an invite.	Invitația nu a putut fi creată.
 Couldn't delete the channel: %	Canalul nu a putut fi șters: %
 Couldn't encrypt the message.	Mesajul nu a putut fi criptat.
+Couldn't get that GIF.	Nu am putut obține acest GIF.
 Couldn't join %: %	Nu te-ai putut alătura la %1: %2
 Couldn't load onboarding.	Integrarea nu a putut fi încărcată.
 Couldn't load the AutoMod rules.	Regulile AutoMod nu au putut fi încărcate.
@@ -532,6 +537,7 @@ Couldn't load the invites.	Invitațiile nu au putut fi încărcate.
 Couldn't load the members.	Membrii nu au putut fi încărcați.
 Couldn't load the role's members.	Membrii rolului nu au putut fi încărcați.
 Couldn't load the server rules.	Regulile serverului nu au putut fi încărcate.
+Couldn't load the server's rules.	Nu am putut încărca regulile serverului.
 Couldn't load the server's tag.	Eticheta serverului nu a putut fi încărcată.
 Couldn't load the template.	Șablonul nu a putut fi încărcat.
 Couldn't load the webhooks.	Webhookurile nu au putut fi încărcate.
@@ -547,6 +553,7 @@ Couldn't save the image.	Imaginea nu a putut fi salvată.
 Couldn't save the token.	Tokenul nu a putut fi salvat.
 Couldn't turn on encryption.	Criptarea nu a putut fi activată.
 Couldn't upload emoji	Emoji nu a putut fi încărcat
+Cover Image	Imagine de copertă
 Cozy	Confortabil
 Create	Creează
 Create Category	Creează categorie
@@ -558,7 +565,6 @@ Create Events	Creează evenimente
 Create Expressions	Creează expresii
 Create Group DM	Creează grup de mesaje directe
 Create Invite	Creează invitație
-Create My Own	Creez unul propriu
 Create Poll	Creează sondaj
 Create Polls	Creează sondaje
 Create Private Threads	Creează fire private
@@ -672,6 +678,7 @@ Don't show role colors	Nu afișa culorile rolurilor
 Done	Gata
 Download	Descarcă
 Drop a file here, or browse	Trage un fișier aici sau răsfoiește
+Duplicate Channel	Duplică canalul
 Duration	Durată
 Dutch	Neerlandeză
 EDIT ROLE — %	EDITEAZĂ ROLUL — %
@@ -685,6 +692,7 @@ Echo Cancellation	Anulare ecou
 Edit	Editează
 Edit Category	Editează categoria
 Edit Channel	Editează canalul
+Edit Event	Editează evenimentul
 Edit Friend Nickname	Editează porecla prietenului
 Edit Message	Editează mesajul
 Edit Per-server Profile	Editează profilul pe server
@@ -789,6 +797,8 @@ For 24 Hours	Timp de 24 de ore
 For 3 Days	Timp de 3 zile
 For 3 Hours	Timp de 3 ore
 For 8 Hours	Timp de 8 ore
+For a club or community	Pentru un club sau o comunitate
+For me and my friends	Pentru mine și prietenii mei
 Forever	Pentru totdeauna
 Forgot your password?	Ți-ai uitat parola?
 Forum	Forum
@@ -812,7 +822,6 @@ Friends come online	Prietenii devin online
 Friends of friends	Prieteni ai prietenilor
 From User	De la utilizator
 GIFs	GIF-uri
-GIFs can't be sent encrypted yet.	GIF-urile nu pot fi trimise criptat încă.
 Gallery view	Vizualizare galerie
 General	General
 General Category Permissions	Permisiuni generale pentru categorie
@@ -833,6 +842,7 @@ Go to Server	Mergi la server
 Good to see you, %.	Ce bine că te vedem, %.
 Got It	Am înțeles
 Grant temporary membership	Acordă calitate de membru temporară
+Great for larger community audio events.	Excelent pentru evenimente audio mai mari ale comunității.
 Greek	Greacă
 Hang out together with voice, video, and screen share	Petreceți timp împreună cu voce, video și partajare de ecran
 Hang out with voice, video, screenshare, and Go Live.	Petreceți timp împreună cu voce, video, partajare de ecran și transmisii live.
@@ -865,6 +875,7 @@ How did your server get started? Why should people join?	Cum a început serverul
 Hungarian	Maghiară
 I acknowledge that by transferring ownership of this server to %, it officially belongs to them.	Înțeleg că, transferând proprietatea acestui server către %, acesta îi aparține oficial.
 I agree and understand	Sunt de acord și înțeleg
+I have read and agree to the rules	Am citit regulile și sunt de acord cu ele
 I'm new here, say hi!	Sunt nou aici, salută-mă!
 I'm sure, use a backup code	Sunt sigur, folosește un cod de rezervă
 IMAGE	IMAGINE
@@ -888,6 +899,7 @@ Ignored message	Mesaj ignorat
 Image saved.	Imagine salvată.
 Important updates for people in and out of the server	Noutăți importante pentru cei de pe server și din afara lui
 In Channel	În canal
+In order to help you with your setup, is your new server for just a few friends or a larger community?	Ca să te ajutăm cu configurarea: noul tău server e doar pentru câțiva prieteni sau pentru o comunitate mai mare?
 Inactive Channel	Canal de inactivitate
 Inactive Timeout	Limită de inactivitate
 Inbox	Căsuță
@@ -1175,6 +1187,7 @@ Not encrypted	Necriptat
 Not encrypted: Discord can read this message	Necriptat: Discord poate citi acest mesaj
 Not end-to-end encrypted	Necriptat end-to-end
 Not me, start over	Nu sunt eu, ia-o de la capăt
+Not sure? You can 	Nu ești sigur? Poți 
 Note	Notă
 Note (only visible to you)	Notă (vizibilă doar pentru tine)
 Note: Members with the "Mention @everyone, @here, and All Roles" permission will always be able to ping this role.	Notă: membrii cu permisiunea „Menționează @everyone, @here și toate rolurile” vor putea mereu să menționeze acest rol.
@@ -1201,6 +1214,7 @@ One rule per line, for example: Be respectful	O regulă pe rând, de exemplu: Fi
 Ongoing call	Apel în desfășurare
 Online	Online
 Only @mentions	Doar @mențiuni
+Only selected members and roles will be able to view this channel.	Doar membrii și rolurile selectate vor putea vedea acest canal.
 Only servers and channels you have webhook permissions in are shown.	Sunt afișate doar serverele și canalele în care ai permisiuni pentru webhookuri.
 Only you can see the nickname you give %.	Doar tu poți vedea porecla pe care i-o dai lui %.
 Only you can see this · 	Doar tu poți vedea asta ·
@@ -1314,6 +1328,7 @@ ROLES — %	ROLURI — %
 ROLES/MEMBERS	ROLURI/MEMBRI
 RTC Connecting	Se conectează RTC
 Read Message History	Citește istoricul mesajelor
+Read and agree to the server rules	Citește și acceptă regulile serverului
 Reason	Motiv
 Reason for Ban	Motivul interdicției
 Reason for Kick	Motivul dării afară
@@ -1374,6 +1389,7 @@ Reset Friend Nickname	Resetează porecla prietenului
 Reset Voice Settings	Resetează setările vocale
 Resolving Invite	Se verifică invitația
 Responses	Răspunsuri
+Restart to Update	Repornește pentru actualizare
 Retry	Reîncearcă
 Retry Now	Reîncearcă acum
 Return to call	Revino la apel
@@ -1399,6 +1415,7 @@ SELECT A CHANNEL	ALEGE UN CANAL
 SELECT A SERVER	ALEGE UN SERVER
 SERVER NAME	NUMELE SERVERULUI
 SOUNDBOARD VOLUME	VOLUM SOUNDBOARD
+START FROM A TEMPLATE	PORNEȘTE DE LA UN ȘABLON
 STATIC EMOJI — % SLOTS AVAILABLE	EMOJI STATICE — % LOCURI DISPONIBILE
 Safety Notifications Channel	Canal pentru notificări de siguranță
 Safety Number	Număr de siguranță
@@ -1408,6 +1425,7 @@ Same as Device Theme	La fel ca tema dispozitivului
 Saturation	Saturație
 Save	Salvează
 Save Changes	Salvează modificările
+Save Event	Salvează evenimentul
 Save Image	Salvează imaginea
 Saving...	Se salvează...
 Saving…	Se salvează…
@@ -1516,6 +1534,7 @@ Some older devices may not be shown here	Unele dispozitive mai vechi s-ar putea 
 Someone	Cineva
 Something went wrong	Ceva n-a mers bine
 Something went wrong (HTTP %).	Ceva n-a mers bine (HTTP %).
+Something went wrong. Please try again.	Ceva n-a mers bine. Te rugăm să încerci din nou.
 Something went wrong. Try again.	Ceva n-a mers bine. Încearcă din nou.
 Somewhere Else	În altă parte
 Sorry, we couldn't load the first message in this thread	Ne pare rău, nu am putut încărca primul mesaj din acest fir
@@ -1538,6 +1557,7 @@ Speak Message	Citește mesajul cu voce tare
 Spoiler Attachment	Atașament spoiler
 Spoiler Content	Conținut spoiler
 Stage	Stage
+Stage Channel	Canal Stage
 Start Date	Data de început
 Start Event	Începe evenimentul
 Start Minimized	Pornește minimizat
@@ -1546,7 +1566,6 @@ Starting in %m	Începe în %m
 State	Stare
 Stickers	Autocolante
 Stickers can be used by anyone in this server. Upload a PNG, APNG, GIF or Lottie JSON file of up to 512 KB; it shows at 320x320.	Autocolantele pot fi folosite de oricine de pe acest server. Încarcă un fișier PNG, APNG, GIF sau Lottie JSON de cel mult 512 KB; va fi afișat la 320x320.
-Stickers can't be sent encrypted yet.	Autocolantele nu pot fi trimise criptat încă.
 Stickers must be PNG, APNG, GIF or Lottie JSON files.	Autocolantele trebuie să fie fișiere PNG, APNG, GIF sau Lottie JSON.
 Stop Recording	Oprește înregistrarea
 Stop Streaming	Oprește transmisia
@@ -1559,6 +1578,8 @@ Streamer Mode	Modul streamer
 Streamer Mode Enabled	Modul streamer activat
 Streamer Mode hides your personal info so others watching your stream can't see it.	Modul streamer îți ascunde informațiile personale, ca cei care îți urmăresc transmisia să nu le vadă.
 Streamer Mode is enabled. Usernames have been truncated.	Modul streamer e activat. Numele de utilizator au fost scurtate.
+Submit	Trimite
+Submitting	Se trimite
 Success! Your friend request to % was sent.	Gata! Cererea ta de prietenie către % a fost trimisă.
 Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday	duminică|luni|marți|miercuri|joi|vineri|sâmbătă
 Sun|Mon|Tue|Wed|Thu|Fri|Sat	dum.|lun.|mar.|mie.|joi|vin.|sâm.
@@ -1586,6 +1607,7 @@ Tags	Etichete
 Tags (pick at least one)	Etichete (alege cel puțin una)
 Tags let members organize their posts. Members pick them when they post; moderated tags only moderators can apply.	Etichetele îi ajută pe membri să-și organizeze postările. Membrii le aleg când postează; etichetele moderate pot fi aplicate doar de moderatori.
 Tap the link in your email to sign in instantly — no password needed.	Apasă pe linkul din e-mail ca să te conectezi instant — fără parolă.
+Tell Us More About Your Server	Spune-ne mai multe despre serverul tău
 Tell people a little more about your event. Markdown, new lines, and links are supported.	Spune-le oamenilor mai multe despre eveniment. Sunt acceptate Markdown, rânduri noi și linkuri.
 Tell the world a bit about this server.	Spune-i lumii câte ceva despre acest server.
 Template Description	Descrierea șablonului
@@ -1649,8 +1671,11 @@ This is the start of the #% channel.	Acesta e începutul canalului #%.
 This is where Discord sends updates for moderators and admins of Community servers.	Aici trimite Discord noutăți pentru moderatorii și administratorii serverelor de comunitate.
 This is where you'll show members your server rules or guidelines.	Aici le vei arăta membrilor regulile sau îndrumările serverului.
 This link is taking you to the following website	Acest link te duce la următorul site
+This message is end-to-end encrypted. Forwarding it here sends it unencrypted, so Discord can read it.	Acest mesaj e criptat end-to-end. Dacă îl redirecționezi aici, va fi trimis necriptat, deci Discord îl va putea citi.
+This message is end-to-end encrypted. Forwarding it here sends it unencrypted, so the server's host can read it.	Acest mesaj e criptat end-to-end. Dacă îl redirecționezi aici, va fi trimis necriptat, deci gazda serverului îl va putea citi.
 This option is not available for Community Servers.	Această opțiune nu e disponibilă pentru serverele de comunitate.
 This role is managed by an integration and can't be edited here.	Acest rol e gestionat de o integrare și nu poate fi editat aici.
+This server asks a few questions before you can join. Answer them on discord.com.	Acest server pune câteva întrebări înainte să te alături. Răspunde la ele pe discord.com.
 This server has been removed from Server Discovery because it no longer passes all the requirements. Check Server Settings for more details.	Acest server a fost eliminat din Descoperirea serverelor pentru că nu mai îndeplinește toate cerințele. Vezi Setări server pentru detalii.
 This server has failed Discovery activity requirements for 1 week. If this server fails for 4 weeks in a row, it will be automatically removed from Discovery.	Acest server nu a îndeplinit cerințele de activitate pentru Descoperire timp de 1 săptămână. Dacă nu le îndeplinește 4 săptămâni la rând, va fi eliminat automat din Descoperire.
 This server has failed Discovery activity requirements for 3 weeks in a row. If this server fails for 1 more week, it will be removed from Discovery.	Acest server nu a îndeplinit cerințele de activitate pentru Descoperire 3 săptămâni la rând. Dacă nu le îndeplinește încă o săptămână, va fi eliminat din Descoperire.
@@ -1748,7 +1773,9 @@ Update Role	Actualizează rolul
 Update Server	Actualizează serverul
 Update Webhook	Actualizează webhookul
 Update your password	Actualizează-ți parola
+Updating…	Se actualizează…
 Upload	Încarcă
+Upload Cover Image	Încarcă imaginea de copertă
 Upload Emoji	Încarcă emoji
 Upload Sound	Încarcă sunet
 Upload Sticker	Încarcă autocolant
@@ -1821,6 +1848,7 @@ Wave to say hi!	Fă-i cu mâna să saluți!
 We appreciate the enthusiasm, but...	Apreciem entuziasmul, dar...
 We couldn't load the profile for this server.	Nu am putut încărca profilul acestui server.
 We recommend an image of at least 512x512.	Recomandăm o imagine de cel puțin 512x512.
+We recommend an image of at least 800px wide and 320px tall.	Recomandăm o imagine de cel puțin 800px lățime și 320px înălțime.
 We sent instructions to change your password to %, please check both your inbox and spam folder.	Am trimis instrucțiuni pentru schimbarea parolei la %, verifică atât căsuța de primire, cât și dosarul de spam.
 We're so excited to see you again!	Ne bucurăm tare că te revedem!
 We've sent a message to %.  Please enter the code you received.	Am trimis un mesaj la %.  Introdu codul primit.
@@ -1879,6 +1907,7 @@ You haven't connected any accounts yet.	Nu ai conectat încă niciun cont.
 You haven't ignored anyone.	Nu ai ignorat pe nimeni.
 You missed a call from %1 that lasted %2.	Ai pierdut un apel de la %1 care a durat %2.
 You must be at least 18 years old to view this channel.	Trebuie să ai cel puțin 18 ani ca să vezi acest canal.
+You must complete a few more steps before you can talk.	Trebuie să mai parcurgi câțiva pași înainte să poți vorbi.
 You must leave a server first to join.	Trebuie mai întâi să părăsești un server ca să te alături.
 You need to add one or more rules.	Trebuie să adaugi una sau mai multe reguli.
 You received an invite, but...	Ai primit o invitație, dar...
@@ -1933,7 +1962,6 @@ by %	de %
 cancel	anulezi
 channel	canal
 delete message	ștergi mesajul
-dingus@example.com	nume@exemplu.ro
 escape to %1 • enter to %2	Esc ca să %1 • Enter ca să %2
 fastcord %	fastcord %
 fastcord quit unexpectedly last time. The report is in the logs folder (Settings, under Log Out).	fastcord s-a închis neașteptat data trecută. Raportul e în dosarul de jurnale (Setări, sub Deconectează-te).
@@ -1958,6 +1986,7 @@ on %	pe %
 pinned messages	mesajele fixate
 remove embeds	elimini conținutul încorporat
 save	salvezi
+skip this question	sări peste această întrebare
 someone	cineva
 specific date	dată anume
 this server	acest server

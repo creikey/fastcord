@@ -1,4 +1,5 @@
 # Greek (el)
+ for now.	 προς το παρόν.
  · required	 · υποχρεωτικό
 % (requested to speak)	% (ζήτησε να μιλήσει)
 % (required)	% (υποχρεωτικό)
@@ -182,6 +183,7 @@
 @everyone · applies to all server members	@everyone · ισχύει για όλα τα μέλη του διακομιστή
 A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button.	Ένα πλήκτρο με Ctrl, Alt, Shift ή Cmd, ένα πλήκτρο τροποποίησης μόνο του ή το μεσαίο ή πλαϊνό κουμπί του ποντικιού.
 A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button. Works in every app.	Ένα πλήκτρο με Ctrl, Alt, Shift ή Cmd, ένα πλήκτρο τροποποίησης μόνο του ή το μεσαίο ή πλαϊνό κουμπί του ποντικιού. Λειτουργεί σε κάθε εφαρμογή.
+A new channel will be created with the same permissions, user limit and bitrate as 	Θα δημιουργηθεί νέο κανάλι με τα ίδια δικαιώματα, όριο χρηστών και ρυθμό bit όπως το κανάλι 
 A role needs a name.	Ο ρόλος χρειάζεται όνομα.
 A webhook needs a name.	Το webhook χρειάζεται όνομα.
 A wild % appeared.	Ένας άγριος % εμφανίστηκε.
@@ -432,6 +434,7 @@ Category Name	Όνομα κατηγορίας
 Category deleted	Η κατηγορία διαγράφηκε
 Change %	Αλλαγή %
 Change Avatar	Αλλαγή avatar
+Change Image	Αλλαγή εικόνας
 Change Nickname	Αλλαγή ψευδωνύμου
 Change Password	Αλλαγή κωδικού πρόσβασης
 Change Server Icon	Αλλαγή εικονιδίου διακομιστή
@@ -479,6 +482,7 @@ Community servers have more tools to help you moderate and grow your server.	Ο�
 Compact	Συμπαγής
 Compare	Σύγκριση
 Compare these with %, in person or on a call. If they match, no one can read this DM in between.	Σύγκρινέ τα με τον χρήστη %, από κοντά ή σε κλήση. Αν ταιριάζουν, κανείς ενδιάμεσος δεν μπορεί να διαβάσει αυτό το ΑΜ.
+Complete	Ολοκλήρωση
 Configure system event messages sent to your server.	Ρύθμισε τα μηνύματα συμβάντων συστήματος που στέλνονται στον διακομιστή σου.
 Confirm	Επιβεβαίωση
 Confirm Request	Επιβεβαίωση αιτήματος
@@ -522,6 +526,7 @@ Couldn't create an invite link.	Δεν ήταν δυνατή η δημιουργ
 Couldn't create an invite.	Δεν ήταν δυνατή η δημιουργία πρόσκλησης.
 Couldn't delete the channel: %	Δεν ήταν δυνατή η διαγραφή του καναλιού: %
 Couldn't encrypt the message.	Δεν ήταν δυνατή η κρυπτογράφηση του μηνύματος.
+Couldn't get that GIF.	Δεν ήταν δυνατή η λήψη αυτού του GIF.
 Couldn't join %: %	Δεν ήταν δυνατή η συμμετοχή στο %: %
 Couldn't load onboarding.	Δεν ήταν δυνατή η φόρτωση της υποδοχής νέων μελών.
 Couldn't load the AutoMod rules.	Δεν ήταν δυνατή η φόρτωση των κανόνων AutoMod.
@@ -532,6 +537,7 @@ Couldn't load the invites.	Δεν ήταν δυνατή η φόρτωση των
 Couldn't load the members.	Δεν ήταν δυνατή η φόρτωση των μελών.
 Couldn't load the role's members.	Δεν ήταν δυνατή η φόρτωση των μελών του ρόλου.
 Couldn't load the server rules.	Δεν ήταν δυνατή η φόρτωση των κανόνων του διακομιστή.
+Couldn't load the server's rules.	Δεν ήταν δυνατή η φόρτωση των κανόνων του διακομιστή.
 Couldn't load the server's tag.	Δεν ήταν δυνατή η φόρτωση της ετικέτας του διακομιστή.
 Couldn't load the template.	Δεν ήταν δυνατή η φόρτωση του προτύπου.
 Couldn't load the webhooks.	Δεν ήταν δυνατή η φόρτωση των webhooks.
@@ -547,6 +553,7 @@ Couldn't save the image.	Δεν ήταν δυνατή η αποθήκευση τ
 Couldn't save the token.	Δεν ήταν δυνατή η αποθήκευση του token.
 Couldn't turn on encryption.	Δεν ήταν δυνατή η ενεργοποίηση της κρυπτογράφησης.
 Couldn't upload emoji	Δεν ήταν δυνατή η μεταφόρτωση του emoji
+Cover Image	Εικόνα εξωφύλλου
 Cozy	Άνετη
 Create	Δημιουργία
 Create Category	Δημιουργία κατηγορίας
@@ -558,7 +565,6 @@ Create Events	Δημιουργία εκδηλώσεων
 Create Expressions	Δημιουργία εκφράσεων
 Create Group DM	Δημιουργία ομαδικού ΑΜ
 Create Invite	Δημιουργία πρόσκλησης
-Create My Own	Δημιουργία δικού μου
 Create Poll	Δημιουργία δημοσκόπησης
 Create Polls	Δημιουργία δημοσκοπήσεων
 Create Private Threads	Δημιουργία ιδιωτικών νημάτων
@@ -672,6 +678,7 @@ Don't show role colors	Να μην εμφανίζονται χρώματα ρό�
 Done	Τέλος
 Download	Λήψη
 Drop a file here, or browse	Άφησε ένα αρχείο εδώ ή κάνε περιήγηση
+Duplicate Channel	Αντιγραφή καναλιού
 Duration	Διάρκεια
 Dutch	Ολλανδικά
 EDIT ROLE — %	ΕΠΕΞΕΡΓΑΣΙΑ ΡΟΛΟΥ — %
@@ -685,6 +692,7 @@ Echo Cancellation	Ακύρωση ηχούς
 Edit	Επεξεργασία
 Edit Category	Επεξεργασία κατηγορίας
 Edit Channel	Επεξεργασία καναλιού
+Edit Event	Επεξεργασία εκδήλωσης
 Edit Friend Nickname	Επεξεργασία ψευδωνύμου φίλου
 Edit Message	Επεξεργασία μηνύματος
 Edit Per-server Profile	Επεξεργασία προφίλ ανά διακομιστή
@@ -789,6 +797,8 @@ For 24 Hours	Για 24 ώρες
 For 3 Days	Για 3 ημέρες
 For 3 Hours	Για 3 ώρες
 For 8 Hours	Για 8 ώρες
+For a club or community	Για μια λέσχη ή κοινότητα
+For me and my friends	Για εμένα και τους φίλους μου
 Forever	Για πάντα
 Forgot your password?	Ξέχασες τον κωδικό πρόσβασης;
 Forum	Φόρουμ
@@ -812,7 +822,6 @@ Friends come online	Οι φίλοι συνδέονται
 Friends of friends	Φίλοι φίλων
 From User	Από χρήστη
 GIFs	GIF
-GIFs can't be sent encrypted yet.	Τα GIF δεν μπορούν ακόμα να σταλούν κρυπτογραφημένα.
 Gallery view	Προβολή συλλογής
 General	Γενικά
 General Category Permissions	Γενικά δικαιώματα κατηγορίας
@@ -833,6 +842,7 @@ Go to Server	Μετάβαση στον διακομιστή
 Good to see you, %.	Χαιρόμαστε που σε βλέπουμε, %.
 Got It	Εντάξει
 Grant temporary membership	Παραχώρηση προσωρινής ιδιότητας μέλους
+Great for larger community audio events.	Ιδανικό για μεγαλύτερες ηχητικές εκδηλώσεις κοινότητας.
 Greek	Ελληνικά
 Hang out together with voice, video, and screen share	Κάντε παρέα με φωνή, βίντεο και κοινή χρήση οθόνης
 Hang out with voice, video, screenshare, and Go Live.	Κάντε παρέα με φωνή, βίντεο, κοινή χρήση οθόνης και Go Live.
@@ -865,6 +875,7 @@ How did your server get started? Why should people join?	Πώς ξεκίνησε
 Hungarian	Ουγγρικά
 I acknowledge that by transferring ownership of this server to %, it officially belongs to them.	Κατανοώ ότι μεταβιβάζοντας την κατοχή αυτού του διακομιστή στον χρήστη %, θα του ανήκει επίσημα.
 I agree and understand	Συμφωνώ και κατανοώ
+I have read and agree to the rules	Έχω διαβάσει και αποδέχομαι τους κανόνες
 I'm new here, say hi!	Είμαι καινούριος εδώ, πείτε ένα γεια!
 I'm sure, use a backup code	Είμαι σίγουρος, χρήση εφεδρικού κωδικού
 IMAGE	ΕΙΚΟΝΑ
@@ -888,6 +899,7 @@ Ignored message	Μήνυμα σε παράβλεψη
 Image saved.	Η εικόνα αποθηκεύτηκε.
 Important updates for people in and out of the server	Σημαντικές ενημερώσεις για άτομα εντός και εκτός διακομιστή
 In Channel	Στο κανάλι
+In order to help you with your setup, is your new server for just a few friends or a larger community?	Για να σε βοηθήσουμε με τη ρύθμιση, ο νέος σου διακομιστής είναι για λίγους φίλους ή για μια μεγαλύτερη κοινότητα;
 Inactive Channel	Κανάλι αδράνειας
 Inactive Timeout	Όριο αδράνειας
 Inbox	Εισερχόμενα
@@ -1175,6 +1187,7 @@ Not encrypted	Μη κρυπτογραφημένο
 Not encrypted: Discord can read this message	Μη κρυπτογραφημένο: το Discord μπορεί να διαβάσει αυτό το μήνυμα
 Not end-to-end encrypted	Χωρίς κρυπτογράφηση από άκρο σε άκρο
 Not me, start over	Δεν είμαι εγώ, από την αρχή
+Not sure? You can 	Δεν είσαι σίγουρος; Μπορείς να 
 Note	Σημείωση
 Note (only visible to you)	Σημείωση (ορατή μόνο σε σένα)
 Note: Members with the "Mention @everyone, @here, and All Roles" permission will always be able to ping this role.	Σημείωση: Τα μέλη με το δικαίωμα «Αναφορά σε @everyone, @here και όλους τους ρόλους» θα μπορούν πάντα να ειδοποιούν αυτόν τον ρόλο.
@@ -1201,6 +1214,7 @@ One rule per line, for example: Be respectful	Ένας κανόνας ανά γ�
 Ongoing call	Κλήση σε εξέλιξη
 Online	Σε σύνδεση
 Only @mentions	Μόνο @αναφορές
+Only selected members and roles will be able to view this channel.	Μόνο τα επιλεγμένα μέλη και οι ρόλοι θα μπορούν να βλέπουν αυτό το κανάλι.
 Only servers and channels you have webhook permissions in are shown.	Εμφανίζονται μόνο διακομιστές και κανάλια στα οποία έχεις δικαιώματα webhook.
 Only you can see the nickname you give %.	Μόνο εσύ βλέπεις το ψευδώνυμο που δίνεις στον χρήστη %.
 Only you can see this · 	Μόνο εσύ το βλέπεις αυτό ·
@@ -1314,6 +1328,7 @@ ROLES — %	ΡΟΛΟΙ — %
 ROLES/MEMBERS	ΡΟΛΟΙ/ΜΕΛΗ
 RTC Connecting	Σύνδεση RTC
 Read Message History	Ανάγνωση ιστορικού μηνυμάτων
+Read and agree to the server rules	Διάβασε και αποδέξου τους κανόνες του διακομιστή
 Reason	Αιτία
 Reason for Ban	Αιτία αποκλεισμού
 Reason for Kick	Αιτία αποβολής
@@ -1374,6 +1389,7 @@ Reset Friend Nickname	Επαναφορά ψευδωνύμου φίλου
 Reset Voice Settings	Επαναφορά ρυθμίσεων φωνής
 Resolving Invite	Επίλυση πρόσκλησης
 Responses	Απαντήσεις
+Restart to Update	Επανεκκίνηση για ενημέρωση
 Retry	Επανάληψη
 Retry Now	Επανάληψη τώρα
 Return to call	Επιστροφή στην κλήση
@@ -1399,6 +1415,7 @@ SELECT A CHANNEL	ΕΠΙΛΟΓΗ ΚΑΝΑΛΙΟΥ
 SELECT A SERVER	ΕΠΙΛΟΓΗ ΔΙΑΚΟΜΙΣΤΗ
 SERVER NAME	ΟΝΟΜΑ ΔΙΑΚΟΜΙΣΤΗ
 SOUNDBOARD VOLUME	ΕΝΤΑΣΗ SOUNDBOARD
+START FROM A TEMPLATE	ΞΕΚΙΝΑ ΑΠΟ ΠΡΟΤΥΠΟ
 STATIC EMOJI — % SLOTS AVAILABLE	ΣΤΑΤΙΚΑ EMOJI — % ΔΙΑΘΕΣΙΜΕΣ ΘΕΣΕΙΣ
 Safety Notifications Channel	Κανάλι ειδοποιήσεων ασφαλείας
 Safety Number	Αριθμός ασφαλείας
@@ -1408,6 +1425,7 @@ Same as Device Theme	Ίδιο με το θέμα της συσκευής
 Saturation	Κορεσμός
 Save	Αποθήκευση
 Save Changes	Αποθήκευση αλλαγών
+Save Event	Αποθήκευση εκδήλωσης
 Save Image	Αποθήκευση εικόνας
 Saving...	Αποθήκευση...
 Saving…	Αποθήκευση…
@@ -1516,6 +1534,7 @@ Some older devices may not be shown here	Ορισμένες παλαιότερε
 Someone	Κάποιος
 Something went wrong	Κάτι πήγε στραβά
 Something went wrong (HTTP %).	Κάτι πήγε στραβά (HTTP %).
+Something went wrong. Please try again.	Κάτι πήγε στραβά. Δοκίμασε ξανά.
 Something went wrong. Try again.	Κάτι πήγε στραβά. Δοκίμασε ξανά.
 Somewhere Else	Κάπου αλλού
 Sorry, we couldn't load the first message in this thread	Λυπούμαστε, δεν ήταν δυνατή η φόρτωση του πρώτου μηνύματος σε αυτό το νήμα
@@ -1538,6 +1557,7 @@ Speak Message	Εκφώνηση μηνύματος
 Spoiler Attachment	Συνημμένο spoiler
 Spoiler Content	Περιεχόμενο spoiler
 Stage	Stage
+Stage Channel	Κανάλι Stage
 Start Date	Ημερομηνία έναρξης
 Start Event	Έναρξη εκδήλωσης
 Start Minimized	Εκκίνηση σε ελαχιστοποίηση
@@ -1546,7 +1566,6 @@ Starting in %m	Ξεκινά σε %λ
 State	Κατάσταση
 Stickers	Αυτοκόλλητα
 Stickers can be used by anyone in this server. Upload a PNG, APNG, GIF or Lottie JSON file of up to 512 KB; it shows at 320x320.	Τα αυτοκόλλητα μπορεί να τα χρησιμοποιεί οποιοσδήποτε σε αυτόν τον διακομιστή. Ανέβασε ένα αρχείο PNG, APNG, GIF ή Lottie JSON έως 512 KB· εμφανίζεται σε 320x320.
-Stickers can't be sent encrypted yet.	Τα αυτοκόλλητα δεν μπορούν ακόμα να σταλούν κρυπτογραφημένα.
 Stickers must be PNG, APNG, GIF or Lottie JSON files.	Τα αυτοκόλλητα πρέπει να είναι αρχεία PNG, APNG, GIF ή Lottie JSON.
 Stop Recording	Διακοπή εγγραφής
 Stop Streaming	Διακοπή μετάδοσης
@@ -1559,6 +1578,8 @@ Streamer Mode	Λειτουργία streamer
 Streamer Mode Enabled	Η Λειτουργία streamer είναι ενεργή
 Streamer Mode hides your personal info so others watching your stream can't see it.	Η Λειτουργία streamer κρύβει τα προσωπικά σου στοιχεία ώστε να μην τα βλέπουν όσοι παρακολουθούν τη μετάδοσή σου.
 Streamer Mode is enabled. Usernames have been truncated.	Η Λειτουργία streamer είναι ενεργή. Τα ονόματα χρηστών έχουν περικοπεί.
+Submit	Υποβολή
+Submitting	Υποβολή…
 Success! Your friend request to % was sent.	Επιτυχία! Το αίτημα φιλίας σου προς τον χρήστη % στάλθηκε.
 Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday	Κυριακή|Δευτέρα|Τρίτη|Τετάρτη|Πέμπτη|Παρασκευή|Σάββατο
 Sun|Mon|Tue|Wed|Thu|Fri|Sat	Κυρ|Δευ|Τρί|Τετ|Πέμ|Παρ|Σάβ
@@ -1586,6 +1607,7 @@ Tags	Ετικέτες
 Tags (pick at least one)	Ετικέτες (διάλεξε τουλάχιστον μία)
 Tags let members organize their posts. Members pick them when they post; moderated tags only moderators can apply.	Οι ετικέτες βοηθούν τα μέλη να οργανώνουν τις αναρτήσεις τους. Τα μέλη τις διαλέγουν όταν αναρτούν· τις εποπτευόμενες ετικέτες μπορούν να τις βάζουν μόνο οι επόπτες.
 Tap the link in your email to sign in instantly — no password needed.	Πάτα τον σύνδεσμο στο email σου για να συνδεθείς αμέσως — δεν χρειάζεται κωδικός πρόσβασης.
+Tell Us More About Your Server	Πες μας περισσότερα για τον διακομιστή σου
 Tell people a little more about your event. Markdown, new lines, and links are supported.	Πες λίγα περισσότερα για την εκδήλωσή σου. Υποστηρίζονται Markdown, νέες γραμμές και σύνδεσμοι.
 Tell the world a bit about this server.	Πες στον κόσμο λίγα λόγια για αυτόν τον διακομιστή.
 Template Description	Περιγραφή προτύπου
@@ -1649,8 +1671,11 @@ This is the start of the #% channel.	Αυτή είναι η αρχή του κα
 This is where Discord sends updates for moderators and admins of Community servers.	Εδώ στέλνει το Discord ενημερώσεις για επόπτες και διαχειριστές διακομιστών κοινότητας.
 This is where you'll show members your server rules or guidelines.	Εδώ θα δείχνεις στα μέλη τους κανόνες ή τις οδηγίες του διακομιστή σου.
 This link is taking you to the following website	Αυτός ο σύνδεσμος σε οδηγεί στον παρακάτω ιστότοπο
+This message is end-to-end encrypted. Forwarding it here sends it unencrypted, so Discord can read it.	Αυτό το μήνυμα είναι κρυπτογραφημένο από άκρο σε άκρο. Αν το προωθήσεις εδώ, θα σταλεί χωρίς κρυπτογράφηση, οπότε το Discord μπορεί να το διαβάσει.
+This message is end-to-end encrypted. Forwarding it here sends it unencrypted, so the server's host can read it.	Αυτό το μήνυμα είναι κρυπτογραφημένο από άκρο σε άκρο. Αν το προωθήσεις εδώ, θα σταλεί χωρίς κρυπτογράφηση, οπότε ο πάροχος του διακομιστή μπορεί να το διαβάσει.
 This option is not available for Community Servers.	Αυτή η επιλογή δεν είναι διαθέσιμη για διακομιστές κοινότητας.
 This role is managed by an integration and can't be edited here.	Αυτός ο ρόλος διαχειρίζεται από μια ενσωμάτωση και δεν μπορεί να επεξεργαστεί εδώ.
+This server asks a few questions before you can join. Answer them on discord.com.	Αυτός ο διακομιστής κάνει μερικές ερωτήσεις πριν μπορέσεις να συμμετάσχεις. Απάντησέ τες στο discord.com.
 This server has been removed from Server Discovery because it no longer passes all the requirements. Check Server Settings for more details.	Αυτός ο διακομιστής αφαιρέθηκε από την Εξερεύνηση διακομιστών επειδή δεν πληροί πλέον όλες τις απαιτήσεις. Δες τις Ρυθμίσεις διακομιστή για περισσότερες λεπτομέρειες.
 This server has failed Discovery activity requirements for 1 week. If this server fails for 4 weeks in a row, it will be automatically removed from Discovery.	Αυτός ο διακομιστής δεν πληροί τις απαιτήσεις δραστηριότητας της Εξερεύνησης εδώ και 1 εβδομάδα. Αν δεν τις πληροί για 4 συνεχόμενες εβδομάδες, θα αφαιρεθεί αυτόματα από την Εξερεύνηση.
 This server has failed Discovery activity requirements for 3 weeks in a row. If this server fails for 1 more week, it will be removed from Discovery.	Αυτός ο διακομιστής δεν πληροί τις απαιτήσεις δραστηριότητας της Εξερεύνησης για 3 συνεχόμενες εβδομάδες. Αν δεν τις πληροί για 1 ακόμα εβδομάδα, θα αφαιρεθεί από την Εξερεύνηση.
@@ -1748,7 +1773,9 @@ Update Role	Ενημέρωση ρόλου
 Update Server	Ενημέρωση διακομιστή
 Update Webhook	Ενημέρωση webhook
 Update your password	Ενημέρωσε τον κωδικό πρόσβασής σου
+Updating…	Ενημέρωση…
 Upload	Μεταφόρτωση
+Upload Cover Image	Μεταφόρτωση εικόνας εξωφύλλου
 Upload Emoji	Μεταφόρτωση emoji
 Upload Sound	Μεταφόρτωση ήχου
 Upload Sticker	Μεταφόρτωση αυτοκόλλητου
@@ -1821,6 +1848,7 @@ Wave to say hi!	Χαιρέτα για να πεις γεια!
 We appreciate the enthusiasm, but...	Εκτιμούμε τον ενθουσιασμό, αλλά...
 We couldn't load the profile for this server.	Δεν ήταν δυνατή η φόρτωση του προφίλ αυτού του διακομιστή.
 We recommend an image of at least 512x512.	Προτείνουμε εικόνα τουλάχιστον 512x512.
+We recommend an image of at least 800px wide and 320px tall.	Προτείνουμε εικόνα πλάτους τουλάχιστον 800px και ύψους 320px.
 We sent instructions to change your password to %, please check both your inbox and spam folder.	Στείλαμε οδηγίες για αλλαγή του κωδικού πρόσβασης στο %, έλεγξε τα εισερχόμενα και τον φάκελο spam.
 We're so excited to see you again!	Χαιρόμαστε πολύ που σε ξαναβλέπουμε!
 We've sent a message to %.  Please enter the code you received.	Στείλαμε μήνυμα στο %.  Πληκτρολόγησε τον κωδικό που έλαβες.
@@ -1879,6 +1907,7 @@ You haven't connected any accounts yet.	Δεν έχεις συνδέσει ακ�
 You haven't ignored anyone.	Δεν έχεις βάλει κανέναν σε παράβλεψη.
 You missed a call from %1 that lasted %2.	Έχασες μια κλήση από τον χρήστη %1 που διήρκεσε %2.
 You must be at least 18 years old to view this channel.	Πρέπει να είσαι τουλάχιστον 18 ετών για να δεις αυτό το κανάλι.
+You must complete a few more steps before you can talk.	Πρέπει να ολοκληρώσεις μερικά ακόμη βήματα πριν μπορέσεις να μιλήσεις.
 You must leave a server first to join.	Πρέπει πρώτα να αποχωρήσεις από έναν διακομιστή για να μπεις.
 You need to add one or more rules.	Πρέπει να προσθέσεις έναν ή περισσότερους κανόνες.
 You received an invite, but...	Έλαβες πρόσκληση, αλλά...
@@ -1957,6 +1986,7 @@ on %	στις %
 pinned messages	καρφιτσωμένα μηνύματα
 remove embeds	αφαίρεση ενσωματώσεων
 save	αποθήκευση
+skip this question	παραλείψεις αυτή την ερώτηση
 someone	κάποιος
 specific date	συγκεκριμένη ημερομηνία
 this server	αυτός ο διακομιστής

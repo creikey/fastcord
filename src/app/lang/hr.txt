@@ -1,4 +1,5 @@
 # Croatian (hr)
+ for now.	 za sada.
  · required	 · obavezno
 % (requested to speak)	% (traži riječ)
 % (required)	% (obavezno)
@@ -182,6 +183,7 @@
 @everyone · applies to all server members	@everyone · vrijedi za sve članove poslužitelja
 A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button.	Tipka s Ctrl, Alt, Shift ili Cmd, sam modifikator ili srednja ili bočna tipka miša.
 A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button. Works in every app.	Tipka s Ctrl, Alt, Shift ili Cmd, sam modifikator ili srednja ili bočna tipka miša. Radi u svakoj aplikaciji.
+A new channel will be created with the same permissions, user limit and bitrate as 	Stvorit će se novi kanal s istim dopuštenjima, ograničenjem korisnika i brzinom prijenosa kao 
 A role needs a name.	Uloga treba naziv.
 A webhook needs a name.	Webhook treba naziv.
 A wild % appeared.	Divlji % se pojavio.
@@ -432,6 +434,7 @@ Category Name	Naziv kategorije
 Category deleted	Kategorija izbrisana
 Change %	Promijeni %
 Change Avatar	Promijeni avatar
+Change Image	Promijeni sliku
 Change Nickname	Promijeni nadimak
 Change Password	Promijeni lozinku
 Change Server Icon	Promijeni ikonu poslužitelja
@@ -479,6 +482,7 @@ Community servers have more tools to help you moderate and grow your server.	Pos
 Compact	Kompaktno
 Compare	Usporedi
 Compare these with %, in person or on a call. If they match, no one can read this DM in between.	Usporedi ih s korisnikom %, uživo ili u pozivu. Ako se podudaraju, nitko između vas ne može čitati ovu izravnu poruku.
+Complete	Dovrši
 Configure system event messages sent to your server.	Konfiguriraj poruke sustavnih događaja koje se šalju na tvoj poslužitelj.
 Confirm	Potvrdi
 Confirm Request	Potvrdi zahtjev
@@ -522,6 +526,7 @@ Couldn't create an invite link.	Stvaranje poveznice za pozivnicu nije uspjelo.
 Couldn't create an invite.	Stvaranje pozivnice nije uspjelo.
 Couldn't delete the channel: %	Brisanje kanala nije uspjelo: %
 Couldn't encrypt the message.	Šifriranje poruke nije uspjelo.
+Couldn't get that GIF.	Nije moguće dohvatiti taj GIF.
 Couldn't join %: %	Pridruživanje na %1 nije uspjelo: %2
 Couldn't load onboarding.	Učitavanje uvođenja nije uspjelo.
 Couldn't load the AutoMod rules.	Učitavanje pravila AutoModa nije uspjelo.
@@ -532,6 +537,7 @@ Couldn't load the invites.	Učitavanje pozivnica nije uspjelo.
 Couldn't load the members.	Učitavanje članova nije uspjelo.
 Couldn't load the role's members.	Učitavanje članova uloge nije uspjelo.
 Couldn't load the server rules.	Učitavanje pravila poslužitelja nije uspjelo.
+Couldn't load the server's rules.	Nije moguće učitati pravila poslužitelja.
 Couldn't load the server's tag.	Učitavanje oznake poslužitelja nije uspjelo.
 Couldn't load the template.	Učitavanje predloška nije uspjelo.
 Couldn't load the webhooks.	Učitavanje webhookova nije uspjelo.
@@ -547,6 +553,7 @@ Couldn't save the image.	Spremanje slike nije uspjelo.
 Couldn't save the token.	Spremanje tokena nije uspjelo.
 Couldn't turn on encryption.	Uključivanje šifriranja nije uspjelo.
 Couldn't upload emoji	Prijenos emojija nije uspio
+Cover Image	Naslovna slika
 Cozy	Udobno
 Create	Stvori
 Create Category	Stvori kategoriju
@@ -558,7 +565,6 @@ Create Events	Stvaranje događaja
 Create Expressions	Stvaranje izraza
 Create Group DM	Stvori grupnu poruku
 Create Invite	Stvori pozivnicu
-Create My Own	Stvori vlastiti
 Create Poll	Stvori anketu
 Create Polls	Stvaranje anketa
 Create Private Threads	Stvaranje privatnih niti
@@ -672,6 +678,7 @@ Don't show role colors	Ne prikazuj boje uloga
 Done	Gotovo
 Download	Preuzmi
 Drop a file here, or browse	Ispusti datoteku ovdje ili pregledaj
+Duplicate Channel	Dupliciraj kanal
 Duration	Trajanje
 Dutch	Nizozemski
 EDIT ROLE — %	UREDI ULOGU — %
@@ -685,6 +692,7 @@ Echo Cancellation	Poništavanje jeke
 Edit	Uredi
 Edit Category	Uredi kategoriju
 Edit Channel	Uredi kanal
+Edit Event	Uredi događaj
 Edit Friend Nickname	Uredi nadimak prijatelja
 Edit Message	Uredi poruku
 Edit Per-server Profile	Uredi profil za poslužitelj
@@ -789,6 +797,8 @@ For 24 Hours	24 sata
 For 3 Days	3 dana
 For 3 Hours	3 sata
 For 8 Hours	8 sati
+For a club or community	Za klub ili zajednicu
+For me and my friends	Za mene i moje prijatelje
 Forever	Zauvijek
 Forgot your password?	Zaboravio si lozinku?
 Forum	Forum
@@ -812,7 +822,6 @@ Friends come online	Prijatelji dolaze na mrežu
 Friends of friends	Prijatelji prijatelja
 From User	Od korisnika
 GIFs	GIF-ovi
-GIFs can't be sent encrypted yet.	GIF-ovi se još ne mogu slati šifrirano.
 Gallery view	Prikaz galerije
 General	Općenito
 General Category Permissions	Opća dopuštenja kategorije
@@ -833,6 +842,7 @@ Go to Server	Idi na poslužitelj
 Good to see you, %.	Lijepo te vidjeti, %.
 Got It	Shvaćam
 Grant temporary membership	Dodijeli privremeno članstvo
+Great for larger community audio events.	Odlično za veće audio događaje zajednice.
 Greek	Grčki
 Hang out together with voice, video, and screen share	Družite se uz glas, video i dijeljenje zaslona
 Hang out with voice, video, screenshare, and Go Live.	Družite se uz glas, video, dijeljenje zaslona i Uživo.
@@ -865,6 +875,7 @@ How did your server get started? Why should people join?	Kako je nastao tvoj pos
 Hungarian	Mađarski
 I acknowledge that by transferring ownership of this server to %, it officially belongs to them.	Potvrđujem da prijenosom vlasništva nad ovim poslužiteljem korisniku % on službeno pripada njemu.
 I agree and understand	Slažem se i razumijem
+I have read and agree to the rules	Pročitao/la sam pravila i slažem se s njima
 I'm new here, say hi!	Nov sam ovdje, pozdravite me!
 I'm sure, use a backup code	Siguran sam, koristi rezervni kôd
 IMAGE	SLIKA
@@ -888,6 +899,7 @@ Ignored message	Zanemarena poruka
 Image saved.	Slika spremljena.
 Important updates for people in and out of the server	Važne novosti za ljude na poslužitelju i izvan njega
 In Channel	U kanalu
+In order to help you with your setup, is your new server for just a few friends or a larger community?	Da ti pomognemo s postavljanjem: je li tvoj novi poslužitelj samo za nekoliko prijatelja ili za veću zajednicu?
 Inactive Channel	Neaktivni kanal
 Inactive Timeout	Vrijeme neaktivnosti
 Inbox	Sandučić
@@ -1175,6 +1187,7 @@ Not encrypted	Nije šifrirano
 Not encrypted: Discord can read this message	Nije šifrirano: Discord može pročitati ovu poruku
 Not end-to-end encrypted	Nije sveobuhvatno šifrirano
 Not me, start over	Nisam ja, kreni ispočetka
+Not sure? You can 	Nisi siguran? Možeš 
 Note	Bilješka
 Note (only visible to you)	Bilješka (vidiš je samo ti)
 Note: Members with the "Mention @everyone, @here, and All Roles" permission will always be able to ping this role.	Napomena: Članovi s dopuštenjem "Spominjanje @everyone, @here i svih uloga" uvijek će moći pingati ovu ulogu.
@@ -1201,6 +1214,7 @@ One rule per line, for example: Be respectful	Jedno pravilo po retku, na primjer
 Ongoing call	Poziv u tijeku
 Online	Na mreži
 Only @mentions	Samo @spominjanja
+Only selected members and roles will be able to view this channel.	Samo odabrani članovi i uloge moći će vidjeti ovaj kanal.
 Only servers and channels you have webhook permissions in are shown.	Prikazuju se samo poslužitelji i kanali u kojima imaš dopuštenja za webhookove.
 Only you can see the nickname you give %.	Samo ti vidiš nadimak koji daješ korisniku %.
 Only you can see this · 	Ovo vidiš samo ti ·
@@ -1314,6 +1328,7 @@ ROLES — %	ULOGE — %
 ROLES/MEMBERS	ULOGE/ČLANOVI
 RTC Connecting	RTC povezivanje
 Read Message History	Čitanje povijesti poruka
+Read and agree to the server rules	Pročitaj pravila poslužitelja i prihvati ih
 Reason	Razlog
 Reason for Ban	Razlog zabrane
 Reason for Kick	Razlog izbacivanja
@@ -1374,6 +1389,7 @@ Reset Friend Nickname	Poništi nadimak prijatelja
 Reset Voice Settings	Poništi glasovne postavke
 Resolving Invite	Provjera pozivnice
 Responses	Odgovori
+Restart to Update	Ponovno pokreni za ažuriranje
 Retry	Pokušaj ponovno
 Retry Now	Pokušaj odmah
 Return to call	Vrati se u poziv
@@ -1399,6 +1415,7 @@ SELECT A CHANNEL	ODABERI KANAL
 SELECT A SERVER	ODABERI POSLUŽITELJ
 SERVER NAME	NAZIV POSLUŽITELJA
 SOUNDBOARD VOLUME	GLASNOĆA PLOČE ZVUKOVA
+START FROM A TEMPLATE	KRENI OD PREDLOŠKA
 STATIC EMOJI — % SLOTS AVAILABLE	STATIČNI EMOJIJI — SLOBODNIH MJESTA: %
 Safety Notifications Channel	Kanal za sigurnosne obavijesti
 Safety Number	Sigurnosni broj
@@ -1408,6 +1425,7 @@ Same as Device Theme	Kao tema uređaja
 Saturation	Zasićenost
 Save	Spremi
 Save Changes	Spremi promjene
+Save Event	Spremi događaj
 Save Image	Spremi sliku
 Saving...	Spremanje...
 Saving…	Spremanje…
@@ -1516,6 +1534,7 @@ Some older devices may not be shown here	Neki stariji uređaji možda se ovdje n
 Someone	Netko
 Something went wrong	Nešto nije u redu
 Something went wrong (HTTP %).	Nešto nije u redu (HTTP %).
+Something went wrong. Please try again.	Nešto nije u redu. Pokušaj ponovno.
 Something went wrong. Try again.	Nešto nije u redu. Pokušaj ponovno.
 Somewhere Else	Negdje drugdje
 Sorry, we couldn't load the first message in this thread	Nažalost, nismo uspjeli učitati prvu poruku u ovoj niti
@@ -1538,6 +1557,7 @@ Speak Message	Izgovori poruku
 Spoiler Attachment	Privitak spoilera
 Spoiler Content	Sadržaj spoilera
 Stage	Pozornica
+Stage Channel	Kanal pozornice
 Start Date	Datum početka
 Start Event	Započni događaj
 Start Minimized	Pokreni smanjeno
@@ -1546,7 +1566,6 @@ Starting in %m	Počinje za %min
 State	Stanje
 Stickers	Naljepnice
 Stickers can be used by anyone in this server. Upload a PNG, APNG, GIF or Lottie JSON file of up to 512 KB; it shows at 320x320.	Naljepnice može koristiti svatko na ovom poslužitelju. Prenesi PNG, APNG, GIF ili Lottie JSON datoteku do 512 KB; prikazuje se u veličini 320x320.
-Stickers can't be sent encrypted yet.	Naljepnice se još ne mogu slati šifrirano.
 Stickers must be PNG, APNG, GIF or Lottie JSON files.	Naljepnice moraju biti PNG, APNG, GIF ili Lottie JSON datoteke.
 Stop Recording	Zaustavi snimanje
 Stop Streaming	Zaustavi stream
@@ -1559,6 +1578,8 @@ Streamer Mode	Način za streamere
 Streamer Mode Enabled	Način za streamere uključen
 Streamer Mode hides your personal info so others watching your stream can't see it.	Način za streamere skriva tvoje osobne podatke kako ih ne bi vidjeli oni koji gledaju tvoj stream.
 Streamer Mode is enabled. Usernames have been truncated.	Način za streamere je uključen. Korisnička imena su skraćena.
+Submit	Pošalji
+Submitting	Slanje
 Success! Your friend request to % was sent.	Uspjeh! Tvoj zahtjev za prijateljstvo korisniku % je poslan.
 Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday	nedjelja|ponedjeljak|utorak|srijeda|četvrtak|petak|subota
 Sun|Mon|Tue|Wed|Thu|Fri|Sat	ned|pon|uto|sri|čet|pet|sub
@@ -1586,6 +1607,7 @@ Tags	Oznake
 Tags (pick at least one)	Oznake (odaberi barem jednu)
 Tags let members organize their posts. Members pick them when they post; moderated tags only moderators can apply.	Oznake omogućuju članovima organiziranje objava. Članovi ih odabiru pri objavljivanju; moderirane oznake mogu dodijeliti samo moderatori.
 Tap the link in your email to sign in instantly — no password needed.	Dodirni poveznicu u e-pošti za trenutačnu prijavu — lozinka nije potrebna.
+Tell Us More About Your Server	Reci nam više o svom poslužitelju
 Tell people a little more about your event. Markdown, new lines, and links are supported.	Reci ljudima nešto više o svom događaju. Podržani su Markdown, novi retci i poveznice.
 Tell the world a bit about this server.	Reci svijetu nešto o ovom poslužitelju.
 Template Description	Opis predloška
@@ -1649,8 +1671,11 @@ This is the start of the #% channel.	Ovo je početak kanala #%.
 This is where Discord sends updates for moderators and admins of Community servers.	Ovdje Discord šalje novosti za moderatore i administratore poslužitelja zajednice.
 This is where you'll show members your server rules or guidelines.	Ovdje ćeš članovima prikazati pravila ili smjernice poslužitelja.
 This link is taking you to the following website	Ova te poveznica vodi na sljedeće web-mjesto
+This message is end-to-end encrypted. Forwarding it here sends it unencrypted, so Discord can read it.	Ova je poruka sveobuhvatno šifrirana. Ako je proslijediš ovdje, poslat će se nešifrirano pa će je Discord moći pročitati.
+This message is end-to-end encrypted. Forwarding it here sends it unencrypted, so the server's host can read it.	Ova je poruka sveobuhvatno šifrirana. Ako je proslijediš ovdje, poslat će se nešifrirano pa će je operater poslužitelja moći pročitati.
 This option is not available for Community Servers.	Ova opcija nije dostupna za poslužitelje zajednice.
 This role is managed by an integration and can't be edited here.	Ovom ulogom upravlja integracija i ne može se ovdje uređivati.
+This server asks a few questions before you can join. Answer them on discord.com.	Ovaj poslužitelj postavlja nekoliko pitanja prije pridruživanja. Odgovori na njih na discord.com.
 This server has been removed from Server Discovery because it no longer passes all the requirements. Check Server Settings for more details.	Ovaj poslužitelj uklonjen je iz Otkrivanja poslužitelja jer više ne ispunjava sve uvjete. Pojedinosti potraži u Postavkama poslužitelja.
 This server has failed Discovery activity requirements for 1 week. If this server fails for 4 weeks in a row, it will be automatically removed from Discovery.	Ovaj poslužitelj već 1 tjedan ne ispunjava uvjete aktivnosti za Otkrivanje. Ako ih ne ispuni 4 tjedna zaredom, automatski će biti uklonjen iz Otkrivanja.
 This server has failed Discovery activity requirements for 3 weeks in a row. If this server fails for 1 more week, it will be removed from Discovery.	Ovaj poslužitelj 3 tjedna zaredom ne ispunjava uvjete aktivnosti za Otkrivanje. Ako ih ne ispuni još 1 tjedan, bit će uklonjen iz Otkrivanja.
@@ -1748,7 +1773,9 @@ Update Role	Ažuriraj ulogu
 Update Server	Ažuriraj poslužitelj
 Update Webhook	Ažuriraj webhook
 Update your password	Ažuriraj lozinku
+Updating…	Ažuriranje…
 Upload	Prenesi
+Upload Cover Image	Prenesi naslovnu sliku
 Upload Emoji	Prenesi emoji
 Upload Sound	Prenesi zvuk
 Upload Sticker	Prenesi naljepnicu
@@ -1821,6 +1848,7 @@ Wave to say hi!	Mahni za pozdrav!
 We appreciate the enthusiasm, but...	Cijenimo entuzijazam, ali...
 We couldn't load the profile for this server.	Nismo uspjeli učitati profil ovog poslužitelja.
 We recommend an image of at least 512x512.	Preporučujemo sliku od najmanje 512x512.
+We recommend an image of at least 800px wide and 320px tall.	Preporučujemo sliku široku barem 800px i visoku barem 320px.
 We sent instructions to change your password to %, please check both your inbox and spam folder.	Poslali smo upute za promjenu lozinke na %, provjeri pristiglu poštu i mapu neželjene pošte.
 We're so excited to see you again!	Baš nam je drago što te opet vidimo!
 We've sent a message to %.  Please enter the code you received.	Poslali smo poruku na %.  Unesi kôd koji si primio.
@@ -1879,6 +1907,7 @@ You haven't connected any accounts yet.	Još nisi povezao nijedan račun.
 You haven't ignored anyone.	Nisi nikoga zanemario.
 You missed a call from %1 that lasted %2.	Propustio si poziv od korisnika %1 koji je trajao %2.
 You must be at least 18 years old to view this channel.	Za pregled ovog kanala moraš imati najmanje 18 godina.
+You must complete a few more steps before you can talk.	Moraš dovršiti još nekoliko koraka prije nego što možeš pisati.
 You must leave a server first to join.	Za pridruživanje najprije moraš napustiti neki poslužitelj.
 You need to add one or more rules.	Moraš dodati jedno ili više pravila.
 You received an invite, but...	Primio si pozivnicu, ali...
@@ -1957,6 +1986,7 @@ on %	%
 pinned messages	prikvačene poruke
 remove embeds	ukloni ugrađeni sadržaj
 save	spremi
+skip this question	preskočiti ovo pitanje
 someone	netko
 specific date	određeni datum
 this server	ovaj poslužitelj

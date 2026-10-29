@@ -1,4 +1,5 @@
 # Korean (ko)
+ for now.	 괜찮아요.
  · required	 · 필수
 % (requested to speak)	% (발언 요청함)
 % (required)	% (필수)
@@ -182,6 +183,7 @@
 @everyone · applies to all server members	@everyone · 모든 서버 멤버에게 적용돼요
 A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button.	Ctrl, Alt, Shift 또는 Cmd와 함께 누른 키, 보조 키 단독, 또는 마우스 가운데·측면 버튼.
 A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button. Works in every app.	Ctrl, Alt, Shift 또는 Cmd와 함께 누른 키, 보조 키 단독, 또는 마우스 가운데·측면 버튼. 모든 앱에서 작동해요.
+A new channel will be created with the same permissions, user limit and bitrate as 	권한, 인원 제한, 비트레이트가 같은 새 채널이 만들어져요. 원본: 
 A role needs a name.	역할에는 이름이 필요해요.
 A webhook needs a name.	웹후크에는 이름이 필요해요.
 A wild % appeared.	야생의 %이(가) 나타났다.
@@ -432,6 +434,7 @@ Category Name	카테고리 이름
 Category deleted	카테고리 삭제됨
 Change %	% 변경
 Change Avatar	아바타 변경
+Change Image	이미지 변경
 Change Nickname	별명 변경
 Change Password	비밀번호 변경
 Change Server Icon	서버 아이콘 변경
@@ -479,6 +482,7 @@ Community servers have more tools to help you moderate and grow your server.	커
 Compact	간단히
 Compare	비교
 Compare these with %, in person or on a call. If they match, no one can read this DM in between.	%님과 직접 만나거나 통화로 이 번호를 비교하세요. 일치하면 중간에서 아무도 이 DM을 읽을 수 없어요.
+Complete	완료
 Configure system event messages sent to your server.	서버에 보내는 시스템 이벤트 메시지를 설정하세요.
 Confirm	확인
 Confirm Request	요청 확인
@@ -522,6 +526,7 @@ Couldn't create an invite link.	초대 링크를 만들 수 없었어요.
 Couldn't create an invite.	초대를 만들 수 없었어요.
 Couldn't delete the channel: %	채널을 삭제할 수 없었어요: %
 Couldn't encrypt the message.	메시지를 암호화할 수 없었어요.
+Couldn't get that GIF.	해당 GIF를 가져올 수 없었어요.
 Couldn't join %: %	%1에 참가할 수 없었어요: %2
 Couldn't load onboarding.	온보딩을 불러올 수 없었어요.
 Couldn't load the AutoMod rules.	AutoMod 규칙을 불러올 수 없었어요.
@@ -532,6 +537,7 @@ Couldn't load the invites.	초대를 불러올 수 없었어요.
 Couldn't load the members.	멤버를 불러올 수 없었어요.
 Couldn't load the role's members.	역할 멤버를 불러올 수 없었어요.
 Couldn't load the server rules.	서버 규칙을 불러올 수 없었어요.
+Couldn't load the server's rules.	서버 규칙을 불러올 수 없었어요.
 Couldn't load the server's tag.	서버 태그를 불러올 수 없었어요.
 Couldn't load the template.	템플릿을 불러올 수 없었어요.
 Couldn't load the webhooks.	웹후크를 불러올 수 없었어요.
@@ -547,6 +553,7 @@ Couldn't save the image.	이미지를 저장할 수 없었어요.
 Couldn't save the token.	토큰을 저장할 수 없었어요.
 Couldn't turn on encryption.	암호화를 켤 수 없었어요.
 Couldn't upload emoji	이모지를 업로드할 수 없었어요
+Cover Image	커버 이미지
 Cozy	넓게
 Create	만들기
 Create Category	카테고리 만들기
@@ -558,7 +565,6 @@ Create Events	이벤트 만들기
 Create Expressions	표현 만들기
 Create Group DM	그룹 DM 만들기
 Create Invite	초대 만들기
-Create My Own	직접 만들기
 Create Poll	투표 만들기
 Create Polls	투표 만들기
 Create Private Threads	비공개 스레드 만들기
@@ -672,6 +678,7 @@ Don't show role colors	역할 색상 표시 안 함
 Done	완료
 Download	다운로드
 Drop a file here, or browse	파일을 여기에 놓거나 찾아보세요
+Duplicate Channel	채널 복제
 Duration	기간
 Dutch	네덜란드어
 EDIT ROLE — %	역할 수정 — %
@@ -685,6 +692,7 @@ Echo Cancellation	에코 제거
 Edit	수정
 Edit Category	카테고리 수정
 Edit Channel	채널 수정
+Edit Event	이벤트 수정
 Edit Friend Nickname	친구 별명 수정
 Edit Message	메시지 수정
 Edit Per-server Profile	서버별 프로필 수정
@@ -789,6 +797,8 @@ For 24 Hours	24시간 동안
 For 3 Days	3일 동안
 For 3 Hours	3시간 동안
 For 8 Hours	8시간 동안
+For a club or community	클럽이나 커뮤니티를 위한 서버
+For me and my friends	나와 친구들을 위한 서버
 Forever	영원히
 Forgot your password?	비밀번호를 잊으셨나요?
 Forum	포럼
@@ -812,7 +822,6 @@ Friends come online	친구가 온라인 상태가 될 때
 Friends of friends	친구의 친구
 From User	보낸 사람
 GIFs	GIF
-GIFs can't be sent encrypted yet.	GIF는 아직 암호화해서 보낼 수 없어요.
 Gallery view	갤러리 보기
 General	일반
 General Category Permissions	일반 카테고리 권한
@@ -833,6 +842,7 @@ Go to Server	서버로 이동
 Good to see you, %.	%님, 만나서 반가워요.
 Got It	알겠어요
 Grant temporary membership	임시 멤버십 부여
+Great for larger community audio events.	대규모 커뮤니티 음성 이벤트에 좋아요.
 Greek	그리스어
 Hang out together with voice, video, and screen share	음성, 영상, 화면 공유로 함께 어울려요
 Hang out with voice, video, screenshare, and Go Live.	음성, 영상, 화면 공유, Go Live로 함께 어울려요.
@@ -865,6 +875,7 @@ How did your server get started? Why should people join?	서버는 어떻게 시
 Hungarian	헝가리어
 I acknowledge that by transferring ownership of this server to %, it officially belongs to them.	이 서버의 소유권을 %님에게 이전하면 공식적으로 해당 사용자의 소유가 된다는 것을 확인합니다.
 I agree and understand	동의하고 이해했어요
+I have read and agree to the rules	규칙을 읽었으며 동의합니다
 I'm new here, say hi!	처음 왔어요, 인사해 주세요!
 I'm sure, use a backup code	확실해요, 백업 코드를 쓸게요
 IMAGE	이미지
@@ -888,6 +899,7 @@ Ignored message	무시한 메시지
 Image saved.	이미지를 저장했어요.
 Important updates for people in and out of the server	서버 안팎의 사람들을 위한 중요한 소식
 In Channel	채널에 있음
+In order to help you with your setup, is your new server for just a few friends or a larger community?	설정을 도와드리기 위해 여쭤볼게요. 새 서버는 친구 몇 명을 위한 건가요, 아니면 더 큰 커뮤니티를 위한 건가요?
 Inactive Channel	비활성 채널
 Inactive Timeout	비활성 시간 제한
 Inbox	수신함
@@ -1175,6 +1187,7 @@ Not encrypted	암호화 안 됨
 Not encrypted: Discord can read this message	암호화 안 됨: Discord가 이 메시지를 읽을 수 있어요
 Not end-to-end encrypted	종단간 암호화 안 됨
 Not me, start over	제가 아니에요, 처음부터 다시
+Not sure? You can 	잘 모르겠나요? 지금은 
 Note	메모
 Note (only visible to you)	메모 (나만 볼 수 있음)
 Note: Members with the "Mention @everyone, @here, and All Roles" permission will always be able to ping this role.	참고: "@everyone, @here, 모든 역할 멘션하기" 권한이 있는 멤버는 언제나 이 역할을 핑할 수 있어요.
@@ -1201,6 +1214,7 @@ One rule per line, for example: Be respectful	한 줄에 규칙 하나씩. 예: 
 Ongoing call	진행 중인 통화
 Online	온라인
 Only @mentions	@멘션만
+Only selected members and roles will be able to view this channel.	선택한 멤버와 역할만 이 채널을 볼 수 있어요.
 Only servers and channels you have webhook permissions in are shown.	웹후크 권한이 있는 서버와 채널만 표시돼요.
 Only you can see the nickname you give %.	%님에게 지정한 별명은 나만 볼 수 있어요.
 Only you can see this · 	나만 볼 수 있음 ·
@@ -1314,6 +1328,7 @@ ROLES — %	역할 — %
 ROLES/MEMBERS	역할/멤버
 RTC Connecting	RTC 연결 중
 Read Message History	메시지 기록 보기
+Read and agree to the server rules	서버 규칙을 읽고 동의하기
 Reason	사유
 Reason for Ban	차단 사유
 Reason for Kick	추방 사유
@@ -1374,6 +1389,7 @@ Reset Friend Nickname	친구 별명 초기화
 Reset Voice Settings	음성 설정 초기화
 Resolving Invite	초대 확인 중
 Responses	응답
+Restart to Update	재시작하여 업데이트
 Retry	다시 시도
 Retry Now	지금 다시 시도
 Return to call	통화로 돌아가기
@@ -1399,6 +1415,7 @@ SELECT A CHANNEL	채널 선택
 SELECT A SERVER	서버 선택
 SERVER NAME	서버 이름
 SOUNDBOARD VOLUME	사운드보드 음량
+START FROM A TEMPLATE	템플릿으로 시작하기
 STATIC EMOJI — % SLOTS AVAILABLE	일반 이모지 — %개 슬롯 사용 가능
 Safety Notifications Channel	안전 알림 채널
 Safety Number	안전 번호
@@ -1408,6 +1425,7 @@ Same as Device Theme	기기 테마와 같게
 Saturation	채도
 Save	저장
 Save Changes	변경 사항 저장
+Save Event	이벤트 저장
 Save Image	이미지 저장
 Saving...	저장하는 중...
 Saving…	저장하는 중…
@@ -1516,6 +1534,7 @@ Some older devices may not be shown here	일부 오래된 기기는 여기에 �
 Someone	누군가
 Something went wrong	문제가 발생했어요
 Something went wrong (HTTP %).	문제가 발생했어요 (HTTP %).
+Something went wrong. Please try again.	문제가 발생했어요. 다시 시도해 주세요.
 Something went wrong. Try again.	문제가 발생했어요. 다시 시도하세요.
 Somewhere Else	다른 곳
 Sorry, we couldn't load the first message in this thread	죄송해요, 이 스레드의 첫 메시지를 불러올 수 없었어요
@@ -1538,6 +1557,7 @@ Speak Message	메시지 읽어 주기
 Spoiler Attachment	스포일러 첨부 파일
 Spoiler Content	스포일러 내용
 Stage	스테이지
+Stage Channel	스테이지 채널
 Start Date	시작 날짜
 Start Event	이벤트 시작
 Start Minimized	최소화 상태로 시작
@@ -1546,7 +1566,6 @@ Starting in %m	%분 후 시작
 State	상태
 Stickers	스티커
 Stickers can be used by anyone in this server. Upload a PNG, APNG, GIF or Lottie JSON file of up to 512 KB; it shows at 320x320.	스티커는 이 서버의 누구나 사용할 수 있어요. 최대 512KB의 PNG, APNG, GIF 또는 Lottie JSON 파일을 업로드하세요. 320x320으로 표시돼요.
-Stickers can't be sent encrypted yet.	스티커는 아직 암호화해서 보낼 수 없어요.
 Stickers must be PNG, APNG, GIF or Lottie JSON files.	스티커는 PNG, APNG, GIF 또는 Lottie JSON 파일이어야 해요.
 Stop Recording	녹화 중지
 Stop Streaming	방송 중지
@@ -1559,6 +1578,8 @@ Streamer Mode	스트리머 모드
 Streamer Mode Enabled	스트리머 모드 활성화됨
 Streamer Mode hides your personal info so others watching your stream can't see it.	스트리머 모드는 방송을 보는 사람들이 내 개인 정보를 볼 수 없도록 숨겨요.
 Streamer Mode is enabled. Usernames have been truncated.	스트리머 모드가 활성화되어 있어요. 사용자명이 줄여서 표시돼요.
+Submit	제출
+Submitting	제출 중
 Success! Your friend request to % was sent.	성공! %님에게 친구 요청을 보냈어요.
 Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday	일요일|월요일|화요일|수요일|목요일|금요일|토요일
 Sun|Mon|Tue|Wed|Thu|Fri|Sat	일|월|화|수|목|금|토
@@ -1586,6 +1607,7 @@ Tags	태그
 Tags (pick at least one)	태그 (하나 이상 선택)
 Tags let members organize their posts. Members pick them when they post; moderated tags only moderators can apply.	태그로 멤버가 게시물을 정리할 수 있어요. 멤버가 게시할 때 고르며, 관리 태그는 관리자만 적용할 수 있어요.
 Tap the link in your email to sign in instantly — no password needed.	이메일의 링크를 탭하면 바로 로그인돼요 — 비밀번호가 필요 없어요.
+Tell Us More About Your Server	서버에 대해 더 알려주세요
 Tell people a little more about your event. Markdown, new lines, and links are supported.	이벤트에 대해 조금 더 알려 주세요. 마크다운, 줄바꿈, 링크를 지원해요.
 Tell the world a bit about this server.	이 서버를 세상에 조금 소개해 주세요.
 Template Description	템플릿 설명
@@ -1649,8 +1671,11 @@ This is the start of the #% channel.	#% 채널의 시작이에요.
 This is where Discord sends updates for moderators and admins of Community servers.	Discord가 커뮤니티 서버의 관리자와 운영자에게 업데이트를 보내는 곳이에요.
 This is where you'll show members your server rules or guidelines.	멤버에게 서버 규칙이나 가이드라인을 보여 줄 곳이에요.
 This link is taking you to the following website	이 링크는 다음 웹사이트로 연결돼요
+This message is end-to-end encrypted. Forwarding it here sends it unencrypted, so Discord can read it.	이 메시지는 종단간 암호화되어 있어요. 여기로 전달하면 암호화되지 않은 상태로 보내지므로 Discord가 읽을 수 있어요.
+This message is end-to-end encrypted. Forwarding it here sends it unencrypted, so the server's host can read it.	이 메시지는 종단간 암호화되어 있어요. 여기로 전달하면 암호화되지 않은 상태로 보내지므로 서버 호스트가 읽을 수 있어요.
 This option is not available for Community Servers.	커뮤니티 서버에서는 사용할 수 없는 옵션이에요.
 This role is managed by an integration and can't be edited here.	이 역할은 연동으로 관리되어 여기서 수정할 수 없어요.
+This server asks a few questions before you can join. Answer them on discord.com.	이 서버는 참가하기 전에 몇 가지 질문에 답해야 해요. discord.com에서 답해 주세요.
 This server has been removed from Server Discovery because it no longer passes all the requirements. Check Server Settings for more details.	이 서버는 더 이상 모든 요건을 충족하지 않아 서버 찾기에서 제외되었어요. 자세한 내용은 서버 설정을 확인하세요.
 This server has failed Discovery activity requirements for 1 week. If this server fails for 4 weeks in a row, it will be automatically removed from Discovery.	이 서버는 1주 동안 서버 찾기 활동 요건을 충족하지 못했어요. 4주 연속 충족하지 못하면 서버 찾기에서 자동으로 제외돼요.
 This server has failed Discovery activity requirements for 3 weeks in a row. If this server fails for 1 more week, it will be removed from Discovery.	이 서버는 3주 연속 서버 찾기 활동 요건을 충족하지 못했어요. 1주 더 충족하지 못하면 서버 찾기에서 제외돼요.
@@ -1748,7 +1773,9 @@ Update Role	역할 업데이트
 Update Server	서버 업데이트
 Update Webhook	웹후크 업데이트
 Update your password	비밀번호 업데이트
+Updating…	업데이트 중…
 Upload	업로드
+Upload Cover Image	커버 이미지 업로드
 Upload Emoji	이모지 업로드
 Upload Sound	사운드 업로드
 Upload Sticker	스티커 업로드
@@ -1821,6 +1848,7 @@ Wave to say hi!	손을 흔들어 인사하세요!
 We appreciate the enthusiasm, but...	열정은 고맙지만...
 We couldn't load the profile for this server.	이 서버의 프로필을 불러올 수 없었어요.
 We recommend an image of at least 512x512.	512x512 이상의 이미지를 권장해요.
+We recommend an image of at least 800px wide and 320px tall.	너비 800px, 높이 320px 이상의 이미지를 권장해요.
 We sent instructions to change your password to %, please check both your inbox and spam folder.	%(으)로 비밀번호 변경 안내를 보냈어요. 받은편지함과 스팸함을 모두 확인하세요.
 We're so excited to see you again!	다시 만나서 정말 반가워요!
 We've sent a message to %.  Please enter the code you received.	%(으)로 메시지를 보냈어요. 받은 코드를 입력하세요.
@@ -1879,6 +1907,7 @@ You haven't connected any accounts yet.	아직 연결한 계정이 없어요.
 You haven't ignored anyone.	무시한 사람이 없어요.
 You missed a call from %1 that lasted %2.	%1님의 %2 동안 진행된 부재중 통화가 있어요.
 You must be at least 18 years old to view this channel.	이 채널을 보려면 18세 이상이어야 해요.
+You must complete a few more steps before you can talk.	대화하려면 몇 가지 단계를 더 완료해야 해요.
 You must leave a server first to join.	참가하려면 먼저 서버를 하나 나가야 해요.
 You need to add one or more rules.	규칙을 하나 이상 추가해야 해요.
 You received an invite, but...	초대를 받았지만...
@@ -1956,6 +1985,7 @@ on %	앨범: %
 pinned messages	고정된 메시지
 remove embeds	임베드 제거
 save	저장
+skip this question	이 질문을 건너뛰어도
 someone	누군가
 specific date	특정 날짜
 this server	이 서버

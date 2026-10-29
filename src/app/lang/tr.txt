@@ -1,4 +1,5 @@
 # Turkish (tr)
+ for now.	.
  · required	 · zorunlu
 % (requested to speak)	% (konuşma isteği gönderdi)
 % (required)	% (zorunlu)
@@ -182,6 +183,7 @@
 @everyone · applies to all server members	@everyone · tüm sunucu üyelerine uygulanır
 A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button.	Ctrl, Alt, Shift veya Cmd ile bir tuş, tek başına bir değiştirici tuş ya da orta veya yan fare tuşu.
 A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button. Works in every app.	Ctrl, Alt, Shift veya Cmd ile bir tuş, tek başına bir değiştirici tuş ya da orta veya yan fare tuşu. Her uygulamada çalışır.
+A new channel will be created with the same permissions, user limit and bitrate as 	Şununla aynı izinlere, kullanıcı sınırına ve bit hızına sahip yeni bir kanal oluşturulacak: 
 A role needs a name.	Rolün bir adı olmalı.
 A webhook needs a name.	Webhook'un bir adı olmalı.
 A wild % appeared.	Vahşi bir % ortaya çıktı.
@@ -432,6 +434,7 @@ Category Name	Kategori Adı
 Category deleted	Kategori silindi
 Change %	Değiştir: %
 Change Avatar	Avatarı Değiştir
+Change Image	Görseli Değiştir
 Change Nickname	Takma Adı Değiştir
 Change Password	Şifreyi Değiştir
 Change Server Icon	Sunucu Simgesini Değiştir
@@ -479,6 +482,7 @@ Community servers have more tools to help you moderate and grow your server.	Top
 Compact	Kompakt
 Compare	Karşılaştır
 Compare these with %, in person or on a call. If they match, no one can read this DM in between.	Bunları % ile yüz yüze veya bir aramada karşılaştır. Eşleşirlerse aradaki hiç kimse bu DM'yi okuyamaz.
+Complete	Tamamla
 Configure system event messages sent to your server.	Sunucuna gönderilen sistem etkinliği mesajlarını yapılandır.
 Confirm	Onayla
 Confirm Request	İsteği Onayla
@@ -522,6 +526,7 @@ Couldn't create an invite link.	Davet bağlantısı oluşturulamadı.
 Couldn't create an invite.	Davet oluşturulamadı.
 Couldn't delete the channel: %	Kanal silinemedi: %
 Couldn't encrypt the message.	Mesaj şifrelenemedi.
+Couldn't get that GIF.	O GIF alınamadı.
 Couldn't join %: %	Katılınamadı (%1): %2
 Couldn't load onboarding.	Katılım ekranı yüklenemedi.
 Couldn't load the AutoMod rules.	AutoMod kuralları yüklenemedi.
@@ -532,6 +537,7 @@ Couldn't load the invites.	Davetler yüklenemedi.
 Couldn't load the members.	Üyeler yüklenemedi.
 Couldn't load the role's members.	Rolün üyeleri yüklenemedi.
 Couldn't load the server rules.	Sunucu kuralları yüklenemedi.
+Couldn't load the server's rules.	Sunucunun kuralları yüklenemedi.
 Couldn't load the server's tag.	Sunucu etiketi yüklenemedi.
 Couldn't load the template.	Şablon yüklenemedi.
 Couldn't load the webhooks.	Webhook'lar yüklenemedi.
@@ -547,6 +553,7 @@ Couldn't save the image.	Görsel kaydedilemedi.
 Couldn't save the token.	Token kaydedilemedi.
 Couldn't turn on encryption.	Şifreleme açılamadı.
 Couldn't upload emoji	Emoji yüklenemedi
+Cover Image	Kapak Görseli
 Cozy	Rahat
 Create	Oluştur
 Create Category	Kategori Oluştur
@@ -558,7 +565,6 @@ Create Events	Etkinlik Oluştur
 Create Expressions	İfade Oluştur
 Create Group DM	Grup DM Oluştur
 Create Invite	Davet Oluştur
-Create My Own	Kendim Oluşturayım
 Create Poll	Anket Oluştur
 Create Polls	Anket Oluştur
 Create Private Threads	Gizli Alt Başlık Oluştur
@@ -672,6 +678,7 @@ Don't show role colors	Rol renklerini gösterme
 Done	Bitti
 Download	İndir
 Drop a file here, or browse	Bir dosyayı buraya bırak veya göz at
+Duplicate Channel	Kanalı Çoğalt
 Duration	Süre
 Dutch	Felemenkçe
 EDIT ROLE — %	ROLÜ DÜZENLE — %
@@ -685,6 +692,7 @@ Echo Cancellation	Yankı Engelleme
 Edit	Düzenle
 Edit Category	Kategoriyi Düzenle
 Edit Channel	Kanalı Düzenle
+Edit Event	Etkinliği Düzenle
 Edit Friend Nickname	Arkadaş Takma Adını Düzenle
 Edit Message	Mesajı Düzenle
 Edit Per-server Profile	Sunucu Profilini Düzenle
@@ -789,6 +797,8 @@ For 24 Hours	24 Saatliğine
 For 3 Days	3 Günlüğüne
 For 3 Hours	3 Saatliğine
 For 8 Hours	8 Saatliğine
+For a club or community	Bir kulüp veya topluluk için
+For me and my friends	Ben ve arkadaşlarım için
 Forever	Süresiz
 Forgot your password?	Şifreni mi unuttun?
 Forum	Forum
@@ -812,7 +822,6 @@ Friends come online	Arkadaşlar çevrimiçi olduğunda
 Friends of friends	Arkadaşların arkadaşları
 From User	Kullanıcıdan
 GIFs	GIF'ler
-GIFs can't be sent encrypted yet.	GIF'ler henüz şifreli gönderilemiyor.
 Gallery view	Galeri görünümü
 General	Genel
 General Category Permissions	Genel Kategori İzinleri
@@ -833,6 +842,7 @@ Go to Server	Sunucuya Git
 Good to see you, %.	Seni görmek güzel, %.
 Got It	Anladım
 Grant temporary membership	Geçici üyelik ver
+Great for larger community audio events.	Büyük topluluk ses etkinlikleri için harika.
 Greek	Yunanca
 Hang out together with voice, video, and screen share	Ses, görüntü ve ekran paylaşımıyla birlikte takıl
 Hang out with voice, video, screenshare, and Go Live.	Ses, görüntü, ekran paylaşımı ve Yayına Geç ile takıl.
@@ -865,6 +875,7 @@ How did your server get started? Why should people join?	Sunucun nasıl başlad�
 Hungarian	Macarca
 I acknowledge that by transferring ownership of this server to %, it officially belongs to them.	Bu sunucunun sahipliğini % kişisine devrederek sunucunun resmi olarak ona ait olacağını kabul ediyorum.
 I agree and understand	Anladım ve kabul ediyorum
+I have read and agree to the rules	Kuralları okudum ve kabul ediyorum
 I'm new here, say hi!	Burada yeniyim, merhaba de!
 I'm sure, use a backup code	Eminim, yedek kod kullan
 IMAGE	GÖRSEL
@@ -888,6 +899,7 @@ Ignored message	Yok sayılan mesaj
 Image saved.	Görsel kaydedildi.
 Important updates for people in and out of the server	Sunucunun içindeki ve dışındaki kişiler için önemli güncellemeler
 In Channel	Kanalda
+In order to help you with your setup, is your new server for just a few friends or a larger community?	Kurulumda sana yardımcı olabilmemiz için: Yeni sunucun birkaç arkadaş için mi, yoksa daha büyük bir topluluk için mi?
 Inactive Channel	Hareketsiz Kanal
 Inactive Timeout	Hareketsizlik Zaman Aşımı
 Inbox	Gelen Kutusu
@@ -1175,6 +1187,7 @@ Not encrypted	Şifreli değil
 Not encrypted: Discord can read this message	Şifreli değil: Discord bu mesajı okuyabilir
 Not end-to-end encrypted	Uçtan uca şifreli değil
 Not me, start over	Ben değilim, baştan başla
+Not sure? You can 	Emin değil misin? Bu soruyu şimdilik 
 Note	Not
 Note (only visible to you)	Not (yalnızca sen görebilirsin)
 Note: Members with the "Mention @everyone, @here, and All Roles" permission will always be able to ping this role.	Not: "@everyone, @here ve Tüm Rollerden Bahset" iznine sahip üyeler bu rolü her zaman etiketleyebilir.
@@ -1201,6 +1214,7 @@ One rule per line, for example: Be respectful	Her satıra bir kural, örneğin: 
 Ongoing call	Devam eden arama
 Online	Çevrimiçi
 Only @mentions	Yalnızca @bahsetmeler
+Only selected members and roles will be able to view this channel.	Bu kanalı yalnızca seçilen üyeler ve roller görebilecek.
 Only servers and channels you have webhook permissions in are shown.	Yalnızca webhook iznine sahip olduğun sunucular ve kanallar gösterilir.
 Only you can see the nickname you give %.	% için verdiğin takma adı yalnızca sen görebilirsin.
 Only you can see this · 	Bunu yalnızca sen görebilirsin ·
@@ -1314,6 +1328,7 @@ ROLES — %	ROLLER — %
 ROLES/MEMBERS	ROLLER/ÜYELER
 RTC Connecting	RTC Bağlanıyor
 Read Message History	Mesaj Geçmişini Oku
+Read and agree to the server rules	Sunucu kurallarını oku ve kabul et
 Reason	Sebep
 Reason for Ban	Yasaklama Sebebi
 Reason for Kick	Atma Sebebi
@@ -1374,6 +1389,7 @@ Reset Friend Nickname	Arkadaş Takma Adını Sıfırla
 Reset Voice Settings	Ses Ayarlarını Sıfırla
 Resolving Invite	Davet Çözümleniyor
 Responses	Yanıtlar
+Restart to Update	Güncellemek İçin Yeniden Başlat
 Retry	Tekrar Dene
 Retry Now	Şimdi Tekrar Dene
 Return to call	Aramaya dön
@@ -1399,6 +1415,7 @@ SELECT A CHANNEL	BİR KANAL SEÇ
 SELECT A SERVER	BİR SUNUCU SEÇ
 SERVER NAME	SUNUCU ADI
 SOUNDBOARD VOLUME	SES PANELİ SES SEVİYESİ
+START FROM A TEMPLATE	BİR ŞABLONLA BAŞLA
 STATIC EMOJI — % SLOTS AVAILABLE	SABİT EMOJİ — % BOŞ YER
 Safety Notifications Channel	Güvenlik Bildirimleri Kanalı
 Safety Number	Güvenlik Numarası
@@ -1408,6 +1425,7 @@ Same as Device Theme	Cihaz Temasıyla Aynı
 Saturation	Doygunluk
 Save	Kaydet
 Save Changes	Değişiklikleri Kaydet
+Save Event	Etkinliği Kaydet
 Save Image	Görseli Kaydet
 Saving...	Kaydediliyor...
 Saving…	Kaydediliyor…
@@ -1516,6 +1534,7 @@ Some older devices may not be shown here	Bazı eski cihazlar burada gösterilmey
 Someone	Biri
 Something went wrong	Bir şeyler ters gitti
 Something went wrong (HTTP %).	Bir şeyler ters gitti (HTTP %).
+Something went wrong. Please try again.	Bir şeyler ters gitti. Lütfen tekrar dene.
 Something went wrong. Try again.	Bir şeyler ters gitti. Tekrar dene.
 Somewhere Else	Başka Bir Yer
 Sorry, we couldn't load the first message in this thread	Üzgünüz, bu alt başlıktaki ilk mesajı yükleyemedik
@@ -1538,6 +1557,7 @@ Speak Message	Mesajı Seslendir
 Spoiler Attachment	Spoiler Eki
 Spoiler Content	Spoiler İçerik
 Stage	Sahne
+Stage Channel	Sahne Kanalı
 Start Date	Başlangıç Tarihi
 Start Event	Etkinliği Başlat
 Start Minimized	Küçültülmüş Başlat
@@ -1546,7 +1566,6 @@ Starting in %m	%dk içinde başlıyor
 State	Durum
 Stickers	Çıkartmalar
 Stickers can be used by anyone in this server. Upload a PNG, APNG, GIF or Lottie JSON file of up to 512 KB; it shows at 320x320.	Çıkartmaları bu sunucudaki herkes kullanabilir. En fazla 512 KB boyutunda bir PNG, APNG, GIF veya Lottie JSON dosyası yükle; 320x320 olarak gösterilir.
-Stickers can't be sent encrypted yet.	Çıkartmalar henüz şifreli gönderilemiyor.
 Stickers must be PNG, APNG, GIF or Lottie JSON files.	Çıkartmalar PNG, APNG, GIF veya Lottie JSON dosyası olmalı.
 Stop Recording	Kaydı Durdur
 Stop Streaming	Yayını Durdur
@@ -1559,6 +1578,8 @@ Streamer Mode	Yayıncı Modu
 Streamer Mode Enabled	Yayıncı Modu Etkin
 Streamer Mode hides your personal info so others watching your stream can't see it.	Yayıncı Modu kişisel bilgilerini gizler, böylece yayınını izleyenler onları göremez.
 Streamer Mode is enabled. Usernames have been truncated.	Yayıncı Modu etkin. Kullanıcı adları kısaltıldı.
+Submit	Gönder
+Submitting	Gönderiliyor
 Success! Your friend request to % was sent.	Başarılı! % kullanıcısına arkadaşlık isteğin gönderildi.
 Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday	Pazar|Pazartesi|Salı|Çarşamba|Perşembe|Cuma|Cumartesi
 Sun|Mon|Tue|Wed|Thu|Fri|Sat	Paz|Pzt|Sal|Çar|Per|Cum|Cmt
@@ -1586,6 +1607,7 @@ Tags	Etiketler
 Tags (pick at least one)	Etiketler (en az birini seç)
 Tags let members organize their posts. Members pick them when they post; moderated tags only moderators can apply.	Etiketler üyelerin gönderilerini düzenlemesini sağlar. Üyeler gönderi paylaşırken etiket seçer; moderasyonlu etiketleri yalnızca moderatörler uygulayabilir.
 Tap the link in your email to sign in instantly — no password needed.	Anında giriş yapmak için e-postandaki bağlantıya dokun — şifre gerekmez.
+Tell Us More About Your Server	Bize Sunucundan Bahset
 Tell people a little more about your event. Markdown, new lines, and links are supported.	İnsanlara etkinliğin hakkında biraz daha bilgi ver. Markdown, yeni satırlar ve bağlantılar desteklenir.
 Tell the world a bit about this server.	Dünyaya bu sunucu hakkında biraz bilgi ver.
 Template Description	Şablon Açıklaması
@@ -1649,8 +1671,11 @@ This is the start of the #% channel.	#% kanalının başlangıcı.
 This is where Discord sends updates for moderators and admins of Community servers.	Discord, Topluluk sunucularının moderatörleri ve yöneticileri için güncellemeleri buraya gönderir.
 This is where you'll show members your server rules or guidelines.	Üyelere sunucu kurallarını veya yönergelerini burada göstereceksin.
 This link is taking you to the following website	Bu bağlantı seni şu web sitesine götürüyor
+This message is end-to-end encrypted. Forwarding it here sends it unencrypted, so Discord can read it.	Bu mesaj uçtan uca şifreli. Buraya iletmek onu şifresiz gönderir, bu yüzden Discord okuyabilir.
+This message is end-to-end encrypted. Forwarding it here sends it unencrypted, so the server's host can read it.	Bu mesaj uçtan uca şifreli. Buraya iletmek onu şifresiz gönderir, bu yüzden sunucunun barındırıcısı okuyabilir.
 This option is not available for Community Servers.	Bu seçenek Topluluk Sunucuları için kullanılamaz.
 This role is managed by an integration and can't be edited here.	Bu rol bir entegrasyon tarafından yönetiliyor ve burada düzenlenemez.
+This server asks a few questions before you can join. Answer them on discord.com.	Bu sunucu katılmadan önce birkaç soru soruyor. Bunları discord.com üzerinden yanıtla.
 This server has been removed from Server Discovery because it no longer passes all the requirements. Check Server Settings for more details.	Bu sunucu artık tüm gereksinimleri karşılamadığı için Sunucu Keşfi'nden kaldırıldı. Daha fazla ayrıntı için Sunucu Ayarları'na bak.
 This server has failed Discovery activity requirements for 1 week. If this server fails for 4 weeks in a row, it will be automatically removed from Discovery.	Bu sunucu 1 haftadır Keşif etkinlik gereksinimlerini karşılamıyor. 4 hafta üst üste karşılamazsa Keşif'ten otomatik olarak kaldırılacak.
 This server has failed Discovery activity requirements for 3 weeks in a row. If this server fails for 1 more week, it will be removed from Discovery.	Bu sunucu 3 haftadır üst üste Keşif etkinlik gereksinimlerini karşılamıyor. 1 hafta daha karşılamazsa Keşif'ten kaldırılacak.
@@ -1748,7 +1773,9 @@ Update Role	Rolü Güncelle
 Update Server	Sunucuyu Güncelle
 Update Webhook	Webhook'u Güncelle
 Update your password	Şifreni güncelle
+Updating…	Güncelleniyor…
 Upload	Yükle
+Upload Cover Image	Kapak Görseli Yükle
 Upload Emoji	Emoji Yükle
 Upload Sound	Ses Yükle
 Upload Sticker	Çıkartma Yükle
@@ -1821,6 +1848,7 @@ Wave to say hi!	Merhaba demek için el salla!
 We appreciate the enthusiasm, but...	Hevesini takdir ediyoruz ama...
 We couldn't load the profile for this server.	Bu sunucunun profilini yükleyemedik.
 We recommend an image of at least 512x512.	En az 512x512 boyutunda bir görsel öneriyoruz.
+We recommend an image of at least 800px wide and 320px tall.	En az 800 px genişliğinde ve 320 px yüksekliğinde bir görsel öneriyoruz.
 We sent instructions to change your password to %, please check both your inbox and spam folder.	Şifreni değiştirme talimatlarını % adresine gönderdik, lütfen hem gelen kutunu hem de spam klasörünü kontrol et.
 We're so excited to see you again!	Seni tekrar gördüğümüz için çok mutluyuz!
 We've sent a message to %.  Please enter the code you received.	% numarasına bir mesaj gönderdik.  Lütfen aldığın kodu gir.
@@ -1879,6 +1907,7 @@ You haven't connected any accounts yet.	Henüz hiçbir hesap bağlamadın.
 You haven't ignored anyone.	Kimseyi yok saymadın.
 You missed a call from %1 that lasted %2.	%1 kişisinden gelen ve %2 süren bir aramayı kaçırdın.
 You must be at least 18 years old to view this channel.	Bu kanalı görüntülemek için en az 18 yaşında olmalısın.
+You must complete a few more steps before you can talk.	Konuşabilmek için birkaç adımı daha tamamlaman gerekiyor.
 You must leave a server first to join.	Katılmak için önce bir sunucudan ayrılmalısın.
 You need to add one or more rules.	Bir veya daha fazla kural eklemelisin.
 You received an invite, but...	Bir davet aldın ama...
@@ -1956,6 +1985,7 @@ on %	% tarihinde
 pinned messages	sabitlenmiş mesajlar
 remove embeds	gömülü içerikleri kaldır
 save	kaydet
+skip this question	atlayabilirsin
 someone	biri
 specific date	belirli bir tarih
 this server	bu sunucu

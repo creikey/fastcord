@@ -1,4 +1,5 @@
 # Chinese, Simplified (zh-CN)
+ for now.	。
  · required	 · 必填
 % (requested to speak)	%（申请发言）
 % (required)	%（必填）
@@ -182,6 +183,7 @@
 @everyone · applies to all server members	@everyone · 适用于所有服务器成员
 A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button.	带 Ctrl、Alt、Shift 或 Cmd 的按键、单独的修饰键，或鼠标中键、侧键。
 A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button. Works in every app.	带 Ctrl、Alt、Shift 或 Cmd 的按键、单独的修饰键，或鼠标中键、侧键。在所有应用中有效。
+A new channel will be created with the same permissions, user limit and bitrate as 	将创建一个新频道，其权限、人数上限和比特率与此频道相同：
 A role needs a name.	身份组需要名称。
 A webhook needs a name.	Webhook 需要名称。
 A wild % appeared.	野生的 % 出现了。
@@ -432,6 +434,7 @@ Category Name	类别名称
 Category deleted	类别已删除
 Change %	更改%
 Change Avatar	更改头像
+Change Image	更改图片
 Change Nickname	更改昵称
 Change Password	更改密码
 Change Server Icon	更改服务器图标
@@ -479,6 +482,7 @@ Community servers have more tools to help you moderate and grow your server.	社
 Compact	紧凑
 Compare	比对
 Compare these with %, in person or on a call. If they match, no one can read this DM in between.	与 % 当面或通话比对这些数字。如果一致，就没有人能在中途读取此私信。
+Complete	完成
 Configure system event messages sent to your server.	配置发送到你服务器的系统事件消息。
 Confirm	确认
 Confirm Request	确认请求
@@ -522,6 +526,7 @@ Couldn't create an invite link.	无法创建邀请链接。
 Couldn't create an invite.	无法创建邀请。
 Couldn't delete the channel: %	无法删除频道：%
 Couldn't encrypt the message.	无法加密消息。
+Couldn't get that GIF.	无法获取该 GIF。
 Couldn't join %: %	无法加入 %：%
 Couldn't load onboarding.	无法加载新人引导。
 Couldn't load the AutoMod rules.	无法加载 AutoMod 规则。
@@ -532,6 +537,7 @@ Couldn't load the invites.	无法加载邀请。
 Couldn't load the members.	无法加载成员。
 Couldn't load the role's members.	无法加载该身份组的成员。
 Couldn't load the server rules.	无法加载服务器规则。
+Couldn't load the server's rules.	无法加载服务器规则。
 Couldn't load the server's tag.	无法加载服务器标签。
 Couldn't load the template.	无法加载模板。
 Couldn't load the webhooks.	无法加载 Webhook。
@@ -547,6 +553,7 @@ Couldn't save the image.	无法保存图片。
 Couldn't save the token.	无法保存令牌。
 Couldn't turn on encryption.	无法开启加密。
 Couldn't upload emoji	无法上传表情符号
+Cover Image	封面图片
 Cozy	舒适
 Create	创建
 Create Category	创建类别
@@ -558,7 +565,6 @@ Create Events	创建活动
 Create Expressions	创建表情
 Create Group DM	创建群组私信
 Create Invite	创建邀请
-Create My Own	亲自创建
 Create Poll	创建投票
 Create Polls	创建投票
 Create Private Threads	创建私密子区
@@ -672,6 +678,7 @@ Don't show role colors	不显示身份组颜色
 Done	完成
 Download	下载
 Drop a file here, or browse	将文件拖放到这里，或浏览
+Duplicate Channel	复制频道
 Duration	时长
 Dutch	荷兰语
 EDIT ROLE — %	编辑身份组 — %
@@ -685,6 +692,7 @@ Echo Cancellation	回声消除
 Edit	编辑
 Edit Category	编辑类别
 Edit Channel	编辑频道
+Edit Event	编辑活动
 Edit Friend Nickname	编辑好友昵称
 Edit Message	编辑消息
 Edit Per-server Profile	编辑服务器个人资料
@@ -789,6 +797,8 @@ For 24 Hours	24 小时
 For 3 Days	3 天
 For 3 Hours	3 小时
 For 8 Hours	8 小时
+For a club or community	给俱乐部或社区
+For me and my friends	给我和我的朋友
 Forever	永久
 Forgot your password?	忘记密码了？
 Forum	论坛
@@ -812,7 +822,6 @@ Friends come online	好友上线
 Friends of friends	好友的好友
 From User	来自用户
 GIFs	GIF
-GIFs can't be sent encrypted yet.	GIF 暂时无法加密发送。
 Gallery view	画廊视图
 General	常规
 General Category Permissions	常规类别权限
@@ -833,6 +842,7 @@ Go to Server	前往服务器
 Good to see you, %.	很高兴见到你，%。
 Got It	知道了
 Grant temporary membership	授予临时成员资格
+Great for larger community audio events.	非常适合大型社区的语音活动。
 Greek	希腊语
 Hang out together with voice, video, and screen share	一起语音、视频和屏幕共享
 Hang out with voice, video, screenshare, and Go Live.	用语音、视频、屏幕共享和直播一起玩。
@@ -865,6 +875,7 @@ How did your server get started? Why should people join?	你的服务器是怎�
 Hungarian	匈牙利语
 I acknowledge that by transferring ownership of this server to %, it officially belongs to them.	我知道将此服务器的所有权转让给 % 后，它将正式归对方所有。
 I agree and understand	我同意并理解
+I have read and agree to the rules	我已阅读并同意规则
 I'm new here, say hi!	我是新人，打个招呼吧！
 I'm sure, use a backup code	我确定，使用备用码
 IMAGE	图片
@@ -888,6 +899,7 @@ Ignored message	已忽略的消息
 Image saved.	图片已保存。
 Important updates for people in and out of the server	面向服务器内外人员的重要更新
 In Channel	在频道中
+In order to help you with your setup, is your new server for just a few friends or a larger community?	为了帮助你完成设置，你的新服务器是给几个朋友用的，还是给更大的社区用的？
 Inactive Channel	闲置频道
 Inactive Timeout	闲置超时
 Inbox	收件箱
@@ -1175,6 +1187,7 @@ Not encrypted	未加密
 Not encrypted: Discord can read this message	未加密：Discord 可以读取此消息
 Not end-to-end encrypted	未端到端加密
 Not me, start over	不是我，重新开始
+Not sure? You can 	不确定？你可以先
 Note	备注
 Note (only visible to you)	备注（仅你可见）
 Note: Members with the "Mention @everyone, @here, and All Roles" permission will always be able to ping this role.	注意：拥有“提及 @everyone、@here 和所有身份组”权限的成员始终可以提及此身份组。
@@ -1201,6 +1214,7 @@ One rule per line, for example: Be respectful	每行一条规则，例如：互�
 Ongoing call	正在进行的通话
 Online	在线
 Only @mentions	仅限 @提及
+Only selected members and roles will be able to view this channel.	只有选定的成员和身份组才能查看此频道。
 Only servers and channels you have webhook permissions in are shown.	仅显示你拥有 Webhook 权限的服务器和频道。
 Only you can see the nickname you give %.	只有你能看到你给 % 设置的昵称。
 Only you can see this · 	仅你可见 ·
@@ -1314,6 +1328,7 @@ ROLES — %	身份组 — %
 ROLES/MEMBERS	身份组/成员
 RTC Connecting	RTC 正在连接
 Read Message History	读取消息记录
+Read and agree to the server rules	阅读并同意服务器规则
 Reason	原因
 Reason for Ban	封禁原因
 Reason for Kick	踢出原因
@@ -1374,6 +1389,7 @@ Reset Friend Nickname	重置好友昵称
 Reset Voice Settings	重置语音设置
 Resolving Invite	正在解析邀请
 Responses	回答
+Restart to Update	重启以更新
 Retry	重试
 Retry Now	立即重试
 Return to call	返回通话
@@ -1399,6 +1415,7 @@ SELECT A CHANNEL	选择频道
 SELECT A SERVER	选择服务器
 SERVER NAME	服务器名称
 SOUNDBOARD VOLUME	音效板音量
+START FROM A TEMPLATE	从模板开始
 STATIC EMOJI — % SLOTS AVAILABLE	静态表情符号 — 剩余 % 个位置
 Safety Notifications Channel	安全通知频道
 Safety Number	安全码
@@ -1408,6 +1425,7 @@ Same as Device Theme	跟随设备主题
 Saturation	饱和度
 Save	保存
 Save Changes	保存更改
+Save Event	保存活动
 Save Image	保存图片
 Saving...	正在保存...
 Saving…	正在保存…
@@ -1516,6 +1534,7 @@ Some older devices may not be shown here	一些较旧的设备可能不会显示
 Someone	某人
 Something went wrong	出了点问题
 Something went wrong (HTTP %).	出了点问题（HTTP %）。
+Something went wrong. Please try again.	出了点问题。请重试。
 Something went wrong. Try again.	出了点问题。请重试。
 Somewhere Else	其他地方
 Sorry, we couldn't load the first message in this thread	抱歉，无法加载此子区的第一条消息
@@ -1538,6 +1557,7 @@ Speak Message	朗读消息
 Spoiler Attachment	剧透附件
 Spoiler Content	剧透内容
 Stage	舞台
+Stage Channel	舞台频道
 Start Date	开始日期
 Start Event	开始活动
 Start Minimized	启动时最小化
@@ -1546,7 +1566,6 @@ Starting in %m	%m 后开始
 State	状态
 Stickers	贴纸
 Stickers can be used by anyone in this server. Upload a PNG, APNG, GIF or Lottie JSON file of up to 512 KB; it shows at 320x320.	此服务器中的任何人都可以使用贴纸。上传不超过 512 KB 的 PNG、APNG、GIF 或 Lottie JSON 文件；显示尺寸为 320x320。
-Stickers can't be sent encrypted yet.	贴纸暂时无法加密发送。
 Stickers must be PNG, APNG, GIF or Lottie JSON files.	贴纸必须是 PNG、APNG、GIF 或 Lottie JSON 文件。
 Stop Recording	停止录制
 Stop Streaming	停止直播
@@ -1559,6 +1578,8 @@ Streamer Mode	主播模式
 Streamer Mode Enabled	主播模式已启用
 Streamer Mode hides your personal info so others watching your stream can't see it.	主播模式会隐藏你的个人信息，观看你直播的人将无法看到。
 Streamer Mode is enabled. Usernames have been truncated.	主播模式已启用。用户名已被截断。
+Submit	提交
+Submitting	正在提交
 Success! Your friend request to % was sent.	成功！你已向 % 发送好友请求。
 Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday	星期日|星期一|星期二|星期三|星期四|星期五|星期六
 Sun|Mon|Tue|Wed|Thu|Fri|Sat	周日|周一|周二|周三|周四|周五|周六
@@ -1586,6 +1607,7 @@ Tags	标签
 Tags (pick at least one)	标签（至少选择一个）
 Tags let members organize their posts. Members pick them when they post; moderated tags only moderators can apply.	标签可帮助成员整理帖子。成员在发帖时选择标签；受管理的标签只有管理员可以使用。
 Tap the link in your email to sign in instantly — no password needed.	点击邮件中的链接即可立即登录，无需密码。
+Tell Us More About Your Server	告诉我们更多关于你的服务器的信息
 Tell people a little more about your event. Markdown, new lines, and links are supported.	向大家多介绍一下你的活动。支持 Markdown、换行和链接。
 Tell the world a bit about this server.	向世界介绍一下这个服务器。
 Template Description	模板描述
@@ -1649,8 +1671,11 @@ This is the start of the #% channel.	这是 #% 频道的开头。
 This is where Discord sends updates for moderators and admins of Community servers.	Discord 会在这里向社区服务器的管理员发送更新。
 This is where you'll show members your server rules or guidelines.	你将在这里向成员展示服务器规则或准则。
 This link is taking you to the following website	此链接将带你前往以下网站
+This message is end-to-end encrypted. Forwarding it here sends it unencrypted, so Discord can read it.	此消息已端到端加密。转发到这里会以未加密的形式发送，Discord 将能读取它。
+This message is end-to-end encrypted. Forwarding it here sends it unencrypted, so the server's host can read it.	此消息已端到端加密。转发到这里会以未加密的形式发送，服务器的托管方将能读取它。
 This option is not available for Community Servers.	此选项不适用于社区服务器。
 This role is managed by an integration and can't be edited here.	此身份组由集成管理，无法在此编辑。
+This server asks a few questions before you can join. Answer them on discord.com.	此服务器要求你在加入前回答几个问题。请在 discord.com 上作答。
 This server has been removed from Server Discovery because it no longer passes all the requirements. Check Server Settings for more details.	此服务器已不再满足所有要求，因此已从服务器发现中移除。请查看服务器设置了解详情。
 This server has failed Discovery activity requirements for 1 week. If this server fails for 4 weeks in a row, it will be automatically removed from Discovery.	此服务器已连续 1 周未达到服务器发现的活跃度要求。如果连续 4 周未达到，将被自动从服务器发现中移除。
 This server has failed Discovery activity requirements for 3 weeks in a row. If this server fails for 1 more week, it will be removed from Discovery.	此服务器已连续 3 周未达到服务器发现的活跃度要求。如果再有 1 周未达到，将被从服务器发现中移除。
@@ -1748,7 +1773,9 @@ Update Role	更新身份组
 Update Server	更新服务器
 Update Webhook	更新 Webhook
 Update your password	更新你的密码
+Updating…	正在更新…
 Upload	上传
+Upload Cover Image	上传封面图片
 Upload Emoji	上传表情符号
 Upload Sound	上传音效
 Upload Sticker	上传贴纸
@@ -1821,6 +1848,7 @@ Wave to say hi!	挥挥手打个招呼吧！
 We appreciate the enthusiasm, but...	我们很欣赏你的热情，但是...
 We couldn't load the profile for this server.	无法加载此服务器的个人资料。
 We recommend an image of at least 512x512.	建议使用至少 512x512 的图片。
+We recommend an image of at least 800px wide and 320px tall.	建议使用宽至少 800px、高至少 320px 的图片。
 We sent instructions to change your password to %, please check both your inbox and spam folder.	我们已将更改密码的说明发送到 %，请查看你的收件箱和垃圾邮件文件夹。
 We're so excited to see you again!	很高兴再次见到你！
 We've sent a message to %.  Please enter the code you received.	我们已向 % 发送了一条消息。请输入你收到的代码。
@@ -1879,6 +1907,7 @@ You haven't connected any accounts yet.	你还没有关联任何账号。
 You haven't ignored anyone.	你还没有忽略任何人。
 You missed a call from %1 that lasted %2.	你错过了 %1 的通话，持续了 %2。
 You must be at least 18 years old to view this channel.	你必须年满 18 岁才能查看此频道。
+You must complete a few more steps before you can talk.	你需要再完成几个步骤才能发言。
 You must leave a server first to join.	你必须先退出一个服务器才能加入。
 You need to add one or more rules.	你需要添加一条或多条规则。
 You received an invite, but...	你收到了邀请，但是...
@@ -1933,7 +1962,6 @@ by %	作者：%
 cancel	取消
 channel	频道
 delete message	删除消息
-dingus@example.com	dingus@example.com
 discord.gg/	discord.gg/
 en-GB	en-GB
 en-US	en-US
@@ -1963,6 +1991,7 @@ pinned messages	置顶消息
 pt-BR	pt-BR
 remove embeds	移除嵌入内容
 save	保存
+skip this question	跳过这个问题
 someone	某人
 specific date	指定日期
 sv-SE	sv-SE

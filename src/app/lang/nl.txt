@@ -1,4 +1,5 @@
 # Dutch (nl)
+ for now.	 overslaan.
  · required	 · verplicht
 % (requested to speak)	% (wil spreken)
 % (required)	% (verplicht)
@@ -182,6 +183,7 @@
 @everyone · applies to all server members	@everyone · geldt voor alle serverleden
 A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button.	Een toets met Ctrl, Alt, Shift of Cmd, alleen een modificatietoets, of een middelste of zijknop van de muis.
 A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button. Works in every app.	Een toets met Ctrl, Alt, Shift of Cmd, alleen een modificatietoets, of een middelste of zijknop van de muis. Werkt in elke app.
+A new channel will be created with the same permissions, user limit and bitrate as 	Er wordt een nieuw kanaal gemaakt met dezelfde rechten, gebruikerslimiet en bitrate als
 A role needs a name.	Een rol heeft een naam nodig.
 A webhook needs a name.	Een webhook heeft een naam nodig.
 A wild % appeared.	Een wilde % verscheen.
@@ -432,6 +434,7 @@ Category Name	Categorienaam
 Category deleted	Categorie verwijderd
 Change %	% wijzigen
 Change Avatar	Avatar wijzigen
+Change Image	Afbeelding wijzigen
 Change Nickname	Bijnaam wijzigen
 Change Password	Wachtwoord wijzigen
 Change Server Icon	Serverpictogram wijzigen
@@ -479,6 +482,7 @@ Community servers have more tools to help you moderate and grow your server.	Com
 Compact	Compact
 Compare	Vergelijken
 Compare these with %, in person or on a call. If they match, no one can read this DM in between.	Vergelijk deze met %, in persoon of tijdens een gesprek. Als ze overeenkomen, kan niemand onderweg deze DM lezen.
+Complete	Voltooien
 Configure system event messages sent to your server.	Stel de systeemberichten in die naar je server worden gestuurd.
 Confirm	Bevestigen
 Confirm Request	Verzoek bevestigen
@@ -522,6 +526,7 @@ Couldn't create an invite link.	Kan geen uitnodigingslink maken.
 Couldn't create an invite.	Kan geen uitnodiging maken.
 Couldn't delete the channel: %	Kan het kanaal niet verwijderen: %
 Couldn't encrypt the message.	Kan het bericht niet versleutelen.
+Couldn't get that GIF.	Kan die GIF niet ophalen.
 Couldn't join %: %	Kan niet deelnemen aan %: %
 Couldn't load onboarding.	Kan onboarding niet laden.
 Couldn't load the AutoMod rules.	Kan de AutoMod-regels niet laden.
@@ -532,6 +537,7 @@ Couldn't load the invites.	Kan de uitnodigingen niet laden.
 Couldn't load the members.	Kan de leden niet laden.
 Couldn't load the role's members.	Kan de leden van de rol niet laden.
 Couldn't load the server rules.	Kan de serverregels niet laden.
+Couldn't load the server's rules.	Kan de serverregels niet laden.
 Couldn't load the server's tag.	Kan de tag van de server niet laden.
 Couldn't load the template.	Kan de sjabloon niet laden.
 Couldn't load the webhooks.	Kan de webhooks niet laden.
@@ -547,6 +553,7 @@ Couldn't save the image.	Kan de afbeelding niet opslaan.
 Couldn't save the token.	Kan de token niet opslaan.
 Couldn't turn on encryption.	Kan versleuteling niet inschakelen.
 Couldn't upload emoji	Kan emoji niet uploaden
+Cover Image	Omslagafbeelding
 Cozy	Ruim
 Create	Maken
 Create Category	Categorie maken
@@ -558,7 +565,6 @@ Create Events	Evenementen maken
 Create Expressions	Expressies maken
 Create Group DM	Groeps-DM maken
 Create Invite	Uitnodiging maken
-Create My Own	Zelf maken
 Create Poll	Peiling maken
 Create Polls	Peilingen maken
 Create Private Threads	Privéthreads maken
@@ -672,6 +678,7 @@ Don't show role colors	Rolkleuren niet tonen
 Done	Klaar
 Download	Downloaden
 Drop a file here, or browse	Sleep hier een bestand naartoe of blader
+Duplicate Channel	Kanaal dupliceren
 Duration	Duur
 Dutch	Nederlands
 EDIT ROLE — %	ROL BEWERKEN — %
@@ -685,6 +692,7 @@ Echo Cancellation	Echo-onderdrukking
 Edit	Bewerken
 Edit Category	Categorie bewerken
 Edit Channel	Kanaal bewerken
+Edit Event	Evenement bewerken
 Edit Friend Nickname	Bijnaam voor vriend bewerken
 Edit Message	Bericht bewerken
 Edit Per-server Profile	Profiel per server bewerken
@@ -789,6 +797,8 @@ For 24 Hours	24 uur
 For 3 Days	3 dagen
 For 3 Hours	3 uur
 For 8 Hours	8 uur
+For a club or community	Voor een club of community
+For me and my friends	Voor mij en mijn vrienden
 Forever	Voor altijd
 Forgot your password?	Wachtwoord vergeten?
 Forum	Forum
@@ -812,7 +822,6 @@ Friends come online	Vrienden online komen
 Friends of friends	Vrienden van vrienden
 From User	Van gebruiker
 GIFs	GIF's
-GIFs can't be sent encrypted yet.	GIF's kunnen nog niet versleuteld worden verstuurd.
 Gallery view	Galerijweergave
 General	Algemeen
 General Category Permissions	Algemene categoriemachtigingen
@@ -833,6 +842,7 @@ Go to Server	Naar server
 Good to see you, %.	Goed je te zien, %.
 Got It	Begrepen
 Grant temporary membership	Tijdelijk lidmaatschap geven
+Great for larger community audio events.	Ideaal voor grotere audio-evenementen in een community.
 Greek	Grieks
 Hang out together with voice, video, and screen share	Hang samen rond met spraak, video en scherm delen
 Hang out with voice, video, screenshare, and Go Live.	Hang rond met spraak, video, scherm delen en Live gaan.
@@ -865,6 +875,7 @@ How did your server get started? Why should people join?	Hoe is je server begonn
 Hungarian	Hongaars
 I acknowledge that by transferring ownership of this server to %, it officially belongs to them.	Ik begrijp dat deze server officieel van % is zodra ik het eigendom overdraag.
 I agree and understand	Ik ga akkoord en begrijp het
+I have read and agree to the rules	Ik heb de regels gelezen en ga ermee akkoord
 I'm new here, say hi!	Ik ben nieuw hier, zeg hoi!
 I'm sure, use a backup code	Ik weet het zeker, gebruik een back-upcode
 IMAGE	AFBEELDING
@@ -888,6 +899,7 @@ Ignored message	Genegeerd bericht
 Image saved.	Afbeelding opgeslagen.
 Important updates for people in and out of the server	Belangrijke updates voor mensen binnen en buiten de server
 In Channel	In kanaal
+In order to help you with your setup, is your new server for just a few friends or a larger community?	Zodat we je kunnen helpen met instellen: is je nieuwe server voor een paar vrienden of voor een grotere community?
 Inactive Channel	Inactief kanaal
 Inactive Timeout	Inactiviteitstijd
 Inbox	Inbox
@@ -1175,6 +1187,7 @@ Not encrypted	Niet versleuteld
 Not encrypted: Discord can read this message	Niet versleuteld: Discord kan dit bericht lezen
 Not end-to-end encrypted	Niet end-to-end versleuteld
 Not me, start over	Niet ik, opnieuw beginnen
+Not sure? You can 	Weet je het niet zeker? Je kunt
 Note	Notitie
 Note (only visible to you)	Notitie (alleen zichtbaar voor jou)
 Note: Members with the "Mention @everyone, @here, and All Roles" permission will always be able to ping this role.	Let op: leden met de machtiging "@everyone, @here en alle rollen vermelden" kunnen deze rol altijd pingen.
@@ -1201,6 +1214,7 @@ One rule per line, for example: Be respectful	Eén serverregel per regel, bijvoo
 Ongoing call	Lopend gesprek
 Online	Online
 Only @mentions	Alleen @vermeldingen
+Only selected members and roles will be able to view this channel.	Alleen geselecteerde leden en rollen kunnen dit kanaal bekijken.
 Only servers and channels you have webhook permissions in are shown.	Alleen servers en kanalen waarin je webhookmachtigingen hebt worden getoond.
 Only you can see the nickname you give %.	Alleen jij kunt de bijnaam zien die je % geeft.
 Only you can see this · 	Alleen jij kunt dit zien ·
@@ -1314,6 +1328,7 @@ ROLES — %	ROLLEN — %
 ROLES/MEMBERS	ROLLEN/LEDEN
 RTC Connecting	RTC verbinden
 Read Message History	Berichtgeschiedenis lezen
+Read and agree to the server rules	Lees de serverregels en ga ermee akkoord
 Reason	Reden
 Reason for Ban	Reden voor ban
 Reason for Kick	Reden voor kick
@@ -1374,6 +1389,7 @@ Reset Friend Nickname	Bijnaam voor vriend resetten
 Reset Voice Settings	Spraakinstellingen resetten
 Resolving Invite	Uitnodiging ophalen
 Responses	Antwoorden
+Restart to Update	Herstarten om bij te werken
 Retry	Opnieuw proberen
 Retry Now	Nu opnieuw proberen
 Return to call	Terug naar gesprek
@@ -1399,6 +1415,7 @@ SELECT A CHANNEL	KIES EEN KANAAL
 SELECT A SERVER	KIES EEN SERVER
 SERVER NAME	SERVERNAAM
 SOUNDBOARD VOLUME	SOUNDBOARDVOLUME
+START FROM A TEMPLATE	BEGIN MET EEN SJABLOON
 STATIC EMOJI — % SLOTS AVAILABLE	STATISCHE EMOJI — % PLEKKEN BESCHIKBAAR
 Safety Notifications Channel	Kanaal voor veiligheidsmeldingen
 Safety Number	Veiligheidsnummer
@@ -1408,6 +1425,7 @@ Same as Device Theme	Zelfde als apparaatthema
 Saturation	Verzadiging
 Save	Opslaan
 Save Changes	Wijzigingen opslaan
+Save Event	Evenement opslaan
 Save Image	Afbeelding opslaan
 Saving...	Opslaan...
 Saving…	Opslaan…
@@ -1516,6 +1534,7 @@ Some older devices may not be shown here	Sommige oudere apparaten worden hier mo
 Someone	Iemand
 Something went wrong	Er ging iets mis
 Something went wrong (HTTP %).	Er ging iets mis (HTTP %).
+Something went wrong. Please try again.	Er ging iets mis. Probeer het opnieuw.
 Something went wrong. Try again.	Er ging iets mis. Probeer het opnieuw.
 Somewhere Else	Ergens anders
 Sorry, we couldn't load the first message in this thread	Sorry, we konden het eerste bericht in deze thread niet laden
@@ -1538,6 +1557,7 @@ Speak Message	Bericht voorlezen
 Spoiler Attachment	Bijlage als spoiler
 Spoiler Content	Spoilerinhoud
 Stage	Stage
+Stage Channel	Stagekanaal
 Start Date	Startdatum
 Start Event	Evenement starten
 Start Minimized	Geminimaliseerd starten
@@ -1546,7 +1566,6 @@ Starting in %m	Begint over %m
 State	Status
 Stickers	Stickers
 Stickers can be used by anyone in this server. Upload a PNG, APNG, GIF or Lottie JSON file of up to 512 KB; it shows at 320x320.	Stickers kunnen door iedereen in deze server worden gebruikt. Upload een PNG-, APNG-, GIF- of Lottie JSON-bestand van maximaal 512 KB; het wordt getoond op 320x320.
-Stickers can't be sent encrypted yet.	Stickers kunnen nog niet versleuteld worden verstuurd.
 Stickers must be PNG, APNG, GIF or Lottie JSON files.	Stickers moeten PNG-, APNG-, GIF- of Lottie JSON-bestanden zijn.
 Stop Recording	Opname stoppen
 Stop Streaming	Streamen stoppen
@@ -1559,6 +1578,8 @@ Streamer Mode	Streamermodus
 Streamer Mode Enabled	Streamermodus ingeschakeld
 Streamer Mode hides your personal info so others watching your stream can't see it.	Streamermodus verbergt je persoonlijke info, zodat kijkers van je stream die niet kunnen zien.
 Streamer Mode is enabled. Usernames have been truncated.	Streamermodus is ingeschakeld. Gebruikersnamen zijn ingekort.
+Submit	Verzenden
+Submitting	Verzenden…
 Success! Your friend request to % was sent.	Gelukt! Je vriendschapsverzoek aan % is verstuurd.
 Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday	zondag|maandag|dinsdag|woensdag|donderdag|vrijdag|zaterdag
 Sun|Mon|Tue|Wed|Thu|Fri|Sat	zo|ma|di|wo|do|vr|za
@@ -1586,6 +1607,7 @@ Tags	Tags
 Tags (pick at least one)	Tags (kies er minstens één)
 Tags let members organize their posts. Members pick them when they post; moderated tags only moderators can apply.	Met tags kunnen leden hun posts ordenen. Leden kiezen ze bij het plaatsen; gemodereerde tags kunnen alleen moderators toevoegen.
 Tap the link in your email to sign in instantly — no password needed.	Tik op de link in je e-mail om meteen in te loggen — geen wachtwoord nodig.
+Tell Us More About Your Server	Vertel ons meer over je server
 Tell people a little more about your event. Markdown, new lines, and links are supported.	Vertel mensen wat meer over je evenement. Markdown, nieuwe regels en links worden ondersteund.
 Tell the world a bit about this server.	Vertel de wereld iets over deze server.
 Template Description	Beschrijving van sjabloon
@@ -1649,8 +1671,11 @@ This is the start of the #% channel.	Dit is het begin van het kanaal #%.
 This is where Discord sends updates for moderators and admins of Community servers.	Hier stuurt Discord updates voor moderators en beheerders van communityservers.
 This is where you'll show members your server rules or guidelines.	Hier laat je leden je serverregels of richtlijnen zien.
 This link is taking you to the following website	Deze link brengt je naar de volgende website
+This message is end-to-end encrypted. Forwarding it here sends it unencrypted, so Discord can read it.	Dit bericht is end-to-end versleuteld. Als je het hier doorstuurt, wordt het onversleuteld verzonden, dus kan Discord het lezen.
+This message is end-to-end encrypted. Forwarding it here sends it unencrypted, so the server's host can read it.	Dit bericht is end-to-end versleuteld. Als je het hier doorstuurt, wordt het onversleuteld verzonden, dus kan de host van de server het lezen.
 This option is not available for Community Servers.	Deze optie is niet beschikbaar voor communityservers.
 This role is managed by an integration and can't be edited here.	Deze rol wordt beheerd door een integratie en kan hier niet worden bewerkt.
+This server asks a few questions before you can join. Answer them on discord.com.	Deze server stelt een paar vragen voordat je kunt deelnemen. Beantwoord ze op discord.com.
 This server has been removed from Server Discovery because it no longer passes all the requirements. Check Server Settings for more details.	Deze server is uit Serverontdekking verwijderd omdat die niet meer aan alle vereisten voldoet. Kijk in Serverinstellingen voor meer details.
 This server has failed Discovery activity requirements for 1 week. If this server fails for 4 weeks in a row, it will be automatically removed from Discovery.	Deze server voldoet al 1 week niet aan de activiteitsvereisten van Ontdekking. Als dat 4 weken op rij zo is, wordt de server automatisch uit Ontdekking verwijderd.
 This server has failed Discovery activity requirements for 3 weeks in a row. If this server fails for 1 more week, it will be removed from Discovery.	Deze server voldoet al 3 weken op rij niet aan de activiteitsvereisten van Ontdekking. Als dat nog 1 week zo is, wordt de server uit Ontdekking verwijderd.
@@ -1748,7 +1773,9 @@ Update Role	Rol bijwerken
 Update Server	Server bijwerken
 Update Webhook	Webhook bijwerken
 Update your password	Werk je wachtwoord bij
+Updating…	Bijwerken…
 Upload	Uploaden
+Upload Cover Image	Omslagafbeelding uploaden
 Upload Emoji	Emoji uploaden
 Upload Sound	Geluid uploaden
 Upload Sticker	Sticker uploaden
@@ -1821,6 +1848,7 @@ Wave to say hi!	Zwaai om hoi te zeggen!
 We appreciate the enthusiasm, but...	We waarderen het enthousiasme, maar...
 We couldn't load the profile for this server.	We konden het profiel voor deze server niet laden.
 We recommend an image of at least 512x512.	We raden een afbeelding van minstens 512x512 aan.
+We recommend an image of at least 800px wide and 320px tall.	We raden een afbeelding aan van minstens 800 px breed en 320 px hoog.
 We sent instructions to change your password to %, please check both your inbox and spam folder.	We hebben instructies om je wachtwoord te wijzigen gestuurd naar %. Kijk in je inbox en je spammap.
 We're so excited to see you again!	Wat leuk je weer te zien!
 We've sent a message to %.  Please enter the code you received.	We hebben een bericht gestuurd naar %. Voer de code in die je hebt ontvangen.
@@ -1879,6 +1907,7 @@ You haven't connected any accounts yet.	Je hebt nog geen accounts gekoppeld.
 You haven't ignored anyone.	Je hebt niemand genegeerd.
 You missed a call from %1 that lasted %2.	Je hebt een gesprek van %1 gemist dat %2 duurde.
 You must be at least 18 years old to view this channel.	Je moet minstens 18 jaar oud zijn om dit kanaal te bekijken.
+You must complete a few more steps before you can talk.	Je moet nog een paar stappen voltooien voordat je kunt praten.
 You must leave a server first to join.	Je moet eerst een server verlaten om lid te kunnen worden.
 You need to add one or more rules.	Je moet een of meer regels toevoegen.
 You received an invite, but...	Je hebt een uitnodiging ontvangen, maar...
@@ -1957,6 +1986,7 @@ on %	op %
 pinned messages	vastgemaakte berichten
 remove embeds	embeds verwijderen
 save	opslaan
+skip this question	deze vraag voorlopig
 someone	iemand
 specific date	specifieke datum
 this server	deze server

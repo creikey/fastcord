@@ -1,4 +1,5 @@
 # Thai (th)
+ for now.	ไปก่อน
  · required	 · จำเป็น
 % (requested to speak)	% (ขอพูด)
 % (required)	% (จำเป็น)
@@ -182,6 +183,7 @@
 @everyone · applies to all server members	@everyone · ใช้กับสมาชิกทุกคนในเซิร์ฟเวอร์
 A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button.	ปุ่มที่กดร่วมกับ Ctrl, Alt, Shift หรือ Cmd, ปุ่มปรับแต่งเดี่ยว หรือปุ่มกลางหรือปุ่มข้างของเมาส์
 A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button. Works in every app.	ปุ่มที่กดร่วมกับ Ctrl, Alt, Shift หรือ Cmd, ปุ่มปรับแต่งเดี่ยว หรือปุ่มกลางหรือปุ่มข้างของเมาส์ ใช้ได้ในทุกแอป
+A new channel will be created with the same permissions, user limit and bitrate as 	ระบบจะสร้างช่องใหม่ที่มีสิทธิ์ ขีดจำกัดผู้ใช้ และบิตเรตเหมือนกับ 
 A role needs a name.	บทบาทต้องมีชื่อ
 A webhook needs a name.	เว็บฮุกต้องมีชื่อ
 A wild % appeared.	% ป่าปรากฏตัวขึ้น
@@ -432,6 +434,7 @@ Category Name	ชื่อหมวดหมู่
 Category deleted	ลบหมวดหมู่แล้ว
 Change %	เปลี่ยน %
 Change Avatar	เปลี่ยนอวาตาร์
+Change Image	เปลี่ยนรูปภาพ
 Change Nickname	เปลี่ยนชื่อเล่น
 Change Password	เปลี่ยนรหัสผ่าน
 Change Server Icon	เปลี่ยนไอคอนเซิร์ฟเวอร์
@@ -479,6 +482,7 @@ Community servers have more tools to help you moderate and grow your server.	เ
 Compact	กะทัดรัด
 Compare	เปรียบเทียบ
 Compare these with %, in person or on a call. If they match, no one can read this DM in between.	เปรียบเทียบตัวเลขเหล่านี้กับ % ต่อหน้าหรือทางโทรศัพท์ หากตรงกัน จะไม่มีใครแอบอ่าน DM นี้ระหว่างทางได้
+Complete	เสร็จสิ้น
 Configure system event messages sent to your server.	กำหนดค่าข้อความเหตุการณ์ของระบบที่ส่งไปยังเซิร์ฟเวอร์ของคุณ
 Confirm	ยืนยัน
 Confirm Request	ยืนยันคำขอ
@@ -522,6 +526,7 @@ Couldn't create an invite link.	สร้างลิงก์คำเชิญ
 Couldn't create an invite.	สร้างคำเชิญไม่ได้
 Couldn't delete the channel: %	ลบช่องไม่ได้: %
 Couldn't encrypt the message.	เข้ารหัสข้อความไม่ได้
+Couldn't get that GIF.	รับ GIF นั้นไม่ได้
 Couldn't join %: %	เข้าร่วม % ไม่ได้: %
 Couldn't load onboarding.	โหลดการต้อนรับสมาชิกใหม่ไม่ได้
 Couldn't load the AutoMod rules.	โหลดกฎ AutoMod ไม่ได้
@@ -532,6 +537,7 @@ Couldn't load the invites.	โหลดคำเชิญไม่ได้
 Couldn't load the members.	โหลดสมาชิกไม่ได้
 Couldn't load the role's members.	โหลดสมาชิกของบทบาทไม่ได้
 Couldn't load the server rules.	โหลดกฎของเซิร์ฟเวอร์ไม่ได้
+Couldn't load the server's rules.	โหลดกฎของเซิร์ฟเวอร์ไม่ได้
 Couldn't load the server's tag.	โหลดแท็กของเซิร์ฟเวอร์ไม่ได้
 Couldn't load the template.	โหลดเทมเพลตไม่ได้
 Couldn't load the webhooks.	โหลดเว็บฮุกไม่ได้
@@ -547,6 +553,7 @@ Couldn't save the image.	บันทึกรูปภาพไม่ได้
 Couldn't save the token.	บันทึกโทเค็นไม่ได้
 Couldn't turn on encryption.	เปิดการเข้ารหัสไม่ได้
 Couldn't upload emoji	อัปโหลดอีโมจิไม่ได้
+Cover Image	ภาพหน้าปก
 Cozy	สบายตา
 Create	สร้าง
 Create Category	สร้างหมวดหมู่
@@ -558,7 +565,6 @@ Create Events	สร้างกิจกรรม
 Create Expressions	สร้างการแสดงออก
 Create Group DM	สร้าง DM กลุ่ม
 Create Invite	สร้างคำเชิญ
-Create My Own	สร้างเอง
 Create Poll	สร้างโพล
 Create Polls	สร้างโพล
 Create Private Threads	สร้างเธรดส่วนตัว
@@ -672,6 +678,7 @@ Don't show role colors	ไม่แสดงสีบทบาท
 Done	เสร็จสิ้น
 Download	ดาวน์โหลด
 Drop a file here, or browse	วางไฟล์ที่นี่ หรือเรียกดู
+Duplicate Channel	ทำสำเนาช่อง
 Duration	ระยะเวลา
 Dutch	ดัตช์
 EDIT ROLE — %	แก้ไขบทบาท — %
@@ -685,6 +692,7 @@ Echo Cancellation	ตัดเสียงสะท้อน
 Edit	แก้ไข
 Edit Category	แก้ไขหมวดหมู่
 Edit Channel	แก้ไขช่อง
+Edit Event	แก้ไขกิจกรรม
 Edit Friend Nickname	แก้ไขชื่อเล่นเพื่อน
 Edit Message	แก้ไขข้อความ
 Edit Per-server Profile	แก้ไขโปรไฟล์ประจำเซิร์ฟเวอร์
@@ -789,6 +797,8 @@ For 24 Hours	เป็นเวลา 24 ชั่วโมง
 For 3 Days	เป็นเวลา 3 วัน
 For 3 Hours	เป็นเวลา 3 ชั่วโมง
 For 8 Hours	เป็นเวลา 8 ชั่วโมง
+For a club or community	สำหรับคลับหรือชุมชน
+For me and my friends	สำหรับฉันและเพื่อนๆ
 Forever	ตลอดไป
 Forgot your password?	ลืมรหัสผ่านใช่ไหม?
 Forum	ฟอรัม
@@ -812,7 +822,6 @@ Friends come online	เพื่อนออนไลน์
 Friends of friends	เพื่อนของเพื่อน
 From User	จากผู้ใช้
 GIFs	GIF
-GIFs can't be sent encrypted yet.	ยังส่ง GIF แบบเข้ารหัสไม่ได้
 Gallery view	มุมมองแกลเลอรี
 General	ทั่วไป
 General Category Permissions	สิทธิ์ทั่วไปของหมวดหมู่
@@ -833,6 +842,7 @@ Go to Server	ไปที่เซิร์ฟเวอร์
 Good to see you, %.	ยินดีที่ได้เจอ %
 Got It	เข้าใจแล้ว
 Grant temporary membership	ให้สมาชิกภาพชั่วคราว
+Great for larger community audio events.	เหมาะสำหรับกิจกรรมเสียงของชุมชนขนาดใหญ่
 Greek	กรีก
 Hang out together with voice, video, and screen share	แฮงเอาต์ด้วยกันด้วยเสียง วิดีโอ และการแชร์หน้าจอ
 Hang out with voice, video, screenshare, and Go Live.	แฮงเอาต์ด้วยเสียง วิดีโอ แชร์หน้าจอ และ Go Live
@@ -865,6 +875,7 @@ How did your server get started? Why should people join?	เซิร์ฟเ�
 Hungarian	ฮังการี
 I acknowledge that by transferring ownership of this server to %, it officially belongs to them.	ฉันรับทราบว่าการโอนความเป็นเจ้าของเซิร์ฟเวอร์นี้ให้ % จะทำให้เซิร์ฟเวอร์เป็นของเขาอย่างเป็นทางการ
 I agree and understand	ฉันเข้าใจและยอมรับ
+I have read and agree to the rules	ฉันได้อ่านและยอมรับกฎแล้ว
 I'm new here, say hi!	ฉันเพิ่งมาใหม่ ทักทายกันหน่อย!
 I'm sure, use a backup code	แน่ใจ ใช้รหัสสำรอง
 IMAGE	รูปภาพ
@@ -888,6 +899,7 @@ Ignored message	ข้อความที่ถูกเพิกเฉย
 Image saved.	บันทึกรูปภาพแล้ว
 Important updates for people in and out of the server	อัปเดตสำคัญสำหรับคนทั้งในและนอกเซิร์ฟเวอร์
 In Channel	ในช่อง
+In order to help you with your setup, is your new server for just a few friends or a larger community?	เพื่อช่วยในการตั้งค่า เซิร์ฟเวอร์ใหม่ของคุณสร้างขึ้นสำหรับเพื่อนไม่กี่คนหรือสำหรับชุมชนที่ใหญ่กว่า?
 Inactive Channel	ช่องสำหรับผู้ไม่เคลื่อนไหว
 Inactive Timeout	ระยะหมดเวลาเมื่อไม่เคลื่อนไหว
 Inbox	กล่องข้อความ
@@ -1175,6 +1187,7 @@ Not encrypted	ไม่เข้ารหัส
 Not encrypted: Discord can read this message	ไม่เข้ารหัส: Discord อ่านข้อความนี้ได้
 Not end-to-end encrypted	ไม่ได้เข้ารหัสต้นทางถึงปลายทาง
 Not me, start over	ไม่ใช่ฉัน เริ่มใหม่
+Not sure? You can 	ไม่แน่ใจใช่ไหม คุณสามารถ
 Note	โน้ต
 Note (only visible to you)	โน้ต (เห็นได้เฉพาะคุณ)
 Note: Members with the "Mention @everyone, @here, and All Roles" permission will always be able to ping this role.	หมายเหตุ: สมาชิกที่มีสิทธิ์ "กล่าวถึง @everyone, @here และทุกบทบาท" จะ ping บทบาทนี้ได้เสมอ
@@ -1201,6 +1214,7 @@ One rule per line, for example: Be respectful	หนึ่งกฎต่อห�
 Ongoing call	การโทรที่กำลังดำเนินอยู่
 Online	ออนไลน์
 Only @mentions	เฉพาะ @การกล่าวถึง
+Only selected members and roles will be able to view this channel.	เฉพาะสมาชิกและบทบาทที่เลือกเท่านั้นที่จะดูช่องนี้ได้
 Only servers and channels you have webhook permissions in are shown.	แสดงเฉพาะเซิร์ฟเวอร์และช่องที่คุณมีสิทธิ์เว็บฮุก
 Only you can see the nickname you give %.	มีเพียงคุณที่เห็นชื่อเล่นที่คุณตั้งให้ %
 Only you can see this · 	มีเพียงคุณที่เห็นข้อความนี้ ·
@@ -1314,6 +1328,7 @@ ROLES — %	บทบาท — %
 ROLES/MEMBERS	บทบาท/สมาชิก
 RTC Connecting	กำลังเชื่อมต่อ RTC
 Read Message History	อ่านประวัติข้อความ
+Read and agree to the server rules	อ่านและยอมรับกฎของเซิร์ฟเวอร์
 Reason	เหตุผล
 Reason for Ban	เหตุผลในการแบน
 Reason for Kick	เหตุผลในการเตะ
@@ -1374,6 +1389,7 @@ Reset Friend Nickname	รีเซ็ตชื่อเล่นเพื่อ�
 Reset Voice Settings	รีเซ็ตการตั้งค่าเสียง
 Resolving Invite	กำลังตรวจสอบคำเชิญ
 Responses	คำตอบ
+Restart to Update	รีสตาร์ทเพื่ออัปเดต
 Retry	ลองใหม่
 Retry Now	ลองใหม่ตอนนี้
 Return to call	กลับไปที่การโทร
@@ -1399,6 +1415,7 @@ SELECT A CHANNEL	เลือกช่อง
 SELECT A SERVER	เลือกเซิร์ฟเวอร์
 SERVER NAME	ชื่อเซิร์ฟเวอร์
 SOUNDBOARD VOLUME	ระดับเสียงซาวด์บอร์ด
+START FROM A TEMPLATE	เริ่มจากเทมเพลต
 STATIC EMOJI — % SLOTS AVAILABLE	อีโมจิภาพนิ่ง — ว่าง % ช่อง
 Safety Notifications Channel	ช่องการแจ้งเตือนด้านความปลอดภัย
 Safety Number	หมายเลขความปลอดภัย
@@ -1408,6 +1425,7 @@ Same as Device Theme	เหมือนธีมของอุปกรณ์
 Saturation	ความอิ่มตัวของสี
 Save	บันทึก
 Save Changes	บันทึกการเปลี่ยนแปลง
+Save Event	บันทึกกิจกรรม
 Save Image	บันทึกรูปภาพ
 Saving...	กำลังบันทึก...
 Saving…	กำลังบันทึก…
@@ -1516,6 +1534,7 @@ Some older devices may not be shown here	อุปกรณ์รุ่นเก
 Someone	ใครบางคน
 Something went wrong	เกิดข้อผิดพลาดบางอย่าง
 Something went wrong (HTTP %).	เกิดข้อผิดพลาดบางอย่าง (HTTP %)
+Something went wrong. Please try again.	เกิดข้อผิดพลาดบางอย่าง โปรดลองอีกครั้ง
 Something went wrong. Try again.	เกิดข้อผิดพลาดบางอย่าง ลองอีกครั้ง
 Somewhere Else	ที่อื่น
 Sorry, we couldn't load the first message in this thread	ขออภัย เราโหลดข้อความแรกในเธรดนี้ไม่ได้
@@ -1538,6 +1557,7 @@ Speak Message	อ่านออกเสียงข้อความ
 Spoiler Attachment	ไฟล์แนบสปอยล์
 Spoiler Content	เนื้อหาสปอยล์
 Stage	Stage
+Stage Channel	ช่อง Stage
 Start Date	วันที่เริ่ม
 Start Event	เริ่มกิจกรรม
 Start Minimized	เริ่มแบบย่อหน้าต่าง
@@ -1546,7 +1566,6 @@ Starting in %m	เริ่มในอีก %m
 State	สถานะ
 Stickers	สติกเกอร์
 Stickers can be used by anyone in this server. Upload a PNG, APNG, GIF or Lottie JSON file of up to 512 KB; it shows at 320x320.	ทุกคนในเซิร์ฟเวอร์นี้ใช้สติกเกอร์ได้ อัปโหลดไฟล์ PNG, APNG, GIF หรือ Lottie JSON ขนาดไม่เกิน 512 KB จะแสดงที่ขนาด 320x320
-Stickers can't be sent encrypted yet.	ยังส่งสติกเกอร์แบบเข้ารหัสไม่ได้
 Stickers must be PNG, APNG, GIF or Lottie JSON files.	สติกเกอร์ต้องเป็นไฟล์ PNG, APNG, GIF หรือ Lottie JSON
 Stop Recording	หยุดบันทึก
 Stop Streaming	หยุดสตรีม
@@ -1559,6 +1578,8 @@ Streamer Mode	โหมดสตรีมเมอร์
 Streamer Mode Enabled	เปิดโหมดสตรีมเมอร์อยู่
 Streamer Mode hides your personal info so others watching your stream can't see it.	โหมดสตรีมเมอร์จะซ่อนข้อมูลส่วนตัวของคุณเพื่อไม่ให้คนที่ดูสตรีมเห็น
 Streamer Mode is enabled. Usernames have been truncated.	เปิดโหมดสตรีมเมอร์อยู่ ชื่อผู้ใช้ถูกตัดให้สั้นลง
+Submit	ส่ง
+Submitting	กำลังส่ง
 Success! Your friend request to % was sent.	สำเร็จ! ส่งคำขอเป็นเพื่อนถึง % แล้ว
 Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday	วันอาทิตย์|วันจันทร์|วันอังคาร|วันพุธ|วันพฤหัสบดี|วันศุกร์|วันเสาร์
 Sun|Mon|Tue|Wed|Thu|Fri|Sat	อา.|จ.|อ.|พ.|พฤ.|ศ.|ส.
@@ -1586,6 +1607,7 @@ Tags	แท็ก
 Tags (pick at least one)	แท็ก (เลือกอย่างน้อยหนึ่งรายการ)
 Tags let members organize their posts. Members pick them when they post; moderated tags only moderators can apply.	แท็กช่วยให้สมาชิกจัดระเบียบโพสต์ สมาชิกจะเลือกแท็กเมื่อโพสต์ ส่วนแท็กที่ควบคุมใช้ได้เฉพาะผู้ดูแล
 Tap the link in your email to sign in instantly — no password needed.	แตะลิงก์ในอีเมลของคุณเพื่อเข้าสู่ระบบทันที — ไม่ต้องใช้รหัสผ่าน
+Tell Us More About Your Server	บอกเราเพิ่มเติมเกี่ยวกับเซิร์ฟเวอร์ของคุณ
 Tell people a little more about your event. Markdown, new lines, and links are supported.	บอกเล่าเกี่ยวกับกิจกรรมของคุณเพิ่มอีกนิด รองรับ Markdown การขึ้นบรรทัดใหม่ และลิงก์
 Tell the world a bit about this server.	บอกโลกเกี่ยวกับเซิร์ฟเวอร์นี้สักหน่อย
 Template Description	คำอธิบายเทมเพลต
@@ -1649,8 +1671,11 @@ This is the start of the #% channel.	นี่คือจุดเริ่ม�
 This is where Discord sends updates for moderators and admins of Community servers.	นี่คือที่ที่ Discord ส่งอัปเดตสำหรับผู้ดูแลและแอดมินของเซิร์ฟเวอร์ชุมชน
 This is where you'll show members your server rules or guidelines.	นี่คือที่ที่คุณจะแสดงกฎหรือแนวทางของเซิร์ฟเวอร์ให้สมาชิกเห็น
 This link is taking you to the following website	ลิงก์นี้จะพาคุณไปยังเว็บไซต์ต่อไปนี้
+This message is end-to-end encrypted. Forwarding it here sends it unencrypted, so Discord can read it.	ข้อความนี้เข้ารหัสต้นทางถึงปลายทาง การส่งต่อมาที่นี่จะส่งแบบไม่เข้ารหัส Discord จึงอ่านได้
+This message is end-to-end encrypted. Forwarding it here sends it unencrypted, so the server's host can read it.	ข้อความนี้เข้ารหัสต้นทางถึงปลายทาง การส่งต่อมาที่นี่จะส่งแบบไม่เข้ารหัส ผู้โฮสต์เซิร์ฟเวอร์จึงอ่านได้
 This option is not available for Community Servers.	ตัวเลือกนี้ใช้ไม่ได้กับเซิร์ฟเวอร์ชุมชน
 This role is managed by an integration and can't be edited here.	บทบาทนี้จัดการโดยการเชื่อมต่อ และแก้ไขที่นี่ไม่ได้
+This server asks a few questions before you can join. Answer them on discord.com.	เซิร์ฟเวอร์นี้มีคำถามไม่กี่ข้อก่อนที่คุณจะเข้าร่วมได้ ตอบคำถามได้ที่ discord.com
 This server has been removed from Server Discovery because it no longer passes all the requirements. Check Server Settings for more details.	เซิร์ฟเวอร์นี้ถูกนำออกจากการค้นหาเซิร์ฟเวอร์เพราะไม่ผ่านข้อกำหนดทั้งหมดอีกต่อไป ดูรายละเอียดเพิ่มเติมได้ในการตั้งค่าเซิร์ฟเวอร์
 This server has failed Discovery activity requirements for 1 week. If this server fails for 4 weeks in a row, it will be automatically removed from Discovery.	เซิร์ฟเวอร์นี้ไม่ผ่านข้อกำหนดด้านกิจกรรมของการค้นหามา 1 สัปดาห์ หากไม่ผ่าน 4 สัปดาห์ติดต่อกัน จะถูกนำออกจากการค้นหาโดยอัตโนมัติ
 This server has failed Discovery activity requirements for 3 weeks in a row. If this server fails for 1 more week, it will be removed from Discovery.	เซิร์ฟเวอร์นี้ไม่ผ่านข้อกำหนดด้านกิจกรรมของการค้นหามา 3 สัปดาห์ติดต่อกัน หากไม่ผ่านอีก 1 สัปดาห์ จะถูกนำออกจากการค้นหา
@@ -1748,7 +1773,9 @@ Update Role	อัปเดตบทบาท
 Update Server	อัปเดตเซิร์ฟเวอร์
 Update Webhook	อัปเดตเว็บฮุก
 Update your password	อัปเดตรหัสผ่านของคุณ
+Updating…	กำลังอัปเดต…
 Upload	อัปโหลด
+Upload Cover Image	อัปโหลดภาพหน้าปก
 Upload Emoji	อัปโหลดอีโมจิ
 Upload Sound	อัปโหลดเสียง
 Upload Sticker	อัปโหลดสติกเกอร์
@@ -1821,6 +1848,7 @@ Wave to say hi!	โบกมือทักทาย!
 We appreciate the enthusiasm, but...	เราชื่นชมความกระตือรือร้นนะ แต่...
 We couldn't load the profile for this server.	เราโหลดโปรไฟล์ของเซิร์ฟเวอร์นี้ไม่ได้
 We recommend an image of at least 512x512.	เราแนะนำรูปภาพขนาดอย่างน้อย 512x512
+We recommend an image of at least 800px wide and 320px tall.	แนะนำให้ใช้รูปภาพที่กว้างอย่างน้อย 800px และสูงอย่างน้อย 320px
 We sent instructions to change your password to %, please check both your inbox and spam folder.	เราส่งคำแนะนำในการเปลี่ยนรหัสผ่านไปที่ % แล้ว โปรดตรวจสอบทั้งกล่องจดหมายและโฟลเดอร์สแปม
 We're so excited to see you again!	ดีใจมากที่ได้เจอคุณอีกครั้ง!
 We've sent a message to %.  Please enter the code you received.	เราส่งข้อความไปที่ % แล้ว โปรดกรอกรหัสที่คุณได้รับ
@@ -1879,6 +1907,7 @@ You haven't connected any accounts yet.	คุณยังไม่ได้เ�
 You haven't ignored anyone.	คุณยังไม่ได้เพิกเฉยใคร
 You missed a call from %1 that lasted %2.	คุณไม่ได้รับสายจาก %1 ที่ยาว %2
 You must be at least 18 years old to view this channel.	คุณต้องมีอายุอย่างน้อย 18 ปีจึงจะดูช่องนี้ได้
+You must complete a few more steps before you can talk.	คุณต้องทำอีกไม่กี่ขั้นตอนก่อนจึงจะพูดคุยได้
 You must leave a server first to join.	คุณต้องออกจากเซิร์ฟเวอร์หนึ่งก่อนจึงจะเข้าร่วมได้
 You need to add one or more rules.	คุณต้องเพิ่มกฎอย่างน้อยหนึ่งข้อ
 You received an invite, but...	คุณได้รับคำเชิญ แต่...
@@ -1957,6 +1986,7 @@ on %	เมื่อ %
 pinned messages	ข้อความที่ปักหมุด
 remove embeds	ลบเนื้อหาฝัง
 save	บันทึก
+skip this question	ข้ามคำถามนี้
 someone	ใครบางคน
 specific date	วันที่ระบุ
 this server	เซิร์ฟเวอร์นี้

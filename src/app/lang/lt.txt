@@ -1,4 +1,5 @@
 # Lithuanian (lt)
+ for now.	 ir grįžti prie jo vėliau.
  · required	 · privaloma
 % (requested to speak)	% (prašo žodžio)
 % (required)	% (privaloma)
@@ -182,6 +183,7 @@
 @everyone · applies to all server members	@everyone · taikoma visiems serverio nariams
 A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button.	Klavišas su Ctrl, Alt, Shift ar Cmd, vien modifikatorius arba vidurinis ar šoninis pelės mygtukas.
 A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button. Works in every app.	Klavišas su Ctrl, Alt, Shift ar Cmd, vien modifikatorius arba vidurinis ar šoninis pelės mygtukas. Veikia visose programose.
+A new channel will be created with the same permissions, user limit and bitrate as 	Bus sukurtas naujas kanalas su tokiais pačiais leidimais, naudotojų limitu ir bitų sparta kaip 
 A role needs a name.	Vaidmeniui reikia pavadinimo.
 A webhook needs a name.	Webhook reikia pavadinimo.
 A wild % appeared.	Pasirodė laukinis %.
@@ -432,6 +434,7 @@ Category Name	Kategorijos pavadinimas
 Category deleted	Kategorija ištrinta
 Change %	Keisti %
 Change Avatar	Keisti avatarą
+Change Image	Keisti vaizdą
 Change Nickname	Keisti slapyvardį
 Change Password	Keisti slaptažodį
 Change Server Icon	Keisti serverio piktogramą
@@ -479,6 +482,7 @@ Community servers have more tools to help you moderate and grow your server.	Ben
 Compact	Kompaktiškas
 Compare	Palyginti
 Compare these with %, in person or on a call. If they match, no one can read this DM in between.	Palygink juos su %, gyvai ar skambučio metu. Jei sutampa, niekas tarpe negali skaityti šio pokalbio.
+Complete	Užbaigti
 Configure system event messages sent to your server.	Konfigūruok į serverį siunčiamas sistemos įvykių žinutes.
 Confirm	Patvirtinti
 Confirm Request	Patvirtinti užklausą
@@ -522,6 +526,7 @@ Couldn't create an invite link.	Nepavyko sukurti pakvietimo saito.
 Couldn't create an invite.	Nepavyko sukurti pakvietimo.
 Couldn't delete the channel: %	Nepavyko ištrinti kanalo: %
 Couldn't encrypt the message.	Nepavyko užšifruoti žinutės.
+Couldn't get that GIF.	Nepavyko gauti šio GIF.
 Couldn't join %: %	Nepavyko prisijungti prie %: %
 Couldn't load onboarding.	Nepavyko įkelti pasitikimo.
 Couldn't load the AutoMod rules.	Nepavyko įkelti AutoMod taisyklių.
@@ -532,6 +537,7 @@ Couldn't load the invites.	Nepavyko įkelti pakvietimų.
 Couldn't load the members.	Nepavyko įkelti narių.
 Couldn't load the role's members.	Nepavyko įkelti vaidmens narių.
 Couldn't load the server rules.	Nepavyko įkelti serverio taisyklių.
+Couldn't load the server's rules.	Nepavyko įkelti serverio taisyklių.
 Couldn't load the server's tag.	Nepavyko įkelti serverio žymos.
 Couldn't load the template.	Nepavyko įkelti šablono.
 Couldn't load the webhooks.	Nepavyko įkelti webhook.
@@ -547,6 +553,7 @@ Couldn't save the image.	Nepavyko išsaugoti vaizdo.
 Couldn't save the token.	Nepavyko išsaugoti žetono.
 Couldn't turn on encryption.	Nepavyko įjungti šifravimo.
 Couldn't upload emoji	Nepavyko įkelti jaustuko
+Cover Image	Viršelio vaizdas
 Cozy	Jaukus
 Create	Kurti
 Create Category	Kurti kategoriją
@@ -558,7 +565,6 @@ Create Events	Kurti renginius
 Create Expressions	Kurti išraiškas
 Create Group DM	Kurti grupės pokalbį
 Create Invite	Kurti pakvietimą
-Create My Own	Sukurti savo
 Create Poll	Kurti apklausą
 Create Polls	Kurti apklausas
 Create Private Threads	Kurti privačias gijas
@@ -672,6 +678,7 @@ Don't show role colors	Nerodyti vaidmenų spalvų
 Done	Atlikta
 Download	Atsisiųsti
 Drop a file here, or browse	Numesk failą čia arba naršyk
+Duplicate Channel	Dubliuoti kanalą
 Duration	Trukmė
 Dutch	Olandų
 EDIT ROLE — %	REDAGUOTI VAIDMENĮ — %
@@ -685,6 +692,7 @@ Echo Cancellation	Aido slopinimas
 Edit	Redaguoti
 Edit Category	Redaguoti kategoriją
 Edit Channel	Redaguoti kanalą
+Edit Event	Redaguoti renginį
 Edit Friend Nickname	Redaguoti draugo slapyvardį
 Edit Message	Redaguoti žinutę
 Edit Per-server Profile	Redaguoti serverio profilį
@@ -789,6 +797,8 @@ For 24 Hours	24 valandoms
 For 3 Days	3 dienoms
 For 3 Hours	3 valandoms
 For 8 Hours	8 valandoms
+For a club or community	Klubui ar bendruomenei
+For me and my friends	Man ir mano draugams
 Forever	Visam laikui
 Forgot your password?	Pamiršai slaptažodį?
 Forum	Forumas
@@ -812,7 +822,6 @@ Friends come online	Draugai prisijungia
 Friends of friends	Draugų draugai
 From User	Nuo naudotojo
 GIFs	GIF
-GIFs can't be sent encrypted yet.	GIF kol kas negalima siųsti užšifruotų.
 Gallery view	Galerijos rodinys
 General	Bendra
 General Category Permissions	Bendrieji kategorijos leidimai
@@ -833,6 +842,7 @@ Go to Server	Eiti į serverį
 Good to see you, %.	Malonu tave matyti, %.
 Got It	Supratau
 Grant temporary membership	Suteikti laikiną narystę
+Great for larger community audio events.	Puikiai tinka didesniems bendruomenės garso renginiams.
 Greek	Graikų
 Hang out together with voice, video, and screen share	Leisk laiką kartu su balsu, vaizdu ir ekrano bendrinimu
 Hang out with voice, video, screenshare, and Go Live.	Leisk laiką su balsu, vaizdu, ekrano bendrinimu ir Go Live.
@@ -865,6 +875,7 @@ How did your server get started? Why should people join?	Kaip prasidėjo tavo se
 Hungarian	Vengrų
 I acknowledge that by transferring ownership of this server to %, it officially belongs to them.	Suprantu, kad perdavus šio serverio nuosavybę %, jis oficialiai priklausys jam.
 I agree and understand	Sutinku ir suprantu
+I have read and agree to the rules	Perskaičiau taisykles ir su jomis sutinku
 I'm new here, say hi!	Aš čia naujas, pasisveikink!
 I'm sure, use a backup code	Esu tikras, naudoti atsarginį kodą
 IMAGE	VAIZDAS
@@ -888,6 +899,7 @@ Ignored message	Ignoruojama žinutė
 Image saved.	Vaizdas išsaugotas.
 Important updates for people in and out of the server	Svarbios naujienos serverio nariams ir ne tik
 In Channel	Kanale
+In order to help you with your setup, is your new server for just a few friends or a larger community?	Kad galėtume padėti su sąranka: ar tavo naujas serveris skirtas keliems draugams, ar didesnei bendruomenei?
 Inactive Channel	Neaktyvumo kanalas
 Inactive Timeout	Neaktyvumo laikas
 Inbox	Gautieji
@@ -1175,6 +1187,7 @@ Not encrypted	Neužšifruota
 Not encrypted: Discord can read this message	Neužšifruota: Discord gali skaityti šią žinutę
 Not end-to-end encrypted	Ne visapusiškai užšifruota
 Not me, start over	Ne aš, pradėti iš naujo
+Not sure? You can 	Nesi tikras? Gali 
 Note	Pastaba
 Note (only visible to you)	Pastaba (matai tik tu)
 Note: Members with the "Mention @everyone, @here, and All Roles" permission will always be able to ping this role.	Pastaba: nariai su leidimu „Paminėti @everyone, @here ir visus vaidmenis“ visada galės paminėti šį vaidmenį.
@@ -1201,6 +1214,7 @@ One rule per line, for example: Be respectful	Viena taisyklė eilutėje, pvz.: B
 Ongoing call	Vykstantis skambutis
 Online	Prisijungęs
 Only @mentions	Tik @paminėjimai
+Only selected members and roles will be able to view this channel.	Šį kanalą matys tik pasirinkti nariai ir vaidmenys.
 Only servers and channels you have webhook permissions in are shown.	Rodomi tik serveriai ir kanalai, kuriuose turi webhook leidimus.
 Only you can see the nickname you give %.	Tik tu matai slapyvardį, kurį suteiki %.
 Only you can see this · 	Tai matai tik tu ·
@@ -1314,6 +1328,7 @@ ROLES — %	VAIDMENYS — %
 ROLES/MEMBERS	VAIDMENYS / NARIAI
 RTC Connecting	RTC jungiamasi
 Read Message History	Skaityti žinučių istoriją
+Read and agree to the server rules	Perskaityk serverio taisykles ir su jomis sutik
 Reason	Priežastis
 Reason for Ban	Draudimo priežastis
 Reason for Kick	Išmetimo priežastis
@@ -1374,6 +1389,7 @@ Reset Friend Nickname	Atstatyti draugo slapyvardį
 Reset Voice Settings	Atstatyti balso nustatymus
 Resolving Invite	Tikrinamas pakvietimas
 Responses	Atsakymai
+Restart to Update	Paleisti iš naujo ir atnaujinti
 Retry	Bandyti dar kartą
 Retry Now	Bandyti dabar
 Return to call	Grįžti į skambutį
@@ -1399,6 +1415,7 @@ SELECT A CHANNEL	PASIRINK KANALĄ
 SELECT A SERVER	PASIRINK SERVERĮ
 SERVER NAME	SERVERIO PAVADINIMAS
 SOUNDBOARD VOLUME	GARSŲ LENTOS GARSUMAS
+START FROM A TEMPLATE	PRADĖTI NUO ŠABLONO
 STATIC EMOJI — % SLOTS AVAILABLE	STATINIAI JAUSTUKAI — LAISVŲ VIETŲ: %
 Safety Notifications Channel	Saugos pranešimų kanalas
 Safety Number	Saugos numeris
@@ -1408,6 +1425,7 @@ Same as Device Theme	Kaip įrenginio tema
 Saturation	Sodrumas
 Save	Išsaugoti
 Save Changes	Išsaugoti pakeitimus
+Save Event	Išsaugoti renginį
 Save Image	Išsaugoti vaizdą
 Saving...	Išsaugoma...
 Saving…	Išsaugoma…
@@ -1516,6 +1534,7 @@ Some older devices may not be shown here	Kai kurie senesni įrenginiai čia gali
 Someone	Kažkas
 Something went wrong	Kažkas nepavyko
 Something went wrong (HTTP %).	Kažkas nepavyko (HTTP %).
+Something went wrong. Please try again.	Kažkas nepavyko. Bandyk dar kartą.
 Something went wrong. Try again.	Kažkas nepavyko. Bandyk dar kartą.
 Somewhere Else	Kitur
 Sorry, we couldn't load the first message in this thread	Atsiprašome, nepavyko įkelti pirmosios šios gijos žinutės
@@ -1538,6 +1557,7 @@ Speak Message	Įgarsinti žinutę
 Spoiler Attachment	Atskleidžiamas priedas
 Spoiler Content	Atskleidžiamas turinys
 Stage	Scena
+Stage Channel	Scenos kanalas
 Start Date	Pradžios data
 Start Event	Pradėti renginį
 Start Minimized	Paleisti sumažintą
@@ -1546,7 +1566,6 @@ Starting in %m	Prasideda po %m
 State	Būsena
 Stickers	Lipdukai
 Stickers can be used by anyone in this server. Upload a PNG, APNG, GIF or Lottie JSON file of up to 512 KB; it shows at 320x320.	Lipdukus gali naudoti visi šio serverio nariai. Įkelk PNG, APNG, GIF ar Lottie JSON failą iki 512 KB; jis rodomas 320x320 dydžio.
-Stickers can't be sent encrypted yet.	Lipdukų kol kas negalima siųsti užšifruotų.
 Stickers must be PNG, APNG, GIF or Lottie JSON files.	Lipdukai turi būti PNG, APNG, GIF ar Lottie JSON failai.
 Stop Recording	Stabdyti įrašymą
 Stop Streaming	Stabdyti transliaciją
@@ -1559,6 +1578,8 @@ Streamer Mode	Transliuotojo režimas
 Streamer Mode Enabled	Įjungtas transliuotojo režimas
 Streamer Mode hides your personal info so others watching your stream can't see it.	Transliuotojo režimas slepia tavo asmeninę informaciją, kad transliacijos žiūrovai jos nematytų.
 Streamer Mode is enabled. Usernames have been truncated.	Įjungtas transliuotojo režimas. Naudotojų vardai sutrumpinti.
+Submit	Pateikti
+Submitting	Pateikiama
 Success! Your friend request to % was sent.	Pavyko! Draugystės užklausa naudotojui % išsiųsta.
 Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday	sekmadienis|pirmadienis|antradienis|trečiadienis|ketvirtadienis|penktadienis|šeštadienis
 Sun|Mon|Tue|Wed|Thu|Fri|Sat	sk|pr|an|tr|kt|pn|št
@@ -1586,6 +1607,7 @@ Tags	Žymos
 Tags (pick at least one)	Žymos (pasirink bent vieną)
 Tags let members organize their posts. Members pick them when they post; moderated tags only moderators can apply.	Žymos padeda nariams tvarkyti įrašus. Nariai jas pasirenka skelbdami; moderuojamas žymas gali uždėti tik moderatoriai.
 Tap the link in your email to sign in instantly — no password needed.	Bakstelėk saitą el. laiške ir prisijunk akimirksniu – slaptažodžio nereikia.
+Tell Us More About Your Server	Papasakok daugiau apie savo serverį
 Tell people a little more about your event. Markdown, new lines, and links are supported.	Papasakok daugiau apie savo renginį. Palaikomi Markdown, naujos eilutės ir saitai.
 Tell the world a bit about this server.	Papasakok pasauliui apie šį serverį.
 Template Description	Šablono aprašymas
@@ -1649,8 +1671,11 @@ This is the start of the #% channel.	Tai kanalo #% pradžia.
 This is where Discord sends updates for moderators and admins of Community servers.	Čia Discord siunčia naujienas bendruomenės serverių moderatoriams ir administratoriams.
 This is where you'll show members your server rules or guidelines.	Čia nariams rodysi serverio taisykles ar gaires.
 This link is taking you to the following website	Šis saitas veda į šią svetainę
+This message is end-to-end encrypted. Forwarding it here sends it unencrypted, so Discord can read it.	Ši žinutė visapusiškai užšifruota. Persiuntus ją čia, ji bus išsiųsta neužšifruota, todėl Discord galės ją perskaityti.
+This message is end-to-end encrypted. Forwarding it here sends it unencrypted, so the server's host can read it.	Ši žinutė visapusiškai užšifruota. Persiuntus ją čia, ji bus išsiųsta neužšifruota, todėl serverio operatorius galės ją perskaityti.
 This option is not available for Community Servers.	Ši parinktis bendruomenės serveriams negalima.
 This role is managed by an integration and can't be edited here.	Šį vaidmenį valdo integracija, todėl čia jo redaguoti negalima.
+This server asks a few questions before you can join. Answer them on discord.com.	Prieš prisijungiant šis serveris užduoda kelis klausimus. Atsakyk į juos discord.com.
 This server has been removed from Server Discovery because it no longer passes all the requirements. Check Server Settings for more details.	Šis serveris pašalintas iš serverių paieškos, nes nebeatitinka visų reikalavimų. Daugiau informacijos – serverio nustatymuose.
 This server has failed Discovery activity requirements for 1 week. If this server fails for 4 weeks in a row, it will be automatically removed from Discovery.	Šis serveris 1 savaitę neatitiko serverių paieškos veiklos reikalavimų. Jei neatitiks 4 savaites iš eilės, bus automatiškai pašalintas iš paieškos.
 This server has failed Discovery activity requirements for 3 weeks in a row. If this server fails for 1 more week, it will be removed from Discovery.	Šis serveris 3 savaites iš eilės neatitiko serverių paieškos veiklos reikalavimų. Jei neatitiks dar 1 savaitę, bus pašalintas iš paieškos.
@@ -1748,7 +1773,9 @@ Update Role	Atnaujinti vaidmenį
 Update Server	Atnaujinti serverį
 Update Webhook	Atnaujinti webhook
 Update your password	Atnaujink slaptažodį
+Updating…	Atnaujinama…
 Upload	Įkelti
+Upload Cover Image	Įkelti viršelio vaizdą
 Upload Emoji	Įkelti jaustuką
 Upload Sound	Įkelti garsą
 Upload Sticker	Įkelti lipduką
@@ -1821,6 +1848,7 @@ Wave to say hi!	Pamojuok ir pasisveikink!
 We appreciate the enthusiasm, but...	Vertiname tavo entuziazmą, bet...
 We couldn't load the profile for this server.	Nepavyko įkelti šio serverio profilio.
 We recommend an image of at least 512x512.	Rekomenduojame bent 512x512 vaizdą.
+We recommend an image of at least 800px wide and 320px tall.	Rekomenduojame bent 800px pločio ir 320px aukščio vaizdą.
 We sent instructions to change your password to %, please check both your inbox and spam folder.	Slaptažodžio keitimo instrukcijas išsiuntėme adresu %, patikrink gautuosius ir šlamšto aplanką.
 We're so excited to see you again!	Labai džiaugiamės vėl tave matydami!
 We've sent a message to %.  Please enter the code you received.	Išsiuntėme žinutę į %.  Įvesk gautą kodą.
@@ -1879,6 +1907,7 @@ You haven't connected any accounts yet.	Dar nesusiejai jokių paskyrų.
 You haven't ignored anyone.	Nieko neignoruoji.
 You missed a call from %1 that lasted %2.	Praleidai %1 skambutį, kuris truko %2.
 You must be at least 18 years old to view this channel.	Kad matytum šį kanalą, turi būti bent 18 metų.
+You must complete a few more steps before you can talk.	Prieš kalbėdamas turi atlikti dar kelis veiksmus.
 You must leave a server first to join.	Kad prisijungtum, pirma palik kurį nors serverį.
 You need to add one or more rules.	Turi pridėti bent vieną taisyklę.
 You received an invite, but...	Gavai pakvietimą, bet...
@@ -1957,6 +1986,7 @@ on %	%
 pinned messages	prisegtos žinutės
 remove embeds	pašalinti įterptą turinį
 save	išsaugoti
+skip this question	praleisti šį klausimą
 someone	kažkas
 specific date	konkreti data
 this server	šis serveris
@@ -1964,6 +1994,7 @@ threads	gijos
 true or false	taip arba ne
 unknown	nežinoma
 unknown channel	nežinomas kanalas
+unknown-user	nežinomas-naudotojas
 used	panaudota
 user	naudotojas
 • Media from all members is scanned by the explicit image filter.	• Visų narių medija tikrinama atviro turinio vaizdų filtru.

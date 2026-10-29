@@ -1,4 +1,5 @@
 # Ukrainian (uk)
+ for now.	 і повернутися до нього пізніше.
  · required	 · обов'язково
 % (requested to speak)	% (просить слова)
 % (required)	% (обов'язково)
@@ -182,6 +183,7 @@
 @everyone · applies to all server members	@everyone · для всіх учасників сервера
 A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button.	Клавіша з Ctrl, Alt, Shift або Cmd, сама клавіша-модифікатор або середня чи бічна кнопка миші.
 A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button. Works in every app.	Клавіша з Ctrl, Alt, Shift або Cmd, сама клавіша-модифікатор або середня чи бічна кнопка миші. Працює в усіх програмах.
+A new channel will be created with the same permissions, user limit and bitrate as 	Буде створено новий канал з тими самими дозволами, лімітом користувачів і бітрейтом, що й у каналу 
 A role needs a name.	Ролі потрібна назва.
 A webhook needs a name.	Вебхуку потрібна назва.
 A wild % appeared.	З'явився дикий %.
@@ -432,6 +434,7 @@ Category Name	Назва категорії
 Category deleted	Категорію видалено
 Change %	Змінити %
 Change Avatar	Змінити аватар
+Change Image	Змінити зображення
 Change Nickname	Змінити псевдонім
 Change Password	Змінити пароль
 Change Server Icon	Змінити значок сервера
@@ -479,6 +482,7 @@ Community servers have more tools to help you moderate and grow your server.	С�
 Compact	Компактний
 Compare	Звірити
 Compare these with %, in person or on a call. If they match, no one can read this DM in between.	Звір їх із %, особисто або під час дзвінка. Якщо вони збігаються, ніхто посередині не зможе читати це листування.
+Complete	Завершити
 Configure system event messages sent to your server.	Налаштуй системні повідомлення про події на сервері.
 Confirm	Підтвердити
 Confirm Request	Підтвердити запит
@@ -522,6 +526,7 @@ Couldn't create an invite link.	Не вдалося створити посил�
 Couldn't create an invite.	Не вдалося створити запрошення.
 Couldn't delete the channel: %	Не вдалося видалити канал: %
 Couldn't encrypt the message.	Не вдалося зашифрувати повідомлення.
+Couldn't get that GIF.	Не вдалося отримати цей GIF.
 Couldn't join %: %	Не вдалося приєднатися до %1: %2
 Couldn't load onboarding.	Не вдалося завантажити адаптацію.
 Couldn't load the AutoMod rules.	Не вдалося завантажити правила AutoMod.
@@ -532,6 +537,7 @@ Couldn't load the invites.	Не вдалося завантажити запро
 Couldn't load the members.	Не вдалося завантажити учасників.
 Couldn't load the role's members.	Не вдалося завантажити учасників ролі.
 Couldn't load the server rules.	Не вдалося завантажити правила сервера.
+Couldn't load the server's rules.	Не вдалося завантажити правила сервера.
 Couldn't load the server's tag.	Не вдалося завантажити тег сервера.
 Couldn't load the template.	Не вдалося завантажити шаблон.
 Couldn't load the webhooks.	Не вдалося завантажити вебхуки.
@@ -547,6 +553,7 @@ Couldn't save the image.	Не вдалося зберегти зображенн
 Couldn't save the token.	Не вдалося зберегти токен.
 Couldn't turn on encryption.	Не вдалося ввімкнути шифрування.
 Couldn't upload emoji	Не вдалося завантажити емодзі
+Cover Image	Обкладинка
 Cozy	Затишний
 Create	Створити
 Create Category	Створити категорію
@@ -558,7 +565,6 @@ Create Events	Створювати події
 Create Expressions	Створювати вирази
 Create Group DM	Створити груповий чат
 Create Invite	Створити запрошення
-Create My Own	Створити власний
 Create Poll	Створити опитування
 Create Polls	Створювати опитування
 Create Private Threads	Створювати приватні гілки
@@ -672,6 +678,7 @@ Don't show role colors	Не показувати кольори ролей
 Done	Готово
 Download	Завантажити
 Drop a file here, or browse	Перетягни файл сюди або вибери
+Duplicate Channel	Дублювати канал
 Duration	Тривалість
 Dutch	Нідерландська
 EDIT ROLE — %	РЕДАГУВАННЯ РОЛІ — %
@@ -685,6 +692,7 @@ Echo Cancellation	Придушення відлуння
 Edit	Редагувати
 Edit Category	Редагувати категорію
 Edit Channel	Редагувати канал
+Edit Event	Редагувати подію
 Edit Friend Nickname	Змінити псевдонім друга
 Edit Message	Редагувати повідомлення
 Edit Per-server Profile	Редагувати профіль сервера
@@ -789,6 +797,8 @@ For 24 Hours	На 24 години
 For 3 Days	На 3 дні
 For 3 Hours	На 3 години
 For 8 Hours	На 8 годин
+For a club or community	Для клубу чи спільноти
+For me and my friends	Для мене і моїх друзів
 Forever	Назавжди
 Forgot your password?	Забув пароль?
 Forum	Форум
@@ -812,7 +822,6 @@ Friends come online	Друзі з'являються в мережі
 Friends of friends	Друзі друзів
 From User	Від користувача
 GIFs	GIF
-GIFs can't be sent encrypted yet.	GIF поки що не можна надсилати зашифрованими.
 Gallery view	Галерея
 General	Загальне
 General Category Permissions	Загальні дозволи категорії
@@ -833,6 +842,7 @@ Go to Server	Перейти на сервер
 Good to see you, %.	Радо бачити, %.
 Got It	Зрозуміло
 Grant temporary membership	Надати тимчасове членство
+Great for larger community audio events.	Чудово підходить для великих аудіоподій спільноти.
 Greek	Грецька
 Hang out together with voice, video, and screen share	Спілкуйтеся голосом, відео й показом екрана
 Hang out with voice, video, screenshare, and Go Live.	Спілкуйтеся голосом, відео, показом екрана та трансляціями.
@@ -865,6 +875,7 @@ How did your server get started? Why should people join?	Як з'явився т
 Hungarian	Угорська
 I acknowledge that by transferring ownership of this server to %, it officially belongs to them.	Я розумію, що після передачі права власності на цей сервер % він офіційно належатиме цьому користувачу.
 I agree and understand	Я погоджуюся й розумію
+I have read and agree to the rules	Я прочитав(-ла) правила і погоджуюся з ними
 I'm new here, say hi!	Я тут новенький, привітайтеся!
 I'm sure, use a backup code	Так, використати резервний код
 IMAGE	ЗОБРАЖЕННЯ
@@ -888,6 +899,7 @@ Ignored message	Ігнороване повідомлення
 Image saved.	Зображення збережено.
 Important updates for people in and out of the server	Важливі оновлення для людей на сервері й поза ним
 In Channel	У каналі
+In order to help you with your setup, is your new server for just a few friends or a larger community?	Щоб допомогти з налаштуванням, скажи: твій новий сервер для кількох друзів чи для великої спільноти?
 Inactive Channel	Канал для неактивних
 Inactive Timeout	Час до неактивності
 Inbox	Вхідні
@@ -1175,6 +1187,7 @@ Not encrypted	Не зашифровано
 Not encrypted: Discord can read this message	Не зашифровано: Discord може прочитати це повідомлення
 Not end-to-end encrypted	Без наскрізного шифрування
 Not me, start over	Це не я, почати знову
+Not sure? You can 	Не впевнений? Можеш 
 Note	Нотатка
 Note (only visible to you)	Нотатка (бачиш лише ти)
 Note: Members with the "Mention @everyone, @here, and All Roles" permission will always be able to ping this role.	Примітка: учасники з дозволом «Згадувати @everyone, @here і всі ролі» завжди зможуть згадати цю роль.
@@ -1201,6 +1214,7 @@ One rule per line, for example: Be respectful	Одне правило на ря�
 Ongoing call	Триває дзвінок
 Online	У мережі
 Only @mentions	Лише @згадки
+Only selected members and roles will be able to view this channel.	Лише вибрані учасники та ролі зможуть бачити цей канал.
 Only servers and channels you have webhook permissions in are shown.	Показано лише сервери й канали, де ти маєш дозволи на вебхуки.
 Only you can see the nickname you give %.	Псевдонім, який ти даєш %, бачиш лише ти.
 Only you can see this · 	Це бачиш лише ти ·
@@ -1314,6 +1328,7 @@ ROLES — %	РОЛІ — %
 ROLES/MEMBERS	РОЛІ/УЧАСНИКИ
 RTC Connecting	З'єднання RTC
 Read Message History	Читати історію повідомлень
+Read and agree to the server rules	Прочитай правила сервера і погодься з ними
 Reason	Причина
 Reason for Ban	Причина бану
 Reason for Kick	Причина вигнання
@@ -1374,6 +1389,7 @@ Reset Friend Nickname	Скинути псевдонім друга
 Reset Voice Settings	Скинути налаштування голосу
 Resolving Invite	Перевіряємо запрошення
 Responses	Відповіді
+Restart to Update	Перезапустити й оновити
 Retry	Повторити
 Retry Now	Повторити зараз
 Return to call	Повернутися до дзвінка
@@ -1399,6 +1415,7 @@ SELECT A CHANNEL	ВИБЕРИ КАНАЛ
 SELECT A SERVER	ВИБЕРИ СЕРВЕР
 SERVER NAME	НАЗВА СЕРВЕРА
 SOUNDBOARD VOLUME	ГУЧНІСТЬ ЗВУКОВОЇ ПАНЕЛІ
+START FROM A TEMPLATE	ПОЧАТИ З ШАБЛОНУ
 STATIC EMOJI — % SLOTS AVAILABLE	СТАТИЧНІ ЕМОДЗІ — ВІЛЬНИХ МІСЦЬ: %
 Safety Notifications Channel	Канал сповіщень безпеки
 Safety Number	Код безпеки
@@ -1408,6 +1425,7 @@ Same as Device Theme	Як на пристрої
 Saturation	Насиченість
 Save	Зберегти
 Save Changes	Зберегти зміни
+Save Event	Зберегти подію
 Save Image	Зберегти зображення
 Saving...	Зберігаємо...
 Saving…	Зберігаємо…
@@ -1516,6 +1534,7 @@ Some older devices may not be shown here	Деякі старіші пристр�
 Someone	Хтось
 Something went wrong	Щось пішло не так
 Something went wrong (HTTP %).	Щось пішло не так (HTTP %).
+Something went wrong. Please try again.	Щось пішло не так. Будь ласка, спробуй ще раз.
 Something went wrong. Try again.	Щось пішло не так. Спробуй ще раз.
 Somewhere Else	Деінде
 Sorry, we couldn't load the first message in this thread	Вибач, не вдалося завантажити перше повідомлення цієї гілки
@@ -1538,6 +1557,7 @@ Speak Message	Озвучити повідомлення
 Spoiler Attachment	Вкладення-спойлер
 Spoiler Content	Вміст спойлера
 Stage	Сцена
+Stage Channel	Канал-сцена
 Start Date	Дата початку
 Start Event	Почати подію
 Start Minimized	Запускати згорнутим
@@ -1546,7 +1566,6 @@ Starting in %m	Початок через % хв
 State	Стан
 Stickers	Наліпки
 Stickers can be used by anyone in this server. Upload a PNG, APNG, GIF or Lottie JSON file of up to 512 KB; it shows at 320x320.	Наліпками може користуватися будь-хто на цьому сервері. Завантаж файл PNG, APNG, GIF або Lottie JSON розміром до 512 КБ; він показуватиметься в розмірі 320x320.
-Stickers can't be sent encrypted yet.	Наліпки поки не можна надсилати зашифрованими.
 Stickers must be PNG, APNG, GIF or Lottie JSON files.	Наліпки мають бути файлами PNG, APNG, GIF або Lottie JSON.
 Stop Recording	Зупинити запис
 Stop Streaming	Зупинити трансляцію
@@ -1559,6 +1578,8 @@ Streamer Mode	Режим стримера
 Streamer Mode Enabled	Режим стримера ввімкнено
 Streamer Mode hides your personal info so others watching your stream can't see it.	Режим стримера ховає твої особисті дані, щоб глядачі трансляції їх не побачили.
 Streamer Mode is enabled. Usernames have been truncated.	Режим стримера ввімкнено. Імена користувачів скорочено.
+Submit	Надіслати
+Submitting	Надсилання
 Success! Your friend request to % was sent.	Готово! Запит у друзі для % надіслано.
 Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday	неділя|понеділок|вівторок|середа|четвер|п'ятниця|субота
 Sun|Mon|Tue|Wed|Thu|Fri|Sat	нд|пн|вт|ср|чт|пт|сб
@@ -1586,6 +1607,7 @@ Tags	Теги
 Tags (pick at least one)	Теги (вибери хоча б один)
 Tags let members organize their posts. Members pick them when they post; moderated tags only moderators can apply.	Теги допомагають учасникам упорядковувати публікації. Учасники вибирають їх під час публікації; модеровані теги можуть ставити лише модератори.
 Tap the link in your email to sign in instantly — no password needed.	Натисни посилання в листі, щоб миттєво увійти — без пароля.
+Tell Us More About Your Server	Розкажи більше про свій сервер
 Tell people a little more about your event. Markdown, new lines, and links are supported.	Розкажи трохи більше про свою подію. Підтримуються Markdown, нові рядки й посилання.
 Tell the world a bit about this server.	Розкажи світу трохи про цей сервер.
 Template Description	Опис шаблону
@@ -1649,8 +1671,11 @@ This is the start of the #% channel.	Це початок каналу #%.
 This is where Discord sends updates for moderators and admins of Community servers.	Сюди Discord надсилає оновлення для модераторів і адміністраторів серверів спільнот.
 This is where you'll show members your server rules or guidelines.	Тут ти показуватимеш учасникам правила сервера.
 This link is taking you to the following website	Це посилання веде на такий сайт
+This message is end-to-end encrypted. Forwarding it here sends it unencrypted, so Discord can read it.	Це повідомлення захищене наскрізним шифруванням. Якщо переслати його сюди, воно піде без шифрування і Discord зможе його прочитати.
+This message is end-to-end encrypted. Forwarding it here sends it unencrypted, so the server's host can read it.	Це повідомлення захищене наскрізним шифруванням. Якщо переслати його сюди, воно піде без шифрування і оператор сервера зможе його прочитати.
 This option is not available for Community Servers.	Ця опція недоступна для серверів спільнот.
 This role is managed by an integration and can't be edited here.	Цією роллю керує інтеграція, тож її не можна змінити тут.
+This server asks a few questions before you can join. Answer them on discord.com.	Перш ніж приєднатися до цього сервера, треба відповісти на кілька запитань. Дай відповіді на discord.com.
 This server has been removed from Server Discovery because it no longer passes all the requirements. Check Server Settings for more details.	Цей сервер вилучено з Пошуку серверів, бо він більше не відповідає всім вимогам. Подробиці — у Налаштуваннях сервера.
 This server has failed Discovery activity requirements for 1 week. If this server fails for 4 weeks in a row, it will be automatically removed from Discovery.	Цей сервер уже 1 тиждень не відповідає вимогам активності Пошуку. Якщо так триватиме 4 тижні поспіль, його автоматично вилучать із Пошуку.
 This server has failed Discovery activity requirements for 3 weeks in a row. If this server fails for 1 more week, it will be removed from Discovery.	Цей сервер уже 3 тижні поспіль не відповідає вимогам активності Пошуку. Якщо так триватиме ще 1 тиждень, його вилучать із Пошуку.
@@ -1748,7 +1773,9 @@ Update Role	Оновити роль
 Update Server	Оновити сервер
 Update Webhook	Оновити вебхук
 Update your password	Онови пароль
+Updating…	Оновлення…
 Upload	Завантажити
+Upload Cover Image	Завантажити обкладинку
 Upload Emoji	Завантажити емодзі
 Upload Sound	Завантажити звук
 Upload Sticker	Завантажити наліпку
@@ -1821,6 +1848,7 @@ Wave to say hi!	Помахай, щоб привітатися!
 We appreciate the enthusiasm, but...	Цінуємо твій запал, але...
 We couldn't load the profile for this server.	Не вдалося завантажити профіль цього сервера.
 We recommend an image of at least 512x512.	Радимо зображення щонайменше 512x512.
+We recommend an image of at least 800px wide and 320px tall.	Радимо зображення завширшки щонайменше 800px і заввишки 320px.
 We sent instructions to change your password to %, please check both your inbox and spam folder.	Ми надіслали інструкції зі зміни пароля на %, перевір вхідні та папку зі спамом.
 We're so excited to see you again!	Ми дуже раді знову тебе бачити!
 We've sent a message to %.  Please enter the code you received.	Ми надіслали повідомлення на %.  Введи отриманий код.
@@ -1879,6 +1907,7 @@ You haven't connected any accounts yet.	Ти ще не під'єднав жод�
 You haven't ignored anyone.	Ти нікого не ігноруєш.
 You missed a call from %1 that lasted %2.	Ти пропустив дзвінок від %1, що тривав %2.
 You must be at least 18 years old to view this channel.	Щоб переглянути цей канал, тобі має бути щонайменше 18 років.
+You must complete a few more steps before you can talk.	Перш ніж писати, треба виконати ще кілька кроків.
 You must leave a server first to join.	Щоб приєднатися, спершу вийди з якогось сервера.
 You need to add one or more rules.	Потрібно додати хоча б одне правило.
 You received an invite, but...	Ти отримав запрошення, але...
@@ -1957,6 +1986,7 @@ on %	%
 pinned messages	закріплені повідомлення
 remove embeds	прибрати вбудований вміст
 save	зберегти
+skip this question	пропустити це питання
 someone	хтось
 specific date	конкретна дата
 this server	цей сервер
@@ -1964,6 +1994,7 @@ threads	гілки
 true or false	так чи ні
 unknown	невідомо
 unknown channel	невідомий канал
+unknown-user	невідомий-користувач
 used	використано
 user	користувач
 • Media from all members is scanned by the explicit image filter.	• Медіа від усіх учасників перевіряє фільтр відвертих зображень.

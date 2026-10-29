@@ -1,4 +1,5 @@
 # Hungarian (hu)
+ for now.	.
  · required	 · kötelező
 % (requested to speak)	% (szólásra jelentkezett)
 % (required)	% (kötelező)
@@ -182,6 +183,7 @@
 @everyone · applies to all server members	@everyone · a szerver összes tagjára vonatkozik
 A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button.	Egy billentyű Ctrl, Alt, Shift vagy Cmd gombbal, egy módosítóbillentyű önmagában, vagy a középső vagy oldalsó egérgomb.
 A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button. Works in every app.	Egy billentyű Ctrl, Alt, Shift vagy Cmd gombbal, egy módosítóbillentyű önmagában, vagy a középső vagy oldalsó egérgomb. Minden alkalmazásban működik.
+A new channel will be created with the same permissions, user limit and bitrate as 	Új csatorna jön létre ugyanazokkal az engedélyekkel, felhasználói korláttal és bitrátával, mint 
 A role needs a name.	A rangnak kell egy név.
 A webhook needs a name.	A webhooknak kell egy név.
 A wild % appeared.	Egy vad % jelent meg.
@@ -432,6 +434,7 @@ Category Name	Kategória neve
 Category deleted	Kategória törölve
 Change %	% módosítása
 Change Avatar	Profilkép módosítása
+Change Image	Kép módosítása
 Change Nickname	Becenév módosítása
 Change Password	Jelszó módosítása
 Change Server Icon	Szerverikon módosítása
@@ -479,6 +482,7 @@ Community servers have more tools to help you moderate and grow your server.	A k
 Compact	Tömör
 Compare	Összehasonlítás
 Compare these with %, in person or on a call. If they match, no one can read this DM in between.	Hasonlítsd össze ezeket vele: %, személyesen vagy egy hívásban. Ha egyeznek, senki sem olvashatja ezt a DM-et útközben.
+Complete	Befejezés
 Configure system event messages sent to your server.	A szerveredre küldött rendszereseményüzenetek beállítása.
 Confirm	Megerősítés
 Confirm Request	Kérés megerősítése
@@ -522,6 +526,7 @@ Couldn't create an invite link.	Nem sikerült meghívólinket létrehozni.
 Couldn't create an invite.	Nem sikerült meghívót létrehozni.
 Couldn't delete the channel: %	Nem sikerült törölni a csatornát: %
 Couldn't encrypt the message.	Nem sikerült titkosítani az üzenetet.
+Couldn't get that GIF.	Nem sikerült lekérni a GIF-et.
 Couldn't join %: %	Nem sikerült csatlakozni ide: %1: %2
 Couldn't load onboarding.	Nem sikerült betölteni a bevezetést.
 Couldn't load the AutoMod rules.	Nem sikerült betölteni az AutoMod-szabályokat.
@@ -532,6 +537,7 @@ Couldn't load the invites.	Nem sikerült betölteni a meghívókat.
 Couldn't load the members.	Nem sikerült betölteni a tagokat.
 Couldn't load the role's members.	Nem sikerült betölteni a rang tagjait.
 Couldn't load the server rules.	Nem sikerült betölteni a szerver szabályait.
+Couldn't load the server's rules.	Nem sikerült betölteni a szerver szabályait.
 Couldn't load the server's tag.	Nem sikerült betölteni a szerver címkéjét.
 Couldn't load the template.	Nem sikerült betölteni a sablont.
 Couldn't load the webhooks.	Nem sikerült betölteni a webhookokat.
@@ -547,6 +553,7 @@ Couldn't save the image.	Nem sikerült menteni a képet.
 Couldn't save the token.	Nem sikerült menteni a tokent.
 Couldn't turn on encryption.	Nem sikerült bekapcsolni a titkosítást.
 Couldn't upload emoji	Nem sikerült feltölteni az emodzsit
+Cover Image	Borítókép
 Cozy	Kényelmes
 Create	Létrehozás
 Create Category	Kategória létrehozása
@@ -558,7 +565,6 @@ Create Events	Események létrehozása
 Create Expressions	Kifejezések létrehozása
 Create Group DM	Csoportos DM létrehozása
 Create Invite	Meghívó létrehozása
-Create My Own	Saját létrehozása
 Create Poll	Szavazás létrehozása
 Create Polls	Szavazások létrehozása
 Create Private Threads	Privát szálak létrehozása
@@ -672,6 +678,7 @@ Don't show role colors	Ne mutassa a rangszíneket
 Done	Kész
 Download	Letöltés
 Drop a file here, or browse	Húzz ide egy fájlt, vagy tallózz
+Duplicate Channel	Csatorna duplikálása
 Duration	Időtartam
 Dutch	Holland
 EDIT ROLE — %	RANG SZERKESZTÉSE — %
@@ -685,6 +692,7 @@ Echo Cancellation	Visszhangszűrés
 Edit	Szerkesztés
 Edit Category	Kategória szerkesztése
 Edit Channel	Csatorna szerkesztése
+Edit Event	Esemény szerkesztése
 Edit Friend Nickname	Barát becenevének szerkesztése
 Edit Message	Üzenet szerkesztése
 Edit Per-server Profile	Szerverenkénti profil szerkesztése
@@ -789,6 +797,8 @@ For 24 Hours	24 órára
 For 3 Days	3 napra
 For 3 Hours	3 órára
 For 8 Hours	8 órára
+For a club or community	Klubnak vagy közösségnek
+For me and my friends	Nekem és a barátaimnak
 Forever	Örökre
 Forgot your password?	Elfelejtetted a jelszavad?
 Forum	Fórum
@@ -812,7 +822,6 @@ Friends come online	Barátok online lesznek
 Friends of friends	Barátok barátai
 From User	Felhasználótól
 GIFs	GIF-ek
-GIFs can't be sent encrypted yet.	GIF-eket még nem lehet titkosítva küldeni.
 Gallery view	Galérianézet
 General	Általános
 General Category Permissions	Általános kategóriaengedélyek
@@ -833,6 +842,7 @@ Go to Server	Ugrás a szerverre
 Good to see you, %.	Jó látni téged, %.
 Got It	Értem
 Grant temporary membership	Ideiglenes tagság adása
+Great for larger community audio events.	Remek nagyobb közösségi hangeseményekhez.
 Greek	Görög
 Hang out together with voice, video, and screen share	Lógjatok együtt hanggal, videóval és képernyőmegosztással
 Hang out with voice, video, screenshare, and Go Live.	Lógjatok együtt hanggal, videóval, képernyőmegosztással és élő adással.
@@ -865,6 +875,7 @@ How did your server get started? Why should people join?	Hogyan indult a szerver
 Hungarian	Magyar
 I acknowledge that by transferring ownership of this server to %, it officially belongs to them.	Tudomásul veszem, hogy a szerver tulajdonjogának átadásával % hivatalosan a szerver tulajdonosa lesz.
 I agree and understand	Megértettem és elfogadom
+I have read and agree to the rules	Elolvastam és elfogadom a szabályokat
 I'm new here, say hi!	Új vagyok itt, köszönjetek!
 I'm sure, use a backup code	Biztos vagyok benne, tartalékkódot használok
 IMAGE	KÉP
@@ -888,6 +899,7 @@ Ignored message	Figyelmen kívül hagyott üzenet
 Image saved.	Kép mentve.
 Important updates for people in and out of the server	Fontos frissítések a szerveren belülieknek és kívülieknek
 In Channel	A csatornán
+In order to help you with your setup, is your new server for just a few friends or a larger community?	Hogy segíthessünk a beállításban: az új szervered csak néhány barátnak vagy egy nagyobb közösségnek szól?
 Inactive Channel	Inaktív csatorna
 Inactive Timeout	Inaktivitási idő
 Inbox	Beérkezett
@@ -1175,6 +1187,7 @@ Not encrypted	Nem titkosított
 Not encrypted: Discord can read this message	Nem titkosított: a Discord elolvashatja ezt az üzenetet
 Not end-to-end encrypted	Nem végponttól végpontig titkosított
 Not me, start over	Nem én vagyok, kezdjük elölről
+Not sure? You can 	Nem vagy biztos benne? Egyelőre 
 Note	Jegyzet
 Note (only visible to you)	Jegyzet (csak te látod)
 Note: Members with the "Mention @everyone, @here, and All Roles" permission will always be able to ping this role.	Megjegyzés: a „@everyone, @here és az összes rang említése” engedéllyel rendelkező tagok mindig pingelhetik ezt a rangot.
@@ -1201,6 +1214,7 @@ One rule per line, for example: Be respectful	Soronként egy szabály, például
 Ongoing call	Folyamatban lévő hívás
 Online	Online
 Only @mentions	Csak @említések
+Only selected members and roles will be able to view this channel.	Csak a kiválasztott tagok és rangok láthatják ezt a csatornát.
 Only servers and channels you have webhook permissions in are shown.	Csak azok a szerverek és csatornák jelennek meg, ahol webhook-engedélyed van.
 Only you can see the nickname you give %.	A(z) % számára adott becenevet csak te látod.
 Only you can see this · 	Csak te látod ezt ·
@@ -1314,6 +1328,7 @@ ROLES — %	RANGOK — %
 ROLES/MEMBERS	RANGOK/TAGOK
 RTC Connecting	RTC csatlakozás
 Read Message History	Üzenetelőzmények olvasása
+Read and agree to the server rules	Olvasd el és fogadd el a szerver szabályait
 Reason	Indok
 Reason for Ban	Kitiltás indoka
 Reason for Kick	Kirúgás indoka
@@ -1374,6 +1389,7 @@ Reset Friend Nickname	Barát becenevének visszaállítása
 Reset Voice Settings	Hangbeállítások visszaállítása
 Resolving Invite	Meghívó feldolgozása
 Responses	Válaszok
+Restart to Update	Újraindítás a frissítéshez
 Retry	Újra
 Retry Now	Újra most
 Return to call	Vissza a híváshoz
@@ -1399,6 +1415,7 @@ SELECT A CHANNEL	VÁLASSZ CSATORNÁT
 SELECT A SERVER	VÁLASSZ SZERVERT
 SERVER NAME	SZERVER NEVE
 SOUNDBOARD VOLUME	HANGTÁBLA HANGEREJE
+START FROM A TEMPLATE	KEZDÉS SABLONBÓL
 STATIC EMOJI — % SLOTS AVAILABLE	STATIKUS EMODZSIK — % SZABAD HELY
 Safety Notifications Channel	Biztonsági értesítések csatornája
 Safety Number	Biztonsági szám
@@ -1408,6 +1425,7 @@ Same as Device Theme	Az eszköz témája szerint
 Saturation	Telítettség
 Save	Mentés
 Save Changes	Módosítások mentése
+Save Event	Esemény mentése
 Save Image	Kép mentése
 Saving...	Mentés...
 Saving…	Mentés…
@@ -1516,6 +1534,7 @@ Some older devices may not be shown here	Néhány régebbi eszköz nem jelenhet 
 Someone	Valaki
 Something went wrong	Valami hiba történt
 Something went wrong (HTTP %).	Valami hiba történt (HTTP %).
+Something went wrong. Please try again.	Valami hiba történt. Próbáld újra.
 Something went wrong. Try again.	Valami hiba történt. Próbáld újra.
 Somewhere Else	Máshol
 Sorry, we couldn't load the first message in this thread	Sajnáljuk, nem sikerült betölteni a szál első üzenetét
@@ -1538,6 +1557,7 @@ Speak Message	Üzenet felolvasása
 Spoiler Attachment	Spoileres melléklet
 Spoiler Content	Spoileres tartalom
 Stage	Színpad
+Stage Channel	Színpadi csatorna
 Start Date	Kezdés dátuma
 Start Event	Esemény indítása
 Start Minimized	Indítás kicsinyítve
@@ -1546,7 +1566,6 @@ Starting in %m	Kezdés %p múlva
 State	Állapot
 Stickers	Matricák
 Stickers can be used by anyone in this server. Upload a PNG, APNG, GIF or Lottie JSON file of up to 512 KB; it shows at 320x320.	A matricákat bárki használhatja ezen a szerveren. Tölts fel egy legfeljebb 512 KB-os PNG, APNG, GIF vagy Lottie JSON fájlt; 320x320-as méretben jelenik meg.
-Stickers can't be sent encrypted yet.	Matricákat még nem lehet titkosítva küldeni.
 Stickers must be PNG, APNG, GIF or Lottie JSON files.	A matricák PNG, APNG, GIF vagy Lottie JSON fájlok lehetnek.
 Stop Recording	Rögzítés leállítása
 Stop Streaming	Közvetítés leállítása
@@ -1559,6 +1578,8 @@ Streamer Mode	Streamer mód
 Streamer Mode Enabled	Streamer mód bekapcsolva
 Streamer Mode hides your personal info so others watching your stream can't see it.	A Streamer mód elrejti a személyes adataidat, hogy a közvetítésed nézői ne lássák őket.
 Streamer Mode is enabled. Usernames have been truncated.	A Streamer mód be van kapcsolva. A felhasználónevek le vannak rövidítve.
+Submit	Küldés
+Submitting	Küldés…
 Success! Your friend request to % was sent.	Siker! Elküldtük a barátkérelmedet neki: %.
 Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday	vasárnap|hétfő|kedd|szerda|csütörtök|péntek|szombat
 Sun|Mon|Tue|Wed|Thu|Fri|Sat	V|H|K|Sze|Cs|P|Szo
@@ -1586,6 +1607,7 @@ Tags	Címkék
 Tags (pick at least one)	Címkék (válassz legalább egyet)
 Tags let members organize their posts. Members pick them when they post; moderated tags only moderators can apply.	A címkékkel a tagok rendszerezhetik a bejegyzéseiket. Bejegyzéskor választják ki őket; a moderált címkéket csak moderátorok adhatják hozzá.
 Tap the link in your email to sign in instantly — no password needed.	Koppints az e-mailben kapott linkre az azonnali bejelentkezéshez — jelszó nélkül.
+Tell Us More About Your Server	Mesélj többet a szerveredről
 Tell people a little more about your event. Markdown, new lines, and links are supported.	Mesélj kicsit többet az eseményedről. A Markdown, az új sorok és a linkek támogatottak.
 Tell the world a bit about this server.	Mesélj a világnak egy kicsit erről a szerverről.
 Template Description	Sablon leírása
@@ -1649,8 +1671,11 @@ This is the start of the #% channel.	Itt kezdődik a(z) #% csatorna.
 This is where Discord sends updates for moderators and admins of Community servers.	Ide küldi a Discord a frissítéseket a közösségi szerverek moderátorainak és adminjainak.
 This is where you'll show members your server rules or guidelines.	Itt mutatod meg a tagoknak a szerver szabályait vagy irányelveit.
 This link is taking you to the following website	Ez a link a következő weboldalra visz
+This message is end-to-end encrypted. Forwarding it here sends it unencrypted, so Discord can read it.	Ez az üzenet végponttól végpontig titkosított. Ha ide továbbítod, titkosítatlanul megy el, így a Discord elolvashatja.
+This message is end-to-end encrypted. Forwarding it here sends it unencrypted, so the server's host can read it.	Ez az üzenet végponttól végpontig titkosított. Ha ide továbbítod, titkosítatlanul megy el, így a szerver üzemeltetője elolvashatja.
 This option is not available for Community Servers.	Ez a lehetőség nem érhető el közösségi szervereken.
 This role is managed by an integration and can't be edited here.	Ezt a rangot egy integráció kezeli, ezért itt nem szerkeszthető.
+This server asks a few questions before you can join. Answer them on discord.com.	Ez a szerver feltesz néhány kérdést, mielőtt csatlakozhatnál. Válaszolj rájuk a discord.com oldalon.
 This server has been removed from Server Discovery because it no longer passes all the requirements. Check Server Settings for more details.	Ezt a szervert eltávolítottuk a Szerverfelfedezőből, mert már nem felel meg minden követelménynek. A részletekért nézd meg a Szerverbeállításokat.
 This server has failed Discovery activity requirements for 1 week. If this server fails for 4 weeks in a row, it will be automatically removed from Discovery.	Ez a szerver 1 hete nem felel meg a Felfedező aktivitási követelményeinek. Ha 4 egymást követő héten át nem felel meg, automatikusan eltávolítjuk a Felfedezőből.
 This server has failed Discovery activity requirements for 3 weeks in a row. If this server fails for 1 more week, it will be removed from Discovery.	Ez a szerver 3 egymást követő hete nem felel meg a Felfedező aktivitási követelményeinek. Ha még 1 hétig nem felel meg, eltávolítjuk a Felfedezőből.
@@ -1748,7 +1773,9 @@ Update Role	Rang frissítése
 Update Server	Szerver frissítése
 Update Webhook	Webhook frissítése
 Update your password	Jelszó frissítése
+Updating…	Frissítés…
 Upload	Feltöltés
+Upload Cover Image	Borítókép feltöltése
 Upload Emoji	Emodzsi feltöltése
 Upload Sound	Hang feltöltése
 Upload Sticker	Matrica feltöltése
@@ -1821,6 +1848,7 @@ Wave to say hi!	Integess, és köszönj!
 We appreciate the enthusiasm, but...	Értékeljük a lelkesedést, de...
 We couldn't load the profile for this server.	Nem sikerült betölteni a szerver profilját.
 We recommend an image of at least 512x512.	Legalább 512x512-es képet javaslunk.
+We recommend an image of at least 800px wide and 320px tall.	Legalább 800 px széles és 320 px magas képet javasolunk.
 We sent instructions to change your password to %, please check both your inbox and spam folder.	Elküldtük a jelszómódosítási utasításokat ide: %. Nézd meg a beérkezett üzeneteidet és a spam mappát is.
 We're so excited to see you again!	Nagyon örülünk, hogy újra látunk!
 We've sent a message to %.  Please enter the code you received.	Üzenetet küldtünk ide: %.  Írd be a kapott kódot.
@@ -1879,6 +1907,7 @@ You haven't connected any accounts yet.	Még nem kapcsoltál össze egy fiókot 
 You haven't ignored anyone.	Még senkit sem hagytál figyelmen kívül.
 You missed a call from %1 that lasted %2.	Nem fogadtad %1 hívását, ami %2 ideig tartott.
 You must be at least 18 years old to view this channel.	A csatorna megtekintéséhez legalább 18 évesnek kell lenned.
+You must complete a few more steps before you can talk.	Még néhány lépést el kell végezned, mielőtt beszélhetnél.
 You must leave a server first to join.	A csatlakozáshoz előbb ki kell lépned egy szerverről.
 You need to add one or more rules.	Legalább egy szabályt meg kell adnod.
 You received an invite, but...	Kaptál egy meghívót, de...
@@ -1956,6 +1985,7 @@ on %	ekkor: %
 pinned messages	kitűzött üzenet
 remove embeds	beágyazások eltávolítása
 save	mentés
+skip this question	kihagyhatod ezt a kérdést
 someone	valaki
 specific date	adott dátum
 this server	ez a szerver

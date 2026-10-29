@@ -1,4 +1,5 @@
 # Bulgarian (bg)
+ for now.	 засега.
  · required	 · задължително
 % (requested to speak)	% (иска да говори)
 % (required)	% (задължително)
@@ -182,6 +183,7 @@
 @everyone · applies to all server members	@everyone · важи за всички членове на сървъра
 A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button.	Клавиш с Ctrl, Alt, Shift или Cmd, самостоятелен модификатор или среден или страничен бутон на мишката.
 A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button. Works in every app.	Клавиш с Ctrl, Alt, Shift или Cmd, самостоятелен модификатор или среден или страничен бутон на мишката. Работи във всяко приложение.
+A new channel will be created with the same permissions, user limit and bitrate as 	Ще бъде създаден нов канал със същите права, лимит на потребители и битрейт като 
 A role needs a name.	Ролята трябва да има име.
 A webhook needs a name.	Уебхукът трябва да има име.
 A wild % appeared.	Див % се появи.
@@ -432,6 +434,7 @@ Category Name	Име на категорията
 Category deleted	Категорията е изтрита
 Change %	Смени %
 Change Avatar	Смени аватара
+Change Image	Смени изображението
 Change Nickname	Смени прякора
 Change Password	Смени паролата
 Change Server Icon	Смени иконата на сървъра
@@ -479,6 +482,7 @@ Community servers have more tools to help you moderate and grow your server.	О�
 Compact	Компактен
 Compare	Сравни
 Compare these with %, in person or on a call. If they match, no one can read this DM in between.	Сравни ги с %, лично или в разговор. Ако съвпадат, никой не може да чете това ЛС по пътя.
+Complete	Завърши
 Configure system event messages sent to your server.	Настрой системните съобщения за събития, изпращани в сървъра ти.
 Confirm	Потвърди
 Confirm Request	Потвърди заявката
@@ -522,6 +526,7 @@ Couldn't create an invite link.	Неуспешно създаване на ли�
 Couldn't create an invite.	Неуспешно създаване на покана.
 Couldn't delete the channel: %	Неуспешно изтриване на канала: %
 Couldn't encrypt the message.	Неуспешно криптиране на съобщението.
+Couldn't get that GIF.	Този GIF не можа да се зареди.
 Couldn't join %: %	Неуспешно влизане в %: %
 Couldn't load onboarding.	Неуспешно зареждане на въвеждането.
 Couldn't load the AutoMod rules.	Неуспешно зареждане на правилата на AutoMod.
@@ -532,6 +537,7 @@ Couldn't load the invites.	Неуспешно зареждане на покан
 Couldn't load the members.	Неуспешно зареждане на членовете.
 Couldn't load the role's members.	Неуспешно зареждане на членовете на ролята.
 Couldn't load the server rules.	Неуспешно зареждане на правилата на сървъра.
+Couldn't load the server's rules.	Правилата на сървъра не можаха да се заредят.
 Couldn't load the server's tag.	Неуспешно зареждане на етикета на сървъра.
 Couldn't load the template.	Неуспешно зареждане на шаблона.
 Couldn't load the webhooks.	Неуспешно зареждане на уебхуковете.
@@ -547,6 +553,7 @@ Couldn't save the image.	Неуспешно запазване на изобра
 Couldn't save the token.	Неуспешно запазване на токена.
 Couldn't turn on encryption.	Неуспешно включване на криптирането.
 Couldn't upload emoji	Неуспешно качване на емоджи
+Cover Image	Корица
 Cozy	Уютен
 Create	Създай
 Create Category	Създай категория
@@ -558,7 +565,6 @@ Create Events	Създаване на събития
 Create Expressions	Създаване на изрази
 Create Group DM	Създай групово ЛС
 Create Invite	Създай покана
-Create My Own	Създай свой
 Create Poll	Създай анкета
 Create Polls	Създаване на анкети
 Create Private Threads	Създаване на частни нишки
@@ -672,6 +678,7 @@ Don't show role colors	Не показвай цветовете на ролит�
 Done	Готово
 Download	Изтегли
 Drop a file here, or browse	Пусни файл тук или разгледай
+Duplicate Channel	Дублирай канала
 Duration	Продължителност
 Dutch	Нидерландски
 EDIT ROLE — %	РЕДАКТИРАЙ РОЛЯ — %
@@ -685,6 +692,7 @@ Echo Cancellation	Премахване на ехото
 Edit	Редактирай
 Edit Category	Редактирай категорията
 Edit Channel	Редактирай канала
+Edit Event	Редактирай събитието
 Edit Friend Nickname	Редактирай прякора на приятеля
 Edit Message	Редактирай съобщението
 Edit Per-server Profile	Редактирай профила за сървъра
@@ -789,6 +797,8 @@ For 24 Hours	За 24 часа
 For 3 Days	За 3 дни
 For 3 Hours	За 3 часа
 For 8 Hours	За 8 часа
+For a club or community	За клуб или общност
+For me and my friends	За мен и приятелите ми
 Forever	Завинаги
 Forgot your password?	Забрави паролата си?
 Forum	Форум
@@ -812,7 +822,6 @@ Friends come online	Приятели влизат на линия
 Friends of friends	Приятели на приятели
 From User	От потребител
 GIFs	GIF-ове
-GIFs can't be sent encrypted yet.	GIF-овете още не могат да се пращат криптирани.
 Gallery view	Изглед галерия
 General	Общи
 General Category Permissions	Общи права за категорията
@@ -833,6 +842,7 @@ Go to Server	Към сървъра
 Good to see you, %.	Радваме се да те видим, %.
 Got It	Разбрах
 Grant temporary membership	Дай временно членство
+Great for larger community audio events.	Чудесно за по-големи аудиосъбития на общността.
 Greek	Гръцки
 Hang out together with voice, video, and screen share	Събирайте се заедно с глас, видео и споделяне на екрана
 Hang out with voice, video, screenshare, and Go Live.	Събирайте се с глас, видео, споделяне на екрана и излъчване на живо.
@@ -865,6 +875,7 @@ How did your server get started? Why should people join?	Как започна �
 Hungarian	Унгарски
 I acknowledge that by transferring ownership of this server to %, it officially belongs to them.	Разбирам, че с прехвърлянето на собствеността на този сървър на %, той официално принадлежи на него.
 I agree and understand	Съгласен съм и разбирам
+I have read and agree to the rules	Прочетох правилата и съм съгласен с тях
 I'm new here, say hi!	Нов съм тук, кажете здрасти!
 I'm sure, use a backup code	Сигурен съм, използвай резервен код
 IMAGE	ИЗОБРАЖЕНИЕ
@@ -888,6 +899,7 @@ Ignored message	Игнорирано съобщение
 Image saved.	Изображението е запазено.
 Important updates for people in and out of the server	Важни новини за хората в и извън сървъра
 In Channel	В канала
+In order to help you with your setup, is your new server for just a few friends or a larger community?	За да ти помогнем с настройката: новият ти сървър за няколко приятели ли е, или за по-голяма общност?
 Inactive Channel	Неактивен канал
 Inactive Timeout	Време до неактивност
 Inbox	Входящи
@@ -1175,6 +1187,7 @@ Not encrypted	Некриптирано
 Not encrypted: Discord can read this message	Некриптирано: Discord може да прочете това съобщение
 Not end-to-end encrypted	Не е криптирано от край до край
 Not me, start over	Не съм аз, започни отначало
+Not sure? You can 	Не си сигурен? Можеш да 
 Note	Бележка
 Note (only visible to you)	Бележка (видима само за теб)
 Note: Members with the "Mention @everyone, @here, and All Roles" permission will always be able to ping this role.	Забележка: членовете с правото „Споменаване на @everyone, @here и всички роли“ винаги ще могат да пингват тази роля.
@@ -1201,6 +1214,7 @@ One rule per line, for example: Be respectful	По едно правило на 
 Ongoing call	Текущ разговор
 Online	На линия
 Only @mentions	Само @споменавания
+Only selected members and roles will be able to view this channel.	Само избраните членове и роли ще виждат този канал.
 Only servers and channels you have webhook permissions in are shown.	Показват се само сървъри и канали, в които имаш права за уебхукове.
 Only you can see the nickname you give %.	Само ти виждаш прякора, който даваш на %.
 Only you can see this · 	Само ти виждаш това ·
@@ -1314,6 +1328,7 @@ ROLES — %	РОЛИ — %
 ROLES/MEMBERS	РОЛИ/ЧЛЕНОВЕ
 RTC Connecting	RTC свързване
 Read Message History	Четене на историята на съобщенията
+Read and agree to the server rules	Прочети и приеми правилата на сървъра
 Reason	Причина
 Reason for Ban	Причина за бана
 Reason for Kick	Причина за изгонването
@@ -1374,6 +1389,7 @@ Reset Friend Nickname	Нулирай прякора на приятеля
 Reset Voice Settings	Нулирай гласовите настройки
 Resolving Invite	Проверка на поканата
 Responses	Отговори
+Restart to Update	Рестартирай за обновяване
 Retry	Опитай пак
 Retry Now	Опитай сега
 Return to call	Обратно към разговора
@@ -1399,6 +1415,7 @@ SELECT A CHANNEL	ИЗБЕРИ КАНАЛ
 SELECT A SERVER	ИЗБЕРИ СЪРВЪР
 SERVER NAME	ИМЕ НА СЪРВЪРА
 SOUNDBOARD VOLUME	СИЛА НА ЗВУКОВИЯ ПАНЕЛ
+START FROM A TEMPLATE	ЗАПОЧНИ ОТ ШАБЛОН
 STATIC EMOJI — % SLOTS AVAILABLE	СТАТИЧНИ ЕМОДЖИ — % СВОБОДНИ МЕСТА
 Safety Notifications Channel	Канал за известия за безопасност
 Safety Number	Номер за сигурност
@@ -1408,6 +1425,7 @@ Same as Device Theme	Като темата на устройството
 Saturation	Наситеност
 Save	Запази
 Save Changes	Запази промените
+Save Event	Запази събитието
 Save Image	Запази изображението
 Saving...	Запазване...
 Saving…	Запазване…
@@ -1516,6 +1534,7 @@ Some older devices may not be shown here	Някои по-стари устрой
 Someone	Някой
 Something went wrong	Нещо се обърка
 Something went wrong (HTTP %).	Нещо се обърка (HTTP %).
+Something went wrong. Please try again.	Нещо се обърка. Моля, опитай пак.
 Something went wrong. Try again.	Нещо се обърка. Опитай пак.
 Somewhere Else	Другаде
 Sorry, we couldn't load the first message in this thread	За съжаление не успяхме да заредим първото съобщение в тази нишка
@@ -1538,6 +1557,7 @@ Speak Message	Прочети съобщението на глас
 Spoiler Attachment	Прикачен файл спойлер
 Spoiler Content	Съдържание спойлер
 Stage	Сцена
+Stage Channel	Канал-сцена
 Start Date	Начална дата
 Start Event	Започни събитието
 Start Minimized	Стартирай минимизирано
@@ -1546,7 +1566,6 @@ Starting in %m	Започва след %мин
 State	Състояние
 Stickers	Стикери
 Stickers can be used by anyone in this server. Upload a PNG, APNG, GIF or Lottie JSON file of up to 512 KB; it shows at 320x320.	Стикерите могат да се използват от всеки в този сървър. Качи PNG, APNG, GIF или Lottie JSON файл до 512 KB; показва се в размер 320x320.
-Stickers can't be sent encrypted yet.	Стикерите още не могат да се пращат криптирани.
 Stickers must be PNG, APNG, GIF or Lottie JSON files.	Стикерите трябва да са PNG, APNG, GIF или Lottie JSON файлове.
 Stop Recording	Спри записа
 Stop Streaming	Спри стрийма
@@ -1559,6 +1578,8 @@ Streamer Mode	Режим „Стриймър“
 Streamer Mode Enabled	Режим „Стриймър“ е включен
 Streamer Mode hides your personal info so others watching your stream can't see it.	Режим „Стриймър“ скрива личната ти информация, за да не я видят хората, които гледат стрийма ти.
 Streamer Mode is enabled. Usernames have been truncated.	Режим „Стриймър“ е включен. Потребителските имена са съкратени.
+Submit	Изпрати
+Submitting	Изпращане
 Success! Your friend request to % was sent.	Успех! Поканата ти за приятелство до % е изпратена.
 Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday	неделя|понеделник|вторник|сряда|четвъртък|петък|събота
 Sun|Mon|Tue|Wed|Thu|Fri|Sat	нд|пн|вт|ср|чт|пт|сб
@@ -1586,6 +1607,7 @@ Tags	Етикети
 Tags (pick at least one)	Етикети (избери поне един)
 Tags let members organize their posts. Members pick them when they post; moderated tags only moderators can apply.	Етикетите помагат на членовете да подреждат публикациите си. Членовете ги избират при публикуване; модерираните етикети могат да се слагат само от модератори.
 Tap the link in your email to sign in instantly — no password needed.	Докосни линка в имейла си, за да влезеш веднага — без парола.
+Tell Us More About Your Server	Разкажи ни повече за сървъра си
 Tell people a little more about your event. Markdown, new lines, and links are supported.	Разкажи малко повече за събитието си. Поддържат се Markdown, нови редове и линкове.
 Tell the world a bit about this server.	Разкажи на света малко за този сървър.
 Template Description	Описание на шаблона
@@ -1649,8 +1671,11 @@ This is the start of the #% channel.	Това е началото на кана�
 This is where Discord sends updates for moderators and admins of Community servers.	Тук Discord изпраща новини за модераторите и администраторите на общностни сървъри.
 This is where you'll show members your server rules or guidelines.	Тук ще показваш на членовете правилата или насоките на сървъра.
 This link is taking you to the following website	Този линк те отвежда към следния сайт
+This message is end-to-end encrypted. Forwarding it here sends it unencrypted, so Discord can read it.	Това съобщение е криптирано от край до край. Ако го препратиш тук, ще отиде некриптирано и Discord ще може да го прочете.
+This message is end-to-end encrypted. Forwarding it here sends it unencrypted, so the server's host can read it.	Това съобщение е криптирано от край до край. Ако го препратиш тук, ще отиде некриптирано и операторът на сървъра ще може да го прочете.
 This option is not available for Community Servers.	Тази опция не е налична за общностни сървъри.
 This role is managed by an integration and can't be edited here.	Тази роля се управлява от интеграция и не може да се редактира тук.
+This server asks a few questions before you can join. Answer them on discord.com.	Този сървър задава няколко въпроса, преди да се присъединиш. Отговори им в discord.com.
 This server has been removed from Server Discovery because it no longer passes all the requirements. Check Server Settings for more details.	Този сървър беше премахнат от „Откриване на сървъри“, защото вече не отговаря на всички изисквания. Провери Настройки на сървъра за подробности.
 This server has failed Discovery activity requirements for 1 week. If this server fails for 4 weeks in a row, it will be automatically removed from Discovery.	Този сървър не отговаря на изискванията за активност в Откриването от 1 седмица. Ако не отговаря 4 поредни седмици, ще бъде автоматично премахнат от Откриването.
 This server has failed Discovery activity requirements for 3 weeks in a row. If this server fails for 1 more week, it will be removed from Discovery.	Този сървър не отговаря на изискванията за активност в Откриването от 3 поредни седмици. Ако не отговаря още 1 седмица, ще бъде премахнат от Откриването.
@@ -1748,7 +1773,9 @@ Update Role	Обновяване на роля
 Update Server	Обновяване на сървъра
 Update Webhook	Обновяване на уебхук
 Update your password	Обнови паролата си
+Updating…	Обновяване…
 Upload	Качи
+Upload Cover Image	Качи корица
 Upload Emoji	Качи емоджи
 Upload Sound	Качи звук
 Upload Sticker	Качи стикер
@@ -1821,6 +1848,7 @@ Wave to say hi!	Помахай за здрасти!
 We appreciate the enthusiasm, but...	Оценяваме ентусиазма, но...
 We couldn't load the profile for this server.	Не успяхме да заредим профила за този сървър.
 We recommend an image of at least 512x512.	Препоръчваме изображение поне 512x512.
+We recommend an image of at least 800px wide and 320px tall.	Препоръчваме изображение с ширина поне 800px и височина поне 320px.
 We sent instructions to change your password to %, please check both your inbox and spam folder.	Изпратихме инструкции за смяна на паролата на %, провери и входящата си поща, и папката за спам.
 We're so excited to see you again!	Много се радваме да те видим отново!
 We've sent a message to %.  Please enter the code you received.	Изпратихме съобщение на %. Въведи кода, който получи.
@@ -1879,6 +1907,7 @@ You haven't connected any accounts yet.	Още не си свързал нито
 You haven't ignored anyone.	Не си игнорирал никого.
 You missed a call from %1 that lasted %2.	Пропусна обаждане от %1, което продължи %2.
 You must be at least 18 years old to view this channel.	Трябва да си навършил 18 години, за да виждаш този канал.
+You must complete a few more steps before you can talk.	Трябва да изпълниш още няколко стъпки, преди да можеш да пишеш.
 You must leave a server first to join.	Първо трябва да напуснеш сървър, за да влезеш.
 You need to add one or more rules.	Трябва да добавиш едно или повече правила.
 You received an invite, but...	Получи покана, но...
@@ -1933,7 +1962,6 @@ by %	от %
 cancel	отказ
 channel	канал
 delete message	изтрий съобщението
-dingus@example.com	dingus@example.com
 discord.gg/	discord.gg/
 en-GB	en-GB
 en-US	en-US
@@ -1963,6 +1991,7 @@ pinned messages	закачени съобщения
 pt-BR	pt-BR
 remove embeds	премахни вграденото съдържание
 save	запази
+skip this question	пропуснеш този въпрос
 someone	някой
 specific date	конкретна дата
 sv-SE	sv-SE

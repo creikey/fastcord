@@ -1,4 +1,5 @@
 # Hindi (hi)
+ for now.	 सकते हैं।
  · required	 · ज़रूरी
 % (requested to speak)	% (बोलने का अनुरोध किया)
 % (required)	% (ज़रूरी)
@@ -180,6 +181,7 @@
 @everyone · applies to all server members	@everyone · सर्वर के सभी सदस्यों पर लागू
 A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button.	Ctrl, Alt, Shift या Cmd के साथ कोई की, अकेली मॉडिफ़ायर की, या माउस का बीच वाला या साइड बटन।
 A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button. Works in every app.	Ctrl, Alt, Shift या Cmd के साथ कोई की, अकेली मॉडिफ़ायर की, या माउस का बीच वाला या साइड बटन। हर ऐप में काम करता है।
+A new channel will be created with the same permissions, user limit and bitrate as 	एक नया चैनल बनाया जाएगा, जिसकी अनुमतियाँ, यूज़र लिमिट और बिटरेट इसके जैसी होंगी: 
 A role needs a name.	रोल का नाम होना ज़रूरी है।
 A webhook needs a name.	वेबहुक का नाम होना ज़रूरी है।
 A wild % appeared.	एक जंगली % प्रकट हुआ।
@@ -430,6 +432,7 @@ Category Name	कैटेगरी का नाम
 Category deleted	कैटेगरी डिलीट की गई
 Change %	% बदलें
 Change Avatar	अवतार बदलें
+Change Image	इमेज बदलें
 Change Nickname	निकनेम बदलें
 Change Password	पासवर्ड बदलें
 Change Server Icon	सर्वर आइकन बदलें
@@ -477,6 +480,7 @@ Community servers have more tools to help you moderate and grow your server.	क
 Compact	कॉम्पैक्ट
 Compare	मिलाएँ
 Compare these with %, in person or on a call. If they match, no one can read this DM in between.	इन्हें % के साथ मिलाएँ, आमने-सामने या कॉल पर। अगर ये मेल खाते हैं, तो बीच में कोई भी यह DM नहीं पढ़ सकता।
+Complete	पूरा करें
 Configure system event messages sent to your server.	आपके सर्वर में भेजे जाने वाले सिस्टम इवेंट मैसेज सेट करें।
 Confirm	पुष्टि करें
 Confirm Request	रिक्वेस्ट की पुष्टि करें
@@ -520,6 +524,7 @@ Couldn't create an invite link.	इनवाइट लिंक नहीं ब
 Couldn't create an invite.	इनवाइट नहीं बन सका।
 Couldn't delete the channel: %	चैनल डिलीट नहीं हो सका: %
 Couldn't encrypt the message.	मैसेज एन्क्रिप्ट नहीं हो सका।
+Couldn't get that GIF.	वह GIF नहीं मिल सका।
 Couldn't join %: %	%1 से नहीं जुड़ सके: %2
 Couldn't load onboarding.	ऑनबोर्डिंग लोड नहीं हो सकी।
 Couldn't load the AutoMod rules.	AutoMod नियम लोड नहीं हो सके।
@@ -530,6 +535,7 @@ Couldn't load the invites.	इनवाइट लोड नहीं हो स�
 Couldn't load the members.	सदस्य लोड नहीं हो सके।
 Couldn't load the role's members.	रोल के सदस्य लोड नहीं हो सके।
 Couldn't load the server rules.	सर्वर के नियम लोड नहीं हो सके।
+Couldn't load the server's rules.	सर्वर के नियम लोड नहीं हो सके।
 Couldn't load the server's tag.	सर्वर का टैग लोड नहीं हो सका।
 Couldn't load the template.	टेम्पलेट लोड नहीं हो सका।
 Couldn't load the webhooks.	वेबहुक लोड नहीं हो सके।
@@ -545,6 +551,7 @@ Couldn't save the image.	इमेज सेव नहीं हो सकी।
 Couldn't save the token.	टोकन सेव नहीं हो सका।
 Couldn't turn on encryption.	एन्क्रिप्शन चालू नहीं हो सका।
 Couldn't upload emoji	इमोजी अपलोड नहीं हो सका
+Cover Image	कवर इमेज
 Cozy	आरामदायक
 Create	बनाएँ
 Create Category	कैटेगरी बनाएँ
@@ -556,7 +563,6 @@ Create Events	इवेंट बनाएँ
 Create Expressions	एक्सप्रेशन बनाएँ
 Create Group DM	ग्रुप DM बनाएँ
 Create Invite	इनवाइट बनाएँ
-Create My Own	अपना खुद का बनाएँ
 Create Poll	पोल बनाएँ
 Create Polls	पोल बनाएँ
 Create Private Threads	निजी थ्रेड बनाएँ
@@ -670,6 +676,7 @@ Don't show role colors	रोल के रंग न दिखाएँ
 Done	हो गया
 Download	डाउनलोड करें
 Drop a file here, or browse	फ़ाइल यहाँ छोड़ें, या ब्राउज़ करें
+Duplicate Channel	चैनल डुप्लिकेट करें
 Duration	अवधि
 Dutch	डच
 EDIT ROLE — %	रोल एडिट करें — %
@@ -683,6 +690,7 @@ Echo Cancellation	इको कैंसिलेशन
 Edit	एडिट करें
 Edit Category	कैटेगरी एडिट करें
 Edit Channel	चैनल एडिट करें
+Edit Event	इवेंट एडिट करें
 Edit Friend Nickname	दोस्त का निकनेम एडिट करें
 Edit Message	मैसेज एडिट करें
 Edit Per-server Profile	हर सर्वर की प्रोफ़ाइल एडिट करें
@@ -787,6 +795,8 @@ For 24 Hours	24 घंटे के लिए
 For 3 Days	3 दिन के लिए
 For 3 Hours	3 घंटे के लिए
 For 8 Hours	8 घंटे के लिए
+For a club or community	किसी क्लब या कम्युनिटी के लिए
+For me and my friends	मेरे और मेरे दोस्तों के लिए
 Forever	हमेशा के लिए
 Forgot your password?	पासवर्ड भूल गए?
 Forum	फ़ोरम
@@ -810,7 +820,6 @@ Friends come online	दोस्त ऑनलाइन आते हैं
 Friends of friends	दोस्तों के दोस्त
 From User	यूज़र से
 GIFs	GIF
-GIFs can't be sent encrypted yet.	GIF अभी एन्क्रिप्ट करके नहीं भेजे जा सकते।
 Gallery view	गैलरी व्यू
 General	सामान्य
 General Category Permissions	सामान्य कैटेगरी अनुमतियाँ
@@ -831,6 +840,7 @@ Go to Server	सर्वर पर जाएँ
 Good to see you, %.	आपको देखकर अच्छा लगा, %।
 Got It	समझ गया
 Grant temporary membership	अस्थायी मेंबरशिप दें
+Great for larger community audio events.	बड़ी कम्युनिटी के ऑडियो इवेंट के लिए बढ़िया।
 Greek	यूनानी
 Hang out together with voice, video, and screen share	वॉइस, वीडियो और स्क्रीन शेयर के साथ मिलकर समय बिताएँ
 Hang out with voice, video, screenshare, and Go Live.	वॉइस, वीडियो, स्क्रीनशेयर और Go Live के साथ समय बिताएँ।
@@ -863,6 +873,7 @@ How did your server get started? Why should people join?	आपका सर्�
 Hungarian	हंगेरियाई
 I acknowledge that by transferring ownership of this server to %, it officially belongs to them.	मैं समझता/समझती हूँ कि इस सर्वर का मालिकाना हक % को सौंपने पर, यह आधिकारिक रूप से उनका हो जाएगा।
 I agree and understand	मैं सहमत हूँ और समझता/समझती हूँ
+I have read and agree to the rules	मैंने नियम पढ़ लिए हैं और मैं उनसे सहमत हूँ
 I'm new here, say hi!	मैं यहाँ नया हूँ, हाय कहें!
 I'm sure, use a backup code	मुझे यकीन है, बैकअप कोड इस्तेमाल करें
 IMAGE	इमेज
@@ -886,6 +897,7 @@ Ignored message	अनदेखा किया गया मैसेज
 Image saved.	इमेज सेव हो गई।
 Important updates for people in and out of the server	सर्वर के अंदर और बाहर के लोगों के लिए ज़रूरी अपडेट
 In Channel	चैनल में
+In order to help you with your setup, is your new server for just a few friends or a larger community?	आपके सेटअप में मदद के लिए बताएँ: आपका नया सर्वर कुछ दोस्तों के लिए है या किसी बड़ी कम्युनिटी के लिए?
 Inactive Channel	निष्क्रिय चैनल
 Inactive Timeout	निष्क्रियता टाइमआउट
 Inbox	इनबॉक्स
@@ -1172,6 +1184,7 @@ Not encrypted	एन्क्रिप्टेड नहीं
 Not encrypted: Discord can read this message	एन्क्रिप्टेड नहीं: Discord यह मैसेज पढ़ सकता है
 Not end-to-end encrypted	एंड-टू-एंड एन्क्रिप्टेड नहीं
 Not me, start over	मैं नहीं हूँ, फिर से शुरू करें
+Not sure? You can 	पक्का नहीं पता? आप अभी 
 Note	नोट
 Note (only visible to you)	नोट (सिर्फ़ आपको दिखता है)
 Note: Members with the "Mention @everyone, @here, and All Roles" permission will always be able to ping this role.	नोट: "@everyone, @here और सभी रोल को मेंशन करें" अनुमति वाले सदस्य इस रोल को हमेशा पिंग कर सकेंगे।
@@ -1198,6 +1211,7 @@ One rule per line, for example: Be respectful	हर लाइन में ए�
 Ongoing call	चल रही कॉल
 Online	ऑनलाइन
 Only @mentions	सिर्फ़ @मेंशन
+Only selected members and roles will be able to view this channel.	सिर्फ़ चुने गए सदस्य और रोल ही इस चैनल को देख सकेंगे।
 Only servers and channels you have webhook permissions in are shown.	सिर्फ़ वही सर्वर और चैनल दिखाए गए हैं जिनमें आपके पास वेबहुक अनुमतियाँ हैं।
 Only you can see the nickname you give %.	% को दिया गया निकनेम सिर्फ़ आप देख सकते हैं।
 Only you can see this · 	इसे सिर्फ़ आप देख सकते हैं ·
@@ -1311,6 +1325,7 @@ ROLES — %	रोल — %
 ROLES/MEMBERS	रोल/सदस्य
 RTC Connecting	RTC कनेक्ट हो रहा है
 Read Message History	मैसेज हिस्ट्री पढ़ें
+Read and agree to the server rules	सर्वर के नियम पढ़ें और उनसे सहमत हों
 Reason	वजह
 Reason for Ban	बैन की वजह
 Reason for Kick	किक की वजह
@@ -1371,6 +1386,7 @@ Reset Friend Nickname	दोस्त का निकनेम रीसेट 
 Reset Voice Settings	वॉइस सेटिंग्स रीसेट करें
 Resolving Invite	इनवाइट खोल रहे हैं
 Responses	जवाब
+Restart to Update	अपडेट के लिए रीस्टार्ट करें
 Retry	फिर से कोशिश करें
 Retry Now	अभी फिर से कोशिश करें
 Return to call	कॉल पर लौटें
@@ -1396,6 +1412,7 @@ SELECT A CHANNEL	चैनल चुनें
 SELECT A SERVER	सर्वर चुनें
 SERVER NAME	सर्वर का नाम
 SOUNDBOARD VOLUME	साउंडबोर्ड वॉल्यूम
+START FROM A TEMPLATE	टेम्पलेट से शुरू करें
 STATIC EMOJI — % SLOTS AVAILABLE	स्थिर इमोजी — % स्लॉट उपलब्ध
 Safety Notifications Channel	सुरक्षा नोटिफ़िकेशन चैनल
 Safety Number	सेफ़्टी नंबर
@@ -1405,6 +1422,7 @@ Same as Device Theme	डिवाइस थीम जैसा
 Saturation	सैचुरेशन
 Save	सेव करें
 Save Changes	बदलाव सेव करें
+Save Event	इवेंट सेव करें
 Save Image	इमेज सेव करें
 Saving...	सेव कर रहे हैं...
 Saving…	सेव कर रहे हैं…
@@ -1513,6 +1531,7 @@ Some older devices may not be shown here	कुछ पुराने डिव�
 Someone	कोई
 Something went wrong	कुछ गड़बड़ हो गई
 Something went wrong (HTTP %).	कुछ गड़बड़ हो गई (HTTP %)।
+Something went wrong. Please try again.	कुछ गड़बड़ हो गई। कृपया फिर से कोशिश करें।
 Something went wrong. Try again.	कुछ गड़बड़ हो गई। फिर से कोशिश करें।
 Somewhere Else	कहीं और
 Sorry, we couldn't load the first message in this thread	माफ़ करें, इस थ्रेड का पहला मैसेज लोड नहीं हो सका
@@ -1535,6 +1554,7 @@ Speak Message	मैसेज बोलकर सुनाएँ
 Spoiler Attachment	स्पॉयलर अटैचमेंट
 Spoiler Content	स्पॉयलर सामग्री
 Stage	स्टेज
+Stage Channel	स्टेज चैनल
 Start Date	शुरू होने की तारीख
 Start Event	इवेंट शुरू करें
 Start Minimized	छोटा करके शुरू करें
@@ -1543,7 +1563,6 @@ Starting in %m	%मि॰ में शुरू
 State	स्थिति
 Stickers	स्टिकर
 Stickers can be used by anyone in this server. Upload a PNG, APNG, GIF or Lottie JSON file of up to 512 KB; it shows at 320x320.	स्टिकर इस सर्वर में कोई भी इस्तेमाल कर सकता है। 512 KB तक की PNG, APNG, GIF या Lottie JSON फ़ाइल अपलोड करें; यह 320x320 पर दिखता है।
-Stickers can't be sent encrypted yet.	स्टिकर अभी एन्क्रिप्ट करके नहीं भेजे जा सकते।
 Stickers must be PNG, APNG, GIF or Lottie JSON files.	स्टिकर PNG, APNG, GIF या Lottie JSON फ़ाइलें होने चाहिए।
 Stop Recording	रिकॉर्डिंग रोकें
 Stop Streaming	स्ट्रीमिंग रोकें
@@ -1556,6 +1575,8 @@ Streamer Mode	स्ट्रीमर मोड
 Streamer Mode Enabled	स्ट्रीमर मोड चालू है
 Streamer Mode hides your personal info so others watching your stream can't see it.	स्ट्रीमर मोड आपकी निजी जानकारी छिपाता है ताकि आपकी स्ट्रीम देखने वाले उसे न देख सकें।
 Streamer Mode is enabled. Usernames have been truncated.	स्ट्रीमर मोड चालू है। यूज़रनेम छोटे कर दिए गए हैं।
+Submit	सबमिट करें
+Submitting	सबमिट हो रहा है
 Success! Your friend request to % was sent.	हो गया! % को आपकी फ़्रेंड रिक्वेस्ट भेज दी गई।
 Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday	रविवार|सोमवार|मंगलवार|बुधवार|गुरुवार|शुक्रवार|शनिवार
 Sun|Mon|Tue|Wed|Thu|Fri|Sat	रवि|सोम|मंगल|बुध|गुरु|शुक्र|शनि
@@ -1583,6 +1604,7 @@ Tags	टैग
 Tags (pick at least one)	टैग (कम से कम एक चुनें)
 Tags let members organize their posts. Members pick them when they post; moderated tags only moderators can apply.	टैग से सदस्य अपनी पोस्ट व्यवस्थित करते हैं। सदस्य पोस्ट करते समय इन्हें चुनते हैं; मॉडरेटेड टैग सिर्फ़ मॉडरेटर लगा सकते हैं।
 Tap the link in your email to sign in instantly — no password needed.	तुरंत साइन इन करने के लिए अपने ईमेल में दिए लिंक पर टैप करें — पासवर्ड की ज़रूरत नहीं।
+Tell Us More About Your Server	हमें अपने सर्वर के बारे में और बताएँ
 Tell people a little more about your event. Markdown, new lines, and links are supported.	लोगों को अपने इवेंट के बारे में थोड़ा और बताएँ। Markdown, नई लाइनें और लिंक इस्तेमाल किए जा सकते हैं।
 Tell the world a bit about this server.	दुनिया को इस सर्वर के बारे में थोड़ा बताएँ।
 Template Description	टेम्पलेट का विवरण
@@ -1646,8 +1668,11 @@ This is the start of the #% channel.	यह #% चैनल की शुरु�
 This is where Discord sends updates for moderators and admins of Community servers.	यहाँ Discord कम्युनिटी सर्वर के मॉडरेटर और एडमिन के लिए अपडेट भेजता है।
 This is where you'll show members your server rules or guidelines.	यहाँ आप सदस्यों को अपने सर्वर के नियम या दिशानिर्देश दिखाएँगे।
 This link is taking you to the following website	यह लिंक आपको इस वेबसाइट पर ले जा रहा है
+This message is end-to-end encrypted. Forwarding it here sends it unencrypted, so Discord can read it.	यह मैसेज एंड-टू-एंड एन्क्रिप्टेड है। इसे यहाँ फ़ॉरवर्ड करने पर यह बिना एन्क्रिप्शन के भेजा जाएगा, इसलिए Discord इसे पढ़ सकेगा।
+This message is end-to-end encrypted. Forwarding it here sends it unencrypted, so the server's host can read it.	यह मैसेज एंड-टू-एंड एन्क्रिप्टेड है। इसे यहाँ फ़ॉरवर्ड करने पर यह बिना एन्क्रिप्शन के भेजा जाएगा, इसलिए सर्वर का होस्ट इसे पढ़ सकेगा।
 This option is not available for Community Servers.	यह विकल्प कम्युनिटी सर्वर के लिए उपलब्ध नहीं है।
 This role is managed by an integration and can't be edited here.	यह रोल एक इंटीग्रेशन से मैनेज होता है और इसे यहाँ एडिट नहीं किया जा सकता।
+This server asks a few questions before you can join. Answer them on discord.com.	इस सर्वर में शामिल होने से पहले कुछ सवालों के जवाब देने होंगे। उनके जवाब discord.com पर दें।
 This server has been removed from Server Discovery because it no longer passes all the requirements. Check Server Settings for more details.	यह सर्वर सर्वर डिस्कवरी से हटा दिया गया है क्योंकि यह अब सभी शर्तें पूरी नहीं करता। ज़्यादा जानकारी के लिए सर्वर सेटिंग्स देखें।
 This server has failed Discovery activity requirements for 1 week. If this server fails for 4 weeks in a row, it will be automatically removed from Discovery.	यह सर्वर 1 हफ़्ते से डिस्कवरी की गतिविधि शर्तें पूरी नहीं कर रहा। अगर यह लगातार 4 हफ़्ते ऐसा करता है, तो इसे डिस्कवरी से अपने आप हटा दिया जाएगा।
 This server has failed Discovery activity requirements for 3 weeks in a row. If this server fails for 1 more week, it will be removed from Discovery.	यह सर्वर लगातार 3 हफ़्ते से डिस्कवरी की गतिविधि शर्तें पूरी नहीं कर रहा। अगर यह 1 हफ़्ता और ऐसा करता है, तो इसे डिस्कवरी से हटा दिया जाएगा।
@@ -1745,7 +1770,9 @@ Update Role	रोल अपडेट करें
 Update Server	सर्वर अपडेट करें
 Update Webhook	वेबहुक अपडेट करें
 Update your password	अपना पासवर्ड अपडेट करें
+Updating…	अपडेट हो रहा है…
 Upload	अपलोड करें
+Upload Cover Image	कवर इमेज अपलोड करें
 Upload Emoji	इमोजी अपलोड करें
 Upload Sound	साउंड अपलोड करें
 Upload Sticker	स्टिकर अपलोड करें
@@ -1818,6 +1845,7 @@ Wave to say hi!	हाय कहने के लिए हाथ हिला�
 We appreciate the enthusiasm, but...	हमें आपका जोश पसंद है, लेकिन...
 We couldn't load the profile for this server.	हम इस सर्वर की प्रोफ़ाइल लोड नहीं कर सके।
 We recommend an image of at least 512x512.	हम कम से कम 512x512 की इमेज की सलाह देते हैं।
+We recommend an image of at least 800px wide and 320px tall.	हम कम से कम 800px चौड़ी और 320px ऊँची इमेज की सलाह देते हैं।
 We sent instructions to change your password to %, please check both your inbox and spam folder.	हमने पासवर्ड बदलने के निर्देश % पर भेजे हैं, कृपया अपना इनबॉक्स और स्पैम फ़ोल्डर दोनों देखें।
 We're so excited to see you again!	आपको फिर से देखकर हम बहुत खुश हैं!
 We've sent a message to %.  Please enter the code you received.	हमने % पर एक मैसेज भेजा है।  कृपया मिला हुआ कोड डालें।
@@ -1876,6 +1904,7 @@ You haven't connected any accounts yet.	आपने अभी तक कोई 
 You haven't ignored anyone.	आपने किसी को अनदेखा नहीं किया है।
 You missed a call from %1 that lasted %2.	आपसे %1 की एक कॉल छूट गई जो %2 चली।
 You must be at least 18 years old to view this channel.	यह चैनल देखने के लिए आपकी उम्र कम से कम 18 साल होनी चाहिए।
+You must complete a few more steps before you can talk.	बात करने से पहले आपको कुछ और स्टेप पूरे करने होंगे।
 You must leave a server first to join.	जुड़ने के लिए पहले आपको कोई सर्वर छोड़ना होगा।
 You need to add one or more rules.	आपको एक या ज़्यादा नियम जोड़ने होंगे।
 You received an invite, but...	आपको एक इनवाइट मिला, लेकिन...
@@ -1954,6 +1983,7 @@ on %	% को
 pinned messages	पिन किए गए मैसेज
 remove embeds	एम्बेड हटाएँ
 save	सेव करें
+skip this question	इस सवाल को छोड़
 someone	कोई
 specific date	खास तारीख
 this server	यह सर्वर

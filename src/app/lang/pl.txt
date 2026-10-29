@@ -1,4 +1,5 @@
 # Polish (pl)
+ for now.	 na razie.
  · required	 · wymagane
 % (requested to speak)	% (prosi o głos)
 % (required)	% (wymagane)
@@ -182,6 +183,7 @@
 @everyone · applies to all server members	@everyone · dotyczy wszystkich członków serwera
 A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button.	Klawisz z Ctrl, Alt, Shift lub Cmd, sam modyfikator albo środkowy lub boczny przycisk myszy.
 A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button. Works in every app.	Klawisz z Ctrl, Alt, Shift lub Cmd, sam modyfikator albo środkowy lub boczny przycisk myszy. Działa w każdej aplikacji.
+A new channel will be created with the same permissions, user limit and bitrate as 	Zostanie utworzony nowy kanał z takimi samymi uprawnieniami, limitem użytkowników i przepływnością jak
 A role needs a name.	Rola musi mieć nazwę.
 A webhook needs a name.	Webhook musi mieć nazwę.
 A wild % appeared.	Pojawia się dziki %.
@@ -432,6 +434,7 @@ Category Name	Nazwa kategorii
 Category deleted	Usunięto kategorię
 Change %	Zmień %
 Change Avatar	Zmień awatar
+Change Image	Zmień obraz
 Change Nickname	Zmień pseudonim
 Change Password	Zmień hasło
 Change Server Icon	Zmień ikonę serwera
@@ -479,6 +482,7 @@ Community servers have more tools to help you moderate and grow your server.	Ser
 Compact	Kompaktowy
 Compare	Porównaj
 Compare these with %, in person or on a call. If they match, no one can read this DM in between.	Porównaj je z użytkownikiem % osobiście lub podczas rozmowy. Jeśli się zgadzają, nikt po drodze nie przeczyta tej rozmowy.
+Complete	Dokończ
 Configure system event messages sent to your server.	Skonfiguruj wiadomości o zdarzeniach systemowych wysyłane na twój serwer.
 Confirm	Potwierdź
 Confirm Request	Potwierdź prośbę
@@ -522,6 +526,7 @@ Couldn't create an invite link.	Nie udało się utworzyć linku z zaproszeniem.
 Couldn't create an invite.	Nie udało się utworzyć zaproszenia.
 Couldn't delete the channel: %	Nie udało się usunąć kanału: %
 Couldn't encrypt the message.	Nie udało się zaszyfrować wiadomości.
+Couldn't get that GIF.	Nie udało się pobrać tego GIF-a.
 Couldn't join %: %	Nie udało się dołączyć do %: %
 Couldn't load onboarding.	Nie udało się wczytać wdrażania.
 Couldn't load the AutoMod rules.	Nie udało się wczytać reguł AutoModa.
@@ -532,6 +537,7 @@ Couldn't load the invites.	Nie udało się wczytać zaproszeń.
 Couldn't load the members.	Nie udało się wczytać członków.
 Couldn't load the role's members.	Nie udało się wczytać członków roli.
 Couldn't load the server rules.	Nie udało się wczytać zasad serwera.
+Couldn't load the server's rules.	Nie udało się wczytać zasad serwera.
 Couldn't load the server's tag.	Nie udało się wczytać tagu serwera.
 Couldn't load the template.	Nie udało się wczytać szablonu.
 Couldn't load the webhooks.	Nie udało się wczytać webhooków.
@@ -547,6 +553,7 @@ Couldn't save the image.	Nie udało się zapisać obrazu.
 Couldn't save the token.	Nie udało się zapisać tokenu.
 Couldn't turn on encryption.	Nie udało się włączyć szyfrowania.
 Couldn't upload emoji	Nie udało się przesłać emoji
+Cover Image	Obraz w tle
 Cozy	Wygodny
 Create	Utwórz
 Create Category	Utwórz kategorię
@@ -558,7 +565,6 @@ Create Events	Tworzenie wydarzeń
 Create Expressions	Tworzenie wyrażeń
 Create Group DM	Utwórz rozmowę grupową
 Create Invite	Utwórz zaproszenie
-Create My Own	Utwórz własny
 Create Poll	Utwórz ankietę
 Create Polls	Tworzenie ankiet
 Create Private Threads	Tworzenie wątków prywatnych
@@ -672,6 +678,7 @@ Don't show role colors	Nie pokazuj kolorów ról
 Done	Gotowe
 Download	Pobierz
 Drop a file here, or browse	Upuść tu plik lub przeglądaj
+Duplicate Channel	Duplikuj kanał
 Duration	Czas trwania
 Dutch	Holenderski
 EDIT ROLE — %	EDYTUJ ROLĘ — %
@@ -685,6 +692,7 @@ Echo Cancellation	Usuwanie echa
 Edit	Edytuj
 Edit Category	Edytuj kategorię
 Edit Channel	Edytuj kanał
+Edit Event	Edytuj wydarzenie
 Edit Friend Nickname	Edytuj pseudonim znajomego
 Edit Message	Edytuj wiadomość
 Edit Per-server Profile	Edytuj profil na serwerze
@@ -789,6 +797,8 @@ For 24 Hours	Na 24 godziny
 For 3 Days	Na 3 dni
 For 3 Hours	Na 3 godziny
 For 8 Hours	Na 8 godzin
+For a club or community	Dla klubu lub społeczności
+For me and my friends	Dla mnie i moich znajomych
 Forever	Na zawsze
 Forgot your password?	Nie pamiętasz hasła?
 Forum	Forum
@@ -812,7 +822,6 @@ Friends come online	Znajomi są online
 Friends of friends	Znajomi znajomych
 From User	Od użytkownika
 GIFs	GIF-y
-GIFs can't be sent encrypted yet.	GIF-ów nie można jeszcze wysyłać zaszyfrowanych.
 Gallery view	Widok galerii
 General	Ogólne
 General Category Permissions	Ogólne uprawnienia kategorii
@@ -833,6 +842,7 @@ Go to Server	Przejdź do serwera
 Good to see you, %.	Miło cię widzieć, %.
 Got It	Rozumiem
 Grant temporary membership	Przyznaj tymczasowe członkostwo
+Great for larger community audio events.	Świetny na większe wydarzenia audio społeczności.
 Greek	Grecki
 Hang out together with voice, video, and screen share	Spędzajcie razem czas z głosem, wideo i udostępnianiem ekranu
 Hang out with voice, video, screenshare, and Go Live.	Spędzaj czas z głosem, wideo, udostępnianiem ekranu i transmisją na żywo.
@@ -865,6 +875,7 @@ How did your server get started? Why should people join?	Jak powstał twój serw
 Hungarian	Węgierski
 I acknowledge that by transferring ownership of this server to %, it officially belongs to them.	Rozumiem, że po przekazaniu własności tego serwera użytkownikowi % oficjalnie należy on do tej osoby.
 I agree and understand	Zgadzam się i rozumiem
+I have read and agree to the rules	Przeczytałem(-am) zasady i je akceptuję
 I'm new here, say hi!	Jestem tu nowy, przywitaj się!
 I'm sure, use a backup code	Na pewno, użyj kodu zapasowego
 IMAGE	OBRAZ
@@ -888,6 +899,7 @@ Ignored message	Ignorowana wiadomość
 Image saved.	Zapisano obraz.
 Important updates for people in and out of the server	Ważne informacje dla osób na serwerze i spoza niego
 In Channel	Na kanale
+In order to help you with your setup, is your new server for just a few friends or a larger community?	Żeby pomóc ci w konfiguracji: czy twój nowy serwer jest tylko dla kilku znajomych, czy dla większej społeczności?
 Inactive Channel	Kanał nieaktywności
 Inactive Timeout	Limit czasu nieaktywności
 Inbox	Skrzynka odbiorcza
@@ -1175,6 +1187,7 @@ Not encrypted	Nieszyfrowane
 Not encrypted: Discord can read this message	Nieszyfrowane: Discord może przeczytać tę wiadomość
 Not end-to-end encrypted	Brak szyfrowania end-to-end
 Not me, start over	To nie ja, zacznij od nowa
+Not sure? You can 	Nie wiesz? Możesz
 Note	Notatka
 Note (only visible to you)	Notatka (widoczna tylko dla ciebie)
 Note: Members with the "Mention @everyone, @here, and All Roles" permission will always be able to ping this role.	Uwaga: członkowie z uprawnieniem „Wzmianki @everyone, @here i wszystkich ról” zawsze będą mogli pingować tę rolę.
@@ -1201,6 +1214,7 @@ One rule per line, for example: Be respectful	Jedna zasada na wiersz, na przykł
 Ongoing call	Trwająca rozmowa
 Online	Dostępny
 Only @mentions	Tylko @wzmianki
+Only selected members and roles will be able to view this channel.	Tylko wybrani członkowie i role będą mogli zobaczyć ten kanał.
 Only servers and channels you have webhook permissions in are shown.	Pokazywane są tylko serwery i kanały, na których masz uprawnienia do webhooków.
 Only you can see the nickname you give %.	Tylko ty widzisz pseudonim, który nadajesz użytkownikowi %.
 Only you can see this · 	Tylko ty to widzisz ·
@@ -1314,6 +1328,7 @@ ROLES — %	ROLE — %
 ROLES/MEMBERS	ROLE/CZŁONKOWIE
 RTC Connecting	Łączenie RTC
 Read Message History	Czytanie historii wiadomości
+Read and agree to the server rules	Przeczytaj i zaakceptuj zasady serwera
 Reason	Powód
 Reason for Ban	Powód bana
 Reason for Kick	Powód wyrzucenia
@@ -1374,6 +1389,7 @@ Reset Friend Nickname	Resetuj pseudonim znajomego
 Reset Voice Settings	Resetuj ustawienia głosu
 Resolving Invite	Sprawdzanie zaproszenia
 Responses	Odpowiedzi
+Restart to Update	Uruchom ponownie, aby zaktualizować
 Retry	Ponów
 Retry Now	Ponów teraz
 Return to call	Wróć do rozmowy
@@ -1399,6 +1415,7 @@ SELECT A CHANNEL	WYBIERZ KANAŁ
 SELECT A SERVER	WYBIERZ SERWER
 SERVER NAME	NAZWA SERWERA
 SOUNDBOARD VOLUME	GŁOŚNOŚĆ PANELU DŹWIĘKÓW
+START FROM A TEMPLATE	ZACZNIJ OD SZABLONU
 STATIC EMOJI — % SLOTS AVAILABLE	STATYCZNE EMOJI — DOSTĘPNE MIEJSCA: %
 Safety Notifications Channel	Kanał powiadomień o bezpieczeństwie
 Safety Number	Numer bezpieczeństwa
@@ -1408,6 +1425,7 @@ Same as Device Theme	Jak motyw urządzenia
 Saturation	Nasycenie
 Save	Zapisz
 Save Changes	Zapisz zmiany
+Save Event	Zapisz wydarzenie
 Save Image	Zapisz obraz
 Saving...	Zapisywanie...
 Saving…	Zapisywanie…
@@ -1516,6 +1534,7 @@ Some older devices may not be shown here	Niektóre starsze urządzenia mogą nie
 Someone	Ktoś
 Something went wrong	Coś poszło nie tak
 Something went wrong (HTTP %).	Coś poszło nie tak (HTTP %).
+Something went wrong. Please try again.	Coś poszło nie tak. Spróbuj ponownie.
 Something went wrong. Try again.	Coś poszło nie tak. Spróbuj ponownie.
 Somewhere Else	Gdzie indziej
 Sorry, we couldn't load the first message in this thread	Przepraszamy, nie udało się wczytać pierwszej wiadomości w tym wątku
@@ -1538,6 +1557,7 @@ Speak Message	Odczytaj wiadomość
 Spoiler Attachment	Załącznik ze spoilerem
 Spoiler Content	Zawartość spoilera
 Stage	Scena
+Stage Channel	Kanał sceny
 Start Date	Data rozpoczęcia
 Start Event	Rozpocznij wydarzenie
 Start Minimized	Uruchamiaj zminimalizowany
@@ -1546,7 +1566,6 @@ Starting in %m	Start za % min
 State	Stan
 Stickers	Naklejki
 Stickers can be used by anyone in this server. Upload a PNG, APNG, GIF or Lottie JSON file of up to 512 KB; it shows at 320x320.	Naklejek może używać każdy na tym serwerze. Prześlij plik PNG, APNG, GIF lub Lottie JSON do 512 KB; wyświetla się w rozmiarze 320x320.
-Stickers can't be sent encrypted yet.	Naklejek nie można jeszcze wysyłać zaszyfrowanych.
 Stickers must be PNG, APNG, GIF or Lottie JSON files.	Naklejki muszą być plikami PNG, APNG, GIF lub Lottie JSON.
 Stop Recording	Zatrzymaj nagrywanie
 Stop Streaming	Zakończ transmisję
@@ -1559,6 +1578,8 @@ Streamer Mode	Tryb streamera
 Streamer Mode Enabled	Tryb streamera włączony
 Streamer Mode hides your personal info so others watching your stream can't see it.	Tryb streamera ukrywa twoje dane osobowe, żeby widzowie transmisji ich nie zobaczyli.
 Streamer Mode is enabled. Usernames have been truncated.	Tryb streamera jest włączony. Nazwy użytkowników zostały skrócone.
+Submit	Wyślij
+Submitting	Wysyłanie
 Success! Your friend request to % was sent.	Udało się! Wysłano zaproszenie do znajomych do użytkownika %.
 Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday	niedziela|poniedziałek|wtorek|środa|czwartek|piątek|sobota
 Sun|Mon|Tue|Wed|Thu|Fri|Sat	niedz.|pon.|wt.|śr.|czw.|pt.|sob.
@@ -1586,6 +1607,7 @@ Tags	Tagi
 Tags (pick at least one)	Tagi (wybierz co najmniej jeden)
 Tags let members organize their posts. Members pick them when they post; moderated tags only moderators can apply.	Tagi pozwalają członkom porządkować posty. Członkowie wybierają je przy publikowaniu; tagi moderowane mogą nadawać tylko moderatorzy.
 Tap the link in your email to sign in instantly — no password needed.	Kliknij link w e-mailu, aby od razu się zalogować — bez hasła.
+Tell Us More About Your Server	Opowiedz nam więcej o swoim serwerze
 Tell people a little more about your event. Markdown, new lines, and links are supported.	Opowiedz trochę więcej o wydarzeniu. Obsługiwane są Markdown, nowe wiersze i linki.
 Tell the world a bit about this server.	Opowiedz światu trochę o tym serwerze.
 Template Description	Opis szablonu
@@ -1649,8 +1671,11 @@ This is the start of the #% channel.	To początek kanału #%.
 This is where Discord sends updates for moderators and admins of Community servers.	Tutaj Discord wysyła aktualizacje dla moderatorów i administratorów serwerów społeczności.
 This is where you'll show members your server rules or guidelines.	Tutaj pokażesz członkom zasady lub wytyczne serwera.
 This link is taking you to the following website	Ten link prowadzi do następującej strony
+This message is end-to-end encrypted. Forwarding it here sends it unencrypted, so Discord can read it.	Ta wiadomość jest szyfrowana end-to-end. Przekazanie jej tutaj wyśle ją bez szyfrowania, więc Discord będzie mógł ją odczytać.
+This message is end-to-end encrypted. Forwarding it here sends it unencrypted, so the server's host can read it.	Ta wiadomość jest szyfrowana end-to-end. Przekazanie jej tutaj wyśle ją bez szyfrowania, więc host serwera będzie mógł ją odczytać.
 This option is not available for Community Servers.	Ta opcja nie jest dostępna dla serwerów społeczności.
 This role is managed by an integration and can't be edited here.	Tą rolą zarządza integracja i nie można jej tu edytować.
+This server asks a few questions before you can join. Answer them on discord.com.	Ten serwer zadaje kilka pytań, zanim będziesz mógł dołączyć. Odpowiedz na nie na discord.com.
 This server has been removed from Server Discovery because it no longer passes all the requirements. Check Server Settings for more details.	Ten serwer został usunięty z Odkrywania serwerów, bo nie spełnia już wszystkich wymagań. Szczegóły znajdziesz w Ustawieniach serwera.
 This server has failed Discovery activity requirements for 1 week. If this server fails for 4 weeks in a row, it will be automatically removed from Discovery.	Ten serwer nie spełnia wymagań aktywności Odkrywania od 1 tygodnia. Jeśli nie będzie ich spełniać przez 4 tygodnie z rzędu, zostanie automatycznie usunięty z Odkrywania.
 This server has failed Discovery activity requirements for 3 weeks in a row. If this server fails for 1 more week, it will be removed from Discovery.	Ten serwer nie spełnia wymagań aktywności Odkrywania od 3 tygodni z rzędu. Jeśli nie spełni ich przez kolejny tydzień, zostanie usunięty z Odkrywania.
@@ -1748,7 +1773,9 @@ Update Role	Aktualizacja roli
 Update Server	Aktualizacja serwera
 Update Webhook	Aktualizacja webhooka
 Update your password	Zmień hasło
+Updating…	Aktualizowanie…
 Upload	Prześlij
+Upload Cover Image	Prześlij obraz w tle
 Upload Emoji	Prześlij emoji
 Upload Sound	Prześlij dźwięk
 Upload Sticker	Prześlij naklejkę
@@ -1821,6 +1848,7 @@ Wave to say hi!	Pomachaj na powitanie!
 We appreciate the enthusiasm, but...	Doceniamy entuzjazm, ale...
 We couldn't load the profile for this server.	Nie udało się wczytać profilu tego serwera.
 We recommend an image of at least 512x512.	Zalecamy obraz o rozmiarze co najmniej 512x512.
+We recommend an image of at least 800px wide and 320px tall.	Zalecamy obraz o wymiarach co najmniej 800 px szerokości i 320 px wysokości.
 We sent instructions to change your password to %, please check both your inbox and spam folder.	Wysłaliśmy instrukcje zmiany hasła na adres %. Sprawdź skrzynkę odbiorczą i folder spamu.
 We're so excited to see you again!	Cieszymy się, że znowu cię widzimy!
 We've sent a message to %.  Please enter the code you received.	Wysłaliśmy wiadomość na numer %.  Wpisz otrzymany kod.
@@ -1879,6 +1907,7 @@ You haven't connected any accounts yet.	Nie połączono jeszcze żadnych kont.
 You haven't ignored anyone.	Nikt nie jest ignorowany.
 You missed a call from %1 that lasted %2.	Masz nieodebrane połączenie od %1, które trwało %2.
 You must be at least 18 years old to view this channel.	Musisz mieć co najmniej 18 lat, aby wyświetlić ten kanał.
+You must complete a few more steps before you can talk.	Musisz wykonać jeszcze kilka kroków, zanim będziesz mógł rozmawiać.
 You must leave a server first to join.	Aby dołączyć, musisz najpierw opuścić jakiś serwer.
 You need to add one or more rules.	Musisz dodać co najmniej jedną regułę.
 You received an invite, but...	Masz zaproszenie, ale...
@@ -1933,7 +1962,6 @@ by %	autor: %
 cancel	anulować
 channel	kanał
 delete message	usuń wiadomość
-dingus@example.com	dingus@example.com
 discord.gg/	discord.gg/
 en-GB	en-GB
 en-US	en-US
@@ -1963,6 +1991,7 @@ pinned messages	przypięte wiadomości
 pt-BR	pt-BR
 remove embeds	usuń osadzenia
 save	zapisać
+skip this question	pominąć to pytanie
 someone	ktoś
 specific date	konkretna data
 sv-SE	sv-SE

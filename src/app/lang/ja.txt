@@ -1,4 +1,5 @@
 # Japanese (ja)
+ for now.	してもかまいません。
  · required	 · 必須
 % (requested to speak)	%（発言をリクエスト中）
 % (required)	%（必須）
@@ -179,6 +180,7 @@
 @everyone · applies to all server members	@everyone · サーバーの全メンバーに適用
 A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button.	Ctrl、Alt、Shift、Cmdと組み合わせたキー、修飾キー単体、またはマウスの中央・サイドボタン。
 A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button. Works in every app.	Ctrl、Alt、Shift、Cmdと組み合わせたキー、修飾キー単体、またはマウスの中央・サイドボタン。どのアプリでも使えます。
+A new channel will be created with the same permissions, user limit and bitrate as 	権限、人数制限、ビットレートが同じ新しいチャンネルが作成されます。複製元：
 A role needs a name.	ロールには名前が必要です。
 A webhook needs a name.	ウェブフックには名前が必要です。
 A wild % appeared.	野生の%が現れた。
@@ -429,6 +431,7 @@ Category Name	カテゴリー名
 Category deleted	カテゴリーを削除しました
 Change %	%を変更
 Change Avatar	アバターを変更
+Change Image	画像を変更
 Change Nickname	ニックネームを変更
 Change Password	パスワードを変更
 Change Server Icon	サーバーアイコンを変更
@@ -476,6 +479,7 @@ Community servers have more tools to help you moderate and grow your server.	コ
 Compact	コンパクト
 Compare	照合
 Compare these with %, in person or on a call. If they match, no one can read this DM in between.	直接会うか通話で、%とこれを照合してください。一致すれば、途中で誰もこのDMを読むことはできません。
+Complete	完了
 Configure system event messages sent to your server.	サーバーに送信されるシステムイベントメッセージを設定します。
 Confirm	確認
 Confirm Request	リクエストを確認
@@ -519,6 +523,7 @@ Couldn't create an invite link.	招待リンクを作成できませんでした
 Couldn't create an invite.	招待を作成できませんでした。
 Couldn't delete the channel: %	チャンネルを削除できませんでした: %
 Couldn't encrypt the message.	メッセージを暗号化できませんでした。
+Couldn't get that GIF.	そのGIFを取得できませんでした。
 Couldn't join %: %	%に参加できませんでした: %
 Couldn't load onboarding.	オンボーディングを読み込めませんでした。
 Couldn't load the AutoMod rules.	AutoModのルールを読み込めませんでした。
@@ -529,6 +534,7 @@ Couldn't load the invites.	招待を読み込めませんでした。
 Couldn't load the members.	メンバーを読み込めませんでした。
 Couldn't load the role's members.	ロールのメンバーを読み込めませんでした。
 Couldn't load the server rules.	サーバールールを読み込めませんでした。
+Couldn't load the server's rules.	サーバーのルールを読み込めませんでした。
 Couldn't load the server's tag.	サーバータグを読み込めませんでした。
 Couldn't load the template.	テンプレートを読み込めませんでした。
 Couldn't load the webhooks.	ウェブフックを読み込めませんでした。
@@ -544,6 +550,7 @@ Couldn't save the image.	画像を保存できませんでした。
 Couldn't save the token.	トークンを保存できませんでした。
 Couldn't turn on encryption.	暗号化をオンにできませんでした。
 Couldn't upload emoji	絵文字をアップロードできませんでした
+Cover Image	カバー画像
 Cozy	ゆったり
 Create	作成
 Create Category	カテゴリーを作成
@@ -555,7 +562,6 @@ Create Events	イベントの作成
 Create Expressions	エクスプレッションの作成
 Create Group DM	グループDMを作成
 Create Invite	招待を作成
-Create My Own	オリジナルの作成
 Create Poll	投票を作成
 Create Polls	投票の作成
 Create Private Threads	プライベートスレッドの作成
@@ -669,6 +675,7 @@ Don't show role colors	ロールの色を表示しない
 Done	完了
 Download	ダウンロード
 Drop a file here, or browse	ここにファイルをドロップ、または参照
+Duplicate Channel	チャンネルを複製
 Duration	期間
 Dutch	オランダ語
 EDIT ROLE — %	ロールを編集 — %
@@ -682,6 +689,7 @@ Echo Cancellation	エコー除去
 Edit	編集
 Edit Category	カテゴリーを編集
 Edit Channel	チャンネルを編集
+Edit Event	イベントを編集
 Edit Friend Nickname	フレンドのニックネームを編集
 Edit Message	メッセージを編集
 Edit Per-server Profile	サーバー別プロフィールを編集
@@ -786,6 +794,8 @@ For 24 Hours	24時間
 For 3 Days	3日間
 For 3 Hours	3時間
 For 8 Hours	8時間
+For a club or community	クラブやコミュニティのため
+For me and my friends	自分と友達のため
 Forever	無期限
 Forgot your password?	パスワードをお忘れですか？
 Forum	フォーラム
@@ -809,7 +819,6 @@ Friends come online	フレンドがオンラインになったとき
 Friends of friends	フレンドのフレンド
 From User	ユーザーから
 GIFs	GIF
-GIFs can't be sent encrypted yet.	GIFはまだ暗号化して送信できません。
 Gallery view	ギャラリー表示
 General	一般
 General Category Permissions	カテゴリーの一般権限
@@ -830,6 +839,7 @@ Go to Server	サーバーへ移動
 Good to see you, %.	%、ようこそ。
 Got It	了解
 Grant temporary membership	一時的なメンバーシップを付与する
+Great for larger community audio events.	大規模なコミュニティの音声イベントに最適です。
 Greek	ギリシャ語
 Hang out together with voice, video, and screen share	音声、ビデオ、画面共有で一緒に過ごそう
 Hang out with voice, video, screenshare, and Go Live.	音声、ビデオ、画面共有、Go Liveで一緒に過ごしましょう。
@@ -862,6 +872,7 @@ How did your server get started? Why should people join?	サーバーを始め�
 Hungarian	ハンガリー語
 I acknowledge that by transferring ownership of this server to %, it officially belongs to them.	このサーバーの所有権を%に譲渡すると、サーバーは正式に相手のものになることを了承します。
 I agree and understand	理解し、同意します
+I have read and agree to the rules	ルールを読み、同意しました
 I'm new here, say hi!	はじめまして、よろしく！
 I'm sure, use a backup code	バックアップコードを使う
 IMAGE	画像
@@ -885,6 +896,7 @@ Ignored message	無視したメッセージ
 Image saved.	画像を保存しました。
 Important updates for people in and out of the server	サーバー内外の人への重要なお知らせ
 In Channel	チャンネル内
+In order to help you with your setup, is your new server for just a few friends or a larger community?	セットアップのお手伝いをするために教えてください。新しいサーバーは少人数の友達向けですか？それとも大きなコミュニティ向けですか？
 Inactive Channel	非アクティブチャンネル
 Inactive Timeout	非アクティブタイムアウト
 Inbox	受信箱
@@ -1171,6 +1183,7 @@ Not encrypted	暗号化なし
 Not encrypted: Discord can read this message	暗号化なし: Discordがこのメッセージを読めます
 Not end-to-end encrypted	エンドツーエンド暗号化なし
 Not me, start over	私ではありません。やり直す
+Not sure? You can 	わからない場合は、
 Note	メモ
 Note (only visible to you)	メモ（あなたにのみ表示）
 Note: Members with the "Mention @everyone, @here, and All Roles" permission will always be able to ping this role.	注: 「@everyone、@here、全ロールへのメンション」権限を持つメンバーは、いつでもこのロールに通知できます。
@@ -1197,6 +1210,7 @@ One rule per line, for example: Be respectful	1行に1ルール。例: 敬意を
 Ongoing call	通話中
 Online	オンライン
 Only @mentions	@メンションのみ
+Only selected members and roles will be able to view this channel.	選択したメンバーとロールのみがこのチャンネルを閲覧できます。
 Only servers and channels you have webhook permissions in are shown.	ウェブフックの権限があるサーバーとチャンネルのみ表示されます。
 Only you can see the nickname you give %.	%に付けたニックネームはあなただけに表示されます。
 Only you can see this · 	あなただけに表示されています ·
@@ -1310,6 +1324,7 @@ ROLES — %	ロール — %
 ROLES/MEMBERS	ロール/メンバー
 RTC Connecting	RTC接続中
 Read Message History	メッセージ履歴を読む
+Read and agree to the server rules	サーバールールを読んで同意する
 Reason	理由
 Reason for Ban	BANの理由
 Reason for Kick	キックの理由
@@ -1370,6 +1385,7 @@ Reset Friend Nickname	フレンドのニックネームをリセット
 Reset Voice Settings	音声設定をリセット
 Resolving Invite	招待を確認中
 Responses	回答
+Restart to Update	再起動してアップデート
 Retry	再試行
 Retry Now	今すぐ再試行
 Return to call	通話に戻る
@@ -1395,6 +1411,7 @@ SELECT A CHANNEL	チャンネルを選択
 SELECT A SERVER	サーバーを選択
 SERVER NAME	サーバー名
 SOUNDBOARD VOLUME	サウンドボードの音量
+START FROM A TEMPLATE	テンプレートから始める
 STATIC EMOJI — % SLOTS AVAILABLE	静止画絵文字 — 空き枠%個
 Safety Notifications Channel	安全通知チャンネル
 Safety Number	安全番号
@@ -1404,6 +1421,7 @@ Same as Device Theme	デバイスのテーマと同じ
 Saturation	彩度
 Save	保存
 Save Changes	変更を保存
+Save Event	イベントを保存
 Save Image	画像を保存
 Saving...	保存中...
 Saving…	保存中…
@@ -1512,6 +1530,7 @@ Some older devices may not be shown here	古いデバイスの一部はここに
 Someone	誰か
 Something went wrong	問題が発生しました
 Something went wrong (HTTP %).	問題が発生しました（HTTP %）。
+Something went wrong. Please try again.	問題が発生しました。もう一度お試しください。
 Something went wrong. Try again.	問題が発生しました。もう一度お試しください。
 Somewhere Else	その他の場所
 Sorry, we couldn't load the first message in this thread	申し訳ありません、このスレッドの最初のメッセージを読み込めませんでした
@@ -1534,6 +1553,7 @@ Speak Message	メッセージを読み上げる
 Spoiler Attachment	ネタバレ添付ファイル
 Spoiler Content	ネタバレ
 Stage	ステージ
+Stage Channel	ステージチャンネル
 Start Date	開始日
 Start Event	イベントを開始
 Start Minimized	最小化して起動
@@ -1542,7 +1562,6 @@ Starting in %m	%分後に開始
 State	状態
 Stickers	スタンプ
 Stickers can be used by anyone in this server. Upload a PNG, APNG, GIF or Lottie JSON file of up to 512 KB; it shows at 320x320.	スタンプはこのサーバーの誰でも使えます。512KBまでのPNG、APNG、GIF、Lottie JSONファイルをアップロードしてください。320x320で表示されます。
-Stickers can't be sent encrypted yet.	スタンプはまだ暗号化して送信できません。
 Stickers must be PNG, APNG, GIF or Lottie JSON files.	スタンプはPNG、APNG、GIF、Lottie JSONファイルにしてください。
 Stop Recording	記録を停止
 Stop Streaming	配信を停止
@@ -1555,6 +1574,8 @@ Streamer Mode	配信モード
 Streamer Mode Enabled	配信モード有効
 Streamer Mode hides your personal info so others watching your stream can't see it.	配信モードでは個人情報を隠し、配信の視聴者に見られないようにします。
 Streamer Mode is enabled. Usernames have been truncated.	配信モードが有効です。ユーザー名は省略表示されています。
+Submit	送信
+Submitting	送信中
 Success! Your friend request to % was sent.	完了！%にフレンドリクエストを送信しました。
 Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday	日曜日|月曜日|火曜日|水曜日|木曜日|金曜日|土曜日
 Sun|Mon|Tue|Wed|Thu|Fri|Sat	日|月|火|水|木|金|土
@@ -1582,6 +1603,7 @@ Tags	タグ
 Tags (pick at least one)	タグ（1つ以上選択）
 Tags let members organize their posts. Members pick them when they post; moderated tags only moderators can apply.	タグを使うと、メンバーが投稿を整理できます。メンバーは投稿時にタグを選びます。モデレーター専用タグはモデレーターのみが付けられます。
 Tap the link in your email to sign in instantly — no password needed.	メールのリンクをタップするとすぐにサインインできます。パスワードは不要です。
+Tell Us More About Your Server	サーバーについて教えてください
 Tell people a little more about your event. Markdown, new lines, and links are supported.	イベントについてもう少し詳しく伝えましょう。Markdown、改行、リンクが使えます。
 Tell the world a bit about this server.	このサーバーについて少し紹介しましょう。
 Template Description	テンプレートの説明
@@ -1645,8 +1667,11 @@ This is the start of the #% channel.	#%チャンネルの始まりです。
 This is where Discord sends updates for moderators and admins of Community servers.	Discordがコミュニティサーバーのモデレーターと管理者向けに更新情報を送る場所です。
 This is where you'll show members your server rules or guidelines.	メンバーにサーバールールやガイドラインを示す場所です。
 This link is taking you to the following website	このリンクは次のウェブサイトに移動します
+This message is end-to-end encrypted. Forwarding it here sends it unencrypted, so Discord can read it.	このメッセージはエンドツーエンド暗号化されています。ここに転送すると暗号化されずに送信されるため、Discordが読めるようになります。
+This message is end-to-end encrypted. Forwarding it here sends it unencrypted, so the server's host can read it.	このメッセージはエンドツーエンド暗号化されています。ここに転送すると暗号化されずに送信されるため、サーバーのホストが読めるようになります。
 This option is not available for Community Servers.	このオプションはコミュニティサーバーでは使えません。
 This role is managed by an integration and can't be edited here.	このロールは連携サービスによって管理されているため、ここでは編集できません。
+This server asks a few questions before you can join. Answer them on discord.com.	このサーバーに参加するには、いくつかの質問に答える必要があります。discord.comで回答してください。
 This server has been removed from Server Discovery because it no longer passes all the requirements. Check Server Settings for more details.	このサーバーは要件をすべて満たさなくなったため、サーバー発見から削除されました。詳しくはサーバー設定を確認してください。
 This server has failed Discovery activity requirements for 1 week. If this server fails for 4 weeks in a row, it will be automatically removed from Discovery.	このサーバーは1週間、サーバー発見のアクティビティ要件を満たしていません。4週連続で満たさない場合、サーバー発見から自動的に削除されます。
 This server has failed Discovery activity requirements for 3 weeks in a row. If this server fails for 1 more week, it will be removed from Discovery.	このサーバーは3週連続で、サーバー発見のアクティビティ要件を満たしていません。あと1週間満たさない場合、サーバー発見から削除されます。
@@ -1744,7 +1769,9 @@ Update Role	ロールを更新
 Update Server	サーバーを更新
 Update Webhook	ウェブフックを更新
 Update your password	パスワードを更新
+Updating…	アップデート中…
 Upload	アップロード
+Upload Cover Image	カバー画像をアップロード
 Upload Emoji	絵文字をアップロード
 Upload Sound	サウンドをアップロード
 Upload Sticker	スタンプをアップロード
@@ -1817,6 +1844,7 @@ Wave to say hi!	手を振ってあいさつしよう！
 We appreciate the enthusiasm, but...	熱意はありがたいのですが...
 We couldn't load the profile for this server.	このサーバーのプロフィールを読み込めませんでした。
 We recommend an image of at least 512x512.	512x512以上の画像をおすすめします。
+We recommend an image of at least 800px wide and 320px tall.	幅800px、高さ320px以上の画像をおすすめします。
 We sent instructions to change your password to %, please check both your inbox and spam folder.	パスワード変更の手順を%に送信しました。受信箱と迷惑メールフォルダーの両方を確認してください。
 We're so excited to see you again!	またお会いできてうれしいです！
 We've sent a message to %.  Please enter the code you received.	%にメッセージを送信しました。受け取ったコードを入力してください。
@@ -1875,6 +1903,7 @@ You haven't connected any accounts yet.	まだアカウントを接続してい�
 You haven't ignored anyone.	無視している人はいません。
 You missed a call from %1 that lasted %2.	%1からの不在着信がありました（%2）。
 You must be at least 18 years old to view this channel.	このチャンネルを閲覧するには18歳以上である必要があります。
+You must complete a few more steps before you can talk.	会話に参加するには、あといくつかの手順を完了する必要があります。
 You must leave a server first to join.	参加するには、まずどこかのサーバーから退出する必要があります。
 You need to add one or more rules.	ルールを1つ以上追加する必要があります。
 You received an invite, but...	招待が届きましたが...
@@ -1952,6 +1981,7 @@ on %	%に
 pinned messages	ピン留めされたメッセージ
 remove embeds	埋め込みを削除
 save	保存
+skip this question	この質問をスキップ
 someone	誰か
 specific date	特定の日付
 this server	このサーバー

@@ -1,4 +1,5 @@
 # Norwegian (no)
+ for now.	 foreløpig.
  · required	 · påkrevd
 % (requested to speak)	% (ber om å snakke)
 % (required)	% (påkrevd)
@@ -182,6 +183,7 @@
 @everyone · applies to all server members	@everyone · gjelder alle servermedlemmer
 A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button.	En tast med Ctrl, Alt, Shift eller Cmd, en modifikatortast alene, eller en midtre eller sideknapp på musen.
 A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button. Works in every app.	En tast med Ctrl, Alt, Shift eller Cmd, en modifikatortast alene, eller en midtre eller sideknapp på musen. Fungerer i alle apper.
+A new channel will be created with the same permissions, user limit and bitrate as 	Det opprettes en ny kanal med de samme tillatelsene, brukergrensen og bithastigheten som 
 A role needs a name.	En rolle trenger et navn.
 A webhook needs a name.	En webhook trenger et navn.
 A wild % appeared.	En vill % dukket opp.
@@ -432,6 +434,7 @@ Category Name	Kategorinavn
 Category deleted	Kategori slettet
 Change %	Endre %
 Change Avatar	Endre avatar
+Change Image	Endre bilde
 Change Nickname	Endre kallenavn
 Change Password	Endre passord
 Change Server Icon	Endre serverikon
@@ -479,6 +482,7 @@ Community servers have more tools to help you moderate and grow your server.	Fel
 Compact	Kompakt
 Compare	Sammenlign
 Compare these with %, in person or on a call. If they match, no one can read this DM in between.	Sammenlign disse med %, ansikt til ansikt eller i en samtale. Hvis de stemmer, kan ingen lese denne DM-en underveis.
+Complete	Fullfør
 Configure system event messages sent to your server.	Konfigurer systemmeldinger som sendes til serveren din.
 Confirm	Bekreft
 Confirm Request	Bekreft forespørsel
@@ -522,6 +526,7 @@ Couldn't create an invite link.	Kunne ikke opprette en invitasjonslenke.
 Couldn't create an invite.	Kunne ikke opprette en invitasjon.
 Couldn't delete the channel: %	Kunne ikke slette kanalen: %
 Couldn't encrypt the message.	Kunne ikke kryptere meldingen.
+Couldn't get that GIF.	Kunne ikke hente den GIF-en.
 Couldn't join %: %	Kunne ikke bli med i %1: %2
 Couldn't load onboarding.	Kunne ikke laste inn introduksjonen.
 Couldn't load the AutoMod rules.	Kunne ikke laste inn AutoMod-reglene.
@@ -532,6 +537,7 @@ Couldn't load the invites.	Kunne ikke laste inn invitasjonene.
 Couldn't load the members.	Kunne ikke laste inn medlemmene.
 Couldn't load the role's members.	Kunne ikke laste inn medlemmene i rollen.
 Couldn't load the server rules.	Kunne ikke laste inn serverreglene.
+Couldn't load the server's rules.	Kunne ikke laste inn serverens regler.
 Couldn't load the server's tag.	Kunne ikke laste inn servertaggen.
 Couldn't load the template.	Kunne ikke laste inn malen.
 Couldn't load the webhooks.	Kunne ikke laste inn webhookene.
@@ -547,6 +553,7 @@ Couldn't save the image.	Kunne ikke lagre bildet.
 Couldn't save the token.	Kunne ikke lagre tokenet.
 Couldn't turn on encryption.	Kunne ikke slå på kryptering.
 Couldn't upload emoji	Kunne ikke laste opp emoji
+Cover Image	Forsidebilde
 Cozy	Koselig
 Create	Opprett
 Create Category	Opprett kategori
@@ -558,7 +565,6 @@ Create Events	Opprett arrangementer
 Create Expressions	Opprett uttrykk
 Create Group DM	Opprett gruppe-DM
 Create Invite	Opprett invitasjon
-Create My Own	Lag min egen
 Create Poll	Opprett avstemning
 Create Polls	Opprett avstemninger
 Create Private Threads	Opprett private tråder
@@ -672,6 +678,7 @@ Don't show role colors	Ikke vis rollefarger
 Done	Ferdig
 Download	Last ned
 Drop a file here, or browse	Slipp en fil her, eller bla gjennom
+Duplicate Channel	Dupliser kanal
 Duration	Varighet
 Dutch	Nederlandsk
 EDIT ROLE — %	REDIGER ROLLE — %
@@ -685,6 +692,7 @@ Echo Cancellation	Ekkodemping
 Edit	Rediger
 Edit Category	Rediger kategori
 Edit Channel	Rediger kanal
+Edit Event	Rediger arrangement
 Edit Friend Nickname	Rediger kallenavn på venn
 Edit Message	Rediger melding
 Edit Per-server Profile	Rediger profil per server
@@ -789,6 +797,8 @@ For 24 Hours	I 24 timer
 For 3 Days	I 3 dager
 For 3 Hours	I 3 timer
 For 8 Hours	I 8 timer
+For a club or community	For en klubb eller et fellesskap
+For me and my friends	For meg og vennene mine
 Forever	For alltid
 Forgot your password?	Glemt passordet?
 Forum	Forum
@@ -812,7 +822,6 @@ Friends come online	Venner kommer på nett
 Friends of friends	Venners venner
 From User	Fra bruker
 GIFs	GIF-er
-GIFs can't be sent encrypted yet.	GIF-er kan ikke sendes kryptert ennå.
 Gallery view	Gallerivisning
 General	Generelt
 General Category Permissions	Generelle kategoritillatelser
@@ -833,6 +842,7 @@ Go to Server	Gå til server
 Good to see you, %.	Godt å se deg, %.
 Got It	Skjønner
 Grant temporary membership	Gi midlertidig medlemskap
+Great for larger community audio events.	Perfekt for større lydarrangementer i fellesskapet.
 Greek	Gresk
 Hang out together with voice, video, and screen share	Heng sammen med tale, video og skjermdeling
 Hang out with voice, video, screenshare, and Go Live.	Heng med tale, video, skjermdeling og Gå live.
@@ -865,6 +875,7 @@ How did your server get started? Why should people join?	Hvordan startet servere
 Hungarian	Ungarsk
 I acknowledge that by transferring ownership of this server to %, it officially belongs to them.	Jeg forstår at når jeg overfører eierskapet til denne serveren til %, tilhører den offisielt vedkommende.
 I agree and understand	Jeg godtar og forstår
+I have read and agree to the rules	Jeg har lest og godtar reglene
 I'm new here, say hi!	Jeg er ny her, si hei!
 I'm sure, use a backup code	Jeg er sikker, bruk en reservekode
 IMAGE	BILDE
@@ -888,6 +899,7 @@ Ignored message	Ignorert melding
 Image saved.	Bildet er lagret.
 Important updates for people in and out of the server	Viktige oppdateringer for folk på og utenfor serveren
 In Channel	I kanal
+In order to help you with your setup, is your new server for just a few friends or a larger community?	For å hjelpe deg med oppsettet: Er den nye serveren din for noen få venner eller et større fellesskap?
 Inactive Channel	Inaktiv kanal
 Inactive Timeout	Tidsavbrudd for inaktivitet
 Inbox	Innboks
@@ -1175,6 +1187,7 @@ Not encrypted	Ikke kryptert
 Not encrypted: Discord can read this message	Ikke kryptert: Discord kan lese denne meldingen
 Not end-to-end encrypted	Ikke ende-til-ende-kryptert
 Not me, start over	Ikke meg, start på nytt
+Not sure? You can 	Usikker? Du kan 
 Note	Notat
 Note (only visible to you)	Notat (bare synlig for deg)
 Note: Members with the "Mention @everyone, @here, and All Roles" permission will always be able to ping this role.	Merk: Medlemmer med tillatelsen «Nevn @everyone, @here og alle roller» kan alltid pinge denne rollen.
@@ -1201,6 +1214,7 @@ One rule per line, for example: Be respectful	Én regel per linje, for eksempel:
 Ongoing call	Pågående samtale
 Online	Pålogget
 Only @mentions	Bare @nevninger
+Only selected members and roles will be able to view this channel.	Bare valgte medlemmer og roller kan se denne kanalen.
 Only servers and channels you have webhook permissions in are shown.	Bare servere og kanaler der du har webhook-tillatelser, vises.
 Only you can see the nickname you give %.	Bare du kan se kallenavnet du gir %.
 Only you can see this · 	Bare du kan se dette ·
@@ -1314,6 +1328,7 @@ ROLES — %	ROLLER — %
 ROLES/MEMBERS	ROLLER/MEDLEMMER
 RTC Connecting	RTC kobler til
 Read Message History	Les meldingshistorikk
+Read and agree to the server rules	Les og godta serverens regler
 Reason	Grunn
 Reason for Ban	Grunn for utestengelse
 Reason for Kick	Grunn for utkasting
@@ -1374,6 +1389,7 @@ Reset Friend Nickname	Tilbakestill kallenavn på venn
 Reset Voice Settings	Tilbakestill taleinnstillinger
 Resolving Invite	Sjekker invitasjonen
 Responses	Svar
+Restart to Update	Start på nytt for å oppdatere
 Retry	Prøv igjen
 Retry Now	Prøv igjen nå
 Return to call	Gå tilbake til samtalen
@@ -1399,6 +1415,7 @@ SELECT A CHANNEL	VELG EN KANAL
 SELECT A SERVER	VELG EN SERVER
 SERVER NAME	SERVERNAVN
 SOUNDBOARD VOLUME	LYDBRETTVOLUM
+START FROM A TEMPLATE	START MED EN MAL
 STATIC EMOJI — % SLOTS AVAILABLE	STATISKE EMOJIER — % PLASSER LEDIG
 Safety Notifications Channel	Kanal for sikkerhetsvarsler
 Safety Number	Sikkerhetsnummer
@@ -1408,6 +1425,7 @@ Same as Device Theme	Samme som enhetens tema
 Saturation	Metning
 Save	Lagre
 Save Changes	Lagre endringer
+Save Event	Lagre arrangement
 Save Image	Lagre bilde
 Saving...	Lagrer...
 Saving…	Lagrer …
@@ -1516,6 +1534,7 @@ Some older devices may not be shown here	Noen eldre enheter vises kanskje ikke h
 Someone	Noen
 Something went wrong	Noe gikk galt
 Something went wrong (HTTP %).	Noe gikk galt (HTTP %).
+Something went wrong. Please try again.	Noe gikk galt. Prøv igjen.
 Something went wrong. Try again.	Noe gikk galt. Prøv igjen.
 Somewhere Else	Et annet sted
 Sorry, we couldn't load the first message in this thread	Beklager, vi kunne ikke laste inn den første meldingen i denne tråden
@@ -1538,6 +1557,7 @@ Speak Message	Les opp melding
 Spoiler Attachment	Spoilervedlegg
 Spoiler Content	Spoilerinnhold
 Stage	Stage
+Stage Channel	Stage-kanal
 Start Date	Startdato
 Start Event	Start arrangement
 Start Minimized	Start minimert
@@ -1546,7 +1566,6 @@ Starting in %m	Starter om %m
 State	Delstat
 Stickers	Klistremerker
 Stickers can be used by anyone in this server. Upload a PNG, APNG, GIF or Lottie JSON file of up to 512 KB; it shows at 320x320.	Klistremerker kan brukes av alle på denne serveren. Last opp en PNG-, APNG-, GIF- eller Lottie JSON-fil på opptil 512 KB; den vises i 320x320.
-Stickers can't be sent encrypted yet.	Klistremerker kan ikke sendes kryptert ennå.
 Stickers must be PNG, APNG, GIF or Lottie JSON files.	Klistremerker må være PNG-, APNG-, GIF- eller Lottie JSON-filer.
 Stop Recording	Stopp opptak
 Stop Streaming	Stopp strømming
@@ -1559,6 +1578,8 @@ Streamer Mode	Strømmermodus
 Streamer Mode Enabled	Strømmermodus er slått på
 Streamer Mode hides your personal info so others watching your stream can't see it.	Strømmermodus skjuler den personlige informasjonen din, så de som ser på strømmen din, ikke kan se den.
 Streamer Mode is enabled. Usernames have been truncated.	Strømmermodus er slått på. Brukernavn er forkortet.
+Submit	Send inn
+Submitting	Sender inn
 Success! Your friend request to % was sent.	Venneforespørselen din til % ble sendt.
 Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday	søndag|mandag|tirsdag|onsdag|torsdag|fredag|lørdag
 Sun|Mon|Tue|Wed|Thu|Fri|Sat	søn.|man.|tir.|ons.|tor.|fre.|lør.
@@ -1586,6 +1607,7 @@ Tags	Tagger
 Tags (pick at least one)	Tagger (velg minst én)
 Tags let members organize their posts. Members pick them when they post; moderated tags only moderators can apply.	Med tagger kan medlemmer organisere innleggene sine. Medlemmer velger dem når de legger ut innlegg; modererte tagger kan bare moderatorer bruke.
 Tap the link in your email to sign in instantly — no password needed.	Trykk på lenken i e-posten for å logge inn med en gang – ingen passord nødvendig.
+Tell Us More About Your Server	Fortell oss mer om serveren din
 Tell people a little more about your event. Markdown, new lines, and links are supported.	Fortell folk litt mer om arrangementet ditt. Markdown, linjeskift og lenker støttes.
 Tell the world a bit about this server.	Fortell verden litt om denne serveren.
 Template Description	Malbeskrivelse
@@ -1649,8 +1671,11 @@ This is the start of the #% channel.	Dette er starten på kanalen #%.
 This is where Discord sends updates for moderators and admins of Community servers.	Det er her Discord sender oppdateringer til moderatorer og administratorer av fellesskapsservere.
 This is where you'll show members your server rules or guidelines.	Det er her du viser medlemmene serverreglene eller retningslinjene dine.
 This link is taking you to the following website	Denne lenken tar deg til følgende nettsted
+This message is end-to-end encrypted. Forwarding it here sends it unencrypted, so Discord can read it.	Denne meldingen er ende-til-ende-kryptert. Hvis du videresender den hit, sendes den ukryptert, så Discord kan lese den.
+This message is end-to-end encrypted. Forwarding it here sends it unencrypted, so the server's host can read it.	Denne meldingen er ende-til-ende-kryptert. Hvis du videresender den hit, sendes den ukryptert, så serverens vert kan lese den.
 This option is not available for Community Servers.	Dette alternativet er ikke tilgjengelig for fellesskapsservere.
 This role is managed by an integration and can't be edited here.	Denne rollen administreres av en integrasjon og kan ikke redigeres her.
+This server asks a few questions before you can join. Answer them on discord.com.	Denne serveren stiller noen spørsmål før du kan bli med. Svar på dem på discord.com.
 This server has been removed from Server Discovery because it no longer passes all the requirements. Check Server Settings for more details.	Denne serveren er fjernet fra Serveroppdagelse fordi den ikke lenger oppfyller alle kravene. Se Serverinnstillinger for mer informasjon.
 This server has failed Discovery activity requirements for 1 week. If this server fails for 4 weeks in a row, it will be automatically removed from Discovery.	Denne serveren har ikke oppfylt aktivitetskravene for Oppdagelse på 1 uke. Hvis serveren ikke oppfyller dem 4 uker på rad, fjernes den automatisk fra Oppdagelse.
 This server has failed Discovery activity requirements for 3 weeks in a row. If this server fails for 1 more week, it will be removed from Discovery.	Denne serveren har ikke oppfylt aktivitetskravene for Oppdagelse 3 uker på rad. Hvis serveren ikke oppfyller dem 1 uke til, fjernes den fra Oppdagelse.
@@ -1748,7 +1773,9 @@ Update Role	Oppdater rolle
 Update Server	Oppdater server
 Update Webhook	Oppdater webhook
 Update your password	Oppdater passordet ditt
+Updating…	Oppdaterer…
 Upload	Last opp
+Upload Cover Image	Last opp forsidebilde
 Upload Emoji	Last opp emoji
 Upload Sound	Last opp lyd
 Upload Sticker	Last opp klistremerke
@@ -1821,6 +1848,7 @@ Wave to say hi!	Vink for å si hei!
 We appreciate the enthusiasm, but...	Vi setter pris på entusiasmen, men ...
 We couldn't load the profile for this server.	Vi kunne ikke laste inn profilen for denne serveren.
 We recommend an image of at least 512x512.	Vi anbefaler et bilde på minst 512x512.
+We recommend an image of at least 800px wide and 320px tall.	Vi anbefaler et bilde som er minst 800 px bredt og 320 px høyt.
 We sent instructions to change your password to %, please check both your inbox and spam folder.	Vi har sendt instruksjoner for å endre passordet til %. Sjekk både innboksen og spam-mappen.
 We're so excited to see you again!	Så hyggelig å se deg igjen!
 We've sent a message to %.  Please enter the code you received.	Vi har sendt en melding til %. Skriv inn koden du fikk.
@@ -1879,6 +1907,7 @@ You haven't connected any accounts yet.	Du har ikke koblet til noen kontoer enn�
 You haven't ignored anyone.	Du har ikke ignorert noen.
 You missed a call from %1 that lasted %2.	Du gikk glipp av et anrop fra %1 som varte i %2.
 You must be at least 18 years old to view this channel.	Du må være minst 18 år for å se denne kanalen.
+You must complete a few more steps before you can talk.	Du må fullføre noen flere trinn før du kan snakke.
 You must leave a server first to join.	Du må forlate en server før du kan bli med.
 You need to add one or more rules.	Du må legge til én eller flere regler.
 You received an invite, but...	Du fikk en invitasjon, men ...
@@ -1933,7 +1962,6 @@ by %	av %
 cancel	avbryt
 channel	kanal
 delete message	slett melding
-dingus@example.com	dingus@example.com
 discord.gg/	discord.gg/
 en-GB	en-GB
 en-US	en-US
@@ -1963,6 +1991,7 @@ pinned messages	festede meldinger
 pt-BR	pt-BR
 remove embeds	fjern innebygd innhold
 save	lagre
+skip this question	hoppe over dette spørsmålet
 someone	noen
 specific date	bestemt dato
 sv-SE	sv-SE

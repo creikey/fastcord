@@ -1,4 +1,5 @@
 # Czech (cs)
+ for now.	 a vrátit se k ní později.
  · required	 · povinné
 % (requested to speak)	% (žádá o slovo)
 % (required)	% (povinné)
@@ -182,6 +183,7 @@
 @everyone · applies to all server members	@everyone · platí pro všechny členy serveru
 A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button.	Klávesa s Ctrl, Alt, Shift nebo Cmd, samotný modifikátor nebo prostřední či boční tlačítko myši.
 A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button. Works in every app.	Klávesa s Ctrl, Alt, Shift nebo Cmd, samotný modifikátor nebo prostřední či boční tlačítko myši. Funguje v každé aplikaci.
+A new channel will be created with the same permissions, user limit and bitrate as 	Vytvoří se nový kanál se stejnými oprávněními, limitem uživatelů a datovým tokem jako 
 A role needs a name.	Role potřebuje název.
 A webhook needs a name.	Webhook potřebuje název.
 A wild % appeared.	Objevil se divoký %.
@@ -432,6 +434,7 @@ Category Name	Název kategorie
 Category deleted	Kategorie smazána
 Change %	Změnit %
 Change Avatar	Změnit avatar
+Change Image	Změnit obrázek
 Change Nickname	Změnit přezdívku
 Change Password	Změnit heslo
 Change Server Icon	Změnit ikonu serveru
@@ -479,6 +482,7 @@ Community servers have more tools to help you moderate and grow your server.	Kom
 Compact	Kompaktní
 Compare	Porovnat
 Compare these with %, in person or on a call. If they match, no one can read this DM in between.	Porovnej je s uživatelem % osobně nebo v hovoru. Pokud se shodují, nikdo cestou tuto konverzaci nepřečte.
+Complete	Dokončit
 Configure system event messages sent to your server.	Nastav systémové zprávy o událostech posílané na tvůj server.
 Confirm	Potvrdit
 Confirm Request	Potvrdit žádost
@@ -522,6 +526,7 @@ Couldn't create an invite link.	Odkaz s pozvánkou nešlo vytvořit.
 Couldn't create an invite.	Pozvánku nešlo vytvořit.
 Couldn't delete the channel: %	Kanál nešlo smazat: %
 Couldn't encrypt the message.	Zprávu nešlo zašifrovat.
+Couldn't get that GIF.	Ten GIF se nepodařilo načíst.
 Couldn't join %: %	Nepodařilo se připojit k %1: %2
 Couldn't load onboarding.	Úvodní nastavení nešlo načíst.
 Couldn't load the AutoMod rules.	Pravidla AutoModu nešlo načíst.
@@ -532,6 +537,7 @@ Couldn't load the invites.	Pozvánky nešlo načíst.
 Couldn't load the members.	Členy nešlo načíst.
 Couldn't load the role's members.	Členy role nešlo načíst.
 Couldn't load the server rules.	Pravidla serveru nešlo načíst.
+Couldn't load the server's rules.	Pravidla serveru se nepodařilo načíst.
 Couldn't load the server's tag.	Štítek serveru nešlo načíst.
 Couldn't load the template.	Šablonu nešlo načíst.
 Couldn't load the webhooks.	Webhooky nešlo načíst.
@@ -547,6 +553,7 @@ Couldn't save the image.	Obrázek nešlo uložit.
 Couldn't save the token.	Token nešlo uložit.
 Couldn't turn on encryption.	Šifrování nešlo zapnout.
 Couldn't upload emoji	Emoji nešlo nahrát
+Cover Image	Titulní obrázek
 Cozy	Pohodlné
 Create	Vytvořit
 Create Category	Vytvořit kategorii
@@ -558,7 +565,6 @@ Create Events	Vytvářet události
 Create Expressions	Vytvářet výrazy
 Create Group DM	Vytvořit skupinovou konverzaci
 Create Invite	Vytvořit pozvánku
-Create My Own	Vytvořit vlastní
 Create Poll	Vytvořit anketu
 Create Polls	Vytvářet ankety
 Create Private Threads	Vytvářet soukromá vlákna
@@ -672,6 +678,7 @@ Don't show role colors	Nezobrazovat barvy rolí
 Done	Hotovo
 Download	Stáhnout
 Drop a file here, or browse	Přetáhni sem soubor, nebo procházej
+Duplicate Channel	Duplikovat kanál
 Duration	Doba trvání
 Dutch	Nizozemština
 EDIT ROLE — %	UPRAVIT ROLI — %
@@ -685,6 +692,7 @@ Echo Cancellation	Potlačení ozvěny
 Edit	Upravit
 Edit Category	Upravit kategorii
 Edit Channel	Upravit kanál
+Edit Event	Upravit událost
 Edit Friend Nickname	Upravit přezdívku přítele
 Edit Message	Upravit zprávu
 Edit Per-server Profile	Upravit profil pro server
@@ -789,6 +797,8 @@ For 24 Hours	Na 24 hodin
 For 3 Days	Na 3 dny
 For 3 Hours	Na 3 hodiny
 For 8 Hours	Na 8 hodin
+For a club or community	Pro klub nebo komunitu
+For me and my friends	Pro mě a moje přátele
 Forever	Navždy
 Forgot your password?	Zapomněl(a) jsi heslo?
 Forum	Fórum
@@ -812,7 +822,6 @@ Friends come online	Přátelé se připojí
 Friends of friends	Přátelé přátel
 From User	Od uživatele
 GIFs	GIFy
-GIFs can't be sent encrypted yet.	GIFy zatím nejde posílat šifrovaně.
 Gallery view	Zobrazení galerie
 General	Obecné
 General Category Permissions	Obecná oprávnění kategorie
@@ -833,6 +842,7 @@ Go to Server	Přejít na server
 Good to see you, %.	Rádi tě vidíme, %.
 Got It	Rozumím
 Grant temporary membership	Udělit dočasné členství
+Great for larger community audio events.	Skvělé pro větší zvukové akce komunity.
 Greek	Řečtina
 Hang out together with voice, video, and screen share	Trávte čas spolu s hlasem, videem a sdílením obrazovky
 Hang out with voice, video, screenshare, and Go Live.	Trávte čas spolu s hlasem, videem, sdílením obrazovky a Go Live.
@@ -865,6 +875,7 @@ How did your server get started? Why should people join?	Jak tvůj server vznikl
 Hungarian	Maďarština
 I acknowledge that by transferring ownership of this server to %, it officially belongs to them.	Beru na vědomí, že převodem vlastnictví tohoto serveru na uživatele % mu server oficiálně patří.
 I agree and understand	Souhlasím a rozumím
+I have read and agree to the rules	Přečetl(a) jsem si pravidla a souhlasím s nimi
 I'm new here, say hi!	Jsem tu nový, pozdravte mě!
 I'm sure, use a backup code	Jsem si jistý, použít záložní kód
 IMAGE	OBRÁZEK
@@ -888,6 +899,7 @@ Ignored message	Ignorovaná zpráva
 Image saved.	Obrázek uložen.
 Important updates for people in and out of the server	Důležité novinky pro lidi na serveru i mimo něj
 In Channel	V kanálu
+In order to help you with your setup, is your new server for just a few friends or a larger community?	Abychom ti s nastavením pomohli: je tvůj nový server jen pro pár přátel, nebo pro větší komunitu?
 Inactive Channel	Kanál pro nečinné
 Inactive Timeout	Limit nečinnosti
 Inbox	Doručené
@@ -1175,6 +1187,7 @@ Not encrypted	Nešifrováno
 Not encrypted: Discord can read this message	Nešifrováno: Discord může tuto zprávu číst
 Not end-to-end encrypted	Bez koncového šifrování
 Not me, start over	Nejsem to já, začít znovu
+Not sure? You can 	Nevíš jistě? Můžeš 
 Note	Poznámka
 Note (only visible to you)	Poznámka (vidíš ji jen ty)
 Note: Members with the "Mention @everyone, @here, and All Roles" permission will always be able to ping this role.	Poznámka: Členové s oprávněním „Zmiňovat @everyone, @here a všechny role“ budou tuto roli moct zmínit vždy.
@@ -1201,6 +1214,7 @@ One rule per line, for example: Be respectful	Jedno pravidlo na řádek, napří
 Ongoing call	Probíhající hovor
 Online	Online
 Only @mentions	Jen @zmínky
+Only selected members and roles will be able to view this channel.	Tento kanál uvidí jen vybraní členové a role.
 Only servers and channels you have webhook permissions in are shown.	Zobrazují se jen servery a kanály, kde máš oprávnění k webhookům.
 Only you can see the nickname you give %.	Přezdívku, kterou dáš uživateli %, vidíš jen ty.
 Only you can see this · 	Vidíš to jen ty ·
@@ -1314,6 +1328,7 @@ ROLES — %	ROLE — %
 ROLES/MEMBERS	ROLE/ČLENOVÉ
 RTC Connecting	Připojování RTC
 Read Message History	Číst historii zpráv
+Read and agree to the server rules	Přečti si pravidla serveru a odsouhlas je
 Reason	Důvod
 Reason for Ban	Důvod banu
 Reason for Kick	Důvod vyhození
@@ -1374,6 +1389,7 @@ Reset Friend Nickname	Obnovit přezdívku přítele
 Reset Voice Settings	Obnovit nastavení hlasu
 Resolving Invite	Ověřování pozvánky
 Responses	Odpovědi
+Restart to Update	Restartovat a aktualizovat
 Retry	Zkusit znovu
 Retry Now	Zkusit hned
 Return to call	Vrátit se do hovoru
@@ -1399,6 +1415,7 @@ SELECT A CHANNEL	VYBER KANÁL
 SELECT A SERVER	VYBER SERVER
 SERVER NAME	NÁZEV SERVERU
 SOUNDBOARD VOLUME	HLASITOST SOUNDBOARDU
+START FROM A TEMPLATE	ZAČÍT ZE ŠABLONY
 STATIC EMOJI — % SLOTS AVAILABLE	STATICKÉ EMOJI — VOLNÁ MÍSTA: %
 Safety Notifications Channel	Kanál bezpečnostních oznámení
 Safety Number	Bezpečnostní číslo
@@ -1408,6 +1425,7 @@ Same as Device Theme	Podle motivu zařízení
 Saturation	Sytost
 Save	Uložit
 Save Changes	Uložit změny
+Save Event	Uložit událost
 Save Image	Uložit obrázek
 Saving...	Ukládání...
 Saving…	Ukládání…
@@ -1516,6 +1534,7 @@ Some older devices may not be shown here	Některá starší zařízení se tu ne
 Someone	Někdo
 Something went wrong	Něco se pokazilo
 Something went wrong (HTTP %).	Něco se pokazilo (HTTP %).
+Something went wrong. Please try again.	Něco se pokazilo. Zkus to prosím znovu.
 Something went wrong. Try again.	Něco se pokazilo. Zkus to znovu.
 Somewhere Else	Jinde
 Sorry, we couldn't load the first message in this thread	Promiň, první zprávu v tomto vlákně nešlo načíst
@@ -1538,6 +1557,7 @@ Speak Message	Přečíst zprávu nahlas
 Spoiler Attachment	Příloha se spoilerem
 Spoiler Content	Obsah spoilerů
 Stage	Stage
+Stage Channel	Stage kanál
 Start Date	Datum začátku
 Start Event	Zahájit událost
 Start Minimized	Spouštět minimalizovaně
@@ -1546,7 +1566,6 @@ Starting in %m	Začíná za % min
 State	Stav
 Stickers	Nálepky
 Stickers can be used by anyone in this server. Upload a PNG, APNG, GIF or Lottie JSON file of up to 512 KB; it shows at 320x320.	Nálepky může na tomto serveru používat kdokoli. Nahraj soubor PNG, APNG, GIF nebo Lottie JSON o velikosti až 512 kB; zobrazí se v rozlišení 320x320.
-Stickers can't be sent encrypted yet.	Nálepky zatím nejde posílat šifrovaně.
 Stickers must be PNG, APNG, GIF or Lottie JSON files.	Nálepky musí být soubory PNG, APNG, GIF nebo Lottie JSON.
 Stop Recording	Zastavit nahrávání
 Stop Streaming	Ukončit stream
@@ -1559,6 +1578,8 @@ Streamer Mode	Režim streamera
 Streamer Mode Enabled	Režim streamera zapnutý
 Streamer Mode hides your personal info so others watching your stream can't see it.	Režim streamera skryje tvé osobní údaje, aby je diváci tvého streamu neviděli.
 Streamer Mode is enabled. Usernames have been truncated.	Režim streamera je zapnutý. Uživatelská jména jsou zkrácena.
+Submit	Odeslat
+Submitting	Odesílání
 Success! Your friend request to % was sent.	Hotovo! Tvoje žádost o přátelství pro % byla odeslána.
 Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday	neděle|pondělí|úterý|středa|čtvrtek|pátek|sobota
 Sun|Mon|Tue|Wed|Thu|Fri|Sat	ne|po|út|st|čt|pá|so
@@ -1586,6 +1607,7 @@ Tags	Štítky
 Tags (pick at least one)	Štítky (vyber aspoň jeden)
 Tags let members organize their posts. Members pick them when they post; moderated tags only moderators can apply.	Štítky pomáhají členům třídit příspěvky. Členové je vybírají při zveřejnění; moderované štítky můžou přidávat jen moderátoři.
 Tap the link in your email to sign in instantly — no password needed.	Klepni na odkaz v e-mailu a okamžitě se přihlásíš — bez hesla.
+Tell Us More About Your Server	Řekni nám víc o svém serveru
 Tell people a little more about your event. Markdown, new lines, and links are supported.	Řekni lidem o své události trochu víc. Podporuje Markdown, nové řádky a odkazy.
 Tell the world a bit about this server.	Řekni světu něco o tomto serveru.
 Template Description	Popis šablony
@@ -1649,8 +1671,11 @@ This is the start of the #% channel.	Tady začíná kanál #%.
 This is where Discord sends updates for moderators and admins of Community servers.	Sem Discord posílá novinky pro moderátory a správce komunitních serverů.
 This is where you'll show members your server rules or guidelines.	Tady členům ukážeš pravidla serveru.
 This link is taking you to the following website	Tento odkaz tě přesměruje na následující web
+This message is end-to-end encrypted. Forwarding it here sends it unencrypted, so Discord can read it.	Tato zpráva je koncově šifrovaná. Když ji sem přepošleš, odejde nešifrovaně a Discord si ji bude moct přečíst.
+This message is end-to-end encrypted. Forwarding it here sends it unencrypted, so the server's host can read it.	Tato zpráva je koncově šifrovaná. Když ji sem přepošleš, odejde nešifrovaně a provozovatel serveru si ji bude moct přečíst.
 This option is not available for Community Servers.	Tato možnost není pro komunitní servery dostupná.
 This role is managed by an integration and can't be edited here.	Tuto roli spravuje integrace a nejde ji tu upravit.
+This server asks a few questions before you can join. Answer them on discord.com.	Než se k tomuto serveru připojíš, musíš odpovědět na pár otázek. Odpověz na ně na discord.com.
 This server has been removed from Server Discovery because it no longer passes all the requirements. Check Server Settings for more details.	Tento server byl odebrán z Objevování serverů, protože už nesplňuje všechny požadavky. Podrobnosti najdeš v Nastavení serveru.
 This server has failed Discovery activity requirements for 1 week. If this server fails for 4 weeks in a row, it will be automatically removed from Discovery.	Tento server 1 týden nesplňuje požadavky Objevování na aktivitu. Pokud je nesplní 4 týdny po sobě, bude z Objevování automaticky odebrán.
 This server has failed Discovery activity requirements for 3 weeks in a row. If this server fails for 1 more week, it will be removed from Discovery.	Tento server 3 týdny po sobě nesplňuje požadavky Objevování na aktivitu. Pokud je nesplní ještě 1 týden, bude z Objevování odebrán.
@@ -1748,7 +1773,9 @@ Update Role	Upravit roli
 Update Server	Upravit server
 Update Webhook	Upravit webhook
 Update your password	Změň si heslo
+Updating…	Aktualizace…
 Upload	Nahrát
+Upload Cover Image	Nahrát titulní obrázek
 Upload Emoji	Nahrát emoji
 Upload Sound	Nahrát zvuk
 Upload Sticker	Nahrát nálepku
@@ -1821,6 +1848,7 @@ Wave to say hi!	Zamávej na pozdrav!
 We appreciate the enthusiasm, but...	Oceňujeme nadšení, ale...
 We couldn't load the profile for this server.	Profil pro tento server nešlo načíst.
 We recommend an image of at least 512x512.	Doporučujeme obrázek aspoň 512x512.
+We recommend an image of at least 800px wide and 320px tall.	Doporučujeme obrázek široký alespoň 800px a vysoký alespoň 320px.
 We sent instructions to change your password to %, please check both your inbox and spam folder.	Pokyny ke změně hesla jsme poslali na %, zkontroluj doručenou poštu i spam.
 We're so excited to see you again!	Moc rádi tě zase vidíme!
 We've sent a message to %.  Please enter the code you received.	Poslali jsme zprávu na %.  Zadej kód, který ti přišel.
@@ -1879,6 +1907,7 @@ You haven't connected any accounts yet.	Zatím jsi nepropojil(a) žádné účty
 You haven't ignored anyone.	Nikoho neignoruješ.
 You missed a call from %1 that lasted %2.	Zmeškal(a) jsi hovor od uživatele %1, který trval %2.
 You must be at least 18 years old to view this channel.	Pro zobrazení tohoto kanálu ti musí být aspoň 18 let.
+You must complete a few more steps before you can talk.	Než budeš moct psát, musíš dokončit ještě pár kroků.
 You must leave a server first to join.	Aby ses mohl(a) připojit, musíš nejdřív opustit nějaký server.
 You need to add one or more rules.	Musíš přidat aspoň jedno pravidlo.
 You received an invite, but...	Dostal(a) jsi pozvánku, ale...
@@ -1933,7 +1962,6 @@ by %	od %
 cancel	zrušit
 channel	kanál
 delete message	smazat zprávu
-dingus@example.com	pepa@example.com
 escape to %1 • enter to %2	Esc – %1 • Enter – %2
 fastcord %	fastcord %
 fastcord quit unexpectedly last time. The report is in the logs folder (Settings, under Log Out).	fastcord se minule neočekávaně ukončil. Hlášení je ve složce protokolů (Nastavení, pod Odhlásit se).
@@ -1958,6 +1986,7 @@ on %	%
 pinned messages	připnuté zprávy
 remove embeds	odstranit vložený obsah
 save	uložit
+skip this question	tuto otázku přeskočit
 someone	někdo
 specific date	konkrétní datum
 this server	tento server
@@ -1965,6 +1994,7 @@ threads	vlákna
 true or false	pravda, nebo nepravda
 unknown	neznámé
 unknown channel	neznámý kanál
+unknown-user	neznámý-uživatel
 used	použito
 user	uživatel
 • Media from all members is scanned by the explicit image filter.	• Média od všech členů kontroluje filtr explicitních obrázků.
