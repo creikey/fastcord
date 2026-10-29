@@ -587,8 +587,14 @@ sender_stop :: (s: *Sender) {
 // on_capture_frame: video.Frame_Proc, on the capture's queue. Only the preview
 // is shared with the UI (under mu); the encoder fields belong to this queue
 // until sender_stop has stopped the capture.
-on_capture_frame :: (user: *void, pixbuf: *void, width: int, height: int) {
+on_capture_frame :: (user: *void, camera_frame: *void, width: int, height: int) {
 	s := cast(*Sender) user;
+	pixbuf := camera_frame;
+	if vs.camera_blur && s != *vid.screen {
+		blurred := video.blur_background(camera_frame);
+		if blurred pixbuf = blurred;
+	}
+	defer if pixbuf != camera_frame video.pixbuf_release(pixbuf);
 	{
 		locks.guard(*s.mu);
 		media.video_frame_release(*s.pending);

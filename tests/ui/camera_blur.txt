@@ -1,0 +1,15 @@
+# Settings > Voice & Video: Blur Background (macOS: Vision's person segmentation) blurs what's behind you;
+# the test pattern has no one in it, so it all comes out blurred.
+wait 5
+click 338 683
+wait 20
+click_text "Voice & Video"
+wait 20
+move 800 500
+scroll 0 -3000
+wait 10
+click_text "Blur Background"
+click_text "Test Video"
+settle 3
+expect_visible "Stop Video"
+shot

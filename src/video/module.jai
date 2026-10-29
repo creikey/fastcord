@@ -96,6 +96,7 @@ thumb_add :: (is_window: bool, id: u32, rgba: []u8, w: int, h: int) {
 	#load "capture_darwin.jai";
 	#load "encode_darwin.jai";
 	#load "pattern_darwin.jai";
+	#load "blur_darwin.jai";
 } else #if OS == .WINDOWS {
 	#load "capture_nv12.jai";
 	#load "capture_windows.jai";

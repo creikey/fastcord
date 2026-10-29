@@ -18,6 +18,7 @@ Voice_Settings :: struct {
 	user_volume: Table(dc.Snowflake, float32); // 0..400 %
 	user_muted: Table(dc.Snowflake, bool);
 	camera, camera_name: string; // heap: the chosen camera ("" = default)
+	camera_blur: bool; // our camera's background blurred (macOS: Vision)
 	// UI state
 	open_dropdown: int; // 0 none, 1 input, 2 output, 3 camera
 	meter_owner: bool; // the meter started the capture
@@ -63,6 +64,7 @@ voice_settings_restore :: (p: *Persisted_Voice) {
 	vs.ptt_mode = p.mode == "PUSH_TO_TALK";
 	vs.ptt_delay_ms = clamp(cast(float32) p.ptt_delay_ms, 0, 2000);
 	vs.camera, vs.camera_name = copy_string(p.camera), copy_string(p.camera_name);
+	vs.camera_blur = p.camera_blur;
 	id := device_by_uid(true, p.input_device);
 	if id != 0 audio.select_device(true, id);
 	id = device_by_uid(false, p.output_device);
@@ -82,6 +84,7 @@ voice_settings_snapshot :: (p: *Persisted_Voice) {
 	p.input_device = device_uid(true);
 	p.output_device = device_uid(false);
 	p.camera, p.camera_name = vs.camera, vs.camera_name;
+	p.camera_blur = vs.camera_blur;
 	p.input_volume = vs.input_volume;
 	p.output_volume = vs.output_volume;
 	p.auto_sens = vs.auto_sens;
@@ -495,6 +498,10 @@ camera_test_section :: () {
 	section_title("CAMERA");
 	device_dropdown(3, false, 660);
 	spacer(.Y, 16);
+	if video.blur_supported() {
+		toggle_row("blur", "Blur Background", "Blur what's behind you on camera. Only your camera is changed.", *vs.camera_blur);
+		spacer(.Y, 16);
+	}
 	section_title("PREVIEW");
 	img := camera_test_image();
 	pv := ui.box("campreview", .Draw_Background);

@@ -71,6 +71,11 @@ capture_stop :: (c: *Capture) {
 	reap();
 }
 
+// Background blur is macOS-only (Vision, blur_darwin.jai).
+blur_supported :: () -> bool { return false; }
+blur_background :: (pixbuf: *void) -> *void { return null; }
+pixbuf_release :: (pb: *void) {}
+
 #scope_module
 
 stopped: [..]*Capture; // threads still exiting; UI thread only
