@@ -434,6 +434,11 @@ ss: struct {
 	role_mentionable: bool;
 	role_perms: u64;
 	role_order: [..]dc.Snowflake; // the list as reordered, top first; empty when untouched
+	rdrag: dc.Snowflake; // Roles: the row pressed, then dragged
+	rdrag_from: ui.Vec2;
+	rdrag_active: bool;
+	rdrop: int; // the row it would go to this frame (-1: none), below it when rdrop_after
+	rdrop_after: bool;
 	declined: dc.Snowflake; // the guild whose ownership offer was answered or put off this session
 	comm: Community_Form; // Community
 	require_rules: bool; // Access
@@ -1325,9 +1330,11 @@ table_header :: (id: string, cols: []string, weights: []float32) {
 	spacer(.X, 36);
 }
 
-// A table row; returns it (pushed as parent: close with ui.pop_parent).
-table_row_begin :: (id: string) -> *ui.Box, ui.Signal {
+// A table row; returns it (pushed as parent: close with ui.pop_parent). release: it acts on release, so a
+// press can start a drag.
+table_row_begin :: (id: string, release := false) -> *ui.Box, ui.Signal {
 	r := row(id, .Clickable | .Draw_Background | .Hot_Animation);
+	if release r.flags |= .Click_On_Release;
 	r.semantic_size = .[ui.pct(1), ui.px(52)];
 	r.style.radius = all4(8);
 	r.style.bg_hot = T("--background-mod-subtle");
@@ -2157,7 +2164,7 @@ roles_page :: (g: *dc.Guild) {
 	hr := row("rhead");
 	hr.semantic_size = .[ui.pct(1), ui.px(40)];
 	{ ui.parent(hr); defer ui.pop_parent();
-		set_para("rnote", "Members use the colour of the highest role they have on this list. Use the arrows to reorder roles.", .Normal, 14, 18, T("--text-muted"));
+		set_para("rnote", "Members use the colour of the highest role they have on this list. Drag roles, or use the arrows, to reorder them.", .Normal, 14, 18, T("--text-muted"));
 		spacer(.X, 16);
 		if set_button("Create Role##create", .Primary, !ss.busy && !role_dirty(g)) && net_action() {
 			ss.busy = true;
@@ -2171,13 +2178,23 @@ roles_page :: (g: *dc.Guild) {
 	W :: float32.[5, 2];
 	table_header("rth", .[tprint("ROLES — %", order.count), "MEMBERS"], W);
 	top := highest_position(g);
+	ss.rdrop = -1;
 	for id, i: order {
 		role := role_of(g, id);
 		if !role continue;
 		ui.id_scope(cast(u64) id);
 		defer ui.pop_seed();
-		_, sig := table_row_begin("r");
+		rb, sig := table_row_begin("r", release = true);
 		defer ui.pop_parent();
+		if sig.pressed && (role.position < top || g.owner_id == store().me) ss.rdrag, ss.rdrag_from, ss.rdrag_active = id, app.ui.mouse, false;
+		if ss.rdrag_active && id != ss.rdrag && (role.position < top || g.owner_id == store().me) && app.ui.mouse.y >= rb.rect.y0 && app.ui.mouse.y < rb.rect.y1 {
+			ss.rdrop, ss.rdrop_after = i, app.ui.mouse.y >= (rb.rect.y0 + rb.rect.y1) / 2;
+			line := ui.box("dropline", .Draw_Background | .Floating_X | .Floating_Y);
+			line.semantic_size = .[ui.px(rb.rect.x1 - rb.rect.x0), ui.px(2)];
+			line.fixed_pos = .{0, ifx ss.rdrop_after then rb.rect.y1 - rb.rect.y0 - 1 else -1};
+			line.style.bg = T("--background-brand");
+		}
+		if ss.rdrag_active && id == ss.rdrag rb.opacity = 0.5;
 		{
 			c := table_cell(0, W[0]); ui.parent(c); defer ui.pop_parent();
 			dot := ui.box("dot", .Draw_Background);
@@ -2198,8 +2215,33 @@ roles_page :: (g: *dc.Guild) {
 		movable := role.position < top || g.owner_id == store().me;
 		if movable && i > 0 && row_icon_button("up", "chevron-small-up") role_move(g, i, -1);
 		else if movable && i + 1 < order.count && row_icon_button("down", "chevron-small-down") role_move(g, i, 1);
-		if sig.clicked && !role_dirty(g) role_open(g, id);
+		if sig.clicked && !role_dirty(g) && !ss.rdrag_active role_open(g, id);
 	}
+	role_drag(g, order);
+}
+
+// After the rows: the threshold, and on release the dragged role moves to the marked place (a draft:
+// Save Changes sends the order, as the arrows' does).
+role_drag :: (g: *dc.Guild, order: []dc.Snowflake) {
+	if !ss.rdrag return;
+	released := false;
+	for app.ui.events if it.kind == .Mouse_Up && it.button == .Left released = true;
+	d := app.ui.mouse - ss.rdrag_from;
+	if !ss.rdrag_active && d.x * d.x + d.y * d.y > DRAG_THRESHOLD * DRAG_THRESHOLD ss.rdrag_active = true;
+	if ss.rdrag_active app.ui.animating = true;
+	if !released return;
+	if ss.rdrag_active && ss.rdrop >= 0 {
+		if !ss.role_order.count for order array_add(*ss.role_order, it);
+		from := -1;
+		for ss.role_order if it == ss.rdrag from = it_index;
+		if from >= 0 {
+			to := ss.rdrop + cast(int) ss.rdrop_after;
+			if from < to to -= 1;
+			array_ordered_remove_by_index(*ss.role_order, from);
+			array_insert_at(*ss.role_order, ss.rdrag, to);
+		}
+	}
+	ss.rdrag, ss.rdrag_active = 0, false;
 }
 
 // Our highest role's position: roles at or above it can't be edited or moved (the owner may do anything).
