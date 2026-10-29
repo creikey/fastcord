@@ -272,7 +272,7 @@ build_ui :: () {
 	app.ui.scrollbar_auto_thumb = T("--scrollbar-auto-thumb");
 	app.ui.scrollbar_auto_track = T("--scrollbar-auto-track");
 	if app.needs_login {
-		#if OS == .WINDOWS if !platform.is_headless() {
+		#if OS != .MACOS if platform.draws_caption() {
 			b := row("titlebar");
 			b.semantic_size = .[ui.pct(1), ui.px(TITLE_BAR_H)];
 			ui.parent(b);
@@ -322,7 +322,7 @@ build_ui :: () {
 
 title_bar :: () {
 	side_w: float32 = TITLE_SIDE_W;
-	#if OS == .WINDOWS if !platform.is_headless() side_w += 3 * CAPTION_BUTTON_W;
+	#if OS != .MACOS if platform.draws_caption() side_w += 3 * CAPTION_BUTTON_W;
 	b := row("titlebar");
 	b.semantic_size = .[ui.pct(1), ui.px(TITLE_BAR_H)];
 	{ ui.parent(b); defer ui.pop_parent();
@@ -402,17 +402,18 @@ title_bar :: () {
 			spacer(.X, 16);
 			help_button();
 			spacer(.X, 14);
-			#if OS == .WINDOWS if !platform.is_headless() caption_buttons();
+			#if OS != .MACOS if platform.draws_caption() caption_buttons();
 		}
 	}
 }
 
-#if OS == .WINDOWS {
+#if OS != .MACOS {
 	CAPTION_BUTTON_W :: 46; // Windows 11's own caption buttons
 
 	caption_max_key: ui.Key;
 
-	// We own the window frame (platform_windows.jai): the title bar's empty space drags the window.
+	// We own the window frame (platform_windows.jai, and Wayland without server-side decorations): the title
+	// bar's empty space drags the window.
 	window_hit :: (p: Vector2) -> platform.Window_Hit {
 		if p.y >= TITLE_BAR_H return .Client;
 		k := ui.hit_box(p);

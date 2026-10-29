@@ -178,6 +178,7 @@ downloads_dir :: (allocator := temp) -> string {
 // its own title bar and says what Windows should do at a point (content coordinates): Caption drags the
 // window, double-click maximizes and right-click opens the system menu; Maximize shows the snap layouts.
 Window_Hit :: enum u8 { Client; Caption; Maximize; }
+draws_caption :: () -> bool { return !s.headless; } // we own the frame (WM_NCCALCSIZE)
 set_window_hit_callback :: (cb: (p: Vector2) -> Window_Hit) { w.hit_callback = cb; }
 
 window_minimize :: () { win.ShowWindow(w.hwnd, win.SW_MINIMIZE); }

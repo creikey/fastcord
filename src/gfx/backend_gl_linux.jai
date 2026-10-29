@@ -1,4 +1,4 @@
-// OpenGL 3.3 core through EGL: an X11 window surface, or (headless) a surfaceless context drawing into an
+// OpenGL 3.3 core through EGL: an X11 or Wayland (wl_egl_window) window surface, or (headless) a surfaceless context drawing into an
 // FBO. libEGL is dlopen'ed and every GL entry point comes from eglGetProcAddress, so nothing but glibc is
 // linked. Mirrors the D3D11 backend: same instances, blending, texture formats and readback layout.
 
@@ -24,7 +24,9 @@ backend_init :: () -> bool {
     }
     // Headless: no surface at all (EGL_KHR_surfaceless_context); frames go to the FBO from ensure_target.
     if !egl.MakeCurrent(st.dpy, st.surface, st.surface, st.ctx) { log_error("gfx: eglMakeCurrent failed (0x%)", formatInt(egl.GetError(), base = 16)); return false; }
-    if st.surface  egl.SwapInterval(st.dpy, 1);
+    // Wayland: the platform paces frames by the compositor's frame callbacks (present_begin); EGL's own
+    // vsync wait would block forever while the window is hidden.
+    if st.surface  egl.SwapInterval(st.dpy, xx ifx platform.is_wayland() then 0 else 1);
     if !load_procs(*gl, "gl", null) return false;
 
     units: s32;
@@ -134,7 +136,7 @@ backend_submit :: (insts: []Instance, batches: []Batch, clear: Color, fb: [2]s32
         timer.pending = true;
     }
     if st.surface {
-        if !egl.SwapBuffers(st.dpy, st.surface) {
+        if platform.present_begin() && !egl.SwapBuffers(st.dpy, st.surface) {
             g.diag.present_fails += 1;
             g.diag.last_hresult = egl.GetError();
         }
@@ -398,7 +400,11 @@ open_display :: (headless: bool) -> bool {
     if has(client, "EGL_EXT_platform_base")  get_platform_display = cast(type_of(get_platform_display)) egl.GetProcAddress("eglGetPlatformDisplayEXT");
     if !headless {
         native := platform.native_display();
-        if get_platform_display && (has(client, "EGL_KHR_platform_x11") || has(client, "EGL_EXT_platform_x11")) {
+        if platform.is_wayland() {
+            if get_platform_display && (has(client, "EGL_KHR_platform_wayland") || has(client, "EGL_EXT_platform_wayland")) {
+                if try_init(get_platform_display(EGL_PLATFORM_WAYLAND_KHR, native, null)) return true;
+            }
+        } else if get_platform_display && (has(client, "EGL_KHR_platform_x11") || has(client, "EGL_EXT_platform_x11")) {
             if try_init(get_platform_display(EGL_PLATFORM_X11_KHR, native, null)) return true;
         }
         return try_init(egl.GetDisplay(native));
@@ -417,7 +423,8 @@ open_display :: (headless: bool) -> bool {
     return false;
 }
 
-// Windowed: the config whose X visual is the window's (else the first plain 8-bit RGB one). Headless: any
+// Windowed: the config whose X visual is the window's (else the first plain 8-bit RGB one; on Wayland one
+// with no alpha, which the compositor would blend with what is behind the window). Headless: any
 // desktop-GL config; it only describes the context, which never gets a surface.
 choose_config :: (headless: bool) -> *void {
     attrs := s32.[EGL_SURFACE_TYPE, xx ifx headless then 0 else EGL_WINDOW_BIT, EGL_RENDERABLE_TYPE, EGL_OPENGL_BIT,
@@ -426,16 +433,18 @@ choose_config :: (headless: bool) -> *void {
     n: s32;
     if !egl.ChooseConfig(st.dpy, attrs.data, configs.data, configs.count, *n) || n <= 0 return null;
     if headless return configs[0];
-    visual := window_visual();
+    wayland := platform.is_wayland();
+    visual := ifx wayland then 0 else window_visual();
     best: *void;
     for c: array_view(configs, 0, n) {
-        vid, r, g, b: s32;
+        vid, r, g, b, a: s32;
         egl.GetConfigAttrib(st.dpy, c, EGL_NATIVE_VISUAL_ID, *vid);
         if visual && cast(u64) vid == visual return c;
         egl.GetConfigAttrib(st.dpy, c, EGL_RED_SIZE, *r);
         egl.GetConfigAttrib(st.dpy, c, EGL_GREEN_SIZE, *g);
         egl.GetConfigAttrib(st.dpy, c, EGL_BLUE_SIZE, *b);
-        if !best && r == 8 && g == 8 && b == 8  best = c;
+        egl.GetConfigAttrib(st.dpy, c, EGL_ALPHA_SIZE, *a);
+        if !best && r == 8 && g == 8 && b == 8 && (!wayland || a == 0)  best = c;
     }
     return ifx best then best else configs[0];
 }
@@ -600,6 +609,7 @@ EGL_EXTENSIONS :: 0x3055;
 EGL_RED_SIZE :: 0x3024;
 EGL_GREEN_SIZE :: 0x3023;
 EGL_BLUE_SIZE :: 0x3022;
+EGL_ALPHA_SIZE :: 0x3021;
 EGL_NATIVE_VISUAL_ID :: 0x302E;
 EGL_SURFACE_TYPE :: 0x3033;
 EGL_RENDERABLE_TYPE :: 0x3040;
@@ -611,6 +621,7 @@ EGL_CONTEXT_MINOR_VERSION :: 0x30FB;
 EGL_CONTEXT_OPENGL_PROFILE_MASK :: 0x30FD;
 EGL_CONTEXT_OPENGL_CORE_PROFILE_BIT :: 0x0001;
 EGL_PLATFORM_X11_KHR :: 0x31D5;
+EGL_PLATFORM_WAYLAND_KHR :: 0x31D8;
 EGL_PLATFORM_SURFACELESS_MESA :: 0x31DD;
 EGL_PLATFORM_DEVICE_EXT :: 0x313F;
 

@@ -1,9 +1,24 @@
-// Linux: plain X11 (Wayland desktops run us through XWayland). libX11 is loaded with dlopen so the binary
-// links nothing but glibc and still starts (headless) where X is missing.
+// Linux: X11, or native Wayland when WAYLAND_DISPLAY is set and the compositor answers (wayland_linux.jai,
+// whose procedures these dispatch to while wl.on). libX11 and libwayland are loaded with dlopen so the binary
+// links nothing but glibc and still starts (headless) where neither is present.
 
-// The X Display* and the window id, for gfx (EGL on X11); null headless.
-native_display :: () -> *void { return xs.d; }
-native_window :: () -> *void { return cast(*void) xs.win; }
+// The X Display* and window id, or the wl_display and wl_egl_window, for gfx (EGL); null headless.
+native_display :: () -> *void { return ifx wl.on then wl.d else xs.d; }
+native_window :: () -> *void { return ifx wl.on then wl.egl_window else cast(*void) xs.win; }
+is_wayland :: () -> bool { return wl.on; }
+
+// gfx calls this right before eglSwapBuffers; false skips the present (Wayland: unmapped or unconfigured).
+present_begin :: () -> bool { return !wl.on || wl_present_begin(); }
+
+// Wayland compositors without server-side decorations (GNOME): the app draws the caption buttons, and the
+// title bar's empty space (set_window_hit_callback) moves the window, as on Windows.
+draws_caption :: () -> bool { return wl.on && wl.csd; }
+Window_Hit :: enum u8 { Client; Caption; Maximize; }
+set_window_hit_callback :: (cb: (p: Vector2) -> Window_Hit) { wl.hit = cb; }
+window_minimize :: () { if wl.on wl_toplevel_request(13); }
+window_maximized :: () -> bool { return wl.on && wl.maximized; }
+window_toggle_maximize :: () { if wl.on wl_toplevel_request(xx ifx wl.maximized then 10 else 9); }
+window_close :: () { if wl.on wl_close(); }
 native_metal_layer :: () -> *void { return null; }
 
 // X11 has no way to keep a window out of screen captures.
@@ -102,6 +117,7 @@ open_url :: (url: string) {
 
 // Placed by StaticGravity hints, so x, y are the client area's, not the frame's.
 window_placement :: () -> Window_Placement, bool {
+    if wl.on { p, ok := wl_placement(); return p, ok; }
     if s.headless || !xs.win return .{}, false;
     b: [..]u8;
     b.allocator = temp;
@@ -124,6 +140,7 @@ window_placement_restore :: (p: Window_Placement) { xs.normal = p; }
 
 // The OS's fullscreen (a video's fullscreen takes the whole screen), asked of the window manager (EWMH).
 set_fullscreen :: (on: bool) {
+    if wl.on && on != xs.fullscreen { wl_fullscreen(on); return; }
     if s.headless || !xs.win || on == xs.fullscreen return;
     xs.fullscreen = on;
     ev: XEvent;
@@ -138,6 +155,7 @@ is_fullscreen :: () -> bool { return xs.fullscreen; }
 
 // Brings the window to the front: mapped, then _NET_ACTIVE_WINDOW asks the window manager (EWMH).
 window_show :: () {
+    if wl.on { wl_show(); return; }
     if s.headless || !xs.win return;
     X.MapWindow(xs.d, xs.win);
     ev: XEvent;
@@ -171,6 +189,7 @@ autostart_path :: () -> string {
 #scope_module
 
 tray_changed :: () { if bus.state == 1 bus_post(.{tray = true}); } // the menu's checkmarks (set_tray_voice)
+tray_hides :: () -> bool { return atomic_load(*bus.tray) && s.close_to_tray; } // closing hides to the tray
 
 // Global input: XInput2 raw key and button events from the root window, on a thread with its own
 // connection. Under Wayland (XWayland) they come only while an X11 window has focus.
@@ -184,6 +203,7 @@ os_global_input :: (on: bool) -> Global_Input {
         gx.on, gx.stop, gx.d = false, false, null;
         return .Off;
     }
+    if wl.on return .Unavailable; // Wayland has no global input; XInput2 would see only XWayland's windows
     if !gx.lib gx.lib = dlopen("libXi.so.6", RTLD_NOW);
     if !gx.lib || !gx.select gx.select = xx dlsym(gx.lib, "XISelectEvents");
     if !gx.select return .Unavailable;
@@ -237,6 +257,15 @@ XGenericEventCookie :: struct { type: s32; serial: u64; send_event: s32; display
 XIRawEvent :: struct { type: s32; serial: u64; send_event: s32; display: *void; extension: s32; evtype: s32; time: u64; deviceid, sourceid, detail, flags: s32; }
 
 os_init :: (title: string, width: int, height: int) -> bool {
+    xs.wake_fd = eventfd(0, xx (EFD.NONBLOCK | .CLOEXEC));
+    if in_path("gsettings") {
+        thread_init(*xs.prefs_thread, prefs_proc);
+        thread_start(*xs.prefs_thread);
+    }
+    if getenv("WAYLAND_DISPLAY") && !getenv("FASTCORD_X11") && wl_init(title, width, height) {
+        if bus_start() bus_post(.{tray = true});
+        return true;
+    }
     xs.lib = dlopen("libX11.so.6", RTLD_NOW);
     if !xs.lib || !load_syms(xs.lib, *X, "X") return false;
     X.InitThreads(); // clipboard reads run on worker threads, on their own connection
@@ -306,7 +335,6 @@ os_init :: (title: string, width: int, height: int) -> bool {
     X.Flush(xs.d);
     update_size();
 
-    xs.wake_fd = eventfd(0, xx (EFD.NONBLOCK | .CLOEXEC));
     if bus_start() bus_post(.{tray = true});
     // the second connection reads the clipboard from any thread without touching the UI thread's events
     xs.clip_d = X.OpenDisplay(null);
@@ -317,14 +345,16 @@ os_init :: (title: string, width: int, height: int) -> bool {
     // themed cursors by CSS name (optional)
     xs.xcursor = dlopen("libXcursor.so.1", RTLD_NOW);
     if xs.xcursor && !load_syms(xs.xcursor, *XC, "Xcursor") xs.xcursor = null;
-    if in_path("gsettings") {
-        thread_init(*xs.prefs_thread, prefs_proc);
-        thread_start(*xs.prefs_thread);
-    }
     return true;
 }
 
 os_shutdown :: () {
+    if wl.on {
+        wl_shutdown();
+        close(xs.wake_fd);
+        xs.wake_fd = -1;
+        return;
+    }
     if xs.ic X.DestroyIC(xs.ic);
     if xs.im X.CloseIM(xs.im);
     if xs.win X.DestroyWindow(xs.d, xs.win);
@@ -343,11 +373,12 @@ os_wake :: () {
     write(xs.wake_fd, *one, 8);
 }
 
-os_frame_wait :: () {}
+os_frame_wait :: () { if wl.on wl_frame_wait(); }
 
 // Pumps X events until there is something to do: events, a requested frame (EGL's swap waits for vsync,
 // so no sleep here), a wake from another thread, or the timeout.
 os_wait :: (timeout: float64) {
+    if wl.on { wl_wait(timeout); return; }
     start := time_now();
     // The caret, for the input method's candidate window (ibus and fcitx read the spot even with
     // XIMPreeditNothing, which keeps preedit drawing theirs).
@@ -377,6 +408,7 @@ os_wait :: (timeout: float64) {
 }
 
 os_clipboard_get :: (allocator: Allocator) -> string {
+    if wl.on return wl_clipboard_get(allocator);
     locks.guard(*xs.read_lock);
     if !xs.clip_d return "";
     if X.GetSelectionOwner(xs.clip_d, xs.a.CLIPBOARD) == xs.win {
@@ -393,6 +425,7 @@ os_clipboard_get :: (allocator: Allocator) -> string {
 // A PNG (the app re-encodes other formats): we own CLIPBOARD and serve it as image/png. No INCR, so an
 // image over the server's request size (usually 16 MiB with BIG-REQUESTS) doesn't reach the other program.
 os_clipboard_set_image :: (png: []u8) {
+    if wl.on { wl_clipboard_set("", png); return; }
     {
         locks.guard(*xs.own_lock);
         own_reset();
@@ -404,6 +437,7 @@ os_clipboard_set_image :: (png: []u8) {
 
 // We own CLIPBOARD and answer SelectionRequest from the event pump.
 os_clipboard_set :: (str: string) {
+    if wl.on { wl_clipboard_set(str, .[]); return; }
     {
         locks.guard(*xs.own_lock);
         own_reset();
@@ -415,6 +449,7 @@ os_clipboard_set :: (str: string) {
 
 // Asks the owner for its TARGETS: one round trip, made on paste.
 os_clipboard_kind :: () -> Clipboard_Kind {
+    if wl.on return wl_clipboard_kind();
     locks.guard(*xs.read_lock);
     if !xs.clip_d return .None;
     owner := X.GetSelectionOwner(xs.clip_d, xs.a.CLIPBOARD);
@@ -435,6 +470,7 @@ os_clipboard_kind :: () -> Clipboard_Kind {
 
 // image/png, which GTK, Qt and browsers all offer for a copied bitmap.
 os_clipboard_image :: (allocator: Allocator) -> []u8, bool {
+    if wl.on { b, ok := wl_clipboard_image(allocator); return b, ok; }
     locks.guard(*xs.read_lock);
     if !foreign_owner() {
         locks.guard(*xs.own_lock);
@@ -447,12 +483,14 @@ os_clipboard_image :: (allocator: Allocator) -> []u8, bool {
 }
 
 os_clipboard_files :: (allocator: Allocator) -> []string {
+    if wl.on return wl_clipboard_files(allocator);
     locks.guard(*xs.read_lock);
     if !foreign_owner() return .[];
     return read_files(allocator);
 }
 
 os_apply_cursor :: () {
+    if wl.on { wl_apply_cursor(); return; }
     c := *xs.cursors[s.cursor];
     if !c.* c.* = make_cursor(s.cursor);
     X.DefineCursor(xs.d, xs.win, c.*);
@@ -544,6 +582,8 @@ Xcursor :: struct {
 }
 XC: Xcursor;
 
+#scope_module
+
 load_syms :: (lib: *void, table: *$T, prefix: string) -> bool {
     for type_info(T).members {
         p := dlsym(lib, temp_c_string(join(prefix, it.name,, temp)));
@@ -552,6 +592,8 @@ load_syms :: (lib: *void, table: *$T, prefix: string) -> bool {
     }
     return true;
 }
+
+#scope_file
 
 XSetWindowAttributes :: struct {
     background_pixmap, background_pixel, border_pixmap, border_pixel: u64;
@@ -728,6 +770,8 @@ Prefs :: struct {
     a11y: System_A11y;
 }
 
+#scope_module
+
 xs: struct {
     lib, xcursor: *void;
     d: *void;      // the UI thread's connection
@@ -763,6 +807,8 @@ xs: struct {
     prefs: Prefs;
     prefs_thread: Thread;
 };
+
+#scope_file
 
 in_path :: (name: string) -> bool {
     p := getenv("PATH");
@@ -955,13 +1001,17 @@ key_press :: (k: *XKeyEvent) {
     push_event(.{kind = .Text, text = text, time = now});
 }
 
+map_key :: (k: *XKeyEvent) -> Key { return map_key_code(X.LookupKeysym(k, 0), k.keycode, (k.state & 0x10) != 0); }
+
+#scope_module
+
 // The layout's unshifted keysym of the first group (Latin on most multi-layout setups), else the key's
-// position on a US keyboard (evdev keycodes) so shortcuts work on single non-Latin layouts, as on Windows.
-map_key :: (k: *XKeyEvent) -> Key {
-    sym := X.LookupKeysym(k, 0);
-    if sym >= 0xff95 && sym <= 0xff9f && (k.state & 0x10) return .None; // keypad with NumLock (Mod2) types digits
+// position on a US keyboard (X keycodes, evdev + 8) so shortcuts work on single non-Latin layouts, as on
+// Windows.
+map_key_code :: (sym: u64, keycode: int, numlock: bool) -> Key {
+    if sym >= 0xff95 && sym <= 0xff9f && numlock return .None; // keypad with NumLock (Mod2) types digits
     key := map_keysym(sym);
-    c := cast(int) k.keycode;
+    c := keycode;
     if key != .None || c < 10 return key;
     if c <= 19 return ifx c == 19 then .N0 else cast(Key) (cast(int) Key.N1 + c - 10);
     ROWS :: string.["qwertyuiop", "asdfghjkl", "zxcvbnm"];
@@ -1014,6 +1064,19 @@ map_keysym :: (sym: u64) -> Key {
     return .None;
 }
 
+// A press's click count: 2 and 3 for presses of the same button within half a second and 2pt.
+count_click :: (btn: Mouse_Button, pos: Vector2, now: float64) -> int {
+    d := pos - xs.last_click_pos;
+    if btn == xs.last_click_btn && now - xs.last_click_time <= 0.5 && d.x * d.x + d.y * d.y < 16 xs.click_count += 1;
+    else xs.click_count = 1;
+    xs.last_click_time = now;
+    xs.last_click_pos = pos;
+    xs.last_click_btn = btn;
+    return xs.click_count;
+}
+
+#scope_file
+
 mouse_button :: (b: *XButtonEvent, down: bool) {
     pos := point(b.x, b.y);
     now := time_now();
@@ -1040,14 +1103,7 @@ mouse_button :: (b: *XButtonEvent, down: bool) {
             return;
         case; return;
     }
-    if down {
-        d := pos - xs.last_click_pos;
-        if btn == xs.last_click_btn && now - xs.last_click_time <= 0.5 && d.x * d.x + d.y * d.y < 16 xs.click_count += 1;
-        else xs.click_count = 1;
-        xs.last_click_time = now;
-        xs.last_click_pos = pos;
-        xs.last_click_btn = btn;
-    }
+    if down count_click(btn, pos, now);
     push_event(.{kind = ifx down then .Mouse_Down else .Mouse_Up, button = btn, pos = pos, mods = mods, click_count = xs.click_count, time = now});
 }
 
@@ -1157,6 +1213,8 @@ read_files :: (allocator: Allocator) -> []string {
     return .[];
 }
 
+#scope_module
+
 // The local paths of the file:// URIs in a uri-list (other lines are skipped).
 uri_paths :: (list: string, allocator: Allocator) -> []string {
     out: [..]string;
@@ -1193,6 +1251,8 @@ hex :: (c: u8) -> int {
     if c >= #char "A" && c <= #char "F" return c - #char "A" + 10;
     return -1;
 }
+
+#scope_file
 
 // ---- Drag and drop: an XDND target
 
