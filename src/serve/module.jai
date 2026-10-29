@@ -1952,16 +1952,22 @@ member_list_value :: (s: *Server) -> etf.Value {
 	}
 	locks.unlock(*s.mu);
 
-	Row :: struct { id: s64; name: string; roles: etf.Value; }
+	// Online members go under their highest hoisted role, as on Discord, highest role first; the rest under
+	// Online, and everyone offline under Offline.
+	Row :: struct { id: s64; name: string; roles: etf.Value; hoist: s64; }
 	on, off: [..]Row;
-	on.allocator, off.allocator = temp, temp;
+	hoisted: [..]s64;
+	on.allocator, off.allocator, hoisted.allocator = temp, temp, temp;
 	{
 		locks.guard(*s.db_mu);
-		st := sqlite.prepare(s.db, "SELECT id, name FROM users WHERE left = 0 ORDER BY name COLLATE NOCASE, id;");
+		st := sqlite.prepare(s.db, "SELECT u.id, u.name, coalesce((SELECT r.id FROM member_roles m JOIN roles r ON r.id = m.role WHERE m.user = u.id AND r.hoist = 1 ORDER BY r.position DESC LIMIT 1), 0) FROM users u WHERE u.left = 0 ORDER BY u.name COLLATE NOCASE, u.id;");
 		while sqlite.step(st) == .Row {
-			r := Row.{sqlite.col_int(st, 0), copy_string(sqlite.col_text(st, 1),, temp), member_roles_locked(s, sqlite.col_int(st, 0))};
+			r := Row.{sqlite.col_int(st, 0), copy_string(sqlite.col_text(st, 1),, temp), member_roles_locked(s, sqlite.col_int(st, 0)), sqlite.col_int(st, 2)};
 			array_add(ifx array_find(online, r.id) then *on else *off, r);
 		}
+		sqlite.finalize(st);
+		st = sqlite.prepare(s.db, "SELECT id FROM roles WHERE hoist = 1 ORDER BY position DESC;");
+		while sqlite.step(st) == .Row array_add(*hoisted, sqlite.col_int(st, 0));
 		sqlite.finalize(st);
 	}
 	items: [..]etf.Value;
@@ -1991,7 +1997,17 @@ member_list_value :: (s: *Server) -> etf.Value {
 			array_add(*`items, etf.vmap(etf.map_done(*wrap)));
 		}
 	}
-	add_group("online", on);
+	under :: (rows: []Row, role: s64) -> []Row {
+		out: [..]Row;
+		out.allocator = temp;
+		for rows if it.hoist == role array_add(*out, it);
+		return out;
+	}
+	for hoisted {
+		rows := under(on, it);
+		if rows.count add_group(tprint("%", it), rows);
+	}
+	add_group("online", under(on, 0));
 	add_group("offline", off);
 
 	range := NewArray(2, etf.Value,, temp);

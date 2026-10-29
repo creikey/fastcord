@@ -562,6 +562,7 @@ roles :: (c: *Conn, req: http.Request) -> bool {
 		}
 	}
 	for events broadcast(s, it.t, it.d);
+	if has_hoist || req.method == "DELETE" || reorder broadcast(s, "GUILD_MEMBER_LIST_UPDATE", member_list_value(s)); // hoisted groups
 	if has_perms || req.method == "DELETE" resync(s);
 	if req.method == "DELETE" return respond(c, 204, json = false);
 	return json_reply(c, ifx req.method == "POST" then 201 else 200, reply);

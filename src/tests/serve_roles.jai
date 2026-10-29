@@ -111,6 +111,14 @@ main :: () {
 	check(status == 204, tprint("but hands out roles below it: % %", status, body));
 	for 1..300 { if discord.my_roles(*b.store, cast(discord.Snowflake) s.guild).count == 1 break; pump(); }
 	check(discord.my_roles(*b.store, cast(discord.Snowflake) s.guild).count == 1, "GUILD_MEMBER_UPDATE carries the member's roles");
+	status, body = rest("PATCH", tprint("%/roles/%", g, staff_role), "{\"hoist\": true}", owner_token);
+	hoisted :: () -> bool #expand {
+		ml := table_find_pointer(*`b.store.member_lists, cast(discord.Snowflake) `s.guild);
+		if ml for ml.groups if it.id == `staff_role && it.count == 1 return true;
+		return false;
+	}
+	for 1..300 { if hoisted() break; pump(); }
+	check(status == 200 && hoisted(), tprint("a hoisted role gets its own member list group: % %", status, body));
 	status, body = rest("DELETE", tprint("%/members/%/roles/%", g, member_id, staff_role), "", mod_token);
 	check(status == 204, tprint("and takes them away: %", status));
 	status, body = rest("GET", tprint("%/roles/member-counts", g), "", member_token);
