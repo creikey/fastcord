@@ -114,6 +114,7 @@ server_settings_reset_for_test :: () {
 	free(ss.error);
 	free(ss.chan_region);
 	array_free(ss.ows);
+	array_free(ss.cursors);
 	ob_free();
 	free(ss.ob_saved);
 	ss = .{};
@@ -452,6 +453,7 @@ ss: struct {
 	ows: [..]dc.Overwrite; // the overwrites as edited
 	ow_id: dc.Snowflake; // the role or member whose permissions are shown
 	ow_adding: bool; // the Add members or roles search is open
+	cursors: [..]dc.Snowflake; // Bans and Audit Log: the cursor each page shown so far loaded from (empty: page 1)
 };
 
 ss_set :: (dst: *string, v: string) {
@@ -492,7 +494,7 @@ section_enter :: (g: *dc.Guild) {
 		load(g, .Invites, tprint("/guilds/%/invites", g.id));
 		if dc.guild_has_feature(g, "VANITY_URL") load(g, .Vanity, tprint("/guilds/%/vanity-url", g.id));
 	case .Bans;
-		load(g, .Bans, tprint("/guilds/%/bans?limit=1000", g.id));
+		bans_load(g);
 	case .Emoji;
 		load(g, .Emojis, tprint("/guilds/%/emojis", g.id));
 	case .Audit_Log;
@@ -527,6 +529,7 @@ section_enter :: (g: *dc.Guild) {
 	}
 	ss.ow_id, ss.ow_adding = g.id, false;
 	ss.role_id, ss.pending_role, ss.hook_id = 0, 0, 0;
+	array_reset(*ss.cursors);
 	ui.editor_set_text(*ss.hook_name, "");
 	ui.editor_set_text(*ss.words, "");
 	array_reset(*ss.role_order);
@@ -1541,6 +1544,7 @@ bans_page :: (g: *dc.Guild) {
 	spacer(.Y, 16);
 	if !loading_or(.Bans, "Couldn't load the bans.") return;
 	list := dc.vlist(reply(.Bans).body);
+	defer pager(g, ifx list.count == BANS_PAGE then dc.fsnow(dc.fmap(dc.vmap(list[list.count - 1]), "user"), "id") else 0, bans_load);
 	q := to_lower_copy(trim(ui.editor_text(*ss.search)),, temp);
 	label(tprint("% Bans", list.count), .Semibold, 14, T("--text-default"), 18);
 	spacer(.Y, 8);
@@ -1563,6 +1567,30 @@ bans_page :: (g: *dc.Guild) {
 		if sig.clicked ss_confirm_open(.Revoke_Ban, uid, dc.fstr(u, "username"));
 	}
 	if !shown ss_empty(ifx list.count then "No bans match your search" else "No bans");
+}
+
+BANS_PAGE :: 1000;
+AUDIT_PAGE :: 50;
+
+// GET /guilds/{id}/bans?limit=1000, after the last ban of the page before.
+bans_load :: (g: *dc.Guild) {
+	ss.loading[Req.Bans] = false;
+	after := ifx ss.cursors.count then tprint("&after=%", peek(ss.cursors)) else "";
+	load(g, .Bans, join(tprint("/guilds/%/bans?limit=%", g.id, BANS_PAGE), after,, temp));
+}
+
+// Previous / Next under a paged list; next is the cursor of the page after this one (0: it's the last).
+pager :: (g: *dc.Guild, next: dc.Snowflake, reload: (*dc.Guild)) {
+	if !ss.cursors.count && !next return;
+	spacer(.Y, 12);
+	r := row("pager");
+	r.semantic_size = .[ui.pct(1), ui.px(38)];
+	r.style.child_gap = 8;
+	ui.parent(r); defer ui.pop_parent();
+	label(tprint("Page %", ss.cursors.count + 1), .Medium, 14, T("--text-muted"), 18);
+	filler(.X);
+	if set_button("Previous##prev", .Secondary, ss.cursors.count > 0) { pop(*ss.cursors); reload(g); }
+	if set_button("Next##next", .Secondary, next != 0) { array_add(*ss.cursors, next); reload(g); }
 }
 
 // ---- Emoji ----
@@ -1663,8 +1691,9 @@ audit_load :: (g: *dc.Guild) {
 	q := "";
 	if ss.audit_user q = tprint("&user_id=%", ss.audit_user);
 	if ss.audit_action q = tprint("%&action_type=%", q, AUDIT_ACTIONS[ss.audit_action].type);
+	if ss.cursors.count q = tprint("%&before=%", q, peek(ss.cursors)); // the page after: older entries
 	ss.loading[Req.Audit] = false;
-	load(g, .Audit, tprint("/guilds/%/audit-logs?limit=50%", g.id, q));
+	load(g, .Audit, join(tprint("/guilds/%/audit-logs?limit=%", g.id, AUDIT_PAGE), q,, temp));
 }
 
 audit_page :: (g: *dc.Guild) {
@@ -1692,7 +1721,7 @@ audit_page :: (g: *dc.Guild) {
 		{ ui.parent(c1); defer ui.pop_parent();
 			field_title("Filter by User");
 			pick := select_field("audituser", users, index_of(uids, ss.audit_user));
-			if pick >= 0 { ss.audit_user = uids[pick]; audit_load(g); }
+			if pick >= 0 { ss.audit_user = uids[pick]; array_reset(*ss.cursors); audit_load(g); }
 		}
 		c2 := ui.box("fa");
 		c2.semantic_size = .[ui.fill(), ui.children()];
@@ -1703,13 +1732,14 @@ audit_page :: (g: *dc.Guild) {
 			acts.allocator = temp;
 			for AUDIT_ACTIONS array_add(*acts, it.name);
 			pick := select_field("auditaction", acts, ss.audit_action);
-			if pick >= 0 { ss.audit_action = pick; audit_load(g); }
+			if pick >= 0 { ss.audit_action = pick; array_reset(*ss.cursors); audit_load(g); }
 		}
 	}
 	spacer(.Y, 20);
 	if !loading_or(.Audit, "Couldn't load the audit log.") return;
 	list := dc.flist(dc.vmap(r.body), "audit_log_entries");
 	if !list.count ss_empty("No logs yet");
+	defer pager(g, ifx list.count == AUDIT_PAGE then dc.fsnow(dc.vmap(list[list.count - 1]), "id") else 0, audit_load);
 	for list {
 		e := dc.vmap(it);
 		ui.id_scope(cast(u64) dc.fsnow(e, "id"));
