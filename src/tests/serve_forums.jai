@@ -70,7 +70,20 @@ main :: () {
 	check(status == 404, tprint("a forum takes no messages of its own: %", status));
 	status, body = rest("POST", tprint("/api/v9/channels/%/threads", forum), "{\"name\": \"no body\"}", member_token);
 	check(status == 400, tprint("a post needs a message: %", status));
-	status, body = rest("POST", tprint("/api/v9/channels/%/threads", forum), "{\"name\": \"Printer on fire\", \"auto_archive_duration\": 4320, \"applied_tags\": [], \"message\": {\"content\": \"It is on fire.\"}}", member_token);
+	// Tags: the owner sets them, a post picks up to five, moderated ones only for those who manage threads.
+	status, body = rest("PATCH", tprint("/api/v9/channels/%", forum), "{\"available_tags\": [{\"name\": \"Bug\", \"emoji_name\": \"🐛\"}, {\"name\": \"Staff pick\", \"moderated\": true}]}", member_token);
+	check(status == 403, tprint("a member can't set tags: %", status));
+	status, body = rest("PATCH", tprint("/api/v9/channels/%", forum), "{\"available_tags\": [{\"name\": \"Bug\", \"emoji_name\": \"🐛\"}, {\"name\": \"Staff pick\", \"moderated\": true}]}", owner_token);
+	check(status == 200 && contains(body, "\"name\":\"Bug\"") && contains(body, "\"moderated\":true"), tprint("the owner sets tags: % %", status, body));
+	tag_list, _ := etf.map_get(etf.from_json(body,, temp).map, "available_tags");
+	bug, staff := "", "";
+	if tag_list.kind == .List && tag_list.list.count == 2 bug, staff = etf.map_get(tag_list.list[0].map, "id").s, etf.map_get(tag_list.list[1].map, "id").s;
+	status, body = rest("PATCH", tprint("/api/v9/channels/%", forum), tprint("{\"available_tags\": [{\"id\": \"%\", \"name\": \"Bugs\"}, {\"id\": \"%\", \"name\": \"Staff pick\", \"moderated\": true}]}", bug, staff), owner_token);
+	check(status == 200 && contains(body, tprint("\"id\":\"%\",\"name\":\"Bugs\"", bug)), tprint("a renamed tag keeps its ID: % %", status, body));
+	status, body = rest("POST", tprint("/api/v9/channels/%/threads", forum), tprint("{\"name\": \"x\", \"applied_tags\": [\"%\"], \"message\": {\"content\": \"x\"}}", staff), member_token);
+	check(status == 400, tprint("a member can't apply a moderated tag: %", status));
+	status, body = rest("POST", tprint("/api/v9/channels/%/threads", forum), tprint("{\"name\": \"Printer on fire\", \"auto_archive_duration\": 4320, \"applied_tags\": [\"%\"], \"message\": {\"content\": \"It is on fire.\"}}", bug), member_token);
+	check(status == 201 && contains(body, tprint("\"applied_tags\":[\"%\"]", bug)), tprint("a post carries its tags: % %", status, body));
 	check(status == 201 && contains(body, "\"message\":{") && contains(body, "\"content\":\"It is on fire.\""), tprint("a member posts: % %", status, body));
 	post := id_of(body);
 	starter := etf.map_get(etf.from_json(body,, temp).map, "message").map;

@@ -191,6 +191,7 @@ open :: (path: string) -> *Server, bool {
 	sqlite.exec(db, "ALTER TABLE messages ADD COLUMN username TEXT;");
 	sqlite.exec(db, "ALTER TABLE messages ADD COLUMN snapshot TEXT;");
 	sqlite.exec(db, "ALTER TABLE messages ADD COLUMN stickers TEXT;");
+	sqlite.exec(db, "ALTER TABLE channels ADD COLUMN tags TEXT;");
 	sqlite.exec(db, "ALTER TABLE embeds ADD COLUMN rich TEXT;");
 	sqlite.exec(db, "CREATE INDEX IF NOT EXISTS messages_everyone ON messages(id) WHERE everyone = 1;");
 	sqlite.exec(db, "CREATE INDEX IF NOT EXISTS messages_nonce ON messages(author, nonce) WHERE nonce IS NOT NULL;");
@@ -503,7 +504,7 @@ CREATE INDEX IF NOT EXISTS snapshot_files_attachment ON snapshot_files(attachmen
 CREATE TABLE IF NOT EXISTS embeds(message INTEGER NOT NULL, position INTEGER NOT NULL, url TEXT NOT NULL, title TEXT NOT NULL, description TEXT NOT NULL,
 	provider TEXT NOT NULL, color INTEGER NOT NULL, rich TEXT, PRIMARY KEY(message, position));
 CREATE TABLE IF NOT EXISTS channels(id INTEGER PRIMARY KEY, name TEXT NOT NULL, position INTEGER NOT NULL, topic TEXT NOT NULL DEFAULT '', type INTEGER NOT NULL DEFAULT 0, parent INTEGER, owner INTEGER, slowmode INTEGER NOT NULL DEFAULT 0, nsfw INTEGER NOT NULL DEFAULT 0,
-	archived INTEGER NOT NULL DEFAULT 0, locked INTEGER NOT NULL DEFAULT 0, archive_after INTEGER NOT NULL DEFAULT 4320, archived_at INTEGER);
+	archived INTEGER NOT NULL DEFAULT 0, locked INTEGER NOT NULL DEFAULT 0, archive_after INTEGER NOT NULL DEFAULT 4320, archived_at INTEGER, tags TEXT);
 CREATE TABLE IF NOT EXISTS messages(id INTEGER PRIMARY KEY, channel INTEGER NOT NULL REFERENCES channels(id), author INTEGER NOT NULL REFERENCES users(id), content TEXT NOT NULL, edited INTEGER, reply INTEGER, everyone INTEGER NOT NULL DEFAULT 0, pinned_at INTEGER, type INTEGER NOT NULL DEFAULT 0, flags INTEGER NOT NULL DEFAULT 0, nonce TEXT, webhook INTEGER NOT NULL DEFAULT 0, username TEXT, snapshot TEXT, stickers TEXT);
 -- A webhook posts as a users row of its own, left = 1, so its messages join like any member's.
 CREATE TABLE IF NOT EXISTS webhooks(id INTEGER PRIMARY KEY, channel INTEGER NOT NULL, token TEXT NOT NULL, creator INTEGER NOT NULL);
@@ -1585,7 +1586,7 @@ FORUM :: 15; // Takes no messages itself: each post is a thread whose starter me
 CROSSPOSTED :: 1 << 0;
 THREAD :: 11; // Public, under a text channel; one started from a message takes that message's ID.
 
-CHANNEL_SELECT :: "SELECT c.id, c.name, c.position, c.topic, (SELECT max(id) FROM messages WHERE channel = c.id), c.type, c.parent, coalesce(c.owner, 0), CASE WHEN c.type = 11 THEN (SELECT count(*) FROM messages WHERE channel = c.id) END, c.slowmode, c.nsfw, c.archived, c.locked, c.archive_after, coalesce(c.archived_at, c.id) FROM channels c";
+CHANNEL_SELECT :: "SELECT c.id, c.name, c.position, c.topic, (SELECT max(id) FROM messages WHERE channel = c.id), c.type, c.parent, coalesce(c.owner, 0), CASE WHEN c.type = 11 THEN (SELECT count(*) FROM messages WHERE channel = c.id) END, c.slowmode, c.nsfw, c.archived, c.locked, c.archive_after, coalesce(c.archived_at, c.id), c.tags FROM channels c";
 
 row_channel :: (s: *Server, st: *sqlite.Stmt, member := etf.Value.{}) -> etf.Value {
 	kind := sqlite.col_int(st, 5);
@@ -1600,8 +1601,11 @@ row_channel :: (s: *Server, st: *sqlite.Stmt, member := etf.Value.{}) -> etf.Val
 	if kind == TEXT || kind == THREAD || kind == FORUM etf.map_put(*m, "rate_limit_per_user", etf.vint(sqlite.col_int(st, 9)));
 	if texty etf.map_put(*m, "nsfw", etf.vbool(sqlite.col_int(st, 10) != 0));
 	if kind != THREAD etf.map_put(*m, "permission_overwrites", overwrites_locked(s, sqlite.col_int(st, 0)));
+	// A forum's tags, and the ones a post carries: JSON kept as forum_tags_locked and applied_tags_locked wrote it.
+	tags, _ := etf.from_json(copy_string(sqlite.col_text(st, 15),, temp),, temp);
+	if kind == THREAD && tags.kind == .List etf.map_put(*m, "applied_tags", tags);
 	if kind == FORUM {
-		etf.map_put(*m, "available_tags", etf.vlist(.[]));
+		etf.map_put(*m, "available_tags", ifx tags.kind == .List then tags else etf.vlist(.[]));
 		etf.map_put(*m, "default_reaction_emoji", .{});
 		etf.map_put(*m, "default_sort_order", .{});
 		etf.map_put(*m, "default_forum_layout", etf.vint(0));
@@ -2571,6 +2575,13 @@ create_thread :: (c: *Conn, req: http.Request, user: s64, parent: s64, message: 
 		p := perms_of_locked(s, user);
 		perms := channel_perms_locked(s, *p, parent);
 		if !(perms & (ifx forum then P_SEND_MESSAGES else P_CREATE_PUBLIC_THREADS)) return json_error(c, 403, 50013, "Missing Permissions");
+		applied_v, _ := etf.map_get(v.map, "applied_tags");
+		applied := "";
+		if forum {
+			ok: bool;
+			applied, ok = applied_tags_locked(s, 0, applied_v, (perms & P_MANAGE_THREADS) != 0, parent);
+			if !ok return json_error(c, 400, 50035, "Invalid Form Body");
+		}
 		id := message;
 		if message {
 			st := sqlite.prepare(s.db, "SELECT (SELECT 1 FROM messages WHERE id = ?1 AND channel = ?2), (SELECT 1 FROM channels WHERE id = ?1);");
@@ -2583,7 +2594,7 @@ create_thread :: (c: *Conn, req: http.Request, user: s64, parent: s64, message: 
 		} else {
 			id = snowflake(s);
 		}
-		if !sqlite.run(s.db, "INSERT INTO channels(id, name, position, type, parent, owner) VALUES(?, ?, 0, ?, ?, ?);", id, name, THREAD, parent, user) return json_error(c, 500, 0, "500: Internal Server Error");
+		if !sqlite.run(s.db, "INSERT INTO channels(id, name, position, type, parent, owner, tags) VALUES(?, ?, 0, ?, ?, ?, nullif(?, ''));", id, name, THREAD, parent, user, applied) return json_error(c, 500, 0, "500: Internal Server Error");
 		if forum {
 			everyone := (contains(content.s, "@everyone") || contains(content.s, "@here")) && (perms & P_MENTION_EVERYONE) != 0;
 			ok := sqlite.run(s.db, "INSERT INTO messages(id, channel, author, content, everyone) VALUES(?1, ?1, ?, ?, ?);", id, user, content.s, cast(int) everyone);
@@ -2604,6 +2615,84 @@ create_thread :: (c: *Conn, req: http.Request, user: s64, parent: s64, message: 
 	etf.map_put(*m, "member", member);
 	if post.kind == .Map etf.map_put(*m, "message", post);
 	return json_reply(c, 201, etf.vmap(etf.map_done(*m)));
+}
+
+MAX_FORUM_TAGS :: 20; // As on Discord.
+MAX_APPLIED_TAGS :: 5;
+
+// forum_tags_locked checks a forum's new available_tags: at most 20, each {id?, name (1-20), emoji_id
+// (this server's) or emoji_name, moderated}. A tag keeps its ID when it had one here, else gets a new one.
+// Returns the list as JSON to keep.
+forum_tags_locked :: (s: *Server, forum: s64, v: etf.Value) -> string, bool {
+	if v.kind != .List || v.list.count > MAX_FORUM_TAGS return "", false;
+	st := sqlite.prepare(s.db, "SELECT coalesce(tags, '') FROM channels WHERE id = ?;");
+	sqlite.bind_all(st, forum);
+	old_json := ifx sqlite.step(st) == .Row then copy_string(sqlite.col_text(st, 0),, temp) else "";
+	sqlite.finalize(st);
+	old, _ := etf.from_json(old_json,, temp);
+	out: [..]etf.Value;
+	out.allocator = temp;
+	field :: (m: etf.Map, k: string) -> etf.Value { f, _ := etf.map_get(m, k); return f; }
+	for v.list {
+		if it.kind != .Map return "", false;
+		name := field(it.map, "name");
+		emoji_id, emoji_name, moderated, id := field(it.map, "emoji_id"), field(it.map, "emoji_name"), field(it.map, "moderated"), field(it.map, "id");
+		if name.kind != .String || !trim(name.s) || utf16_units(name.s) > 20 || !text_ok(name.s) return "", false;
+		if (emoji_name.kind != .Nil && (emoji_name.kind != .String || emoji_name.s.count > 32 || !text_ok(emoji_name.s))) || (moderated.kind != .Nil && moderated.kind != .Bool) return "", false;
+		eid: s64;
+		if emoji_id.kind == .String {
+			ok: bool;
+			eid, ok = string_to_int(emoji_id.s, T = s64);
+			q := sqlite.prepare(s.db, "SELECT 1 FROM emojis WHERE id = ?;");
+			sqlite.bind_all(q, eid);
+			known := sqlite.step(q) == .Row;
+			sqlite.finalize(q);
+			if !ok || !known return "", false;
+		} else if emoji_id.kind != .Nil return "", false;
+		kept := false;
+		if id.kind == .String && old.kind == .List for o: old.list if field(o.map, "id").s == id.s kept = true;
+		t := etf.map_builder(5,, temp);
+		etf.map_put(*t, "id", ifx kept then id else snow(snowflake(s)));
+		etf.map_put(*t, "name", etf.vstring(trim(name.s)));
+		etf.map_put(*t, "moderated", etf.vbool(moderated.kind == .Bool && moderated.b));
+		etf.map_put(*t, "emoji_id", ifx eid then snow(eid) else .{});
+		etf.map_put(*t, "emoji_name", ifx emoji_name.kind == .String && emoji_name.s then emoji_name else .{});
+		array_add(*out, etf.vmap(etf.map_done(*t)));
+	}
+	if !out.count return "", true;
+	sb: String_Builder;
+	sb.allocator = temp;
+	etf.to_json(etf.vlist(out), *sb);
+	return builder_to_string(*sb,, temp), true;
+}
+
+// applied_tags_locked checks a post's applied_tags (of its thread, or of a new post in forum): at most 5 of
+// its forum's tags, moderated ones only for those who manage threads. Returns the IDs as JSON to keep.
+applied_tags_locked :: (s: *Server, thread: s64, v: etf.Value, manager: bool, forum: s64 = 0) -> string, bool {
+	if v.kind == .Nil return "", true;
+	if v.kind != .List || v.list.count > MAX_APPLIED_TAGS return "", false;
+	st := sqlite.prepare(s.db, "SELECT coalesce(tags, '') FROM channels WHERE id = coalesce(nullif(?1, 0), (SELECT parent FROM channels WHERE id = ?2));");
+	sqlite.bind_all(st, forum, thread);
+	json := ifx sqlite.step(st) == .Row then copy_string(sqlite.col_text(st, 0),, temp) else "";
+	sqlite.finalize(st);
+	tags, _ := etf.from_json(json,, temp);
+	out: [..]etf.Value;
+	out.allocator = temp;
+	for v.list {
+		found := false;
+		if it.kind == .String && tags.kind == .List for t: tags.list {
+			id, _ := etf.map_get(t.map, "id");
+			moderated, _ := etf.map_get(t.map, "moderated");
+			if id.s == it.s && (manager || !moderated.b) found = true;
+		}
+		if !found return "", false;
+		array_add(*out, it);
+	}
+	if !out.count return "", true;
+	sb: String_Builder;
+	sb.allocator = temp;
+	etf.to_json(etf.vlist(out), *sb);
+	return builder_to_string(*sb,, temp), true;
 }
 
 // POST /channels/{forum}/post-data {thread_ids}: up to 10 posts' starter messages, for the forum's cards,
@@ -3316,6 +3405,8 @@ edit_channel :: (c: *Conn, req: http.Request, user: s64, channel: s64) -> bool {
 		archived, has_archived := etf.map_get(v.map, "archived");
 		locked, has_locked := etf.map_get(v.map, "locked");
 		after, has_after := etf.map_get(v.map, "auto_archive_duration");
+		tags_v, has_tags := etf.map_get(v.map, "available_tags");
+		applied_v, has_applied := etf.map_get(v.map, "applied_tags");
 		if (has_slow && !(slow.kind == .Int && slow.i >= 0 && slow.i <= 21600)) || (has_nsfw && nsfw.kind != .Bool) return json_error(c, 400, 50035, "Invalid Form Body");
 		if (has_archived && archived.kind != .Bool) || (has_locked && locked.kind != .Bool) || (has_after && !(after.kind == .Int && (after.i == 60 || after.i == 1440 || after.i == 4320 || after.i == 10080))) {
 			return json_error(c, 400, 50035, "Invalid Form Body");
@@ -3323,7 +3414,7 @@ edit_channel :: (c: *Conn, req: http.Request, user: s64, channel: s64) -> bool {
 		locks.guard(*s.db_mu);
 		kind = channel_type_locked(s, channel);
 		if kind < 0 return json_error(c, 404, 10003, "Unknown Channel");
-		if (has_archived || has_locked || has_after) && kind != THREAD return json_error(c, 400, 50035, "Invalid Form Body");
+		if ((has_archived || has_locked || has_after || has_applied) && kind != THREAD) || (has_tags && kind != FORUM) return json_error(c, 400, 50035, "Invalid Form Body");
 		was_locked := false;
 		if kind == THREAD {
 			st := sqlite.prepare(s.db, "SELECT locked FROM channels WHERE id = ?;");
@@ -3344,6 +3435,14 @@ edit_channel :: (c: *Conn, req: http.Request, user: s64, channel: s64) -> bool {
 			&& (!has_locked || sqlite.run(s.db, "UPDATE channels SET locked = ? WHERE id = ?;", cast(int) locked.b, channel))
 			&& (!has_archived || sqlite.run(s.db, "UPDATE channels SET archived = ?1, archived_at = ?2 WHERE id = ?3 AND archived != ?1;", cast(int) archived.b, now_ms(s) << 22, channel));
 		if !ok return json_error(c, 500, 0, "500: Internal Server Error");
+		if has_tags || has_applied {
+			tags_json: string;
+			tags_ok: bool;
+			if has_tags tags_json, tags_ok = forum_tags_locked(s, channel, tags_v);
+			else tags_json, tags_ok = applied_tags_locked(s, channel, applied_v, can_locked(s, user, P_MANAGE_THREADS, channel));
+			if !tags_ok return json_error(c, 400, 50035, "Invalid Form Body");
+			if !sqlite.run(s.db, "UPDATE channels SET tags = nullif(?, '') WHERE id = ?;", tags_json, channel) return json_error(c, 500, 0, "500: Internal Server Error");
+		}
 		ch = channel_locked(s, channel);
 	} else if req.method == "DELETE" {
 		locks.guard(*s.db_mu);
