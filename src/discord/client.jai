@@ -183,6 +183,7 @@ Client :: struct {
 	social: Social_State; // settings / calls / nickname UI analytics state (UI thread)
 	pomelo: Pomelo_State; // username availability checks (username.jai)
 	home_opened: bool;
+	promo: Promo_State; // Shop / Nitro / quest promotion telemetry (analytics_events_promo.jai)
 	session_guild_set_done: bool;
 	account_verified: bool; // READY user.verified, persisted (startup set selection before READY)
 	pending_guild_create: bool;

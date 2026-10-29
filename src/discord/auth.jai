@@ -622,6 +622,8 @@ client_session_reset :: (c: *Client) {
 	c.command_index_user = false;
 	c.emoji_picker_opened = false;
 	c.home_opened = false;
+	c.promo.shop_mounted = false;
+	atomic_store(*c.promo.shop_version, 0);
 	c.session_guild_set_done = false;
 	c.account_popout_opened = false;
 	c.soundboard_loaded = false;

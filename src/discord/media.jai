@@ -18,6 +18,7 @@ Media_Request :: struct {
 	visible: bool; // in-viewport images are boosted to priority "u=1, i"; others "i"
 	referer: string; // fonts: the stylesheet URL; "" -> https://discord.com/ (cross-site) or route
 	tag: u64;
+	discard: bool; // loaded like the page does (cache included), then dropped: no result
 }
 
 Media_Result :: struct {
@@ -113,7 +114,7 @@ site_for_host :: (host: string) -> Fetch_Site {
 // after client_poll (or the wakeup).
 fetch_media :: (c: *Client, req: Media_Request) {
 	j := job_new(.Web, .Media);
-	j.media = .{url = job_str(j, req.url), kind = req.kind, visible = req.visible, referer = job_str(j, req.referer), tag = req.tag};
+	j.media = .{url = job_str(j, req.url), kind = req.kind, visible = req.visible, referer = job_str(j, req.referer), tag = req.tag, discard = req.discard};
 	j.result.tag = req.tag;
 	job_submit(c, j);
 }
@@ -254,7 +255,7 @@ media_get :: (c: *Client, url: string, kind: Media_Kind, visible: bool, referer:
 // run_media executes a media job on a worker thread.
 run_media :: (c: *Client, j: *Job) {
 	status, from_cache, ctype, body := media_get(c, j.media.url, j.media.kind, j.media.visible, j.media.referer);
-	media_deliver(c, j, status, from_cache, ctype, body);
+	if !j.media.discard media_deliver(c, j, status, from_cache, ctype, body);
 }
 
 

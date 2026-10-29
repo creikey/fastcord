@@ -32,6 +32,7 @@ zstd :: #import "zstd";
 #load "analytics_events.jai";
 #load "analytics_events_auth.jai";
 #load "analytics_events_inbox.jai";
+#load "analytics_events_promo.jai";
 #load "auth.jai";
 #load "calls.jai";
 #load "client.jai";

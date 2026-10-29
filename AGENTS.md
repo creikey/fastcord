@@ -11,9 +11,15 @@ the Jai is written. This file lists what is easy to miss.
   listed. If a short search finds nothing that clears that bar, add nothing and say so: fastcord is
   near complete there, and filler (rare settings, cosmetic nits, telemetry) only bloats the list.
 - Hard rules, even when copying official UI:
-  - No ads, ever: never show Nitro upsells, the Shop, Boost prompts or any other Discord promotion.
+  - No ads, ever: never show Nitro upsells, the Shop, Boost prompts, quests or any other Discord
+    promotion.
   - No Activities: never implement the in-call apps and games (the Embedded App SDK) or their buttons.
     Rich presence ("Playing X", Spotify status) is a different thing and is fine.
+  - For traffic parity, the requests and render-time first-party telemetry of those unshown surfaces
+    are still sent (`src/discord/analytics_events_promo.jai`): background loads, upsell and
+    dismissible-content "shown" events, experiment exposures. Never fake engagement with sponsored
+    content: no quest or ad impressions, hovers, clicks, video progress, enrolment or claims
+    (`analytics_never`, `R_SCI_NEVER`).
   - Nothing that needs a webview, ever: no embedded browser, iframe or HTML renderer. Where the
     official client uses one (YouTube players, captchas, OAuth pages), open the system browser or
     offer a native path instead.
