@@ -329,7 +329,7 @@ edit_box :: (m: *dc.Message) {
 		text := trim(ui.editor_text(*ma.edit_editor), " \t\n\r\x0b\x0c");
 		if text != "" && ch text = mentions_convert(emoji_convert_shortcodes(text, ch.id), ch);
 		if text == "" {
-			ma.confirming, ma.confirm = m.id, Confirm.Delete;
+			delete_now(m);
 		} else if text != m.content && req_begin(EDIT_REQ) {
 			dc.edit_message(app.client, m.channel_id, m.id, text);
 			req_end();
@@ -671,8 +671,8 @@ message_menu :: () {
 					clipboard_set(shown_text(m.id, m.channel_id, m.content));
 				case "Pin Message"; #through;
 				case "Unpin Message";
-					// shift skips the confirmation, as for Delete
-					if app.ui_mods & .Shift { pin_now(m, !m.pinned); } else { ma.confirming, ma.confirm = m.id, ifx m.pinned then Confirm.Unpin else .Pin; }
+					// Unpin is undone rather than confirmed; shift skips Pin's confirmation
+					if m.pinned || (app.ui_mods & .Shift) pin_now(m, !m.pinned); else ma.confirming, ma.confirm = m.id, Confirm.Pin;
 				case "Mark Unread";
 					if net_action() dc.mark_unread(app.client, m.channel_id, m.id);
 				case "Copy Message Link";
@@ -681,7 +681,7 @@ message_menu :: () {
 				case "Copy Message ID";
 					clipboard_set(tprint("%", cast(u64) m.id));
 				case "Delete Message";
-					if app.ui_mods & .Shift delete_now(m); else ma.confirming, ma.confirm = m.id, Confirm.Delete;
+					delete_now(m);
 				case "Publish";
 					if net_action() dc.crosspost_message(app.client, m.channel_id, m.id);
 					else m.flags |= 1; // offline (fixture) runs: CROSSPOSTED
@@ -699,8 +699,9 @@ message_menu :: () {
 	if ma.menu_msg == 0 message_menu_gone();
 }
 
+// Delete Message: hidden at once (message_held), DELETE after the undo window (undo.jai).
 delete_now :: (m: *dc.Message) {
-	if req_begin(DELETE_REQ) { dc.delete_message(app.client, m.channel_id, m.id); req_end(); }
+	if !undo_held(send_delete, m.id) undo_push("Message deleted", send_delete, a = m.id, b = m.channel_id);
 }
 
 EDIT_REQ :: "edit_message";
@@ -713,7 +714,10 @@ edit_result :: (r: dc.Rest_Result) {
 	else if ma.editing == 0 { m := find_message(r.message_id); if m start_edit(m); }
 }
 
-Confirm :: enum u8 { Delete; Pin; Unpin; Remove_Embeds; Remove_Reactions; }
+// A message whose Delete (or, for pins, Unpin) is held: lists leave it out.
+message_held :: (id: dc.Snowflake, unpin := false) -> bool { return undo_held(send_delete, id) || (unpin && undo_held(send_unpin, id)); }
+
+Confirm :: enum u8 { Pin; Remove_Embeds; Remove_Reactions; }
 
 // DELETE .../reactions: gone for everyone once MESSAGE_REACTION_REMOVE_ALL comes.
 remove_reactions_now :: (m: *dc.Message) {
@@ -742,14 +746,39 @@ remove_embeds_now :: (m: *dc.Message) {
 	m.flags |= 4;
 }
 
-// PUT / DELETE .../messages/pins/{id}; a failure shows the client's notice (features_receive).
+// PUT / DELETE .../messages/pins/{id}; a failure shows the client's notice (features_receive). Unpin
+// clears the flag at once and its DELETE waits behind Undo.
 pin_now :: (m: *dc.Message, pin: bool) {
-	if net_action() dc.pin_message(app.client, m.channel_id, m.id, pin);
+	if pin { if net_action() dc.pin_message(app.client, m.channel_id, m.id, true); return; }
+	if undo_held(send_unpin, m.id) return;
+	set_pinned(m.channel_id, m.id, false);
+	m.pinned = false; // a pins card's copy
+	undo_push("Message unpinned", send_unpin, (u: *Undo) { set_pinned(u.b, u.a, true); }, a = m.id, b = m.channel_id);
 }
+
+#scope_file
+
+send_delete :: (u: *Undo) {
+	if u.client { req_begin(DELETE_REQ); dc.delete_message(u.client, u.b, u.a); req_end(); return; }
+	l := table_find_pointer(*store().messages, u.b); // offline (fixture) runs: gone as MESSAGE_DELETE would make it
+	i := ifx l then dc.message_index(l, u.a) else -1;
+	if i < 0 return;
+	dc.free_message(store(), *l.messages[i]);
+	array_ordered_remove_by_index(*l.messages, i);
+}
+
+send_unpin :: (u: *Undo) { if u.client dc.pin_message(u.client, u.b, u.a, false); }
+
+set_pinned :: (channel: dc.Snowflake, id: dc.Snowflake, pinned: bool) {
+	l := table_find_pointer(*store().messages, channel);
+	i := ifx l then dc.message_index(l, id) else -1;
+	if i >= 0 l.messages[i].pinned = pinned;
+}
+
+#scope_export
 
 confirm_now :: (m: *dc.Message) {
 	if ma.confirm == {
-	case .Delete; delete_now(m);
 	case .Remove_Embeds; remove_embeds_now(m);
 	case .Remove_Reactions; remove_reactions_now(m);
 	case; pin_now(m, ma.confirm == .Pin);
@@ -769,8 +798,6 @@ confirm_modal :: () {
 		ch := dc.channel_get(store(), m.channel_id);
 		title, tip, ok = "Pin It. Pin It Good.", "", "Oh yeah. Pin it";
 		question = ifx ch && ch.guild_id then tprint("Hey, just double checking that you want to pin this message to #% for posterity and greatness?", ch.name) else "Hey, just double checking that you want to pin this message to the current channel for posterity and greatness?";
-	} else if ma.confirm == .Unpin {
-		title, question, tip, ok = "Unpin Message", "You sure you want to remove this pinned message?", "unpin message", "Remove it please!";
 	} else if ma.confirm == .Remove_Reactions {
 		title, question, tip, ok = "Remove All Reactions", "Are you sure you want to remove all the reactions on this message?", "", "Remove";
 	} else if ma.confirm == .Remove_Embeds {

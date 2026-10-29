@@ -167,7 +167,7 @@ req_toast :: () {
 	t.style.bg = ifx toast.ok then T("--status-positive") else T("--status-danger");
 	t.style.radius = all4(8);
 	w := t.rect.x1 - t.rect.x0;
-	t.fixed_pos = .{(app.ui.window.x - w) / 2, app.ui.window.y - 36 - 96};
+	t.fixed_pos = .{(app.ui.window.x - w) / 2, app.ui.window.y - 36 - 96 - (ifx undos then 48 else 0)}; // above the Undo toast
 }
 
 // A short notice in the same place: green when ok (a done action), red when not.

@@ -93,6 +93,7 @@ pins_popout :: () {
 			filler(.X);
 		}
 		for * pins.items {
+			if message_held(it.msg.id, unpin = true) continue;
 			ui.id_scope(cast(u64) it_index + 1); defer ui.pop_seed();
 			if loose_message_card(*it.msg, .[], true) jump_to_message(it.msg.channel_id, it.msg.id);
 		}

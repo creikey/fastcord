@@ -1194,13 +1194,21 @@ message_list :: (channel_id: dc.Snowflake, cs: *Chat_State) {
 			new_top = ifx i0 > 0 && msgs[i0].id > cs.unread_after then -FLOAT32_INFINITY else FLOAT32_INFINITY;
 			for i: max(i0, 0)..i1 {
 				m := *msgs[i];
-				prev: *dc.Message = ifx i > 0 then *msgs[i - 1] else null;
+				ui.id_scope(m.id); defer ui.pop_seed();
+				if message_held(m.id) { // deleted, behind Undo
+					ok, old := table_find(*cs.heights, m.id);
+					if ok cs.height_sum -= old;
+					table_set(*cs.heights, m.id, 0);
+					continue;
+				}
+				p := i - 1;
+				while p >= 0 && message_held(msgs[p].id) p -= 1;
+				prev: *dc.Message = ifx p >= 0 then *msgs[p] else null;
 				new_day := prev == null || day_of(prev.id) != day_of(m.id);
 				show_new := cs.unread_after != 0 && m.id > cs.unread_after && (prev == null || prev.id <= cs.unread_after) && m.author_id != s.me;
 				grouped := continues_group(prev, m) && !show_new;
 				// consecutive call notices stack with no group gap
 				if is_notice(m.kind) grouped = prev != null && prev.kind == m.kind && !new_day && !show_new;
-				ui.id_scope(m.id); defer ui.pop_seed();
 				// a run of blocked or ignored authors' messages is one collapsed row, measured on its first
 				hide := hidden_kind(m);
 				row: *ui.Box;

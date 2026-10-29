@@ -355,6 +355,7 @@ frame :: () {
 	voice_settings_frame(voice_conn(), voice_headless(), voice_audio_ready()); // also offline: push to talk, the meter
 	video_frame();
 	req_frame();
+	undo_frame();
 	t_media := platform.time_now();
 	watchdog_phase(.Media);
 	sounds_frame();

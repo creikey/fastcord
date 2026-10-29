@@ -1,0 +1,20 @@
+# Delete Message hides the message at once behind an Undo toast; Undo brings it back with nothing
+# sent, and without Undo it goes after 5 s.
+wait 5
+shot build/ui-undo_delete_0.png
+rclick 600 500
+wait 5
+click_text "Delete Message"
+wait 5
+expect_visible "Message deleted"
+shot build/ui-undo_delete_1.png
+click_text "Undo"
+wait 5
+expect_not_visible "Message deleted"
+shot build/ui-undo_delete_2.png
+rclick 600 500
+wait 5
+click_text "Delete Message"
+wait 320
+expect_not_visible "Message deleted"
+shot build/ui-undo_delete_3.png

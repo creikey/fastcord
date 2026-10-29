@@ -81,6 +81,7 @@ voice :: #import "voice";
 #load "teardown.jai";
 #load "theme.jai";
 #if OS == .WINDOWS #load "tz_windows.jai"; else #load "tz_posix.jai";
+#load "undo.jai";
 #load "update.jai";
 #load "view_add_server.jai";
 #load "view_chat.jai";
