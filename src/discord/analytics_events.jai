@@ -2366,14 +2366,30 @@ murmur3_32 :: (s: string) -> u32 {
 // window). Electron, crash-reporter and web-bundle values are synthesized
 // (traffic/CLIENT_RULES.md "Analytics"); timings and sizes are fastcord's own.
 
-// analytics_launch_identify: the launch's fast-connect IDENTIFY went out. The
-// official client loads libdiscore and reads the crash reporter around it,
-// then starts the heartbeat scheduler (fixtures: IDENTIFY -6, +15, +22 ms).
-analytics_launch_identify :: (c: *Client) {
+// analytics_launch_begin: the launch's socket was created (gateway.jai LAUNCH_*). The scripts load
+// at scripts_at whatever the socket does, and the app takes the socket over at takeover_at.
+analytics_launch_begin :: (c: *Client, scripts_at: s64, takeover_at: s64) {
+	locks.lock(*c.analytics.mu);
+	c.analytics.takeover_pending, c.analytics.launch_focused = true, true;
+	locks.unlock(*c.analytics.mu);
+	analytics_schedule(c, scripts_at, "@scripts", "");
+	analytics_schedule(c, takeover_at, "@takeover", "");
+}
+
+// analytics_launch_identify: the launch's IDENTIFY went out, fast-connect.js's or the app's.
+analytics_launch_identify :: (c: *Client, fast: bool) {
+	locks.lock(*c.analytics.mu);
+	c.analytics.identify_ms, c.analytics.launch_fast = now_ms(), fast;
+	locks.unlock(*c.analytics.mu);
+}
+
+// analytics_launch_scripts: libdiscore has loaded and the app reads the crash
+// reporter, then starts the heartbeat scheduler (fixtures: fast-connect's
+// IDENTIFY -6, +15, +22 ms; the same on a socket the app identifies on).
+analytics_launch_scripts :: (c: *Client) {
 	a := *c.analytics;
 	now := now_ms();
 	locks.lock(*a.mu);
-	a.identify_ms = now;
 	synth_memory(*a.synth, now, false);
 	s := a.synth;
 	locks.unlock(*a.mu);
@@ -2398,16 +2414,39 @@ analytics_launch_identify :: (c: *Client) {
 	json_kint(*n, "highest_memory_usage_uptime", s.high_uptime);
 	aw_track(c, "app_native_crash", *n);
 	analytics_client_heartbeat(c);
+}
+
+// analytics_takeover: the launch's app takes the socket over (UI thread; at the latest at READY,
+// which the gateway holds until then). AdSessionStore beats, the app handles a HELLO fast-connect's
+// socket received, checks the pre-CONNECTION_OPEN coachmarks and renders a channel ~295 ms later
+// (fixture launches: app_ui_viewed takeover +274-300 ms, before READY when READY is late; Home
+// renders after READY instead).
+analytics_takeover :: (c: *Client) {
+	a := *c.analytics;
+	now := now_ms();
 	locks.lock(*a.mu);
+	if !a.takeover_pending {
+		locks.unlock(*a.mu);
+		return;
+	}
+	a.takeover_pending = false;
 	pending := a.pending_connected;
 	a.pending_connected = "";
-	at := now + cast(s64) synth_between(*a.synth, 90, 200);
+	start := pending && a.session_start;
+	if start a.session_start = false;
 	locks.unlock(*a.mu);
-	if pending {
-		analytics_schedule(c, at, "gateway_connected", pending);
-		analytics_schedule(c, at, "", "");
-		free(pending,, a.allocator);
-	}
+	locks.lock(*c.route_mu);
+	home := client_route_kind(c.route_guild, c.route_channel) == .Home;
+	locks.unlock(*c.route_mu);
+	a.ui_at = ifx home then 0 else now + 295;
+	analytics_ad_heartbeat(c, now, force = true);
+	if start analytics_track(c, "session_start_client", "");
+	if pending analytics_track(c, "gateway_connected", pending);
+	free(pending,, a.allocator);
+	analytics_before_connection_open(c);
+	locks.lock(*a.mu);
+	a.launch_focused = false;
+	locks.unlock(*a.mu);
 }
 
 // analytics_login: a login's response carried the token. The heartbeat scheduler
@@ -2492,7 +2531,8 @@ analytics_ready_payload :: (c: *Client, data: V, is_reconnect: bool) {
 	a.ready_frame = .{};
 	a.ready_unpack_ms = f.unpack_ms;
 	identify := a.identify_ms;
-	a.identify_ms = 0;
+	fast := identify != 0 && a.launch_fast; // the launch's fast-connect IDENTIFY
+	a.identify_ms, a.launch_fast = 0, false;
 	ident_bytes := cast(s64) synth_between(*a.synth, 1020, 1110);
 	locks.unlock(*a.mu);
 	if f.raw == 0 {
@@ -2548,8 +2588,8 @@ analytics_ready_payload :: (c: *Client, data: V, is_reconnect: bool) {
 	for gs grest -= it;
 	conn := ifx c.gw then c.gw.attempt_start else 0;
 	if conn == 0 conn = now - 1000;
-	fast := identify != 0; // the launch's fast-connect IDENTIFY
-	if !fast identify = conn + 160; // sent on HELLO
+	if !identify identify = conn + 160; // sent on HELLO
+	if fast conn = identify; // the app's connection to fast-connect's socket (fixtures: identify and connection durations equal)
 	frac := 0.1 * cast(float64) (mono_ms() % 10);
 	perf := cast(float64) (identify - c.launch_ms) + frac; // performance.now() at the identify
 	w := aw_begin();
@@ -2570,7 +2610,7 @@ analytics_ready_payload :: (c: *Client, data: V, is_reconnect: bool) {
 	json_kint(*w, "guild_remaining_data_size", max(grest, 0));
 	json_kint(*w, "size_metrics_duration_ms", now_ms() - now);
 	aw_kf64(*w, "duration_ms_since_identify_start", perf - cast(float64) now);
-	aw_kf64(*w, "duration_ms_since_connection_start", perf - cast(float64) (identify - conn) - cast(float64) now);
+	aw_kf64(*w, "duration_ms_since_connection_start", perf + cast(float64) (identify - conn) - cast(float64) now);
 	aw_kf64(*w, "duration_ms_since_emit_start", cast(float64) now - perf + cast(float64) (identify - conn + 160));
 	json_kbool(*w, "is_reconnect", is_reconnect);
 	json_kbool(*w, "is_fast_connect", fast);
@@ -2583,11 +2623,11 @@ analytics_ready_payload :: (c: *Client, data: V, is_reconnect: bool) {
 	aw_track(c, "ready_payload_received", *w);
 }
 
-// app_ui_viewed and app_web_perf_startup_metrics ("tti"): the first render
-// after READY (fixtures: READY +60 ms). The web bundle's sizes and script costs
-// are synthesized from build 649389's fixtures (web.057e7776e1c6251b.js...);
-// duration_ms_since_app_opened is our launch to now.
-analytics_first_render :: (c: *Client, guild_id: Snowflake, channel_id: Snowflake) {
+// app_ui_viewed (ui): the app's first render (analytics_takeover, client_after_dispatch READY);
+// app_web_perf_startup_metrics ("tti", perf): READY +60 ms (fixtures). The web
+// bundle's sizes and script costs are synthesized from build 649389's fixtures
+// (web.057e7776e1c6251b.js...); duration_ms_since_app_opened is our launch to now.
+analytics_first_render :: (c: *Client, guild_id: Snowflake, channel_id: Snowflake, ui: bool, perf: bool) {
 	a := *c.analytics;
 	locks.lock(*a.mu);
 	j := synth_between(*a.synth, 0.97, 1.03);
@@ -2596,22 +2636,26 @@ analytics_first_render :: (c: *Client, guild_id: Snowflake, channel_id: Snowflak
 	unpack := a.ready_unpack_ms;
 	locks.unlock(*a.mu);
 	home := guild_id == 0 && channel_id == 0;
-	load_id := analytics_load_id();
-	w := aw_begin();
-	json_kint(*w, "total_compressed_byte_size", cast(s64) (5_170_000 * j));
-	json_kint(*w, "total_uncompressed_byte_size", cast(s64) (19_130_000 * j));
-	json_kint(*w, "total_transfer_byte_size", 0);
-	json_kint(*w, "js_compressed_byte_size", ifx home then 760625 else 701207);
-	json_kint(*w, "js_uncompressed_byte_size", ifx home then 2348196 else 2033590);
-	json_kint(*w, "js_transfer_byte_size", 0);
-	json_kint(*w, "css_compressed_byte_size", ifx home then 27091 else 42125);
-	json_kint(*w, "css_uncompressed_byte_size", ifx home then 87044 else 251265);
-	json_kint(*w, "css_transfer_byte_size", 0);
-	json_kstr(*w, "load_id", load_id);
-	json_kstr(*w, "screen_name", ifx home then "friends" else ifx guild_id then "guild_channel" else "private_channel");
-	json_kint(*w, "duration_ms_since_app_opened", now_ms() - c.launch_ms);
-	json_kbool(*w, "app_hardware_acceleration_enabled", true);
-	aw_track(c, "app_ui_viewed", *w);
+	if !a.load_id a.load_id = copy_string(analytics_load_id(),, a.allocator);
+	load_id := a.load_id;
+	if ui {
+		w := aw_begin();
+		json_kint(*w, "total_compressed_byte_size", cast(s64) (5_170_000 * j));
+		json_kint(*w, "total_uncompressed_byte_size", cast(s64) (19_130_000 * j));
+		json_kint(*w, "total_transfer_byte_size", 0);
+		json_kint(*w, "js_compressed_byte_size", ifx home then 760625 else 701207);
+		json_kint(*w, "js_uncompressed_byte_size", ifx home then 2348196 else 2033590);
+		json_kint(*w, "js_transfer_byte_size", 0);
+		json_kint(*w, "css_compressed_byte_size", ifx home then 27091 else 42125);
+		json_kint(*w, "css_uncompressed_byte_size", ifx home then 87044 else 251265);
+		json_kint(*w, "css_transfer_byte_size", 0);
+		json_kstr(*w, "load_id", load_id);
+		json_kstr(*w, "screen_name", ifx home then "friends" else ifx guild_id then "guild_channel" else "private_channel");
+		json_kint(*w, "duration_ms_since_app_opened", now_ms() - c.launch_ms);
+		json_kbool(*w, "app_hardware_acceleration_enabled", true);
+		aw_track(c, "app_ui_viewed", *w);
+	}
+	if !perf return;
 	p := aw_begin();
 	json_kstr(*p, "load_id", load_id);
 	json_kstr(*p, "metric_name", "tti");

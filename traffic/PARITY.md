@@ -100,6 +100,13 @@ in parallel): they use the heap allocator and are torn down with the last client
   logout (POST /auth/logout, the logged-out loads, fingerprint, login page),
   login_submit (POST /auth/login, IDENTIFY, the login burst). The QR socket is
   off offline; its protocol is unit-tested (`test_remote_auth_fake_server`).
+- the launch burst (`r_launch`: `replay_begin(..., launch = true)` stops before the
+  session; the socket opens, HELLO and READY come on the fixture's own timeline):
+  `parity_launch_app` (typing: the socket opened after the app's takeover, so the
+  app's IDENTIFY and `session_start_client`), `parity_launch_fast` (send_message:
+  fast connect), `parity_launch_home` (cold_start: Home's earlier takeover and
+  later render). Each compares the IDENTIFY's shape and the window's telemetry
+  (the startup requests are off: their events are allowed).
 
 `replay_begin(..., acct = "b")` replays a two-sided fixture as B (B's READY and
 windows). All pass. A test that fails prints what differs from the official client
@@ -203,7 +210,7 @@ Events sent now, by scenario:
 | channel / guild / DM open | channel_opened (guild, DM, group DM, voice, thread; throttled), guild_viewed; the launch route's on READY |
 | voice / DM calls | channel_opened, join_voice_channel, permissions_requested (app, mic opened), dismissible_content_shown (CUSTOM_CALL_SOUNDS_PICKER_UPSELL), impression_voice_invite_suggestions_entrypoint (guild voice), network_action_embedded_activities_fetch_shelf (calls: guild_id "" / null), ring_call_accepted, call_button_clicked; `client_rtc_state` from the app's voice connection |
 | voice connection (app: `voice_analytics_frame` from src/voice's timeline) | video_layout_toggled (caller of a DM call), voice_connection_connecting, audio_input_initialized, voice_connection_remote_streams_created, voice_connection_success, voice_connection_ttc_collected, media_session_joined, secure_frames_transition, start_speaking, start_listening; on leave hotspot_hidden, leave_voice_channel, voice_codec_detected, voice_disconnect |
-| launch | libdiscore_loaded, app_native_crash, client_heartbeat (at the fast-connect IDENTIFY, then every 15 min; on login), gateway_connected + dismissible_content_shown_before_connection_open (after that IDENTIFY), ready_payload_received (every READY), app_ui_viewed + app_web_perf_startup_metrics (READY +60 ms), notification_permission_status (with fetch_user_offer_started) |
+| launch | libdiscore_loaded, app_native_crash, client_heartbeat (when the scripts load, then every 15 min; on login), at the app's takeover client_ad_heartbeat, a kept HELLO's gateway_connected and dismissible_content_shown_before_connection_open, session_start_client + gateway_connected when the app identifies (a late socket), ready_payload_received (every READY), app_ui_viewed (a channel: takeover +295 ms or with the metric; Home: READY +320 ms), app_web_perf_startup_metrics (READY +60 ms), notification_permission_status (with fetch_user_offer_started) |
 | experiments | experiment_user / installation_evaluation_exposed for READY's apex assignments: app open, the READY stores and first render, dm/gdm list rendered, voice call initiated, PrivateChannelCallDuration, experimentStoreUpdate (guild joined), the new guild's setup progress; once per evaluation, location and experiment (persisted) |
 | quick switcher | quickswitcher_closed, quickswitcher_result_selected |
 | emoji pickers | hotspot_hidden FAVORITE_EMOJI_TOOLTIP (pick: once, a reaction pick twice; close) |
@@ -318,8 +325,12 @@ one long session they already happened earlier, as they would for a real user.
 ### IDENTIFY and presence
 
 - The first IDENTIFY of a launch without native fast connect has
-  `gateway_connect_reasons: "AppSkeleton"` and presence `"unknown"`.
-- The live runner follows each fixture's fast-connect mode.
+  `gateway_connect_reasons: "AppSkeleton"` and presence `"unknown"`. A launch takes
+  that path when its socket opens after the app's takeover (490 ms after the
+  socket's creation, 365 on Home: CLIENT_RULES "The launch race"), as 5 of the 54
+  fixture launches did.
+- The live runner follows each fixture's fast-connect mode (`disable_fast_connect`:
+  the app's path, identifying at the takeover at the earliest).
 - Status and custom status send op 3 with the settings write.
 - The StatusSettings proto is captured byte-exact (current status plus its
   stored created time, the custom status with its own created time; a clear

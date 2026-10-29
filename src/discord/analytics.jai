@@ -35,11 +35,16 @@ Analytics :: struct {
 	roundtrip_sample: float64; // send_message_roundtrip sample rate (MessageRoundtripTrackerStore: 10%)
 	synth: Synth; // Electron's memory, which fastcord models (see Synth)
 	gateway_seen: bool; // the AccessibilityStore's bits join at gateway_connected
-	identify_ms: s64; // the launch's fast-connect IDENTIFY (0 after READY)
-	pending_connected: string; // gateway_connected waiting for that IDENTIFY
+	identify_ms: s64; // the launch's IDENTIFY (0 after READY)
+	launch_fast: bool; // that IDENTIFY was fast-connect.js's
+	takeover_pending: bool; // the launch's app has not taken the socket over yet
+	launch_focused: bool; // until then the app reports itself focused (54 launches)
+	pending_connected: string; // a gateway_connected waiting for the takeover
 	ready_frame: struct { wire, raw, unpack_ms: s64; }; // the gateway reader's READY frame
 	ready_unpack_ms: s64;
-	first_render_at: s64; // app_ui_viewed due (UI thread)
+	first_render_at: s64; // app_web_perf_startup_metrics due (UI thread)
+	ui_at: s64; // app_ui_viewed due: the app's first render
+	load_id: string; // shared by app_ui_viewed and app_web_perf_startup_metrics
 	next_client_hb: s64; // 0 = the heartbeat scheduler has not started
 	next_ad_hb: s64;
 	ad_session: string;
@@ -194,6 +199,7 @@ analytics_destroy :: (a: *Analytics) {
 	free(a.join_voice_id);
 	voice_session_reset(a);
 	free(a.pending_connected);
+	free(a.load_id);
 	free(a.eval_user);
 	free(a.eval_installation);
 	deinit(*a.variations);
@@ -261,7 +267,7 @@ analytics_track :: (c: *Client, event_type: string, props_json: string) {
 	put_str("launch_signature", c.id.launch_signature);
 	if a.decorated {
 		put_str("client_rtc_state", rtc_state_name(a.rtc_state));
-		put_str("client_app_state", app_state_name(c.id.app_state));
+		put_str("client_app_state", app_state_name(ifx a.launch_focused then .Focused else c.id.app_state));
 		put("client_viewport_width", a.viewport_w);
 		put("client_viewport_height", a.viewport_h);
 	}
@@ -407,28 +413,20 @@ analytics_gateway_connected :: (c: *Client, failed_attempts: int, url: string, i
 	json_kint(*w, "duration_ms_since_connect_attempt_start", since_attempt);
 	json_obj_end(*w);
 	props := json_body(json_string(*w));
-	if !is_fast_connect {
-		locks.lock(*c.analytics.mu);
-		start := c.analytics.session_start;
-		c.analytics.session_start = false;
-		locks.unlock(*c.analytics.mu);
-		if start analytics_track(c, "session_start_client", "");
-		analytics_track(c, "gateway_connected", props);
-		return;
-	}
-	// The launch's app adopts fast-connect's socket after its IDENTIFY (fixtures:
-	// IDENTIFY +90-200 ms), then checks the pre-CONNECTION_OPEN coachmark.
 	a := *c.analytics;
 	locks.lock(*a.mu);
-	if a.identify_ms == 0 {
+	if a.takeover_pending {
+		// a HELLO on fast-connect's socket: the app handles it when it takes the socket over
 		free(a.pending_connected,, a.allocator);
 		a.pending_connected = copy_string(props,, a.allocator);
 		locks.unlock(*a.mu);
 		return;
 	}
+	start := a.session_start;
+	a.session_start = false;
 	locks.unlock(*a.mu);
+	if start analytics_track(c, "session_start_client", "");
 	analytics_track(c, "gateway_connected", props);
-	analytics_before_connection_open(c);
 }
 
 // analytics_ready_frame: the gateway reader's READY frame (wire and inflated bytes, ETF unpack time).
@@ -468,8 +466,11 @@ analytics_tick :: (c: *Client, now: s64) {
 		}
 		locks.unlock(*a.mu);
 		if !tm.at break;
-		if tm.event_type == "" analytics_before_connection_open(c);
-		else analytics_track(c, tm.event_type, tm.props);
+		if tm.event_type == {
+			case "@scripts";  analytics_launch_scripts(c);
+			case "@takeover"; analytics_takeover(c);
+			case; analytics_track(c, tm.event_type, tm.props);
+		}
 		free(tm.props,, a.allocator);
 	}
 	for rt, nonce: a.roundtrips {
@@ -480,21 +481,25 @@ analytics_tick :: (c: *Client, now: s64) {
 		}
 	}
 	if a.next_client_hb != 0 && now >= a.next_client_hb analytics_client_heartbeat(c);
-	if a.first_render_at != 0 && now >= a.first_render_at {
-		a.first_render_at = 0;
+	ui := a.ui_at != 0 && now >= a.ui_at;
+	perf := a.first_render_at != 0 && now >= a.first_render_at;
+	if ui || perf {
+		if ui a.ui_at = 0;
+		if perf a.first_render_at = 0;
 		locks.lock(*c.route_mu);
 		g, ch := c.route_guild, c.route_channel;
 		locks.unlock(*c.route_mu);
-		analytics_first_render(c, g, ch);
+		analytics_first_render(c, g, ch, ui, perf);
 	}
 	if a.user_id == 0 return; // the ad heartbeat starts on CONNECTION_OPEN
 	analytics_ad_heartbeat(c, now);
 }
 
-// client_ad_heartbeat (AdSessionStore): every 5 min while focused, from CONNECTION_OPEN.
-analytics_ad_heartbeat :: (c: *Client, now: s64) {
+// client_ad_heartbeat (AdSessionStore): every 5 min while focused, from CONNECTION_OPEN; at a
+// launch first at the app's takeover, focused or not (force).
+analytics_ad_heartbeat :: (c: *Client, now: s64, force := false) {
 	a := *c.analytics;
-	if c.focused && now >= a.next_ad_hb {
+	if force || (c.focused && now >= a.next_ad_hb) {
 		a.next_ad_hb = now + AD_HEARTBEAT_INTERVAL_MS;
 		if a.ad_session == "" || now - a.ad_created > 12 * 3600 * 1000 {
 			free(a.ad_session,, a.allocator);
@@ -540,7 +545,7 @@ analytics_on_ready :: (c: *Client) -> bool {
 	a := *c.analytics;
 	if a.user_id != 0 return false;
 	a.user_id = c.store.me;
-	a.next_ad_hb = now_ms();
+	if a.identify_ms == 0 a.next_ad_hb = now_ms(); // a launch's first beat went at the takeover
 	if a.next_client_hb == 0 a.next_client_hb = a.next_ad_hb; // no launch IDENTIFY (hosted, tests)
 	return true;
 }

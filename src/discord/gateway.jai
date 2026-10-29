@@ -27,6 +27,15 @@ GATEWAY_DEFAULT_URL :: "wss://gateway.discord.gg";
 GATEWAY_QUERY :: "/?encoding=etf&v=9&compress=zstd-stream";
 GATEWAY_QUERY_PLAIN :: "/?encoding=etf&v=9"; // self-hosted servers: uncompressed frames
 
+// The launch race, after the socket's creation (CLIENT_RULES "Gateway, startup, identity"): the page's
+// inline script opens the socket; fast-connect.js identifies on it once it has run (and libdiscore has
+// loaded) and the socket is open; the app bundle takes the socket over later, sooner on Home. A socket
+// still closed at the takeover is the app's: it identifies itself on open (is_fast_connect false,
+// AppSkeleton).
+LAUNCH_SCRIPTS_MS :: 285;
+LAUNCH_TAKEOVER_MS :: 490;
+LAUNCH_TAKEOVER_HOME_MS :: 365;
+
 Op :: enum s64 {
 	Dispatch :: 0;
 	Heartbeat :: 1;
@@ -107,6 +116,10 @@ Gateway :: struct {
 	session_id: string;
 	resume_url: string;
 	fast_connect_done: bool;
+	launch: bool; // the page's bootstrap socket (client_start, not a login)
+	launch_at: s64; // when the launch's socket was created
+	takeover_at: s64; // when the app takes it over (Discord only)
+	launch_fast: bool; // fast-connect.js identified on it
 	// heartbeat
 	interval: s64;
 	next_beat: s64; // 0 = heartbeater not running
@@ -457,6 +470,8 @@ gateway_connect :: (g: *Gateway) {
 	c := g.c;
 	url := gateway_url(g);
 	g.attempt_start = now_ms();
+	hosted := c.cfg.hosted.host != "";
+	if g.launch && g.launch_at == 0 gateway_launch_begin(g);
 	if g.first_attempt == 0 g.first_attempt = g.attempt_start;
 	_, host := split_from_left(advance(url, "wss://".count), #char "/");
 	path := advance(url, "wss://".count + host.count);
@@ -464,7 +479,6 @@ gateway_connect :: (g: *Gateway) {
 
 	stream: netio.Stream;
 	ok: bool;
-	hosted := c.cfg.hosted.host != "";
 	if hosted {
 		host, path = c.cfg.hosted.server_id, GATEWAY_QUERY_PLAIN;
 		stream, ok = dial_hosted(c.cfg.hosted);
@@ -513,8 +527,43 @@ gateway_connect :: (g: *Gateway) {
 	locks.lock(*g.mu);
 	g.reader = spawn(Gw_Reader.{g, gen}, gateway_reader_proc);
 	// onOpen
-	if !g.fast_connect_done && c.cfg.fast_connect {
-		g.fast_connect_done = true;
+	launch := !g.fast_connect_done && g.launch_at != 0;
+	g.fast_connect_done = true;
+	if launch {
+		locks.unlock(*g.mu);
+		gateway_launch_open(g, now_ms() - g.launch_at);
+	} else {
+		resume_or_identify_locked(g);
+		locks.unlock(*g.mu);
+	}
+}
+
+// gateway_launch_begin: the page's inline script creates the launch's socket now (attempt_start).
+// The app's connect attempt starts at its takeover (gateway_connected's durations).
+gateway_launch_begin :: (g: *Gateway) {
+	g.launch_at = g.attempt_start;
+	if g.c.cfg.hosted.host return;
+	home := client_route_kind(g.c.start_route_guild, g.c.start_route_channel) == .Home;
+	g.takeover_at = g.launch_at + ifx home then LAUNCH_TAKEOVER_HOME_MS else LAUNCH_TAKEOVER_MS;
+	g.attempt_start = g.takeover_at;
+	analytics_launch_begin(g.c, g.launch_at + LAUNCH_SCRIPTS_MS - 5, g.takeover_at);
+}
+
+// gateway_launch_open: the launch's socket opened `opened` ms after its creation. Before the takeover
+// fast-connect.js identifies on it, once it has run; after it (or without fast connect) the app does,
+// at its takeover at the earliest. A self-hosted server has no page: fast connect at once.
+gateway_launch_open :: (g: *Gateway, opened: s64) {
+	c := g.c;
+	hosted := g.takeover_at == 0;
+	takeover := g.takeover_at - g.launch_at;
+	fast := c.cfg.fast_connect && (hosted || opened < takeover);
+	locks.lock(*g.mu);
+	g.launch_fast = fast;
+	locks.unlock(*g.mu);
+	wait := ifx hosted then 0 else ifx fast then LAUNCH_SCRIPTS_MS - opened else takeover - opened;
+	if wait > 0 sleep_milliseconds(xx wait);
+	locks.lock(*g.mu);
+	if fast {
 		g.seq = 0;
 		forget_session_locked(g);
 		g.state = .Identifying;
@@ -522,16 +571,12 @@ gateway_connect :: (g: *Gateway) {
 		g.identified = true;
 		locks.unlock(*g.mu);
 		client_push_state(c, .Identifying);
-		// fast-connect.js runs once the deferred scripts have loaded: ~300 ms after open.
-		d := ifx c.cfg.fast_identify_delay_ms != 0 then c.cfg.fast_identify_delay_ms else 300;
-		if d > 0 sleep_milliseconds(xx d);
 		gateway_send(g, .Identify, identify_fast_connect_value(*c.id, client_token(c)));
-		analytics_launch_identify(c);
 	} else {
-		g.fast_connect_done = true;
 		resume_or_identify_locked(g);
 		locks.unlock(*g.mu);
 	}
+	analytics_launch_identify(c, fast);
 }
 
 forget_session_locked :: (g: *Gateway) {
@@ -685,6 +730,10 @@ gateway_handle_payload :: (g: *Gateway, gen: int, v: V, pool: *Flat_Pool) -> boo
 	if c.on_gateway_recv c.on_gateway_recv(c.observer_data, op, t, d);
 	if c.on_gateway_frame c.on_gateway_frame(c.observer_data, false, v, 0);
 	if c.on_dispatch && op == .Dispatch c.on_dispatch(c.user_data, t);
+	// Until the app takes the launch's socket over, fast-connect.js keeps its messages; the app
+	// handles them then (a HELLO's gateway_connected waits in the analytics instead).
+	hold := g.takeover_at - now_ms();
+	if op == .Dispatch && hold > 0 sleep_milliseconds(xx hold);
 
 	locks.lock(*g.mu);
 	defer {
@@ -700,7 +749,8 @@ gateway_handle_payload :: (g: *Gateway, gen: int, v: V, pool: *Flat_Pool) -> boo
 			g.interval = fint(vmap(d), "heartbeat_interval");
 			now := now_ms();
 			url := ifx g.resume_url then g.resume_url else ifx c.cfg.gateway_url then c.cfg.gateway_url else GATEWAY_DEFAULT_URL;
-			analytics_gateway_connected(c, g.failed_attempts, url, g.connected_once, !g.connected_once && c.cfg.fast_connect, now - g.first_attempt, now - g.attempt_start);
+			// at a launch the attempt starts at the app's takeover: a HELLO before it counts 0
+			analytics_gateway_connected(c, g.failed_attempts, url, g.connected_once, !g.connected_once && g.launch_fast, max(now - g.first_attempt, 0), max(now - g.attempt_start, 0));
 			g.connected_once = true;
 			g.first_attempt = 0;
 			g.failed_attempts = 0;

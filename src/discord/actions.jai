@@ -942,13 +942,13 @@ client_after_dispatch :: (c: *Client, name: string, data: V) {
 	calls_dispatch(c, name, data);
 	if name == {
 	case "READY";
-		launch := c.analytics.identify_ms != 0; // this launch's first READY (fast connect)
+		analytics_takeover(c); // the launch's READY waited for it (gateway.jai)
+		launch := c.analytics.identify_ms != 0; // this launch's first READY
 		first := analytics_on_ready(c);
 		analytics_ready_experiments(c, data);
 		analytics_ready_payload(c, data, !first);
 		analytics_ad_heartbeat(c, now_ms()); // AdSessionStore's CONNECTION_OPEN handler runs here
 		analytics_exposures_after_ready(c);
-		if launch c.analytics.first_render_at = now_ms() + 60; // app_ui_viewed (fixtures: READY +60 ms)
 		note_webp_experiment(c, data);
 		c.account_verified = fbool(fmap(vmap(data), "user"), "verified");
 		// The window reopens on its last route: the guild is subscribed and its
@@ -956,6 +956,14 @@ client_after_dispatch :: (c: *Client, name: string, data: V) {
 		locks.lock(*c.route_mu);
 		g, ch := c.route_guild, c.route_channel;
 		locks.unlock(*c.route_mu);
+		if launch {
+			// app_web_perf_startup_metrics READY +60 ms; app_ui_viewed with it unless the channel
+			// rendered first (analytics_takeover), on Home (the Friends page) READY +320 ms (fixtures)
+			a := *c.analytics;
+			a.first_render_at = now_ms() + 60;
+			if client_route_kind(g, ch) == .Home a.ui_at = now_ms() + 320;
+			else if a.ui_at a.ui_at = min(a.ui_at, a.first_render_at);
+		}
 		// the route's views render on CONNECTION_OPEN: channel_opened, guild_viewed
 		// (fixtures' setup windows, right after ready_payload_received)
 		if first && !g && ch promo_shop_entry(c); // the DM list renders before the DM (fixture close_dm)

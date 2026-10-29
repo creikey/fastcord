@@ -24,7 +24,6 @@ Config :: struct {
 	h3: H3_Hook; // optional h3 override (default: quic via quic_altsvc)
 	disable_h3: bool;
 	ws_open_delay_ms: s64; // gateway socket open after client_start (0 = 190, <0 = immediately)
-	fast_identify_delay_ms: s64; // fast-connect IDENTIFY after open (0 = 300, <0 = immediately)
 	voice_self_mute: bool; // op 4 self_mute sent on READY (the client's persisted mute state)
 	disable_analytics: bool; // no /science telemetry (the official client always sends it)
 	disable_remote_auth: bool; // no QR code socket on the login page (tests)
@@ -289,6 +288,7 @@ client_start :: (c: *Client) {
 		c.gw = gateway_create(c); // never connects: gateway_send hands frames to the sink
 	} else if !c.cfg.disable_gateway {
 		c.gw = gateway_create(c);
+		c.gw.launch = true;
 		gateway_set_active(c.gw, qos_from_state(c.focused, false));
 		gateway_start(c.gw);
 	}

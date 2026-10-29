@@ -325,7 +325,8 @@ Replay_Run :: struct {
 	science: bool; // also compare /science events (type + property names); allow "science <type>"
 }
 
-replay_begin :: (run: *Replay_Run, t: *T, scenario: string, guild: Snowflake, channel: Snowflake, acct := "a", ready_from := "") -> bool {
+// launch: stop before the session (no READY; r_launch plays the launch).
+replay_begin :: (run: *Replay_Run, t: *T, scenario: string, guild: Snowflake, channel: Snowflake, acct := "a", ready_from := "", launch := false) -> bool {
 	run.t = t;
 	if !replay_load(*run.r, scenario, acct) {
 		expectf(t, false, "no fixture traffic/%.jsonl", scenario);
@@ -360,6 +361,7 @@ replay_begin :: (run: *Replay_Run, t: *T, scenario: string, guild: Snowflake, ch
 	run.c.promo.quest_roundtrip_sample = 0; // quest_decision_roundtrip too
 	identity_set_app_state(*run.c.id, .Unfocused);
 	client_start(run.c);
+	if launch return true;
 	// session state from the fixture's READY
 	for name: string.["READY", "READY_SUPPLEMENTAL"] {
 		for e: ready_events {
@@ -717,11 +719,13 @@ r_sci_key_diff :: (diffs: *String_Builder, o: Sci_Event, u: Sci_Event) {
 
 // r_science_check compares our /science batches with the official window's.
 r_science_check :: (official: []Sci_Batch, ours: []Sci_Batch, allow: []string, diffs: *String_Builder) {
-	// header order: every batch of ours against the official window's (no
-	// x-science-test after the first batch of a launch)
-	if official && official[0].wire != "" {
-		for ours if it.wire != official[0].wire {
-			print_to_builder(diffs, "  ~ wire     POST /science\n      official: %\n      ours:     %\n", official[0].wire, it.wire);
+	// header order: every batch of ours against the official window's (no x-science-test after the
+	// first batch of a launch: a window with that batch compares the rest with its second)
+	for ours {
+		o := ifx official then official[0].wire else "";
+		if it_index > 0 && official.count > 1 && contains(o, "x-science-test") o = official[1].wire;
+		if o != "" && it.wire != o {
+			print_to_builder(diffs, "  ~ wire     POST /science\n      official: %\n      ours:     %\n", o, it.wire);
 			break;
 		}
 	}
@@ -2883,6 +2887,87 @@ session_start_identify :: (t: *T) {
 	analytics_identify(c, true); // after INVALID_SESSION: at once
 	expect_value(t, queued(c), "gateway_connected session_start_client gateway_connected session_start_client");
 	replay_end(*run);
+}
+
+// ---- the launch burst (gateway.jai LAUNCH_*) ----
+
+// Not this test's subject: what the startup requests send (off here: quest_decision_roundtrip,
+// the later loads' events), and READY's experiment exposures, which the recorded instances had
+// already sent in an earlier launch (persisted).
+R_LAUNCH_ALLOW :: string.["science:fetch_user_offer_started", "science:notification_permission_status", "science:network_action_detectable_non_games_fetch", "science:network_action_detectable_applications_fetch", "science:experiment_user_evaluation_exposed", "science:experiment_installation_evaluation_exposed"];
+
+// r_launch plays a fixture's launch on the fixture's own timeline (ms after the socket's creation):
+// its socket opens (at its app IDENTIFY when it took the app's path, else at 150 ms, before
+// fast-connect.js ran), HELLO and READY arrive. The IDENTIFY and the window's telemetry are compared.
+r_launch :: (t: *T, scenario: string, window: string, guild: Snowflake, channel: Snowflake, allow: string) {
+	run: Replay_Run;
+	if !replay_begin(*run, t, scenario, guild, channel, launch = true) return;
+	c, g := run.c, run.c.gw;
+	created, identify, hello, ready: float64 = -1, -1, -1, -1;
+	fast := false;
+	official_identify: string;
+	for e: run.r.events {
+		k, ts := fstr(e, "k"), vf64(vget(e, "t"));
+		if k == "ws_open" && created < 0 created = ts;
+		if k == "ws_send" && fnum(e, "op") == 2 && identify < 0 {
+			identify = ts;
+			official_identify = shape_text(vget(e, "d"));
+			fc := vget(fmap(fmap(e, "d"), "properties"), "is_fast_connect");
+			fast = fc.kind == .Bool && fc.b;
+		}
+		if k == "ws_recv" && fnum(e, "op") == 10 && hello < 0 hello = ts;
+		if k == "ws_recv" && fstr(e, "ev") == "READY" && ready < 0 ready = ts;
+	}
+	if !expectf(t, created >= 0 && identify > created && hello > created && ready > hello, "% has no launch", scenario) { replay_end(*run); return; }
+	at :: (ms: float64) -> s64 #expand { return `start + cast(s64) (ms - `created); }
+	c.id.installation_id = copy_string("1100000000000000001",, c.allocator); // kept from the last session
+	replay_mark(*run);
+	start := now_ms();
+	g.attempt_start = start;
+	gateway_launch_begin(g);
+	g.first_attempt = g.attempt_start;
+	opened := ifx fast then 150 else at(identify) - start;
+	replay_pump(*run, opened);
+	gateway_launch_open(g, opened);
+	expect(t, g.launch_fast == fast);
+	replay_pump(*run, max(at(hello) - now_ms(), 0));
+	analytics_gateway_connected(c, 0, GATEWAY_DEFAULT_URL, false, g.launch_fast, max(now_ms() - g.first_attempt, 0), max(now_ms() - g.attempt_start, 0));
+	replay_pump(*run, max(at(ready) - now_ms(), 0));
+	for e: run.r.events {
+		if fstr(e, "k") == "ws_recv" && (fstr(e, "ev") == "READY" || fstr(e, "ev") == "READY_SUPPLEMENTAL") client_inject_dispatch(c, fstr(e, "ev"), vget(e, "d"));
+	}
+	replay_pump(*run, 1500);
+	locks.lock(*run.r.mu);
+	ours_identify: string;
+	for run.r.sends if it.op == 2 { ours_identify = it.shape; break; }
+	locks.unlock(*run.r.mu);
+	expect_value(t, ours_identify, official_identify);
+	all: [..]string;
+	all.allocator = temp;
+	array_add(*all, ..R_LAUNCH_ALLOW);
+	array_add(*all, allow);
+	replay_check(*run, window, all, science_only = true);
+}
+
+// The socket opened after the app took it over (fixture typing, 566 ms after its creation): the
+// app's IDENTIFY (AppSkeleton) and session_start_client, with the scripts' and takeover's telemetry
+// on their own timeline.
+parity_launch_app :: (t: *T) {
+	r_launch(t, "typing", "setup", R_GUILD, R_TEXT, "science:quest_decision_roundtrip");
+}
+
+// The socket opened before fast-connect.js ran (fixture send_message): its IDENTIFY, then the
+// app adopts the socket and handles the HELLO it kept.
+// image_hovered: the capture driver's mouse.
+parity_launch_fast :: (t: *T) {
+	r_launch(t, "send_message", "setup", R_GUILD, R_TEXT, "science:image_hovered");
+}
+
+// On Home (fixture cold_start) the app takes the socket over sooner and renders the Friends page
+// after READY. The Shop entry's second dismissible_content_shown follows /collectibles-marketing,
+// a startup request.
+parity_launch_home :: (t: *T) {
+	r_launch(t, "cold_start", "cold_start", 0, 0, "science:dismissible_content_shown/version=101");
 }
 
 // ---- username change (fixture account_edits: a passive recording on the home route) ----
