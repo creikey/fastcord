@@ -145,7 +145,22 @@ attachments_view :: (m: *dc.Message, max_w: float32 = 400) {
 					name.flags |= .Clickable;
 					name.hover_cursor = .Pointer;
 					download = ui.signal(name).clicked;
-					label(human_size(a.size), .Normal, 12, T("--text-muted"), 16);
+					dl := file_download_find(a.url);
+					if dl {
+						app.ui.animating = true; // the count moves on the worker
+						label(tprint("% of %", human_size(dl.progress.done), human_size(a.size)), .Normal, 12, T("--text-muted"), 16);
+						spacer(.Y, 3);
+						bar :=ui.box("bar", .Draw_Background);
+						bar.semantic_size = .[ui.fill(), ui.px(4)];
+						bar.style.bg = T("--background-mod-strong");
+						bar.style.radius = all4(2);
+						ui.parent(bar);
+						fill := ui.box("fill", .Draw_Background | .Floating_X | .Floating_Y);
+						fill.semantic_size = .[ui.pct(clamp(cast(float32) dl.progress.done / max(a.size, 1), 0, 1)), ui.px(4)];
+						fill.style.bg = T("--background-brand");
+						fill.style.radius = all4(2);
+						ui.pop_parent();
+					} else label(human_size(a.size), .Normal, 12, T("--text-muted"), 16);
 				}
 				dl := ui.box("dl", .Clickable);
 				dl.semantic_size = .[ui.px(32), ui.px(32)];
@@ -156,7 +171,7 @@ attachments_view :: (m: *dc.Message, max_w: float32 = 400) {
 					ic.fixed_pos = .{4, 4};
 				}
 				if sig.hovering tooltip_below("Download", dl.rect);
-				if sig.clicked || download media_save(a.url);
+				if sig.clicked || download file_download(a);
 				spacer(.X, 12);
 			}
 			spacer(.Y, 4);
@@ -963,7 +978,46 @@ media_action_receive :: (r: *dc.Media_Result) -> bool {
 	return true;
 }
 
-media_save :: (url: string) { media_action(MEDIA_TAG_SAVE, url); }
+// A file attachment's download: asked where in the Save dialog under the attachment's own name, then
+// streamed to disk by a worker (dc.run_download) while its card shows the bytes so far.
+File_Download :: struct {
+	url, path: string; // heap
+	size: int; // the attachment's: anything else is a cut-short download
+	progress: *dc.Media_Progress; // heap, the worker's until the result
+}
+
+file_downloads: [..]File_Download;
+
+file_download_find :: (url: string) -> *File_Download {
+	for * file_downloads if it.url == url return it;
+	return null;
+}
+
+file_download :: (a: *dc.Attachment) {
+	if file_download_find(a.url) return;
+	app.ext_actions += 1;
+	dest := platform.save_file_dialog(ifx a.filename then a.filename else download_name(a.url));
+	if !dest return;
+	c := ifx app.client then media_client(a.url);
+	if !c { toast_show("File saved.", true); free(dest); return; } // offline runs write nothing
+	d := array_add(*file_downloads);
+	d.* = .{url = copy_string(a.url), path = dest, size = a.size, progress = New(dc.Media_Progress)};
+	dc.fetch_media(c, .{url = a.url, visible = true, tag = MEDIA_TAG_FILE, save_to = dest, progress = d.progress});
+}
+
+file_download_receive :: (r: *dc.Media_Result) -> bool {
+	if r.tag != MEDIA_TAG_FILE return false;
+	d := file_download_find(r.url);
+	if !d return true;
+	ok := r.status == 200 && (d.size <= 0 || d.progress.done == d.size);
+	toast_show(ifx ok then "File saved." else "Couldn't save the file.", ok);
+	if !ok file_delete(d.path);
+	free(d.url);
+	free(d.path);
+	free(d.progress);
+	array_unordered_remove_by_index(*file_downloads, d - file_downloads.data);
+	return true;
+}
 
 media_reset_for_test :: () {
 	close_viewer();
@@ -975,6 +1029,7 @@ media_reset_for_test :: () {
 
 MEDIA_TAG_COPY :: 0x6d65_6469_6101;
 MEDIA_TAG_SAVE :: 0x6d65_6469_6102;
+MEDIA_TAG_FILE :: 0x6d65_6469_6103;
 
 Gifv :: struct {
 	player: *media.Player;

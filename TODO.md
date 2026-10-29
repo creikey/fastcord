@@ -367,7 +367,6 @@
 - [ ] Chat: an age-gated channel still loads its messages behind the gate (the official mounts no chat until you agree), and age-restricted servers (`nsfw_level` 3) aren't gated (`nsfw_gated`).
 - [ ] Video: frames go out as one unpaced burst on the same UDP socket as the mic (`send_video`, no pacer or audio priority); on a slow uplink a keyframe can delay or drop voice packets.
 - [ ] Friends: Active Now is always the empty card.
-- [ ] Attachments: downloading a file reuses the Save Image path (`media_save` in `view_media.jai`): the whole file is held in memory and sent with image request headers, with no progress, and a name without an extension gets `format=png` appended. Stream big files to disk as a document download instead.
 - [ ] Chat: welcome messages aren't shown properly.
 - [ ] Events: clicking an event invite card should open the event's details modal (fastcord has none; it opens the Events list); event cards lack the cover image and recurring-event series picker.
 - [ ] Forums: a new post can't carry files, there's no gallery layout, and archived posts load only the first page.
@@ -476,6 +475,7 @@
 - [ ] Media: videos (attachments, embeds) download whole before the first frame; stream them with range requests so long clips start at once (`view_media.jai` `blob_get`).
 - [ ] Sounds: soundpacks work and are saved but have no picker; "User Moved" has a toggle but never plays; the "reconnect" sound is unused.
 - [ ] Media: the video player lacks download.
+- [ ] Attachments: an audio file (`.mp3`, `.wav`, not a voice message) plays in a card with no filename, size or download icon (`audio_attachment` in `view_media.jai`); the official audio card has all three in its header. `file_download` does the download.
 - [ ] Servers: no rules screen, onboarding, Server Guide or Browse Channels / Channels & Roles.
 - [ ] Voice: op 4's `preferred_regions` keep the latency probe's geographic order; the official client ranks the regions with a UDP latency test (`rankRtcRegions`) and sends that order, so ours can differ (`actions.jai` `voice_self_value`).
 - [ ] Frecency writes (settings-proto/2), the rest: emoji are tracked when inserted from the picker or autocomplete, not when the message is sent (`EMOJI_TRACK_USAGE` after a send, every emoji in it), and reactions only from the picker (the official client tracks every reaction you add); application commands (7), applications (9) and played sounds (11) are never written; the app keeps a second frecency table (`pickers_data.jai`, `expressions.txt`) instead of reading the library's.
@@ -828,3 +828,4 @@
 - [x] Tray (Linux): a StatusNotifierItem with a com.canonical.dbusmenu menu like the Windows tray's (Open, Mute and Deafen checked while on, Quit), over libdbus on the notification thread; a click opens the window, unread mentions set NeedsAttention, closing hides the window while a watcher holds the item (Minimize to Tray). Checked in a container against a fake watcher: properties, layout, checkmark updates, Quit (`tray_call`).
 - [x] Settings sync: `USER_SETTINGS_PROTO_UPDATE` type 2 (favourite GIFs, emoji and sticker favourites, frecency) from another device applies at once; a partial one replaces only the categories it carries, and the pickers' favourites follow removals too (`frecency_remote_update`).
 - [x] Bug: failed REST calls no longer lose data silently: acks retry like the client's networkAwareRetry (3 tries, 2 s then 4 s apart), a failed edit toasts and reopens with the typed text (kept as a draft until the edit lands), and a failed delete toasts (`network_aware`, `edit_result`, `tests/ui/edit_failed_keeps_text.txt`).
+- [x] Attachments: a file's download streams to disk as it arrives instead of going through Save Image: the Save dialog offers the attachment's own name (no `format=png`), the request has a download's navigation headers, and the card shows the bytes so far with a bar (`file_download`, `dc.run_download`; `http.Request.sink` now works over HTTP/2 and HTTP/3 too, checked in `src/tests/h2.jai`; `tests/ui/media/file_card.txt`).

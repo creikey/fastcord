@@ -119,7 +119,7 @@ request :: (c: *Conn, req: http.Request) -> http.Response, http.Error {
 
 	// Like Chrome, only replay-safe methods go in 0-RTT; the rest wait for the handshake.
 	safe := array_find(string.["GET", "HEAD", "OPTIONS", "TRACE"], req.method);
-	st := Stream.{resp = http.make_response(.Http3)};
+	st := Stream.{resp = http.make_response(.Http3), sink = req.sink};
 	id: s64;
 	lock(c);
 	defer locks.unlock(*c.mu);
@@ -292,6 +292,7 @@ Stream :: struct {
 	retry: bool;    // sent in refused 0-RTT: submit it again
 	interim: bool;  // inside a 1xx header section
 	field_bytes: int;
+	sink: http.Body_Sink; // the request's
 }
 
 // The QUIC TLS context, made on first use.
@@ -431,6 +432,10 @@ on_data :: (user: *void, id: s64, p: *u8, n: u64) #c_call {
 	push_context c.ctx.* {
 		_, st := table_find(*c.streams, id);
 		if !st || st.done return;
+		if http.sinking(st.sink, *st.resp) {
+			if !st.sink.take(st.sink.data, .{xx n, p}) give_up(c, st, .Closed);
+			return;
+		}
 		if st.resp.body.count + cast(int) n > MAX_RESPONSE { give_up(c, st, .Too_Large); return; }
 		array_add(*st.resp.body, ..[]u8.{xx n, p});
 	}

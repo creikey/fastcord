@@ -19,6 +19,13 @@ Media_Request :: struct {
 	referer: string; // fonts: the stylesheet URL; "" -> https://discord.com/ (cross-site) or route
 	tag: u64;
 	discard: bool; // loaded like the page does (cache included), then dropped: no result
+	save_to: string; // set: a file download streamed to this path (no cache), see run_download
+	progress: *Media_Progress; // save_to's; the caller's, kept until the result arrives
+}
+
+// A download's bytes so far, written by the worker and read by the UI thread.
+Media_Progress :: struct {
+	done: s64;
 }
 
 Media_Result :: struct {
@@ -114,7 +121,7 @@ site_for_host :: (host: string) -> Fetch_Site {
 // after client_poll (or the wakeup).
 fetch_media :: (c: *Client, req: Media_Request) {
 	j := job_new(.Web, .Media);
-	j.media = .{url = job_str(j, req.url), kind = req.kind, visible = req.visible, referer = job_str(j, req.referer), tag = req.tag, discard = req.discard};
+	j.media = .{url = job_str(j, req.url), kind = req.kind, visible = req.visible, referer = job_str(j, req.referer), tag = req.tag, discard = req.discard, save_to = job_str(j, req.save_to), progress = req.progress};
 	j.result.tag = req.tag;
 	job_submit(c, j);
 }
@@ -291,10 +298,41 @@ media_host_ok :: (c: *Client, host: string) -> bool {
 
 // run_media executes a media job on a worker thread.
 run_media :: (c: *Client, j: *Job) {
+	if j.media.save_to { run_download(c, j); return; }
 	status, from_cache, ctype, body := media_get(c, j.media.url, j.media.kind, j.media.visible, j.media.referer);
 	if !j.media.discard media_deliver(c, j, status, from_cache, ctype, body);
 }
 
+// run_download streams a file attachment to j.media.save_to as it arrives, counting into j.media.progress,
+// with the headers of a download the window starts (a navigation's, as Chrome's download manager sends);
+// the result has no data. A failed download leaves no file.
+run_download :: (c: *Client, j: *Job) {
+	m := *j.media;
+	status := 0;
+	host, path, ok := split_url(m.url);
+	f, opened := file_open(m.save_to, for_writing = true, log_errors = false);
+	if opened && ok && media_host_ok(c, host) {
+		Writer :: struct { f: *File; p: *Media_Progress; ok := true; }
+		w := Writer.{f = *f, p = m.progress};
+		take :: (data: *void, piece: []u8) -> bool {
+			w := cast(*Writer) data;
+			w.ok = w.ok && file_write(w.f, piece.data, piece.count);
+			if w.p atomic_add(*w.p.done, piece.count);
+			return w.ok;
+		}
+		req := http.Request.{method = "GET", scheme = "https", authority = host, path = path, sink = .{*w, take}};
+		req.headers = document_headers(c.id.platform, cookie_header(*c.jar, host, path, true, now_ms()));
+		resp, err := transport_round_trip(*c.transport, host, req);
+		if err == .None && resp.body take(*w, resp.body); // an encoded body, or a transport that doesn't sink
+		if err == .None && w.ok status = resp.status;
+		http.response_destroy(*resp);
+	}
+	if opened {
+		file_close(*f);
+		if status != 200 file_delete(m.save_to);
+	}
+	media_deliver(c, j, status, false, "", .[]);
+}
 
 // client_take_media returns finished media loads (UI thread). Free each with media_result_free.
 client_take_media :: (c: *Client, allocator := temp) -> []Media_Result {

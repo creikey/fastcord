@@ -463,6 +463,10 @@ on_data_chunk :: (s: *Ng_Session, flags: u8, id: s32, data: *u8, n: u64, user: *
 		if st && st.done st = null;
 		give_back(c, st, id, xx n);
 		if !st return 0;
+		if sinking(st.req.sink, *st.resp) {
+			if !st.req.sink.take(st.req.sink.data, .{xx n, data}) finish(c, st, .Closed, NG_CANCEL);
+			return 0;
+		}
 		if st.resp.body.count + cast(int) n > c.cfg.max_response_body {
 			finish(c, st, .Too_Large, NG_CANCEL); // h2_request resets the stream
 			return 0;

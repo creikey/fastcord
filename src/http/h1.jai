@@ -33,16 +33,10 @@ h1_destroy :: (c: *H1_Conn, close_stream := true) {
 	if close_stream netio.close(c.s);
 }
 
-// Body_Sink takes a response body piece by piece as it arrives, so a large download is never held whole
-// (resp.body stays empty); returning false abandons the response.
-Body_Sink :: struct {
-	data: *void;
-	take: (data: *void, piece: []u8) -> bool;
-}
-
 // h1_round_trip writes req and reads the response on a keep-alive connection.
-h1_round_trip :: (c: *H1_Conn, req: Request, sink := Body_Sink.{}) -> Response, Error {
+h1_round_trip :: (c: *H1_Conn, req: Request, sink_in := Body_Sink.{}) -> Response, Error {
 	if !c.reusable return .{}, .Closed;
+	sink := ifx sink_in.take then sink_in else req.sink;
 	err := h1_write_request(c.s, req);
 	if err != .None {
 		c.reusable = false;

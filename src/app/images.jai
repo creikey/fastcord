@@ -46,7 +46,7 @@ images_receive :: () {
 	}
 	for c: connections() for * r: dc.client_take_media(c) {
 		defer dc.media_result_free(c, r);
-		if media_action_receive(r) continue;
+		if media_action_receive(r) || file_download_receive(r) continue;
 		if blob_receive(r) {
 			app.ui.animating = true;
 			continue;

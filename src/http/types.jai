@@ -34,6 +34,21 @@ Request :: struct {
 	headers: []Header;   // exact order/case; for h2 names must already be lowercase
 	body: []u8;
 	priority: Priority;  // h2 HEADERS priority fields, h3 priority header
+	sink: Body_Sink;     // set: the response body goes here as it arrives instead of into resp.body
+}
+
+// Body_Sink takes a response body piece by piece as it arrives, so a large download is never held whole
+// (resp.body stays empty); returning false abandons the response. h2 and h3 sink only an unencoded body:
+// one with a content-encoding still collects in resp.body, for decode_body.
+Body_Sink :: struct {
+	data: *void;
+	take: (data: *void, piece: []u8) -> bool;
+}
+
+sinking :: (sink: Body_Sink, resp: *Response) -> bool {
+	if !sink.take return false;
+	enc, has := header_get(resp.headers, "content-encoding");
+	return !has || enc == "identity";
 }
 
 // A Response's memory (its arrays and strings) all comes from its allocator.

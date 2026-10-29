@@ -37,6 +37,16 @@ main :: () {
 	until(*srv, PING, ack = true);
 	check(c.unacked == 500, tprint("unacked % after DATA for a reset stream, want 500", c.unacked));
 
+	// A sink takes a body larger than max_response_body as it arrives; resp.body stays empty.
+	sunk := Request_Job.{c = c, sink = true};
+	t0 := start(*sunk);
+	until(*srv, HEADERS);
+	send(*srv, HEADERS, END_HEADERS, 3, .[0x88]);
+	send(*srv, DATA, 0, 3, array_view(body, 0, 150));
+	send(*srv, DATA, END_STREAM, 3, array_view(body, 0, 150));
+	join(t0);
+	check(sunk.err == .None && sunk.sunk == 300 && sunk.kept == 0, tprint("sink took % (kept %, %), want 300", sunk.sunk, sunk.kept, sunk.err));
+
 	// Idle for 10 s: the next request goes out behind a PING. Leave it unanswered.
 	sleep_milliseconds(10_500);
 	t2 := start(*req);
@@ -72,7 +82,7 @@ main :: () {
 }
 
 DATA :: 0; HEADERS :: 1; RST_STREAM :: 3; SETTINGS :: 4; PING :: 6; GOAWAY :: 7; WINDOW_UPDATE :: 8;
-ACK :: 1; END_HEADERS :: 4;
+ACK :: 1; END_STREAM :: 1; END_HEADERS :: 4;
 
 Server :: struct { s: netio.Stream; buf: [..]u8; }
 Frame :: struct { type: u8; flags: u8; id: u32; payload: []u8; }
@@ -116,14 +126,17 @@ send :: (v: *Server, type: u8, flags: u8, id: u32, payload: []u8) {
 	netio.write(v.s, b);
 }
 
-Request_Job :: struct { c: *http.H2_Conn; err: http.Error; }
+Request_Job :: struct { c: *http.H2_Conn; err: http.Error; sink: bool; sunk: int; kept: int; }
 
 start :: (job: *Request_Job) -> *Thread {
 	t := New(Thread);
 	thread_init(t, (t: *Thread) -> s64 {
 		job := cast(*Request_Job) t.data;
 		resp: http.Response;
-		resp, job.err = http.h2_request(job.c, .{method = "GET", scheme = "https", authority = "example.com", path = "/"});
+		req := http.Request.{method = "GET", scheme = "https", authority = "example.com", path = "/"};
+		if job.sink req.sink = .{job, (data: *void, piece: []u8) -> bool { (cast(*Request_Job) data).sunk += piece.count; return true; }};
+		resp, job.err = http.h2_request(job.c, req);
+		job.kept = resp.body.count;
 		return 0;
 	});
 	t.data = job;
