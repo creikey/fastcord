@@ -1,5 +1,6 @@
 # Server Settings list pages: Members (with the row menu), Invites (Revoke's confirm, Pause Invites),
-# Bans (Revoke Ban), Audit Log, Safety Setup and Emoji, each from a canned reply.
+# Bans (Revoke Ban), Audit Log, Safety Setup, Integrations, Access, Community, Server Template, Emoji
+# and Stickers, each from a canned reply.
 wait 5
 click 200 57
 wait 10
@@ -62,13 +63,13 @@ settings_reply Verification {"version":"2026-01-01T00:00:00.000000+00:00","descr
 wait 5
 expect_visible "Invite Only"
 expect_visible "Server Rules"
+move 250 400
+scroll 0 -600
+wait 5
 click_text "Enable Community"
 wait 10
 expect_visible "Rules or Guidelines Channel"
 shot build/ui-server_settings_community.png
-move 250 400
-scroll 0 -600
-wait 5
 click_text "Server Template"
 wait 10
 settings_reply Templates []
@@ -79,6 +80,10 @@ wait 5
 click_text "Emoji"
 wait 10
 expect_visible "Upload Emoji"
+click_text "Stickers"
+wait 10
+expect_visible "Upload Sticker"
+shot build/ui-server_settings_stickers.png
 key escape
 wait 10
-expect_not_visible "Upload Emoji"
+expect_not_visible "Upload Sticker"

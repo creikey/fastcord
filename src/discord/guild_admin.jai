@@ -701,6 +701,10 @@ image_mime :: (path: string) -> string {
 // {"image":"data:<mime>;base64,..","name":<name>} plus X-Discord-Original-MD5, all in temp.
 // status: 0 ok, -1 unreadable / not an image, -2 over EMOJI_MAX_BYTES.
 file_job_body :: (path: string, name: string, op: Feature_Op) -> string, []http.Header, int {
+	if op == .Sticker_Upload {
+		b, h, st := sticker_job_body(path, name); // server_settings.jai
+		return b, h, st;
+	}
 	if op == .Sound_Upload {
 		// {<name, volume, emoji fields>,"sound":"data:audio/<type>;base64,.."}; the type by magic bytes
 		data, ok := read_entire_file(path, log_errors = false,, temp);

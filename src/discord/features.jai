@@ -551,6 +551,7 @@ Feature_Op :: enum u8 {
 	Unpin;
 	Reactors;
 	Guild_Settings; // server_settings.jai
+	Sticker_Upload;
 }
 
 Feature_Result :: struct {
@@ -632,7 +633,8 @@ f_worker :: (_: *void) {
 				extra = with;
 			}
 			r: Api_Response;
-			if file_status == 0 r = api_call(j.client, j.method, j.path, cast([]u8) body, ifx body then "application/json" else "", j.context_b64, extra, j.retries, 1);
+			ct := ifx j.op == .Sticker_Upload then multipart_type(body) else ifx body then "application/json" else "";
+			if file_status == 0 r = api_call(j.client, j.method, j.path, cast([]u8) body, ct, j.context_b64, extra, j.retries, 1);
 			res := Feature_Result.{op = j.op, tag = j.tag, channel_id = j.channel_id, ok = r.ok, status = r.status, body = r.body, arena = r.arena, client = j.client};
 			if file_status != 0 res.status = file_status; // the file couldn't be read / is too large
 			locks.lock(*fpool.mu);

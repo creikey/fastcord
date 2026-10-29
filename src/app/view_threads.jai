@@ -344,7 +344,7 @@ features_receive_of :: (c: *dc.Client) {
 			guild_admin_receive(r);
 		case .Sound_Upload; #through; case .Sound_Edit; #through; case .Sound_Delete;
 			sound_settings_receive(r); // view_server_soundboard.jai
-		case .Guild_Edit;
+		case .Guild_Edit; #through; case .Sticker_Upload;
 			if app.client != null dc.guild_admin_apply(app.client, r);
 			server_settings_receive(r); // view_server_settings.jai
 		}

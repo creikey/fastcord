@@ -112,3 +112,50 @@ engagement_body :: (f: Engagement_Form) -> string {
 widget_body :: (enabled: bool, channel_id: Snowflake) -> string {
 	return tprint("{\"enabled\":%,\"channel_id\":%}", enabled, ifx channel_id then tprint("\"%\"", channel_id) else "null");
 }
+
+// ---- Stickers: POST /guilds/{id}/stickers (multipart: name, tags, description, file) ----
+
+STICKER_MAX_BYTES :: 512 * 1024;
+
+// upload_sticker: the file is read and checked on the feature worker (sticker_job_body).
+upload_sticker :: (c: *Client, guild_id: Snowflake, path: string, name: string, tags: string, description: string) {
+	f_submit(c, .{op = .Sticker_Upload, channel_id = guild_id, method = "POST", path = tprint("/guilds/%/stickers", guild_id), body = tprint("%\n%\n%", name, tags, description), file = path});
+}
+
+// sticker_job_body (feature worker): the multipart body Chrome's FormData writes, under a
+// ----WebKitFormBoundary<16> boundary. fields: name, tags and description, one per line.
+// status: -1 not a PNG, APNG, GIF or Lottie JSON file, -2 over 512 KB.
+sticker_job_body :: (path: string, fields: string) -> string, []http.Header, int {
+	lower := to_lower_copy(path,, temp);
+	mime := ifx ends_with(lower, ".png") || ends_with(lower, ".apng") then "image/png" else ifx ends_with(lower, ".gif") then "image/gif" else ifx ends_with(lower, ".json") then "application/json" else "";
+	if !mime return "", .[], -1;
+	data, ok := read_entire_file(path, log_errors = false,, temp);
+	if !ok || !data return "", .[], -1;
+	if data.count > STICKER_MAX_BYTES return "", .[], -2;
+	parts := split(fields, "\n",, temp);
+	if parts.count != 3 return "", .[], -1;
+	ALNUM :: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+	r: [16]u8;
+	crypto.random_bytes(r);
+	boundary: [16]u8;
+	for r boundary[it_index] = ALNUM[it % ALNUM.count];
+	b := tprint("----WebKitFormBoundary%", cast(string) boundary);
+	base := path;
+	slash := find_index_of_any_from_right(base, "/\\");
+	if slash >= 0 base = advance(base, slash + 1);
+	sb: String_Builder;
+	sb.allocator = temp;
+	names :: string.["name", "tags", "description"];
+	for names print_to_builder(*sb, "--%\r\nContent-Disposition: form-data; name=\"%\"\r\n\r\n%\r\n", b, it, parts[it_index]);
+	print_to_builder(*sb, "--%\r\nContent-Disposition: form-data; name=\"file\"; filename=\"%\"\r\nContent-Type: %\r\n\r\n", b, replace(base, "\"", "%22",, temp), mime);
+	append(*sb, data);
+	print_to_builder(*sb, "\r\n--%--\r\n", b);
+	return builder_to_string(*sb,, temp), .[], 0;
+}
+
+// The Content-Type of a body sticker_job_body wrote (its first line names the boundary).
+multipart_type :: (body: string) -> string {
+	end := find_index_from_left(body, "\r\n");
+	if !begins_with(body, "--") || end < 0 return "";
+	return tprint("multipart/form-data; boundary=%", slice(body, 2, end - 2));
+}

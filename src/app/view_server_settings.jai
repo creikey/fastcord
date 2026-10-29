@@ -93,6 +93,18 @@ server_settings_receive :: (r: *dc.Feature_Result) {
 	app.ui.animating = true;
 	g := dc.guild_get(store(), ss.guild);
 	if !g return;
+	if r.op == .Sticker_Upload {
+		ss.busy = false;
+		if r.ok {
+			ui.editor_set_text(*ss.hook_name, "");
+			ui.editor_set_text(*ss.tag, "");
+			ui.editor_set_text(*ss.words, "");
+			ss_set(*ss.sticker_file, "");
+		} else if r.status == -1 ss_error("Stickers must be PNG, APNG, GIF or Lottie JSON files.");
+		else if r.status == -2 ss_error("That file is too large. Stickers must be under 512 KB.");
+		else ss_error(settings_result_error(r));
+		return;
+	}
 	if r.op == .Guild_Edit {
 		ss.icon_busy = false;
 		if r.ok return; // GUILD_UPDATE shows it
@@ -366,7 +378,8 @@ ss: struct {
 	declined: dc.Snowflake; // the guild whose ownership offer was answered or put off this session
 	comm: Community_Form; // Community
 	require_rules: bool; // Access
-	tag: ui.Editor; // Server Tag; Invites: the custom invite link's code
+	tag: ui.Editor; // Server Tag; Invites: the custom invite link's code; Stickers: related emoji
+	sticker_file: string; // heap: Stickers' chosen file
 	words: ui.Editor; // Safety Setup: Block Custom Words; Server Template: its description
 	hook_id: dc.Snowflake; // Integrations: the webhook open for editing
 	hook_name: ui.Editor; // its name; Server Template: the title
@@ -540,7 +553,9 @@ section_shown :: (g: *dc.Guild, s: Server_Section) -> bool {
 		return has(p, dc.PERM_MANAGE_GUILD);
 	case .Tag;
 		return has(p, dc.PERM_MANAGE_GUILD) && dc.guild_has_feature(g, "GUILD_TAGS") && !on_hosted();
-	case .Emoji; #through; case .Stickers; #through; case .Soundboard;
+	case .Stickers;
+		return has(p, dc.PERM_MANAGE_GUILD_EXPRESSIONS | dc.PERM_CREATE_GUILD_EXPRESSIONS) && !on_hosted(); // serve keeps no stickers yet
+	case .Emoji; #through; case .Soundboard;
 		return has(p, dc.PERM_MANAGE_GUILD_EXPRESSIONS | dc.PERM_CREATE_GUILD_EXPRESSIONS);
 	case .Members;
 		return has(p, dc.PERM_MANAGE_GUILD | dc.PERM_MANAGE_ROLES | dc.PERM_KICK_MEMBERS | dc.PERM_BAN_MEMBERS | dc.PERM_MODERATE_MEMBERS | dc.PERM_MANAGE_NICKNAMES);
@@ -569,7 +584,7 @@ page_exists :: (s: Server_Section) -> bool {
 	if s == {
 	case .Profile; #through; case .Engagement; #through; case .Members; #through; case .Invites; #through; case .Bans; #through;
 	case .Emoji; #through; case .Audit_Log; #through; case .Delete; #through; case .Soundboard; #through; case .Roles; #through; case .Safety; #through; case .Integrations; #through; case .Templates; #through;
-	case .Community; #through; case .Access; #through; case .Tag;
+	case .Community; #through; case .Access; #through; case .Tag; #through; case .Stickers;
 		return true;
 	}
 	return false;
@@ -607,6 +622,8 @@ page_body :: (g: *dc.Guild, s: Server_Section, w: float32) -> bool {
 		access_page(g);
 	case .Tag;
 		tag_page(g);
+	case .Stickers;
+		stickers_page(g);
 	case .Soundboard;
 		sound_settings_page(g, w); // view_server_soundboard.jai
 	}
@@ -661,7 +678,7 @@ form_reset :: (g: *dc.Guild) {
 	if ss.section == .Roles role_reset(g);
 	ss.comm = community_form_of(g);
 	saved, on := saved_rules();
-	if reply(.Verification) { ui.editor_set_text(*ss.words, saved); ss.require_rules = on; }
+	if ss.section == .Access && reply(.Verification) { ui.editor_set_text(*ss.words, saved); ss.require_rules = on; }
 	if ss.section == .Tag && r ui.editor_set_text(*ss.tag, dc.fstr(dc.vmap(r.body), "tag"));
 	v := reply(.Vanity);
 	if ss.section == .Invites ui.editor_set_text(*ss.tag, ifx v then dc.fstr(dc.vmap(v.body), "code") else g.vanity_url_code);
@@ -1638,7 +1655,7 @@ ss_action :: (g: *dc.Guild, after: Req, method: string, path: string, body := ""
 	dc.guild_settings_call(app.client, g.id, xx Req.Action, method, path, body, reason);
 }
 
-SS_Confirm :: enum u8 { None; Revoke_Invite; Revoke_Ban; Delete_Emoji; Timeout; Transfer; Delete_Server; Pause_Invites; Delete_Role; Delete_Rule; Delete_Webhook; Delete_Template; }
+SS_Confirm :: enum u8 { None; Revoke_Invite; Revoke_Ban; Delete_Emoji; Timeout; Transfer; Delete_Server; Pause_Invites; Delete_Role; Delete_Rule; Delete_Webhook; Delete_Template; Delete_Sticker; }
 
 ss_confirm_open :: (kind: SS_Confirm, id: dc.Snowflake, text: string) {
 	ss.confirm, ss.confirm_id = kind, id;
@@ -1668,6 +1685,7 @@ ss_confirm_modal :: (g: *dc.Guild) {
 	case .Delete_Rule; title, body, button = "Delete Rule", tprint("Are you sure you want to delete the rule %? This cannot be undone.", t), "Delete";
 	case .Delete_Webhook; title, body, button = "Delete Webhook", tprint("Are you sure you want to delete %? This action cannot be undone.", t), "Delete";
 	case .Delete_Template; title, body, button = "Delete Template", "Are you sure you want to delete this template? Its link will stop working.", "Delete Template";
+	case .Delete_Sticker; title, body, button = "Delete Sticker", tprint("Are you sure you want to delete %? This cannot be undone.", t), "Delete";
 	}
 	if !adm_modal_begin("ssconfirm", 440, title) {
 		ss.confirm = .None;
@@ -1751,6 +1769,7 @@ ss_confirm_modal :: (g: *dc.Guild) {
 	case .Delete_Rule; ss_action(g, .Automod, "DELETE", tprint("/guilds/%/auto-moderation/rules/%", g.id, id));
 	case .Delete_Webhook; ss.hook_id = 0; ss_action(g, .Webhooks, "DELETE", tprint("/webhooks/%", id));
 	case .Delete_Template; ss_action(g, .Templates, "DELETE", tprint("/guilds/%/templates/%", g.id, t));
+	case .Delete_Sticker; ss_action(g, .COUNT, "DELETE", tprint("/guilds/%/stickers/%", g.id, id));
 	case .Pause_Invites;
 		hours := PAUSE_HOURS[ss.confirm_pick];
 		ss_action(g, .COUNT, "PUT", tprint("/guilds/%/incident-actions", g.id), tprint("{\"invites_disabled_until\":\"%\",\"dms_disabled_until\":null,\"lockdown_duration_hours\":%}", dc.ms_to_iso(wall_ms() + hours * 3600_000), hours));
@@ -2790,6 +2809,83 @@ vanity_block :: (g: *dc.Guild) {
 	code := trim(ui.editor_text(*ss.tag));
 	saved := ifx r then dc.fstr(dc.vmap(r.body), "code") else g.vanity_url_code;
 	if set_button("Save##vsave", .Primary, code != saved && !ss.busy) ss_action(g, .Vanity, "PATCH", tprint("/guilds/%/vanity-url", g.id), tprint("{\"code\":%}", ifx code then dc.json_quote(code) else "null"));
+}
+
+// ---- Stickers ----
+
+stickers_page :: (g: *dc.Guild) {
+	page_subtitle("Stickers can be used by anyone in this server. Upload a PNG, APNG, GIF or Lottie JSON file of up to 512 KB; it shows at 320x320.");
+	section_heading("upload", "Upload Sticker", "");
+	field_title("Name");
+	if set_input("sname", *ss.hook_name, "Name your sticker", max_runes = 30) == .Escape ss.field_escape = true;
+	spacer(.Y, 12);
+	field_title("Related Emoji");
+	if set_input("stags", *ss.tag, "An emoji name, like smile", max_runes = 200) == .Escape ss.field_escape = true;
+	spacer(.Y, 12);
+	field_title("Description");
+	if set_input("sdesc", *ss.words, "Describe your sticker", max_runes = 100) == .Escape ss.field_escape = true;
+	spacer(.Y, 12);
+	fr := row("file");
+	fr.semantic_size = .[ui.pct(1), ui.px(38)];
+	fr.style.child_gap = 12;
+	{ ui.parent(fr); defer ui.pop_parent();
+		if set_button("Browse##browse", .Secondary, !ss.busy) {
+			paths := pick_files();
+			if paths.count ss_set(*ss.sticker_file, paths[0]);
+		}
+		f := ss.sticker_file;
+		slash := find_index_of_any_from_right(f, "/\\");
+		label(ifx f then advance(f, slash + 1) else "No file chosen", .Normal, 14, T("--text-muted"), 18);
+	}
+	spacer(.Y, 12);
+	one_line :: (s: string) -> string { return trim(replace(s, "\n", " ",, temp)); }
+	name, tags := one_line(ui.editor_text(*ss.hook_name)), one_line(ui.editor_text(*ss.tag));
+	if set_button(ifx ss.busy then "Uploading...##up" else "Upload##up", .Primary, name.count >= 2 && tags.count > 0 && ss.sticker_file != "" && !ss.busy) && net_action() {
+		ss.busy = true;
+		ss_error("");
+		dc.upload_sticker(app.client, g.id, ss.sticker_file, name, tags, one_line(ui.editor_text(*ss.words)));
+	}
+	set_divider();
+	label(tprint("% STICKERS — % SLOTS AVAILABLE", g.stickers.count, max(0, 5 - g.stickers.count)), .Bold, 12, T("--text-muted"), 16);
+	spacer(.Y, 12);
+	if !g.stickers.count { ss_empty("No stickers yet"); return; }
+	table_units(.[1, 3, 4]);
+	for s: g.stickers {
+		ui.id_scope(cast(u64) s.id);
+		defer ui.pop_seed();
+		table_row_begin("s");
+		defer ui.pop_parent();
+		{ c := table_cell(0, 1); ui.parent(c); defer ui.pop_parent(); sticker_box("img", .{id = s.id, name = s.name, format_type = s.format_type, guild = g.id}, 44, false); }
+		{
+			c := table_cell(1, 3); ui.parent(c); defer ui.pop_parent();
+			if ss.rename_emoji == s.id {
+				col := ui.box("ed");
+				col.semantic_size = .[ui.fill(), ui.children()];
+				col.layout_axis = .Y;
+				ui.parent(col); defer ui.pop_parent();
+				res := set_input("name", *ss.rename, s.name, max_runes = 30, autofocus = true);
+				if res == .Escape ss.rename_emoji = 0;
+				if res == .Submit {
+					name := trim(ui.editor_text(*ss.rename));
+					if name != s.name && name.count >= 2 ss_action(g, .COUNT, "PATCH", tprint("/guilds/%/stickers/%", g.id, s.id), tprint("{\"name\":%}", dc.json_quote(name)));
+					ss.rename_emoji = 0;
+				}
+			} else {
+				nb := row("name", .Clickable);
+				nb.semantic_size = .[ui.fill(), ui.px(52)];
+				nb.hover_cursor = .IBeam;
+				if ui.signal(nb).clicked {
+					ss.rename_emoji = s.id;
+					ui.editor_set_text(*ss.rename, s.name);
+					app.ui.focus = 0;
+				}
+				ui.parent(nb); defer ui.pop_parent();
+				label(s.name, .Medium, 14, T("--text-strong"), 18);
+			}
+		}
+		{ c := table_cell(2, 4); ui.parent(c); defer ui.pop_parent(); label(s.description, .Normal, 14, T("--text-muted"), 18); }
+		if row_icon_button("del", "x-small", danger = true) ss_confirm_open(.Delete_Sticker, s.id, s.name);
+	}
 }
 
 #scope_export
