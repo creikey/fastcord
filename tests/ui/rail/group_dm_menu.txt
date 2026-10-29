@@ -1,0 +1,20 @@
+# Run with -fixture:tests/ui/rail.jsonl. Right-clicking a group DM row opens its menu; Leave Group, like the
+# row's X, asks first.
+wait 5
+click 36 52
+wait 10
+rclick 180 203
+wait 5
+expect_visible "Mark As Read"
+click_text "Leave Group"
+wait 5
+expect_visible "Leave Group"
+shot build/ui-group_dm_menu-leave.png
+click_text "Cancel"
+wait 5
+expect_not_visible "Leave Group"
+move 200 203
+wait 3
+click 348 203
+wait 5
+expect_visible "Leave Group"

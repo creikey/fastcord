@@ -132,6 +132,7 @@ dm_row :: (ch: *dc.Channel) {
 		if sig.clicked { select_channel(0, ch.id, prefetch = true); }
 		// 1:1 DM rows: the user menu (Add Friend, friend nickname, ...)
 		if sig.right_clicked && ch.kind == .DM && ch.recipient_ids.count > 0 { open_user_menu(ch.recipient_ids[0], app.ui.mouse, dm_row = true); }
+		if sig.right_clicked && ch.kind == .Group_DM { group_dm_menu_open(ch.id, app.ui.mouse); }
 		unread := dc.channel_unread(store(), ch.id);
 		color := ifx selected || sig.hovering || unread then T("--interactive-text-active") else T("--channels-default");
 		{ ui.parent(item); defer ui.pop_parent();
@@ -155,7 +156,7 @@ dm_row :: (ch: *dc.Channel) {
 				}
 			}
 			mentions := channel_mentions(ch.id);
-			if mentions > 0 && !selected && !sig.hovering && !notify_prefs.lotus {
+			if mentions > 0 && !selected && !ui.mouse_over(item) && !notify_prefs.lotus {
 				text := ifx mentions > 99 then "99+" else tprint("%", mentions);
 				b := ui.box(tprint("%##count", text), .Draw_Background | .Draw_Text);
 				b.semantic_size = .[ui.px(max(16.0, cast(float32) text.count * 7 + 8)), ui.px(16)];
@@ -167,13 +168,15 @@ dm_row :: (ch: *dc.Channel) {
 				b.style.text_align = .Center;
 				spacer(.X, 6);
 			}
-			if selected || sig.hovering {
-				// close DM / leave group: DELETE /channels/{id}
+			if selected || ui.mouse_over(item) { // not sig.hovering: that ends while the X itself is hovered
+				// close DM: DELETE /channels/{id}; a group DM asks first (Leave Group)
 				x := ui.box("close", .Clickable);
 				x.semantic_size = .[ui.px(16), ui.px(16)];
 				xs := ui.signal(x);
 				set_icon(x, "x-small", ifx xs.hovering then T("--interactive-icon-hover") else T("--interactive-icon-default"));
-				if xs.clicked && net_action() {
+				if xs.clicked && ch.kind == .Group_DM {
+					leave_group_open(ch.id);
+				} else if xs.clicked && net_action() {
 					dc.close_private_channel(app.client, ch.id);
 					if selected { select_channel(0, 0); }
 				}
