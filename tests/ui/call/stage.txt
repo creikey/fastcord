@@ -1,0 +1,11 @@
+# A stage's call view: speakers as tiles, the audience in a strip below with a raised hand marked; a
+# moderator's menu on an audience member offers Invite to Speak.
+wait 5
+click_text "Town Hall"
+wait 10
+expect_visible "AUDIENCE — 1"
+shot build/ui-call_stage_view.png
+rclick 500 612
+wait 5
+expect_visible "Invite to Speak"
+shot build/ui-call_stage_menu.png

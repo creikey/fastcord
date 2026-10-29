@@ -39,14 +39,18 @@ call_view :: (cid: dc.Snowflake) {
 	ids.allocator = temp;
 	for vs, uid: s.voice_states if vs.channel_id == cid array_add(*ids, uid);
 	quick_sort(ids, (a: dc.Snowflake, b: dc.Snowflake) -> s64 { return ifx a < b then -1 else ifx a > b then 1 else 0; });
-	// streams first, then cameras / avatars (ours leads each group)
+	// streams first, then cameras / avatars (ours leads each group); a stage's audience goes in a strip below
+	ch := dc.channel_get(s, cid);
+	stage := ch && ch.kind == .Guild_Stage_Voice;
+	audience: [..]dc.Snowflake;
+	audience.allocator = temp;
 	for pass: 0..1 for ids {
 		vs := table_find_pointer(*s.voice_states, it);
+		if stage && vs.suppress { if pass == 1 array_add(*audience, it); continue; }
 		if pass == 0 && (vs.self_stream || (it == s.me && screen_sharing())) array_add(*tiles, .{user = it, stream = true});
 		if pass == 1 array_add(*tiles, .{user = it});
 	}
 	// a DM call also shows who isn't in it, to ring them
-	ch := dc.channel_get(s, cid);
 	if ch && ch.guild_id == 0 && app.voice_channel == cid for ch.recipient_ids if !array_find(ids, it) array_add(*tiles, .{user = it, absent = true});
 	if cv.focus_user {
 		found := false;
@@ -76,11 +80,15 @@ call_view :: (cid: dc.Snowflake) {
 				r.semantic_size = .[ui.pct(1), ui.px(20)];
 				ui.parent(r); defer ui.pop_parent();
 				filler(.X);
-				label("No one's here yet", .Medium, 16, T("--text-muted"), 20);
+				label(ifx stage && audience.count then "No one is speaking yet" else "No one's here yet", .Medium, 16, T("--text-muted"), 20);
 				filler(.X);
 			} else {
 				place_tiles(tiles, aw, ah);
 			}
+		}
+		if stage {
+			stage_invite_banner(ch);
+			if audience.count stage_audience(audience);
 		}
 		call_controls(cid);
 	}
@@ -125,6 +133,11 @@ dm_call_banner :: (ch: *dc.Channel) {
 		spacer(.X, 16);
 	}
 	spacer(.X, 16);
+}
+
+// stage_moderator: Mute Members, Move Members and Manage Channels in the stage, as Discord's stage moderators.
+stage_moderator :: (cid: dc.Snowflake) -> bool {
+	return dc.has_permission(dc.channel_permissions(call_store(), cid), dc.PERM_MUTE_MEMBERS | dc.PERM_MOVE_MEMBERS | dc.PERM_MANAGE_CHANNELS);
 }
 
 // The screen share picker: screens and windows (names; ScreenCaptureKit lists them asynchronously).
@@ -491,6 +504,7 @@ call_controls :: (cid: dc.Snowflake) {
 	smute, sdeaf := server_muted();
 	mic_off := app.self_mute || app.self_deaf || smute || sdeaf;
 	if control("mic", ifx mic_off then "microphone-slash" else "microphone", mic_off, false, true) toggle_self_mute();
+	stage_controls(cid);
 	spacer(.X, 8);
 	// video.camera_supported asks AVFoundation, which TCC may kill us for: only on click
 	if control("camera", "video", false, camera_on(), can_video && video.SUPPORTED) camera_toggle();
@@ -546,6 +560,83 @@ effect_bar :: (anchor: ui.Rect) {
 		spacer(.Y, 6);
 		emoji_box("em", .{name = it}, 28);
 	}
+}
+
+// stage_controls: on a stage, the audience's Request to Speak (Lower Hand once raised; a moderator speaks at
+// once), and a speaker's Move to Audience.
+stage_controls :: (cid: dc.Snowflake) {
+	ch := dc.channel_get(call_store(), cid);
+	if !ch || ch.kind != .Guild_Stage_Voice return;
+	me := table_find_pointer(*call_store().voice_states, call_store().me);
+	if !me || me.channel_id != cid return;
+	text := "Move to Audience";
+	if me.suppress text = ifx stage_moderator(cid) then "Speak" else ifx me.requested_to_speak then "Lower Hand" else "Request to Speak";
+	if !me.suppress || stage_moderator(cid) || dc.has_permission(dc.channel_permissions(call_store(), cid), dc.PERM_REQUEST_TO_SPEAK) {
+		spacer(.X, 8);
+		b := row("stage", .Clickable | .Draw_Background | .Hot_Animation);
+		b.semantic_size = .[ui.children(), ui.px(48)];
+		b.style.radius = all4(12);
+		b.style.bg = ifx me.requested_to_speak && me.suppress then T("--background-brand") else T("--background-surface-highest");
+		b.style.bg_hot = T("--background-mod-normal");
+		if ui.signal(b).clicked && net_action() {
+			if !me.suppress || stage_moderator(cid) dc.stage_set_suppress(call_client(), ch.guild_id, cid, call_store().me, !me.suppress);
+			else { dc.stage_request_to_speak(call_client(), ch.guild_id, cid, !me.requested_to_speak); vc_hand_raised(!me.requested_to_speak); }
+		}
+		ui.parent(b); defer ui.pop_parent();
+		spacer(.X, 16);
+		label(text, .Semibold, 14, T("--text-strong"), 18);
+		spacer(.X, 16);
+	}
+}
+
+// stage_audience: the stage's listeners as small avatars, a raised hand marked, under the speakers.
+stage_audience :: (ids: []dc.Snowflake) {
+	r := row("audience");
+	r.semantic_size = .[ui.pct(1), ui.px(56)];
+	ui.parent(r); defer ui.pop_parent();
+	spacer(.X, CALL_PAD);
+	label(tprint("AUDIENCE — %", ids.count), .Semibold, 12, T("--text-muted"), 16);
+	spacer(.X, 12);
+	for ids {
+		ui.id_scope(cast(u64) it); defer ui.pop_seed();
+		vs := table_find_pointer(*store().voice_states, it);
+		b := ui.box("a", .Clickable);
+		b.semantic_size = .[ui.px(40), ui.px(40)];
+		sig := ui.signal(b);
+		if sig.right_clicked open_voice_user_menu(it, app.ui.mouse);
+		if sig.clicked open_profile(it, b.rect);
+		{
+			ui.parent(b); defer ui.pop_parent();
+			voice_avatar("av", it, 40, .{0, 0, 0, 1});
+			if vs && vs.requested_to_speak {
+				// a raised hand
+				h := ui.box("hand", .Draw_Background | .Floating_X | .Floating_Y);
+				h.semantic_size = .[ui.px(14), ui.px(14)];
+				h.fixed_pos = .{28, -2};
+				h.style.bg = T("--background-brand");
+				h.style.radius = all4(7);
+			}
+		}
+		if sig.hovering tooltip_below(tprint("%%", dc.user_name(store(), it, vs.guild_id, "unknown"), ifx vs && vs.requested_to_speak then " (requested to speak)" else ""), b.rect, above = true);
+		spacer(.X, 8);
+	}
+}
+
+// stage_invite_banner: a moderator invited us to speak (our hand is up, but we didn't raise it): Accept or Decline.
+stage_invite_banner :: (ch: *dc.Channel) {
+	me := table_find_pointer(*call_store().voice_states, call_store().me);
+	if !me || me.channel_id != ch.id || !me.suppress || !me.requested_to_speak || vc_hand_raised_get() return;
+	r := row("invite", .Draw_Background);
+	r.semantic_size = .[ui.pct(1), ui.px(48)];
+	r.style.bg = T("--background-surface-high");
+	ui.parent(r); defer ui.pop_parent();
+	spacer(.X, 16);
+	label("You've been invited to speak", .Semibold, 14, T("--text-strong"), 18);
+	filler(.X);
+	if set_button("Decline##stdecline", .Secondary, true, 32) && net_action() dc.stage_request_to_speak(call_client(), ch.guild_id, ch.id, false);
+	spacer(.X, 8);
+	if set_button("Accept##staccept", .Positive, true, 32) && net_action() dc.stage_set_suppress(call_client(), ch.guild_id, ch.id, call_store().me, false);
+	spacer(.X, 16);
 }
 
 // A 56x48 control: red when danger (muted / disconnect), white when on.

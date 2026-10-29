@@ -287,6 +287,8 @@ Voice_State :: struct {
 	guild_id: Snowflake;
 	session_id: string;
 	self_mute, self_deaf, mute, deaf, self_video, self_stream: bool;
+	suppress: bool;          // a stage's audience (not a speaker)
+	requested_to_speak: bool; // a stage's raised hand (request_to_speak_timestamp set), or an invitation to speak
 }
 
 Relationship :: struct {

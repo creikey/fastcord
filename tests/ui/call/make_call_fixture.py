@@ -32,6 +32,6 @@ for l in open(os.path.join(ui, 'chat.jsonl')):
             return v
         a, b, c = extra
         g['voice_states'] = [vs(me, mute=True),vs(others[0], self_stream=True), vs(others[1], self_mute=True), vs(1000000000020971521),
-                             vs(a, LIMITED), vs(b, STAGE), vs(c, STAGE, suppress=True)]
+                             vs(a, LIMITED), vs(b, STAGE), vs(c, STAGE, suppress=True, request_to_speak_timestamp='2026-10-29T08:00:00.000000+00:00')]
     out.append(json.dumps(o))
 open(os.path.join(here, 'call.jsonl'), 'w').write('\n'.join(out) + '\n')

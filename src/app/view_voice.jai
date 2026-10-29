@@ -184,6 +184,10 @@ voice_frame :: () {
 	if vc.conn != null {
 		// A server mute or deafen also stops sending and playing here; op 4 keeps only our own choice.
 		smute, sdeaf := server_muted();
+		// a stage's audience sends nothing
+		me := table_find_pointer(*s.voice_states, s.me);
+		if me && me.channel_id == app.voice_channel && me.suppress && is_stage(app.voice_channel) smute = true;
+		else vc.hand_raised = false;
 		voice.set_self_mute(vc.conn, app.self_mute || app.self_deaf || smute || sdeaf);
 		voice.set_self_deaf(vc.conn, app.self_deaf || sdeaf);
 	}
@@ -245,6 +249,8 @@ voice_frame :: () {
 }
 
 voice_is_speaking :: (uid: dc.Snowflake) -> bool { return table_contains(*vc.speaking, uid); }
+vc_hand_raised :: (on: bool) { vc.hand_raised = on; }
+vc_hand_raised_get :: () -> bool { return vc.hand_raised; }
 
 // server_muted / server_deafened: a moderator muted or deafened us in the call (our voice state's mute / deaf).
 server_muted :: () -> bool, deafened: bool {
@@ -662,6 +668,7 @@ Voice_App :: struct {
 		target: video.Screen_Target;
 		until: s64;
 	};
+	hand_raised: bool; // we raised our hand on this stage (else a raised hand is a moderator's invitation)
 	info_open: bool; // the panel's connection info
 	info_anchor: ui.Rect;
 	restore_camera, restore_screen: bool; // Rejoin turns these back on once connected

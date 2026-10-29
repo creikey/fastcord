@@ -772,7 +772,9 @@ apply_voice_state :: (s: *Store, m: etf.Map, guild_hint: Snowflake = 0) {
 		mute = fbool(m, "mute"),
 		deaf = fbool(m, "deaf"),
 		self_video = fbool(m, "self_video"),
-		self_stream = fbool(m, "self_stream")
+		self_stream = fbool(m, "self_stream"),
+		suppress = fbool(m, "suppress"),
+		requested_to_speak = vget(m, "request_to_speak_timestamp").kind == .String
 	});
 }
 

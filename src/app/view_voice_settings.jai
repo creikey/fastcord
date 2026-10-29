@@ -378,6 +378,15 @@ voice_user_menu :: () {
 			dc.set_member_voice(app.client, v.guild_id, uid, tprint("{\"mute\":%}", !v.mute));
 		if can_deafen && menu_item("sdeaf", "Server Deafen", ifx v.deaf then .Check_On else .Check_Off, danger = true).clicked && net_action()
 			dc.set_member_voice(app.client, v.guild_id, uid, tprint("{\"deaf\":%}", !v.deaf));
+		ch := dc.channel_get(st, v.channel_id);
+		if ch && ch.kind == .Guild_Stage_Voice && stage_moderator(v.channel_id) {
+			// a stage's audience is invited to speak; a speaker goes back to the audience
+			if menu_item("stage", ifx v.suppress then "Invite to Speak" else "Move to Audience").clicked {
+				vs.menu_user = 0;
+				if net_action() dc.stage_set_suppress(app.client, v.guild_id, v.channel_id, uid, !v.suppress);
+				return;
+			}
+		}
 		if can_move {
 			if menu_item("disconnect", "Disconnect", danger = true).clicked {
 				vs.menu_user = 0;

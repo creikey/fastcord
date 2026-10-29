@@ -121,7 +121,7 @@ guild_admin_receive :: (r: *dc.Feature_Result) {
 		if r.ok {
 			// the client opens a new text or forum channel (voice: no)
 			adm.pending_select = dc.fsnow(dc.vmap(r.body), "id");
-			if adm.kind == .Guild_Voice adm.pending_select = 0;
+			if adm.kind == .Guild_Voice || adm.kind == .Guild_Stage_Voice adm.pending_select = 0;
 			admin_close();
 		}
 	case .Channel_Edit;
@@ -484,7 +484,7 @@ create_channel_modal :: () {
 		];
 		// Announcement and Stage need a Community server, as in the client
 		g := dc.guild_get(store(), adm.guild);
-		community := g && array_find(g.features, "COMMUNITY");
+		community := (g && array_find(g.features, "COMMUNITY")) || (app.client && app.client.cfg.hosted.host != ""); // and every hosted server
 		opts := array_view(ALL, 0, ifx community then ALL.count else 3);
 		for o: opts {
 			selected := adm.kind == o.kind;

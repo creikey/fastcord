@@ -780,6 +780,28 @@ set_member_voice :: (c: *Client, guild_id: Snowflake, user_id: Snowflake, body: 
 	job_submit(c, j);
 }
 
+// Stages: PATCH /guilds/{id}/voice-states/@me {channel_id, request_to_speak_timestamp: now | null} raises or
+// lowers our hand, {channel_id, suppress} makes us a speaker or moves us to the audience; on someone else,
+// /voice-states/{user} {channel_id, suppress: false} invites them to speak (Discord makes it an invitation they
+// accept with their own suppress: false) and true moves them to the audience.
+stage_request_to_speak :: (c: *Client, guild_id: Snowflake, channel_id: Snowflake, raise: bool) {
+	stage_patch(c, guild_id, "@me", tprint("{\"channel_id\":\"%\",\"request_to_speak_timestamp\":%}", channel_id,
+		ifx raise then tprint("\"%\"", ms_to_iso(now_ms())) else "null"));
+}
+
+stage_set_suppress :: (c: *Client, guild_id: Snowflake, channel_id: Snowflake, user_id: Snowflake, suppress: bool) {
+	stage_patch(c, guild_id, ifx user_id == c.store.me then "@me" else tprint("%", user_id), tprint("{\"channel_id\":\"%\",\"suppress\":%}", channel_id, suppress));
+}
+
+stage_patch :: (c: *Client, guild_id: Snowflake, who: string, body: string) {
+	j := job_new(.Api, .None);
+	j.method = "PATCH";
+	j.path = job_str(j, tprint("/guilds/%/voice-states/%", guild_id, who));
+	j.body = cast([]u8) job_str(j, body);
+	j.content_type = "application/json";
+	job_submit(c, j);
+}
+
 ban_member :: (c: *Client, guild_id: Snowflake, user_id: Snowflake, reason: string, delete_message_seconds := 0) {
 	j := job_new(.Api, .None);
 	j.method = "PUT";

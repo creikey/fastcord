@@ -34,6 +34,7 @@ PERM_USE_SOUNDBOARD :: (cast(u64) 1) << 42;
 PERM_USE_EXTERNAL_SOUNDS :: (cast(u64) 1) << 45;
 PERM_MANAGE_ROLES :: (cast(u64) 1) << 28;
 PERM_MANAGE_GUILD_EXPRESSIONS :: (cast(u64) 1) << 30;
+PERM_REQUEST_TO_SPEAK :: (cast(u64) 1) << 32;
 PERM_MANAGE_EVENTS :: (cast(u64) 1) << 33;
 PERM_MANAGE_THREADS :: (cast(u64) 1) << 34;
 PERM_CREATE_PUBLIC_THREADS :: (cast(u64) 1) << 35;
