@@ -341,7 +341,6 @@
 - [ ] Video: no camera background blur. The official client can blur the room behind you (custom background images are Nitro-only, blur and the presets aren't); fastcord sends the raw frame. Research a small vetted segmentation model, such as MediaPipe's selfie segmenter (Apache-2.0), run on the CPU within the camera's frame budget, with the mask computed at low resolution and upscaled.
 - [ ] Video: camera and screen device pickers (the default camera only; screens and windows are listed by name, no thumbnails), and stopping the share from the macOS menu bar isn't noticed.
 - [ ] Polls: render poll messages and let the user vote; today they show nothing.
-- [ ] Chat: a silent message looks like any other. The official client marks one sent with SUPPRESS_NOTIFICATIONS (flag 4096, `@silent`) with a crossed-out bell beside its timestamp, so readers know why they weren't pinged; fastcord's message header draws nothing for the flag (`view_chat.jai` `message_header`).
 - [ ] Group DMs: the owner crown is placed by guessing 8.2 px per character (`view_group_dm.jai`); no "beginning of history" header; 5 of the 8 default icon colours fall back to the brand colour.
 - [ ] History: no "You're viewing older messages / Jump to Present" bar and no jump-to-bottom button.
 - [ ] Markdown: clicking a slash-command or server page chip (`/name`, Channels & Roles, Browse Channels, Server Guide) does nothing; it should fill the composer or open that page.
@@ -682,3 +681,4 @@
 - [x] Composer: `@silent ` in front of a message sends it with SUPPRESS_NOTIFICATIONS and without the prefix, on Discord and hosted servers; serve keeps that flag (and SUPPRESS_EMBEDS) on a send (`view_message_actions.jai` `composer_send`, `serve` `channel_messages`).
 - [x] Messages: Forward, from the message menu and hover bar, sends a message to one channel or DM of the same connection with an optional note sent after it; serve takes forwards and keeps a frozen snapshot of the original (`forward.jai`, `actions.jai` `Send_Options.forward_message`, `serve` `forward_snapshot`). Several destinations at once, as the official picker allows, is not done.
 - [x] Forwards on hosted servers keep their files after the original is deleted: `snapshot_files` records the files a forward names, and a file goes only once its message and every forward naming it are gone (`serve` `drop_files`).
+- [x] Chat: a message sent silently (SUPPRESS_NOTIFICATIONS, `@silent`) shows a crossed-out bell after its timestamp (`view_chat.jai` `message_header`).

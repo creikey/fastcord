@@ -8,6 +8,8 @@ expect_visible "Release Bot"
 # An embed's fields show; its footer and timestamp, in local time, are checked in the shot.
 expect_visible "Duration"
 expect_visible "A wide field on its own row."
+# "build 1 passed" was sent silently: a crossed-out bell follows its timestamp in the shot.
+shot build/ui-app_tag-silent.png
 # Its name opens a popout with just the name and tag: no user to fetch, message or befriend.
 click_text "Release Bot"
 wait 10
