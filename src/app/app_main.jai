@@ -303,6 +303,7 @@ app_exit :: () {
 }
 
 app_exited: bool;
+soak_base: [2]int; // tests: images and textures at the soak script's mark
 
 frame :: () {
 	// Freed at the start, not the end: box texts and layouts of the last frame
@@ -670,6 +671,16 @@ script_command :: (path: string, f: []string, t: *float64, depth := 0) {
 		// pick gif <url> | pick sticker <id>: choose one in the open picker, as a click on it does
 		if f[1] == "gif" gif_select(.{id = "1", url = f[2]}, false);
 		else sticker_select(.{id = dc.parse_snowflake(f[2])}, false);
+		return;
+	case "soak_mark";
+		// soak_mark: what later expect_soak_growth compares with (images and GPU textures held)
+		soak_base = .[images.count, gfx.texture_count()];
+		return;
+	case "expect_soak_growth";
+		// expect_soak_growth <images> <textures>: at most this many more held than at soak_mark
+		grown := int.[images.count - soak_base[0], gfx.texture_count() - soak_base[1]];
+		print("soak: % images (% more than at the mark), % textures (% more)\n", images.count, grown[0], gfx.texture_count(), grown[1]);
+		if grown[0] > cast(int) num(f[1]) || grown[1] > cast(int) num(f[2]) script_fail(path, "expect_soak_growth failed: % more images, % more textures", grown[0], grown[1]);
 		return;
 	case "expect_images_at_most";
 		// expect_images_at_most <n>: images held (loaded or failed, textures and all)

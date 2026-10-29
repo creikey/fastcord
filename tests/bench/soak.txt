@@ -1,0 +1,347 @@
+# Soak: 20 cycles over the bench fixture (scroll the busy channel's history to the top and back, open
+# the DM, open and close the GIF and sticker pickers, go home). What it holds after the last cycle may
+# not have grown much past what it held after the second: leaks like textures never freed can't come
+# back. Played media isn't covered yet (the bench fixture has none).
+wait 30
+# cycle 1
+open 1600000000000100003
+wait 10
+move 700 400
+repeat 30 scroll 0 120
+repeat 30 scroll 0 -120
+open 1300000000000100001
+wait 10
+click 900 683
+wait 20
+key escape
+wait 5
+click 940 683
+wait 20
+key escape
+go_home
+wait 10
+# cycle 2
+open 1600000000000100003
+wait 10
+move 700 400
+repeat 30 scroll 0 120
+repeat 30 scroll 0 -120
+open 1300000000000100001
+wait 10
+click 900 683
+wait 20
+key escape
+wait 5
+click 940 683
+wait 20
+key escape
+go_home
+wait 10
+soak_mark
+# cycle 3
+open 1600000000000100003
+wait 10
+move 700 400
+repeat 30 scroll 0 120
+repeat 30 scroll 0 -120
+open 1300000000000100001
+wait 10
+click 900 683
+wait 20
+key escape
+wait 5
+click 940 683
+wait 20
+key escape
+go_home
+wait 10
+# cycle 4
+open 1600000000000100003
+wait 10
+move 700 400
+repeat 30 scroll 0 120
+repeat 30 scroll 0 -120
+open 1300000000000100001
+wait 10
+click 900 683
+wait 20
+key escape
+wait 5
+click 940 683
+wait 20
+key escape
+go_home
+wait 10
+# cycle 5
+open 1600000000000100003
+wait 10
+move 700 400
+repeat 30 scroll 0 120
+repeat 30 scroll 0 -120
+open 1300000000000100001
+wait 10
+click 900 683
+wait 20
+key escape
+wait 5
+click 940 683
+wait 20
+key escape
+go_home
+wait 10
+# cycle 6
+open 1600000000000100003
+wait 10
+move 700 400
+repeat 30 scroll 0 120
+repeat 30 scroll 0 -120
+open 1300000000000100001
+wait 10
+click 900 683
+wait 20
+key escape
+wait 5
+click 940 683
+wait 20
+key escape
+go_home
+wait 10
+# cycle 7
+open 1600000000000100003
+wait 10
+move 700 400
+repeat 30 scroll 0 120
+repeat 30 scroll 0 -120
+open 1300000000000100001
+wait 10
+click 900 683
+wait 20
+key escape
+wait 5
+click 940 683
+wait 20
+key escape
+go_home
+wait 10
+# cycle 8
+open 1600000000000100003
+wait 10
+move 700 400
+repeat 30 scroll 0 120
+repeat 30 scroll 0 -120
+open 1300000000000100001
+wait 10
+click 900 683
+wait 20
+key escape
+wait 5
+click 940 683
+wait 20
+key escape
+go_home
+wait 10
+# cycle 9
+open 1600000000000100003
+wait 10
+move 700 400
+repeat 30 scroll 0 120
+repeat 30 scroll 0 -120
+open 1300000000000100001
+wait 10
+click 900 683
+wait 20
+key escape
+wait 5
+click 940 683
+wait 20
+key escape
+go_home
+wait 10
+# cycle 10
+open 1600000000000100003
+wait 10
+move 700 400
+repeat 30 scroll 0 120
+repeat 30 scroll 0 -120
+open 1300000000000100001
+wait 10
+click 900 683
+wait 20
+key escape
+wait 5
+click 940 683
+wait 20
+key escape
+go_home
+wait 10
+# cycle 11
+open 1600000000000100003
+wait 10
+move 700 400
+repeat 30 scroll 0 120
+repeat 30 scroll 0 -120
+open 1300000000000100001
+wait 10
+click 900 683
+wait 20
+key escape
+wait 5
+click 940 683
+wait 20
+key escape
+go_home
+wait 10
+# cycle 12
+open 1600000000000100003
+wait 10
+move 700 400
+repeat 30 scroll 0 120
+repeat 30 scroll 0 -120
+open 1300000000000100001
+wait 10
+click 900 683
+wait 20
+key escape
+wait 5
+click 940 683
+wait 20
+key escape
+go_home
+wait 10
+# cycle 13
+open 1600000000000100003
+wait 10
+move 700 400
+repeat 30 scroll 0 120
+repeat 30 scroll 0 -120
+open 1300000000000100001
+wait 10
+click 900 683
+wait 20
+key escape
+wait 5
+click 940 683
+wait 20
+key escape
+go_home
+wait 10
+# cycle 14
+open 1600000000000100003
+wait 10
+move 700 400
+repeat 30 scroll 0 120
+repeat 30 scroll 0 -120
+open 1300000000000100001
+wait 10
+click 900 683
+wait 20
+key escape
+wait 5
+click 940 683
+wait 20
+key escape
+go_home
+wait 10
+# cycle 15
+open 1600000000000100003
+wait 10
+move 700 400
+repeat 30 scroll 0 120
+repeat 30 scroll 0 -120
+open 1300000000000100001
+wait 10
+click 900 683
+wait 20
+key escape
+wait 5
+click 940 683
+wait 20
+key escape
+go_home
+wait 10
+# cycle 16
+open 1600000000000100003
+wait 10
+move 700 400
+repeat 30 scroll 0 120
+repeat 30 scroll 0 -120
+open 1300000000000100001
+wait 10
+click 900 683
+wait 20
+key escape
+wait 5
+click 940 683
+wait 20
+key escape
+go_home
+wait 10
+# cycle 17
+open 1600000000000100003
+wait 10
+move 700 400
+repeat 30 scroll 0 120
+repeat 30 scroll 0 -120
+open 1300000000000100001
+wait 10
+click 900 683
+wait 20
+key escape
+wait 5
+click 940 683
+wait 20
+key escape
+go_home
+wait 10
+# cycle 18
+open 1600000000000100003
+wait 10
+move 700 400
+repeat 30 scroll 0 120
+repeat 30 scroll 0 -120
+open 1300000000000100001
+wait 10
+click 900 683
+wait 20
+key escape
+wait 5
+click 940 683
+wait 20
+key escape
+go_home
+wait 10
+# cycle 19
+open 1600000000000100003
+wait 10
+move 700 400
+repeat 30 scroll 0 120
+repeat 30 scroll 0 -120
+open 1300000000000100001
+wait 10
+click 900 683
+wait 20
+key escape
+wait 5
+click 940 683
+wait 20
+key escape
+go_home
+wait 10
+# cycle 20
+open 1600000000000100003
+wait 10
+move 700 400
+repeat 30 scroll 0 120
+repeat 30 scroll 0 -120
+open 1300000000000100001
+wait 10
+click 900 683
+wait 20
+key escape
+wait 5
+click 940 683
+wait 20
+key escape
+go_home
+wait 10
+expect_soak_growth 10 20
