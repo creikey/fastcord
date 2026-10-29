@@ -40,6 +40,7 @@ PERM_MANAGE_THREADS :: (cast(u64) 1) << 34;
 PERM_CREATE_PUBLIC_THREADS :: (cast(u64) 1) << 35;
 PERM_CREATE_GUILD_EXPRESSIONS :: (cast(u64) 1) << 43;
 PERM_CREATE_EVENTS :: (cast(u64) 1) << 44;
+PERM_SEND_POLLS :: (cast(u64) 1) << 49;
 PERM_PIN_MESSAGES :: (cast(u64) 1) << 51;
 
 PERM_ALL :: U64_MAX;

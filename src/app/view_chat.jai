@@ -914,7 +914,7 @@ channel_escape :: (ch: *dc.Channel) {
 }
 
 modal_open :: () -> bool {
-	return sw.open || attachments_modal_open() || ma.confirming != 0 || app.settings_open || viewer_url != "" || block_confirm.user != 0 || invite_modal_open() || invite_accept_open() || add_server_is_open() || events_modal_open() || guild_admin_modal_open() || server_settings_is_open() || fnick.user != 0 || modr.user != 0 || tsg.channel != 0 || cstatus.open || folder_modal_open() || shortcuts_open || view_reactions.msg != 0;
+	return sw.open || attachments_modal_open() || ma.confirming != 0 || app.settings_open || viewer_url != "" || block_confirm.user != 0 || invite_modal_open() || invite_accept_open() || add_server_is_open() || events_modal_open() || guild_admin_modal_open() || server_settings_is_open() || fnick.user != 0 || modr.user != 0 || tsg.channel != 0 || cstatus.open || folder_modal_open() || shortcuts_open || view_reactions.msg != 0 || npoll.channel != 0;
 }
 
 // The hover toolbar drawn this pass, and the one from the pass before (rows test the
@@ -2233,7 +2233,15 @@ composer :: (ch: *dc.Channel, cs: *Chat_State) {
 		{ ui.parent(box); defer ui.pop_parent();
 			spacer(.X, 16);
 			plus := ui.box("plus", .Clickable);
-			if ui.signal(plus).clicked stage_paths(ch.id, pick_files(), "file_picker");
+			psig := ui.signal(plus);
+			// A click opens the menu, a double-click the file picker, as in the client.
+			if psig.double_clicked {
+				plus_menu.channel = 0;
+				if can_attach(ch) stage_paths(ch.id, pick_files(), "file_picker");
+			} else if psig.clicked {
+				plus_menu.channel = ifx plus_menu.channel == ch.id then 0 else ch.id;
+				plus_menu.anchor = plus.rect;
+			}
 			plus.semantic_size = .[ui.px(24), ui.px(COMPOSER_H)];
 			plus.layout_axis = .Y;
 			plus.cross_align = .Center;
@@ -2277,7 +2285,7 @@ composer :: (ch: *dc.Channel, cs: *Chat_State) {
 				for * e: app.ui.events {
 					if e.consumed || e.kind != .Key_Down || e.key != .U || e.mods != PRIMARY_MOD | .Shift continue;
 					e.consumed = true;
-					stage_paths(ch.id, pick_files(), "file_picker");
+					if can_attach(ch) stage_paths(ch.id, pick_files(), "file_picker");
 				}
 			}
 			// the emoji and mention autocompletes float over the whole form and take their keys first
@@ -2356,6 +2364,47 @@ composer :: (ch: *dc.Channel, cs: *Chat_State) {
 		}
 		ui.pop_parent(); // composer_stack
 		spacer(.X, 8);
+	}
+	spacer(.Y, 8);
+}
+
+#scope_export
+
+// The composer's "+" menu: Upload a File, Create Thread, Create Poll, each where it's allowed.
+plus_menu: struct { channel: dc.Snowflake; anchor: ui.Rect; };
+
+// Files need Attach Files in a server.
+can_attach :: (ch: *dc.Channel) -> bool {
+	return ch.guild_id == 0 || dc.has_permission(dc.channel_permissions(store(), ch.id), dc.PERM_ATTACH_FILES);
+}
+
+composer_plus_menu :: () {
+	ch := dc.channel_get(store(), plus_menu.channel);
+	if !ch || ch.id != app.view.channel || outside_pressed("plus_scrim") || escape_pressed() {
+		plus_menu.channel = 0;
+		return;
+	}
+	W :: 220.0;
+	thread := (ch.kind == .Guild_Text || ch.kind == .Guild_Announcement) && can_create_thread(ch.id);
+	n := cast(int) can_attach(ch) + cast(int) thread + cast(int) can_send_poll(ch);
+	if !n {
+		plus_menu.channel = 0;
+		return;
+	}
+	m := menu_panel("plusmenu", .{plus_menu.anchor.x0 - 8, plus_menu.anchor.y0 - 16 - n * GM_ROW_H - 12}, W);
+	ui.parent(m); defer ui.pop_parent();
+	spacer(.Y, 8);
+	if can_attach(ch) && menu_item("upload", "Upload a File", lead = "file-up").clicked {
+		plus_menu.channel = 0;
+		stage_paths(ch.id, pick_files(), "file_picker");
+	}
+	if thread && menu_item("thread", "Create Thread", lead = "thread").clicked {
+		plus_menu.channel = 0;
+		threads_browser_create(ch.id);
+	}
+	if can_send_poll(ch) && menu_item("poll", "Create Poll", lead = "analytics").clicked {
+		plus_menu.channel = 0;
+		poll_create_open(ch.id);
 	}
 	spacer(.Y, 8);
 }

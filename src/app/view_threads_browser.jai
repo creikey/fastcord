@@ -42,6 +42,12 @@ can_create_thread :: (channel_id: dc.Snowflake) -> bool {
 	return (perms & dc.PERM_CREATE_PUBLIC_THREADS) != 0 && (perms & dc.PERM_SEND_MESSAGES) != 0;
 }
 
+// The composer "+" menu's Create Thread: the browser's create form, under the header's Threads icon.
+threads_browser_create :: (channel_id: dc.Snowflake) {
+	if !tb.open || tb.channel != channel_id threads_browser_toggle(channel_id, header_thread_rect);
+	create_form_open("Plus Button");
+}
+
 // The message menu's Create Thread: the browser's create form, named after the message's first line.
 thread_from_message :: (m: *dc.Message, anchor: ui.Rect) {
 	if tb.channel != m.channel_id {

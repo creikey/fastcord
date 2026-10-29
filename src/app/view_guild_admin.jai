@@ -303,6 +303,39 @@ radio_dot :: (on: bool) {
 	}
 }
 
+// Bordered single-field input; returns its edit result.
+modal_field :: (id: string, ed: *ui.Editor, placeholder: string, icon_name := "") -> ui.Edit_Result {
+	res := ui.Edit_Result.None;
+	r := row(tprint("%_row", id));
+	r.semantic_size = .[ui.pct(1), ui.children()];
+	{ ui.parent(r); defer ui.pop_parent();
+		spacer(.X, 25);
+		box := row(id, .Draw_Background | .Draw_Border | .Clickable);
+		box.semantic_size = .[ui.fill(), ui.children()];
+		box.style.bg = T("--input-background-default");
+		box.style.border_color = ifx app.ui.focus == box.key then T("--input-border-active") else T("--input-border-default");
+		box.style.border = 1;
+		box.style.radius = all4(8);
+		box.hover_cursor = .IBeam;
+		if ui.signal(box).pressed app.ui.focus = box.key;
+		if adm.focus_field && id == "name" {
+			app.ui.focus = box.key;
+			adm.focus_field = false;
+		}
+		{ ui.parent(box); defer ui.pop_parent();
+			spacer(.X, 12);
+			if icon_name != "" {
+				icon("ic", icon_name, 16, T("--text-muted"));
+				spacer(.X, 6);
+			}
+			res = text_field("f", ed, placeholder, app.ui.focus == box.key, 16, 20, 9);
+			spacer(.X, 12);
+		}
+		spacer(.X, 25);
+	}
+	return res;
+}
+
 #scope_file
 
 Admin_Modal :: enum u8 {
@@ -390,39 +423,6 @@ result_error :: (r: *dc.Feature_Result) -> string {
 	msg := dc.api_error_message(r.body);
 	if msg != "" return msg;
 	return tprint("Something went wrong (HTTP %).", r.status);
-}
-
-// Bordered single-field input; returns its edit result.
-modal_field :: (id: string, ed: *ui.Editor, placeholder: string, icon_name := "") -> ui.Edit_Result {
-	res := ui.Edit_Result.None;
-	r := row(tprint("%_row", id));
-	r.semantic_size = .[ui.pct(1), ui.children()];
-	{ ui.parent(r); defer ui.pop_parent();
-		spacer(.X, 25);
-		box := row(id, .Draw_Background | .Draw_Border | .Clickable);
-		box.semantic_size = .[ui.fill(), ui.children()];
-		box.style.bg = T("--input-background-default");
-		box.style.border_color = ifx app.ui.focus == box.key then T("--input-border-active") else T("--input-border-default");
-		box.style.border = 1;
-		box.style.radius = all4(8);
-		box.hover_cursor = .IBeam;
-		if ui.signal(box).pressed app.ui.focus = box.key;
-		if adm.focus_field && id == "name" {
-			app.ui.focus = box.key;
-			adm.focus_field = false;
-		}
-		{ ui.parent(box); defer ui.pop_parent();
-			spacer(.X, 12);
-			if icon_name != "" {
-				icon("ic", icon_name, 16, T("--text-muted"));
-				spacer(.X, 6);
-			}
-			res = text_field("f", ed, placeholder, app.ui.focus == box.key, 16, 20, 9);
-			spacer(.X, 12);
-		}
-		spacer(.X, 25);
-	}
-	return res;
 }
 
 // Keeps a text channel name normalised while typing.

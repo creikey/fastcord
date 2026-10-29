@@ -106,6 +106,189 @@ poll_time_left :: (ms: s64) -> string {
 	return tprint("%m left", max(1, ms / 60_000));
 }
 
+// ---- Create a poll: the composer "+" menu's Create Poll, laid out like the client's modal ----
+// What was typed stays until the poll is posted, so closing the modal loses nothing.
+
+POLL_DURATIONS :: struct { text: string; hours: int; }.[
+	.{"1 hour", 1}, .{"4 hours", 4}, .{"8 hours", 8}, .{"24 hours", 24}, .{"3 days", 72}, .{"1 week", 168}, .{"2 weeks", 336}
+];
+
+New_Poll :: struct {
+	channel: dc.Snowflake; // the open modal's channel; 0 when closed
+	question: ui.Editor;
+	answers: [dc.MAX_POLL_ANSWERS]ui.Editor;
+	count := 2;
+	duration := 3; // POLL_DURATIONS index: 24 hours
+	multi: bool;
+	picking: bool; // the duration list is open
+}
+npoll: New_Poll;
+
+poll_create_open :: (channel_id: dc.Snowflake) { npoll.channel, npoll.picking = channel_id, false; }
+
+// Polls need SEND_POLLS in a Discord server; serve has no such permission, so a hosted one needs only Send Messages.
+can_send_poll :: (ch: *dc.Channel) -> bool {
+	if ch.guild_id == 0 return ch.kind == .DM || ch.kind == .Group_DM;
+	perms := dc.channel_permissions(store(), ch.id);
+	return dc.has_permission(perms, dc.PERM_SEND_MESSAGES) && (on_hosted() || dc.has_permission(perms, dc.PERM_SEND_POLLS));
+}
+
+poll_create_modal :: () {
+	if !npoll.channel return;
+	W :: 520;
+	if !adm_modal_begin("newpoll", W, "Create a poll") {
+		npoll.channel = 0;
+		return;
+	}
+	heading :: (text: string) {
+		spacer(.Y, 20);
+		r := row(tprint("h_%", text));
+		r.semantic_size = .[ui.pct(1), ui.px(20)];
+		{ ui.parent(r); defer ui.pop_parent();
+			spacer(.X, 25);
+			label(text, .Semibold, 16, T("--text-strong"), 20);
+		}
+		spacer(.Y, 8);
+	}
+	cut :: (ed: *ui.Editor, n: int) {
+		t := ui.editor_text(ed);
+		c := cut_runes(t, n);
+		if c.count < t.count ui.editor_set_text(ed, copy_string(c,, temp));
+	}
+	heading("Question");
+	if modal_field("question", *npoll.question, "What question do you want to ask?") == .Escape npoll.channel = 0;
+	cut(*npoll.question, 300);
+	heading("Answers");
+	drop := -1;
+	for i: 0..npoll.count-1 {
+		ui.id_scope(cast(u64) i + 1); defer ui.pop_seed();
+		ar := row("arow");
+		ar.semantic_size = .[ui.pct(1), ui.children()];
+		ui.parent(ar); defer ui.pop_parent();
+		f := ui.box("f");
+		f.semantic_size = .[ui.fill(), ui.children()];
+		f.layout_axis = .Y;
+		{ ui.parent(f); defer ui.pop_parent();
+			if modal_field("answer", *npoll.answers[i], "Type your answer") == .Escape npoll.channel = 0;
+		}
+		cut(*npoll.answers[i], 55);
+		if npoll.count > 1 {
+			x := ui.box("drop", .Clickable | .Floating_X | .Floating_Y);
+			x.semantic_size = .[ui.px(20), ui.px(20)];
+			x.fixed_pos = .{W - 25 - 12 - 20, 10};
+			xs := ui.signal(x);
+			set_icon(x, "trash", ifx xs.hovering then T("--status-danger") else T("--interactive-icon-default"));
+			if xs.clicked drop = i;
+		}
+		spacer(.Y, 8);
+	}
+	if drop >= 0 {
+		// the later answers move up one, keeping their editors
+		tmp := npoll.answers[drop];
+		for i: drop..npoll.count-2 npoll.answers[i] = npoll.answers[i + 1];
+		npoll.answers[npoll.count - 1] = tmp;
+		ui.editor_set_text(*npoll.answers[npoll.count - 1], "");
+		npoll.count -= 1;
+	}
+	if npoll.count < dc.MAX_POLL_ANSWERS {
+		r := row("addrow");
+		r.semantic_size = .[ui.pct(1), ui.px(36)];
+		ui.parent(r); defer ui.pop_parent();
+		spacer(.X, 25);
+		add := row("add", .Clickable | .Draw_Background | .Hot_Animation);
+		add.semantic_size = .[ui.children(), ui.px(36)];
+		add.style.radius = all4(8);
+		add.style.bg_hot = T("--background-mod-subtle");
+		add.hover_cursor = .Pointer;
+		{ ui.parent(add); defer ui.pop_parent();
+			spacer(.X, 8);
+			icon("i", "plus-small", 20, T("--text-link"));
+			spacer(.X, 4);
+			label("Add another answer", .Medium, 14, T("--text-link"), 18);
+			spacer(.X, 8);
+		}
+		if ui.signal(add).clicked npoll.count += 1;
+	}
+	heading("Duration");
+	dr := row("durrow");
+	dr.semantic_size = .[ui.pct(1), ui.px(40)];
+	dur_rect: ui.Rect;
+	{ ui.parent(dr); defer ui.pop_parent();
+		spacer(.X, 25);
+		d := row("duration", .Clickable | .Draw_Background | .Draw_Border);
+		d.semantic_size = .[ui.px(200), ui.px(40)];
+		d.style.bg = T("--input-background-default");
+		d.style.border_color = T("--input-border-default");
+		d.style.border = 1;
+		d.style.radius = all4(8);
+		d.hover_cursor = .Pointer;
+		if ui.signal(d).clicked npoll.picking = !npoll.picking;
+		dur_rect = d.rect;
+		ui.parent(d); defer ui.pop_parent();
+		spacer(.X, 12);
+		label(POLL_DURATIONS[npoll.duration].text, .Normal, 16, T("--text-default"), 20);
+		filler(.X);
+		icon("i", ifx npoll.picking then "chevron-small-up" else "chevron-small-down", 20, T("--interactive-icon-default"));
+		spacer(.X, 8);
+	}
+	spacer(.Y, 16);
+	mr := row("multi", .Clickable);
+	mr.semantic_size = .[ui.pct(1), ui.px(24)];
+	mr.hover_cursor = .Pointer;
+	if ui.signal(mr).clicked npoll.multi = !npoll.multi;
+	{ ui.parent(mr); defer ui.pop_parent();
+		spacer(.X, 25);
+		cb := ui.box("cb", .Draw_Background | .Draw_Border);
+		cb.semantic_size = .[ui.px(20), ui.px(20)];
+		cb.style.radius = all4(4);
+		cb.style.border = ifx npoll.multi then 0.0 else 1.5;
+		cb.style.border_color = T("--interactive-icon-default");
+		cb.style.bg = ifx npoll.multi then T("--background-brand") else .{};
+		if npoll.multi { ui.parent(cb); defer ui.pop_parent(); icon("ck", "checkmark-small-bold", 20, .{1, 1, 1, 1}); }
+		spacer(.X, 8);
+		label("Allow Multiple Answers", .Normal, 16, T("--text-default"), 20);
+	}
+	question := trim(ui.editor_text(*npoll.question));
+	answers: [..]string;
+	answers.allocator = temp;
+	for i: 0..npoll.count-1 {
+		a := trim(ui.editor_text(*npoll.answers[i]));
+		if a array_add(*answers, a);
+	}
+	spacer(.Y, 24);
+	btns := row("btns", .Draw_Background);
+	btns.semantic_size = .[ui.pct(1), ui.px(70)];
+	btns.style.bg = T("--background-base-lower");
+	btns.cross_align = .Center;
+	{ ui.parent(btns); defer ui.pop_parent();
+		filler(.X);
+		post := adm_button("post", "Post", .Primary, question != "" && answers.count > 0);
+		spacer(.X, 25);
+		if post && net_action() {
+			draft := dc.Poll_Draft.{question, answers, POLL_DURATIONS[npoll.duration].hours, npoll.multi};
+			dc.send_message(app.client, npoll.channel, "", .{poll = *draft, location = "poll_creation"});
+			ui.editor_set_text(*npoll.question, "");
+			for * npoll.answers ui.editor_set_text(it, "");
+			npoll.count, npoll.duration, npoll.multi, npoll.channel = 2, 3, false, 0;
+		}
+	}
+	adm_modal_end();
+	if npoll.picking && npoll.channel {
+		m := menu_panel("durmenu", .{dur_rect.x0, dur_rect.y1 + 4}, 200);
+		ui.parent(m); defer ui.pop_parent();
+		spacer(.Y, 8);
+		for POLL_DURATIONS if menu_item(tprint("d%", it_index), it.text, ifx it_index == npoll.duration then Item_Right.Radio_On else .Radio_Off).clicked {
+			npoll.duration = it_index;
+			npoll.picking = false;
+		}
+		spacer(.Y, 8);
+	}
+	if adm_escape() {
+		if npoll.picking npoll.picking = false;
+		else npoll.channel = 0;
+	}
+}
+
 #scope_file
 
 Poll_Bar :: struct { share: float32; color: ui.Color; }

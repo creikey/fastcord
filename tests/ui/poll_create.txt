@@ -1,0 +1,32 @@
+# The composer's "+" menu on a hosted server, then Create Poll: a question, two answers, 1 week and several
+# answers allowed; Post sends Discord's poll shape and serve's copy shows under the new message.
+wait 5
+serve_join
+settle 3
+click 36 157
+settle 3
+click 410 683
+settle 1
+expect_visible "Upload a File"
+expect_visible "Create Thread"
+shot build/ui-poll_create-menu.png
+click_text "Create Poll"
+settle 1
+click_text "What question do you want to ask?"
+type Lunch?
+click_text "Type your answer"
+type Ramen
+click_text "Type your answer"
+type Tacos
+click_text "24 hours"
+settle 1
+click_text "1 week"
+click_text "Allow Multiple Answers"
+settle 1
+shot build/ui-poll_create-modal.png
+click_text "Post"
+settle 3
+expect_visible "Lunch?"
+expect_visible "Select one or more answers"
+expect_visible "Tacos"
+expect_served

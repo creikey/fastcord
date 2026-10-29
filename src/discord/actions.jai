@@ -375,6 +375,7 @@ Send_Options :: struct {
 	flags: u64;
 	location: string; // x-context-properties location ("" -> "chat_input")
 	sticker_ids: []Snowflake;
+	poll: *Poll_Draft; // a new poll (content empty), polls.jai
 	files: []Upload_File; // uploaded at send (POST /attachments + PUT each, then the message)
 	attachments: []Draft_Attachment; // already staged with upload_draft (the composer's flow)
 	tag: u64;
@@ -421,6 +422,7 @@ write_message_body_prefix :: (w: *Json, channel_id: Snowflake, content: string, 
 		for opts.sticker_ids json_snowflake(w, it);
 		json_arr_end(w);
 	}
+	if opts.poll write_poll(w, opts.poll);
 }
 
 // message_send_body: the exact POST /messages body (JSON.stringify order).
@@ -462,6 +464,7 @@ send_message :: (c: *Client, channel_id: Snowflake, content: string, opts := Sen
 			msg.forward_timestamp = clone_str(src.messages[i].timestamp, s.allocator);
 		}
 	}
+	if opts.poll poll_pending(s, *msg, opts.poll);
 	insert_message(message_list(s, channel_id), msg);
 	s.changed += 1;
 	typing_local_stop(c, channel_id);

@@ -1498,6 +1498,8 @@ overlays :: () {
 	soundboard_overlay(); // soundboard.jai
 	pins_popout();
 	threads_browser_popout();
+	if plus_menu.channel composer_plus_menu(); // view_chat.jai
+	poll_create_modal(); // polls.jai
 	inbox_popout();
 	picker_overlay(); // above the popouts, whose cards' menus open it too
 	guild_menu_overlays();

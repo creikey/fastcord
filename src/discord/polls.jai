@@ -56,6 +56,51 @@ parse_poll :: (s: *Store, msg: *Message, m: etf.Map) {
 	}
 }
 
+// A poll being created: Send_Options.poll. Strings are the caller's, read during send_message.
+Poll_Draft :: struct {
+	question: string;
+	answers: []string;
+	hours: int;
+	multiselect: bool;
+}
+
+// write_poll: the send body's `poll`, as the client's poll creation modal builds it (no capture yet:
+// traffic/CLIENT_RULES.md "Poll creation").
+write_poll :: (w: *Json, p: *Poll_Draft) {
+	json_key(w, "poll");
+	json_obj(w);
+	json_key(w, "question");
+	json_obj(w);
+	json_kstr(w, "text", p.question);
+	json_obj_end(w);
+	json_key(w, "answers");
+	json_arr(w);
+	for p.answers {
+		json_obj(w);
+		json_key(w, "poll_media");
+		json_obj(w);
+		json_kstr(w, "text", it);
+		json_obj_end(w);
+		json_obj_end(w);
+	}
+	json_arr_end(w);
+	json_kbool(w, "allow_multiselect", p.multiselect);
+	json_kint(w, "duration", p.hours);
+	json_kint(w, "layout_type", 1);
+	json_obj_end(w);
+}
+
+// poll_pending: the optimistic message's poll, until the server's copy replaces it.
+poll_pending :: (s: *Store, msg: *Message, d: *Poll_Draft) {
+	msg.poll = New(Poll,, s.allocator);
+	p := msg.poll;
+	p.answers.allocator = s.allocator;
+	p.question = clone_str(d.question, s.allocator);
+	p.expiry = clone_str(ms_to_iso(now_ms() + d.hours * 3_600_000), s.allocator);
+	p.multiselect = d.multiselect;
+	for d.answers if it_index < MAX_POLL_ANSWERS array_add(*p.answers, .{id = it_index + 1, text = clone_str(it, s.allocator)});
+}
+
 free_poll :: (s: *Store, p: *Poll) {
 	if !p return;
 	for p.answers { free_str(it.text, s.allocator); free_str(it.emoji, s.allocator); }
