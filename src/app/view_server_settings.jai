@@ -125,18 +125,19 @@ server_settings_receive :: (r: *dc.Feature_Result) {
 			ss_error(settings_result_error(r));
 			return;
 		}
-		if ss.section == .Profile && r.body.kind == .Map keep_reply(.Profile, r); // the saved profile
+		if (ss.section == .Profile || ss.section == .Tag) && r.body.kind == .Map keep_reply(.Profile, r); // the saved profile
+		if ss.section == .Access && r.body.kind == .Map keep_reply(.Verification, r);
 		if req == .Save_Widget && r.body.kind == .Map keep_reply(.Widget, r);
 		ss.saves_left -= 1;
 		if ss.saves_left > 0 return;
 		ss.busy = false;
 		// Drafts of store values stay as saved: the gateway's update makes the store match them.
-		if ss.section == .Profile form_reset(g);
+		if ss.section == .Profile || ss.section == .Tag || ss.section == .Access form_reset(g);
 		return;
 	}
 	if req >= .COUNT return;
 	keep_reply(req, r);
-	if req == .Profile || req == .Widget form_reset(g); // the forms these replies fill
+	if req == .Profile || req == .Widget || req == .Verification || req == .Vanity form_reset(g); // the forms these replies fill
 }
 
 server_settings_layer :: () {
@@ -211,7 +212,7 @@ server_settings_layer :: () {
 				col.semantic_size = .[ui.px(form_w), ui.children()];
 				col.layout_axis = .Y;
 				{ ui.parent(col); defer ui.pop_parent();
-					label(section_label(ss.section), .Semibold, 20, T("--text-strong"), 24);
+					label(section_title(g, ss.section), .Semibold, 20, T("--text-strong"), 24);
 					spacer(.Y, 20);
 					if page_body(g, ss.section, form_w) save = true;
 					if ss.error != "" {
@@ -298,6 +299,8 @@ Req :: enum u8 {
 	Webhooks; // GET /guilds/{id}/webhooks
 	Integrations; // GET /guilds/{id}/integrations
 	Templates; // GET /guilds/{id}/templates
+	Verification; // GET /guilds/{id}/member-verification (Access: the server rules)
+	Vanity; // GET /guilds/{id}/vanity-url
 	COUNT;
 	Save :: 100; // a page's Save Changes
 	Save_Widget;
@@ -361,6 +364,9 @@ ss: struct {
 	role_perms: u64;
 	role_order: [..]dc.Snowflake; // the list as reordered, top first; empty when untouched
 	declined: dc.Snowflake; // the guild whose ownership offer was answered or put off this session
+	comm: Community_Form; // Community
+	require_rules: bool; // Access
+	tag: ui.Editor; // Server Tag; Invites: the custom invite link's code
 	words: ui.Editor; // Safety Setup: Block Custom Words; Server Template: its description
 	hook_id: dc.Snowflake; // Integrations: the webhook open for editing
 	hook_name: ui.Editor; // its name; Server Template: the title
@@ -410,6 +416,7 @@ section_enter :: (g: *dc.Guild) {
 		members_search(g);
 	case .Invites;
 		load(g, .Invites, tprint("/guilds/%/invites", g.id));
+		if dc.guild_has_feature(g, "VANITY_URL") load(g, .Vanity, tprint("/guilds/%/vanity-url", g.id));
 	case .Bans;
 		load(g, .Bans, tprint("/guilds/%/bans?limit=1000", g.id));
 	case .Emoji;
@@ -423,6 +430,11 @@ section_enter :: (g: *dc.Guild) {
 	case .Templates;
 		ss.loading[Req.Templates] = false;
 		load(g, .Templates, tprint("/guilds/%/templates", g.id));
+	case .Access;
+		ss.loading[Req.Verification] = false;
+		load(g, .Verification, tprint("/guilds/%/member-verification?with_guild=false", g.id));
+	case .Tag;
+		load(g, .Profile, tprint("/guilds/%/profile", g.id));
 	case .Safety;
 		ss.loading[Req.Automod] = false;
 		load(g, .Automod, tprint("/guilds/%/auto-moderation/rules", g.id));
@@ -486,6 +498,12 @@ section_label :: (s: Server_Section) -> string {
 	return "";
 }
 
+// Community reads "Community Overview" once the server is one.
+section_title :: (g: *dc.Guild, s: Server_Section) -> string {
+	if s == .Community && dc.guild_has_feature(g, "COMMUNITY") return "Community Overview";
+	return section_label(s);
+}
+
 // The pane name science's settings_pane_viewed gives each section (the client's GuildSettingsSections).
 section_pane :: (s: Server_Section) -> string {
 	if s == {
@@ -521,7 +539,7 @@ section_shown :: (g: *dc.Guild, s: Server_Section) -> bool {
 	case .Engagement;
 		return has(p, dc.PERM_MANAGE_GUILD);
 	case .Tag;
-		return has(p, dc.PERM_MANAGE_GUILD) && dc.guild_has_feature(g, "GUILD_TAGS");
+		return has(p, dc.PERM_MANAGE_GUILD) && dc.guild_has_feature(g, "GUILD_TAGS") && !on_hosted();
 	case .Emoji; #through; case .Stickers; #through; case .Soundboard;
 		return has(p, dc.PERM_MANAGE_GUILD_EXPRESSIONS | dc.PERM_CREATE_GUILD_EXPRESSIONS);
 	case .Members;
@@ -530,9 +548,9 @@ section_shown :: (g: *dc.Guild, s: Server_Section) -> bool {
 		return has(p, dc.PERM_MANAGE_ROLES) && !on_hosted(); // hosted servers have only @everyone so far
 	case .Safety;
 		return has(p, dc.PERM_MANAGE_GUILD) && !on_hosted(); // a hosted server has no verification levels, filters or AutoMod
-	case .Templates;
-		return has(p, dc.PERM_MANAGE_GUILD) && !on_hosted(); // templates are Discord's (discord.new links)
-	case .Invites; #through; case .Access; #through; case .Community; #through; case .Onboarding;
+	case .Templates; #through; case .Access; #through; case .Community; #through; case .Onboarding;
+		return has(p, dc.PERM_MANAGE_GUILD) && !on_hosted(); // Discord's: templates, member verification, Community
+	case .Invites;
 		return has(p, dc.PERM_MANAGE_GUILD);
 	case .Integrations;
 		return has(p, dc.PERM_MANAGE_GUILD | dc.PERM_MANAGE_WEBHOOKS);
@@ -550,7 +568,8 @@ section_shown :: (g: *dc.Guild, s: Server_Section) -> bool {
 page_exists :: (s: Server_Section) -> bool {
 	if s == {
 	case .Profile; #through; case .Engagement; #through; case .Members; #through; case .Invites; #through; case .Bans; #through;
-	case .Emoji; #through; case .Audit_Log; #through; case .Delete; #through; case .Soundboard; #through; case .Roles; #through; case .Safety; #through; case .Integrations; #through; case .Templates;
+	case .Emoji; #through; case .Audit_Log; #through; case .Delete; #through; case .Soundboard; #through; case .Roles; #through; case .Safety; #through; case .Integrations; #through; case .Templates; #through;
+	case .Community; #through; case .Access; #through; case .Tag;
 		return true;
 	}
 	return false;
@@ -582,6 +601,12 @@ page_body :: (g: *dc.Guild, s: Server_Section, w: float32) -> bool {
 		integrations_page(g);
 	case .Templates;
 		templates_page(g);
+	case .Community;
+		community_page(g);
+	case .Access;
+		access_page(g);
+	case .Tag;
+		tag_page(g);
 	case .Soundboard;
 		sound_settings_page(g, w); // view_server_soundboard.jai
 	}
@@ -602,6 +627,12 @@ form_dirty :: (g: *dc.Guild) -> bool {
 		return role_dirty(g);
 	case .Integrations;
 		return hook_dirty();
+	case .Community;
+		return community_dirty(g);
+	case .Access;
+		return access_dirty();
+	case .Tag;
+		return tag_dirty();
 	}
 	return false;
 }
@@ -628,6 +659,12 @@ form_reset :: (g: *dc.Guild) {
 		ss.private = f.visibility == 2;
 	}
 	if ss.section == .Roles role_reset(g);
+	ss.comm = community_form_of(g);
+	saved, on := saved_rules();
+	if reply(.Verification) { ui.editor_set_text(*ss.words, saved); ss.require_rules = on; }
+	if ss.section == .Tag && r ui.editor_set_text(*ss.tag, dc.fstr(dc.vmap(r.body), "tag"));
+	v := reply(.Vanity);
+	if ss.section == .Invites ui.editor_set_text(*ss.tag, ifx v then dc.fstr(dc.vmap(v.body), "code") else g.vanity_url_code);
 	ss.eng = dc.engagement_form_of(g);
 	w := reply(.Widget);
 	if w {
@@ -674,6 +711,13 @@ form_save :: (g: *dc.Guild) {
 		if widget_dirty() save_call(g, .Save_Widget, "PATCH", tprint("/guilds/%/widget", g.id), dc.widget_body(ss.widget_on, ss.widget_channel));
 	case .Roles;
 		roles_save(g);
+	case .Community;
+		community_save(g);
+	case .Access;
+		access_save(g);
+	case .Tag;
+		ss_error("");
+		save_call(g, .Save, "PATCH", tprint("/guilds/%/profile", g.id), tprint("{\"tag\":%}", dc.json_quote(trim(ui.editor_text(*ss.tag)))));
 	case .Integrations;
 		name := trim(ui.editor_text(*ss.hook_name));
 		if !name { ss_error("A webhook needs a name."); return; }
@@ -714,7 +758,7 @@ nav_item :: (s: Server_Section, g: *dc.Guild) -> bool {
 	c := ifx danger then T("--text-feedback-critical") else ifx sel || sig.hovering then T("--interactive-text-active") else T("--interactive-text-default");
 	{ ui.parent(r); defer ui.pop_parent();
 		spacer(.X, 10);
-		label(section_label(s), .Medium, 16, c, 20);
+		label(section_title(g, s), .Medium, 16, c, 20);
 		filler(.X);
 		if danger icon("trash", "trash", 16, c);
 		spacer(.X, 10);
@@ -1330,6 +1374,7 @@ invites_page :: (g: *dc.Guild) {
 		{ c := table_cell(3, W[3]); ui.parent(c); defer ui.pop_parent(); label(ifx exp then duration_left(exp - wall_ms()) else "∞", .Normal, 14, T("--text-default"), 18); }
 		if row_icon_button("revoke", "x-small", danger = true) ss_confirm_open(.Revoke_Invite, 0, code);
 	}
+	vanity_block(g);
 }
 
 // "6:23:41" until expiry, or days ("6 days").
@@ -2535,6 +2580,216 @@ templates_page :: (g: *dc.Guild) {
 	ui.parent(br); defer ui.pop_parent();
 	if set_button("Sync Template##sync", .Primary, dc.fbool(t, "is_dirty") && !ss.busy) ss_action(g, .Templates, "PUT", tprint("/guilds/%/templates/%", g.id, code));
 	if set_button("Delete Template##deltpl", .Danger, !ss.busy) ss_confirm_open(.Delete_Template, 0, code);
+}
+
+// ---- Community ----
+
+LOCALES :: [2]string.[
+	.["en-US", "English, USA"], .["en-GB", "English, UK"], .["bg", "Bulgarian"], .["zh-CN", "Chinese, China"], .["zh-TW", "Chinese, Taiwan"],
+	.["hr", "Croatian"], .["cs", "Czech"], .["da", "Danish"], .["nl", "Dutch"], .["fi", "Finnish"], .["fr", "French"], .["de", "German"],
+	.["el", "Greek"], .["hi", "Hindi"], .["hu", "Hungarian"], .["id", "Indonesian"], .["it", "Italian"], .["ja", "Japanese"], .["ko", "Korean"],
+	.["lt", "Lithuanian"], .["no", "Norwegian"], .["pl", "Polish"], .["pt-BR", "Portuguese, Brazilian"], .["ro", "Romanian, Romania"],
+	.["ru", "Russian"], .["es-ES", "Spanish"], .["es-419", "Spanish, LATAM"], .["sv-SE", "Swedish"], .["th", "Thai"], .["tr", "Turkish"],
+	.["uk", "Ukrainian"], .["vi", "Vietnamese"],
+];
+
+Community_Form :: struct {
+	rules: dc.Snowflake; // 1: "Create one for me" (Enable Community)
+	updates: dc.Snowflake;
+	safety: dc.Snowflake;
+	locale: int; // index into LOCALES
+	agree: bool;
+}
+
+community_form_of :: (g: *dc.Guild) -> Community_Form {
+	f := Community_Form.{rules = g.rules_channel_id, updates = g.public_updates_channel_id, safety = g.safety_alerts_channel_id};
+	for LOCALES if it[0] == g.preferred_locale f.locale = it_index;
+	if !dc.guild_has_feature(g, "COMMUNITY") {
+		if !f.rules f.rules = 1;
+		if !f.updates f.updates = 1;
+	}
+	return f;
+}
+
+community_dirty :: (g: *dc.Guild) -> bool {
+	if !dc.guild_has_feature(g, "COMMUNITY") return false; // Enable Community is a button, not a form
+	a, b := ss.comm, community_form_of(g);
+	return a.rules != b.rules || a.updates != b.updates || a.safety != b.safety || a.locale != b.locale;
+}
+
+// The guild's features as a JSON list, with add added and drop left out.
+features_json :: (g: *dc.Guild, add := "", drop := "") -> string {
+	list: [..]string;
+	list.allocator = temp;
+	for g.features if it != drop && it != add array_add(*list, dc.json_quote(it));
+	if add array_add(*list, dc.json_quote(add));
+	return tprint("[%]", join(..list, ",",, temp));
+}
+
+channel_or_create :: (id: dc.Snowflake) -> string { return ifx id then tprint("\"%\"", id) else "null"; }
+
+community_page :: (g: *dc.Guild) {
+	if !dc.guild_has_feature(g, "COMMUNITY") {
+		page_subtitle("Are you building a Community? Convert to a Community Server to access additional administrative tools that can help you moderate, run, and grow your server.");
+		section_heading("csafety", "Safety checks", "To protect your members, Community servers need these, and enabling sets them:");
+		set_para("c1", "• Members must have a verified email on their Discord account.", .Normal, 14, 18, T("--text-default"));
+		set_para("c2", "• Media from all members is scanned by the explicit image filter.", .Normal, 14, 18, T("--text-default"));
+		set_divider();
+		community_channels(g, true);
+		set_divider();
+		section_heading("cfinish", "Finishing touches", "Default notifications become Only @mentions.");
+		if set_toggle_row("agree", "I agree and understand", "Community servers follow Discord's Community Guidelines.", ss.comm.agree) ss.comm.agree = !ss.comm.agree;
+		spacer(.Y, 16);
+		if set_button("Enable Community##enable", .Primary, ss.comm.agree && !ss.busy) {
+			body := tprint("{\"features\":%,\"verification_level\":%,\"default_message_notifications\":1,\"explicit_content_filter\":2,\"rules_channel_id\":%,\"public_updates_channel_id\":%}",
+				features_json(g, add = "COMMUNITY"), max(1, g.verification_level), channel_or_create(ss.comm.rules), channel_or_create(ss.comm.updates));
+			ss_action(g, .COUNT, "PATCH", tprint("/guilds/%", g.id), body);
+		}
+		return;
+	}
+	page_subtitle("Community servers have more tools to help you moderate and grow your server.");
+	community_channels(g, false);
+	spacer(.Y, 24);
+	field_title("Server Primary Language");
+	names: [..]string;
+	names.allocator = temp;
+	for LOCALES array_add(*names, it[1]);
+	pick := select_field("locale", names, ss.comm.locale);
+	if pick >= 0 ss.comm.locale = pick;
+	spacer(.Y, 8);
+	set_para("lhelp", "Discord will prioritize this server in search to users who speak the selected language.", .Normal, 12, 16, T("--text-muted"));
+	set_divider();
+	section_heading("cdisable", "Disable Community", "Turns this back into a regular server. Community-only features stop working.");
+	if set_button("Disable Community##disable", .Danger, !ss.busy && !community_dirty(g)) ss_action(g, .COUNT, "PATCH", tprint("/guilds/%", g.id), tprint("{\"features\":%}", features_json(g, drop = "COMMUNITY")));
+}
+
+community_channels :: (g: *dc.Guild, enabling: bool) {
+	names, ids := channel_options(g, ifx enabling then "Create one for me" else "None", false);
+	if enabling ids[0] = 1;
+	field_title("Rules or Guidelines Channel");
+	pick := select_field("crules", names, index_of(ids, ss.comm.rules));
+	if pick >= 0 ss.comm.rules = ids[pick];
+	spacer(.Y, 8);
+	set_para("rhelp", "This is where you'll show members your server rules or guidelines.", .Normal, 12, 16, T("--text-muted"));
+	spacer(.Y, 16);
+	field_title("Community Updates Channel");
+	pick = select_field("cupdates", names, index_of(ids, ss.comm.updates));
+	if pick >= 0 ss.comm.updates = ids[pick];
+	spacer(.Y, 8);
+	set_para("uhelp", "This is where Discord sends updates for moderators and admins of Community servers.", .Normal, 12, 16, T("--text-muted"));
+	if enabling return;
+	spacer(.Y, 16);
+	field_title("Safety Notifications Channel");
+	pick = select_field("csafety", names, index_of(ids, ss.comm.safety));
+	if pick >= 0 ss.comm.safety = ids[pick];
+	spacer(.Y, 8);
+	set_para("shelp", "Anyone with access to this text channel will be able to see the notifications.", .Normal, 12, 16, T("--text-muted"));
+}
+
+// Community Overview's save: saveGuild's keys in its order.
+community_save :: (g: *dc.Guild) {
+	f := ss.comm;
+	save_call(g, .Save, "PATCH", tprint("/guilds/%", g.id), tprint("{\"preferred_locale\":\"%\",\"rules_channel_id\":%,\"public_updates_channel_id\":%,\"safety_alerts_channel_id\":%}",
+		LOCALES[f.locale][0], channel_or_create(f.rules), channel_or_create(f.updates), channel_or_create(f.safety)));
+}
+
+// ---- Access ----
+
+access_rules :: () -> []string {
+	out: [..]string;
+	out.allocator = temp;
+	for split(ui.editor_text(*ss.words), "\n",, temp) {
+		t := trim(it);
+		if t && out.count < 16 array_add(*out, t);
+	}
+	return out;
+}
+
+// The server rules members agree to, from GET /guilds/{id}/member-verification (its TERMS field).
+saved_rules :: () -> string, bool {
+	r := reply(.Verification);
+	if !r return "", false;
+	m := dc.vmap(r.body);
+	sb: String_Builder;
+	sb.allocator = temp;
+	for dc.flist(m, "form_fields") {
+		f := dc.vmap(it);
+		if dc.fstr(f, "field_type") != "TERMS" continue;
+		for dc.flist(f, "values") print_to_builder(*sb, "%\n", dc.vstr(it));
+	}
+	return trim(builder_to_string(*sb,, temp)), dc.fbool(m, "enabled") || dc.flist(m, "form_fields").count > 0;
+}
+
+access_dirty :: () -> bool {
+	saved, on := saved_rules();
+	if !reply(.Verification) return false;
+	return trim(join(..access_rules(), "\n",, temp)) != saved || ss.require_rules != on;
+}
+
+access_page :: (g: *dc.Guild) {
+	page_subtitle("Keep your server private, or open it up for more people to join.");
+	section_heading("join", "How can people join your server?", "");
+	radio_choice("invite", "Invite Only", "People can join your server directly with an invite", true);
+	radio_choice("apply", "Apply to Join", "People must submit an application and be approved to join", false, false);
+	radio_choice("disc", "Discoverable", ifx dc.guild_has_feature(g, "COMMUNITY") then "Anyone can join your server directly through Server Discovery" else "Enable Community to access Server Discovery", false, false);
+	set_divider();
+	if !loading_or(.Verification, "Couldn't load the server rules.") return;
+	if set_toggle_row("require", "Require members to agree to the server rules", "New members must read and agree to these before they can talk.", ss.require_rules) ss.require_rules = !ss.require_rules;
+	spacer(.Y, 16);
+	field_title("Server Rules");
+	if set_input("rules", *ss.words, "One rule per line, for example: Be respectful", multiline = true, max_runes = 4000, min_h = 120) == .Escape ss.field_escape = true;
+}
+
+access_save :: (g: *dc.Guild) {
+	rules := access_rules();
+	if ss.require_rules && !rules.count { ss_error("You need to add one or more rules."); return; }
+	fields := "[]";
+	if rules.count {
+		vals: [..]string;
+		vals.allocator = temp;
+		for rules array_add(*vals, dc.json_quote(it));
+		fields = tprint("[{\"field_type\":\"TERMS\",\"label\":\"Read and agree to the server rules\",\"values\":[%],\"required\":true}]", join(..vals, ",",, temp));
+	}
+	save_call(g, .Save, "PATCH", tprint("/guilds/%/member-verification", g.id), tprint("{\"form_fields\":%,\"enabled\":%}", fields, ss.require_rules));
+}
+
+// ---- Server Tag (GUILD_TAGS) and Custom Invite Link (VANITY_URL) ----
+
+tag_dirty :: () -> bool {
+	r := reply(.Profile);
+	return r && trim(ui.editor_text(*ss.tag)) != dc.fstr(dc.vmap(r.body), "tag");
+}
+
+tag_page :: (g: *dc.Guild) {
+	page_subtitle("Members can wear your server's tag next to their name across Discord.");
+	if !loading_or(.Profile, "Couldn't load the server's tag.") return;
+	field_title("Tag");
+	if set_input("tag", *ss.tag, "2 to 4 letters or numbers", max_runes = 4) == .Escape ss.field_escape = true;
+	spacer(.Y, 8);
+	set_para("taghelp", "The badge chosen in the official client stays as it is.", .Normal, 12, 16, T("--text-muted"));
+}
+
+vanity_block :: (g: *dc.Guild) {
+	if !dc.guild_has_feature(g, "VANITY_URL") return;
+	set_divider();
+	section_heading("vanity", "Custom Invite Link", "Choose a link people can use to join, discord.gg/<code>.");
+	r := reply(.Vanity);
+	if r {
+		uses := dc.fint(dc.vmap(r.body), "uses");
+		if uses { set_para("vuses", tprint("Used % times.", uses), .Normal, 12, 16, T("--text-muted")); spacer(.Y, 8); }
+	}
+	vr := row("vrow");
+	vr.semantic_size = .[ui.pct(1), ui.children()];
+	vr.style.child_gap = 8;
+	ui.parent(vr); defer ui.pop_parent();
+	label("discord.gg/", .Medium, 16, T("--text-default"), 20);
+	c := ui.box("in");
+	c.semantic_size = .[ui.fill(), ui.children()];
+	c.layout_axis = .Y;
+	{ ui.parent(c); defer ui.pop_parent(); if set_input("vcode", *ss.tag, "", max_runes = 25) == .Escape ss.field_escape = true; }
+	code := trim(ui.editor_text(*ss.tag));
+	saved := ifx r then dc.fstr(dc.vmap(r.body), "code") else g.vanity_url_code;
+	if set_button("Save##vsave", .Primary, code != saved && !ss.busy) ss_action(g, .Vanity, "PATCH", tprint("/guilds/%/vanity-url", g.id), tprint("{\"code\":%}", ifx code then dc.json_quote(code) else "null"));
 }
 
 #scope_export

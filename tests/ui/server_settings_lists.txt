@@ -56,11 +56,26 @@ click_text "Captain Hook"
 wait 5
 expect_visible "Copy Webhook URL"
 shot build/ui-server_settings_integrations.png
+click_text "Access"
+wait 10
+settings_reply Verification {"version":"2026-01-01T00:00:00.000000+00:00","description":null,"form_fields":[{"field_type":"TERMS","label":"Read and agree to the server rules","values":["Be kind","No spam"],"required":true}],"enabled":true}
+wait 5
+expect_visible "Invite Only"
+expect_visible "Server Rules"
+click_text "Enable Community"
+wait 10
+expect_visible "Rules or Guidelines Channel"
+shot build/ui-server_settings_community.png
+move 250 400
+scroll 0 -600
+wait 5
 click_text "Server Template"
 wait 10
 settings_reply Templates []
 wait 5
 expect_visible "Generate Template"
+scroll 0 600
+wait 5
 click_text "Emoji"
 wait 10
 expect_visible "Upload Emoji"
