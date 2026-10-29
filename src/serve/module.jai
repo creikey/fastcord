@@ -163,6 +163,8 @@ open :: (path: string) -> *Server, bool, error: string {
 	s.db = db;
 	s.host.path = copy_string(path);
 	s.host.started = current_time_consensus();
+	owner_only(path);
+	owner_only(tprint("%-wal", path));
 	migrated, why := migrate(s);
 	if !migrated { close(s); return null, false, why; }
 
@@ -194,8 +196,9 @@ open :: (path: string) -> *Server, bool, error: string {
 	if !s.guild { close(s); return null, false, "the file has no guild ID"; }
 	sqlite.run(db, "INSERT OR IGNORE INTO roles(id, name, position, permissions) VALUES(?, '@everyone', 0, ?);", s.guild, EVERYONE_PERMISSIONS);
 	load_caches_locked(s);
-	// Until someone claims the server, a one-use owner invite exists; the host joins with it first.
-	if !meta_get(s, "owner") && !owner_invite(s) {
+	// Until someone claims the server, a one-use owner invite exists; the host joins with it first. A key
+	// named for the owner (set_owner_key) takes its place.
+	if !meta_get(s, "owner") && !meta_get(s, "owner_root") && !owner_invite(s) {
 		code: [16]u8;
 		crypto.random_bytes(code);
 		sqlite.run(db, "INSERT INTO invites(code, uses_left, owner) VALUES(?, 1, 1);", hex(code,, temp));
@@ -598,14 +601,19 @@ login :: (c: *Conn, session: *tls.Session, req: http.Request) -> bool {
 			user = 0;
 		} else if !user || gone {
 			name := trim(field("name"));
-			owner := false;
-			st = sqlite.prepare(s.db, tprint("SELECT owner FROM invites WHERE code = ? AND %;", INVITE_LIVE));
-			sqlite.bind(st, 1, field("code"));
-			if sqlite.step(st) == .Row owner = sqlite.col_int(st, 0) != 0;
-			sqlite.finalize(st);
+			// The key the host named as the owner (-owner:<key>) joins with no invite at all.
+			owner_key := meta_get(s, "owner_root");
+			owner := owner_key.count == 32 && memcmp(owner_key.data, root.data, 32) == 0;
+			by_key := owner;
+			if !owner {
+				st = sqlite.prepare(s.db, tprint("SELECT owner FROM invites WHERE code = ? AND %;", INVITE_LIVE));
+				sqlite.bind(st, 1, field("code"));
+				if sqlite.step(st) == .Row owner = sqlite.col_int(st, 0) != 0;
+				sqlite.finalize(st);
+			}
 			if !owner && invites_paused_locked(s) {
 				status, code, message = 403, 40069, "Invites are paused for this server.";
-			} else if !sqlite.run(s.db, tprint("UPDATE invites SET uses_left = uses_left - (uses_left > 0) WHERE code = ? AND %;", INVITE_LIVE), field("code")) || sqlite.changes(s.db) != 1 {
+			} else if !by_key && (!sqlite.run(s.db, tprint("UPDATE invites SET uses_left = uses_left - (uses_left > 0) WHERE code = ? AND %;", INVITE_LIVE), field("code")) || sqlite.changes(s.db) != 1) {
 				status, code, message = 404, 10006, "Unknown Invite";
 			} else if !name || name.count > 32 || !text_ok(name) {
 				status, code, message = 400, 50035, "Invalid Form Body";
@@ -617,6 +625,7 @@ login :: (c: *Conn, session: *tls.Session, req: http.Request) -> bool {
 				if !sqlite.run(s.db, "INSERT INTO users(id, root, signing_pub, name, joined_name) VALUES(?, ?, ?, ?, ?4);", user, cast([]u8) root, cast([]u8) pub, name) user = 0;
 				else { locks.guard(*s.avatar_mu); table_set(*s.handles, user, member_handle(root)); }
 				if user && owner && !meta_put(s, "owner", tprint("%", user)) user = 0;
+				if user && by_key && !sqlite.run(s.db, "DELETE FROM meta WHERE k = 'owner_root';") user = 0;
 			}
 		}
 		if user && (joined || gone) {

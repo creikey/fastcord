@@ -112,6 +112,8 @@ Options :: struct {
 	serve: string; // run a self-hosted server from this file instead of the app
 	port: int;
 	backups: string;      // -backups:<dir>: where the server keeps its rolling backups (host.jai)
+	owner: string;        // -owner:<key>: the server's owner, by their key's root (serve set_owner_key)
+	print_key: bool;      // -key: print this machine's key roots, for -owner on a server
 	install: bool;        // -serve:<file> -install: run it as a service from now on (serve install.jai)
 	serve_uninstall: bool; // -serve:<file> -uninstall: remove that service
 	service: bool;        // run by that service: no console, the log only
@@ -171,6 +173,10 @@ parse_options :: () -> Options {
 			o.port = parse_int_prefix(v);
 		} else if flag("-backups:") {
 			o.backups = v;
+		} else if flag("-owner:") {
+			o.owner = v;
+		} else if a == "-key" {
+			o.print_key = true;
 		} else if a == "-install" {
 			o.install = true;
 		} else if a == "-uninstall" {
@@ -195,6 +201,13 @@ parse_options :: () -> Options {
 main :: () {
 	dc.record_process_start(); // once, before the first client
 	opt := parse_options();
+	if opt.print_key {
+		serve_console();
+		list := keys.load(app_data_dir("keys"));
+		if !list.count fail("no key yet: start fastcord once and it makes one");
+		for list say("% %\n", keys.root_hex(it.root), it.name);
+		exit(0);
+	}
 	if opt.serve {
 		if !opt.service serve_console();
 		if opt.install || opt.serve_uninstall {
@@ -209,6 +222,12 @@ main :: () {
 		}
 		s.host.version = VERSION;
 		if opt.backups && !serve.set_backup_dir(s, opt.backups) fail("could not set the backup folder");
+		if opt.owner {
+			ok, message := serve.set_owner_key(s, opt.owner);
+			if !ok fail("could not set the owner: %", message);
+			serve.host_log(s, "%", message);
+			if !opt.service say("%\n", message);
+		}
 		// Each line goes to the console and to the log beside the file, which a service has instead.
 		note :: (format: string, args: ..Any) #expand {
 			text := tprint(format, ..args);

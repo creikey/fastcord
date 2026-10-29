@@ -82,6 +82,7 @@ file_log :: (file: string, format: string, args: ..Any) {
 	path := tprint("%.log", file);
 	f, ok := file_open(path, for_writing = true, keep_existing_content = true, log_errors = false);
 	if !ok return;
+	owner_only(path); // it holds the owner invite
 	size := file_length(f);
 	if size + line.count > LOG_MAX {
 		file_close(*f);
@@ -101,6 +102,27 @@ pad2 :: (n: int) -> string { return tprint("%", formatInt(n, minimum_digits = 2)
 set_backup_dir :: (s: *Server, dir: string) -> bool {
 	locks.guard(*s.db_mu);
 	return meta_put(s, "host_backup_dir", dir);
+}
+
+// set_owner_key is -owner:<key>: whoever can run the server's file names its owner by their key's root (64 hex
+// digits), so no bearer invite is needed. A member with that key owns the server at once; anyone else owns it
+// when they first join with that key, invite or not, and the one-use owner invite is dropped.
+set_owner_key :: (s: *Server, root_hex: string) -> bool, string {
+	root: [32]u8;
+	if root_hex.count != 64 || !unhex(root_hex, root) return false, "an owner key is 64 hex digits (fastcord -key prints yours)";
+	locks.guard(*s.db_mu);
+	st := sqlite.prepare(s.db, "SELECT id, name FROM users WHERE root = ? AND left = 0 AND banned = 0;");
+	sqlite.bind(st, 1, cast([]u8) root);
+	member: s64;
+	name: string;
+	if sqlite.step(st) == .Row member, name = sqlite.col_int(st, 0), copy_string(sqlite.col_text(st, 1),, temp);
+	sqlite.finalize(st);
+	ok := sqlite.exec(s.db, "BEGIN;") && sqlite.run(s.db, "DELETE FROM invites WHERE owner = 1;");
+	if member ok = ok && meta_put(s, "owner", tprint("%", member)) && sqlite.run(s.db, "DELETE FROM meta WHERE k IN ('owner_root', 'pending_owner', 'pending_owner_nonce');");
+	else ok = ok && meta_put(s, "owner_root", root);
+	if !ok || !sqlite.exec(s.db, "COMMIT;") { sqlite.exec(s.db, "ROLLBACK;"); return false, copy_string(sqlite.errmsg(s.db),, temp); }
+	if member return true, tprint("% now owns the server.", name);
+	return true, "The key you named owns the server once it joins, with any invite or none.";
 }
 
 // invite_address is where invites send members: the owner's public address and port (Server Settings' Network),
@@ -259,6 +281,7 @@ backup_locked :: (s: *Server, label := "") -> name: string, ok: bool, error: str
 	for 2..9 if file_exists(tprint("%/%", dir, name)) name = tprint("%-%.db", base, it);
 	path := tprint("%/%", dir, name);
 	if !sqlite.run(s.db, "VACUUM INTO ?;", path) return "", false, copy_string(sqlite.errmsg(s.db),, temp);
+	owner_only(path);
 	ok, why := snapshot_ok(s, path);
 	if !ok { file_delete(path); return "", false, why; }
 	list := snapshots_locked(s);
@@ -547,6 +570,12 @@ maintain_stop :: (s: *Server) {
 	locks.join(s.host.maint_thread);
 }
 
+// owner_only makes a file readable by its owner alone: the server file, its backups (each holds the TLS key)
+// and its log. On Windows, the user's folders already are.
+owner_only :: (path: string) {
+	#if OS != .WINDOWS chmod(temp_c_string(path), 0x180); // 0600
+}
+
 // ---- Disk space ----
 
 disk_free :: (dir: string) -> s64 {
@@ -576,6 +605,7 @@ disk_free :: (dir: string) -> s64 {
 } else {
 	host_libc :: #system_library "libc";
 	statvfs :: (path: *u8, buf: *void) -> s32 #foreign host_libc;
+	chmod :: (path: *u8, mode: u32) -> s32 #foreign host_libc; // mode_t is narrower on macOS; the ABI widens it
 }
 
 // ---- Routes: /api/v9/fc/host/..., owner only ----

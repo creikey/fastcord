@@ -183,6 +183,35 @@ main :: () {
 	status, body = rest("GET", messages, "", member);
 	check(status == 401, tprint("their token no longer works: %", status));
 
+	// The local host names the owner by key: their join needs no owner invite, and later -owner hands the
+	// server to a member.
+	ok = serve.set_owner_key(s, keys.root_hex(member_key.root));
+	check(ok, "the host hands the server to a member by key");
+	status, body = rest("GET", HOST, "", member);
+	check(status == 401, tprint("(their sessions were ended above) %", status));
+	serve.stop(s);
+	{
+		s, ok, err = serve.open(tprint("%/owned.db", DIR));
+		check(ok && serve.listen(s, 0), tprint("a second server: %", err));
+		port, id = s.listener.port, serve.id_hex(s,, context.default_allocator);
+		k := keys.generate("Named");
+		ok = serve.set_owner_key(s, keys.root_hex(k.root));
+		check(ok && serve.owner_invite(s) == "", "naming the owner's key drops the owner invite");
+		ok = serve.set_owner_key(s, "beef");
+		check(!ok, "an owner key must be a key root");
+		named := login(serve.first_invite(s), k, "Named");
+		status, body = rest("GET", HOST, "", named);
+		check(named != "" && status == 200, tprint("the named key owns the server once it joins: %", status));
+		stranger := login(serve.first_invite(s), keys.generate("Stranger"), "Stranger");
+		ok = serve.set_owner_key(s, keys.root_hex(member_key.root)); // not a member here: owns it on joining
+		status, body = rest("GET", HOST, "", named);
+		check(status == 200, tprint("until the newly named key joins, the owner stays: %", status));
+		newer := login("nope", member_key, "Member");
+		status, body = rest("GET", HOST, "", newer);
+		check(newer != "" && status == 200, tprint("the newly named key joins with no invite and owns the server: %", status));
+		status, body = rest("GET", HOST, "", named);
+		check(status == 403, tprint("and the old owner is a member: %", status));
+	}
 	serve.stop(s);
 	if failed { print("serve_host: % failed\n", failed); exit(1); }
 	print("serve_host: ok\n");
