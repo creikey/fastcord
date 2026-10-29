@@ -449,7 +449,6 @@
 - [ ] Media: zoom in the image viewer (click or scroll wheel); it only fits the image to the window.
 - [ ] Undo: relationships: Remove Friend, Unblock, Block, Ignore or cancel a friend request, all sent at once today with no confirm except Block.
 - [ ] Composer: no disabled state without SEND_MESSAGES ("You do not have permission..."), "+" ignores ATTACH_FILES, and archived or locked threads aren't read-only.
-- [ ] Profiles: notes can't be seen or edited ("Click to add a note" is a static label; `fetch_note` has no result handler).
 - [ ] Calls: no picture-in-picture. Opening a text channel during a call hides every stream and camera, so you can't watch a friend's stream while you chat. The official client keeps the focused video in a small floating player over the app. You can drag it to a corner, and a click returns to the call. Streams also have Pop Out, into a window of their own.
 - [ ] Calls: a DM has no in-call view (participant tiles, Ring for absent members, ongoing-call banner).
 - [ ] Undo: Mark As Read (server menu, Shift+Escape, Inbox "Mark All as Read", Inbox row check, the new-messages bar, threads) should restore the previous read states on undo, using the Mark Unread ack; Inbox mention "x" should hold its DELETE.
@@ -763,3 +762,4 @@
 - [x] Bug (E2E): in an encrypted DM the GIF and sticker pickers no longer send in the clear; they refuse with a toast, as files do (`encrypting`, `tests/ui/dm/e2e_pickers.txt`). Sending them encrypted is part of E2E 7.
 - [x] macOS: the Metal backend sets `gpu_ns` from each finished command buffer's `GPUStartTime` / `GPUEndTime`, so the bench has GPU time there.
 - [x] Bug (E2E): `@silent` works in an encrypted DM. `composer_send` strips the prefix before encrypting; "silent" is a bit on the encrypted Content byte (`e2e.SILENT`), kept with the stored plaintext, so it holds on every carrier and shows the crossed-out bell; the Discord adapter also sets flag 4096 on its message (`send_packet`). `src/tests/e2e.jai` checks it round-trips.
+- [x] Profiles: the full profile's Note shows your note and edits it in place (saved on blur or Enter with `PUT /users/@me/notes/{id}`); fetched notes and `USER_NOTE_UPDATE` land in `Store.notes` (`note_field`, `tests/ui/profile_note.txt`).

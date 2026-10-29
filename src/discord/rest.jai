@@ -606,6 +606,10 @@ client_apply_rest :: (c: *Client, e: *Event) {
 				if first && r.before == 0 on_channel_page(c, r.channel_id, items.count, items.count >= r.limit);
 				request_page_members(c, r.channel_id, items);
 			}
+		case .Note;
+			// the official keeps no note when the answer is an error (404: none) or for another user
+			d := vmap(e.data);
+			note_set_local(s, r.user_id, ifx r.ok && fsnow(d, "note_user_id") == r.user_id then fstr(d, "note") else "");
 		case .Send_Message; #through;
 		case .Upload;
 			rt := table_find_pointer(*c.analytics.roundtrips, r.nonce);

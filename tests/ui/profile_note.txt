@@ -1,0 +1,15 @@
+# The full profile's Note: a click edits it in place, Enter (or leaving it) saves, and it shows after.
+wait 30
+click 466 129
+wait 20
+click 552 216
+wait 30
+expect_visible "Click to add a note"
+click 420 501
+wait 3
+type met at the game jam
+shot build/shots/n1.png
+key enter
+wait 3
+expect_visible "met at the game jam"
+expect_not_visible "Click to add a note"

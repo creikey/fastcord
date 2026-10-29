@@ -63,6 +63,7 @@ Rest_Op :: enum u8 {
 	Open_Dm;
 	Relationship;
 	Fetch_Profile;
+	Note;
 	Upload;
 	Experiments;
 	Startup;

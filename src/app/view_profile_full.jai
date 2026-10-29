@@ -56,6 +56,8 @@ Pf_State :: struct {
 	profiles: Table(dc.Snowflake, Pf_Profile);
 	menu_user: dc.Snowflake; // user context menu
 	menu_pos: ui.Vec2;
+	note: ui.Editor; // the Note field while focused
+	note_focused: bool;
 }
 
 pf: Pf_State;
@@ -346,6 +348,51 @@ profile_tabs :: (uid: dc.Snowflake, prof: Pf_Profile) {
 	}
 }
 
+// The note about uid, edited in place: a click focuses it, and leaving it (or Enter) saves a
+// change, as the official note box does on blur (only you can see it).
+note_field :: (uid: dc.Snowflake) {
+	note, loaded := dc.note_get(store(), uid);
+	if !loaded && app.client dc.fetch_note(app.client, uid);
+	nr := row("note");
+	nr.semantic_size = .[ui.pct(1), ui.children()];
+	ui.parent(nr); defer ui.pop_parent();
+	spacer(.X, PF_PAD + 4);
+	box := row("notebox", .Clickable | .Draw_Background);
+	box.semantic_size = .[ui.fill(), ui.children()];
+	box.style.radius = all4(4);
+	box.hover_cursor = .IBeam;
+	focused := app.ui.focus == box.key;
+	if focused box.style.bg = T("--background-mod-normal");
+	if ui.signal(box).pressed && !focused {
+		app.ui.focus = box.key;
+		focused = true;
+	}
+	if focused && !pf.note_focused ui.editor_set_text(*pf.note, note);
+	res: ui.Edit_Result;
+	{ ui.parent(box); defer ui.pop_parent();
+		spacer(.X, 4);
+		if focused {
+			res = text_field("f", *pf.note, "Click to add a note", true, 14, 18, 4, T("--text-muted"));
+			t := ui.editor_text(*pf.note);
+			cut := cut_runes(t, dc.NOTE_MAX);
+			if cut.count < t.count ui.editor_set_text(*pf.note, copy_string(cut,, temp));
+		} else {
+			l := label(ifx note then note else "Click to add a note", .Normal, 14, ifx note then T("--text-default") else T("--text-muted"), 18);
+			l.flags |= .Wrap_Text;
+			l.semantic_size[ui.Axis.X] = ui.fill();
+			l.style.padding = .{0, 4};
+		}
+		spacer(.X, 4);
+	}
+	spacer(.X, PF_PAD + 4);
+	if res == .Submit || res == .Escape app.ui.focus = 0;
+	if pf.note_focused && app.ui.focus != box.key {
+		t := trim(ui.editor_text(*pf.note));
+		if t != note { if net_action() dc.set_note(app.client, uid, t); else dc.note_set_local(store(), uid, t); } // offline (fixtures): shown only
+	}
+	pf.note_focused = app.ui.focus == box.key;
+}
+
 section_title :: (text: string) {
 	r := row(text);
 	r.semantic_size = .[ui.pct(1), ui.px(20)];
@@ -418,12 +465,7 @@ profile_about :: (uid: dc.Snowflake, u: *dc.User, prof: Pf_Profile) {
 	spacer(.Y, 16);
 	if uid != store().me && !streamer_hide_personal() {
 		section_title("Note");
-		nr := row("note");
-		nr.semantic_size = .[ui.pct(1), ui.px(18)];
-		{ ui.parent(nr); defer ui.pop_parent();
-			spacer(.X, PF_PAD + 8);
-			label("Click to add a note", .Normal, 12, T("--text-muted"), 16);
-		}
+		note_field(uid);
 	}
 }
 

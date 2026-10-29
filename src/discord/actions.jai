@@ -1329,12 +1329,30 @@ fetch_profile_ex :: (c: *Client, user_id: Snowflake, o: Profile_Options, tag: u6
 	job_submit(c, j);
 }
 
-// fetch_note: GET /users/@me/notes/{id} (profile popouts/sidebars).
+// fetch_note: GET /users/@me/notes/{id} (profile popouts/sidebars); the answer lands in s.notes.
 fetch_note :: (c: *Client, user_id: Snowflake, delay_ms: s64 = 0) {
-	j := job_new(.Api, .None);
+	j := job_new(.Api, .Note);
 	j.method = "GET";
 	j.path = job_str(j, tprint("/users/@me/notes/%", user_id));
 	j.not_before = now_ms() + delay_ms;
+	j.result.user_id = user_id;
+	job_submit(c, j);
+	find_or_add(*c.store.notes, user_id); // asked: the views don't ask again meanwhile
+}
+
+// set_note: PUT /users/@me/notes/{id} {"note"} (204), shown at once.
+set_note :: (c: *Client, user_id: Snowflake, note: string) {
+	note_set_local(*c.store, user_id, note);
+	w: Json;
+	json_init(*w);
+	json_obj(*w);
+	json_kstr(*w, "note", note);
+	json_obj_end(*w);
+	j := job_new(.Api, .None);
+	j.method = "PUT";
+	j.path = job_str(j, tprint("/users/@me/notes/%", user_id));
+	j.body = cast([]u8) job_str(j, json_string(*w));
+	j.content_type = "application/json";
 	job_submit(c, j);
 }
 

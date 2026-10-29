@@ -21,6 +21,7 @@ Store :: struct {
 	messages: Table(Snowflake, Message_List); // channel -> messages
 	presences: Table(Snowflake, Presence);
 	relationships: Table(Snowflake, Relationship);
+	notes: Table(Snowflake, string); // user -> our note about them, once loaded (fetch_note, USER_NOTE_UPDATE)
 	read_states: Table(Snowflake, Read_State);
 	guild_settings: Table(Snowflake, Guild_Settings);
 	voice_states: Table(Snowflake, Voice_State); // user -> state (one voice connection per user)
@@ -61,6 +62,7 @@ store_init :: (s: *Store, allocator := context.allocator) {
 	s.messages.allocator = allocator;
 	s.presences.allocator = allocator;
 	s.relationships.allocator = allocator;
+	s.notes.allocator = allocator;
 	s.read_states.allocator = allocator;
 	s.guild_settings.allocator = allocator;
 	s.voice_states.allocator = allocator;
@@ -73,6 +75,21 @@ store_init :: (s: *Store, allocator := context.allocator) {
 	s.soundboard.allocator = allocator;
 	s.effects.allocator = allocator;
 }
+
+// The note about a user: "" for none; loaded false until fetch_note asked for it.
+note_get :: (s: *Store, user_id: Snowflake) -> note: string, loaded: bool {
+	p := table_find_pointer(*s.notes, user_id);
+	return ifx p then p.* else "", p != null;
+}
+
+note_set_local :: (s: *Store, user_id: Snowflake, note: string) {
+	if !user_id return;
+	p := find_or_add(*s.notes, user_id);
+	set_str(s, p, slice(note, 0, min(note.count, NOTE_MAX * 4))); // a server's note is capped like ours
+	s.changed += 1;
+}
+
+NOTE_MAX :: 256; // characters
 
 // set_str replaces a store string with a copy of v.
 set_str :: (s: *Store, dst: *string, v: string) {
@@ -1362,6 +1379,8 @@ store_apply_dispatch :: (s: *Store, name: string, data: V, now: s64) -> bool {
 		case "RELATIONSHIP_ADD"; #through;
 		case "RELATIONSHIP_UPDATE";
 			apply_relationship(s, d);
+		case "USER_NOTE_UPDATE";
+			note_set_local(s, fsnow(d, "id"), fstr(d, "note"));
 		case "RELATIONSHIP_REMOVE";
 			uid := fsnow(d, "id");
 			r := table_find_pointer(*s.relationships, uid);

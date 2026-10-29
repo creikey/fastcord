@@ -314,6 +314,7 @@ call's `retries` (the bundle's value for that call: search the endpoint) and, fo
 
 | Rule | Kind | Anchor | fastcord |
 |---|---|---|---|
+| Notes: `GET /users/@me/notes/{id}` answers `{note, note_user_id}`; an error (404 = no note) or another `note_user_id` leaves no note; `USER_NOTE_UPDATE` {id, note} replaces it. The note box fetches when the note isn't cached. Editing: the full profile's Note box saves on blur or Enter with `PUT /users/@me/notes/{id}` `{"note"}` (204), at most 256 characters | code (load, event) + guess (PUT body, save trigger, limit: the update chunk wasn't cached) | `USER_NOTE_LOAD_START",userId:t});try{`, `e.note_user_id!==t` | `actions.jai` `fetch_note`, `set_note`; `rest.jai` `.Note`; `view_profile_full.jai` `note_field` |
 | Emoji spritesheets, emoji data, search (`EmojiStore.searchWithoutFetchingLatest`) | code | `EmojiStore`, spritesheet modules | `src/app/pickers_emoji.jai`, `pickers_data.jai` |
 | GIF picker requests and layout (bundle module 497685 "GIF actions", `GIFPickerSearchResults`, `GIFPickerCategories`) | code | same | `src/discord/expressions.jai`, `src/app/pickers_gif.jai` |
 | Full profile requests (`UserProfileModalActionCreators`) | code | same | `expressions.jai`, `view_profile_full.jai` |

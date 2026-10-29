@@ -70,6 +70,7 @@ friend_nick_save :: (nick: string) {
 	if n == dc.friend_nickname(store(), uid) { return; }
 	if net_action() { dc.set_friend_nickname(app.client, uid, n); } else { dc.store_set_friend_nickname(store(), uid, n); } // offline (fixture) runs show the result
 }
+#scope_export
 
 // cut_runes: s cut to its first n runes (the limits count runes, not bytes).
 cut_runes :: (s: string, n: int) -> string {
@@ -81,7 +82,6 @@ cut_runes :: (s: string, n: int) -> string {
 	}
 	return s;
 }
-#scope_export
 
 friend_nick_modal :: () {
 	s := store();
