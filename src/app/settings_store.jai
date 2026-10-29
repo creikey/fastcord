@@ -27,7 +27,7 @@ Persisted_Voice :: struct {
 	soundboard_volume: float32 = 100;
 	soundboard_mic: bool;
 	mode: string; // "VOICE_ACTIVITY" | "PUSH_TO_TALK"
-	ptt_key: string; // platform.Key name
+	ptt_key: string; // before Keybinds: its shortcut, moved to keybinds on load and no longer written
 	ptt_delay_ms: int;
 	user_volume: Table(string, float32);
 	user_muted: Table(string, bool);
@@ -73,6 +73,7 @@ Persisted :: struct {
 	hosted_servers: []string; // fc:// invites of joined self-hosted servers (hosted.jai)
 	hosted_names: Table(string, string); // self-hosted server ID (hex) -> its name, shown while it is down
 	drafts: Table(string, string); // channel -> unsent composer text, kept across restarts (not encrypted DMs')
+	keybinds: []Persisted_Keybind; // Settings > Keybinds (keybinds.jai)
 }
 
 DRAFTS_MAX :: 100;
@@ -249,6 +250,7 @@ apply_persisted :: (p: *Persisted) {
 	zoom_set(p.zoom);
 	notify_prefs = p.notify;
 	voice_settings_restore(*p.voice);
+	keybinds_restore(p.keybinds, p.voice.ptt_key);
 	sounds_restore(*p.sounds);
 	streamer_settings = p.streamer;
 	video_volume = clamp(p.video_volume, 0, 4);
@@ -310,6 +312,7 @@ snapshot :: () -> string {
 		if !text || text.count > DRAFT_MAX_BYTES || p.drafts.count >= DRAFTS_MAX || (ch && encrypted_dm(ch)) continue;
 		table_set(*p.drafts, tprint("%", cast(u64) cid), text);
 	}
+	p.keybinds = keybinds_snapshot();
 	wp, ok := platform.window_placement();
 	if ok p.window = .{wp.x, wp.y, wp.width, wp.height, wp.maximized};
 	return marshal_pretty(p);

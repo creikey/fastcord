@@ -1,0 +1,24 @@
+# Settings > Keybinds: Add a Keybind, pick its action, record a shortcut, and the shortcut runs it
+# (headless runs have no global input, so this is the focused-window path).
+wait 5
+click 338 683
+wait 20
+click_text "Keybinds"
+wait 10
+click_text "Add a Keybind"
+wait 5
+click_text "Unassigned"
+wait 5
+shot build/ui-keybinds_actions.png
+click_text "Toggle Mute"
+wait 5
+click_text "Record Keybind"
+wait 3
+key k alt
+wait 5
+expect_visible "Alt+K"
+shot build/ui-keybinds_page.png
+key escape
+wait 10
+key k alt
+wait 5

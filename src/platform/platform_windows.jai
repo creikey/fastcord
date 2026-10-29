@@ -321,6 +321,53 @@ quit_on_signals :: () {
     }, 1);
 }
 
+// Global input: WH_KEYBOARD_LL and WH_MOUSE_LL hooks on a thread of their own, which only pumps messages,
+// so the hooks answer at once whatever the UI thread is doing (Windows drops a hook that is slow).
+os_global_input :: (on: bool) -> Global_Input {
+    if !on {
+        if !w.hook_on return .Off;
+        while !atomic_load(*w.hook_tid) && !thread_is_done(*w.hook_thread, 0) win.Sleep(1);
+        PostThreadMessageW(atomic_load(*w.hook_tid), win.WM_QUIT, 0, 0);
+        thread_is_done(*w.hook_thread, -1);
+        thread_deinit(*w.hook_thread);
+        w.hook_on, w.hook_tid = false, 0;
+        return .Off;
+    }
+    thread_init(*w.hook_thread, (t: *Thread) -> s64 {
+        LL :: (code: s32, wp: win.WPARAM, lp: win.LPARAM) -> win.LRESULT #c_call {
+            push_context w.hook_ctx {
+            if code == 0 && wp >= win.WM_KEYDOWN && wp <= win.WM_SYSKEYUP {
+                k := cast(*KBDLLHOOKSTRUCT) lp;
+                global_event(map_vk(k.vkCode, (cast(win.LPARAM) (k.flags & 1)) << 24), .Left, wp == win.WM_KEYDOWN || wp == win.WM_SYSKEYDOWN);
+            } else if code == 0 && (wp == win.WM_MBUTTONDOWN || wp == win.WM_MBUTTONUP || wp == win.WM_XBUTTONDOWN || wp == win.WM_XBUTTONUP) {
+                m := cast(*MSLLHOOKSTRUCT) lp;
+                b := ifx wp <= win.WM_MBUTTONUP then Mouse_Button.Middle else ifx (m.mouseData >> 16) == 1 then Mouse_Button.X1 else .X2;
+                global_event(.None, b, wp == win.WM_MBUTTONDOWN || wp == win.WM_XBUTTONDOWN);
+            }
+            }
+            return CallNextHookEx(null, code, wp, lp);
+        }
+        w.hook_ctx = context;
+        kb := SetWindowsHookExW(13 /*WH_KEYBOARD_LL*/, xx LL, w.instance, 0);
+        mouse := SetWindowsHookExW(14 /*WH_MOUSE_LL*/, xx LL, w.instance, 0);
+        m: win.MSG;
+        win.PeekMessageW(*m, null, 0, 0, 0); // makes the queue PostThreadMessage needs
+        atomic_store(*w.hook_tid, win.GetCurrentThreadId());
+        while GetMessageW(*m, null, 0, 0) > 0 {}
+        if kb UnhookWindowsHookEx(kb);
+        if mouse UnhookWindowsHookEx(mouse);
+        return 0;
+    });
+    thread_start(*w.hook_thread);
+    w.hook_on = true;
+    return .On;
+}
+
+KBDLLHOOKSTRUCT :: struct { vkCode, scanCode, flags, time: u32; dwExtraInfo: u64; }
+MSLLHOOKSTRUCT :: struct { pt: win.POINT; mouseData, flags, time: u32; dwExtraInfo: u64; }
+GetMessageW :: (msg: *win.MSG, hwnd: win.HWND, min: u32, max: u32) -> s32 #foreign user32;
+PostThreadMessageW :: (tid: u32, msg: u32, wp: win.WPARAM, lp: win.LPARAM) -> s32 #foreign user32;
+
 os_init ::(title: string, width: int, height: int) -> bool {
     SetProcessDpiAwarenessContext(win.DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     w.instance = win.GetModuleHandleW(null);
@@ -757,6 +804,10 @@ w: struct {
     small_icon: win.HICON;
     tray_badge_icon: win.HICON; // small_icon with the unread dot, while there are mentions
     tray_call_icon: win.HICON; // the call state's circle, while in a call (set_tray_call)
+    hook_thread: Thread; // global input (os_global_input)
+    hook_on: bool;
+    hook_tid: u32;
+    hook_ctx: #Context;
 };
 
 // A zero-terminated UTF-16 copy in temp.

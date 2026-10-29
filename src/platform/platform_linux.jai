@@ -166,6 +166,70 @@ autostart_path :: () -> string {
 
 #scope_module
 
+// Global input: XInput2 raw key and button events from the root window, on a thread with its own
+// connection. Under Wayland (XWayland) they come only while an X11 window has focus.
+os_global_input :: (on: bool) -> Global_Input {
+    if !on {
+        if !gx.on return .Off;
+        atomic_store(*gx.stop, true);
+        thread_is_done(*gx.thread, -1);
+        thread_deinit(*gx.thread);
+        X.CloseDisplay(gx.d);
+        gx.on, gx.stop, gx.d = false, false, null;
+        return .Off;
+    }
+    if !gx.lib gx.lib = dlopen("libXi.so.6", RTLD_NOW);
+    if !gx.lib || !gx.select gx.select = xx dlsym(gx.lib, "XISelectEvents");
+    if !gx.select return .Unavailable;
+    gx.d = X.OpenDisplay(null);
+    ev, err: s32;
+    if !gx.d || !X.QueryExtension(gx.d, "XInputExtension", *gx.opcode, *ev, *err) {
+        if gx.d X.CloseDisplay(gx.d);
+        gx.d = null;
+        return .Unavailable;
+    }
+    bits: [4]u8;
+    for 13..16 bits[it >> 3] |= cast(u8) (1 << (it & 7)); // XI_RawKeyPress, RawKeyRelease, RawButtonPress, RawButtonRelease
+    mask := XIEventMask.{deviceid = 1 /*XIAllMasterDevices*/, mask_len = bits.count, mask = bits.data};
+    gx.select(gx.d, X.DefaultRootWindow(gx.d), *mask, 1);
+    X.Flush(gx.d);
+    thread_init(*gx.thread, (t: *Thread) -> s64 {
+        fd := X.ConnectionNumber(gx.d);
+        while !atomic_load(*gx.stop) {
+            pfd := pollfd.{fd = fd, events = POLLIN};
+            poll(*pfd, 1, 250);
+            while X.Pending(gx.d) {
+                e: XEvent;
+                X.NextEvent(gx.d, *e);
+                c := cast(*XGenericEventCookie) *e;
+                if c.type != 35 /*GenericEvent*/ || c.extension != gx.opcode || !X.GetEventData(gx.d, c) continue;
+                r := cast(*XIRawEvent) c.data;
+                if c.evtype == 13 || c.evtype == 14 global_event(map_keysym(X.kbKeycodeToKeysym(gx.d, xx r.detail, 0, 0)), .Left, c.evtype == 13);
+                else if r.detail == 2 || r.detail == 8 || r.detail == 9 global_event(.None, ifx r.detail == 2 then Mouse_Button.Middle else ifx r.detail == 8 then .X1 else .X2, c.evtype == 15);
+                X.FreeEventData(gx.d, c);
+            }
+        }
+        return 0;
+    });
+    thread_start(*gx.thread);
+    gx.on = true;
+    return .On;
+}
+
+gx: struct {
+    on: bool;
+    stop: bool; // atomic
+    lib: *void;
+    select: (d: *void, w: Window, masks: *XIEventMask, n: s32) -> s32 #c_call;
+    d: *void;
+    opcode: s32;
+    thread: Thread;
+};
+
+XIEventMask :: struct { deviceid: s32; mask_len: s32; mask: *u8; }
+XGenericEventCookie :: struct { type: s32; serial: u64; send_event: s32; display: *void; extension: s32; evtype: s32; cookie: u32; data: *void; }
+XIRawEvent :: struct { type: s32; serial: u64; send_event: s32; display: *void; extension: s32; evtype: s32; time: u64; deviceid, sourceid, detail, flags: s32; }
+
 os_init :: (title: string, width: int, height: int) -> bool {
     xs.lib = dlopen("libX11.so.6", RTLD_NOW);
     if !xs.lib || !load_syms(xs.lib, *X, "X") return false;
@@ -459,6 +523,10 @@ Xlib :: struct {
     CreatePixmapCursor: (d: *void, src: u64, mask: u64, fg: *XColor, bg: *XColor, x: u32, y: u32) -> u64 #c_call;
     FreePixmap: (d: *void, p: u64) -> s32 #c_call;
     DefineCursor: (d: *void, w: Window, c: u64) -> s32 #c_call;
+    QueryExtension: (d: *void, name: *u8, opcode: *s32, event: *s32, error: *s32) -> s32 #c_call;
+    GetEventData: (d: *void, cookie: *XGenericEventCookie) -> s32 #c_call;
+    FreeEventData: (d: *void, cookie: *XGenericEventCookie) #c_call;
+    kbKeycodeToKeysym: (d: *void, keycode: u8, group: s32, level: s32) -> u64 #c_call;
 }
 X: Xlib;
 

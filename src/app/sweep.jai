@@ -168,6 +168,7 @@ app_reset_state :: () {
 	rail_reset_for_test();
 	pf_reset_for_test();
 	vs_reset_for_test();
+	keybinds_reset_for_test();
 	audio.select_device(true, 0);
 	audio.select_device(false, 0);
 	settings_page = "Appearance";

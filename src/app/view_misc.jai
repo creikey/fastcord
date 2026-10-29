@@ -468,7 +468,7 @@ settings_modal :: () {
 				settings_nav_search(); // view_settings_prefs.jai: filters the items below
 				spacer(.Y, 8);
 				// 0.0.419: Streamer Mode is a section of Appearance (its sub-nav), not a page
-				items := Settings_Item.[.{"Account", "user-circle"}, .{"Profiles", "pencil"}, .{"Appearance", "paint-palette"}, .{"Voice & Video", "microphone"}, .{"Notifications", "bell"}, .{"Accessibility", "eye"}, .{"System", "screen"}, .{"Language & Time", "clock"}, .{"Developer", "angle-brackets"}];
+				items := Settings_Item.[.{"Account", "user-circle"}, .{"Profiles", "pencil"}, .{"Appearance", "paint-palette"}, .{"Voice & Video", "microphone"}, .{"Notifications", "bell"}, .{"Keybinds", "key"}, .{"Accessibility", "eye"}, .{"System", "screen"}, .{"Language & Time", "clock"}, .{"Developer", "angle-brackets"}];
 				for items {
 					if it.name == "System" && OS == .MACOS continue; // the client's System panel: Windows and Linux
 					if !settings_nav_match(it.name) && !(it.name == "Appearance" && settings_nav_match("Streamer Mode")) { continue; }
@@ -531,6 +531,8 @@ settings_modal :: () {
 					profiles_page();
 				} else if settings_page == "Notifications" {
 					notifications_page(); // view_settings_prefs.jai
+				} else if settings_page == "Keybinds" {
+					keybinds_page(); // keybinds.jai
 				} else if settings_page == "Accessibility" {
 					accessibility_page();
 				} else if settings_page == "System" {
@@ -545,7 +547,7 @@ settings_modal :: () {
 		if select_is_open() dropdown_list(); // a select_field's open list (view_server_settings.jai), over the modal
 	}
 	for * e: app.ui.events {
-		if e.kind == .Key_Down && e.key == .Escape && !voice_dropdown_open() { // the dropdown's own Escape closes only it
+		if e.kind == .Key_Down && e.key == .Escape && !voice_dropdown_open() && !keybinds_capturing() { // the dropdown's own Escape closes only it
 			if select_is_open() select_close(); else app.settings_open = false;
 			e.consumed = true;
 		}

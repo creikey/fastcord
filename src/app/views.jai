@@ -1394,33 +1394,35 @@ navigate_step :: (dir: int, unread: bool, servers: bool, mentions := false) {
 header_pin_rect, header_thread_rect: ui.Rect;
 shortcuts_open: bool;
 
+// The shortcuts fastcord handles, as pairs of what and keys: the Ctrl+/ modal and Settings > Keybinds.
+SHORTCUT_MOD :: #run ifx OS == .MACOS then "Cmd" else "Ctrl";
+DEFAULT_SHORTCUTS :: string.[
+	"Find or start a conversation", #run tprint("%+K", SHORTCUT_MOD),
+	"Back / forward", #run ifx OS == .MACOS then "Cmd+[ / Cmd+]" else "Alt+Left / Alt+Right",
+	"Previous / next channel", "Alt+Up / Alt+Down",
+	"Previous / next unread channel", "Alt+Shift+Up / Down",
+	"Previous / next channel with mentions", #run tprint("%+Alt+Shift+Up / Down", SHORTCUT_MOD),
+	"Previous / next server", #run tprint("%+Alt+Up / Down", SHORTCUT_MOD),
+	"Return to the connected call", #run tprint("%+Alt+A", SHORTCUT_MOD),
+	"Toggle inbox", #run tprint("%+I", SHORTCUT_MOD),
+	"Toggle pins", #run tprint("%+P", SHORTCUT_MOD),
+	"Toggle member list", #run tprint("%+U", SHORTCUT_MOD),
+	"Mark channel read", "Escape",
+	"Mark server read", "Shift+Escape",
+	"Jump to oldest unread message", "Shift+Page Up",
+	"Scroll chat", "Page Up / Page Down",
+	"Edit your last message", "Up",
+	"Mark a message unread", "Alt+Click",
+	"Toggle mute", #run tprint("%+Shift+M", SHORTCUT_MOD),
+	"Toggle deafen", #run tprint("%+Shift+D", SHORTCUT_MOD),
+	"Emoji / GIF / sticker picker", #run tprint("%+E / G / S", SHORTCUT_MOD),
+	"Upload a file", #run tprint("%+Shift+U", SHORTCUT_MOD),
+	"Bold / italic / underline", #run tprint("%+B / I / U", SHORTCUT_MOD),
+	"Keyboard shortcuts", #run tprint("%+/", SHORTCUT_MOD),
+];
+
 // Ctrl+/: the keyboard shortcuts fastcord handles, in two columns of key caps.
 shortcuts_modal :: () {
-	MOD :: #run ifx OS == .MACOS then "Cmd" else "Ctrl";
-	SHORTCUTS :: string.[
-		"Find or start a conversation", #run tprint("%+K", MOD),
-		"Back / forward", #run ifx OS == .MACOS then "Cmd+[ / Cmd+]" else "Alt+Left / Alt+Right",
-		"Previous / next channel", "Alt+Up / Alt+Down",
-		"Previous / next unread channel", "Alt+Shift+Up / Down",
-		"Previous / next channel with mentions", #run tprint("%+Alt+Shift+Up / Down", MOD),
-		"Previous / next server", #run tprint("%+Alt+Up / Down", MOD),
-		"Return to the connected call", #run tprint("%+Alt+A", MOD),
-		"Toggle inbox", #run tprint("%+I", MOD),
-		"Toggle pins", #run tprint("%+P", MOD),
-		"Toggle member list", #run tprint("%+U", MOD),
-		"Mark channel read", "Escape",
-		"Mark server read", "Shift+Escape",
-		"Jump to oldest unread message", "Shift+Page Up",
-		"Scroll chat", "Page Up / Page Down",
-		"Edit your last message", "Up",
-		"Mark a message unread", "Alt+Click",
-		"Toggle mute", #run tprint("%+Shift+M", MOD),
-		"Toggle deafen", #run tprint("%+Shift+D", MOD),
-		"Emoji / GIF / sticker picker", #run tprint("%+E / G / S", MOD),
-		"Upload a file", #run tprint("%+Shift+U", MOD),
-		"Bold / italic / underline", #run tprint("%+B / I / U", MOD),
-		"Keyboard shortcuts", #run tprint("%+/", MOD),
-	];
 	scrim := ui.box("sc_scrim", .Draw_Background | .Clickable | .Floating_X | .Floating_Y | .Overlay);
 	scrim.semantic_size = .[ui.px(app.ui.window.x), ui.px(app.ui.window.y)];
 	scrim.style.bg = .{0, 0, 0, 0.7};
@@ -1454,22 +1456,15 @@ shortcuts_modal :: () {
 	sc.layout_axis = .Y;
 	ui.signal(sc);
 	{ ui.parent(sc); defer ui.pop_parent();
-		for i: 0..SHORTCUTS.count / 2 - 1 {
+		for i: 0..DEFAULT_SHORTCUTS.count / 2 - 1 {
 			r := row(tprint("sc%", i));
 			r.semantic_size = .[ui.pct(1), ui.px(36)];
 			r.cross_align = .Center;
 			ui.parent(r); defer ui.pop_parent();
 			spacer(.X, PAD);
-			label(SHORTCUTS[2 * i], .Normal, 15, T("--text-default"), 20);
+			label(DEFAULT_SHORTCUTS[2 * i], .Normal, 15, T("--text-default"), 20);
 			filler(.X);
-			k := ui.box(tprint("%##keys", SHORTCUTS[2 * i + 1]), .Draw_Background | .Draw_Text);
-			k.semantic_size = .[ui.text_size(16), ui.px(24)];
-			k.style.bg = T("--background-mod-strong");
-			k.style.radius = all4(4);
-			k.style.font = F(.Semibold);
-			k.style.font_size = 13;
-			k.style.text_color = T("--text-strong");
-			k.style.text_align = .Center;
+			key_caps(DEFAULT_SHORTCUTS[2 * i + 1]);
 			spacer(.X, PAD);
 		}
 	}

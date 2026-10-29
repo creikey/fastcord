@@ -114,6 +114,84 @@ window_show :: () {
 
 #scope_module
 
+// Global input: a listen-only event tap (it cannot change or drop events) on a thread with its own run
+// loop. Key events need Input Monitoring; without it there is no tap at all, so the system never prompts
+// unless request_global_input_permission asks.
+os_global_input :: (on: bool) -> Global_Input {
+    if !on {
+        if !gt.on return .Off;
+        atomic_store(*gt.stop, true);
+        thread_is_done(*gt.thread, -1);
+        thread_deinit(*gt.thread);
+        gt.on, gt.stop = false, false;
+        return .Off;
+    }
+    if !CGPreflightListenEventAccess() return .No_Permission;
+    mask: u64 = (1 << 10) | (1 << 11) | (1 << 12) | (1 << 25) | (1 << 26); // key down / up, flags, other mouse down / up
+    gt.tap = CGEventTapCreate(1 /*kCGSessionEventTap*/, 0 /*head*/, 1 /*kCGEventTapOptionListenOnly*/, mask, xx tap_callback, null);
+    if !gt.tap return .Unavailable;
+    thread_init(*gt.thread, (t: *Thread) -> s64 {
+        gt.ctx = context;
+        src := CFMachPortCreateRunLoopSource(null, gt.tap, 0);
+        CFRunLoopAddSource(CFRunLoopGetCurrent(), src, kCFRunLoopDefaultMode);
+        while !atomic_load(*gt.stop) CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0.25, 0);
+        CFMachPortInvalidate(gt.tap);
+        CFRelease(src);
+        CFRelease(gt.tap);
+        return 0;
+    });
+    thread_start(*gt.thread);
+    gt.on = true;
+    return .On;
+}
+
+os_global_permission_request :: () {
+    if CGRequestListenEventAccess() return;
+    open_url("x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent");
+}
+
+tap_callback :: (proxy: *void, type: u32, ev: *void, user: *void) -> *void #c_call {
+    push_context gt.ctx {
+        if type >= 0xFFFF_FFFE { CGEventTapEnable(gt.tap, true); return ev; } // disabled by a timeout or the user
+        if type == 25 || type == 26 {
+            n := CGEventGetIntegerValueField(ev, 3 /*kCGMouseEventButtonNumber*/);
+            if n >= 2 && n <= 4 global_event(.None, cast(Mouse_Button) n, type == 25);
+            return ev;
+        }
+        code := CGEventGetIntegerValueField(ev, 9 /*kCGKeyboardEventKeycode*/);
+        k := ifx code >= 0 && code < 128 then KEYCODES[code] else .None;
+        if type == 12 { // a modifier changed: down while its flag is set
+            m := mods_from_flags(CGEventGetFlags(ev));
+            f := ifx k == .Shift then Mod.Shift else ifx k == .Ctrl then Mod.Ctrl else ifx k == .Alt then Mod.Alt else ifx k == .Cmd then Mod.Cmd else 0;
+            if f global_event(k, .Left, (m & f) != 0);
+        } else if k != .None global_event(k, .Left, type == 10);
+    }
+    return ev;
+}
+
+gt: struct {
+    on: bool;
+    stop: bool; // atomic
+    tap: *void; // CFMachPortRef
+    thread: Thread;
+    ctx: #Context;
+};
+
+core_foundation :: #library,system,link_always "CoreFoundation";
+kCFRunLoopDefaultMode: *void #elsewhere core_foundation;
+CGPreflightListenEventAccess :: () -> bool #foreign core_graphics;
+CGRequestListenEventAccess :: () -> bool #foreign core_graphics;
+CGEventTapCreate :: (tap: u32, place: u32, options: u32, mask: u64, callback: *void, user: *void) -> *void #foreign core_graphics;
+CGEventTapEnable :: (tap: *void, enable: bool) #foreign core_graphics;
+CGEventGetIntegerValueField :: (ev: *void, field: u32) -> s64 #foreign core_graphics;
+CGEventGetFlags :: (ev: *void) -> u64 #foreign core_graphics;
+CFMachPortCreateRunLoopSource :: (alloc: *void, port: *void, order: s64) -> *void #foreign core_foundation;
+CFMachPortInvalidate :: (port: *void) #foreign core_foundation;
+CFRunLoopGetCurrent :: () -> *void #foreign core_foundation;
+CFRunLoopAddSource :: (rl: *void, src: *void, mode: *void) #foreign core_foundation;
+CFRunLoopRunInMode :: (mode: *void, seconds: float64, return_after_source: u8) -> s32 #foreign core_foundation;
+CFRelease :: (obj: *void) #foreign core_foundation;
+
 os_init :: (title: string, width: int, height: int) -> bool {
     m.pool = autorelease_pool();
 

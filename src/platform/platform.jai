@@ -48,6 +48,10 @@ Event_Kind :: enum u8 {
     Tray_Deafen;
     Open_Url;    // another launch or app handed us a URL (text; "" = only show the window): instance_claim
     Notification_Click; // a desktop notification was clicked (text = the id notify_show got; Linux)
+    Global_Key_Down; // global input (set_global_input): a key anywhere on the desktop, repeats dropped
+    Global_Key_Up;
+    Global_Mouse_Down; // the middle and side buttons only
+    Global_Mouse_Up;
 }
 
 Event :: struct {
@@ -161,7 +165,10 @@ init_headless :: (width: int, height: int, dpi: float32 = 1) -> bool {
 
 shutdown :: () {
     if !s.initialized return;
-    if !s.headless os_shutdown();
+    if !s.headless {
+        if s.global == .On os_global_input(false);
+        os_shutdown();
+    }
     array_free(s.pending);
     array_free(s.current);
     fini(*s.pending_pool);
@@ -313,6 +320,31 @@ set_tray_call :: (c: Tray_Call) {
     #if OS == .WINDOWS tray_call_changed();
 }
 
+// Global input: key and mouse button presses anywhere on the desktop, also while another app has focus,
+// for global push to talk and keybinds. Listen-only: it never injects, blocks or changes input (Windows
+// low-level hooks, a listen-only macOS event tap, X11 XInput2 raw events), each on its own thread. Call it
+// every frame with whether it is wanted; it starts or stops only when that changes. macOS needs the Input
+// Monitoring permission (No_Permission until granted: request_global_input_permission). Headless: Off.
+Global_Input :: enum u8 { Off; On; No_Permission; Unavailable; }
+set_global_input :: (on: bool) -> Global_Input {
+    if s.headless return .Off;
+    if on == (s.global != .Off) {
+        if s.global != .No_Permission || time_now() < s.global_retry return s.global;
+        on = true; // granted since? check again every 2 s
+    }
+    if !on {
+        os_global_input(false);
+        memset(s.global_down.data, 0, s.global_down.count);
+        s.global_mods = 0;
+    }
+    s.global = ifx on then os_global_input(true) else .Off;
+    s.global_retry = time_now() + 2;
+    return s.global;
+}
+
+// macOS: asks for Input Monitoring (the system's prompt, the first time) and opens its pane in System Settings.
+request_global_input_permission :: () { #if OS == .MACOS os_global_permission_request(); }
+
 // Called from inside OS modal loops (live resize) with events swapped in; run one frame.
 // Also re-captures the caller's context: frames run from OS callbacks (live resize) push it,
 // so they see what the app added (context.ui) after init.
@@ -403,7 +435,26 @@ rgba_to_dibv5 :: (rgba: []u8, width: int, height: int, out: []u8) {
 
 #scope_module
 
+// From a global input thread: a key or mouse button went down or up. Tracks the modifiers and drops repeats.
+global_event :: (key: Key, button: Mouse_Button, down: bool) {
+    if key != .None {
+        if s.global_down[key] == down return;
+        s.global_down[key] = down;
+        m := ifx key == .Shift then Mod.Shift else ifx key == .Ctrl then Mod.Ctrl else ifx key == .Alt then Mod.Alt else ifx key == .Cmd then Mod.Cmd else 0;
+        if down s.global_mods |= m; else s.global_mods &= ~m;
+        push_event(.{kind = ifx down then .Global_Key_Down else .Global_Key_Up, key = key, mods = s.global_mods, time = time_now()});
+    } else {
+        if button < .Middle return;
+        push_event(.{kind = ifx down then .Global_Mouse_Down else .Global_Mouse_Up, button = button, mods = s.global_mods, time = time_now()});
+    }
+    request_frame();
+}
+
 State :: struct {
+    global: Global_Input;
+    global_retry: float64;
+    global_down: [#run enum_highest_value(Key) + 1]bool; // global input thread's
+    global_mods: Mod;
     tray_call: Tray_Call;
     zoom: float32 = 1; // set_zoom
     headless_login: bool; // open_at_login in headless runs, which never touch the OS
