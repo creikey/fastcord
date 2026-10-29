@@ -928,6 +928,8 @@ Search_Query :: struct {
 	has: []string; // link, embed, file, image, video, sound, sticker, poll, forward
 	channel_ids: []Snowflake;
 	pinned: bool;
+	min_id: Snowflake; // after: / during: (0 = none)
+	max_id: Snowflake; // before: / during:
 	offset: int;
 	sort: Search_Sort;
 }
@@ -946,6 +948,8 @@ search_messages :: (c: *Client, guild_id: Snowflake, channel_id: Snowflake, sq: 
 	for sq.has query_add(*q, "has", it);
 	for sq.channel_ids query_add_snow(*q, "channel_id", it);
 	if sq.pinned query_add(*q, "pinned", "true");
+	if sq.min_id query_add_snow(*q, "min_id", sq.min_id);
+	if sq.max_id query_add_snow(*q, "max_id", sq.max_id);
 	if sq.content query_add(*q, "content", sq.content);
 	// the client's sort options: relevance / desc, timestamp / asc, timestamp / desc
 	query_add(*q, "sort_by", ifx sq.sort == .Most_Relevant then "relevance" else "timestamp");

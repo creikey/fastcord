@@ -1,0 +1,9 @@
+# The search box understands before: / during: / after: dates, offered in the suggestions.
+wait 5
+click 1150 57
+wait 3
+expect_visible "during:"
+type before:2026-10-01 hello
+key enter
+wait 10
+expect_visible "0 Results"

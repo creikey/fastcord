@@ -235,6 +235,9 @@ search_suggestions :: () {
 		array_add(*items, .{"has:", "link, embed or file", "has:"});
 		array_add(*items, .{"in:", "channel", "in:"});
 		array_add(*items, .{"pinned:", "true or false", "pinned:true "});
+		array_add(*items, .{"before:", "specific date", "before:"});
+		array_add(*items, .{"during:", "specific date", "during:"});
+		array_add(*items, .{"after:", "specific date", "after:"});
 	}
 	history := last == "" && text == "" && search_history.count > 0; // the client's History section under the options
 	if items.count == 0 { return; }
@@ -458,6 +461,7 @@ search_run :: (ch: *dc.Channel, text: string) {
 	authors.allocator, mentions.allocator, chans.allocator, has.allocator = a, a, a, a;
 	content.allocator = temp;
 	pinned := false;
+	min_id, max_id: dc.Snowflake;
 	find_user :: (s: *dc.Store, name: string) -> dc.Snowflake {
 		ln := to_lower_copy(name,, temp);
 		for * u, uid: s.users {
@@ -497,6 +501,19 @@ search_run :: (ch: *dc.Channel, text: string) {
 			}
 		} else if tok == "pinned:true" {
 			pinned = true;
+		} else if begins_with(tok, "before:") || begins_with(tok, "after:") || begins_with(tok, "during:") || begins_with(tok, "on:") {
+			// a local date: before its midnight, after its end, or during that day (min_id / max_id)
+			colon := find_index_from_left(tok, #char ":");
+			day, ok := parse_local_time(advance(tok, colon + 1), "12am");
+			if ok {
+				start := dc.snowflake_from_ms(day * 1000);
+				next := dc.snowflake_from_ms(unix_from_local_ms(local_ms(day * 1000) + 86_400_000));
+				if begins_with(tok, "before:") max_id = start;
+				else if begins_with(tok, "after:") min_id = next;
+				else { min_id = start; max_id = next; }
+			} else {
+				array_add(*content, tok);
+			}
 		} else {
 			array_add(*content, tok);
 			array_add(*search.terms, to_lower_copy(tok,, a));
@@ -509,6 +526,8 @@ search_run :: (ch: *dc.Channel, text: string) {
 		has = has,
 		channel_ids = chans,
 		pinned = pinned,
+		min_id = min_id,
+		max_id = max_id,
 		sort = search.sort
 	};
 	search.seq += 1;
