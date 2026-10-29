@@ -1,11 +1,11 @@
-# Settings > Voice & Video has the Soundboard Volume slider and the play-through-my-mic switch.
+# Settings > Voice & Video has the Soundboard Volume slider and the play-through-my-mic switch, above Camera.
 wait 5
 click 338 683
 wait 20
 click_text "Voice & Video"
 wait 20
 move 700 500
-scroll 0 -2000
+scroll 0 -300
 wait 20
 expect_visible "SOUNDBOARD VOLUME"
 click_text "Play Soundboard Through My Mic"

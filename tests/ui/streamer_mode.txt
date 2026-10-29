@@ -6,7 +6,7 @@ wait 20
 click_text "Appearance"
 wait 10
 # the Appearance sub-nav's "Streamer Mode" scrolls to the section
-click 137 336
+click 137 443
 wait 30
 expect_visible "Hide my personal information, such as email, connected accounts, and notes"
 expect_not_visible "Streamer Mode is enabled. Usernames have been truncated."

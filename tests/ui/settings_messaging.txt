@@ -13,10 +13,13 @@ click_text "Do not filter direct messages"
 wait 5
 expect_visible "Do not filter direct messages"
 move 760 400
-scroll 0 -800
+scroll 0 -250
 wait 10
 click_text "Allow DMs from other members in servers"
 wait 5
+# Friend Request Permissions, then Blocked and Ignored Users, fill the rest of the page
+scroll 0 -600
+wait 20
 click_text "Everyone"
 wait 5
 expect_visible "Friends of friends"

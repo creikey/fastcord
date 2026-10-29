@@ -11,6 +11,9 @@ wait 10
 click_text "Test Video"
 settle 0.3
 expect_visible "Stop Video"
+# the Camera dropdown sits above Blur Background, just past the top edge
+scroll 0 60
+wait 10
 click_text "Default"
 wait 3
 click_text "Test Camera"

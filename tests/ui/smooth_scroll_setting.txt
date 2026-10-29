@@ -4,6 +4,10 @@ click 338 683
 wait 20
 click_text "Appearance"
 wait 20
+# below Theme and Chat Font Scaling, past the fold at 720 high
+move 700 400
+scroll 0 -400
+wait 20
 expect_visible "Smooth Scrolling"
 click_text "Smooth Scrolling"
 wait 10
