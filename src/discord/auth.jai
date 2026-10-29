@@ -575,6 +575,14 @@ auth_after_logout :: (c: *Client, status: int, body: etf.Map) {
 	auth_push(c, .{kind = .Logged_Out});
 }
 
+// client_set_token: the token Discord rotated (a username, password or 2FA change); the session goes on.
+client_set_token :: (c: *Client, token: string) {
+	locks.lock(*c.auth.mu);
+	defer locks.unlock(*c.auth.mu);
+	free_str(c.token, c.allocator);
+	c.token = copy_string(token,, c.allocator);
+}
+
 // client_login_token: LOGIN_SUCCESS. The fingerprint is forgotten, the QR
 // socket closes, and the gateway connects at once (no fast connect) with a
 // fresh session: the login burst follows READY (auth_on_ready).

@@ -553,7 +553,7 @@ settings_modal :: () {
 		if select_is_open() dropdown_list(); // a select_field's open list (view_server_settings.jai), over the modal
 	}
 	for * e: app.ui.events {
-		if e.kind == .Key_Down && e.key == .Escape && !voice_dropdown_open() && !keybinds_capturing() && !mfa_is_open() { // the dropdown's own Escape closes only it
+		if e.kind == .Key_Down && e.key == .Escape && !voice_dropdown_open() && !keybinds_capturing() && !mfa_is_open() && !account_modal_is_open() { // the dropdown's own Escape closes only it
 			if select_is_open() select_close(); else app.settings_open = false;
 			e.consumed = true;
 		}

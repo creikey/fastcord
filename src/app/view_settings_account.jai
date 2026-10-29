@@ -10,8 +10,16 @@ Acct_Edit :: enum u8 {
 	Username;
 }
 
+// The My Account modals (Change Password, Enable Authenticator App, Disable / Delete Account).
+Acct_Modal :: enum u8 { None; Password; Totp; Disable; Delete; }
+
 acct: struct {
 	editing: Acct_Edit;
+	modal: Acct_Modal;
+	new_pass: ui.Editor; // Change Password: new and confirm; Enable Authenticator App: the code
+	confirm_pass: ui.Editor;
+	totp_secret: string; // heap
+	backup_codes: [..]string; // heap: shown once after enabling 2FA
 	name_ed: ui.Editor;
 	user_ed: ui.Editor;
 	pass_ed: ui.Editor;
@@ -39,7 +47,10 @@ PROFILE_PRONOUNS_MAX :: 40;
 PROFILE_BIO_MAX :: 190;
 
 account_reset_for_test :: () {
-	for e: (*ui.Editor.[*acct.name_ed, *acct.user_ed, *acct.pass_ed, *acct.pf_name, *acct.pf_pronouns, *acct.pf_bio, *acct.pf_hex]) { ui.editor_set_text(e, ""); }
+	for e: (*ui.Editor.[*acct.name_ed, *acct.user_ed, *acct.pass_ed, *acct.pf_name, *acct.pf_pronouns, *acct.pf_bio, *acct.pf_hex, *acct.new_pass, *acct.confirm_pass]) { ui.editor_set_text(e, ""); }
+	acct.modal = .None;
+	for acct.backup_codes free(it);
+	array_reset(*acct.backup_codes);
 	acct.pf_accent = dc.ACCENT_UNCHANGED;
 	for (*string).[*acct.error, *acct.pf_error, *acct.base_name, *acct.base_pronouns, *acct.base_bio] { free(it.*); it.* = ""; }
 	acct.editing = .None;
@@ -56,9 +67,25 @@ account_receive :: (r: *dc.Feature_Result) {
 		if err == "" { err = ifx r.status == 0 then "Couldn't reach Discord. Try again." else tprint("Something went wrong (HTTP %).", r.status); }
 	}
 	tok := dc.apply_account_result(*app.client.store, r);
-	if tok != "" && !platform.is_headless() {
-		// a username change rotates the token: keep the new one for the next start
-		dc.write_file_atomic(tprint("%/token", app_state_dir()), cast([]u8) tok);
+	if tok != "" {
+		// username, password and 2FA changes rotate the token: use it now and keep it for the next start
+		dc.client_set_token(app.client, tok);
+		if !platform.is_headless() dc.write_file_atomic(tprint("%/token", app_state_dir()), cast([]u8) tok);
+	}
+	tag := cast(dc.User_Patch_Tag) r.tag;
+	if r.op == .User_Patch && tag >= .Password {
+		acct.pending = false;
+		set_error(*acct.error, err);
+		if !r.ok return;
+		if tag == .Totp_Enable {
+			for acct.backup_codes free(it);
+			array_reset(*acct.backup_codes);
+			for dc.flist(dc.vmap(r.body), "backup_codes") array_add(*acct.backup_codes, copy_string(dc.fstr(dc.vmap(it), "code")));
+		}
+		acct_modal_close();
+		if tag == .Disable_Account || tag == .Delete_Account account_logout(); // logoutInternal
+		app.ui.animating = true;
+		return;
 	}
 	if r.op == .Banner_Edit {
 		if r.status == -1 err = "That file couldn't be read. Banners must be PNG, JPEG, GIF or WEBP images.";
@@ -235,10 +262,156 @@ my_account_page :: () {
 	}
 	spacer(.Y, 40);
 	set_heading("Password and Authentication");
-	mfa := ifx dc.account.mfa_enabled then "Two-factor authentication is enabled on this account." else "Two-factor authentication is not enabled on this account.";
-	set_para("mfa", mfa, .Normal, 14, 18, T("--text-muted"));
+	if set_button("Change Password##chpw", .Primary, true, 32) acct_modal_open(.Password);
+	spacer(.Y, 28);
+	label("AUTHENTICATOR APP", .Bold, 12, T("--text-muted"), 16);
 	spacer(.Y, 8);
-	set_para("pwnote", "Change your password, email and two-factor settings in the official client or at discord.com.", .Normal, 14, 18, T("--text-muted"));
+	on := dc.account.mfa_enabled;
+	set_para("mfa", ifx on then "Two-factor authentication is enabled on this account." else "Protect your Discord account with an extra layer of security. Once configured, you'll be required to enter your password and complete one additional step in order to sign in.", .Normal, 14, 18, T("--text-muted"));
+	spacer(.Y, 12);
+	if on {
+		if set_button(ifx acct.pending then "Removing…##rmtotp" else "Remove Authenticator App##rmtotp", .Danger, !acct.pending, 32) && net_action() {
+			acct.pending = true;
+			set_error(*acct.error, "");
+			dc.totp_disable(app.client); // the multi-factor check asks for a code
+		}
+	} else {
+		if set_button("Enable Authenticator App##entotp", .Primary, true, 32) acct_modal_open(.Totp);
+	}
+	if acct.modal == .None && acct.error != "" && acct.editing == .None {
+		spacer(.Y, 8);
+		set_para("mfaerr", acct.error, .Normal, 14, 18, T("--text-feedback-critical"));
+	}
+	if acct.backup_codes.count {
+		spacer(.Y, 16);
+		label("BACKUP CODES", .Bold, 12, T("--text-muted"), 16);
+		spacer(.Y, 4);
+		set_para("bchelp", "Keep these somewhere safe. Each code signs you in once if you lose your authenticator app; they are shown only now.", .Normal, 14, 18, T("--text-muted"));
+		spacer(.Y, 8);
+		set_para("codes", join(..acct.backup_codes, separator = "    ",, temp), .Medium, 16, 22, T("--text-strong")).flags |= .Selectable_Text;
+	}
+	spacer(.Y, 40);
+	set_heading("Account Removal");
+	set_para("rmhelp", "Disabling your account means you can recover it at any time after taking this action.", .Normal, 14, 18, T("--text-muted"));
+	spacer(.Y, 12);
+	rm := row("rmbtns");
+	rm.semantic_size = .[ui.pct(1), ui.px(32)];
+	{ ui.parent(rm); defer ui.pop_parent();
+		if set_button("Disable Account##disable", .Danger, true, 32) acct_modal_open(.Disable);
+		spacer(.X, 12);
+		if set_button("Delete Account##delete", .Secondary, true, 32) acct_modal_open(.Delete);
+	}
+}
+
+account_modal_is_open :: () -> bool { return acct.modal != .None; }
+
+acct_modal_open :: (m: Acct_Modal) {
+	acct_edit_close();
+	acct.modal = m;
+	for e: (*ui.Editor.[*acct.pass_ed, *acct.new_pass, *acct.confirm_pass]) ui.editor_set_text(e, "");
+	free(acct.totp_secret);
+	acct.totp_secret = ifx m == .Totp then copy_string(dc.totp_secret()) else "";
+}
+
+acct_modal_close :: () {
+	acct.modal = .None;
+	for e: (*ui.Editor.[*acct.pass_ed, *acct.new_pass, *acct.confirm_pass]) ui.editor_set_text(e, "");
+}
+
+// The open My Account modal (overlay pass). Requests go out on Done; MFA_REQUIRED replies go
+// through mfa_modal first.
+account_modal :: () {
+	if acct.modal == .None return;
+	if !app.settings_open {
+		acct_modal_close();
+		return;
+	}
+	W :: 440;
+	m := acct.modal;
+	title, sub := "Update your password", "Enter your current password and a new password.";
+	if m == .Totp title, sub = "Enable Authenticator App", "Add this key to an authenticator app, then enter the code it shows.";
+	if m == .Disable title, sub = "Disable Account", "Are you sure that you want to disable your account? This will immediately log you out and make your account inaccessible to anyone.";
+	if m == .Delete title, sub = "Delete Account", "Are you sure that you want to delete your account? This will immediately log you out of your account and you will not be able to log in again.";
+	if !adm_modal_begin("acctmodal", W, title) {
+		acct_modal_close();
+		return;
+	}
+	submit, cancel := false, false;
+	body := row("body");
+	body.semantic_size = .[ui.pct(1), ui.children()];
+	{ ui.parent(body); defer ui.pop_parent();
+		spacer(.X, 25);
+		col := ui.box("col");
+		col.semantic_size = .[ui.fill(), ui.children()];
+		col.layout_axis = .Y;
+		{ ui.parent(col); defer ui.pop_parent();
+			spacer(.Y, 8);
+			set_para("sub", sub, .Normal, 14, 18, T("--text-muted"));
+			spacer(.Y, 16);
+			field :: (id: string, title: string, ed: *ui.Editor, submit: *bool, cancel: *bool, password := true, first := false) {
+				label(title, .Bold, 12, T("--text-muted"), 16);
+				spacer(.Y, 8);
+				res := set_input(id, ed, "", password = password, autofocus = first);
+				spacer(.Y, 16);
+				if res == .Submit submit.* = true;
+				if res == .Escape cancel.* = true;
+			}
+			if m == .Totp {
+				label("KEY", .Bold, 12, T("--text-muted"), 16);
+				spacer(.Y, 8);
+				k := acct.totp_secret;
+				grouped := tprint("% % % %", slice(k, 0, 4), slice(k, 4, 4), slice(k, 8, 4), slice(k, 12, 4));
+				label(to_lower_copy(grouped,, temp), .Semibold, 18, T("--text-strong"), 24).flags |= .Selectable_Text;
+				spacer(.Y, 16);
+				field("code", "ENTER THE 6-DIGIT CODE", *acct.new_pass, *submit, *cancel, password = false, first = true);
+			} else {
+				field("pw", "CURRENT PASSWORD", *acct.pass_ed, *submit, *cancel, first = true);
+				if m == .Password {
+					field("newpw", "NEW PASSWORD", *acct.new_pass, *submit, *cancel);
+					field("confirmpw", "CONFIRM NEW PASSWORD", *acct.confirm_pass, *submit, *cancel);
+				}
+			}
+			if acct.error {
+				set_para("err", acct.error, .Normal, 14, 18, T("--text-feedback-critical"));
+				spacer(.Y, 8);
+			}
+		}
+		spacer(.X, 25);
+	}
+	spacer(.Y, 8);
+	btns := row("btns");
+	btns.semantic_size = .[ui.pct(1), ui.px(40)];
+	btns.style.child_gap = 8;
+	ready := ifx m == .Totp then trim(ui.editor_text(*acct.new_pass)) != "" else ui.editor_text(*acct.pass_ed) != "" && (m != .Password || ui.editor_text(*acct.new_pass) != "");
+	{ ui.parent(btns); defer ui.pop_parent();
+		spacer(.X, 25 - 8);
+		if wide_button("cancel", "Cancel", .Secondary) cancel = true;
+		verb := ifx m == .Totp then "Activate" else ifx m == .Disable then "Disable Account" else ifx m == .Delete then "Delete Account" else "Done";
+		if wide_button("ok", ifx acct.pending then "Saving…" else verb, ifx m == .Disable || m == .Delete then .Danger else .Primary, ready && !acct.pending) submit = true;
+		spacer(.X, 25 - 8);
+	}
+	spacer(.Y, 24);
+	adm_modal_end();
+	if adm_escape() cancel = true;
+	if cancel {
+		acct_modal_close();
+		set_error(*acct.error, "");
+		return;
+	}
+	if !submit || !ready || acct.pending || !net_action() return;
+	pw := ui.editor_text(*acct.pass_ed);
+	if m == .Password && ui.editor_text(*acct.new_pass) != ui.editor_text(*acct.confirm_pass) {
+		set_error(*acct.error, "Passwords do not match!");
+		return;
+	}
+	acct.pending = true;
+	set_error(*acct.error, "");
+	if m == {
+	case .Password; dc.change_password(app.client, pw, ui.editor_text(*acct.new_pass));
+	case .Totp; dc.totp_enable(app.client, replace(trim(ui.editor_text(*acct.new_pass)), " ", "",, temp), acct.totp_secret);
+	case .Disable; dc.remove_account(app.client, pw, false);
+	case .Delete; dc.remove_account(app.client, pw, true);
+	}
 }
 #scope_file
 
@@ -746,7 +919,7 @@ mfa_modal :: () {
 		return;
 	}
 	kind := mfa.methods[mfa.method];
-	submit := false;
+	submit, mfa_escape := false, false;
 	body := row("body");
 	body.semantic_size = .[ui.pct(1), ui.children()];
 	{ ui.parent(body); defer ui.pop_parent();
@@ -763,6 +936,7 @@ mfa_modal :: () {
 			spacer(.Y, 8);
 			res := set_input(tprint("code_%", kind), *mfa.code, hint, password = kind == "password", max_runes = ifx kind == "password" then 0 else 11, autofocus = true);
 			if res == .Submit submit = true;
+			if res == .Escape mfa_escape = true;
 			if mfa.error {
 				spacer(.Y, 8);
 				set_para("err", mfa.error, .Normal, 14, 18, T("--text-feedback-critical"));
@@ -794,7 +968,7 @@ mfa_modal :: () {
 	}
 	spacer(.Y, 24);
 	adm_modal_end();
-	if adm_escape() cancel = true;
+	if adm_escape() || mfa_escape cancel = true;
 	if cancel {
 		mfa_close(true);
 		return;

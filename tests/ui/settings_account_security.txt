@@ -1,0 +1,32 @@
+# Settings > Account: Change Password (mismatched confirm is refused), Enable Authenticator App (a
+# 16-letter key), Disable and Delete Account ask for the password. Offline: nothing is sent.
+wait 5
+click 338 683
+wait 20
+click_text "Account"
+wait 10
+move 760 400
+scroll 0 -800
+wait 10
+expect_visible "Account Removal"
+click_text "Change Password"
+wait 10
+expect_visible "Update your password"
+expect_visible "CONFIRM NEW PASSWORD"
+shot build/ui-settings_account_password.png
+key escape
+wait 5
+expect_not_visible "Update your password"
+click_text "Enable Authenticator App"
+wait 10
+expect_visible "ENTER THE 6-DIGIT CODE"
+shot build/ui-settings_account_totp.png
+click_text "Cancel"
+wait 5
+click_text "Delete Account"
+wait 10
+expect_visible "CURRENT PASSWORD"
+expect_visible "Are you sure that you want to delete your account? This will immediately log you out of your account and you will not be able to log in again."
+click_text "Cancel"
+wait 5
+expect_visible "Account Removal"

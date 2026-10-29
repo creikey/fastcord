@@ -5,6 +5,9 @@
 //   PATCH /users/@me          {"global_name": ..}                 (display name)
 //   PATCH /users/@me          {"username": .., "password": ..}    (username; needs the password)
 //   PATCH /users/%40me/profile {"bio": .., "pronouns": ..}        (Profiles > About Me / Pronouns)
+//   PATCH /users/@me          {"password": .., "new_password": ..} (Change Password; a new token)
+//   POST /users/@me/mfa/totp/enable {"code", "secret"}, POST .../totp/disable (2FA; a new token)
+//   POST /users/@me/disable | /users/@me/delete {"password"}       (Account Removal, then logout)
 //
 // Display name and profile shapes: fixture settings. Username: the web bundle
 // (UserSettingsAccountActionCreators.saveAccountChanges; needs the password, not captured).
@@ -52,6 +55,64 @@ User_Patch_Tag :: enum u64 {
 	Display_Name :: 1;
 	Username :: 2;
 	Profile_Name :: 3; // display name saved from the Profiles page
+	Password :: 4;
+	Totp_Enable :: 5;
+	Totp_Disable :: 6;
+	Disable_Account :: 7;
+	Delete_Account :: 8;
+}
+
+// change_password: PATCH /users/@me {"password", "new_password"} (saveAccountChanges).
+change_password :: (c: *Client, password: string, new_password: string) {
+	w: Json;
+	json_init(*w);
+	json_obj(*w);
+	json_kstr(*w, "password", password);
+	json_kstr(*w, "new_password", new_password);
+	json_obj_end(*w);
+	f_submit(c, .{op = .User_Patch, tag = cast(u64) User_Patch_Tag.Password, method = "PATCH", path = "/users/@me", body = json_string(*w)});
+}
+
+// totp_enable: POST /users/@me/mfa/totp/enable {"code", "secret"} (the password comes through the
+// MFA check); the reply holds the new token and backup_codes.
+totp_enable :: (c: *Client, code: string, secret: string) {
+	w: Json;
+	json_init(*w);
+	json_obj(*w);
+	json_kstr(*w, "code", code);
+	json_kstr(*w, "secret", secret);
+	json_obj_end(*w);
+	f_submit(c, .{op = .User_Patch, tag = cast(u64) User_Patch_Tag.Totp_Enable, method = "POST", path = "/users/@me/mfa/totp/enable", body = json_string(*w)});
+}
+
+// totp_disable: POST /users/@me/mfa/totp/disable, no body (the MFA check asks for a code).
+totp_disable :: (c: *Client) {
+	f_submit(c, .{op = .User_Patch, tag = cast(u64) User_Patch_Tag.Totp_Disable, method = "POST", path = "/users/@me/mfa/totp/disable"});
+}
+
+// remove_account: POST /users/@me/disable (or /delete) {"password"}; the client logs out after.
+remove_account :: (c: *Client, password: string, delete: bool) {
+	w: Json;
+	json_init(*w);
+	json_obj(*w);
+	json_kstr(*w, "password", password);
+	json_obj_end(*w);
+	tag := ifx delete then User_Patch_Tag.Delete_Account else .Disable_Account;
+	f_submit(c, .{op = .User_Patch, tag = cast(u64) tag, method = "POST", path = ifx delete then "/users/@me/delete" else "/users/@me/disable", body = json_string(*w)});
+}
+
+// totp_secret: a new authenticator secret, 10 random bytes as 16 base32 letters (temp).
+totp_secret :: () -> string {
+	ALPHABET :: "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+	raw: [10]u8;
+	crypto.random_bytes(raw);
+	out := alloc_string(16,, temp);
+	for i: 0..15 {
+		bit := i * 5;
+		v := ((cast(u32) raw[bit / 8]) << 8) | (ifx bit / 8 + 1 < 10 then cast(u32) raw[bit / 8 + 1] else 0);
+		out[i] = ALPHABET[(v >> (11 - bit % 8)) & 31];
+	}
+	return out;
 }
 
 // update_global_name: PATCH /users/@me {"global_name": name} ("" clears it: null).
@@ -154,6 +215,11 @@ apply_account_result :: (s: *Store, r: *Feature_Result) -> string {
 			note_account(*account, m);
 		}
 		new_token = fstr(m, "token");
+		if r.tag == cast(u64) User_Patch_Tag.Totp_Enable || r.tag == cast(u64) User_Patch_Tag.Totp_Disable {
+			locks.lock(*account_mu);
+			account.mfa_enabled = r.tag == cast(u64) User_Patch_Tag.Totp_Enable;
+			locks.unlock(*account_mu);
+		}
 	case .Profile_Patch; #through;
 	case .Banner_Edit;
 		u := table_find_pointer(*s.users, s.me);
