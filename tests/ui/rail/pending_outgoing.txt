@@ -1,0 +1,8 @@
+# Run with -fixture:tests/ui/rail.jsonl. With only an outgoing friend request the Pending tab still
+# shows, so it can be cancelled.
+wait 5
+click 36 52
+wait 10
+click_text "Pending"
+settle 1
+expect_visible "Outgoing Friend Request"

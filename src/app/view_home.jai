@@ -226,7 +226,7 @@ friends_page :: () {
 			tab: Friends_Tab;
 		}.[.{"Online", .Online}, .{"All", .All}, .{"Pending", .Pending}, .{"Add Friend", .Add_Friend}];
 		for t: tabs {
-			if t.tab == .Pending && pending_count() == 0 { continue; }
+			if t.tab == .Pending && !has_pending() { continue; } // outgoing requests alone keep it, to cancel them
 			sel := app.view.friends_tab == t.tab;
 			tb := ui.box(t.name, .Clickable | .Draw_Background | .Draw_Text | .Hot_Animation);
 			tb.semantic_size = .[ui.text_size(12), ui.px(32)];
@@ -371,6 +371,11 @@ friends_page :: () {
 			}
 		}
 	}
+}
+
+has_pending :: () -> bool {
+	for store().relationships if it.kind == .Incoming_Request || it.kind == .Outgoing_Request return true;
+	return false;
 }
 
 pending_count :: () -> int {

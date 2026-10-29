@@ -521,7 +521,7 @@
 - [ ] Channels: a collapsed category also hides its unread and occupied voice channels; only the selected one stays (`views.jai`).
 - [ ] Profiles: your own full profile has no Edit Profile button; the DM side panel lacks About Me, pronouns, mutual servers and friends, and the note.
 - [ ] Media: a video's fullscreen fills the window, not the screen (no native fullscreen on any platform) (`view_media.jai` `video_fullscreen`).
-- [ ] Friends: the Pending tab hides when you only have outgoing requests (`pending_count` counts incoming only), so you can't see or cancel them; it isn't split into Received and Sent.
+- [ ] Friends: the Pending tab isn't split into Received and Sent.
 - [ ] Profiles: others' custom statuses never show (popout, member list, DM rows, friends); no mobile-online icon (`Presence.mobile` unused).
 - [ ] Bug: jumping to a message (search, pins, reply) can land off target. `jump_apply` estimates unmeasured rows at 26px while rendering uses the measured average, and it stops steering after 8 frames (`view_search.jai`). Also, off-screen row heights aren't invalidated on width change, so scrolling after a resize shifts content.
 - [ ] Member list: only the first 100 rows load; it subscribes `[0, 99]` once and never asks for more ranges while scrolling (`view_home.jai`).
@@ -742,3 +742,4 @@
 - [x] Bug (Windows): files that already exist are now rewritten. `write_file_atomic` (`cookies.jai`), `settings_save` and alt-svc's save replace the file with File_Utilities' `atomic_file_replace_or_just_rename_if_destination_file_does_not_exist` (`ReplaceFileW`) instead of `MoveFileW`, and a failed write removes its `.tmp` (test `file_atomic_replace`, passes on Windows and macOS).
 - [x] Links: hovering a link, mention or hidden spoiler in a message shows the hand cursor, not the I-beam (`ui.State.span_cursor`; scripts gained `expect_cursor`, `tests/ui/span_clicks.txt`).
 - [x] Member list: offline members, in servers and group DMs, draw a dimmed avatar with no grey status dot, as the official client does (`member_row`; `tests/ui/rail/group_dm_members.txt` clicks the group DM where it now sits).
+- [x] Friends: the Pending tab shows while you have only outgoing requests, so they can be seen and cancelled (`has_pending`; `tests/ui/rail/pending_outgoing.txt`, the rail fixture gained an outgoing request).
