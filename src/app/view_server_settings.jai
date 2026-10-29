@@ -139,17 +139,18 @@ server_settings_receive :: (r: *dc.Feature_Result) {
 		}
 		if (ss.section == .Profile || ss.section == .Tag) && r.body.kind == .Map keep_reply(.Profile, r); // the saved profile
 		if ss.section == .Access && r.body.kind == .Map keep_reply(.Verification, r);
+		if ss.section == .Onboarding && r.body.kind == .Map keep_reply(.Onboarding, r);
 		if req == .Save_Widget && r.body.kind == .Map keep_reply(.Widget, r);
 		ss.saves_left -= 1;
 		if ss.saves_left > 0 return;
 		ss.busy = false;
 		// Drafts of store values stay as saved: the gateway's update makes the store match them.
-		if ss.section == .Profile || ss.section == .Tag || ss.section == .Access form_reset(g);
+		if ss.section == .Profile || ss.section == .Tag || ss.section == .Access || ss.section == .Onboarding form_reset(g);
 		return;
 	}
 	if req >= .COUNT return;
 	keep_reply(req, r);
-	if req == .Profile || req == .Widget || req == .Verification || req == .Vanity form_reset(g); // the forms these replies fill
+	if req == .Profile || req == .Widget || req == .Verification || req == .Vanity || req == .Onboarding form_reset(g); // the forms these replies fill
 }
 
 server_settings_layer :: () {
@@ -313,6 +314,7 @@ Req :: enum u8 {
 	Templates; // GET /guilds/{id}/templates
 	Verification; // GET /guilds/{id}/member-verification (Access: the server rules)
 	Vanity; // GET /guilds/{id}/vanity-url
+	Onboarding; // GET /guilds/{id}/onboarding
 	COUNT;
 	Save :: 100; // a page's Save Changes
 	Save_Widget;
@@ -380,6 +382,7 @@ ss: struct {
 	require_rules: bool; // Access
 	tag: ui.Editor; // Server Tag; Invites: the custom invite link's code; Stickers: related emoji
 	sticker_file: string; // heap: Stickers' chosen file
+	ob_channels: [..]dc.Snowflake; // Onboarding: the default channels as edited
 	words: ui.Editor; // Safety Setup: Block Custom Words; Server Template: its description
 	hook_id: dc.Snowflake; // Integrations: the webhook open for editing
 	hook_name: ui.Editor; // its name; Server Template: the title
@@ -448,6 +451,9 @@ section_enter :: (g: *dc.Guild) {
 		load(g, .Verification, tprint("/guilds/%/member-verification?with_guild=false", g.id));
 	case .Tag;
 		load(g, .Profile, tprint("/guilds/%/profile", g.id));
+	case .Onboarding;
+		ss.loading[Req.Onboarding] = false;
+		load(g, .Onboarding, tprint("/guilds/%/onboarding", g.id));
 	case .Safety;
 		ss.loading[Req.Automod] = false;
 		load(g, .Automod, tprint("/guilds/%/auto-moderation/rules", g.id));
@@ -561,7 +567,9 @@ section_shown :: (g: *dc.Guild, s: Server_Section) -> bool {
 		return has(p, dc.PERM_MANAGE_ROLES);
 	case .Safety;
 		return has(p, dc.PERM_MANAGE_GUILD) && !on_hosted(); // a hosted server has no verification levels, filters or AutoMod
-	case .Templates; #through; case .Access; #through; case .Community; #through; case .Onboarding;
+	case .Onboarding;
+		return has(p, dc.PERM_MANAGE_GUILD) && dc.guild_has_feature(g, "COMMUNITY") && !on_hosted();
+	case .Templates; #through; case .Access; #through; case .Community;
 		return has(p, dc.PERM_MANAGE_GUILD) && !on_hosted(); // Discord's: templates, member verification, Community
 	case .Invites;
 		return has(p, dc.PERM_MANAGE_GUILD);
@@ -582,7 +590,7 @@ page_exists :: (s: Server_Section) -> bool {
 	if s == {
 	case .Profile; #through; case .Engagement; #through; case .Members; #through; case .Invites; #through; case .Bans; #through;
 	case .Emoji; #through; case .Audit_Log; #through; case .Delete; #through; case .Soundboard; #through; case .Roles; #through; case .Safety; #through; case .Integrations; #through; case .Templates; #through;
-	case .Community; #through; case .Access; #through; case .Tag; #through; case .Stickers;
+	case .Community; #through; case .Access; #through; case .Tag; #through; case .Stickers; #through; case .Onboarding;
 		return true;
 	}
 	return false;
@@ -622,6 +630,8 @@ page_body :: (g: *dc.Guild, s: Server_Section, w: float32) -> bool {
 		tag_page(g);
 	case .Stickers;
 		stickers_page(g);
+	case .Onboarding;
+		onboarding_page(g);
 	case .Soundboard;
 		sound_settings_page(g, w); // view_server_soundboard.jai
 	}
@@ -648,6 +658,8 @@ form_dirty :: (g: *dc.Guild) -> bool {
 		return access_dirty();
 	case .Tag;
 		return tag_dirty();
+	case .Onboarding;
+		return onboarding_dirty();
 	}
 	return false;
 }
@@ -674,6 +686,7 @@ form_reset :: (g: *dc.Guild) {
 		ss.private = f.visibility == 2;
 	}
 	if ss.section == .Roles role_reset(g);
+	if ss.section == .Onboarding onboarding_reset();
 	ss.comm = community_form_of(g);
 	saved, on := saved_rules();
 	if ss.section == .Access && reply(.Verification) { ui.editor_set_text(*ss.words, saved); ss.require_rules = on; }
@@ -728,6 +741,8 @@ form_save :: (g: *dc.Guild) {
 		roles_save(g);
 	case .Community;
 		community_save(g);
+	case .Onboarding;
+		onboarding_save(g);
 	case .Access;
 		access_save(g);
 	case .Tag;
@@ -2888,6 +2903,86 @@ stickers_page :: (g: *dc.Guild) {
 		{ c := table_cell(2, 4); ui.parent(c); defer ui.pop_parent(); label(s.description, .Normal, 14, T("--text-muted"), 18); }
 		if row_icon_button("del", "x-small", danger = true) ss_confirm_open(.Delete_Sticker, s.id, s.name);
 	}
+}
+
+// ---- Onboarding ----
+
+onboarding_saved_channels :: () -> []dc.Snowflake {
+	out: [..]dc.Snowflake;
+	out.allocator = temp;
+	r := reply(.Onboarding);
+	if r for dc.flist(dc.vmap(r.body), "default_channel_ids") array_add(*out, dc.vsnow(it));
+	return out;
+}
+
+onboarding_dirty :: () -> bool {
+	if !reply(.Onboarding) return false;
+	saved := onboarding_saved_channels();
+	if saved.count != ss.ob_channels.count return true;
+	for saved if !array_find(ss.ob_channels, it) return true;
+	return false;
+}
+
+onboarding_reset :: () {
+	array_reset(*ss.ob_channels);
+	for onboarding_saved_channels() array_add(*ss.ob_channels, it);
+}
+
+onboarding_page :: (g: *dc.Guild) {
+	page_subtitle("Give new members a quick way to find the channels and roles that matter to them.");
+	if !loading_or(.Onboarding, "Couldn't load onboarding.") return;
+	m := dc.vmap(reply(.Onboarding).body);
+	on := dc.fbool(m, "enabled");
+	if set_toggle_row("obon", "Enable Onboarding", "New members pick channels and roles from your questions when they join.", on, ss.busy)
+		ss_action(g, .Onboarding, "PUT", tprint("/guilds/%/onboarding", g.id), tprint("{\"enabled\":%}", !on));
+	set_divider();
+	section_heading("obdefault", "Default Channels", "Everyone who joins sees these channels, whatever they answer.");
+	for g.channels {
+		ch := dc.channel_get(store(), it);
+		if !ch || (ch.kind != .Guild_Text && ch.kind != .Guild_Announcement && ch.kind != .Guild_Forum && ch.kind != .Guild_Voice) continue;
+		ui.id_scope(cast(u64) ch.id);
+		defer ui.pop_seed();
+		found, i := array_find(ss.ob_channels, ch.id);
+		r := row("ch", .Clickable | .Draw_Background | .Hot_Animation);
+		r.semantic_size = .[ui.pct(1), ui.px(40)];
+		r.style.radius = all4(6);
+		r.style.bg_hot = T("--background-mod-subtle");
+		r.hover_cursor = .Pointer;
+		if ui.signal(r).clicked {
+			if found array_unordered_remove_by_index(*ss.ob_channels, i);
+			else array_add(*ss.ob_channels, ch.id);
+		}
+		ui.parent(r); defer ui.pop_parent();
+		spacer(.X, 8);
+		box := ui.box("check", .Draw_Background | .Draw_Border);
+		box.semantic_size = .[ui.px(20), ui.px(20)];
+		box.style.radius = all4(4);
+		box.style.border = 2;
+		box.style.border_color = ifx found then T("--background-brand") else T("--interactive-icon-default");
+		box.style.bg = ifx found then T("--background-brand") else .{};
+		if found { ui.parent(box); defer ui.pop_parent(); i := icon("ok", "checkmark-small", 16, .{1, 1, 1, 1}); i.flags |= .Floating_X | .Floating_Y; i.fixed_pos = .{0, 0}; }
+		spacer(.X, 10);
+		label(ifx ch.kind == .Guild_Voice then ch.name else tprint("#%", ch.name), .Medium, 15, T("--text-strong"), 20);
+	}
+	set_divider();
+	section_heading("obq", "Questions", "Questions are edited in the official client for now; they're kept as they are here.");
+	prompts := dc.flist(m, "prompts");
+	if !prompts.count set_para("noq", "No questions yet.", .Normal, 14, 18, T("--text-muted"));
+	for prompts {
+		p := dc.vmap(it);
+		ui.id_scope(cast(u64) it_index + 1);
+		defer ui.pop_seed();
+		label(dc.fstr(p, "title"), .Semibold, 15, T("--text-strong"), 20);
+		set_para("n", tprint("% options%", dc.flist(p, "options").count, ifx dc.fbool(p, "required") then ", required" else ""), .Normal, 13, 18, T("--text-muted"));
+		spacer(.Y, 8);
+	}
+}
+
+onboarding_save :: (g: *dc.Guild) {
+	ids: [..]string;
+	ids.allocator = temp;
+	for ss.ob_channels array_add(*ids, tprint("\"%\"", it));
+	save_call(g, .Save, "PUT", tprint("/guilds/%/onboarding", g.id), tprint("{\"default_channel_ids\":[%]}", join(..ids, ",",, temp)));
 }
 
 #scope_export
