@@ -1,0 +1,32 @@
+# An encrypted message forwarded into an encrypted DM goes re-encrypted, with its original author and time
+# inside the packet: it shows under "Forwarded", with a footer naming who sent it first and when.
+wait 5
+serve_join
+serve_member Bob bundle
+settle 3
+click 36 157
+settle 3
+click 1089 244
+settle 2
+click_text "Message @Bob"
+settle 3
+expect_visible "You accepted encryption."
+type pass this on
+key enter
+settle 2
+expect_visible "pass this on"
+rclick_text "pass this on"
+settle 1
+click_text "Forward"
+settle 1
+expect_visible "Forward To"
+type Bob
+settle 1
+key enter
+settle 1
+click_text "Send"
+settle 3
+expect_visible "Forwarded"
+expect_not_visible "Encrypted message"
+shot build/ui-hosted_dm_forward.png
+expect_served

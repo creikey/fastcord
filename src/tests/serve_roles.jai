@@ -83,6 +83,12 @@ main :: () {
 	check(status == 201 && contains(body, "\"position\":1"), tprint("a new role goes just above @everyone: % %", status, body));
 	for 1..300 { if discord.guild_get(*b.store, cast(discord.Snowflake) s.guild).roles.count == 3 break; pump(); }
 	check(discord.guild_get(*b.store, cast(discord.Snowflake) s.guild).roles.count == 3, "GUILD_ROLE_CREATE reaches the members");
+	// Server Settings saves @everyone's permissions with every key of updateRole; only the permissions take.
+	everyone_perms: u64;
+	for discord.guild_get(*b.store, cast(discord.Snowflake) s.guild).roles if it.id == cast(discord.Snowflake) s.guild everyone_perms = it.permissions;
+	status, body = rest("PATCH", tprint("%/roles/%", g, s.guild), tprint("{\"name\":\"@everyone\",\"permissions\":\"%\",\"color\":0,\"colors\":{\"primary_color\":0,\"secondary_color\":null,\"tertiary_color\":null},\"hoist\":true,\"mentionable\":true,\"unicode_emoji\":null}", everyone_perms | MANAGE_MESSAGES), owner_token);
+	check(status == 200 && contains(body, tprint("\"permissions\":\"%\"", everyone_perms | MANAGE_MESSAGES)) && contains(body, "\"hoist\":false") && contains(body, "\"name\":\"@everyone\""), tprint("the owner edits @everyone's permissions: % %", status, body));
+	status, body = rest("PATCH", tprint("%/roles/%", g, s.guild), tprint("{\"permissions\":\"%\"}", everyone_perms), owner_token);
 
 	// A message from the member that the mod will try to delete.
 	status, body = rest("POST", tprint("/api/v9/channels/%/messages", general), "{\"content\": \"delete me\"}", member_token);
@@ -185,6 +191,28 @@ main :: () {
 	check(status == 403, tprint("the mod can't kick the owner: %", status));
 	status, body = rest("DELETE", tprint("%/members/%", g, member_id), "", mod_token);
 	check(status == 204, tprint("the mod kicks the member: % %", status, body));
+
+	// Grant temporary membership: a guest who disconnects with no role is kicked; one given a role stays.
+	status, body = rest("POST", tprint("/api/v9/channels/%/invites", general), "{\"max_age\": 0, \"max_uses\": 0, \"temporary\": true}", owner_token);
+	check(status == 200 && contains(body, "\"temporary\":true"), tprint("a temporary invite: % %", status, body));
+	temp_code := etf.map_get(etf.from_json(body,, temp).map, "code").s;
+	visit :: (token: string) #expand {
+		c := discord.client_create(.{token = token, hosted = `hosted});
+		discord.client_start(c);
+		for 1..1000 { if c.store.ready break; discord.client_poll(c); sleep_milliseconds(10); }
+		`check(c.store.ready, "the guest connects");
+		discord.client_destroy(c);
+	}
+	guest_token := login(temp_code, "Guest");
+	kept_token := login(temp_code, "Kept");
+	status, body = rest("POST", tprint("/api/v9/channels/%/messages", general), "{\"content\": \"hi\"}", kept_token);
+	status, body = rest("PUT", tprint("%/members/%/roles/%", g, author_of(body), mod_role), "", owner_token);
+	visit(guest_token);
+	visit(kept_token);
+	for 1..300 { status, body = rest("GET", tprint("/api/v9/channels/%/messages", general), "", guest_token); if status == 401 break; sleep_milliseconds(10); }
+	check(status == 401, tprint("the guest is kicked on disconnecting: %", status));
+	status, body = rest("GET", tprint("/api/v9/channels/%/messages", general), "", kept_token);
+	check(status == 200, tprint("the guest with a role stays: %", status));
 
 	discord.client_destroy(b);
 	http.h1_destroy(*h, true);

@@ -1336,15 +1336,15 @@ content_encoding_chain :: (t: *T) {
 	expect(t, http.decode_body(*r) == .None, "identity is a no-op");
 }
 
-// Media privacy: Discord's media loads only from Discord's hosts (and the GIF picker's Tenor).
+// Media privacy: Discord's media loads only from Discord's hosts (and the GIF picker's Klipy and Tenor).
 media_hosts :: (t: *T) {
 	run: Replay_Run;
 	if !replay_begin(*run, t, "add_reaction", R_GUILD, R_TEXT) { return; }
 	defer replay_end(*run);
 	c := run.c;
-	for string.["cdn.discordapp.com", "media.discordapp.net", "images-ext-1.discordapp.net", "discord.com", "media.tenor.com"]
+	for string.["cdn.discordapp.com", "media.discordapp.net", "images-ext-1.discordapp.net", "discord.com", "static.klipy.com", "media.tenor.com"]
 		expect(t, media_host_ok(c, it), tprint("% loads", it));
-	for string.["evil.example", "discord.com.evil.example", "notdiscordapp.net", "i.imgur.com", "tenor.com.evil"]
+	for string.["evil.example", "discord.com.evil.example", "notdiscordapp.net", "i.imgur.com", "tenor.com.evil", "klipy.com", "static.klipy.com.evil"]
 		expect(t, !media_host_ok(c, it), tprint("% is refused", it));
 	status := media_get(c, "https://evil.example/pixel.png", .Image, true, "");
 	expect_value(t, status, 0);
@@ -3122,7 +3122,7 @@ settings_retry :: (t: *T) {
 	settings_saved(c, *fail, "");
 	expect(t, e.cats == 1 << 13 && e.due && e.retry_ms == 10_000 && st.unsent == 1 << 13, "failed: resent later");
 	apply_settings_proto(*c.store, "agIIAg=="); // READY: {appearance: {theme: LIGHT}}
-	expect(t, st.hour_cycle == .H23 && st.developer_mode && st.theme != .Light && !protobuf.find(st.proto, 12).num, "READY keeps the unsent category only");
+	expect(t, st.hour_cycle == .H23 && st.developer_mode && st.theme == .Light && !protobuf.find(st.proto, 12).num, "READY keeps the unsent edits only, not their whole category");
 	e.due = now_ms();
 	flush_settings(c, now_ms());
 	expect_value(t, protobuf.find_path(pb_categories(st.proto, e.sending), 13, 9).value, 2);

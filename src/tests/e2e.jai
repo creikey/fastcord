@@ -508,6 +508,14 @@ contents :: (a: *Client, b: *Client) {
 	r = land(b, a, s, answer_at);
 	check(r.result == .Ok && r.content == .Edit && r.reply == orig_at && r.out_text == "answer, edited", tprint("an edit keeps the reply (%)", r.result));
 
+	// A forward names the original's author and time inside the packet.
+	fw := e2e.request(.Send, .{CARRIER, CONV, a.party, b.party, limit}, "passed on");
+	fw.me, fw.forward_author, fw.forward_at = a.me, copy_string("carol"), copy_string("2026-10-30T12:00:00+00:00");
+	e2e.submit(a.d, fw);
+	wait(fw);
+	r = land(a, b, fw);
+	check(r.result == .Ok && r.content == .Post && r.forward_author == "carol" && r.forward_at == "2026-10-30T12:00:00+00:00" && r.out_text == "passed on", "a forward carries its original's author and time");
+
 	// Files: the ciphertext goes wherever the carrier keeps files; the message holds key, digest and what it is.
 	data := cast([]u8) repeat("picture bytes ", 1000);
 	f := e2e.File.{width = 640, height = 480, spoiler = true, name = "cat.png", mime = "image/png", description = "a cat"};
@@ -658,12 +666,15 @@ contents :: (a: *Client, b: *Client) {
 		if n junk[0] = xx (2 + random_get() % 5);
 		e2e.parse_body(junk);
 	}
-	for x: string.["\x02", "\x02\x00\x00\x00", "\x03\x00\x00\x00hi", "\x04\x01d\x00\x00x", "\x05\x01d\x00\x00", "\x02\x00\x00\x0b", "\x07\x00\x00\x00", "\x02\x00\x00\x01"] {
+	for x: string.["\x02", "\x02\x00\x00\x00", "\x03\x00\x00\x00hi", "\x04\x01d\x00\x00x", "\x05\x01d\x00\x00", "\x02\x00\x00\x0b", "\x07\x00\x00\x00", "\x02\x00\x00\x01",
+			"\x42\x00\x00\x00\x00\x00", "\x42\x00\x00\x00\x00\x01\x00hi", "\x42\x00\x00\x00\x00\x01a\x01\x0ahi", "\x43\x01d\x00\x00\x00\x01a\x00hi", "\x40hi", "\x41"] {
 		_, ok := e2e.parse_body(xx x);
 		check(!ok, tprint("bad body % refused", it_index));
 	}
 	_, ok := e2e.parse_body(e2e.encode_body(.{content = .Post, files = .[f], text = "ok"}));
 	check(ok, "a good body parses");
+	fwd, fwd_ok := e2e.parse_body(xx "\xc2\x00\x00\x00\x00\x01a\x00hi");
+	check(fwd_ok && fwd.forwarded && fwd.silent && fwd.forward_author == "a" && fwd.forward_at == "" && fwd.text == "hi", "a forward's body parses");
 }
 
 // group: three members over the mock carrier with sender keys (E2E 8). Each pair has a session in the group

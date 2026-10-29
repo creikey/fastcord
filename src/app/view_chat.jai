@@ -1314,7 +1314,6 @@ message_list :: (channel_id: dc.Snowflake, cs: *Chat_State) {
 		i0 -= 1;
 	}
 	i0 += 1;
-	new_top: float32;
 	{ ui.parent(list); defer ui.pop_parent();
 		col := ui.box("rows", .Floating_Y | .Anchor_End_Y);
 		col.semantic_size = .[ui.pct(1), ui.children()];
@@ -1335,8 +1334,6 @@ message_list :: (channel_id: dc.Snowflake, cs: *Chat_State) {
 					spacer(.Y, TOP_PAD);
 				}
 			}
-			// where the "NEW" divider is: above the declared rows (older ones not drawn), on one, or below
-			new_top = ifx i0 > 0 && msgs[i0].id > cs.unread_after then -FLOAT32_INFINITY else FLOAT32_INFINITY;
 			for i: max(i0, 0)..i1 {
 				m := *msgs[i];
 				ui.id_scope(m.id); defer ui.pop_seed();
@@ -1363,7 +1360,6 @@ message_list :: (channel_id: dc.Snowflake, cs: *Chat_State) {
 				} else if new_day || show_new || prev == null || hidden_kind(prev) != hide {
 					row = hidden_row(msgs, i, hide, new_day, show_new, cs.unread_after);
 				}
-				if row && show_new new_top = row.rect.y0;
 				// remember measured height (from last frame's layout); a changed height moves the
 				// rows and the scroll range, so lay out again rather than idle on a stale frame
 				// (a short DM used to stay drawn with its newest message pushed under the list).
@@ -1390,7 +1386,7 @@ message_list :: (channel_id: dc.Snowflake, cs: *Chat_State) {
 		}
 		ui.scrollbar(list, .Auto, *cs.scroll_from_bottom, *cs.scroll_target, total, from_end = true);
 		typing_line(channel_id);
-		new_messages_bar(channel_id, msgs, lw, cs, new_top < list.rect.y0);
+		new_messages_bar(channel_id, msgs, lw, cs);
 		if gap && jump_to_present_bar(lw) jump_to_present(channel_id);
 	}
 }
@@ -1466,18 +1462,18 @@ hidden_row :: (msgs: []dc.Message, i: int, kind: string, new_day: bool, show_new
 	return r0;
 }
 
-// "N new messages since 3:04 PM ... Mark As Read" over the list's top: the messages after the
-// read marker the channel was opened with, while its "NEW" divider is scrolled above the view
-// (the channel itself is acked meanwhile), or while Mark Unread holds it. Mark As Read acks
-// and drops the divider; the rest of the bar jumps to the first new message.
-new_messages_bar :: (channel_id: dc.Snowflake, msgs: []dc.Message, lw: float32, cs: *Chat_State, divider_above: bool) {
+// "N new messages since 3:04 PM ... Mark As Read" over the list's top while the channel is still
+// unread (the client's getUnreadCount > 0): scrolled up, unfocused, or held by Mark Unread. N
+// counts past the live read state, the time is the "NEW" divider's. Once the channel is acked
+// at the bottom the bar goes. Mark As Read acks and drops the divider; the rest of the bar
+// jumps to the first new message.
+new_messages_bar :: (channel_id: dc.Snowflake, msgs: []dc.Message, lw: float32, cs: *Chat_State) {
 	rs := table_find_pointer(*store().read_states, channel_id);
-	held := rs != null && rs.manual;
-	if !cs.unread_after || !msgs || !(divider_above || held) return;
+	if !cs.unread_after || !msgs || !rs || !dc.channel_unread(store(), channel_id) return;
 	n, first := 0, cast(dc.Snowflake) 0;
 	for < msgs {
 		if it.id <= cs.unread_after break;
-		n += 1;
+		if it.id > rs.last_message_id n += 1;
 		first = it.id;
 	}
 	if n == 0 return;
@@ -2272,8 +2268,18 @@ wave_button :: (m: *dc.Message) {
 	}
 }
 
-// Under a message whose send failed: Retry sends a fresh copy (same text and reply), Delete forgets it locally.
+// Under a message whose send failed: why, when Discord said, then Retry sends a fresh copy (same text and
+// reply), Delete forgets it locally.
 failed_send_note :: (m: *dc.Message) {
+	why := send_error_text(m.send_error);
+	if why {
+		w := ui.box(tprint("%##failedwhy", why), .Draw_Text | .Wrap_Text);
+		w.semantic_size = .[ui.pct(1), ui.text_size()];
+		w.style.font = F(.Normal);
+		w.style.font_size = 12;
+		w.style.line_height = 16;
+		w.style.text_color = T("--text-feedback-critical");
+	}
 	r := row("failednote");
 	r.semantic_size = .[ui.pct(1), ui.px(20)];
 	ui.parent(r); defer ui.pop_parent();
@@ -2298,6 +2304,15 @@ failed_send_note :: (m: *dc.Message) {
 	ch := dc.channel_get(store(), cid);
 	nonce := dc.send_message(app.client, cid, text, .{reply_to = reply, reply_guild_id = ifx ch then ch.guild_id, attachments = files});
 	if files attachments_retry_moved(old, nonce);
+}
+
+// send_error_text: what a failed send's error code means ("" when there's nothing more to say).
+send_error_text :: (code: s32) -> string {
+	if code == {
+	case 50007; return L("Your message could not be delivered. This is usually because you don't share a server with the recipient or the recipient is only accepting direct messages from friends.");
+	case 50278; return L("Your message could not be delivered because you don't share a server with the recipient. Add them as a friend, or join a server you're both in, to message them.");
+	}
+	return "";
 }
 
 // A message's parsed markdown, kept (on the heap) until no row has drawn that text for MD_KEEP_FRAMES, so
@@ -2516,6 +2531,13 @@ forward_block :: (m: *dc.Message) {
 	if m.sticker_ids message_stickers_view(m);
 	if m.attachments attachments_view(m);
 	if m.embeds embeds_view(m);
+	if m.forward_author_id {
+		at := dc.iso_to_ms(m.forward_timestamp);
+		spacer(.Y, 2);
+		name := name_in(m.forward_author_id, m.channel_id, L("Unknown"));
+		label(ifx at > 0 then tprint("% • %", name, format_time_ms(at)) else name, .Medium, 12, T("--text-muted"), 18);
+		return;
+	}
 	ch := dc.channel_get(s, m.forward_channel_id);
 	if ch == null || ch.name == "" return;
 	spacer(.Y, 2);

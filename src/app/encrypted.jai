@@ -28,6 +28,8 @@ Shown :: struct {
 	detached: bool; // An Edit too long for its message's place, sent as a hidden message of its own.
 	stale: bool; // A detached edit of this message came: open it again for its latest text.
 	reply: dc.Snowflake;
+	forward_author: dc.Snowflake; // A forward: whose message it was, and when they sent it.
+	forward_at: string;
 	files: [..]e2e.File;
 	packet: string; // A Hello's, for Accept: its text may only name an attachment.
 	stickers: [..]dc.Snowflake;
@@ -148,7 +150,7 @@ encrypted_frame :: () {
 				shown_free(sh);
 				sh.* = .{result = r.result, content = r.content, text = copy_string(r.out_text), silent = r.silent, accepted = r.accepted, key_changed = r.key_changed, generation = ee.generation,
 					edited = edited, reply = dc.parse_snowflake(r.reply), files = files_copy(r.files), packet = ifx r.result == .Hello then copy_string(r.packet),
-					stickers = stickers_of(r.stickers), kind = ifx r.packet.count > 1 then r.packet[1]};
+					stickers = stickers_of(r.stickers), kind = ifx r.packet.count > 1 then r.packet[1], forward_author = dc.parse_snowflake(r.forward_author), forward_at = copy_string(r.forward_at)};
 				if r.result == .Ok && r.content == .Sender_Key && r.from != r.conv.me ee.generation += 1; // a group's messages waiting for this chain retry
 				if r.result == .Ok && r.content == .Edit && r.target != r.delivery {
 					// Detached: hidden, and its message, already open, opens again with the latest edit. One still
@@ -190,6 +192,7 @@ encrypted_frame :: () {
 				if dm && dm.kind == .Group_DM && !ch.hello_asked && !begins_with(r.conv.carrier, HOSTED) send_hello(dm.id);
 			case .Send;
 				if r.result != .Ok {
+					if r.content == .Delete delete_committed(dc.parse_snowflake(r.target)); // not deleted: it shows again
 					toast_show(ifx r.result == .Too_Long then L("That's too long to send encrypted.") else L("Couldn't encrypt the message."), false);
 					_, atts := table_remove(*ee.attachments, r);
 					free(atts.data);
@@ -281,7 +284,7 @@ E2E_Mark :: enum u8 { None; Encrypted; Plain; }
 e2e_mark :: (m: *dc.Message) -> E2E_Mark {
 	ch := dc.channel_get(store(), m.channel_id);
 	if !encrypted_dm(ch) return .None;
-	if encrypted_packet(m.channel_id, m.content) && !m.forwarded return .Encrypted;
+	if encrypted_packet(m.channel_id, m.content) && (!m.forwarded || m.forward_author_id) return .Encrypted; // the latter forwarded inside its packet
 	e := encrypted_channel(ch.id);
 	return ifx e.encrypted || e.has_session then .Plain else .None;
 }
@@ -375,6 +378,7 @@ encrypted_view :: (m: *dc.Message) -> *dc.Message {
 	if packet v.attachments = ([..]dc.Attachment).{}; // ciphertext: only what opens is shown
 	if opened {
 		v.referenced_id = sh.reply;
+		if sh.forward_author v.forwarded, v.forward_author_id, v.forward_timestamp = true, sh.forward_author, sh.forward_at;
 		v.sticker_ids = ([..]dc.Snowflake).{};
 		v.sticker_ids.allocator = temp;
 		for sh.stickers array_add(*v.sticker_ids, it);
@@ -465,6 +469,7 @@ encrypted_edit :: (channel_id: dc.Snowflake, id: dc.Snowflake, text: string, del
 	r := e2e.request(.Send, conversation(channel_id), ifx delete then "" else text);
 	group_members(r, dc.channel_get(store(), channel_id));
 	r.me, r.content, r.target, r.in_place = my_identity(), ifx delete then e2e.Content.Delete else .Edit, sprint("%", id), fc_text.MAX_PACKET;
+	if delete array_add_if_unique(*deleting, id); // hidden until it's committed (send_packet)
 	if !delete {
 		r.reply = ifx sh.reply then sprint("%", sh.reply) else "";
 		r.files = files_copy(sh.files);
@@ -631,15 +636,15 @@ encrypted_forward :: (m: *dc.Message, dest: *dc.Channel) {
 			item, ok := dc.sticker_item(store(), it);
 			array_add(*stickers, tprint("% % %", it, ifx ok then item.format_type else 1, ifx ok then item.name else ""));
 		}
-		encrypted_post(dest, sh.text, false, files = files, atts = atts, stickers = stickers, cts = cts);
+		encrypted_post(dest, sh.text, false, files = files, atts = atts, stickers = stickers, cts = cts, forward = m);
 	} else {
 		dc.send_message(app.client, dest.id, sh.text, .{attachments = atts, sticker_ids = sh.stickers});
 	}
 }
 
 // encrypted_post sends one encrypted message: text, a reply, files with their uploads (atts, and their
-// ciphertexts cts, in the same order) and stickers. false, with a toast, while it can't go.
-encrypted_post :: (dm: *dc.Channel, text: string, silent: bool, reply: dc.Snowflake = 0, files: []e2e.File = .[], atts: []dc.Draft_Attachment = .[], stickers: []string = .[], cts: [][]u8 = .[]) -> bool {
+// ciphertexts cts, in the same order), stickers, and the message it forwards. false, with a toast, while it can't go.
+encrypted_post :: (dm: *dc.Channel, text: string, silent: bool, reply: dc.Snowflake = 0, files: []e2e.File = .[], atts: []dc.Draft_Attachment = .[], stickers: []string = .[], cts: [][]u8 = .[], forward: *dc.Message = null) -> bool {
 	ch := encrypted_channel(dm.id);
 	if !ch.has_session {
 		if dm.kind == .Group_DM && on_hosted() toast_show(L("Setting up encryption: no one here can read it yet."), false);
@@ -652,6 +657,7 @@ encrypted_post :: (dm: *dc.Channel, text: string, silent: bool, reply: dc.Snowfl
 	r := e2e.request(.Send, conversation(dm.id), text);
 	group_members(r, dm);
 	r.me, r.silent, r.reply = my_identity(), silent, ifx reply then sprint("%", reply) else "";
+	if forward r.forward_author, r.forward_at = sprint("%", forward.author_id), copy_string(forward.timestamp);
 	r.files = files_copy(files);
 	for * r.files if it.name.count > 200 { free(it.name); it.name = copy_string("file"); } // a Body holds names to 255 bytes
 	for stickers array_add(*r.stickers, copy_string(it));
@@ -905,6 +911,7 @@ send_packet :: (r: *e2e.Request, result: e2e.Result, text: string, content := e2
 		}
 		sh := table_find_pointer(*ee.shown, target);
 		if sh { free(sh.text); sh.text, sh.content = copy_string(text), content; } // until the edit comes back
+		if content == .Delete delete_committed(target);
 		e2e_submit(e2e.request(.Sent, packet = r.packet));
 		return;
 	}
@@ -913,7 +920,7 @@ send_packet :: (r: *e2e.Request, result: e2e.Result, text: string, content := e2
 	sh := find_or_add(*ee.shown, nonce);
 	shown_free(sh);
 	sh.* = .{result = result, content = content, text = copy_string(text), silent = r.silent, reply = dc.parse_snowflake(r.reply), files = files_copy(r.files), sent = true,
-		stickers = stickers_of(r.stickers)};
+		stickers = stickers_of(r.stickers), forward_author = dc.parse_snowflake(r.forward_author), forward_at = copy_string(r.forward_at)};
 	e2e_submit(e2e.request(.Sent, packet = r.packet));
 }
 
@@ -950,6 +957,7 @@ shown_free :: (sh: *Shown) {
 	free(sh.text);
 	free(sh.packet);
 	free(sh.edited);
+	free(sh.forward_at);
 	files_free(*sh.files);
 }
 
