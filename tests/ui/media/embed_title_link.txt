@@ -1,0 +1,11 @@
+# Run with FASTCORD_MEDIA_DIR=tests/ui/media. An embed's linked title shows the hand and opens its link.
+wait 20
+move 600 300
+scroll 0 1400
+wait 30
+move 488 384
+wait 2
+expect_cursor Pointer
+click 488 384
+wait 3
+expect_opened_url "https://www.youtube.com/watch?v=dQw4w9WgXcQ"

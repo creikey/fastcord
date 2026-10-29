@@ -448,6 +448,7 @@
 - [ ] Undo: closing a DM and leaving a group DM (closing a DM is immediate; leaving a group asks first, `view_home.jai`).
 - [ ] Events: no Edit Event or End Event; the wizard has no Stage location or cover image.
 - [ ] Embeds: the title (drawn as a link) and links and mentions in the description don't respond to clicks (`view_media.jai`).
+- [ ] Go Live viewer: the official client shows the stream's quality ("720p 30FPS") and a LIVE badge in the call header while watching; fastcord shows neither.
 - [ ] Create Channel: no Announcement, Stage or Media types, no Private Channel option, no Create Category.
 - [ ] No lost typing: Escape in an edit discards it, and starting another edit overwrites it silently. Escape or the x drops the reply target, and a new reply replaces it. Keep these recoverable: edit and reply drafts per message and channel, restored on reopen.
 - [ ] No lost typing: composer drafts and staged files live only in memory; persist them so a quit or crash keeps them, as the official client does.
@@ -778,3 +779,4 @@
 - [x] Security: array bounds and null checks are on in every build (`build.jai`), so an out-of-bounds bug stops fastcord instead of corrupting memory. Measured with the bench on a busy machine: chat 1.31-1.38 ms latency without them, 1.37-1.43 ms with (within run-to-run noise), gif_scroll 1.65 vs 1.74 ms, sticker_scroll 2.54 vs 2.50 ms; no loop needed `#no_abc`. The dead-control sweep runs through without a panic.
 - [x] Go Live: stream settings in the screen picker: resolution (720p, 1080p, Source) and frame rate (15, 30, 60), above 720p30 only with Nitro on Discord (hidden, never offered) and always on a hosted server; the bitrate follows them, and the Screen button while streaming opens Stream Settings with Stop Streaming, where a change restarts the capture (`go_live_quality`, `go_live_set`; `tests/ui/call/go_live.txt`). The stream-audio toggle waits for soundshare.
 - [x] Go Live viewer: the call header shows LIVE and the watched stream's quality ("720p 30FPS", from the decoded frames) (`watched_stream_quality`; `tests/ui/call/go_live.txt`).
+- [x] Embeds: a linked title shows the hand and an underline on hover and opens its link like a message link (in-app for Discord links); links and mentions in descriptions already followed clicks through `handle_span_clicks` (`tests/ui/media/embed_title_link.txt`).

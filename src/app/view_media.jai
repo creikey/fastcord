@@ -493,7 +493,13 @@ embeds_view :: (m: *dc.Message, max_w: float32 = 400) {
 					t.semantic_size = .[ui.pct(1), ui.text_size()];
 					t.style.line_height = 22;
 					t.sel_order = cast(u64) m.id * 8 + 6;
-					ui.set_spans(t, ui.Span.[.{text = e.title, font = F(.Semibold), size = 16, color = ifx e.url != "" then T("--text-link") else T("--text-strong")}]);
+					// a linked title: the hand and an underline on hover, a click follows it
+					over := e.url != "" && ui.mouse_over(t) && ui.span_at(t.prev_layout, app.ui.mouse) >= 0 && !ui.overlay_at(app.ui.mouse);
+					ui.set_spans(t, ui.Span.[.{text = e.title, font = F(.Semibold), size = 16, color = ifx e.url != "" then T("--text-link") else T("--text-strong"), underline = over}]);
+					if over {
+						app.ui.span_cursor = .Pointer;
+						for app.ui.events if it.kind == .Mouse_Up && it.button == .Left && !it.consumed && !ui.has_selection() && ui.span_at(t.prev_layout, it.pos) >= 0 follow_link(e.url, m.id);
+					}
 				}
 				if e.description != "" {
 					spacer(.Y, 8);
