@@ -110,10 +110,23 @@ settings_load :: (headless: bool) -> int, int {
 settings_load_from :: (dir: string) -> int, int {
 	free(st.dir);
 	st.dir = copy_string(dir);
-	data, ok := read_entire_file(tprint("%/%", st.dir, SETTINGS_FILE), log_errors = false,, temp);
-	if !ok return 0, 0;
-	v, err := etf.from_json(data,, temp);
-	if err != .None || v.kind != .Map return 0, 0;
+	path := tprint("%/%", st.dir, SETTINGS_FILE);
+	// The file, else a write a crash cut short of its rename (write_durable's .new, the old .tmp). One
+	// that doesn't parse is moved aside, never replaced by defaults: it may hold the only copy of the
+	// joined self-hosted servers.
+	data: string;
+	v: etf.Value;
+	for name: string.[path, tprint("%.new", path), tprint("%.tmp", path)] {
+		d, ok := read_entire_file(name, log_errors = false,, temp);
+		if !ok continue;
+		val, err := etf.from_json(d,, temp);
+		if err == .None && val.kind == .Map {
+			data, v = d, val;
+			break;
+		}
+		if name == path file_move(path, tprint("%.unreadable-%", path, current_time_consensus().low));
+	}
+	if !data return 0, 0;
 	p := Persisted.{streamer = STREAMER_DEFAULTS}; // fields missing from older files keep their defaults
 	{
 		push_allocator(temp);
@@ -156,17 +169,45 @@ settings_frame :: () {
 	if !app.view.resizing settings_save(); // the official client saves a dragged width when the drag ends
 }
 
-settings_save :: () {
+// settings_save hands a changed snapshot to the saver thread, which writes it durably (synced, verified,
+// renamed into place: keys.write_durable); the UI thread never waits on the disk. wait (quitting): until
+// it is written.
+settings_save :: (wait := false) {
 	if st.dir == "" || platform.is_headless() return;
 	js := snapshot();
-	if js == "" || js == st.last_json return;
-	make_directory_if_it_does_not_exist(st.dir);
-	path := tprint("%/%", st.dir, SETTINGS_FILE);
-	tmp := tprint("%.tmp", path);
-	if !write_entire_file(tmp, js) return;
-	if !atomic_file_replace_or_just_rename_if_destination_file_does_not_exist(tmp, path) return;
-	free(st.last_json);
-	st.last_json = copy_string(js);
+	locks.lock(*st.mu);
+	defer locks.unlock(*st.mu);
+	if st.write_failed {
+		free(st.last_json); // write it again
+		st.last_json, st.write_failed = "", false;
+	}
+	if js != "" && js != st.last_json {
+		free(st.last_json);
+		st.last_json = copy_string(js);
+		free(st.pending);
+		st.pending = copy_string(js);
+		if !st.saver st.saver = dc.spawn(st.dir, settings_saver);
+		locks.cond_broadcast(*st.cond);
+	}
+	while wait && (st.pending || st.writing) locks.cond_wait(*st.cond, *st.mu);
+}
+
+settings_saver :: (dir: string) {
+	locks.lock(*st.mu);
+	while true {
+		if !st.pending { locks.cond_wait(*st.cond, *st.mu); continue; }
+		js := st.pending;
+		st.pending, st.writing = "", true;
+		locks.unlock(*st.mu);
+		make_directory_if_it_does_not_exist(dir);
+		ok := keys.write_durable(tprint("%/%", dir, SETTINGS_FILE), cast([]u8) js);
+		reset_temporary_storage();
+		locks.lock(*st.mu);
+		st.writing = false;
+		if !ok st.write_failed = true;
+		free(js);
+		locks.cond_broadcast(*st.cond);
+	}
 }
 
 // Odin's json.marshal(v, {pretty = true, sort_maps_by_key = true}) of a struct of ints, floats,
@@ -241,7 +282,13 @@ theme_follow_os_set :: (on: bool) {
 
 st: struct {
 	dir: string;
-	last_json: string; // what is on disk
+	last_json: string; // the last snapshot handed to the saver (UI thread)
+	mu: locks.Mutex; // pending, writing, write_failed
+	cond: locks.Cond;
+	saver: *Thread; // settings_saver, for the life of the process
+	pending: string; // a snapshot the saver hasn't taken yet (its own copy)
+	writing: bool;
+	write_failed: bool;
 	next_check: float64;
 	server_theme: dc.Theme; // last server-synced value applied
 };

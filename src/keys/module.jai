@@ -235,6 +235,24 @@ trash :: (dir: string, root: [32]u8) -> bool {
 	return ok;
 }
 
+// write_durable writes path so that a crash or power cut leaves the old file or the new one: a synced
+// .new file, read back and checked, then renamed over it (the directory synced too).
+write_durable :: (path: string, data: []u8) -> bool {
+	tmp := tprint("%.new", path);
+	f, ok := file_open(tmp, for_writing = true);
+	if !ok return false;
+	ok = file_write(*f, data.data, data.count) && sync(f);
+	file_close(*f);
+	if ok {
+		back, rok := read_entire_file(tmp, log_errors = false);
+		ok = rok && same(crypto.blake3(cast([]u8) back), crypto.blake3(data));
+		free(back);
+	}
+	if ok ok = replace(tmp, path);
+	if !ok file_delete(tmp); // The .new file is a failed write, never a key's only copy.
+	return ok;
+}
+
 #scope_file
 
 same :: (a: [32]u8, b: [32]u8) -> bool { return crypto.constant_time_equal(a, b); }
@@ -252,21 +270,6 @@ read_key :: (path: string) -> Keypair, bool {
 	return k, kok;
 }
 
-write_durable :: (path: string, data: []u8) -> bool {
-	tmp := tprint("%.new", path);
-	f, ok := file_open(tmp, for_writing = true);
-	if !ok return false;
-	ok = file_write(*f, data.data, data.count) && sync(f);
-	file_close(*f);
-	if ok {
-		back, rok := read_entire_file(tmp, log_errors = false);
-		ok = rok && same(crypto.blake3(cast([]u8) back), crypto.blake3(data));
-		free(back);
-	}
-	if ok ok = replace(tmp, path);
-	if !ok file_delete(tmp); // The .new file is a failed write, never a key's only copy.
-	return ok;
-}
 
 #if OS == .WINDOWS {
 	#import "Windows_Utf8";

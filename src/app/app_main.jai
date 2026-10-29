@@ -278,7 +278,7 @@ main :: () {
 
 	update_start();
 	streamer_start();
-	platform.set_exit_callback(() { settings_save(); app_exit(); });
+	platform.set_exit_callback(() { settings_save(wait = true); app_exit(); });
 	platform.set_frame_callback(frame);
 	#if OS == .WINDOWS platform.set_window_hit_callback(window_hit);
 	frame();
@@ -289,7 +289,7 @@ main :: () {
 		frame();
 	}
 	if app.stats && app.focused_editor != null print("[input] \"%\"\n", ui.editor_text(app.focused_editor), to_standard_error = true);
-	settings_save();
+	settings_save(wait = true);
 	app_exit();
 }
 
