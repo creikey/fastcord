@@ -566,9 +566,11 @@ mentions_list :: () {
 	keep := app.client;
 	{ ui.parent(list); defer ui.pop_parent();
 		spacer(.Y, 8);
-		if inbox.items.count == 0 { empty_note(ifx mentions_loading() then "Loading..." else "Nobody has mentioned you recently."); }
-		removed := -1;
+		shown := 0;
+		for inbox.items if !undo_hides(it.msg.id) shown += 1;
+		if shown == 0 { empty_note(ifx mentions_loading() then "Loading..." else "Nobody has mentioned you recently."); }
 		for * item, i: inbox.items {
+			if undo_hides(item.msg.id) continue; // its "x" is behind Undo
 			// Each mention draws under its own connection; Jump switches to it.
 			if item.client app.client = item.client;
 			defer app.client = keep;
@@ -606,10 +608,11 @@ mentions_list :: () {
 						icon("i", "x-small", 20, ifx xs.hovering then T("--interactive-icon-hover") else T("--interactive-icon-default"));
 					}
 					if xs.hovering { tooltip_below("Mark As Read", x.rect); }
-					if xs.clicked && net_action() {
-						dc.delete_mention(app.client, item.msg.id);
-						removed = i;
-					}
+					// gone at once, DELETE after the undo window (undo.jai)
+					if xs.clicked undo_push("Mention removed", (u: *Undo) {
+						if u.client dc.delete_mention(u.client, u.a);
+						for inbox.items if it.msg.id == u.a { array_ordered_remove_by_index(*inbox.items, it_index); break; }
+					}, a = item.msg.id, hides = true);
 					spacer(.X, 12);
 				}
 				if loose_message_card(*item.msg, .[], true) {
@@ -620,7 +623,6 @@ mentions_list :: () {
 				}
 			}
 		}
-		if removed >= 0 { array_ordered_remove_by_index(*inbox.items, removed); }
 		spacer(.Y, 8);
 	}
 	// load more near the end

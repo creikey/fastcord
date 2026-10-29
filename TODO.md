@@ -435,7 +435,6 @@
 - [ ] Hosting: a video sent to a hosted server shows as a plain file card, not a player: serve reads an image's size on arrival (`imagefmt` in `serve/module.jai`) but not a video's, and the client lays a video out only with `width` and `height`. Probe MP4/WebM/MOV dimensions with `media.probe` (or a header-only reader) when the upload lands.
 - [ ] Sounds: soundpacks work and are saved but have no picker; "User Moved" has a toggle but never plays; the "reconnect" sound is unused.
 - [ ] Media: the video player lacks download.
-- [ ] Undo: the new-messages bar's Mark As Read and the Inbox mention "x" (its DELETE) still act at once; hold them behind Undo like the other Mark As Read paths (`new_messages_bar`, `view_inbox.jai` mentions list).
 - [ ] Media: voice message speed changes the pitch: `player_set_rate` resamples linearly, where the client's `<audio>` keeps it (`preservesPitch`). Time-stretch instead (WSOLA, or a vetted library) for 1.5x / 2x.
 - [ ] Attachments: an audio file (`.mp3`, `.wav`, not a voice message) plays in a card with no filename, size or download icon (`audio_attachment` in `view_media.jai`); the official audio card has all three in its header. `file_download` does the download.
 - [ ] Servers: no rules screen, onboarding, Server Guide or Browse Channels / Channels & Roles.
@@ -843,3 +842,4 @@
 - [x] Media: voice messages have a 1x / 1.5x / 2x speed pill (for every voice message, kept for the session); `media/player.jai` gained `player_set_rate`, which resamples the audio linearly and keeps the clock exact per segment (`tests/ui/media/voice_message.txt`).
 - [x] Undo: Mark As Read (server, folder, category, DM, group DM and thread menus, Shift+Escape, the Inbox's Mark All as Read and row check) shows read at once and holds the ack behind Undo, which restores the read states; each sends its usual request (ack-bulk or the channel ack) after 5 s (`mark_read_now`; `tests/ui/rail/undo_mark_read.txt`).
   - Done: the bulk ones (server and folder menus, Shift+Escape, Inbox "Mark All as Read") hold the ack-bulk behind Undo, which restores the read states (`mark_read_now`; `tests/ui/rail/undo_mark_read.txt`). Left: the single-channel acks (DM and channel menus, Inbox row check, the new-messages bar, threads) and the Inbox mention "x".
+- [x] Undo: the Inbox mention "x" takes the mention off the list behind Undo and sends its DELETE after 5 s (`mentions_list`; `tests/ui/rail/undo_mention.txt`). The new-messages bar's Mark As Read stays immediate: its channel is open and would be acked again at once.

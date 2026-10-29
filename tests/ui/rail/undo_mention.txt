@@ -1,0 +1,14 @@
+# Run with -fixture:tests/ui/rail.jsonl. A mention's "x" in the Inbox takes it off the list behind Undo.
+wait 5
+click 1219 16
+wait 20
+click_text "Mentions"
+wait 30
+click 1205 147
+wait 5
+expect_visible "Mention removed"
+expect_visible "Nobody has mentioned you recently."
+shot build/ui-rail_undo_mention.png
+click_text "Undo"
+wait 5
+expect_not_visible "Nobody has mentioned you recently."

@@ -81,7 +81,6 @@ silent friends_all "friends/f/item" online the friend's existing DM opens at onc
 silent friends_all "f/item/msg" online the friend's existing DM opens at once (same gap)
 silent * "inboxpop/hdr/markall" online the unreads clear at once (local ack state)
 silent * "ur/item/ack" online the row clears at once (local ack state)
-silent * "mentions/mhdr/x" online the mention leaves the list at once
 silent guild_notify_modal "mute/c/mutetoggle" online the settings proto edit applies locally at once
 silent guild_notify_modal "nmodal/radio" online the settings proto edit applies locally at once
 silent * "c/supall" online the settings proto edit applies locally at once
