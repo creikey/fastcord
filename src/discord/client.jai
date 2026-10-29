@@ -478,6 +478,7 @@ client_set_focused :: (c: *Client, focused: bool) {
 	c.focused = focused;
 	identity_set_app_state(*c.id, ifx focused then .Focused else .Unfocused);
 	if focused identity_touch_heartbeat(*c.id, now_ms());
+	else c.analytics.next_ad_hb = 0; // AdSessionStore WINDOW_FOCUS: stopped, restarted (at once) on return
 	if c.gw gateway_set_active(c.gw, qos_from_state(focused, c.rtc_connected));
 }
 

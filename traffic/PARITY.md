@@ -100,6 +100,12 @@ in parallel): they use the heap allocator and are torn down with the last client
   logout (POST /auth/logout, the logged-out loads, fingerprint, login page),
   login_submit (POST /auth/login, IDENTIFY, the login burst). The QR socket is
   off offline; its protocol is unit-tested (`test_remote_auth_fake_server`).
+  username_typing and username_taken_check refocus the window, as the capture
+  did, which sends their `client_ad_heartbeat`.
+- `parity_quest_decision`: upload_custom_emoji's setup, where the launch's
+  `/quests/decision` served a quest: `quest_decision_received`, the unshown quest
+  bar's logotype, `quest_bar_mode_changed` and hero art (the rest of the window,
+  the launch, is allowed).
 
 `replay_begin(..., acct = "b")` replays a two-sided fixture as B (B's READY and
 windows). All pass. A test that fails prints what differs from the official client
@@ -138,13 +144,16 @@ Allow-list entries for telemetry:
 
 `R_SCI_NEVER` (applied by `replay_check` to every window) lists what fastcord
 never sends by rule (AGENTS.md: no faked engagement with sponsored content): the
-quests entry point's hovers (`quest_hover`, `quest_hover_off`) and a served quest's
-`quest_decision_received` and `quest_bar_mode_changed`. Shop, Nitro and Orbs
-upsell telemetry, their experiment exposures and the voice invite suggestions'
-impression are sent as their (unshown) components render, and checked like any
-other event. `analytics_never` (analytics.jai) names the never-sent events, with
-those of UI fastcord does not have. `send_message_roundtrip` (10 %) and
-`quest_decision_roundtrip` (18 %) are sampled and disabled offline.
+quests entry point's hovers (`quest_hover`, `quest_hover_off`). A served quest's
+`quest_decision_received` and its quest bar's collapsed render
+(`quest_bar_mode_changed`), Shop, Nitro and Orbs upsell telemetry, their
+experiment exposures and the voice invite suggestions' impression are sent as
+their (unshown) components load and render, and checked like any other event.
+The quest bar's viewability impressions (`quest_content_loaded` / `_viewed` /
+`_view_time`) are never sent; no fixture has them. `analytics_never`
+(analytics.jai) names the never-sent events, with those of UI fastcord does not
+have. `send_message_roundtrip` (10 %), `quest_decision_roundtrip` (18 %) and
+`quest_bar_render_delay` (10 %, focused windows) are sampled and disabled offline.
 
 Every event needs the window's viewport and the accessibility flags: the
 library drops events until both are reported. The app reports them right after
@@ -446,9 +455,10 @@ settings tabs other than Overview.
 
 | Area | Difference | Reason |
 |---|---|---|
-| Telemetry | Not sent: quest hovers, a served quest's `quest_decision_received` and `quest_bar_mode_changed` | No faked engagement with sponsored content (AGENTS.md; `analytics_never`, `R_SCI_NEVER`). |
+| Telemetry | Not sent: quest hovers; the quest bar's viewability impressions (`quest_content_loaded` / `_viewed` / `_view_time`, in no fixture) | No faked engagement with sponsored content (AGENTS.md; `analytics_never`, `R_SCI_NEVER`). |
+| Quest bar | A launch's decision only: no 30 s re-check that fetches it again after its TTL (~40 min) | Not modelled yet (TODO.md). |
 | Telemetry | Not sent: `voice_invite_suggestions_entrypoint_closed`, `impression_voice_invite_suggestions_popover` | Pointer interactions with the voice invite suggestions (closing it, hovering the voice area), whose entry point impression is sent. |
-| Shop art | The Edit Profiles Shop product images and the Shop entry's hover art (`collectibles-shop` CDN images) | The product images depend on the categories response, not modelled; the hover art needs a hover. Images are not compared (`R_IGNORE`). |
+| Shop art | The Edit Profiles Shop product images and the Shop entry's hover art (`collectibles-shop` CDN images) | The product images are the editor's cycling previews of nameplates, decorations, effects and frames, whose picking hook is in no cached bundle chunk (TODO.md); the hover art needs a hover. Images are not compared (`R_IGNORE`). |
 | Telemetry | Not sent: legacy experiment triggers (`experiment_guild_triggered*`, `experiment_user_triggered`), `session_start_client`, the web-vitals INP `app_web_perf_startup_metrics`, `/metrics/v2` | Not modelled yet (allow-listed where a window has them). |
 | Telemetry | Electron memory, JS heap, crash reporter, web-bundle sizes and script costs, the media engine's versions, internal timings and audio statistics | Synthesized from the fixtures (traffic/CLIENT_RULES.md "Analytics"). |
 | Telemetry | Settings modal `impression_modal_root_legacy` (variant `renderModalSpinner`) | The settings chunk's lazy-load spinner; allow-listed in parity_settings_open / parity_open_account_settings. |

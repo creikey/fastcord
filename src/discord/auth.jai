@@ -638,6 +638,8 @@ client_session_reset :: (c: *Client) {
 	c.analytics.user_id = 0;
 	for v, k: c.analytics.exposed free(k,, c.analytics.allocator);
 	table_reset(*c.analytics.exposed); // logging out clears the exposure log with local storage
+	free_str(c.analytics.ad_session, c.analytics.allocator); // AdSessionStore LOGOUT: the next use starts one
+	c.analytics.ad_session = "";
 	locks.unlock(*c.analytics.mu);
 	store_destroy(*c.store);
 	store_init(*c.store, c.allocator);
