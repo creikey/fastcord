@@ -1,6 +1,11 @@
 // CHROME_MAJOR is the Chrome whose hello we send unless told otherwise: the official client's Electron 44.
 // The supported shapes are 148's and 152's; any major below 152 gets 148's.
 CHROME_MAJOR :: 152;
+// presented_major: the Chrome this process presents when a Config names none: the identity's host
+// (src/discord client_create sets it once, before any connection).
+presented_major := CHROME_MAJOR;
+
+major_or_presented :: (chrome_major: int) -> int { return ifx chrome_major then chrome_major else presented_major; }
 
 Config :: struct {
 	// ALPN protocols in preference order, e.g. {"h2", "http/1.1"}. ALPS is offered for "h2" over
@@ -13,9 +18,9 @@ Config :: struct {
 	// Self-hosted servers: the BLAKE3 hash of the one leaf certificate to accept (32 bytes), with no
 	// certificate authority or name check.
 	pin: []u8;
-	// The Chrome major version whose ClientHello to send, the host's (src/discord/identity). From 152 the
-	// signature algorithms start with a GREASE value and ML-DSA-44/65/87.
-	chrome_major := CHROME_MAJOR;
+	// The Chrome major version whose ClientHello to send, 0 = presented_major. From 152 the signature
+	// algorithms start with a GREASE value and ML-DSA-44/65/87.
+	chrome_major: int;
 }
 
 // Error is the detailed failure reason; netio.Error is what the Stream reports.
@@ -401,7 +406,7 @@ inited: bool;
 host_index: s32;
 tcp_ctxs: [2]*SSL_CTX;
 
-tcp_ctx :: (chrome_major: int) -> *SSL_CTX { return tcp_ctxs[xx (chrome_major >= 152)]; }
+tcp_ctx :: (chrome_major: int) -> *SSL_CTX { return tcp_ctxs[xx (major_or_presented(chrome_major) >= 152)]; }
 
 ensure_init :: () {
 	if atomic_load(*inited) return;

@@ -3466,7 +3466,7 @@ tls_chrome_hello :: (t: *T) {
 		}
 		return count, sig;
 	}
-	n152, sig152 := exts(tls.client_hello(.{alpn = .["h2", "http/1.1"], server_name = "discord.com"},, temp));
+	n152, sig152 := exts(tls.client_hello(.{alpn = .["h2", "http/1.1"], server_name = "discord.com", chrome_major = 152},, temp));
 	n148, sig148 := exts(tls.client_hello(.{alpn = .["h2", "http/1.1"], server_name = "discord.com", chrome_major = 148},, temp));
 	expect(t, n152 == 18 && n148 == 18, "18 extensions, two of them GREASE");
 	if !expect(t, sig152.count == 26 && sig148.count == 18, "signature_algorithms") return;

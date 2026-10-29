@@ -68,13 +68,17 @@ electron_user_agent :: (os_token: string, h: Host_Build) -> string {
 sec_ch_ua :: (chrome: string) -> string {
 	GREASE_CHARS :: string.[" ", "(", ":", "-", ".", "/", ")", ";", "=", "?", "_"];
 	GREASE_VERSIONS :: string.["8", "99", "24"];
-	dot := find_index_from_left(chrome, #char ".");
-	major := ifx dot > 0 then slice(chrome, 0, dot) else chrome;
-	seed := parse_s64(major);
+	seed := chrome_major(chrome);
+	major := tprint("%", seed);
 	grease := join("\"Not", GREASE_CHARS[seed % 11], "A", GREASE_CHARS[(seed + 1) % 11], "Brand\";v=\"", GREASE_VERSIONS[seed % 3], "\"",, temp);
 	chromium := join("\"Chromium\";v=\"", major, "\"",, temp);
 	if seed % 2 return join(chromium, ", ", grease);
 	return join(grease, ", ", chromium);
+}
+
+chrome_major :: (chrome: string) -> int {
+	dot := find_index_from_left(chrome, #char ".");
+	return parse_s64(ifx dot > 0 then slice(chrome, 0, dot) else chrome);
 }
 
 // apply_host: report host h. The strings live for the process (the platform is copied by value).

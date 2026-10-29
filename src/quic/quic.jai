@@ -28,8 +28,8 @@ Conn :: struct {
 }
 
 // connect starts the handshake with host:port and waits for it and the HTTP/3 setup. chrome_major picks the
-// Chrome whose first flight to send (tls.Config.chrome_major).
-connect :: (host: string, port := 443, chrome_major := tls.CHROME_MAJOR) -> *Conn, http.Error {
+// Chrome whose first flight to send (tls.Config.chrome_major; 0 = tls.presented_major).
+connect :: (host: string, port := 443, chrome_major := 0) -> *Conn, http.Error {
 	push_allocator(Context_Base.default_allocator);
 	peer, ok := udp_resolve(host, port);
 	if !ok return null, .Io;
@@ -167,7 +167,7 @@ close :: (c: *Conn) {
 // chrome_transport_params returns one fresh encoding of the transport parameters our ClientHello carries,
 // from context.allocator, with Google's initial_rtt when initial_rtt_us > 0 and connection options "ORIG" from
 // Chrome 152 on. Order, the GREASE parameter and the GREASE version are random per call, as in Chrome.
-chrome_transport_params :: (initial_rtt_us: u64, chrome_major := tls.CHROME_MAJOR) -> []u8 {
+chrome_transport_params :: (initial_rtt_us: u64, chrome_major := 0) -> []u8 {
 	buf: [256]u8;
 	n := fc_quic_chrome_tp(buf.data, initial_rtt_us, xx orig(chrome_major));
 	return array_copy(array_view(buf, 0, xx n));
@@ -175,7 +175,7 @@ chrome_transport_params :: (initial_rtt_us: u64, chrome_major := tls.CHROME_MAJO
 
 // first_flight returns, for tests, the datagrams a new connection to host sends before hearing back, from
 // context.allocator. Nothing goes on the network.
-first_flight :: (host: string, chrome_major := tls.CHROME_MAJOR) -> [][]u8 {
+first_flight :: (host: string, chrome_major := 0) -> [][]u8 {
 	out: [..][]u8;
 	ssl := tls.new_ssl(quic_ctx(), .{alpn = string.["h3"], server_name = host}, true);
 	if !ssl return out;
@@ -310,7 +310,7 @@ quic_ctx :: () -> *tls.SSL_CTX {
 }
 
 // orig: Chrome 152 sends the connection option ORIG (kQuicOptions); 148 sent none. Its TLS is the same.
-orig :: (chrome_major: int) -> bool { return chrome_major >= 152; }
+orig :: (chrome_major: int) -> bool { return tls.major_or_presented(chrome_major) >= 152; }
 
 now_ns :: () -> u64 { return xx to_nanoseconds(current_time_monotonic()); }
 

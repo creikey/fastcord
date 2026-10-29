@@ -266,6 +266,8 @@ client_create :: (cfg: Config, allocator := context.allocator) -> *Client {
 	c.start_route_channel = cfg.initial_channel_id;
 	c.account_verified = true;
 	client_load_state(c);
+	// Every connection's hellos are the Chrome the reported host ships (tls.presented_major).
+	if !cfg.hosted.host tls.presented_major = chrome_major(c.id.platform.chrome_version);
 	auth_init(c);
 	return c;
 }
