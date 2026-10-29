@@ -425,9 +425,13 @@ voice_session_end :: (s: *Server, vs: *Voice_Session) {
 // voice_udp answers IP discovery and forwards media until stop.
 voice_udp :: (s: *Server) {
 	buf, plain, sealed: [2048]u8;
+	next_tick: s64;
 	while !atomic_load(*s.udp_stop) {
 		reset_temporary_storage();
-		dave_tick(s); // At least every receive timeout.
+		if now_ms(s) >= next_tick { // Four times a second, as the receive timeout allows.
+			next_tick = now_ms(s) + 250;
+			dave_tick(s);
+		}
 		n, addr, port := netio.udp_recv(s.udp, buf);
 		if n <= 0 || n > 1500 continue;
 		pkt := array_view(buf, 0, n);

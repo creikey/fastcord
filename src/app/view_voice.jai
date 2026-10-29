@@ -249,13 +249,16 @@ voice_panel :: () {
 	color := T("--text-feedback-warning");
 	sig_icon := "connection-unknown";
 	ping := -1;
-	e2ee := false;
+	e2ee, plain := false, false;
 	if vc.conn != null {
 		st, _ := voice.state(vc.conn);
 		stats := voice.get_stats(vc.conn);
 		ping = ifx stats.rtt_ms > 0 then stats.rtt_ms else stats.ws_ping_ms;
 		if ping <= 0 { ping = -1; } // no heartbeat ack / RTCP round trip yet
-		e2ee = voice.e2ee_status(vc.conn,, temp).active;
+		es := voice.e2ee_status(vc.conn,, temp);
+		e2ee = es.active;
+		// A hosted server that didn't run DAVE (an old one, or a hostile one) gets a plain warning.
+		plain = st == .Connected && es.protocol_version == 0 && call_client() && call_client().cfg.hosted.host != "";
 		if st == {
 		case .Connected;
 			status = "Voice Connected";
@@ -298,7 +301,7 @@ voice_panel :: () {
 				} else if ch {
 					where_ = dm_name(ch);
 				}
-				t := label(where_, .Normal, 12, T("--text-muted"), 14);
+				t := ifx plain then label("Not end-to-end encrypted", .Normal, 12, T("--text-feedback-warning"), 14) else label(where_, .Normal, 12, T("--text-muted"), 14);
 				t.flags |= .Clip;
 			}
 		}
