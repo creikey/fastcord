@@ -366,10 +366,11 @@ id_hex :: (s: *Server, allocator := temp) -> string { return hex(s.id,, allocato
 pin_hex ::(s: *Server, allocator := temp) -> string { return hex(s.pin,, allocator); }
 
 // listen accepts connections on a thread until stop. Port 0 picks a free port: see s.listener.port.
-listen :: (s: *Server, port: int) -> bool {
+// udp_host: the address voice binds, else every address.
+listen :: (s: *Server, port: int, udp_host := "") -> bool {
 	l, err := netio.listen_tcp(port);
 	if err != .None return false;
-	u, uerr := netio.listen_udp(l.port, 250);
+	u, uerr := netio.listen_udp(l.port, 250, udp_host);
 	if uerr != .None { netio.close_listener(l); free(l); return false; }
 	s.listener, s.udp = l, u;
 	s.udp_thread = spawn(s, voice_udp);
