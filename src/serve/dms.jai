@@ -331,7 +331,7 @@ e2e_bundle :: (c: *Conn, req: http.Request) -> bool {
 		b: etf.Value;
 		if err == .None && v.kind == .Map b, _ = etf.map_get(v.map, "bundle");
 		if b.kind != .String return json_error(c, 400, 50035, "Invalid Form Body");
-		packet, ok := fc_text.decode(b.s);
+		packet, ok := fc_text.decode(b.s, fc_text.MAX_BUNDLE);
 		if !ok || packet.count < 34 || packet[1] != HELLO_KIND return json_error(c, 400, 50035, "Invalid Form Body");
 		locks.guard(*s.db_mu);
 		st := sqlite.prepare(s.db, "SELECT root FROM users WHERE id = ?;");

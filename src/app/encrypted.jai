@@ -24,6 +24,7 @@ Shown :: struct {
 	edited: string; // The message's edited_timestamp when it was opened: an edit brings a new packet.
 	reply: dc.Snowflake;
 	files: [..]e2e.File;
+	packet: string; // A Hello's, for Accept: its text may only name an attachment.
 }
 
 Encrypted_Channel :: struct {
@@ -64,7 +65,8 @@ E2E_Reaction :: struct { user: dc.Snowflake; emoji: string; at: dc.Snowflake; on
 ENCRYPTED_NAME :: "encrypted.bin"; // What a sealed file uploads as, whatever it is.
 E2E_URL :: "e2e:"; // An opened file's key in blobs and images, from its digest: never fetched.
 
-// Open_File decrypts a downloaded ciphertext on the database thread, off the UI's.
+// Open_File decrypts a downloaded file on the database thread, off the UI's; or, with message set, takes
+// a packet too large for a message from its attachment once it matches digest.
 Open_File :: struct {
 	#as using job: e2e.Job;
 	key: string; // E2E_URL
@@ -72,6 +74,8 @@ Open_File :: struct {
 	file: e2e.File;
 	ct, out: []u8;
 	ok, started: bool;
+	message, channel, author: dc.Snowflake;
+	digest: [32]u8;
 }
 ee: Encrypted_State;
 
@@ -92,7 +96,7 @@ encrypted_frame :: () {
 		for ee.bundled if it.client == c published = true;
 		if published continue;
 		array_add(*ee.bundled, .{c, platform.time_now()});
-		r := e2e.request(.Bundle, .{carrier = carrier_name(c), me = tprint("%", c.store.me), limit = fc_text.MAX_PACKET});
+		r := e2e.request(.Bundle, .{carrier = carrier_name(c), me = tprint("%", c.store.me), limit = e2e.MAX_PACKET});
 		r.me = my_identity();
 		e2e_submit(r);
 	}
@@ -114,7 +118,7 @@ encrypted_frame :: () {
 				sh.edited = "";
 				shown_free(sh);
 				sh.* = .{result = r.result, content = r.content, text = copy_string(r.out_text), silent = r.silent, accepted = r.accepted, key_changed = r.key_changed, generation = ee.generation,
-					edited = edited, reply = dc.parse_snowflake(r.reply), files = files_copy(r.files)};
+					edited = edited, reply = dc.parse_snowflake(r.reply), files = files_copy(r.files), packet = ifx r.result == .Hello then copy_string(r.packet)};
 				if r.result == .Ok && (r.content == .React || r.content == .Unreact) reaction_note(dc.parse_snowflake(r.target), dc.parse_snowflake(r.from), r.out_text, id, r.content == .React);
 				if r.result == .Ok && r.content == .Accept && r.from != r.conv.me {
 					ee.generation += 1;
@@ -124,7 +128,7 @@ encrypted_frame :: () {
 				// On a hosted server every DM is encrypted, so a peer's Hello is answered without asking.
 				if r.result == .Hello && !r.accepted && r.from != r.conv.me && begins_with(r.conv.carrier, HOSTED) && identity_ready() {
 					sh.accepted = true;
-					q := e2e.request(.Accept, .{r.conv.carrier, r.conv.id, r.conv.me, r.from, r.conv.limit}, packet = r.packet);
+					q := e2e.request(.Accept, .{r.conv.carrier, r.conv.id, r.conv.me, r.from, fc_text.MAX_PACKET}, packet = r.packet);
 					q.me = my_identity();
 					e2e_submit(q);
 				}
@@ -156,7 +160,7 @@ encrypted_frame :: () {
 				for r.outbox if c && it.carrier == r.conv.carrier {
 					channel, text := dc.parse_snowflake(it.conversation), carrier_text(it.carrier, it.packet);
 					if it.replaces dc.edit_message(c, channel, dc.parse_snowflake(it.replaces), text);
-					else dc.send_message(c, channel, text, .{flags = ifx it.silent then SUPPRESS_NOTIFICATIONS else 0});
+					else post_packet(c, channel, it.carrier, it.packet, it.silent);
 					e2e_submit(e2e.request(.Sent, packet = it.packet));
 				}
 		}
@@ -171,6 +175,23 @@ encrypted_files_frame :: () {
 			b := table_find_pointer(*blobs, o.url);
 			if b && b.state == .Loading continue;
 			o.started = true;
+			if o.message {
+				// An attached packet: opened like any other once it's the one the text names.
+				sh := find_or_add(*ee.shown, o.message);
+				packet := ifx b && b.state == .Ready && b.data.count <= e2e.MAX_PACKET && e2e.same(crypto.blake3(b.data), o.digest) then cast(string) b.data;
+				if packet {
+					r := e2e.request(.Receive, conversation(o.channel), packet = packet);
+					r.me, r.from, r.delivery = my_identity(), sprint("%", o.author), sprint("%", o.message);
+					e2e_submit(r);
+				} else {
+					sh.pending = false;
+					sh.result = .Undecryptable;
+				}
+				free(o.url);
+				free(o);
+				remove o;
+				continue;
+			}
 			if b && b.state == .Ready {
 				o.ct = b.data;
 				b.data = .[];
@@ -235,6 +256,22 @@ encrypted_open :: (id: dc.Snowflake, channel_id: dc.Snowflake, packet: string, a
 		bytes, ok := fc_text.decode(packet_text(packet));
 		free(sh.edited);
 		sh.edited = copy_string(edited);
+		hash, attached := fc_text.attached_hash(bytes);
+		if attached {
+			// The packet is the message's last attachment, of at most the largest packet: fetched, then checked.
+			l := table_find_pointer(*store().messages, channel_id);
+			i := ifx l then dc.message_index(l, id) else -1;
+			m := ifx i >= 0 then *l.messages[i] else null;
+			ok = m && m.attachments.count && peek(m.attachments).size <= e2e.MAX_PACKET;
+			if ok {
+				sh.pending = true;
+				f := New(Open_File);
+				f.url, f.digest, f.message, f.channel, f.author = copy_string(peek(m.attachments).url), hash, id, channel_id, author;
+				array_add(*ee.opening, f);
+				blob_get(f.url);
+				return sh;
+			}
+		}
 		if !ok { e := sh.edited; sh.edited = ""; shown_free(sh); sh.* = .{result = .Undecryptable, edited = e}; return sh; }
 		sh.pending = true;
 		r := e2e.request(.Receive, conversation(channel_id), packet = xx bytes);
@@ -276,11 +313,13 @@ encrypted_prepare :: (channel_id: dc.Snowflake, msgs: []dc.Message) {
 // and the encrypted reactions on it. A temp copy, or m itself when there's nothing to add.
 encrypted_view :: (m: *dc.Message) -> *dc.Message {
 	list := table_find_pointer(*ee.reactions, m.id);
-	sh := ifx encrypted_packet(m.channel_id, m.content) then table_find_pointer(*ee.shown, m.id) else null;
+	packet := encrypted_packet(m.channel_id, m.content);
+	sh := ifx packet then table_find_pointer(*ee.shown, m.id) else null;
 	opened := sh && !sh.pending && sh.result == .Ok && is_text(sh.content);
-	if !opened && !list return m;
+	if !opened && !list && !(packet && m.attachments) return m;
 	v := New(dc.Message,, temp);
 	v.* = m.*;
+	if packet v.attachments = ([..]dc.Attachment).{}; // ciphertext: only what opens is shown
 	if opened {
 		v.referenced_id = sh.reply;
 		atts: [..]dc.Attachment;
@@ -355,7 +394,7 @@ encrypted_edit :: (channel_id: dc.Snowflake, id: dc.Snowflake, text: string, del
 	if !m || m.author_id != store().me || !encrypted_packet(channel_id, m.content) return false;
 	sh := table_find_pointer(*ee.shown, id);
 	if !sh || sh.pending || sh.result != .Ok || !is_text(sh.content) || !identity_ready() return true;
-	r := e2e.request(.Send, conversation(channel_id), ifx delete then "" else text);
+	r := e2e.request(.Send, conversation(channel_id, limit = fc_text.MAX_PACKET), ifx delete then "" else text);
 	r.me, r.content, r.target = my_identity(), ifx delete then e2e.Content.Delete else .Edit, sprint("%", id);
 	if !delete {
 		r.reply = ifx sh.reply then sprint("%", sh.reply) else "";
@@ -420,9 +459,9 @@ encrypted_bundle_receive :: (r: *dc.Feature_Result) {
 	if !r.tag return; // a published one
 	bundle: []u8;
 	ok := false;
-	if r.ok bundle, ok = fc_text.decode(dc.fstr(dc.vmap(r.body), "bundle"));
+	if r.ok bundle, ok = fc_text.decode(dc.fstr(dc.vmap(r.body), "bundle"), fc_text.MAX_BUNDLE);
 	if !ok { send_hello(r.tag); return; }
-	q := e2e.request(.Accept, conversation(r.tag), packet = xx bundle);
+	q := e2e.request(.Accept, conversation(r.tag, limit = fc_text.MAX_PACKET), packet = xx bundle);
 	q.me = my_identity();
 	e2e_submit(q);
 }
@@ -447,7 +486,7 @@ encrypted_send :: (dm: *dc.Channel, text: string, silent: bool, reply: dc.Snowfl
 	files, sealed := attachments_sealed(dm.id, true);
 	if !atts files = .[]; // a forward's note takes none of the composer's
 	if !sealed && atts { toast_show(L("Remove the files added before encryption was on: they'd go unencrypted."), false); return false; }
-	most := e2e.max_text(fc_text.MAX_PACKET);
+	most := e2e.max_text(e2e.MAX_PACKET);
 	if text.count > most { toast_show(tprint(L("Encrypted messages are limited to % bytes for now."), most), false); return false; }
 	if !identity_ready() return false;
 	r := e2e.request(.Send, conversation(dm.id), text);
@@ -507,10 +546,9 @@ encrypted_body :: (m: *dc.Message) -> handled: bool, plaintext: string {
 	}
 	spacer(.X, 12);
 	if adm_button("accept", L("Accept"), .Primary) && identity_ready() && net_action() {
-		hello, ok := fc_text.decode(packet_text(m.content));
-		if ok {
+		if sh.packet {
 			sh.accepted = true;
-			q := e2e.request(.Accept, conversation(m.channel_id, m.author_id), packet = xx hello);
+			q := e2e.request(.Accept, conversation(m.channel_id, m.author_id, fc_text.MAX_PACKET), packet = sh.packet);
 			q.me = my_identity();
 			e2e_submit(q);
 		}
@@ -619,9 +657,10 @@ HOSTED :: "fc:";
 
 carrier_name :: (c: *dc.Client) -> string { return ifx c && c.cfg.hosted.host then tprint("%1%2", HOSTED, c.cfg.hosted.server_id) else DISCORD; }
 
-// carrier_text is a packet as a message: `fc-` text, with the note before a Hello on Discord.
+// carrier_text is a packet as a message: `fc-` text, or the hash of the attachment that carries it, with
+// the note before a Hello on Discord.
 carrier_text :: (carrier: string, packet: string) -> string {
-	text := fc_text.encode(xx packet,, temp);
+	text := ifx packet.count > fc_text.MAX_PACKET then fc_text.attached(crypto.blake3(xx packet),, temp) else fc_text.encode(xx packet,, temp);
 	hello := packet.count >= 2 && packet[1] == xx e2e.Kind.Hello;
 	return ifx hello && carrier == DISCORD then tprint("%1%2", HELLO_NOTE, text) else text;
 }
@@ -632,11 +671,13 @@ carrier_client :: (name: string) -> *dc.Client {
 }
 
 // conversation names a 1:1 DM on the selected connection to the e2e core; peer defaults to the DM's recipient.
-conversation :: (channel_id: dc.Snowflake, peer: dc.Snowflake = 0) -> e2e.Conversation {
+// limit: a packet larger than a message goes as the message's attachment, but an edit can't add one, and
+// an Accept's Init fits one message when its padding stops there.
+conversation :: (channel_id: dc.Snowflake, peer: dc.Snowflake = 0, limit := e2e.MAX_PACKET) -> e2e.Conversation {
 	s := store();
 	ch := dc.channel_get(s, channel_id);
 	if !peer && ch && ch.recipient_ids.count peer = ch.recipient_ids[0];
-	return .{carrier_name(app.client), tprint("%", channel_id), tprint("%", s.me), tprint("%", peer), fc_text.MAX_PACKET};
+	return .{carrier_name(app.client), tprint("%", channel_id), tprint("%", s.me), tprint("%", peer), limit};
 }
 
 identity_ready ::() -> bool { return atomic_load(*idk.done) != 0 && idk.list.count > 0; }
@@ -665,17 +706,30 @@ send_packet :: (r: *e2e.Request, result: e2e.Result, text: string, content := e2
 		return;
 	}
 	// The carrier's own flag too, so its push stays quiet; it says nothing about the content.
-	nonce := dc.send_message(c, channel, carrier_text(r.conv.carrier, r.packet), .{flags = ifx r.silent then SUPPRESS_NOTIFICATIONS else 0, attachments = atts});
+	nonce := post_packet(c, channel, r.conv.carrier, r.packet, r.silent, atts);
 	sh := find_or_add(*ee.shown, nonce);
 	shown_free(sh);
 	sh.* = .{result = result, content = content, text = copy_string(text), silent = r.silent, reply = dc.parse_snowflake(r.reply), files = files_copy(r.files), sent = true};
 	e2e_submit(e2e.request(.Sent, packet = r.packet));
 }
 
+// post_packet sends a packet as a new message after atts; one larger than a message is uploaded as its
+// last attachment. The carrier's own @silent flag too, so its push stays quiet; it says nothing of the content.
+post_packet :: (c: *dc.Client, channel: dc.Snowflake, carrier: string, packet: string, silent: bool, atts: []dc.Draft_Attachment = .[]) -> dc.Snowflake {
+	all := atts;
+	if packet.count > fc_text.MAX_PACKET {
+		all = NewArray(atts.count + 1, dc.Draft_Attachment,, temp);
+		memcpy(all.data, atts.data, atts.count * size_of(dc.Draft_Attachment));
+		all[atts.count] = .{handle = dc.upload_draft(c, channel, fc_text.ATTACHMENT_NAME, "application/octet-stream", xx packet), filename = fc_text.ATTACHMENT_NAME};
+	}
+	return dc.send_message(c, channel, carrier_text(carrier, packet), .{flags = ifx silent then SUPPRESS_NOTIFICATIONS else 0, attachments = all});
+}
+
 is_text :: (c: e2e.Content) -> bool { return c == .Text || c == .Post || c == .Edit; }
 
 shown_free :: (sh: *Shown) {
 	free(sh.text);
+	free(sh.packet);
 	free(sh.edited);
 	files_free(*sh.files);
 }

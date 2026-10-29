@@ -32,8 +32,8 @@ main :: () {
 	delete_directory(dir);
 	database(dir);
 	codec();
-	conversation(dir, fc_text.MAX_PACKET); // Discord's, one message of text
-	conversation(dir, 4096);              // a carrier with larger packets
+	conversation(dir, e2e.HELLO_BYTES); // the smallest that carries a signed Hello
+	conversation(dir, e2e.MAX_PACKET);  // the largest any carrier may set
 	tiny(dir);
 	if failed { print("e2e: % failed\n", failed); exit(1); }
 	print("e2e: ok\n");
@@ -125,6 +125,19 @@ codec :: () {
 		_, ok := fc_text.decode(it);
 		check(!ok, tprint("bad text form % rejected", it_index));
 	}
+	// A packet larger than a message is attached; the text names it by hash, and no packet reads as one.
+	hash: [32]u8;
+	for * hash it.* = xx it_index;
+	got, ok := fc_text.decode(fc_text.attached(hash));
+	named, attached := fc_text.attached_hash(got);
+	check(ok && attached && memcmp(named.data, hash.data, 32) == 0, "an attached packet's text names its hash");
+	_, attached = fc_text.attached_hash(cast([]u8) "\x04\x03 thirty-two bytes of a real packet");
+	check(!attached, "a packet isn't taken for an attachment's name");
+	big := NewArray(fc_text.MAX_BUNDLE, u8,, temp);
+	got, ok = fc_text.decode(fc_text.encode(big,, temp), fc_text.MAX_BUNDLE);
+	check(ok && got.count == big.count, "a bundle has a text form of its own size");
+	_, ok = fc_text.decode(fc_text.encode(big,, temp));
+	check(!ok, "but no message holds one");
 }
 
 // The mock carrier: conversations and parties are opaque bytes (NULs included), each delivery has its
@@ -177,6 +190,15 @@ conversation :: (dir: string, max: int) {
 
 	hello := ask(*b, .Hello, peer = *a);
 	check(hello.result == .Ok && hello.packet.count <= limit, "hello fits the carrier");
+	// E2E 5: the prekeys are signed by the identity's Signing key; a Hello with any byte changed is refused.
+	for at: int.[40, 200, e2e.HELLO_SIGNED_BYTES - 70, e2e.HELLO_SIGNED_BYTES + 100, e2e.HELLO_BYTES - 1] {
+		forged := copy_string(hello.packet,, temp);
+		forged[at] ^= 1;
+		_, ok := e2e.parse_hello(xx forged);
+		check(!ok, tprint("a hello changed at byte % is refused", at));
+	}
+	_, signed := e2e.parse_hello(xx hello.packet);
+	check(signed, "a signed hello verifies");
 	hello_at := copy_string(delivery());
 	r = receive(*a, hello.packet, *b, hello_at);
 	check(r.result == .Hello && !r.accepted, "peer's hello shown with Accept");

@@ -912,7 +912,7 @@ script_command :: (path: string, f: []string, t: *float64, depth := 0) {
 			k := keys.generate(m.name);
 			serve.member_login(serve.parse_invite(m.invite), k, m.name);
 			p: e2e.Packet;
-			p.limit = fc_text.MAX_PACKET;
+			p.limit = e2e.MAX_PACKET;
 			e2e.make_hello(e2e.identity_of(k), *p);
 			if m.bundle serve.bundle_for_test(script_server, m.name, fc_text.encode(e2e.bytes(*p)));
 		});

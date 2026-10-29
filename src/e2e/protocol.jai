@@ -7,12 +7,14 @@
 // in a message, bytes on a socket) is the carrier's business; the core sees only bytes.
 //
 // Byte 0 of a packet is VERSION, byte 1 the Kind:
-//     Hello: root[32] ik[32] proof[64] spk[32] pqpk[1184]
+//     Hello: root[32] ik[32] proof[64] spk[32] pqpk[1184] sk[32] sk_proof[64] signature[7856]
 //     Init:  hello_id[32] root[32] ik[32] proof[64] ek[32] pqct[1088] header[40] ciphertext tag[16]
 //     Msg:   session[16] header[40] ciphertext tag[16]
 // header = dh[32] pn[u32 LE] n[u32 LE]. ik is the identity's Exchange key, proven to its root by proof.
 // hello_id is BLAKE3 of the whole Hello packet; a session's ID is BLAKE3 of the Init up to its header.
-// Prekeys are unsigned until E2E 5: this stops the carrier reading DMs, not swapping keys in the first one.
+// sk is the identity's SLH-DSA Signing key, proven to the same root, and signature is SLH-DSA over the
+// Hello before it under HELLO_CONTEXT (E2E 5): the prekeys are the identity's own, so the carrier can't
+// swap them to read the first message.
 
 VERSION :: 4;
 MAX_PACKET :: 16384; // The most any carrier may set as its largest packet.
@@ -27,7 +29,9 @@ SILENT :: cast(u8) 0x80; // Set on the Content byte: sent with @silent, so no so
 
 HEADER_BYTES :: 40;
 TAG_BYTES :: 16;
-HELLO_BYTES :: 2 + 32 + 32 + 64 + 32 + crypto.MLKEM768_PUBLIC_BYTES;
+HELLO_SIGNED_BYTES :: 2 + 32 + 32 + 64 + 32 + crypto.MLKEM768_PUBLIC_BYTES + 32 + 64;
+HELLO_BYTES :: HELLO_SIGNED_BYTES + crypto.SLHDSA_SIGNATURE_BYTES;
+HELLO_CONTEXT :: "fastcord 2026-10-29 e2e signed prekeys v1";
 INIT_PREFIX_BYTES :: 2 + 32 + 32 + 32 + 64 + 32 + crypto.MLKEM768_CIPHERTEXT_BYTES;
 MSG_PREFIX_BYTES :: 2 + 16;
 
@@ -196,10 +200,14 @@ Identity :: struct {
 	ik_priv: [32]u8;
 	ik_pub: [32]u8;
 	proof: [2][32]u8;
+	sk_priv: [crypto.SLHDSA_PRIVATE_BYTES]u8; // Signs our Hellos' prekeys.
+	sk_pub: [32]u8;
+	sk_proof: [2][32]u8;
 }
 
 identity_of :: (k: keys.Keypair) -> Identity {
-	return .{root = k.root, ik_priv = k.exchange, ik_pub = k.exchange_pub, proof = keys.proof(k, .Exchange)};
+	return .{root = k.root, ik_priv = k.exchange, ik_pub = k.exchange_pub, proof = keys.proof(k, .Exchange),
+		sk_priv = k.signing, sk_pub = k.signing_pub, sk_proof = keys.proof(k, .Signing)};
 }
 
 // A Conversation is where packets travel, as its carrier names it: the carrier (no NUL byte), the
@@ -292,7 +300,8 @@ Header :: struct {
 
 // ---- Hello ----
 
-// make_hello fails when a Hello doesn't fit the carrier.
+// make_hello fails when a Hello doesn't fit the carrier. Signing takes hundreds of milliseconds: it runs
+// on the database thread.
 make_hello :: (me: Identity, out: *Packet) -> Prekeys, bool {
 	pre: Prekeys;
 	if HELLO_BYTES > out.limit return pre, false;
@@ -304,6 +313,9 @@ make_hello :: (me: Identity, out: *Packet) -> Prekeys, bool {
 	put(out, .[VERSION, xx Kind.Hello]);
 	put(out, me.root); put(out, me.ik_pub); put(out, me.proof[0]); put(out, me.proof[1]);
 	put(out, spk_pub); put(out, pq_pub);
+	put(out, me.sk_pub); put(out, me.sk_proof[0]); put(out, me.sk_proof[1]);
+	sig := crypto.slhdsa_sign(me.sk_priv, HELLO_CONTEXT, bytes(out),, temp);
+	put(out, sig);
 	assert(out.count == HELLO_BYTES);
 	return pre, true;
 }
@@ -315,8 +327,13 @@ parse_hello :: (p: []u8) -> Hello, bool {
 	r := array_view(p, 2, p.count - 2);
 	proof: [2][32]u8;
 	take(*r, *h.root); take(*r, *h.ik); take(*r, *proof[0]); take(*r, *proof[1]); take(*r, *h.spk);
-	h.pqpk = r;
-	return h, keys.verify_proof(h.root, .Exchange, h.ik, proof);
+	h.pqpk = array_view(r, 0, crypto.MLKEM768_PUBLIC_BYTES);
+	r = array_view(r, crypto.MLKEM768_PUBLIC_BYTES, r.count - crypto.MLKEM768_PUBLIC_BYTES);
+	sk: [32]u8;
+	sk_proof: [2][32]u8;
+	take(*r, *sk); take(*r, *sk_proof[0]); take(*r, *sk_proof[1]);
+	return h, keys.verify_proof(h.root, .Exchange, h.ik, proof) && keys.verify_proof(h.root, .Signing, sk, sk_proof)
+		&& crypto.slhdsa_verify(sk, HELLO_CONTEXT, array_view(p, 0, HELLO_SIGNED_BYTES), r);
 }
 
 // A safety number is 60 digits, 30 per identity root, the lower root's first so both people see the same.

@@ -170,7 +170,8 @@ loose_message_card :: (m: *dc.Message, terms: []string, show_jump: bool) -> bool
 			// media as in the chat, narrowed to the card (its width from the last layout)
 			mw := ifx col.rect.x1 > col.rect.x0 then min(400.0, col.rect.x1 - col.rect.x0 - 12) else 300.0;
 			if m.sticker_ids message_stickers_view(m);
-			if m.attachments attachments_view(m, mw);
+			v := encrypted_view(m); // an encrypted message's opened files, not its ciphertext
+			if v.attachments attachments_view(v, mw);
 			if m.embeds embeds_view(m, mw - 32); // an embed card pads its content 16px each side
 		}
 		spacer(.X, 8);
