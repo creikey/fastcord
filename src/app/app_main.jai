@@ -1083,7 +1083,8 @@ script_command :: (path: string, f: []string, t: *float64, depth := 0) {
 		}
 		return;
 	case "failed_send";
-		// failed_send <word>: our own message in the open channel whose send failed (fixtures can't send)
+		// failed_send <word> [code]: our own message in the open channel whose send failed, with Discord's
+		// error code (fixtures can't send)
 		s := store();
 		msg := dc.new_message(s);
 		msg.id = 1564185900000000000;
@@ -1091,6 +1092,7 @@ script_command :: (path: string, f: []string, t: *float64, depth := 0) {
 		msg.author_id = s.me;
 		msg.content = dc.clone_str(f[1], s.allocator);
 		msg.failed = true;
+		if f.count > 2 msg.send_error = xx string_to_int(f[2]);
 		dc.insert_message(dc.message_list(s, app.view.channel), msg);
 		s.changed += 1;
 		return;

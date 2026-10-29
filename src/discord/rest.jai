@@ -593,14 +593,15 @@ upload_put :: (c: *Client, url: string, data: []u8, sent: *s64 = null) -> bool {
 
 // ---- applying results on the UI thread ----
 
-// send_failed marks our pending copy of a send red ("Message failed to send.").
-send_failed :: (s: *Store, channel_id: Snowflake, nonce: Snowflake) {
+// send_failed marks our pending copy of a send red ("Message failed to send."), with Discord's error code.
+send_failed :: (s: *Store, channel_id: Snowflake, nonce: Snowflake, code := 0) {
 	l := table_find_pointer(*s.messages, channel_id);
 	if !l return;
 	n := snowflake_string(nonce);
 	for * l.messages if it.pending && it.nonce == n {
 		it.failed = true;
 		it.pending = false;
+		it.send_error = xx clamp(code, 0, S32_MAX);
 	}
 }
 
@@ -681,7 +682,7 @@ client_apply_rest :: (c: *Client, e: *Event) {
 				send_failure_log(r.*, e.data);
 				// a captcha keeps it pending, its result untagged: the retry's result completes the request
 				if send_captcha_keep(c, e) r.tag = 0;
-				else send_failed(s, r.channel_id, r.nonce);
+				else send_failed(s, r.channel_id, r.nonce, r.error_code);
 			}
 		case .Add_Reaction; #through;
 		case .Remove_Reaction;

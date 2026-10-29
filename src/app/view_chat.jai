@@ -2272,8 +2272,18 @@ wave_button :: (m: *dc.Message) {
 	}
 }
 
-// Under a message whose send failed: Retry sends a fresh copy (same text and reply), Delete forgets it locally.
+// Under a message whose send failed: why, when Discord said, then Retry sends a fresh copy (same text and
+// reply), Delete forgets it locally.
 failed_send_note :: (m: *dc.Message) {
+	why := send_error_text(m.send_error);
+	if why {
+		w := ui.box(tprint("%##failedwhy", why), .Draw_Text | .Wrap_Text);
+		w.semantic_size = .[ui.pct(1), ui.text_size()];
+		w.style.font = F(.Normal);
+		w.style.font_size = 12;
+		w.style.line_height = 16;
+		w.style.text_color = T("--text-feedback-critical");
+	}
 	r := row("failednote");
 	r.semantic_size = .[ui.pct(1), ui.px(20)];
 	ui.parent(r); defer ui.pop_parent();
@@ -2298,6 +2308,15 @@ failed_send_note :: (m: *dc.Message) {
 	ch := dc.channel_get(store(), cid);
 	nonce := dc.send_message(app.client, cid, text, .{reply_to = reply, reply_guild_id = ifx ch then ch.guild_id, attachments = files});
 	if files attachments_retry_moved(old, nonce);
+}
+
+// send_error_text: what a failed send's error code means ("" when there's nothing more to say).
+send_error_text :: (code: s32) -> string {
+	if code == {
+	case 50007; return L("Your message could not be delivered. This is usually because you don't share a server with the recipient or the recipient is only accepting direct messages from friends.");
+	case 50278; return L("Your message could not be delivered because you don't share a server with the recipient. Add them as a friend, or join a server you're both in, to message them.");
+	}
+	return "";
 }
 
 // A message's parsed markdown, kept (on the heap) until no row has drawn that text for MD_KEEP_FRAMES, so
