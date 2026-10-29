@@ -623,6 +623,11 @@ script_command :: (path: string, f: []string, t: *float64) {
 		platform.inject_event(.{kind = .Mouse_Move, pos = p});
 		platform.inject_event(.{kind = .Mouse_Down, pos = p, button = .Right, click_count = 1});
 		platform.inject_event(.{kind = .Mouse_Up, pos = p, button = .Right, click_count = 1});
+	case "xbutton";
+		// xbutton 1|2: the mouse's back / forward button
+		b := ifx f[1] == "2" then platform.Mouse_Button.X2 else .X1;
+		platform.inject_event(.{kind = .Mouse_Down, pos = .{640, 360}, button = b, click_count = 1});
+		platform.inject_event(.{kind = .Mouse_Up, pos = .{640, 360}, button = b, click_count = 1});
 	case "down";
 		platform.inject_event(.{kind = .Mouse_Down, pos = .{num(f[1]), num(f[2])}, button = .Left, click_count = 1});
 	case "up";

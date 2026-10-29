@@ -1,4 +1,4 @@
-# Title-bar back / forward arrows and Cmd+[ / Cmd+] walk the places visited.
+# Title-bar back / forward arrows, Cmd+[ / Cmd+] and the mouse buttons walk the places visited.
 wait 5
 go_home
 wait 10
@@ -13,5 +13,12 @@ key [ cmd
 wait 10
 expect_visible "This is a good place to talk about Dingus Battle"
 click 121 16
+wait 10
+expect_visible "Add Friend"
+# The mouse's back and forward buttons walk the history too.
+xbutton 1
+wait 10
+expect_visible "This is a good place to talk about Dingus Battle"
+xbutton 2
 wait 10
 expect_visible "Add Friend"

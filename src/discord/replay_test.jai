@@ -2509,7 +2509,7 @@ parity_history_nav :: (t: *T) {
 	}.[.{"history_back_key", false, true}, .{"history_forward_key", true, true}, .{"history_back_button", false, false}, .{"history_forward_button", true, false}];
 	for st: steps {
 		replay_mark(*run);
-		track_back_forward(c, st.forward, st.keybind);
+		track_back_forward(c, st.forward, ifx st.keybind then "keybind" else "nav_button");
 		if st.forward { select_channel(c, 0, 0); } else { select_channel(c, R_GUILD, R_TEXT, 10); }
 		replay_settle(*run, 400);
 		// the prelude's Friends click went out 3 ms after the first mark; the renderer's web-vitals

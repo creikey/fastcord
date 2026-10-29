@@ -110,11 +110,12 @@ track_thread_creation_started :: (c: *Client, channel_id: Snowflake, location: s
 }
 
 // Back / forward: keyboard_shortcut_used (keybind only), then app_back_forward_navigated.
-track_back_forward :: (c: *Client, forward: bool, keybind: bool) {
-	if keybind analytics_keyboard_shortcut(c, ifx forward then "NAVIGATE_FORWARD" else "NAVIGATE_BACK", ifx forward then "mod+]" else "mod+[");
+// trigger: "nav_button" (title bar arrows), "keybind" or "native" (mouse buttons, via the desktop host)
+track_back_forward :: (c: *Client, forward: bool, trigger: string) {
+	if trigger == "keybind" analytics_keyboard_shortcut(c, ifx forward then "NAVIGATE_FORWARD" else "NAVIGATE_BACK", ifx forward then "mod+]" else "mod+[");
 	w := aw_begin();
 	json_kint(*w, "nav_direction", ifx forward then 1 else -1);
-	json_kstr(*w, "nav_trigger", ifx keybind then "keybind" else "nav_button");
+	json_kstr(*w, "nav_trigger", trigger);
 	aw_track(c, "app_back_forward_navigated", *w);
 }
 

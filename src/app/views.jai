@@ -187,7 +187,7 @@ HISTORY_MAX :: 50;
 // places whose guild or channel no longer exists are skipped. The move is a
 // normal route change (same requests as opening that place); science
 // keyboard_shortcut_used (keys only) and app_back_forward_navigated (fixture history_nav).
-history_step :: (forward: bool, keybind := false) {
+history_step :: (forward: bool, trigger := "nav_button") {
 	from, to := *app.view.back, *app.view.fwd;
 	if forward { from, to = to, from; }
 	while from.count > 0 {
@@ -202,7 +202,7 @@ history_step :: (forward: bool, keybind := false) {
 			continue;
 		}
 		history_push(to, .[app.view.guild, app.view.channel]);
-		if keep != null { dc.track_back_forward(keep, forward, keybind); }
+		if keep != null { dc.track_back_forward(keep, forward, trigger); }
 		go_to(place[0], place[1]);
 		return;
 	}
@@ -285,9 +285,15 @@ title_bar :: () {
 		for * e: app.ui.events {
 			if e.consumed || e.kind != .Key_Down || e.mods != PRIMARY_MOD { continue; }
 			if e.key == .Left_Bracket || e.key == .Right_Bracket {
-				history_step(e.key == .Right_Bracket, keybind = true);
+				history_step(e.key == .Right_Bracket, "keybind");
 				e.consumed = true;
 			}
+		}
+		// mouse back / forward buttons: the desktop host's NAVIGATE_BACK / _FORWARD ("native")
+		for * e: app.ui.events {
+			if e.consumed || e.kind != .Mouse_Up || (e.button != .X1 && e.button != .X2) { continue; }
+			history_step(e.button == .X2, "native");
+			e.consumed = true;
 		}
 		filler(.X);
 		title := "Friends";

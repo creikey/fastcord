@@ -191,8 +191,10 @@ map_events :: (evs: []platform.Event) -> []ui.Input_Event {
 				ev.button = .Right;
 			case .Middle;
 				ev.button = .Middle;
-			case;
-				continue;
+			case .X1;
+				ev.button = .X1;
+			case .X2;
+				ev.button = .X2;
 			}
 		case .Scroll;
 			ev.kind = .Scroll;

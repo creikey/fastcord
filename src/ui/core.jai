@@ -160,6 +160,8 @@ Mouse_Button :: enum u8 {
 	Left;
 	Right;
 	Middle;
+	X1; // back
+	X2; // forward
 }
 
 Mod :: enum_flags u8 {
@@ -322,7 +324,7 @@ State :: struct {
 	// interaction
 	mouse: Vec2;
 	mouse_prev: Vec2;
-	mouse_down: [3]bool; // per Mouse_Button
+	mouse_down: [5]bool; // per Mouse_Button
 	press_pos: Vec2;
 	swallow_up: bool; // a press already clicked; its release goes to nothing else
 	events: [..]Input_Event;
