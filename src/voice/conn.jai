@@ -233,11 +233,12 @@ Conn :: struct {
     video_seq: u16;
     video_packets, video_octets, video_last_ts: u32;
     keyframe_wanted: bool;            // atomic: a PLI/FIR for our stream arrived
-    // the pacer: sealed video packets queue here and leave at PACE_FACTOR x the bitrate (pacer_thread_proc),
-    // so a keyframe can't fill the socket ahead of the mic's packets, which skip the queue
+    // the pacer: video RTP packets queue here and leave at PACE_FACTOR x the bitrate (pacer_thread_proc),
+    // so a keyframe can't fill the socket ahead of the mic's packets, which skip the queue. They're sealed
+    // as they leave: the transport nonce must rise in send order, or the SFU drops the late video.
     pmu: locks.Mutex;
     pcond: locks.Cond;
-    paced: [..][]u8;  // heap, oldest first
+    paced: [..][]u8;  // heap, plain RTP, oldest first
     paced_bytes: int;
     // retransmission (RFC 4588): the last RTX_HISTORY packets sent, by sequence number, for NACKs (under vmu)
     rtx_hist: *[RTX_HISTORY]Sent_Packet;
@@ -1641,7 +1642,6 @@ send_video :: (c: *Conn, codec: Video_Codec, au: []u8, ts_90k: u32) {
     packetize(codec, array_view(enc, 0, fl), nals, (payload: []u8, last: bool, data: *void) {
         using pk := cast(*Pk) data;
         pkt: [MAX_VIDEO_PAYLOAD + 64]u8;
-        sealed: [MAX_VIDEO_PAYLOAD + 96]u8;
         pkt[0] = 0x90;  // V=2, X=1
         pkt[1] = VIDEO_PT[codec] | (ifx last then cast(u8) 0x80 else 0);
         put_u16(pkt, c.video_seq, 2);
@@ -1653,16 +1653,7 @@ send_video :: (c: *Conn, codec: Video_Codec, au: []u8, ts_90k: u32) {
         put_u16(pkt, 1, 14);
         pkt[16], pkt[17], pkt[18], pkt[19] = (EXT_ID_PLAYOUT_DELAY << 4) | 1, 0, 0, 0;
         memcpy(pkt.data + 20, payload.data, payload.count);
-        n := 20 + payload.count;
-        sl: int;
-        {
-            locks.guard(*c.mu);
-            if !c.have_key return;
-            sl = transport_seal(*c.tx_crypto, array_view(pkt, 0, n), 16, c.tx_nonce, sealed);
-            c.tx_nonce += 1;
-            c.stats.packets_sent += 1;
-            c.stats.bytes_sent += xx sl;
-        }
+        pace(c, array_view(pkt, 0, 20 + payload.count));
         if !c.rtx_hist c.rtx_hist = New([RTX_HISTORY]Sent_Packet);
         sp := *c.rtx_hist.*[c.video_seq % RTX_HISTORY];
         sp.seq, sp.ts, sp.pt, sp.count = c.video_seq, ts, pkt[1], payload.count;
@@ -1670,10 +1661,6 @@ send_video :: (c: *Conn, codec: Video_Codec, au: []u8, ts_90k: u32) {
         c.video_seq += 1;
         c.video_packets += 1;
         c.video_octets += xx payload.count;
-        locks.guard(*c.pmu);
-        array_add(*c.paced, array_copy(array_view(sealed, 0, sl)));
-        c.paced_bytes += sl;
-        locks.cond_signal(*c.pcond);
     }, *pk);
     c.video_last_ts = ts_90k;
     locks.guard(*c.mu);
@@ -1696,7 +1683,6 @@ retransmit :: (c: *Conn, seq: u16) {
     sp := *c.rtx_hist.*[seq % RTX_HISTORY];
     if !sp.count || sp.seq != seq return;
     pkt: [MAX_VIDEO_PAYLOAD + 64]u8;
-    sealed: [MAX_VIDEO_PAYLOAD + 96]u8;
     pkt[0] = 0x90;
     pkt[1] = (sp.pt & 0x80) | ((sp.pt & 0x7f) + 1);
     put_u16(pkt, c.rtx_seq, 2);
@@ -1707,19 +1693,14 @@ retransmit :: (c: *Conn, seq: u16) {
     pkt[16], pkt[17], pkt[18], pkt[19] = (EXT_ID_PLAYOUT_DELAY << 4) | 1, 0, 0, 0;
     put_u16(pkt, seq, 20);
     memcpy(pkt.data + 22, sp.data.data, sp.count);
-    sl: int;
-    {
-        locks.guard(*c.mu);
-        if !c.have_key return;
-        sl = transport_seal(*c.tx_crypto, array_view(pkt, 0, 22 + sp.count), 16, c.tx_nonce, sealed);
-        c.tx_nonce += 1;
-        c.stats.packets_sent += 1;
-        c.stats.bytes_sent += xx sl;
-    }
+    pace(c, array_view(pkt, 0, 22 + sp.count));
     c.rtx_seq += 1;
+}
+
+pace :: (c: *Conn, pkt: []u8) {
     locks.guard(*c.pmu);
-    array_add(*c.paced, array_copy(array_view(sealed, 0, sl)));
-    c.paced_bytes += sl;
+    array_add(*c.paced, array_copy(pkt));
+    c.paced_bytes += pkt.count;
     locks.cond_signal(*c.pcond);
 }
 
@@ -1756,7 +1737,21 @@ pacer_thread_proc :: (t: *Thread) -> s64 {
         for n..c.paced.count - 1 c.paced[it - n] = c.paced[it];
         c.paced.count -= n;
         locks.unlock(*c.pmu);
-        for batch { udp_send(c, it); free(it.data); }
+        for batch {
+            sealed: [MAX_VIDEO_PAYLOAD + 96]u8;
+            sl: int;
+            {
+                locks.guard(*c.mu);
+                if c.have_key sl = transport_seal(*c.tx_crypto, it, 16, c.tx_nonce, sealed);
+                if sl {
+                    c.tx_nonce += 1;
+                    c.stats.packets_sent += 1;
+                    c.stats.bytes_sent += xx sl;
+                }
+            }
+            if sl udp_send(c, array_view(sealed, 0, sl));
+            free(it.data);
+        }
         if !batch.count sleep_milliseconds(1);
         batch.count = 0;
     }

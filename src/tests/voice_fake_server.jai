@@ -167,6 +167,7 @@ Fake :: struct {
     rtp_e2ee_ok, rtp_bad, rtcp: int;
     video_ok, video_bad: int;  // A's camera frames that decrypted to the frame sent
     big_first, big_last: Apollo_Time; // when BIG_TS's first and last packets came (the pacer spreads them)
+    top_nonce, nonce_back: u32;       // the highest transport nonce seen, and the furthest one came after it
     got_op12, got_op15: bool;
     a_video: voice.Video_Rx;
     close_code: int;
@@ -321,7 +322,16 @@ udp_thread :: (t: *Thread) -> s64 {
         if n > 0 {
             pkt := array_view(buf, 0, n);
             h, hok := voice.parse_rtp_header(pkt);
-            if n == voice.DISCOVERY_LEN && voice.get_u16(pkt) == 1 {
+            discovery := n == voice.DISCOVERY_LEN && voice.get_u16(pkt) == 1;
+            if !discovery && n >= 4 {
+                // seal and send aren't one step, so the mic or RTCP may pass a video packet by one or two;
+                // queued video sealed early would fall a whole keyframe behind (the SFU drops it)
+                nonce := voice.get_u32(pkt, n - 4);
+                locks.guard(*f.mu);
+                if nonce > f.top_nonce f.top_nonce = nonce;
+                else f.nonce_back = max(f.nonce_back, f.top_nonce - nonce);
+            }
+            if discovery {
                 resp: [voice.DISCOVERY_LEN]u8;
                 voice.build_discovery_response(resp, voice.get_u32(pkt, 4), "127.0.0.1", port_of(from));
                 sendto(f.udp, resp.data, resp.count, 0, cast(*sockaddr) *from, flen);
@@ -538,6 +548,7 @@ test_fake_voice_server :: () {
     sleep_milliseconds(600);
     span := to_milliseconds(f.big_last - f.big_first);
     expect(span >= 200 && span <= 500, "a keyframe paced over % ms", span);
+    expect(f.nonce_back <= 4, "transport nonces in send order (one came % behind)", f.nonce_back);
     expect(atomic_load(*g_video_b) >= 3, "B's camera frames decoded: %", g_video_b);
 
     voice.voice_disconnect(c);
