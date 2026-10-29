@@ -619,7 +619,7 @@ message_menu :: () {
 			}
 		}
 	}
-	for e: app.ui.events { if e.kind == .Key_Down && e.key == .Escape { ma.menu_msg = 0; } }
+	for * e: app.ui.events { if e.kind == .Key_Down && e.key == .Escape { ma.menu_msg = 0; e.consumed = true; } }
 	if ma.menu_msg == 0 message_menu_gone();
 }
 
@@ -823,8 +823,8 @@ confirm_modal :: () {
 		}
 		spacer(.Y, PAD + 1);
 	}
-	for e: app.ui.events {
-		if e.kind == .Key_Down && e.key == .Escape ma.confirming = 0;
+	for * e: app.ui.events {
+		if e.kind == .Key_Down && e.key == .Escape { ma.confirming = 0; e.consumed = true; }
 		if e.kind == .Key_Down && e.key == .Enter {
 			confirm_now(m);
 			ma.confirming = 0;

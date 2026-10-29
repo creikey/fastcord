@@ -1,0 +1,22 @@
+# Escape follows the official keybind's order: an open layer (here a profile popout) takes it first,
+# then the pending reply goes, then the channel is marked read. The composer keeps focus throughout.
+wait 10
+rclick 520 250
+wait 5
+click_text "Reply"
+wait 5
+click 466 255
+wait 10
+expect_profile_open
+key escape
+wait 10
+expect_no_profile_open
+expect_visible "Replying to"
+expect_visible "Mark As Read"
+key escape
+wait 5
+expect_not_visible "Replying to"
+expect_visible "Mark As Read"
+key escape
+wait 10
+expect_not_visible "Mark As Read"

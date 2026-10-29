@@ -325,7 +325,7 @@ video_fullscreen :: () {
 		v.flags |= .Floating_X | .Floating_Y;
 		v.fixed_pos = .{(app.ui.window.x - w) / 2, (app.ui.window.y - h) / 2};
 	}
-	for app.ui.events if it.kind == .Key_Down && it.key == .Escape fullscreen_video = 0;
+	for * app.ui.events if it.kind == .Key_Down && it.key == .Escape { fullscreen_video = 0; it.consumed = true; }
 }
 
 ensure_audio :: () {
@@ -732,7 +732,7 @@ image_viewer :: () {
 		img.opacity = viewer_t;
 		if ui.signal(img).right_clicked media_menu_open(viewer_link, ifx viewer_video then "" else viewer_url);
 	}
-	if !mm.open for app.ui.events if it.kind == .Key_Down && it.key == .Escape close_viewer();
+	if !mm.open for * app.ui.events if it.kind == .Key_Down && it.key == .Escape { close_viewer(); it.consumed = true; }
 }
 
 // ---- image / media context menu ----

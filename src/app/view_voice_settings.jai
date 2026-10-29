@@ -328,7 +328,7 @@ voice_user_menu :: () {
 		}
 		if sig.clicked table_set(*vs.user_muted, uid, !m);
 	}
-	for e: app.ui.events { if e.kind == .Key_Down && e.key == .Escape { vs.menu_user = 0; } }
+	for * e: app.ui.events { if e.kind == .Key_Down && e.key == .Escape { vs.menu_user = 0; e.consumed = true; } }
 }
 
 // Headless runs (UI scripts, the control sweep) list fixed devices instead of

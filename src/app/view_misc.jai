@@ -254,8 +254,8 @@ profile_popout :: () {
 	}
 	if uid == s.me && sm.open { status_menu(p); }
 	if user_menu_open() return; // its own Escape and outside press close only the menu
-	for e: app.ui.events {
-		if e.kind == .Key_Down && e.key == .Escape { app.profile_user = 0; }
+	for * e: app.ui.events {
+		if e.kind == .Key_Down && e.key == .Escape { app.profile_user = 0; e.consumed = true; }
 	}
 }
 
@@ -512,8 +512,8 @@ settings_modal :: () {
 			}
 		}
 	}
-	for e: app.ui.events {
-		if e.kind == .Key_Down && e.key == .Escape { app.settings_open = false; }
+	for * e: app.ui.events {
+		if e.kind == .Key_Down && e.key == .Escape { app.settings_open = false; e.consumed = true; }
 	}
 }
 

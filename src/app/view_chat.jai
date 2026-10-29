@@ -727,6 +727,19 @@ divider_row :: (id: dc.Snowflake, new_day: bool, show_new: bool) {
 }
 
 // Any overlay that takes keyboard input away from the composer.
+// channel_escape: the official Escape keybind on the open channel, once no layer took it: end an
+// edit, else drop the pending reply, else MARK_CHANNEL_READ (ack the newest message and drop the
+// "NEW" divider and bar).
+channel_escape :: (ch: *dc.Channel) {
+	if ma.editing != 0 { ma.editing = 0; return; }
+	if ma.replying != 0 { ma.replying = 0; return; }
+	s := store();
+	msgs := dc.messages_get(s, ch.id);
+	rs := table_find_pointer(*s.read_states, ch.id);
+	if msgs && app.client && (!rs || rs.manual || rs.last_message_id < msgs[msgs.count - 1].id) dc.ack_message(app.client, ch.id, msgs[msgs.count - 1].id, true);
+	chat_state(ch.id).unread_after = 0;
+}
+
 modal_open :: () -> bool {
 	return sw.open || attachments_modal_open() || ma.confirming != 0 || app.settings_open || viewer_url != "" || block_confirm.user != 0 || invite_modal_open() || invite_accept_open() || add_server_is_open() || events_modal_open() || guild_admin_modal_open() || fnick.user != 0 || modr.user != 0 || tsg.channel != 0 || folder_modal_open() || shortcuts_open || view_reactions.msg != 0;
 }
@@ -2061,14 +2074,10 @@ composer :: (ch: *dc.Channel, cs: *Chat_State) {
 				if composer_send(ch, mentions_convert(emoji_convert_shortcodes(text, ch.id), ch)) cs.scroll_target = 0;
 				ui.editor_set_text(*cs.editor, "");
 				length = 0;
-			} else if res == .Escape && ma.replying != 0 {
-				ma.replying = 0;
 			} else if res == .Escape {
-				// MARK_CHANNEL_READ: ack the newest message and drop the "NEW" divider and bar.
-				msgs := dc.messages_get(s, ch.id);
-				rs := table_find_pointer(*s.read_states, ch.id);
-				if msgs && app.client && (!rs || rs.manual || rs.last_message_id < msgs[msgs.count - 1].id) dc.ack_message(app.client, ch.id, msgs[msgs.count - 1].id, true);
-				cs.unread_after = 0;
+				// handed on: a popout or menu over the chat takes it first, else the end of
+				// overlays() runs channel_escape, the official keybind's order
+				for * app.ui.events if it.kind == .Key_Down && it.key == .Escape it.consumed = false;
 			} else if res == .Changed && app.client != null && ui.editor_text(*cs.editor) != "" {
 				dc.typing_keystroke(app.client, ch.id);
 			}

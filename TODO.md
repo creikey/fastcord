@@ -510,7 +510,7 @@
 - [-] Cancelled (AGENTS.md: nothing that needs a webview): Embeds: YouTube (and other iframe) videos open in the browser instead of playing in the card.
 - [-] Cancelled (Google shut the Tenor API down on 2026-06-30, with no new keys since January, which is why Discord's `/gifs/search` went Klipy-only; sent Tenor links still embed): GIFs (fastcord-only): search Tenor as well as Klipy.
 - [-] Cancelled (AGENTS.md: no Activities): Voice and Call view: no Activities (in-call apps and games) and no Activities button.
-- [ ] Composer: Escape cancels a reply only while the composer has focus. The official Escape keybind is global: it ends an edit, else deletes the pending reply, else marks the channel read (`traffic/CLIENT_RULES.md` "Composer reply bar"). After clicking into the message list, Escape in fastcord does nothing to the reply.
+- [ ] Tests: `tests/ui/events_wizard.txt` ("1:00 PM") and `tests/ui/shortcut_list.txt` ("Ctrl+Alt+A") fail on macOS, before and after the Escape change; they look timezone- and platform-dependent (`-now` with the local zone, Ctrl vs Cmd labels). Pin the zone and the shortcut platform in the headless run, or make the expectations follow them.
 - [x] Voice: play the join and leave sounds when other users enter or leave the voice channel (they played on macOS only; Windows and Linux now decode the MP3s with minimp3).
 - [x] Mentions: typing `@name` sends plain text that pings no one; send it as a real mention (`<@id>`), with an autocomplete popup for users and roles as you type `@`.
 - [x] Events: invite links to a scheduled event (`?event=<id>`) show the event's card.
@@ -688,3 +688,4 @@
 - [x] Read states: using the window (click, wheel, typing, focus, channel or voice select) ends idle at once, as IdleStore does, so the at-bottom ack no longer waits up to 10 s for the system idle poll after a long break (`idle_presence`).
 - [x] Composer: the reply bar's X cancels the reply (it read its click twice, and the first `ui.signal` consumed it), and clicking "Replying to <name>" jumps to the message (`tests/ui/forward/reply_bar.txt`).
 - [x] Chat: the new-messages bar has the official box: 32 px tall, inset 8/16 px, a subtle border and shadow, and a padded Mark As Read button with a hover background.
+- [x] Composer: Escape follows the official keybind's order. An open popout, menu or modal takes it first (the composer used to cancel the reply or mark the channel read under, say, an open profile), then it ends an edit, drops the pending reply, or marks the channel read, wherever the focus is (`tests/ui/forward/reply_escape.txt`).

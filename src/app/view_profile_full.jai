@@ -631,7 +631,7 @@ user_context_menu :: () {
 			}
 		}
 	}
-	for e: app.ui.events { if e.kind == .Key_Down && e.key == .Escape { pf.menu_user = 0; } }
+	for * e: app.ui.events { if e.kind == .Key_Down && e.key == .Escape { pf.menu_user = 0; e.consumed = true; } }
 }
 
 pf_reset_for_test :: () {pf = .{};}

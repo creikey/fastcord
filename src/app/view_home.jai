@@ -1092,8 +1092,8 @@ block_confirm_modal :: () {
 		}
 		spacer(.Y, PAD + 1);
 	}
-	for e: app.ui.events {
-		if e.kind == .Key_Down && e.key == .Escape { block_confirm = .{}; }
+	for * e: app.ui.events {
+		if e.kind == .Key_Down && e.key == .Escape { block_confirm = .{}; e.consumed = true; }
 		if e.kind == .Key_Down && e.key == .Enter { confirm = true; }
 	}
 	// the modal stays up (Block shows the ellipsis) until the request ends

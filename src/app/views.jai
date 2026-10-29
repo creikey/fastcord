@@ -1370,6 +1370,14 @@ overlays :: () {
 	guild_admin_overlays();
 	attachments_overlays(); // attachments.jai: Modify modal, drag target, limit notices
 	req_toast(); // requests.jai: a failed request, on top
+	// Escape that no layer took (the composer hands it on): the keybind is global, so it acts on the
+	// open channel wherever the focus is
+	ch := dc.channel_get(store(), app.view.channel);
+	if ch && !modal_open() for * e: app.ui.events {
+		if e.consumed || e.kind != .Key_Down || e.key != .Escape || e.mods != 0 continue;
+		e.consumed = true;
+		channel_escape(ch);
+	}
 }
 
 #scope_file
