@@ -52,7 +52,8 @@ open_file_dialog :: (allow_multiple := true, allocator := context.allocator) -> 
     return out;
 }
 
-// Opens a URL in the user's default browser.
+// Opens a URL in the user's default browser. NSWorkspace runs whatever it is given (apps, shares,
+// other schemes' handlers): the app's `open_url` checks the scheme.
 open_url :: (url: string) {
     u := msg(Id, cls("NSURL"), "URLWithString:", nsstr(url));
     if !u return;

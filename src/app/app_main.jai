@@ -66,9 +66,13 @@ note_focused_editor :: (ed: *UI_Editor, field: *ui.Box) {
 	app.focused_field = field.rect;
 }
 
+// Every link a server sends lands here. Only web pages open: the OS would also launch `file:` apps,
+// mount `smb:` shares and hand other schemes to their handlers.
 open_url :: (url: string) {
 	app.ext_actions += 1;
 	free(app.last_opened_url);
+	app.last_opened_url = "";
+	if !begins_with(url, "https://") && !begins_with(url, "http://") return;
 	app.last_opened_url = copy_string(url);
 	if !platform.is_headless() platform.open_url(url);
 }
@@ -605,6 +609,10 @@ script_command :: (path: string, f: []string, t: *float64) {
 	case "login_state";
 		// the login page in a given state, without a server (view_login.jai login_test_state)
 		if !login_test_state(f[1]) script_fail(path, "login_state: unknown state \"%\"", f[1]);
+	case "open_url";
+		// open_url <url>: what a click on a link to <url> does
+		open_url(f[1]);
+		return;
 	case "expect_opened_url";
 		want := unquote(join_args(f));
 		if app.last_opened_url != want script_fail(path, "expect_opened_url failed\n  want \"%\"\n  got  \"%\"", want, app.last_opened_url);

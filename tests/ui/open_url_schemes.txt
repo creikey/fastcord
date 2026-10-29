@@ -1,0 +1,13 @@
+# Security: a link from any server opens only web pages. On macOS `file:` would launch an app and
+# `smb:` mount a share, so every other scheme opens nothing, on every platform.
+wait 5
+open_url https://discord.com/developers
+expect_opened_url "https://discord.com/developers"
+open_url file:///System/Applications/Utilities/Terminal.app
+expect_opened_url ""
+open_url smb://attacker.example/share
+expect_opened_url ""
+open_url javascript:alert(1)
+expect_opened_url ""
+open_url HTTPS://discord.com
+expect_opened_url ""

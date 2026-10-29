@@ -116,10 +116,9 @@ set_badge :: (text: string) {
     vt(w.taskbar, 18, #type (*void, win.HWND, win.HICON, *u16) -> win.HRESULT #c_call)(w.taskbar, w.hwnd, dot, ifx text then wide("Unread mentions") else null); // SetOverlayIcon
 }
 
-// Opens a URL in the user's default browser.
+// Opens a URL in the user's default browser. ShellExecute runs whatever it is given (files, UNC
+// paths, protocol handlers): the app's `open_url` checks the scheme.
 open_url :: (url: string) {
-    // ShellExecute runs whatever it is given (files, UNC paths, protocol handlers).
-    if !begins_with(url, "https://") && !begins_with(url, "http://") return;
     ShellExecuteW(null, wide("open"), wide(url), null, null, win.SW_SHOWNORMAL);
 }
 

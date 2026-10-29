@@ -58,10 +58,9 @@ notify_show :: (title: string, body: string, id: string) -> bool {
 }
 set_badge :: (text: string) {}
 
-// Opens a URL in the user's default browser.
+// Opens a URL in the user's default browser. xdg-open runs whatever it is given: the app's
+// `open_url` checks the scheme.
 open_url :: (url: string) {
-    // xdg-open runs whatever it is given (files, other schemes' handlers)
-    if !begins_with(url, "https://") && !begins_with(url, "http://") return;
     spawn_detached("xdg-open", url);
 }
 
