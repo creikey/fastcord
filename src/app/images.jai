@@ -186,18 +186,22 @@ avatar_with_status :: (id: string, uid: dc.Snowflake, size: float32, surface: ui
 	b := avatar_box(id, uid, size);
 	dot := ifx size >= 80 then cast(float32)(16) else (ifx size >= 40 then cast(float32)(12) else cast(float32)(10)); // 80px profile avatars: 16px dot
 	ring := ifx size >= 40 then cast(float32)(4) else cast(float32)(3);
+	st := user_status(uid);
+	// online on a phone only: the client's phone shape, half again as tall, in place of the dot
+	p := table_find_pointer(*store().presences, uid);
+	mobile := st == .Online && p && p.mobile == .Online && p.desktop == .Offline && p.web == .Offline;
+	dh := ifx mobile then dot * 1.5 else dot;
 	{ ui.parent(b); defer ui.pop_parent();
 		r := ui.box("ring", .Draw_Background | .Floating_X | .Floating_Y);
-		r.semantic_size = .[ui.px(dot + ring * 2), ui.px(dot + ring * 2)];
-		r.fixed_pos = .{size - dot - ring, size - dot - ring};
+		r.semantic_size = .[ui.px(dot + ring * 2), ui.px(dh + ring * 2)];
+		r.fixed_pos = .{size - dot - ring, size - dh - ring};
 		r.style.bg = surface;
-		r.style.radius = all4((dot + ring * 2) / 2);
+		r.style.radius = all4(ifx mobile then ring + dot * 0.125 else (dot + ring * 2) / 2);
 		{ ui.parent(r); defer ui.pop_parent();
 			d := ui.box("dot", .Floating_X | .Floating_Y);
-			d.semantic_size = .[ui.px(dot), ui.px(dot)];
+			d.semantic_size = .[ui.px(dot), ui.px(dh)];
 			d.fixed_pos = .{ring, ring};
-			st := user_status(uid);
-			set_icon(d, status_icon(st), status_color(st));
+			set_icon(d, ifx mobile then "status-mobile" else status_icon(st), status_color(st));
 		}
 	}
 	return b;

@@ -509,7 +509,6 @@
 - [ ] Profiles: your own full profile has no Edit Profile button; the DM side panel lacks About Me, pronouns, mutual servers and friends, and the note.
 - [ ] Media: a video's fullscreen fills the window, not the screen (no native fullscreen on any platform) (`view_media.jai` `video_fullscreen`).
 - [ ] Friends: the Pending tab isn't split into Received and Sent.
-- [ ] Profiles: no mobile-online icon: someone online only on their phone gets the plain green dot (`Presence.mobile` is parsed and unused).
 - [ ] Bug: jumping to a message (search, pins, reply) can land off target. `jump_apply` estimates unmeasured rows at 26px while rendering uses the measured average, and it stops steering after 8 frames (`view_search.jai`). Also, off-screen row heights aren't invalidated on width change, so scrolling after a resize shifts content.
 - [ ] Member list: only the first 100 rows load; it subscribes `[0, 99]` once and never asks for more ranges while scrolling (`view_home.jai`).
 - [ ] Media: videos (attachments, embeds) download whole before the first frame; stream them with range requests so long clips start at once (`view_media.jai` `blob_get`).
@@ -767,3 +766,4 @@
 - [x] Status: the account popout sets ("Set a custom status": text and Clear after) and clears your custom status through `dc.set_custom_status`; the user panel and popout show it with its unicode emoji and drop it at its expiry (`custom_status.jai`, `tests/ui/custom_status.txt`).
 - [x] E2E (safety): in a 1:1 DM that has used encryption, every message says whether it was encrypted: a green lock after an encrypted one's timestamp, a warning sign and "Not encrypted" on a plain one (forwards included), and the same icon in the gutter of grouped follow-ups (`e2e_mark`). The composer reads "(encrypted)" or, once a session exists, "(not encrypted)" (`tests/ui/dm/e2e_marks.txt`).
 - [x] Profiles: others' custom statuses (type 4 activity: unicode emoji and text, `Presence.custom`) show in the profile popout, member list rows, 1:1 DM rows and friends rows (instead of Online), hidden while they're offline (`user_custom_status`, `tests/ui/rail/custom_status_others.txt`).
+- [x] Profiles: someone online only on their phone gets the phone-shaped status instead of the dot on their avatars (`avatar_with_status`, `assets/icons/status-mobile.svg`; `tests/ui/rail/custom_status_others.txt`).

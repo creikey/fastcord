@@ -139,4 +139,4 @@ MIT licence (LICENSE-phosphor). Files are copied unmodified and renamed to the n
 | x-large | x-bold |
 | x-small | x-bold |
 
-Hand-drawn for fastcord: `logo` (the app mark), `status-*` (plain circles) and `headphones-slash` (Phosphor's headphones with a slash cut through).
+Hand-drawn for fastcord: `logo` (the app mark), `status-*` (plain circles; `status-mobile` the phone shape) and `headphones-slash` (Phosphor's headphones with a slash cut through).
