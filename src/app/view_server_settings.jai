@@ -2392,6 +2392,33 @@ role_edit :: (g: *dc.Guild, r: *dc.Role) {
 				}
 			}
 		}
+		if dc.guild_has_feature(g, "ROLE_ICONS") {
+			// a boosted server's role icon, saved at once (an image; a unicode emoji icon shows but isn't picked here)
+			set_divider();
+			field_title("Role Icon");
+			ir := row("icon");
+			ir.semantic_size = .[ui.pct(1), ui.px(64)];
+			ir.style.child_gap = 12;
+			ui.parent(ir); defer ui.pop_parent();
+			ib := ui.box("img", .Draw_Background | .Draw_Text);
+			ib.semantic_size = .[ui.px(64), ui.px(64)];
+			ib.style.radius = all4(8);
+			ib.style.bg = T("--background-mod-normal");
+			ib.style.font_size = 32;
+			ib.style.text_align = .Center;
+			if r.icon && r.icon.count <= 64 set_remote_image(ib, tprint("https://cdn.discordapp.com/role-icons/%/%.webp?size=64&quality=lossless", r.id, r.icon));
+			else ib.text = r.unicode_emoji;
+			if set_button("Choose Image##ricon", .Secondary, editable && !ss.busy) {
+				paths := pick_files();
+				if paths.count && net_action() {
+					ss.busy, ss.after = true, Req.COUNT;
+					ss_error("");
+					dc.guild_settings_call(app.client, g.id, xx Req.Action, "PATCH", tprint("/guilds/%/roles/%", g.id, r.id), "icon", file = paths[0]);
+				}
+			}
+			if (r.icon || r.unicode_emoji) && set_button("Remove Icon##rnoicon", .Link, editable && !ss.busy)
+				ss_action(g, .COUNT, "PATCH", tprint("/guilds/%/roles/%", g.id, r.id), "{\"icon\":null,\"unicode_emoji\":null}");
+		}
 		set_divider();
 		if set_toggle_row("hoist", "Display role members separately from online members", "", ss.role_hoist, !editable) ss.role_hoist = !ss.role_hoist;
 		set_divider();
@@ -3019,7 +3046,7 @@ integrations_page :: (g: *dc.Guild) {
 						if paths.count && net_action() {
 							ss.busy, ss.after = true, Req.Webhooks;
 							ss_error("");
-							dc.guild_settings_call(app.client, g.id, xx Req.Action, "PATCH", tprint("/webhooks/%", id), file = paths[0]);
+							dc.guild_settings_call(app.client, g.id, xx Req.Action, "PATCH", tprint("/webhooks/%", id), "avatar", file = paths[0]);
 						}
 					}
 					if dc.fstr(h, "avatar") && set_button("Remove##hrm", .Link, !ss.busy) ss_action(g, .Webhooks, "PATCH", tprint("/webhooks/%", id), "{\"avatar\":null}");

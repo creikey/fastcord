@@ -49,6 +49,15 @@ expect_visible "Q: Why do you want to join?"
 expect_visible "I like dingus battles"
 expect_visible "Approve"
 shot build/ui-server_settings_access_apply.png
+click_text "Roles"
+wait 10
+click_text "champion"
+wait 10
+expect_visible "Role Icon"
+expect_visible "Choose Image"
+shot build/ui-server_settings_role_icon.png
+click_text "BACK"
+wait 5
 click_text "Server Insights"
 wait 10
 click_text "Open Server Insights"

@@ -874,8 +874,8 @@ file_job_body :: (path: string, name: string, op: Feature_Op, hosted: bool) -> s
 		w: Json;
 		json_init(*w);
 		json_obj(*w);
-		// Server Settings sends one file: a webhook's avatar (PATCH /webhooks/{id})
-		json_kstr(*w, ifx op == .Avatar_Edit || op == .Guild_Settings then "avatar" else ifx op == .Banner_Edit then "banner" else "icon", tprint("data:%;base64,%", mime, base64_encode(data,, temp)));
+		// Server Settings names the key its file goes under: a webhook's "avatar", a role's "icon"
+		json_kstr(*w, ifx op == .Avatar_Edit then "avatar" else ifx op == .Guild_Settings then name else ifx op == .Banner_Edit then "banner" else "icon", tprint("data:%;base64,%", mime, base64_encode(data,, temp)));
 		json_obj_end(*w);
 		return json_string(*w), .[], 0;
 	}
