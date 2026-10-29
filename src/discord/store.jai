@@ -1366,6 +1366,33 @@ store_apply_dispatch :: (s: *Store, name: string, data: V, now: s64) -> bool {
 			apply_poll_vote(s, d, name == "MESSAGE_POLL_VOTE_ADD");
 		case "MESSAGE_REACTION_ADD";
 			apply_reaction(s, d, true);
+		case "MESSAGE_REACTION_ADD_MANY";
+			// big servers batch reactions: addReactionBatch, each listed user adds one
+			cid, mid := fsnow(d, "channel_id"), fsnow(d, "message_id");
+			for flist(d, "reactions") {
+				rm := vmap(it);
+				em := fmap(rm, "emoji");
+				e := Emoji.{id = fsnow(em, "id"), name = fstr(em, "name"), animated = fbool(em, "animated"), available = true};
+				burst := fint(rm, "reactionType") == 1 || fint(rm, "reaction_type") == 1;
+				for flist(rm, "users") store_reaction(s, cid, mid, e, vsnow(it) == s.me, true, burst);
+			}
+		case "PASSIVE_UPDATE_V2";
+			// a server whose events aren't subscribed: its channels' newest messages (unreads), voice
+			// states and changed members, in one dispatch
+			gid := fsnow(d, "guild_id");
+			for flist(d, "updated_channels") {
+				cm := vmap(it);
+				ch := channel_get(s, fsnow(cm, "id"));
+				if ch && ch.guild_id == gid ch.last_message_id = fsnow(cm, "last_message_id");
+			}
+			for flist(d, "updated_voice_states") apply_voice_state(s, vmap(it), gid);
+			for flist(d, "removed_voice_states") {
+				vs := table_find_pointer(*s.voice_states, vsnow(it));
+				if !vs || vs.guild_id != gid continue;
+				free_str(vs.session_id, s.allocator);
+				table_remove(*s.voice_states, vsnow(it));
+			}
+			for flist(d, "updated_members") parse_member_into(s, gid, vmap(it));
 		case "MESSAGE_REACTION_REMOVE";
 			apply_reaction(s, d, false);
 		case "MESSAGE_REACTION_REMOVE_ALL"; #through;

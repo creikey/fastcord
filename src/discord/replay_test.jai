@@ -4219,3 +4219,28 @@ member_list_rules :: (t: *T) {
 	array_add(*priv.overwrites, .{id = 99, kind = 1, allow = PERM_VIEW_CHANNEL});
 	expect_value(t, member_list_id(*s, priv), tprint("%", murmur3_32("allow:99,deny:10")));
 }
+
+// PASSIVE_UPDATE_V2 (an unsubscribed server's channels, voice states, members) and MESSAGE_REACTION_ADD_MANY.
+passive_update_dispatches :: (t: *T) {
+	s: Store;
+	store_init(*s, temp);
+	s.me = 7;
+	table_set(*s.channels, 11, .{id = 11, guild_id = 10, last_message_id = 100});
+	d :: (s: *Store, name: string, json: string) {
+		v, _ := etf.from_json(json,, temp);
+		store_apply_dispatch(s, name, v, 0);
+	}
+	d(*s, "VOICE_STATE_UPDATE", "{\"guild_id\":\"10\",\"channel_id\":\"12\",\"user_id\":\"8\",\"session_id\":\"a\"}");
+	d(*s, "PASSIVE_UPDATE_V2", "{\"guild_id\":\"10\",\"updated_channels\":[{\"id\":\"11\",\"last_message_id\":\"200\"}],\"updated_voice_states\":[{\"channel_id\":\"12\",\"user_id\":\"9\",\"session_id\":\"b\"}],\"removed_voice_states\":[\"8\"],\"updated_members\":[]}");
+	expect_value(t, channel_get(*s, 11).last_message_id, 200);
+	expect(t, table_find_pointer(*s.voice_states, 8) == null, "a removed voice state goes");
+	vs := table_find_pointer(*s.voice_states, 9);
+	expect(t, vs != null && vs.channel_id == 12 && vs.guild_id == 10, "an updated voice state is stored with the guild");
+	l := message_list(*s, 11);
+	m := new_message(*s);
+	m.id, m.channel_id = 150, 11;
+	insert_message(l, m);
+	d(*s, "MESSAGE_REACTION_ADD_MANY", "{\"channel_id\":\"11\",\"message_id\":\"150\",\"reactions\":[{\"emoji\":{\"name\":\"x\"},\"users\":[\"8\",\"7\"]}]}");
+	i := message_index(l, 150);
+	expect(t, i >= 0 && l.messages[i].reactions.count == 1 && l.messages[i].reactions[0].count == 2 && l.messages[i].reactions[0].me, "two users, one of them us");
+}
