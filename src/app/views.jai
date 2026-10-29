@@ -282,12 +282,14 @@ title_bar :: () {
 				if sig.clicked { history_step(fwd); }
 			}
 		}
+		// the official binds: Cmd+[ / Cmd+] on macOS, Alt+Left / Alt+Right elsewhere
+		BACK :: #run ifx OS == .MACOS then ui.Key_Code.Left_Bracket else .Left;
+		FWD :: #run ifx OS == .MACOS then ui.Key_Code.Right_Bracket else .Right;
+		NAV_MOD :: #run ifx OS == .MACOS then ui.Mod.Cmd else .Alt;
 		for * e: app.ui.events {
-			if e.consumed || e.kind != .Key_Down || e.mods != PRIMARY_MOD { continue; }
-			if e.key == .Left_Bracket || e.key == .Right_Bracket {
-				history_step(e.key == .Right_Bracket, "keybind");
-				e.consumed = true;
-			}
+			if e.consumed || e.kind != .Key_Down || e.mods != NAV_MOD || (e.key != BACK && e.key != FWD) { continue; }
+			history_step(e.key == FWD, "keybind");
+			e.consumed = true;
 		}
 		// mouse back / forward buttons: the desktop host's NAVIGATE_BACK / _FORWARD ("native")
 		for * e: app.ui.events {
@@ -1202,7 +1204,7 @@ shortcuts_modal :: () {
 	MOD :: #run ifx OS == .MACOS then "Cmd" else "Ctrl";
 	SHORTCUTS :: string.[
 		"Find or start a conversation", #run tprint("%+K", MOD),
-		"Back / forward", #run tprint("%+[ / %+]", MOD, MOD),
+		"Back / forward", #run ifx OS == .MACOS then "Cmd+[ / Cmd+]" else "Alt+Left / Alt+Right",
 		"Previous / next channel", "Alt+Up / Alt+Down",
 		"Previous / next unread channel", "Alt+Shift+Up / Down",
 		"Previous / next channel with mentions", #run tprint("%+Alt+Shift+Up / Down", MOD),
