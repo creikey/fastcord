@@ -1314,7 +1314,6 @@ message_list :: (channel_id: dc.Snowflake, cs: *Chat_State) {
 		i0 -= 1;
 	}
 	i0 += 1;
-	new_top: float32;
 	{ ui.parent(list); defer ui.pop_parent();
 		col := ui.box("rows", .Floating_Y | .Anchor_End_Y);
 		col.semantic_size = .[ui.pct(1), ui.children()];
@@ -1335,8 +1334,6 @@ message_list :: (channel_id: dc.Snowflake, cs: *Chat_State) {
 					spacer(.Y, TOP_PAD);
 				}
 			}
-			// where the "NEW" divider is: above the declared rows (older ones not drawn), on one, or below
-			new_top = ifx i0 > 0 && msgs[i0].id > cs.unread_after then -FLOAT32_INFINITY else FLOAT32_INFINITY;
 			for i: max(i0, 0)..i1 {
 				m := *msgs[i];
 				ui.id_scope(m.id); defer ui.pop_seed();
@@ -1363,7 +1360,6 @@ message_list :: (channel_id: dc.Snowflake, cs: *Chat_State) {
 				} else if new_day || show_new || prev == null || hidden_kind(prev) != hide {
 					row = hidden_row(msgs, i, hide, new_day, show_new, cs.unread_after);
 				}
-				if row && show_new new_top = row.rect.y0;
 				// remember measured height (from last frame's layout); a changed height moves the
 				// rows and the scroll range, so lay out again rather than idle on a stale frame
 				// (a short DM used to stay drawn with its newest message pushed under the list).
@@ -1390,7 +1386,7 @@ message_list :: (channel_id: dc.Snowflake, cs: *Chat_State) {
 		}
 		ui.scrollbar(list, .Auto, *cs.scroll_from_bottom, *cs.scroll_target, total, from_end = true);
 		typing_line(channel_id);
-		new_messages_bar(channel_id, msgs, lw, cs, new_top < list.rect.y0);
+		new_messages_bar(channel_id, msgs, lw, cs);
 		if gap && jump_to_present_bar(lw) jump_to_present(channel_id);
 	}
 }
@@ -1466,18 +1462,18 @@ hidden_row :: (msgs: []dc.Message, i: int, kind: string, new_day: bool, show_new
 	return r0;
 }
 
-// "N new messages since 3:04 PM ... Mark As Read" over the list's top: the messages after the
-// read marker the channel was opened with, while its "NEW" divider is scrolled above the view
-// (the channel itself is acked meanwhile), or while Mark Unread holds it. Mark As Read acks
-// and drops the divider; the rest of the bar jumps to the first new message.
-new_messages_bar :: (channel_id: dc.Snowflake, msgs: []dc.Message, lw: float32, cs: *Chat_State, divider_above: bool) {
+// "N new messages since 3:04 PM ... Mark As Read" over the list's top while the channel is still
+// unread (the client's getUnreadCount > 0): scrolled up, unfocused, or held by Mark Unread. N
+// counts past the live read state, the time is the "NEW" divider's. Once the channel is acked
+// at the bottom the bar goes. Mark As Read acks and drops the divider; the rest of the bar
+// jumps to the first new message.
+new_messages_bar :: (channel_id: dc.Snowflake, msgs: []dc.Message, lw: float32, cs: *Chat_State) {
 	rs := table_find_pointer(*store().read_states, channel_id);
-	held := rs != null && rs.manual;
-	if !cs.unread_after || !msgs || !(divider_above || held) return;
+	if !cs.unread_after || !msgs || !rs || !dc.channel_unread(store(), channel_id) return;
 	n, first := 0, cast(dc.Snowflake) 0;
 	for < msgs {
 		if it.id <= cs.unread_after break;
-		n += 1;
+		if it.id > rs.last_message_id n += 1;
 		first = it.id;
 	}
 	if n == 0 return;

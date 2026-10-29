@@ -1,7 +1,8 @@
-# Shift+Page Up jumps to the oldest unread message, like clicking the new-messages bar.
+# Shift+Page Up jumps to the oldest unread message, like clicking the new-messages bar; the channel
+# is still unread there, so the bar stays.
 wait 10
 key pageup shift
 wait 60
 expect_visible "Forwarded"
-expect_not_visible "Mark As Read"
+expect_visible "Mark As Read"
 shot build/ui-forward_oldest_unread_key.png

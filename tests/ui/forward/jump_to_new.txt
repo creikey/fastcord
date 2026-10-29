@@ -1,7 +1,8 @@
 # Clicking the new-messages bar (not Mark As Read) jumps to the first new message, a
-# forward: "Forwarded" over the snapshot, no reply stub; with the "NEW" line in view the bar goes.
+# forward: "Forwarded" over the snapshot, no reply stub. The channel is still unread there (not at
+# the bottom, so not acked), so the bar stays, as the client's getUnreadCount > 0 keeps it.
 wait 10
 click 600 94
 wait 60
 expect_visible "Forwarded"
-expect_not_visible "Mark As Read"
+expect_visible "Mark As Read"
