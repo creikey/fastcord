@@ -764,7 +764,8 @@ share_modal :: () {
 wizard_open :: () {
 	evu.wiz_open = true;
 	evu.step = .Location;
-	evu.entity = .Unknown;
+	// With no voice channel to hold it in (every hosted server), Somewhere Else is the only choice.
+	evu.entity = ifx voice_channels(evu.guild).count then dc.Event_Entity.Unknown else .External;
 	evu.channel = 0;
 	evu.busy = false;
 	set_wiz_error("");
@@ -1019,7 +1020,7 @@ pad_end :: () {
 
 step_location :: () {
 	step_heading("Where is your event?", "So no one gets lost on where to go.");
-	if radio_row("voice", "voice-normal", "Voice Channel", "Hang out with voice, video, screenshare, and Go Live.", evu.entity == .Voice) && evu.entity != .Voice {
+	if voice_channels(evu.guild).count && radio_row("voice", "voice-normal", "Voice Channel", "Hang out with voice, video, screenshare, and Go Live.", evu.entity == .Voice) && evu.entity != .Voice {
 		evu.entity = .Voice;
 		vcs := voice_channels(evu.guild);
 		if evu.channel == 0 && vcs.count > 0 evu.channel = vcs[0];
