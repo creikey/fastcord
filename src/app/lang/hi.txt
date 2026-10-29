@@ -1386,7 +1386,6 @@ Reset Friend Nickname	दोस्त का निकनेम रीसेट 
 Reset Voice Settings	वॉइस सेटिंग्स रीसेट करें
 Resolving Invite	इनवाइट खोल रहे हैं
 Responses	जवाब
-Restart to Update	अपडेट के लिए रीस्टार्ट करें
 Retry	फिर से कोशिश करें
 Retry Now	अभी फिर से कोशिश करें
 Return to call	कॉल पर लौटें
@@ -1770,7 +1769,6 @@ Update Role	रोल अपडेट करें
 Update Server	सर्वर अपडेट करें
 Update Webhook	वेबहुक अपडेट करें
 Update your password	अपना पासवर्ड अपडेट करें
-Updating…	अपडेट हो रहा है…
 Upload	अपलोड करें
 Upload Cover Image	कवर इमेज अपलोड करें
 Upload Emoji	इमोजी अपलोड करें

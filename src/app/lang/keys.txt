@@ -191,6 +191,7 @@ A DNS name or IP address, without a port. Empty: invites carry the address the i
 A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button.
 A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button. Works in every app.
 A new channel will be created with the same permissions, user limit and bitrate as 
+A new version of fastcord is out. Click the pill to open the download page; fastcord never updates itself.
 A role needs a name.
 A webhook needs a name.
 A wild % appeared.
@@ -923,6 +924,7 @@ Hide After Inactivity
 Hide Chat
 Hide Fastcord window from screen capture
 Hide Muted Channels
+Hide for 3 Days
 Hide invite links to my Discord servers
 Hide my personal information, such as email, connected accounts, and notes
 Hide##reveal
@@ -1308,6 +1310,7 @@ Only you can see the nickname you give %.
 Only you can see this · 
 Oops!
 Open Chat
+Open Download Page
 Open Image Link
 Open Link
 Open Logs Folder
@@ -1494,7 +1497,6 @@ Reset##psreset
 Reset##reset
 Resolving Invite
 Responses
-Restart to Update
 Restore
 Restore Backup
 Retry
@@ -1761,6 +1763,7 @@ That image is too large. Server icons must be under 512 KB.
 That isn't a valid fastcord invite.
 That's too long to send encrypted.
 The Pin Is Stuck!
+The Update pill comes back after that.
 The badge chosen in the official client stays as it is.
 The invite is invalid or has expired.
 The mention limit is between 1 and 50.
@@ -1906,7 +1909,6 @@ Update Role
 Update Server
 Update Webhook
 Update your password
-Updating…
 Upload Cover Image##cover
 Upload Emoji##upload
 Upload Sound##sbupload

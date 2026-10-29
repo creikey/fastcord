@@ -1389,7 +1389,6 @@ Reset Friend Nickname	Επαναφορά ψευδωνύμου φίλου
 Reset Voice Settings	Επαναφορά ρυθμίσεων φωνής
 Resolving Invite	Επίλυση πρόσκλησης
 Responses	Απαντήσεις
-Restart to Update	Επανεκκίνηση για ενημέρωση
 Retry	Επανάληψη
 Retry Now	Επανάληψη τώρα
 Return to call	Επιστροφή στην κλήση
@@ -1773,7 +1772,6 @@ Update Role	Ενημέρωση ρόλου
 Update Server	Ενημέρωση διακομιστή
 Update Webhook	Ενημέρωση webhook
 Update your password	Ενημέρωσε τον κωδικό πρόσβασής σου
-Updating…	Ενημέρωση…
 Upload	Μεταφόρτωση
 Upload Cover Image	Μεταφόρτωση εικόνας εξωφύλλου
 Upload Emoji	Μεταφόρτωση emoji

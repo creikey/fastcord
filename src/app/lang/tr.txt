@@ -1389,7 +1389,6 @@ Reset Friend Nickname	Arkadaş Takma Adını Sıfırla
 Reset Voice Settings	Ses Ayarlarını Sıfırla
 Resolving Invite	Davet Çözümleniyor
 Responses	Yanıtlar
-Restart to Update	Güncellemek İçin Yeniden Başlat
 Retry	Tekrar Dene
 Retry Now	Şimdi Tekrar Dene
 Return to call	Aramaya dön
@@ -1773,7 +1772,6 @@ Update Role	Rolü Güncelle
 Update Server	Sunucuyu Güncelle
 Update Webhook	Webhook'u Güncelle
 Update your password	Şifreni güncelle
-Updating…	Güncelleniyor…
 Upload	Yükle
 Upload Cover Image	Kapak Görseli Yükle
 Upload Emoji	Emoji Yükle

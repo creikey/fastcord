@@ -77,31 +77,6 @@ jobs:
   publish:
     needs: [draft, windows-linux, macos, smoke-linux]
     runs-on: ubuntu-latest
-    env:
-      UPDATE_KEY: ${{ secrets.FASTCORD_UPDATE_KEY }}
     steps:
-      # The in-app updater's manifest: each archive's SHA-256, signed with the release key (an Ed25519 PEM in
-      # the FASTCORD_UPDATE_KEY secret; src/selfupdate pins its public half). Without the secret only the
-      # unsigned checksums go up, and the app's Update pill opens the download page instead of installing.
-      - name: Update manifest
-        run: |
-          set -euo pipefail
-          umask 077
-          mkdir -p m
-          cd m
-          gh release download "$VERSION" -p fastcord-macos.zip -p fastcord-windows.zip -p fastcord-linux-x86_64.tar.gz
-          { echo "fastcord-update $VERSION"; sha256sum fastcord-macos.zip fastcord-windows.zip fastcord-linux-x86_64.tar.gz; } > fastcord-update.txt
-          cat fastcord-update.txt
-          files=fastcord-update.txt
-          if [ -n "$UPDATE_KEY" ]; then
-            printf '%s\n' "$UPDATE_KEY" > key.pem
-            openssl pkeyutl -sign -inkey key.pem -rawin -in fastcord-update.txt -out fastcord-update.sig
-            rm key.pem
-            files="$files fastcord-update.sig"
-          else
-            echo "::notice::FASTCORD_UPDATE_KEY isn't set, so this release can't be installed from the app"
-          fi
-          gh release upload "$VERSION" $files --clobber
-
       - name: Publish release
         run: gh release edit "$VERSION" --draft=false --latest

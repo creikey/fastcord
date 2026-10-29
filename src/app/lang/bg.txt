@@ -1389,7 +1389,6 @@ Reset Friend Nickname	Нулирай прякора на приятеля
 Reset Voice Settings	Нулирай гласовите настройки
 Resolving Invite	Проверка на поканата
 Responses	Отговори
-Restart to Update	Рестартирай за обновяване
 Retry	Опитай пак
 Retry Now	Опитай сега
 Return to call	Обратно към разговора
@@ -1773,7 +1772,6 @@ Update Role	Обновяване на роля
 Update Server	Обновяване на сървъра
 Update Webhook	Обновяване на уебхук
 Update your password	Обнови паролата си
-Updating…	Обновяване…
 Upload	Качи
 Upload Cover Image	Качи корица
 Upload Emoji	Качи емоджи

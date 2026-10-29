@@ -1389,7 +1389,6 @@ Reset Friend Nickname	Barát becenevének visszaállítása
 Reset Voice Settings	Hangbeállítások visszaállítása
 Resolving Invite	Meghívó feldolgozása
 Responses	Válaszok
-Restart to Update	Újraindítás a frissítéshez
 Retry	Újra
 Retry Now	Újra most
 Return to call	Vissza a híváshoz
@@ -1773,7 +1772,6 @@ Update Role	Rang frissítése
 Update Server	Szerver frissítése
 Update Webhook	Webhook frissítése
 Update your password	Jelszó frissítése
-Updating…	Frissítés…
 Upload	Feltöltés
 Upload Cover Image	Borítókép feltöltése
 Upload Emoji	Emodzsi feltöltése

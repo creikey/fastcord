@@ -1,0 +1,13 @@
+# Right-clicking the Update pill explains it and offers Hide for 3 Days; hiding takes the pill away.
+fake_update v9.9.9
+wait 3
+rclick_text "Update v9.9.9"
+wait 3
+expect_visible "Open Download Page"
+expect_visible "Hide for 3 Days"
+expect_visible "The Update pill comes back after that."
+shot build/ui-update_pill_menu.png
+click_text "Hide for 3 Days"
+wait 3
+expect_not_visible "Update v9.9.9"
+expect_not_visible "Hide for 3 Days"

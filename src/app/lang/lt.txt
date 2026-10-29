@@ -1389,7 +1389,6 @@ Reset Friend Nickname	Atstatyti draugo slapyvardį
 Reset Voice Settings	Atstatyti balso nustatymus
 Resolving Invite	Tikrinamas pakvietimas
 Responses	Atsakymai
-Restart to Update	Paleisti iš naujo ir atnaujinti
 Retry	Bandyti dar kartą
 Retry Now	Bandyti dabar
 Return to call	Grįžti į skambutį
@@ -1773,7 +1772,6 @@ Update Role	Atnaujinti vaidmenį
 Update Server	Atnaujinti serverį
 Update Webhook	Atnaujinti webhook
 Update your password	Atnaujink slaptažodį
-Updating…	Atnaujinama…
 Upload	Įkelti
 Upload Cover Image	Įkelti viršelio vaizdą
 Upload Emoji	Įkelti jaustuką

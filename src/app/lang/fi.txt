@@ -1389,7 +1389,6 @@ Reset Friend Nickname	Palauta kaverin lempinimi
 Reset Voice Settings	Palauta puheasetukset
 Resolving Invite	Selvitetään kutsua
 Responses	Vastaukset
-Restart to Update	Päivitä käynnistämällä uudelleen
 Retry	Yritä uudelleen
 Retry Now	Yritä nyt uudelleen
 Return to call	Palaa puheluun
@@ -1773,7 +1772,6 @@ Update Role	Päivitä rooli
 Update Server	Päivitä palvelin
 Update Webhook	Päivitä webhook
 Update your password	Päivitä salasanasi
-Updating…	Päivitetään…
 Upload	Lataa
 Upload Cover Image	Lataa kansikuva
 Upload Emoji	Lataa emoji

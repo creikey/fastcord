@@ -1389,7 +1389,6 @@ Reset Friend Nickname	重置好友昵称
 Reset Voice Settings	重置语音设置
 Resolving Invite	正在解析邀请
 Responses	回答
-Restart to Update	重启以更新
 Retry	重试
 Retry Now	立即重试
 Return to call	返回通话
@@ -1773,7 +1772,6 @@ Update Role	更新身份组
 Update Server	更新服务器
 Update Webhook	更新 Webhook
 Update your password	更新你的密码
-Updating…	正在更新…
 Upload	上传
 Upload Cover Image	上传封面图片
 Upload Emoji	上传表情符号

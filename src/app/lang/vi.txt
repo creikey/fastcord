@@ -1389,7 +1389,6 @@ Reset Friend Nickname	Đặt lại biệt danh bạn bè
 Reset Voice Settings	Đặt lại cài đặt thoại
 Resolving Invite	Đang xử lý lời mời
 Responses	Phản hồi
-Restart to Update	Khởi động lại để cập nhật
 Retry	Thử lại
 Retry Now	Thử lại ngay
 Return to call	Quay lại cuộc gọi
@@ -1773,7 +1772,6 @@ Update Role	Cập nhật vai trò
 Update Server	Cập nhật máy chủ
 Update Webhook	Cập nhật webhook
 Update your password	Cập nhật mật khẩu của bạn
-Updating…	Đang cập nhật…
 Upload	Tải lên
 Upload Cover Image	Tải lên ảnh bìa
 Upload Emoji	Tải lên emoji

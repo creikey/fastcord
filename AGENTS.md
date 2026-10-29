@@ -20,7 +20,9 @@ the Jai is written. This file lists what is easy to miss.
     dismissible-content "shown" events, experiment exposures. Never fake engagement with sponsored
     content: no quest or ad impressions, hovers, clicks, video progress, enrolment or claims
     (`analytics_never`, `R_SCI_NEVER`).
-  - Nothing that needs a webview, ever: no embedded browser, iframe or HTML renderer. Where the
+  - No self-update, ever: the Update pill only opens the download page. fastcord never downloads, replaces or
+  restarts its own binary, and releases carry no update manifest or signing key.
+- Nothing that needs a webview, ever: no embedded browser, iframe or HTML renderer. Where the
     official client uses one (YouTube players, captchas, OAuth pages), open the system browser or
     offer a native path instead.
 - The website (`site/index.html`) states what fastcord does today. When a change alters something it

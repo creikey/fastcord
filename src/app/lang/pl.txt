@@ -1389,7 +1389,6 @@ Reset Friend Nickname	Resetuj pseudonim znajomego
 Reset Voice Settings	Resetuj ustawienia głosu
 Resolving Invite	Sprawdzanie zaproszenia
 Responses	Odpowiedzi
-Restart to Update	Uruchom ponownie, aby zaktualizować
 Retry	Ponów
 Retry Now	Ponów teraz
 Return to call	Wróć do rozmowy
@@ -1773,7 +1772,6 @@ Update Role	Aktualizacja roli
 Update Server	Aktualizacja serwera
 Update Webhook	Aktualizacja webhooka
 Update your password	Zmień hasło
-Updating…	Aktualizowanie…
 Upload	Prześlij
 Upload Cover Image	Prześlij obraz w tle
 Upload Emoji	Prześlij emoji

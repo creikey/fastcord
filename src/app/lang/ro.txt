@@ -1389,7 +1389,6 @@ Reset Friend Nickname	Resetează porecla prietenului
 Reset Voice Settings	Resetează setările vocale
 Resolving Invite	Se verifică invitația
 Responses	Răspunsuri
-Restart to Update	Repornește pentru actualizare
 Retry	Reîncearcă
 Retry Now	Reîncearcă acum
 Return to call	Revino la apel
@@ -1773,7 +1772,6 @@ Update Role	Actualizează rolul
 Update Server	Actualizează serverul
 Update Webhook	Actualizează webhookul
 Update your password	Actualizează-ți parola
-Updating…	Se actualizează…
 Upload	Încarcă
 Upload Cover Image	Încarcă imaginea de copertă
 Upload Emoji	Încarcă emoji

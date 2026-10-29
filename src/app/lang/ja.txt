@@ -1385,7 +1385,6 @@ Reset Friend Nickname	フレンドのニックネームをリセット
 Reset Voice Settings	音声設定をリセット
 Resolving Invite	招待を確認中
 Responses	回答
-Restart to Update	再起動してアップデート
 Retry	再試行
 Retry Now	今すぐ再試行
 Return to call	通話に戻る
@@ -1769,7 +1768,6 @@ Update Role	ロールを更新
 Update Server	サーバーを更新
 Update Webhook	ウェブフックを更新
 Update your password	パスワードを更新
-Updating…	アップデート中…
 Upload	アップロード
 Upload Cover Image	カバー画像をアップロード
 Upload Emoji	絵文字をアップロード

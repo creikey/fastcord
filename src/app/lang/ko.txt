@@ -1389,7 +1389,6 @@ Reset Friend Nickname	친구 별명 초기화
 Reset Voice Settings	음성 설정 초기화
 Resolving Invite	초대 확인 중
 Responses	응답
-Restart to Update	재시작하여 업데이트
 Retry	다시 시도
 Retry Now	지금 다시 시도
 Return to call	통화로 돌아가기
@@ -1773,7 +1772,6 @@ Update Role	역할 업데이트
 Update Server	서버 업데이트
 Update Webhook	웹후크 업데이트
 Update your password	비밀번호 업데이트
-Updating…	업데이트 중…
 Upload	업로드
 Upload Cover Image	커버 이미지 업로드
 Upload Emoji	이모지 업로드

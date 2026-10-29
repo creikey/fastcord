@@ -1389,7 +1389,6 @@ Reset Friend Nickname	Återställ smeknamn för vän
 Reset Voice Settings	Återställ röstinställningar
 Resolving Invite	Löser upp inbjudan
 Responses	Svar
-Restart to Update	Starta om för att uppdatera
 Retry	Försök igen
 Retry Now	Försök igen nu
 Return to call	Tillbaka till samtalet
@@ -1773,7 +1772,6 @@ Update Role	Uppdatera roll
 Update Server	Uppdatera server
 Update Webhook	Uppdatera webhook
 Update your password	Uppdatera ditt lösenord
-Updating…	Uppdaterar…
 Upload	Ladda upp
 Upload Cover Image	Ladda upp omslagsbild
 Upload Emoji	Ladda upp emoji

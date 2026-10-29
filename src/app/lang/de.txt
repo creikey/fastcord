@@ -1389,7 +1389,6 @@ Reset Friend Nickname	Freundes-Nickname zurücksetzen
 Reset Voice Settings	Spracheinstellungen zurücksetzen
 Resolving Invite	Einladung wird aufgelöst
 Responses	Antworten
-Restart to Update	Neu starten zum Aktualisieren
 Retry	Erneut versuchen
 Retry Now	Jetzt erneut versuchen
 Return to call	Zurück zum Anruf
@@ -1773,7 +1772,6 @@ Update Role	Rolle aktualisieren
 Update Server	Server aktualisieren
 Update Webhook	Webhook aktualisieren
 Update your password	Passwort aktualisieren
-Updating…	Wird aktualisiert …
 Upload	Hochladen
 Upload Cover Image	Titelbild hochladen
 Upload Emoji	Emoji hochladen

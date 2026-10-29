@@ -1389,7 +1389,6 @@ Reset Friend Nickname	Bijnaam voor vriend resetten
 Reset Voice Settings	Spraakinstellingen resetten
 Resolving Invite	Uitnodiging ophalen
 Responses	Antwoorden
-Restart to Update	Herstarten om bij te werken
 Retry	Opnieuw proberen
 Retry Now	Nu opnieuw proberen
 Return to call	Terug naar gesprek
@@ -1773,7 +1772,6 @@ Update Role	Rol bijwerken
 Update Server	Server bijwerken
 Update Webhook	Webhook bijwerken
 Update your password	Werk je wachtwoord bij
-Updating…	Bijwerken…
 Upload	Uploaden
 Upload Cover Image	Omslagafbeelding uploaden
 Upload Emoji	Emoji uploaden

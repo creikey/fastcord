@@ -58,6 +58,7 @@ Persisted :: struct {
 	start_minimized: bool; // System > Start Minimized (Windows)
 	tray_close_off: bool; // System > Minimize to Tray, off
 	install_declined: bool; // Not Now on the Windows install bar (update.jai)
+	update_hidden_until_ms: s64; // the Update pill's Hide for 3 Days (update.jai)
 	zoom: int = 100; // Accessibility > Zoom level, percent (ZOOM_SCALES)
 	reduce_motion: bool; // Accessibility > Reduced Motion
 	role_colors: int; // Accessibility > role colours: 0 in names, 1 next to names, 2 hidden
@@ -314,6 +315,7 @@ apply_persisted :: (p: *Persisted) {
 	start_minimized, tray_close_off = p.start_minimized, p.tray_close_off;
 	platform.set_close_to_tray(!tray_close_off);
 	install_declined = p.install_declined;
+	update_hidden_until_ms = p.update_hidden_until_ms;
 	zoom_set(p.zoom);
 	a11y.reduce_motion, a11y.role_colors = p.reduce_motion, clamp(p.role_colors, 0, 2);
 	a11y.group_spacing = ifx array_find(GROUP_SPACINGS, p.group_spacing) then p.group_spacing else 16;
@@ -362,6 +364,7 @@ snapshot :: () -> string {
 	p.smooth_scroll_off = smooth_scroll_off;
 	p.start_minimized, p.tray_close_off = start_minimized, tray_close_off;
 	p.install_declined = install_declined;
+	p.update_hidden_until_ms = update_hidden_until_ms;
 	p.zoom = zoom_pct;
 	p.reduce_motion, p.role_colors, p.group_spacing, p.saturation = a11y.reduce_motion, a11y.role_colors, a11y.group_spacing, a11y.saturation;
 	p.chat_font = chat_font_px;

@@ -1389,7 +1389,6 @@ Reset Friend Nickname	Ripristina nickname amico
 Reset Voice Settings	Ripristina impostazioni vocali
 Resolving Invite	Verifica dell'invito
 Responses	Risposte
-Restart to Update	Riavvia per aggiornare
 Retry	Riprova
 Retry Now	Riprova ora
 Return to call	Torna alla chiamata
@@ -1773,7 +1772,6 @@ Update Role	Aggiorna ruolo
 Update Server	Aggiorna server
 Update Webhook	Aggiorna webhook
 Update your password	Aggiorna la password
-Updating…	Aggiornamento…
 Upload	Carica
 Upload Cover Image	Carica immagine di copertina
 Upload Emoji	Carica emoji

@@ -1653,6 +1653,7 @@ overlays :: () {
 	inbox_popout();
 	picker_overlay(); // above the popouts, whose cards' menus open it too
 	guild_menu_overlays();
+	update_menu(); // update.jai
 	rail_folder_overlays();
 	search_suggestions();
 	// above the pins and inbox popouts, whose cards open them too

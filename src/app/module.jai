@@ -14,7 +14,6 @@
 #import "Unicode";
 #import "Base64";
 #import "Process";
-#import "System";
 audio :: #import "audio";
 crypto :: #import "crypto";
 dc :: #import "discord";
@@ -26,7 +25,6 @@ http :: #import "http";
 imagefmt :: #import "imagefmt";
 keys :: #import "keys";
 serve :: #import "serve";
-selfupdate :: #import "selfupdate";
 locks :: #import "locks";
 lottie :: #import "lottie";
 media :: #import "media";

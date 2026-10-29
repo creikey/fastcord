@@ -1389,7 +1389,6 @@ Reset Friend Nickname	รีเซ็ตชื่อเล่นเพื่อ�
 Reset Voice Settings	รีเซ็ตการตั้งค่าเสียง
 Resolving Invite	กำลังตรวจสอบคำเชิญ
 Responses	คำตอบ
-Restart to Update	รีสตาร์ทเพื่ออัปเดต
 Retry	ลองใหม่
 Retry Now	ลองใหม่ตอนนี้
 Return to call	กลับไปที่การโทร
@@ -1773,7 +1772,6 @@ Update Role	อัปเดตบทบาท
 Update Server	อัปเดตเซิร์ฟเวอร์
 Update Webhook	อัปเดตเว็บฮุก
 Update your password	อัปเดตรหัสผ่านของคุณ
-Updating…	กำลังอัปเดต…
 Upload	อัปโหลด
 Upload Cover Image	อัปโหลดภาพหน้าปก
 Upload Emoji	อัปโหลดอีโมจิ

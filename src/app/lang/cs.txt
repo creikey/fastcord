@@ -1389,7 +1389,6 @@ Reset Friend Nickname	Obnovit přezdívku přítele
 Reset Voice Settings	Obnovit nastavení hlasu
 Resolving Invite	Ověřování pozvánky
 Responses	Odpovědi
-Restart to Update	Restartovat a aktualizovat
 Retry	Zkusit znovu
 Retry Now	Zkusit hned
 Return to call	Vrátit se do hovoru
@@ -1773,7 +1772,6 @@ Update Role	Upravit roli
 Update Server	Upravit server
 Update Webhook	Upravit webhook
 Update your password	Změň si heslo
-Updating…	Aktualizace…
 Upload	Nahrát
 Upload Cover Image	Nahrát titulní obrázek
 Upload Emoji	Nahrát emoji

@@ -1389,7 +1389,6 @@ Reset Friend Nickname	Nulstil vens kælenavn
 Reset Voice Settings	Nulstil taleindstillinger
 Resolving Invite	Slår invitation op
 Responses	Svar
-Restart to Update	Genstart for at opdatere
 Retry	Prøv igen
 Retry Now	Prøv igen nu
 Return to call	Tilbage til opkald
@@ -1773,7 +1772,6 @@ Update Role	Opdater rolle
 Update Server	Opdater server
 Update Webhook	Opdater webhook
 Update your password	Opdater din adgangskode
-Updating…	Opdaterer…
 Upload	Upload
 Upload Cover Image	Upload coverbillede
 Upload Emoji	Upload emoji

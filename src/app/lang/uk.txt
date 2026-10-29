@@ -1389,7 +1389,6 @@ Reset Friend Nickname	Скинути псевдонім друга
 Reset Voice Settings	Скинути налаштування голосу
 Resolving Invite	Перевіряємо запрошення
 Responses	Відповіді
-Restart to Update	Перезапустити й оновити
 Retry	Повторити
 Retry Now	Повторити зараз
 Return to call	Повернутися до дзвінка
@@ -1773,7 +1772,6 @@ Update Role	Оновити роль
 Update Server	Оновити сервер
 Update Webhook	Оновити вебхук
 Update your password	Онови пароль
-Updating…	Оновлення…
 Upload	Завантажити
 Upload Cover Image	Завантажити обкладинку
 Upload Emoji	Завантажити емодзі

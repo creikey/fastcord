@@ -1389,7 +1389,6 @@ Reset Friend Nickname	Poništi nadimak prijatelja
 Reset Voice Settings	Poništi glasovne postavke
 Resolving Invite	Provjera pozivnice
 Responses	Odgovori
-Restart to Update	Ponovno pokreni za ažuriranje
 Retry	Pokušaj ponovno
 Retry Now	Pokušaj odmah
 Return to call	Vrati se u poziv
@@ -1773,7 +1772,6 @@ Update Role	Ažuriraj ulogu
 Update Server	Ažuriraj poslužitelj
 Update Webhook	Ažuriraj webhook
 Update your password	Ažuriraj lozinku
-Updating…	Ažuriranje…
 Upload	Prenesi
 Upload Cover Image	Prenesi naslovnu sliku
 Upload Emoji	Prenesi emoji
