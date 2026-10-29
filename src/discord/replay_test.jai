@@ -4246,3 +4246,34 @@ passive_update_dispatches :: (t: *T) {
 	i := message_index(l, 150);
 	expect(t, i >= 0 && l.messages[i].reactions.count == 1 && l.messages[i].reactions[0].count == 2 && l.messages[i].reactions[0].me, "two users, one of them us");
 }
+
+// The sidebar's channels are the ones we may view; a category whose channels are all hidden goes too.
+hidden_channels_unlisted :: (t: *T) {
+	s: Store;
+	store_init(*s, temp);
+	s.me = 7;
+	G :: cast(Snowflake) 10;
+	g := table_set(*s.guilds, G, .{id = G});
+	str :: (ids: []Snowflake) -> string {
+		sb: String_Builder;
+		sb.allocator = temp;
+		for ids print_to_builder(*sb, "% ", it);
+		return builder_to_string(*sb,, temp);
+	}
+	add :: (s: *Store, g: *Guild, id: Snowflake, kind: Channel_Type, parent: Snowflake, pos: int, deny := false) {
+		c := table_set(*s.channels, id, .{id = id, guild_id = g.id, kind = kind, parent_id = parent, position = pos});
+		if deny array_add(*c.overwrites, .{id = g.id, deny = PERM_VIEW_CHANNEL});
+		array_add(*g.channels, id);
+	}
+	add(*s, g, 11, .Guild_Text, 0, 0);
+	add(*s, g, 20, .Guild_Category, 0, 1);
+	add(*s, g, 21, .Guild_Text, 20, 0, deny = true);
+	add(*s, g, 30, .Guild_Category, 0, 2);
+	add(*s, g, 31, .Guild_Text, 30, 0);
+	add(*s, g, 32, .Guild_Text, 30, 1, deny = true);
+	expect_value(t, str(guild_channels_sorted(*s, G)), "11 20 21 30 31 32 "); // no roles yet: nothing hidden
+	array_add(*g.roles, .{id = G, permissions = PERM_VIEW_CHANNEL});
+	expect_value(t, str(guild_channels_sorted(*s, G)), "11 30 31 ");
+	g.roles[0].permissions |= PERM_MANAGE_CHANNELS;
+	expect_value(t, str(guild_channels_sorted(*s, G)), "11 20 30 31 ");
+}

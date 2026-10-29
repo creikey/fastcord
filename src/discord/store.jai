@@ -1640,9 +1640,17 @@ channel_unread :: (s: *Store, channel_id: Snowflake) -> bool {
 
 // guild_channels_sorted returns channel ids in sidebar order: uncategorized
 // first, then each category followed by its children, by (position, id).
+// The channels we may see (View Channel), in sidebar order. Discord sends every channel of a server; the
+// client lists only those, and a category only while it shows one (or is empty, or we manage channels).
+// A server whose roles haven't arrived hides nothing.
 guild_channels_sorted :: (s: *Store, guild_id: Snowflake, allocator := temp) -> []Snowflake {
 	g := table_find_pointer(*s.guilds, guild_id);
 	if !g return .[];
+	roles := my_roles(s, guild_id);
+	base := compute_base_permissions(g, s.me, roles);
+	hidden :: (s: *Store, g: *Guild, c: *Channel, base: u64, roles: []Snowflake) -> bool {
+		return g.roles.count > 0 && !(compute_overwrites(base, g.id, s.me, roles, c.overwrites) & PERM_VIEW_CHANNEL);
+	}
 	// Keys are computed once per channel, not per comparison: map lookups dominate otherwise.
 	Keyed :: struct {
 		parent_pos: int;
@@ -1677,9 +1685,26 @@ guild_channels_sorted :: (s: *Store, guild_id: Snowflake, allocator := temp) -> 
 		if a.pos != b.pos return ifx a.pos < b.pos then -1 else 1;
 		return ifx a.id < b.id then -1 else ifx a.id > b.id then 1 else 0;
 	});
-	ids := NewArray(keyed.count, Snowflake,, allocator);
-	for keyed ids[it_index] = it.id;
-	return ids;
+	out: [..]Snowflake;
+	out.allocator = allocator;
+	array_reserve(*out, keyed.count);
+	for k: keyed {
+		c := table_find_pointer(*s.channels, k.id);
+		if !c { array_add(*out, k.id); continue; }
+		if hidden(s, g, c, base, roles) continue;
+		if k.is_cat && !(base & PERM_MANAGE_CHANNELS) {
+			// a category whose channels are all hidden from us goes too
+			children, shown := 0, 0;
+			for keyed if it.parent_id == k.id && !it.is_cat {
+				children += 1;
+				ch := table_find_pointer(*s.channels, it.id);
+				if ch && !hidden(s, g, ch, base, roles) shown += 1;
+			}
+			if children && !shown continue;
+		}
+		array_add(*out, k.id);
+	}
+	return out;
 }
 
 // private_channels_sorted: DMs by last activity, newest first.
