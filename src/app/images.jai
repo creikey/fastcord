@@ -65,6 +65,7 @@ images_receive :: () {
 		r.data = .[];
 	}
 	decode_upload();
+	images_sweep();
 	lottie_sweep();
 	gifv_frame();
 }
@@ -73,18 +74,38 @@ images_receive :: () {
 // from the HTTP cache) and the icons and emoji (redrawn on use).
 textures_lost :: () {
 	for * im, url: images {
-		for im.frames gfx.texture_destroy(it);
-		if !im.frames gfx.texture_destroy(im.tex);
-		gfx.texture_destroy(im.blur_tex);
-		array_free(im.frames);
-		array_free(im.durations);
-		array_free(im.blur);
+		image_free(im);
 		free(url);
 	}
 	table_reset(*images);
 	icon_textures_lost();
 	twemoji_textures_lost();
 	app.ui.animating = true;
+}
+
+image_free :: (im: *Remote_Image) {
+	for im.frames gfx.texture_destroy(it);
+	if !im.frames gfx.texture_destroy(im.tex);
+	gfx.texture_destroy(im.blur_tex);
+	array_free(im.frames);
+	array_free(im.durations);
+	array_free(im.blur);
+}
+
+// Images not drawn for IMAGE_IDLE_FRAMES frames are dropped, textures and all, and load again from the
+// HTTP cache when they're back on screen, so a long session holds what is on screen, not all it has
+// shown. Frames, not seconds: an idle window draws none, so nothing is dropped while you look away.
+IMAGE_IDLE_FRAMES :: 1800;
+images_sweep :: () {
+	if app.frame % 64 != 0 return;
+	old: [..]string;
+	old.allocator = temp;
+	for im, url: images if im.state != .Loading && app.frame - im.last_use > IMAGE_IDLE_FRAMES array_add(*old, url);
+	for url: old {
+		image_free(table_find_pointer(*images, url));
+		table_remove(*images, url);
+		free(url);
+	}
 }
 
 // Current frame texture (animated images advance with time).

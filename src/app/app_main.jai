@@ -667,6 +667,10 @@ script_command :: (path: string, f: []string, t: *float64) {
 		if f[1] == "gif" gif_select(.{id = "1", url = f[2]}, false);
 		else sticker_select(.{id = dc.parse_snowflake(f[2])}, false);
 		return;
+	case "expect_images_at_most";
+		// expect_images_at_most <n>: images held (loaded or failed, textures and all)
+		if images.count > cast(int) num(f[1]) script_fail(path, "expect_images_at_most failed: % held", images.count);
+		return;
 	case "open_url";
 		// open_url <url>: what a click on a link to <url> does
 		open_url(f[1]);

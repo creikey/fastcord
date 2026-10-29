@@ -1,0 +1,10 @@
+# Images not drawn for a while are dropped, textures and all, so a long session's memory follows what is
+# on screen (images.jai images_sweep); back on screen they load again.
+wait 30
+go_home
+wait 1900
+# the channel's 12 are gone; what home draws (your avatar) stays
+expect_images_at_most 1
+open 1546820603343016006
+wait 60
+shot build/ui-images_dropped.png
