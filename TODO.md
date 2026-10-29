@@ -301,7 +301,8 @@
   - Done: Data & Privacy: Use data to improve Discord (the account's consent) and Profile Privacy (`tests/ui/settings_data_privacy.txt`).
   - Done: Chat: Show embeds, Show emoji reactions and Show spoiler content (synced `text_and_images`; `tests/ui/settings_chat.txt`).
 - [ ] Mentions: the "@" autocomplete lacks `@game` / `@time`, fuzzy matches and pills in the composer (`traffic/CLIENT_RULES.md` "Composer mentions").
-- [ ] Appearance: no compact message display (synced: `text_and_images.message_display_compact`), chat font scaling (chat text alone, apart from Zoom) or saturation.
+- [ ] Appearance: no compact message display (synced: `text_and_images.message_display_compact`) or chat font scaling (chat text alone, apart from Zoom).
+  - Done: Accessibility > Saturation (0-100%, kept in `settings.json`) scales every theme colour's saturation (`tests/ui/settings_saturation.txt`); images and role colours keep theirs.
   - Done: Accessibility has Space between message groups (0-24 px), role colours (in names, a dot next to names, or none) and Reduced Motion (animations jump; always on when the OS asks), kept in `settings.json` (`tests/ui/settings_accessibility.txt`).
 - [ ] Settings: the nav no longer fits a 720 px window (17 pages), so Log Out and the build line sit below the fold and the nav scrolls; the official groups its sections under headings (User Settings, App Settings, ...) with tighter rows. Group and tighten the nav, or pin Log Out.
 - [ ] GIFs: chat GIFs (GIFV embeds and GIF attachments) have no favourite star; only the picker's tiles do.

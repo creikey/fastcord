@@ -1,0 +1,13 @@
+# Settings > Accessibility > Saturation: the slider at 0% greys every theme colour (the brand
+# blurple, green switches), kept in settings.json.
+wait 5
+click 338 683
+wait 20
+click_text "Accessibility"
+wait 10
+move 760 400
+scroll 0 -2000
+wait 30
+click 420 572
+wait 10
+shot build/ui-settings_saturation.png

@@ -64,7 +64,7 @@ SETTINGS_TERMS :: [2]string.[
 	.["Chat", "embeds, link previews, reactions, spoilers"],
 	.["Notifications", "desktop notifications, sounds, unread badge, lotus mode, friends online"],
 	.["Keybinds", "shortcuts, keyboard, push to talk, mute, deafen"],
-	.["Accessibility", "zoom, message group spacing, role colors, reduced motion, animation"],
+	.["Accessibility", "zoom, message group spacing, role colors, saturation, reduced motion, animation"],
 	.["Language & Time", "language, locale, time format, 12-hour, 24-hour, clock"],
 	.["Devices", "logged-in devices, sessions, log out of device"],
 	.["Connected Apps", "connections, authorized apps, github, steam, spotify, twitch, youtube, xbox, playstation, deauthorize"],
@@ -189,6 +189,7 @@ a11y: struct {
 	reduce_motion: bool;
 	role_colors: int; // 0 in names, 1 next to names, 2 hidden
 	group_spacing := 16;
+	saturation := 100; // percent, applied to the theme's colours (theme_load)
 };
 GROUP_SPACINGS :: int.[0, 4, 8, 16, 24];
 
@@ -234,6 +235,15 @@ accessibility_page :: () {
 		set_heading("Motion");
 		if set_toggle_row("reducemotion", "Enable Reduced Motion", "Reduces the amount of animation and motion effects. On whenever your device asks for reduced motion.", a11y.reduce_motion || system_reduce_motion, system_reduce_motion) {
 			a11y.reduce_motion = !a11y.reduce_motion;
+		}
+		spacer(.Y, 40);
+		set_heading("Saturation");
+		set_para("sathelp", "Reduce the saturation of colors within the application, for those with color sensitivities.", .Normal, 14, 18, T("--text-muted"));
+		spacer(.Y, 16);
+		sv := cast(float32) a11y.saturation;
+		if slider("saturation", *sv, 0, 100, set_content_w(), tprint("%\%", cast(int) (sv + 0.5))) && cast(int) (sv + 0.5) != a11y.saturation {
+			a11y.saturation = cast(int) (sv + 0.5);
+			theme_load(*app.theme, app.theme.name);
 		}
 		set_page_end();
 	}

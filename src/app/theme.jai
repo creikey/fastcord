@@ -22,6 +22,11 @@ theme_load :: (t: *Theme, name: Theme_Name) {
 		c: ui.Color;
 		for i: 0..3 c.component[i] = cast(float32) number(arr[i], ifx i == 3 then 1.0 else 0.0);
 		for i: 0..2 c.component[i] /= 255;
+		// Accessibility > Saturation scales HSL saturation: each channel moves toward the lightness
+		if a11y.saturation < 100 {
+			l := (max(c.x, c.y, c.z) + min(c.x, c.y, c.z)) / 2;
+			for i: 0..2 c.component[i] = l + (c.component[i] - l) * a11y.saturation / 100.0;
+		}
 		table_set(*t.tokens, copy_string(it.key.s), c);
 	}
 }
