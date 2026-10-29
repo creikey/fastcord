@@ -400,8 +400,7 @@ screen friend_nickname tests/ui/rail.jsonl channel=1700000000000000001
   wait 30
   click 1245 116
   wait 10
-  # third user-menu item: Edit Friend Nickname (Add … once a press reset it)
-  click 1150 222
+  click_text "Edit Friend Nickname"
   wait 20
 # staged attachments (attachments.odin): cards with the spoiler / modify / remove bar
 screen attachment_cards tests/ui/chat.jsonl channel=1546820603343016006
