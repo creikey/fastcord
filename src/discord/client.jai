@@ -208,6 +208,7 @@ Client :: struct {
 	auth: Auth; // login / logout (auth.jai)
 	hosted_mu: locks.Mutex;
 	hosted_idle: [..]*http.H1_Conn; // keep-alive connections to cfg.hosted (netwrap.jai)
+	updater: Updater; // the native updater's checks (updater.jai)
 }
 
 client_create :: (cfg: Config, allocator := context.allocator) -> *Client {
@@ -316,6 +317,7 @@ client_destroy :: (c: *Client) {
 	array_free(c.events);
 	transport_destroy(*c.transport);
 	for c.hosted_idle { http.h1_destroy(it); free(it); }
+	updater_destroy(c);
 	array_free(c.hosted_idle);
 	cookie_jar_destroy(*c.jar);
 	rate_limiter_destroy(*c.limiter);

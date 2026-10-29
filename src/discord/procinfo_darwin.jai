@@ -43,6 +43,10 @@ darwin_platform :: () -> Platform_Info {
 		dot := find_index_from_left(p.os_version, #char ".");
 		p.os_sdk_version = ifx dot > 0 then slice(p.os_version, 0, dot) else p.os_version;
 	}
+	product: [32]u8;
+	psize: u64 = product.count;
+	if sysctlbyname("kern.osproductversion", product.data, *psize, null, 0) == 0 && psize > 1 && psize <= product.count
+		p.os_product_version = copy_string(to_string(product.data, xx psize - 1));
 	arm: s32;
 	size: u64 = size_of(s32);
 	arm64 := sysctlbyname("hw.optional.arm64", *arm, *size, null, 0) == 0 && arm == 1;

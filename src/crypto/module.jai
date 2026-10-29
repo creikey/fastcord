@@ -12,6 +12,11 @@ constant_time_equal :: (a: []u8, b: []u8) -> bool {
 sha1   :: (data: []u8) -> [20]u8 { out: [20]u8; fc_sha1(data.data, xx data.count, out.data); return out; }
 md5    :: (data: []u8) -> [16]u8 { out: [16]u8; fc_md5(data.data, xx data.count, out.data); return out; }
 sha256 :: (data: []u8) -> [32]u8 { out: [32]u8; fc_sha256(data.data, xx data.count, out.data); return out; }
+// Sha256: SHA-256 over data that arrives in pieces (BoringSSL's SHA256_CTX).
+Sha256 :: struct { state: [28]u32; }
+sha256_init :: (h: *Sha256) { SHA256_Init(h); }
+sha256_update :: (h: *Sha256, data: []u8) { SHA256_Update(h, data.data, xx data.count); }
+sha256_final :: (h: *Sha256) -> [32]u8 { out: [32]u8; SHA256_Final(out.data, h); return out; }
 hmac_sha256 :: (key: []u8, msg: []u8) -> [32]u8 {
     out: [32]u8;
     fc_hmac_sha256(key.data, xx key.count, msg.data, xx msg.count, out.data);
@@ -186,6 +191,9 @@ fc_compare_constant_time :: (a: *u8, b: *u8, n: u64) -> s32 #foreign bssl;
 fc_sha1 :: (p: *u8, n: u64, out: *u8) #foreign bssl;
 fc_md5 :: (p: *u8, n: u64, out: *u8) #foreign bssl;
 fc_sha256 :: (p: *u8, n: u64, out: *u8) #foreign bssl;
+SHA256_Init :: (h: *Sha256) -> s32 #foreign bssl;
+SHA256_Update :: (h: *Sha256, p: *void, n: u64) -> s32 #foreign bssl;
+SHA256_Final :: (out: *u8, h: *Sha256) -> s32 #foreign bssl;
 fc_hmac_sha256 :: (key: *u8, klen: u64, msg: *u8, mlen: u64, out: *u8) #foreign bssl;
 fc_hkdf_extract :: (salt: *u8, slen: u64, ikm: *u8, ilen: u64, out: *u8) -> s32 #foreign bssl;
 fc_hkdf_expand :: (prk: *u8, plen: u64, info: *u8, ilen: u64, out: *u8, olen: u64) -> s32 #foreign bssl;

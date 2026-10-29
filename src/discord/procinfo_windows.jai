@@ -40,6 +40,7 @@ system_idle_ms :: () -> s64, bool {
 // x64; os_arch is arm64 when the bundle's PROCESSOR_* check says so. The strings live for the process.
 windows_platform :: () -> Platform_Info {
 	p := DEFAULT_PLATFORM;
+	p.os_product_version = ""; // the updater sends os_version
 	p.os = "Windows";
 	v := Os_Version_Info.{size = size_of(Os_Version_Info)};
 	if RtlGetVersion(*v) == 0 {
