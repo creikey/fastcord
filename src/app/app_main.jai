@@ -39,6 +39,8 @@ App :: struct {
 	stats: bool;
 	focused: bool; // window has focus (acks, app state)
 	focus_gained: bool; // the window gained focus this frame (the "Window Focus" ack) // FASTCORD_STATS=1: print frame rate periodically
+	focus_lost: bool; // the window lost focus this frame (a read channel's "NEW" marker goes stale)
+	activity_at: float64; // the last mouseup / wheel / keypress, until IdleStore's 500 ms debounce reports it
 	copy_selection: bool; // the message menu's "Copy": copy the selection after this pass
 	focused_editor: *UI_Editor; // the text field that took keyboard input last frame (tests)
 	expect_drawn: string; // script check: text the next frame must draw (tests)
@@ -337,6 +339,7 @@ frame :: () {
 	drops: [..]string;
 	drops.allocator = temp;
 	app.focus_gained = false;
+	app.focus_lost = false;
 	for e: platform.events() {
 		if e.kind == {
 		case .File_Drop;
@@ -350,6 +353,7 @@ frame :: () {
 		case .Focus_Gained; #through; case .Focus_Lost;
 			app.focused = e.kind == .Focus_Gained;
 			app.focus_gained = app.focused;
+			app.focus_lost = !app.focused;
 			if app.client != null dc.client_set_focused(app.client, app.focused);
 		}
 	}
@@ -359,6 +363,11 @@ frame :: () {
 	evs := map_events(platform.events());
 	for evs app.ui_mods = it.mods;
 	for evs if it.kind == .Key_Down || it.kind == .Text app.caret_reset_t = now;
+	for evs if it.kind == .Mouse_Up || it.kind == .Scroll || it.kind == .Text { app.activity_at = now; request_wake(now + 0.5); }
+	if app.activity_at != 0 && now - app.activity_at >= 0.5 {
+		app.activity_at = 0;
+		if app.client dc.client_note_activity(app.client);
+	}
 	bench_pass_begin();
 	ui.begin(platform.window_size(), dt, now, evs);
 	build_ui();
@@ -758,6 +767,34 @@ script_command :: (path: string, f: []string, t: *float64) {
 		msg.content = dc.clone_str(f[1], s.allocator);
 		msg.failed = true;
 		dc.insert_message(dc.message_list(s, app.view.channel), msg);
+		s.changed += 1;
+		return;
+	case "focus";
+		// focus out|in: the window loses or gains focus
+		platform.inject_event(.{kind = ifx f[1] == "out" then .Focus_Lost else .Focus_Gained});
+		return;
+	case "incoming";
+		// incoming <word>: another user's message arrives in the open channel, a minute after its newest
+		s := store();
+		ch := dc.channel_get(s, app.view.channel);
+		if !ch return;
+		msg := dc.new_message(s);
+		msg.id = ch.last_message_id + (60_000 << 22);
+		msg.channel_id = ch.id;
+		for dc.messages_get(s, ch.id) if it.author_id != s.me msg.author_id = it.author_id;
+		msg.content = dc.clone_str(f[1], s.allocator);
+		dc.insert_message(dc.message_list(s, ch.id), msg);
+		ch.last_message_id = msg.id;
+		s.changed += 1;
+		return;
+	case "acked";
+		// acked: the open channel is read up to its newest message (an ack, ours or MESSAGE_ACK's)
+		s := store();
+		ch := dc.channel_get(s, app.view.channel);
+		if !ch return;
+		rs := find_or_add(*s.read_states, ch.id);
+		rs.channel_id = ch.id;
+		rs.last_message_id = ch.last_message_id;
 		s.changed += 1;
 		return;
 	case "net";

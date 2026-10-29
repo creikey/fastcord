@@ -34,6 +34,7 @@ Chat_State :: struct {
 	hovered_msg: dc.Snowflake;
 	unread_after: dc.Snowflake; // read marker when the channel was opened ("NEW" divider)
 	opened: bool;
+	marker_stale: bool; // the window lost focus with the channel read: the next unread message moves the marker
 }
 
 chat_state :: (channel_id: dc.Snowflake) -> *Chat_State { return find_or_add(*app.chats, channel_id); }
@@ -92,6 +93,14 @@ chat_view :: (channel_id: dc.Snowflake) {
 	if !cs.opened || held {
 		cs.opened = true;
 		cs.unread_after = last_read;
+	}
+	// ReadStateStore: losing focus with the channel read makes its oldest-unread marker stale, and the
+	// first message that then stays unread becomes the "NEW" divider (and the bar's count).
+	unread := dc.channel_unread(s, channel_id);
+	if app.focus_lost && !unread cs.marker_stale = true;
+	if cs.marker_stale && unread && rs && !held {
+		cs.unread_after = last_read;
+		cs.marker_stale = false;
 	}
 	// Ack what's on screen while focused, not idle and scrolled to the bottom, like the client.
 	msgs := dc.messages_get(s, channel_id);

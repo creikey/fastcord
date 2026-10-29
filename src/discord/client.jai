@@ -471,6 +471,7 @@ client_route_referer :: (c: *Client, allocator := temp) -> string {
 // super properties, the heartbeat session and the op 40 QoS payload.
 client_set_focused :: (c: *Client, focused: bool) {
 	if c.focused == focused return;
+	client_note_activity(c); // IdleStore WINDOW_FOCUS, either way
 	c.focused = focused;
 	identity_set_app_state(*c.id, ifx focused then .Focused else .Unfocused);
 	if focused identity_touch_heartbeat(*c.id, now_ms());
@@ -495,6 +496,15 @@ flush_presence :: (c: *Client) {
 	if c.store.connection != .Ready return; // shouldCommit: isSessionEstablished
 	gateway_send(c.gw, .Presence_Update, presence_value(c, old_afk = true,, temp));
 	gateway_send(c.gw, .Presence_Update, presence_value(c,, temp));
+}
+
+// client_note_activity: IdleStore's in-window activity (mouseup, wheel and keypress after a 500 ms
+// debounce, window focus, channel and voice select) ends idle at once instead of at the next 10 s poll.
+// The input was the system's too, so the poll agrees.
+client_note_activity :: (c: *Client) {
+	if atomic_load(*c.idle_since) == 0 return;
+	atomic_store(*c.idle_since, 0);
+	if c.cfg.wakeup c.cfg.wakeup(c.cfg.wakeup_data);
 }
 
 // idle_poll: IdleStore's powerMonitor poll (every 10 s, gateway control thread). Idle once the

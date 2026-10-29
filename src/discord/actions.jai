@@ -22,6 +22,7 @@ set_route_scrolled_up :: (c: *Client, up: bool) {
 
 select_channel :: (c: *Client, guild_id: Snowflake, channel_id: Snowflake, message_limit := 50, prefetch := false, source := "") {
 	prev_referer := ifx prefetch then copy_string(client_route_referer(c),, temp) else "";
+	client_note_activity(c); // IdleStore CHANNEL_SELECT
 	locks.lock(*c.route_mu);
 	prev_guild := c.route_guild;
 	if c.route_channel != channel_id {
@@ -1090,6 +1091,7 @@ voice_server_info :: (c: *Client) -> Voice_Server_Info, u64, bool {
 // track = false: the caller sends join_voice_channel itself, after its own events (DM calls).
 voice_join :: (c: *Client, guild_id: Snowflake, channel_id: Snowflake, self_mute := false, self_deaf := false, track := true) {
 	voice_update(c, guild_id, channel_id, self_mute, self_deaf);
+	client_note_activity(c); // IdleStore VOICE_CHANNEL_SELECT
 	frecency_select(c, guild_id, channel_id); // VOICE_CHANNEL_SELECT
 	// the voice channel's text view opens with the call
 	analytics_channel_opened(c, guild_id, channel_id, selected_guild = false);

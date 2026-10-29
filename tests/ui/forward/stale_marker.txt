@@ -1,0 +1,17 @@
+# The window loses focus with the channel read: the "NEW" marker goes stale, so the next message that
+# stays unread moves the divider to itself and the old bar ("25 new messages since...") goes, as the
+# official ReadStateStore does (oldestUnreadMessageIdStale). Offline there is no client to ack, so
+# "acked" stands in for the at-bottom ack.
+wait 10
+expect_visible "Mark As Read"
+acked
+wait 5
+expect_visible "Mark As Read"
+focus out
+wait 5
+incoming hello-while-away
+wait 10
+expect_visible "hello-while-away"
+expect_visible "NEW"
+expect_not_visible "Mark As Read"
+shot build/ui-stale-marker.png

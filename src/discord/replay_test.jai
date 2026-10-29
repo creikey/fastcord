@@ -1426,7 +1426,7 @@ parity_status_timed :: (t: *T) {
 	replay_end(*run);
 }
 
-// IdleStore: 10 min without input sends op 3 idle (IDLE, then AFK), input sends online again.
+// IdleStore: 10 min without input sends op 3 idle (IDLE, then AFK), input in the window sends online again.
 idle_presence :: (t: *T) {
 	run: Replay_Run;
 	if !replay_begin(*run, t, "status_change", 0, 0) { return; }
@@ -1441,7 +1441,7 @@ idle_presence :: (t: *T) {
 	expect_value(t, fint(v.map, "since"), since);
 	expect(t, vbool(vget(v.map, "afk")), "afk");
 	expect(t, !vbool(vget(presence_value(run.c, old_afk = true,, temp).map, "afk")), "the IDLE update has the old afk");
-	atomic_store(*run.c.idle_since, 0);
+	client_note_activity(run.c); // in-window input ends idle at once, not at the next 10 s poll
 	replay_pump(*run, 50);
 	v = presence_value(run.c,, temp);
 	expect_value(t, fstr(v.map, "status"), "online");
