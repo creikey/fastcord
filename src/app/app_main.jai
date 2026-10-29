@@ -814,6 +814,14 @@ script_command :: (path: string, f: []string, t: *float64, depth := 0) {
 		if f.count < 3 || err != .None || !dc.store_apply_dispatch(store(), f[1], body, dc.now_ms()) script_fail(path, "dispatch: bad event or JSON");
 		store().changed += 1;
 		return;
+	case "profile_reply";
+		// profile_reply <user id> <json>: the full profile's GET /users/{id}/profile reply
+		body, err := etf.from_json(join(..array_view(f, 2), separator = " ",, temp),, temp);
+		uid, ok := string_to_int(f[1], 10, u64);
+		if f.count < 3 || err != .None || !ok script_fail(path, "profile_reply: bad user or JSON");
+		r := dc.Expr_Result.{op = .Profile_Modal, ok = true, status = 200, body = body, tag = uid};
+		profile_full_receive(*r);
+		return;
 	case "mfa_challenge";
 		mfa_script_challenge(); // view_settings_account.jai
 	case "settings_reply";

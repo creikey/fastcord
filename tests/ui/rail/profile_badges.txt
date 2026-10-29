@@ -1,0 +1,13 @@
+# The full profile shows the profile's badges after the username (no Nitro, Boost or Quest badges)
+# and its connected accounts under Connections, from the profile reply.
+wait 30
+click 476 129
+wait 20
+click 570 219
+wait 30
+profile_reply 1000000000000000001 {"user":{"id":"1000000000000000001","username":"robin"},"user_profile":{"bio":"","pronouns":""},"badges":[{"id":"hypesquad_house_1","description":"HypeSquad Bravery","icon":"8a88d63823d8a71cd5e390baa45efa02"},{"id":"premium","description":"Subscriber since Jan 1, 2020","icon":"2ba85e8026a8614b640c2837bcdfe21b"}],"connected_accounts":[{"type":"github","id":"42","name":"robin-gh","verified":true},{"type":"steam","id":"7","name":"robin_steam","verified":false}],"mutual_guilds":[]}
+wait 10
+expect_visible "Connections"
+expect_visible "robin-gh"
+expect_visible "Steam"
+shot build/ui-rail_profile_badges_modal.png

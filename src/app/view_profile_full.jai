@@ -45,6 +45,8 @@ Pf_Profile :: struct {
 	mutual_guilds: [..]Pf_Mutual_Guild;
 	mutual_count: int;
 	friends: [..]Pf_Friend;
+	badges: [..][2]string; // heap: icon hash, description
+	connections: [..][3]string; // heap: type, account name, "1" when verified
 }
 #scope_file
 
@@ -125,6 +127,21 @@ profile_full_receive :: (r: *dc.Expr_Result) {
 			array_add(*p.mutual_guilds, .{dc.fsnow(gm, "id"), copy_string(dc.fstr(gm, "nick"))});
 		}
 		p.mutual_count = cast(int)(dc.fint(m, "mutual_friends_count"));
+		for p.badges for it free(it);
+		for p.connections for it free(it);
+		p.badges.count, p.connections.count = 0, 0;
+		for dc.flist(m, "badges") {
+			b := dc.vmap(it);
+			id, ic := dc.fstr(b, "id"), dc.fstr(b, "icon");
+			// Nitro, Boost and Quest badges are Discord's promotion: not shown (AGENTS.md)
+			if begins_with(id, "premium") || begins_with(id, "guild_booster") || begins_with(id, "quest") || !ic || !dc.is_hash(ic) || p.badges.count >= 32 continue;
+			array_add(*p.badges, .[copy_string(ic), copy_string(dc.fstr(b, "description"))]);
+		}
+		for dc.flist(m, "connected_accounts") {
+			c := dc.vmap(it);
+			if p.connections.count >= 32 break;
+			array_add(*p.connections, .[copy_string(dc.fstr(c, "type")), copy_string(dc.fstr(c, "name")), copy_string(ifx dc.fbool(c, "verified") then "1" else "")]);
+		}
 	case .Mutual_Friends;
 		p.friends_done = true;
 		p.friends.count = 0;
@@ -222,6 +239,14 @@ profile_full_overlay :: () {
 					l.sel_order = 2;
 					pron := ifx prof.pronouns != "" then prof.pronouns else u.pronouns;
 					if pron != "" { label(tprint(" • %", pron), .Normal, 16, T("--text-default"), 20); }
+					server_tag(u);
+					for prof.badges {
+						spacer(.X, ifx it_index then 2.0 else 8.0);
+						b := ui.box(tprint("badge%", it_index));
+						b.semantic_size = .[ui.px(20), ui.px(20)];
+						set_remote_image(b, tprint("%/badge-icons/%.png", dc.CDN, it[0]));
+						if ui.mouse_over(b) tooltip_below(it[1], b.rect);
+					}
 				}
 			}
 		}
@@ -481,6 +506,21 @@ profile_about :: (uid: dc.Snowflake, u: *dc.User, prof: Pf_Profile) {
 		}
 	}
 	spacer(.Y, 16);
+	if prof.connections.count && !streamer_hide_personal() {
+		section_title("Connections");
+		for prof.connections {
+			cr := row(tprint("conn%", it_index));
+			cr.semantic_size = .[ui.pct(1), ui.px(24)];
+			{ ui.parent(cr); defer ui.pop_parent();
+				spacer(.X, PF_PAD + 8);
+				label(it[1], .Medium, 14, T("--text-strong"), 18);
+				if it[2] { spacer(.X, 4); icon("v", "checkmark-small", 14, T("--text-feedback-positive")); }
+				spacer(.X, 8);
+				label(platform_name(it[0]), .Normal, 12, T("--text-muted"), 16); // view_settings_user.jai
+			}
+		}
+		spacer(.Y, 16);
+	}
 	if uid != store().me && !streamer_hide_personal() {
 		section_title("Note");
 		note_field(uid, PF_PAD + 4, *pf.note, *pf.note_focused);
