@@ -354,7 +354,9 @@ unread_rows :: () -> []Unread_Row {
 			if ch.guild_id != 0 {
 				gs := table_find_pointer(*s.guild_settings, ch.guild_id);
 				if gs {
-					if gs.muted { continue; }
+					// a timed mute counts only until it ends
+					now := wall_ms();
+					if dc.guild_is_muted(s, ch.guild_id, now) || dc.channel_effectively_muted(s, ch.guild_id, id, now) { continue; }
 					muted := false;
 					for m: gs.muted_channels { if m == id || (m == ch.parent_id && m != 0) { muted = true; } }
 					if muted { continue; }

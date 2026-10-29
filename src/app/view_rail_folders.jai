@@ -65,10 +65,12 @@ channel_mentions_of :: (s: *dc.Store, ch: *dc.Channel, r: *dc.Read_State) -> int
 	last_read := ifx r != null then r.last_message_id else 0;
 	if ch.last_message_id <= last_read { return 0; }
 	dm := ch.kind == .DM || ch.kind == .Group_DM;
+	gs := ifx ch.guild_id then dc.guild_settings_get(s, ch.guild_id);
+	everyone := !(gs && gs.suppress_everyone); // Suppress @everyone and @here
 	n := 0;
 	for * m: dc.messages_get(s, ch.id) {
 		if m.id <= last_read || m.author_id == s.me || m.pending { continue; }
-		if dm || m.mention_everyone || array_find(m.mentions, s.me) { n += 1; }
+		if dm || (m.mention_everyone && everyone) || array_find(m.mentions, s.me) { n += 1; }
 	}
 	return max(n, ifx r != null then r.mention_count else 0);
 }
