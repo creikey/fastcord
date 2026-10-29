@@ -803,15 +803,13 @@ emoji_select :: (item: Pk_Emoji, keep_open: bool) {
 		frec_use(*frecency.emoji, key);
 		custom_status_set_emoji(ifx item.id then item.name else text, item.id); // custom_status.jai
 	} else if pk.mode == .Reaction {
-		frec_use(*frecency.reaction, key);
-		if app.client != null {
+		if app.client != null { // react() counts the use
 			m := find_message(pk.message);
 			// opened from the "+" after the reactions: Inline Button; toolbar / menu: Reaction Picker
 			if m != null react(m, .{id = item.id, name = name, animated = item.animated}, ifx pk.from_inline then "Message Inline Button" else "Message Reaction Picker");
 		}
 	} else {
-		frec_use(*frecency.emoji, key);
-		ui.editor_insert(ifx pk.mode == .Edit then *ma.edit_editor else *chat_state(pk.channel).editor, text);
+		ui.editor_insert(ifx pk.mode == .Edit then *ma.edit_editor else *chat_state(pk.channel).editor, text); // counted once sent
 	}
 	if !keep_open picker_close();
 }

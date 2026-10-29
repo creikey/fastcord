@@ -140,8 +140,7 @@ emoji_autocomplete :: (ch: *dc.Channel, ed: *ui.Editor, focused: bool) {
 	if pick < 0 return;
 	item := items[pick];
 	ed.mark = colon;
-	ui.editor_insert(ed, tprint("% ", emoji_item_text(item)), .Other);
-	frec_use(*frecency.emoji, frec_key(item));
+	ui.editor_insert(ed, tprint("% ", emoji_item_text(item)), .Other); // counted once sent (track_sent_emoji)
 	if app.client != null dc.autocomplete_emoji_selected(app.client, ch.id, item.name, item.id, item.animated, items.count);
 	eac.visible = false;
 }

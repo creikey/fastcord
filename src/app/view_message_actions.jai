@@ -260,6 +260,7 @@ react :: (m: *dc.Message, e: dc.Emoji, location: string, toggle := false) {
 		return;
 	}
 	dc.add_reaction(app.client, m.channel_id, m.id, e.name, e.id, location = location, animated = e.animated);
+	frec_use(*frecency.reaction, frec_key_of(e.name, e.id)); // every reaction added is a use, from anywhere
 }
 
 send_unreact :: (u: *Undo) { if u.client dc.remove_reaction(u.client, u.b, u.a, u.s, u.c, location = u.t); }
@@ -502,6 +503,7 @@ composer_send :: (ch: *dc.Channel, text: string) -> bool {
 	if encrypting(ch) {
 		if !encrypted_send(ch, body, atts.count > 0, opts.flags != 0) return false;
 		ma.replying = 0;
+		track_sent_emoji(body);
 		return true;
 	}
 	if ma.replying != 0 {
@@ -514,6 +516,7 @@ composer_send :: (ch: *dc.Channel, text: string) -> bool {
 	if slowmode_secs(ch) table_set(*slow_until, ch.id, wall_ms() + slowmode_secs(ch) * 1000);
 	ma.replying = 0;
 	attachments_sent(ch.id, ifx atts then nonce else 0);
+	track_sent_emoji(body); // EMOJI_TRACK_USAGE
 	return true;
 }
 

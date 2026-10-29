@@ -1,0 +1,7 @@
+# A sent message's emoji count toward the frequently used ones (EMOJI_TRACK_USAGE): unicode emoji by
+# name, custom emoji markup by id.
+wait 5
+sent_emoji "ship it 🚀 <:pepe:123456789012345678> <a:dance:42>!"
+expect_frecent rocket
+expect_frecent 123456789012345678
+expect_frecent 42

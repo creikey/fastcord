@@ -160,6 +160,59 @@ frec_use :: (m: *Table(string, Frec_Entry), key: string) {
 	frecency_save();
 }
 
+// frec_key_of: the frecency key of an emoji sent or reacted with: a custom emoji's id, else the unicode
+// emoji's name ("" for text that isn't one).
+frec_key_of :: (name: string, id: dc.Snowflake) -> string {
+	if id return tprint("%", id);
+	emoji_db_load();
+	found, i := table_find(*emoji_db.by_surr, name);
+	return ifx found then emoji_db.emojis[i].names[0] else "";
+}
+
+// track_sent_emoji: EMOJI_TRACK_USAGE after a send, every emoji in the text is a use (custom emoji
+// markup and unicode emoji, longest match first; at most 50).
+track_sent_emoji :: (text: string) {
+	emoji_db_load();
+	i, uses := 0, 0;
+	while i < text.count && uses < 50 {
+		c := text[i];
+		if c == #char "<" && i + 2 < text.count && (text[i + 1] == #char ":" || (text[i + 1] == #char "a" && text[i + 2] == #char ":")) {
+			// <:name:id> or <a:name:id>
+			j := i + ifx text[i + 1] == #char "a" then 3 else 2;
+			name_start := j;
+			while j < text.count && j - name_start <= 32 && (is_alnum(text[j]) || text[j] == #char "_") j += 1;
+			if j < text.count && text[j] == #char ":" && j > name_start {
+				j += 1;
+				id_start := j;
+				while j < text.count && j - id_start < 20 && text[j] >= #char "0" && text[j] <= #char "9" j += 1;
+				if j < text.count && text[j] == #char ">" && j > id_start {
+					frec_use(*frecency.emoji, slice(text, id_start, j - id_start));
+					uses += 1;
+					i = j + 1;
+					continue;
+				}
+			}
+		}
+		if c >= 0x80 {
+			matched := 0;
+			for < len: 1..min(32, text.count - i) {
+				found, k := table_find(*emoji_db.by_surr, slice(text, i, len));
+				if found {
+					frec_use(*frecency.emoji, emoji_db.emojis[k].names[0]);
+					uses += 1;
+					matched = len;
+					break;
+				}
+			}
+			if matched {
+				i += matched;
+				continue;
+			}
+		}
+		i += 1;
+	}
+}
+
 // Keys by descending score.
 frec_top :: (m: Table(string, Frec_Entry), n: int) -> []string {
 	Pair :: struct {

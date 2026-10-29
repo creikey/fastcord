@@ -822,6 +822,14 @@ script_command :: (path: string, f: []string, t: *float64, depth := 0) {
 		r := dc.Expr_Result.{op = .Profile_Modal, ok = true, status = 200, body = body, tag = uid};
 		profile_full_receive(*r);
 		return;
+	case "sent_emoji";
+		// sent_emoji <text>: count the emoji in a sent message's text (track_sent_emoji)
+		track_sent_emoji(unquote(join_args(f)));
+		return;
+	case "expect_frecent";
+		// expect_frecent <key>: the emoji frecency table holds key (a unicode emoji's name, a custom one's id)
+		if !table_contains(*frecency.emoji, f[1]) script_fail(path, "expect_frecent: % not counted", f[1]);
+		return;
 	case "mfa_challenge";
 		mfa_script_challenge(); // view_settings_account.jai
 	case "settings_reply";
