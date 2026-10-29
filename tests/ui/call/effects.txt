@@ -1,0 +1,9 @@
+# An in-call emoji (VOICE_CHANNEL_EFFECT_SEND) floats up over its sender's tile; the call controls have an
+# emoji button for sending one.
+wait 5
+in_voice 1546820558950371411
+click_text "General"
+wait 10
+call_effect 1000000000020971521 🔥
+wait 20
+shot build/ui-call_effects.png

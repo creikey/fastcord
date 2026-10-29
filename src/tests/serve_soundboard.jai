@@ -117,6 +117,11 @@ main :: () {
 	check(effects.count == 1 && effects[0].sound_id == snd.id && effects[0].user_id == b.store.me && effects[0].volume == 0.5,
 		tprint("VOICE_CHANNEL_EFFECT_SEND reaches the channel: %", effects));
 	check(!discord.take_voice_effects(b).count, "the player gets no echo of their own sound");
+	// An in-call emoji reaches the others the same way, with no sound.
+	discord.send_voice_effect(b, channel, "🔥");
+	for 1..300 { effects = discord.take_voice_effects(a); if effects.count break; pump(); }
+	check(effects.count == 1 && !effects[0].sound_id && to_string(effects[0].emoji_name.data, effects[0].emoji_len) == "🔥" && effects[0].user_id == b.store.me,
+		tprint("an emoji effect reaches the channel: %", effects));
 
 	// Edit and delete.
 	discord.soundboard_edit(a, guild, snd.id, "boop", "", 0, 1);

@@ -639,6 +639,9 @@ script_command :: (path: string, f: []string, t: *float64) {
 	case "screen_picker";
 		// the Go Live picker, which needs a connected call to open by its button
 		vid.picker_open = true;
+	case "call_effect";
+		// call_effect <user id> <emoji>: as if they sent an in-call emoji (fixtures have no call)
+		call_effect_show(dc.parse_snowflake(f[1]), .{name = f[2]});
 	case "watching";
 		// watching <user id>: as if watching their Go Live stream (fixtures have no stream connection)
 		vid.watch_user = dc.parse_snowflake(f[1]);

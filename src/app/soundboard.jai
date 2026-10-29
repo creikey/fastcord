@@ -40,6 +40,7 @@ soundboard_frame :: () {
 		if c != call_client() || e.channel_id != app.voice_channel || app.self_deaf continue;
 		muted, _ := table_find(*vs.user_muted, e.user_id);
 		if muted continue;
+		if !e.sound_id { call_effect_show(e.user_id, .{id = e.emoji_id, animated = e.emoji_animated, name = to_string(e.emoji_name.data, e.emoji_len)}); continue; }
 		sound_play_url(sound_url(c, e.sound_id), e.volume * vs.soundboard_volume / 100);
 	}
 }

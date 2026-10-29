@@ -23,12 +23,17 @@ Soundboard_Sound :: struct {
 	available: bool;
 }
 
-// A VOICE_CHANNEL_EFFECT_SEND with a sound, waiting for the app to play it.
+// A VOICE_CHANNEL_EFFECT_SEND, waiting for the app: a sound to play, or (sound_id 0) an emoji to float over
+// the sender's tile, a custom one by emoji_id or a Unicode one in emoji_name.
 Voice_Effect :: struct {
 	channel_id: Snowflake;
 	user_id: Snowflake;
 	sound_id: Snowflake;
 	volume: float32;
+	emoji_id: Snowflake;
+	emoji_animated: bool;
+	emoji_name: [48]u8; // Unicode emoji are short; longer names are dropped
+	emoji_len: int;
 }
 
 SOUNDBOARD_MAX_BYTES :: 512 * 1024; // Discord's cap per sound file
@@ -64,6 +69,25 @@ send_soundboard_sound :: (c: *Client, channel_id: Snowflake, snd: *Soundboard_So
 	j := job_new(.Api, .None);
 	j.method = "POST";
 	j.path = job_str(j, tprint("/channels/%/send-soundboard-sound", channel_id));
+	j.body = cast([]u8) job_str(j, json_string(*w));
+	j.content_type = "application/json";
+	job_submit(c, j);
+}
+
+// send_voice_effect: an emoji over our tile for everyone in the call: POST /channels/{id}/voice-channel-effects
+// {emoji_id, emoji_name, animation_type: 1 (BASIC), animation_id: 0 (BASIC has one animation)}.
+send_voice_effect :: (c: *Client, channel_id: Snowflake, emoji_name: string) {
+	w: Json;
+	json_init(*w);
+	json_obj(*w);
+	json_knull(*w, "emoji_id");
+	json_kstr(*w, "emoji_name", emoji_name);
+	json_kint(*w, "animation_type", 1);
+	json_kint(*w, "animation_id", 0);
+	json_obj_end(*w);
+	j := job_new(.Api, .None);
+	j.method = "POST";
+	j.path = job_str(j, tprint("/channels/%/voice-channel-effects", channel_id));
 	j.body = cast([]u8) job_str(j, json_string(*w));
 	j.content_type = "application/json";
 	job_submit(c, j);
@@ -294,9 +318,19 @@ soundboard_dispatch :: (s: *Store, name: string, d: etf.Map) -> bool {
 		case "VOICE_CHANNEL_EFFECT_SEND";
 			sid := fsnow(d, "sound_id");
 			uid := fsnow(d, "user_id");
-			if !sid || uid == s.me || s.effects.count >= SOUNDBOARD_MAX_EFFECTS return true; // emoji-only effects aren't shown yet
-			vol := ifx vhas(d, "sound_volume") then cast(float32) vf64(vget(d, "sound_volume")) else 1;
-			array_add(*s.effects, .{channel_id = fsnow(d, "channel_id"), user_id = uid, sound_id = sid, volume = clamp(vol, 0, 1)});
+			if uid == s.me || s.effects.count >= SOUNDBOARD_MAX_EFFECTS return true; // ours were played and shown already
+			e := Voice_Effect.{channel_id = fsnow(d, "channel_id"), user_id = uid, sound_id = sid};
+			if sid {
+				vol := ifx vhas(d, "sound_volume") then cast(float32) vf64(vget(d, "sound_volume")) else 1;
+				e.volume = clamp(vol, 0, 1);
+			} else {
+				em := fmap(d, "emoji");
+				name := fstr(em, "name");
+				e.emoji_id, e.emoji_animated = fsnow(em, "id"), fbool(em, "animated");
+				if !e.emoji_id && (!name || name.count > e.emoji_name.count) return true;
+				if !e.emoji_id { memcpy(e.emoji_name.data, name.data, name.count); e.emoji_len = name.count; }
+			}
+			array_add(*s.effects, e);
 		case;
 			return false;
 	}

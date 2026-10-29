@@ -796,7 +796,7 @@ serve_conn :: (c: *Conn) {
 			continue;
 		}
 		if begins_with(req.path, tprint("/api/v9/guilds/%/soundboard-sounds", c.server.guild)) || req.path == "/api/v9/soundboard-default-sounds"
-				|| (begins_with(req.path, "/api/v9/channels/") && ends_with(req.path, "/send-soundboard-sound")) {
+				|| (begins_with(req.path, "/api/v9/channels/") && (ends_with(req.path, "/send-soundboard-sound") || ends_with(req.path, "/voice-channel-effects"))) {
 			if !soundboard(c, req) return;
 			continue;
 		}

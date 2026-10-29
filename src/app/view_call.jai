@@ -15,9 +15,24 @@ Call_Tile :: struct {
 	absent: bool; // a DM's member who isn't in the call: dimmed, with Ring
 }
 
+// In-call emoji (VOICE_CHANNEL_EFFECT_SEND): each floats up over its sender's tile for EFFECT_S.
+EFFECT_S :: 3.0;
+EFFECT_BAR :: string.["😂", "🔥", "👏", "❤️", "😮", "😢", "🎉", "👍"];
+Call_Effect :: struct { user: dc.Snowflake; emoji: dc.Emoji; start: float64; }
+call_effects: [..]Call_Effect; // emoji names on the heap
+effect_bar_open: bool;
+
+call_effect_show :: (user: dc.Snowflake, e: dc.Emoji) {
+	if call_effects.count >= 16 { free(call_effects[0].emoji.name); array_ordered_remove_by_index(*call_effects, 0); }
+	em := e;
+	em.name = copy_string(e.name);
+	array_add(*call_effects, .{user, em, app.ui.time});
+}
+
 // call_view fills the parent: the grid for channel cid and its control bar.
 call_view :: (cid: dc.Snowflake) {
 	s := store();
+	for < call_effects if app.ui.time - it.start >= EFFECT_S { free(it.emoji.name); array_ordered_remove_by_index(*call_effects, it_index); }
 	tiles: [..]Call_Tile;
 	tiles.allocator = temp;
 	ids: [..]dc.Snowflake;
@@ -397,6 +412,16 @@ call_tile :: (t: Call_Tile, x: float32, y: float32, w: float32, h: float32) {
 			icon("i", ifx deaf then "headphones-slash" else "microphone-slash", 16, ifx server then T("--status-danger") else .{1, 1, 1, 1});
 		}
 	}
+	for call_effects if it.user == t.user && !t.stream {
+		age := cast(float32) (app.ui.time - it.start);
+		if age >= EFFECT_S continue;
+		ui.id_scope(cast(u64) it_index); defer ui.pop_seed();
+		size := min(64.0, h * 0.3);
+		e := emoji_box("effect", it.emoji, size);
+		e.flags |= .Floating_X | .Floating_Y;
+		e.fixed_pos = .{x + w / 2 - size / 2 + 20 * sin(age * 3), y + h - size - (h - size) * age / EFFECT_S};
+		request_wake(app.ui.time + 1.0 / 60);
+	}
 	if !t.stream && voice_is_speaking(t.user) {
 		ring := ui.box("speaking", .Draw_Border | .Floating_X | .Floating_Y);
 		ring.semantic_size = .[ui.px(w), ui.px(h)];
@@ -478,10 +503,49 @@ call_controls :: (cid: dc.Snowflake) {
 	sbc := control("soundboard", "music", false, sb.open, soundboard_available());
 	if sbc soundboard_toggle(control_rect);
 	spacer(.X, 8);
+	if control("effects", "reaction", false, effect_bar_open, can_video) effect_bar_open = !effect_bar_open;
+	if effect_bar_open && can_video effect_bar(control_rect);
+	spacer(.X, 8);
 	if control("leave", "phone-hang-up", true, false, true) voice_hang_up();
 	filler(.X);
 	if control("full", "fullscreen", false, app.view.call_full, true) app.view.call_full = !app.view.call_full; // Escape also leaves
 	spacer(.X, 16);
+}
+
+// effect_bar: a row of emoji above the effects button; a click floats one over our tile for the call.
+effect_bar :: (anchor: ui.Rect) {
+	W := cast(float32) EFFECT_BAR.count * 40 + 16;
+	p := ui.box("effectbar", .Draw_Background | .Draw_Border | .Draw_Shadow | .Floating_X | .Floating_Y | .Overlay | .Clickable);
+	p.semantic_size = .[ui.px(W), ui.px(52)];
+	pr := ui.top_parent().rect;
+	p.fixed_pos = .{(anchor.x0 + anchor.x1) / 2 - W / 2 - pr.x0, anchor.y0 - 60 - pr.y0};
+	p.layout_axis = .X;
+	p.cross_align = .Center;
+	p.style.bg = T("--background-surface-higher");
+	p.style.border = 1;
+	p.style.border_color = T("--border-subtle");
+	p.style.radius = all4(12);
+	p.style.shadow_color = .{0, 0, 0, 0.3};
+	p.style.shadow_blur = 12;
+	ui.signal(p);
+	ui.parent(p); defer ui.pop_parent();
+	spacer(.X, 8);
+	for EFFECT_BAR {
+		ui.id_scope(cast(u64) it_index); defer ui.pop_seed();
+		b := ui.box("e", .Clickable | .Draw_Background | .Hot_Animation);
+		b.semantic_size = .[ui.px(40), ui.px(40)];
+		b.style.radius = all4(8);
+		b.style.bg_hot = T("--background-mod-normal");
+		b.layout_axis = .Y;
+		b.cross_align = .Center;
+		if ui.signal(b).clicked && net_action() {
+			dc.send_voice_effect(call_client(), app.voice_channel, it);
+			call_effect_show(call_store().me, .{name = it});
+		}
+		ui.parent(b); defer ui.pop_parent();
+		spacer(.Y, 6);
+		emoji_box("em", .{name = it}, 28);
+	}
 }
 
 // A 56x48 control: red when danger (muted / disconnect), white when on.

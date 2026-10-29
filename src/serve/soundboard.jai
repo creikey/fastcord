@@ -41,7 +41,7 @@ soundboard :: (c: *Conn, req: http.Request) -> bool {
 	user := session_user(c, token);
 	if !user return json_error(c, 401, 0, "401: Unauthorized");
 	if req.path == "/api/v9/soundboard-default-sounds" return respond(c, 200, "[]");
-	if ends_with(req.path, "/send-soundboard-sound") return send_sound(c, req, user);
+	if ends_with(req.path, "/send-soundboard-sound") || ends_with(req.path, "/voice-channel-effects") return send_sound(c, req, user);
 	base := tprint("/api/v9/guilds/%/soundboard-sounds", s.guild);
 	if req.path == base && req.method == "GET" {
 		m := etf.map_builder(1,, temp);
@@ -158,7 +158,8 @@ sound_data_uri :: (uri: string) -> []u8, string {
 }
 
 // POST /api/v9/channels/{id}/send-soundboard-sound {sound_id, source_guild_id?}: a member in that voice
-// channel, not deafened, plays one of the server's sounds to everyone in it.
+// channel, not deafened, plays one of the server's sounds to everyone in it. POST .../voice-channel-effects
+// {emoji_name, emoji_id: null, animation_type?, animation_id?} floats a Unicode emoji over their tile instead.
 send_sound :: (c: *Conn, req: http.Request, user: s64) -> bool {
 	s := c.server;
 	if req.method != "POST" return json_error(c, 405, 0, "405: Method Not Allowed");
@@ -167,15 +168,23 @@ send_sound :: (c: *Conn, req: http.Request, user: s64) -> bool {
 	channel, ok := string_to_int(slice(rest, 0, max(slash, 0)), T = s64);
 	if !ok || slash < 0 return json_error(c, 404, 10003, "Unknown Channel");
 	v, err := etf.from_json(cast(string) req.body,, temp);
-	sid_v: etf.Value;
-	if err == .None && v.kind == .Map sid_v, _ = etf.map_get(v.map, "sound_id");
+	if err != .None || v.kind != .Map return json_error(c, 400, 50035, "Invalid Form Body");
+	effect_only := ends_with(req.path, "/voice-channel-effects");
+	sid_v, _ := etf.map_get(v.map, "sound_id");
 	sound: s64;
-	if sid_v.kind == .String sound, ok = string_to_int(sid_v.s, T = s64);
-	if !sound || !ok return json_error(c, 400, 50035, "Invalid Form Body");
 	volume := 1000;
 	emoji_id: s64;
 	emoji_name: string;
-	{
+	if effect_only {
+		n, _ := etf.map_get(v.map, "emoji_name");
+		id, _ := etf.map_get(v.map, "emoji_id");
+		if n.kind != .String || !n.s || n.s.count > 48 || !text_ok(n.s) || id.kind != .Nil return json_error(c, 400, 50035, "Invalid Form Body");
+		emoji_name = n.s;
+		locks.guard(*s.db_mu);
+		if !can_locked(s, user, P_SPEAK, channel) return json_error(c, 403, 50013, "Missing Permissions");
+	} else {
+		if sid_v.kind == .String sound, ok = string_to_int(sid_v.s, T = s64);
+		if !sound || !ok return json_error(c, 400, 50035, "Invalid Form Body");
 		locks.guard(*s.db_mu);
 		if !can_locked(s, user, P_SPEAK | P_USE_SOUNDBOARD, channel) return json_error(c, 403, 50013, "Missing Permissions");
 		st := sqlite.prepare(s.db, "SELECT volume, emoji_id, emoji_name FROM sounds WHERE id = ?;");
@@ -197,10 +206,18 @@ send_sound :: (c: *Conn, req: http.Request, user: s64) -> bool {
 	etf.map_put(*m, "channel_id", snow(channel));
 	etf.map_put(*m, "guild_id", snow(s.guild));
 	etf.map_put(*m, "user_id", snow(user));
-	etf.map_put(*m, "sound_id", snow(sound));
-	etf.map_put(*m, "sound_volume", etf.vfloat(cast(float64) volume / 1000));
-	etf.map_put(*m, "emoji", .{});
-	etf.map_put(*m, "animation_type", .{});
+	etf.map_put(*m, "sound_id", ifx sound then snow(sound) else .{});
+	etf.map_put(*m, "sound_volume", ifx sound then etf.vfloat(cast(float64) volume / 1000) else .{});
+	emoji: etf.Value;
+	if effect_only {
+		e := etf.map_builder(3,, temp);
+		etf.map_put(*e, "id", .{});
+		etf.map_put(*e, "name", etf.vstring(emoji_name));
+		etf.map_put(*e, "animated", etf.vbool(false));
+		emoji = etf.vmap(etf.map_done(*e));
+	}
+	etf.map_put(*m, "emoji", emoji);
+	etf.map_put(*m, "animation_type", ifx effect_only then etf.vint(1) else .{});
 	etf.map_put(*m, "animation_id", etf.vint(0));
 	effect := etf.vmap(etf.map_done(*m));
 	{
