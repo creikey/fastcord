@@ -1323,13 +1323,12 @@ edit_me :: (c: *Conn, req: http.Request) -> bool {
 		else table_remove(*s.avatars, user);
 	}
 	me := user_value(s, user, name);
-	m := etf.map_builder(4,, temp);
-	etf.map_put(*m, "guild_id", snow(s.guild));
-	etf.map_put(*m, "user", me);
-	etf.map_put(*m, "nick", .{});
-	no_roles: []etf.Value;
-	etf.map_put(*m, "roles", etf.vlist(no_roles));
-	broadcast(s, "GUILD_MEMBER_UPDATE", etf.vmap(etf.map_done(*m)));
+	member: etf.Value;
+	{
+		locks.guard(*s.db_mu);
+		member = member_value_locked(s, user, name);
+	}
+	broadcast(s, "GUILD_MEMBER_UPDATE", member);
 	broadcast(s, "GUILD_MEMBER_LIST_UPDATE", member_list_value(s));
 	return json_reply(c, 200, me);
 }

@@ -96,7 +96,6 @@ settings_route :: (c: *Conn, req: http.Request) -> handled: bool, keep: bool {
 }
 
 MEMBER_SEARCH_MAX :: 1000;
-P_MODERATE_MEMBERS : u64 : 1 << 40;
 // Who may open Server Settings' Members (the client's canAccessMemberSafetyPage, as fastcord guesses it).
 MEMBERS_PAGE_PERMS :: P_MANAGE_GUILD | P_MANAGE_ROLES | P_KICK_MEMBERS | P_BAN_MEMBERS | P_MODERATE_MEMBERS | P_MANAGE_NICKNAMES;
 
@@ -677,7 +676,7 @@ member_patch :: (c: *Conn, req: http.Request) -> bool {
 		audit_locked(s, user, AUDIT_MEMBER_UPDATE, target, .[audit_change("communication_disabled_until", old, new)], reason);
 		etf.map_put(*d, "guild_id", snow(s.guild));
 		etf.map_put(*d, "user", user_value(s, target, name));
-		etf.map_put(*d, "roles", etf.vlist(.[]));
+		etf.map_put(*d, "roles", member_roles_locked(s, target));
 		etf.map_put(*d, "communication_disabled_until", new);
 	}
 	member := etf.vmap(etf.map_done(*d));

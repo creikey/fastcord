@@ -43,6 +43,7 @@ P_MANAGE_EVENTS : u64 : 1 << 33;
 P_MANAGE_THREADS : u64 : 1 << 34;
 P_CREATE_PUBLIC_THREADS : u64 : 1 << 35;
 P_SEND_MESSAGES_IN_THREADS : u64 : 1 << 38;
+P_MODERATE_MEMBERS : u64 : 1 << 40;
 P_USE_SOUNDBOARD : u64 : 1 << 42;
 P_CREATE_GUILD_EXPRESSIONS : u64 : 1 << 43;
 P_CREATE_EVENTS : u64 : 1 << 44;
@@ -643,5 +644,6 @@ member_value_locked :: (s: *Server, user: s64, name: string) -> etf.Value {
 	etf.map_put(*m, "nick", .{});
 	etf.map_put(*m, "roles", member_roles_locked(s, user));
 	etf.map_put(*m, "joined_at", etf.vstring(iso(user)));
+	etf.map_put(*m, "communication_disabled_until", timeout_value_locked(s, user));
 	return etf.vmap(etf.map_done(*m));
 }
