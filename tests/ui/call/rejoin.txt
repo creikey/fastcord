@@ -1,0 +1,9 @@
+# Hanging up from the voice panel offers Rejoin in its place for a few seconds.
+wait 5
+in_voice 1546820558950371411
+wait 5
+click 343 586
+wait 5
+expect_visible "Rejoin"
+expect_visible "Disconnected"
+shot build/ui-call_rejoin.png

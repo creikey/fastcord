@@ -492,7 +492,6 @@
 - [ ] Settings sync: `USER_SETTINGS_PROTO_UPDATE` type 2 (favourite GIFs, emoji frecency) is ignored, so other devices' changes need a restart.
 - [ ] Reactions: the controls ignore the ADD_REACTIONS permission; no modals for TOO_MANY_REACTIONS or the burst "Oops!" (`CLIENT_RULES.md`).
 - [ ] Notifications: the server modal lacks channel overrides, Suppress Highlights, Mute New Events and Mobile Push (parsed, sent only to analytics).
-- [ ] Undo: hanging up voice, from the panel, call view or DM phone button. Offer "Rejoin" for a few seconds, restoring camera and screen share.
 - [ ] Channels: a collapsed category also hides its unread and occupied voice channels; only the selected one stays (`views.jai`).
 - [ ] Profiles: your own full profile has no Edit Profile button; the DM side panel lacks About Me, pronouns, mutual servers and friends, and the note.
 - [ ] Media: a video's fullscreen fills the window, not the screen (no native fullscreen on any platform) (`view_media.jai` `video_fullscreen`).
@@ -504,7 +503,6 @@
 - [ ] Media: the audio player has no seek bar or volume; the video player lacks download.
 - [ ] Servers: no rules screen, onboarding, Server Guide or Browse Channels / Channels & Roles.
 - [ ] Voice: op 4's `preferred_regions` keep the latency probe's geographic order; the official client ranks the regions with a UDP latency test (`rankRtcRegions`) and sends that order, so ours can differ (`actions.jai` `voice_self_value`).
-- [ ] Voice: a call whose connection can't come back keeps retrying; the official client hangs up when a voice state for our session arrives with no RTC connection for 5 minutes (RTCReconnectTimeoutManager).
 - [ ] Frecency writes (settings-proto/2), the rest: emoji are tracked when inserted from the picker or autocomplete, not when the message is sent (`EMOJI_TRACK_USAGE` after a send, every emoji in it), and reactions only from the picker (the official client tracks every reaction you add); application commands (7), applications (9) and played sounds (11) are never written; the app keeps a second frecency table (`pickers_data.jai`, `expressions.txt`) instead of reading the library's.
 - [ ] Quick switcher: typing never reaches `dc.quick_switcher_type`, so the official per-keystroke `GET /games/autocomplete` (throttled 500 ms) and the follow-up `GET /games?game_ids=` are never sent, and the switcher shows no game results (`src/app/view_switcher.jai` only filters local DMs, channels and servers).
 - [ ] Telemetry: two gaps need a capture. Which locations fire `experiment_guild_triggered` on the first view of an existing guild after login is uncaptured (log out, log in, open a guild channel). The web-vitals INP `app_web_perf_startup_metrics` is not sent.
@@ -775,3 +773,5 @@
 - [x] Media: Save Image and the attachment download button ask where to save in the system Save dialog (NSSavePanel, IFileSaveDialog, zenity or kdialog), offering the file name in Downloads; cancelling downloads nothing (`platform.save_file_dialog`, `media_action`; `tests/ui/media/save_image.txt`). Windows and Linux dialogs are built, not run.
 - [x] Voice: the Voice & Video device dropdown closes on a press outside it, Escape (the settings stay open) or leaving the page (`voice_user_menu`; `tests/ui/voice_device_close.txt`).
 - [x] Voice (macOS): a chosen audio device that goes away falls back to the system default: the HAL device listeners are on from init, and `update()` drops a selection whose device is no longer alive (`device_rate_changed` in `audio/darwin.jai`).
+- [x] Voice: a call with no RTC connection for 5 minutes while our voice state is in it hangs up, as RTCReconnectTimeoutManager does (`unconnected_since` in `voice_frame`).
+- [x] Undo: hanging up (the panel, the call view or the DM phone button) offers Rejoin in the voice panel for 5 s; it joins again and turns the camera and screen share back on once connected (`voice_hang_up`, `voice_rejoin`; `tests/ui/call/rejoin.txt`).

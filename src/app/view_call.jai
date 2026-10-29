@@ -349,10 +349,7 @@ call_controls :: (cid: dc.Snowflake) {
 	sbc := control("soundboard", "music", false, sb.open, soundboard_available());
 	if sbc soundboard_toggle(control_rect);
 	spacer(.X, 8);
-	if control("leave", "phone-hang-up", true, false, true) {
-		if app.client != null dc.analytics_call_disconnect(app.client, ifx dc.channel_get(store(), cid) then dc.channel_get(store(), cid).guild_id else 0, cid);
-		voice_leave_channel();
-	}
+	if control("leave", "phone-hang-up", true, false, true) voice_hang_up();
 	filler(.X);
 	if control("full", "fullscreen", false, app.view.call_full, true) app.view.call_full = !app.view.call_full; // Escape also leaves
 	spacer(.X, 16);

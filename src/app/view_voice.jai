@@ -9,6 +9,9 @@
 
 VOICE_PANEL_H :: 56;
 VOICE_BUTTONS_H :: 40; // the Video / Screen row under it
+RTC_RECONNECT_TIMEOUT_MS :: 5 * 60 * 1000;
+REJOIN_MS :: 5000; // how long a hang up offers Rejoin
+REJOIN_H :: 48;
 
 voice_set_headless :: (h: bool) { vc.headless = h; }
 
@@ -30,6 +33,7 @@ hosted_voice :: (cl: *dc.Client) -> voice.Hosted {
 
 // voice_client_gone: c is being released (a hosted server dropped or logged in again), so its call ends here.
 voice_client_gone :: (c: *dc.Client) {
+	if vc.rejoin.client == c vc.rejoin = .{};
 	if !c || c != vc.client return;
 	app.voice_channel = 0;
 	voice_drop();
@@ -57,7 +61,7 @@ voice_join_channel :: (gid: dc.Snowflake, cid: dc.Snowflake) {
 // CALL_CREATE arrives (dc.dm_call_start).
 dm_call_toggle :: (ch: *dc.Channel) {
 	if app.voice_channel == ch.id {
-		voice_leave_channel();
+		voice_hang_up();
 		return;
 	}
 	if !net_action() { return; }
@@ -88,7 +92,33 @@ voice_return :: () {
 	if ch select_channel(ch.guild_id, ch.id);
 }
 
+// voice_hang_up: the panel's, call view's or DM header's hang up. For a few seconds the panel offers Rejoin,
+// which joins again and turns the camera and screen share back on (fastcord-only).
+voice_hang_up :: () {
+	if !app.voice_channel return;
+	vc.rejoin = .{client = call_client(), guild = vc.guild, channel = app.voice_channel, camera = camera_on(), screen = screen_sharing(),
+		target = vid.own_target, until = dc.now_ms() + REJOIN_MS};
+	if call_client() dc.analytics_call_disconnect(call_client(), vc.guild, app.voice_channel);
+	voice_leave_channel();
+	request_wake(platform.time_now() + REJOIN_MS / 1000.0 + 0.01);
+}
+
+rejoin_offered :: () -> bool { return vc.rejoin.channel && !app.voice_channel && dc.now_ms() < vc.rejoin.until; }
+
+voice_rejoin :: () {
+	r := vc.rejoin;
+	vc.rejoin = .{};
+	keep := app.client;
+	app.client = r.client;
+	if r.guild voice_join_channel(r.guild, r.channel);
+	else if dc.channel_get(store(), r.channel) dm_call_toggle(dc.channel_get(store(), r.channel));
+	app.client = keep;
+	if app.voice_channel != r.channel return;
+	vc.restore_camera, vc.restore_screen, vc.restore_target = r.camera, r.screen, r.target;
+}
+
 voice_leave_channel :: () {
+	vc.restore_camera, vc.restore_screen = false, false;
 	if call_client() != null && app.voice_channel != 0 { dc.voice_leave(call_client()); }
 	app.voice_channel = 0;
 	voice_drop();
@@ -186,6 +216,17 @@ voice_frame :: () {
 	rtc := voice_rtc_state();
 	dc.client_set_rtc_state(cl, rtc); // client_rtc_state while in voice
 	if rtc == .Rtc_Connected dc.backoff_succeed(*vc.backoff);
+	if rtc == .Rtc_Connected && vc.restore_camera { vc.restore_camera = false; if !camera_on() camera_toggle(); }
+	if rtc == .Rtc_Connected && vc.restore_screen { vc.restore_screen = false; go_live_start(vc.restore_target); }
+	// RTCReconnectTimeoutManager: in a call (our voice state is there) with no RTC connection for 5 minutes,
+	// the official client hangs up rather than retry forever.
+	if rtc == .Rtc_Connected || !vc.seen_channel vc.unconnected_since = 0;
+	else if !vc.unconnected_since vc.unconnected_since = dc.now_ms();
+	else if dc.now_ms() - vc.unconnected_since >= RTC_RECONNECT_TIMEOUT_MS {
+		voice_leave_channel();
+		return;
+	}
+	if vc.unconnected_since request_wake(platform.time_now() + cast(float64) (vc.unconnected_since + RTC_RECONNECT_TIMEOUT_MS - dc.now_ms()) / 1000 + 0.01);
 	if vc.conn != null && voice.state(vc.conn) == .Disconnected {
 		// RTCConnection._handleDisconnect: whatever the code, connect again (a fresh IDENTIFY) after
 		// Backoff(1 s, 10 s); our voice state going away (above) is what ends the call.
@@ -227,7 +268,7 @@ voice_channel_full :: (cid: dc.Snowflake) -> bool {
 }
 
 voice_panel_height :: () -> float32 {
-	if app.voice_channel == 0 return 0;
+	if app.voice_channel == 0 return ifx rejoin_offered() then cast(float32) REJOIN_H else 0;
 	return cast(float32) VOICE_PANEL_H + VOICE_BUTTONS_H;
 }
 
@@ -253,6 +294,32 @@ voice_avatar :: (id: string, uid: dc.Snowflake, size: float32, surface: ui.Color
 
 // voice_panel: "Voice Connected" / channel / guild, disconnect button; ping on hover.
 voice_panel :: () {
+	if !app.voice_channel {
+		// the Rejoin offer after a hang up
+		r := row("rejoin");
+		r.semantic_size = .[ui.pct(1), ui.px(REJOIN_H)];
+		{ ui.parent(r); defer ui.pop_parent();
+			spacer(.X, 14);
+			label("Disconnected", .Semibold, 14, T("--text-muted"), 18);
+			filler(.X);
+			b := row("rejoinbtn", .Clickable | .Draw_Background | .Hot_Animation);
+			b.semantic_size = .[ui.children(), ui.px(32)];
+			b.style.radius = all4(8);
+			b.style.bg = T("--background-brand");
+			b.style.bg_hot = with_alpha(T("--background-brand"), 0.85);
+			if ui.signal(b).clicked voice_rejoin();
+			{ ui.parent(b); defer ui.pop_parent();
+				spacer(.X, 14);
+				label("Rejoin", .Semibold, 14, .{1, 1, 1, 1}, 18);
+				spacer(.X, 14);
+			}
+			spacer(.X, 8);
+		}
+		div := ui.box("div", .Draw_Background);
+		div.semantic_size = .[ui.pct(1), ui.px(1)];
+		div.style.bg = T("--border-subtle");
+		return;
+	}
 	s := call_store();
 	p := row("voicepanel");
 	p.semantic_size = .[ui.pct(1), ui.px(VOICE_PANEL_H)];
@@ -344,10 +411,7 @@ voice_panel :: () {
 			spacer(.X, 6);
 			icon("i", "phone-hang-up", 20, ifx dsig.hovering then T("--interactive-icon-hover") else T("--interactive-icon-default"));
 		}
-		if dsig.clicked {
-			if call_client() != null { dc.analytics_call_disconnect(call_client(), vc.guild, app.voice_channel); }
-			voice_leave_channel();
-		}
+		if dsig.clicked voice_hang_up();
 		spacer(.X, 8);
 	}
 	can_video := vc.conn != null && voice.state(vc.conn) == .Connected;
@@ -490,7 +554,17 @@ Voice_App :: struct {
 	seen_channel: dc.Snowflake; // our voice state's channel last frame (0: none, or not yet confirmed)
 	backoff := dc.Backoff.{min_ms = 1000, max_ms = 10000, jitter = true, current = 1000}; // RTCConnection._backoff
 	retry_at: s64; // no new connection before this (dc.now_ms)
+	unconnected_since: s64; // dc.now_ms when the call lost (or had not yet) its RTC connection; 0 while connected
 	speaking: Table(dc.Snowflake, bool); // this frame's speaking set
+	rejoin: struct { // what a hang up left, for Rejoin (voice_hang_up)
+		client: *dc.Client;
+		guild, channel: dc.Snowflake;
+		camera, screen: bool;
+		target: video.Screen_Target;
+		until: s64;
+	};
+	restore_camera, restore_screen: bool; // Rejoin turns these back on once connected
+	restore_target: video.Screen_Target;
 }
 
 vc: Voice_App;
@@ -506,6 +580,7 @@ voice_drop :: () {
 	vc.synced = false;
 	vc.seen_channel = 0;
 	vc.retry_at = 0;
+	vc.unconnected_since = 0;
 	dc.backoff_succeed(*vc.backoff);
 	table_reset_keeping_memory(*vc.speaking);
 }
