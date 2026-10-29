@@ -17,6 +17,7 @@ tls :: #import "tls";
 
 #load "unfurl.jai";
 #load "voice.jai";
+#load "soundboard.jai";
 
 ALPN :: "fc/1";
 HEARTBEAT_INTERVAL_MS :: 41_250;
@@ -102,7 +103,7 @@ open :: (path: string) -> *Server, bool {
 	if !ok return null, false;
 	s := New(Server);
 	s.db = db;
-	if !sqlite.exec(db, SCHEMA) { close(s); return null, false; }
+	if !sqlite.exec(db, SCHEMA) || !sqlite.exec(db, SOUND_SCHEMA) { close(s); return null, false; }
 	// Files made before these columns; each fails harmlessly once it exists.
 	sqlite.exec(db, "ALTER TABLE users ADD COLUMN left INTEGER NOT NULL DEFAULT 0;");
 	sqlite.exec(db, "ALTER TABLE users ADD COLUMN banned INTEGER NOT NULL DEFAULT 0;");
@@ -719,8 +720,13 @@ serve_conn :: (c: *Conn) {
 			if !login(c, session, req) return;
 			continue;
 		}
-		if begins_with(req.path, "/upload/") || begins_with(req.path, "/attachments/") || begins_with(req.path, "/api/v9/attachments/") || begins_with(req.path, "/icons/") || begins_with(req.path, "/avatars/") || begins_with(req.path, "/emojis/") {
+		if begins_with(req.path, "/upload/") || begins_with(req.path, "/attachments/") || begins_with(req.path, "/api/v9/attachments/") || begins_with(req.path, "/icons/") || begins_with(req.path, "/avatars/") || begins_with(req.path, "/emojis/") || begins_with(req.path, "/soundboard-sounds/") {
 			if !files(c, req) return;
+			continue;
+		}
+		if begins_with(req.path, tprint("/api/v9/guilds/%/soundboard-sounds", c.server.guild)) || req.path == "/api/v9/soundboard-default-sounds"
+				|| (begins_with(req.path, "/api/v9/channels/") && ends_with(req.path, "/send-soundboard-sound")) {
+			if !soundboard(c, req) return;
 			continue;
 		}
 		if begins_with(req.path, "/api/v9/channels/") {
@@ -1666,6 +1672,7 @@ ready_value ::(s: *Server, user: s64, name: string, session: [16]u8) -> etf.Valu
 	etf.map_put(*g, "name", etf.vstring(copy_string(s.name,, temp)));
 	etf.map_put(*g, "icon", guild_icon_locked(s));
 	etf.map_put(*g, "emojis", emoji_list_locked(s));
+	etf.map_put(*g, "soundboard_sounds", sound_list_locked(s));
 	etf.map_put(*g, "member_count", etf.vint(members));
 	owner := owner_id(s);
 	if owner etf.map_put(*g, "owner_id", snow(owner));
@@ -3268,6 +3275,10 @@ files :: (c: *Conn, req: http.Request) -> bool {
 	}
 	// GET /emojis/{id}.{ext}: a custom emoji, whatever the extension and size asked for. Like Discord's, an
 	// emoji is public to whoever knows its ID.
+	if begins_with(path, "/soundboard-sounds/") {
+		if req.method != "GET" return json_error(c, 405, 0, "405: Method Not Allowed");
+		return sound_file(c, path);
+	}
 	if begins_with(path, "/emojis/") {
 		if req.method != "GET" return json_error(c, 405, 0, "405: Method Not Allowed");
 		name := advance(path, "/emojis/".count);

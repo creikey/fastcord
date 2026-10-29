@@ -43,7 +43,7 @@
   - Done: camera video in hosted voice channels: op 12 and the camera's RTP, retransmissions and keyframe requests go through serve like audio, in H.264, which every fastcord sends and shows (`src/tests/serve_voice.jai`).
   - Done: Go Live in hosted voice channels. Gateway ops 18-20 give a stream its own room on serve (its `rtc_server_id`) with STREAM_CREATE and STREAM_SERVER_UPDATE; the streamer and each viewer join it with a second voice connection, as on Discord; the streamer's voice state shows `self_stream`, and the stream ends with it (`serve/voice.jai` `stream_op`, `src/tests/serve_voice.jai`).
   - Stickers: upload and send server stickers; the picker's Stickers tab shows them on hosted servers.
-  - Soundboard: server sounds served and played to everyone in the voice channel.
+  - Done: Soundboard. Serve keeps the owner's sounds (mp3/ogg, 512 KB, 48 at most, checked by magic bytes, never decoded), lists them in READY, `GUILD_SOUNDBOARD_SOUNDS_UPDATE` and `GET /guilds/{id}/soundboard-sounds`, serves `/soundboard-sounds/{id}`, and relays `send-soundboard-sound` from a member in a voice channel as `VOICE_CHANNEL_EFFECT_SEND` to everyone there (`src/serve/soundboard.jai`, `src/tests/serve_soundboard.jai`).
   - Roles and permissions, channel permission overwrites, private channels (Hosting 4).
   - Emoji rename/delete, animated emoji, emoji in the picker across servers.
   - Polls, forum channels, announcement channels, stage channels, events in voice channels. Stage channels wait on the client's own stage support, which Discord's lack too: Create Channel offers no Stage type and stage channels list no one (the Voice and Create Channel items below).
