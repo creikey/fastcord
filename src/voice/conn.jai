@@ -1634,6 +1634,17 @@ send_video :: (c: *Conn, codec: Video_Codec, au: []u8, ts_90k: u32) {
     if !c.video_on || !c.video_ssrc || !c.udp_open return;
     frame, nals := with_long_start_codes(ifx codec == .H264 then h264_add_vui(au) else au);
     if !nals.count return;
+    // FASTCORD_VOICE_DEBUG: each keyframe's NAL units (type:size) and its parameter sets in hex
+    if c.debug && nals.count > 1 {
+        sb: String_Builder;
+        print_to_builder(*sb, "sent % frame %x%:", codec, au.count, nals.count);
+        for nals print_to_builder(*sb, " %:%", nal_type(codec, frame[it.start]), it.end - it.start);
+        for nals if (codec == .H264 && nal_type(codec, frame[it.start]) == 7 || nal_type(codec, frame[it.start]) == 8) || (codec == .H265 && nal_type(codec, frame[it.start]) >= 32 && nal_type(codec, frame[it.start]) <= 34) {
+            print_to_builder(*sb, " | ");
+            for b: array_view(frame, it.start, min(it.end - it.start, 64)) print_to_builder(*sb, "%", formatInt(b, base = 16, minimum_digits = 2));
+        }
+        dbg(c, "%", builder_to_string(*sb,, temp));
+    }
     enc := NewArray(frame.count + 256, u8, false,, temp);
     fl := DAVE.session_encrypt(*c.dave, frame, enc, dave_clear_ranges(codec, frame, nals));
     if fl <= 0 return;
