@@ -306,6 +306,13 @@ current_guild :: () -> dc.Snowflake {
 	return ifx c then c.guild_id else 0;
 }
 
+// Free emoji (fastcord-only, like Vencord's FakeNitro): a locked custom emoji can still go in a message,
+// sent as a link to its image (emoji.jai free_emoji_text). Not as a reaction or status, nor on a hosted
+// server, which has no Discord CDN.
+free_pick :: (item: Pk_Emoji) -> bool {
+	return item.locked && item.id != 0 && (pk.mode == .Composer || pk.mode == .Edit) && !on_hosted();
+}
+
 // Custom emoji usable here?
 custom_locked :: (e: dc.Emoji, here: dc.Snowflake, reach: Emoji_Reach) -> bool {
 	if !e.available return true;
@@ -627,7 +634,7 @@ emoji_grid :: (secs: []Em_Section, cols: int, view: ui.Rect) {
 					e := pk_emoji_box("e", item, EM_SIZE, inspected && sig.hovering);
 					e.flags |= .Floating_X | .Floating_Y;
 					e.fixed_pos = .{(EM_CELL - EM_SIZE) / 2, (EM_CELL - EM_SIZE) / 2};
-					if item.locked {
+					if item.locked && !free_pick(item) {
 						e.opacity = 0.3;
 						lk := ui.box("lock", .Floating_X | .Floating_Y);
 						lk.semantic_size = .[ui.px(14), ui.px(14)];
@@ -805,11 +812,12 @@ sprite_draw :: (b: *ui.Box, user: *void) {
 
 // Insert into the composer, or react. Shift keeps the picker open.
 emoji_select :: (item: Pk_Emoji, keep_open: bool) {
-	if item.locked return;
+	if item.locked && !free_pick(item) return;
 	text := emoji_item_text(item);
 	name := ifx item.uni >= 0 then text else item.name;
 	key := frec_key(item);
-	if app.client != null dc.picker_emoji_selected(app.client, item.name, item.id, item.guild, item.animated, item.locked);
+	// a free pick is fastcord's own: the client never selects a locked emoji, so nothing is reported
+	if app.client != null && !item.locked dc.picker_emoji_selected(app.client, item.name, item.id, item.guild, item.animated, item.locked);
 	if pk.mode == .Status {
 		frec_use(*frecency.emoji, key);
 		custom_status_set_emoji(ifx item.id then item.name else text, item.id); // custom_status.jai

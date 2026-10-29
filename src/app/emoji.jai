@@ -269,7 +269,36 @@ emoji_for_name :: (name: string, channel: dc.Snowflake) -> string {
 		g := dc.guild_get(store(), gid);
 		if g for g.emojis if it.name == name && !custom_locked(it, here, reach) return custom_emoji_markup(it.name, it.id, it.animated);
 	}
+	// none usable: any of ours by that name, which free_emoji_text sends as a link
+	if !on_hosted() for gid: emoji_guilds(here) {
+		g := dc.guild_get(store(), gid);
+		if g for g.emojis if it.name == name return custom_emoji_markup(it.name, it.id, it.animated);
+	}
 	return "";
+}
+
+// free_emoji_text: custom emoji markup ("<:name:id>", "<a:name:id>") as sent in channel: itself when usable
+// there, else (fastcord-only, like Vencord's FakeNitro) a masked link to its image, which official clients
+// show as an image and FakeNitro and fastcord draw as the emoji (markdown.jai free_emoji_link).
+free_emoji_text :: (markup: string, channel: dc.Snowflake) -> string {
+	if on_hosted() return markup;
+	animated := begins_with(markup, "<a:");
+	body := slice(markup, ifx animated then 3 else 2, markup.count - (ifx animated then 4 else 3));
+	colon := find_index_from_left(body, #char ":");
+	if colon <= 0 return markup;
+	name := slice(body, 0, colon);
+	id, ok := dc.parse_u64(slice(body, colon + 1, body.count - colon - 1));
+	if !ok return markup;
+	ch := dc.channel_get(store(), channel);
+	here := ifx ch then ch.guild_id else 0;
+	reach := emoji_reach(channel);
+	usable := reach == .Anywhere; // an emoji from none of our servers: only with Nitro and external emoji
+	for gid: emoji_guilds(here) {
+		g := dc.guild_get(store(), gid);
+		if g for g.emojis if it.id == id usable = !custom_locked(it, here, reach);
+	}
+	if usable return markup;
+	return tprint("[%1](https://cdn.discordapp.com/emojis/%2.%3?size=48%4&name=%1)", name, id, ifx animated then "gif" else "webp", ifx animated then "&animated=true" else "");
 }
 
 custom_emoji_markup :: (name: string, id: dc.Snowflake, animated: bool) -> string {
@@ -311,7 +340,7 @@ emoji_convert_shortcodes :: (text: string, channel: dc.Snowflake) -> string {
 		if c == #char "<" && !in_code {
 			end, _, ok := custom_emoji_at(text, i);
 			if ok {
-				append(*sb, string.{end - i, text.data + i});
+				append(*sb, free_emoji_text(string.{end - i, text.data + i}, channel));
 				i = end;
 				continue;
 			}
@@ -321,7 +350,7 @@ emoji_convert_shortcodes :: (text: string, channel: dc.Snowflake) -> string {
 			name := ifx j > i + 1 then string.{j - i - 1, text.data + i + 1} else "";
 			e := ifx is_shortcode_name(name) then emoji_for_name(name, channel) else "";
 			if e {
-				append(*sb, e);
+				append(*sb, free_emoji_text(e, channel));
 				i = j + 1;
 				continue;
 			}

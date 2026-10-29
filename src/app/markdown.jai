@@ -53,6 +53,25 @@ Md_Block :: struct {
 	quoted: bool; // inside a "> " / ">>> " quote (its paragraphs are .Quote)
 }
 
+// free_emoji_link: a custom emoji's CDN image as a link (https://cdn.discordapp.com/emojis/<id>.webp, .png
+// or .gif, any query; media.discordapp.net too), which FakeNitro-style clients send for emoji they
+// can't use. Animated: .gif or animated=true.
+free_emoji_link :: (url: string) -> id: u64, animated: bool, ok: bool {
+	rest := url;
+	if begins_with(rest, "https://cdn.discordapp.com/emojis/") advance(*rest, "https://cdn.discordapp.com/emojis/".count);
+	else if begins_with(rest, "https://media.discordapp.net/emojis/") advance(*rest, "https://media.discordapp.net/emojis/".count);
+	else return 0, false, false;
+	dot := find_index_from_left(rest, #char ".");
+	if dot <= 0 return 0, false, false;
+	id, ok := dc.parse_u64(span(rest, 0, dot));
+	if !ok return 0, false, false;
+	advance(*rest, dot + 1);
+	q := find_index_from_left(rest, #char "?");
+	ext := ifx q < 0 then rest else span(rest, 0, q);
+	if ext != "webp" && ext != "png" && ext != "gif" return 0, false, false;
+	return id, ext == "gif" || (q >= 0 && contains(span(rest, q, rest.count), "animated=true")), true;
+}
+
 // Parses into temp. A quote's body is parsed again with quoted set, as the client's blockQuote rule
 // does: headings, lists and code blocks work inside, nested quotes don't.
 md_parse :: (src: string, quoted := false) -> []Md_Block {
@@ -417,6 +436,15 @@ inline_into :: (p: *Md_Parser, src: string) {
 		// masked links: [text](url), text styled as usual and every piece of it a link
 		if c == #char "[" && p.masked_links && p.depth < MD_MAX_DEPTH {
 			n, url := masked_link(p, here);
+			// a free emoji link (fastcord's, or Vencord FakeNitro's) draws as the emoji itself
+			id, animated, emoji := free_emoji_link(url);
+			if n > 0 && emoji {
+				emit(p, .Text, pending());
+				name := span(src, i + 1, i + close_bracket(p, here));
+				array_add(*p.out, .{kind = .Custom_Emoji, id = id, name = ifx dc.is_hash(name) then name else "emoji", animated = animated, text = span(src, i, i + n), styles = p.styles});
+				take(i + n);
+				continue;
+			}
 			if n > 0 {
 				emit(p, .Text, pending());
 				first := p.out.count;

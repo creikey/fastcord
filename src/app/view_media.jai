@@ -741,6 +741,9 @@ voice_waveform :: (wave: string, frac: float32, ip: *Inline_Player, dur: float64
 embeds_view :: (m: *dc.Message, max_w: float32 = 400) {
 	if m.flags & 4 return; // SUPPRESS_EMBEDS
 	for * e, i: m.embeds {
+		// a free emoji link's image already shows inline, as the emoji (markdown.jai free_emoji_link)
+		_, _, free := free_emoji_link(e.url);
+		if free && e.kind == "image" && contains(m.content, tprint("](%", e.url)) continue;
 		if e.kind == "gifv" || (e.kind == "image" && e.title == "") {
 			// bare media links render as the media itself; GIFV (Tenor, Klipy) as its looping video
 			url := ifx e.thumbnail_url != "" then e.thumbnail_url else e.image_url;

@@ -977,6 +977,13 @@ script_command :: (path: string, f: []string, t: *float64, depth := 0) {
 			fail("%: expect_input failed\n  want \"%\"\n  got  \"%\"", path, want, got);
 		}
 		return;
+	case "expect_sends";
+		// the open channel's composer text as Enter would send it (shortcodes, free emoji, mentions)
+		want := unquote(join_args(f));
+		ch := dc.channel_get(store(), app.view.channel);
+		got := ifx ch then mentions_convert(emoji_convert_shortcodes(ui.editor_text(*chat_state(ch.id).editor), ch.id), ch) else "<no channel>";
+		if got != want fail("%: expect_sends failed\n  want \"%\"\n  got  \"%\"", path, want, got);
+		return;
 	case "expect_clipboard";
 		want := unquote(join_args(f));
 		got := platform.clipboard_get();

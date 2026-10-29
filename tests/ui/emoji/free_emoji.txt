@@ -1,0 +1,15 @@
+# Free emoji (fastcord-only, like Vencord's FakeNitro). Without Nitro, another server's emoji picked in the
+# picker goes out as a masked link to its image; a received link of that shape draws as the emoji, its image
+# embed left out (in the shot).
+dispatch GUILD_CREATE {"id":"1600000000000000001","name":"Other","channels":[],"roles":[],"emojis":[{"id":"1546820603343016300","name":"parrotdance","animated":false,"available":true}]}
+dispatch MESSAGE_CREATE {"id":"1600000000000000010","channel_id":"1546820603343016006","guild_id":"1546820558300258304","author":{"id":"1000000000000000001","username":"robin"},"content":"look [parrotdance](https://cdn.discordapp.com/emojis/1546820603343016300.webp?size=48&name=parrotdance) here","timestamp":"2026-10-28T10:00:00.000000+00:00","embeds":[{"type":"image","url":"https://cdn.discordapp.com/emojis/1546820603343016300.webp?size=48&name=parrotdance","thumbnail":{"url":"https://cdn.discordapp.com/emojis/1546820603343016300.webp","proxy_url":"https://media.discordapp.net/emojis/1546820603343016300.webp","width":48,"height":48}}],"attachments":[],"mentions":[],"type":0}
+wait 20
+settle 1
+shot build/ui-emoji_free_emoji-received.png
+click 980 683
+wait 20
+type parrotdance
+wait 5
+key enter
+wait 10
+expect_sends "[parrotdance](https://cdn.discordapp.com/emojis/1546820603343016300.webp?size=48&name=parrotdance)"
