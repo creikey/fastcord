@@ -3,6 +3,9 @@
 #import "Basic";
 #import "File";
 #import "File_Utilities";
+#import "Base64";
+crypto :: #import "crypto";
+keys :: #import "keys";
 etf :: #import "etf";
 http :: #import "http";
 netio :: #import "netio";
@@ -71,6 +74,36 @@ main :: () {
 			check(acks == 120, tprint("120 heartbeats are answered, then the gateway closes (% answered)", acks));
 			http.ws_close_stream(ws);
 		}
+	}
+
+	// Logout (sent as a client quits) ends the session: its token opens nothing afterwards.
+	session = dial();
+	if session {
+		k := keys.generate("Quitter");
+		msg, _ := serve.login_message(session, s.id);
+		sig := crypto.slhdsa_sign(k.signing, serve.LOGIN_CONTEXT, msg);
+		p := keys.proof(k, .Signing);
+		body := tprint("{\"root\": \"%\", \"signing_pub\": \"%\", \"proof\": [\"%\", \"%\"], \"sig\": \"%\", \"code\": \"%\", \"name\": \"Quitter\"}",
+			keys.root_hex(k.root), keys.root_hex(k.signing_pub), keys.root_hex(p[0]), keys.root_hex(p[1]), base64_encode(cast(string) sig), serve.first_invite(s));
+		h: http.H1_Conn;
+		http.h1_init(*h, tls.stream(session));
+		req := http.Request.{method = "POST", path = "/api/v9/fc/login", authority = id, body = cast([]u8) body,
+			headers = .[.{"Content-Type", "application/json"}, .{"Content-Length", tprint("%", body.count)}]};
+		resp := http.h1_round_trip(*h, req);
+		token := "";
+		v, err := etf.from_json(cast(string) resp.body,, temp);
+		if err == .None && v.kind == .Map { t, _ := etf.map_get(v.map, "token"); if t.kind == .String token = t.s; }
+		check(resp.status == 200 && token != "", tprint("login: %", resp.status));
+		call :: (method: string, path: string) -> int #expand {
+			r := http.Request.{method = method, path = path, authority = `id, headers = .[.{"Authorization", `token}, .{"Content-Length", "0"}]};
+			rr := http.h1_round_trip(*`h, r);
+			return rr.status;
+		}
+		check(call("GET", "/api/v9/users/@me/mentions") == 200, "the token works");
+		check(call("POST", "/api/v9/auth/logout") == 204, "logout");
+		check(call("GET", "/api/v9/users/@me/mentions") == 401, "after logout the token opens nothing");
+		http.h1_destroy(*h, false);
+		tls.close(session);
 	}
 
 	// Writes and logins are budgeted per address; loopback is exempt.

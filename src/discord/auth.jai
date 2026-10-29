@@ -307,6 +307,12 @@ auth_job :: (c: *Client, path: string, body: []u8, action: Auth_Action, retries 
 
 // ---- log out ----
 
+// hosted_logout ends a self-hosted server's session as fastcord quits, so a token left in memory or a
+// log opens nothing afterwards; the next start logs in again by key. Blocks: teardown threads only.
+hosted_logout :: (c: *Client) {
+	if c.cfg.hosted.host api_call(c, "POST", "/auth/logout", .[], "application/json", "", .[], 0, 0);
+}
+
 // client_logout: POST /auth/logout, then LOGOUT (auth_apply). source is the
 // logout_source ("settings" from User Settings > Log Out;
 // "multi_accounts_list" from the account switcher, which also tracks

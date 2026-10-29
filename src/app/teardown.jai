@@ -5,10 +5,11 @@
 
 teardown_busy :: () -> bool { return atomic_load(*teardowns) > 0; }
 
-client_release :: (c: *dc.Client) {
+client_release :: (c: *dc.Client, logout := false) {
 	if c == null return;
 	voice_client_gone(c);
-	teardown_start(c, (c: *dc.Client) { dc.client_destroy(c); teardown_done(); });
+	if logout teardown_start(c, (c: *dc.Client) { dc.hosted_logout(c); dc.client_destroy(c); teardown_done(); });
+	else teardown_start(c, (c: *dc.Client) { dc.client_destroy(c); teardown_done(); });
 }
 
 voice_release :: (c: *voice.Conn) {
@@ -19,8 +20,9 @@ voice_release :: (c: *voice.Conn) {
 // teardown_wait is for process exit, when there is no window left to freeze: it lets the close
 // frames go out before the process ends.
 teardown_wait :: () {
-	while teardown_busy() sleep_milliseconds(10);
-	reap_teardowns();
+	start := current_time_monotonic();
+	while teardown_busy() && to_float64_seconds(current_time_monotonic() - start) < 3 sleep_milliseconds(10);
+	if !teardown_busy() reap_teardowns(); // past 3 s (a server that doesn't answer), the process just ends
 }
 
 #scope_file

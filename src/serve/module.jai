@@ -682,6 +682,17 @@ login :: (c: *Conn, session: *tls.Session, req: http.Request) -> bool {
 	return respond(c, 200, body);
 }
 
+// POST /api/v9/auth/logout: a client that quits ends its session, so the token stops working at once.
+logout :: (c: *Conn, req: http.Request) -> bool {
+	token, _ := http.header_get(req.headers, "authorization");
+	t: [32]u8;
+	if !unhex(token, t) return json_error(c, 401, 0, "401: Unauthorized");
+	h := crypto.blake3(t);
+	locks.guard(*c.server.db_mu);
+	sqlite.run(c.server.db, "DELETE FROM sessions WHERE token_hash = ?;", cast([]u8) h);
+	return respond(c, 204);
+}
+
 spawn :: (data: $D, proc: (D)) -> *Thread {
 	Spawned :: struct { #as thread: Thread; arg: D; run: (D); }
 	t := New(Spawned);
@@ -789,6 +800,10 @@ serve_conn :: (c: *Conn) {
 		}
 		if req.method == "POST" && req.path == "/api/v9/fc/login" {
 			if !login(c, session, req) return;
+			continue;
+		}
+		if req.method == "POST" && req.path == "/api/v9/auth/logout" {
+			if !logout(c, req) return;
 			continue;
 		}
 		if begins_with(req.path, "/upload/") || begins_with(req.path, "/attachments/") || begins_with(req.path, "/api/v9/attachments/") || begins_with(req.path, "/icons/") || begins_with(req.path, "/avatars/") || begins_with(req.path, "/emojis/") || begins_with(req.path, "/soundboard-sounds/") || begins_with(req.path, "/stickers/") {

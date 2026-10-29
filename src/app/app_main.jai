@@ -295,7 +295,7 @@ app_exit :: () {
 	voice_leave_channel();
 	voice_shutdown();
 	client_release(app.discord);
-	for hosted if it.client client_release(it.client);
+	for hosted if it.client client_release(it.client, logout = true);
 	app.client, app.discord = null, null;
 	if e2e_db e2e.stop(e2e_db);
 	teardown_wait();

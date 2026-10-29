@@ -212,7 +212,7 @@
   - Done: at most 16 connections per address (an IPv6 /64 counts as one) and 1024 in total; past that the server hangs up at once (`accept_loop`, `netio.Tcp.peer`).
   - Done: when accept fails (the fd limit), `accept_loop` reaps finished connections and backs off (10 ms doubling to 1 s) instead of spinning.
   - Done: a member keeps at most 16 sessions (`MAX_SESSIONS`); each login drops their oldest past that, so sessions no longer pile up one per client start.
-  - A closed client's session stays valid until 16 newer logins replace it. Add logout on quit. (The owner's Kick and Ban, which revoke sessions, are done.)
+  - Done: a client that quits ends its hosted sessions (`POST /api/v9/auth/logout`, `hosted_logout`, on the teardown threads); serve deletes the session, so its token opens nothing afterwards (`src/tests/serve_limits.jai`). Exit waits at most 3 s for teardowns, so a server that doesn't answer can't hold the quit.
   - Session tokens are bearer tokens: login proves the key, but the token it returns works from any connection, so one copied from memory or a log is the account. Have the client register an Ed25519 session key at login and sign each new connection's TLS exporter with it, so the token alone opens nothing.
   - Done: a hosted client whose session the server ended (gateway close 4004) logs in again by key; the old client stays on screen until the new one replaces it, and a server that no longer knows us is dropped as on a start (`hosted.jai` `hosted_frame`). Not yet covered by a test: no headless run reaches a live `-serve`.
   - Every Identify, disconnect and op 37 resends the full member list to every connection (already in Hosting 2's Next).
