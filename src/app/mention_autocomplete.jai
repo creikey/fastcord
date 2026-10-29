@@ -79,15 +79,25 @@ channel_items :: (ch: *dc.Channel, q: string) -> []Mention_Item {
 	return out;
 }
 
-// mention_items: what "@q" offers in ch (temp), at most MAC_MAX rows.
+// mention_items: what "@q" offers in ch (temp), at most MAC_MAX rows. Names starting with q come
+// first; rows left over go to fuzzy matches (q's letters in order), members after members and roles
+// after roles, as the client's fuzzysearch fill does.
 mention_items :: (ch: *dc.Channel, q: string) -> []Mention_Item {
 	s := store();
 	lq := to_lower_copy(q,, temp);
-	starts :: (name: string, lq: string) -> bool { return name != "" && begins_with(to_lower_copy(name,, temp), lq); }
-	out: [..]Mention_Item;
-	out.allocator = temp;
-	// a member who can see ch (anyone in a DM) whose username, display name or nick starts with q
-	ok :: (uid: dc.Snowflake) -> bool #expand {
+	// pass 0: name starts with lq; pass 1: lq is a subsequence of it but not its start
+	match :: (name: string, lq: string, pass: int) -> bool {
+		if name == "" return false;
+		n := to_lower_copy(name,, temp);
+		if begins_with(n, lq) return pass == 0;
+		if pass == 0 return false;
+		i := 0;
+		for cast([]u8) n if i < lq.count && it == lq[i] i += 1;
+		return i == lq.count;
+	}
+	// a member who can see ch (anyone in a DM) whose names match q in this pass; a prefix on any of its
+	// names keeps it out of the fuzzy pass
+	ok :: (uid: dc.Snowflake, pass: int) -> bool #expand {
 		u := dc.user_get(s, uid);
 		if !u return false;
 		mem: *dc.Member;
@@ -95,24 +105,26 @@ mention_items :: (ch: *dc.Channel, q: string) -> []Mention_Item {
 			mem = dc.member_get(s, ch.guild_id, uid);
 			if !mem || !dc.has_permission(dc.channel_permissions_of(s, ch.id, uid, mem.roles), dc.PERM_VIEW_CHANNEL) return false;
 		}
-		return lq == "" || starts(u.username, lq) || starts(u.global_name, lq) || (mem && starts(mem.nick, lq));
+		if lq == "" return pass == 0;
+		if match(u.username, lq, 0) || match(u.global_name, lq, 0) || (mem && match(mem.nick, lq, 0)) return pass == 0;
+		return pass == 1 && (match(u.username, lq, 1) || match(u.global_name, lq, 1) || (mem && match(mem.nick, lq, 1)));
 	}
-	users: [..]dc.Snowflake;
-	users.allocator = temp;
+	users: [2][..]dc.Snowflake;
+	users[0].allocator, users[1].allocator = temp, temp;
 	// no query: the channel's recent authors, newest first, if there are any
 	if lq == "" for < dc.messages_get(s, ch.id) {
-		if users.count == MAC_MAX break;
-		if !array_find(users, it.author_id) && ok(it.author_id) array_add(*users, it.author_id);
+		if users[0].count == MAC_MAX break;
+		if !array_find(users[0], it.author_id) && ok(it.author_id, 0) array_add(*users[0], it.author_id);
 	}
-	if !users {
+	if !users[0] for pass: 0..1 {
 		cands: [..]dc.Snowflake;
 		cands.allocator = temp;
 		if ch.guild_id {
 			ms := table_find_pointer(*s.members, ch.guild_id);
-			if ms for _, uid: ms.* if ok(uid) array_add(*cands, uid);
+			if ms for _, uid: ms.* if ok(uid, pass) array_add(*cands, uid);
 		} else {
-			for ch.recipient_ids if ok(it) array_add(*cands, it);
-			if ok(s.me) array_add(*cands, s.me);
+			for ch.recipient_ids if ok(it, pass) array_add(*cands, it);
+			if ok(s.me, pass) array_add(*cands, s.me);
 		}
 		Keyed :: struct { key: string; uid: dc.Snowflake; }
 		sorted := NewArray(cands.count, Keyed,, temp);
@@ -120,25 +132,38 @@ mention_items :: (ch: *dc.Channel, q: string) -> []Mention_Item {
 		quick_sort(sorted, (a: Keyed, b: Keyed) -> s64 { return compare(a.key, b.key); });
 		for sorted {
 			if it_index == MAC_MAX break;
-			array_add(*users, it.uid);
+			array_add(*users[pass], it.uid);
 		}
 	}
-	for users {
+	exact, fuzzy: [..]Mention_Item;
+	exact.allocator, fuzzy.allocator = temp, temp;
+	for pass: 0..1 for users[pass] {
 		u := dc.user_get(s, it);
-		array_add(*out, .{kind = .User, id = it, name = name_in(it, ch.id), right = u.username, insert = tprint("@%", u.username)});
+		array_add(ifx pass then *fuzzy else *exact, .{kind = .User, id = it, name = name_in(it, ch.id), right = u.username, insert = tprint("@%", u.username)});
 	}
-	if !ch.guild_id return out;
-	everyone := dc.has_permission(dc.channel_permissions(s, ch.id), dc.PERM_MENTION_EVERYONE);
-	if everyone {
-		if out.count < MAC_MAX && starts("everyone", lq) array_add(*out, .{kind = .Everyone, name = "@everyone", right = "Notify everyone who has permission to view this channel.", insert = "@everyone"});
-		if out.count < MAC_MAX && starts("here", lq) array_add(*out, .{kind = .Here, name = "@here", right = "Notify everyone online who has permission to view this channel.", insert = "@here"});
+	members, fuzzy_members := exact.count, fuzzy.count;
+	if ch.guild_id {
+		everyone := dc.has_permission(dc.channel_permissions(s, ch.id), dc.PERM_MENTION_EVERYONE);
+		if everyone {
+			if match("everyone", lq, 0) array_add(*exact, .{kind = .Everyone, name = "@everyone", right = "Notify everyone who has permission to view this channel.", insert = "@everyone"});
+			if match("here", lq, 0) array_add(*exact, .{kind = .Here, name = "@here", right = "Notify everyone online who has permission to view this channel.", insert = "@here"});
+		}
+		g := dc.guild_get(s, ch.guild_id);
+		if g for pass: 0..1 for r: g.roles {
+			if r.id == g.id || !(r.mentionable || everyone) || !(match(r.name, lq, pass)) continue;
+			array_add(ifx pass then *fuzzy else *exact, .{kind = .Role, id = r.id, name = tprint("@%", r.name), right = "Notify users with this role who have permission to view this channel.", insert = tprint("@%", r.name), color = ifx r.color then rgb_u32(r.color)});
+		}
 	}
-	g := dc.guild_get(s, ch.guild_id);
-	if g for r: g.roles {
-		if out.count == MAC_MAX break;
-		if r.id == g.id || !(r.mentionable || everyone) || !starts(r.name, lq) continue;
-		array_add(*out, .{kind = .Role, id = r.id, name = tprint("@%", r.name), right = "Notify users with this role who have permission to view this channel.", insert = tprint("@%", r.name), color = ifx r.color then rgb_u32(r.color)});
-	}
+	// exact rows first; leftover rows take fuzzy members (after the members), then fuzzy roles (last)
+	ne := min(exact.count, MAC_MAX);
+	fm := min(fuzzy_members, MAC_MAX - ne);
+	fr := min(fuzzy.count - fuzzy_members, MAC_MAX - ne - fm);
+	out: [..]Mention_Item;
+	out.allocator = temp;
+	array_add(*out, ..array_view(exact, 0, min(members, ne)));
+	array_add(*out, ..array_view(fuzzy, 0, fm));
+	array_add(*out, ..array_view(exact, min(members, ne), ne - min(members, ne)));
+	array_add(*out, ..array_view(fuzzy, fuzzy_members, fr));
 	return out;
 }
 

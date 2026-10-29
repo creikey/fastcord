@@ -1,0 +1,13 @@
+# "@" fills the rows no name starts with the query with fuzzy matches (its letters in order): "@dgs"
+# offers dingus, "@chn" the champion role.
+wait 5
+click 600 683
+type @dgs
+wait 3
+shot build/ui-mention_fuzzy-open.png
+key enter
+expect_input "@dingus "
+key a cmd
+type @chn
+key enter
+expect_input "@champion "

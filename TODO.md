@@ -304,7 +304,8 @@
   - Done: Messaging Permissions (the old Privacy & Safety): Content Filters, the spam filter, DMs and message requests from server members, Friend Request Permissions (`tests/ui/settings_messaging.txt`); the per-server switches are the server menu's Privacy Settings.
   - Done: Data & Privacy: Use data to improve Discord (the account's consent) and Profile Privacy (`tests/ui/settings_data_privacy.txt`).
   - Done: Chat: Show embeds, Show emoji reactions and Show spoiler content (synced `text_and_images`; `tests/ui/settings_chat.txt`).
-- [ ] Mentions: the "@" autocomplete lacks `@game` / `@time`, fuzzy matches and pills in the composer (`traffic/CLIENT_RULES.md` "Composer mentions").
+- [ ] Mentions: the "@" autocomplete lacks `@game` / `@time` (their rows need the bundle's chunk, not cached here) and pills in the composer (`traffic/CLIENT_RULES.md` "Composer mentions").
+  - Done: fuzzy matches (the query's letters in order) fill the rows left after the prefix matches, members then roles (`mention_items`, `tests/ui/mention_fuzzy.txt`).
 - [ ] Appearance: no compact message display (synced: `text_and_images.message_display_compact`) or chat font scaling (chat text alone, apart from Zoom).
   - Done: Accessibility > Saturation (0-100%, kept in `settings.json`) scales every theme colour's saturation (`tests/ui/settings_saturation.txt`); images and role colours keep theirs.
   - Done: Accessibility has Space between message groups (0-24 px), role colours (in names, a dot next to names, or none) and Reduced Motion (animations jump; always on when the OS asks), kept in `settings.json` (`tests/ui/settings_accessibility.txt`).
