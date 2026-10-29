@@ -1,9 +1,24 @@
 # Runs on rules_pending.jsonl (chat.jsonl in a server with member verification, where you haven't agreed
-# to the rules yet): the composer says so with Complete, which opens the rules screen (offline: it can't load them).
+# to the rules yet): the composer says so with Complete, which opens the rules screen. Offline it can't
+# load them; then the form's reply lists the rules, the box enables Submit, and the PUT's reply closes it.
 wait 5
 expect_visible "You must complete a few more steps before you can talk."
 shot build/ui-rules_pending.png
 click_text "Complete"
 wait 10
 expect_visible "Read and agree to the server rules"
+expect_visible "Couldn't load the server's rules."
+feature_reply Member_Verify 0 200 {"version":"2026-10-01T00:00:00+00:00","description":"Welcome! Please read these first.","form_fields":[{"field_type":"TERMS","label":"Read and agree to the server rules","values":["Be kind to each other.","No spam or self-promotion.","Keep it on topic."],"required":true}]}
+wait 5
+expect_visible "1. Be kind to each other."
+expect_visible "3. Keep it on topic."
+expect_visible "Welcome! Please read these first."
+click_text "I have read and agree to the rules"
+wait 5
 shot build/ui-rules_pending-modal.png
+click_text "Submit"
+wait 5
+feature_reply Member_Verify 1 200 {}
+wait 5
+expect_not_visible "Read and agree to the server rules"
+expect_not_visible "You must complete a few more steps before you can talk."

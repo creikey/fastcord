@@ -79,7 +79,7 @@ Headless app runs render offscreen and write a PNG, driven by a script of input 
 (`click`, `dclick`, `down`/`move`/`up`, `rclick`, `type`, `key enter cmd`, `scroll`, `wait`, `shot`,
 `expect_selection`, `expect_clipboard`; attachments: `stage <path>...`, `drop <path>...`,
 `paste_image <png>`, `paste_files <path>...`, `drag_enter`/`drag_leave`, `wait_attachments`,
-`expect_attachments`, `upload_limit <bytes>`, `expect_notice`; read state: `focus out|in`, `incoming <word>`, `acked`; visibility: `window hidden|shown`, `expect_built <n>` (frames that built the UI); the gateway: `gateway down|up`; self-hosting: `serve_join [name]` joins a `-serve` run in the same process (a name starts another), `expect_served` fails on any request it had no route for). The `ui` suite runs a `tests/ui` script on
+`expect_attachments`, `upload_limit <bytes>`, `expect_notice`; read state: `focus out|in`, `incoming <word>`, `acked`; visibility: `window hidden|shown`, `expect_built <n>` (frames that built the UI); REST: `feature_reply <op> <tag> <status> <json>` hands a view a reply as if it came back; the gateway: `gateway down|up`; self-hosting: `serve_join [name]` joins a `-serve` run in the same process (a name starts another), `expect_served` fails on any request it had no route for). The `ui` suite runs a `tests/ui` script on
 `chat.jsonl`, or on the `.jsonl` of the same name beside it:
 
 ```sh
