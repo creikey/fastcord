@@ -291,7 +291,8 @@ parse_role :: (s: *Store, m: etf.Map) -> Role {
 		hoist = fbool(m, "hoist"),
 		mentionable = fbool(m, "mentionable"),
 		icon = clone_str(fstr(m, "icon"), a),
-		unicode_emoji = clone_str(fstr(m, "unicode_emoji"), a)
+		unicode_emoji = clone_str(fstr(m, "unicode_emoji"), a),
+		managed = fbool(m, "managed")
 	};
 	colors := fmap(m, "colors");
 	if vhas(colors, "primary_color") r.color = cast(u32) fint(colors, "primary_color");

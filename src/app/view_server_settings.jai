@@ -106,23 +106,37 @@ server_settings_receive :: (r: *dc.Feature_Result) {
 		ss.busy = false;
 		if !r.ok { ss_error(settings_result_error(r)); return; }
 		if ss.confirm == .Delete_Server { server_settings_close(); return; }
+		if ss.confirm == .Delete_Role ss.role_id = 0;
 		ss.confirm = .None;
 		if ss.after == .Members members_search(g);
+		else if ss.after == .Role_Members role_members_load(g);
 		else if ss.after < .COUNT { ss.loading[ss.after] = false; section_enter(g); }
 		return;
 	}
-	if req == .Save || req == .Save_Widget {
-		if req == .Save && ss.save_widget && r.ok return; // the widget's reply ends the save
+	if req == .Create_Role {
 		ss.busy = false;
 		if !r.ok { ss_error(settings_result_error(r)); return; }
+		ss.pending_role = dc.fsnow(dc.vmap(r.body), "id");
+		return;
+	}
+	if req == .Save || req == .Save_Widget {
+		if !r.ok {
+			ss.busy, ss.saves_left = false, 0;
+			ss_error(settings_result_error(r));
+			return;
+		}
 		if ss.section == .Profile && r.body.kind == .Map keep_reply(.Profile, r); // the saved profile
 		if req == .Save_Widget && r.body.kind == .Map keep_reply(.Widget, r);
-		form_reset(g);
+		ss.saves_left -= 1;
+		if ss.saves_left > 0 return;
+		ss.busy = false;
+		// Drafts of store values stay as saved: the gateway's update makes the store match them.
+		if ss.section == .Profile form_reset(g);
 		return;
 	}
 	if req >= .COUNT return;
 	keep_reply(req, r);
-	form_reset(g);
+	if req == .Profile || req == .Widget form_reset(g); // the forms these replies fill
 }
 
 server_settings_layer :: () {
@@ -278,10 +292,13 @@ Req :: enum u8 {
 	Bans; // GET /guilds/{id}/bans
 	Emojis; // GET /guilds/{id}/emojis (who uploaded each)
 	Audit; // GET /guilds/{id}/audit-logs
+	Role_Counts; // GET /guilds/{id}/roles/member-counts
+	Role_Members; // POST /guilds/{id}/members-search for one role
 	COUNT;
 	Save :: 100; // a page's Save Changes
 	Save_Widget;
 	Action; // a list page's change (ss_action), then its list reloads
+	Create_Role; // POST /guilds/{id}/roles
 }
 
 ss: struct {
@@ -304,7 +321,7 @@ ss: struct {
 	eng: dc.Engagement_Form;
 	widget_on: bool;
 	widget_channel: dc.Snowflake;
-	save_widget: bool; // the save in flight also saves the widget
+	saves_left: int; // requests of the save in flight still to answer
 	// The open select (dropdown_list): its id, anchor, this frame's options, and the pick it made.
 	dd: string;
 	dd_anchor: ui.Rect;
@@ -329,6 +346,16 @@ ss: struct {
 	// Audit Log
 	audit_user: dc.Snowflake;
 	audit_action: int; // index into AUDIT_ACTIONS
+	// Roles: the role being edited (0: the list) and its draft
+	role_id: dc.Snowflake;
+	pending_role: dc.Snowflake; // created, waiting for GUILD_ROLE_CREATE
+	role_tab: int; // index into ROLE_TABS
+	role_name: ui.Editor;
+	role_color: u32;
+	role_hoist: bool;
+	role_mentionable: bool;
+	role_perms: u64;
+	role_order: [..]dc.Snowflake; // the list as reordered, top first; empty when untouched
 	// the open confirm
 	confirm: SS_Confirm;
 	confirm_id: dc.Snowflake;
@@ -355,10 +382,12 @@ reply :: (req: Req) -> *dc.Feature_Result {
 	return ifx r.arena != null && r.ok then r else null;
 }
 
-load :: (g: *dc.Guild, req: Req, path: string) {
+load :: (g: *dc.Guild, req: Req, path: string) { load_body(g, req, "GET", path); }
+
+load_body :: (g: *dc.Guild, req: Req, method: string, path: string, body := "") {
 	if ss.loading[req] || !net_action() return;
 	ss.loading[req] = true;
-	dc.guild_settings_call(app.client, g.id, xx req, "GET", path);
+	dc.guild_settings_call(app.client, g.id, xx req, method, path, body);
 }
 
 // A section shown: load what its page reads.
@@ -378,7 +407,12 @@ section_enter :: (g: *dc.Guild) {
 		load(g, .Emojis, tprint("/guilds/%/emojis", g.id));
 	case .Audit_Log;
 		audit_load(g);
+	case .Roles;
+		ss.loading[Req.Role_Counts] = false;
+		load(g, .Role_Counts, tprint("/guilds/%/roles/member-counts", g.id));
 	}
+	ss.role_id, ss.pending_role = 0, 0;
+	array_reset(*ss.role_order);
 	ui.editor_set_text(*ss.search, "");
 	ss.rename_emoji = 0;
 	form_reset(g);
@@ -472,7 +506,7 @@ section_shown :: (g: *dc.Guild, s: Server_Section) -> bool {
 	case .Members;
 		return has(p, dc.PERM_MANAGE_GUILD | dc.PERM_MANAGE_ROLES | dc.PERM_KICK_MEMBERS | dc.PERM_BAN_MEMBERS | dc.PERM_MODERATE_MEMBERS | dc.PERM_MANAGE_NICKNAMES);
 	case .Roles;
-		return has(p, dc.PERM_MANAGE_ROLES);
+		return has(p, dc.PERM_MANAGE_ROLES) && !on_hosted(); // hosted servers have only @everyone so far
 	case .Invites; #through; case .Access; #through; case .Safety; #through; case .Community; #through; case .Onboarding; #through; case .Templates;
 		return has(p, dc.PERM_MANAGE_GUILD);
 	case .Integrations;
@@ -491,7 +525,7 @@ section_shown :: (g: *dc.Guild, s: Server_Section) -> bool {
 page_exists :: (s: Server_Section) -> bool {
 	if s == {
 	case .Profile; #through; case .Engagement; #through; case .Members; #through; case .Invites; #through; case .Bans; #through;
-	case .Emoji; #through; case .Audit_Log; #through; case .Delete; #through; case .Soundboard;
+	case .Emoji; #through; case .Audit_Log; #through; case .Delete; #through; case .Soundboard; #through; case .Roles;
 		return true;
 	}
 	return false;
@@ -515,6 +549,8 @@ page_body :: (g: *dc.Guild, s: Server_Section, w: float32) -> bool {
 		emoji_page(g);
 	case .Audit_Log;
 		audit_page(g);
+	case .Roles;
+		roles_page(g);
 	case .Soundboard;
 		sound_settings_page(g, w); // view_server_soundboard.jai
 	}
@@ -531,6 +567,8 @@ form_dirty :: (g: *dc.Guild) -> bool {
 		for a.traits if it.label != b.traits[it_index].label return true;
 	case .Engagement;
 		return engagement_dirty(g) || widget_dirty();
+	case .Roles;
+		return role_dirty(g);
 	}
 	return false;
 }
@@ -556,6 +594,7 @@ form_reset :: (g: *dc.Guild) {
 		ss.brand = f.brand_color;
 		ss.private = f.visibility == 2;
 	}
+	if ss.section == .Roles role_reset(g);
 	ss.eng = dc.engagement_form_of(g);
 	w := reply(.Widget);
 	if w {
@@ -575,6 +614,13 @@ profile_form :: (r: *dc.Feature_Result) -> dc.Guild_Profile_Form {
 	return f;
 }
 
+// One request of a page's save; the save ends when every one has answered.
+save_call :: (g: *dc.Guild, req: Req, method: string, path: string, body: string) {
+	ss.busy = true;
+	ss.saves_left += 1;
+	dc.guild_settings_call(app.client, g.id, xx req, method, path, body);
+}
+
 form_save :: (g: *dc.Guild) {
 	if ss.section == {
 	case .Profile;
@@ -587,13 +633,14 @@ form_save :: (g: *dc.Guild) {
 		}
 		ss.busy = true;
 		ss_error("");
-		dc.guild_settings_call(app.client, g.id, xx Req.Save, "PATCH", tprint("/guilds/%/profile", g.id), dc.guild_profile_body(f));
+		save_call(g, .Save, "PATCH", tprint("/guilds/%/profile", g.id), dc.guild_profile_body(f));
 	case .Engagement;
 		ss.busy = true;
 		ss_error("");
-		ss.save_widget = widget_dirty();
-		if engagement_dirty(g) dc.guild_settings_call(app.client, g.id, xx Req.Save, "PATCH", tprint("/guilds/%", g.id), dc.engagement_body(ss.eng));
-		if ss.save_widget dc.guild_settings_call(app.client, g.id, xx Req.Save_Widget, "PATCH", tprint("/guilds/%/widget", g.id), dc.widget_body(ss.widget_on, ss.widget_channel));
+		if engagement_dirty(g) save_call(g, .Save, "PATCH", tprint("/guilds/%", g.id), dc.engagement_body(ss.eng));
+		if widget_dirty() save_call(g, .Save_Widget, "PATCH", tprint("/guilds/%/widget", g.id), dc.widget_body(ss.widget_on, ss.widget_channel));
+	case .Roles;
+		roles_save(g);
 	}
 }
 
@@ -1509,7 +1556,7 @@ ss_action :: (g: *dc.Guild, after: Req, method: string, path: string, body := ""
 	dc.guild_settings_call(app.client, g.id, xx Req.Action, method, path, body, reason);
 }
 
-SS_Confirm :: enum u8 { None; Revoke_Invite; Revoke_Ban; Delete_Emoji; Timeout; Transfer; Delete_Server; Pause_Invites; }
+SS_Confirm :: enum u8 { None; Revoke_Invite; Revoke_Ban; Delete_Emoji; Timeout; Transfer; Delete_Server; Pause_Invites; Delete_Role; }
 
 ss_confirm_open :: (kind: SS_Confirm, id: dc.Snowflake, text: string) {
 	ss.confirm, ss.confirm_id = kind, id;
@@ -1535,6 +1582,7 @@ ss_confirm_modal :: (g: *dc.Guild) {
 	case .Transfer; title, body, button = "Transfer Ownership", ifx on_hosted() then tprint("% becomes the owner once they accept on their device. You'll stay a member.", t) else tprint("This will transfer ownership of % to %. This cannot be undone!", g.name, t), "Transfer Ownership";
 	case .Delete_Server; title, body, button = tprint("Delete '%'", g.name), tprint("Are you sure you want to delete %? This action cannot be undone.", g.name), "Delete Server";
 	case .Pause_Invites; title, body, button = "Pause Invites", "Nobody can join this server with an invite link until the pause ends or you enable invites again.", "Pause Invites";
+	case .Delete_Role; title, body, button = tprint("Delete '%'", t), "Are you sure you want to delete this role? This action cannot be undone.", "Delete";
 	}
 	if !adm_modal_begin("ssconfirm", 440, title) {
 		ss.confirm = .None;
@@ -1614,9 +1662,446 @@ ss_confirm_modal :: (g: *dc.Guild) {
 		ss_action(g, .Members, "PATCH", tprint("/guilds/%/members/%", g.id, id), tprint("{\"communication_disabled_until\":\"%\"}", until), reason);
 	case .Transfer; ss_action(g, .COUNT, "PATCH", tprint("/guilds/%", g.id), tprint("{\"owner_id\":\"%\",\"code\":null}", id));
 	case .Delete_Server; ss_action(g, .COUNT, "POST", tprint("/guilds/%/delete", g.id));
+	case .Delete_Role; ss_action(g, .Role_Counts, "DELETE", tprint("/guilds/%/roles/%", g.id, id));
 	case .Pause_Invites;
 		hours := PAUSE_HOURS[ss.confirm_pick];
 		ss_action(g, .COUNT, "PUT", tprint("/guilds/%/incident-actions", g.id), tprint("{\"invites_disabled_until\":\"%\",\"dms_disabled_until\":null,\"lockdown_duration_hours\":%}", dc.ms_to_iso(wall_ms() + hours * 3600_000), hours));
+	}
+}
+
+// ---- Roles ----
+
+ROLE_COLORS :: u32.[0x1abc9c, 0x2ecc71, 0x3498db, 0x9b59b6, 0xe91e63, 0xf1c40f, 0xe67e22, 0xe74c3c, 0x95a5a6, 0x607d8b,
+	0x11806a, 0x1f8b4c, 0x206694, 0x71368a, 0xad1457, 0xc27c0e, 0xa84300, 0x992d22, 0x979c9f, 0x546e7a];
+
+Perm :: struct { flag: u64; title: string; desc: string; }
+Perm_Section :: struct { title: string; perms: []Perm; }
+
+bit :: (n: int) -> u64 #expand { return (cast(u64) 1) << n; }
+
+// The role editor's permissions, in the client's sections and order (Use Activities left out: AGENTS.md).
+PERM_SECTIONS :: Perm_Section.[
+	.{"General Server Permissions", .[
+		.{1 << 10, "View Channels", "Allows members to view channels by default (excluding private channels)."},
+		.{1 << 4, "Manage Channels", "Allows members to create, edit, or delete channels."},
+		.{1 << 28, "Manage Roles", "Allows members to create new roles and edit or delete roles lower than their highest role. Also allows members to change permissions of individual channels that they have access to."},
+		.{1 << 43, "Create Expressions", "Allows members to add custom emoji, stickers, and sounds in this server."},
+		.{1 << 30, "Manage Expressions", "Allows members to edit or remove custom emoji, stickers, and sounds in this server."},
+		.{1 << 7, "View Audit Log", "Allows members to view a record of who made which changes in this server."},
+		.{1 << 19, "View Server Insights", "Allows members to view Server Insights, which shows data on community growth, engagement, and more. This will allow them to see certain data about channel activity, even for channels they cannot access."},
+		.{1 << 29, "Manage Webhooks", "Allows members to create, edit, or delete webhooks, which can post messages from other apps or sites into this server."},
+		.{1 << 5, "Manage Server", "Allow members to change this server's name, switch regions, view all invites, add apps to this server and create and update AutoMod rules."},
+	]},
+	.{"Membership Permissions", .[
+		.{1 << 0, "Create Invite", "Allows members to invite new people to this server."},
+		.{1 << 26, "Change Nickname", "Allows members to change their own nickname, a custom name for just this server."},
+		.{1 << 27, "Manage Nicknames", "Allows members to change the nicknames of other members."},
+		.{1 << 1, "Kick, Approve, and Reject Members", "Allows members to remove other members from this server. Kicked members will be able to rejoin if they have another invite."},
+		.{1 << 2, "Ban Members", "Allows members to permanently ban and delete the message history of other members from this server."},
+		.{1 << 40, "Timeout Members", "When you put a user in timeout they will not be able to send messages in chat, reply within threads, react to messages, or speak in voice or Stage channels."},
+	]},
+	.{"Text Channel Permissions", .[
+		.{1 << 11, "Send Messages and Create Posts", "Allow members to send messages in text channels and create posts in forum channels."},
+		.{1 << 38, "Send Messages in Threads and Posts", "Allow members to send messages in threads and in posts on forum channels."},
+		.{1 << 35, "Create Public Threads", "Allow members to create threads that everyone in a channel can view."},
+		.{1 << 36, "Create Private Threads", "Allow members to create invite-only threads."},
+		.{1 << 14, "Embed Links", "Allows links that members share to show embedded content in text channels."},
+		.{1 << 15, "Attach Files", "Allows members to upload files or media in text channels."},
+		.{1 << 6, "Add Reactions", "Allows members to add new emoji reactions to a message. If this permission is disabled, members can still react using any existing reactions on a message."},
+		.{1 << 18, "Use External Emoji", "Allows members to use emoji from other servers, if they're a Discord Nitro member."},
+		.{1 << 37, "Use External Stickers", "Allows members to use stickers from other servers, if they're a Discord Nitro member."},
+		.{1 << 17, "Mention @everyone, @here, and All Roles", "Allows members to use @everyone (everyone in the server) or @here (only online members in that channel). They can also @mention all roles, even if the role's \"Allow anyone to mention this role\" permission is disabled."},
+		.{1 << 13, "Manage Messages", "Allows members to delete or remove embeds from messages by other members."},
+		.{1 << 51, "Pin Messages", "Allows members to pin or unpin any message."},
+		.{1 << 52, "Bypass Slowmode", "Allows members to send messages without being affected by slowmode."},
+		.{1 << 34, "Manage Threads and Posts", "Allows members to rename, delete, close, and turn on slow mode for threads and posts. They can also view private threads."},
+		.{1 << 16, "Read Message History", "Allows members to read previous messages sent in channels. If this permission is disabled, members only see messages sent when they are online. This does not fully apply to threads and forum posts."},
+		.{1 << 12, "Send Text-to-Speech Messages", "Allows members to send text-to-speech messages by starting a message with /tts. These messages can be heard by anyone focused on the channel."},
+		.{1 << 46, "Send Voice Messages", "Allows members to send voice messages."},
+		.{1 << 49, "Create Polls", "Allows members to create polls."},
+	]},
+	.{"Voice Channel Permissions", .[
+		.{1 << 20, "Connect", "Allows members to join voice channels and hear others."},
+		.{1 << 21, "Speak", "Allows members to talk in voice channels. If this permission is disabled, members are default muted until somebody with the \"Mute Members\" permission un-mutes them."},
+		.{1 << 9, "Video", "Allows members to share their video, screen share, or stream a game in this server."},
+		.{1 << 42, "Use Soundboard", "Allows members to send sounds from server soundboard."},
+		.{1 << 45, "Use External Sounds", "Allows members to use sounds from other servers, if they're a Discord Nitro member."},
+		.{1 << 25, "Use Voice Activity", "Allows members to speak in voice channels by simply talking. If this permission is disabled, members are required to use Push-to-talk. Good for controlling background noise or noisy members."},
+		.{1 << 8, "Priority Speaker", "Allows members to be more easily heard in voice channels. When activated, the volume of others without this permission will be automatically lowered."},
+		.{1 << 22, "Mute Members", "Allows members to mute other members in voice channels for everyone."},
+		.{1 << 23, "Deafen Members", "Allows members to deafen other members in voice channels, which means they won't be able to speak or hear others."},
+		.{1 << 24, "Move Members", "Allows members to disconnect or move other members between voice channels that the member with this permission has access to."},
+		.{1 << 48, "Set Voice Channel Status", "Allows members to create and edit voice channel status."},
+	]},
+	.{"Apps Permissions", .[
+		.{1 << 31, "Use Application Commands", "Allows members to use commands from applications, including slash commands and context menu commands."},
+		.{1 << 50, "Use External Apps", "Allows apps that members have added to their account to post messages. When disabled, the messages will be private."},
+	]},
+	.{"Events Permissions", .[
+		.{1 << 44, "Create Events", "Allows members to create events."},
+		.{1 << 33, "Manage Events", "Allows members to edit and cancel events."},
+	]},
+	.{"Advanced Permissions", .[
+		.{1 << 3, "Administrator", "Members with this permission will have every permission and will also bypass all channel specific permissions or restrictions (for example, these members would get access to all private channels). This is a dangerous permission to grant."},
+	]},
+];
+
+// The guild's roles top first, @everyone last (the order the list shows and positions count from).
+roles_sorted :: (g: *dc.Guild) -> []*dc.Role {
+	out := NewArray(g.roles.count, *dc.Role,, temp);
+	for * g.roles out[it_index] = it;
+	key :: (r: *dc.Role) -> s64 { return -(cast(s64) r.position << 32) + (cast(s64) r.id & 0xFFFF_FFFF); }
+	quick_sort(out, (a: *dc.Role, b: *dc.Role) -> s64 { return key(a) - key(b); });
+	return out;
+}
+
+role_of :: (g: *dc.Guild, id: dc.Snowflake) -> *dc.Role {
+	for * g.roles if it.id == id return it;
+	return null;
+}
+
+// The order as edited (ss.role_order, top first, @everyone left out), or the guild's when untouched.
+role_order :: (g: *dc.Guild) -> []dc.Snowflake {
+	if ss.role_order.count return ss.role_order;
+	out: [..]dc.Snowflake;
+	out.allocator = temp;
+	for roles_sorted(g) if it.id != g.id array_add(*out, it.id);
+	return out;
+}
+
+order_dirty :: (g: *dc.Guild) -> bool {
+	if !ss.role_order.count return false;
+	i := 0;
+	for roles_sorted(g) {
+		if it.id == g.id continue;
+		if i >= ss.role_order.count || ss.role_order[i] != it.id return true;
+		i += 1;
+	}
+	return false;
+}
+
+role_dirty :: (g: *dc.Guild) -> bool {
+	r := role_of(g, ss.role_id);
+	if !r return order_dirty(g);
+	return order_dirty(g) || (r.id != g.id && (trim(ui.editor_text(*ss.role_name)) != r.name || ss.role_color != r.color || ss.role_hoist != r.hoist || ss.role_mentionable != r.mentionable)) || ss.role_perms != r.permissions;
+}
+
+role_reset :: (g: *dc.Guild) {
+	array_reset(*ss.role_order);
+	r := role_of(g, ss.role_id);
+	if !r return;
+	ui.editor_set_text(*ss.role_name, r.name);
+	ss.role_color, ss.role_hoist, ss.role_mentionable, ss.role_perms = r.color, r.hoist, r.mentionable, r.permissions;
+}
+
+// Save Changes: the new order first (PATCH /guilds/{id}/roles [{id, position}]), then the role being edited
+// (PATCH /guilds/{id}/roles/{role} with updateRole's keys).
+roles_save :: (g: *dc.Guild) {
+	ss_error("");
+	if order_dirty(g) {
+		sb: String_Builder;
+		sb.allocator = temp;
+		append(*sb, "[");
+		order := ss.role_order;
+		for order print_to_builder(*sb, "%{\"id\":\"%\",\"position\":%}", ifx it_index then "," else "", it, order.count - it_index);
+		append(*sb, "]");
+		save_call(g, .Save, "PATCH", tprint("/guilds/%/roles", g.id), builder_to_string(*sb,, temp));
+	}
+	r := role_of(g, ss.role_id);
+	if !r || !role_dirty(g) || (r.permissions == ss.role_perms && r.id == g.id) return;
+	name := trim(ui.editor_text(*ss.role_name));
+	if r.id != g.id && !name {
+		ss_error("A role needs a name.");
+		return;
+	}
+	body := tprint("{\"name\":%,\"permissions\":\"%\",\"color\":%,\"colors\":{\"primary_color\":%,\"secondary_color\":null,\"tertiary_color\":null},\"hoist\":%,\"mentionable\":%,\"unicode_emoji\":%}",
+		dc.json_quote(ifx r.id == g.id then r.name else name), ss.role_perms, ss.role_color, ss.role_color, ss.role_hoist, ss.role_mentionable, ifx r.unicode_emoji then dc.json_quote(r.unicode_emoji) else "null");
+	save_call(g, .Save, "PATCH", tprint("/guilds/%/roles/%", g.id, r.id), body);
+}
+
+color_of :: (c: u32) -> ui.Color {
+	if !c return T("--text-muted");
+	return .{((c >> 16) & 0xFF) / 255.0, ((c >> 8) & 0xFF) / 255.0, (c & 0xFF) / 255.0, 1};
+}
+
+roles_page :: (g: *dc.Guild) {
+	if ss.pending_role && role_of(g, ss.pending_role) {
+		role_open(g, ss.pending_role);
+		ss.pending_role = 0;
+	}
+	r := role_of(g, ss.role_id);
+	if r { role_edit(g, r); return; }
+	page_subtitle("Use roles to group your server members and assign permissions.");
+	ev := role_of(g, g.id);
+	if ev {
+		d := row("default", .Clickable | .Draw_Background | .Hot_Animation);
+		d.semantic_size = .[ui.pct(1), ui.px(64)];
+		d.style.radius = all4(8);
+		d.style.bg = T("--background-mod-subtle");
+		d.style.bg_hot = T("--background-mod-normal");
+		d.hover_cursor = .Pointer;
+		if ui.signal(d).clicked role_open(g, g.id);
+		ui.parent(d); defer ui.pop_parent();
+		spacer(.X, 16);
+		icon("ic", "group", 24, T("--interactive-icon-default"));
+		spacer(.X, 12);
+		col := ui.box("t");
+		col.semantic_size = .[ui.fill(), ui.children()];
+		col.layout_axis = .Y;
+		{ ui.parent(col); defer ui.pop_parent();
+			label("Default Permissions", .Semibold, 16, T("--text-strong"), 20);
+			label("@everyone · applies to all server members", .Normal, 14, T("--text-muted"), 18);
+		}
+		icon("chev", "chevron-small-right", 20, T("--interactive-icon-default"));
+		spacer(.X, 12);
+	}
+	spacer(.Y, 20);
+	hr := row("rhead");
+	hr.semantic_size = .[ui.pct(1), ui.px(40)];
+	{ ui.parent(hr); defer ui.pop_parent();
+		set_para("rnote", "Members use the colour of the highest role they have on this list. Use the arrows to reorder roles.", .Normal, 14, 18, T("--text-muted"));
+		spacer(.X, 16);
+		if set_button("Create Role##create", .Primary, !ss.busy && !role_dirty(g)) && net_action() {
+			ss.busy = true;
+			ss.after = .COUNT;
+			dc.guild_settings_call(app.client, g.id, xx Req.Create_Role, "POST", tprint("/guilds/%/roles", g.id), "{\"name\":\"new role\",\"color\":0,\"colors\":{\"primary_color\":0,\"secondary_color\":null,\"tertiary_color\":null},\"permissions\":\"0\"}");
+		}
+	}
+	spacer(.Y, 12);
+	counts := reply(.Role_Counts);
+	order := role_order(g);
+	W :: float32.[5, 2];
+	table_header("rth", .[tprint("ROLES — %", order.count), "MEMBERS"], W);
+	top := highest_position(g);
+	for id, i: order {
+		role := role_of(g, id);
+		if !role continue;
+		ui.id_scope(cast(u64) id);
+		defer ui.pop_seed();
+		_, sig := table_row_begin("r");
+		defer ui.pop_parent();
+		{
+			c := table_cell(0, W[0]); ui.parent(c); defer ui.pop_parent();
+			dot := ui.box("dot", .Draw_Background);
+			dot.semantic_size = .[ui.px(12), ui.px(12)];
+			dot.style.radius = all4(6);
+			dot.style.bg = color_of(role.color);
+			spacer(.X, 10);
+			label(role.name, .Medium, 15, T("--text-strong"), 20);
+			if role.managed { spacer(.X, 8); icon("lock", "lock", 14, T("--text-muted")); }
+		}
+		{
+			c := table_cell(1, W[1]); ui.parent(c); defer ui.pop_parent();
+			n := ifx counts then dc.fint(dc.vmap(counts.body), tprint("%", id)) else 0;
+			icon("ppl", "user", 14, T("--text-muted"));
+			spacer(.X, 6);
+			label(tprint("%", n), .Normal, 14, T("--text-default"), 18);
+		}
+		movable := role.position < top || g.owner_id == store().me;
+		if movable && i > 0 && row_icon_button("up", "chevron-small-up") role_move(g, i, -1);
+		else if movable && i + 1 < order.count && row_icon_button("down", "chevron-small-down") role_move(g, i, 1);
+		if sig.clicked && !role_dirty(g) role_open(g, id);
+	}
+}
+
+// Our highest role's position: roles at or above it can't be edited or moved (the owner may do anything).
+highest_position :: (g: *dc.Guild) -> int {
+	me := dc.member_get(store(), g.id, store().me);
+	top := 0;
+	if me for g.roles if it.position > top && array_find(me.roles, it.id) top = it.position;
+	return top;
+}
+
+role_move :: (g: *dc.Guild, i: int, d: int) {
+	if !ss.role_order.count for role_order(g) array_add(*ss.role_order, it);
+	j := i + d;
+	if j < 0 || j >= ss.role_order.count return;
+	ss.role_order[i], ss.role_order[j] = ss.role_order[j], ss.role_order[i];
+}
+
+role_open :: (g: *dc.Guild, id: dc.Snowflake) {
+	ss.role_id = id;
+	ss.role_tab = ifx id == g.id then 1 else 0;
+	role_reset(g);
+	ui.editor_set_text(*ss.search, "");
+	if id != g.id role_members_load(g);
+}
+
+role_members_load :: (g: *dc.Guild) {
+	ss.loading[Req.Role_Members] = false;
+	load_body(g, .Role_Members, "POST", tprint("/guilds/%/members-search", g.id), tprint("{\"or_query\":{},\"and_query\":{\"role_ids\":{\"and_query\":[\"%\"]}},\"limit\":250}", ss.role_id));
+}
+
+ROLE_TABS :: string.["Display", "Permissions", "Manage Members"];
+
+role_edit :: (g: *dc.Guild, r: *dc.Role) {
+	everyone := r.id == g.id;
+	editable := !r.managed && (r.position < highest_position(g) || g.owner_id == store().me);
+	br := row("back", .Clickable);
+	br.semantic_size = .[ui.children(), ui.px(24)];
+	br.hover_cursor = .Pointer;
+	if ui.signal(br).clicked && !role_dirty(g) ss.role_id = 0;
+	{ ui.parent(br); defer ui.pop_parent();
+		icon("ic", "arrow-large-left", 16, T("--interactive-icon-default"));
+		spacer(.X, 6);
+		label("BACK", .Bold, 12, T("--text-muted"), 16);
+	}
+	spacer(.Y, 12);
+	hr := row("title");
+	hr.semantic_size = .[ui.pct(1), ui.px(28)];
+	{ ui.parent(hr); defer ui.pop_parent();
+		label(tprint("EDIT ROLE — %", ifx everyone then "@everyone" else r.name), .Bold, 14, T("--text-strong"), 18);
+		filler(.X);
+		if !everyone && editable && set_button("Delete Role##delrole", .Danger, !ss.busy, 32) ss_confirm_open(.Delete_Role, r.id, r.name);
+	}
+	spacer(.Y, 12);
+	tabs := row("tabs");
+	tabs.semantic_size = .[ui.pct(1), ui.px(36)];
+	tabs.style.child_gap = 24;
+	{ ui.parent(tabs); defer ui.pop_parent();
+		for ROLE_TABS {
+			if everyone && it_index != 1 continue;
+			sel := ss.role_tab == it_index;
+			t := ui.box(tprint("tab%", it_index), .Clickable);
+			t.semantic_size = .[ui.children(), ui.px(36)];
+			t.layout_axis = .Y;
+			t.hover_cursor = .Pointer;
+			if ui.signal(t).clicked ss.role_tab = it_index;
+			ui.parent(t); defer ui.pop_parent();
+			label(it, .Medium, 16, ifx sel then T("--text-strong") else T("--text-muted"), 20);
+			spacer(.Y, 8);
+			if sel {
+				u := ui.box("u", .Draw_Background);
+				u.semantic_size = .[ui.px(ui.layout_text(F(.Medium), 16, it, -1).width), ui.px(2)];
+				u.style.bg = T("--background-brand");
+			}
+		}
+	}
+	set_divider();
+	if !editable {
+		set_para("locked", ifx r.managed then "This role is managed by an integration and can't be edited here." else "You can only edit roles below your highest role.", .Normal, 14, 18, T("--text-feedback-warning"));
+		spacer(.Y, 16);
+	}
+	if ss.role_tab == {
+	case 0;
+		field_title("Role name");
+		if set_input("rname", *ss.role_name, "", max_runes = 100) == .Escape ss.field_escape = true;
+		spacer(.Y, 24);
+		field_title("Role Color");
+		set_para("chelp", "Members use the colour of the highest role they have on the roles list.", .Normal, 14, 18, T("--text-muted"));
+		spacer(.Y, 12);
+		grid := row("colors");
+		grid.semantic_size = .[ui.pct(1), ui.children()];
+		grid.cross_align = .Start;
+		{ ui.parent(grid); defer ui.pop_parent();
+			def := ui.box("c0", .Clickable | .Draw_Background | .Draw_Border);
+			def.semantic_size = .[ui.px(66), ui.px(50)];
+			def.style.radius = all4(4);
+			def.style.bg = rgb(0x99aab5);
+			def.style.border = ifx ss.role_color == 0 then 3.0 else 0;
+			def.style.border_color = T("--text-strong");
+			if ui.signal(def).clicked && editable ss.role_color = 0;
+			spacer(.X, 12);
+			col := ui.box("sw");
+			col.semantic_size = .[ui.children(), ui.children()];
+			col.layout_axis = .Y;
+			ui.parent(col); defer ui.pop_parent();
+			for line: 0..1 {
+				lr := row(tprint("l%", line));
+				lr.semantic_size = .[ui.children(), ui.px(28)];
+				lr.style.child_gap = 8;
+				ui.parent(lr); defer ui.pop_parent();
+				for k: 0..9 {
+					c := ROLE_COLORS[line * 10 + k];
+					sw := ui.box(tprint("s%", k), .Clickable | .Draw_Background | .Draw_Border);
+					sw.semantic_size = .[ui.px(20), ui.px(20)];
+					sw.style.radius = all4(4);
+					sw.style.bg = rgb(c);
+					sw.style.border = ifx ss.role_color == c then 2.0 else 0;
+					sw.style.border_color = T("--text-strong");
+					sw.hover_cursor = .Pointer;
+					if ui.signal(sw).clicked && editable ss.role_color = c;
+				}
+			}
+		}
+		set_divider();
+		if set_toggle_row("hoist", "Display role members separately from online members", "", ss.role_hoist, !editable) ss.role_hoist = !ss.role_hoist;
+		set_divider();
+		if set_toggle_row("mention", "Allow anyone to @mention this role", "Note: Members with the \"Mention @everyone, @here, and All Roles\" permission will always be able to ping this role.", ss.role_mentionable, !editable) ss.role_mentionable = !ss.role_mentionable;
+	case 1;
+		cr := row("clear");
+		cr.semantic_size = .[ui.pct(1), ui.px(32)];
+		{ ui.parent(cr); defer ui.pop_parent();
+			filler(.X);
+			if set_button("Clear permissions##clear", .Link, editable && ss.role_perms != 0, 32) ss.role_perms = 0;
+		}
+		mine := dc.guild_permissions(store(), g.id);
+		for sec: PERM_SECTIONS {
+			spacer(.Y, 16);
+			label(sec.title, .Bold, 12, T("--text-muted"), 16);
+			spacer(.Y, 12);
+			for p: sec.perms {
+				on := (ss.role_perms & p.flag) != 0;
+				// a member can't grant what they don't have (the owner and administrators can)
+				can := editable && (mine & (p.flag | dc.PERM_ADMINISTRATOR)) != 0;
+				if set_toggle_row(tprint("p%", p.flag), p.title, p.desc, on, !can) ss.role_perms ^= p.flag;
+				set_divider();
+			}
+		}
+	case 2;
+		role_members_tab(g, r, editable);
+	}
+}
+
+rgb :: (c: u32) -> ui.Color { return .{((c >> 16) & 0xFF) / 255.0, ((c >> 8) & 0xFF) / 255.0, (c & 0xFF) / 255.0, 1}; }
+
+role_members_tab :: (g: *dc.Guild, r: *dc.Role, editable: bool) {
+	res := set_input("addsearch", *ss.search, "Search members to add (press Enter)");
+	if res == .Escape ss.field_escape = true;
+	if res == .Submit && trim(ui.editor_text(*ss.search)) {
+		ss.loading[Req.Members] = false;
+		members_search(g);
+	}
+	found := reply(.Members);
+	if found && trim(ui.editor_text(*ss.search)) {
+		spacer(.Y, 8);
+		for dc.flist(dc.vmap(found.body), "members") {
+			mm := dc.fmap(dc.vmap(it), "member");
+			u := dc.fmap(mm, "user");
+			uid := dc.fsnow(u, "id");
+			has := false;
+			for dc.flist(mm, "roles") if dc.vsnow(it) == r.id has = true;
+			if has continue;
+			ui.id_scope(cast(u64) uid);
+			defer ui.pop_seed();
+			table_units(.[1]);
+			table_row_begin("add");
+			defer ui.pop_parent();
+			{ c := table_cell(0, 1); ui.parent(c); defer ui.pop_parent(); user_cell(u); }
+			if editable && row_icon_button("add", "plus-small") ss_action(g, .Role_Members, "PATCH", tprint("/guilds/%/roles/%/members", g.id, r.id), tprint("{\"member_ids\":[\"%\"]}", uid));
+		}
+		set_divider();
+	}
+	spacer(.Y, 12);
+	if !loading_or(.Role_Members, "Couldn't load the role's members.") return;
+	list := dc.flist(dc.vmap(reply(.Role_Members).body), "members");
+	if !list.count ss_empty("No members have this role yet.");
+	table_units(.[1]);
+	for list {
+		mm := dc.fmap(dc.vmap(it), "member");
+		u := dc.fmap(mm, "user");
+		uid := dc.fsnow(u, "id");
+		ui.id_scope(cast(u64) uid);
+		defer ui.pop_seed();
+		table_row_begin("m");
+		defer ui.pop_parent();
+		{ c := table_cell(0, 1); ui.parent(c); defer ui.pop_parent(); user_cell(u); }
+		if editable && row_icon_button("remove", "x-small", danger = true) {
+			roles: [..]string;
+			roles.allocator = temp;
+			for dc.flist(mm, "roles") if dc.vsnow(it) != r.id array_add(*roles, tprint("\"%\"", dc.vsnow(it)));
+			ss_action(g, .Role_Members, "PATCH", tprint("/guilds/%/members/%", g.id, uid), tprint("{\"roles\":[%]}", join(..roles, ",",, temp)));
+		}
 	}
 }
 

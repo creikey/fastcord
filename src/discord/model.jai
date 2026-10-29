@@ -92,6 +92,7 @@ Role :: struct {
 	mentionable: bool;
 	icon: string;
 	unicode_emoji: string;
+	managed: bool; // a bot's or integration's: not editable
 }
 
 Overwrite :: struct {

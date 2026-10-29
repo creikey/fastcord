@@ -1,0 +1,37 @@
+# Server Settings Roles: the list (Default Permissions, member counts, reorder arrows), a role's Display
+# tab (a colour change shows the unsaved-changes bar), its Permissions, and @everyone's.
+wait 5
+click 200 57
+wait 10
+click_text "Server Settings"
+wait 10
+click_text "Roles"
+wait 10
+settings_reply Role_Counts {"1546822593921679420":3}
+wait 5
+expect_visible "Default Permissions"
+expect_visible "champion"
+shot build/ui-server_settings_roles.png
+click_text "champion"
+wait 10
+expect_visible "EDIT ROLE — champion"
+expect_visible "Role Color"
+expect_not_visible "Careful — you have unsaved changes!"
+click_text "Display role members separately from online members"
+wait 5
+expect_visible "Careful — you have unsaved changes!"
+click_text Reset
+wait 5
+click_text "Permissions"
+wait 10
+expect_visible "General Server Permissions"
+expect_visible "View Channels"
+shot build/ui-server_settings_role_perms.png
+click_text "BACK"
+wait 10
+click_text "Default Permissions"
+wait 10
+expect_visible "EDIT ROLE — @everyone"
+key escape
+wait 10
+expect_not_visible "EDIT ROLE"
