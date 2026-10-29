@@ -53,7 +53,7 @@ Voice_Session :: struct {
 	proven: bool;
 	speaking: int;  // The last op 5 and op 12, replayed to who connects later.
 	video: bool;
-	window_ms: s64; // The current second of sending, and what it held.
+	window: s64;    // The current second of sending, and what it held.
 	window_packets, window_bytes: int;
 	// DAVE (dave.jai).
 	key_package: []u8; // The member's latest KeyPackage (op 26), heap; empty once it has a leaf.
@@ -495,11 +495,13 @@ voice_udp :: (s: *Server) {
 		if !ok continue;
 		vs.addr, vs.port, vs.proven = addr, port, true;
 		second := now_ms(s) / 1000;
-		if second != vs.window_ms vs.window_ms, vs.window_packets, vs.window_bytes = second, 0, 0;
+		if second != vs.window vs.window, vs.window_packets, vs.window_bytes = second, 0, 0;
 		vs.window_packets += 1;
 		vs.window_bytes += n;
 		if vs.window_packets > MAX_MEDIA_PACKETS || vs.window_bytes > MAX_MEDIA_BYTES continue;
 		for s.voice_sessions if it != vs && it.room == vs.room && it.mode != .None && it.port {
+			// A nonce must never repeat under one key: a member that has had them all connects again, for a new key.
+			if it.nonce == 0xFFFF_FFFF { netio.shutdown(netio.tcp_stream(it.conn.tcp)); continue; }
 			sl := transport_seal(*it.tc, array_view(plain, 0, m), aad, it.nonce, sealed);
 			it.nonce += 1;
 			if sl netio.udp_send(s.udp, array_view(sealed, 0, sl), it.addr, it.port);
