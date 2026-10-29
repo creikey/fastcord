@@ -431,9 +431,10 @@ words_of :: (li: int) -> *Table(string, Hl) {
 	}
 	if hl_tables[li] return hl_tables[li];
 	t := New(Table(string, Hl));
-	add_words :: (t: *Table(string, Hl), li: int) {
+	add_words :: (t: *Table(string, Hl), li: int, depth := 0) {
+		assert(depth < 8); // LANGS' base chains are short
 		L := LANGS[li];
-		if L.base for LANGS if it.name == L.base add_words(t, it_index);
+		if L.base for LANGS if it.name == L.base add_words(t, it_index, depth + 1);
 		for w: split(L.kw, " ",, temp) if w table_set(t, w, .Keyword);
 		for w: split(L.types, " ",, temp) if w table_set(t, w, .Title);
 		for w: split(L.builtins, " ",, temp) if w table_set(t, w, .Builtin);

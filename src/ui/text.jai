@@ -448,13 +448,14 @@ make_line :: (tl: *Text_Layout, g0: int, g1: int, b0: int, b1: int) -> Text_Line
 	return l;
 }
 
-collect_selectables :: (b: *Box) {
+collect_selectables :: (b: *Box, depth := 0) {
+	assert(depth < MAX_BOX_DEPTH);
 	s := context.ui;
 	if (b.flags & .Selectable_Text) && b.key != 0 {
 		if b.sel_order == 0 b.sel_order = cast(u64) s.selectables.count + 1;
 		array_add(*s.selectables, b);
 	}
-	for c: each_child(b) collect_selectables(c);
+	for c: each_child(b) collect_selectables(c, depth + 1);
 }
 
 // Text position nearest the mouse among visible selectables. Rows are found

@@ -1116,7 +1116,11 @@ text_layout_for :: (b: *Box, wrap_width: float32) -> *Text_Layout {
 	return b.text_layout;
 }
 
-layout_standalone :: (b: *Box, axis: Axis) {
+// The layout and draw passes walk the box tree, which the app builds: MAX_BOX_DEPTH bounds its nesting.
+MAX_BOX_DEPTH :: 512;
+
+layout_standalone :: (b: *Box, axis: Axis, depth := 0) {
+	assert(depth < MAX_BOX_DEPTH);
 	sz := b.semantic_size[axis];
 	if sz.kind == {
 		case .Pixels;
@@ -1133,10 +1137,11 @@ layout_standalone :: (b: *Box, axis: Axis) {
 				b.fixed_size.y = tl.height + b.style.padding.y * 2 + sz.value * 2;
 			}
 	}
-	for c: each_child(b) layout_standalone(c, axis);
+	for c: each_child(b) layout_standalone(c, axis, depth + 1);
 }
 
-layout_upward :: (b: *Box, axis: Axis) {
+layout_upward :: (b: *Box, axis: Axis, depth := 0) {
+	assert(depth < MAX_BOX_DEPTH);
 	sz := b.semantic_size[axis];
 	if sz.kind == .Percent_Of_Parent {
 		p := b.parent;
@@ -1149,7 +1154,7 @@ layout_upward :: (b: *Box, axis: Axis) {
 			p = p.parent;
 		}
 	}
-	for c: each_child(b) layout_upward(c, axis);
+	for c: each_child(b) layout_upward(c, axis, depth + 1);
 }
 
 // Sum (along the layout axis, with gaps) or max (across it) of the non-floating children's sizes.
@@ -1169,8 +1174,9 @@ children_extent :: (b: *Box, axis: Axis) -> float32 {
 	return sum;
 }
 
-layout_downward :: (b: *Box, axis: Axis) {
-	for c: each_child(b) layout_downward(c, axis);
+layout_downward :: (b: *Box, axis: Axis, depth := 0) {
+	assert(depth < MAX_BOX_DEPTH);
+	for c: each_child(b) layout_downward(c, axis, depth + 1);
 	if b.semantic_size[axis].kind == .Children_Sum b.fixed_size.component[axis] = children_extent(b, axis);
 }
 
@@ -1179,7 +1185,8 @@ is_floating :: (b: *Box, axis: Axis) -> bool {
 }
 
 // Top-down: distribute Fill space, shrink to fix overflow, then recurse.
-layout_solve :: (b: *Box, axis: Axis) {
+layout_solve :: (b: *Box, axis: Axis, depth := 0) {
+	assert(depth < MAX_BOX_DEPTH);
 	avail := b.fixed_size.component[axis];
 	scrolls := (b.flags & SCROLL) != 0;
 	// Percent-of-parent children took b's size in layout_upward, before a Fill b was
@@ -1239,12 +1246,13 @@ layout_solve :: (b: *Box, axis: Axis) {
 			}
 		}
 	}
-	for c: each_child(b) layout_solve(c, axis);
+	for c: each_child(b) layout_solve(c, axis, depth + 1);
 	// children sizes may have changed during solve (wrapped text); recompute
 	if axis == .Y && b.semantic_size[Axis.Y].kind == .Children_Sum b.fixed_size.y = children_extent(b, .Y);
 }
 
-layout_position :: (b: *Box) {
+layout_position :: (b: *Box, depth := 0) {
+	assert(depth < MAX_BOX_DEPTH);
 	cursor: float32;
 	content: Vec2;
 	for c: each_child(b) {
@@ -1284,7 +1292,7 @@ layout_position :: (b: *Box) {
 		if c.flags & .Pinned p += b.view_off;
 		c.rect = .{p.x, p.y, p.x + c.fixed_size.x, p.y + c.fixed_size.y};
 		update_anims(c);
-		layout_position(c);
+		layout_position(c, depth + 1);
 	}
 }
 
@@ -1295,7 +1303,8 @@ draw_rect :: (r: Rect, c: Color, radii := float32.[0, 0, 0, 0], border: float32 
 	array_add(*context.ui.draw, .{kind = .Rect, rect = r, colors = .[c, c, c, c], radii = radii, border = border, softness = softness});
 }
 
-emit_draw :: (b: *Box, in_overlay_pass: bool) {
+emit_draw :: (b: *Box, in_overlay_pass: bool, depth := 0) {
+	assert(depth < MAX_BOX_DEPTH);
 	s := context.ui;
 	if (b.flags & .Overlay) && !in_overlay_pass return;
 	st := *b.style;
@@ -1340,14 +1349,15 @@ emit_draw :: (b: *Box, in_overlay_pass: bool) {
 	}
 	clip := (b.flags & .Clip) != 0;
 	if clip array_add(*s.draw, .{kind = .Clip_Push, rect = b.rect});
-	for c: each_child(b) emit_draw(c, in_overlay_pass);
+	for c: each_child(b) emit_draw(c, in_overlay_pass, depth + 1);
 	if clip array_add(*s.draw, .{kind = .Clip_Pop});
 }
 
-emit_overlays :: (b: *Box) {
+emit_overlays :: (b: *Box, depth := 0) {
+	assert(depth < MAX_BOX_DEPTH);
 	for c: each_child(b) {
-		if c.flags & .Overlay emit_draw(c, true);
-		else emit_overlays(c);
+		if c.flags & .Overlay emit_draw(c, true, depth + 1);
+		else emit_overlays(c, depth + 1);
 	}
 }
 

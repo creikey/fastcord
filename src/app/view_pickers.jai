@@ -243,11 +243,12 @@ picker_overlay :: () {
 }
 
 // Multiplies opacity through a subtree (ui does not inherit opacity).
-pk_fade :: (b: *ui.Box, a: float32) {
+pk_fade :: (b: *ui.Box, a: float32, depth := 0) {
+	assert(depth < ui.MAX_BOX_DEPTH);
 	b.opacity *= a;
 	c := b.first;
 	while c {
-		pk_fade(c, a);
+		pk_fade(c, a, depth + 1);
 		c = c.next;
 	}
 }

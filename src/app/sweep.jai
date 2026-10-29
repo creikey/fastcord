@@ -327,22 +327,24 @@ sweep_desc :: (b: *ui.Box) -> string {
 		append(*sb, names[i]);
 		if i > 0 append(*sb, #char "/");
 	}
-	first_text :: (b: *ui.Box) -> string {
+	first_text :: (b: *ui.Box, depth := 0) -> string {
+		assert(depth < ui.MAX_BOX_DEPTH);
 		if (b.flags & .Draw_Text) && b.text != "" return b.text;
 		c := b.first;
 		while c != null {
-			t := first_text(c);
+			t := first_text(c, depth + 1);
 			if t != "" return t;
 			c = c.next;
 		}
 		return "";
 	}
-	first_icon :: (b: *ui.Box) -> string {
+	first_icon :: (b: *ui.Box, depth := 0) -> string {
+		assert(depth < ui.MAX_BOX_DEPTH);
 		nm := box_icon_name(b);
 		if nm != "" return nm;
 		c := b.first;
 		while c != null {
-			t := first_icon(c);
+			t := first_icon(c, depth + 1);
 			if t != "" return t;
 			c = c.next;
 		}
@@ -374,13 +376,14 @@ sweep_geometry :: (b: *ui.Box, vr: ui.Rect) {
 		array_add(*swp.geom, .{key = b.key, rect = vr, desc = sprint("%|cut off: drawn rect %, pressable %", sweep_desc(b), b.rect, vr)});
 		return;
 	}
-	outside :: (c: *ui.Box, r: ui.Rect) -> *ui.Box {
+	outside :: (c: *ui.Box, r: ui.Rect, depth := 0) -> *ui.Box {
+		assert(depth < ui.MAX_BOX_DEPTH);
 		x := c.first;
 		while x != null {
 			if !(x.flags & .Clickable) { // a clickable child is its own control
 				drawn := (x.flags & (.Draw_Text | .Draw_Background | .Draw_Border)) || x.custom_draw != null;
 				if drawn && !(x.flags & (.Floating_X | .Floating_Y)) && (x.rect.x0 < r.x0 - 2 || x.rect.y0 < r.y0 - 2 || x.rect.x1 > r.x1 + 2 || x.rect.y1 > r.y1 + 2) return x;
-				o := outside(x, r);
+				o := outside(x, r, depth + 1);
 				if o != null return o;
 			}
 			x = x.next;

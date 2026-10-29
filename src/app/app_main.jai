@@ -549,12 +549,13 @@ run_script :: (path: string) {
 }
 
 // Runs one script command; most inject input and run one frame.
-script_command :: (path: string, f: []string, t: *float64) {
+script_command :: (path: string, f: []string, t: *float64, depth := 0) {
+	if depth > 8 script_fail(path, "repeat nested too deep"); // repeat <n> repeat ...
 	num :: (s: string) -> float32 { v := string_to_float(s); return v; }
 	if f[0] == {
 	case "repeat";
 		// repeat <n> <command...>
-		for 1..cast(int) num(f[1]) script_command(path, array_view(f, 2), t);
+		for 1..cast(int) num(f[1]) script_command(path, array_view(f, 2), t, depth + 1);
 		return;
 	case "sweep";
 		// sweep x0 y0 x1 y1 n: the mouse moves from one point to the other, one step per frame
