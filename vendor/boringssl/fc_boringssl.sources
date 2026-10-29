@@ -106,6 +106,7 @@ vendor/boringssl/crypto/evp/p_mldsa.cc
 vendor/boringssl/crypto/evp/p_mlkem.cc
 vendor/boringssl/crypto/evp/p_rsa.cc
 vendor/boringssl/crypto/evp/p_x25519.cc
+vendor/boringssl/crypto/evp/p_xwing.cc
 vendor/boringssl/crypto/evp/pbkdf.cc
 vendor/boringssl/crypto/evp/print.cc
 vendor/boringssl/crypto/evp/scrypt.cc
@@ -149,7 +150,6 @@ vendor/boringssl/crypto/rand/fork_detect.cc
 vendor/boringssl/crypto/rand/forkunsafe.cc
 vendor/boringssl/crypto/rand/getentropy.cc
 vendor/boringssl/crypto/rand/ios.cc
-vendor/boringssl/crypto/rand/passive.cc
 vendor/boringssl/crypto/rand/rand.cc
 vendor/boringssl/crypto/rand/trusty.cc
 vendor/boringssl/crypto/rand/urandom.cc

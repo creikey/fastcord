@@ -27,8 +27,9 @@ Conn :: struct {
 	stop: bool;
 }
 
-// connect starts the handshake with host:port and waits for it and the HTTP/3 setup.
-connect :: (host: string, port := 443) -> *Conn, http.Error {
+// connect starts the handshake with host:port and waits for it and the HTTP/3 setup. chrome_major picks the
+// Chrome whose first flight to send (tls.Config.chrome_major).
+connect :: (host: string, port := 443, chrome_major := tls.CHROME_MAJOR) -> *Conn, http.Error {
 	push_allocator(Context_Base.default_allocator);
 	peer, ok := udp_resolve(host, port);
 	if !ok return null, .Io;
@@ -51,7 +52,7 @@ connect :: (host: string, port := 443) -> *Conn, http.Error {
 	rtt := cached_rtt_us(host) * 1000;
 	ip := udp_ip(*peer);
 	ztp := cached_0rtt(host,, temp);
-	c.q = fc_quic_new(ssl, xx ifx ip.count == 4 then 4 else 6, ip.data, xx udp_port(peer), xx local_port, now_ns(), rtt, ztp.data, xx ztp.count, *c.ev);
+	c.q = fc_quic_new(ssl, xx ifx ip.count == 4 then 4 else 6, ip.data, xx udp_port(peer), xx local_port, now_ns(), rtt, ztp.data, xx ztp.count, xx orig(chrome_major), *c.ev);
 	if !c.q {
 		destroy(c);
 		return null, .Out_Of_Memory;
@@ -164,23 +165,23 @@ close :: (c: *Conn) {
 }
 
 // chrome_transport_params returns one fresh encoding of the transport parameters our ClientHello carries,
-// from context.allocator, with Google's initial_rtt when initial_rtt_us > 0. Order, the GREASE parameter and
-// the GREASE version are random per call, as in Chrome.
-chrome_transport_params :: (initial_rtt_us: u64) -> []u8 {
+// from context.allocator, with Google's initial_rtt when initial_rtt_us > 0 and connection options "ORIG" from
+// Chrome 152 on. Order, the GREASE parameter and the GREASE version are random per call, as in Chrome.
+chrome_transport_params :: (initial_rtt_us: u64, chrome_major := tls.CHROME_MAJOR) -> []u8 {
 	buf: [256]u8;
-	n := fc_quic_chrome_tp(buf.data, initial_rtt_us);
+	n := fc_quic_chrome_tp(buf.data, initial_rtt_us, xx orig(chrome_major));
 	return array_copy(array_view(buf, 0, xx n));
 }
 
 // first_flight returns, for tests, the datagrams a new connection to host sends before hearing back, from
 // context.allocator. Nothing goes on the network.
-first_flight :: (host: string) -> [][]u8 {
+first_flight :: (host: string, chrome_major := tls.CHROME_MAJOR) -> [][]u8 {
 	out: [..][]u8;
 	ssl := tls.new_ssl(quic_ctx(), .{alpn = string.["h3"], server_name = host}, true);
 	if !ssl return out;
 	ev := Events.{null, on_header, on_data, on_done, on_goaway, on_rejected};
 	ip := u8.[127, 0, 0, 1];
-	q := fc_quic_new(ssl, 4, ip.data, 443, 50000, now_ns(), 0, null, 0, *ev);
+	q := fc_quic_new(ssl, 4, ip.data, 443, 50000, now_ns(), 0, null, 0, xx orig(chrome_major), *ev);
 	if !q return out;
 	buf: [2048]u8;
 	while true {
@@ -258,7 +259,7 @@ Field :: struct {
 	vlen: u64;
 }
 
-fc_quic_new :: (ssl: *tls.SSL, family: s32, addr: *u8, port: s32, local_port: s32, now: u64, initial_rtt: u64, ztp: *u8, ztplen: u64, ev: *Events) -> *Fc_Quic #foreign lib;
+fc_quic_new :: (ssl: *tls.SSL, family: s32, addr: *u8, port: s32, local_port: s32, now: u64, initial_rtt: u64, ztp: *u8, ztplen: u64, orig: s32, ev: *Events) -> *Fc_Quic #foreign lib;
 fc_quic_del :: (q: *Fc_Quic) #foreign lib;
 fc_quic_read :: (q: *Fc_Quic, pkt: *u8, n: u64, now: u64) -> s32 #foreign lib;
 fc_quic_write :: (q: *Fc_Quic, buf: *u8, cap: u64, now: u64) -> int #foreign lib;
@@ -269,7 +270,7 @@ fc_quic_submit :: (q: *Fc_Quic, f: *Field, n: u64, body: *u8, blen: u64, prio: *
 fc_quic_cancel :: (q: *Fc_Quic, id: s64) #foreign lib;
 fc_quic_ready :: (q: *Fc_Quic) -> s32 #foreign lib;
 fc_quic_srtt :: (q: *Fc_Quic) -> u64 #foreign lib;
-fc_quic_chrome_tp :: (buf: *u8, rtt_us: u64) -> u64 #foreign lib;
+fc_quic_chrome_tp :: (buf: *u8, rtt_us: u64, orig: s32) -> u64 #foreign lib;
 fc_quic_tp :: (q: *Fc_Quic, n: *u64) -> *u8 #foreign lib;
 fc_quic_0rtt_tp :: (q: *Fc_Quic, buf: *u8, cap: u64) -> u64 #foreign lib;
 fc_h3_preview :: (prio: *u8, plen: u64, n: s32, buf: *u8, cap: u64) -> int #foreign lib;
@@ -307,6 +308,9 @@ quic_ctx :: () -> *tls.SSL_CTX {
 	}
 	return ctx_quic;
 }
+
+// orig: Chrome 152 sends the connection option ORIG (kQuicOptions); 148 sent none. Its TLS is the same.
+orig :: (chrome_major: int) -> bool { return chrome_major >= 152; }
 
 now_ns :: () -> u64 { return xx to_nanoseconds(current_time_monotonic()); }
 

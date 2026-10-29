@@ -1,3 +1,7 @@
+// CHROME_MAJOR is the Chrome whose hello we send unless told otherwise: the official client's Electron 44.
+// The supported shapes are 148's and 152's; any major below 152 gets 148's.
+CHROME_MAJOR :: 152;
+
 Config :: struct {
 	// ALPN protocols in preference order, e.g. {"h2", "http/1.1"}. ALPS is offered for "h2" over
 	// TCP and "h3" over QUIC, as Chrome does.
@@ -9,6 +13,9 @@ Config :: struct {
 	// Self-hosted servers: the BLAKE3 hash of the one leaf certificate to accept (32 bytes), with no
 	// certificate authority or name check.
 	pin: []u8;
+	// The Chrome major version whose ClientHello to send, the host's (src/discord/identity). From 152 the
+	// signature algorithms start with a GREASE value and ML-DSA-44/65/87.
+	chrome_major := CHROME_MAJOR;
 }
 
 // Error is the detailed failure reason; netio.Error is what the Stream reports.
@@ -22,21 +29,26 @@ Error :: enum u8 {
 	Internal;
 }
 
-// new_ctx makes an SSL_CTX configured like Chrome's, for TLS over TCP or, with quic, for QUIC: TLS 1.3
-// only, GREASE only in ECH, no OCSP or SCT requests. ngtcp2's BoringSSL backend takes a context from
-// here, adds its QUIC method, and makes each connection's SSL with new_ssl. Returns null on failure.
-new_ctx :: (quic: bool) -> *SSL_CTX {
+// new_ctx makes an SSL_CTX configured like Chrome chrome_major's, for TLS over TCP or, with quic, for QUIC
+// (TLS 1.3 only, GREASE only in ECH, no OCSP or SCT requests, the same in every version). ngtcp2's BoringSSL
+// backend takes a context from here, adds its QUIC method, and makes each connection's SSL with new_ssl.
+// Returns null on failure.
+new_ctx :: (quic: bool, chrome_major := CHROME_MAJOR) -> *SSL_CTX {
 	ctx := SSL_CTX_new(TLS_method());
 	if !ctx return null;
-	nsig := ifx quic then SIGALGS.count else SIGALGS.count - 1;
+	v152 := !quic && chrome_major >= 152;
+	sigalgs: []u16 = SIGALGS;
+	if quic sigalgs = SIGALGS_QUIC;
+	else if v152 sigalgs = SIGALGS_152;
 	ok := SSL_CTX_set_min_proto_version(ctx, xx ifx quic then TLS1_3_VERSION else TLS1_2_VERSION) == 1
 		&& SSL_CTX_set_max_proto_version(ctx, TLS1_3_VERSION) == 1
 		&& SSL_CTX_set_strict_cipher_list(ctx, CHROME_TLS12_CIPHERS) == 1
 		&& SSL_CTX_set1_group_ids(ctx, GROUPS.data, xx GROUPS.count) == 1
-		&& SSL_CTX_set_verify_algorithm_prefs(ctx, SIGALGS.data, xx nsig) == 1
+		&& SSL_CTX_set_verify_algorithm_prefs(ctx, sigalgs.data, xx sigalgs.count) == 1
 		&& SSL_CTX_add_cert_compression_alg(ctx, 2, null, decompress_brotli) == 1;
 	if !ok { SSL_CTX_free(ctx); return null; }
 	SSL_CTX_set_grease_enabled(ctx, xx ifx quic then 0 else 1);
+	SSL_CTX_set_grease_sigalgs_enabled(ctx, xx v152);
 	SSL_CTX_set_permute_extensions(ctx, 1);
 	if !quic {
 		SSL_CTX_enable_ocsp_stapling(ctx);
@@ -132,10 +144,26 @@ Session :: struct {
 // detailed reason.
 connect :: (under: netio.Stream, cfg: Config) -> *Session, netio.Error, Error {
 	ensure_init();
-	ssl := new_ssl(tcp_ctx, cfg, false);
+	ssl := new_ssl(tcp_ctx(cfg.chrome_major), cfg, false);
 	if !ssl return null, .Tls, .Internal;
 	s, ne, e := start(ssl, under);
 	return s, ne, e;
+}
+
+// client_hello returns, for tests, the ClientHello handshake message (no record header) connect would send
+// for cfg, from context.allocator. Nothing goes on the network.
+client_hello :: (cfg: Config) -> []u8 {
+	ensure_init();
+	ssl := new_ssl(tcp_ctx(cfg.chrome_major), cfg, false);
+	if !ssl return .[];
+	defer SSL_free(ssl);
+	rbio, wbio := BIO_new(BIO_s_mem()), BIO_new(BIO_s_mem());
+	SSL_set_bio(ssl, rbio, wbio);
+	SSL_do_handshake(ssl);
+	buf: [4096]u8;
+	n := BIO_read(wbio, buf.data, buf.count);
+	if n <= 5 return .[];
+	return array_copy(array_view(buf, 5, n - 5));
 }
 
 // Self-hosted servers (`fastcord -serve`) are the server side: TLS 1.3 only, X25519MLKEM768 first, a
@@ -327,8 +355,12 @@ close :: (s: *Session) {
 // Chrome's TLS 1.2 suites, in its order.
 CHROME_TLS12_CIPHERS :: "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-RSA-AES128-SHA:ECDHE-RSA-AES256-SHA:AES128-GCM-SHA256:AES256-GCM-SHA384:AES128-SHA:AES256-SHA";
 GROUPS := u16.[0x11ec, 0x001d, 0x0017, 0x0018]; // X25519MLKEM768, X25519, P-256, P-384.
-// Chrome's signature algorithms; its QUIC hello adds rsa_pkcs1_sha1 (0x0201) at the end.
-SIGALGS := u16.[0x0403, 0x0804, 0x0401, 0x0503, 0x0805, 0x0501, 0x0806, 0x0601, 0x0201];
+// Chrome's signature algorithms over TCP (net/socket/ssl_client_socket_impl.cc kVerifyPrefs). Chrome 152
+// puts ML-DSA-44, -65 and -87 first (kVerifyPrefsWithMlDsa) and BoringSSL a GREASE value before them
+// (kTlsGreaseSigalgs). QUIC leaves BoringSSL's default list, rsa_pkcs1_sha1 (0x0201) last, in both.
+SIGALGS := u16.[0x0403, 0x0804, 0x0401, 0x0503, 0x0805, 0x0501, 0x0806, 0x0601];
+SIGALGS_152 := u16.[0x0904, 0x0905, 0x0906, 0x0403, 0x0804, 0x0401, 0x0503, 0x0805, 0x0501, 0x0806, 0x0601];
+SIGALGS_QUIC := u16.[0x0403, 0x0804, 0x0401, 0x0503, 0x0805, 0x0501, 0x0806, 0x0601, 0x0201];
 
 INSECURE :: "insecure ";
 
@@ -363,11 +395,13 @@ verify_pin :: (ssl: *SSL, out_alert: *u8) -> s32 #c_call {
 
 host_of :: (d: *Ssl_Data) -> string { return to_string(d.host.data, d.host_count); }
 
-// The ex_data index and the shared TCP context, made on first use.
+// The ex_data index and the shared TCP contexts (Chrome 148's and 152's), made on first use.
 init_mu: locks.Mutex;
 inited: bool;
 host_index: s32;
-tcp_ctx: *SSL_CTX;
+tcp_ctxs: [2]*SSL_CTX;
+
+tcp_ctx :: (chrome_major: int) -> *SSL_CTX { return tcp_ctxs[xx (chrome_major >= 152)]; }
 
 ensure_init :: () {
 	if atomic_load(*inited) return;
@@ -376,7 +410,7 @@ ensure_init :: () {
 	host_index = SSL_get_ex_new_index(0, null, null, null, (parent: *void, ptr: *void, ad: *void, index: s32, argl: s64, argp: *void) #c_call {
 		OPENSSL_free(ptr);
 	});
-	tcp_ctx = new_ctx(false);
+	tcp_ctxs = .[new_ctx(false, 148), new_ctx(false, 152)];
 	atomic_store(*inited, true);
 }
 

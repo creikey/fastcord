@@ -29,7 +29,7 @@ not read in code; **guess** = neither, best knowledge.
 ## QUIC and HTTP/3 (Chrome's network stack)
 
 Taken from Chromium's source (QUICHE under `net/third_party/quiche`, and `net/`), not from the Discord bundle:
-review them when the Chrome version in the captures changes. Checked against the official client's own
+review them when the Chrome version in the captures changes (last: Chrome 152.0.7977.167, BoringSSL 572a4c68). Checked against the official client's own
 Initials and control stream (old fixtures in git history: `src/quic/testdata/chrome_initial_{1,2}.bin`,
 `chrome_h3_control.bin` before 847140a) by `quic_chrome_initials` and `quic_h3_control_stream`.
 
@@ -38,12 +38,15 @@ Initials and control stream (old fixtures in git history: `src/quic/testdata/chr
 | A ClientHello needing several Initial packets: packet 1 gets its first 55 + rand % 32 bytes and its tail, `ceil((len + m) / packets) - m` bytes in all (m = one CRYPTO frame header for the whole hello); the middle goes in packet 2 on | code (Chromium source) + checked | `QuicPacketCreator::MultiPacketChaosProtect` (`quic_packet_creator.cc`) | `vendor/ngtcp2/patches/0001-chrome-initial-packets.patch` |
 | Each Initial packet with CRYPTO and padding: split CRYPTO 2-10 more times (random frame, random cut) while padding pays for it, add 2-10 PINGs, a random share of the padding before each frame and the rest last, then shuffle | code (Chromium source) + checked | `QuicChaosProtector::BuildDataPacket` (`quic_chaos_protector.cc`) | same |
 | Packet numbers: 1 byte for the first packet, then at least 2 (`GetMinPacketNumberLength(4 * max(delta, packets in flight))`); Length field 2 bytes | inferred (Chrome's Initials) + code | `QuicPacketCreator::UpdatePacketNumberLength` | same |
-| One packet-number counter across Initial, Handshake and 1-RTT | code (Chromium source) | `QuicPacketCreator::NextSendingPacketNumber` | not done (README "Fingerprint regressions") |
+| One packet-number counter across Initial, Handshake and 1-RTT | code (Chromium source) | `QuicPacketCreator::NextSendingPacketNumber` | `vendor/ngtcp2/patches/0002-chrome-packet-numbers.patch` |
 | Control stream: type, SETTINGS sorted by id with a GREASE setting (0x1f * N + 0x21 = random u32), then a GREASE frame of N % 4 random bytes (N from the same random value as its type) | code (Chromium source) + checked | `QuicSendControlStream::MaybeSendSettingsFrame`, `HttpEncoder::SerializeGreasingFrame` | `vendor/nghttp3/patches/0001-chrome-control-stream.patch` |
 | QPACK streams: decoder opened before encoder (ids 6 then 10), each silent until its first instruction | code (Chromium source) | `QuicSpdySession::MaybeInitializeHttp3UnidirectionalStreams`, `QpackSendStream::MaybeSendStreamType` | same; `fc_ngtcp2.c` `setup_h3` |
 | PRIORITY_UPDATE for a request is written on the control stream right before its HEADERS | code (Chromium source) | `QuicStream::SetPriority` -> `QuicSpdyStream::MaybeSendPriorityUpdateFrame` | same |
 | 0-RTT on a resumed session carries only safe methods (GET, HEAD, OPTIONS, TRACE); others wait for the handshake. When the server refuses early data, the requests are sent again on 1-RTT | code (Chromium source) | `HttpNetworkTransaction` `can_send_early_data_`, `HttpUtil::IsMethodSafe` | `src/quic/quic.jai` `request`; `fc_ngtcp2.c` `client_initial`, `early_data_rejected` |
 | 0-RTT needs the server's transport parameters from the last connection: kept per host in memory, like the TLS tickets | inferred | `QuicResumptionState` | `src/quic/quic.jai` `remember_0rtt` |
+| Chrome 152 TLS over TCP: signature_algorithms = GREASE, ML-DSA-44/65/87 (0x0904-0x0906), then 148's eight; both behind features on by default. Checked against the official client 1.0.9266's Chrome 152.0.7977.167 hello | code (Chromium 152.0.7977.167) + checked | `kVerifyPrefsWithMlDsa`, `kTlsMldsaSignatures`, `kTlsGreaseSigalgs` (`ssl_client_socket_impl.cc`, `net/base/features.cc`) | `src/tls/tls.jai` `SIGALGS_152`, `new_ctx` |
+| Chrome 152 QUIC: transport parameter google_connection_options (0x3128) = the tag "ORIG", 4 bytes in order, shuffled with the rest; the QUIC hello's signature algorithms stay BoringSSL's default (Chrome sets none) | code (Chromium 152.0.7977.167) + checked (netlog) | `kQuicOptions` default `"ORIG"` under `kTryQuicByDefault`; `QuicSessionPool` `AddConnectionOptionsToSend`; QUICHE `SerializeTransportParameters` | `fc_ngtcp2.c` `fc_quic_chrome_tp` |
+| A host on Chrome below 152 gets Chrome 148's hello (no GREASE or ML-DSA signature algorithms, no ORIG); 149-151 were never captured | guess | - | `tls.Config.chrome_major`, `quic.connect` `chrome_major` |
 
 ## Uploads
 

@@ -154,8 +154,14 @@ Keep the UI immediate-mode. Make each pass cheaper instead of caching results ac
 
 ## Fingerprint regressions
 
-Where our traffic differs from the official client (Chrome 148 captures in the repo), and why.
-QUIC transport parameters, ALPN and the Initial datagrams match exactly: two 1250-byte datagrams with an 8-byte
+Where our traffic differs from the official client, and why. Checked against Chrome 152.0.7977.167 (the
+official Windows client 1.0.9266, Electron 44): its ClientHello to Discord over TCP equals ours in every
+field but the random, GREASE and key share values, ECH GREASE's random payload length and the random
+extension order: cipher suites, groups, key shares, ALPN, ALPS, brotli certificate compression, ECH GREASE,
+and signature algorithms led by a GREASE value and ML-DSA-44/65/87 (`tls_chrome_hello`). A host still on
+Chrome 148 gets 148's hello (`tls.Config.chrome_major`, `quic.connect`), from the same BoringSSL.
+QUIC transport parameters (with 152's connection option ORIG; `quic_chrome_transport_params`), ALPN and the
+Initial datagrams match exactly: two 1250-byte datagrams with an 8-byte
 DCID, empty SCID, no token and a 2-byte Length, packets 1 and 2 numbered with 1 then 2 bytes, and QUICHE's chaos
 protection inside (the ClientHello's head and tail in packet 1, its middle in packet 2, CRYPTO frames split
 among PINGs and PADDING; `quic_chrome_initials`). HTTP/3 starts as Chrome's does: sorted SETTINGS plus a GREASE
