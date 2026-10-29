@@ -2253,7 +2253,7 @@ roles_page :: (g: *dc.Guild) {
 // Save Changes sends the order, as the arrows' does).
 role_drag :: (g: *dc.Guild, order: []dc.Snowflake) {
 	if !ss.rdrag return;
-	released := false;
+	released := !app.ui.mouse_down[0]; // also a release this page never saw
 	for app.ui.events if it.kind == .Mouse_Up && it.button == .Left released = true;
 	d := app.ui.mouse - ss.rdrag_from;
 	if !ss.rdrag_active && d.x * d.x + d.y * d.y > DRAG_THRESHOLD * DRAG_THRESHOLD ss.rdrag_active = true;

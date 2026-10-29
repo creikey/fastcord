@@ -928,7 +928,7 @@ channel_drag_row :: (ch: *dc.Channel, sig: ui.Signal, b: *ui.Box) {
 // After the rows: the threshold, and on release the PATCH of the new order.
 channel_drag :: (gid: dc.Snowflake) {
 	if !cdrag.down return;
-	released := false;
+	released := !app.ui.mouse_down[0]; // also a release this view never saw
 	for app.ui.events if it.kind == .Mouse_Up && it.button == .Left released = true;
 	d := app.ui.mouse - cdrag.from;
 	if !cdrag.active && d.x * d.x + d.y * d.y > DRAG_THRESHOLD * DRAG_THRESHOLD cdrag.active = true;

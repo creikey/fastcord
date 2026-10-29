@@ -316,7 +316,7 @@ bell_icon_name :: (ch: *dc.Channel) -> string {
 	return ifx dc.channel_is_muted(store(), ch.guild_id, ch.id, wall_ms()) then "bell-slash" else "bell";
 }
 
-guild_menu_reset_for_test :: () { gm = .{}; }
+guild_menu_reset_for_test :: () { gm = .{}; cdrag = .{}; }
 
 guild_menu_state_for_test :: () -> string {
 	b: String_Builder;
