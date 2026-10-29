@@ -12,9 +12,18 @@ type return x;
 expect_input "```js\nconst x = 1;\n  return x;"
 key tab shift
 expect_input "```js\nconst x = 1;\nreturn x;"
-key left cmd
+# back to the start of "return x;" (Cmd+Left is a word move off macOS), indent, then the end
+key left
+key left
+key left
+key left
+key left
+key left
+key left
+key left
+key left
 key tab
-key right cmd
+key end cmd
 key enter
 type ```
 expect_input "```js\nconst x = 1;\n  return x;\n```"
