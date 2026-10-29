@@ -190,7 +190,7 @@ Conn :: struct {
     stats: Stats;
     tl: Timeline;        // under mu
 
-    ws_th, timer_th, udp_th, audio_th: *Thread;
+    ws_th, timer_th, udp_th, audio_th, pacer_th: *Thread;
     udp_started: bool;
     audio_started: bool;
     capture_on: bool;
@@ -229,6 +229,12 @@ Conn :: struct {
     video_seq: u16;
     video_packets, video_octets, video_last_ts: u32;
     keyframe_wanted: bool;            // atomic: a PLI/FIR for our stream arrived
+    // the pacer: sealed video packets queue here and leave at PACE_FACTOR x the bitrate (pacer_thread_proc),
+    // so a keyframe can't fill the socket ahead of the mic's packets, which skip the queue
+    pmu: locks.Mutex;
+    pcond: locks.Cond;
+    paced: [..][]u8;  // heap, oldest first
+    paced_bytes: int;
 }
 
 dbg :: (c: *Conn, format: string, args: ..Any) {
@@ -290,6 +296,7 @@ voice_connect :: (info: Voice_Server_Info, opts := Options.{}) -> *Conn {
     c.debug = env && to_string(env) == "1";
     c.ws_th = start_thread(c, ws_thread_proc);
     c.timer_th = start_thread(c, timer_thread_proc);
+    c.pacer_th = start_thread(c, pacer_thread_proc);
     return c;
 }
 
@@ -301,7 +308,9 @@ voice_disconnect :: (c: *Conn) {
     close_ws(c, CLOSE_FORCE);
     // The ws thread starts udp_th and audio_th, so read those handles only after it has exited.
     locks.join(c.ws_th);
-    for th: (*Thread).[c.timer_th, c.udp_th, c.audio_th] if th locks.join(th);
+    for th: (*Thread).[c.timer_th, c.udp_th, c.audio_th, c.pacer_th] if th locks.join(th);
+    for c.paced free(it.data);
+    array_free(c.paced);
     if c.capture_on audio.capture_stop();
     if c.udp_open close_and_reset(*c.udp);
     transport_reset(*c.tx_crypto);
@@ -1607,11 +1616,55 @@ send_video :: (c: *Conn, codec: Video_Codec, au: []u8, ts_90k: u32) {
         c.video_seq += 1;
         c.video_packets += 1;
         c.video_octets += xx payload.count;
-        udp_send(c, array_view(sealed, 0, sl));
+        locks.guard(*c.pmu);
+        array_add(*c.paced, array_copy(array_view(sealed, 0, sl)));
+        c.paced_bytes += sl;
+        locks.cond_signal(*c.pcond);
     }, *pk);
     c.video_last_ts = ts_90k;
     locks.guard(*c.mu);
     c.stats.video_frames_sent += 1;
+}
+
+// pacer_thread_proc sends the queued video packets at PACE_FACTOR x the stream's bitrate, as WebRTC's
+// pacer does, speeding up so none waits longer than PACE_QUEUE_MS; at most PACE_BURST_MS of it leaves at once.
+PACE_FACTOR :: 2.5;
+PACE_QUEUE_MS :: 500;
+PACE_BURST_MS :: 5;
+
+pacer_thread_proc :: (t: *Thread) -> s64 {
+    c := cast(*Conn) t.data;
+    budget: float64; // bytes that may leave now
+    last := current_time_monotonic();
+    batch: [..][]u8;
+    while !stopped(c) {
+        locks.lock(*c.pmu);
+        if !c.paced.count {
+            locks.cond_wait_with_timeout(*c.pcond, *c.pmu, 100);
+            locks.unlock(*c.pmu);
+            budget, last = 0, current_time_monotonic();
+            continue;
+        }
+        now := current_time_monotonic();
+        rate := max(c.video_bitrate * PACE_FACTOR / 8, c.paced_bytes * 1000.0 / PACE_QUEUE_MS); // bytes/s
+        budget = min(budget + rate * to_nanoseconds(now - last) / 1_000_000_000.0, rate * PACE_BURST_MS / 1000 + MAX_VIDEO_PAYLOAD);
+        last = now;
+        n := 0;
+        while n < c.paced.count && budget > 0 {
+            budget -= c.paced[n].count;
+            c.paced_bytes -= c.paced[n].count;
+            array_add(*batch, c.paced[n]);
+            n += 1;
+        }
+        for n..c.paced.count - 1 c.paced[it - n] = c.paced[it];
+        c.paced.count -= n;
+        locks.unlock(*c.pmu);
+        for batch { udp_send(c, it); free(it.data); }
+        if !batch.count sleep_milliseconds(1);
+        batch.count = 0;
+    }
+    array_free(batch);
+    return 0;
 }
 
 // video_user_ids: users whose op 12 announced an active video stream, in context.allocator.

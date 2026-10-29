@@ -365,7 +365,6 @@
 - [ ] Group DMs: 5 of the 8 default icon colours fall back to the brand colour (`group_icon_color`); the client draws DEFAULT_GROUP_DM_AVATARS[timestamp % 8], images whose colours need taking from the bundle's assets.
 - [ ] Markdown: clicking a slash-command or server page chip (`/name`, Channels & Roles, Browse Channels, Server Guide) does nothing; it should fill the composer or open that page.
 - [ ] Chat: an age-gated channel still loads its messages behind the gate (the official mounts no chat until you agree), and age-restricted servers (`nsfw_level` 3) aren't gated (`nsfw_gated`).
-- [ ] Video: frames go out as one unpaced burst on the same UDP socket as the mic (`send_video`, no pacer or audio priority); on a slow uplink a keyframe can delay or drop voice packets.
 - [ ] Friends: Active Now is always the empty card.
 - [ ] Chat: welcome messages aren't shown properly.
 - [ ] Events: clicking an event invite card should open the event's details modal (fastcord has none; it opens the Events list); event cards lack the cover image and recurring-event series picker.
@@ -835,3 +834,4 @@
 - [x] Undo: clicking your own reaction removes it on screen at once and holds the DELETE for 5 s (no toast); adding it again in that time cancels the removal with nothing sent (`react`, `send_unreact`; `tests/ui/undo_reaction.txt`, on a self-hosted server in the same process).
 - [x] Unreads: the server rail pill, the folder dot and Mark As Read's enabled state count a thread only while it's joined and not archived, as the Inbox already did (`unread_counts`).
 - [x] Gateway: `PASSIVE_UPDATE_V2` (an unsubscribed server's channel last messages, so its unreads, plus its voice states and changed members) and `MESSAGE_REACTION_ADD_MANY` (batched reactions in big servers) are applied (`passive_update_dispatches`). `PASSIVE_UPDATE_V1` and `CHANNEL_UNREAD_UPDATE` no longer exist in the client; `VOICE_CHANNEL_STATUS_UPDATE`, `USER_NOTE_UPDATE` and the soundboard events were already handled.
+- [x] Video: frames no longer go out as one burst: a pacer thread sends the sealed packets at 2.5x the stream's bitrate (faster when more than 500 ms would queue), as WebRTC's does, while the mic's packets skip the queue (`pacer_thread_proc` in `voice/conn.jai`; `src/tests/voice_fake_server.jai` checks a 100 KB keyframe spreads over 200-500 ms).

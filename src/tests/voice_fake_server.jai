@@ -166,6 +166,7 @@ Fake :: struct {
     speaking_on: bool;
     rtp_e2ee_ok, rtp_bad, rtcp: int;
     video_ok, video_bad: int;  // A's camera frames that decrypted to the frame sent
+    big_first, big_last: Apollo_Time; // when BIG_TS's first and last packets came (the pacer spreads them)
     got_op12, got_op15: bool;
     a_video: voice.Video_Rx;
     close_code: int;
@@ -337,7 +338,11 @@ udp_thread :: (t: *Thread) -> s64 {
                 }
             } else if hok && h.ssrc == FAKE_VIDEO_A {
                 m, ok := voice.transport_open(*tc, pkt, h.aad_len, plain);
-                if ok && h.pt == 103 {
+                if ok && h.pt == 103 && h.ts == BIG_TS {
+                    locks.guard(*f.mu);
+                    if !f.big_first f.big_first = current_time_monotonic();
+                    f.big_last = current_time_monotonic();
+                } else if ok && h.pt == 103 {
                     au, done := voice.rx_video_packet(*f.a_video, .H265, h.seq, h.ts, h.marker, array_view(plain, h.payload_off, m - h.payload_off));
                     if done {
                         p, pok := dave.parse_protocol_frame(au);
@@ -426,6 +431,7 @@ udp_thread :: (t: *Thread) -> s64 {
 g_capture_phase: float64;
 g_playback_b: int;
 g_video_b: int;
+BIG_TS :: 99_000;
 
 // An H.265 keyframe: VPS, SPS, PPS and a 3000-byte IDR slice (fragmented in RTP).
 fake_video_au :: () -> []u8 {
@@ -523,7 +529,15 @@ test_fake_voice_server :: () {
         reset_temporary_storage();
         sleep_milliseconds(30);
     }
-    sleep_milliseconds(200);
+    // a 100 KB keyframe at 1 Mb/s leaves paced at 2.5x: about 320 ms, not one burst
+    big: [..]u8;
+    big.allocator = temp;
+    array_add(*big, ..fake_video_au());
+    for 0..100_000 array_add(*big, cast(u8) (it * 7 + 1));
+    voice.send_video(c, voice.video_codec(c), big, BIG_TS);
+    sleep_milliseconds(600);
+    span := to_milliseconds(f.big_last - f.big_first);
+    expect(span >= 200 && span <= 500, "a keyframe paced over % ms", span);
     expect(atomic_load(*g_video_b) >= 3, "B's camera frames decoded: %", g_video_b);
 
     voice.voice_disconnect(c);
