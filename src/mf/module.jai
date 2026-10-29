@@ -1,5 +1,5 @@
-// Media Foundation and COM for Windows video: the codec MFTs (media's decoder, video's encoder) and camera
-// capture, which trade yuv.Nv12 frames. Windows only.
+// Media Foundation and COM for Windows video: the codec MFTs (media's decoders, video's encoder) and camera
+// capture, which trade yuv.Nv12 frames; and the AAC decoder MFT for media's audio. Windows only.
 
 #import "Basic";
 #import "Atomics";
@@ -60,6 +60,7 @@ get_blob ::(a: *void, key: *GUID, buf: []u8) -> int {
 set_u32 :: (a: *void, key: *GUID, v: u32) -> bool { return com(a, 21, #type (*void, *GUID, u32) -> HRESULT #c_call)(a, key, v) >= 0; }
 set_u64 :: (a: *void, key: *GUID, v: u64) -> bool { return com(a, 22, #type (*void, *GUID, u64) -> HRESULT #c_call)(a, key, v) >= 0; }
 set_guid :: (a: *void, key: *GUID, v: *GUID) -> bool { return com(a, 24, #type (*void, *GUID, *GUID) -> HRESULT #c_call)(a, key, v) >= 0; }
+set_blob :: (a: *void, key: *GUID, v: []u8) -> bool { return com(a, 26, #type (*void, *GUID, *u8, u32) -> HRESULT #c_call)(a, key, v.data, xx v.count) >= 0; }
 set_unknown :: (a: *void, key: *GUID, v: *void) -> bool { return com(a, 27, #type (*void, *GUID, *void) -> HRESULT #c_call)(a, key, v) >= 0; }
 
 // MF_MT_FRAME_SIZE, MF_MT_FRAME_RATE and friends pack two u32s, the first in the high half.
@@ -179,9 +180,10 @@ visible_size :: (t: *void) -> w: int, h: int, frame_h: int {
 }
 
 // The first synchronous MFT in category that takes in_subtype and produces out_subtype (either may be null).
-transform_find :: (category: *GUID, in_subtype: *GUID, out_subtype: *GUID) -> *void {
-	inp := MFT_REGISTER_TYPE_INFO.{MFMediaType_Video, ifx in_subtype then in_subtype.* else .{}};
-	out := MFT_REGISTER_TYPE_INFO.{MFMediaType_Video, ifx out_subtype then out_subtype.* else .{}};
+transform_find :: (category: *GUID, in_subtype: *GUID, out_subtype: *GUID, audio := false) -> *void {
+	major := ifx audio then MFMediaType_Audio else MFMediaType_Video;
+	inp := MFT_REGISTER_TYPE_INFO.{major, ifx in_subtype then in_subtype.* else .{}};
+	out := MFT_REGISTER_TYPE_INFO.{major, ifx out_subtype then out_subtype.* else .{}};
 	acts: **void;
 	n: u32;
 	if MFTEnumEx(category, MFT_ENUM_FLAG_SYNCMFT | MFT_ENUM_FLAG_LOCALMFT | MFT_ENUM_FLAG_SORTANDFILTER,
@@ -306,6 +308,16 @@ MFMediaType_Video := GUID.{0x73646976, 0x0000, 0x0010, .[0x80, 0x00, 0x00, 0xAA,
 MFVideoFormat_NV12 := #run subtype_guid("NV12");
 MFVideoFormat_H264 := #run subtype_guid("H264");
 MFVideoFormat_HEVC := #run subtype_guid("HEVC");
+MFMediaType_Audio := GUID.{0x73647561, 0x0000, 0x0010, .[0x80, 0x00, 0x00, 0xAA, 0x00, 0x38, 0x9B, 0x71]};
+MFAudioFormat_AAC := GUID.{0x00001610, 0x0000, 0x0010, .[0x80, 0x00, 0x00, 0xAA, 0x00, 0x38, 0x9B, 0x71]};
+MFAudioFormat_Float := GUID.{0x00000003, 0x0000, 0x0010, .[0x80, 0x00, 0x00, 0xAA, 0x00, 0x38, 0x9B, 0x71]};
+MFAudioFormat_PCM := GUID.{0x00000001, 0x0000, 0x0010, .[0x80, 0x00, 0x00, 0xAA, 0x00, 0x38, 0x9B, 0x71]};
+MFT_CATEGORY_AUDIO_DECODER := GUID.{0x9ea73fb4, 0xef7a, 0x4559, .[0x8d, 0x5d, 0x71, 0x9d, 0x8f, 0x04, 0x26, 0xc7]};
+MF_MT_AUDIO_NUM_CHANNELS := GUID.{0x37e48bf5, 0x645e, 0x4c5b, .[0x89, 0xde, 0xad, 0xa9, 0xe2, 0x9b, 0x69, 0x6a]};
+MF_MT_AUDIO_SAMPLES_PER_SECOND := GUID.{0x5faeeae7, 0x0290, 0x4c31, .[0x9e, 0x8a, 0xc5, 0x34, 0xf6, 0x8d, 0x9d, 0xba]};
+MF_MT_AUDIO_BITS_PER_SAMPLE := GUID.{0xf2deb57f, 0x40fa, 0x4764, .[0xaa, 0x33, 0xed, 0x4f, 0x2d, 0x1f, 0xf6, 0x69]};
+MF_MT_AAC_PAYLOAD_TYPE := GUID.{0xbfbabe79, 0x7434, 0x4d1c, .[0x94, 0xf0, 0x72, 0xa3, 0xb9, 0xe1, 0x71, 0x88]};
+MF_MT_USER_DATA := GUID.{0xb6bc765f, 0x4c3b, 0x40a4, .[0xbd, 0x51, 0x25, 0x35, 0xb6, 0x6f, 0xe0, 0x9d]};
 MFT_CATEGORY_VIDEO_DECODER := GUID.{0xd6c02d4b, 0x6833, 0x45b4, .[0x97, 0x1a, 0x05, 0xa4, 0xb0, 0x4b, 0xab, 0x91]};
 MFT_CATEGORY_VIDEO_ENCODER := GUID.{0xf79eac7d, 0xe545, 0x4387, .[0xbd, 0xee, 0xd6, 0x47, 0xd7, 0xbd, 0xe4, 0x2a]};
 MF_MT_MAJOR_TYPE := GUID.{0x48eba18e, 0xf8c9, 0x4687, .[0xbf, 0x11, 0x0a, 0x74, 0xc9, 0xf9, 0x6a, 0x8f]};

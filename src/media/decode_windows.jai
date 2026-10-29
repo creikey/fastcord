@@ -1,5 +1,5 @@
 // Windows video decoding: the H.264 / HEVC decoder MFTs (Media Foundation), NV12 out, copied into yuv.Nv12
-// frames (frame_nv12.jai). Audio stays on decode_none.jai's PCM and MP3.
+// frames (frame_nv12.jai); AAC through Microsoft's AAC decoder MFT for decode_none.jai.
 
 Video_Decoder :: struct {
 	mft: *void;
@@ -101,6 +101,84 @@ video_decoder_destroy :: (vd: *Video_Decoder) {
 	array_free(vd.prefix);
 	array_free(vd.annexb);
 	free(vd);
+}
+
+// AAC (video soundtracks, .m4a) through Microsoft's AAC decoder MFT: raw frames with the AudioSpecificConfig
+// in, float or 16-bit PCM out, at the rate and channels it reports (HE-AAC doubles the container's rate).
+Aac_Decoder :: struct {
+	mft: *void;
+	info: mf.MFT_OUTPUT_STREAM_INFO;
+	channels, rate: int;
+	is_float: bool;
+}
+
+aac_decoder_create :: (t: *Track) -> *Aac_Decoder {
+	if t.aac_asc.count < 2 || t.aac_asc.count > 64 || !mf.startup() return null;
+	com := mf.com_enter();
+	defer mf.com_leave(com);
+	m := mf.transform_find(*mf.MFT_CATEGORY_AUDIO_DECODER, *mf.MFAudioFormat_AAC, null, audio = true);
+	if !m return null;
+	inp: *void;
+	if mf.MFCreateMediaType(*inp) < 0 { mf.release(m); return null; }
+	defer mf.release(inp);
+	mf.set_guid(inp, *mf.MF_MT_MAJOR_TYPE, *mf.MFMediaType_Audio);
+	mf.set_guid(inp, *mf.MF_MT_SUBTYPE, *mf.MFAudioFormat_AAC);
+	mf.set_u32(inp, *mf.MF_MT_AUDIO_NUM_CHANNELS, xx clamp(t.channels, 1, 8));
+	mf.set_u32(inp, *mf.MF_MT_AUDIO_SAMPLES_PER_SECOND, xx clamp(t.sample_rate, 8000, 96000));
+	mf.set_u32(inp, *mf.MF_MT_AUDIO_BITS_PER_SAMPLE, 16);
+	mf.set_u32(inp, *mf.MF_MT_AAC_PAYLOAD_TYPE, 0); // raw
+	// HEAACWAVEINFO after its WAVEFORMATEX: payload type, profile 0xFE (unknown), struct type, reserved; then the ASC
+	user: [12 + 64]u8;
+	user[2] = 0xFE;
+	memcpy(*user[12], t.aac_asc.data, t.aac_asc.count);
+	mf.set_blob(inp, *mf.MF_MT_USER_DATA, array_view(user, 0, 12 + t.aac_asc.count));
+	if mf.mft_set_input_type(m, inp) < 0 { mf.release(m); return null; }
+	ad := New(Aac_Decoder);
+	ad.mft = m;
+	for i: 0..15 {
+		ot := mf.mft_output_available_type(m, i);
+		if !ot break;
+		defer mf.release(ot);
+		bits := mf.get_u32(ot, *mf.MF_MT_AUDIO_BITS_PER_SAMPLE);
+		f := mf.has_subtype(ot, *mf.MFAudioFormat_Float) && bits == 32;
+		if !f && !(mf.has_subtype(ot, *mf.MFAudioFormat_PCM) && bits == 16) continue;
+		if mf.mft_set_output_type(m, ot) < 0 continue;
+		ad.is_float = f;
+		ad.channels = cast(int) mf.get_u32(ot, *mf.MF_MT_AUDIO_NUM_CHANNELS);
+		ad.rate = cast(int) mf.get_u32(ot, *mf.MF_MT_AUDIO_SAMPLES_PER_SECOND);
+		if f break; // else keep looking for float
+	}
+	if ad.channels < 1 || ad.rate < 1000 { aac_decoder_destroy(ad); return null; }
+	ad.info = mf.mft_output_info(m);
+	mf.mft_message(m, mf.MFT_MESSAGE_NOTIFY_BEGIN_STREAMING);
+	mf.mft_message(m, mf.MFT_MESSAGE_NOTIFY_START_OF_STREAM);
+	return ad;
+}
+
+// One AAC frame -> interleaved f32 appended to out (ad.channels per frame).
+aac_decode :: (ad: *Aac_Decoder, data: []u8, out: *[..]float32) {
+	com := mf.com_enter();
+	defer mf.com_leave(com);
+	s := mf.sample_from_bytes(data, 0);
+	if !s return;
+	hr := mf.mft_input(ad.mft, s);
+	mf.release(s);
+	if hr < 0 return;
+	for 0..15 {
+		o, ohr := mf.mft_output(ad.mft, ad.info);
+		if ohr < 0 return;
+		buf, b := mf.sample_lock(o);
+		if ad.is_float for 0..b.count / 4 - 1 array_add(out, (cast(*float32) b.data)[it]);
+		else for 0..b.count / 2 - 1 array_add(out, cast(float32) (cast(*s16) b.data)[it] / 32768);
+		mf.sample_unlock(buf);
+		mf.release(o);
+	}
+}
+
+aac_decoder_destroy :: (ad: *Aac_Decoder) {
+	if !ad return;
+	mf.release(ad.mft);
+	free(ad);
 }
 
 #scope_file
