@@ -186,7 +186,7 @@ rail_view :: () {
 			}
 			app.client = h.client;
 			g1, c1 := app.view.guild, app.view.channel;
-			for gid: h.client.store.guild_order rail_hosted_guild(gid, active == h.client);
+			for gid: h.client.store.guild_order if hosted_client_of(gid) == h.client rail_hosted_guild(gid, active == h.client); // not a colliding ID
 			if moved(g1, c1) active = h.client;
 			app.client = ifx app.discord then app.discord else active;
 		}
