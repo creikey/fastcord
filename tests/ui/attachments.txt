@@ -39,7 +39,14 @@ click_text Mark as spoiler
 key enter
 wait 3
 expect_attachments 4 renamed.png desc=alt photo.jpg notes.txt clip.mp4
-# remove (trash) the second card
+# remove (trash) the second card: gone at once, back with Undo, then removed again
+click 823 449
+wait 3
+expect_attachments 3 renamed.png notes.txt clip.mp4
+expect_visible "Attachment removed"
+click_text "Undo"
+wait 3
+expect_attachments 4 renamed.png photo.jpg notes.txt clip.mp4
 click 823 449
 wait 3
 expect_attachments 3 renamed.png notes.txt clip.mp4

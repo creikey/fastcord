@@ -284,6 +284,31 @@ staged_remove :: (channel_id: dc.Snowflake, key: u64) {
 	}
 }
 
+// The card's trash: the card goes at once and comes back on Undo (undo.jai); the uploaded file's
+// remote delete waits for the window to end. A card still loading goes at once.
+staged_trash :: (channel_id: dc.Snowflake, key: u64) {
+	l := staged_list(channel_id);
+	for u, i: l.* {
+		if u.key != key continue;
+		if u.loading break;
+		held := New(Staged);
+		held.* = u;
+		array_ordered_remove_by_index(l, i);
+		undo_push("Attachment removed", (u: *Undo) {
+			st := cast(*Staged) u.p;
+			if st.draft && u.client dc.upload_draft_remove(u.client, st.draft);
+			staged_free(st);
+			free(st);
+		}, (u: *Undo) {
+			l := staged_list(u.a);
+			array_insert_at(l, (cast(*Staged) u.p).*, min(u.n, l.count));
+			free(u.p);
+		}, a = channel_id, n = i, p = held);
+		return;
+	}
+	staged_remove(channel_id, key);
+}
+
 staged_find :: (channel_id: dc.Snowflake, key: u64) -> *Staged {
 	l := table_find_pointer(*att.by_channel, channel_id);
 	if l for * l.* if it.key == key return it;
@@ -478,7 +503,7 @@ uploads_bar :: (channel_id: dc.Snowflake) {
 		}
 		spacer(.X, 10);
 	}
-	if remove_ staged_remove(channel_id, remove_);
+	if remove_ staged_trash(channel_id, remove_);
 	sep := ui.box("upsep", .Draw_Background);
 	sep.semantic_size = .[ui.pct(1), ui.px(1)];
 	sep.style.bg = T("--border-subtle");

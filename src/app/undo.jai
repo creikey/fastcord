@@ -19,15 +19,16 @@ Undo :: struct {
 	s, t: string; // heap, freed with it
 	n: s64;
 	hides: bool; // a is a guild, channel or event the lists leave out meanwhile (undo_hides)
+	p: *void; // what send or revert owns (heap)
 }
 
 undos: [..]*Undo;
 
 // Holds an action. The caller has already changed what the screen shows (or relies on undo_held).
-undo_push :: (text: string, send: (u: *Undo), revert: (u: *Undo) = null, a: dc.Snowflake = 0, b: dc.Snowflake = 0, c: dc.Snowflake = 0, s := "", t := "", n := 0, hides := false) -> *Undo {
+undo_push :: (text: string, send: (u: *Undo), revert: (u: *Undo) = null, a: dc.Snowflake = 0, b: dc.Snowflake = 0, c: dc.Snowflake = 0, s := "", t := "", n := 0, hides := false, p: *void = null) -> *Undo {
 	app.net_actions += 1;
 	u := New(Undo);
-	u.* = .{text = copy_string(text), client = app.client, until = platform.time_now() + UNDO_S, send = send, revert = revert, a = a, b = b, c = c, s = copy_string(s), t = copy_string(t), n = n, hides = hides};
+	u.* = .{text = copy_string(text), client = app.client, until = platform.time_now() + UNDO_S, send = send, revert = revert, a = a, b = b, c = c, s = copy_string(s), t = copy_string(t), n = n, hides = hides, p = p};
 	array_add(*undos, u);
 	request_wake(u.until + 0.01);
 	return u;
