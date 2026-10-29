@@ -496,8 +496,8 @@ main :: () {
 	inside, _ := etf.from_json(body);
 	inside_id := field(inside, "id").s;
 	check(status == 201 && field(inside, "parent_id").s == cat_id, tprint("create a channel in a category: % %", status, body));
-	status, body = rest("POST", tprint("/api/v9/guilds/%/channels", gid), tprint("{\"name\": \"x\", \"type\": 2}"), token);
-	check(status == 400, tprint("no voice channels yet: %", status));
+	status, body = rest("POST", tprint("/api/v9/guilds/%/channels", gid), tprint("{\"name\": \"x\", \"type\": 15}"), token);
+	check(status == 400, tprint("no forum channels yet: %", status));
 	status, body = rest("POST", tprint("/api/v9/channels/%/messages", cat_id), "{\"content\": \"x\"}", token);
 	check(status == 404, tprint("a category takes no messages: %", status));
 	status, body = rest("DELETE", tprint("/api/v9/channels/%", cat_id), "", token);

@@ -226,7 +226,7 @@ friends_page :: () {
 			tab: Friends_Tab;
 		}.[.{"Online", .Online}, .{"All", .All}, .{"Pending", .Pending}, .{"Add Friend", .Add_Friend}];
 		for t: tabs {
-			if t.tab == .Pending && pending_count() == 0 { continue; }
+			if t.tab == .Pending && !has_pending() { continue; } // outgoing requests alone keep it, to cancel them
 			sel := app.view.friends_tab == t.tab;
 			tb := ui.box(t.name, .Clickable | .Draw_Background | .Draw_Text | .Hot_Animation);
 			tb.semantic_size = .[ui.text_size(12), ui.px(32)];
@@ -371,6 +371,11 @@ friends_page :: () {
 			}
 		}
 	}
+}
+
+has_pending :: () -> bool {
+	for store().relationships if it.kind == .Incoming_Request || it.kind == .Outgoing_Request return true;
+	return false;
 }
 
 pending_count :: () -> int {
@@ -717,7 +722,8 @@ member_row :: (gid: dc.Snowflake, uid: dc.Snowflake) {
 		offline := user_status(uid) == .Offline;
 		{ ui.parent(item); defer ui.pop_parent();
 			spacer(.X, 8);
-			av := avatar_with_status("av", uid, 32, ifx sig.hovering then T("--background-base-low") else T("--background-base-lower"));
+			// offline members: a dimmed avatar with no status dot, as the official client draws them
+			av := ifx offline then avatar_box("av", uid, 32) else avatar_with_status("av", uid, 32, ifx sig.hovering then T("--background-base-low") else T("--background-base-lower"));
 			if offline { av.opacity = 0.3; }
 			spacer(.X, 12);
 			name := dc.user_name(s, uid, gid, "unknown");
@@ -841,7 +847,7 @@ dm_profile_panel :: (uid: dc.Snowflake) {
 				spacer(.Y, 20);
 				line("since_h", "Member Since", .Semibold, 12, 16, T("--text-strong"));
 				spacer(.Y, 6);
-				created := dc.snowflake_time_ms(uid) + local_utc_offset_ms();
+				created := local_ms(dc.snowflake_time_ms(uid));
 				t := to_calendar(APOLLO_TIME_FOR_JAN_1_1970 + milliseconds_to_apollo(created), .UTC);
 				line("since", tprint("% %, %", MONTH_SHORT[t.month_starting_at_0], t.day_of_month_starting_at_0 + 1, t.year), .Normal, 14, 18, T("--text-default"));
 				encrypted_profile(dc.channel_get(s, app.view.channel), DMP_PAD);

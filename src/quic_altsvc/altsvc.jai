@@ -397,7 +397,7 @@ save_locked :: (c: *Cache) {
 	for c.entries print_to_builder(*b, "% % % % %\n", it_index, it.port, to_unix(it.expires), to_unix(it.broken_until), it.broken_count);
 	for quic.cached_rtts(,, temp) print_to_builder(*b, "rtt % %\n", it.host, it.us);
 	tmp := tprint("%.tmp", c.path);
-	if write_entire_file(tmp, *b) file_move(tmp, c.path);
+	if write_entire_file(tmp, *b) File_Utilities.atomic_file_replace_or_just_rename_if_destination_file_does_not_exist(tmp, c.path);
 }
 
 free_string :: (s: string) { if s.count free(s.data); }

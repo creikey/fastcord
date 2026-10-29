@@ -45,8 +45,19 @@ Conn_State :: enum u8 {
 
 Dial_Proc :: #type (host: string, port: int) -> netio.Stream, bool;
 
+// A self-hosted server (fastcord -serve): the voice gateway is at its own address over TLS 1.3 with ALPN fc/1,
+// SNI = server_id and only the certificate whose BLAKE3 is pin; media goes to that host whatever READY's ip
+// says; and a call without DAVE is accepted, since serve doesn't run DAVE yet.
+Hosted :: struct {
+    host: string;
+    port: int;
+    server_id: string;
+    pin: [32]u8;
+}
+
 Options :: struct {
     dial: Dial_Proc;          // null = TCP + TLS (ALPN http/1.1, SNI = host)
+    hosted: Hosted;           // host "" = Discord
     no_audio_devices: bool;   // don't touch the audio module (tests / headless)
     capture: (data: *void, out: []float32) -> int;          // mono 48 kHz pull, used when no_audio_devices
     playback: (data: *void, user_id: u64, pcm: []float32);  // stereo interleaved, 960 frames
@@ -256,7 +267,10 @@ voice_connect :: (info: Voice_Server_Info, opts := Options.{}) -> *Conn {
     c.info.user_agent = copy_string(ifx info.user_agent then info.user_agent else DEFAULT_USER_AGENT);
     c.info.accept_language = copy_string(ifx info.accept_language then info.accept_language else "en-US");
     c.opts = opts;
+    c.opts.hosted.host = copy_string(opts.hosted.host);
+    c.opts.hosted.server_id = copy_string(opts.hosted.server_id);
     c.host, c.port = split_endpoint(c.info.endpoint);
+    if opts.hosted.host c.host, c.port = c.opts.hosted.host, opts.hosted.port;
     c.rtc_connection_id = uuid4();
     c.codec = get_codec();
     c.encoder = c.codec.encoder_create();
@@ -269,7 +283,7 @@ voice_connect :: (info: Voice_Server_Info, opts := Options.{}) -> *Conn {
     crypto.random_bytes(rb);
     c.seq = get_u16(rb);
     c.ts = get_u32(rb, 2);
-    DAVE.session_init(*c.dave, info.user_id, info.channel_id, info.stage);
+    DAVE.session_init(*c.dave, info.user_id, info.channel_id, info.stage || opts.hosted.host != "");
     c.state = .Connecting;
     c.tl.created = now_ms();
     env := getenv("FASTCORD_VOICE_DEBUG");
@@ -312,6 +326,8 @@ voice_disconnect :: (c: *Conn) {
     free(c.info.user_agent);
     free(c.info.accept_language);
     free(c.rtc_connection_id);
+    free(c.opts.hosted.host);
+    free(c.opts.hosted.server_id);
     free(c.tl.media_session_id);
     free(c);
 }
@@ -488,11 +504,13 @@ split_endpoint :: (ep: string) -> host: string, port: int {
     return e, 443;
 }
 
-default_dial :: (host: string, port: int) -> netio.Stream, bool {
+default_dial :: (host: string, port: int, hosted: Hosted) -> netio.Stream, bool {
     tcp, err := netio.dial_tcp(host, port);
     if err != .None return .{}, false;
     under := netio.tcp_stream(tcp);
-    sess, terr := tls.connect(under, .{alpn = .["http/1.1"], server_name = host});
+    cfg := tls.Config.{alpn = .["http/1.1"], server_name = host};
+    if hosted.host cfg = .{alpn = .["fc/1"], server_name = hosted.server_id, pin = hosted.pin};
+    sess, terr := tls.connect(under, cfg);
     if terr != .None {
         netio.close(under);
         return .{}, false;
@@ -603,8 +621,10 @@ finish :: (c: *Conn, code: int) {
 // ws_session runs one WebSocket connection; returns the close code (0 = transport error).
 ws_session :: (c: *Conn, resume: bool) -> int {
     if !resume set_state(c, .Connecting);
-    dial := ifx c.opts.dial then c.opts.dial else default_dial;
-    stream, ok := dial(c.host, c.port);
+    stream: netio.Stream;
+    ok: bool;
+    if c.opts.dial stream, ok = c.opts.dial(c.host, c.port);
+    else stream, ok = default_dial(c.host, c.port, c.opts.hosted);
     if !ok return 0;
     req := http.Request.{method = "GET", scheme = "https", authority = c.host, path = "/?v=9", headers = voice_ws_headers(c)};
     ws, resp, err := http.ws_connect(stream, req);
@@ -814,7 +834,7 @@ on_ready :: (c: *Conn, d: etf.Value) {
         c.rtx_ssrc = cast,no_check(u32) jint(jget(it, "rtx_ssrc"), 0);
         break;
     }
-    ip := jstr(jget(d, "ip"));
+    ip := ifx c.opts.hosted.host then c.host else jstr(jget(d, "ip"));
     port := jint(jget(d, "port"), 0);
     modes: [..]string;
     modes.allocator = temp;

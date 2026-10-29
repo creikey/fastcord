@@ -1,6 +1,5 @@
-// Seconds east of UTC for the local timezone, now.
-tz_offset_seconds :: () -> s64 {
-	t := c_time(null);
+// Seconds east of UTC for the local timezone at unix time t (its DST rule then).
+tz_offset_seconds :: (t: s64) -> s64 {
 	tm: Tm;
 	localtime_r(*t, *tm);
 	return tm.gmtoff;
@@ -13,5 +12,4 @@ Tm :: struct {
 	gmtoff: s64;
 	zone: *u8;
 }
-c_time :: (t: *s64) -> s64 #foreign libc "time";
 localtime_r :: (t: *s64, out: *Tm) -> *Tm #foreign libc;

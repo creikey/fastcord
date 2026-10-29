@@ -3,7 +3,7 @@
 // IDWriteFactory2::CreateGlyphRunAnalysis (grayscale).
 //
 // COM calls go through raw vtable indices (Jai ships no DirectWrite bindings).
-// Gap: font_load_memory (needs IDWriteFactory5 in-memory loader) returns 0.
+// font_load_memory unpacks WOFF/WOFF2 and gives each font its own collection (IDWriteFactory5, Windows 10).
 
 #scope_module
 
@@ -21,6 +21,8 @@ text_backend_init :: () {
 text_backend_shutdown :: () {
     for dw.insts release(it.face);
     array_free(dw.insts);
+    if dw.mem_loader { (cast(#type (*void, *void) -> HRESULT #c_call) vt(dw.factory, 14))(dw.factory, dw.mem_loader); } // UnregisterFontFileLoader
+    release(dw.mem_loader);
     release(dw.factory);
     dw = .{};
 }
@@ -28,12 +30,64 @@ text_backend_shutdown :: () {
 native_font_free :: (native: *void) {
     nf := cast(*Native_Face) native;
     if nf == null return;
+    release(nf.collection);
     free(nf.family);
+    free(nf.name);
     free(nf);
 }
 
 native_font_load_memory :: (data: []u8) -> *void {
-    return null; // TODO: IDWriteFactory5::UnpackFontFile (WOFF2) + CreateInMemoryFontFileLoader
+    HR :: HRESULT;
+    f5, stream, file, builder, set, coll, family, font, names: *void;
+    defer { release(names); release(font); release(family); release(set); release(builder); release(file); release(stream); release(f5); }
+    IID_IDWriteFactory5 := GUID.{0x958DB99A, 0xBE2A, 0x4F09, .[0xAF, 0x7D, 0x65, 0x18, 0x98, 0x03, 0xD1, 0xD3]};
+    if !dw.factory || FAILED((cast(#type (*void, *GUID, **void) -> HR #c_call) vt(dw.factory, 0))(dw.factory, *IID_IDWriteFactory5, *f5)) return null;
+    if !dw.mem_loader {
+        // IDWriteFactory5::CreateInMemoryFontFileLoader, IDWriteFactory::RegisterFontFileLoader
+        if FAILED((cast(#type (*void, **void) -> HR #c_call) vt(f5, 44))(f5, *dw.mem_loader)) return null;
+        (cast(#type (*void, *void) -> HR #c_call) vt(dw.factory, 13))(dw.factory, dw.mem_loader);
+    }
+    bytes := data;
+    // IDWriteFactory5::AnalyzeContainerType; UnpackFontFile into a stream, read whole (IDWriteFontFileStream
+    // GetFileSize, ReadFileFragment, ReleaseFileFragment)
+    container := (cast(#type (*void, *u8, u32) -> u32 #c_call) vt(f5, 46))(f5, data.data, xx data.count);
+    frag_ctx: *void;
+    if container != 0 {
+        size: u64;
+        p: *u8;
+        if FAILED((cast(#type (*void, u32, *u8, u32, **void) -> HR #c_call) vt(f5, 47))(f5, container, data.data, xx data.count, *stream)) ||
+            FAILED((cast(#type (*void, *u64) -> HR #c_call) vt(stream, 5))(stream, *size)) ||
+            FAILED((cast(#type (*void, **u8, u64, u64, **void) -> HR #c_call) vt(stream, 3))(stream, *p, 0, size, *frag_ctx)) return null;
+        bytes = .{xx size, p};
+    }
+    // IDWriteInMemoryFontFileLoader::CreateInMemoryFontFileReference copies the bytes (no owner);
+    // IDWriteFactory5::CreateFontSetBuilder; IDWriteFontSetBuilder1::AddFontFile, CreateFontSet;
+    // IDWriteFactory3::CreateFontCollectionFromFontSet; IDWriteFontCollection::GetFontFamily; IDWriteFontList::GetFont
+    ok := SUCCEEDED((cast(#type (*void, *void, *u8, u32, *void, **void) -> HR #c_call) vt(dw.mem_loader, 4))(dw.mem_loader, dw.factory, bytes.data, xx bytes.count, null, *file));
+    if frag_ctx { (cast(#type (*void, *void) #c_call) vt(stream, 4))(stream, frag_ctx); }
+    ok = ok && SUCCEEDED((cast(#type (*void, **void) -> HR #c_call) vt(f5, 43))(f5, *builder)) &&
+        SUCCEEDED((cast(#type (*void, *void) -> HR #c_call) vt(builder, 7))(builder, file)) &&
+        SUCCEEDED((cast(#type (*void, **void) -> HR #c_call) vt(builder, 6))(builder, *set)) &&
+        SUCCEEDED((cast(#type (*void, *void, **void) -> HR #c_call) vt(f5, 37))(f5, set, *coll)) &&
+        SUCCEEDED((cast(#type (*void, u32, **void) -> HR #c_call) vt(coll, 4))(coll, 0, *family)) &&
+        SUCCEEDED((cast(#type (*void, u32, **void) -> HR #c_call) vt(family, 5))(family, 0, *font));
+    if !ok { release(coll); return null; }
+    nf := New(Native_Face);
+    nf.collection = coll;
+    nf.weight = (cast(#type (*void) -> u32 #c_call) vt(font, 4))(font); // IDWriteFont::GetWeight, GetStyle
+    nf.style = (cast(#type (*void) -> u32 #c_call) vt(font, 6))(font);
+    // IDWriteFontFamily::GetFamilyNames; IDWriteFont::GetInformationalStrings(FULL_NAME), as CoreText's full name
+    if SUCCEEDED((cast(#type (*void, **void) -> HR #c_call) vt(family, 6))(family, *names)) nf.family = localized(names);
+    release(names);
+    names = null;
+    exists: BOOL;
+    if SUCCEEDED((cast(#type (*void, u32, **void, *BOOL) -> HR #c_call) vt(font, 9))(font, 16, *names, *exists)) && exists && names {
+        w := localized(names);
+        if w nf.name = wide_to_utf8(w);
+        free(w);
+    }
+    if !nf.family { native_font_free(nf); return null; }
+    return nf;
 }
 
 native_font_system :: (name: string, weight: Font_Weight, italic: bool) -> *void {
@@ -51,9 +105,10 @@ native_font_system :: (name: string, weight: Font_Weight, italic: bool) -> *void
 
 native_font_instance :: (native: *void, size_px: float32) -> u32 {
     nf := cast(*Native_Face) native;
-    // system collection -> family -> first matching font -> font face
-    coll: *void;
-    (cast(#type (*void, **void, BOOL) -> HRESULT #c_call) vt(dw.factory, 3))(dw.factory, *coll, 0);
+    // collection (the system's, or a loaded font's own) -> family -> first matching font -> font face
+    coll := nf.collection;
+    if coll add_ref(coll);
+    else (cast(#type (*void, **void, BOOL) -> HRESULT #c_call) vt(dw.factory, 3))(dw.factory, *coll, 0);
     if coll == null return 0;
     defer release(coll);
     index: u32;
@@ -88,6 +143,7 @@ native_font_name :: (inst: u32, allocator: Allocator) -> string {
     fi := dw.insts[inst];
     if fi.family == null return "";
     push_allocator(allocator);
+    if fi.family.name return copy_string(fi.family.name);
     s := wide_to_utf8(fi.family.family);
     return s;
 }
@@ -124,7 +180,7 @@ native_shape :: (inst: u32, text: string, out: *[..]Raw_Glyph) -> float32 {
 
     format: *void;
     (cast(#type (*void, *u16, *void, u32, u32, u32, float32, *u16, **void) -> HRESULT #c_call) vt(dw.factory, 15))(
-        dw.factory, fi.family.family, null, fi.family.weight, fi.family.style, 5, fi.size, locale.data, *format);
+        dw.factory, fi.family.family, fi.family.collection, fi.family.weight, fi.family.style, 5, fi.size, locale.data, *format);
     if format == null return 0;
     defer release(format);
     (cast(#type (*void, u32) -> HRESULT #c_call) vt(format, 5))(format, 1 /*NO_WRAP*/);
@@ -274,6 +330,8 @@ DWRITE_COLOR_GLYPH_RUN :: struct {
 
 Native_Face :: struct {
     family: *u16; // NUL-terminated
+    name: string; // a loaded font's full name ("" for system fonts)
+    collection: *void; // IDWriteFontCollection holding only a loaded font; null for system fonts
     weight: u32;
     style: u32; // DWRITE_FONT_STYLE
 }
@@ -293,6 +351,7 @@ Renderer :: struct {
 
 dw: struct {
     factory: *void; // IDWriteFactory2
+    mem_loader: *void; // IDWriteInMemoryFontFileLoader, registered on first font_load_memory
     renderer: Renderer;
     vtable: [10]*void;
     insts: [..]Font_Inst;
@@ -368,6 +427,15 @@ r_draw_glyph_run :: (this: *void, ctx: *void, x: float32, y: float32, mode: u32,
         dw.cur_width = max(dw.cur_width, pen);
     }
     return S_OK;
+}
+
+// String 0 of an IDWriteLocalizedStrings (GetStringLength, GetString), NUL-terminated, heap.
+localized :: (names: *void) -> *u16 {
+    n: u32;
+    if FAILED((cast(#type (*void, u32, *u32) -> HRESULT #c_call) vt(names, 7))(names, 0, *n)) || n > 1024 return null;
+    buf := NewArray(n + 1, u16);
+    if FAILED((cast(#type (*void, u32, *u16, u32) -> HRESULT #c_call) vt(names, 8))(names, 0, buf.data, n + 1)) { free(buf.data); return null; }
+    return buf.data;
 }
 
 guid_equal :: (a: *GUID, b: *GUID) -> bool #no_context {

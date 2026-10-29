@@ -350,6 +350,35 @@ dib_to_rgba :: (dib: []u8, allocator := context.allocator) -> rgba: []u8, width:
     return rgba, width, height, true;
 }
 
+// RGBA8 to a packed CF_DIBV5 in out (124 + width*height*4 bytes): BITMAPV5HEADER, 32 bpp BI_BITFIELDS with
+// an alpha mask, sRGB, bottom-up rows of BGRA. The inverse of dib_to_rgba.
+rgba_to_dibv5 :: (rgba: []u8, width: int, height: int, out: []u8) {
+    put32 :: (b: []u8, at: int, v: u32) { for 0..3 b[at + it] = xx ((v >> (8 * it)) & 0xFF); }
+    memset(out.data, 0, 124);
+    put32(out, 0, 124);
+    put32(out, 4, xx width);
+    put32(out, 8, xx height);
+    put32(out, 12, 1 | (32 << 16)); // planes, bit count
+    put32(out, 16, 3); // BI_BITFIELDS
+    put32(out, 20, xx (width * height * 4));
+    put32(out, 40, 0x00FF_0000); // red, green, blue, alpha masks
+    put32(out, 44, 0x0000_FF00);
+    put32(out, 48, 0x0000_00FF);
+    put32(out, 52, 0xFF00_0000);
+    put32(out, 56, 0x7352_4742); // LCS_sRGB
+    put32(out, 108, 4); // LCS_GM_IMAGES
+    for y: 0..height-1 {
+        src := rgba.data + (height - 1 - y) * width * 4;
+        dst := out.data + 124 + y * width * 4;
+        for x: 0..width-1 {
+            dst[x*4 + 0] = src[x*4 + 2];
+            dst[x*4 + 1] = src[x*4 + 1];
+            dst[x*4 + 2] = src[x*4 + 0];
+            dst[x*4 + 3] = src[x*4 + 3];
+        }
+    }
+}
+
 #scope_module
 
 State :: struct {

@@ -549,6 +549,7 @@ update_selection :: () {
 	}
 	if sel.dragging s.cursor = .IBeam;
 	for b: s.selectables if b.key == s.hot || (s.hot == 0 && mouse_over(b)) s.cursor = .IBeam;
+	if s.span_cursor != .Default && !sel.dragging s.cursor = s.span_cursor;
 }
 
 draw_selection_highlight :: (b: *Box, tl: *Text_Layout) {

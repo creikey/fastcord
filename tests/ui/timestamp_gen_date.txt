@@ -1,0 +1,18 @@
+# Clicking the Date field focuses it (its text used to swallow the press), and a typed date and time
+# give that moment with the offset in force on that date.
+wait 5
+click 860 684
+wait 10
+click 538 263
+wait 3
+key a cmd
+type 2026-11-05
+wait 3
+click 740 263
+wait 3
+key a cmd
+type 4pm
+wait 5
+click 473 317
+wait 10
+expect_input "<t:1793894400:t>"

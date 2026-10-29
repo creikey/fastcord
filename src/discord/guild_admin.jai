@@ -473,6 +473,27 @@ open_channel_settings :: (c: *Client, ch: *Channel) {
 	analytics_track(c, "settings_pane_viewed", tprint("\"settings_type\":\"channel\",\"origin_pane\":null,\"destination_pane\":\"OVERVIEW\",\"location\":null,%", guild_track_props(c, ch.guild_id, ch.id)));
 }
 
+// open_guild_settings: Server Settings opened (bundle GuildSettings componentDidMount): science
+// settings_pane_viewed for the first section, GET /guilds/{id}/new-member-welcome (its home settings) and,
+// with MANAGE_GUILD, the templates.
+open_guild_settings :: (c: *Client, guild_id: Snowflake, pane: string) {
+	guild_settings_pane(c, "", pane, guild_id);
+	aux_get(c, tprint("/guilds/%/new-member-welcome", guild_id), guild_id);
+	refresh_templates(c, guild_id);
+}
+
+// guild_settings_pane: another Server Settings section shown ("" origin: just opened).
+guild_settings_pane :: (c: *Client, origin: string, dest: string, guild_id: Snowflake) {
+	if !dest return;
+	o := ifx origin then tprint("\"%\"", origin) else "null";
+	analytics_track(c, "settings_pane_viewed", tprint("\"settings_type\":\"guild\",\"origin_pane\":%,\"destination_pane\":\"%\",%", o, dest, guild_track_props(c, guild_id, route_channel_of(c))));
+}
+
+guild_has_feature :: (g: *Guild, f: string) -> bool {
+	for g.features if it == f return true;
+	return false;
+}
+
 // open_delete_channel: the Delete Channel confirm opened: GET /guilds/{id}/roles/member-counts.
 open_delete_channel :: (c: *Client, guild_id: Snowflake) {
 	aux_get(c, tprint("/guilds/%/roles/member-counts", guild_id), guild_id);

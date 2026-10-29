@@ -53,6 +53,9 @@ for k, (cid, kind, rec, unread) in enumerate(dms):
 # friends so the Create DM popout has people to list; Nelly has a friend nickname
 for k, u in enumerate(users):
     out.append(ev('RELATIONSHIP_ADD', {'id': u['id'], 'type': 1, 'user': u, 'nickname': 'Lil Bean' if k == 1 else None, 'since': '2026-01-01T00:00:00+00:00'}))
+# an outgoing friend request alone still shows the Pending tab
+quinn = {'id': 1000000000000000009, 'username': 'quinn', 'global_name': 'Quinn', 'avatar': None, 'discriminator': '0'}
+out.append(ev('RELATIONSHIP_ADD', {'id': quinn['id'], 'type': 4, 'user': quinn, 'nickname': None, 'since': '2026-01-02T00:00:00+00:00'}))
 with open(os.path.join(here, 'rail.jsonl'), 'w', encoding='utf-8', newline='\n') as f:
     for o in out: f.write(json.dumps(o) + '\n')
 print('wrote rail.jsonl', len(out))

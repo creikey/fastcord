@@ -12,10 +12,35 @@ VOICE_BUTTONS_H :: 40; // the Video / Screen row under it
 
 voice_set_headless :: (h: bool) { vc.headless = h; }
 
+// The connection the call is on (Discord's, or a hosted server's), which stays while another is selected.
+call_client :: () -> *dc.Client { return ifx vc.client then vc.client else app.client; }
+call_store :: () -> *dc.Store { return ifx vc.client then *vc.client.store else store(); }
+
+// call_on_selected: a call starts on the selected connection, ending one on another first.
+call_on_selected :: () {
+	if vc.client && vc.client != app.client && app.voice_channel voice_leave_channel();
+	vc.client = app.client;
+}
+
+// hosted_voice: how a voice connection reaches cl's server when it is a hosted one.
+hosted_voice :: (cl: *dc.Client) -> voice.Hosted {
+	h := cl.cfg.hosted;
+	return .{host = h.host, port = h.port, server_id = h.server_id, pin = h.pin};
+}
+
+// voice_client_gone: c is being released (a hosted server dropped or logged in again), so its call ends here.
+voice_client_gone :: (c: *dc.Client) {
+	if !c || c != vc.client return;
+	app.voice_channel = 0;
+	voice_drop();
+	vc.client = null;
+}
+
 // voice_join_channel: op 4 join (or move) and remember the guild for later op 4s.
 voice_join_channel :: (gid: dc.Snowflake, cid: dc.Snowflake) {
 	if !net_action() { return; }
-	if app.voice_channel == cid { return; }
+	if app.voice_channel == cid && vc.client == app.client { return; }
+	call_on_selected();
 	vc.guild = gid;
 	app.voice_channel = cid;
 	dc.voice_join(app.client, gid, cid, app.self_mute || app.self_deaf, app.self_deaf);
@@ -33,6 +58,7 @@ dm_call_toggle :: (ch: *dc.Channel) {
 	}
 	if !net_action() { return; }
 	if app.voice_channel == ch.id { return; }
+	call_on_selected();
 	vc.guild = 0;
 	app.voice_channel = ch.id;
 	dc.dm_call_start(app.client, ch.id, app.self_mute || app.self_deaf, app.self_deaf);
@@ -43,6 +69,7 @@ dm_call_toggle :: (ch: *dc.Channel) {
 // The incoming call's "Join Call" (op 4 into the DM, like the caller's).
 call_join_incoming :: (cid: dc.Snowflake) {
 	if !net_action() { return; }
+	call_on_selected();
 	vc.guild = 0;
 	app.voice_channel = cid;
 	dc.call_accept(app.client, cid, app.self_mute || app.self_deaf, app.self_deaf);
@@ -52,14 +79,16 @@ call_join_incoming :: (cid: dc.Snowflake) {
 
 // Ctrl+Alt+A or a click on the voice panel's channel: open the connected call.
 voice_return :: () {
-	ch := dc.channel_get(store(), app.voice_channel);
+	ch := dc.channel_get(call_store(), app.voice_channel);
+	if ch && vc.client app.client = vc.client; // The call's connection, which may not be the selected one.
 	if ch select_channel(ch.guild_id, ch.id);
 }
 
 voice_leave_channel :: () {
-	if app.client != null && app.voice_channel != 0 { dc.voice_leave(app.client); }
+	if call_client() != null && app.voice_channel != 0 { dc.voice_leave(call_client()); }
 	app.voice_channel = 0;
 	voice_drop();
+	vc.client = null;
 }
 
 voice_shutdown :: () {
@@ -74,8 +103,9 @@ voice_audio_ready :: () -> bool { return vc.audio_ready; }
 
 voice_frame :: () {
 	voice_settings_frame(vc.conn, vc.headless, vc.audio_ready);
-	if app.client == null { return; }
-	if !vc.auto_checked && app.client.store.ready {
+	cl := call_client();
+	if cl == null { return; }
+	if !vc.auto_checked && cl.store.ready {
 		vc.auto_checked = true;
 		id, _ := dc.parse_u64(env_var("FASTCORD_JOIN_VOICE"));
 		ch := dc.channel_get(store(), cast(dc.Snowflake) id);
@@ -83,26 +113,27 @@ voice_frame :: () {
 	}
 	if app.voice_channel == 0 {
 		if vc.conn != null { voice_drop(); }
-		dc.client_set_rtc_state(app.client, .Disconnected);
+		dc.client_set_rtc_state(cl, .Disconnected);
 		return;
 	}
 	// A new gateway session (reconnect without resume): its READY's op 4 rejoined the call
 	// (VoiceStateStore), and the connection moves to the new session's VOICE_SERVER_UPDATE.
-	rejoin := vc.synced && vc.readies != store().readies;
+	s := *cl.store;
+	rejoin := vc.synced && vc.readies != s.readies;
 	// Our account joined a call on another device: Discord moved the call there. Hang up here
 	// without op 4 (a null channel would end the other device's call too).
-	if vc.synced && vc.voice_elsewhere != store().voice_elsewhere {
+	if vc.synced && vc.voice_elsewhere != s.voice_elsewhere {
 		app.voice_channel = 0;
 		voice_drop();
 		return;
 	}
 	vc.synced = true;
-	vc.readies = store().readies;
-	vc.voice_elsewhere = store().voice_elsewhere;
+	vc.readies = s.readies;
+	vc.voice_elsewhere = s.voice_elsewhere;
 	// The server moved us (a moderator): the call follows; removed us (kicked, channel deleted, call
 	// ended): it ends here without an op 4.
 	if rejoin vc.seen_channel = 0;
-	followed := dc.voice_followed(app.client, app.voice_channel, *vc.seen_channel);
+	followed := dc.voice_followed(cl, app.voice_channel, *vc.seen_channel);
 	if followed != app.voice_channel {
 		app.voice_channel = followed;
 		if !followed {
@@ -114,20 +145,20 @@ voice_frame :: () {
 	if app.self_mute != vc.sent_mute || app.self_deaf != vc.sent_deaf {
 		vc.sent_mute = app.self_mute;
 		vc.sent_deaf = app.self_deaf;
-		dc.voice_set_state(app.client, vc.guild, app.voice_channel, app.self_mute || app.self_deaf, app.self_deaf, camera_on());
+		dc.voice_set_state(cl, vc.guild, app.voice_channel, app.self_mute || app.self_deaf, app.self_deaf, camera_on());
 	}
 	if vc.conn != null {
 		voice.set_self_mute(vc.conn, app.self_mute || app.self_deaf);
 		voice.set_self_deaf(vc.conn, app.self_deaf);
 	}
 
-	info, ver, ok := dc.voice_server_info(app.client);
+	info, ver, ok := dc.voice_server_info(cl);
 	// Channel move or server migration: drop the old connection, then connect once its teardown is done.
 	if ok && vc.conn != null && ver != vc.version && cast(dc.Snowflake)(info.channel_id) == app.voice_channel { voice_drop(); }
 	if ok && vc.conn == null && !teardown_busy() && cast(dc.Snowflake)(info.channel_id) == app.voice_channel && dc.now_ms() >= vc.retry_at {
 		if !vc.headless {
 			// opening the microphone asks the OS for it (permissions_requested)
-			dc.analytics_permissions_requested(app.client, "audio");
+			dc.analytics_permissions_requested(cl, "audio");
 			if !vc.audio_ready { vc.audio_ready = audio.init(); }
 		}
 		vc.conn = voice.voice_connect(voice.Voice_Server_Info.{
@@ -138,16 +169,16 @@ voice_frame :: () {
 			session_id = info.session_id,
 			channel_id = cast(u64)(info.channel_id),
 			stage = is_stage(app.voice_channel),
-			user_agent = app.client.id.platform.browser_user_agent,
-			accept_language = app.client.id.platform.accept_language
-		}, voice_options());
+			user_agent = cl.id.platform.browser_user_agent,
+			accept_language = cl.id.platform.accept_language
+		}, voice_options(cl));
 		vc.version = ver;
 		vc.channel = app.voice_channel;
 		voice.set_self_mute(vc.conn, app.self_mute || app.self_deaf);
 		voice.set_self_deaf(vc.conn, app.self_deaf);
 	}
 	rtc := voice_rtc_state();
-	dc.client_set_rtc_state(app.client, rtc); // client_rtc_state while in voice
+	dc.client_set_rtc_state(cl, rtc); // client_rtc_state while in voice
 	if rtc == .Rtc_Connected dc.backoff_succeed(*vc.backoff);
 	if vc.conn != null && voice.state(vc.conn) == .Disconnected {
 		// RTCConnection._handleDisconnect: whatever the code, connect again (a fresh IDENTIFY) after
@@ -195,7 +226,7 @@ voice_avatar :: (id: string, uid: dc.Snowflake, size: float32, surface: ui.Color
 
 // voice_panel: "Voice Connected" / channel / guild, disconnect button; ping on hover.
 voice_panel :: () {
-	s := store();
+	s := call_store();
 	p := row("voicepanel");
 	p.semantic_size = .[ui.pct(1), ui.px(VOICE_PANEL_H)];
 	status := "RTC Connecting";
@@ -284,7 +315,7 @@ voice_panel :: () {
 			icon("i", "phone-hang-up", 20, ifx dsig.hovering then T("--interactive-icon-hover") else T("--interactive-icon-default"));
 		}
 		if dsig.clicked {
-			if app.client != null { dc.analytics_call_disconnect(app.client, vc.guild, app.voice_channel); }
+			if call_client() != null { dc.analytics_call_disconnect(call_client(), vc.guild, app.voice_channel); }
 			voice_leave_channel();
 		}
 		spacer(.X, 8);
@@ -398,6 +429,7 @@ incoming_call_popout :: () {
 #scope_file
 
 Voice_App :: struct {
+	client: *dc.Client; // The connection the call is on; null when none.
 	conn: *voice.Conn;
 	guild: dc.Snowflake;
 	channel: dc.Snowflake; // channel the connection belongs to
@@ -457,8 +489,9 @@ tone_phase: float64;
 
 // Headless runs never open the mic; FASTCORD_VOICE_TEST_TONE=1 sends a 440 Hz
 // tone instead (to exercise speaking indicators in screenshots).
-voice_options :: () -> voice.Options {
+voice_options :: (cl: *dc.Client) -> voice.Options {
 	o := voice.Options.{no_audio_devices = vc.headless || !vc.audio_ready};
+	o.hosted = hosted_voice(cl);
 	add_video_options(*o, false);
 	if o.no_audio_devices && env_var("FASTCORD_VOICE_TEST_TONE") == "1" {
 		o.capture = (_: *void, out: []float32) -> int {
@@ -473,6 +506,6 @@ voice_options :: () -> voice.Options {
 }
 
 is_stage :: (cid: dc.Snowflake) -> bool {
-	ch := dc.channel_get(store(), cid);
+	ch := dc.channel_get(call_store(), cid);
 	return ch != null && ch.kind == .Guild_Stage_Voice;
 }

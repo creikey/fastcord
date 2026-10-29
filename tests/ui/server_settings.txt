@@ -1,0 +1,25 @@
+# Server Settings (server menu): the full-window layer with its sidebar; editing the name shows the
+# unsaved-changes bar, Escape is held while there are changes, Reset restores, then Escape closes.
+wait 5
+click 200 57
+wait 10
+click_text "Server Settings"
+wait 10
+expect_visible "Server Profile"
+expect_visible "ESC"
+expect_not_visible "Careful — you have unsaved changes!"
+click 900 152
+wait 5
+type  Two
+wait 5
+expect_visible "Careful — you have unsaved changes!"
+key escape
+wait 5
+expect_visible "Server Profile"
+shot
+click_text Reset
+wait 5
+expect_not_visible "Careful — you have unsaved changes!"
+key escape
+wait 10
+expect_not_visible "Server Profile"

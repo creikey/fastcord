@@ -85,7 +85,7 @@ camera_toggle :: () {
 	} else {
 		if vc_conn() == null || (!video_test("camera") && !video.camera_supported()) return;
 		sender_stop(*vid.preview); // one capture per camera: a second open takes it from the first
-		dc.analytics_permissions_requested(app.client, "video");
+		dc.analytics_permissions_requested(call_client(), "video");
 		s := *vid.camera;
 		sender_init(s, vc_conn(), CAMERA_FPS, CAMERA_BITRATE);
 		if video_test("camera") s.capture = video.pattern_start(on_capture_frame, s, CAMERA_W, CAMERA_H, CAMERA_FPS);
@@ -107,12 +107,12 @@ camera_stop :: () {
 // the stream's voice connection is up (video_frame).
 go_live_start :: (target: video.Screen_Target) {
 	if !net_action() || app.voice_channel == 0 || screen_sharing() return;
-	ch := dc.channel_get(store(), app.voice_channel);
+	ch := dc.channel_get(call_store(), app.voice_channel);
 	gid := ifx ch then ch.guild_id else 0;
-	vid.own_key = dc.stream_key(gid, app.voice_channel, store().me, context.allocator);
+	vid.own_key = dc.stream_key(gid, app.voice_channel, call_store().me, context.allocator);
 	vid.own_target = target;
 	vid.own_target.name = "";
-	dc.stream_create(app.client, gid, app.voice_channel);
+	dc.stream_create(call_client(), gid, app.voice_channel);
 }
 
 go_live_stop :: () {
@@ -120,7 +120,7 @@ go_live_stop :: () {
 	conn := vid.screen.conn;
 	sender_stop(*vid.screen);
 	if conn voice.set_video(conn, false);
-	if app.client dc.stream_delete(app.client, vid.own_key);
+	if call_client() dc.stream_delete(call_client(), vid.own_key);
 	voice_release(vid.own_conn);
 	vid.own_conn = null;
 	vid.own_version = 0;
@@ -132,15 +132,15 @@ watch_stream :: (uid: dc.Snowflake) {
 	if !net_action() || app.voice_channel == 0 return;
 	if vid.watch_user == uid return;
 	watch_stop();
-	ch := dc.channel_get(store(), app.voice_channel);
+	ch := dc.channel_get(call_store(), app.voice_channel);
 	vid.watch_key = dc.stream_key(ifx ch then ch.guild_id else 0, app.voice_channel, uid, context.allocator);
 	vid.watch_user = uid;
-	dc.stream_watch(app.client, vid.watch_key);
+	dc.stream_watch(call_client(), vid.watch_key);
 }
 
 watch_stop :: () {
 	if vid.watch_key == "" return;
-	if app.client dc.stream_delete(app.client, vid.watch_key);
+	if call_client() dc.stream_delete(call_client(), vid.watch_key);
 	voice_release(vid.watch_conn);
 	vid.watch_conn = null;
 	vid.watch_version = 0;
@@ -178,8 +178,8 @@ camera_test_image :: () -> media.Video_Image {
 
 // The image to draw for a user's camera or stream (y == 0: none).
 camera_image :: (uid: dc.Snowflake) -> media.Video_Image {
-	if uid == store().me return ifx camera_on() then vid.camera.img else .{};
-	vs := table_find_pointer(*store().voice_states, uid);
+	if uid == call_store().me return ifx camera_on() then vid.camera.img else .{};
+	vs := table_find_pointer(*call_store().voice_states, uid);
 	if !vs || !vs.self_video return .{};
 	locks.guard(*vid.mu);
 	found, rv := table_find(*vid.cams, cast(u64) uid);
@@ -187,7 +187,7 @@ camera_image :: (uid: dc.Snowflake) -> media.Video_Image {
 }
 
 stream_image :: (uid: dc.Snowflake) -> media.Video_Image {
-	if uid == store().me return ifx screen_sharing() then vid.screen.img else .{};
+	if uid == call_store().me return ifx screen_sharing() then vid.screen.img else .{};
 	if uid != vid.watch_user return .{};
 	locks.guard(*vid.mu);
 	found, rv := table_find(*vid.streams, cast(u64) uid);
@@ -199,9 +199,9 @@ stream_image :: (uid: dc.Snowflake) -> media.Video_Image {
 // decoded or captured frames into textures.
 video_frame :: () {
 	if video_test("") video_test_frame();
-	if app.client != null {
+	if call_client() != null {
 		if screen_sharing() {
-			info, ver, ok := dc.stream_server_info(app.client, vid.own_key);
+			info, ver, ok := dc.stream_server_info(call_client(), vid.own_key);
 			if ok && ver != vid.own_version && !teardown_busy() {
 				if vid.own_conn { sender_stop(*vid.screen); voice_release(vid.own_conn); }
 				vid.own_conn = stream_connect(info);
@@ -222,11 +222,11 @@ video_frame :: () {
 			}
 		}
 		if vid.watch_key != "" {
-			vs := table_find_pointer(*store().voice_states, vid.watch_user);
+			vs := table_find_pointer(*call_store().voice_states, vid.watch_user);
 			if !vs || !vs.self_stream || vs.channel_id != app.voice_channel {
 				watch_stop();
 			} else {
-				info, ver, ok := dc.stream_server_info(app.client, vid.watch_key);
+				info, ver, ok := dc.stream_server_info(call_client(), vid.watch_key);
 				if ok && ver != vid.watch_version && !teardown_busy() {
 					voice_release(vid.watch_conn);
 					vid.watch_conn = stream_connect(info);
@@ -294,7 +294,7 @@ video_test_frame :: () {
 	}
 	now := wall_ms();
 	if video_test("watch") && vid.watch_key == "" {
-		for vs, uid: store().voice_states if vs.channel_id == app.voice_channel && vs.self_stream && uid != store().me { watch_stream(uid); break; }
+		for vs, uid: call_store().voice_states if vs.channel_id == app.voice_channel && vs.self_stream && uid != call_store().me { watch_stream(uid); break; }
 	}
 	if now < vt_next_log return;
 	vt_next_log = now + 2000;
@@ -316,14 +316,15 @@ video_test_frame :: () {
 vc_conn :: () -> *voice.Conn { return voice_conn(); }
 
 send_voice_state :: () {
-	if app.client == null || app.voice_channel == 0 return;
-	ch := dc.channel_get(store(), app.voice_channel);
-	dc.voice_set_state(app.client, ifx ch then ch.guild_id else 0, app.voice_channel, app.self_mute || app.self_deaf, app.self_deaf, camera_on());
+	if call_client() == null || app.voice_channel == 0 return;
+	ch := dc.channel_get(call_store(), app.voice_channel);
+	dc.voice_set_state(call_client(), ifx ch then ch.guild_id else 0, app.voice_channel, app.self_mute || app.self_deaf, app.self_deaf, camera_on());
 }
 
 stream_connect :: (info: dc.Voice_Server_Info) -> *voice.Conn {
 	o := voice.Options.{no_audio_devices = voice_headless() || !voice_audio_ready()};
 	add_video_options(*o, true);
+	o.hosted = hosted_voice(call_client());
 	return voice.voice_connect(voice.Voice_Server_Info.{
 		endpoint = info.endpoint,
 		token = info.token,
@@ -332,8 +333,8 @@ stream_connect :: (info: dc.Voice_Server_Info) -> *voice.Conn {
 		session_id = info.session_id,
 		channel_id = cast(u64) info.channel_id,
 		stream = true,
-		user_agent = app.client.id.platform.browser_user_agent,
-		accept_language = app.client.id.platform.accept_language
+		user_agent = call_client().id.platform.browser_user_agent,
+		accept_language = call_client().id.platform.accept_language
 	}, o);
 }
 

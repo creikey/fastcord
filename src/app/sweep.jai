@@ -180,6 +180,7 @@ app_reset_state :: () {
 	forums_reset_for_test();
 	events_reset_for_test();
 	guild_admin_reset_for_test();
+	server_settings_reset_for_test();
 	block_confirm = .{};
 	edit_menu_state = .{};
 	chat_toolbar, chat_toolbar_prev = .{}, .{};

@@ -22,7 +22,6 @@ App :: struct {
 	offline_store: dc.Store;
 	chats: Table(dc.Snowflake, Chat_State);
 	chat_hover: dc.Snowflake;
-	utc_offset_ms: s64;
 	self_mute: bool;
 	self_deaf: bool;
 	voice_channel: dc.Snowflake;
@@ -168,12 +167,13 @@ main :: () {
 		serve_console();
 		s, ok := serve.open(opt.serve);
 		if !ok fail("could not open the server file %", opt.serve);
-		if !serve.listen(s, opt.port) fail("could not listen on port %", opt.port);
+		if !serve.listen(s, opt.port) fail("could not listen on port % (TCP, and UDP for voice)", opt.port);
 		first := serve.first_invite(s);
 		if first say("Serving % on port %. Invite (put your address in place of localhost):\n%\n", opt.serve, s.listener.port, serve.invite_url(s, "localhost", s.listener.port, first));
 		else say("Serving % on port %. No invite works any more: members make new ones from the Invite button.\n", opt.serve, s.listener.port);
 		owner := serve.owner_invite(s);
 		if owner say("Join with this one yourself first, to own the server (it works once):\n%\n", serve.invite_url(s, "localhost", s.listener.port, owner));
+		say("Voice uses UDP on the same port number, so forward both TCP and UDP %.\n", s.listener.port);
 		say("Webhooks take posts from curl and other tools pinned to this server: curl -k --pinnedpubkey % ...\n", serve.webhook_pin(s));
 		say("Press Ctrl-C or close this console to stop the server.\n");
 		while true sleep_milliseconds(1000 * 60 * 60);
@@ -199,7 +199,6 @@ main :: () {
 	ui.init(*app.ui, ui.Backend.{shape = ui_shape, split = emoji_split_text});
 	view_init(*app.view);
 	draw_inline_object = draw_custom_emoji;
-	app.utc_offset_ms = local_offset_ms();
 	app.now_override_ms = opt.now * 1000;
 	dc.store_init(*app.offline_store);
 	if opt.fixture != "" {
@@ -612,6 +611,9 @@ script_command :: (path: string, f: []string, t: *float64) {
 	case "expect_profile_open"; #through; case "expect_no_profile_open";
 		if (app.profile_user != 0) != (f[0] == "expect_profile_open") script_fail(path, "% failed", f[0]);
 		return;
+	case "expect_cursor";
+		if tprint("%", ui.cursor()) != f[1] script_fail(path, "expect_cursor % failed: got %", f[1], ui.cursor());
+		return;
 	case "expect_theme";
 		th, ok := theme_by_name(f[1]);
 		if !ok || th != app.theme.name script_fail(path, "expect_theme % failed: got %", f[1], app.theme.name);
@@ -1005,10 +1007,6 @@ handle_results_of :: (c: *dc.Client) {
 		}
 		req_result(r);
 	}
-}
-
-local_offset_ms :: () -> s64 {
-	return tz_offset_seconds() * 1000;
 }
 
 #scope_file

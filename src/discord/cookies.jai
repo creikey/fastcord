@@ -240,5 +240,7 @@ parse_http_date :: (s: string) -> s64, bool {
 
 write_file_atomic :: (path: string, data: []u8) -> bool {
 	tmp := tprint("%.tmp", path);
-	return write_entire_file(tmp, cast(string) data) && file_move(tmp, path);
+	if write_entire_file(tmp, cast(string) data) && File_Utilities.atomic_file_replace_or_just_rename_if_destination_file_does_not_exist(tmp, path) return true;
+	file_delete(tmp);
+	return false;
 }

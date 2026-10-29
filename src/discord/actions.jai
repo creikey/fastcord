@@ -1130,7 +1130,7 @@ voice_join :: (c: *Client, guild_id: Snowflake, channel_id: Snowflake, self_mute
 	}
 	l := message_list(*c.store, channel_id);
 	if !l.loaded && !l.loading fetch_messages(c, channel_id, 0, initial_message_limit(viewport_h(c)));
-	if guild_id {
+	if guild_id && !c.cfg.hosted.host { // A self-hosted server has no Activities.
 		j := job_new(.Api, .None);
 		j.method = "GET";
 		j.path = job_str(j, tprint("/activities/shelf?guild_id=%", guild_id));

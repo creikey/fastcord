@@ -39,18 +39,38 @@ Chat_State :: struct {
 
 chat_state :: (channel_id: dc.Snowflake) -> *Chat_State { return find_or_add(*app.chats, channel_id); }
 
-local_utc_offset_ms :: () -> s64 { return app.utc_offset_ms; }
+// Unix ms as local wall-clock ms, with the UTC offset in force at that instant (so DST applies per
+// date). Offsets are cached per quarter hour, packed as one s64 so other threads can share it.
+local_ms :: (unix_ms: s64) -> s64 {
+	Q :: 900_000;
+	q := unix_ms / Q - ifx unix_ms % Q < 0 then 1 else 0;
+	slot := *tz_cache[cast(u64) q % tz_cache.count];
+	v := slot.*;
+	if v >> 20 != q + 1 {
+		off := clamp(tz_offset_seconds(q * (Q / 1000)), -65535, 65535);
+		v = ((q + 1) << 20) | (off + 65536);
+		slot.* = v;
+	}
+	return unix_ms + ((v & 0xf_ffff) - 65536) * 1000;
+}
+tz_cache: [64]s64;
+
+// The inverse, for a local date typed in: the unix ms whose local time is local_ms.
+unix_from_local_ms :: (local: s64) -> s64 {
+	guess := local - (local_ms(local) - local);
+	return local - (local_ms(guess) - guess);
+}
 
 // "3:04 PM" today, "Yesterday at 3:04 PM", or "10/24/2026 3:04 PM" — the client's calendar format.
 format_timestamp :: (id: dc.Snowflake, short := false) -> string { return format_time_ms(dc.snowflake_time_ms(id), short); }
 
 format_time_ms :: (unix_ms: s64, short := false) -> string {
-	ms := unix_ms + local_utc_offset_ms();
+	ms := local_ms(unix_ms);
 	t := utc_calendar(ms);
 	clock := tprint("%:%\u202f%", hour12(t), formatInt(t.minute, minimum_digits = 2), am_pm(t)); // narrow no-break space, as Intl formats it
 	if short return clock;
 	day := ms / 86_400_000;
-	today := (wall_ms() + local_utc_offset_ms()) / 86_400_000;
+	today := local_ms(wall_ms()) / 86_400_000;
 	if day == today return clock;
 	if day == today - 1 return tprint("Yesterday at %", clock);
 	return tprint("%/%/% %", t.month_starting_at_0 + 1, t.day_of_month_starting_at_0 + 1, t.year, clock);
@@ -59,7 +79,7 @@ format_time_ms :: (unix_ms: s64, short := false) -> string {
 // "Tuesday, October 27, 2026 3:04 PM" (moment's LLLL): the tooltip on message times and "(edited)".
 full_timestamp :: (unix_ms: s64) -> string {
 	DAYS :: string.["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-	t := utc_calendar(unix_ms + local_utc_offset_ms());
+	t := utc_calendar(local_ms(unix_ms));
 	return tprint("%, % %, % %:% %", DAYS[t.day_of_week_starting_at_0], MONTHS[t.month_starting_at_0], t.day_of_month_starting_at_0 + 1, t.year, hour12(t), formatInt(t.minute, minimum_digits = 2), am_pm(t));
 }
 
@@ -69,7 +89,7 @@ wall_ms :: () -> s64 { return ifx app.now_override_ms then app.now_override_ms e
 // format_timestamp kept alive across frames: header timestamps are selectable,
 // and a selection is read (copy, scripts) after the frame's temp memory is gone.
 header_timestamp :: (id: dc.Snowflake) -> string {
-	today := (wall_ms() + local_utc_offset_ms()) / 86_400_000;
+	today := local_ms(wall_ms()) / 86_400_000;
 	if today != stamps.day {
 		for stamps.texts free(it);
 		table_reset_keeping_memory(*stamps.texts);
@@ -86,7 +106,7 @@ chat_view :: (channel_id: dc.Snowflake) {
 	if ch == null return;
 	cs := chat_state(channel_id);
 	// at local midnight "3:04 PM" becomes "Yesterday at 3:04 PM" and the day dividers move on
-	request_wake(platform.time_now() + cast(float64) (86400 - (wall_ms() + local_utc_offset_ms()) / 1000 % 86400) + 1);
+	request_wake(platform.time_now() + cast(float64) (86400 - local_ms(wall_ms()) / 1000 % 86400) + 1);
 	rs := table_find_pointer(*s.read_states, channel_id);
 	last_read := ifx rs then rs.last_message_id else 0;
 	held := rs != null && rs.manual; // Mark Unread: the "NEW" line moves there and nothing is acked
@@ -477,7 +497,7 @@ markdown_key :: (ed: *ui.Editor, e: ui.Input_Event) -> bool {
 }
 
 format_unix :: (secs: s64, style: string) -> string {
-	t := utc_calendar(secs * 1000 + local_utc_offset_ms());
+	t := utc_calendar(local_ms(secs * 1000));
 	clock := tprint("%:% %", hour12(t), formatInt(t.minute, minimum_digits = 2), am_pm(t));
 	date := tprint("% %, %", MONTHS[t.month_starting_at_0], t.day_of_month_starting_at_0 + 1, t.year);
 	if style == {
@@ -546,6 +566,11 @@ handle_span_clicks :: (b: *ui.Box, toks: []Token, message_id: dc.Snowflake = 0, 
 			tooltip_below(full_timestamp(edited_ms), r);
 		} else if id < cast(u64) toks.count && toks[id].kind == .Timestamp {
 			tooltip_below(full_timestamp(cast(s64) toks[id].id * 1000), r);
+		}
+		if id < cast(u64) toks.count && !ui.overlay_at(p) {
+			tk := toks[id];
+			if ((tk.styles & .Spoiler) && !spoiler_revealed(toks, cast(int) id)) || tk.kind == .Link || tk.kind == .User_Mention || tk.kind == .Channel_Mention
+				app.ui.span_cursor = .Pointer;
 		}
 	}
 	for e: app.ui.events {
@@ -703,7 +728,7 @@ divider_row :: (id: dc.Snowflake, new_day: bool, show_new: bool) {
 		l1.style.bg = line_color;
 		if new_day {
 			spacer(.X, 8);
-			t := utc_calendar(dc.snowflake_time_ms(id) + local_utc_offset_ms());
+			t := utc_calendar(local_ms(dc.snowflake_time_ms(id)));
 			label(tprint("% %, %", MONTHS[t.month_starting_at_0], t.day_of_month_starting_at_0 + 1, t.year), .Semibold, 12, ifx show_new then T("--status-danger") else T("--text-muted"), 13);
 			spacer(.X, 8);
 			l2 := ui.box("l2", .Draw_Background);
@@ -741,7 +766,7 @@ channel_escape :: (ch: *dc.Channel) {
 }
 
 modal_open :: () -> bool {
-	return sw.open || attachments_modal_open() || ma.confirming != 0 || app.settings_open || viewer_url != "" || block_confirm.user != 0 || invite_modal_open() || invite_accept_open() || add_server_is_open() || events_modal_open() || guild_admin_modal_open() || fnick.user != 0 || modr.user != 0 || tsg.channel != 0 || folder_modal_open() || shortcuts_open || view_reactions.msg != 0;
+	return sw.open || attachments_modal_open() || ma.confirming != 0 || app.settings_open || viewer_url != "" || block_confirm.user != 0 || invite_modal_open() || invite_accept_open() || add_server_is_open() || events_modal_open() || guild_admin_modal_open() || server_settings_is_open() || fnick.user != 0 || modr.user != 0 || tsg.channel != 0 || folder_modal_open() || shortcuts_open || view_reactions.msg != 0;
 }
 
 // The hover toolbar drawn this pass, and the one from the pass before (rows test the
@@ -825,7 +850,7 @@ continues_group :: (prev: *dc.Message, m: *dc.Message) -> bool {
 }
 
 day_of :: (id: dc.Snowflake) -> s64 {
-	return (dc.snowflake_time_ms(id) + local_utc_offset_ms()) / 86_400_000;
+	return local_ms(dc.snowflake_time_ms(id)) / 86_400_000;
 }
 
 message_list :: (channel_id: dc.Snowflake, cs: *Chat_State) {

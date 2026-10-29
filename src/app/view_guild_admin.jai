@@ -57,23 +57,6 @@ channel_settings_open :: (ch: *dc.Channel) {
 	if app.client != null dc.open_channel_settings(app.client, ch);
 }
 
-// server_settings_open: the owner's Server Settings on a self-hosted server, which so far holds only the name.
-server_settings_open :: (gid: dc.Snowflake) {
-	g := dc.guild_get(store(), gid);
-	if g == null return;
-	adm.modal = .Server_Settings;
-	adm.guild = gid;
-	adm.busy, adm.icon_busy = false, false;
-	ui.editor_set_text(*adm.name, g.name);
-	set_error("");
-	adm.focus_field = true;
-}
-
-can_edit_server :: (gid: dc.Snowflake) -> bool {
-	g := dc.guild_get(store(), gid);
-	return on_hosted() && g != null && g.owner_id == store().me;
-}
-
 // channel_delete_open: Delete Channel / Category / Thread from a sidebar row menu. The
 // official confirm loads the guild's role member counts as it opens.
 channel_delete_open :: (th: *dc.Channel) {
@@ -152,17 +135,6 @@ guild_admin_receive :: (r: *dc.Feature_Result) {
 		else if r.status == -2 show_notice("Couldn't change avatar", "That image is too large. Avatars must be under 512 KB.");
 		else if !r.ok show_notice("Couldn't change avatar", result_error(r));
 		return;
-	case .Guild_Edit;
-		if adm.modal != .Server_Settings || r.channel_id != adm.guild return;
-		icon := adm.icon_busy;
-		adm.icon_busy = false;
-		if r.ok {
-			if !icon admin_close(); // An icon change keeps the page open; GUILD_UPDATE shows it.
-			adm.busy = false;
-			return;
-		}
-		if icon && r.status == -1 { set_error("That file couldn't be read. Server icons must be PNG, JPEG, GIF or WEBP images."); return; }
-		if icon && r.status == -2 { set_error("That image is too large. Server icons must be under 512 KB."); return; }
 	case .Channel_Delete;
 		if adm.modal != .Delete_Channel || r.channel_id != adm.channel return;
 		if r.ok {
@@ -309,8 +281,6 @@ guild_admin_overlays :: () {
 	case .Delete_Channel;
 		if adm.in_settings channel_settings_page();
 		delete_channel_modal();
-	case .Server_Settings;
-		server_settings_modal();
 	case .Notice;
 		notice_modal();
 	}
@@ -323,7 +293,6 @@ Admin_Modal :: enum u8 {
 	Create_Channel;
 	Channel_Settings;
 	Delete_Channel;
-	Server_Settings;
 	Notice;
 }
 
@@ -347,7 +316,6 @@ Admin_State :: struct {
 	slow_open: bool; // settings: the Slowmode dropdown is open
 	slow_anchor: ui.Rect;
 	in_settings: bool; // the delete confirm returns to the settings page
-	icon_busy: bool; // Server Settings: an icon upload or removal is in flight.
 }
 
 adm: Admin_State;
@@ -513,7 +481,7 @@ create_channel_modal :: () {
 			.{.Guild_Forum, "forum", "Forum", "Create a space for organized discussions"}
 		];
 		for o: opts {
-			if app.client && app.client.cfg.hosted.host && o.kind != .Guild_Text continue; // -serve has no voice or forums yet.
+			if app.client && app.client.cfg.hosted.host && o.kind == .Guild_Forum continue; // -serve has no forums yet.
 			selected := adm.kind == o.kind;
 			r := row(tprint("type_%", o.title), .Clickable);
 			r.semantic_size = .[ui.pct(1), ui.px(58)];
@@ -581,86 +549,6 @@ create_channel_modal :: () {
 		adm.busy = true;
 		set_error("");
 		dc.create_channel(app.client, adm.guild, adm.kind, dc.channel_name_normalize(name, text_named(adm.kind)), adm.channel);
-	}
-}
-
-server_settings_modal :: () {
-	g := dc.guild_get(store(), adm.guild);
-	if g == null || !adm_modal_begin("serversettings", 440, "Server Settings") {
-		admin_close();
-		return;
-	}
-	submit := false;
-	spacer(.Y, 24);
-	ir := row("iconrow");
-	ir.semantic_size = .[ui.pct(1), ui.px(80)];
-	ir.cross_align = .Center;
-	{ ui.parent(ir); defer ui.pop_parent();
-		spacer(.X, 25);
-		ic := ui.box("icon", .Draw_Background | .Draw_Text);
-		ic.semantic_size = .[ui.px(80), ui.px(80)];
-		ic.style.radius = all4(40);
-		ic.style.bg = T("--background-mod-subtle");
-		ic.style.text_color = T("--text-default");
-		ic.style.text_align = .Center;
-		ic.style.font = F(.Medium);
-		ic.style.font_size = 20;
-		ic.text = guild_initials(g.name);
-		if g.icon {
-			set_remote_image(ic, guild_icon_url(g.id, g.icon, 160));
-			ic.text = "";
-		}
-		spacer(.X, 16);
-		if adm_button("upload", ifx adm.icon_busy then "Uploading..." else "Upload Image", .Primary, !adm.icon_busy && !adm.busy) {
-			paths := pick_files();
-			if paths.count && net_action() {
-				adm.icon_busy = true;
-				set_error("");
-				dc.edit_guild_icon(app.client, adm.guild, paths[0]);
-			}
-		}
-		spacer(.X, 8);
-		if g.icon && adm_button("removeicon", "Remove", .Secondary, !adm.icon_busy && !adm.busy) && net_action() {
-			adm.icon_busy = true;
-			set_error("");
-			dc.edit_guild_icon(app.client, adm.guild, "");
-		}
-	}
-	spacer(.Y, 24);
-	nl := row("namelbl");
-	nl.semantic_size = .[ui.pct(1), ui.px(20)];
-	{ ui.parent(nl); defer ui.pop_parent();
-		spacer(.X, 25);
-		label("Server Name", .Semibold, 16, T("--text-strong"), 20);
-	}
-	spacer(.Y, 8);
-	res := modal_field("name", *adm.name, g.name);
-	if res == .Submit submit = true;
-	if res == .Escape adm.modal = .None;
-	error_line();
-	spacer(.Y, 24);
-	name := trim(ui.editor_text(*adm.name));
-	ok := name.count >= 2 && name.count <= 100 && name != g.name && !adm.busy;
-	btns := row("btns");
-	btns.semantic_size = .[ui.pct(1), ui.px(40)];
-	btns.style.child_gap = 8;
-	{ ui.parent(btns); defer ui.pop_parent();
-		spacer(.X, 25 - 8);
-		if wide_button("cancel", "Cancel", .Secondary) adm.modal = .None;
-		if wide_button("save", ifx adm.busy then "Saving..." else "Save Changes", .Primary, ok) submit = true;
-		spacer(.X, 25 - 8);
-	}
-	spacer(.Y, 24);
-	adm_modal_end();
-	if adm_escape() adm.modal = .None;
-	if adm.modal == .None {
-		admin_close();
-		return;
-	}
-	if submit && ok && net_action() {
-		adm.busy = true;
-		set_error("");
-		dc.edit_guild_name(app.client, adm.guild, name);
 	}
 }
 
