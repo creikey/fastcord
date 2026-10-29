@@ -1,0 +1,12 @@
+# Run with FASTCORD_MEDIA_DIR=tests/ui/media. A link card's side thumbnail (the IMDb poster) opens in the image viewer.
+wait 20
+move 600 300
+scroll 0 1750
+wait 30
+move 836 330
+wait 2
+expect_cursor Pointer
+click 836 330
+wait 20
+shot build/ui-embed_thumb.png
+expect_visible "Open in Browser"
