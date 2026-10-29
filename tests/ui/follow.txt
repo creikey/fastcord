@@ -1,0 +1,18 @@
+# Runs on follow.jsonl (a NEWS server's announcement channel). The header's Follow opens the modal: a
+# server and a channel you can make webhooks in, then Follow posts the follower and says it worked.
+wait 5
+settle 1
+expect_visible "Follow"
+click_text "Follow"
+wait 3
+expect_visible "Add this channel's updates to your server!"
+expect_visible "#dingus-battle"
+shot build/ui-follow.png
+net ok
+click 807 494
+wait 5
+expect_visible "Followed!"
+shot build/ui-follow-done.png
+click_text "Finish"
+wait 3
+expect_not_visible "Followed!"

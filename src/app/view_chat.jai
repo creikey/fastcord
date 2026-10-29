@@ -2032,6 +2032,130 @@ new_member_popout :: () {
 	}
 }
 
+// An announcement channel's header Follow (servers with NEWS): a modal picks one of your servers and a
+// text channel there you have Manage Webhooks in, and the channel's published messages are posted to it.
+Follow_UI :: struct { channel: dc.Snowflake; guild, target: int; guilds, targets: [..]dc.Snowflake; }
+fol: Follow_UI;
+FOLLOW_REQ :: "follow";
+
+follow_button :: (ch: *dc.Channel) {
+	g := dc.guild_get(store(), ch.guild_id);
+	if ch.kind != .Guild_Announcement || !g || !dc.guild_has_feature(g, "NEWS") || on_hosted() return;
+	spacer(.X, 12);
+	if ui.signal(fol_button("follow", "Follow", false, 24, 12)).clicked {
+		fol.channel, fol.guild, fol.target = ch.id, 0, 0;
+		req_clear(FOLLOW_REQ);
+	}
+}
+
+fol_button :: (id: string, text: string, primary: bool, h: float32, pad: float32) -> *ui.Box {
+	b := row(id, .Clickable | .Draw_Background | .Hot_Animation);
+	b.semantic_size = .[ui.children(), ui.px(h)];
+	b.style.radius = all4(8);
+	b.style.bg = ifx primary then T("--background-brand") else T("--background-mod-normal");
+	b.style.bg_hot = with_alpha(b.style.bg, 0.85);
+	b.hover_cursor = .Pointer;
+	b.cross_align = .Center;
+	ui.parent(b); defer ui.pop_parent();
+	spacer(.X, pad);
+	if !(primary && req_state(FOLLOW_REQ) == .Pending) label(text, .Medium, 14, ifx primary then ui.Color.{1, 1, 1, 1} else T("--text-default"), 18);
+	else spacer(.X, DOTS_W);
+	spacer(.X, pad);
+	return b;
+}
+
+follow_modal :: () {
+	if !fol.channel return;
+	s := store();
+	// your servers with a text channel you can make webhooks in, and those channels in the picked one
+	fol.guilds.count, fol.targets.count = 0, 0;
+	for gid: guild_order() {
+		g := dc.guild_get(s, gid);
+		if g for cid: g.channels {
+			c := dc.channel_get(s, cid);
+			if c && c.kind == .Guild_Text && dc.has_permission(dc.channel_permissions(s, cid), dc.PERM_MANAGE_WEBHOOKS) { array_add(*fol.guilds, gid); break; }
+		}
+	}
+	fol.guild = clamp(fol.guild, 0, max(fol.guilds.count - 1, 0));
+	if fol.guilds.count {
+		g := dc.guild_get(s, fol.guilds[fol.guild]);
+		for cid: g.channels {
+			c := dc.channel_get(s, cid);
+			if c && c.kind == .Guild_Text && dc.has_permission(dc.channel_permissions(s, cid), dc.PERM_MANAGE_WEBHOOKS) array_add(*fol.targets, cid);
+		}
+	}
+	fol.target = clamp(fol.target, 0, max(fol.targets.count - 1, 0));
+	scrim := ui.box("follow_scrim", .Draw_Background | .Clickable | .Floating_X | .Floating_Y | .Overlay);
+	scrim.semantic_size = .[ui.px(app.ui.window.x), ui.px(app.ui.window.y)];
+	scrim.style.bg = .{0, 0, 0, 0.7};
+	if (ui.signal(scrim).clicked && !select_is_open()) || (escape_pressed() && !select_is_open()) { fol.channel = 0; select_close(); return; }
+	W :: cast(float32) 440;
+	d := ui.box("follow_modal", .Draw_Background | .Draw_Border | .Floating_X | .Floating_Y | .Overlay | .Clickable);
+	d.semantic_size = .[ui.px(W), ui.children()];
+	d.fixed_pos = .{(app.ui.window.x - W) / 2, max(16.0, (app.ui.window.y - (d.rect.y1 - d.rect.y0)) / 2)};
+	d.style.bg = T("--modal-background");
+	d.style.border_color = T("--border-subtle");
+	d.style.border = 1;
+	d.style.radius = all4(12);
+	d.layout_axis = .Y;
+	ui.signal(d);
+	{ ui.parent(d); defer ui.pop_parent();
+		inset_begin(16, 16);
+		defer inset_end(16, 16);
+		st, _ := req_state(FOLLOW_REQ);
+		if st == .Done {
+			label("Followed!", .Semibold, 20, T("--text-strong"), 24);
+			spacer(.Y, 8);
+			set_para("fol_done", "The most important updates from this channel will now show up directly in your server. Enjoy!", .Normal, 14, 18, T("--text-default"));
+			spacer(.Y, 16);
+			if ui.signal(fol_button("fol_finish", "Finish", true, 32, 16)).clicked fol.channel = 0;
+			return;
+		}
+		label("Add this channel's updates to your server!", .Semibold, 20, T("--text-strong"), 24);
+		spacer(.Y, 8);
+		set_para("fol_sub", "Select where you want these updates to go. You can remove this at any time in Server Settings > Integrations > Channels Followed.", .Normal, 14, 18, T("--text-muted"));
+		spacer(.Y, 16);
+		if !fol.guilds.count {
+			set_para("fol_none", "Uh oh, you don't have webhook permissions in any server you're in. Ask your server admin to give you the permission or ask them to come follow themselves!", .Normal, 14, 18, T("--text-default"));
+			return;
+		}
+		names :: (ids: []dc.Snowflake, guilds: bool) -> []string {
+			out := NewArray(ids.count, string,, temp);
+			for ids {
+				if guilds { g := dc.guild_get(store(), it); out[it_index] = ifx g then g.name else ""; }
+				else { c := dc.channel_get(store(), it); out[it_index] = ifx c then tprint("#%", c.name) else ""; }
+			}
+			return out;
+		}
+		label("SELECT A SERVER", .Bold, 12, T("--text-muted"), 16);
+		spacer(.Y, 8);
+		pick := select_field("fol_guild", names(fol.guilds, true), fol.guild);
+		if pick >= 0 && pick != fol.guild { fol.guild, fol.target = pick, 0; req_clear(FOLLOW_REQ); }
+		spacer(.Y, 16);
+		label("SELECT A CHANNEL", .Bold, 12, T("--text-muted"), 16);
+		spacer(.Y, 8);
+		pick = select_field("fol_chan", names(fol.targets, false), fol.target);
+		if pick >= 0 { fol.target = pick; req_clear(FOLLOW_REQ); }
+		spacer(.Y, 8);
+		label("Only servers and channels you have webhook permissions in are shown.", .Normal, 12, T("--text-muted"), 16);
+		if st == .Failed {
+			code, _ := req_error(FOLLOW_REQ);
+			spacer(.Y, 8);
+			set_para("fol_err", ifx code == 30007 then "The selected channel has too many webhooks. Please remove a webhook or select another channel." else "Failed to follow the channel, please try again.", .Normal, 14, 18, T("--text-feedback-critical"));
+		}
+		spacer(.Y, 16);
+		r := row("fol_btns");
+		r.semantic_size = .[ui.pct(1), ui.px(32)];
+		ui.parent(r); defer ui.pop_parent();
+		filler(.X);
+		if req_button(fol_button("fol_go", "Follow", true, 32, 16), FOLLOW_REQ) && fol.targets.count && req_begin(FOLLOW_REQ, inline_error = true) {
+			dc.follow_channel(app.client, fol.channel, fol.targets[fol.target]);
+			req_end();
+		}
+	}
+	dropdown_list();
+}
+
 #scope_file
 
 // The client's welcome stickers (USER_JOIN's "Wave to say hi!"), picked by our id and the message's.

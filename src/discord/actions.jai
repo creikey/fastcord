@@ -653,6 +653,22 @@ greet_message :: (c: *Client, guild_id: Snowflake, channel_id: Snowflake, messag
 	job_submit(c, j);
 }
 
+// follow_channel: an announcement channel's Follow (createChannelFollower): POST /channels/{c}/followers
+// {"webhook_channel_id"}, which makes a webhook in that channel of yours (Manage Webhooks there).
+follow_channel :: (c: *Client, channel_id: Snowflake, target_id: Snowflake) {
+	w: Json;
+	json_init(*w);
+	json_obj(*w);
+	json_ksnow(*w, "webhook_channel_id", target_id);
+	json_obj_end(*w);
+	j := job_new(.Api, .None);
+	j.method = "POST";
+	j.path = job_str(j, channel_path(channel_id, "/followers"));
+	j.body = cast([]u8) job_str(j, json_string(*w));
+	j.content_type = "application/json";
+	job_submit(c, j);
+}
+
 // remove_all_reactions: DELETE /channels/{c}/messages/{m}/reactions (MANAGE_MESSAGES); the gateway's
 // MESSAGE_REACTION_REMOVE_ALL clears them.
 remove_all_reactions :: (c: *Client, channel_id: Snowflake, message_id: Snowflake) {

@@ -715,6 +715,7 @@ Fixture: `traffic/account_edits.jsonl` windows `logout` and `login_submit`
 
 | Rule | Kind | Anchor | fastcord |
 |---|---|---|---|
+| An announcement channel's header has a secondary "Follow" button after its name and topic when the guild has the NEWS feature. It opens a modal (its chunk wasn't cached, so the layout is a guess built from the bundle's strings: "Add this channel's updates to your server!", the Server Settings note, server and channel selects, "Only servers and channels you have webhook permissions in are shown.", the no-permission and too-many-webhooks (30007) errors, then the success line and Finish). Follow sends `POST /channels/{id}/followers` `{"webhook_channel_id"}`. fastcord lists text channels where you have Manage Webhooks | code (button, request, strings) + guess (modal layout, channel types) | `showFollowButton:j?.type===eo.rbe.GUILD_ANNOUNCEMENT&&_?.features.has(eo.GuildFeatures.NEWS)`, `createChannelFollower:(e,t)=>` | `view_chat.jai` `follow_button`, `follow_modal`; `actions.jai` `follow_channel` |
 | A collapsed category still lists the open channel, voice channels with people in them, and unread channels that aren't muted | code (voice) + guess (unread) | `!0!==L.A.isCollapsed(t.record.id)?[]:t.getChannelRecords().filter(e=>{if(!P.A.can(H.xBc.VIEW_CHANNEL,e))return!1;let t=n[e.id]??[];` | `views.jai` `channel_sidebar` |
 
 ## Create Channel

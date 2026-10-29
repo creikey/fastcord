@@ -738,6 +738,7 @@ chat_header :: (ch: *dc.Channel) {
 					t.semantic_size[ui.Axis.X].strictness = 1;
 				}
 			}
+			follow_button(ch); // view_chat.jai
 		}
 		if vid.watch_user && app.voice_channel == ch.id {
 			// watching a Go Live stream: LIVE and its quality, as the official call header shows
@@ -1607,6 +1608,7 @@ overlays :: () {
 	voice_user_menu();
 	voice_info_popout(); // view_voice.jai
 	new_member_popout(); // view_chat.jai
+	follow_modal(); // view_chat.jai
 	call_pip(); // view_call.jai
 	screen_picker(); // view_call.jai
 	soundboard_overlay(); // soundboard.jai
