@@ -92,6 +92,13 @@ invite_receive :: (r: dc.Rest_Result) {
 thread_menu_open :: (tid: dc.Snowflake, at: ui.Vec2) {
 	gm.thread_menu = tid;
 	gm.thread_pos = at;
+	gm.thread_sub = .None;
+}
+
+// A thread's muted state: muted, and not past a timed mute's end.
+thread_muted :: (tid: dc.Snowflake) -> bool {
+	tm := dc.thread_meta(tid);
+	return tm && tm.muted && (tm.mute_end_ms == 0 || tm.mute_end_ms > wall_ms());
 }
 
 group_dm_menu_open :: (cid: dc.Snowflake, at: ui.Vec2) { gm.gdm_menu, gm.gdm_pos = cid, at; }
@@ -361,6 +368,8 @@ Guild_Menu_State :: struct {
 	// sidebar thread row menu
 	thread_menu: dc.Snowflake;
 	thread_pos: ui.Vec2;
+	thread_sub: Sub;
+	thread_sub_y: float32;
 	// sidebar channel / category row menu
 	chan_menu: dc.Snowflake;
 	chan_pos: ui.Vec2;
@@ -1111,35 +1120,100 @@ thread_menu :: () {
 		gm.thread_menu = 0;
 		return;
 	}
+	tm := dc.thread_meta(th.id);
+	joined := tm && tm.joined;
 	W :: cast(float32) GM_MENU_W;
 	pos := gm.thread_pos;
-	if pos.x + W > app.ui.window.x - 8 pos.x = app.ui.window.x - 8 - W;
-	if pos.y + 150 > app.ui.window.y - 8 pos.y = app.ui.window.y - 8 - 150;
-	close := false;
 	menu := menu_panel("tmenu", pos, W);
+	h := menu.rect.y1 - menu.rect.y0;
+	menu.fixed_pos = .{clamp(pos.x, 8, app.ui.window.x - W - 8), clamp(pos.y, 8, max(8.0, app.ui.window.y - h - 8))};
+	close := false;
+	hover_sub := Sub.None;
+	hover_any := false;
+	now := wall_ms();
+	// a thread's own level, else its channel's
+	level := dc.channel_notify_level(s, th.guild_id, th.parent_id);
+	if level == dc.NOTIFY_INHERIT level = dc.guild_notify_level(s, th.guild_id);
+	if tm {
+		if tm.member_flags & dc.THREAD_NOTIFY_ALL level = 0;
+		else if tm.member_flags & dc.THREAD_NOTIFY_MENTIONS level = 1;
+		else if tm.member_flags & dc.THREAD_NOTIFY_NOTHING level = 2;
+	}
 	{ ui.parent(menu); defer ui.pop_parent();
 		spacer(.Y, 8);
+		sig: ui.Signal;
 		if dc.channel_unread(s, th.id) {
-			if menu_item("read", "Mark As Read").clicked {
+			sig = menu_item("read", "Mark As Read");
+			if sig.clicked {
 				if net_action() dc.ack_message(app.client, th.id, th.last_message_id, true);
 				close = true;
-			}
+			} else if sig.hovering hover_any = true;
 			menu_sep("s1");
 		}
-		if menu_item("link", "Copy Link", .Icon, "link").clicked {
+		if joined {
+			// muting and notifications are a thread member's settings
+			if thread_muted(th.id) {
+				sig = menu_item("mute", "Unmute Thread", sub = muted_until(tm.mute_end_ms));
+				if sig.clicked {
+					if net_action() dc.thread_set_muted(app.client, th.id, false);
+					close = true;
+				} else if sig.hovering hover_any = true;
+			} else {
+				item := menu_item("mute", "Mute Thread", .Chevron, open = gm.thread_sub == .Mute);
+				if item.hovering hover_sub = .Mute;
+				if item.clicked gm.thread_sub = .Mute;
+				if item.hovering || item.clicked gm.thread_sub_y = item.box.rect.y0;
+			}
+			nt := menu_item("notify", "Notification Settings", .Chevron, sub = NOTIFY_NAMES[clamp(level, 0, 2)], open = gm.thread_sub == .Notify);
+			if nt.hovering hover_sub = .Notify;
+			if nt.clicked gm.thread_sub = .Notify;
+			if nt.hovering || nt.clicked gm.thread_sub_y = nt.box.rect.y0;
+			menu_sep("s2");
+		}
+		sig = menu_item("join", ifx joined then "Leave Thread" else "Join Thread", danger = joined);
+		if sig.clicked {
+			if net_action() dc.thread_join(app.client, th.id, !joined);
+			close = true;
+		} else if sig.hovering hover_any = true;
+		menu_sep("s3");
+		sig = menu_item("link", "Copy Link", .Icon, "link");
+		if sig.clicked {
 			clipboard_set(channel_link(th.guild_id, th.id));
 			close = true;
-		}
-		if s.settings.developer_mode && menu_item("copyid", "Copy Channel ID", .Icon, "id").clicked {
-			clipboard_set(tprint("%", cast(u64) th.id));
-			close = true;
+		} else if sig.hovering hover_any = true;
+		if s.settings.developer_mode {
+			sig = menu_item("copyid", "Copy Channel ID", .Icon, "id");
+			if sig.clicked {
+				clipboard_set(tprint("%", cast(u64) th.id));
+				close = true;
+			} else if sig.hovering hover_any = true;
 		}
 		if can_delete_thread(th) {
-			menu_sep("s2");
-			if menu_item("delete", "Delete Thread", .Icon, "trash", danger = true).clicked {
+			menu_sep("s4");
+			sig = menu_item("delete", "Delete Thread", .Icon, "trash", danger = true);
+			if sig.clicked {
 				channel_delete_open(th);
 				close = true;
-			}
+			} else if sig.hovering hover_any = true;
+		}
+		spacer(.Y, 8);
+	}
+	if hover_sub != .None gm.thread_sub = hover_sub;
+	if hover_any gm.thread_sub = .None;
+	if gm.thread_sub == {
+	case .Mute;
+		secs := mute_submenu("tmute", .{sub_x(menu), sub_y(gm.thread_sub_y, 6 * GM_ROW_H + 16)});
+		if secs != 0 {
+			if net_action() dc.thread_set_muted(app.client, th.id, true, secs, now);
+			close = true;
+		}
+	case .Notify;
+		p := menu_panel("tnotify", .{sub_x(menu), sub_y(gm.thread_sub_y, 3 * GM_ROW_H + 16)}, GM_SUB_W);
+		ui.parent(p); defer ui.pop_parent();
+		spacer(.Y, 8);
+		for name, i: NOTIFY_NAMES if menu_item(name, name, ifx level == i then .Radio_On else .Radio_Off).clicked {
+			if net_action() dc.thread_set_notify(app.client, th.id, i);
+			close = true;
 		}
 		spacer(.Y, 8);
 	}

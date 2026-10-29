@@ -25,6 +25,10 @@ Thread_Meta :: struct {
 	locked: bool;
 	auto_archive_minutes: int; // thread_metadata.auto_archive_duration
 	joined: bool; // we are a thread member (shown in the sidebar)
+	// our thread member settings: flags (THREAD_NOTIFY_*), muted until mute_end_ms (0: until unmuted)
+	member_flags: int;
+	muted: bool;
+	mute_end_ms: s64;
 	applied_tags: [..]Snowflake;
 	create_ts: string; // thread_metadata.create_timestamp
 	last_message_id: Snowflake;
@@ -102,8 +106,16 @@ note_thread :: (t: etf.Map, me: Snowflake) {
 	mm := fmap(t, "member");
 	if mm {
 		uid := fsnow(mm, "user_id");
-		if uid == 0 || uid == me tm.joined = true;
+		if uid == 0 || uid == me note_thread_member(tm, mm);
 	}
+}
+
+// Our thread member object (READY's, a thread's `member`, THREAD_MEMBER_UPDATE): joined, and its settings.
+note_thread_member :: (tm: *Thread_Meta, mm: etf.Map) {
+	tm.joined = true;
+	if vhas(mm, "flags") tm.member_flags = fint(mm, "flags");
+	if vhas(mm, "muted") tm.muted = fbool(mm, "muted");
+	if vhas(mm, "mute_config") tm.mute_end_ms = iso_to_ms(fstr(fmap(mm, "mute_config"), "end_time"));
 }
 
 note_tags :: (ch: etf.Map) {
@@ -250,10 +262,13 @@ extras_dispatch :: (s: *Store, allocator: Allocator, name: string, data: V) {
 			for flist(d, "threads") note_thread(vmap(it), me);
 			for flist(d, "members") {
 				mm := vmap(it);
-				if fsnow(mm, "user_id") == me note_joined(fsnow(mm, "id"));
+				if fsnow(mm, "user_id") != me continue;
+				tm := table_find_pointer(*extras.threads, fsnow(mm, "id"));
+				if tm note_thread_member(tm, mm);
 			}
 		case "THREAD_MEMBER_UPDATE";
-			note_joined(fsnow(d, "id"));
+			tm := table_find_pointer(*extras.threads, fsnow(d, "id"));
+			if tm note_thread_member(tm, d);
 		case "THREAD_MEMBERS_UPDATE";
 			tm := table_find_pointer(*extras.threads, fsnow(d, "id"));
 			if tm {
@@ -749,6 +764,48 @@ remove_user_reaction :: (c: *Client, channel_id: Snowflake, message_id: Snowflak
 }
 
 // POST /channels/{id}/pins/ack (no body).
+// Thread membership (threads you join show in the sidebar and notify by their settings):
+//   PUT / DELETE /channels/{id}/thread-members/@me                      Join Thread / Leave Thread
+//   PATCH /channels/{id}/thread-members/@me/settings {"flags":4} or {"muted":true,"mute_config":{...}}
+// The change shows at once; THREAD_MEMBER_UPDATE / THREAD_MEMBERS_UPDATE confirm it. No capture yet
+// (traffic/CLIENT_RULES.md "Thread membership").
+THREAD_NOTIFY_ALL :: 1 << 1;
+THREAD_NOTIFY_MENTIONS :: 1 << 2;
+THREAD_NOTIFY_NOTHING :: 1 << 3;
+
+thread_join :: (c: *Client, thread_id: Snowflake, join: bool) {
+	locks.lock(*extras_mu);
+	note_joined(thread_id, join);
+	locks.unlock(*extras_mu);
+	c.store.changed += 1;
+	f_submit(c, .{op = .Guild_Aux, channel_id = thread_id, method = ifx join then "PUT" else "DELETE", path = channel_path(thread_id, "/thread-members/@me")});
+}
+
+// level: 0 all messages, 1 only @mentions, 2 nothing (the menus' NOTIFY_NAMES order).
+thread_set_notify :: (c: *Client, thread_id: Snowflake, level: int) {
+	locks.lock(*extras_mu);
+	tm := table_find_pointer(*extras.threads, thread_id);
+	flags := 0;
+	if tm {
+		tm.member_flags = (tm.member_flags & ~(THREAD_NOTIFY_ALL | THREAD_NOTIFY_MENTIONS | THREAD_NOTIFY_NOTHING)) | (THREAD_NOTIFY_ALL << clamp(level, 0, 2));
+		flags = tm.member_flags;
+	}
+	locks.unlock(*extras_mu);
+	f_submit(c, .{op = .Guild_Aux, channel_id = thread_id, method = "PATCH", path = channel_path(thread_id, "/thread-members/@me/settings"), body = tprint("{\"flags\":%}", flags)});
+}
+
+// seconds: how long (MUTE_FOREVER: until unmuted); muted false unmutes.
+thread_set_muted :: (c: *Client, thread_id: Snowflake, muted: bool, seconds := 0, now_ms: s64 = 0) {
+	end: s64 = ifx muted && seconds != MUTE_FOREVER then now_ms + seconds * 1000 else 0;
+	locks.lock(*extras_mu);
+	tm := table_find_pointer(*extras.threads, thread_id);
+	if tm tm.muted, tm.mute_end_ms = muted, end;
+	locks.unlock(*extras_mu);
+	body := ifx !muted then "{\"muted\":false}"
+		else tprint("{\"muted\":true,\"mute_config\":{\"selected_time_window\":%,\"end_time\":%}}", seconds, ifx end then tprint("\"%\"", ms_to_iso(end)) else "null");
+	f_submit(c, .{op = .Guild_Aux, channel_id = thread_id, method = "PATCH", path = channel_path(thread_id, "/thread-members/@me/settings"), body = body});
+}
+
 ack_pins :: (c: *Client, channel_id: Snowflake) {
 	f_submit(c, .{op = .Pins_Ack, channel_id = channel_id, method = "POST", path = channel_path(channel_id, "/pins/ack")});
 }

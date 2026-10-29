@@ -155,7 +155,7 @@ open :: (path: string) -> *Server, bool {
 	if !ok return null, false;
 	s := New(Server);
 	s.db = db;
-	if !sqlite.exec(db, SCHEMA) || !sqlite.exec(db, SOUND_SCHEMA) || !sqlite.exec(db, SETTINGS_SCHEMA) || !sqlite.exec(db, STICKER_SCHEMA) || !sqlite.exec(db, ROLE_SCHEMA) || !sqlite.exec(db, POLL_SCHEMA) { close(s); return null, false; }
+	if !sqlite.exec(db, SCHEMA) || !sqlite.exec(db, SOUND_SCHEMA) || !sqlite.exec(db, SETTINGS_SCHEMA) || !sqlite.exec(db, STICKER_SCHEMA) || !sqlite.exec(db, ROLE_SCHEMA) || !sqlite.exec(db, POLL_SCHEMA) || !sqlite.exec(db, THREAD_MEMBER_SCHEMA) { close(s); return null, false; }
 	// Files made before these columns; each fails harmlessly once it exists.
 	sqlite.exec(db, "ALTER TABLE users ADD COLUMN left INTEGER NOT NULL DEFAULT 0;");
 	sqlite.exec(db, "ALTER TABLE users ADD COLUMN banned INTEGER NOT NULL DEFAULT 0;");
@@ -1653,19 +1653,90 @@ row_channel :: (s: *Server, st: *sqlite.Stmt, member := etf.Value.{}) -> etf.Val
 	return etf.vmap(etf.map_done(*m));
 }
 
-// A thread's `member` entry for user, who has joined it by starting it or posting in it; null if not.
-// The caller holds db_mu.
+// Who joined or left a thread with Join / Leave Thread, and their settings there (flags, muted until
+// mute_end, 0 for until unmuted). Without a row, starting or posting in a thread joins it.
+THREAD_MEMBER_SCHEMA :: #string SQL
+CREATE TABLE IF NOT EXISTS thread_members(thread INTEGER NOT NULL, user INTEGER NOT NULL, joined INTEGER NOT NULL, flags INTEGER NOT NULL DEFAULT 0, muted INTEGER NOT NULL DEFAULT 0, mute_end INTEGER NOT NULL DEFAULT 0, window INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(thread, user));
+CREATE TRIGGER IF NOT EXISTS thread_members_delete AFTER DELETE ON channels BEGIN DELETE FROM thread_members WHERE thread = old.id; END;
+SQL
+
+// A thread's `member` entry for user, who has joined it (Join Thread, or starting or posting in it
+// unless they left since); null if not. The caller holds db_mu.
 thread_member_locked :: (s: *Server, thread: s64, user: s64) -> etf.Value {
-	st := sqlite.prepare(s.db, "SELECT 1 FROM channels WHERE id = ?1 AND (owner = ?2 OR EXISTS (SELECT 1 FROM messages WHERE channel = ?1 AND author = ?2));");
+	st := sqlite.prepare(s.db, "SELECT t.joined, t.flags, t.muted, t.mute_end, t.window FROM thread_members t WHERE t.thread = ?1 AND t.user = ?2 UNION ALL SELECT 1, 0, 0, 0, 0 FROM channels WHERE id = ?1 AND (owner = ?2 OR EXISTS (SELECT 1 FROM messages WHERE channel = ?1 AND author = ?2)) LIMIT 1;");
 	defer sqlite.finalize(st);
 	sqlite.bind_all(st, thread, user);
-	if sqlite.step(st) != .Row return .{};
-	m := etf.map_builder(4,, temp);
+	if sqlite.step(st) != .Row || !sqlite.col_int(st, 0) return .{};
+	m := etf.map_builder(6,, temp);
 	etf.map_put(*m, "id", snow(thread));
 	etf.map_put(*m, "user_id", snow(user));
 	etf.map_put(*m, "join_timestamp", etf.vstring(iso(thread)));
-	etf.map_put(*m, "flags", etf.vint(0));
+	etf.map_put(*m, "flags", etf.vint(sqlite.col_int(st, 1)));
+	etf.map_put(*m, "muted", etf.vbool(sqlite.col_int(st, 2) != 0));
+	end := sqlite.col_int(st, 3);
+	mc: etf.Value;
+	if sqlite.col_int(st, 2) {
+		c := etf.map_builder(2,, temp);
+		etf.map_put(*c, "selected_time_window", etf.vint(sqlite.col_int(st, 4)));
+		etf.map_put(*c, "end_time", ifx end then etf.vstring(iso_ms(end)) else .{});
+		mc = etf.vmap(etf.map_done(*c));
+	}
+	etf.map_put(*m, "mute_config", mc);
 	return etf.vmap(etf.map_done(*m));
+}
+
+// PUT and DELETE /api/v9/channels/{thread}/thread-members/@me (Join / Leave Thread) and PATCH
+// .../@me/settings {flags} or {muted, mute_config: {selected_time_window, end_time}}, as Discord takes them.
+// The member hears THREAD_MEMBER_UPDATE, or THREAD_MEMBERS_UPDATE removing them on leaving.
+thread_members_route :: (c: *Conn, req: http.Request, user: s64, thread: s64, parts: []string) -> bool {
+	s := c.server;
+	me := parts[2] == "@me" || parts[2] == "%40me";
+	settings := parts.count == 4 && parts[3] == "settings" && req.method == "PATCH";
+	join := parts.count == 3 && (req.method == "PUT" || req.method == "DELETE");
+	if !me || (!settings && !join) return json_error(c, 404, 0, "404: Not Found");
+	member: etf.Value;
+	{
+		locks.guard(*s.db_mu);
+		if channel_type_locked(s, thread) != THREAD return json_error(c, 400, 50024, "Cannot execute action on this channel type");
+		if join {
+			if req.method == "PUT" && archived_locked(s, thread) return json_error(c, 400, 50083, "Thread is archived");
+			if !sqlite.run(s.db, "INSERT INTO thread_members(thread, user, joined) VALUES(?1, ?2, ?3) ON CONFLICT(thread, user) DO UPDATE SET joined = ?3;", thread, user, cast(int) (req.method == "PUT")) return json_error(c, 500, 0, "500: Internal Server Error");
+		} else {
+			if thread_member_locked(s, thread, user).kind != .Map return json_error(c, 404, 10007, "Unknown Member");
+			v, err := etf.from_json(cast(string) req.body,, temp);
+			if err != .None || v.kind != .Map return json_error(c, 400, 50035, "Invalid Form Body");
+			flags, has_flags := etf.map_get(v.map, "flags");
+			muted, has_muted := etf.map_get(v.map, "muted");
+			if (has_flags && flags.kind != .Int) || (has_muted && muted.kind != .Bool) return json_error(c, 400, 50035, "Invalid Form Body");
+			end, window: s64;
+			mc, _ := etf.map_get(v.map, "mute_config");
+			if mc.kind == .Map {
+				w, _ := etf.map_get(mc.map, "selected_time_window");
+				e, _ := etf.map_get(mc.map, "end_time");
+				if w.kind == .Int window = w.i;
+				if e.kind == .String end = parse_iso(e.s);
+			}
+			ok := sqlite.run(s.db, "INSERT INTO thread_members(thread, user, joined) VALUES(?, ?, 1) ON CONFLICT(thread, user) DO NOTHING;", thread, user);
+			if ok && has_flags ok = sqlite.run(s.db, "UPDATE thread_members SET flags = ? WHERE thread = ? AND user = ?;", flags.i & 0xff, thread, user);
+			if ok && has_muted ok = sqlite.run(s.db, "UPDATE thread_members SET muted = ?, mute_end = ?, window = ? WHERE thread = ? AND user = ?;", cast(int) muted.b, ifx muted.b then end else 0, ifx muted.b then window else 0, thread, user);
+			if !ok return json_error(c, 500, 0, "500: Internal Server Error");
+		}
+		member = thread_member_locked(s, thread, user);
+	}
+	users := s64.[user];
+	if member.kind == .Map {
+		d := member;
+		send_to(s, users, "THREAD_MEMBER_UPDATE", d);
+		return ifx settings then json_reply(c, 200, member) else respond(c, 204, json = false);
+	}
+	gone := NewArray(1, etf.Value,, temp);
+	gone[0] = snow(user);
+	d := etf.map_builder(3,, temp);
+	etf.map_put(*d, "id", snow(thread));
+	etf.map_put(*d, "guild_id", snow(s.guild));
+	etf.map_put(*d, "removed_member_ids", etf.vlist(gone));
+	send_to(s, users, "THREAD_MEMBERS_UPDATE", etf.vmap(etf.map_done(*d)));
+	return respond(c, 204, json = false);
 }
 
 // channel_locked is channel id as sent to clients, or null; the caller holds db_mu.
@@ -2150,6 +2221,7 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 	}
 	if ok && parts.count == 3 && parts[1] == "permissions" return channel_permission(c, req, user, channel, parts[2]); // roles.jai
 	if ok && parts.count >= 4 && parts[1] == "polls" return poll_route(c, req, user, channel, parts, query); // polls.jai
+	if ok && parts.count >= 3 && parts[1] == "thread-members" return thread_members_route(c, req, user, channel, parts);
 	typing := parts.count == 2 && parts[1] == "typing";
 	if typing && req.method != "POST" return json_error(c, 405, 0, "405: Method Not Allowed");
 	if ok && parts.count == 1 return edit_channel(c, req, user, channel);
@@ -2351,6 +2423,7 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 			if ok && poll_ok ok = sqlite.run(s.db, "INSERT INTO polls(message, question, answers, expiry, multiselect) VALUES(?, ?, ?, ?, ?);",
 				id, question, poll_answers, (id >> 22) + DISCORD_EPOCH_MS + poll_hours * 3_600_000, cast(int) multiselect);
 			if forward && ok ok = sqlite.run(s.db, "INSERT INTO snapshot_files(message, attachment) SELECT ?, id FROM attachments WHERE message = ?;", id, source);
+			if ok ok = sqlite.run(s.db, "UPDATE thread_members SET joined = 1 WHERE thread = ? AND user = ?;", channel, user); // posting rejoins a thread
 			for ids if ok ok = sqlite.run(s.db, "INSERT OR IGNORE INTO mentions(message, user) SELECT ?, id FROM users WHERE id = ? AND left = 0;", id, it);
 			bad_file := false;
 			if atts.kind == .List for a: atts.list {

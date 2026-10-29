@@ -445,4 +445,5 @@ thread_browser_row :: (tid: dc.Snowflake) {
 		select_channel(th.guild_id, tid, "Thread Browser");
 		tb.open = false;
 	}
+	if sig.right_clicked thread_menu_open(tid, app.ui.mouse); // Join / Leave Thread for any thread
 }

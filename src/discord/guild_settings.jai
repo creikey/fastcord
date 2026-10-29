@@ -135,10 +135,18 @@ channel_is_muted :: (s: *Store, gid: Snowflake, cid: Snowflake, now_ms: s64) -> 
 	return o && mute_active(o.muted, o.mute_end_ms, now_ms);
 }
 
-// Muted by its own override or its category's (what the sidebar dims).
+// Muted by its own override or its category's (what the sidebar dims); a thread also by its own thread
+// member mute and its channel's.
 channel_effectively_muted :: (s: *Store, gid: Snowflake, cid: Snowflake, now_ms: s64) -> bool {
-	if channel_is_muted(s, gid, cid, now_ms) return true;
 	ch := channel_get(s, cid);
+	if is_thread(ch) {
+		tm := thread_meta(cid);
+		if tm && mute_active(tm.muted, tm.mute_end_ms, now_ms) return true;
+		ch = channel_get(s, ch.parent_id);
+		if !ch return false;
+		cid = ch.id;
+	}
+	if channel_is_muted(s, gid, cid, now_ms) return true;
 	return ch && ch.parent_id && channel_is_muted(s, gid, ch.parent_id, now_ms);
 }
 
