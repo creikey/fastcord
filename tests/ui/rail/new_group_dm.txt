@@ -1,0 +1,8 @@
+# Run with -fixture:tests/ui/rail.jsonl. The Friends header's New Group DM icon opens the Create DM popout.
+wait 5
+click 36 52
+wait 10
+click 1247 57
+wait 10
+shot build/ui-rail_new_group_dm.png
+expect_visible "Select Friends"

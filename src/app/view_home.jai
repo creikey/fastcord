@@ -258,7 +258,10 @@ friends_page :: () {
 			spacer(.X, 16);
 		}
 		filler(.X);
-		icon("newgroup", "chat-plus", 20, T("--icon-muted")); // New Group DM
+		ng := icon("newgroup", "chat-plus", 20, T("--icon-muted"), .Clickable); // New Group DM: the Create DM popout
+		ngs := ui.signal(ng);
+		if ngs.hovering { set_icon(ng, "chat-plus", T("--interactive-icon-hover")); tooltip_below("New Group DM", ng.rect); }
+		if ngs.clicked group_dm_popout_open(ng.rect, 0);
 		spacer(.X, 22);
 	}
 	line := ui.box("hline", .Draw_Background);
