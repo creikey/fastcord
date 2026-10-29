@@ -6,9 +6,9 @@
 // assume there is one.
 camera_supported :: () -> bool { return atomic_load(*camera_count) != 0; }
 
-camera_start :: (on_frame: Frame_Proc, user: *void, width := 1280, height := 720, fps := 30) -> *Capture {
+camera_start :: (on_frame: Frame_Proc, user: *void, width := 1280, height := 720, fps := 30, device_id := "") -> *Capture {
 	c := New(Capture);
-	c.* = .{on_frame = on_frame, user = user, width = width, height = height, fps = fps, camera = true};
+	c.* = .{on_frame = on_frame, user = user, width = width, height = height, fps = fps, camera = true, device = copy_string(device_id)};
 	start(c, camera_thread);
 	return c;
 }
@@ -33,11 +33,34 @@ screen_targets_refresh :: () {
 			IDXGIOutput_GetDesc(output, *desc);
 			IUnknown_Release(output);
 			r := desc.DesktopCoordinates;
-			if desc.AttachedToDesktop array_add(*screens, .{id = (a << 8) | o, name = sprint("Screen %", screens.count + 1), width = r.right - r.left, height = r.bottom - r.top});
+			if desc.AttachedToDesktop array_add(*screens, .{id = (a << 8) | o, name = sprint("Screen %", screens.count + 1), width = r.right - r.left, height = r.bottom - r.top, x = r.left, y = r.top});
 			o += 1;
 		}
 		IUnknown_Release(adapter);
 		a += 1;
+	}
+	// thumbnails: each screen scaled down by GDI, a few milliseconds each
+	thumbs_clear();
+	screen := GetDC(null);
+	defer ReleaseDC(null, screen);
+	for screens {
+		if it.width <= 0 || it.height <= 0 continue;
+		w, h := THUMB_W, clamp(THUMB_W * it.height / it.width, 2, THUMB_W * 2);
+		mem := CreateCompatibleDC(screen);
+		bmp := CreateCompatibleBitmap(screen, xx w, xx h);
+		old := SelectObject(mem, bmp);
+		SetStretchBltMode(mem, .HALFTONE);
+		ok := StretchBlt(mem, 0, 0, xx w, xx h, screen, xx it.x, xx it.y, xx it.width, xx it.height, .SRCCOPY) != .FALSE;
+		SelectObject(mem, old);
+		px := NewArray(w * h * 4, u8);
+		bmi: BITMAPINFO;
+		bmi.bmiHeader = .{biSize = size_of(BITMAPINFOHEADER), biWidth = xx w, biHeight = xx -h, biPlanes = 1, biBitCount = 32};
+		ok = ok && GetDIBits(mem, bmp, 0, xx h, px.data, *bmi, DIB_RGB_COLORS) == h;
+		DeleteObject(bmp);
+		DeleteDC(mem);
+		if !ok { array_free(px); continue; }
+		for i: 0..w * h - 1 { p := px.data + i * 4; p[0], p[2], p[3] = p[2], p[0], 255; } // BGRX -> RGBA
+		thumb_add(false, it.id, px, w, h);
 	}
 }
 
@@ -57,6 +80,33 @@ screen_start :: (target: Screen_Target, on_frame: Frame_Proc, user: *void, fps :
 
 camera_count: s32 = -1; // unknown
 screens: [..]Screen_Target;
+
+// An activate's string attribute (IMFAttributes::GetAllocatedString), "" when missing.
+act_string :: (act: *void, key: *GUID) -> string {
+	s: *u16;
+	len: u32;
+	if mf.com(act, 13, #type (*void, *GUID, **u16, *u32) -> HRESULT #c_call)(act, key, *s, *len) < 0 return "";
+	defer mf.CoTaskMemFree(s);
+	out := wide_to_utf8(s, xx len);
+	return out;
+}
+
+#scope_module
+
+list_cameras :: () -> [..]Camera_Device {
+	com := mf.com_enter();
+	defer mf.com_leave(com);
+	out: [..]Camera_Device;
+	acts, n := cameras();
+	for 0..n - 1 {
+		array_add(*out, .{act_string(acts[it], *mf.MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE_VIDCAP_SYMBOLIC_LINK), act_string(acts[it], *mf.MF_DEVSOURCE_ATTRIBUTE_FRIENDLY_NAME)});
+		mf.release(acts[it]);
+	}
+	if n mf.CoTaskMemFree(acts);
+	return out;
+}
+
+#scope_file
 
 // The video capture devices (release each, then CoTaskMemFree the array); updates camera_count.
 cameras :: () -> **void, int {
@@ -94,8 +144,10 @@ camera_thread :: (t: *Thread) -> s64 {
 		}
 		return true;
 	}
-	pick := 0;
-	for 0..n - 1 if !is_virtual(acts[it]) { pick = it; break; }
+	pick := -1;
+	if c.device for 0..n - 1 if act_string(acts[it], *mf.MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE_VIDCAP_SYMBOLIC_LINK,, temp) == c.device { pick = it; break; }
+	if pick < 0 for 0..n - 1 if !is_virtual(acts[it]) { pick = it; break; }
+	pick = max(pick, 0);
 	act := acts[pick];
 	for 0..n - 1 if it != pick mf.release(acts[it]);
 	mf.CoTaskMemFree(acts);

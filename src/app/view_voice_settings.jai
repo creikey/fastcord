@@ -17,8 +17,9 @@ Voice_Settings :: struct {
 	soundboard_mic: bool; // our sounds go out through the mic instead of Discord's soundboard
 	user_volume: Table(dc.Snowflake, float32); // 0..400 %
 	user_muted: Table(dc.Snowflake, bool);
+	camera, camera_name: string; // heap: the chosen camera ("" = default)
 	// UI state
-	open_dropdown: int; // 0 none, 1 input, 2 output
+	open_dropdown: int; // 0 none, 1 input, 2 output, 3 camera
 	meter_owner: bool; // the meter started the capture
 	meter_vad: voice.Vad;
 	meter_db: float32;
@@ -61,6 +62,7 @@ voice_settings_restore :: (p: *Persisted_Voice) {
 	vs.soundboard_volume, vs.soundboard_mic = clamp(p.soundboard_volume, 0, 100), p.soundboard_mic;
 	vs.ptt_mode = p.mode == "PUSH_TO_TALK";
 	vs.ptt_delay_ms = clamp(cast(float32) p.ptt_delay_ms, 0, 2000);
+	vs.camera, vs.camera_name = copy_string(p.camera), copy_string(p.camera_name);
 	id := device_by_uid(true, p.input_device);
 	if id != 0 audio.select_device(true, id);
 	id = device_by_uid(false, p.output_device);
@@ -79,6 +81,7 @@ voice_settings_snapshot :: (p: *Persisted_Voice) {
 	vs_init();
 	p.input_device = device_uid(true);
 	p.output_device = device_uid(false);
+	p.camera, p.camera_name = vs.camera, vs.camera_name;
 	p.input_volume = vs.input_volume;
 	p.output_volume = vs.output_volume;
 	p.auto_sens = vs.auto_sens;
@@ -319,9 +322,9 @@ voice_user_menu :: () {
 		if outside_pressed("dd_scrim") || escape_pressed() {
 			vs.open_dropdown = 0;
 		} else {
-			input := vs.open_dropdown == 1;
 			r := vs.dd_anchor;
-			device_list(vs_list_devices(input), audio.selected_device(input), input, r.x1 - r.x0, .{r.x0, r.y1 + 4});
+			devs := dd_devices(vs.open_dropdown);
+			device_list(vs.open_dropdown, devs, dd_selected(vs.open_dropdown, devs), r.x1 - r.x0, .{r.x0, r.y1 + 4});
 		}
 	}
 	if vs.menu_user == 0 return;
@@ -490,6 +493,9 @@ vs_init :: () {
 
 camera_test_section :: () {
 	section_title("CAMERA");
+	device_dropdown(3, false, 660);
+	spacer(.Y, 16);
+	section_title("PREVIEW");
 	img := camera_test_image();
 	pv := ui.box("campreview", .Draw_Background);
 	pv.semantic_size = .[ui.px(660), ui.px(660 * 9 / 16)];
@@ -529,12 +535,12 @@ section_title :: (text: string) {
 }
 
 device_dropdown :: (which: int, input: bool, w: float32) {
-	devs := vs_list_devices(input);
-	sel := audio.selected_device(input);
-	current := "Default";
+	devs := dd_devices(which);
+	sel := dd_selected(which, devs);
+	current := ifx which == 3 && vs.camera then vs.camera_name else "Default";
 	for d: devs { if sel != 0 && d.id == sel { current = d.name; } }
 	hint := ifx current == "Default" then default_name(devs) else "";
-	box := row(ifx input then "indev" else "outdev", .Clickable | .Draw_Background | .Draw_Border);
+	box := row(ifx which == 3 then "camdev" else ifx input then "indev" else "outdev", .Clickable | .Draw_Background | .Draw_Border);
 	box.semantic_size = .[ui.px(w), ui.px(40)];
 	box.style.bg = T("--background-base-lowest");
 	if tok_has("--input-background") box.style.bg = T("--input-background");
@@ -542,7 +548,11 @@ device_dropdown :: (which: int, input: bool, w: float32) {
 	box.style.border_color = T("--border-subtle");
 	box.style.radius = all4(8);
 	sig := ui.signal(box);
-	if sig.clicked vs.open_dropdown = ifx vs.open_dropdown == which then 0 else which;
+	if sig.clicked {
+		vs.open_dropdown = ifx vs.open_dropdown == which then 0 else which;
+		// listed only on a click: AVFoundation may ask for (or, without a usage string, kill us over) the camera
+		if vs.open_dropdown == 3 && !platform.is_headless() video.cameras_refresh();
+	}
 	{ ui.parent(box); defer ui.pop_parent();
 		spacer(.X, 12);
 		t := label(current, .Medium, 16, T("--text-default"), 20);
@@ -559,8 +569,33 @@ device_dropdown :: (which: int, input: bool, w: float32) {
 }
 
 // popup list under the dropdown (overlay, like the client's select menu)
-device_list :: (devs: []audio.Device_Info, sel: u32, input: bool, w: float32, at: ui.Vec2) {
-	list := ui.box(ifx input then "inlist" else "outlist", .Draw_Background | .Draw_Border | .Draw_Shadow | .Floating_X | .Floating_Y | .Overlay | .Clickable);
+// The dropdowns' entries: audio devices (1 input, 2 output), or the cameras (3) as ids 1..n with the
+// camera's id as uid.
+dd_devices :: (which: int) -> []audio.Device_Info {
+	if which != 3 return vs_list_devices(which == 1);
+	cams, _ := video.cameras();
+	if platform.is_headless() { cams = NewArray(1, video.Camera_Device,, temp); cams[0] = .{"test", "Test Camera"}; }
+	out := NewArray(cams.count, audio.Device_Info,, temp);
+	for cams out[it_index] = .{id = cast(u32) it_index + 1, name = it.name, uid = it.id};
+	return out;
+}
+
+dd_selected :: (which: int, devs: []audio.Device_Info) -> u32 {
+	if which != 3 return audio.selected_device(which == 1);
+	for devs if it.uid == vs.camera return it.id;
+	return 0;
+}
+
+dd_select :: (which: int, d: audio.Device_Info) {
+	if which != 3 { audio.select_device(which == 1, d.id); return; }
+	free(vs.camera);
+	free(vs.camera_name);
+	vs.camera, vs.camera_name = copy_string(d.uid), copy_string(d.name);
+	camera_switch();
+}
+
+device_list :: (which: int, devs: []audio.Device_Info, sel: u32, w: float32, at: ui.Vec2) {
+	list := ui.box(ifx which == 3 then "camlist" else ifx which == 1 then "inlist" else "outlist", .Draw_Background | .Draw_Border | .Draw_Shadow | .Floating_X | .Floating_Y | .Overlay | .Clickable);
 	list.semantic_size = .[ui.px(w), ui.children()];
 	list.fixed_pos = at;
 	list.layout_axis = .Y;
@@ -573,7 +608,8 @@ device_list :: (devs: []audio.Device_Info, sel: u32, input: bool, w: float32, at
 	list.style.shadow_offset = .{0, 8};
 	ui.signal(list);
 	{ ui.parent(list); defer ui.pop_parent();
-		opt :: (name: string, id: u32, input: bool, selected: bool, hint := "") {
+		opt :: (which: int, d: audio.Device_Info, selected: bool, hint := "") {
+			name := d.name;
 			it_ := row(name, .Clickable | .Draw_Background | .Hot_Animation);
 			it_.semantic_size = .[ui.pct(1), ui.px(36)];
 			it_.style.bg_hot = T("--background-mod-normal");
@@ -586,12 +622,12 @@ device_list :: (devs: []audio.Device_Info, sel: u32, input: bool, w: float32, at
 				}
 			}
 			if ui.signal(it_).clicked {
-				audio.select_device(input, id);
+				dd_select(which, d);
 				vs.open_dropdown = 0;
 			}
 		}
-		opt("Default", 0, input, sel == 0, default_name(devs));
-		for d: devs { { ui.id_scope(cast(u64)(d.id) + 1); defer ui.pop_seed(); opt(d.name, d.id, input, d.id == sel); } }
+		opt(which, .{name = "Default"}, sel == 0, default_name(devs));
+		for d: devs { { ui.id_scope(cast(u64)(d.id) + 1); defer ui.pop_seed(); opt(which, d, d.id == sel); } }
 	}
 }
 

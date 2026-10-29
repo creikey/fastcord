@@ -1,4 +1,5 @@
-# Settings > Voice & Video: Test Video shows the camera (headless: the test pattern) and Stop Video ends it.
+# Settings > Voice & Video: the Camera dropdown lists the cameras (headless: one test camera) and keeps the
+# pick; Test Video shows the camera (headless: the test pattern) and Stop Video ends it.
 wait 5
 click 338 683
 wait 20
@@ -10,4 +11,9 @@ wait 10
 click_text "Test Video"
 settle 0.3
 expect_visible "Stop Video"
+click_text "Default"
+wait 3
+click_text "Test Camera"
+wait 3
+expect_visible "Test Camera"
 shot

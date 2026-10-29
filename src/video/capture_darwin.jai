@@ -17,6 +17,7 @@ Capture :: struct {
 	mu: locks.Mutex;
 	cv: locks.Cond;
 	stopped: bool;
+	ended: bool;     // atomic: the system stopped the stream (the menu bar's Stop Sharing, a closed window)
 	// test pattern (pattern_darwin.jai)
 	pattern: *Thread;
 	pattern_stop: bool;
@@ -29,13 +30,15 @@ camera_supported :: () -> bool {
 	return msg(Id, cls("AVCaptureDevice"), "defaultDeviceWithMediaType:", AVMediaTypeVideo) != null;
 }
 
-camera_start :: (on_frame: Frame_Proc, user: *void, width := 1280, height := 720, fps := 30) -> *Capture {
+camera_start :: (on_frame: Frame_Proc, user: *void, width := 1280, height := 720, fps := 30, device_id := "") -> *Capture {
 	pool := objc_autoreleasePoolPush();
 	defer objc_autoreleasePoolPop(pool);
 	// 1 restricted, 2 denied; 0 (not determined) prompts when the session starts.
 	status := msg(s64, cls("AVCaptureDevice"), "authorizationStatusForMediaType:", AVMediaTypeVideo);
 	if status == 1 || status == 2 return null;
-	device := msg(Id, cls("AVCaptureDevice"), "defaultDeviceWithMediaType:", AVMediaTypeVideo);
+	device: Id;
+	if device_id device = msg(Id, cls("AVCaptureDevice"), "deviceWithUniqueID:", msg(Id, cls("NSString"), "stringWithUTF8String:", temp_c_string(device_id)));
+	if !device device = msg(Id, cls("AVCaptureDevice"), "defaultDeviceWithMediaType:", AVMediaTypeVideo);
 	if !device return null;
 	err: Id;
 	input := msg(Id, cls("AVCaptureDeviceInput"), "deviceInputWithDevice:error:", device, *err);
@@ -88,6 +91,20 @@ camera_start :: (on_frame: Frame_Proc, user: *void, width := 1280, height := 720
 	return c;
 }
 
+// The cameras AVFoundation sees, built-in, external and Continuity alike (heap strings).
+list_cameras :: () -> [..]Camera_Device {
+	pool := objc_autoreleasePoolPush();
+	defer objc_autoreleasePoolPop(pool);
+	out: [..]Camera_Device;
+	devs := msg(Id, cls("AVCaptureDevice"), "devicesWithMediaType:", AVMediaTypeVideo);
+	for 0..msg(s64, devs, "count") - 1 {
+		d := msg(Id, devs, "objectAtIndex:", cast(u64) it);
+		str :: (s: Id) -> string { return copy_string(to_string(msg(*u8, s, "UTF8String"))); }
+		array_add(*out, .{str(msg(Id, d, "uniqueID")), str(msg(Id, d, "localizedName"))});
+	}
+	return out;
+}
+
 screen_supported :: () -> bool { return cls("SCShareableContent") != null; }
 
 screen_targets_refresh :: () {
@@ -98,6 +115,7 @@ screen_targets_refresh :: () {
 		clear_targets();
 		targets.ready = false;
 	}
+	thumbs_clear();
 	if !targets.ts.data {
 		init_callback_context(*targets.ctx, *targets.ts);
 		targets.block = make_block(xx content_ready, null);
@@ -138,8 +156,9 @@ screen_start :: (target: Screen_Target, on_frame: Frame_Proc, user: *void, fps :
 	msg(Void, config, "setShowsCursor:", true);
 	msg(Void, config, "setQueueDepth:", cast(s64) 5);
 
-	c := new_capture(on_frame, user, "FCVideoScreenOutput", "stream:didOutputSampleBuffer:ofType:", "v@:@^{opaqueCMSampleBuffer=}q", xx screen_frame);
-	c.stream = msg(Id, msg(Id, cls("SCStream"), "alloc"), "initWithFilter:configuration:delegate:", filter, config, cast(Id) null);
+	c := new_capture(on_frame, user, "FCVideoScreenOutput", "stream:didOutputSampleBuffer:ofType:", "v@:@^{opaqueCMSampleBuffer=}q", xx screen_frame,
+		"stream:didStopWithError:", "v@:@@", xx stream_ended);
+	c.stream = msg(Id, msg(Id, cls("SCStream"), "alloc"), "initWithFilter:configuration:delegate:", filter, config, c.delegate);
 	err: Id;
 	if !c.stream || !msg(bool, c.stream, "addStreamOutput:type:sampleHandlerQueue:error:", c.delegate, cast(s64) 0, c.frames, *err) {
 		if c.stream { msg(Void, c.stream, "release"); c.stream = null; }
@@ -150,7 +169,8 @@ screen_start :: (target: Screen_Target, on_frame: Frame_Proc, user: *void, fps :
 	return c;
 }
 
-capture_error :: (c: *Capture) -> string { return ""; }
+// Why the capture ended on its own ("" while it runs).
+capture_error :: (c: *Capture) -> string { return ifx c && atomic_load(*c.ended) then "Screen sharing stopped." else ""; }
 
 capture_stop :: (c: *Capture) {
 	if !c return;
@@ -218,11 +238,12 @@ make_block :: (invoke: *void, user: *void) -> Block {
 
 noop_block: Block;
 
-new_capture :: (on_frame: Frame_Proc, user: *void, class_name: *u8, selector: *u8, types: *u8, imp: *void) -> *Capture {
+new_capture :: (on_frame: Frame_Proc, user: *void, class_name: *u8, selector: *u8, types: *u8, imp: *void, selector2: *u8 = null, types2: *u8 = null, imp2: *void = null) -> *Capture {
 	klass := cls(class_name);
 	if !klass {
 		klass = objc.allocate_class(cls("NSObject"), class_name);
 		objc.add_method(klass, selector, imp, types);
+		if selector2 objc.add_method(klass, selector2, imp2, types2);
 		objc.register_class(klass);
 	}
 	if !noop_block.isa noop_block = make_block(xx (b: *Block, err: Id) #c_call {}, null);
@@ -256,6 +277,11 @@ screen_frame :: (self: Id, cmd: *void, stream: Id, sample: CFRef, type: s64) #c_
 	status: s32 = -1;
 	if !n || !CFNumberGetValue(n, 3, *status) || status != 0 return; // SCFrameStatusComplete
 	deliver(self, sample);
+}
+
+// SCStreamDelegate's stream:didStopWithError:, when the system ends the stream rather than capture_stop.
+stream_ended :: (self: Id, cmd: *void, stream: Id, err: Id) #c_call {
+	atomic_store(*(cast(**Capture) object_getIndexedIvars(self)).*.ended, true);
 }
 
 stream_stopped :: (b: *Block, err: Id) #c_call {
@@ -316,8 +342,67 @@ content_ready :: (b: *Block, content: Id, err: Id) #c_call {
 			array_add(*targets.objs, msg(Id, win, "retain"));
 		}
 		targets.ready = true;
+		// thumbnails (macOS 14's SCScreenshotManager): the screens and the first windows
+		if !cls("SCScreenshotManager") return;
+		gen: int;
+		{ locks.guard(*thumbs.mu); gen = thumbs.gen; }
+		for targets.list {
+			if it_index >= 32 break;
+			filter := msg(Id, cls("SCContentFilter"), "alloc");
+			if it.is_window filter = msg(Id, filter, "initWithDesktopIndependentWindow:", targets.objs[it_index]);
+			else filter = msg(Id, filter, "initWithDisplay:excludingWindows:", targets.objs[it_index], msg(Id, cls("NSArray"), "array"));
+			config := objc.new_obj("SCStreamConfiguration");
+			h := ifx it.width > 0 then THUMB_W * it.height / it.width else THUMB_W * 9 / 16;
+			msg(Void, config, "setWidth:", cast(u64) THUMB_W);
+			msg(Void, config, "setHeight:", cast(u64) clamp(h, 2, THUMB_W * 2));
+			msg(Void, config, "setShowsCursor:", false);
+			req := New(Thumb_Req);
+			req.* = .{block = make_block(xx thumb_taken, req), gen = gen, is_window = it.is_window, id = it.id};
+			msg(Void, cls("SCScreenshotManager"), "captureImageWithFilter:configuration:completionHandler:", filter, config, *req.block);
+			msg(Void, config, "release");
+			msg(Void, filter, "release");
+		}
 	}
 }
+
+Thumb_Req :: struct {
+	block: Block;
+	gen: int;
+	is_window: bool;
+	id: u32;
+}
+
+// A screenshot for the picker arrived (any queue): drawn into premultiplied RGBA.
+thumb_taken :: (b: *Block, image: CFRef, err: Id) #c_call {
+	req := cast(*Thumb_Req) b.user;
+	push_context targets.ctx {
+		defer free(req);
+		if !image return;
+		w, h := cast(int) CGImageGetWidth(image), cast(int) CGImageGetHeight(image);
+		if w <= 0 || h <= 0 || w > THUMB_W * 2 || h > THUMB_W * 2 return;
+		rgba := NewArray(w * h * 4, u8);
+		cs := CGColorSpaceCreateDeviceRGB();
+		ctx := CGBitmapContextCreate(rgba.data, xx w, xx h, 8, xx (w * 4), cs, 1 | (4 << 12)); // premultiplied last, 32 big
+		if ctx {
+			CGContextDrawImage(ctx, .{0, 0, xx w, xx h}, image);
+			CGContextRelease(ctx);
+		}
+		CGColorSpaceRelease(cs);
+		locks.lock(*thumbs.mu);
+		current := req.gen == thumbs.gen;
+		locks.unlock(*thumbs.mu);
+		if current && ctx thumb_add(req.is_window, req.id, rgba, w, h);
+		else array_free(rgba);
+	}
+}
+
+CGImageGetWidth :: (image: CFRef) -> u64 #foreign CoreGraphics;
+CGImageGetHeight :: (image: CFRef) -> u64 #foreign CoreGraphics;
+CGColorSpaceCreateDeviceRGB :: () -> CFRef #foreign CoreGraphics;
+CGColorSpaceRelease :: (cs: CFRef) #foreign CoreGraphics;
+CGBitmapContextCreate :: (data: *void, w: u64, h: u64, bpc: u64, bpr: u64, cs: CFRef, info: u32) -> CFRef #foreign CoreGraphics;
+CGContextRelease :: (ctx: CFRef) #foreign CoreGraphics;
+CGContextDrawImage :: (ctx: CFRef, r: CGRect, image: CFRef) #foreign CoreGraphics;
 
 CGRect :: struct { x, y, w, h: float64; }
 

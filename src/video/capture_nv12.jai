@@ -11,6 +11,7 @@ Capture :: struct {
 	target: Screen_Target;
 	error: string; // set by the thread before it gives up; a literal
 	camera: bool;
+	device: string; // camera_start's device id, heap ("" = the first real camera)
 	got_frame: bool; // atomic
 	started: Apollo_Time;
 }
@@ -80,6 +81,7 @@ reap :: () {
 		c := stopped[i];
 		if thread_is_done(*c.thread) {
 			thread_deinit(*c.thread);
+			free(c.device);
 			free(c);
 			array_unordered_remove_by_index(*stopped, i);
 		} else {

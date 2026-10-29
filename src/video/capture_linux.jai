@@ -5,9 +5,9 @@
 // assume there is one.
 camera_supported :: () -> bool { return atomic_load(*camera_count) != 0; }
 
-camera_start :: (on_frame: Frame_Proc, user: *void, width := 1280, height := 720, fps := 30) -> *Capture {
+camera_start :: (on_frame: Frame_Proc, user: *void, width := 1280, height := 720, fps := 30, device_id := "") -> *Capture {
 	c := New(Capture);
-	c.* = .{on_frame = on_frame, user = user, width = width, height = height, fps = fps, camera = true};
+	c.* = .{on_frame = on_frame, user = user, width = width, height = height, fps = fps, camera = true, device = copy_string(device_id)};
 	start(c, camera_thread);
 	return c;
 }
@@ -20,6 +20,28 @@ screen_start :: (target: Screen_Target, on_frame: Frame_Proc, user: *void, fps :
 #scope_file
 
 camera_count: s32 = -1; // unknown
+
+#scope_module
+
+// The capture devices, by their V4L2 card names.
+list_cameras :: () -> [..]Camera_Device {
+	out: [..]Camera_Device;
+	for i: 0..63 {
+		path := tprint("/dev/video%", i);
+		fd := open(temp_c_string(path), O_RDWR | O_NONBLOCK | O_CLOEXEC);
+		if fd < 0 continue;
+		defer close(fd);
+		cap: v4l2_capability;
+		if xioctl(fd, VIDIOC_QUERYCAP, *cap) < 0 continue;
+		caps := ifx cap.capabilities & CAP_DEVICE_CAPS then cap.device_caps else cap.capabilities;
+		if !(caps & CAP_VIDEO_CAPTURE) || !(caps & CAP_STREAMING) continue;
+		name := to_string(cap.card.data, c_style_strlen(cap.card.data));
+		array_add(*out, .{copy_string(path), copy_string(ifx name then name else path)});
+	}
+	return out;
+}
+
+#scope_file
 
 Mode :: struct { fourcc: u32; w, h, fps: int; }
 
@@ -91,8 +113,10 @@ camera_thread :: (t: *Thread) -> s64 {
 // then the cheapest format to convert. Updates camera_count.
 open_camera :: (c: *Capture) -> s32, Mode {
 	found := 0;
-	for i: 0..63 {
-		fd := open(temp_c_string(tprint("/dev/video%", i)), O_RDWR | O_NONBLOCK | O_CLOEXEC);
+	for i: -1..63 { // the chosen camera first, then the rest
+		path := ifx i < 0 then c.device else tprint("/dev/video%", i);
+		if !path || (i >= 0 && path == c.device) continue;
+		fd := open(temp_c_string(path), O_RDWR | O_NONBLOCK | O_CLOEXEC);
 		if fd < 0 continue;
 		cap: v4l2_capability;
 		caps := ifx xioctl(fd, VIDIOC_QUERYCAP, *cap) >= 0 then (ifx cap.capabilities & CAP_DEVICE_CAPS then cap.device_caps else cap.capabilities) else 0;

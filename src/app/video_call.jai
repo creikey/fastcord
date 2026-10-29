@@ -57,6 +57,7 @@ Video_App :: struct {
 	own_version: u64;
 	own_target: video.Screen_Target;
 	picker_open: bool;
+	picker_test: bool; // the `screen_picker` script command: made-up targets, never the real screens
 	go_height := 720; // Go Live settings: 720, 1080, or 0 for the source's own height
 	go_fps := 30;     // 15, 30 or 60
 	// the stream we watch
@@ -93,7 +94,7 @@ camera_toggle :: () {
 		s := *vid.camera;
 		sender_init(s, vc_conn(), CAMERA_FPS, CAMERA_BITRATE);
 		if video_test("camera") s.capture = video.pattern_start(on_capture_frame, s, CAMERA_W, CAMERA_H, CAMERA_FPS);
-		else s.capture = video.camera_start(on_capture_frame, s, CAMERA_W, CAMERA_H, CAMERA_FPS);
+		else s.capture = video.camera_start(on_capture_frame, s, CAMERA_W, CAMERA_H, CAMERA_FPS, vs.camera);
 		if !s.capture return;
 		voice.set_video(s.conn, true, CAMERA_W, CAMERA_H, CAMERA_FPS, CAMERA_BITRATE);
 	}
@@ -172,7 +173,20 @@ camera_test_toggle :: () {
 	s := *vid.preview;
 	sender_init(s, null, CAMERA_FPS, 0);
 	if headless s.capture = video.pattern_start(on_capture_frame, s, CAMERA_W, CAMERA_H, CAMERA_FPS);
-	else s.capture = video.camera_start(on_capture_frame, s, CAMERA_W, CAMERA_H, CAMERA_FPS);
+	else s.capture = video.camera_start(on_capture_frame, s, CAMERA_W, CAMERA_H, CAMERA_FPS, vs.camera);
+}
+
+// camera_switch: another camera was picked; the call's camera and the test move to it. The encoder is
+// remade at the new camera's size by the next frame.
+camera_switch :: () {
+	if platform.is_headless() return; // the test pattern stays
+	for s: (*Sender).[*vid.camera, *vid.preview] if s.capture {
+		video.capture_stop(s.capture);
+		video.encoder_destroy(s.enc);
+		s.enc = null;
+		s.codec = .None;
+		s.capture = video.camera_start(on_capture_frame, s, CAMERA_W, CAMERA_H, CAMERA_FPS, vs.camera);
+	}
 }
 
 // What the camera test shows: the call's camera while it's on, else the test's.
@@ -259,6 +273,7 @@ video_frame :: () {
 		send_voice_state();
 		toast_show(err, false);
 	}
+	if video.capture_error(vid.screen.capture) go_live_stop(); // stopped from outside (the macOS menu bar)
 	if vid.preview.capture {
 		err = video.capture_error(vid.preview.capture);
 		if err toast_show(err, false);

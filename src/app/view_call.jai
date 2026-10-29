@@ -184,10 +184,16 @@ call_pip :: () {
 
 pip: struct { corner: int; }; // 0 bottom right, 1 bottom left, 2 top right, 3 top left
 
-// The screen share picker: screens and windows (names; ScreenCaptureKit lists them asynchronously).
+// The screen share picker: screens and windows as tiles with a thumbnail and their name (ScreenCaptureKit
+// lists them, and takes the thumbnails, asynchronously).
 screen_picker :: () {
-	if !vid.picker_open return;
+	if !vid.picker_open {
+		for pick_thumbs gfx.texture_destroy(it);
+		table_reset(*pick_thumbs);
+		return;
+	}
 	targets, ready := video.screen_targets();
+	if vid.picker_test targets, ready = picker_test_targets(), true;
 	scrim := ui.box("screen_scrim", .Draw_Background | .Floating_X | .Floating_Y | .Overlay | .Clickable);
 	scrim.semantic_size = .[ui.px(app.ui.window.x), ui.px(app.ui.window.y)];
 	scrim.style.bg = .{0, 0, 0, 0.7};
@@ -259,34 +265,96 @@ screen_picker :: () {
 			spacer(.X, 20);
 			label(ifx section == 0 then "SCREENS" else "APPLICATIONS", .Semibold, 12, T("--text-muted"), 16);
 		}
+		TW :: (W - 20 * 2 - 12) / 2;
+		TH :: TW * 9 / 16;
+		line: *ui.Box;
+		n := 0;
 		for t: targets {
 			if t.is_window != (section == 1) continue;
+			if n % 2 == 0 {
+				if line ui.pop_parent();
+				line = row(tprint("line%", n));
+				line.semantic_size = .[ui.pct(1), ui.px(TH + 44)];
+				line.cross_align = .Start;
+				ui.parent(line);
+				spacer(.X, 14);
+			}
+			n += 1;
 			ui.id_scope(cast(u64) t.id * 2 + cast(u64) section); defer ui.pop_seed();
-			outer := row("t");
-			outer.semantic_size = .[ui.pct(1), ui.px(44)];
-			ui.parent(outer); defer ui.pop_parent();
-			spacer(.X, 12);
-			b := row("item", .Clickable | .Draw_Background | .Hot_Animation);
-			b.semantic_size = .[ui.fill(), ui.px(40)];
+			b := ui.box("item", .Clickable | .Draw_Background | .Hot_Animation);
+			b.semantic_size = .[ui.px(TW + 12), ui.px(TH + 40)];
+			b.layout_axis = .Y;
 			b.style.radius = all4(8);
 			b.style.bg_hot = T("--background-mod-subtle");
 			sig := ui.signal(b);
 			{ ui.parent(b); defer ui.pop_parent();
-				spacer(.X, 10);
-				icon("i", ifx t.is_window then "window-launch" else "screen", 20, T("--interactive-icon-default"));
-				spacer(.X, 10);
-				label(ellipsize(t.name, .Medium, 15, W - 140), .Medium, 15, T("--text-default"), 20);
-				filler(.X);
-				label(tprint("%×%", t.width, t.height), .Normal, 12, T("--text-muted"), 16);
-				spacer(.X, 12);
+				spacer(.Y, 6);
+				r := row("r");
+				r.semantic_size = .[ui.pct(1), ui.px(TH)];
+				{ ui.parent(r); defer ui.pop_parent();
+					spacer(.X, 6);
+					th := ui.box("thumb", .Draw_Background);
+					th.semantic_size = .[ui.px(TW), ui.px(TH)];
+					th.style.bg = T("--background-base-lowest");
+					th.style.radius = all4(6);
+					tex := pick_thumb(t);
+					if tex {
+						d := New(Thumb_Draw,, temp);
+						d.* = .{tex};
+						th.custom_draw = (b: *ui.Box, user: *void) {
+							d := cast(*Thumb_Draw) user;
+							// contained in the tile, centred
+							bw, bh := b.rect.x1 - b.rect.x0, b.rect.y1 - b.rect.y0;
+							ts := gfx.texture_size(d.tex);
+							s := min(bw / ts[0], bh / ts[1]);
+							w, h := ts[0] * s, ts[1] * s;
+							x, y := b.rect.x0 + (bw - w) / 2, b.rect.y0 + (bh - h) / 2;
+							gfx.image(.{x, y, x + w, y + h}, d.tex, radius = 4);
+						};
+						th.custom_user = d;
+					} else {
+						ui.parent(th); defer ui.pop_parent();
+						ic := icon("i", ifx t.is_window then "window-launch" else "screen", 32, T("--interactive-icon-default"), .Floating_X | .Floating_Y);
+						ic.fixed_pos = .{(TW - 32) / 2, (TH - 32) / 2};
+					}
+				}
+				spacer(.Y, 8);
+				nr := row("n");
+				nr.semantic_size = .[ui.pct(1), ui.px(20)];
+				ui.parent(nr); defer ui.pop_parent();
+				spacer(.X, 8);
+				label(ellipsize(t.name, .Medium, 14, TW - 4), .Medium, 14, T("--text-default"), 20);
 			}
-			spacer(.X, 12);
+			if sig.hovering tooltip_below(tprint("% (%×%)", t.name, t.width, t.height), b.rect);
 			if sig.clicked {
 				vid.picker_open = false;
 				go_live_start(t);
 			}
+			spacer(.X, 4);
 		}
+		if line ui.pop_parent();
 	}
+}
+
+Thumb_Draw :: struct { tex: gfx.Texture; }
+
+picker_test_targets :: () -> []video.Screen_Target {
+	T :: video.Screen_Target.[.{id = 1, name = "Screen 1", width = 1512, height = 982}, .{id = 2, name = "Screen 2", width = 1920, height = 1080},
+		.{is_window = true, id = 3, name = "Notes — Shopping list", width = 800, height = 600}];
+	return T;
+}
+
+pick_thumbs: Table(u64, gfx.Texture); // the open picker's thumbnails, by target
+
+pick_thumb :: (t: video.Screen_Target) -> gfx.Texture {
+	key := (ifx t.is_window then (cast(u64) 1) << 32 else 0) | t.id;
+	found, tex := table_find(*pick_thumbs, key);
+	if found return tex;
+	rgba, w, h := video.screen_thumb(t);
+	if !rgba return 0;
+	tex = gfx.texture_create(w, h, .RGBA8, rgba, premultiplied_alpha = true);
+	table_set(*pick_thumbs, key, tex);
+	return tex;
 }
 
 // go_live_quality: the stream's resolution and frame rate, as chips. Above 720p30 only for who may (go_live_premium).

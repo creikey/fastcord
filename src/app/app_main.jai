@@ -669,8 +669,19 @@ script_command :: (path: string, f: []string, t: *float64, depth := 0) {
 		// the Windows install bar (update.jai), shown on any OS; Install does nothing headless
 		inst.offer = true;
 	case "screen_picker";
-		// the Go Live picker, which needs a connected call to open by its button
-		vid.picker_open = true;
+		// the Go Live picker, which needs a connected call to open by its button, on two made-up screens
+		// and a window with drawn thumbnails
+		vid.picker_open, vid.picker_test = true, true;
+		video.thumbs_clear();
+		for t: picker_test_targets() {
+			w, h := video.THUMB_W, video.THUMB_W * t.height / t.width;
+			px := NewArray(w * h * 4, u8);
+			for y: 0..h - 1 for x: 0..w - 1 {
+				p := px.data + (y * w + x) * 4;
+				p[0], p[1], p[2], p[3] = cast(u8) (x * 255 / w), cast(u8) (y * 255 / h), cast(u8) (t.id * 60), 255;
+			}
+			video.thumb_add(t.is_window, t.id, px, w, h);
+		}
 	case "call_effect";
 		// call_effect <user id> <emoji>: as if they sent an in-call emoji (fixtures have no call)
 		call_effect_show(dc.parse_snowflake(f[1]), .{name = f[2]});

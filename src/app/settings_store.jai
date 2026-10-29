@@ -31,6 +31,8 @@ Persisted_Voice :: struct {
 	ptt_delay_ms: int;
 	user_volume: Table(string, float32);
 	user_muted: Table(string, bool);
+	camera: string; // video.Camera_Device id ("" = the default camera)
+	camera_name: string; // its name, shown before the cameras are listed
 }
 
 Persisted_Sounds :: struct {

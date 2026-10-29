@@ -15,11 +15,78 @@ Video_Codec :: enum u8 { H264; H265; }
 
 SUPPORTED :: OS == .MACOS || OS == .WINDOWS || OS == .LINUX; // capture and encoding exist on this platform
 
+// A camera for the picker. id: AVCaptureDevice's uniqueID, the Media Foundation symbolic link, or the
+// /dev/video path; camera_start takes it ("" = the default camera).
+Camera_Device :: struct {
+	id: string;
+	name: string;
+}
+
+// cameras_refresh lists the cameras on a thread of its own, since the OS can take a while; cameras has the
+// last list (ready once one is in).
+cameras_refresh :: () {
+	locks.guard(*cams.mu);
+	if cams.busy return;
+	if cams.started { thread_is_done(*cams.thread, -1); thread_deinit(*cams.thread); }
+	cams.busy, cams.started = true, true;
+	thread_init(*cams.thread, (t: *Thread) -> s64 {
+		list := list_cameras();
+		locks.guard(*cams.mu);
+		for cams.list { free(it.id); free(it.name); }
+		array_free(cams.list);
+		cams.list, cams.ready, cams.busy = list, true, false;
+		return 0;
+	});
+	thread_start(*cams.thread);
+}
+
+cameras :: (allocator := temp) -> []Camera_Device, ready: bool {
+	locks.guard(*cams.mu);
+	out := NewArray(cams.list.count, Camera_Device,, allocator);
+	for cams.list out[it_index] = .{copy_string(it.id,, allocator), copy_string(it.name,, allocator)};
+	return out, cams.ready;
+}
+
+cams: struct {
+	mu: locks.Mutex;
+	thread: Thread;
+	started, busy, ready: bool;
+	list: [..]Camera_Device; // heap
+};
+
 Screen_Target :: struct {
 	is_window: bool;
 	id: u32; // CGDirectDisplayID or CGWindowID; Windows: DXGI adapter << 8 | output
 	name: string;
 	width, height: int; // points
+	x, y: int; // Windows: the screen's place on the desktop
+}
+
+// A target's thumbnail, THUMB_W wide: RGBA, premultiplied, in allocator; empty until it's taken (macOS:
+// asynchronously after screen_targets is ready) or where there is none.
+THUMB_W :: 320;
+screen_thumb :: (t: Screen_Target, allocator := temp) -> []u8, w: int, h: int {
+	locks.guard(*thumbs.mu);
+	for thumbs.list if it.is_window == t.is_window && it.id == t.id return array_copy(it.rgba,, allocator), it.w, it.h;
+	return .[], 0, 0;
+}
+
+thumbs: struct {
+	mu: locks.Mutex;
+	gen: int; // bumped by each refresh: older thumbnails still on their way are dropped
+	list: [..]struct { is_window: bool; id: u32; rgba: []u8; w, h: int; };
+};
+
+thumbs_clear :: () {
+	locks.guard(*thumbs.mu);
+	thumbs.gen += 1;
+	for thumbs.list array_free(it.rgba);
+	thumbs.list.count = 0;
+}
+
+thumb_add :: (is_window: bool, id: u32, rgba: []u8, w: int, h: int) {
+	locks.guard(*thumbs.mu);
+	array_add(*thumbs.list, .{is_window, id, rgba, w, h});
 }
 
 #if OS == .MACOS {
@@ -48,6 +115,7 @@ locks :: #import "locks";
 
 #if OS == .WINDOWS {
 	#import "Windows";
+	#import "Windows_Utf8";
 	#import "d3d11";
 	#import "dxgi";
 	mf :: #import "mf";
@@ -73,6 +141,7 @@ locks :: #import "locks";
 	VideoToolbox :: #library,system,link_always "VideoToolbox";
 	AVFoundation :: #library,system,link_always "AVFoundation";
 	ScreenCaptureKit :: #library,system,link_always "ScreenCaptureKit";
+	CoreGraphics :: #library,system,link_always "CoreGraphics";
 
 	CFRef :: *void;
 	OSStatus :: s32;
