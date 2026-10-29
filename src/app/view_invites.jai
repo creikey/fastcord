@@ -150,7 +150,7 @@ invite_card :: (id: string, code: string, p: dc.Invite_Preview, m: *dc.Message) 
 			spacer(.Y, 4);
 			invite_counts(p);
 			spacer(.Y, 2);
-			t := to_calendar(dc.UNIX_EPOCH + milliseconds_to_apollo(dc.snowflake_time_ms(p.guild_id)));
+			t := utc_calendar(local_ms(dc.snowflake_time_ms(p.guild_id)));
 			label(tprint("Est. % %", string.["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][t.month_starting_at_0], t.year), .Normal, 14, T("--text-muted"), 18);
 			spacer(.Y, 16);
 			member := is_member_of(p);

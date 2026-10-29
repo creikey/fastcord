@@ -847,7 +847,7 @@ dm_profile_panel :: (uid: dc.Snowflake) {
 				spacer(.Y, 20);
 				line("since_h", "Member Since", .Semibold, 12, 16, T("--text-strong"));
 				spacer(.Y, 6);
-				created := dc.snowflake_time_ms(uid) + local_utc_offset_ms();
+				created := local_ms(dc.snowflake_time_ms(uid));
 				t := to_calendar(APOLLO_TIME_FOR_JAN_1_1970 + milliseconds_to_apollo(created), .UTC);
 				line("since", tprint("% %, %", MONTH_SHORT[t.month_starting_at_0], t.day_of_month_starting_at_0 + 1, t.year), .Normal, 14, 18, T("--text-default"));
 				encrypted_profile(dc.channel_get(s, app.view.channel), DMP_PAD);

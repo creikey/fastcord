@@ -272,17 +272,16 @@ MONTHS :: string.["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep",
 
 // "Oct 26, 2026" (local)
 date_text :: (ms: s64) -> string {
-	t := calendar(ms + local_utc_offset_ms());
+	t := calendar(local_ms(ms));
 	return tprint("% %, %", MONTHS[t.month_starting_at_0], t.day_of_month_starting_at_0 + 1, t.year);
 }
 
 // "Today at 3:00 PM", "Tomorrow at ...", "Mon, Oct 27 at 3:00 PM" in local time.
 event_when :: (ms: s64) -> string {
-	off := local_utc_offset_ms();
-	local := ms + off;
+	local := local_ms(ms);
 	clock := clock_text(local);
 	day := local / 86_400_000;
-	today := (wall_ms() + off) / 86_400_000;
+	today := local_ms(wall_ms()) / 86_400_000;
 	if day == today return tprint("Today at %", clock);
 	if day == today + 1 return tprint("Tomorrow at %", clock);
 	DAYS :: string.["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -899,7 +898,7 @@ wizard_modal :: () {
 		case .Location;
 			evu.step = .Info;
 			// defaults: the next full hour; external events end an hour later
-			evu.start_ms = dc.default_event_start_ms(wall_ms(), local_utc_offset_ms());
+			evu.start_ms = dc.default_event_start_ms(wall_ms(), local_ms(wall_ms()) - wall_ms());
 			evu.end_ms = evu.start_ms + 3_600_000;
 			evu.focus_next = true;
 			app.ui.focus = 0; // the topic field takes it
@@ -1116,7 +1115,7 @@ date_time_row :: (id: string, date_label: string, time_label: string, value: *s6
 		tc.layout_axis = .Y;
 		{ ui.parent(tc); defer ui.pop_parent();
 			field_label(time_label, true);
-			stepper("t", clock_text(value.* + local_utc_offset_ms()), "", 30 * 60_000, value);
+			stepper("t", clock_text(local_ms(value.*)), "", 30 * 60_000, value);
 		}
 	}
 	spacer(.Y, 20);

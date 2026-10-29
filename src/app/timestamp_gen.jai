@@ -15,13 +15,13 @@ TIMESTAMP_STYLES :: string.["t", "T", "d", "D", "f", "F", "R"];
 timestamp_gen_open :: (channel_id: dc.Snowflake) {
 	tsg.channel = channel_id;
 	tsg.on_time = true;
-	t := utc_calendar(wall_ms() + local_utc_offset_ms());
+	t := utc_calendar(local_ms(wall_ms()));
 	ui.editor_set_text(*tsg.date, tprint("%-%-%", t.year, formatInt(t.month_starting_at_0 + 1, minimum_digits = 2), formatInt(t.day_of_month_starting_at_0 + 1, minimum_digits = 2)));
 	ui.editor_set_text(*tsg.time, tprint("%:% %", hour12(t), formatInt(t.minute, minimum_digits = 2), am_pm(t)));
 }
 
 // Unix seconds of a local date ("2026-10-28", "10/28/2026", "10/28") and time ("3pm", "3:05 PM",
-// "15:05"). The offset is today's, so a date across a DST change is off by that hour.
+// "15:05"), with the UTC offset in force on that date.
 parse_local_time :: (date: string, time: string) -> s64, bool {
 	nums :: (s: string) -> [3]int, int, string {
 		out: [3]int;
@@ -41,7 +41,7 @@ parse_local_time :: (date: string, time: string) -> s64, bool {
 		}
 		return out, n, trim(string.{s.count - i, s.data + i});
 	}
-	now := utc_calendar(wall_ms() + local_utc_offset_ms());
+	now := utc_calendar(local_ms(wall_ms()));
 	d, dn, drest := nums(trim(date));
 	y, m, day: int;
 	if drest != "" || dn < 2 return 0, false;
@@ -72,7 +72,7 @@ parse_local_time :: (date: string, time: string) -> s64, bool {
 	yoe := yy - era * 400;
 	doy := (153 * (m + ifx m > 2 then -3 else 9) + 2) / 5 + day - 1;
 	days := era * 146097 + yoe * 365 + yoe / 4 - yoe / 100 + doy - 719468;
-	return cast(s64) days * 86400 + h * 3600 + mi * 60 + sec - local_utc_offset_ms() / 1000, true;
+	return unix_from_local_ms((cast(s64) days * 86400 + h * 3600 + mi * 60 + sec) * 1000) / 1000, true;
 }
 
 timestamp_gen_modal :: () {
@@ -135,6 +135,8 @@ timestamp_gen_modal :: () {
 			field.style.radius = all4(8);
 			field.hover_cursor = .IBeam;
 			if ui.signal(field).pressed tsg.on_time = is_time;
+			// the text inside is clickable too, so a press on it never reaches the field
+			for e: app.ui.events if e.kind == .Mouse_Down && ui.contains(field.rect, e.pos) tsg.on_time = is_time;
 			{ ui.parent(field); defer ui.pop_parent();
 				spacer(.X, 12);
 				ed := ifx is_time then *tsg.time else *tsg.date;

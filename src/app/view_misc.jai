@@ -371,7 +371,7 @@ set_my_status :: (st: dc.Status, duration_ms: s64 = 0) {
 // status_until: "Until 3:45 PM", "Until tomorrow at 3:45 PM", "Until 10/30/26 at 3:45 PM" ("" for none).
 status_until :: (end_ms: s64) -> string {
 	if end_ms == 0 return "";
-	cal :: (ms: s64) -> Calendar_Time { return to_calendar(dc.UNIX_EPOCH + milliseconds_to_apollo(ms + local_offset_ms())); }
+	cal :: (ms: s64) -> Calendar_Time { return to_calendar(dc.UNIX_EPOCH + milliseconds_to_apollo(local_ms(ms))); }
 	same_day :: (a: Calendar_Time, b: Calendar_Time) -> bool { return a.year == b.year && a.month_starting_at_0 == b.month_starting_at_0 && a.day_of_month_starting_at_0 == b.day_of_month_starting_at_0; }
 	t := cal(end_ms);
 	now := wall_ms();

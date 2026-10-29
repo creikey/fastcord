@@ -22,7 +22,6 @@ App :: struct {
 	offline_store: dc.Store;
 	chats: Table(dc.Snowflake, Chat_State);
 	chat_hover: dc.Snowflake;
-	utc_offset_ms: s64;
 	self_mute: bool;
 	self_deaf: bool;
 	voice_channel: dc.Snowflake;
@@ -199,7 +198,6 @@ main :: () {
 	ui.init(*app.ui, ui.Backend.{shape = ui_shape, split = emoji_split_text});
 	view_init(*app.view);
 	draw_inline_object = draw_custom_emoji;
-	app.utc_offset_ms = local_offset_ms();
 	app.now_override_ms = opt.now * 1000;
 	dc.store_init(*app.offline_store);
 	if opt.fixture != "" {
@@ -1008,10 +1006,6 @@ handle_results_of :: (c: *dc.Client) {
 		}
 		req_result(r);
 	}
-}
-
-local_offset_ms :: () -> s64 {
-	return tz_offset_seconds() * 1000;
 }
 
 #scope_file
