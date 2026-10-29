@@ -444,6 +444,18 @@ conversation :: (dir: string, max: int) {
 	for name: string.["a.db", "b.db"]
 		check(!contains(read_entire_file(tprint("%/%", tag, name)), "after restart"), tprint("no plaintext in %", name));
 
+	// An update first copies the file as it was beside it.
+	old_path := tprint("%/old.db", tag);
+	old := sqlite.open(old_path);
+	check(sqlite.exec(old, "CREATE TABLE meta(key TEXT PRIMARY KEY, value BLOB NOT NULL) WITHOUT ROWID; PRAGMA user_version = 1;"), "make a schema 1 file");
+	sqlite.close(old);
+	o := e2e.start(old_path);
+	check(sql(o, "SELECT count(*) FROM meta;") == 1, "the old file updates");
+	stop(o);
+	copied := false;
+	for file_list(tag) if contains(it, "old.db.pre-v") copied = true;
+	check(copied, "the file as it was is kept beside it");
+
 	// A key that won't unwrap (a <state> copied from another machine) sets the file aside for a new one.
 	a.d = e2e.start(tprint("%/a.db", tag));
 	sql(a.d, "UPDATE meta SET value = X'00' WHERE key = 'db_key';");
