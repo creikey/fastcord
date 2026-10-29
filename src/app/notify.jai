@@ -85,7 +85,7 @@ notify_later :: (m: *dc.New_Message) -> bool {
 	sh := encrypted_open(m.id, m.channel_id, m.content, m.author_id);
 	if sh && sh.pending {
 		w := Waiting.{m = m.*, until = platform.time_now() + 5};
-		w.content, w.webhook_name, w.mention_roles = e2e.PREFIX, "", ([..]dc.Snowflake).{}; // m's own copies go with the frame.
+		w.content, w.webhook_name, w.mention_roles = fc_text.PREFIX, "", ([..]dc.Snowflake).{}; // m's own copies go with the frame.
 		array_add(*ns.waiting, w);
 		request_wake(w.until);
 		return true;

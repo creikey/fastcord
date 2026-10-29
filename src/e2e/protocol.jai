@@ -1,21 +1,21 @@
-// The wire protocol: `fc-` packets, PQXDH and the Double Ratchet, as pure procedures on values. Nothing
+// The wire protocol: binary packets, PQXDH and the Double Ratchet, as pure procedures on values. Nothing
 // here touches the database; module.jai stores what these return.
 //
-// Discord is a carrier like UDP with an attacker on the path: packets can be lost, reordered,
+// A carrier moves packets like UDP with an attacker on the path: they can be lost, reordered,
 // duplicated, replayed or forged. Every packet is authenticated, and a state is only replaced by the
-// copy that successfully decrypted, so a bad packet never changes anything.
+// copy that successfully decrypted, so a bad packet never changes anything. How a packet travels (text
+// in a message, bytes on a socket) is the carrier's business; the core sees only bytes.
 //
-// A packet is `fc-` + unpadded base64url of at most MAX_PACKET bytes. Byte 0 is VERSION, byte 1 the Kind:
+// Byte 0 of a packet is VERSION, byte 1 the Kind:
 //     Hello: root[32] ik[32] proof[64] spk[32] pqpk[1184]
 //     Init:  hello_id[32] root[32] ik[32] proof[64] ek[32] pqct[1088] header[40] ciphertext tag[16]
 //     Msg:   session[16] header[40] ciphertext tag[16]
 // header = dh[32] pn[u32 LE] n[u32 LE]. ik is the identity's Exchange key, proven to its root by proof.
 // hello_id is BLAKE3 of the whole Hello packet; a session's ID is BLAKE3 of the Init up to its header.
-// Prekeys are unsigned until E2E 5: this stops Discord reading DMs, not swapping keys in the first one.
+// Prekeys are unsigned until E2E 5: this stops the carrier reading DMs, not swapping keys in the first one.
 
-VERSION :: 3;
-MAX_PACKET :: 1497; // 1996 base64url characters, so "fc-" + packet fits one 2000-character message.
-PREFIX :: "fc-";
+VERSION :: 4;
+MAX_PACKET :: 16384; // The most any carrier may set as its largest packet.
 
 Kind :: enum u8 { Hello :: 1; Init :: 2; Msg :: 3; }
 
@@ -28,15 +28,17 @@ TAG_BYTES :: 16;
 HELLO_BYTES :: 2 + 32 + 32 + 64 + 32 + crypto.MLKEM768_PUBLIC_BYTES;
 INIT_PREFIX_BYTES :: 2 + 32 + 32 + 32 + 64 + 32 + crypto.MLKEM768_CIPHERTEXT_BYTES;
 MSG_PREFIX_BYTES :: 2 + 16;
-MAX_PLAINTEXT :: MAX_PACKET - MSG_PREFIX_BYTES - HEADER_BYTES - TAG_BYTES;
-MAX_TEXT_BYTES :: MAX_PLAINTEXT - 2; // The Content byte and the padding's 0x80.
-INIT_PLAINTEXT :: MAX_PACKET - INIT_PREFIX_BYTES - HEADER_BYTES - TAG_BYTES;
+
+// max_text is the longest text one Msg holds on a carrier whose largest packet is limit: the rest is the
+// prefix, header and tag, the Content byte and the padding's 0x80.
+max_text :: (limit: int) -> int { return limit - MSG_PREFIX_BYTES - HEADER_BYTES - TAG_BYTES - 2; }
 
 // A ratchet plaintext is the Content byte, the text, then ISO/IEC 7816-4 padding (0x80, then zeros) up to
-// a multiple of PAD_BLOCK, as Signal pads: Discord sees a message's length to the block, not the byte.
+// a multiple of PAD_BLOCK, as Signal pads: the carrier sees a message's length to the block, not the byte.
+// limit caps the plaintext, so a text near the carrier's largest packet pads only up to what fits.
 PAD_BLOCK :: 160;
 
-pad :: (content: Content, text: string, limit := MAX_PLAINTEXT, silent := false) -> []u8 {
+pad :: (content: Content, text: string, limit: int, silent := false) -> []u8 {
 	n := min(limit, (text.count + 2 + PAD_BLOCK - 1) / PAD_BLOCK * PAD_BLOCK);
 	assert(text.count + 2 <= n);
 	pt := NewArray(n, u8,, temp);
@@ -68,11 +70,33 @@ identity_of :: (k: keys.Keypair) -> Identity {
 	return .{root = k.root, ik_priv = k.exchange, ik_pub = k.exchange_pub, proof = keys.proof(k, .Exchange)};
 }
 
-// Dm binds a session to the DM it was made in: the channel ID and both Discord user IDs, Alice being
-// the one who accepted and Bob the one who sent the Hello. Without it Discord could move a Hello from
-// one DM into another, shown as from someone else, and then move the answer back (an unknown key-share).
-Dm :: struct { channel, alice, bob: u64; }
-AD_BYTES :: 128 + 24;
+// A Conversation is where packets travel, as its carrier names it: the carrier (no NUL byte), the
+// conversation's ID and both parties' IDs, all opaque bytes, and the carrier's largest packet.
+Conversation :: struct {
+	carrier: string;
+	id: string;
+	me, peer: string;
+	limit: int;
+}
+
+// binding hashes a conversation and its two parties, Alice being the one who accepted and Bob the one
+// who sent the Hello, into a session's AD and PQXDH info. Without it a carrier could move a Hello from
+// one conversation into another, shown as from someone else, and then move the answer back (an unknown
+// key-share). Each field is length-prefixed, so no two conversations hash alike.
+BINDING_CONTEXT :: "fastcord 2026-10-29 e2e conversation binding v1";
+
+binding :: (c: Conversation, alice: string, bob: string) -> [32]u8 {
+	b: String_Builder;
+	b.allocator = temp;
+	for string.[c.carrier, c.id, alice, bob] {
+		n := cast(u32) it.count;
+		append(*b, cast(*u8) *n, 4);
+		append(*b, it);
+	}
+	return crypto.blake3_derive(BINDING_CONTEXT, xx builder_to_string(*b,, temp));
+}
+
+AD_BYTES :: 128 + 32;
 
 Prekeys :: struct {
 	spk_priv: [32]u8;
@@ -82,6 +106,7 @@ Prekeys :: struct {
 Packet :: struct {
 	data: [MAX_PACKET]u8;
 	count: int;
+	limit := MAX_PACKET; // The carrier's largest packet: building past it fails.
 }
 
 bytes :: (p: *Packet) -> []u8 { return .{p.count, p.data.data}; }
@@ -118,7 +143,7 @@ Ratchet :: struct {
 // A Session is plain bytes: module.jai stores it as a blob and rejects one of another size.
 Session :: struct {
 	id: [16]u8;
-	ad: [AD_BYTES]u8; // root_a ik_a root_b ik_b, then the Dm's bytes (PQXDH section 3.3's AD, plus roots and the DM).
+	ad: [AD_BYTES]u8; // root_a ik_a root_b ik_b, then the binding (PQXDH section 3.3's AD, plus roots and the conversation).
 	ratchet: Ratchet;
 }
 
@@ -133,59 +158,12 @@ Header :: struct {
 	pn, n: u32;
 }
 
-// ---- Text form ----
-
-encode_text :: (packet: []u8) -> string {
-	assert(packet.count <= MAX_PACKET);
-	out := alloc_string(PREFIX.count + (packet.count * 4 + 2) / 3);
-	memcpy(out.data, PREFIX.data, PREFIX.count);
-	o := PREFIX.count;
-	acc: u32;
-	bits := 0;
-	for packet {
-		acc = (acc << 8) | it;
-		bits += 8;
-		while bits >= 6 {
-			bits -= 6;
-			out[o] = B64[(acc >> bits) & 63];
-			o += 1;
-		}
-	}
-	if bits { out[o] = B64[(acc << (6 - bits)) & 63]; o += 1; }
-	assert(o == out.count);
-	return out;
-}
-
-// decode_text accepts only the one canonical encoding of a packet: no padding, no other alphabet, and
-// zero trailing bits, so a packet has exactly one text form.
-decode_text :: (text: string, out: *Packet) -> bool {
-	if !begins_with(text, PREFIX) return false;
-	s := text;
-	advance(*s, PREFIX.count);
-	if s.count % 4 == 1 || s.count > (MAX_PACKET * 4 + 2) / 3 return false;
-	acc: u32;
-	bits := 0;
-	o := 0;
-	for i: 0..s.count-1 {
-		v := B64_INV[s[i]];
-		if v == 0xFF return false;
-		acc = ((acc << 6) | v) & 0xFFFF;
-		bits += 6;
-		if bits >= 8 {
-			bits -= 8;
-			out.data[o] = xx ((acc >> bits) & 0xFF);
-			o += 1;
-		}
-	}
-	if (acc & ((cast(u32) 1 << bits) - 1)) != 0 return false;
-	out.count = o;
-	return o >= 2;
-}
-
 // ---- Hello ----
 
-make_hello :: (me: Identity, out: *Packet) -> Prekeys {
+// make_hello fails when a Hello doesn't fit the carrier.
+make_hello :: (me: Identity, out: *Packet) -> Prekeys, bool {
 	pre: Prekeys;
+	if HELLO_BYTES > out.limit return pre, false;
 	spk_pub: [32]u8;
 	pq_pub: [crypto.MLKEM768_PUBLIC_BYTES]u8;
 	pre.spk_priv, spk_pub = crypto.x25519_generate();
@@ -195,7 +173,7 @@ make_hello :: (me: Identity, out: *Packet) -> Prekeys {
 	put(out, me.root); put(out, me.ik_pub); put(out, me.proof[0]); put(out, me.proof[1]);
 	put(out, spk_pub); put(out, pq_pub);
 	assert(out.count == HELLO_BYTES);
-	return pre;
+	return pre, true;
 }
 
 parse_hello :: (p: []u8) -> Hello, bool {
@@ -235,9 +213,10 @@ safety_number :: (a: [32]u8, b: [32]u8) -> [60]u8 {
 
 // accept runs PQXDH as Alice (section 3.3) against a peer's Hello and writes the Init packet carrying
 // the first ratchet message.
-accept :: (me: Identity, hello: Hello, dm: Dm, first: []u8, out: *Packet) -> Session, bool {
+accept :: (me: Identity, hello: Hello, bind: [32]u8, first: []u8, out: *Packet) -> Session, bool {
 	s: Session;
 	if same(hello.root, me.root) return s, false; // Our own Hello reflected back.
+	if INIT_PREFIX_BYTES + HEADER_BYTES + first.count + TAG_BYTES > out.limit return s, false;
 	ek_priv, ek_pub := crypto.x25519_generate();
 	defer crypto.zero(*ek_priv);
 	dh1, ok1 := crypto.x25519(me.ik_priv, hello.spk);
@@ -245,7 +224,7 @@ accept :: (me: Identity, hello: Hello, dm: Dm, first: []u8, out: *Packet) -> Ses
 	dh3, ok3 := crypto.x25519(ek_priv, hello.spk);
 	ct, ss, ok4 := crypto.mlkem768_encap(hello.pqpk);
 	if !(ok1 && ok2 && ok3 && ok4) return s, false;
-	sk := pqxdh_kdf(dh1, dh2, dh3, ss, dm);
+	sk := pqxdh_kdf(dh1, dh2, dh3, ss, bind);
 	defer crypto.zero(*sk);
 
 	out.count = 0;
@@ -254,7 +233,7 @@ accept :: (me: Identity, hello: Hello, dm: Dm, first: []u8, out: *Packet) -> Ses
 	put(out, ek_pub); put(out, ct);
 	assert(out.count == INIT_PREFIX_BYTES);
 	s.id = session_id(bytes(out));
-	set_ad(*s, me.root, me.ik_pub, hello.root, hello.ik, dm);
+	set_ad(*s, me.root, me.ik_pub, hello.root, hello.ik, bind);
 
 	// Double Ratchet section 3.3, RatchetInitAlice: Bob's first ratchet key is his signed prekey.
 	r := *s.ratchet;
@@ -282,7 +261,7 @@ parse_init :: (p: []u8) -> Init, bool {
 
 // receive_init runs PQXDH as Bob (section 3.4) with the prekeys of the Hello the Init answers. The
 // caller then decrypts i.message with the returned session.
-receive_init :: (me: Identity, pre: Prekeys, i: Init, dm: Dm) -> Session, bool {
+receive_init :: (me: Identity, pre: Prekeys, i: Init, bind: [32]u8) -> Session, bool {
 	s: Session;
 	if same(i.root, me.root) return s, false;
 	dh1, ok1 := crypto.x25519(pre.spk_priv, i.ik);
@@ -290,10 +269,10 @@ receive_init :: (me: Identity, pre: Prekeys, i: Init, dm: Dm) -> Session, bool {
 	dh3, ok3 := crypto.x25519(pre.spk_priv, i.ek);
 	ss, ok4 := crypto.mlkem768_decap(pre.pq_seed, i.pqct);
 	if !(ok1 && ok2 && ok3 && ok4) return s, false;
-	sk := pqxdh_kdf(dh1, dh2, dh3, ss, dm);
+	sk := pqxdh_kdf(dh1, dh2, dh3, ss, bind);
 	defer crypto.zero(*sk);
 	s.id = i.session;
-	set_ad(*s, i.root, i.ik, me.root, me.ik_pub, dm);
+	set_ad(*s, i.root, i.ik, me.root, me.ik_pub, bind);
 	// RatchetInitBob.
 	r := *s.ratchet;
 	r.dhs_priv = pre.spk_priv;
@@ -307,7 +286,7 @@ receive_init :: (me: Identity, pre: Prekeys, i: Init, dm: Dm) -> Session, bool {
 // encrypt appends header, ciphertext and tag to out (section 3.4, RatchetEncrypt).
 encrypt :: (s: *Session, pt: []u8, out: *Packet) -> bool {
 	r := *s.ratchet;
-	if !r.has_cks || out.count + HEADER_BYTES + pt.count + TAG_BYTES > MAX_PACKET return false;
+	if !r.has_cks || out.count + HEADER_BYTES + pt.count + TAG_BYTES > out.limit return false;
 	mk: [32]u8;
 	r.cks, mk = kdf_ck(r.cks);
 	defer crypto.zero(*mk);
@@ -373,21 +352,12 @@ same :: (a: []u8, b: []u8) -> bool { return crypto.constant_time_equal(a, b); }
 
 #scope_file
 
-B64 :: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
-B64_INV :: #run b64_inverse();
-b64_inverse :: () -> [256]u8 {
-	t: [256]u8;
-	for *t it.* = 0xFF;
-	for i: 0..B64.count-1 t[B64[i]] = xx i;
-	return t;
-}
-
 PQXDH_INFO :: "fastcord_PQXDH_X25519_SHA-256_ML-KEM-768";
 RK_INFO :: "fastcord_DoubleRatchet_RootKey";
 MK_INFO :: "fastcord_DoubleRatchet_MessageKey";
 
 put :: (p: *Packet, b: []u8) {
-	assert(p.count + b.count <= MAX_PACKET);
+	assert(p.count + b.count <= p.limit);
 	memcpy(p.data.data + p.count, b.data, b.count);
 	p.count += b.count;
 }
@@ -412,24 +382,17 @@ session_id :: (init_prefix: []u8) -> [16]u8 {
 	return id;
 }
 
-dm_bytes :: (dm: Dm) -> [24]u8 {
-	b: [24]u8;
-	for v, k: u64.[dm.channel, dm.alice, dm.bob] for 0..7 b[k * 8 + it] = xx ((v >> (it * 8)) & 0xFF);
-	return b;
-}
-
-set_ad :: (s: *Session, root_a: [32]u8, ik_a: [32]u8, root_b: [32]u8, ik_b: [32]u8, dm: Dm) {
+set_ad :: (s: *Session, root_a: [32]u8, ik_a: [32]u8, root_b: [32]u8, ik_b: [32]u8, bind: [32]u8) {
 	memcpy(s.ad.data, root_a.data, 32);
 	memcpy(s.ad.data + 32, ik_a.data, 32);
 	memcpy(s.ad.data + 64, root_b.data, 32);
 	memcpy(s.ad.data + 96, ik_b.data, 32);
-	d := dm_bytes(dm);
-	memcpy(s.ad.data + 128, d.data, 24);
+	memcpy(s.ad.data + 128, bind.data, 32);
 }
 
 // PQXDH section 2.2: HKDF over F || KM with F = 32 0xFF bytes for X25519 and a zero salt. The info
-// names the DM too, so the shared secret itself differs for any other DM.
-pqxdh_kdf :: (dh1: [32]u8, dh2: [32]u8, dh3: [32]u8, ss: [32]u8, dm: Dm) -> [32]u8 {
+// names the conversation too, so the shared secret itself differs for any other.
+pqxdh_kdf :: (dh1: [32]u8, dh2: [32]u8, dh3: [32]u8, ss: [32]u8, bind: [32]u8) -> [32]u8 {
 	km: [32 * 5]u8;
 	memset(km.data, 0xFF, 32);
 	memcpy(km.data + 32, dh1.data, 32);
@@ -438,10 +401,9 @@ pqxdh_kdf :: (dh1: [32]u8, dh2: [32]u8, dh3: [32]u8, ss: [32]u8, dm: Dm) -> [32]
 	memcpy(km.data + 128, ss.data, 32);
 	zero_salt: [32]u8;
 	prk := crypto.hkdf_extract(zero_salt, km);
-	info: [PQXDH_INFO.count + 24]u8;
+	info: [PQXDH_INFO.count + 32]u8;
 	memcpy(info.data, PQXDH_INFO.data, PQXDH_INFO.count);
-	d := dm_bytes(dm);
-	memcpy(info.data + PQXDH_INFO.count, d.data, 24);
+	memcpy(info.data + PQXDH_INFO.count, bind.data, 32);
 	sk: [32]u8;
 	crypto.hkdf_expand(prk, info, sk);
 	crypto.zero(*km);

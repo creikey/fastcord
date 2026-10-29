@@ -1,4 +1,4 @@
-/// End-to-end encrypted DMs (TODO.md E2E 1-8). E2E 1: the client database `<state>/fastcord.db` on its own thread.
+/// End-to-end encrypted DMs (TODO.md E2E 1-8) over any carrier. E2E 1: the client database `<state>/fastcord.db` on its own thread.
 #import "Basic";
 #import "Atomics";
 #import "Thread";
@@ -76,39 +76,44 @@ destroy :: (d: *Db) {
 }
 
 // ---- Requests: the E2E operations, each one job on the database thread ----
+//
+// A carrier adapter names each conversation and party with opaque bytes and moves the packets; nothing
+// here knows what they mean.
 
 Op :: enum u8 {
-	Load;          // channel -> encrypted, has_session, and the peer's has_peer, peer_root, verified, key_changed
-	Set_Encrypted; // channel, encrypted
-	Set_Verified;  // peer, peer_root, verified: marks the root verified or not, and clears key_changed
-	Hello;         // channel, me -> packet
-	Accept;        // channel, peer, me, me_user, text = the Hello packet -> packet
-	Send;          // channel, me, text = plaintext -> packet, or result No_Session / Too_Long
-	Sent;          // text = a packet handed to Discord: drop it from the outbox
-	Receive;       // channel, author, message, me, text = the message content -> result, content, out_text
-	Outbox;        // -> outbox: packets committed but never handed to Discord, to send again after a crash
+	Load;          // conv -> encrypted, has_session, and the peer's has_peer, peer_root, verified, key_changed
+	Set_Encrypted; // conv, encrypted
+	Set_Verified;  // conv, peer_root, verified: marks conv.peer's root verified or not, and clears key_changed
+	Hello;         // conv, me -> packet, or result Too_Long when a Hello doesn't fit the carrier
+	Accept;        // conv (peer: who sent the Hello), me, packet = the Hello -> packet
+	Send;          // conv, me, text = plaintext -> packet, or result No_Session / Too_Long
+	Sent;          // packet: handed to its carrier, so it leaves the outbox
+	Receive;       // conv, from, delivery, me, packet -> result, content, out_text
+	Outbox;        // -> outbox: packets committed but never handed to their carrier, to send again after a crash
 }
 
 Result :: enum u8 {
 	Ok;
 	Hello;         // A Hello; accepted is set when a session answers it.
 	Undecryptable;
-	Repeated;      // The same packet already arrived as another message: a replay or a duplicate send.
+	Repeated;      // The same packet already arrived as another delivery: a replay or a duplicate send.
 	No_Session;    // A Msg whose Init hasn't been seen yet: retry after a new session appears.
-	Too_Long;
+	Too_Long;      // Doesn't fit the carrier's largest packet.
 	Failed;
 }
 
-Outbox_Item :: struct { channel: u64; packet: string; }
+Outbox_Item :: struct { carrier, conversation, packet: string; }
 
 // The caller fills the inputs, submits, and once done reads the outputs and calls free_request.
 Request :: struct {
 	#as using job: Job;
 	op: Op;
 	me: Identity;
-	me_user: u64; // Our Discord user ID.
-	channel, peer, author, message: u64;
+	conv: Conversation;
+	from: string;     // Receive: the party the carrier says sent it.
+	delivery: string; // Receive: the carrier's ID for this delivery; the same packet under another is a replay.
 	text: string;
+	packet: string;
 	silent: bool; // Send: sent with @silent. Receive: the sender asked for no sound or notification.
 	encrypted: bool;
 	verified: bool;
@@ -117,7 +122,6 @@ Request :: struct {
 	result: Result;
 	content: Content;
 	out_text: string;
-	packet: string;
 	has_session: bool;
 	accepted: bool;
 	has_peer: bool;
@@ -125,20 +129,19 @@ Request :: struct {
 	outbox: [..]Outbox_Item;
 }
 
-// request makes a heap Request owning a copy of text.
-request :: (op: Op, channel: u64 = 0, text := "") -> *Request {
+// request makes a heap Request owning copies of conv, text and packet.
+request :: (op: Op, conv := Conversation.{}, text := "", packet := "") -> *Request {
 	r := New(Request);
-	r.op, r.channel, r.text = op, channel, copy_string(text);
+	r.op, r.text, r.packet = op, copy_string(text), copy_string(packet);
+	r.conv = .{copy_string(conv.carrier), copy_string(conv.id), copy_string(conv.me), copy_string(conv.peer), conv.limit};
 	r.run = (d: *Db, j: *Job) { run_request(d, cast(*Request) j); };
 	return r;
 }
 
 free_request :: (r: *Request) {
 	crypto.zero(*r.me);
-	free(r.text);
-	free(r.out_text);
-	free(r.packet);
-	for r.outbox free(it.packet);
+	for string.[r.conv.carrier, r.conv.id, r.conv.me, r.conv.peer, r.from, r.delivery, r.text, r.out_text, r.packet] free(it);
+	for r.outbox { free(it.carrier); free(it.conversation); free(it.packet); }
 	array_free(r.outbox);
 	free(r);
 }
@@ -175,6 +178,23 @@ SQL,
 	// Each peer's latest identity root: verified once safety numbers were compared, changed when a new root
 	// replaced the one before.
 	"CREATE TABLE peers(user INTEGER PRIMARY KEY, root BLOB NOT NULL, verified INTEGER NOT NULL DEFAULT 0, changed INTEGER NOT NULL DEFAULT 0);",
+	// Carrier-neutral keys: a conversation is `carrier NUL id` and a party `carrier NUL party`, both BLOBs,
+	// and a plaintext is claimed by an opaque delivery ID (NULL until our own send comes back). Packet
+	// version 4 binds sessions differently, so nothing from before opens; E2E never shipped, so it all goes.
+	#string SQL
+DROP TABLE channels; DROP TABLE prekeys; DROP TABLE sessions; DROP TABLE skipped; DROP TABLE plaintexts; DROP TABLE outbox; DROP TABLE peers;
+CREATE TABLE conversations(id BLOB PRIMARY KEY, encrypted INTEGER NOT NULL) WITHOUT ROWID;
+CREATE TABLE prekeys(hello_id BLOB PRIMARY KEY, conversation BLOB NOT NULL, sealed BLOB NOT NULL, created INTEGER NOT NULL,
+	answered INTEGER NOT NULL DEFAULT 0) WITHOUT ROWID;
+CREATE TABLE sessions(id BLOB PRIMARY KEY, conversation BLOB NOT NULL, peer BLOB NOT NULL, peer_root BLOB NOT NULL, hello_id BLOB NOT NULL,
+	state BLOB NOT NULL, updated INTEGER NOT NULL) WITHOUT ROWID;
+CREATE INDEX sessions_conversation ON sessions(conversation, updated);
+CREATE INDEX sessions_hello ON sessions(hello_id);
+CREATE TABLE skipped(session BLOB NOT NULL, dh BLOB NOT NULL, n INTEGER NOT NULL, sealed BLOB NOT NULL, PRIMARY KEY(session, dh, n));
+CREATE TABLE plaintexts(hash BLOB PRIMARY KEY, delivery BLOB, sealed BLOB NOT NULL) WITHOUT ROWID;
+CREATE TABLE outbox(hash BLOB PRIMARY KEY, conversation BLOB NOT NULL, packet BLOB NOT NULL) WITHOUT ROWID;
+CREATE TABLE peers(party BLOB PRIMARY KEY, root BLOB NOT NULL, verified INTEGER NOT NULL DEFAULT 0, changed INTEGER NOT NULL DEFAULT 0) WITHOUT ROWID;
+SQL,
 ];
 
 // A session keeps at most this many skipped message keys; the oldest go first.
@@ -190,79 +210,106 @@ prune_prekeys :: (db: *sqlite.DB) {
 	sqlite.run(db, "DELETE FROM prekeys WHERE created < ? OR (answered != 0 AND answered < ?);", now - PREKEY_UNANSWERED_MS, now - PREKEY_ANSWERED_MS);
 }
 
+// key names a conversation or a party in the database: the carrier, a NUL, then the carrier's ID.
+key :: (carrier: string, id: string) -> []u8 {
+	out := NewArray(carrier.count + 1 + id.count, u8,, temp);
+	memcpy(out.data, carrier.data, carrier.count);
+	memcpy(out.data + carrier.count + 1, id.data, id.count);
+	return out;
+}
+
+// valid: a conversation the request can use. Parties are needed only by the ops that bind a session.
+valid :: (r: *Request) -> bool {
+	c := r.conv;
+	if !c.carrier.count || find_index_from_left(c.carrier, 0) >= 0 || !c.id.count || c.limit > MAX_PACKET return false;
+	if r.op == .Hello || r.op == .Accept || r.op == .Send || r.op == .Receive
+		return c.me.count && c.limit > 0 && (r.op != .Accept || c.peer.count) && (r.op != .Receive || r.from.count);
+	return true;
+}
+
 run_request :: (d: *Db, r: *Request) {
 	db := d.sql;
+	if r.op != .Sent && r.op != .Outbox && !valid(r) { r.result = .Failed; return; }
+	conv := key(r.conv.carrier, r.conv.id);
 	if r.op == {
 		case .Load;
-			r.encrypted = query_int(db, "SELECT encrypted FROM channels WHERE id = ?;", r.channel) == 1;
-			r.has_session = query_int(db, "SELECT 1 FROM sessions WHERE channel = ? LIMIT 1;", r.channel) == 1;
-			st := sqlite.prepare(db, "SELECT p.user, p.root, p.verified, p.changed FROM sessions s JOIN peers p ON p.user = s.peer WHERE s.channel = ? ORDER BY s.updated DESC LIMIT 1;");
-			if sqlite.bind_all(st, r.channel) && sqlite.step(st) == .Row && sqlite.col_blob(st, 1).count == 32 {
-				r.has_peer, r.peer = true, cast(u64) sqlite.col_int(st, 0);
-				memcpy(r.peer_root.data, sqlite.col_blob(st, 1).data, 32);
-				r.verified, r.key_changed = sqlite.col_int(st, 2) != 0, sqlite.col_int(st, 3) != 0;
+			r.encrypted = query_int(db, "SELECT encrypted FROM conversations WHERE id = ?;", conv) == 1;
+			r.has_session = query_int(db, "SELECT 1 FROM sessions WHERE conversation = ? LIMIT 1;", conv) == 1;
+			st := sqlite.prepare(db, "SELECT p.root, p.verified, p.changed FROM sessions s JOIN peers p ON p.party = s.peer WHERE s.conversation = ? ORDER BY s.updated DESC LIMIT 1;");
+			if sqlite.bind_all(st, conv) && sqlite.step(st) == .Row && sqlite.col_blob(st, 0).count == 32 {
+				r.has_peer = true;
+				memcpy(r.peer_root.data, sqlite.col_blob(st, 0).data, 32);
+				r.verified, r.key_changed = sqlite.col_int(st, 1) != 0, sqlite.col_int(st, 2) != 0;
 			}
 			sqlite.finalize(st);
 		case .Set_Encrypted;
-			if !set_encrypted(db, r.channel, r.encrypted) r.result = .Failed;
+			if !set_encrypted(db, conv, r.encrypted) r.result = .Failed;
 		case .Set_Verified;
 			// Only the root the person compared: one that changed meanwhile stays unverified and flagged.
-			if !sqlite.run(db, "UPDATE peers SET verified = ?, changed = 0 WHERE user = ? AND root = ?;", r.verified, r.peer, cast([]u8) r.peer_root)
+			if !sqlite.run(db, "UPDATE peers SET verified = ?, changed = 0 WHERE party = ? AND root = ?;", r.verified, key(r.conv.carrier, r.conv.peer), cast([]u8) r.peer_root)
 				r.result = .Failed;
 		case .Hello;
 			prune_prekeys(db);
 			p: Packet;
-			pre := make_hello(r.me, *p);
+			p.limit = r.conv.limit;
+			pre, fits := make_hello(r.me, *p);
 			defer crypto.zero(*pre);
+			if !fits { r.result = .Too_Long; return; }
 			id := crypto.blake3(bytes(*p));
 			ok := sqlite.exec(db, "BEGIN;")
-				&& sqlite.run(db, "INSERT INTO prekeys(hello_id, channel, sealed, created) VALUES(?, ?, ?, ?);",
-					cast([]u8) id, r.channel, seal(d, ad("prekeys", id), *pre), now_ms())
-				&& set_encrypted(db, r.channel, true)
+				&& sqlite.run(db, "INSERT INTO prekeys(hello_id, conversation, sealed, created) VALUES(?, ?, ?, ?);",
+					cast([]u8) id, conv, seal(d, ad("prekeys", id), *pre), now_ms())
+				&& set_encrypted(db, conv, true)
 				&& sqlite.exec(db, "COMMIT;");
 			if !ok { sqlite.exec(db, "ROLLBACK;"); r.result = .Failed; return; }
-			r.packet = encode_text(bytes(*p),, context.default_allocator);
+			r.packet = copy_string(xx bytes(*p),, context.default_allocator);
 		case .Accept;
-			hp: Packet;
-			if !decode_text(r.text, *hp) { r.result = .Failed; return; }
-			hello, ok := parse_hello(bytes(*hp));
-			if !ok || r.peer == 0 || r.me_user == 0 { r.result = .Failed; return; }
+			hello, ok := parse_hello(xx r.packet);
+			if !ok { r.result = .Failed; return; }
 			p: Packet;
+			p.limit = r.conv.limit;
+			first := INIT_PREFIX_BYTES + HEADER_BYTES + TAG_BYTES;
+			if first + 2 > p.limit { r.result = .Too_Long; return; }
 			s: Session;
-			s, ok = accept(r.me, hello, .{r.channel, r.me_user, r.peer}, pad(.Accept, "", INIT_PLAINTEXT), *p);
+			s, ok = accept(r.me, hello, binding(r.conv, r.conv.me, r.conv.peer), pad(.Accept, "", p.limit - first), *p);
 			defer crypto.zero(*s);
 			if !ok { r.result = .Failed; return; }
-			r.packet = encode_text(bytes(*p),, context.default_allocator);
-			if !commit_sent(d, r, *s, true, hello.root, hello.id, .Accept, "") r.result = .Failed;
+			free(r.packet);
+			r.packet = copy_string(xx bytes(*p),, context.default_allocator);
+			if !commit_sent(d, r, conv, *s, true, hello.root, hello.id, .Accept, "") r.result = .Failed;
 		case .Send;
-			if r.text.count > MAX_TEXT_BYTES { r.result = .Too_Long; return; }
-			st := sqlite.prepare(db, "SELECT id, state FROM sessions WHERE channel = ? ORDER BY updated DESC LIMIT 1;");
+			if r.text.count > max_text(r.conv.limit) { r.result = .Too_Long; return; }
+			st := sqlite.prepare(db, "SELECT id, state FROM sessions WHERE conversation = ? ORDER BY updated DESC LIMIT 1;");
 			s: Session;
-			found := sqlite.bind_all(st, r.channel) && sqlite.step(st) == .Row
+			found := sqlite.bind_all(st, conv) && sqlite.step(st) == .Row
 				&& unseal(d, ad("sessions", sqlite.col_blob(st, 0)), sqlite.col_blob(st, 1), *s);
 			sqlite.finalize(st);
 			defer crypto.zero(*s);
 			if !found { r.result = .No_Session; return; }
 			p: Packet;
-			p.count = 0;
-			pt := pad(.Text, r.text, silent = r.silent);
+			p.limit = r.conv.limit;
+			pt := pad(.Text, r.text, p.limit - MSG_PREFIX_BYTES - HEADER_BYTES - TAG_BYTES, silent = r.silent);
 			defer crypto.zero(pt);
 			head: [2]u8 = .[VERSION, xx Kind.Msg];
 			memcpy(p.data.data, head.data, 2);
 			memcpy(p.data.data + 2, s.id.data, 16);
 			p.count = MSG_PREFIX_BYTES;
 			if !encrypt(*s, pt, *p) { r.result = .Failed; return; }
-			r.packet = encode_text(bytes(*p),, context.default_allocator);
+			r.packet = copy_string(xx bytes(*p),, context.default_allocator);
 			none: [32]u8;
-			if !commit_sent(d, r, *s, false, none, none, .Text, r.text) r.result = .Failed;
+			if !commit_sent(d, r, conv, *s, false, none, none, .Text, r.text) r.result = .Failed;
 		case .Sent;
-			sqlite.run(db, "DELETE FROM outbox WHERE hash = ?;", cast([]u8) crypto.blake3(xx r.text));
+			sqlite.run(db, "DELETE FROM outbox WHERE hash = ?;", cast([]u8) crypto.blake3(xx r.packet));
 		case .Receive;
-			receive(d, r);
+			receive(d, r, conv);
 		case .Outbox;
-			st := sqlite.prepare(db, "SELECT channel, packet FROM outbox;");
-			while sqlite.step(st) == .Row
-				array_add(*r.outbox, .{cast(u64) sqlite.col_int(st, 0), copy_string(sqlite.col_text(st, 1))});
+			st := sqlite.prepare(db, "SELECT conversation, packet FROM outbox;");
+			while sqlite.step(st) == .Row {
+				c := cast(string) sqlite.col_blob(st, 0);
+				nul := find_index_from_left(c, 0);
+				if nul < 0 continue;
+				array_add(*r.outbox, .{copy_string(slice(c, 0, nul)), copy_string(slice(c, nul + 1, c.count - nul - 1)), copy_string(xx sqlite.col_blob(st, 1))});
+			}
 			sqlite.finalize(st);
 	}
 }
@@ -270,69 +317,73 @@ run_request :: (d: *Db, r: *Request) {
 // commit_sent stores the advanced session, our plaintext and the outbox entry in one transaction, before
 // the packet can leave: a crash after the send but before the save would encrypt the next message with
 // the same key.
-commit_sent :: (d: *Db, r: *Request, s: *Session, new: bool, peer_root: [32]u8, hello_id: [32]u8, content: Content, text: string) -> bool {
+commit_sent :: (d: *Db, r: *Request, conv: []u8, s: *Session, new: bool, peer_root: [32]u8, hello_id: [32]u8, content: Content, text: string) -> bool {
 	db := d.sql;
 	hash := crypto.blake3(xx r.packet);
+	peer := key(r.conv.carrier, r.conv.peer);
 	ok := sqlite.exec(db, "BEGIN;")
-		&& (ifx new then sqlite.run(db, "INSERT INTO sessions(id, channel, peer, peer_root, hello_id, state, updated) VALUES(?, ?, ?, ?, ?, ?, ?);",
-				cast([]u8) s.id, r.channel, r.peer, cast([]u8) peer_root, cast([]u8) hello_id, seal(d, ad("sessions", s.id), s), now_ms())
+		&& (ifx new then sqlite.run(db, "INSERT INTO sessions(id, conversation, peer, peer_root, hello_id, state, updated) VALUES(?, ?, ?, ?, ?, ?, ?);",
+				cast([]u8) s.id, conv, peer, cast([]u8) peer_root, cast([]u8) hello_id, seal(d, ad("sessions", s.id), s), now_ms())
 			else sqlite.run(db, "UPDATE sessions SET state = ?, updated = ? WHERE id = ?;", seal(d, ad("sessions", s.id), s), now_ms(), cast([]u8) s.id))
-		&& store_plaintext(d, hash, 0, content, text, r.silent)
-		&& sqlite.run(db, "INSERT INTO outbox(hash, channel, packet) VALUES(?, ?, ?);", cast([]u8) hash, r.channel, r.packet)
-		&& (!new || (set_encrypted(db, r.channel, true) && note_peer(db, r.peer, peer_root)))
+		&& store_plaintext(d, hash, "", content, text, r.silent)
+		&& sqlite.run(db, "INSERT INTO outbox(hash, conversation, packet) VALUES(?, ?, ?);", cast([]u8) hash, conv, cast([]u8) r.packet)
+		&& (!new || (set_encrypted(db, conv, true) && note_peer(db, peer, peer_root)))
 		&& sqlite.exec(db, "COMMIT;");
 	if !ok { log_error("e2e: cannot save a sent message: %", sqlite.errmsg(db)); sqlite.exec(db, "ROLLBACK;"); }
 	return ok;
 }
 
-receive :: (d: *Db, r: *Request) {
+receive :: (d: *Db, r: *Request, conv: []u8) {
 	db := d.sql;
-	hash := crypto.blake3(xx r.text);
-	st := sqlite.prepare(db, "SELECT message, sealed FROM plaintexts WHERE hash = ?;");
+	mine := r.from == r.conv.me;
+	if !r.delivery.count || r.packet.count > r.conv.limit { r.result = .Undecryptable; return; }
+	hash := crypto.blake3(xx r.packet);
+	st := sqlite.prepare(db, "SELECT delivery, sealed FROM plaintexts WHERE hash = ?;");
 	if sqlite.bind_all(st, cast([]u8) hash) && sqlite.step(st) == .Row {
-		first := cast(u64) sqlite.col_int(st, 0);
+		first := copy_string(xx sqlite.col_blob(st, 0),, temp);
 		b := sqlite.col_blob(st, 1);
 		pt := NewArray(max(b.count - SEAL_BYTES, 0), u8,, temp);
 		ok := unseal(d, ad("plaintexts", hash), b, pt) && take_plaintext(r, pt, stored = true);
 		crypto.zero(pt);
 		sqlite.finalize(st);
 		if !ok { r.result = .Failed; return; }
-		if first == 0 && r.author != r.me_user {
+		if !first.count && !mine {
 			r.result = .Repeated; // Our unclaimed packet, reposted by someone else.
-		} else if first == 0 {
-			// Our own send coming back from Discord: it claims the plaintext and leaves the outbox.
-			sqlite.run(db, "UPDATE plaintexts SET message = ? WHERE hash = ?;", r.message, cast([]u8) hash);
+		} else if !first.count {
+			// Our own send coming back from the carrier: it claims the plaintext and leaves the outbox.
+			sqlite.run(db, "UPDATE plaintexts SET delivery = ? WHERE hash = ?;", cast([]u8) r.delivery, cast([]u8) hash);
 			sqlite.run(db, "DELETE FROM outbox WHERE hash = ?;", cast([]u8) hash);
-		} else if first != r.message {
+		} else if first != r.delivery {
 			r.result = .Repeated;
 		}
 		return;
 	}
 	sqlite.finalize(st);
 
-	p: Packet;
-	if !decode_text(r.text, *p) || p.data[0] != VERSION { r.result = .Undecryptable; return; }
-	kind := cast(Kind) p.data[1];
+	if r.packet.count < 2 || r.packet[0] != VERSION { r.result = .Undecryptable; return; }
+	from := key(r.conv.carrier, r.from);
+	packet: []u8 = xx r.packet;
+	kind := cast(Kind) packet[1];
 	if kind == {
 		case .Hello;
-			hello, ok := parse_hello(bytes(*p));
+			hello, ok := parse_hello(packet);
 			if !ok { r.result = .Undecryptable; return; }
 			r.result = .Hello;
 			r.accepted = query_int(db, "SELECT 1 FROM sessions WHERE hello_id = ? LIMIT 1;", cast([]u8) hello.id) == 1;
-			r.key_changed = query_int(db, "SELECT 1 FROM peers WHERE user = ? AND root != ?;", r.author, cast([]u8) hello.root) == 1;
+			r.key_changed = query_int(db, "SELECT 1 FROM peers WHERE party = ? AND root != ?;", from, cast([]u8) hello.root) == 1;
 		case .Init;
-			i, ok := parse_init(bytes(*p));
-			if !ok || r.author == r.me_user { r.result = .Undecryptable; return; }
+			i, ok := parse_init(packet);
+			if !ok || mine { r.result = .Undecryptable; return; }
 			if query_int(db, "SELECT 1 FROM sessions WHERE id = ?;", cast([]u8) i.session) == 1 { r.result = .Repeated; return; }
-			st := sqlite.prepare(db, "SELECT sealed FROM prekeys WHERE hello_id = ? AND channel = ?;");
+			st := sqlite.prepare(db, "SELECT sealed FROM prekeys WHERE hello_id = ? AND conversation = ?;");
 			pre: Prekeys;
-			found := sqlite.bind_all(st, cast([]u8) i.hello_id, r.channel) && sqlite.step(st) == .Row
+			found := sqlite.bind_all(st, cast([]u8) i.hello_id, conv) && sqlite.step(st) == .Row
 				&& unseal(d, ad("prekeys", i.hello_id), sqlite.col_blob(st, 0), *pre);
 			sqlite.finalize(st);
 			defer crypto.zero(*pre);
 			if !found { r.result = .Undecryptable; return; }
 			s: Session;
-			s, ok = receive_init(r.me, pre, i, .{r.channel, r.author, r.me_user});
+			s, ok = receive_init(r.me, pre, i, binding(r.conv, r.from, r.conv.me));
 			defer crypto.zero(*s);
 			if !ok { r.result = .Undecryptable; return; }
 			skipped: [..]Skipped;
@@ -340,29 +391,29 @@ receive :: (d: *Db, r: *Request) {
 			pt := NewArray(i.message.count - HEADER_BYTES - TAG_BYTES, u8,, temp);
 			if !decrypt(*s, i.message, pt, *skipped) || !take_plaintext(r, pt) { r.result = .Undecryptable; return; }
 			ok = sqlite.exec(db, "BEGIN;")
-				&& sqlite.run(db, "INSERT INTO sessions(id, channel, peer, peer_root, hello_id, state, updated) VALUES(?, ?, ?, ?, ?, ?, ?);",
-					cast([]u8) s.id, r.channel, r.author, cast([]u8) i.root, cast([]u8) i.hello_id, seal(d, ad("sessions", s.id), *s), now_ms())
+				&& sqlite.run(db, "INSERT INTO sessions(id, conversation, peer, peer_root, hello_id, state, updated) VALUES(?, ?, ?, ?, ?, ?, ?);",
+					cast([]u8) s.id, conv, from, cast([]u8) i.root, cast([]u8) i.hello_id, seal(d, ad("sessions", s.id), *s), now_ms())
 				&& store_skipped(d, s.id, skipped)
-				&& store_plaintext(d, hash, r.message, r.content, r.out_text, r.silent)
-				&& set_encrypted(db, r.channel, true)
-				&& note_peer(db, r.author, i.root)
+				&& store_plaintext(d, hash, r.delivery, r.content, r.out_text, r.silent)
+				&& set_encrypted(db, conv, true)
+				&& note_peer(db, from, i.root)
 				&& sqlite.run(db, "UPDATE prekeys SET answered = ? WHERE hello_id = ? AND answered = 0;", now_ms(), cast([]u8) i.hello_id)
 				&& sqlite.exec(db, "COMMIT;");
 			crypto.zero(cast([]u8) pt);
 			if !ok { sqlite.exec(db, "ROLLBACK;"); r.result = .Failed; }
 			prune_prekeys(db);
 		case .Msg;
-			if p.count < MSG_PREFIX_BYTES + HEADER_BYTES + TAG_BYTES + 1 { r.result = .Undecryptable; return; }
+			if packet.count < MSG_PREFIX_BYTES + HEADER_BYTES + TAG_BYTES + 1 { r.result = .Undecryptable; return; }
 			id: [16]u8;
-			memcpy(id.data, p.data.data + 2, 16);
-			m := array_view(bytes(*p), MSG_PREFIX_BYTES, p.count - MSG_PREFIX_BYTES);
-			st := sqlite.prepare(db, "SELECT state FROM sessions WHERE id = ? AND channel = ? AND peer = ?;");
+			memcpy(id.data, packet.data + 2, 16);
+			m := array_view(packet, MSG_PREFIX_BYTES, packet.count - MSG_PREFIX_BYTES);
+			st := sqlite.prepare(db, "SELECT state FROM sessions WHERE id = ? AND conversation = ? AND peer = ?;");
 			s: Session;
-			found := sqlite.bind_all(st, cast([]u8) id, r.channel, r.author) && sqlite.step(st) == .Row
+			found := sqlite.bind_all(st, cast([]u8) id, conv, from) && sqlite.step(st) == .Row
 				&& unseal(d, ad("sessions", id), sqlite.col_blob(st, 0), *s);
 			sqlite.finalize(st);
 			defer crypto.zero(*s);
-			if !found { r.result = ifx r.author == r.me_user then .Undecryptable else .No_Session; return; }
+			if !found { r.result = ifx mine then .Undecryptable else .No_Session; return; }
 			h, hok := parse_header(m);
 			if !hok { r.result = .Undecryptable; return; }
 			pt := NewArray(m.count - HEADER_BYTES - TAG_BYTES, u8,, temp);
@@ -378,7 +429,7 @@ receive :: (d: *Db, r: *Request) {
 				if !decrypt_skipped(*s, mk, m, pt) || !take_plaintext(r, pt) { r.result = .Undecryptable; return; }
 				ok = sqlite.exec(db, "BEGIN;")
 					&& sqlite.run(db, "DELETE FROM skipped WHERE session = ? AND dh = ? AND n = ?;", cast([]u8) id, cast([]u8) h.dh, cast(s64) h.n)
-					&& store_plaintext(d, hash, r.message, r.content, r.out_text, r.silent)
+					&& store_plaintext(d, hash, r.delivery, r.content, r.out_text, r.silent)
 					&& sqlite.exec(db, "COMMIT;");
 			} else {
 				next := s;
@@ -389,7 +440,7 @@ receive :: (d: *Db, r: *Request) {
 				ok = sqlite.exec(db, "BEGIN;")
 					&& sqlite.run(db, "UPDATE sessions SET state = ?, updated = ? WHERE id = ?;", seal(d, ad("sessions", id), *next), now_ms(), cast([]u8) id)
 					&& store_skipped(d, id, skipped)
-					&& store_plaintext(d, hash, r.message, r.content, r.out_text, r.silent)
+					&& store_plaintext(d, hash, r.delivery, r.content, r.out_text, r.silent)
 					&& sqlite.exec(db, "COMMIT;");
 				for * skipped crypto.zero(*it.mk);
 			}
@@ -412,13 +463,16 @@ take_plaintext :: (r: *Request, padded: []u8, stored := false) -> bool {
 	return true;
 }
 
-// A plaintext is sealed as the Content byte then the text, the form take_plaintext reads.
-store_plaintext :: (d: *Db, hash: [32]u8, message: u64, content: Content, text: string, silent: bool) -> bool {
+// A plaintext is sealed as the Content byte then the text, the form take_plaintext reads. delivery is
+// empty (NULL) for our own send until the carrier hands it back.
+store_plaintext :: (d: *Db, hash: [32]u8, delivery: string, content: Content, text: string, silent: bool) -> bool {
 	pt := NewArray(text.count + 1, u8, false,, temp);
 	defer crypto.zero(pt);
 	pt[0] = (cast(u8) content) | (ifx silent then SILENT else 0);
 	memcpy(pt.data + 1, text.data, text.count);
-	return sqlite.run(d.sql, "INSERT INTO plaintexts(hash, message, sealed) VALUES(?, ?, ?);", cast([]u8) hash, message, seal(d, ad("plaintexts", hash), pt));
+	sealed := seal(d, ad("plaintexts", hash), pt);
+	if !delivery.count return sqlite.run(d.sql, "INSERT INTO plaintexts(hash, sealed) VALUES(?, ?);", cast([]u8) hash, sealed);
+	return sqlite.run(d.sql, "INSERT INTO plaintexts(hash, delivery, sealed) VALUES(?, ?, ?);", cast([]u8) hash, cast([]u8) delivery, sealed);
 }
 
 store_skipped :: (d: *Db, session: [16]u8, skipped: []Skipped) -> bool {
@@ -434,13 +488,13 @@ store_skipped :: (d: *Db, session: [16]u8, skipped: []Skipped) -> bool {
 
 // note_peer records the root a new session was made with. A root other than the peer's last one loses
 // any verification and is flagged until the person verifies or dismisses it.
-note_peer :: (db: *sqlite.DB, user: u64, root: [32]u8) -> bool {
-	return sqlite.run(db, "INSERT INTO peers(user, root) VALUES(?, ?) ON CONFLICT(user) DO UPDATE SET root = excluded.root, verified = 0, changed = 1 WHERE peers.root != excluded.root;",
-		user, cast([]u8) root);
+note_peer :: (db: *sqlite.DB, party: []u8, root: [32]u8) -> bool {
+	return sqlite.run(db, "INSERT INTO peers(party, root) VALUES(?, ?) ON CONFLICT(party) DO UPDATE SET root = excluded.root, verified = 0, changed = 1 WHERE peers.root != excluded.root;",
+		party, cast([]u8) root);
 }
 
-set_encrypted :: (db: *sqlite.DB, channel: u64, on: bool) -> bool {
-	return sqlite.run(db, "INSERT INTO channels(id, encrypted) VALUES(?, ?) ON CONFLICT(id) DO UPDATE SET encrypted = excluded.encrypted;", channel, on);
+set_encrypted :: (db: *sqlite.DB, conv: []u8, on: bool) -> bool {
+	return sqlite.run(db, "INSERT INTO conversations(id, encrypted) VALUES(?, ?) ON CONFLICT(id) DO UPDATE SET encrypted = excluded.encrypted;", conv, on);
 }
 
 // Secret columns hold sealed values: a random XChaCha20-Poly1305 nonce, then ciphertext and tag under the

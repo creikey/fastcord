@@ -18,6 +18,7 @@ audio :: #import "audio";
 crypto :: #import "crypto";
 dc :: #import "discord";
 e2e :: #import "e2e";
+fc_text :: #import "fc_text";
 etf :: #import "etf";
 gfx :: #import "gfx";
 http :: #import "http";

@@ -5,6 +5,7 @@
 #import "Random";
 #import "String";
 e2e :: #import "e2e";
+fc_text :: #import "fc_text";
 keys :: #import "keys";
 sqlite :: #import "sqlite";
 #if OS == .WINDOWS {
@@ -31,7 +32,9 @@ main :: () {
 	delete_directory(dir);
 	database(dir);
 	codec();
-	conversation(dir);
+	conversation(dir, fc_text.MAX_PACKET); // Discord's, one message of text
+	conversation(dir, 4096);              // a carrier with larger packets
+	tiny(dir);
 	if failed { print("e2e: % failed\n", failed); exit(1); }
 	print("e2e: ok\n");
 }
@@ -88,119 +91,142 @@ database :: (dir: string) {
 	stop(d);
 }
 
+// codec checks the `fc-` text form, the encoding of the carriers that move text (Discord and hosted DMs).
 codec :: () {
-	p, q: e2e.Packet;
-	for n: 0..e2e.MAX_PACKET {
-		p.count = n;
-		for i: 0..n-1 p.data[i] = xx (random_get() & 0xFF);
-		t := e2e.encode_text(e2e.bytes(*p));
-		ok := e2e.decode_text(t, *q);
+	p: [fc_text.MAX_PACKET]u8;
+	for n: 0..fc_text.MAX_PACKET {
+		for i: 0..n-1 p[i] = xx (random_get() & 0xFF);
+		t := fc_text.encode(.{n, p.data});
+		got, ok := fc_text.decode(t);
 		if n < 2 { check(!ok, "packets under two bytes rejected"); continue; }
-		if !ok || q.count != n || memcmp(p.data.data, q.data.data, n) != 0 { check(false, tprint("round trip of % bytes", n)); break; }
-		if n == e2e.MAX_PACKET check(t.count <= 2000, "largest packet fits one message");
+		if !ok || got.count != n || memcmp(p.data, got.data, n) != 0 { check(false, tprint("round trip of % bytes", n)); break; }
+		if n == fc_text.MAX_PACKET check(t.count <= 2000, "largest packet fits one message");
 		if n % 3 && t.count {
 			// The last character's unused low bits must be zero: a second spelling is rejected.
 			bad := copy_string(t,, temp);
 			B64 :: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 			bad[bad.count - 1] = B64[(find_index_from_left(B64, t[t.count - 1]) + 1) & 63];
-			check(!e2e.decode_text(bad, *q) || q.count != n || memcmp(p.data.data, q.data.data, n) != 0, "non-canonical tail rejected");
+			again, aok := fc_text.decode(bad);
+			check(!aok || again.count != n || memcmp(p.data, again.data, n) != 0, "non-canonical tail rejected");
 		}
+		reset_temporary_storage();
 	}
-	check(!e2e.decode_text("fc-AAA=", *q), "padding rejected");
-	check(!e2e.decode_text("fc-AA+A", *q), "standard alphabet rejected");
-	check(!e2e.decode_text("fc-AAAAA", *q), "impossible length rejected");
-	check(!e2e.decode_text(tprint("fc-%", repeat("A", 2000)), *q), "overlong rejected");
+	for string.["fc-AAA=", "fc-AA+A", "fc-AAAAA", tprint("fc-%", repeat("A", 2000))] {
+		_, ok := fc_text.decode(it);
+		check(!ok, tprint("bad text form % rejected", it_index));
+	}
 }
 
+// The mock carrier: conversations and parties are opaque bytes (NULs included), each delivery has its
+// own opaque ID, and the largest packet is set per run.
 Client :: struct {
 	d: *e2e.Db;
 	me: e2e.Identity;
-	user: u64;
+	party: string;
 }
 
-CHANNEL :: 100;
-next_message: u64 = 1000;
+CARRIER :: "mock";
+CONV :: "conv\x00one";
+limit := 0;
+next_delivery := 1000;
 
-ask :: (c: *Client, op: e2e.Op, text := "", author: u64 = 0, message: u64 = 0, peer: u64 = 0, channel: u64 = CHANNEL) -> *e2e.Request {
-	r := e2e.request(op, channel, text);
-	r.me, r.me_user, r.author, r.message, r.peer = c.me, c.user, author, message, peer;
+delivery :: () -> string {
+	next_delivery += 1;
+	return tprint("\x00d%", next_delivery);
+}
+
+ask :: (c: *Client, op: e2e.Op, packet := "", from: *Client = null, peer: *Client = null, id := CONV, text := "", from_party := "", peer_party := "", at := "") -> *e2e.Request {
+	conv := e2e.Conversation.{CARRIER, id, c.party, ifx peer then peer.party else peer_party, limit};
+	r := e2e.request(op, conv, text, packet);
+	r.me = c.me;
+	r.from = copy_string(ifx from then from.party else from_party);
+	r.delivery = copy_string(ifx at then at else delivery());
 	e2e.submit(c.d, r);
 	wait(r);
 	return r;
 }
 
-Delivery :: struct { text: string; author: u64; message: u64; plain: string; forged: bool; }
+// receive hands c a packet sent by from, in their conversation.
+receive :: (c: *Client, packet: string, from: *Client, at := "", id := CONV) -> *e2e.Request {
+	return ask(c, .Receive, packet, from = from, peer = from, id = id, at = at);
+}
 
-conversation :: (dir: string) {
-	a := Client.{d = e2e.start(tprint("%/a.db", dir)), me = e2e.identity_of(keys.generate("A")), user = 1};
-	b := Client.{d = e2e.start(tprint("%/b.db", dir)), me = e2e.identity_of(keys.generate("B")), user = 2};
+send :: (c: *Client, peer: *Client, text: string) -> *e2e.Request { return ask(c, .Send, peer = peer, text = text); }
 
-	r := ask(*a, .Send, "too early");
+Delivery :: struct { packet: string; author: *Client; at: string; plain: string; forged: bool; }
+
+conversation :: (dir: string, max: int) {
+	limit = max;
+	tag := tprint("%/%", dir, max);
+	make_directory_if_it_does_not_exist(tag);
+	a := Client.{d = e2e.start(tprint("%/a.db", tag)), me = e2e.identity_of(keys.generate("A")), party = "alice\x00"};
+	b := Client.{d = e2e.start(tprint("%/b.db", tag)), me = e2e.identity_of(keys.generate("B")), party = "bob"};
+
+	r := send(*a, *b, "too early");
 	check(r.result == .No_Session, "send before any session");
 
-	hello := ask(*b, .Hello);
-	check(hello.result == .Ok && begins_with(hello.packet, "fc-") && hello.packet.count <= 2000, "hello fits a message");
-	hello_id := next_message; next_message += 1;
-	r = ask(*a, .Receive, hello.packet, b.user, hello_id);
+	hello := ask(*b, .Hello, peer = *a);
+	check(hello.result == .Ok && hello.packet.count <= limit, "hello fits the carrier");
+	hello_at := copy_string(delivery());
+	r = receive(*a, hello.packet, *b, hello_at);
 	check(r.result == .Hello && !r.accepted, "peer's hello shown with Accept");
-	r = ask(*b, .Receive, hello.packet, b.user, hello_id);
+	r = ask(*b, .Receive, hello.packet, from = *b, peer = *a, at = hello_at);
 	check(r.result == .Hello, "own hello shown");
 
-	write_entire_file(tprint("%/hello.txt", dir), hello.packet); // For looking at the UI with a real Hello.
-	init := ask(*a, .Accept, hello.packet, peer = b.user);
-	check(init.result == .Ok && init.packet.count <= 2000, tprint("accept makes an init that fits (%, % chars)", init.result, init.packet.count));
-	r = ask(*a, .Receive, hello.packet, b.user, hello_id);
+	init := ask(*a, .Accept, hello.packet, peer = *b);
+	check(init.result == .Ok && init.packet.count <= limit, tprint("accept makes an init that fits (%, % bytes)", init.result, init.packet.count));
+	r = receive(*a, hello.packet, *b, hello_at);
 	check(r.result == .Hello && r.accepted, "accepted hello no longer offers Accept");
 
 	// A sends before B has seen the Init: B can't open it yet, then can once the Init arrives.
-	early := ask(*a, .Send, "early");
-	early_id := next_message; next_message += 1;
-	r = ask(*b, .Receive, early.packet, a.user, early_id);
+	early := send(*a, *b, "early");
+	early_at := copy_string(delivery());
+	r = receive(*b, early.packet, *a, early_at);
 	check(r.result == .No_Session, "msg before its init waits for the session");
 
-	init_id := next_message; next_message += 1;
-	r = ask(*b, .Receive, init.packet, a.user, init_id);
+	init_at := copy_string(delivery());
+	r = receive(*b, init.packet, *a, init_at);
 	check(r.result == .Ok && r.content == .Accept, "init opens on the peer");
-	r = ask(*b, .Receive, init.packet, a.user, init_id);
-	check(r.result == .Ok && r.content == .Accept, "receiving the same message twice is harmless");
-	r = ask(*b, .Receive, init.packet, a.user, next_message);
-	check(r.result == .Repeated, "init replayed as another message");
-	r = ask(*a, .Receive, init.packet, a.user, init_id);
+	r = receive(*b, init.packet, *a, init_at);
+	check(r.result == .Ok && r.content == .Accept, "receiving the same delivery twice is harmless");
+	r = receive(*b, init.packet, *a);
+	check(r.result == .Repeated, "init replayed as another delivery");
+	r = ask(*a, .Receive, init.packet, from = *a, peer = *b, at = init_at);
 	check(r.result == .Ok && r.content == .Accept, "own init echo");
-	r = ask(*b, .Receive, early.packet, a.user, early_id);
+	r = receive(*b, early.packet, *a, early_at);
 	check(r.result == .Ok && r.out_text == "early", "waiting msg opens after the init");
 
 	// @silent travels inside the packet, so it holds whatever the carrier does with its flags.
-	quiet := e2e.request(.Send, CHANNEL, "shh");
-	quiet.me, quiet.me_user, quiet.silent = a.me, a.user, true;
+	quiet := e2e.request(.Send, .{CARRIER, CONV, a.party, b.party, limit}, "shh");
+	quiet.me, quiet.silent = a.me, true;
 	e2e.submit(a.d, quiet);
 	wait(quiet);
-	r = ask(*b, .Receive, quiet.packet, a.user, next_message);
+	quiet_at := copy_string(delivery());
+	r = receive(*b, quiet.packet, *a, quiet_at);
 	check(r.result == .Ok && r.out_text == "shh" && r.silent, "silent message opens silent");
-	r = ask(*b, .Receive, quiet.packet, a.user, next_message);
+	r = receive(*b, quiet.packet, *a, quiet_at);
 	check(r.result == .Ok && r.silent, "silent kept with the stored plaintext");
-	next_message += 1;
-	r = ask(*a, .Receive, quiet.packet, a.user, next_message);
+	r = ask(*a, .Receive, quiet.packet, from = *a, peer = *b);
 	check(r.result == .Ok && r.silent, "own silent echo");
-	next_message += 1;
-	r = ask(*b, .Receive, early.packet, a.user, early_id);
+	r = receive(*b, early.packet, *a, early_at);
 	check(!r.silent, "plain message isn't silent");
 
-	reposted := ask(*a, .Send, "mine");
-	r = ask(*a, .Receive, reposted.packet, b.user, next_message);
+	reposted := send(*a, *b, "mine");
+	r = receive(*a, reposted.packet, *b);
 	check(r.result == .Repeated, "our packet reposted by the peer before our echo isn't shown as theirs");
-	next_message += 1;
-	r = ask(*a, .Receive, reposted.packet, a.user, next_message);
+	r = ask(*a, .Receive, reposted.packet, from = *a, peer = *b);
 	check(r.result == .Ok && r.out_text == "mine", "our echo still claims it");
-	next_message += 1;
 
-	long := ask(*a, .Send, repeat("x", e2e.MAX_TEXT_BYTES + 1));
-	check(long.result == .Too_Long, "text over the packet limit refused");
-	full := ask(*a, .Send, repeat("x", e2e.MAX_TEXT_BYTES));
-	check(full.result == .Ok && full.packet.count <= 2000, "longest text fits one message");
-	short1 := ask(*a, .Send, "ok");
-	short2 := ask(*a, .Send, repeat("y", e2e.PAD_BLOCK - 2));
-	block2 := ask(*a, .Send, repeat("y", e2e.PAD_BLOCK - 1));
+	most := e2e.max_text(limit);
+	long := send(*a, *b, repeat("x", most + 1));
+	check(long.result == .Too_Long, "text over the carrier's packet refused");
+	full := send(*a, *b, repeat("x", most));
+	check(full.result == .Ok && full.packet.count <= limit, "longest text fits the carrier's packet");
+	r = receive(*b, full.packet, *a);
+	check(r.result == .Ok && r.out_text.count == most, "longest text opens");
+	short1 := send(*a, *b, "ok");
+	short2 := send(*a, *b, repeat("y", e2e.PAD_BLOCK - 2));
+	block2 := send(*a, *b, repeat("y", e2e.PAD_BLOCK - 1));
 	check(short1.packet.count == short2.packet.count && block2.packet.count > short2.packet.count, "lengths are padded to the block");
 	for string.["", "\x80\x00", "x\x00\x00", "x\x80y"] {
 		_, ok := e2e.unpad(cast([]u8) it);
@@ -209,12 +235,13 @@ conversation :: (dir: string) {
 	sent := (*e2e.Request).[short1, short2, block2];
 	lengths := int.[2, e2e.PAD_BLOCK - 2, e2e.PAD_BLOCK - 1];
 	for sent {
-		got := ask(*b, .Receive, it.packet, a.user, next_message);
+		got := receive(*b, it.packet, *a);
 		check(got.result == .Ok && got.out_text.count == lengths[it_index], "padded text opens");
-		next_message += 1;
 	}
+	r = receive(*b, repeat("z", limit + 1), *a);
+	check(r.result == .Undecryptable, "a delivery over the carrier's largest packet is refused");
 
-	// The carrier: each packet is dropped, duplicated as another message, held back, forged or delivered.
+	// Each packet is dropped, duplicated as another delivery, held back, forged or delivered.
 	pending: [..]Delivery;
 	seen: [..]string;
 	delivered, dropped, opened, replays, forgeries := 0, 0, 0, 0, 0;
@@ -222,148 +249,155 @@ conversation :: (dir: string) {
 	for round: 0..399 {
 		from, to := ifx random_get() & 1 then *a else *b, ifx random_get() & 1 then *b else *a;
 		if from == to to = ifx from == *a then *b else *a;
-		text := tprint("message % from %", round, from.user);
-		s := ask(from, .Send, text);
+		text := tprint("message % from %", round, from.party);
+		s := send(from, to, text);
 		if s.result != .Ok { check(false, "send"); continue; }
-		echo := ask(from, .Receive, s.packet, from.user, next_message);
+		at := copy_string(delivery());
+		echo := ask(from, .Receive, s.packet, from = from, peer = to, at = at);
 		check(echo.result == .Ok && echo.out_text == text, "own echo shows our plaintext");
-		array_add(*pending, .{copy_string(s.packet), from.user, next_message, copy_string(text), false});
-		next_message += 1;
+		array_add(*pending, .{copy_string(s.packet), from, at, copy_string(text), false});
 		roll := random_get() % 100;
 		if roll < 10 { dropped += 1; pop(*pending); continue; }
 		if roll < 20 {
 			d := peek(pending);
-			array_add(*pending, .{d.text, d.author, next_message, d.plain, false}); // A replay under a new message ID.
-			next_message += 1;
+			array_add(*pending, .{d.packet, d.author, copy_string(delivery()), d.plain, false}); // A replay under a new delivery ID.
 		}
 		if roll < 25 {
 			d := peek(pending);
-			forged := copy_string(d.text);
-			i := 3 + cast(int) (random_get() % cast(u64) (forged.count - 3));
-			forged[i] = xx ifx forged[i] == #char "A" then #char "B" else #char "A";
-			array_add(*pending, .{forged, d.author, next_message, "", true});
-			next_message += 1;
+			forged := copy_string(d.packet);
+			i := cast(int) (random_get() % cast(u64) forged.count);
+			forged[i] ^= xx (1 + random_get() % 255);
+			array_add(*pending, .{forged, d.author, copy_string(delivery()), "", true});
 		}
 		// Deliver a random held packet, so order is shuffled. The first copy of a packet to arrive opens;
-		// every later copy, under another message ID, is a replay.
+		// every later copy, under another delivery ID, is a replay.
 		while pending.count > 3 || (pending.count && random_get() % 3 == 0) {
 			i := cast(int) (random_get() % cast(u64) pending.count);
 			d := pending[i];
 			array_unordered_remove_by_index(*pending, i);
-			target := ifx d.author == a.user then *b else *a;
-			got := ask(target, .Receive, d.text, d.author, d.message);
+			target := ifx d.author == *a then *b else *a;
+			got := receive(target, d.packet, d.author, d.at);
 			delivered += 1;
 			if d.forged {
 				check(got.result == .Undecryptable || got.result == .No_Session, tprint("forgery rejected (%)", got.result));
 				forgeries += 1;
-			} else if array_find(seen, d.text) {
+			} else if array_find(seen, d.packet) {
 				check(got.result == .Repeated, "replay detected");
 				replays += 1;
 			} else {
 				check(got.result == .Ok && got.out_text == d.plain, tprint("delivery opens (%: %)", got.result, d.plain));
-				array_add(*seen, d.text);
+				array_add(*seen, d.packet);
 				opened += 1;
 			}
 		}
 	}
-	print("carrier: % delivered, % opened, % dropped, % replays, % forgeries\n", delivered, opened, dropped, replays, forgeries);
+	print("carrier (largest packet %): % delivered, % opened, % dropped, % replays, % forgeries\n", limit, delivered, opened, dropped, replays, forgeries);
 	check(opened > 200 && replays > 10 && forgeries > 5, "the carrier exercised every case");
 
-	// Outbox: a packet committed but not handed to Discord is offered again; once sent it's gone.
-	s := ask(*a, .Send, "crash before send");
-	o := ask(*a, .Outbox);
-	found := false;
-	for o.outbox if it.packet == s.packet found = true;
-	check(found, "unsent packet stays in the outbox");
+	// Outbox: a packet committed but not handed to the carrier is offered again; once sent it's gone.
+	s := send(*a, *b, "crash before send");
+	in_outbox :: (o: *e2e.Request, packet: string) -> bool {
+		for o.outbox if it.packet == packet && it.carrier == CARRIER && it.conversation == CONV return true;
+		return false;
+	}
+	check(in_outbox(ask(*a, .Outbox), s.packet), "unsent packet stays in the outbox with its conversation");
 	ask(*a, .Sent, s.packet);
-	o = ask(*a, .Outbox);
-	found = false;
-	for o.outbox if it.packet == s.packet found = true;
-	check(!found, "sent packet leaves the outbox");
+	check(!in_outbox(ask(*a, .Outbox), s.packet), "sent packet leaves the outbox");
 
-	// Unknown key-share: Discord copies B's Hello into A's DM with M (channel 101), shown as M's. A accepts,
-	// and Discord moves A's Init into A and B's DM. B must not open it as A's.
-	MALLORY :: 3;
-	moved_hello := ask(*b, .Hello);
-	r = ask(*a, .Receive, moved_hello.packet, MALLORY, next_message, channel = 101);
+	// Unknown key-share: the carrier copies B's Hello into A's conversation with M, shown as M's. A
+	// accepts, and the carrier moves A's Init into A and B's conversation. B must not open it as A's.
+	OTHER :: "conv two";
+	moved_hello := ask(*b, .Hello, peer = *a);
+	r = ask(*a, .Receive, moved_hello.packet, from_party = "mallory", peer_party = "mallory", id = OTHER);
 	check(r.result == .Hello, "copied hello looks like M's");
-	next_message += 1;
-	moved_init := ask(*a, .Accept, moved_hello.packet, peer = MALLORY, channel = 101);
+	moved_init := ask(*a, .Accept, moved_hello.packet, peer_party = "mallory", id = OTHER);
 	check(moved_init.result == .Ok, "A accepts the copied hello");
-	r = ask(*b, .Receive, moved_init.packet, a.user, next_message);
-	check(r.result == .Undecryptable, "an init made for another DM doesn't open");
-	next_message += 1;
+	r = receive(*b, moved_init.packet, *a);
+	check(r.result == .Undecryptable, "an init made for another conversation doesn't open");
 
 	// Safety numbers: both sides see the same digits, and a peer's new root is flagged.
-	la := ask(*a, .Load);
-	lb := ask(*b, .Load);
+	la := ask(*a, .Load, peer = *b);
+	lb := ask(*b, .Load, peer = *a);
 	eq :: (x: [$N]u8, y: [N]u8) -> bool { return memcmp(x.data, y.data, N) == 0; }
-	check(la.has_peer && la.peer == b.user && eq(la.peer_root, b.me.root) && !la.verified && !la.key_changed, "A knows B's root");
+	check(la.has_peer && eq(la.peer_root, b.me.root) && !la.verified && !la.key_changed, "A knows B's root");
 	check(lb.has_peer && eq(lb.peer_root, a.me.root), "B knows A's root");
 	sn := e2e.safety_number(a.me.root, b.me.root);
 	check(eq(sn, e2e.safety_number(b.me.root, a.me.root)), "safety number is the same from both sides");
 	for sn check(it >= #char "0" && it <= #char "9", "safety number is digits");
-	v := e2e.request(.Set_Verified);
-	v.peer, v.peer_root, v.verified = b.user, b.me.root, true;
-	e2e.submit(a.d, v);
-	wait(v);
-	check(ask(*a, .Load).verified, "verified sticks");
-	b2 := Client.{d = e2e.start(tprint("%/b2.db", dir)), me = e2e.identity_of(keys.generate("B2")), user = b.user};
+	verify :: (c: *Client, peer: *Client, root: [32]u8, on: bool, id := CONV) {
+		v := e2e.request(.Set_Verified, .{CARRIER, id, c.party, peer.party, limit});
+		v.peer_root, v.verified = root, on;
+		e2e.submit(c.d, v);
+		wait(v);
+	}
+	verify(*a, *b, b.me.root, true);
+	check(ask(*a, .Load, peer = *b).verified, "verified sticks");
+	b2 := Client.{d = e2e.start(tprint("%/b2.db", tag)), me = e2e.identity_of(keys.generate("B2")), party = b.party};
 	check(!eq(e2e.safety_number(a.me.root, b2.me.root), sn), "a new root makes a new safety number");
-	NEW_DM :: 102;
-	h2 := ask(*b2, .Hello, channel = NEW_DM);
-	r = ask(*a, .Receive, h2.packet, b.user, next_message, channel = NEW_DM);
+	NEW_CONV :: "conv three";
+	h2 := ask(*b2, .Hello, peer = *a, id = NEW_CONV);
+	r = receive(*a, h2.packet, *b2, id = NEW_CONV);
 	check(r.result == .Hello && r.key_changed, "a Hello with B's new root is flagged");
-	next_message += 1;
-	ask(*a, .Accept, h2.packet, peer = b.user, channel = NEW_DM);
-	la = ask(*a, .Load, channel = NEW_DM);
+	ask(*a, .Accept, h2.packet, peer = *b2, id = NEW_CONV);
+	la = ask(*a, .Load, peer = *b, id = NEW_CONV);
 	check(eq(la.peer_root, b2.me.root) && la.key_changed && !la.verified, "accepting B's new root drops verification and flags it");
-	v = e2e.request(.Set_Verified);
-	v.peer, v.peer_root, v.verified = b.user, b2.me.root, false;
-	e2e.submit(a.d, v);
-	wait(v);
-	la = ask(*a, .Load, channel = NEW_DM);
+	verify(*a, *b, b2.me.root, false, NEW_CONV);
+	la = ask(*a, .Load, peer = *b, id = NEW_CONV);
 	check(!la.key_changed && !la.verified, "dismissing clears the flag");
 	stop(b2.d);
 
 	// Prekeys: an unanswered Hello's go after a week.
-	stale := ask(*b, .Hello);
+	ask(*b, .Hello, peer = *a);
 	sql(b.d, "UPDATE prekeys SET created = created - 8 * 86400000;");
 	check(count(b.d, "SELECT count(*) FROM prekeys;") > 0, "prekeys stored");
-	fresh := ask(*b, .Hello);
+	ask(*b, .Hello, peer = *a);
 	check(count(b.d, "SELECT count(*) FROM prekeys;") == 1, "a week-old unanswered hello's prekeys are deleted");
 	sql(b.d, "UPDATE prekeys SET answered = 1;");
-	ask(*b, .Hello);
+	ask(*b, .Hello, peer = *a);
 	check(count(b.d, "SELECT count(*) FROM prekeys;") == 1, "an answered hello's prekeys go after a day");
 
 	// Sessions survive a restart.
 	stop(a.d);
-	a.d = e2e.start(tprint("%/a.db", dir));
-	s = ask(*a, .Send, "after restart");
-	got := ask(*b, .Receive, s.packet, a.user, next_message);
+	a.d = e2e.start(tprint("%/a.db", tag));
+	s = send(*a, *b, "after restart");
+	restart_at := copy_string(delivery());
+	got := receive(*b, s.packet, *a, restart_at);
 	check(got.result == .Ok && got.out_text == "after restart", "session survives a restart");
 
 	// At rest: secrets are sealed under the database key, each bound to its row.
-	again := ask(*b, .Receive, s.packet, a.user, next_message);
+	again := receive(*b, s.packet, *a, restart_at);
 	check(again.result == .Ok && again.out_text == "after restart", "a refetch reads the sealed plaintext");
 	sql(b.d, "UPDATE plaintexts SET sealed = (SELECT sealed FROM plaintexts AS p WHERE p.hash != plaintexts.hash LIMIT 1);");
-	again = ask(*b, .Receive, s.packet, a.user, next_message);
+	again = receive(*b, s.packet, *a, restart_at);
 	check(again.result == .Failed, "a sealed value moved to another row doesn't open");
 	stop(a.d);
 	stop(b.d);
 	for name: string.["a.db", "b.db"]
-		check(!contains(read_entire_file(tprint("%/%", dir, name)), "after restart"), tprint("no plaintext in %", name));
+		check(!contains(read_entire_file(tprint("%/%", tag, name)), "after restart"), tprint("no plaintext in %", name));
 
 	// A key that won't unwrap (a <state> copied from another machine) sets the file aside for a new one.
-	a.d = e2e.start(tprint("%/a.db", dir));
+	a.d = e2e.start(tprint("%/a.db", tag));
 	sql(a.d, "UPDATE meta SET value = X'00' WHERE key = 'db_key';");
 	stop(a.d);
-	a.d = e2e.start(tprint("%/a.db", dir));
-	r = ask(*a, .Load);
+	a.d = e2e.start(tprint("%/a.db", tag));
+	r = ask(*a, .Load, peer = *b);
 	check(!r.failed && r.result == .Ok && !r.has_session, "a sealed database is replaced by an empty one");
 	aside := false;
-	for file_list(dir) if contains(it, "a.db.sealed-") aside = true;
+	for file_list(tag) if contains(it, "a.db.sealed-") aside = true;
 	check(aside, "the sealed database is kept beside it");
+	stop(a.d);
+}
+
+// tiny: a carrier whose largest packet is smaller than a Hello refuses cleanly instead of sending a cut one.
+tiny :: (dir: string) {
+	limit = e2e.HELLO_BYTES - 1;
+	a := Client.{d = e2e.start(tprint("%/tiny.db", dir)), me = e2e.identity_of(keys.generate("A")), party = "a"};
+	r := ask(*a, .Hello, peer_party = "b");
+	check(r.result == .Too_Long && !r.packet.count, "a Hello that doesn't fit is refused");
+	r = ask(*a, .Load, peer_party = "b");
+	check(!r.encrypted, "a refused Hello leaves encryption off");
+	r = ask(*a, .Hello, peer_party = "b", id = "");
+	check(r.result == .Failed, "a conversation with no ID is refused");
 	stop(a.d);
 }
 
