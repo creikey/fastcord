@@ -196,7 +196,10 @@ On Windows SChannel's hello equals the 1.0.9266 capture too; Linux (libssl) is t
 Releases ship only when a human asks for one, usually by asking Claude. First run
 `python3 -I tools/vendor_check.py`: it lists vendored libraries with a newer upstream release or an OSV.dev
 advisory (each `vendor/<lib>/README.md` has an `- Upstream: <repo> <tag or commit>` line); update any with a
-security fix. Push `main`, pick the version
+security fix. If `src/e2e`, `src/keys` or
+`src/fc_text` changed since the last tag, add that release's E2E fixture (`jai build.jai - run src/tests/e2e.jai`,
+then `build/e2e make-fixture <version>` writes `tests/data/e2e/<version>`; commit it, never rewrite an old one), so every
+later build is checked against what it left on disk. Push `main`, pick the version
 after `gh release list -L 1`, and run `.github/workflows/release.yml`:
 
 ```sh

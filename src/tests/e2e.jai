@@ -28,8 +28,11 @@ stop :: (d: *e2e.Db) {
 }
 
 main :: () {
+	args := get_command_line_arguments();
+	if args.count == 3 && args[1] == "make-fixture" { make_fixture(args[2]); return; }
 	dir := "build/e2e_test";
 	delete_directory(dir);
+	fixtures(dir);
 	database(dir);
 	codec();
 	conversation(dir, e2e.HELLO_BYTES); // the smallest that carries a signed Hello
@@ -714,6 +717,318 @@ tiny :: (dir: string) {
 	r = ask(*a, .Hello, peer_party = "b", id = "");
 	check(r.result == .Failed, "a conversation with no ID is refused");
 	stop(a.d);
+}
+
+// Release fixtures (tests/data/e2e/<release>/): what a release left on disk, three members' databases and
+// key files and a sealed file, and the packets each had yet to receive. Every later build must open them
+// all: stored plaintexts read, sessions go on, and every shipped packet version decrypts. Write one with
+// `build/e2e make-fixture <release>` from that release's sources, once per release that changed a format.
+FIXTURES :: "tests/data/e2e";
+FIXTURE_PARTIES :: string.["alice\x00", "bob", "carol"];
+FIXTURE_FILE :: "picture bytes ";
+CONV2 :: "fixture two";
+CONV3 :: "fixture three";
+GROUP_CONV :: "fixture\x00group";
+
+// A Line is a packet to receive (kind R), with what it must open as, or a packet the owner's outbox must
+// still offer (kind O). Parties are indexes into FIXTURE_PARTIES.
+Line :: struct {
+	kind: u8;
+	to, from, peer: int;
+	conv, at, packet: string;
+	result: e2e.Result;
+	content: e2e.Content;
+	silent: bool;
+	text, target, reply, file: string;
+}
+
+fx_lines: [..]Line;
+fx_stored: [..]Line; // Received while making the fixture; what a refetch gives is recorded once everything has happened.
+
+party_index :: (c: *Client) -> int {
+	for FIXTURE_PARTIES if it == c.party return it_index;
+	assert(false);
+	return -1;
+}
+
+fx_send :: (c: *Client, id: string, peer: *Client, text := "", content := e2e.Content.Text, target := "", reply := "", files: []e2e.File = .[], members: []*Client = .[], silent := false, handed := true) -> *e2e.Request {
+	r := e2e.request(.Send, .{CARRIER, id, c.party, ifx peer then peer.party else "", limit}, text);
+	r.me, r.content, r.target, r.reply, r.silent = c.me, content, copy_string(target), copy_string(reply), silent;
+	for files {
+		f := array_add(*r.files);
+		f.* = it;
+		f.name, f.mime, f.description = copy_string(it.name), copy_string(it.mime), copy_string(it.description);
+	}
+	for members array_add(*r.members, copy_string(it.party));
+	e2e.submit(c.d, r);
+	wait(r);
+	check(r.result == .Ok, tprint("send of \"%\" (%)", text, r.result));
+	if handed {
+		if r.packets.count for r.packets ask(c, .Sent, it);
+		else ask(c, .Sent, r.packet);
+	}
+	return r;
+}
+
+fx_receive :: (to: *Client, from: *Client, peer: *Client, id: string, at: string, packet: string) -> *e2e.Request {
+	r := e2e.request(.Receive, .{CARRIER, id, to.party, peer.party, limit}, packet = packet);
+	r.me, r.from, r.delivery = to.me, copy_string(from.party), copy_string(at);
+	e2e.submit(to.d, r);
+	wait(r);
+	return r;
+}
+
+fx_line :: (to: *Client, from: *Client, peer: *Client, id: string, packet: string, at: string) -> Line {
+	return .{kind = #char "R", to = party_index(to), from = party_index(from), peer = party_index(peer), conv = id, at = ifx at then at else copy_string(delivery()), packet = packet};
+}
+
+// keep receives a packet now, to be refetched once the fixture is made.
+keep :: (to: *Client, from: *Client, peer: *Client, id: string, packet: string, at := "") -> string, *e2e.Request {
+	l := fx_line(to, from, peer, id, packet, at);
+	r := fx_receive(to, from, peer, id, l.at, packet);
+	array_add(*fx_stored, l);
+	return l.at, r;
+}
+
+// land: the sender's echo claims the delivery, then the peer opens it.
+land :: (from: *Client, to: *Client, id: string, packet: string, at := "") -> string {
+	got := keep(from, from, to, id, packet, at);
+	keep(to, from, from, id, packet, got);
+	return got;
+}
+
+// later leaves a packet for a later build to receive, saying what it must open as.
+later :: (to: *Client, from: *Client, peer: *Client, id: string, packet: string, result: e2e.Result, content := e2e.Content.Text, text := "", at := "") {
+	l := fx_line(to, from, peer, id, packet, at);
+	l.result, l.content, l.text = result, content, text;
+	array_add(*fx_lines, l);
+}
+
+make_fixture :: (release: string) {
+	out := tprint("%/%", FIXTURES, release);
+	if file_exists(out) { print("% exists, and a release's fixture is never rewritten\n", out); exit(1); }
+	tmp := tprint("build/e2e_test/make/%", release);
+	delete_directory(tmp);
+	make_directory_if_it_does_not_exist(tmp, recursive = true);
+	limit = e2e.MAX_PACKET;
+	ks: [3]keys.Keypair;
+	m: [3]Client;
+	for * m {
+		ks[it_index] = keys.generate(FIXTURE_PARTIES[it_index]);
+		it.* = .{d = e2e.start(tprint("%/%.db", tmp, it_index)), me = e2e.identity_of(ks[it_index]), party = FIXTURE_PARTIES[it_index]};
+	}
+	a, b, c := *m[0], *m[1], *m[2];
+
+	// Alice and Bob: a session, then a little of everything, each delivered and echoed.
+	hello := ask(b, .Hello, peer = a);
+	ask(b, .Sent, hello.packet);
+	land(b, a, CONV, hello.packet);
+	init := ask(a, .Accept, hello.packet, peer = b);
+	ask(a, .Sent, init.packet);
+	land(a, b, CONV, init.packet);
+	first := land(a, b, CONV, fx_send(a, CONV, b, tprint("the first message, from %", release)).packet);
+	land(b, a, CONV, fx_send(b, CONV, a, "an answer", reply = first).packet);
+	f := e2e.File.{width = 640, height = 480, spoiler = true, name = "cat.png", mime = "image/png", description = "a cat"};
+	ct := e2e.seal_file(cast([]u8) repeat(FIXTURE_FILE, 1000), *f);
+	land(a, b, CONV, fx_send(a, CONV, b, "look", files = .[f]).packet);
+	edited := land(a, b, CONV, fx_send(a, CONV, b, "to be edited").packet);
+	land(a, b, CONV, fx_send(a, CONV, b, "edited", content = .Edit, target = edited).packet, edited);
+	deleted := land(a, b, CONV, fx_send(a, CONV, b, "to be deleted").packet);
+	land(a, b, CONV, fx_send(a, CONV, b, content = .Delete, target = deleted).packet, deleted);
+	land(b, a, CONV, fx_send(b, CONV, a, "+1", content = .React, target = first).packet);
+	land(b, a, CONV, fx_send(b, CONV, a, "quietly", silent = true).packet);
+
+	// Out of order: Bob opens the third first, keeping the skipped keys of the two before it.
+	one := fx_send(a, CONV, b, "one");
+	two := fx_send(a, CONV, b, "two");
+	keep(b, a, a, CONV, fx_send(a, CONV, b, "three").packet);
+	later(b, a, a, CONV, two.packet, .Ok, text = "two");
+	later(b, a, a, CONV, one.packet, .Ok, text = "one");
+	// Alice's echo of what Bob already opened.
+	echo := fx_send(a, CONV, b, "echoed later");
+	echo_at := keep(b, a, a, CONV, echo.packet);
+	later(a, a, b, CONV, echo.packet, .Ok, text = "echoed later", at = echo_at);
+	// Committed but never handed to the carrier, as after a crash.
+	unsent := fx_send(a, CONV, b, "never handed over", handed = false);
+	array_add(*fx_lines, .{kind = #char "O", to = 0, packet = unsent.packet});
+	later(b, a, a, CONV, unsent.packet, .Ok, text = "never handed over");
+
+	// Alice answers Carol's Hello; Carol hasn't seen the Init, so her prekeys wait in her database.
+	h2 := ask(c, .Hello, peer = a, id = CONV2);
+	ask(c, .Sent, h2.packet);
+	land(c, a, CONV2, h2.packet);
+	init2 := ask(a, .Accept, h2.packet, peer = c, id = CONV2);
+	ask(a, .Sent, init2.packet);
+	at2 := keep(a, a, c, CONV2, init2.packet);
+	later(c, a, a, CONV2, init2.packet, .Ok, .Accept, at = at2);
+	later(c, a, a, CONV2, fx_send(a, CONV2, c, "through a session Carol hasn't opened").packet, .Ok, text = "through a session Carol hasn't opened");
+	// A Hello Carol hasn't seen, so Bob's prekeys wait too.
+	h3 := ask(b, .Hello, peer = c, id = CONV3);
+	ask(b, .Sent, h3.packet);
+	at3 := keep(b, b, c, CONV3, h3.packet);
+	later(c, b, b, CONV3, h3.packet, .Hello, at = at3);
+
+	// A group: pairwise sessions, then Alice's chain and messages. Bob has opened the first; Carol nothing.
+	for * h: m {
+		gh := ask(h, .Hello, id = GROUP_CONV);
+		ask(h, .Sent, gh.packet);
+		for * x: m if x != h {
+			gi := ask(x, .Accept, gh.packet, peer = h, id = GROUP_CONV);
+			ask(x, .Sent, gi.packet);
+			keep(h, x, x, GROUP_CONV, gi.packet);
+		}
+	}
+	g1 := fx_send(a, GROUP_CONV, null, "hello group", members = .[b, c]);
+	check(g1.packets.count == 3, "the first group send gives the chain to both");
+	for g1.packets {
+		at, r := keep(b, a, a, GROUP_CONV, it);
+		// Carol's gift is the one Bob can't open.
+		if it_index == g1.packets.count - 1 later(c, a, a, GROUP_CONV, it, .Ok, text = "hello group", at = at);
+		else if r.result == .Ok later(c, a, a, GROUP_CONV, it, .No_Session, at = at);
+		else later(c, a, a, GROUP_CONV, it, .Ok, .Sender_Key, at = at);
+	}
+	g2 := fx_send(a, GROUP_CONV, null, "a second, under the same chain", members = .[b, c]);
+	later(b, a, a, GROUP_CONV, g2.packet, .Ok, text = "a second, under the same chain");
+	later(c, a, a, GROUP_CONV, g2.packet, .Ok, text = "a second, under the same chain");
+
+	// What each refetch gives now is what every later build must give.
+	for fx_stored {
+		r := fx_receive(*m[it.to], *m[it.from], *m[it.peer], it.conv, it.at, it.packet);
+		l := it;
+		l.result, l.content, l.silent, l.text, l.target, l.reply = r.result, r.content, r.silent, r.out_text, r.target, r.reply;
+		if r.files.count l.file = r.files[0].name;
+		array_add(*fx_lines, l);
+	}
+	for * m stop(it.d);
+	if failed { print("make-fixture: % failed, nothing written\n", failed); exit(1); }
+
+	// The database key is left unwrapped, so the fixture opens on every machine and OS.
+	make_directory_if_it_does_not_exist(out, recursive = true);
+	for 0..2 {
+		path := tprint("%/%.db", tmp, it);
+		db := sqlite.open(path);
+		st := sqlite.prepare(db, "SELECT value FROM meta WHERE key = 'db_key';");
+		sqlite.step(st);
+		plain, ok := keys.unwrap_secret(array_copy(sqlite.col_blob(st, 0)));
+		sqlite.finalize(st);
+		check(ok && plain.count == 32 && sqlite.run(db, "UPDATE meta SET value = ? WHERE key = 'db_key';", plain), "unwrap the database key");
+		sqlite.exec(db, "PRAGMA wal_checkpoint(TRUNCATE);");
+		sqlite.close(db);
+		copy_file(path, tprint("%/%.db", out, it));
+		write_entire_file(tprint("%/%.key", out, it), cast(string) keys.encode(ks[it]));
+	}
+	write_entire_file(tprint("%/file.bin", out), cast(string) ct);
+	sb: String_Builder;
+	for fx_lines {
+		print_to_builder(*sb, "% % % % % % % % % % % % % %\n", ifx it.kind == #char "O" then "O" else "R", it.to, it.from, it.peer, hex(it.conv), hex(it.at), hex(it.packet),
+			cast(int) it.result, cast(int) it.content, cast(int) it.silent, hex(it.text), hex(it.target), hex(it.reply), hex(it.file));
+	}
+	write_entire_file(tprint("%/packets.txt", out), builder_to_string(*sb));
+	if failed exit(1);
+	print("make-fixture: wrote %, % lines\n", out, fx_lines.count);
+}
+
+// fixtures opens every release's fixture, as an update would, in a copy under dir.
+fixtures :: (dir: string) {
+	releases: [..]string;
+	visit_files(FIXTURES, false, *releases, (info: *File_Visit_Info, out: *[..]string) { array_add(out, copy_string(info.short_name)); }, visit_files = false, visit_directories = true);
+	check(releases.count > 0, "release fixtures exist");
+	limit = e2e.MAX_PACKET;
+	next_delivery = 1_000_000_000; // Past every delivery a fixture holds.
+	for release: releases {
+		src := tprint("%/%", FIXTURES, release);
+		tag := tprint("%/fixtures/%", dir, release);
+		make_directory_if_it_does_not_exist(tag, recursive = true);
+		m: [3]Client;
+		for * m {
+			path := tprint("%/%.db", tag, it_index);
+			check(copy_file(tprint("%/%.db", src, it_index), path), tprint("% copies", release));
+			// The fixture's clock stopped when it was made; its prekeys would otherwise expire under it.
+			now := to_milliseconds(current_time_consensus());
+			db := sqlite.open(path);
+			sqlite.run(db, "UPDATE prekeys SET created = ?, answered = CASE answered WHEN 0 THEN 0 ELSE ? END;", now, now);
+			sqlite.close(db);
+			kf := read_entire_file(tprint("%/%.key", src, it_index));
+			k, ok := keys.decode(xx kf);
+			check(ok, tprint("% key file % opens", release, it_index));
+			it.* = .{d = e2e.start(path), me = e2e.identity_of(k), party = FIXTURE_PARTIES[it_index]};
+		}
+		a, b, c := *m[0], *m[1], *m[2];
+		ct := cast([]u8) read_entire_file(tprint("%/file.bin", src));
+		data := repeat(FIXTURE_FILE, 1000);
+		n := 0;
+		hello3: string;
+		for raw: split(read_entire_file(tprint("%/packets.txt", src)), "\n") {
+			fl := split(trim_right(raw, "\r"), " ");
+			if fl.count != 14 continue;
+			n += 1;
+			to := *m[parse_int(*fl[1])];
+			from := *m[parse_int(*fl[2])];
+			conv, packet := unhex(fl[4]), unhex(fl[6]);
+			if fl[0] == "O" {
+				found := false;
+				for ask(to, .Outbox).outbox if it.packet == packet found = true;
+				check(found, tprint("% line %: the outbox still offers an unsent packet", release, n));
+				continue;
+			}
+			if to == c && from == b && conv == CONV3 hello3 = packet;
+			r := fx_receive(to, from, *m[parse_int(*fl[3])], conv, unhex(fl[5]), packet);
+			result, content, silent := cast(e2e.Result) parse_int(*fl[7]), cast(e2e.Content) parse_int(*fl[8]), parse_int(*fl[9]) != 0;
+			ok := r.result == result;
+			if result == .Ok ok &&= r.content == content && r.silent == silent && (content == .Sender_Key || r.out_text == unhex(fl[10])) && r.target == unhex(fl[11]) && r.reply == unhex(fl[12]);
+			if fl[13] != "-" {
+				ok &&= r.files.count == 1 && r.files[0].name == unhex(fl[13]);
+				if ok { got, fok := e2e.open_file(r.files[0], ct); ok &&= fok && cast(string) got == data; }
+			}
+			check(ok, tprint("% line %: got % % \"%\", want % % \"%\"", release, n, r.result, r.content, r.out_text, result, content, unhex(fl[10])));
+		}
+		check(n > 20 && hello3.count > 0, tprint("% has its packets", release));
+
+		// Every session goes on: pairs both ways, Bob's old Hello answered, the group under a new chain and an old one.
+		after :: (from: *Client, to: *Client, id: string, what: string, release: string) {
+			s := fx_send(from, id, to, what);
+			r := fx_receive(to, from, from, id, copy_string(delivery()), s.packet);
+			check(r.result == .Ok && r.out_text == what, tprint("% goes on: % (%)", release, what, r.result));
+		}
+		after(a, b, CONV, "after the update", release);
+		after(b, a, CONV, "and back", release);
+		after(c, a, CONV2, "carol answers", release);
+		i3 := ask(c, .Accept, hello3, peer = b, id = CONV3);
+		ask(c, .Sent, i3.packet);
+		r := fx_receive(b, c, c, CONV3, copy_string(delivery()), i3.packet);
+		check(i3.result == .Ok && r.result == .Ok && r.content == .Accept, tprint("% opens an Init to a Hello it sent", release));
+		after(b, c, CONV3, "a new session on old prekeys", release);
+		g := fx_send(b, GROUP_CONV, null, "bob's chain, after", members = .[a, c]);
+		for x: (*Client).[a, c] {
+			for g.packets fx_receive(x, b, b, GROUP_CONV, copy_string(delivery()), it);
+			check(fx_receive(x, b, b, GROUP_CONV, copy_string(delivery()), g.packet).out_text == "bob's chain, after", tprint("% group: a new chain", release));
+		}
+		g = fx_send(a, GROUP_CONV, null, "alice's old chain", members = .[b, c]);
+		check(g.packets.count == 1, tprint("% group: Alice's chain is kept", release));
+		for x: (*Client).[b, c]
+			check(fx_receive(x, a, a, GROUP_CONV, copy_string(delivery()), g.packet).out_text == "alice's old chain", tprint("% group: the old chain goes on", release));
+		hits := ask(b, .Search, peer = a, text = "first message");
+		check(hits.hits.count == 1 && hits.hits[0].author == a.party, tprint("% search reads stored texts", release));
+		load := ask(a, .Load, peer = b);
+		check(load.has_session && memcmp(load.peer_root.data, b.me.root.data, 32) == 0, tprint("% knows Bob's root", release));
+		for * m stop(it.d);
+	}
+}
+
+hex :: (s: string) -> string {
+	if !s return "-";
+	DIGITS :: "0123456789abcdef";
+	out := alloc_string(s.count * 2,, temp);
+	for 0..s.count-1 { out[it * 2] = DIGITS[s[it] >> 4]; out[it * 2 + 1] = DIGITS[s[it] & 15]; }
+	return out;
+}
+
+unhex :: (s: string) -> string {
+	if s == "-" return "";
+	nib :: (c: u8) -> u8 { return xx ifx c >= #char "a" then c - #char "a" + 10 else c - #char "0"; }
+	out := alloc_string(s.count / 2);
+	for 0..out.count-1 out[it] = (nib(s[it * 2]) << 4) | nib(s[it * 2 + 1]);
+	return out;
 }
 
 Sql :: struct { #as using job: e2e.Job; text: string; value: s64; }
