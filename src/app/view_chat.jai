@@ -2175,9 +2175,12 @@ composer :: (ch: *dc.Channel, cs: *Chat_State) {
 			} else if res == .Submit {
 				text := trim(ui.editor_text(*cs.editor), " \t\n\r\x0b\x0c");
 				jump_to_present(ch.id);
-				if composer_send(ch, mentions_convert(emoji_convert_shortcodes(text, ch.id), ch)) cs.scroll_target = 0;
-				ui.editor_set_text(*cs.editor, "");
-				length = 0;
+				// a send that can't go yet (offline, a file still being read) keeps the text
+				if composer_send(ch, mentions_convert(emoji_convert_shortcodes(text, ch.id), ch)) {
+					cs.scroll_target = 0;
+					ui.editor_set_text(*cs.editor, "");
+					length = 0;
+				}
 			} else if res == .Escape {
 				// handed on: a popout or menu over the chat takes it first, else the end of
 				// overlays() runs channel_escape, the official keybind's order

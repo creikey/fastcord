@@ -1,0 +1,8 @@
+# Enter while the message can't be sent (offline here: fixtures have no connection) keeps the text
+# instead of erasing it.
+wait 5
+click 600 683
+type keep me
+key enter
+wait 3
+expect_input "keep me"

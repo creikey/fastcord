@@ -418,7 +418,6 @@
 - [ ] Friends: no Message Requests. DMs from people who aren't friends (`is_message_request`) and DMs Discord flagged as spam (`is_spam`) show as ordinary DMs and notify like them. The official client holds them under Friends > Message Requests, with Accept and Ignore, and a separate Spam list. Nothing in `src` reads either flag.
 - [ ] Apps: slash-command and context-menu replies lack the "X used /command" header.
 - [ ] Video (Windows): Go Live shares whole screens only (DXGI desktop duplication); sharing one window needs Windows.Graphics.Capture. The cursor isn't drawn into the stream, and rotated monitors aren't handled (`capture_windows.jai`).
-- [ ] Bug: pressing Enter while a staged file is still being read, or while offline, erases the composer text and sends nothing (`view_chat.jai`: `editor_set_text(*cs.editor, "")` runs even when `composer_send` returns false).
 - [ ] Forwards: the layout (bar, "Forwarded" header, origin footer) is guessed; compare with a real forward in the official client, including one from a DM or a channel we can't see.
 - [ ] Accessibility: blind users can't use fastcord at all. The official client (Chromium) works with Narrator, NVDA and VoiceOver. fastcord's immediate-mode UI exposes nothing to UI Automation (Windows), NSAccessibility (macOS) or AT-SPI (Linux), so a screen reader sees an empty window.
   - Build an accessibility tree each frame from the widget IDs `src/ui` already has: role (button, link, list item, text, edit field), name, value, state and bounds. Diff it against the last frame and report only the changes, as AccessKit does. AccessKit is Rust, so use it as a design reference, not a dependency.
@@ -767,3 +766,4 @@
 - [x] Profiles: someone online only on their phone gets the phone-shaped status instead of the dot on their avatars (`avatar_with_status`, `assets/icons/status-mobile.svg`; `tests/ui/rail/custom_status_others.txt`).
 - [x] Voice: the sidebar shows a voice channel's N/limit ("01/05") and lists who is on a stage (`channel_row`; `tests/ui/call/sidebar.txt`).
 - [x] Voice: server mute and deafen show: red in the sidebar and on call tiles, the panel's mic / headphones crossed out in red with "Server Muted" on hover, and they stop sending and playing here (`server_muted`; `tests/ui/call/server_mute.txt`).
+- [x] Bug: Enter while the message can't be sent yet (a staged file still being read, or offline) keeps the composer text instead of erasing it (`tests/ui/send_keeps_text.txt`).
