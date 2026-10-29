@@ -558,9 +558,10 @@ Feature_Op :: enum u8 {
 	Member_Verify; // the rules screen: GET /guilds/{id}/member-verification (tag 0), PUT /guilds/{id}/requests/@me (1)
 }
 
-// e2e_bundle_call: a hosted server's prekey bundles, PUT /users/@me/e2e-bundle or GET /users/{id}/e2e-bundle.
-e2e_bundle_call :: (c: *Client, method: string, path: string, body := "", tag: u64 = 0) {
-	f_submit(c, .{op = .E2E_Bundle, tag = tag, method = method, path = path, body = body});
+// e2e_bundle_call: a hosted server's prekey bundles, PUT /users/@me/e2e-bundle or GET /users/{id}/e2e-bundle
+// (for the DM channel_id, tag the member).
+e2e_bundle_call :: (c: *Client, method: string, path: string, body := "", channel_id: Snowflake = 0, tag: u64 = 0) {
+	f_submit(c, .{op = .E2E_Bundle, tag = tag, channel_id = channel_id, method = method, path = path, body = body});
 }
 
 Feature_Result :: struct {

@@ -18,6 +18,7 @@
 % becomes the owner once they accept on their device. You'll stay a member.
 % blocked message —|% blocked messages —
 % byte|% bytes
+% can't read your messages here yet.##text
 % changed the group icon.
 % day ago|% days ago
 % day|% days
@@ -1201,6 +1202,7 @@ No logs yet
 No members found
 No members have this role yet.
 No message requests.
+No one else is on this server yet.
 No one is speaking yet
 No one's around right now.
 No one's here yet
@@ -1510,6 +1512,7 @@ Search or create a post...
 Search sounds
 Searching...
 Select Friends
+Select Members
 Select a Language
 Select a channel
 Select a channel or category…
@@ -1565,6 +1568,7 @@ Set a custom status
 Set up AutoMod to automatically filter messages in this server with the rules below. Members with Manage Server or Administrator are exempt.
 Sets camera video quality for all channel participants. Choose Auto for optimal performance.
 Setting up encryption: % needs to open fastcord once.
+Setting up encryption: no one here can read it yet.
 Several people are typing...
 Severe Profanity
 Sexual Content
@@ -1800,6 +1804,7 @@ Turkish
 Turn off encryption
 Turns this back into a regular server. Community-only features stop working.
 Two-factor authentication is enabled on this account.
+Type the name of a member
 Type the username of a friend
 Type your answer
 UPLOADED BY
@@ -1961,6 +1966,7 @@ You are at the % server limit.
 You are banned from this server.
 You aren't in that server. Ask a member for an invite.
 You can add % more friend.|You can add % more friends.
+You can add % more member.|You can add % more members.
 You can add comments before uploading.\nHold shift to upload directly.
 You can add friends with their Discord username.
 You can add up to 5 accounts.

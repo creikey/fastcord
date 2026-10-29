@@ -1353,7 +1353,9 @@ group_dm_icon :: (id: string, ch: *dc.Channel, size: float32) -> *ui.Box {
 	g.style.radius = all4(size / 2);
 	g.style.bg = group_icon_color(ch.id);
 	if ch.icon != "" {
-		set_remote_image(g, tprint("https://cdn.discordapp.com/channel-icons/%/%.webp?size=%", cast(u64) ch.id, ch.icon, cast(int)(size * 2)));
+		url := tprint("https://cdn.discordapp.com/channel-icons/%/%.webp?size=%", cast(u64) ch.id, ch.icon, cast(int)(size * 2));
+		if on_hosted() for hosted if it.client == app.client url = tprint("https://%/channel-icons/%/%.png?size=%", it.inv.id_hex, cast(u64) ch.id, ch.icon, cast(int)(size * 2)); // serve's own
+		set_remote_image(g, url);
 	} else { ui.parent(g); defer ui.pop_parent();
 		inner := ui.box("i", .Floating_X | .Floating_Y);
 		inner.semantic_size = .[ui.px(size * 0.625), ui.px(size * 0.625)];

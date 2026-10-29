@@ -37,6 +37,7 @@ Staged :: struct {
 	poster: media.Video_Image;
 	sealed: bool; // staged in an encrypted DM: what uploads is its ciphertext (e2e.seal_file)
 	file: e2e.File; // then its key, digest, size and dimensions
+	ct: []u8; // and its ciphertext, which the outbox keeps with the message until it's sent
 }
 
 Att_Notice :: enum u8 {
@@ -381,6 +382,7 @@ attachments_frame :: () {
 		// In an encrypted DM only the ciphertext uploads, under a name and type that say nothing.
 		u.sealed, u.file = r.sealed.data != null, r.file;
 		if app.client && u.sealed u.draft = dc.upload_draft(app.client, r.channel, ENCRYPTED_NAME, "application/octet-stream", r.sealed, u.origin);
+		if u.sealed { u.ct = r.sealed; r.sealed = .[]; }
 		else if app.client u.draft = dc.upload_draft(app.client, r.channel, u.filename, u.mime, r.data, u.origin);
 		if u.kind == .Video {
 			u.data = r.data; // the poster player reads it in place
@@ -441,19 +443,22 @@ attachments_for_send :: (channel_id: dc.Snowflake) -> []dc.Draft_Attachment, boo
 }
 
 // attachments_sealed: what the encrypted message says of each staged file, in upload order (temp), or
-// false when one was staged before encryption was on (or after it went off) and so uploads in the open.
-attachments_sealed :: (channel_id: dc.Snowflake, sealing: bool) -> []e2e.File, bool {
+// false when one was staged before encryption was on (or after it went off) and so uploads in the open;
+// and their ciphertexts (views).
+attachments_sealed :: (channel_id: dc.Snowflake, sealing: bool) -> []e2e.File, bool, [][]u8 {
 	l := table_find_pointer(*att.by_channel, channel_id);
-	if !l || !l.count return .[], true;
+	if !l || !l.count return .[], true, .[];
 	out := NewArray(l.count, e2e.File,, temp);
+	cts := NewArray(l.count, []u8,, temp);
 	for l.* {
-		if it.sealed != sealing return .[], false;
+		if it.sealed != sealing return .[], false, .[];
+		cts[it_index] = it.ct;
 		f := *out[it_index];
 		f.* = it.file;
 		f.name, f.mime, f.description, f.spoiler = it.filename, it.mime, it.description, it.spoiler;
 		if it.kind == .Video && it.poster.y f.width, f.height = it.poster.size[0], it.poster.size[1];
 	}
-	return out, true;
+	return out, true, cts;
 }
 
 // After send: remember what the pending message uploads (its progress bar), clear the cards
@@ -899,6 +904,7 @@ staged_free :: (u: *Staged) {
 	free(u.description);
 	free(u.mime);
 	free(u.data.data);
+	free(u.ct.data);
 }
 
 Thumb_Draw :: struct {

@@ -1,0 +1,32 @@
+# E2E 8 on a hosted server: the DM header's Add to DM makes a group of server members, always encrypted.
+# Bob's and Cy's bundles start their sessions at once; Dee has none, so a Hello waits for her and the
+# composer says she can't read the group yet. A message goes out under our sender key.
+wait 5
+serve_join
+serve_member Bob bundle
+serve_member Cy bundle
+serve_member Dee
+settle 3
+click 36 157
+settle 3
+click 1089 244
+settle 2
+click_text "Message @Bob"
+settle 3
+expect_visible "You accepted encryption."
+click 1204 57
+settle 1
+shot build/ui-hosted_group_dm-picker.png
+expect_visible "Select Members"
+click_text "Cy"
+click_text "Dee"
+click_text "Create Group DM"
+settle 5
+expect_visible "Dee can't read your messages here yet."
+type hello group
+key enter
+settle 3
+expect_visible "hello group"
+expect_not_visible "Couldn't encrypt the message."
+shot build/ui-hosted_group_dm.png
+expect_served

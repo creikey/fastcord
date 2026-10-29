@@ -40,6 +40,8 @@ Encrypted_Channel :: struct {
 	verified: bool;
 	key_changed: bool;
 	hello_asked: bool; // A hosted DM sent its Hello by itself.
+	peers: [..]dc.Snowflake; // Who we have a session with: in a group, who gets our sender key.
+	asked: [..]dc.Snowflake; // A hosted group: whose bundles were asked for (this run).
 }
 
 // A hosted server keeps each member's prekey bundle (serve's `e2e_bundle`), a Hello any of their DMs may
@@ -96,8 +98,8 @@ encrypted_frame :: () {
 			f := e2e.File.{width = g.width, height = g.height, name = tprint("tenor.%", slice(g.mime, 6, g.mime.count - 6)), mime = g.mime};
 			ct := e2e.seal_file(b.data, *f);
 			draft := dc.upload_draft(app.client, g.channel, ENCRYPTED_NAME, "application/octet-stream", ct, "gif_picker");
+			encrypted_post(dm, "", false, files = .[f], atts = .[.{handle = draft, filename = ENCRYPTED_NAME}], cts = .[ct]);
 			array_free(ct);
-			encrypted_post(dm, "", false, files = .[f], atts = .[.{handle = draft, filename = ENCRYPTED_NAME}]);
 		} else {
 			toast_show(L("Couldn't get that GIF."), false);
 		}
@@ -133,6 +135,8 @@ encrypted_frame :: () {
 			case .Load;
 				ch.encrypted, ch.has_session, ch.loaded, ch.pending = r.encrypted, r.has_session, true, false;
 				ch.has_peer, ch.peer_root, ch.verified, ch.key_changed = r.has_peer, r.peer_root, r.verified, r.key_changed;
+				ch.peers.count = 0;
+				for r.peers array_add(*ch.peers, dc.parse_snowflake(it));
 			case .Receive;
 				id := dc.parse_snowflake(r.delivery);
 				sh := find_or_add(*ee.shown, id);
@@ -150,9 +154,11 @@ encrypted_frame :: () {
 					for ee.bundled if carrier_name(it.client) == r.conv.carrier remove it; // maybe ours was answered: publish another
 				}
 				// On a hosted server every DM is encrypted, so a peer's Hello is answered without asking; so is a
-				// member's in a group we encrypt (E2E 8), as each pair needs a session.
+				// member's in a group we encrypt (E2E 8), as each pair needs a session. A hosted group member
+				// we already have one with started theirs from our bundle meanwhile: no second.
 				dm := dc.channel_get(store(), dc.parse_snowflake(r.conv.id));
-				auto := begins_with(r.conv.carrier, HOSTED) || (dm && dm.kind == .Group_DM && ch.encrypted);
+				hosted_group := begins_with(r.conv.carrier, HOSTED) && dm && dm.kind == .Group_DM;
+				auto := ifx hosted_group then !array_find(ch.peers, dc.parse_snowflake(r.from)) else begins_with(r.conv.carrier, HOSTED) || (dm && dm.kind == .Group_DM && ch.encrypted);
 				if r.result == .Hello && !r.accepted && r.from != r.conv.me && auto && identity_ready() {
 					sh.accepted = true;
 					q := e2e.request(.Accept, .{r.conv.carrier, r.conv.id, r.conv.me, r.from, fc_text.MAX_PACKET}, packet = r.packet);
@@ -168,9 +174,10 @@ encrypted_frame :: () {
 				ee.generation += 1;
 				ch.encrypted, ch.has_session, ch.loaded = true, true, false;
 				send_packet(r, .Ok, "", .Accept);
-				// In a group the others need a session with us too: our own Hello, once.
+				// In a group on Discord the others need a session with us too: our own Hello, once. On a hosted
+				// server each answers our bundle instead (encrypting).
 				dm := dc.channel_get(store(), dc.parse_snowflake(r.conv.id));
-				if dm && dm.kind == .Group_DM && !ch.hello_asked send_hello(dm.id);
+				if dm && dm.kind == .Group_DM && !ch.hello_asked && !begins_with(r.conv.carrier, HOSTED) send_hello(dm.id);
 			case .Send;
 				if r.result != .Ok {
 					toast_show(ifx r.result == .Too_Long then L("That's too long to send encrypted.") else L("Couldn't encrypt the message."), false);
@@ -189,8 +196,10 @@ encrypted_frame :: () {
 				c := carrier_client(r.conv.carrier);
 				for r.outbox if c && it.carrier == r.conv.carrier {
 					channel, text := dc.parse_snowflake(it.conversation), carrier_text(it.carrier, it.packet);
+					atts := NewArray(it.files.count, dc.Draft_Attachment,, temp);
+					for f: it.files atts[it_index] = .{handle = dc.upload_draft(c, channel, ENCRYPTED_NAME, "application/octet-stream", xx f), filename = ENCRYPTED_NAME};
 					if it.replaces dc.edit_message(c, channel, dc.parse_snowflake(it.replaces), text);
-					else post_packet(c, channel, it.carrier, it.packet, it.silent);
+					else post_packet(c, channel, it.carrier, it.packet, it.silent, atts);
 					e2e_submit(e2e.request(.Sent, packet = it.packet));
 				}
 		}
@@ -470,18 +479,34 @@ group_members :: (r: *e2e.Request, ch: *dc.Channel) {
 	if ch && ch.kind == .Group_DM for ch.recipient_ids array_add(*r.members, sprint("%", it));
 }
 
-// encrypting: what the composer sends in this channel goes encrypted. A hosted DM always does, and sends
-// its Hello the first time it's shown.
+// encrypting: what the composer sends in this channel goes encrypted. A hosted DM always does, and starts
+// its session the first time it's shown; a hosted group starts one with each member it has none with,
+// and with each who joins later.
 encrypting :: (ch: *dc.Channel) -> bool {
 	if !encrypted_dm(ch) return false;
 	if !on_hosted() return encrypted_channel(ch.id).encrypted;
 	e := encrypted_channel(ch.id);
-	if e.loaded && !e.encrypted && !e.has_session && !e.hello_asked && identity_ready() && e2e_db && ch.recipient_ids.count {
-		// The peer's bundle if serve has one (encrypted_bundle_receive), else a Hello for them to answer.
+	if !e.loaded || !identity_ready() || !e2e_db return true;
+	// The member's bundle if serve has one (encrypted_bundle_receive), else a Hello for them to answer.
+	if ch.kind == .DM && !e.encrypted && !e.has_session && !e.hello_asked && ch.recipient_ids.count {
 		find_or_add(*ee.channels, ch.id).hello_asked = true;
-		dc.e2e_bundle_call(app.client, "GET", tprint("/users/%/e2e-bundle", ch.recipient_ids[0]), tag = ch.id);
+		dc.e2e_bundle_call(app.client, "GET", tprint("/users/%/e2e-bundle", ch.recipient_ids[0]), channel_id = ch.id, tag = xx ch.recipient_ids[0]);
+	}
+	if ch.kind == .Group_DM for ch.recipient_ids if !array_find(e.peers, it) && !array_find(e.asked, it) {
+		array_add(*find_or_add(*ee.channels, ch.id).asked, it);
+		dc.e2e_bundle_call(app.client, "GET", tprint("/users/%/e2e-bundle", it), channel_id = ch.id, tag = xx it);
 	}
 	return true;
+}
+
+// encrypted_unreached: a group's members who get nothing we send yet, with no session with us (temp).
+encrypted_unreached :: (ch: *dc.Channel) -> []dc.Snowflake {
+	out: [..]dc.Snowflake;
+	out.allocator = temp;
+	if !ch || ch.kind != .Group_DM || !encrypting(ch) return out;
+	e := encrypted_channel(ch.id);
+	if e.loaded for ch.recipient_ids if !array_find(e.peers, it) array_add(*out, it);
+	return out;
 }
 
 // encrypted_channel loads the DM's encryption state once; until then it reports encryption off.
@@ -512,12 +537,17 @@ encrypted_toggle :: (dm: *dc.Channel) {
 // encrypted_bundle_receive answers the peer's bundle a hosted DM asked for, which starts the session at once,
 // or sends a Hello when they have none.
 encrypted_bundle_receive :: (r: *dc.Feature_Result) {
-	if !r.tag return; // a published one
+	if !r.channel_id return; // a published one
 	bundle: []u8;
 	ok := false;
 	if r.ok bundle, ok = fc_text.decode(dc.fstr(dc.vmap(r.body), "bundle"), fc_text.MAX_BUNDLE);
-	if !ok { send_hello(r.tag); return; }
-	q := e2e.request(.Accept, conversation(r.tag, limit = fc_text.MAX_PACKET), packet = xx bundle);
+	if !ok {
+		// In a group one Hello reaches every member who has no bundle.
+		dm := dc.channel_get(store(), r.channel_id);
+		if !(dm && dm.kind == .Group_DM && encrypted_channel(dm.id).hello_asked) send_hello(r.channel_id);
+		return;
+	}
+	q := e2e.request(.Accept, conversation(r.channel_id, xx r.tag, limit = fc_text.MAX_PACKET), packet = xx bundle);
 	q.me = my_identity();
 	e2e_submit(q);
 }
@@ -534,10 +564,10 @@ send_hello :: (dm_id: dc.Snowflake) {
 // (already uploading as ciphertext). It returns false to keep the text, e.g. while the peer hasn't
 // accepted yet.
 encrypted_send :: (dm: *dc.Channel, text: string, silent: bool, reply: dc.Snowflake = 0, atts: []dc.Draft_Attachment = .[]) -> bool {
-	files, sealed := attachments_sealed(dm.id, true);
-	if !atts files = .[]; // a forward's note takes none of the composer's
+	files, sealed, cts := attachments_sealed(dm.id, true);
+	if !atts files, cts = .[], .[]; // a forward's note takes none of the composer's
 	if !sealed && atts { toast_show(L("Remove the files added before encryption was on: they'd go unencrypted."), false); return false; }
-	return encrypted_post(dm, text, silent, reply, files, atts);
+	return encrypted_post(dm, text, silent, reply, files, atts, cts = cts);
 }
 
 // encrypted_sticker sends a sticker in an encrypted DM: its ID, format and name inside the packet.
@@ -567,6 +597,8 @@ encrypted_forward :: (m: *dc.Message, dest: *dc.Channel) {
 	files.allocator = temp;
 	atts: [..]dc.Draft_Attachment;
 	atts.allocator = temp;
+	cts: [..][]u8;
+	cts.allocator = temp;
 	for sh.files {
 		b := table_find_pointer(*blobs, file_key(it));
 		if !b || b.state != .Ready continue;
@@ -576,6 +608,7 @@ encrypted_forward :: (m: *dc.Message, dest: *dc.Channel) {
 			ct := e2e.seal_file(b.data, *f);
 			array_add(*atts, .{handle = dc.upload_draft(app.client, dest.id, ENCRYPTED_NAME, "application/octet-stream", ct, "forward"), filename = ENCRYPTED_NAME});
 			array_add(*files, f);
+			array_add(*cts, array_copy(ct,, temp));
 			array_free(ct);
 		} else {
 			array_add(*atts, .{handle = dc.upload_draft(app.client, dest.id, name, it.mime, b.data, "forward"), filename = name, spoiler = it.spoiler});
@@ -588,18 +621,19 @@ encrypted_forward :: (m: *dc.Message, dest: *dc.Channel) {
 			item, ok := dc.sticker_item(store(), it);
 			array_add(*stickers, tprint("% % %", it, ifx ok then item.format_type else 1, ifx ok then item.name else ""));
 		}
-		encrypted_post(dest, sh.text, false, files = files, atts = atts, stickers = stickers);
+		encrypted_post(dest, sh.text, false, files = files, atts = atts, stickers = stickers, cts = cts);
 	} else {
 		dc.send_message(app.client, dest.id, sh.text, .{attachments = atts, sticker_ids = sh.stickers});
 	}
 }
 
-// encrypted_post sends one encrypted message: text, a reply, files with their uploads (atts, in the same
-// order) and stickers. false, with a toast, while it can't go.
-encrypted_post :: (dm: *dc.Channel, text: string, silent: bool, reply: dc.Snowflake = 0, files: []e2e.File = .[], atts: []dc.Draft_Attachment = .[], stickers: []string = .[]) -> bool {
+// encrypted_post sends one encrypted message: text, a reply, files with their uploads (atts, and their
+// ciphertexts cts, in the same order) and stickers. false, with a toast, while it can't go.
+encrypted_post :: (dm: *dc.Channel, text: string, silent: bool, reply: dc.Snowflake = 0, files: []e2e.File = .[], atts: []dc.Draft_Attachment = .[], stickers: []string = .[], cts: [][]u8 = .[]) -> bool {
 	ch := encrypted_channel(dm.id);
 	if !ch.has_session {
-		toast_show(tprint(ifx on_hosted() then L("Setting up encryption: % needs to open fastcord once.") else L("% hasn't accepted encryption yet."), dm_name(dm)), false);
+		if dm.kind == .Group_DM && on_hosted() toast_show(L("Setting up encryption: no one here can read it yet."), false);
+		else toast_show(tprint(ifx on_hosted() then L("Setting up encryption: % needs to open fastcord once.") else L("% hasn't accepted encryption yet."), dm_name(dm)), false);
 		return false;
 	}
 	most := e2e.max_text(e2e.MAX_PACKET);
@@ -611,6 +645,7 @@ encrypted_post :: (dm: *dc.Channel, text: string, silent: bool, reply: dc.Snowfl
 	r.files = files_copy(files);
 	for * r.files if it.name.count > 200 { free(it.name); it.name = copy_string("file"); } // a Body holds names to 255 bytes
 	for stickers array_add(*r.stickers, copy_string(it));
+	for cts array_add(*r.uploads, copy_string(xx it)); // kept with the outbox entry: a resend after a crash carries them
 	if atts table_set(*ee.attachments, r, array_copy(atts)); // their names are ENCRYPTED_NAME: static
 	e2e_submit(r);
 	return true;
@@ -736,6 +771,34 @@ encrypted_profile :: (dm: *dc.Channel, pad: float32) {
 	line("sn_b", pad);
 	if adm_button("verify", ifx ch.verified then L("Unverify") else L("Mark as Verified"), ifx ch.verified then .Secondary else .Primary) encrypted_verify(dm.id, !ch.verified);
 	ui.pop_parent();
+}
+
+// encrypted_unreached_bar sits atop an encrypted group's composer and names the members who get nothing we
+// send yet, having no session with us: they haven't opened fastcord since joining, or it's still starting.
+encrypted_unreached_bar :: (dm: *dc.Channel) {
+	who := encrypted_unreached(dm);
+	if !who return;
+	names: [..]string;
+	names.allocator = temp;
+	for who array_add(*names, dc.user_name(store(), it, 0, "unknown"));
+	bar := row("unreached");
+	bar.semantic_size = .[ui.pct(1), ui.px(40)];
+	bar.cross_align = .Center;
+	{ ui.parent(bar); defer ui.pop_parent();
+		spacer(.X, 16);
+		icon("warn", "warning", 16, T("--status-warning"));
+		spacer(.X, 8);
+		p := ui.box(tprint(L("% can't read your messages here yet.##text"), join(..names, separator = ", ",, temp)), .Draw_Text | .Clip);
+		p.semantic_size = .[ui.fill(), ui.px(18)];
+		p.style.font = F(.Normal);
+		p.style.font_size = 14;
+		p.style.line_height = 18;
+		p.style.text_color = T("--text-muted");
+		spacer(.X, 12);
+	}
+	sep := ui.box("unreachedsep", .Draw_Background);
+	sep.semantic_size = .[ui.pct(1), ui.px(1)];
+	sep.style.bg = T("--border-subtle");
 }
 
 // encrypted_warning sits atop the composer while the peer's identity root is new and unconfirmed.

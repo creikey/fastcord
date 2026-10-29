@@ -2928,6 +2928,7 @@ composer :: (ch: *dc.Channel, cs: *Chat_State) {
 		stack.style.radius = all4(8);
 		ui.push_parent(stack);
 		encrypted_warning(ch);
+		encrypted_unreached_bar(ch);
 		if ma.replying != 0 reply_bar();
 		uploads_bar(ch.id);
 		box := row("composer", .Clickable);

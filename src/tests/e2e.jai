@@ -345,6 +345,17 @@ conversation :: (dir: string, max: int) {
 	check(in_outbox(ask(*a, .Outbox), s.packet), "unsent packet stays in the outbox with its conversation");
 	ask(*a, .Sent, s.packet);
 	check(!in_outbox(ask(*a, .Outbox), s.packet), "sent packet leaves the outbox");
+	// A message's files are kept with it, so a resend after a crash carries them.
+	fr := e2e.request(.Send, .{CARRIER, CONV, a.party, b.party, limit}, "with files");
+	fr.me = a.me;
+	array_add(*fr.uploads, copy_string("first ciphertext"), copy_string("second"));
+	e2e.submit(a.d, fr);
+	wait(fr);
+	files_back := false;
+	for ask(*a, .Outbox).outbox if it.packet == fr.packet files_back = it.files.count == 2 && it.files[0] == "first ciphertext" && it.files[1] == "second";
+	check(fr.result == .Ok && files_back, "the outbox gives back a message's files, in order");
+	ask(*a, .Sent, fr.packet);
+	check(count(a.d, "SELECT count(*) FROM outbox_files") == 0, "and drops them once it's sent");
 
 	// Unknown key-share: the carrier copies B's Hello into A's conversation with M, shown as M's. A
 	// accepts, and the carrier moves A's Init into A and B's conversation. B must not open it as A's.

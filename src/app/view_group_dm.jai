@@ -2,7 +2,8 @@
 // header) and the group DM member list.
 // Strings from the client: "Select Friends", "You can add N more friends.",
 // "Type the username of a friend", "Create DM" / "Create Group DM",
-// "You don't have any friends to add!". A group DM holds 10 people (you + 9).
+// "You don't have any friends to add!". A group DM holds 10 people (you + 9). On a hosted server, which
+// has no friends, it lists the server's members, and its group DMs are always encrypted (encrypted.jai).
 
 GDM_W :: 440;
 GDM_PAD :: 16;
@@ -79,7 +80,7 @@ group_dm_overlay :: () {
 	c := dc.channel_get(s, gdm.from_dm);
 	if c && c.kind == .DM && c.recipient_ids.count > 0 fixed = c.recipient_ids[0];
 	group := ifx c && c.kind == .Group_DM then c else null; // adding to this group DM
-	friends := friends_sorted();
+	friends := ifx on_hosted() then members_sorted() else friends_sorted();
 	q := to_lower_copy(trim(ui.editor_text(*gdm.search)),, temp);
 	has_q :: (text: string, q: string) -> bool { return contains(to_lower_copy(text,, temp), q); }
 	shown: [..]dc.Snowflake;
@@ -98,7 +99,7 @@ group_dm_overlay :: () {
 		h.semantic_size = .[ui.pct(1), ui.px(24)];
 		{ ui.parent(h); defer ui.pop_parent();
 			spacer(.X, GDM_PAD);
-			label(L("Select Friends"), .Semibold, 20, T("--text-strong"), 24);
+			label(ifx on_hosted() then L("Select Members") else L("Select Friends"), .Semibold, 20, T("--text-strong"), 24);
 		}
 		spacer(.Y, 4);
 		sub := row("sub");
@@ -106,7 +107,7 @@ group_dm_overlay :: () {
 		{ ui.parent(sub); defer ui.pop_parent();
 			spacer(.X, GDM_PAD);
 			left := GDM_MAX_OTHERS - others;
-			msg := tprint(Lp("You can add % more friend.", "You can add % more friends.", left), left);
+			msg := tprint(ifx on_hosted() then Lp("You can add % more member.", "You can add % more members.", left) else Lp("You can add % more friend.", "You can add % more friends.", left), left);
 			label(msg, .Normal, 12, ifx left <= 0 then T("--text-feedback-critical") else T("--text-muted"), 16);
 		}
 		spacer(.Y, 16);
@@ -125,7 +126,7 @@ group_dm_overlay :: () {
 				e.cross_align = .Center;
 				{ ui.parent(e); defer ui.pop_parent();
 					spacer(.Y, 18);
-					label(L("You don't have any friends to add!"), .Medium, 14, T("--text-muted"), 18);
+					label(ifx on_hosted() then L("No one else is on this server yet.") else L("You don't have any friends to add!"), .Medium, 14, T("--text-muted"), 18);
 				}
 			}
 			for uid, i: shown {
@@ -223,6 +224,17 @@ Gdm_State :: struct {
 
 gdm: Gdm_State;
 
+// members_sorted: a hosted server's other members, by name.
+members_sorted :: () -> []dc.Snowflake {
+	s := store();
+	out: [..]dc.Snowflake;
+	out.allocator = temp;
+	ml := ifx s.guild_order.count then dc.member_list_get(s, s.guild_order[0]) else null;
+	if ml for ml.items if it.user_id && it.user_id != s.me array_add_if_unique(*out, it.user_id);
+	sort_users_by_name(out);
+	return out;
+}
+
 friends_sorted :: () -> []dc.Snowflake {
 	s := store();
 	out: [..]dc.Snowflake;
@@ -273,7 +285,7 @@ gdm_search_row :: () {
 			f.text = text;
 			f.style.text_color = T("--text-default");
 			if text == "" {
-				f.text = ifx gdm.selected.count == 0 then L("Type the username of a friend") else "";
+				f.text = ifx gdm.selected.count == 0 then ifx on_hosted() then L("Type the name of a member") else L("Type the username of a friend") else "";
 				f.style.text_color = T("--input-placeholder-text-default");
 			}
 			app.ui.focus = f.key;

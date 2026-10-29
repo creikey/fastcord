@@ -764,7 +764,8 @@ chat_header :: (ch: *dc.Channel) {
 		encrypted := encrypting(ch);
 		if encrypted_dm(ch) && ch.kind == .DM { tools = .["lock", "phone-call", "pin", "group-plus", "user-circle"]; }
 		if encrypted_dm(ch) && ch.kind == .Group_DM { tools = .["lock", "phone-call", "pin", "group-plus", "group"]; }
-		if encrypted_dm(ch) && on_hosted() { tools = .["user-circle"]; } // always encrypted; no calls, pins or groups there yet
+		if encrypted_dm(ch) && on_hosted() { tools = .["group-plus", "user-circle"]; } // always encrypted; no calls or pins there yet
+		if encrypted_dm(ch) && on_hosted() && ch.kind == .Group_DM { tools = .["group-plus", "group"]; }
 		if ch.kind == .Guild_Voice || ch.kind == .Guild_Stage_Voice { tools = .["chat"]; } // the call view's header: Show Chat
 		for name: tools {
 			b := ui.box(name, .Clickable);

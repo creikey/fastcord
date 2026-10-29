@@ -87,7 +87,7 @@ destroy :: (d: *Db) {
 // here knows what they mean.
 
 Op :: enum u8 {
-	Load;          // conv -> encrypted, has_session, and the peer's has_peer, peer_root, verified, key_changed
+	Load;          // conv -> encrypted, has_session, peers, and the peer's has_peer, peer_root, verified, key_changed
 	Set_Encrypted; // conv, encrypted
 	Set_Verified;  // conv, peer_root, verified: marks conv.peer's root verified or not, and clears key_changed
 	Hello;         // conv, me -> packet, or result Too_Long when a Hello doesn't fit the carrier
@@ -110,7 +110,7 @@ Result :: enum u8 {
 	Failed;
 }
 
-Outbox_Item :: struct { carrier, conversation, packet: string; replaces: string; silent: bool; } // replaces: the delivery an Edit or Delete rewrites
+Outbox_Item :: struct { carrier, conversation, packet: string; replaces: string; silent: bool; files: [..]string; } // replaces: the delivery an Edit or Delete rewrites; files: what Send's uploads held
 Hit :: struct { delivery, author, text: string; } // author: the party that sent it
 
 // The caller fills the inputs, submits, and once done reads the outputs and calls free_request.
@@ -131,6 +131,7 @@ Request :: struct {
 	stickers: [..]string;
 	members: [..]string; // Send in a group (E2E 8): its other parties, each given our sender key.
 	packets: [..]string; // Send in a group: every packet to hand the carrier, in order.
+	uploads: [..]string; // Send: the opaque files the message goes with, kept with its outbox entry until Sent.
 	encrypted: bool;
 	verified: bool;
 	peer_root: [32]u8;
@@ -143,6 +144,7 @@ Request :: struct {
 	key_changed: bool; // Load: the peer's root replaced an earlier one. Receive: a Hello with a root other than the peer's.
 	outbox: [..]Outbox_Item;
 	hits: [..]Hit;
+	peers: [..]string; // Load: every party we have a session with in conv (in a group, who gets our sender key).
 }
 
 // request makes a heap Request owning copies of conv, text and packet.
@@ -165,10 +167,14 @@ free_request :: (r: *Request) {
 	array_free(r.packets);
 	for r.members free(it);
 	array_free(r.members);
-	for r.outbox { free(it.carrier); free(it.conversation); free(it.packet); free(it.replaces); }
+	for r.uploads free(it);
+	array_free(r.uploads);
+	for r.outbox { free(it.carrier); free(it.conversation); free(it.packet); free(it.replaces); for it.files free(it); array_free(it.files); }
 	array_free(r.outbox);
 	for r.hits { free(it.delivery); free(it.author); crypto.zero(xx it.text); free(it.text); }
 	array_free(r.hits);
+	for r.peers free(it);
+	array_free(r.peers);
 	free(r);
 }
 
@@ -232,6 +238,9 @@ SQL,
 	"ALTER TABLE outbox ADD COLUMN replaces BLOB; ALTER TABLE outbox ADD COLUMN silent INTEGER NOT NULL DEFAULT 0;",
 	// E2E 8: each sender's chains in a group, ours with the members it was given to.
 	"CREATE TABLE sender_keys(conversation BLOB NOT NULL, sender BLOB NOT NULL, id BLOB NOT NULL, sealed BLOB NOT NULL, members BLOB, updated INTEGER NOT NULL, PRIMARY KEY(conversation, sender, id)) WITHOUT ROWID;",
+	// The opaque files a packet goes with (E2E 7's ciphertexts), kept with its outbox entry so a resend
+	// after a crash carries them too.
+	"CREATE TABLE outbox_files(hash BLOB NOT NULL, n INTEGER NOT NULL, data BLOB NOT NULL, PRIMARY KEY(hash, n)) WITHOUT ROWID;",
 ];
 
 // Search opens at most this many of a conversation's texts and returns at most MAX_HITS of them.
@@ -281,6 +290,14 @@ run_request :: (d: *Db, r: *Request) {
 				r.has_peer = true;
 				memcpy(r.peer_root.data, sqlite.col_blob(st, 0).data, 32);
 				r.verified, r.key_changed = sqlite.col_int(st, 1) != 0, sqlite.col_int(st, 2) != 0;
+			}
+			sqlite.finalize(st);
+			st = sqlite.prepare(db, "SELECT DISTINCT peer FROM sessions WHERE conversation = ? LIMIT 64;");
+			sqlite.bind_all(st, conv);
+			while sqlite.step(st) == .Row {
+				p := cast(string) sqlite.col_blob(st, 0);
+				nul := find_index_from_left(p, 0);
+				if nul >= 0 array_add(*r.peers, copy_string(advance(p, nul + 1)));
 			}
 			sqlite.finalize(st);
 		case .Set_Encrypted;
@@ -353,7 +370,9 @@ run_request :: (d: *Db, r: *Request) {
 			none: [32]u8;
 			if !commit_sent(d, r, conv, *s, false, none, none, body) r.result = .Failed;
 		case .Sent;
-			sqlite.run(db, "DELETE FROM outbox WHERE hash = ?;", cast([]u8) crypto.blake3(xx r.packet));
+			hash := crypto.blake3(xx r.packet);
+			sqlite.run(db, "DELETE FROM outbox WHERE hash = ?;", cast([]u8) hash);
+			sqlite.run(db, "DELETE FROM outbox_files WHERE hash = ?;", cast([]u8) hash);
 		case .Receive;
 			receive(d, r, conv);
 		case .Outbox;
@@ -362,8 +381,13 @@ run_request :: (d: *Db, r: *Request) {
 				c := cast(string) sqlite.col_blob(st, 0);
 				nul := find_index_from_left(c, 0);
 				if nul < 0 continue;
-				array_add(*r.outbox, .{copy_string(slice(c, 0, nul)), copy_string(slice(c, nul + 1, c.count - nul - 1)), copy_string(xx sqlite.col_blob(st, 1)),
-					copy_string(xx sqlite.col_blob(st, 2)), sqlite.col_int(st, 3) != 0});
+				item := array_add(*r.outbox);
+				item.carrier, item.conversation, item.packet = copy_string(slice(c, 0, nul)), copy_string(slice(c, nul + 1, c.count - nul - 1)), copy_string(xx sqlite.col_blob(st, 1));
+				item.replaces, item.silent = copy_string(xx sqlite.col_blob(st, 2)), sqlite.col_int(st, 3) != 0;
+				fs := sqlite.prepare(db, "SELECT data FROM outbox_files WHERE hash = ? ORDER BY n;");
+				sqlite.bind_all(fs, cast([]u8) crypto.blake3(xx item.packet));
+				while sqlite.step(fs) == .Row array_add(*item.files, copy_string(xx sqlite.col_blob(fs, 0)));
+				sqlite.finalize(fs);
 			}
 			sqlite.finalize(st);
 		case .Search;
@@ -403,10 +427,16 @@ commit_sent :: (d: *Db, r: *Request, conv: []u8, s: *Session, new: bool, peer_ro
 			else sqlite.run(db, "UPDATE sessions SET state = ?, updated = ? WHERE id = ?;", seal(d, ad("sessions", s.id), s), now_ms(), cast([]u8) s.id))
 		&& store_plaintext(d, hash, ifx replaces(r.content) then r.target else "", body, conv, r.conv.me)
 		&& sqlite.run(db, "INSERT INTO outbox(hash, conversation, packet, replaces, silent) VALUES(?, ?, ?, nullif(?, X''), ?);", cast([]u8) hash, conv, cast([]u8) r.packet, cast([]u8) r.target, r.silent)
+		&& outbox_files(db, hash, r.uploads)
 		&& (!new || (set_encrypted(db, conv, true) && note_peer(db, peer, peer_root) && forget_own_sender_key(db, r, conv)))
 		&& sqlite.exec(db, "COMMIT;");
 	if !ok { log_error("e2e: cannot save a sent message: %", sqlite.errmsg(db)); sqlite.exec(db, "ROLLBACK;"); }
 	return ok;
+}
+
+outbox_files :: (db: *sqlite.DB, hash: [32]u8, files: []string) -> bool {
+	for files if !sqlite.run(db, "INSERT INTO outbox_files(hash, n, data) VALUES(?, ?, ?);", cast([]u8) hash, it_index, cast([]u8) it) return false;
+	return true;
 }
 
 receive :: (d: *Db, r: *Request, conv: []u8) {
@@ -429,6 +459,7 @@ receive :: (d: *Db, r: *Request, conv: []u8) {
 			// Our own send coming back from the carrier: it claims the plaintext and leaves the outbox.
 			sqlite.run(db, "UPDATE plaintexts SET delivery = ? WHERE hash = ?;", cast([]u8) r.delivery, cast([]u8) hash);
 			sqlite.run(db, "DELETE FROM outbox WHERE hash = ?;", cast([]u8) hash);
+			sqlite.run(db, "DELETE FROM outbox_files WHERE hash = ?;", cast([]u8) hash);
 		} else if first != r.delivery {
 			r.result = .Repeated;
 		}
@@ -629,6 +660,7 @@ group_send :: (d: *Db, r: *Request, conv: []u8, body: []u8) {
 			conv, me, cast([]u8) k.id, seal(d, ad("sender_keys", k.id), *k), cast([]u8) members, now_ms())
 		&& store_plaintext(d, crypto.blake3(packet), "", body, conv, r.conv.me)
 		&& sqlite.run(db, "INSERT INTO outbox(hash, conversation, packet, silent) VALUES(?, ?, ?, ?);", cast([]u8) crypto.blake3(packet), conv, packet, r.silent)
+		&& outbox_files(db, crypto.blake3(packet), r.uploads)
 		&& sqlite.exec(db, "COMMIT;");
 	if !ok { sqlite.exec(db, "ROLLBACK;"); r.result = .Failed; for r.packets free(it); r.packets.count = 0; return; }
 	r.packet = copy_string(xx packet);
