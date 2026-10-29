@@ -1476,6 +1476,7 @@ message_row :: (m: *dc.Message, grouped: bool, new_day: bool, show_new: bool) ->
 				}
 				if m.content && !m.forwarded invite_cards_view(m);
 				if m.content && !m.forwarded fc_invite_cards_view(m);
+				if m.poll message_poll_view(m);
 				if m.reactions reactions_view(m);
 			}
 			spacer(.X, ifx editing then cast(float32) MSG_EDIT_PAD_R else cast(float32) MSG_PAD_R); // the edit form reaches further right

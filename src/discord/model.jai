@@ -256,6 +256,7 @@ Message :: struct {
 	flags: u64;
 	nonce: string;
 	webhook_name: string; // a webhook's name for this message alone ("" otherwise); each post may pick its own
+	poll: *Poll; // store-owned, polls.jai; null for none
 	pending: bool; // sent by us, not yet acknowledged by the gateway
 	failed: bool;
 }

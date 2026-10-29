@@ -1,0 +1,9 @@
+# Polls under their messages: a closed one shows its results with the winner marked, an open one takes a
+# pick (the Vote button appears) before any results show.
+wait 5
+shot build/ui-poll-before.png
+click_text "Ramen"
+wait 5
+expect_visible "Vote"
+expect_visible "10 votes · Poll closed"
+expect_visible "70%"

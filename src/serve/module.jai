@@ -23,6 +23,7 @@ mls :: #import "voice_mls";
 #load "expressions.jai";
 #load "roles.jai";
 #load "webhook_formats.jai";
+#load "polls.jai";
 
 ALPN :: "fc/1";
 HEARTBEAT_INTERVAL_MS :: 41_250;
@@ -154,7 +155,7 @@ open :: (path: string) -> *Server, bool {
 	if !ok return null, false;
 	s := New(Server);
 	s.db = db;
-	if !sqlite.exec(db, SCHEMA) || !sqlite.exec(db, SOUND_SCHEMA) || !sqlite.exec(db, SETTINGS_SCHEMA) || !sqlite.exec(db, STICKER_SCHEMA) || !sqlite.exec(db, ROLE_SCHEMA) { close(s); return null, false; }
+	if !sqlite.exec(db, SCHEMA) || !sqlite.exec(db, SOUND_SCHEMA) || !sqlite.exec(db, SETTINGS_SCHEMA) || !sqlite.exec(db, STICKER_SCHEMA) || !sqlite.exec(db, ROLE_SCHEMA) || !sqlite.exec(db, POLL_SCHEMA) { close(s); return null, false; }
 	// Files made before these columns; each fails harmlessly once it exists.
 	sqlite.exec(db, "ALTER TABLE users ADD COLUMN left INTEGER NOT NULL DEFAULT 0;");
 	sqlite.exec(db, "ALTER TABLE users ADD COLUMN banned INTEGER NOT NULL DEFAULT 0;");
@@ -1391,7 +1392,7 @@ iso :: (id: s64) -> string { return iso_ms((id >> 22) + DISCORD_EPOCH_MS); }
 // the JSON forward_snapshot made: {channel_id, message_id, message}.
 message_value :: (s: *Server, id: s64, channel: s64, author: s64, author_name: string, content: string, edited: s64 = 0,
 		reply: s64 = 0, referenced := etf.Value.{}, nonce := "", reactions := etf.Value.{}, mentions := etf.Value.{}, everyone := false, pinned := false,
-		kind := DEFAULT, attachments := etf.Value.{}, embeds := etf.Value.{}, flags := 0, thread := etf.Value.{}, webhook := false, snapshot := "", stickers := "") -> etf.Value {
+		kind := DEFAULT, attachments := etf.Value.{}, embeds := etf.Value.{}, flags := 0, thread := etf.Value.{}, webhook := false, snapshot := "", stickers := "", poll := etf.Value.{}) -> etf.Value {
 	m := etf.map_builder(20,, temp);
 	if stickers {
 		v, err := etf.from_json(stickers,, temp);
@@ -1439,10 +1440,11 @@ message_value :: (s: *Server, id: s64, channel: s64, author: s64, author_name: s
 	if nonce etf.map_put(*m, "nonce", etf.vstring(nonce));
 	if reactions.kind == .List && reactions.list.count etf.map_put(*m, "reactions", reactions);
 	if thread.kind == .Map etf.map_put(*m, "thread", thread);
+	if poll.kind == .Map etf.map_put(*m, "poll", poll);
 	return etf.vmap(etf.map_done(*m));
 }
 
-MESSAGE_SELECT :: "SELECT m.id, m.channel, m.author, coalesce(m.username, u.name), m.content, coalesce(m.edited, 0), coalesce(m.reply, 0), m.everyone, m.pinned_at, m.type, m.flags, (SELECT 1 FROM channels t WHERE t.id = m.id AND t.type = 11), m.webhook , m.snapshot, m.stickers FROM messages m JOIN users u ON u.id = m.author";
+MESSAGE_SELECT :: "SELECT m.id, m.channel, m.author, coalesce(m.username, u.name), m.content, coalesce(m.edited, 0), coalesce(m.reply, 0), m.everyone, m.pinned_at, m.type, m.flags, (SELECT 1 FROM channels t WHERE t.id = m.id AND t.type = 11), m.webhook , m.snapshot, m.stickers, (SELECT 1 FROM polls p WHERE p.message = m.id) FROM messages m JOIN users u ON u.id = m.author";
 
 // Members who can't see a new message yet count it as a mention until they read past it.
 // Takes the channel, the author, whether it pings everyone, and the message.
@@ -1501,7 +1503,8 @@ row_message :: (s: *Server, st: *sqlite.Stmt, nested := false, viewer: s64 = 0, 
 	}
 	return message_value(s, id, sqlite.col_int(st, 1), sqlite.col_int(st, 2), copy_string(sqlite.col_text(st, 3),, temp),
 		copy_string(sqlite.col_text(st, 4),, temp), sqlite.col_int(st, 5), reply, referenced, nonce, reactions, etf.vlist(mentioned), sqlite.col_int(st, 7) != 0, !sqlite.col_is_null(st, 8), kind, attachments_locked(s, id), embeds_locked(s, id, (sqlite.col_int(st, 10) & SUPPRESS_EMBEDS) != 0), sqlite.col_int(st, 10),
-		ifx sqlite.col_is_null(st, 11) then etf.Value.{} else channel_locked(s, id), sqlite.col_int(st, 12) != 0, copy_string(sqlite.col_text(st, 13),, temp), copy_string(sqlite.col_text(st, 14),, temp));
+		ifx sqlite.col_is_null(st, 11) then etf.Value.{} else channel_locked(s, id), sqlite.col_int(st, 12) != 0, copy_string(sqlite.col_text(st, 13),, temp), copy_string(sqlite.col_text(st, 14),, temp),
+		ifx sqlite.col_is_null(st, 15) then etf.Value.{} else poll_locked(s, id, viewer));
 }
 
 // drop_files deletes the files of the messages in set (SQL listing message IDs, which may use ?1), run
@@ -1686,6 +1689,7 @@ archive_idle :: (s: *Server) {
 	if ms < next || !compare_and_swap(*s.next_sweep, next, ms + 60 * 1000) return;
 	threads, events: [..]etf.Value;
 	threads.allocator, events.allocator = temp, temp;
+	polls: []etf.Value;
 	{
 		locks.guard(*s.db_mu);
 		ids: [..]s64;
@@ -1719,7 +1723,9 @@ archive_idle :: (s: *Server) {
 			ok := sqlite.run(s.db, "UPDATE events SET status = CASE WHEN channel IS NULL AND end <= ?1 THEN ?2 ELSE ?3 END WHERE id = ?4;", unix, EVENT_COMPLETED, next[it_index], it);
 			if ok array_add(*events, event_locked(s, it));
 		}
+		polls = close_polls_locked(s);
 	}
+	for polls broadcast(s, "MESSAGE_UPDATE", it);
 	for threads broadcast(s, "THREAD_UPDATE", it);
 	for events broadcast(s, "GUILD_SCHEDULED_EVENT_UPDATE", it);
 }
@@ -2100,6 +2106,7 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 		if kind >= 0 && !perms return json_error(c, 403, 50001, "Missing Access");
 	}
 	if ok && parts.count == 3 && parts[1] == "permissions" return channel_permission(c, req, user, channel, parts[2]); // roles.jai
+	if ok && parts.count >= 4 && parts[1] == "polls" return poll_route(c, req, user, channel, parts, query); // polls.jai
 	typing := parts.count == 2 && parts[1] == "typing";
 	if typing && req.method != "POST" return json_error(c, 405, 0, "405: Method Not Allowed");
 	if ok && parts.count == 1 return edit_channel(c, req, user, channel);
@@ -2195,7 +2202,10 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 		nonce, _ := etf.map_get(v.map, "nonce");
 		atts, _ := etf.map_get(v.map, "attachments");
 		sticker_ids, _ := etf.map_get(v.map, "sticker_ids");
-		has_files := (atts.kind == .List && atts.list.count > 0) || (sticker_ids.kind == .List && sticker_ids.list.count > 0);
+		poll_v, has_poll := etf.map_get(v.map, "poll");
+		question, poll_answers, poll_hours, multiselect, poll_ok := poll_create(poll_v); // polls.jai
+		if has_poll && poll_v.kind != .Nil && !poll_ok return json_error(c, 400, 50035, "Invalid Form Body");
+		has_files := (atts.kind == .List && atts.list.count > 0) || (sticker_ids.kind == .List && sticker_ids.list.count > 0) || poll_ok;
 		flags_v, _ := etf.map_get(v.map, "flags");
 		if flags_v.kind != .Int && flags_v.kind != .Nil return json_error(c, 400, 50035, "Invalid Form Body");
 		// A send may set only these, as on Discord; any other bit is dropped.
@@ -2289,6 +2299,8 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 			}
 			ok := sqlite.exec(s.db, "BEGIN;")
 				&& sqlite.run(s.db, "INSERT INTO messages(id, channel, author, content, reply, everyone, nonce, flags, snapshot, stickers) VALUES(?, ?, ?, coalesce(?, ''), ?, ?, nullif(?, ''), ?, nullif(?, ''), nullif(?, ''));", id, channel, user, content.s, reply, cast(int) everyone, nonce_s, flags, snapshot, stickers);
+			if ok && poll_ok ok = sqlite.run(s.db, "INSERT INTO polls(message, question, answers, expiry, multiselect) VALUES(?, ?, ?, ?, ?);",
+				id, question, poll_answers, (id >> 22) + DISCORD_EPOCH_MS + poll_hours * 3_600_000, cast(int) multiselect);
 			if forward && ok ok = sqlite.run(s.db, "INSERT INTO snapshot_files(message, attachment) SELECT ?, id FROM attachments WHERE message = ?;", id, source);
 			for ids if ok ok = sqlite.run(s.db, "INSERT OR IGNORE INTO mentions(message, user) SELECT ?, id FROM users WHERE id = ? AND left = 0;", id, it);
 			bad_file := false;

@@ -54,6 +54,7 @@ zstd :: #import "zstd";
 #load "model.jai";
 #load "netwrap.jai";
 #load "permissions.jai";
+#load "polls.jai";
 #load "procinfo.jai";
 #if OS == .MACOS #load "procinfo_darwin.jai";
 #if OS == .LINUX #load "procinfo_linux.jai";

@@ -61,6 +61,7 @@ voice :: #import "voice";
 #load "custom_status.jai";
 #load "notify.jai";
 #load "pickers_data.jai";
+#load "polls.jai";
 #load "pickers_emoji.jai";
 #load "pickers_gif.jai";
 #load "pickers_lottie.jai";

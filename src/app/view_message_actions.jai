@@ -494,6 +494,7 @@ message_menu :: () {
 	if can_forward(m) array_add(*items, .{label = "Forward", icon = "arrow-angle-right-up", sep = !in_chat});
 	if in_chat && can_thread_from(m) array_add(*items, .{label = "Create Thread", icon = "thread"});
 	if can_publish(m) array_add(*items, .{label = "Publish", icon = "announcements"});
+	if m.poll && m.author_id == s.me && !m.poll.finalized array_add(*items, .{label = "End Poll Now", icon = "clock"});
 	// official group order: Copy Text, Pin / Unpin Message, Apps, Mark Unread, Copy Message Link
 	array_add(*items, .{label = "Copy Text", icon = "copy", sep = true});
 	if dc.can_pin_message(s, m) array_add(*items, .{label = ifx m.pinned then "Unpin Message" else "Pin Message", icon = "pin"});
@@ -623,6 +624,9 @@ message_menu :: () {
 				case "Publish";
 					if net_action() dc.crosspost_message(app.client, m.channel_id, m.id);
 					else m.flags |= 1; // offline (fixture) runs: CROSSPOSTED
+				case "End Poll Now";
+					if net_action() dc.poll_expire(app.client, m.channel_id, m.id);
+					else m.poll.finalized = true; // offline (fixture) runs
 				case "Remove All Reactions";
 					if app.ui_mods & .Shift remove_reactions_now(m); else ma.confirming, ma.confirm = m.id, Confirm.Remove_Reactions;
 				}

@@ -211,6 +211,7 @@ free_message :: (s: *Store, m: *Message) {
 	array_free(m.reactions);
 	array_free(m.sticker_ids);
 	array_free(m.mentions);
+	free_poll(s, m.poll);
 }
 
 free_message_list :: (s: *Store, l: *Message_List) {
@@ -626,6 +627,7 @@ parse_message_content :: (s: *Store, msg: *Message, m: etf.Map) {
 		for items array_add(*msg.sticker_ids, fsnow(vmap(it), "id"));
 		note_sticker_items(s, items);
 	}
+	if vhas(m, "poll") parse_poll(s, msg, fmap(m, "poll"));
 }
 
 new_message :: (s: *Store) -> Message {
@@ -1289,6 +1291,9 @@ store_apply_dispatch :: (s: *Store, name: string, data: V, now: s64) -> bool {
 					array_ordered_remove_by_index(*l.messages, i);
 				}
 			}
+		case "MESSAGE_POLL_VOTE_ADD"; #through;
+		case "MESSAGE_POLL_VOTE_REMOVE";
+			apply_poll_vote(s, d, name == "MESSAGE_POLL_VOTE_ADD");
 		case "MESSAGE_REACTION_ADD";
 			apply_reaction(s, d, true);
 		case "MESSAGE_REACTION_REMOVE";
