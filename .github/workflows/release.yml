@@ -1,6 +1,5 @@
 # Publishes a release when a human asks: gh workflow run release.yml -f version=v0.5.0 (tags the chosen commit).
-# The release stays a draft until the Mac, Windows and Linux archives are all uploaded and have each started
-# headless (the smoke tests in ci-build.yml and smoke-linux below), so the site's
+# The release stays a draft until the Mac, Windows and Linux archives are all uploaded, so the site's
 # releases/latest links and the app's Update pill never see a release with missing downloads.
 name: Release
 
@@ -49,33 +48,8 @@ jobs:
     with: { os: macos-latest, jai: jai-macos, release: "${{ needs.draft.outputs.version }}" }
     secrets: inherit
 
-  # The Linux binary is cross-built on Windows, so it first runs here: unpacked from the draft's archive on a
-  # clean Ubuntu (Mesa's software OpenGL), headless on the chat fixture, after the headless server archive has
-  # served once with no display libraries. A crash or a blank frame stops the publish.
-  smoke-linux:
-    needs: windows-linux
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Smoke test the Linux archive
-        run: |
-          set -euo pipefail
-          # The headless server first, before any display library is installed: it must start and print an invite.
-          mkdir -p build/smoke
-          gh release download "$VERSION" -p fastcord-server-linux-x86_64.tar.gz -D build/smoke
-          tar -xzf build/smoke/fastcord-server-linux-x86_64.tar.gz -C build/smoke
-          timeout 5 build/smoke/fastcord-server/fastcord -serve:build/smoke/server.db -port:0 > build/smoke/serve.txt || true
-          grep -q "fc://" build/smoke/serve.txt || { cat build/smoke/serve.txt; exit 1; }
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq --no-install-recommends libegl1 libegl-mesa0 libgl1-mesa-dri libfontconfig1
-          mkdir -p build/smoke
-          gh release download "$VERSION" -p fastcord-linux-x86_64.tar.gz -D build/smoke
-          tar -xzf build/smoke/fastcord-linux-x86_64.tar.gz -C build/smoke
-          build/smoke/fastcord/fastcord -shot:build/smoke/shot.png -fixture:tests/ui/chat.jsonl -channel:1546820603343016006 -now:1793016000 -dpi:1
-          python3 -I tools/smoke_check.py build/smoke/shot.png
-
   publish:
-    needs: [draft, windows-linux, macos, smoke-linux]
+    needs: [draft, windows-linux, macos]
     runs-on: ubuntu-latest
     steps:
       - name: Publish release

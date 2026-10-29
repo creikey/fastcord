@@ -96,13 +96,13 @@ timings for frames over 25 ms, and on exit the focused field's text. A frame stu
 report (the lock the UI thread waits on and its holder) to stderr and to `logs/` beside `<state>`. All
 mutexes go through `locks`, which panics at the faulty call on misuse instead of deadlocking.
 
-CI (`.github/workflows/ci.yml`) builds on Windows, then macOS and Linux. Pushes don't trigger it; run it
-by hand with `gh workflow run ci.yml`. Jai is private, so CI
+No CI runs tests or checks; GitHub Actions only builds releases (`release.yml`, below), deploys the site and
+records the Discord host versions. Jai is private, so the release build
 downloads it from `ci/jai-server`, a Fly.io app (`fastcord-jai`) that serves `/data/jai.zip` only to the
 `JAI_PASSWORD` repo secret; never put Jai, or a link to it, anywhere public. To rotate the password, set it
 with `fly secrets set JAI_PASSWORD=...` and `gh secret set JAI_PASSWORD`. To update Jai, zip it (top folder
 `jai/`) and `curl -T jai.zip -H "Authorization: Bearer <UPLOAD_PASSWORD>" https://fastcord-jai.fly.dev/jai.zip`;
-the upload password is a separate Fly secret that CI never holds.
+the upload password is a separate Fly secret that GitHub never holds.
 
 ## Performance
 
@@ -196,7 +196,7 @@ On Windows SChannel's hello equals the 1.0.9266 capture too; Linux (libssl) is t
 Releases ship only when a human asks for one, usually by asking Claude. First run
 `python3 -I tools/vendor_check.py`: it lists vendored libraries with a newer upstream release or an OSV.dev
 advisory (each `vendor/<lib>/README.md` has an `- Upstream: <repo> <tag or commit>` line); update any with a
-security fix (`vendor-check.yml` also checks monthly and opens an issue). Push `main`, pick the version
+security fix. Push `main`, pick the version
 after `gh release list -L 1`, and run `.github/workflows/release.yml`:
 
 ```sh

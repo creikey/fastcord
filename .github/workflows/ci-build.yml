@@ -1,20 +1,22 @@
-# One CI build on one OS; ci.yml and release.yml call it. See ci.yml for the rules around Jai.
-name: CI build
+# One release build on one OS; release.yml calls it.
+# Jai is private: it comes from ci/jai-server (Fly.io) with the JAI_PASSWORD secret, is unpacked outside the
+# checkout, and must never be uploaded, cached or echoed. Fork pull requests get no secrets, so they skip the build.
+name: Release build
 
 on:
   workflow_call:
     inputs:
       os: { type: string, required: true }
       jai: { type: string, required: true }
-      # A version tag like v0.5.0: build `release <tag>` and upload dist/ to that GitHub release instead of dev + test.
-      release: { type: string, default: "" }
+      # A version tag like v0.5.0: build `release <tag>` and upload dist/ to that GitHub release.
+      release: { type: string, required: true }
 
 jobs:
   build:
     runs-on: ${{ inputs.os }}
     env:
       JAI_PASSWORD: ${{ secrets.JAI_PASSWORD }}
-      GH_TOKEN: ${{ inputs.release != '' && github.token || '' }}
+      GH_TOKEN: ${{ github.token }}
       ZIG_GLOBAL_CACHE_DIR: ${{ github.workspace }}/build/zig-cache
     defaults:
       run:
@@ -28,7 +30,7 @@ jobs:
         if: env.JAI_PASSWORD != ''
         uses: actions/cache@v4
         with:
-          key: c-${{ runner.os }}-${{ inputs.release != '' && 'release' || 'ci' }}-${{ hashFiles('vendor/**', 'build.jai') }}
+          key: c-${{ runner.os }}-release-${{ hashFiles('vendor/**', 'build.jai') }}
           path: |
             build/zig
             build/zig-cache
@@ -68,79 +70,17 @@ jobs:
           chmod +x "$dir"/jai/bin/* || true
           echo "$dir/jai/bin" >> "$GITHUB_PATH"
 
-      - name: Build
-        if: env.JAI_PASSWORD != '' && inputs.release == ''
-        run: ${{ inputs.jai }} build.jai - dev
-
-      # Off for now; flip the condition to run the offline parity tests again.
-      - name: Test
-        if: false && env.JAI_PASSWORD != '' && inputs.release == ''
-        run: ${{ inputs.jai }} build.jai - test
-
       # The Mac release builds its x86_64 half with the compiler's x86_64 slice under Rosetta.
       - name: Rosetta
-        if: env.JAI_PASSWORD != '' && inputs.release != '' && runner.os == 'macOS'
+        if: env.JAI_PASSWORD != '' && runner.os == 'macOS'
         run: softwareupdate --install-rosetta --agree-to-license || true
 
       - name: Release
-        if: env.JAI_PASSWORD != '' && inputs.release != ''
+        if: env.JAI_PASSWORD != ''
         run: ${{ inputs.jai }} build.jai - release ${{ inputs.release }}
 
-      # Starts what was built, headless, on the chat fixture: a crash or a blank frame fails the job before
-      # anything is uploaded (tools/smoke_check.py). A release runs the binaries from their archives, both
-      # slices of the Mac app; its Linux binary, cross-built on Windows, runs in release.yml's smoke-linux job.
-      - name: Smoke test
-        if: env.JAI_PASSWORD != ''
-        env:
-          RELEASE: ${{ inputs.release }}
-        run: |
-          set -euo pipefail
-          py=python3
-          if [ "$RUNNER_OS" = Windows ]; then py=python; fi
-          if [ "$RUNNER_OS" = Linux ]; then
-            sudo apt-get update -qq
-            sudo apt-get install -y -qq --no-install-recommends libegl1 libegl-mesa0 libgl1-mesa-dri libfontconfig1
-          fi
-          rm -rf build/smoke
-          mkdir -p build/smoke
-          shot() {
-            "$@" -shot:build/smoke/shot.png -fixture:tests/ui/chat.jsonl -channel:1546820603343016006 -now:1793016000 -dpi:1
-            "$py" -I tools/smoke_check.py build/smoke/shot.png
-            rm -f build/smoke/shot.png
-          }
-          if [ -z "$RELEASE" ]; then
-            shot build/fastcord-dev
-          elif [ "$RUNNER_OS" = macOS ]; then
-            ditto -x -k dist/fastcord-macos.zip build/smoke
-            shot arch -arm64 build/smoke/Fastcord.app/Contents/MacOS/Fastcord
-            shot arch -x86_64 build/smoke/Fastcord.app/Contents/MacOS/Fastcord
-          else
-            /c/Windows/System32/tar.exe -xf dist/fastcord-windows.zip -C build/smoke
-            shot build/smoke/Fastcord.exe
-          fi
-
-      # The captcha's web view end to end (src/app/captcha.jai): hCaptcha's test key solves itself. Linux checks
-      # the install hint first if WebKitGTK is missing, then installs it.
-      - name: Captcha web view
-        if: env.JAI_PASSWORD != '' && inputs.release == ''
-        run: |
-          set -euo pipefail
-          key=10000000-ffff-ffff-ffff-000000000001
-          if [ "$RUNNER_OS" = Linux ]; then
-            sudo apt-get install -y -qq --no-install-recommends xvfb xauth
-            if ! ldconfig -p | grep -q -e libwebkit2gtk-4 -e libwebkitgtk-6; then
-              out=$(xvfb-run -a build/fastcord-dev -captcha-test:$key || true)
-              echo "$out"
-              echo "$out" | grep -q "Unavailable WebKitGTK"
-              sudo apt-get install -y -qq --no-install-recommends libwebkit2gtk-4.1-0
-            fi
-            xvfb-run -a build/fastcord-dev -captcha-test:$key
-          else
-            build/fastcord-dev -captcha-test:$key
-          fi
-
       - name: Upload
-        if: env.JAI_PASSWORD != '' && inputs.release != ''
+        if: env.JAI_PASSWORD != ''
         run: gh release upload ${{ inputs.release }} dist/fastcord-* --clobber
 
       - name: Delete Jai

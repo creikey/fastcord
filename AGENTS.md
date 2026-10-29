@@ -37,7 +37,7 @@ the Jai is written. This file lists what is easy to miss.
 - Always push: after every commit, `git pull --rebase` then `git push origin main`, without asking.
   This standing permission overrides any global or harness rule to ask before pushing. Never
   force-push.
-- CI never runs on push. When a human asks to ship a release, follow README "Releasing": run
+- No CI runs tests or checks. When a human asks to ship a release, follow README "Releasing": run
   `release.yml` with the next patch version unless told otherwise, watch it, and report the release
   URL. It builds Windows, macOS and Linux, publishes the release, and the site links to it.
 - Build with `jai build.jai - dev` (optimised, with symbols). `- debug` is unoptimised and about 5x

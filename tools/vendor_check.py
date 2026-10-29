@@ -1,7 +1,6 @@
 # Lists each vendored library's pinned upstream (the `- Upstream: <git repo> <tag or commit>` line in
 # vendor/<lib>/README.md), the newest release tag upstream has (or new commits, for a commit pin), and the
-# OSV.dev advisories that name the pinned version. Run it before every release (README "Releasing");
-# .github/workflows/vendor-check.yml runs it monthly and opens an issue when something is behind.
+# OSV.dev advisories that name the pinned version. Run it before every release (README "Releasing").
 #   python3 -I tools/vendor_check.py     exit status 1 when a newer release is out or OSV lists the pin
 import json, os, re, subprocess, sys, urllib.request
 
