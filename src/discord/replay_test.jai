@@ -4277,3 +4277,59 @@ hidden_channels_unlisted :: (t: *T) {
 	g.roles[0].permissions |= PERM_MANAGE_CHANNELS;
 	expect_value(t, str(guild_channels_sorted(*s, G)), "11 20 30 31 ");
 }
+
+// Proxy URLs, and the HTTP CONNECT and SOCKS5 handshakes against a local proxy that then echoes.
+proxy_tunnels :: (t: *T) {
+	p, ok := parse_proxy_url("socks5h://u:pw@127.0.0.1:1080/");
+	expect(t, ok && p.kind == .Socks5 && p.host == "127.0.0.1" && p.port == 1080 && p.user == "u" && p.pass == "pw", "socks5h URL");
+	p, ok = parse_proxy_url("proxy.example:3128");
+	expect(t, ok && p.kind == .Http && p.host == "proxy.example" && p.port == 3128, "bare host:port");
+	_, ok = parse_proxy_url("https://proxy:443");
+	expect(t, !ok, "TLS to the proxy is refused");
+	_, ok = parse_proxy_url("http://proxy");
+	expect(t, !ok, "a port is required");
+	for kind: type_of(Proxy.kind).[.Http, .Socks5] {
+		l, lerr := netio.listen_tcp(0);
+		if !expect(t, lerr == .None, "listens") return;
+		Srv :: struct { l: *netio.Listener; kind: type_of(Proxy.kind); head: string; }
+		srv := Srv.{l = l, kind = kind};
+		th := spawn(*srv, (v: *Srv) {
+			conn, err := netio.accept_tcp(v.l);
+			if err != .None return;
+			s := netio.tcp_stream(conn);
+			defer netio.close(s);
+			buf: [512]u8;
+			if v.kind == .Http {
+				// the CONNECT request, then 200 and the tunnel
+				got: [..]u8;
+				while !(got.count >= 4 && slice(cast(string) got, got.count - 4, 4) == "\r\n\r\n") {
+					n, rerr := netio.read(s, buf);
+					if rerr != .None return;
+					array_add(*got, ..array_view(buf, 0, n));
+				}
+				v.head = cast(string) got;
+				netio.write(s, cast([]u8) "HTTP/1.1 200 Connection established\r\n\r\n");
+			} else {
+				netio.read(s, array_view(buf, 0, 3)); // 5 1 0
+				netio.write(s, .[5, 0]);
+				netio.read(s, array_view(buf, 0, 5 + 9 + 2)); // 5 1 0 3 9 "discord.x" port
+				v.head = copy_string(cast(string) array_view(buf, 5, 9));
+				netio.write(s, .[5, 0, 0, 1, 0, 0, 0, 0, 0, 0]);
+			}
+			n, rerr := netio.read(s, buf); // echo one read
+			if rerr == .None netio.write(s, array_view(buf, 0, n));
+		});
+		s, tok := proxy_tunnel(.{kind = kind, host = "127.0.0.1", port = l.port}, "discord.x", 443);
+		if expect(t, tok, tprint("% tunnel", kind)) {
+			netio.write(s, cast([]u8) "ping");
+			b: [4]u8;
+			n, _ := netio.read(s, b);
+			expect(t, n == 4 && cast(string) b == "ping", "the tunnel carries bytes");
+			netio.close(s);
+		}
+		locks.join(th);
+		netio.close_listener(l);
+		if kind == .Http expect(t, begins_with(srv.head, "CONNECT discord.x:443 HTTP/1.1\r\nHost: discord.x:443\r\n"), srv.head);
+		else expect_value(t, srv.head, "discord.x");
+	}
+}

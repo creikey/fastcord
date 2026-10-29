@@ -2,9 +2,17 @@
 // tls.stream forwards shutdown to the socket, so h2_close / the gateway can
 // wake a reader blocked inside TLS.
 dial_tls_stream :: (host: string, alpn: []string) -> netio.Stream, string, bool {
-	tcp, derr := netio.dial_tcp(host, 443);
-	if derr != .None return .{}, "", false;
-	under := netio.tcp_stream(tcp);
+	under: netio.Stream;
+	p := proxy_config();
+	if p.kind != .None {
+		ok: bool;
+		under, ok = proxy_tunnel(p, host, 443);
+		if !ok return .{}, "", false;
+	} else {
+		tcp, derr := netio.dial_tcp(host, 443);
+		if derr != .None return .{}, "", false;
+		under = netio.tcp_stream(tcp);
+	}
 	sess, terr := tls.connect(under, .{alpn = alpn, server_name = host});
 	if terr != .None {
 		netio.close(under);

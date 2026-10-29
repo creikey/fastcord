@@ -77,6 +77,7 @@ zstd :: #import "zstd";
 #load "store.jai";
 #load "transport.jai";
 #load "updater.jai";
+#load "proxy.jai";
 #load "uploads.jai";
 #load "username.jai";
 #load "util.jai";

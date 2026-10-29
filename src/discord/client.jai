@@ -235,7 +235,7 @@ client_create :: (cfg: Config, allocator := context.allocator) -> *Client {
 	transport_init(*c.transport, *c.jar, c.allocator);
 	c.transport.override = cfg.round_tripper;
 	c.transport.h3 = cfg.h3;
-	c.transport.use_h3 = !cfg.disable_h3;
+	c.transport.use_h3 = !cfg.disable_h3 && proxy_config().kind == .None; // a proxy tunnel carries only TCP
 	if cfg.hosted.host {
 		c.transport.override = .{c, hosted_round_trip};
 		c.transport.use_h3 = false;
