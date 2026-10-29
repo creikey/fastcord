@@ -2432,6 +2432,16 @@ forward_block :: (m: *dc.Message) {
 	if sig.clicked jump_to_message(m.forward_channel_id, m.forward_message_id);
 }
 
+// A pill's count width for wrapping, from one digit's, measured once: shaping every count each frame
+// cost a text layout per reaction (gg sans digits are tabular).
+reaction_count_w :: (n: int) -> float32 {
+	if reaction_digit_w == 0 reaction_digit_w = ui.layout_text(F(.Semibold), 14, "0", -1).width;
+	digits := 1;
+	while n >= 10 { n /= 10; digits += 1; }
+	return cast(float32) digits * reaction_digit_w;
+}
+reaction_digit_w: float32;
+
 reactions_view :: (m: *dc.Message) {
 	col := ui.box("reactions");
 	col.semantic_size = .[ui.pct(1), ui.children()];
@@ -2460,7 +2470,7 @@ reactions_view :: (m: *dc.Message) {
 			count := ifx burst then re.burst_count else re.count;
 			if count <= 0 continue;
 			me := ifx burst then re.me_burst else re.me;
-			place(34 + ui.layout_text(F(.Semibold), 14, tprint("%", count), -1).width);
+			place(34 + reaction_count_w(count));
 			pill := row(tprint("re%_%", i, burst), .Clickable | .Draw_Background | .Draw_Border | .Hot_Animation);
 			pill.semantic_size = .[ui.children(), ui.px(26)];
 			pill.style.radius = all4(8);
