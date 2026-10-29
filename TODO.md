@@ -454,6 +454,7 @@
 - [ ] Connection: when the gateway drops, nothing shows it; the app silently goes stale while `gateway.jai` reconnects (no UI reads `Gw_State`). Show the official client's "Connecting..." / offline state.
 - [ ] Bug: after a re-identify, typing indicators, threads and activities stop for every server visited earlier, and the member sidebar freezes. `subscribe_guild` skips servers already in `c.subs.guilds`, and the member list resubscribes only when empty (`actions.jai`, `view_home.jai`).
 - [ ] When soundboard support is added, add a toggle that makes soundboards play through your call's mic instead of through discord's separate soundboard channel
+- [ ] When soundboard support is added, let Add Sound (uploading a new sound to a server) take its file by drag and drop onto the dialog, as well as through the file picker. The official client only offers the picker; this is a fastcord-only extra, so it goes in `traffic/CLIENT_RULES.md` as such. Reuse the composer's file drop (`attachments.jai`).
 - [ ] Friends: no Blocked list or unblock outside a DM header; no friend suggestions.
 - [ ] Profiles: the user menu lacks Remove Friend, Block/Unblock, Call, Invite to Server, Mention, Add Note and Ignore (a comment in `view_home.jai` claims some exist).
 - [ ] Friends: rows show only Online/Idle, never the custom status or activity; the "Friends" item in the DM sidebar has no pending-request badge.
