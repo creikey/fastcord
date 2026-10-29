@@ -9,7 +9,6 @@
 
 # already selected / already focused: pressing again changes nothing (same in the client)
 dead * "body/rail/home [logo]" already on Home
-dead * "channels/chan/item 'dingus-battle'" already the selected channel
 dead * "rail/dmslot/dmicon" already the open DM
 dead * "body/page/header 'Online'" already the selected friends tab
 dead * "pf/tabs/About Me" already the selected profile tab
@@ -17,22 +16,23 @@ dead * "inboxpop/tabs/Unreads" already the selected inbox tab
 dead * "threadspop/hdr/Active" already the selected threads tab
 dead * "threadspop/name_row/name" the thread name field is focused when the Create form opens
 dead * "gnotify/All Messages/it" already the server's notification level
-dead * "nmodal/radio 'All Messages'" already the server's notification level (Notification Settings modal)
+dead * "body/inner/radio 'All Messages'" already the server's notification level (Notification Settings modal)
 dead * "bell/default/it" already the channel's notification level (category default)
 dead * "picker_header/tabs" already the selected picker tab
 dead * "picker_header/searchrow/search" the picker's search field always has focus while it is open
 dead * "emoji_nav/slot [clock]" jumps to Frequently Used, which is already at the top
 dead * "nav/Appearance/item" already the selected settings page
-dead * "nav/Profiles/item" already the selected settings page
-dead * "me/names/edit 'Edit Profiles'" opens Profiles, already the selected settings page
 dead * "body/col/pftabs 'Main Profile'" already the selected Profiles tab
 dead * "form/bannercolors/def" already the banner's colour (the default, from the avatar)
 dead * "col/swatches/Dark" already the selected theme
+dead * "appearance/col/cozy 'Cozy'" already the selected message display
+dead * "searchpanel/hdr 'Newest'" already the selected sort
+dead settings_voice "vcol 'Let's Check'" headless has no microphone, so the mic test stops at once
+dead * "wrap/col/nav_Chan_Overview" already the selected channel settings page
 dead * "vcol/mode_va 'Voice Activity'" already the selected input mode
-dead * "devices/outputcol/outvol" the press lands on the current value (slider center = 100%)
 dead login "cols/form/email" the email field is focused from the start (autoFocus, as in the client)
 dead * "gdm/searchrow/search" the Select Friends field is focused while the popout is open
-dead add_server_create "inset/inner/name" Add a Server > Create: the name field is focused from the start (caret already at the end)
+dead add_server_purpose "inset/inner/name" Add a Server > Create: the name field is focused from the start (caret already at the end)
 dead add_server_join "inset/inner/invite" Add a Server > Join: the invite field is focused from the start
 dead settings_profiles_unsaved "cols/form/pronouns" the screen typed into this field, so it is focused with the caret at the end
 dead * "createchan/type_Text" already the selected channel type
@@ -40,12 +40,12 @@ dead * "createchan/name_row/name" the Channel Name field is focused when the mod
 dead * "chans/c/ch 'General'" Create Event > Voice Channel: the only voice channel is already selected
 dead event_wizard_external "loc/c/locin" Create Event > Somewhere Else: the location field is focused from the start (caret at the end)
 dead event_wizard_info "info/c/topic" Create Event > Event Info: the topic field is focused from the start (caret at the end)
-dead channel_settings_unsaved "form/topicwrap/topic" the screen typed into this field, so it is focused with the caret at the end
+dead channel_settings_unsaved "form_Chan_Overview/topicwrap/topic" the screen typed into this field, so it is focused with the caret at the end
 
 # popout / modal bodies swallow presses on their empty parts on purpose
 dead * "settings_scrim/settings" settings modal body
-dead * "chansettings '#" channel settings page background (a full-window layer, like the client's)
-dead * "chansettings/savebar" the unsaved-changes bar's own body (its Reset / Save Changes buttons act)
+dead * "serversettings '#" channel settings page background (a full-window layer, like the client's)
+dead * "serversettings/savebar" the unsaved-changes bar's own body (its Reset / Save Changes buttons act)
 dead * "tbanchor/toolbar" message hover toolbar: presses between its buttons are absorbed
 
 # not built yet (they need features or network flows fastcord doesn't have)
@@ -77,20 +77,21 @@ hover * "switcher/it" hovering a quick-switcher row moves the selection, which s
 silent login "cols/form 'Log In'" online the form shows its submitting state (view_login.jai)
 silent login "cols/form 'Forgot your password?'" online the form shows the reset notice when the request returns
 silent * "savebar 'Save Changes'" online the label turns "Saving…" until the PATCH returns
-silent add_server_create "addsrv/foot 'Create'" online the label turns "Creating…" until GUILD_CREATE
+silent add_server_purpose "addsrv/foot 'Create'" online the label turns "Creating…" until GUILD_CREATE
 silent event_wizard_review "evwizard/btns 'Create Event'" online evu.busy holds the wizard until the request returns
 silent events_list "c/bottom/interested" online the pill switches at once (interest_pending) and the gateway confirms
 # applied optimistically online (the store / gateway echo changes what is drawn at once)
-silent * "channels/chan/item 'General' [voice-normal]" online joins voice: the voice panel shows Connecting at once
-silent narrow_dm "dm/item/close" online closes the DM row at once (CHANNEL_DELETE follows)
+silent * "page/header/lock" online the Hello goes out as a pending message at once (the lock lights once a session exists)
 silent narrow_dm "page/header/phone-call" online starts the call: the call panel shows at once
 silent hover_toolbar "tbanchor/toolbar/q" online the quick reaction shows on the message at once (MESSAGE_REACTION_ADD)
-silent friends_all "friends/f/item" online the friend's existing DM opens at once (same gap)
-silent friends_all "f/item/msg" online the friend's existing DM opens at once (same gap)
-silent * "inboxpop/hdr/markall" online the unreads clear at once (local ack state)
-silent * "ur/item/ack" online the row clears at once (local ack state)
+silent * "friends/f/item" online the friend's existing DM opens at once (same gap)
+silent * "f/item/msg" online the friend's existing DM opens at once (same gap)
+dead * "inboxpop/hdr/markall" online the unreads clear at once (local ack state; offline there is no client to ack)
 silent guild_notify_modal "mute/c/mutetoggle" online the settings proto edit applies locally at once
-silent guild_notify_modal "nmodal/radio" online the settings proto edit applies locally at once
+silent * "c/suphl" online the switch flips locally at once (the store is set with the PATCH)
+silent * "c/muteev" online the switch flips locally at once (the store is set with the PATCH)
+silent * "c/push" online the switch flips locally at once (the store is set with the PATCH)
+silent * "/hidemuted/it" online the switch flips locally at once (the store is set with the PATCH)
 silent * "c/supall" online the settings proto edit applies locally at once
 silent * "c/suproles" online the settings proto edit applies locally at once
 silent guild_ctx_notify "gnotify/suppress" online the settings proto edit applies locally at once
@@ -98,3 +99,5 @@ silent guild_ctx_notify "gnotify/suppress" online the settings proto edit applie
 # the status row in your own profile card opens the status menu on hover (as the client); a click shows nothing more
 hover own_profile "grp/setstatus/it 'Online'" the status menu stays open while the pointer moves into it
 dead own_profile "grp/setstatus/it 'Online'" hovering already opened the status menu
+hover own_profile "grp/switchacct/it" the Switch Accounts menu stays open while the pointer moves into it
+dead own_profile "grp/switchacct/it" hovering already opened the Switch Accounts menu

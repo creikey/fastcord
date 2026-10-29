@@ -435,6 +435,8 @@ search_panel :: () {
 search_reset_for_test :: () {
 	fini(*search.pool);
 	search, jump, highlight_id, highlight_until, sugg_rect = .{}, .{}, 0, 0, .{};
+	for search_history free(it);
+	array_reset(*search_history);
 }
 search_state_for_test :: () -> string {return tprint("% % % %", search.active, search.focused, search.query, jump.message);}
 

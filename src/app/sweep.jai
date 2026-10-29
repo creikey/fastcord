@@ -162,6 +162,9 @@ app_reset_state :: () {
 	sv = .{};
 	pk = .{};
 	ma = .{};
+	modr.user, fwd.msg, guild_privacy = 0, 0, 0;
+	accts.menu_open, accts.manage_open, accts.adding = false, false, false;
+	sm, cstatus.open = .{}, false;
 	sw = .{};
 	search_reset_for_test();
 	login_reset_for_test();
@@ -231,7 +234,9 @@ sweep_fresh :: (sc: *Sweep_Screen) {
 sweep_settle :: () {
 	for i: 0..89 {
 		sweep_frame();
-		if i >= 3 && !ui.needs_frame() return;
+		// a frame wanted within the next second (a scrollbar about to fade) is part of settling too
+		soon := app.ui.wake_at > 0 && app.ui.wake_at < app.ui.time + 1.5;
+		if i >= 3 && !ui.needs_frame() && !soon return;
 	}
 	swp.capped += 1;
 	if swp.verbose eprint("sweep: still animating after 90 frames at %\n", app.ui.animating_loc);
@@ -385,7 +390,8 @@ sweep_geometry :: (b: *ui.Box, vr: ui.Rect) {
 			if !(x.flags & .Clickable) { // a clickable child is its own control
 				drawn := (x.flags & (.Draw_Text | .Draw_Background | .Draw_Border)) || x.custom_draw != null;
 				if drawn && !(x.flags & (.Floating_X | .Floating_Y)) && (x.rect.x0 < r.x0 - 2 || x.rect.y0 < r.y0 - 2 || x.rect.x1 > r.x1 + 2 || x.rect.y1 > r.y1 + 2) return x;
-				o := outside(x, r, depth + 1);
+				// a clipping child (a scrolled body) draws nothing outside itself
+				o := ifx x.flags & .Clip then null else outside(x, r, depth + 1);
 				if o != null return o;
 			}
 			x = x.next;
