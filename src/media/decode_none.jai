@@ -1,7 +1,8 @@
 // Audio on Windows and Linux (their video: decode_windows.jai, decode_linux.jai): PCM (WAV) here, MP3 through
-// vendor/minimp3 (the UI sounds are MP3), Opus (voice messages, WebM) through libopus, AAC on Windows through
-// Media Foundation (decode_windows.jai); other codecs report
-// unsupported, as an unknown codec does on macOS, so players open, probe and demux but play no audio.
+// vendor/minimp3 (the UI sounds are MP3), Opus (voice messages, WebM) through libopus, AAC through Media
+// Foundation on Windows and FFmpeg's decoder in libfc_aac.so on Linux (decode_windows.jai, decode_linux.jai);
+// other codecs report unsupported, as an unknown codec does on macOS, so players open, probe and demux but play
+// no audio.
 
 Audio_Decoder :: struct {
 	channels: int;
@@ -13,12 +14,13 @@ Audio_Decoder :: struct {
 	tmp: [..]float32;
 	mp3: []u8; // minimp3 state, MP3 only
 	opus_dec: *opus.Decoder; // stereo at 48 kHz; the player trims the pre-skip
-	aac: *Aac_Decoder; // Windows
+	aac: *Aac_Decoder;
 }
 
-#if OS != .WINDOWS Aac_Decoder :: struct { channels, rate: int; } // never made
-
-audio_codec_supported :: (c: Codec) -> bool { return c == .PCM || c == .MP3 || c == .Opus || (OS == .WINDOWS && c == .AAC); }
+audio_codec_supported :: (c: Codec) -> bool {
+	#if OS == .LINUX if c == .AAC return aac_load(); // libfc_aac.so may be missing
+	return c == .PCM || c == .MP3 || c == .Opus || c == .AAC;
+}
 
 audio_decoder_create :: (t: *Track) -> *Audio_Decoder, bool {
 	if !audio_codec_supported(t.codec) return null, false;
@@ -35,14 +37,14 @@ audio_decoder_create :: (t: *Track) -> *Audio_Decoder, bool {
 		if err != .None { free(ad); return null, false; }
 		ad.channels, ad.rate = 2, audio.SAMPLE_RATE;
 	} else if t.codec == .AAC {
-		#if OS == .WINDOWS ad.aac = aac_decoder_create(t);
+		ad.aac = aac_decoder_create(t);
 		if !ad.aac { free(ad); return null, false; }
 		ad.channels, ad.rate = ad.aac.channels, ad.aac.rate;
 	}
 	return ad, true;
 }
 
-// PCM, MP3 or Opus -> f32, linear-interpolation resample to 48 kHz, -> stereo.
+// PCM, MP3, Opus or AAC -> f32, linear-interpolation resample to 48 kHz, -> stereo.
 audio_decode :: (ad: *Audio_Decoder, data: []u8, out: *[..]float32) -> bool {
 	ch := min(ad.channels, 2);
 	ad.tmp.count = 0;
@@ -51,7 +53,9 @@ audio_decode :: (ad: *Audio_Decoder, data: []u8, out: *[..]float32) -> bool {
 		n, err := opus.decode(ad.opus_dec, data, ad.tmp);
 		ad.tmp.count = ifx err == .None then n * 2 else 0;
 	} else if ad.aac {
-		#if OS == .WINDOWS aac_decode(ad.aac, data, *ad.tmp);
+		aac_decode(ad.aac, data, *ad.tmp);
+		ad.channels, ad.rate = ad.aac.channels, ad.aac.rate;
+		ch = min(ad.channels, 2);
 		// Surround (WAVE order: FL FR FC LFE BL BR) down to stereo in place, centre and back at -3 dB.
 		n := ad.tmp.count / ad.channels;
 		if ad.channels > 2 for f: 0..n - 1 {
@@ -115,7 +119,7 @@ audio_decoder_destroy :: (ad: *Audio_Decoder) {
 	array_free(ad.tmp);
 	array_free(ad.mp3);
 	if ad.opus_dec opus.decoder_destroy(ad.opus_dec);
-	#if OS == .WINDOWS aac_decoder_destroy(ad.aac);
+	aac_decoder_destroy(ad.aac);
 	free(ad);
 }
 

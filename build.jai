@@ -415,11 +415,16 @@ link :: (p: *Message_Phase, exe: string, cpu: CPU_Tag) -> bool {
     return r.exit_code == 0;
 }
 
-// Every object that goes into the vendor archive.
-vendor_outputs :: () -> [..]string {
+// Every object that goes into the vendor archive, or with `shared` ("vendor/<lib>/", one with a .shared file)
+// into that library's own shared library.
+vendor_outputs :: (shared := "") -> [..]string {
+    mine :: (file: string, shared: string) -> bool {
+        dir := path_strip_filename(file);
+        return ifx shared then dir == shared else !file_exists(tprint("%.shared", dir));
+    }
     out: [..]string;
-    for src: c_units() array_add(*out, obj_of(src));
-    for list: source_lists() for file_list(list_dir(list)) if ends_with(it, ".o") array_add(*out, it);
+    for src: c_units() if mine(src, shared) array_add(*out, obj_of(src));
+    for list: source_lists() if mine(list, shared) for file_list(list_dir(list)) if ends_with(it, ".o") array_add(*out, it);
     return out;
 }
 list_dir :: (list: string) -> string {
@@ -630,13 +635,30 @@ build_c_target :: () -> bool {
                 if ends_with(f, "_avx2.cc") array_add(*a, "-mavx2", "-mfma"); // as WebRTC's own build
                 if ends_with(f, "_neon.cc") continue;
             } else if ends_with(f, "_avx2.cc") || ends_with(f, "_sse.cc") || ends_with(f, "_sse2.cc") continue;
-            array_add(*a, "-o", tprint("%/%.o", dir, path_filename(f)), f);
+            // named with their directory too: FFmpeg has both libavcodec/utils.c and libavutil/utils.c
+            array_add(*a, "-o", tprint("%/%_%.o", dir, path_filename(trim_right(path_strip_filename(f), "/")), path_filename(f)), f);
             array_add(*jobs, a);
         }
         array_add(*stamps, stamp);
     }
     if !run_parallel(jobs) return false;
     for stamps write_entire_file(it, "");
+    // vendor/<lib>/.shared names a shared library linked from that library's objects instead of the archive
+    // (Linux only): FFmpeg's AAC decoder is LGPL, so the app opens libfc_aac.so with dlopen and a user can swap it.
+    for dir: vendor_dirs() {
+        name, shared := read_entire_file(tprint("%/.shared", dir), log_errors = false);
+        if !shared continue;
+        so := tprint("build/%", trim(name));
+        objs := vendor_outputs(tprint("%/", dir));
+        m, _, ok := file_modtime_and_size(so);
+        for objs if file_modtime_and_size(it) > m ok = false;
+        if ok continue;
+        a: [..]string;
+        array_add(*a, ZIG, "cc", "-target", GLIBC, "-shared", "-s", "-Wl,--gc-sections", "-o", so);
+        array_add(*a, ..objs);
+        array_add(*a, "-lm", "-lpthread");
+        if run_command(..a).exit_code != 0 return false;
+    }
     // One archive for the Jai side: every module's `#library,no_dll "../../build/fc_vendor"`.
     lib := VENDOR_LIB();
     m, _, ok := file_modtime_and_size(lib);

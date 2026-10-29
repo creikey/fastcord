@@ -212,8 +212,12 @@ archives into `dist/` locally (macOS: `fastcord-macos.zip`; Windows: `fastcord-w
   a Start menu shortcut, an Apps & Features entry; `platform.install`).
 - Linux: one x86_64 binary for every distribution. It links only glibc (2.17+) and opens everything else at
   run time with `dlopen`: libwayland-client and libxkbcommon (native Wayland), else libX11, libEGL for OpenGL 3.3, fontconfig,
-  libasound (ALSA, which PipeWire and PulseAudio serve), and when present libdbus (notifications, the tray, the launcher badge), libXss (idle time) and libXi (global keybinds). `tools/package_linux.py` packs it with a desktop entry (the
-  `fc://` and `discord://` handler), the icon and `install.sh` (per user in `~/.local`, or system-wide as root). The same binary is
+  libasound (ALSA, which PipeWire and PulseAudio serve), and when present libdbus (notifications, the tray, the launcher badge), libXss (idle time) and libXi (global keybinds).
+  AAC (video soundtracks, .m4a) comes from `libfc_aac.so` beside the binary: FFmpeg's native AAC decoder (LGPL,
+  `vendor/ffmpeg`), which build.jai links on its own rather than into the binary so users can swap it; without it
+  AAC plays silent. `tools/package_linux.py` packs both with the LGPL text, a desktop entry (the
+  `fc://` and `discord://` handler), the icon and `install.sh` (per user in `~/.local`, or system-wide as root; the
+  binary and the library go to `lib/fastcord/`, linked from `bin/`). The same binary is
   also the headless server, `fastcord-server-linux-x86_64.tar.gz`, with a systemd unit and a README:
   `-serve` runs before any display library is opened.
 

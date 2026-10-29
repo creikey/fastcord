@@ -1,5 +1,6 @@
 // Linux video decoding: H.264 in software (vendor/openh264), I420 out, copied into yuv.Nv12 frames
 // (frame_nv12.jai). There is no H.265 decoder, and the voice gateway says so, so calls stay on H.264.
+// AAC for decode_none.jai through libfc_aac.so (below).
 
 Video_Decoder :: struct {
 	dec: *void;
@@ -79,7 +80,77 @@ video_decoder_destroy :: (vd: *Video_Decoder) {
 	free(vd);
 }
 
+// AAC (video soundtracks, .m4a) through FFmpeg's native decoder in libfc_aac.so (vendor/ffmpeg, LGPL), a
+// separate library a user can swap, opened beside the binary. Without it AAC is unsupported, as before.
+Aac_Decoder :: struct {
+	dec: *void;
+	channels, rate: int; // the last packet's output: HE-AAC doubles the config's rate, PS makes mono stereo
+}
+
+aac_decoder_create :: (t: *Track) -> *Aac_Decoder {
+	if t.aac_asc.count < 2 || t.aac_asc.count > 64 || !aac_load() return null;
+	d := aac.fc_aac_open(t.aac_asc.data, xx t.aac_asc.count);
+	if !d return null;
+	ad := New(Aac_Decoder);
+	ad.* = .{dec = d, channels = clamp(t.channels, 1, 8), rate = clamp(t.sample_rate, 1000, 384000)};
+	return ad;
+}
+
+// One AAC frame -> interleaved f32 appended to out (ad.channels per frame).
+aac_decode :: (ad: *Aac_Decoder, data: []u8, out: *[..]float32) {
+	CAP :: 8192 * 8; // twice the longest frame (USAC with 4:1 SBR: 4096) in up to 8 channels
+	at := out.count;
+	array_resize(out, at + CAP, false);
+	ch, rate: s32;
+	n := aac.fc_aac_decode(ad.dec, data.data, xx min(data.count, S32_MAX), out.data + at, CAP, *ch, *rate);
+	out.count = at;
+	if n <= 0 return;
+	out.count += n * ch;
+	ad.channels, ad.rate = ch, rate;
+}
+
+aac_decoder_destroy :: (ad: *Aac_Decoder) {
+	if !ad return;
+	aac.fc_aac_close(ad.dec);
+	free(ad);
+}
+
+// Opens libfc_aac.so once: from the binary's directory, else wherever the loader finds it.
+aac_load :: () -> bool {
+	locks.guard(*aac_mu);
+	if aac_tried return aac != null;
+	aac_tried = true;
+	exe_dir := path_strip_filename(system.get_path_of_running_executable());
+	lib := dlopen(temp_c_string(tprint("%libfc_aac.so", exe_dir)), RTLD_NOW);
+	if !lib lib = dlopen("libfc_aac.so", RTLD_NOW);
+	if !lib return false;
+	fns := New(Aac_Lib);
+	for type_info(Aac_Lib).members {
+		f := dlsym(lib, temp_c_string(it.name));
+		if !f { free(fns); return false; }
+		(cast(**void) (cast(*u8) fns + it.offset_in_bytes)).* = f;
+	}
+	aac = fns;
+	return true;
+}
+
 #scope_file
+
+system :: #import "System";
+
+Aac_Lib :: struct {
+	fc_aac_open: (config: *u8, count: s32) -> *void #c_call;
+	fc_aac_decode: (d: *void, data: *u8, count: s32, out: *float32, cap: s32, channels: *s32, rate: *s32) -> s32 #c_call;
+	fc_aac_close: (d: *void) #c_call;
+}
+aac: *Aac_Lib; // set once by aac_load
+aac_mu: locks.Mutex;
+aac_tried: bool;
+
+libc :: #system_library "libc"; // dlopen/dlsym are in libdl before glibc 2.34; the link adds -ldl
+dlopen :: (file: *u8, mode: s32) -> *void #foreign libc;
+dlsym :: (handle: *void, name: *u8) -> *void #foreign libc;
+RTLD_NOW :: 2;
 
 decoder_create :: () -> *Video_Decoder {
 	d := fc_h264_dec_create();
