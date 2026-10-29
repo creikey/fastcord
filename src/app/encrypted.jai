@@ -90,6 +90,21 @@ encrypted_packet :: (channel_id: dc.Snowflake, content: string) -> bool {
 	return ch && ch.kind == .DM && ch.recipient_ids.count == 1;
 }
 
+// encrypted_open asks once for a packet's plaintext (again after a session it waited for appears) and
+// returns what is known so far: null or pending until the request comes back, or for good with no identity.
+encrypted_open :: (id: dc.Snowflake, channel_id: dc.Snowflake, packet: string, author: dc.Snowflake) -> *Shown {
+	sh := table_find_pointer(*ee.shown, id);
+	retry := sh && sh.result == .No_Session && sh.generation != ee.generation && !sh.pending;
+	if (!sh || retry) && e2e_db && identity_ready() {
+		sh = find_or_add(*ee.shown, id);
+		sh.pending = true;
+		r := e2e.request(.Receive, channel_id, packet);
+		r.me, r.me_user, r.author, r.message = my_identity(), store().me, author, id;
+		e2e_submit(r);
+	}
+	return sh;
+}
+
 // encrypted_silent: an opened packet whose sender asked for no sound or notification, whatever the
 // carrier's flags say.
 encrypted_silent :: (id: dc.Snowflake) -> bool {
@@ -156,15 +171,7 @@ encrypted_send :: (dm: *dc.Channel, text: string, has_attachments: bool, silent:
 encrypted_body :: (m: *dc.Message) -> handled: bool, plaintext: string {
 	if !begins_with(m.content, e2e.PREFIX) return false, "";
 	if !encrypted_dm(dc.channel_get(store(), m.channel_id)) return false, "";
-	sh := table_find_pointer(*ee.shown, m.id);
-	retry := sh && sh.result == .No_Session && sh.generation != ee.generation && !sh.pending;
-	if (!sh || retry) && !m.pending && identity_ready() {
-		sh = find_or_add(*ee.shown, m.id);
-		sh.pending = true;
-		r := e2e.request(.Receive, m.channel_id, m.content);
-		r.me, r.me_user, r.author, r.message = my_identity(), store().me, m.author_id, m.id;
-		e2e_submit(r);
-	}
+	sh := ifx m.pending then table_find_pointer(*ee.shown, m.id) else encrypted_open(m.id, m.channel_id, m.content, m.author_id);
 	muted :: (text: string) { label(text, .Normal, MSG_FONT, T("--text-muted"), MSG_LINE_H); }
 	if !sh || sh.pending { muted("Encrypted message"); return true, ""; }
 	mine := m.author_id == store().me;

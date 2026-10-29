@@ -21,8 +21,18 @@ notify_tick :: () {
 		// name_in and the rest read app.client, so it is the message's connection while it's shown.
 		prev := app.client;
 		app.client = mc;
-		notify_message(*mc.store, m);
+		if !notify_later(m) notify_message(*mc.store, m);
 		app.client = prev;
+	}
+	// Encrypted messages, once opened: with their plaintext, or as "Encrypted message" after 5 s.
+	for ns.waiting {
+		sh := table_find_pointer(*ee.shown, it.id);
+		if sh && sh.pending && platform.time_now() < it.until { request_wake(it.until); continue; }
+		prev := app.client;
+		app.client = message_client(*it);
+		if !encrypted_silent(it.id) notify_message(*app.client.store, *it);
+		app.client = prev;
+		remove it;
 	}
 	// dock badge: unread mentions, on every connection
 	total := 0;
@@ -45,7 +55,25 @@ ns: struct {
 	badge: int;
 	badge_set: bool;
 	notified: int;
+	waiting: [..]Waiting;
 };
+
+Waiting :: struct { #as using m: dc.New_Message; until: float64; }
+
+// notify_later holds an encrypted DM's notification until its packet is opened, so it can show the
+// plaintext, and drops it when the sender asked for silence inside the packet.
+notify_later :: (m: *dc.New_Message) -> bool {
+	if !encrypted_packet(m.channel_id, m.content) || streamer_hide_personal() return false;
+	sh := encrypted_open(m.id, m.channel_id, m.content, m.author_id);
+	if sh && sh.pending {
+		w := Waiting.{m = m.*, until = platform.time_now() + 5};
+		w.content, w.webhook_name, w.mention_roles = e2e.PREFIX, "", ([..]dc.Snowflake).{}; // m's own copies go with the frame.
+		array_add(*ns.waiting, w);
+		request_wake(w.until);
+		return true;
+	}
+	return encrypted_silent(m.id);
+}
 
 notify_message :: (s: *dc.Store, m: *dc.New_Message) {
 	ch := dc.channel_get(s, m.channel_id);
@@ -74,7 +102,7 @@ notify_message :: (s: *dc.Store, m: *dc.New_Message) {
 
 // Content as plain text with <@id>/<@&id>/<#id> resolved, or a stand-in for media-only messages.
 notification_body :: (s: *dc.Store, m: *dc.New_Message) -> string {
-	if encrypted_packet(m.channel_id, m.content) return "Encrypted message"; // Not opened yet when it arrives.
+	if encrypted_packet(m.channel_id, m.content) return shown_text(m.id, m.channel_id, m.content);
 	if m.content == "" {
 		if m.sticker return "Sent a sticker";
 		if m.attachments > 0 return "Uploaded a file";
