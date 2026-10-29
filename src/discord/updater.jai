@@ -7,7 +7,8 @@
 // next launch (identity_learn_offered).
 // Its connections are the OS's TLS (src/ostls) and HTTP/1.1 as hyper writes it: the request line, then
 // accept, user-agent, accept-encoding and host, lower case, in that order (captured: Windows 1.0.9266 and
-// macOS 0.0.419 against a local NEW_UPDATE_ENDPOINT).
+// macOS 0.0.419 against a local NEW_UPDATE_ENDPOINT, Linux 1.0.167 too). The Linux updater's rustls offers h2,
+// and over HTTP/2 the same headers go as hyper's h2 client sends them (no host; http.H2_Config.hyper).
 
 UPDATER_HOST :: "updates.discord.com";
 UPDATER_CHECK_MS :: 60 * 60 * 1000;
@@ -25,13 +26,14 @@ Updater :: struct {
 	fetched: string; // the host version whose packages came through this launch
 	modules: [..]Updater_Module; // installed module versions, from a manifest for the running host
 	mu: locks.Mutex; // idle, shared by the parallel downloads
-	idle: [..]Updater_Conn;
+	idle: [..]Updater_Conn; // HTTP/1.1 connections at rest, and HTTP/2 ones whether in use or not
 }
 
 Updater_Conn :: struct {
 	host: string;
 	conn: *http.H1_Conn;
-	used_ms: s64;
+	h2: *http.H2_Conn; // instead of conn
+	used_ms: s64;      // HTTP/2: when a request last took it (hyper-util's pool resets idle_at then)
 }
 
 // updater_schedule: the launch check (schedule_app_load), once per client.
@@ -66,7 +68,7 @@ updater_run :: (c: *Client, j: *Job) {
 	i := 0;
 	while i < u.idle.count {
 		it := u.idle[i];
-		if now_ms() - it.used_ms >= UPDATER_IDLE_MS {
+		if now_ms() - it.used_ms >= UPDATER_IDLE_MS || (it.h2 && !http.h2_can_open(it.h2)) {
 			updater_drop(it);
 			array_unordered_remove_by_index(*u.idle, i);
 			continue;
@@ -103,8 +105,11 @@ updater_manifest_path :: (c: *Client) -> string {
 	return path;
 }
 
-updater_request :: (host: string, path: string) -> http.Request {
-	return .{method = "GET", scheme = "https", authority = host, path = path, headers = array_copy(http.Header.[.{"accept", "*/*"}, .{"user-agent", "Discord-Updater/1"}, .{"accept-encoding", "gzip"}, .{"host", host}],, temp)};
+// updater_request: hyper-util adds host only for HTTP/1 (Client::send_request); h2 has :authority.
+updater_request :: (host: string, path: string, h2 := false) -> http.Request {
+	headers := array_copy(http.Header.[.{"accept", "*/*"}, .{"user-agent", "Discord-Updater/1"}, .{"accept-encoding", "gzip"}, .{"host", host}],, temp);
+	if h2 headers.count -= 1;
+	return .{method = "GET", scheme = "https", authority = host, path = path, headers = headers};
 }
 
 // updater_check: the manifest, then the packages of the offered host if it is newer than the one fastcord
@@ -139,14 +144,17 @@ updater_check :: (c: *Client) -> bool {
 // required_modules (its InstallModule commands in the updater log). A macOS install then has 15: every one
 // the manifest lists but discord_ndi and discord_sysimg (the test profile's installer.db). A Windows install
 // has 18 (1.0.9266's installer.db, and getModuleVersions()): no webauthn, but clips, hook, media and both
-// overlays. Linux has no capture: macOS's set (guess).
+// overlays. A Linux install (1.0.167 in WSL, logged out) adds discord_game_utils, krisp, rpc and zstd; the
+// cloudsync, dispatch and modules macOS installs after login are assumed there too (guess).
 UPDATER_ON_DEMAND_MAC :: string.["discord_webauthn", "discord_krisp", "discord_game_utils", "discord_cloudsync", "discord_rpc", "discord_dispatch", "discord_modules", "discord_zstd"];
 UPDATER_ON_DEMAND_WINDOWS :: string.["discord_clips", "discord_cloudsync", "discord_desktop_overlay", "discord_dispatch", "discord_game_utils", "discord_hook", "discord_krisp", "discord_media", "discord_modules", "discord_overlay2", "discord_rpc", "discord_zstd"];
+UPDATER_ON_DEMAND_LINUX :: string.["discord_cloudsync", "discord_dispatch", "discord_game_utils", "discord_krisp", "discord_modules", "discord_rpc", "discord_zstd"];
 updater_on_demand :: (os: string) -> []string {
 	if os == "Windows" return UPDATER_ON_DEMAND_WINDOWS;
+	if os == "Linux" return UPDATER_ON_DEMAND_LINUX;
 	return UPDATER_ON_DEMAND_MAC;
 }
-UPDATER_PARALLEL :: 4; // downloads at once, each on its own connection (captured)
+UPDATER_PARALLEL :: 4; // downloads at once, each on its own HTTP/1.1 connection (captured), or sharing one h2
 UPDATER_MAX_MODULES :: 128;
 
 Updater_Package :: struct {
@@ -307,7 +315,7 @@ updater_download :: (c: *Client, pkg: Updater_Package) -> bool {
 		ph := cast(*Package_Hash) data;
 		ph.bytes += piece.count;
 		crypto.sha256_update(*ph.h, piece);
-		return true;
+		return ph.bytes <= UPDATER_PACKAGE_MAX;
 	}
 	resp, err := updater_get(c, pkg.host, pkg.path, UPDATER_PACKAGE_MAX, .{*ph, take});
 	defer http.response_destroy(*resp);
@@ -317,39 +325,54 @@ updater_download :: (c: *Client, pkg: Updater_Package) -> bool {
 
 // updater_get: one request on a kept connection to host when there is one (hyper's pool), else a new one; a
 // kept connection the server closed meanwhile is retried once on a new one. With Config.round_tripper (tests)
-// the request goes there instead.
+// the request goes there instead. An HTTP/2 connection is shared by the requests to its host. Requests that
+// dialled at once each finish their handshake (hyper-util's Ver::Auto connects race the pool's checkout); the
+// first to pick h2 is pooled and carries them all, and each later one, found redundant when it is pooled
+// (PoolInner::put), sends its preface and is closed again at once.
 updater_get :: (c: *Client, host: string, path: string, max_body: int, sink := http.Body_Sink.{}) -> http.Response, http.Error {
-	req := updater_request(host, path);
 	if c.transport.override.round_trip {
+		req := updater_request(host, path);
 		resp, err := c.transport.override.round_trip(c.transport.override.data, host, req);
 		if err == .None && sink.take && !sink.take(sink.data, resp.body) err = .Closed;
 		return resp, err;
 	}
 	u := *c.updater;
 	for attempt: 0..1 {
-		conn: *http.H1_Conn;
 		locks.lock(*u.mu);
-		for u.idle if it.host == host {
-			conn = it.conn;
-			free(it.host,, context.default_allocator);
-			array_unordered_remove_by_index(*u.idle, it_index);
-			break;
-		}
+		conn, h2 := updater_take(u, host);
 		locks.unlock(*u.mu);
-		kept := conn != null;
-		if !conn {
+		kept := conn || h2;
+		if !kept {
 			tcp, derr := netio.dial_tcp(host, 443, public_only = true);
 			if derr != .None return .{}, .Io;
-			s, terr := ostls.connect(netio.tcp_stream(tcp), host);
+			s, terr, alpn_h2 := ostls.connect(netio.tcp_stream(tcp), host);
 			if terr != .None return .{}, .Io;
-			conn = New(http.H1_Conn,, context.default_allocator);
-			http.h1_init(conn, s,, context.default_allocator);
+			if alpn_h2 {
+				fresh, herr := http.h2_connect(s, .{max_response_body = UPDATER_MANIFEST_MAX, hyper = true},, context.default_allocator);
+				if herr != .None { netio.close(s); return .{}, .Io; }
+				locks.lock(*u.mu);
+				_, h2 = updater_take(u, host, h2_only = true);
+				if !h2 array_add(*u.idle, .{copy_string(host,, context.default_allocator), null, fresh, now_ms()},, context.default_allocator);
+				locks.unlock(*u.mu);
+				if h2 http.h2_close(fresh);
+				else h2 = fresh;
+			} else {
+				conn = New(http.H1_Conn,, context.default_allocator);
+				http.h1_init(conn, s,, context.default_allocator);
+			}
+		}
+		if h2 {
+			req := updater_request(host, path, h2 = true);
+			req.sink = sink;
+			resp, err := http.h2_request(h2, req); // the connection limits a body sink doesn't take
+			if kept && err != .None && resp.status == 0 continue;
+			return resp, err;
 		}
 		conn.limits.max_body = max_body;
-		resp, err := http.h1_round_trip(conn, req, sink);
+		resp, err := http.h1_round_trip(conn, updater_request(host, path), sink);
 		if err == .None && conn.reusable {
 			locks.lock(*u.mu);
-			array_add(*u.idle, .{copy_string(host,, context.default_allocator), conn, now_ms()},, context.default_allocator);
+			array_add(*u.idle, .{copy_string(host,, context.default_allocator), conn, null, now_ms()},, context.default_allocator);
 			locks.unlock(*u.mu);
 		} else {
 			http.h1_destroy(conn);
@@ -361,8 +384,27 @@ updater_get :: (c: *Client, host: string, path: string, max_body: int, sink := h
 	return .{}, .Io;
 }
 
+// updater_take (u.mu held): host's HTTP/2 connection that can still open streams (it stays pooled), else an
+// HTTP/1.1 one at rest (taken out).
+updater_take :: (u: *Updater, host: string, h2_only := false) -> *http.H1_Conn, *http.H2_Conn {
+	for * u.idle if it.host == host && it.h2 && http.h2_can_open(it.h2) {
+		it.used_ms = now_ms();
+		return null, it.h2;
+	}
+	if !h2_only for u.idle if it.host == host && it.conn {
+		conn := it.conn;
+		free(it.host,, context.default_allocator);
+		array_unordered_remove_by_index(*u.idle, it_index);
+		return conn, null;
+	}
+	return null, null;
+}
+
 updater_drop :: (k: Updater_Conn) {
-	http.h1_destroy(k.conn);
-	free(k.conn,, context.default_allocator);
+	if k.h2 http.h2_close(k.h2);
+	else {
+		http.h1_destroy(k.conn);
+		free(k.conn,, context.default_allocator);
+	}
 	free(k.host,, context.default_allocator);
 }

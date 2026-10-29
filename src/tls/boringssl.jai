@@ -40,6 +40,9 @@ SSL_CTX_add_cert_compression_alg :: (ctx: *SSL_CTX, alg: u16, compress: *void, d
 SSL_CTX_set_grease_enabled :: (ctx: *SSL_CTX, enabled: s32) #foreign bssl;
 SSL_CTX_set_grease_sigalgs_enabled :: (ctx: *SSL_CTX, enabled: s32) #foreign bssl;
 SSL_CTX_set_permute_extensions :: (ctx: *SSL_CTX, enabled: s32) #foreign bssl;
+SSL_CTX_fc_set_rustls_hello :: (ctx: *SSL_CTX, enabled: s32) #foreign bssl; // vendor/boringssl/patches/0001-rustls-hello.patch
+SSL_CTX_set_compliance_policy :: (ctx: *SSL_CTX, policy: s32) -> s32 #foreign bssl;
+ssl_compliance_policy_cnsa_202407 :: 3;
 SSL_CTX_enable_ocsp_stapling :: (ctx: *SSL_CTX) #foreign bssl;
 SSL_CTX_enable_signed_cert_timestamps :: (ctx: *SSL_CTX) #foreign bssl;
 SSL_CTX_set_session_cache_mode :: (ctx: *SSL_CTX, mode: s32) -> s32 #foreign bssl;

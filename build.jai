@@ -386,6 +386,7 @@ link :: (p: *Message_Phase, exe: string, cpu: CPU_Tag) -> bool {
         tprint("--sysroot=%", MAC_SDK), "-F", "/System/Library/Frameworks", "-L", "/usr/lib", "-o", exe); // zig prefixes -F and -L with the sysroot
     array_add(*a, ..p.compiler_generated_object_files);
     for p.support_object_files {
+        if !it continue; // jai-linux can list empty paths, which zig refuses
         // A native Linux build lists the system's C startup objects; zig links its own glibc 2.17 ones.
         name := path_filename(it);
         if LINUX && (begins_with(name, "crt") || name == "Scrt1.o") continue;

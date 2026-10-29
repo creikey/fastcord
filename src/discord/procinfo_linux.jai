@@ -34,30 +34,29 @@ process_exe_paths :: () -> []string {
 	return out;
 }
 
-// linux_platform: the official Linux desktop client's super properties (no capture yet: see
-// traffic/CLIENT_RULES.md). The Linux app has its own version line; Electron is read from its package. The
-// strings live for the process.
+// linux_platform: the official Linux desktop client's super properties, as read from 1.0.167 in WSL over CDP
+// (traffic/CLIENT_RULES.md). The strings live for the process.
 linux_platform :: () -> Platform_Info {
 	p := DEFAULT_PLATFORM;
-	p.os_product_version = ""; // the updater sends os_version
 	p.os = "Linux";
 	u: utsname;
 	if uname(*u) == 0 p.os_version = copy_string(to_string(u.release.data));
+	p.os_product_version = os_release_field("VERSION_ID", ""); // the updater's platform_version ("24.04")
 	p.os_arch, p.app_arch = "x64", "x64";
 	p.ua_os_token = "X11; Linux x86_64";
 	apply_host(*p, LINUX_HOST);
 	p.os_sdk_version = "";
 	p.sec_ch_ua_platform = "\"Linux\"";
-	env :: (name: *u8, default: string) -> string { v := to_string(c_getenv(name)); return ifx v then copy_string(v) else default; }
 	// Chromium's locale on Linux: the first of $LANGUAGE, else $LC_ALL / $LC_MESSAGES / $LANG ("C" = en-US)
 	lang := env("LANGUAGE", "");
 	colon := find_index_from_left(lang, #char ":");
 	if colon >= 0 lang = slice(lang, 0, colon);
 	for string.["LC_ALL", "LC_MESSAGES", "LANG"] if !lang lang = env(temp_c_string(it), "");
 	if lang == "C" || lang == "POSIX" || begins_with(lang, "C.") lang = "en-US";
-	with_system(*p, ifx lang then lang else "en-US", posix_timezone());
+	with_system(*p, .[ifx lang then lang else "en-US"], posix_timezone());
+	p.accept_language = linux_accept_language(p.system_locale, env("LANGUAGE", ""), env("LC_ALL", ""), env("LC_MESSAGES", ""), env("LANG", ""));
 	p.window_manager = sprint("%,%", env("XDG_CURRENT_DESKTOP", "unknown"), env("GDMSESSION", "unknown"));
-	p.distro = os_release_name();
+	p.distro = os_release_field("PRETTY_NAME", "Linux");
 	p.runtime_environment = "native";
 	p.display_server = env("XDG_SESSION_TYPE", "unknown");
 	return p;
@@ -89,20 +88,22 @@ system_idle_ms :: () -> s64, bool {
 
 #scope_file
 
-// os_release_name: PRETTY_NAME from os-release, unquoted.
-os_release_name :: () -> string {
+// os_release_field: a key of os-release, unquoted (default when absent).
+os_release_field :: (key: string, default: string) -> string {
 	for path: string.["/etc/os-release", "/usr/lib/os-release"] {
 		s, ok := read_entire_file(path, log_errors = false,, temp);
 		if !ok continue;
 		for line: split(s, "\n",, temp) {
-			if !begins_with(line, "PRETTY_NAME=") continue;
-			v := trim(slice(line, 12, line.count - 12));
+			if !begins_with(line, key) || line.count <= key.count || line[key.count] != #char "=" continue;
+			v := trim(slice(line, key.count + 1, line.count - key.count - 1));
 			if v.count >= 2 && (v[0] == #char "\"" || v[0] == #char "'") v = slice(v, 1, v.count - 2);
 			return copy_string(v);
 		}
 	}
-	return "Linux";
+	return default;
 }
+
+env :: (name: *u8, default: string) -> string { v := to_string(c_getenv(name)); return ifx v then copy_string(v) else default; }
 
 xss: struct {
 	state: s32; // 0 not tried, 1 loading, 2 loaded, 3 missing

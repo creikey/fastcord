@@ -126,6 +126,7 @@ Remote_User :: struct {
     decoder: *void;
     source: audio.Source;
     rx: Rx_Stats;
+    bytes: u64;          // RTP bytes of audio we attributed to this user
 }
 
 Conn :: struct {
@@ -524,6 +525,23 @@ get_stats :: (c: *Conn) -> Stats {
     }
     s.e2ee_failures = DAVE.session_status(*c.dave,, temp).stats.decrypt_failures;
     return s;
+}
+
+// Stream_Stats: one remote user's incoming audio, for the app's per-stream telemetry.
+Stream_Stats :: struct {
+    user_id: u64;
+    packets, lost, bytes: u64;
+    jitter_ms: float64;
+    target_frames: int;
+}
+
+// stream_stats: each mapped remote user's audio so far, in context.allocator.
+stream_stats :: (c: *Conn) -> []Stream_Stats {
+    locks.guard(*c.mu);
+    out: [..]Stream_Stats;
+    array_reserve(*out, c.users.count);
+    for c.users if it.user_id array_add(*out, .{it.user_id, it.jb.stats.received, it.jb.stats.lost, it.bytes, it.jb.stats.jitter_ms, it.jb.stats.target_frames});
+    return out;
 }
 
 // E2EE status: privacy code is the 30-digit voice privacy code ("" when the
@@ -1218,6 +1236,7 @@ udp_thread_proc :: (t: *Thread) -> s64 {
         if still {
             jb_push(*u.jb, h.seq, h.ts, opus, cast(float64) now);
             rx_update(*u.rx, h.seq, h.ts, now);
+            u.bytes += xx n;
             if !silent u.last_voice_ms = now;
         }
     }

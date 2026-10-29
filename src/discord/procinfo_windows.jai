@@ -58,20 +58,30 @@ windows_platform :: () -> Platform_Info {
 	p.ua_os_token = "Windows NT 10.0; Win64; x64";
 	apply_host(*p, WINDOWS_HOST);
 	p.sec_ch_ua_platform = "\"Windows\"";
-	with_system(*p, ui_language(), windows_timezone());
+	with_system(*p, ui_languages(), windows_timezone());
 	return p;
 }
 
 #scope_file
 
-// ui_language: the first preferred UI language ("en-US"), as Chromium's locale on Windows.
-ui_language :: () -> string {
+// ui_languages: the preferred UI languages in order ("en-US"), Chromium's locale being the first. The same
+// list follows it in Accept-Language, as on macOS (guess: not captured on a non-English Windows).
+ui_languages :: () -> []string {
+	out: [..]string;
+	out.allocator = temp;
 	n, size: u32;
-	buf: [256]u16;
+	buf: [1024]u16;
 	size = buf.count;
-	if !GetUserPreferredUILanguages(MUI_LANGUAGE_NAME, *n, buf.data, *size) || n == 0 return "en-US";
-	s, ok := wide_to_utf8(buf.data,, temp);
-	return ifx ok && s then s else "en-US";
+	if !GetUserPreferredUILanguages(MUI_LANGUAGE_NAME, *n, buf.data, *size) return out;
+	at := 0;
+	for 1..min(n, 32) { // a double-NUL-terminated list
+		if at >= size || !buf[at] break;
+		s, ok := wide_to_utf8(buf.data + at,, temp);
+		if ok && s array_add(*out, s);
+		while at < size && buf[at] at += 1;
+		at += 1;
+	}
+	return out;
 }
 
 // windows_timezone: ICU's detection (wintz.cpp), which Chromium's Intl reports: the zone's key name mapped

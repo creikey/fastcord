@@ -21,6 +21,8 @@ Config :: struct {
 	// The Chrome major version whose ClientHello to send, 0 = presented_major. From 152 the signature
 	// algorithms start with a GREASE value and ML-DSA-44/65/87.
 	chrome_major: int;
+	// rustls 0.23's ClientHello instead of Chrome's (rustls_ctx): the official Linux updater's.
+	rustls: bool;
 }
 
 // Error is the detailed failure reason; netio.Error is what the Stream reports.
@@ -65,6 +67,31 @@ new_ctx :: (quic: bool, chrome_major := CHROME_MAJOR) -> *SSL_CTX {
 	return ctx;
 }
 
+// rustls_ctx makes the SSL_CTX for rustls 0.23's ClientHello, as reqwest 0.12 (hyper-rustls 0.27, the ring
+// provider, webpki-roots) sends it from the official Linux updater: TLS 1.3 suites AES-256-GCM, AES-128-GCM,
+// ChaCha20 (the CNSA policy's order), its six TLS 1.2 suites, then the renegotiation SCSV in place of the
+// renegotiation_info extension, X25519 / P-256 / P-384 with an X25519 key share, its signature algorithms,
+// status_request and session tickets, extensions in a new random order per hello, no GREASE, padding, SCT,
+// certificate compression, ALPS or ECH (vendor/boringssl/patches/0001-rustls-hello.patch).
+rustls_ctx :: () -> *SSL_CTX {
+	ctx := SSL_CTX_new(TLS_method());
+	if !ctx return null;
+	ok := SSL_CTX_set_min_proto_version(ctx, TLS1_2_VERSION) == 1
+		&& SSL_CTX_set_max_proto_version(ctx, TLS1_3_VERSION) == 1
+		&& SSL_CTX_set_compliance_policy(ctx, ssl_compliance_policy_cnsa_202407) == 1
+		&& SSL_CTX_set_strict_cipher_list(ctx, RUSTLS_TLS12_CIPHERS) == 1
+		&& SSL_CTX_set1_group_ids(ctx, RUSTLS_GROUPS.data, xx RUSTLS_GROUPS.count) == 1
+		&& SSL_CTX_set_verify_algorithm_prefs(ctx, RUSTLS_SIGALGS.data, xx RUSTLS_SIGALGS.count) == 1;
+	if !ok { SSL_CTX_free(ctx); return null; }
+	SSL_CTX_fc_set_rustls_hello(ctx, 1);
+	SSL_CTX_set_permute_extensions(ctx, 1);
+	SSL_CTX_enable_ocsp_stapling(ctx);
+	SSL_CTX_set_session_cache_mode(ctx, SSL_SESS_CACHE_CLIENT);
+	SSL_CTX_sess_set_new_cb(ctx, new_session);
+	SSL_CTX_set_custom_verify(ctx, SSL_VERIFY_PEER, verify_peer);
+	return ctx;
+}
+
 // new_ssl makes a client SSL on ctx (from new_ctx with the same quic) for cfg: SNI, ALPN, ALPS, ECH
 // GREASE, a cached session to resume, and certificate checks for cfg.server_name. Returns null on failure.
 // BoringSSL's callbacks on it run in the context given to set_context.
@@ -81,14 +108,16 @@ new_ssl :: (ctx: *SSL_CTX, cfg: Config, quic: bool) -> *SSL {
 	if d && !ok OPENSSL_free(d);
 	if !ok { SSL_free(ssl); return null; }
 	// A pinned connection keys its sessions by the pin too, so it never resumes one whose certificate had
-	// another hash.
+	// another hash, and rustls's sessions are its own.
 	prefix := ifx cfg.insecure_skip_verify then INSECURE else "";
 	if cfg.pin.count == 32 {
 		d.pinned = true;
 		memcpy(d.pin.data, cfg.pin.data, 32);
 		prefix = tprint("pin % ", hex(cfg.pin));
 	} else if cfg.pin.count ok = false;
+	if cfg.rustls prefix = tprint("rustls %", prefix);
 	at := prefix.count;
+	d.name_at = at;
 	memcpy(d.host.data, prefix.data, at);
 	memcpy(d.host.data + at, cfg.server_name.data, cfg.server_name.count);
 	d.host_count = at + cfg.server_name.count;
@@ -101,11 +130,11 @@ new_ssl :: (ctx: *SSL_CTX, cfg: Config, quic: bool) -> *SSL {
 		protos[n] = xx p.count;
 		memcpy(protos.data + n + 1, p.data, p.count);
 		n += 1 + p.count;
-		if p == (ifx quic then "h3" else "h2") { ok = ok && SSL_add_application_settings(ssl, p.data, xx p.count, null, 0) == 1; }
+		if p == (ifx quic then "h3" else "h2") && !cfg.rustls { ok = ok && SSL_add_application_settings(ssl, p.data, xx p.count, null, 0) == 1; }
 	}
 	if n ok = ok && SSL_set_alpn_protos(ssl, protos.data, xx n) == 0;
 	SSL_set_alps_use_new_codepoint(ssl, 1);
-	SSL_set_enable_ech_grease(ssl, 1);
+	SSL_set_enable_ech_grease(ssl, xx !cfg.rustls);
 	if quic SSL_set_early_data_enabled(ssl, 1);
 	if cfg.insecure_skip_verify SSL_set_custom_verify(ssl, SSL_VERIFY_PEER, (ssl: *SSL, alert: *u8) -> s32 #c_call { return ssl_verify_ok; });
 	if d.pinned SSL_set_custom_verify(ssl, SSL_VERIFY_PEER, verify_pin);
@@ -149,7 +178,7 @@ Session :: struct {
 // detailed reason.
 connect :: (under: netio.Stream, cfg: Config) -> *Session, netio.Error, Error {
 	ensure_init();
-	ssl := new_ssl(tcp_ctx(cfg.chrome_major), cfg, false);
+	ssl := new_ssl(tcp_ctx(cfg), cfg, false);
 	if !ssl return null, .Tls, .Internal;
 	s, ne, e := start(ssl, under);
 	return s, ne, e;
@@ -159,7 +188,7 @@ connect :: (under: netio.Stream, cfg: Config) -> *Session, netio.Error, Error {
 // for cfg, from context.allocator. Nothing goes on the network.
 client_hello :: (cfg: Config) -> []u8 {
 	ensure_init();
-	ssl := new_ssl(tcp_ctx(cfg.chrome_major), cfg, false);
+	ssl := new_ssl(tcp_ctx(cfg), cfg, false);
 	if !ssl return .[];
 	defer SSL_free(ssl);
 	rbio, wbio := BIO_new(BIO_s_mem()), BIO_new(BIO_s_mem());
@@ -367,6 +396,12 @@ SIGALGS := u16.[0x0403, 0x0804, 0x0401, 0x0503, 0x0805, 0x0501, 0x0806, 0x0601];
 SIGALGS_152 := u16.[0x0904, 0x0905, 0x0906, 0x0403, 0x0804, 0x0401, 0x0503, 0x0805, 0x0501, 0x0806, 0x0601];
 SIGALGS_QUIC := u16.[0x0403, 0x0804, 0x0401, 0x0503, 0x0805, 0x0501, 0x0806, 0x0601, 0x0201];
 
+// rustls 0.23 with ring: its TLS 1.2 suites (DEFAULT_CIPHER_SUITES), groups (ALL_KX_GROUPS) and the
+// signature algorithms its webpki verifier supports (SUPPORTED_SIG_ALGS), in their order.
+RUSTLS_TLS12_CIPHERS :: "ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-CHACHA20-POLY1305";
+RUSTLS_GROUPS := u16.[0x001d, 0x0017, 0x0018];
+RUSTLS_SIGALGS := u16.[0x0503, 0x0403, 0x0807, 0x0806, 0x0805, 0x0804, 0x0601, 0x0501, 0x0401];
+
 INSECURE :: "insecure ";
 
 // Ssl_Data is each SSL's ex_data (BoringSSL frees it with the SSL): its host and the context its
@@ -374,7 +409,8 @@ INSECURE :: "insecure ";
 Ssl_Data :: struct {
 	ctx: *#Context;
 	host_count: int;
-	host: [72 + 256]u8; // NUL-terminated, after "insecure " or "pin <hex> ".
+	host: [80 + 256]u8; // NUL-terminated, after "rustls ", "insecure " or "pin <hex> "
+	name_at: int;       // where the server name starts in host
 	pinned: bool;
 	pin: [32]u8;
 }
@@ -400,13 +436,13 @@ verify_pin :: (ssl: *SSL, out_alert: *u8) -> s32 #c_call {
 
 host_of :: (d: *Ssl_Data) -> string { return to_string(d.host.data, d.host_count); }
 
-// The ex_data index and the shared TCP contexts (Chrome 148's and 152's), made on first use.
+// The ex_data index and the shared TCP contexts (Chrome 148's, 152's and rustls's), made on first use.
 init_mu: locks.Mutex;
 inited: bool;
 host_index: s32;
-tcp_ctxs: [2]*SSL_CTX;
+tcp_ctxs: [3]*SSL_CTX;
 
-tcp_ctx :: (chrome_major: int) -> *SSL_CTX { return tcp_ctxs[xx (major_or_presented(chrome_major) >= 152)]; }
+tcp_ctx :: (cfg: Config) -> *SSL_CTX { return tcp_ctxs[ifx cfg.rustls then 2 else cast(int) (major_or_presented(cfg.chrome_major) >= 152)]; }
 
 ensure_init :: () {
 	if atomic_load(*inited) return;
@@ -415,7 +451,7 @@ ensure_init :: () {
 	host_index = SSL_get_ex_new_index(0, null, null, null, (parent: *void, ptr: *void, ad: *void, index: s32, argl: s64, argp: *void) #c_call {
 		OPENSSL_free(ptr);
 	});
-	tcp_ctxs = .[new_ctx(false, 148), new_ctx(false, 152)];
+	tcp_ctxs = .[new_ctx(false, 148), new_ctx(false, 152), rustls_ctx()];
 	atomic_store(*inited, true);
 }
 
@@ -430,7 +466,7 @@ is_ip_literal :: (host: string) -> bool {
 verify_peer :: (ssl: *SSL, out_alert: *u8) -> s32 #c_call {
 	d := cast(*Ssl_Data) SSL_get_ex_data(ssl, host_index);
 	push_context d.ctx.* {
-		host := host_of(d);
+		host := advance(host_of(d), d.name_at);
 		certs := SSL_get0_peer_certificates(ssl);
 		n := ifx certs then cast(int) OPENSSL_sk_num(certs) else 0;
 		chain: [16][]u8;

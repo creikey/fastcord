@@ -1,41 +1,50 @@
-// TLS through the OS's own library, configured as Rust's native-tls 0.2 configures it, for the requests the
-// official client's native updater (updater.node: reqwest + hyper-tls + native-tls) makes. Its ClientHello is
-// then the OS library's by construction: SecureTransport on macOS (security-framework), SChannel on Windows
-// (schannel-rs), the system libssl on Linux (rust-openssl, opened with dlopen). Certificates are checked the
-// way native-tls checks them. Everything else in fastcord speaks Chrome's TLS (src/tls).
+// The TLS of the official client's native updater (updater.node: reqwest + hyper), for the requests it makes.
+// On macOS and Windows that is the OS's own library, configured as Rust's native-tls 0.2 configures it, so the
+// ClientHello is the OS library's by construction: SecureTransport on macOS (security-framework), SChannel on
+// Windows (schannel-rs), with certificates checked the way native-tls checks them. The Linux updater links
+// rustls 0.23 (hyper-rustls) instead, which src/tls's BoringSSL imitates (tls.Config.rustls), offering h2.
+// Everything else in fastcord speaks Chrome's TLS (src/tls).
 //
-//   s, err := ostls.connect(netio.tcp_stream(tcp), "updates.discord.com");
-//   ... netio.read / netio.write on s ...
-//   netio.close(s); // closes tcp too; like dropping a native-tls stream, it sends no close_notify
+//   s, err, h2 := ostls.connect(netio.tcp_stream(tcp), "updates.discord.com");
+//   ... HTTP/2 when h2, else HTTP/1.1, with netio.read / netio.write on s ...
+//   netio.close(s); // closes tcp too; like dropping a native-tls stream, it sends no close_notify (rustls: does)
 #import "Basic";
 netio :: #import "netio";
 
 Error :: enum u8 {
 	None;
-	Unavailable; // the OS library could not be loaded (Linux without libssl) or set up
+	Unavailable; // the OS library could not be set up
 	Handshake;   // the handshake failed, or the stream underneath did
 	Untrusted;   // the certificate is not trusted for the name
 }
 
 // connect runs the handshake for host (SNI and the name the certificate must be valid for) on s, which the
-// returned stream owns from then on; on failure s is closed.
-connect :: (s: netio.Stream, host: string) -> netio.Stream, Error {
-	ss := New(Session);
-	ss.inner = s;
-	err := os_connect(ss, host);
-	if err != .None {
-		session_close(ss);
-		return .{}, err;
+// returned stream owns from then on; on failure s is closed. h2: the server picked HTTP/2 (ALPN, Linux only).
+connect :: (s: netio.Stream, host: string) -> netio.Stream, Error, h2: bool {
+	#if OS == .LINUX {
+		st, err, h2 := rustls_connect(s, host);
+		return st, err, h2;
+	} else {
+		ss := New(Session);
+		ss.inner = s;
+		err := os_connect(ss, host);
+		if err != .None {
+			session_close(ss);
+			return .{}, err, false;
+		}
+		return .{data = ss, read = session_read, write = session_write, close = session_close, shutdown = session_shutdown, set_timeout = session_set_timeout}, .None, false;
 	}
-	return .{data = ss, read = session_read, write = session_write, close = session_close, shutdown = session_shutdown, set_timeout = session_set_timeout}, .None;
 }
 
 #scope_module
 
+#if OS == .LINUX #load "linux.jai";
+else {
+
 READ_CHUNK :: 16 * 1024;
 
-// in_buf: what a read of the stream underneath brought beyond what the library asked for (SecureTransport and
-// libssl take bytes in their own sizes); next is the first unread byte.
+// in_buf: what a read of the stream underneath brought beyond what the library asked for (SecureTransport
+// takes bytes in its own sizes); next is the first unread byte.
 In_Buffer :: struct {
 	data: [READ_CHUNK]u8;
 	next, end: int;
@@ -81,5 +90,5 @@ session_shutdown :: (data: *void) { netio.shutdown((cast(*Session) data).inner);
 session_set_timeout :: (data: *void, ms: s64) { netio.set_timeout((cast(*Session) data).inner, ms); }
 
 #if OS == .MACOS #load "darwin.jai";
-else #if OS == .WINDOWS #load "windows.jai";
-else #if OS == .LINUX #load "linux.jai";
+else #load "windows.jai";
+}

@@ -1124,6 +1124,17 @@ Voice_Sample :: struct {
 	jitter_ms: float64;
 	target_frames: int;
 	members: int; // E2EE group size
+	streams: []Voice_Stream; // each remote user's incoming audio (valid during the call)
+}
+
+// Voice_Stream: one remote user's incoming audio; first_ms and last_ms are when
+// the session first and last saw it (a stream is kept after its user leaves).
+Voice_Stream :: struct {
+	user_id: Snowflake;
+	packets, lost, bytes: s64;
+	jitter_ms: float64;
+	target_frames: int;
+	first_ms, last_ms: s64;
 }
 
 Voice_Session :: struct {
@@ -1145,6 +1156,7 @@ Voice_Session :: struct {
 	mem: [..]s64;
 	max_states, total_states: int;
 	seen: [..]Snowflake;
+	streams: [..]Voice_Stream; // voice_stream_ended's receivers
 	alone_since: s64; // connected with nobody else in the channel (secure_frames_transition alone_wait_duration)
 	members: int;
 	peer_left_ms: s64; // a transition began when a peer left and was not executed
@@ -1165,6 +1177,7 @@ voice_session_reset :: (a: *Analytics) {
 	array_free(v.cpu);
 	array_free(v.mem);
 	array_free(v.seen);
+	array_free(v.streams);
 	v.* = .{guild_id = g, channel_id = ch, join_ms = join, ring = ring};
 }
 
@@ -1425,6 +1438,17 @@ analytics_voice_frame :: (c: *Client, x: Voice_Sample) {
 		v.peer_left_ms = now;
 	}
 	v.members = max(x.members, ifx v.peer_left_ms then v.members else x.members);
+	for xs: x.streams {
+		st: *Voice_Stream;
+		for * v.streams if it.user_id == xs.user_id st = it;
+		if !st {
+			st = array_add(*v.streams);
+			st.first_ms = now;
+		}
+		first := st.first_ms;
+		st.* = xs;
+		st.first_ms, st.last_ms = first, now;
+	}
 	v.last, v.last_ms = x, now;
 }
 
@@ -1490,6 +1514,7 @@ analytics_secure_frames :: (c: *Client, members: int) {
 analytics_voice_leave :: (c: *Client) {
 	a := *c.analytics;
 	v := *a.voice;
+	if v.rtc_id analytics_voice_streams_ended(c);
 	if v.rtc_id && v.peer_left_ms analytics_secure_frames(c, 0);
 	client_set_rtc_state(c, .Disconnected); // RTCConnectionStore resets on VOICE_CHANNEL_SELECT
 	analytics_hotspot_hidden(c, "VOICE_PANEL_INTRODUCTION");
@@ -1547,6 +1572,87 @@ analytics_voice_leave :: (c: *Client) {
 	aw_track(c, "voice_codec_detected", *k);
 	analytics_voice_disconnect(c, ch, duration, bwe, level);
 	voice_session_reset(a);
+}
+
+// voice_stream_ended: the media engine's summary of each audio stream when we
+// leave a call that had others in it: our own ("sender"), then one per remote
+// user we heard ("receiver"). Packet, byte and time counts are ours; the
+// engine's processing delays and jitter percentiles are synthesized around them
+// (10 ms capture frames, 20 ms send frames, 40 ms of playout per received packet).
+analytics_voice_streams_ended :: (c: *Client) {
+	a := *c.analytics;
+	v := *a.voice;
+	if !v.seen.count && !v.streams.count return;
+	ch := channel_get(*c.store, v.channel_id);
+	x := v.last;
+	duration := now_ms() - v.created_ms - 1;
+	ping := ifx v.ping_n then v.ping_sum / v.ping_n else 0;
+	locks.lock(*a.mu);
+	r: [8]float64;
+	for * r it.* = synth_rand(*a.synth);
+	device_total := 99 + cast(s64) (2 * r[7]);
+	locks.unlock(*a.mu);
+	begin :: (v: *Voice_Session, ch: *Channel, sender: Snowflake, kind: string, packets: s64, lost: s64, bytes: s64) -> Json {
+		w := aw_begin();
+		aw_voice_ids(*w, v, ch);
+		json_kstr(*w, "media_session_id", v.media_session);
+		json_ksnow(*w, "sender_user_id", sender);
+		json_kstr(*w, "participant_type", kind);
+		json_kint(*w, "num_packets", packets);
+		json_kint(*w, "num_packets_lost", lost);
+		json_kint(*w, "num_bytes", bytes);
+		return w;
+	}
+	w := begin(v, ch, c.store.me, "sender", x.packets_sent, 0, x.bytes_sent);
+	if !v.ring { // guess: only the caller's side had it in the capture
+		frames := 1 + cast(s64) (3 * r[0]);
+		json_kint(*w, "capture_processing_delay_ms", frames * (30 + cast(s64) (10 * r[1])));
+		json_kint(*w, "capture_processing_frame_count", frames);
+	}
+	apm := max(duration - 200 - cast(s64) (300 * r[2]), 0) / 10;
+	json_kint(*w, "apm_process_time_ms", apm * (270 + cast(s64) (40 * r[3])) / 1000);
+	json_kint(*w, "apm_frame_count", apm);
+	json_kint(*w, "send_delay_ms", (apm / 2) * (200 + cast(s64) (6 * r[4])) / 10);
+	json_kint(*w, "send_packet_count", apm / 2);
+	json_kint(*w, "total_packet_send_delay_ms", 0);
+	json_kint(*w, "noise_canceller_process_time_ms", apm * (150 + cast(s64) (20 * r[5])) / 1000);
+	json_kint(*w, "noise_canceller_frame_count", apm);
+	json_kint(*w, "transport_delay_ms", x.packets_sent * (80 + cast(s64) (10 * r[6])));
+	json_kint(*w, "transport_packet_count", x.packets_sent);
+	json_kint(*w, "audio_device_delay_ms", 50);
+	json_kint(*w, "audio_device_total_delay_ms", device_total);
+	json_kint(*w, "duration_connected_ms", duration);
+	json_kint(*w, "duration_speaking_ms", v.speaking_ms);
+	json_kint(*w, "ping_average", ping);
+	aw_track(c, "voice_stream_ended", *w);
+	for st: v.streams {
+		if !st.packets continue;
+		locks.lock(*a.mu);
+		for * r it.* = synth_rand(*a.synth);
+		locks.unlock(*a.mu);
+		rw := begin(v, ch, st.user_id, "receiver", st.packets, st.lost, st.bytes);
+		json_kint(*rw, "duration_connected_ms", st.last_ms - st.first_ms);
+		// NetEq's buffer, delay and target: the target from ours (at least 2 frames), the rest around it
+		t := max(st.target_frames * 20, 40);
+		jb := cast(s64) st.jitter_ms;
+		stat :: (w: *Json, prefix: string, values: ..s64) {
+			for string.["mean", "p75", "p95", "p99", "max"] json_kint(w, tprint("%_%", prefix, it), values[it_index]);
+		}
+		buf_max := t + 30 + cast(s64) (30 * r[0]);
+		buf_p95 := buf_max * (75 + cast(s64) (10 * r[1])) / 100;
+		stat(*rw, "audio_jitter_buffer", min(jb / 2 + 5 + cast(s64) (20 * r[2]), buf_p95), buf_p95 * (5 + cast(s64) (65 * r[3])) / 100, buf_p95, buf_max, buf_max);
+		del_max := buf_max + 40 + cast(s64) (30 * r[4]);
+		del_p95 := del_max * 85 / 100;
+		del_p75 := del_p95 * 85 / 100;
+		stat(*rw, "audio_jitter_delay", del_p75 * (45 + cast(s64) (40 * r[5])) / 100, del_p75, del_p95, del_max, del_max);
+		stat(*rw, "audio_jitter_target", t * (55 + cast(s64) (30 * r[6])) / 100 * 2, 2 * t, 2 * t, 2 * t, 2 * t);
+		json_kint(*rw, "audio_receiver_delay_ms", 40 * st.packets + cast(s64) (50 * r[7]));
+		json_kint(*rw, "audio_receiver_packet_count", st.packets);
+		json_kint(*rw, "audio_device_delay_ms", 50);
+		json_kint(*rw, "audio_device_total_delay_ms", device_total);
+		json_kint(*rw, "ping_average", ping);
+		aw_track(c, "voice_stream_ended", *rw);
+	}
 }
 
 analytics_voice_disconnect :: (c: *Client, ch: *Channel, duration: s64, bwe: s64, level: float64) {
