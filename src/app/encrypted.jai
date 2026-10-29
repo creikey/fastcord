@@ -95,6 +95,7 @@ ee: Encrypted_State;
 encrypted_frame :: () {
 	if !e2e_db return;
 	encrypted_files_frame();
+	bottle_frame();
 	for g: ee.gifs {
 		b := table_find_pointer(*blobs, g.url);
 		if b && b.state == .Loading continue;
@@ -152,6 +153,7 @@ encrypted_frame :: () {
 					edited = edited, reply = dc.parse_snowflake(r.reply), files = files_copy(r.files), packet = ifx r.result == .Hello then copy_string(r.packet),
 					stickers = stickers_of(r.stickers), kind = ifx r.packet.count > 1 then r.packet[1], forward_author = dc.parse_snowflake(r.forward_author), forward_at = copy_string(r.forward_at)};
 				if r.result == .Ok && r.content == .Sender_Key && r.from != r.conv.me ee.generation += 1; // a group's messages waiting for this chain retry
+				if r.result == .Ok && r.content == .Bottle_Key && r.from != r.conv.me bottle_key_came();
 				if r.result == .Ok && r.content == .Edit && r.target != r.delivery {
 					// Detached: hidden, and its message, already open, opens again with the latest edit. One still
 					// opening was asked after this one, so it gets it.
@@ -285,6 +287,7 @@ e2e_mark :: (m: *dc.Message) -> E2E_Mark {
 	ch := dc.channel_get(store(), m.channel_id);
 	if !encrypted_dm(ch) return .None;
 	if encrypted_packet(m.channel_id, m.content) && (!m.forwarded || m.forward_author_id) return .Encrypted; // the latter forwarded inside its packet
+	if is_bottle(m.content) && !m.forwarded return .Encrypted;
 	e := encrypted_channel(ch.id);
 	return ifx e.encrypted || e.has_session then .Plain else .None;
 }
@@ -346,7 +349,7 @@ encrypted_hidden :: (m: *dc.Message) -> bool {
 	if !encrypted_packet(m.channel_id, m.content) return false;
 	sh := table_find_pointer(*ee.shown, m.id);
 	if !sh || sh.pending return false;
-	if sh.result == .Ok return sh.content == .Delete || sh.content == .React || sh.content == .Unreact || sh.content == .Sender_Key || sh.detached;
+	if sh.result == .Ok return sh.content == .Delete || sh.content == .React || sh.content == .Unreact || sh.content == .Sender_Key || sh.content == .Bottle_Key || sh.detached;
 	// In a group, the pairwise packets between two other members aren't ours to show.
 	ch := dc.channel_get(store(), m.channel_id);
 	return ch && ch.kind == .Group_DM && ((sh.result == .No_Session && sh.kind == xx e2e.Kind.Msg) || (sh.result == .Undecryptable && sh.kind == xx e2e.Kind.Init));
@@ -480,6 +483,7 @@ encrypted_edit :: (channel_id: dc.Snowflake, id: dc.Snowflake, text: string, del
 
 // shown_text is a message's content as drawn outside the message list (previews, notifications, copies).
 shown_text :: (id: dc.Snowflake, channel_id: dc.Snowflake, content: string) -> string {
+	if is_bottle(content) return shown_bottle(id);
 	if !encrypted_packet(channel_id, content) return content;
 	sh := table_find_pointer(*ee.shown, id);
 	if sh && !sh.pending && sh.result == .Ok && is_text(sh.content) return ifx sh.text || !sh.files then sh.text else L("Sent a file");
@@ -846,8 +850,6 @@ encrypted_warning :: (dm: *dc.Channel) {
 	sep.style.bg = T("--border-subtle");
 }
 
-#scope_file
-
 // Carrier names, kept with every conversation in fastcord.db: Discord's, or a hosted server's by its ID.
 DISCORD :: "discord";
 HOSTED :: "fc:";
@@ -886,6 +888,8 @@ e2e_submit :: (r: *e2e.Request) {
 	array_add(*ee.inflight, r);
 	e2e.submit(e2e_db, r);
 }
+
+#scope_file
 
 // send_packet hands a committed packet to its carrier, shows its pending copy as what it holds, and drops
 // it from the outbox. An Edit or Delete edits its message instead, which shows the change at once.

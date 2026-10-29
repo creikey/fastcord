@@ -11,21 +11,25 @@
 //     Init:  hello_id[32] root[32] ik[32] proof[64] ek[32] pqct[1088] header[40] ciphertext tag[16]
 //     Msg:   session[16] header[40] ciphertext tag[16]
 //     Group: key[16] n[u32 LE] ciphertext tag[16] signature[64]
+//     Bottle: ciphertext tag[16]
 // header = dh[32] pn[u32 LE] n[u32 LE]. ik is the identity's Exchange key, proven to its root by proof.
 // hello_id is BLAKE3 of the whole Hello packet; a session's ID is BLAKE3 of the Init up to its header.
 // sk is the identity's SLH-DSA Signing key, proven to the same root, and signature is SLH-DSA over the
 // Hello before it under HELLO_CONTEXT (E2E 5): the prekeys are the identity's own, so the carrier can't
 // swap them to read the first message.
+// A Bottle is a message sealed under a key used once (seal_bottle), posted where anyone may see it. The key
+// goes to each reader as a Bottle_Key message of their pairwise session, naming the Bottle by its digest,
+// so only they open it, and only as from whoever gave them the key.
 
 VERSION :: 4;
 MAX_PACKET :: 16384; // The most any carrier may set as its largest packet.
 
-Kind :: enum u8 { Hello :: 1; Init :: 2; Msg :: 3; Group :: 4; }
+Kind :: enum u8 { Hello :: 1; Init :: 2; Msg :: 3; Group :: 4; Bottle :: 5; }
 
 // The first plaintext byte says what a ratchet message holds. Text is the text alone; every later kind
 // has a Body (encode_body): a message with a reply or files is a Post, and Edit, Delete, React and Unreact
 // name their target, the delivery they change.
-Content :: enum u8 { Text :: 0; Accept :: 1; Post :: 2; Edit :: 3; Delete :: 4; React :: 5; Unreact :: 6; Sender_Key :: 7; }
+Content :: enum u8 { Text :: 0; Accept :: 1; Post :: 2; Edit :: 3; Delete :: 4; React :: 5; Unreact :: 6; Sender_Key :: 7; Bottle_Key :: 8; }
 SILENT :: cast(u8) 0x80; // Set on the Content byte: sent with @silent, so no sound or notification on any carrier.
 FORWARDED :: cast(u8) 0x40; // Set on a Post's Content byte: a forward, whose Body holds the original's author and time after its stickers.
 FLAGS :: SILENT | FORWARDED;
@@ -40,10 +44,14 @@ MSG_PREFIX_BYTES :: 2 + 16;
 GROUP_PREFIX_BYTES :: 2 + 16 + 4;
 GROUP_OVERHEAD :: GROUP_PREFIX_BYTES + TAG_BYTES + 64;
 SENDER_KEY_BYTES :: 16 + 4 + 32 + 32; // A Sender_Key body: key ID, its next n, chain key, Ed25519 public key.
+BOTTLE_KEY_BYTES :: 32 + 32; // A Bottle_Key body: the Bottle's BLAKE3 digest, then its key.
+BOTTLE_OVERHEAD :: 2 + TAG_BYTES;
+BOTTLE_CONTEXT :: "fastcord 2026-10-30 e2e bottle v1";
 
 // max_text is the longest text one Msg holds on a carrier whose largest packet is limit: the rest is the
 // prefix, header and tag, the Content byte and the padding's 0x80.
 max_text :: (limit: int) -> int { return limit - MSG_PREFIX_BYTES - HEADER_BYTES - TAG_BYTES - 2; }
+max_bottle_text :: (limit: int) -> int { return limit - BOTTLE_OVERHEAD - 2; }
 
 // A Body, after the Content byte: target and reply (u8 length, then the carrier's delivery ID), a u8 count
 // of files, each key[32] digest[32] size[u32 LE] width[u16 LE] height[u16 LE] flags[u8] name (u8 length)
@@ -86,7 +94,7 @@ encode_body :: (b: Body) -> []u8 {
 	out.allocator = temp;
 	forwarded := b.forwarded && b.content == .Post;
 	array_add(*out, (cast(u8) b.content) | (ifx b.silent then SILENT else 0) | (ifx forwarded then FORWARDED else 0));
-	if b.content == .Text || b.content == .Sender_Key { array_add(*out, ..cast([]u8) b.text); return out; }
+	if b.content == .Text || b.content == .Sender_Key || b.content == .Bottle_Key { array_add(*out, ..cast([]u8) b.text); return out; }
 	if b.content == .Accept return out;
 	add_str :: (out: *[..]u8, s: string, wide := false) {
 		array_add(out, xx (s.count & 0xFF));
@@ -114,12 +122,13 @@ encode_body :: (b: Body) -> []u8 {
 // strings point into pt; files are in temp.
 parse_body :: (pt: []u8) -> Body, bool {
 	b: Body;
-	if pt.count < 1 || (pt[0] & ~FLAGS) > xx Content.Sender_Key return b, false;
+	if pt.count < 1 || (pt[0] & ~FLAGS) > xx Content.Bottle_Key return b, false;
 	b.content, b.silent, b.forwarded = xx (pt[0] & ~FLAGS), (pt[0] & SILENT) != 0, (pt[0] & FORWARDED) != 0;
 	if b.forwarded && b.content != .Post return b, false;
 	r := array_view(pt, 1, pt.count - 1);
 	if b.content == .Text { b.text = xx r; return b, valid_utf8(b.text); }
 	if b.content == .Sender_Key { b.text = xx r; return b, r.count == SENDER_KEY_BYTES; } // binary, never shown
+	if b.content == .Bottle_Key { b.text = xx r; return b, r.count == BOTTLE_KEY_BYTES; }
 	if b.content == .Accept return b, r.count == 0;
 	ok := true;
 	bytes :: (n: int) -> []u8 #expand {
@@ -220,6 +229,26 @@ open_file :: (f: File, ct: []u8) -> []u8, bool {
 	if !file_aead(false, f.key, array_view(ct, 0, out.count), out, array_view(ct, out.count, TAG_BYTES)) { array_free(out); return .[], false; }
 	out.count = f.size;
 	return out, true;
+}
+
+// seal_bottle encrypts a padded plaintext as a Bottle under a new key, used once (so the nonce is zero),
+// and returns the key.
+seal_bottle :: (pt: []u8, out: *Packet) -> [32]u8 {
+	key: [32]u8;
+	assert(BOTTLE_OVERHEAD + pt.count <= out.limit);
+	crypto.random_bytes(key);
+	out.count = 0;
+	put(out, .[VERSION, xx Kind.Bottle]);
+	ok := bottle_aead(true, key, pt, array_view(out.data, 2, pt.count), array_view(out.data, 2 + pt.count, TAG_BYTES));
+	assert(ok);
+	out.count += pt.count + TAG_BYTES;
+	return key;
+}
+
+// open_bottle decrypts a Bottle with its key into pt, sized p.count - BOTTLE_OVERHEAD.
+open_bottle :: (key: [32]u8, p: []u8, pt: []u8) -> bool {
+	if p.count < BOTTLE_OVERHEAD + 1 || p[0] != VERSION || p[1] != xx Kind.Bottle || pt.count != p.count - BOTTLE_OVERHEAD return false;
+	return bottle_aead(false, key, array_view(p, 2, pt.count), pt, array_view(p, p.count - TAG_BYTES, TAG_BYTES));
 }
 
 // Double Ratchet, Signal spec section 3.5: the most message keys one message may skip over.
@@ -728,6 +757,15 @@ file_aead :: (seal: bool, key: [32]u8, src: []u8, dst: []u8, tag: []u8) -> bool 
 	nonce: [12]u8;
 	if seal return crypto.seal(*a, dst, tag, nonce, xx FILE_CONTEXT, src);
 	return crypto.open(*a, dst, nonce, xx FILE_CONTEXT, src, tag);
+}
+
+bottle_aead :: (seal: bool, key: [32]u8, src: []u8, dst: []u8, tag: []u8) -> bool {
+	a: crypto.Aead;
+	if !crypto.aead_init(*a, .CHACHA20_POLY1305, key) return false;
+	defer crypto.aead_destroy(*a);
+	nonce: [12]u8;
+	if seal return crypto.seal(*a, dst, tag, nonce, xx BOTTLE_CONTEXT, src);
+	return crypto.open(*a, dst, nonce, xx BOTTLE_CONTEXT, src, tag);
 }
 
 valid_utf8 :: (s: string) -> bool {

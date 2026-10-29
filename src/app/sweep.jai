@@ -162,7 +162,7 @@ app_reset_state :: () {
 	sv = .{};
 	pk = .{};
 	ma = .{};
-	modr.user, fwd.msg, guild_privacy = 0, 0, 0;
+	modr.user, fwd.msg, guild_privacy, bottles.msg = 0, 0, 0, 0;
 	accts.menu_open, accts.manage_open, accts.adding = false, false, false;
 	sm, cstatus.open = .{}, false;
 	sw = .{};

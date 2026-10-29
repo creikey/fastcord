@@ -98,6 +98,8 @@ Op :: enum u8 {
 	Outbox;        // -> outbox: packets committed but never handed to their carrier, to send again after a crash
 	Search;        // conv, text = words -> hits: the conversation's texts holding every word, ignoring ASCII case
 	Bundle;        // conv (carrier and me only), me -> packet: a Hello any conversation on the carrier may answer, for the carrier to keep
+	Bottle;        // conv (carrier, where it goes, and me), text -> packet, a Bottle anyone may see, and out_text its digest, whose key is kept as ours; Too_Long when it doesn't fit. A Send of Bottle_Key with text the digest gives a reader the key.
+	Unbottle;      // conv (carrier, where it is), from, packet -> result Ok and out_text, opened with the key from gave us; No_Session with none
 }
 
 Result :: enum u8 {
@@ -249,6 +251,9 @@ SQL,
 	"CREATE TABLE outbox_files(hash BLOB NOT NULL, n INTEGER NOT NULL, data BLOB NOT NULL, PRIMARY KEY(hash, n)) WITHOUT ROWID;",
 	// A detached Edit (store_plaintext): the delivery it changes, and the carrier's order of its own.
 	"ALTER TABLE plaintexts ADD COLUMN target BLOB; ALTER TABLE plaintexts ADD COLUMN ord INTEGER NOT NULL DEFAULT 0; CREATE INDEX plaintexts_target ON plaintexts(conversation, target);",
+	// Each Bottle's key by its digest and the party who gave it (us, for our own), so a Bottle opens only as
+	// from its giver.
+	"CREATE TABLE bottle_keys(digest BLOB NOT NULL, giver BLOB NOT NULL, sealed BLOB NOT NULL, created INTEGER NOT NULL, PRIMARY KEY(digest, giver)) WITHOUT ROWID;",
 ];
 
 // The entries that wiped users' sessions and history, before E2E shipped in v0.6.2. Never add to this:
@@ -303,8 +308,9 @@ key :: (carrier: string, id: string) -> []u8 {
 valid :: (r: *Request) -> bool {
 	c := r.conv;
 	if !c.carrier.count || find_index_from_left(c.carrier, 0) >= 0 || (!c.id.count && r.op != .Bundle) || c.limit > MAX_PACKET return false;
-	if r.op == .Hello || r.op == .Bundle || r.op == .Accept || r.op == .Send || r.op == .Receive
+	if r.op == .Hello || r.op == .Bundle || r.op == .Accept || r.op == .Send || r.op == .Receive || r.op == .Bottle
 		return c.me.count && c.limit > 0 && (r.op != .Accept || c.peer.count) && (r.op != .Receive || r.from.count);
+	if r.op == .Unbottle return r.from.count > 0;
 	return true;
 }
 
@@ -370,8 +376,24 @@ run_request :: (d: *Db, r: *Request) {
 			r.packet = copy_string(xx bytes(*p),, context.default_allocator);
 			if !commit_sent(d, r, conv, *s, true, hello.root, hello.id, encode_body(.{content = .Accept})) r.result = .Failed;
 		case .Send;
+			text := r.text;
+			if r.content == .Bottle_Key {
+				// Only our own Bottle's key, and only to one peer: the text names it by digest.
+				k: [32]u8;
+				defer crypto.zero(*k);
+				st := sqlite.prepare(db, "SELECT sealed FROM bottle_keys WHERE digest = ? AND giver = ?;");
+				found := r.text.count == 32 && !r.members && sqlite.bind_all(st, cast([]u8) r.text, key(r.conv.carrier, r.conv.me)) && sqlite.step(st) == .Row
+					&& unseal(d, ad("bottle_keys", xx r.text), sqlite.col_blob(st, 0), *k);
+				sqlite.finalize(st);
+				if !found { r.result = .Failed; return; }
+				gift := NewArray(BOTTLE_KEY_BYTES, u8,, temp);
+				memcpy(gift.data, r.text.data, 32);
+				memcpy(gift.data + 32, k.data, 32);
+				text = xx gift;
+			}
 			if r.content == .Text && (r.reply.count || r.files.count || r.stickers.count || r.forward_author.count) r.content = .Post;
-			body := encode_body(.{r.content, r.silent, r.target, r.reply, r.files, r.text, r.stickers, r.forward_author.count > 0, r.forward_author, r.forward_at});
+			body := encode_body(.{r.content, r.silent, r.target, r.reply, r.files, text, r.stickers, r.forward_author.count > 0, r.forward_author, r.forward_at});
+			defer if r.content == .Bottle_Key { crypto.zero(xx text); crypto.zero(body); }
 			_, valid := parse_body(body);
 			if !valid || r.content == .Accept { r.result = .Failed; return; }
 			if r.members { group_send(d, r, conv, body); return; }
@@ -443,7 +465,54 @@ run_request :: (d: *Db, r: *Request) {
 				if found array_add(*r.hits, .{copy_string(xx sqlite.col_blob(st, 1)), copy_string(xx sqlite.col_blob(st, 2)), copy_string(text)});
 			}
 			sqlite.finalize(st);
+		case .Bottle;
+			body := encode_body(.{content = .Text, text = r.text});
+			_, valid := parse_body(body);
+			if !valid || !r.text.count { r.result = .Failed; return; }
+			if body.count + 1 > r.conv.limit - BOTTLE_OVERHEAD { r.result = .Too_Long; return; }
+			p: Packet;
+			p.limit = r.conv.limit;
+			pt := pad(body, p.limit - BOTTLE_OVERHEAD);
+			defer crypto.zero(pt);
+			k := seal_bottle(pt, *p);
+			defer crypto.zero(*k);
+			digest := crypto.blake3(bytes(*p));
+			if !sqlite.run(db, "INSERT INTO bottle_keys(digest, giver, sealed, created) VALUES(?, ?, ?, ?);",
+					cast([]u8) digest, key(r.conv.carrier, r.conv.me), seal(d, ad("bottle_keys", digest), *k), now_ms()) {
+				r.result = .Failed;
+				return;
+			}
+			r.packet = copy_string(xx bytes(*p),, context.default_allocator);
+			r.out_text = copy_string(xx digest);
+		case .Unbottle;
+			packet: []u8 = xx r.packet;
+			if packet.count < BOTTLE_OVERHEAD + 1 || packet.count > MAX_PACKET || packet[0] != VERSION || packet[1] != xx Kind.Bottle { r.result = .Undecryptable; return; }
+			digest := crypto.blake3(packet);
+			k: [32]u8;
+			defer crypto.zero(*k);
+			st := sqlite.prepare(db, "SELECT sealed FROM bottle_keys WHERE digest = ? AND giver = ?;");
+			found := sqlite.bind_all(st, cast([]u8) digest, key(r.conv.carrier, r.from)) && sqlite.step(st) == .Row
+				&& unseal(d, ad("bottle_keys", digest), sqlite.col_blob(st, 0), *k);
+			sqlite.finalize(st);
+			if !found { r.result = .No_Session; return; }
+			pt := NewArray(packet.count - BOTTLE_OVERHEAD, u8,, temp);
+			defer crypto.zero(pt);
+			body: []u8;
+			ok: bool;
+			if open_bottle(k, packet, pt) body, ok = unpad(pt);
+			b: Body;
+			if ok b, ok = parse_body(body);
+			if !ok || b.content != .Text { r.result = .Undecryptable; return; }
+			r.content, r.out_text = Content.Text, copy_string(b.text);
 	}
+}
+
+// store_bottle_key keeps the key to a Bottle a peer gave us over our pairwise session (a Bottle_Key message).
+store_bottle_key :: (d: *Db, r: *Request, from: []u8) -> bool {
+	if r.content != .Bottle_Key return true;
+	digest := array_view(cast([]u8) r.out_text, 0, 32);
+	return sqlite.run(d.sql, "INSERT OR REPLACE INTO bottle_keys(digest, giver, sealed, created) VALUES(?, ?, ?, ?);",
+		digest, from, seal(d, ad("bottle_keys", digest), array_view(cast([]u8) r.out_text, 32, 32)), now_ms());
 }
 
 // commit_sent stores the advanced session, our plaintext and the outbox entry in one transaction, before
@@ -584,6 +653,7 @@ receive :: (d: *Db, r: *Request, conv: []u8) {
 					&& sqlite.run(db, "DELETE FROM skipped WHERE session = ? AND dh = ? AND n = ?;", cast([]u8) id, cast([]u8) h.dh, cast(s64) h.n)
 					&& store_plaintext(d, hash, r.delivery, body, conv, r.from, r.order, r)
 					&& store_sender_key(d, r, conv, from)
+					&& store_bottle_key(d, r, from)
 					&& sqlite.exec(db, "COMMIT;");
 			} else {
 				next := s;
@@ -596,6 +666,7 @@ receive :: (d: *Db, r: *Request, conv: []u8) {
 					&& store_skipped(d, id, skipped)
 					&& store_plaintext(d, hash, r.delivery, body, conv, r.from, r.order, r)
 					&& store_sender_key(d, r, conv, from)
+					&& store_bottle_key(d, r, from)
 					&& sqlite.exec(db, "COMMIT;");
 				for * skipped crypto.zero(*it.mk);
 			}
@@ -750,7 +821,7 @@ receive_group :: (d: *Db, r: *Request, conv: []u8, from: []u8, hash: [32]u8) {
 	skipped.allocator = temp;
 	if !skipped_key mk, ok = group_advance(*next, n, *skipped);
 	body: []u8;
-	if !ok || !group_open(k, mk, bind, packet, pt) || !opened(r, pt, *body) || r.content == .Sender_Key { r.result = .Undecryptable; return; }
+	if !ok || !group_open(k, mk, bind, packet, pt) || !opened(r, pt, *body) || r.content == .Sender_Key || r.content == .Bottle_Key { r.result = .Undecryptable; return; }
 	ok = sqlite.exec(db, "BEGIN;")
 		&& (ifx skipped_key then sqlite.run(db, "DELETE FROM skipped WHERE session = ? AND dh = ? AND n = ?;", cast([]u8) id, cast([]u8) dh, cast(s64) n)
 			else sqlite.run(db, "UPDATE sender_keys SET sealed = ?, updated = ? WHERE conversation = ? AND sender = ? AND id = ?;", seal(d, ad("sender_keys", id), *next), now_ms(), conv, from, cast([]u8) id)

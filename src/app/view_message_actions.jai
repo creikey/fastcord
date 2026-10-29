@@ -205,7 +205,7 @@ start_reply :: (m: *dc.Message) {
 
 // Yours, sent, not a forward, and a plain message or reply (type 0 or 19), not a system notice.
 can_edit :: (m: *dc.Message) -> bool {
-	return m.author_id == store().me && !m.forwarded && !m.pending && (m.kind == 0 || m.kind == 19) && (!encrypted_packet(m.channel_id, m.content) || encrypted_editable(m));
+	return m.author_id == store().me && !m.forwarded && !m.pending && (m.kind == 0 || m.kind == 19) && (!encrypted_packet(m.channel_id, m.content) || encrypted_editable(m)) && !is_bottle(m.content);
 }
 
 start_edit :: (m: *dc.Message) {
@@ -595,6 +595,7 @@ message_menu :: () {
 	if in_chat && can_edit(m) array_add(*items, .{label = "Edit Message", icon = "pencil", sep = true}); // i18n
 	if in_chat array_add(*items, .{label = "Reply", icon = "arrow-angle-left-up", sep = !own}); // i18n
 	if can_forward(m) array_add(*items, .{label = "Forward", icon = "arrow-angle-right-up", sep = !in_chat}); // i18n
+	if bottle_text(m) array_add(*items, .{label = "Put in a Bottle", icon = "lock"}); // i18n
 	if in_chat && can_thread_from(m) array_add(*items, .{label = "Create Thread", icon = "thread"}); // i18n
 	if can_publish(m) array_add(*items, .{label = "Publish", icon = "announcements"}); // i18n
 	if m.poll && m.author_id == s.me && !m.poll.finalized array_add(*items, .{label = "End Poll Now", icon = "clock"}); // i18n
@@ -716,6 +717,8 @@ message_menu :: () {
 					start_reply(m);
 				case "Forward";
 					forward_open(m);
+				case "Put in a Bottle";
+					bottle_start(m);
 				case "Copy Text";
 					clipboard_set(shown_text(m.id, m.channel_id, m.content));
 				case "Pin Message"; #through;

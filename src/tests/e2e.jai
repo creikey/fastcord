@@ -39,6 +39,7 @@ main :: () {
 	conversation(dir, e2e.MAX_PACKET);  // the largest any carrier may set
 	tiny(dir);
 	group(dir);
+	bottles(dir);
 	if failed { print("e2e: % failed\n", failed); exit(1); }
 	print("e2e: ok\n");
 }
@@ -774,6 +775,62 @@ group :: (dir: string) {
 	for left.packets grecv(*m[1], it, *m[0], copy_string(delivery()));
 	check(grecv(*m[1], left.packet, *m[0], copy_string(delivery())).out_text == "without cy", "the one who stayed can");
 	for * m stop(it.d);
+}
+
+// bottles: a Bottle posted where anyone sees it opens only for those its sender gave the key to, over their
+// pairwise sessions, and only as from that sender.
+bottles :: (dir: string) {
+	limit = e2e.MAX_PACKET; // A signed Hello goes as an attachment; a Bottle fits a message.
+	tag := tprint("%/bottles", dir);
+	make_directory_if_it_does_not_exist(tag);
+	a := Client.{d = e2e.start(tprint("%/a.db", tag)), me = e2e.identity_of(keys.generate("A")), party = "ann"};
+	b := Client.{d = e2e.start(tprint("%/b.db", tag)), me = e2e.identity_of(keys.generate("B")), party = "ben\x00"};
+	c := Client.{d = e2e.start(tprint("%/c.db", tag)), me = e2e.identity_of(keys.generate("C")), party = "cy"};
+	AB :: "dm\x00ab";
+	AC :: "dm ac";
+	PLACE :: "channel";
+	for peer: (*Client).[*b, *c] {
+		id := ifx peer == *b then AB else AC;
+		hello := ask(peer, .Hello, peer = *a, id = id);
+		init := ask(*a, .Accept, hello.packet, peer = peer, id = id);
+		check(receive(peer, init.packet, *a, id = id).result == .Ok, "a session for the bottle's keys");
+	}
+	limit = fc_text.MAX_PACKET;
+	bottle := ask(*a, .Bottle, id = PLACE, text = "for ben");
+	check(bottle.result == .Ok && bottle.packet.count <= limit && bottle.out_text.count == 32, "a bottle is sealed");
+	unbottle :: (c: *Client, packet: string, from: *Client) -> *e2e.Request { return ask(c, .Unbottle, packet, from = from, id = PLACE); }
+	r := unbottle(*a, bottle.packet, *a);
+	check(r.result == .Ok && r.out_text == "for ben", "its sender opens it");
+	check(unbottle(*b, bottle.packet, *a).result == .No_Session, "a reader can't before the key comes");
+
+	give :: (from: *Client, to: *Client, id: string, digest: string) -> *e2e.Request {
+		g := e2e.request(.Send, .{CARRIER, id, from.party, to.party, limit}, digest);
+		g.me, g.content, g.silent = from.me, e2e.Content.Bottle_Key, true;
+		e2e.submit(from.d, g);
+		wait(g);
+		return g;
+	}
+	gift := give(*a, *b, AB, bottle.out_text);
+	check(gift.result == .Ok, "the key goes over the reader's session");
+	r = receive(*b, gift.packet, *a, id = AB);
+	check(r.result == .Ok && r.content == .Bottle_Key, "the reader takes the key");
+	r = unbottle(*b, bottle.packet, *a);
+	check(r.result == .Ok && r.out_text == "for ben", "then opens the bottle");
+	check(unbottle(*b, bottle.packet, *c).result == .No_Session, "the same bottle posted by another doesn't open as theirs");
+	check(unbottle(*c, bottle.packet, *a).result == .No_Session, "one not given the key can't open it");
+	check(give(*c, *b, AB, bottle.out_text).result == .Failed, "only the bottle's sender gives its key");
+	check(give(*a, *c, AC, "not a digest of any bottle......").result == .Failed, "a key never made isn't given");
+	forged := copy_string(bottle.packet);
+	forged[10] ^= 1;
+	check(unbottle(*b, forged, *a).result == .No_Session, "a changed bottle has no key");
+	check(unbottle(*b, "\x04\x05", *a).result == .Undecryptable, "a bottle too short to hold anything");
+
+	most := e2e.max_bottle_text(limit);
+	check(ask(*a, .Bottle, id = PLACE, text = repeat("x", most + 1)).result == .Too_Long, "a bottle over the carrier's packet refused");
+	full := ask(*a, .Bottle, id = PLACE, text = repeat("x", most));
+	check(full.result == .Ok && full.packet.count <= limit, "the longest bottle fits");
+	check(unbottle(*a, full.packet, *a).out_text.count == most, "and opens whole");
+	for d: (*e2e.Db).[a.d, b.d, c.d] stop(d);
 }
 
 // tiny: a carrier whose largest packet is smaller than a Hello refuses cleanly instead of sending a cut one.

@@ -21,7 +21,7 @@ forward_open :: (m: *dc.Message) {
 // can_forward: only plain messages and replies that the server has, as the official menu offers it. An
 // encrypted one goes re-encrypted for its destination (encrypted_forward), so only once we've opened it.
 can_forward :: (m: *dc.Message) -> bool {
-	return !m.pending && !m.failed && !m.forwarded && (m.kind == 0 || m.kind == 19) && (!encrypted_packet(m.channel_id, m.content) || encrypted_editable(m));
+	return !m.pending && !m.failed && !m.forwarded && (m.kind == 0 || m.kind == 19) && (!encrypted_packet(m.channel_id, m.content) || encrypted_editable(m)) && !is_bottle(m.content);
 }
 
 Forward_Item :: struct {

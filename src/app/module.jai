@@ -44,6 +44,7 @@ voice :: #import "voice";
 #load "accounts.jai";
 #load "analytics_env.jai";
 #load "attachments.jai";
+#load "bottle.jai";
 #load "bench.jai";
 #load "captcha.jai";
 #load "emoji.jai";
