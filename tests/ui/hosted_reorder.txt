@@ -1,0 +1,20 @@
+# Two self-hosted servers on the rail: dragging the second above the first moves it there (the order of
+# settings.json's invites); hosted guilds take no folder.
+wait 5
+serve_join
+settle 3
+serve_join b
+settle 3
+click 36 206
+settle 2
+expect_visible "hosted_reorder-b.serve"
+down 36 206
+move 36 190
+move 36 150
+settle 1
+shot build/shots/hosted_reorder_drag.png
+up 36 150
+settle 2
+click 36 158
+settle 2
+expect_visible "hosted_reorder-b.serve"

@@ -865,9 +865,9 @@ script_command :: (path: string, f: []string, t: *float64, depth := 0) {
 		deinit(*names);
 		return;
 	case "serve_join";
-		// serve_join: a self-hosted server in this process, on a fresh file under build/, joined as its owner;
-		// expect_served then fails on every request it had no route for.
-		file := tprint("build/%.serve.db", path_strip_extension(path_filename(path)));
+		// serve_join [name]: a self-hosted server in this process, on a fresh file under build/, joined as its
+		// owner (a name makes another one); expect_served then fails on every request it had no route for.
+		file := tprint("build/%1%2%3.serve.db", path_strip_extension(path_filename(path)), ifx f.count > 1 then "-" else "", ifx f.count > 1 then f[1] else "");
 		for string.["", "-wal", "-shm"] file_delete(tprint("%1%2", file, it));
 		s, ok := serve.open(file);
 		if !ok script_fail(path, "serve_join: can't open %", file);

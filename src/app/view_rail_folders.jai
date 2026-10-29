@@ -178,7 +178,9 @@ rail_view :: () {
 			if e.id != 0 { rail_folder(e, i); } else { rail_guild(e.guilds[0], i, -1); }
 		}
 		if moved(g0, c0) active = app.client;
-		for h: hosted {
+		array_copy(*rs.hosted_prev, rs.hosted_targets);
+		array_reset_keeping_memory(*rs.hosted_targets);
+		for h, hi: hosted {
 			if h.forget continue;
 			if !h.client || !h.client.store.ready {
 				if h.joined rail_hosted_down(h);
@@ -186,7 +188,7 @@ rail_view :: () {
 			}
 			app.client = h.client;
 			g1, c1 := app.view.guild, app.view.channel;
-			for gid: h.client.store.guild_order if hosted_client_of(gid) == h.client rail_hosted_guild(gid, active == h.client); // not a colliding ID
+			for gid: h.client.store.guild_order if hosted_client_of(gid) == h.client rail_hosted_guild(gid, active == h.client, hi); // not a colliding ID
 			if moved(g1, c1) active = h.client;
 			app.client = ifx app.discord then app.discord else active;
 		}
@@ -195,6 +197,7 @@ rail_view :: () {
 		spacer(.Y, USER_PANEL_H + 16);
 	}
 	rail_drag(entries);
+	rail_hosted_drag();
 	app.client = active;
 }
 
@@ -241,6 +244,12 @@ Rail_State :: struct {
 	drag_down: bool;
 	targets: [..]Rail_Target;
 	prev: [..]Rail_Target; // last frame's slot rects (drop hit testing)
+	// dragging a self-hosted server (its guilds) above or below another; entry = its index in `hosted`
+	hosted_down: bool;
+	hosted_active: bool;
+	hosted_from: int;
+	hosted_targets: [..]Rail_Target;
+	hosted_prev: [..]Rail_Target;
 }
 
 rs: Rail_State;
@@ -310,17 +319,65 @@ rail_guild :: (gid: dc.Snowflake, entry: int, inner: int) {
 	array_add(*rs.targets, .{slot.rect, entry, inner});
 }
 
-// A self-hosted server's guild: no folders or drag yet.
-rail_hosted_guild :: (gid: dc.Snowflake, active: bool) {
+// A self-hosted server's guild; dragging it moves its server (index hi in `hosted`) among the others.
+// Hosted guilds go in no folder: Discord's folders are synced to Discord, which must never learn them.
+rail_hosted_guild :: (gid: dc.Snowflake, active: bool, hi: int) {
 	g := dc.guild_get(store(), gid);
 	if g == null { return; }
 	ui.id_scope(cast(u64)(gid)); defer ui.pop_seed();
 	sig := rail_item("hosted", active && app.view.guild == gid, guild_initials(g.name), "", gid);
 	if sig.box == null { return; }
-	{ ui.parent(ui.top_parent().last); defer ui.pop_parent(); mention_badge(guild_mentions(gid), 0); }
-	if sig.hovering { tooltip_right(g.name); }
-	if sig.clicked { select_guild(gid); }
+	slot := ui.top_parent().last;
+	{ ui.parent(slot); defer ui.pop_parent(); mention_badge(guild_mentions(gid), 0); }
+	if sig.hovering && !rs.hosted_active { tooltip_right(g.name); }
+	if sig.clicked && !rs.hosted_active { select_guild(gid); }
 	if sig.right_clicked { guild_context_open(gid, app.ui.mouse); }
+	if sig.pressed {
+		rs.hosted_from, rs.drag_from = hi, app.ui.mouse;
+		rs.hosted_down, rs.hosted_active = true, false;
+	}
+	if rs.hosted_active && rs.hosted_from == hi { pk_fade(slot, 0); }
+	array_add(*rs.hosted_targets, .{slot.rect, hi, -1});
+}
+
+// A dragged hosted server follows the mouse; dropped above or below another, it moves there (kept in
+// settings.json's order of invites).
+rail_hosted_drag :: () {
+	if !rs.hosted_down return;
+	released := false;
+	for e: app.ui.events if e.kind == .Mouse_Up && e.button == .Left released = true;
+	d := app.ui.mouse - rs.drag_from;
+	if !rs.hosted_active && sqrt(d.x * d.x + d.y * d.y) > DRAG_THRESHOLD rs.hosted_active = true;
+	if rs.hosted_active {
+		ghost := ui.box("hosted_ghost###hosted_ghost", .Draw_Background | .Floating_X | .Floating_Y | .Overlay);
+		ghost.semantic_size = .[ui.px(GUILD_ICON), ui.px(GUILD_ICON)];
+		ghost.fixed_pos = .{RAIL_ICON_X, app.ui.mouse.y - GUILD_ICON / 2};
+		ghost.style.radius = all4(FOLDER_RADIUS);
+		ghost.style.bg = T("--background-mod-normal");
+		ghost.opacity = 0.8;
+		to := -1;
+		line_y: float32;
+		for tg: rs.hosted_prev if app.ui.mouse.y >= tg.rect.y0 && app.ui.mouse.y < tg.rect.y1 {
+			before := app.ui.mouse.y < (tg.rect.y0 + tg.rect.y1) / 2;
+			to = tg.entry + ifx before then 0 else 1;
+			line_y = ifx before then tg.rect.y0 - 4 else tg.rect.y1 - 4;
+		}
+		if to >= 0 {
+			ind := ui.box("hosted_drop###hosted_drop", .Draw_Background | .Floating_X | .Floating_Y | .Overlay);
+			ind.semantic_size = .[ui.px(GUILD_ICON), ui.px(4)];
+			ind.fixed_pos = .{RAIL_ICON_X, line_y - 2};
+			ind.style.bg = T("--status-positive");
+			ind.style.radius = all4(2);
+		}
+		app.ui.animating = true;
+		from := rs.hosted_from;
+		if released && to >= 0 && from < hosted.count && to != from && to != from + 1 {
+			h := hosted[from];
+			array_ordered_remove_by_index(*hosted, from);
+			array_insert_at(*hosted, h, ifx to > from then to - 1 else to);
+		}
+	}
+	if released rs.hosted_down, rs.hosted_active = false, false;
 }
 
 folder_color :: (e: *Rail_Entry) -> ui.Color {
