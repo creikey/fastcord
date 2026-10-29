@@ -641,7 +641,7 @@ page :: () {
 			}
 			return;
 		}
-		if ch.guild_id == 0 && app.voice_channel == ch.id { dm_call_panel(ch.id); }
+		if ch.guild_id == 0 && app.voice_channel == ch.id { dm_call_panel(ch.id); } else if ch.guild_id == 0 { dm_call_banner(ch); }
 		body := row("chatbody");
 		body.semantic_size = .[ui.pct(1), ui.fill()];
 		body.cross_align = .Start;

@@ -101,6 +101,22 @@ call_decline :: (c: *Client, channel_id: Snowflake) {
 	job_submit(c, j);
 }
 
+// ring_users: the DM call view's Ring on someone not in the call: POST /channels/{id}/call/ring
+// {"recipients":[ids]} (CallActionCreators.ring; analytics_location left out).
+ring_users :: (c: *Client, channel_id: Snowflake, users: []Snowflake) {
+	sb: String_Builder;
+	sb.allocator = temp;
+	append(*sb, "{\"recipients\":[");
+	for users print_to_builder(*sb, "%\"%\"", ifx it_index then "," else "", it);
+	append(*sb, "]}");
+	j := job_new(.Api, .None);
+	j.method = "POST";
+	j.path = job_str(j, channel_path(channel_id, "/call/ring"));
+	j.body = cast([]u8) job_str(j, builder_to_string(*sb,, temp));
+	j.content_type = "application/json";
+	job_submit(c, j);
+}
+
 // dm_call_start: the DM header's "Start Voice Call". op 4 into the DM; the ring
 // follows the call's CALL_CREATE. Joining a call that already exists rings nobody.
 dm_call_start :: (c: *Client, channel_id: Snowflake, self_mute := false, self_deaf := false) {

@@ -12,6 +12,7 @@ CALL_BAR_H :: 80;
 Call_Tile :: struct {
 	user: dc.Snowflake;
 	stream: bool;
+	absent: bool; // a DM's member who isn't in the call: dimmed, with Ring
 }
 
 // call_view fills the parent: the grid for channel cid and its control bar.
@@ -26,15 +27,18 @@ call_view :: (cid: dc.Snowflake) {
 	// streams first, then cameras / avatars (ours leads each group)
 	for pass: 0..1 for ids {
 		vs := table_find_pointer(*s.voice_states, it);
-		if pass == 0 && (vs.self_stream || (it == s.me && screen_sharing())) array_add(*tiles, .{it, true});
-		if pass == 1 array_add(*tiles, .{it, false});
+		if pass == 0 && (vs.self_stream || (it == s.me && screen_sharing())) array_add(*tiles, .{user = it, stream = true});
+		if pass == 1 array_add(*tiles, .{user = it});
 	}
+	// a DM call also shows who isn't in it, to ring them
+	ch := dc.channel_get(s, cid);
+	if ch && ch.guild_id == 0 && app.voice_channel == cid for ch.recipient_ids if !array_find(ids, it) array_add(*tiles, .{user = it, absent = true});
 	if cv.focus_user {
 		found := false;
 		for tiles if it.user == cv.focus_user && it.stream == cv.focus_stream found = true;
 		if !found cv.focus_user = 0;
 	}
-	if cv.focus_user { tiles.count = 0; array_add(*tiles, .{cv.focus_user, cv.focus_stream}); }
+	if cv.focus_user { tiles.count = 0; array_add(*tiles, .{user = cv.focus_user, stream = cv.focus_stream}); }
 
 	root := ui.box("call", .Draw_Background | .Clip);
 	root.semantic_size = .[ui.fill(), ui.fill()];
@@ -74,6 +78,38 @@ dm_call_panel :: (cid: dc.Snowflake) {
 	p.layout_axis = .Y;
 	ui.parent(p); defer ui.pop_parent();
 	call_view(cid);
+}
+
+// dm_call_banner: a DM with a call going on that we're not in: who is in it and Join Call.
+dm_call_banner :: (ch: *dc.Channel) {
+	s := store();
+	in_call: [..]dc.Snowflake;
+	in_call.allocator = temp;
+	for v, uid: s.voice_states if v.channel_id == ch.id array_add(*in_call, uid);
+	if !in_call.count return;
+	r := row("callbanner", .Draw_Background);
+	r.semantic_size = .[ui.pct(1), ui.px(56)];
+	r.style.bg = .{0, 0, 0, 1};
+	ui.parent(r); defer ui.pop_parent();
+	spacer(.X, 16);
+	icon("ph", "phone-call", 20, T("--status-positive"));
+	spacer(.X, 10);
+	label("Ongoing call", .Semibold, 15, .{1, 1, 1, 1}, 20);
+	spacer(.X, 12);
+	for in_call { ui.id_scope(cast(u64) it); defer ui.pop_seed(); avatar_box("av", it, 28); spacer(.X, 4); }
+	filler(.X);
+	jb := row("join", .Clickable | .Draw_Background | .Hot_Animation);
+	jb.semantic_size = .[ui.children(), ui.px(36)];
+	jb.style.radius = all4(8);
+	jb.style.bg = T("--status-positive");
+	jb.style.bg_hot = with_alpha(T("--status-positive"), 0.85);
+	if ui.signal(jb).clicked call_join_incoming(ch.id);
+	{ ui.parent(jb); defer ui.pop_parent();
+		spacer(.X, 16);
+		label("Join Call", .Semibold, 14, .{1, 1, 1, 1}, 18);
+		spacer(.X, 16);
+	}
+	spacer(.X, 16);
 }
 
 // The screen share picker: screens and windows (names; ScreenCaptureKit lists them asynchronously).
@@ -297,6 +333,7 @@ call_tile :: (t: Call_Tile, x: float32, y: float32, w: float32, h: float32) {
 		b.custom_draw = tile_video_draw;
 		b.custom_user = d;
 	}
+	if t.absent { absent_tile(b, t.user, h); return; }
 	sig := ui.signal(b);
 	if sig.right_clicked open_voice_user_menu(t.user, app.ui.mouse);
 	if sig.clicked && (!t.stream || watching) {
@@ -368,6 +405,36 @@ call_tile :: (t: Call_Tile, x: float32, y: float32, w: float32, h: float32) {
 		ring.style.border = 2;
 		ring.style.border_color = T("--status-positive");
 	}
+}
+
+// absent_tile: someone in the DM who isn't in the call: their avatar dimmed, and Ring (Ringing… while it rings).
+absent_tile :: (b: *ui.Box, uid: dc.Snowflake, h: float32) {
+	b.style.bg = T("--background-base-lowest");
+	b.flags &= ~.Clickable;
+	ui.parent(b); defer ui.pop_parent();
+	av := min(80.0, h * 0.35);
+	spacer(.Y, (h - av) / 2 - 24);
+	a := avatar_box("av", uid, av);
+	{
+		ui.parent(a); defer ui.pop_parent();
+		dim := ui.box("dim", .Draw_Background | .Floating_X | .Floating_Y);
+		dim.semantic_size = .[ui.px(av), ui.px(av)];
+		dim.style.bg = .{0, 0, 0, 0.5};
+		dim.style.radius = all4(av / 2);
+	}
+	spacer(.Y, 16);
+	call := ifx app.client then dc.call_get(app.client, app.voice_channel) else null;
+	ringing := call && array_find(call.ringing, uid);
+	rb := row("ring", ifx ringing then ui.Box_Flags.Draw_Background else .Clickable | .Draw_Background | .Hot_Animation);
+	rb.semantic_size = .[ui.children(), ui.px(32)];
+	rb.style.radius = all4(8);
+	rb.style.bg = ifx ringing then T("--background-mod-subtle") else T("--status-positive");
+	rb.style.bg_hot = with_alpha(T("--status-positive"), 0.85);
+	if ui.signal(rb).clicked && !ringing && net_action() dc.ring_users(app.client, app.voice_channel, .[uid]);
+	ui.parent(rb); defer ui.pop_parent();
+	spacer(.X, 14);
+	label(ifx ringing then "Ringing…" else "Ring", .Semibold, 14, .{1, 1, 1, 1}, 18);
+	spacer(.X, 14);
 }
 
 call_controls :: (cid: dc.Snowflake) {

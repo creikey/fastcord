@@ -1,0 +1,12 @@
+# A group DM with a call going on shows an "Ongoing call" banner with Join Call; in the call, the members
+# who aren't in it have tiles with Ring.
+open 1800000000000000009
+wait 20
+expect_visible "Ongoing call"
+expect_visible "Join Call"
+shot build/ui-dm_call_banner.png
+in_voice 1800000000000000009
+wait 10
+expect_not_visible "Ongoing call"
+expect_visible "Ring"
+shot build/ui-dm_call.png
