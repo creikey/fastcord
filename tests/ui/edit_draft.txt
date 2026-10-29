@@ -1,0 +1,12 @@
+# An edit closed with Escape keeps its text: editing the same message again brings it back.
+wait 5
+click 600 684
+key up
+wait 5
+expect_input "👍"
+type x
+key escape
+wait 5
+key up
+wait 5
+expect_input "👍x"

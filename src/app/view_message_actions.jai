@@ -203,9 +203,27 @@ can_edit :: (m: *dc.Message) -> bool {
 }
 
 start_edit :: (m: *dc.Message) {
+	edit_stash();
 	ma.editing = m.id;
 	ch := dc.channel_get(store(), m.channel_id);
-	ui.editor_set_text(*ma.edit_editor, ifx ch then mentions_readable(m.content, ch) else m.content);
+	if edit_draft.msg == m.id ui.editor_set_text(*ma.edit_editor, edit_draft.text);
+	else ui.editor_set_text(*ma.edit_editor, ifx ch then mentions_readable(m.content, ch) else m.content);
+}
+
+// An edit closed without saving (Escape, Cancel, editing another message) keeps its text: editing that
+// message again brings it back, so no typing is lost.
+edit_draft: struct { msg: dc.Snowflake; text: string; };
+
+edit_stash :: () {
+	if ma.editing == 0 return;
+	m := find_message(ma.editing);
+	text := ui.editor_text(*ma.edit_editor);
+	ch := ifx m then dc.channel_get(store(), m.channel_id) else null;
+	if m && text != (ifx ch then mentions_readable(m.content, ch) else m.content) {
+		free(edit_draft.text);
+		edit_draft.msg, edit_draft.text = m.id, copy_string(text);
+	}
+	ma.editing = 0;
 }
 
 // location: how it was opened, as message_popout_menu_opened_desktop names it
@@ -316,8 +334,9 @@ edit_box :: (m: *dc.Message) {
 			dc.edit_message(app.client, m.channel_id, m.id, text);
 		}
 		ma.editing = 0;
+		if edit_draft.msg == m.id edit_draft.msg = 0;
 	} else if cancel {
-		ma.editing = 0;
+		edit_stash();
 	}
 }
 

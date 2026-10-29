@@ -72,7 +72,11 @@ Persisted :: struct {
 	window: Persisted_Window; // the restored rect and maximized state (platform.Window_Placement)
 	hosted_servers: []string; // fc:// invites of joined self-hosted servers (hosted.jai)
 	hosted_names: Table(string, string); // self-hosted server ID (hex) -> its name, shown while it is down
+	drafts: Table(string, string); // channel -> unsent composer text, kept across restarts (not encrypted DMs')
 }
+
+DRAFTS_MAX :: 100;
+DRAFT_MAX_BYTES :: 16_000;
 
 Persisted_Window :: struct { x, y, width, height: int; maximized: bool; } // screen pixels; width 0 = none
 
@@ -261,6 +265,10 @@ apply_persisted :: (p: *Persisted) {
 		if ok table_set(*app.view.nsfw_agreed, cast(dc.Snowflake) n, true);
 	}
 	app.start_guild, app.start_channel = dc.parse_snowflake(p.route_guild), dc.parse_snowflake(p.route_channel);
+	for text, c: p.drafts {
+		cid := dc.parse_snowflake(c);
+		if cid && text.count <= DRAFT_MAX_BYTES ui.editor_set_text(*chat_state(cid).editor, text);
+	}
 	for c, g: p.last_channel {
 		gn, ok1 := dc.parse_u64(g);
 		cn, ok2 := dc.parse_u64(c);
@@ -296,6 +304,12 @@ snapshot :: () -> string {
 	p.dm_profile_hidden = app.view.hide_dm_profile;
 	p.hosted_servers = hosted_invites();
 	p.hosted_names = hosted_names();
+	for * cs, cid: app.chats {
+		text := ui.editor_text(*cs.editor);
+		ch := dc.channel_get(store(), cid);
+		if !text || text.count > DRAFT_MAX_BYTES || p.drafts.count >= DRAFTS_MAX || (ch && encrypted_dm(ch)) continue;
+		table_set(*p.drafts, tprint("%", cast(u64) cid), text);
+	}
 	wp, ok := platform.window_placement();
 	if ok p.window = .{wp.x, wp.y, wp.width, wp.height, wp.maximized};
 	return marshal_pretty(p);

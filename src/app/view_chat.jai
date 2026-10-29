@@ -909,7 +909,7 @@ divider_row :: (id: dc.Snowflake, new_day: bool, show_new: bool) {
 // edit, else drop the pending reply, else MARK_CHANNEL_READ (ack the newest message and drop the
 // "NEW" divider and bar).
 channel_escape :: (ch: *dc.Channel) {
-	if ma.editing != 0 { ma.editing = 0; return; }
+	if ma.editing != 0 { edit_stash(); return; }
 	if ma.replying != 0 { ma.replying = 0; return; }
 	s := store();
 	msgs := dc.messages_get(s, ch.id);
