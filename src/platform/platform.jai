@@ -199,6 +199,11 @@ request_frame :: () {
 should_quit :: () -> bool { return s.quit; }
 
 window_size :: () -> Vector2 { return s.size; }
+
+// Where the window sits when not maximized (Windows and X11: screen pixels; macOS: points, origin bottom
+// left) and whether it is maximized; settings.json keeps it. Each platform has window_placement and
+// window_placement_restore, which is called before init and ignores a rect that is off every screen.
+Window_Placement :: struct { x, y, width, height: s32; maximized: bool; }
 dpi_scale :: () -> float32 { return s.scale; }
 framebuffer_size :: () -> [2]s32 {
     return .[cast(s32) (s.size.x * s.scale + 0.5), cast(s32) (s.size.y * s.scale + 0.5)];

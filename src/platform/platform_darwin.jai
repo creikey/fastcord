@@ -60,6 +60,22 @@ open_url :: (url: string) {
     msg(Void, msg(Id, cls("NSWorkspace"), "sharedWorkspace"), "openURL:", u);
 }
 
+window_placement :: () -> Window_Placement, bool {
+    if !m.window return .{}, false;
+    zoomed := msg(bool, m.window, "isZoomed");
+    full := (msg(NSUInteger, m.window, "styleMask") & (1 << 14)) != 0; // NSWindowStyleMaskFullScreen
+    if !zoomed && !full {
+        f := msg(NSRect, m.window, "frame");
+        m.normal = .{xx f.origin.x, xx f.origin.y, xx f.size.width, xx f.size.height, false};
+    }
+    if m.normal.width <= 0 return .{}, false;
+    p := m.normal;
+    p.maximized = zoomed;
+    return p, true;
+}
+
+window_placement_restore :: (p: Window_Placement) { m.normal = p; }
+
 #scope_module
 
 os_init :: (title: string, width: int, height: int) -> bool {
@@ -95,7 +111,26 @@ os_init :: (title: string, width: int, height: int) -> bool {
     // File drops
     msg(Void, m.view, "registerForDraggedTypes:", msg(Id, cls("NSArray"), "arrayWithObject:", nsstr("public.file-url")));
 
-    msg(Void, m.window, "center");
+    placed := false;
+    if m.normal.width > 0 && m.normal.height > 0 {
+        f := NSRect.{.{xx m.normal.x, xx m.normal.y}, .{xx m.normal.width, xx m.normal.height}};
+        // Only where its title bar is on a screen (a monitor may be gone since).
+        screens := msg(Id, cls("NSScreen"), "screens");
+        for 0..cast(int) msg(NSUInteger, screens, "count") - 1 {
+            v := msg(NSRect, msg(Id, screens, "objectAtIndex:", cast(NSUInteger) it), "visibleFrame");
+            top := f.origin.y + f.size.height;
+            if f.origin.x + f.size.width > v.origin.x + 40 && f.origin.x < v.origin.x + v.size.width - 40 && top > v.origin.y + 20 && top <= v.origin.y + v.size.height + 1 {
+                placed = true;
+                break;
+            }
+        }
+        if placed msg(Void, m.window, "setFrame:display:", f, false);
+    }
+    if !placed msg(Void, m.window, "center");
+    zoom := m.normal.maximized;
+    m.normal = .{};
+    window_placement(); // the frame it got
+    if zoom msg(Void, m.window, "zoom:", cast(Id) null);
     msg(Void, m.app, "finishLaunching");
     msg(Void, m.window, "makeKeyAndOrderFront:", cast(Id) null);
     if responds(m.app, "activate") msg(Void, m.app, "activate");
@@ -305,6 +340,7 @@ m: struct {
     marked: string;             // IME marked text (heap)
     cursor_hidden: bool;
     pool: Id;                   // autorelease pool spanning one app frame
+    normal: Window_Placement;   // the frame when neither zoomed nor full screen (maximized unused)
 };
 
 IMAGE_TYPES :: string.["public.png", "public.tiff", "public.jpeg", "com.compuserve.gif", "public.heic", "com.microsoft.bmp"];

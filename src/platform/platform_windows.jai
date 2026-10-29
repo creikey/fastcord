@@ -143,8 +143,6 @@ window_toggle_maximize :: () { win.ShowWindow(w.hwnd, xx ifx window_maximized() 
 window_close :: () { PostMessageW(w.hwnd, win.WM_CLOSE, 0, 0); }
 
 // The window's restored rect (screen pixels; also while maximized or minimized) and whether it is maximized.
-Window_Placement :: struct { x, y, width, height: s32; maximized: bool; }
-
 window_placement :: () -> Window_Placement, bool {
     wp := WINDOWPLACEMENT.{length = size_of(WINDOWPLACEMENT)};
     if !w.hwnd || GetWindowPlacement(w.hwnd, *wp) == 0 return .{}, false;

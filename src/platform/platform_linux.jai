@@ -64,6 +64,28 @@ open_url :: (url: string) {
     spawn_detached("xdg-open", url);
 }
 
+// Placed by StaticGravity hints, so x, y are the client area's, not the frame's.
+window_placement :: () -> Window_Placement, bool {
+    if s.headless || !xs.win return .{}, false;
+    b: [..]u8;
+    b.allocator = temp;
+    get_property(xs.d, xs.win, xs.a._NET_WM_STATE, *b);
+    states := []Atom.{b.count / 8, cast(*Atom) b.data};
+    maxed := array_find(states, xs.a._NET_WM_STATE_MAXIMIZED_VERT) && array_find(states, xs.a._NET_WM_STATE_MAXIMIZED_HORZ);
+    if !maxed && !array_find(states, xs.a._NET_WM_STATE_FULLSCREEN) {
+        x, y: s32;
+        child: Window;
+        X.TranslateCoordinates(xs.d, xs.win, xs.root, 0, 0, *x, *y, *child);
+        xs.normal = .{x, y, xs.px_w, xs.px_h, false};
+    }
+    if xs.normal.width <= 0 return .{}, false;
+    p := xs.normal;
+    p.maximized = maxed;
+    return p, true;
+}
+
+window_placement_restore :: (p: Window_Placement) { xs.normal = p; }
+
 #scope_module
 
 os_init :: (title: string, width: int, height: int) -> bool {
@@ -85,9 +107,20 @@ os_init :: (title: string, width: int, height: int) -> bool {
 
     s.scale = read_scale();
     xs.px_w, xs.px_h = xx (width * s.scale), xx (height * s.scale);
+    r := xs.normal;
+    placed := false;
+    if r.width > 0 && r.height > 0 {
+        root: Window;
+        rx, ry: s32;
+        rw, rh, border, depth: u32;
+        X.GetGeometry(xs.d, xs.root, *root, *rx, *ry, *rw, *rh, *border, *depth);
+        // Only where the top edge is on the screen (a monitor may be gone since).
+        placed = r.x + r.width > 40 && r.x < cast(s32) rw - 40 && r.y >= 0 && r.y < cast(s32) rh - 40;
+        if placed xs.px_w, xs.px_h = r.width, r.height;
+    }
     attrs := XSetWindowAttributes.{bit_gravity = 1 /*NorthWest*/, event_mask = EVENT_MASK};
     // depth and visual from the root (the default 24-bit TrueColor); background None: no flicker on resize
-    xs.win = X.CreateWindow(xs.d, xs.root, 0, 0, xx xs.px_w, xx xs.px_h, 0, 0, 1 /*InputOutput*/, null,
+    xs.win = X.CreateWindow(xs.d, xs.root, ifx placed then r.x else 0, ifx placed then r.y else 0, xx xs.px_w, xx xs.px_h, 0, 0, 1 /*InputOutput*/, null,
         0x1 /*CWBackPixmap*/ | 0x10 /*CWBitGravity*/ | 0x800 /*CWEventMask*/, *attrs);
     if !xs.win return false;
     X.SelectInput(xs.d, xs.root, PropertyChangeMask); // RESOURCE_MANAGER (Xft.dpi) changes
@@ -99,7 +132,12 @@ os_init :: (title: string, width: int, height: int) -> bool {
     class := XClassHint.{temp_c_string("fastcord"), temp_c_string("fastcord")};
     X.SetClassHint(xs.d, xs.win, *class);
     X.SetWMProtocols(xs.d, xs.win, *a.WM_DELETE_WINDOW, 1);
-    set_min_size();
+    set_min_size(placed);
+    if r.maximized {
+        // Set before mapping, the window manager maps it maximized (EWMH).
+        st := Atom.[xs.a._NET_WM_STATE_MAXIMIZED_VERT, xs.a._NET_WM_STATE_MAXIMIZED_HORZ];
+        X.ChangeProperty(xs.d, xs.win, a._NET_WM_STATE, XA_ATOM, 32, 0, xx st.data, 2);
+    }
     dnd_version: s64 = 5;
     X.ChangeProperty(xs.d, xs.win, a.XdndAware, XA_ATOM, 32, 0, xx *dnd_version, 1);
 
@@ -290,6 +328,7 @@ Xlib :: struct {
     CheckTypedWindowEvent: (d: *void, w: Window, type: s32, ev: *XEvent) -> s32 #c_call;
     SendEvent: (d: *void, w: Window, propagate: s32, mask: s64, ev: *XEvent) -> s32 #c_call;
     FilterEvent: (ev: *XEvent, w: Window) -> s32 #c_call;
+    GetGeometry: (d: *void, w: Window, root: *Window, x: *s32, y: *s32, width: *u32, height: *u32, border: *u32, depth: *u32) -> s32 #c_call;
     TranslateCoordinates: (d: *void, src: Window, dst: Window, x: s32, y: s32, dx: *s32, dy: *s32, child: *Window) -> s32 #c_call;
     LookupKeysym: (ev: *XKeyEvent, index: s32) -> u64 #c_call;
     RefreshKeyboardMapping: (ev: *XEvent) -> s32 #c_call;
@@ -486,7 +525,8 @@ XA_STRING :: 31;
 Atoms :: struct {
     WM_PROTOCOLS, WM_DELETE_WINDOW, _NET_WM_NAME, _NET_WM_PID, UTF8_STRING, TEXT, CLIPBOARD, TARGETS, INCR,
     XdndAware, XdndEnter, XdndPosition, XdndStatus, XdndLeave, XdndDrop, XdndFinished, XdndSelection,
-    XdndTypeList, XdndActionCopy, FC_SELECTION: Atom;
+    XdndTypeList, XdndActionCopy, FC_SELECTION, _NET_WM_STATE, _NET_WM_STATE_MAXIMIZED_VERT,
+    _NET_WM_STATE_MAXIMIZED_HORZ, _NET_WM_STATE_FULLSCREEN: Atom;
     text_plain, uri_list, gnome_files, png: Atom;
 }
 ATOM_NAMES :: string.["text/plain;charset=utf-8", "text/uri-list", "x-special/gnome-copied-files", "image/png"];
@@ -506,6 +546,7 @@ xs: struct {
     a: Atoms;
     wake_fd: s32 = -1;
     px_w, px_h: s32;
+    normal: Window_Placement; // the client area when neither maximized nor full screen (root pixels)
     focused: bool;
     keys_down: [256]bool; // by keycode: repeats
     cursors: [#run enum_highest_value(Cursor) + 1]u64;
@@ -590,8 +631,11 @@ read_scale :: () -> float32 {
 
 update_size :: () { s.size = .{xs.px_w / s.scale, xs.px_h / s.scale}; }
 
-set_min_size :: () {
+set_min_size :: (placed := false) {
     h := XSizeHints.{flags = 1 << 4 /*PMinSize*/, min_width = xx (MIN_WINDOW_W * s.scale), min_height = xx (MIN_WINDOW_H * s.scale)};
+    // USPosition, USSize and StaticGravity: the saved spot is the client area's, as window_placement reads it.
+    if placed h.flags |= 1 | 2 | (1 << 9);
+    h.win_gravity = 10;
     X.SetWMNormalHints(xs.d, xs.win, *h);
 }
 

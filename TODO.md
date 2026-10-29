@@ -387,7 +387,6 @@
 - [ ] Notifications: a channel can only be muted from the open channel's header bell.
 - [ ] Friends: the "New Group DM" header icon isn't clickable; Active Now is always the empty card.
 - [ ] Calls: no incoming or outgoing ringtone; Decline only hides the popup locally, so other devices keep ringing.
-- [ ] Window: macOS and Linux don't remember the window's size, position and maximised state (Windows does, via `Persisted.window`).
 - [ ] Attachments: downloading a file reuses the Save Image path (`media_save` in `view_media.jai`): the whole file is held in memory and sent with image request headers, with no progress, and a name without an extension gets `format=png` appended. Stream big files to disk as a document download instead.
 - [ ] Chat: welcome messages aren't shown properly.
 - [ ] Composer: no formatting toolbar over a selection (bold, italic, strikethrough, code, spoiler, quote).
@@ -765,3 +764,4 @@
 - [x] Bug (E2E): `@silent` works in an encrypted DM. `composer_send` strips the prefix before encrypting; "silent" is a bit on the encrypted Content byte (`e2e.SILENT`), kept with the stored plaintext, so it holds on every carrier and shows the crossed-out bell; the Discord adapter also sets flag 4096 on its message (`send_packet`). `src/tests/e2e.jai` checks it round-trips.
 - [x] Profiles: the full profile's Note shows your note and edits it in place (saved on blur or Enter with `PUT /users/@me/notes/{id}`); fetched notes and `USER_NOTE_UPDATE` land in `Store.notes` (`note_field`, `tests/ui/profile_note.txt`).
 - [x] Bug (E2E): Forward respects encryption. The note typed in the Forward modal goes through `encrypted_send` when the destination DM is encrypted, and Forward is hidden on encrypted messages (`can_forward`; `tests/ui/dm/e2e_forward.txt`). The forwarded snapshot itself is plain, as every Discord forward is; the safety item's "Not encrypted" mark covers it. Forwarding an encrypted message, re-encrypted for its destination with a warning before it leaves E2E, waits for E2E 7.
+- [x] Window: macOS and Linux remember the window's size, position and maximised state in `settings.json` `window`, as Windows does (`platform.Window_Placement`), and open centred when the saved spot is off every screen. Checked on macOS (round trip, zoomed, off-screen); Linux (X11 `_NET_WM_STATE` and StaticGravity hints) is type-checked only.

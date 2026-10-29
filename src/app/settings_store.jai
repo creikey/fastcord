@@ -68,7 +68,7 @@ Persisted :: struct {
 	video_muted: bool;
 	members_hidden: bool; // the member list toggle (shown by default)
 	dm_profile_hidden: bool;
-	window: Persisted_Window; // Windows: the restored rect and maximized state
+	window: Persisted_Window; // the restored rect and maximized state (platform.Window_Placement)
 	hosted_servers: []string; // fc:// invites of joined self-hosted servers (hosted.jai)
 	hosted_names: Table(string, string); // self-hosted server ID (hex) -> its name, shown while it is down
 }
@@ -250,10 +250,8 @@ apply_persisted :: (p: *Persisted) {
 	app.view.hide_members = p.members_hidden;
 	app.view.hide_dm_profile = p.dm_profile_hidden;
 	hosted_restore(p.hosted_servers, *p.hosted_names);
-	#if OS == .WINDOWS {
-		pw := p.window;
-		if pw.width > 0 && pw.height > 0 platform.window_placement_restore(.{xx pw.x, xx pw.y, xx pw.width, xx pw.height, pw.maximized});
-	}
+	pw := p.window;
+	if pw.width > 0 && pw.height > 0 platform.window_placement_restore(.{xx pw.x, xx pw.y, xx pw.width, xx pw.height, pw.maximized});
 	if p.sidebar_width > 0 app.view.sidebar_w = clamp(p.sidebar_width, SIDEBAR_MIN_W, SIDEBAR_MAX_W);
 	if p.member_list_width > 0 app.view.member_w = clamp(p.member_list_width, MEMBER_LIST_MIN_W, MEMBER_LIST_MAX_W);
 	for p.hide_muted {
@@ -295,10 +293,8 @@ snapshot :: () -> string {
 	p.dm_profile_hidden = app.view.hide_dm_profile;
 	p.hosted_servers = hosted_invites();
 	p.hosted_names = hosted_names();
-	#if OS == .WINDOWS {
-		wp, ok := platform.window_placement();
-		if ok p.window = .{wp.x, wp.y, wp.width, wp.height, wp.maximized};
-	}
+	wp, ok := platform.window_placement();
+	if ok p.window = .{wp.x, wp.y, wp.width, wp.height, wp.maximized};
 	return marshal_pretty(p);
 }
 
