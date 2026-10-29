@@ -1,0 +1,16 @@
+# A call participant's menu (right click in the sidebar or on a tile): Profile, User Volume and Mute, and
+# for a moderator Server Mute, Server Deafen, Disconnect and Move To with the other voice channels.
+# A left click on them opens their profile.
+wait 5
+rclick 165 337
+wait 5
+expect_visible "Server Deafen"
+click_text "Move To"
+wait 5
+expect_visible "Town Hall"
+shot build/ui-call_participant_menu_open.png
+key escape
+wait 3
+click 163 401
+wait 10
+expect_not_visible "Server Deafen"

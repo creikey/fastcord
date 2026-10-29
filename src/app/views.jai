@@ -979,7 +979,9 @@ channel_row :: (ch: *dc.Channel, gid: dc.Snowflake) {
 			{ ui.id_scope(cast(u64)(uid)); defer ui.pop_seed();
 				vr := row("voiceuser", .Clickable);
 				vr.semantic_size = .[ui.pct(1), ui.px(32)];
-				if ui.signal(vr).right_clicked { open_voice_user_menu(uid, app.ui.mouse); }
+				vsig := ui.signal(vr);
+				if vsig.right_clicked open_voice_user_menu(uid, app.ui.mouse);
+				if vsig.clicked open_profile(uid, vr.rect);
 				{ ui.parent(vr); defer ui.pop_parent();
 					spacer(.X, 44);
 					voice_avatar("av", uid, 24, T("--background-base-lower"));

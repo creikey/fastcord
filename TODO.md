@@ -334,7 +334,6 @@
 - [ ] Undo: the trash on a staged upload deletes the uploaded file at once; keep the card restorable and hold the remote delete.
 - [ ] Voice: a chosen audio device that is unplugged stays selected by its dead id (`sel_input`/`sel_output` in `audio/darwin.jai`), so the page shows "Default" while capture keeps the old device instead of falling back.
 - [ ] Scrolling: middle-click autoscroll, as in browsers on Windows: a middle click drops an anchor icon, then moving the mouse above or below it scrolls that way, faster the farther away; any click or Escape ends it.
-- [ ] Voice: left-clicking a participant does nothing; their menu lacks server mute/deafen, disconnect, move and profile.
 - [ ] Undo: messages: Delete Message (including an emptied edit), Unpin Message, and the Shift-hover trash can.
 - [ ] Text editing: on Windows and Linux, Home / End jump to the start / end of the whole message, not the current line, in multi-line text. Ctrl+Home / Ctrl+End should do the whole message (`ui/textedit.jai`: `.Home` / `.End` ignore lines off macOS).
 - [ ] Messages: a failed upload (a message with attachments) offers only Delete, not Retry, since the staged files are gone once sent (`view_chat.jai` `failed_send_note`); keep them until the send succeeds so Retry can re-upload.
@@ -775,3 +774,4 @@
 - [x] Voice: a voice channel's text chat opens without joining: the row's Open Chat button and the call header's Show Chat put the chat beside the call view (`voice_chat_open`; `tests/ui/call/voice_chat.txt`).
 - [x] Group DMs: right-clicking a row opens Mark As Read / Leave Group / Copy Channel ID, and Leave Group or the row's X asks first; the DM rows' X could not be clicked at all before (it vanished once hovered, since the row lost its hover to it) (`group_dm_menu`, `tests/ui/rail/group_dm_menu.txt`).
 - [x] Messages: the menu offers Remove All Reactions with MANAGE_MESSAGES in a server channel; it asks first (Shift skips) and sends `DELETE .../reactions` (`tests/ui/remove_reactions.txt`).
+- [x] Voice: a left click on a participant opens their profile; their menu (right click in the sidebar or on a call tile) has Profile, User Volume, Mute and, with the permissions, Server Mute, Server Deafen, Disconnect and Move To (`voice_user_menu`, `dc.set_member_voice`; `tests/ui/call/participant_menu.txt`).

@@ -765,6 +765,17 @@ kick_member :: (c: *Client, guild_id: Snowflake, user_id: Snowflake, reason: str
 	job_submit(c, j);
 }
 
+// set_member_voice: a moderator's Server Mute {"mute":b}, Server Deafen {"deaf":b}, Disconnect {"channel_id":null}
+// and Move To {"channel_id":"id"} on someone in a call; the result arrives as VOICE_STATE_UPDATE.
+set_member_voice :: (c: *Client, guild_id: Snowflake, user_id: Snowflake, body: string) {
+	j := job_new(.Api, .None);
+	j.method = "PATCH";
+	j.path = job_str(j, tprint("/guilds/%/members/%", guild_id, user_id));
+	j.body = cast([]u8) job_str(j, body);
+	j.content_type = "application/json";
+	job_submit(c, j);
+}
+
 ban_member :: (c: *Client, guild_id: Snowflake, user_id: Snowflake, reason: string, delete_message_seconds := 0) {
 	j := job_new(.Api, .None);
 	j.method = "PUT";

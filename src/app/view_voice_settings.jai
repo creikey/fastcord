@@ -24,7 +24,8 @@ Voice_Settings :: struct {
 	meter_db: float32;
 	meter_shown: float32; // the bar's level (0..1), smoothed toward meter_db every frame
 	meter_open: bool;
-	menu_user: dc.Snowflake;
+	menu_user: dc.Snowflake; // a call participant's menu
+	menu_move: bool; // its Move To list is open
 	dd_anchor: ui.Rect; // open dropdown's rect (popup drawn from overlays)
 	menu_pos: ui.Vec2;
 	inited: bool;
@@ -255,9 +256,9 @@ voice_settings_page :: () {
 // Right-click on a voice participant: volume 0-400 % and mute.
 
 open_voice_user_menu :: (uid: dc.Snowflake, at: ui.Vec2) {
-	if uid == store().me return;
 	vs_init();
 	vs.menu_user = uid;
+	vs.menu_move = false;
 	vs.menu_pos = at;
 }
 
@@ -270,72 +271,75 @@ voice_user_menu :: () {
 	}
 	if vs.menu_user == 0 return;
 	uid := vs.menu_user;
-	scrim := ui.box("vmenu_scrim", .Clickable | .Floating_X | .Floating_Y | .Overlay);
-	scrim.semantic_size = .[ui.px(app.ui.window.x), ui.px(app.ui.window.y)];
-	if ui.signal(scrim).pressed {
+	st := store();
+	v := table_find_pointer(*st.voice_states, uid);
+	if outside_pressed("vmenu_scrim") || !v {
 		vs.menu_user = 0;
 		return;
 	}
-	W :: cast(float32)(220);
-	H :: cast(float32)(124);
+	W :: cast(float32) 220;
 	p := vs.menu_pos;
-	if p.y + H > app.ui.window.y - 8 p.y = app.ui.window.y - 8 - H;
+	menu := menu_panel("vmenu", p, W);
+	h := menu.rect.y1 - menu.rect.y0; // last frame's
+	if p.y + h > app.ui.window.y - 8 p.y = max(8.0, app.ui.window.y - 8 - h);
 	if p.x + W > app.ui.window.x - 8 p.x = app.ui.window.x - 8 - W;
-	menu := ui.box("vmenu", .Draw_Background | .Draw_Border | .Draw_Shadow | .Floating_X | .Floating_Y | .Overlay | .Clickable);
-	menu.semantic_size = .[ui.px(W), ui.px(H)];
 	menu.fixed_pos = p;
-	menu.layout_axis = .Y;
-	menu.style.bg = T("--background-surface-higher");
-	menu.style.border_color = T("--border-subtle");
-	menu.style.border = 1;
-	menu.style.radius = all4(8);
-	menu.style.shadow_color = .{0, 0, 0, 0.24};
-	menu.style.shadow_blur = 16;
-	menu.style.shadow_offset = .{0, 8};
-	ui.signal(menu);
+	perms := ifx v.guild_id then dc.channel_permissions(st, v.channel_id) else 0;
 	{ ui.parent(menu); defer ui.pop_parent();
 		spacer(.Y, 8);
-		hdr := row("hdr");
-		hdr.semantic_size = .[ui.pct(1), ui.px(24)];
-		{ ui.parent(hdr); defer ui.pop_parent();
-			spacer(.X, 12);
-			label("User Volume", .Medium, 14, T("--interactive-text-default"), 18);
+		if menu_item("profile", "Profile").clicked {
+			vs.menu_user = 0;
+			open_profile(uid, .{p.x, p.y, p.x + W, p.y + 1});
+			return;
 		}
-		sr := row("sl");
-		sr.semantic_size = .[ui.pct(1), ui.px(32)];
-		{ ui.parent(sr); defer ui.pop_parent();
-			spacer(.X, 12);
-			p := table_find_pointer(*vs.user_volume, uid);
-			v := ifx p then p.* else 100.0;
-			if slider("uvol", *v, 0, 400, W - 24, percent(v)) table_set(*vs.user_volume, uid, v);
-		}
-		spacer(.Y, 4);
-		sep := ui.box("sep", .Draw_Background);
-		sep.semantic_size = .[ui.pct(1), ui.px(1)];
-		sep.style.bg = T("--border-subtle");
-		spacer(.Y, 4);
-		_, m := table_find(*vs.user_muted, uid);
-		mr := row("mute", .Clickable | .Draw_Background | .Hot_Animation);
-		mr.semantic_size = .[ui.pct(1), ui.px(32)];
-		mr.style.radius = all4(4);
-		mr.style.bg_hot = T("--background-mod-normal");
-		sig := ui.signal(mr);
-		{ ui.parent(mr); defer ui.pop_parent();
-			spacer(.X, 12);
-			label("Mute", .Medium, 14, ifx sig.hovering then T("--interactive-text-active") else T("--interactive-text-default"), 18);
-			filler(.X);
-			cb := ui.box("cb", .Draw_Background | .Draw_Border);
-			cb.semantic_size = .[ui.px(18), ui.px(18)];
-			cb.style.radius = all4(4);
-			cb.style.border = ifx m then 0.0 else 1.5;
-			cb.style.border_color = T("--interactive-icon-default");
-			cb.style.bg = ifx m then T("--background-brand") else .{};
-			if m {
-				{ ui.parent(cb); defer ui.pop_parent(); icon("ck", "checkmark-large", 18, .{1, 1, 1, 1}); }
+		if uid != st.me {
+			menu_sep("s0");
+			hdr := row("hdr");
+			hdr.semantic_size = .[ui.pct(1), ui.px(24)];
+			{ ui.parent(hdr); defer ui.pop_parent();
+				spacer(.X, 16);
+				label("User Volume", .Medium, 14, T("--interactive-text-default"), 18);
 			}
-			spacer(.X, 12);
+			sr := row("sl");
+			sr.semantic_size = .[ui.pct(1), ui.px(32)];
+			{ ui.parent(sr); defer ui.pop_parent();
+				spacer(.X, 16);
+				vp := table_find_pointer(*vs.user_volume, uid);
+				vol := ifx vp then vp.* else 100.0;
+				if slider("uvol", *vol, 0, 400, W - 32, percent(vol)) table_set(*vs.user_volume, uid, vol);
+			}
+			_, m := table_find(*vs.user_muted, uid);
+			if menu_item("mute", "Mute", ifx m then .Check_On else .Check_Off).clicked table_set(*vs.user_muted, uid, !m);
 		}
-		if sig.clicked table_set(*vs.user_muted, uid, !m);
+		// a moderator's tools, each with its permission (PATCH /guilds/{id}/members/{user})
+		can_mute := dc.has_permission(perms, dc.PERM_MUTE_MEMBERS);
+		can_deafen := dc.has_permission(perms, dc.PERM_DEAFEN_MEMBERS);
+		can_move := dc.has_permission(perms, dc.PERM_MOVE_MEMBERS);
+		if can_mute || can_deafen || can_move menu_sep("s1");
+		if can_mute && menu_item("smute", "Server Mute", ifx v.mute then .Check_On else .Check_Off, danger = true).clicked && net_action()
+			dc.set_member_voice(app.client, v.guild_id, uid, tprint("{\"mute\":%}", !v.mute));
+		if can_deafen && menu_item("sdeaf", "Server Deafen", ifx v.deaf then .Check_On else .Check_Off, danger = true).clicked && net_action()
+			dc.set_member_voice(app.client, v.guild_id, uid, tprint("{\"deaf\":%}", !v.deaf));
+		if can_move {
+			if menu_item("disconnect", "Disconnect", danger = true).clicked {
+				vs.menu_user = 0;
+				if net_action() dc.set_member_voice(app.client, v.guild_id, uid, "{\"channel_id\":null}");
+				return;
+			}
+			if menu_item("move", "Move To", .Chevron, open = vs.menu_move).clicked vs.menu_move = !vs.menu_move;
+			if vs.menu_move for cid: dc.guild_channels_sorted(st, v.guild_id) {
+				ch := dc.channel_get(st, cid);
+				if !ch || (ch.kind != .Guild_Voice && ch.kind != .Guild_Stage_Voice) || cid == v.channel_id continue;
+				if !dc.has_permission(dc.channel_permissions(st, cid), dc.PERM_CONNECT) continue;
+				ui.id_scope(cast(u64) cid); defer ui.pop_seed();
+				if menu_item("to", ch.name, icon_name = channel_icon_name(ch)).clicked {
+					vs.menu_user = 0;
+					if net_action() dc.set_member_voice(app.client, v.guild_id, uid, tprint("{\"channel_id\":\"%\"}", cid));
+					return;
+				}
+			}
+		}
+		spacer(.Y, 8);
 	}
 	for * e: app.ui.events { if e.kind == .Key_Down && e.key == .Escape { vs.menu_user = 0; e.consumed = true; } }
 }

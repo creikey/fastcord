@@ -27,6 +27,8 @@ PERM_CONNECT :: (cast(u64) 1) << 20;
 PERM_CHANGE_NICKNAME :: (cast(u64) 1) << 26;
 PERM_MANAGE_NICKNAMES :: (cast(u64) 1) << 27;
 PERM_SPEAK :: (cast(u64) 1) << 21;
+PERM_MUTE_MEMBERS :: (cast(u64) 1) << 22;
+PERM_DEAFEN_MEMBERS :: (cast(u64) 1) << 23;
 PERM_MOVE_MEMBERS :: (cast(u64) 1) << 24;
 PERM_USE_SOUNDBOARD :: (cast(u64) 1) << 42;
 PERM_USE_EXTERNAL_SOUNDS :: (cast(u64) 1) << 45;
