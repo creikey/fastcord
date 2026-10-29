@@ -114,6 +114,8 @@ server_settings_reset_for_test :: () {
 	free(ss.error);
 	free(ss.chan_region);
 	array_free(ss.ows);
+	ob_free();
+	free(ss.ob_saved);
 	ss = .{};
 }
 
@@ -430,6 +432,9 @@ ss: struct {
 	tag: ui.Editor; // Server Tag; Invites: the custom invite link's code; Stickers: related emoji
 	sticker_file: string; // heap: Stickers' chosen file
 	ob_channels: [..]dc.Snowflake; // Onboarding: the default channels as edited
+	ob_prompts: [..]Ob_Prompt; // and the questions
+	ob_open: int; // the question open for editing, from 1 (0: none)
+	ob_saved: string; // heap: the loaded questions' prompts_json, what the drafts compare with
 	words: ui.Editor; // Safety Setup: Block Custom Words; Server Template: its description
 	hook_id: dc.Snowflake; // Integrations: the webhook open for editing
 	hook_name: ui.Editor; // its name; Server Template: the title
@@ -3049,7 +3054,9 @@ onboarding_saved_channels :: () -> []dc.Snowflake {
 	return out;
 }
 
-onboarding_dirty :: () -> bool {
+onboarding_dirty :: () -> bool { return channels_dirty() || prompts_dirty(); }
+
+channels_dirty :: () -> bool {
 	if !reply(.Onboarding) return false;
 	saved := onboarding_saved_channels();
 	if saved.count != ss.ob_channels.count return true;
@@ -3057,9 +3064,121 @@ onboarding_dirty :: () -> bool {
 	return false;
 }
 
+prompts_dirty :: () -> bool { return reply(.Onboarding) && prompts_json(ss.ob_prompts) != ss.ob_saved; }
+
 onboarding_reset :: () {
 	array_reset(*ss.ob_channels);
 	for onboarding_saved_channels() array_add(*ss.ob_channels, it);
+	ob_free();
+	r := reply(.Onboarding);
+	if r ss.ob_prompts = ob_drafts_of(r);
+	ss_set(*ss.ob_saved, prompts_json(ss.ob_prompts));
+	ss.ob_open = 0;
+}
+
+// An onboarding question and its answers as edited (the client's prompt and option shapes).
+Ob_Option :: struct {
+	id: string;
+	title, desc: ui.Editor;
+	channels, roles: [..]dc.Snowflake;
+	has_emoji, emoji_animated: bool;
+	emoji_id: dc.Snowflake;
+	emoji_name: string;
+}
+
+Ob_Prompt :: struct {
+	id: string;
+	title: ui.Editor;
+	single, required, in_onboarding: bool;
+	type: int;
+	options: [..]Ob_Option;
+}
+
+MAX_PROMPTS :: 15; // Discord's caps
+MAX_PROMPT_OPTIONS :: 50;
+
+// The loaded questions as drafts (ob_free frees them).
+ob_drafts_of :: (r: *dc.Feature_Result) -> [..]Ob_Prompt {
+	out: [..]Ob_Prompt;
+	for dc.flist(dc.vmap(r.body), "prompts") {
+		if out.count >= MAX_PROMPTS break;
+		pm := dc.vmap(it);
+		p := array_add(*out);
+		p.id = copy_string(dc.fstr(pm, "id"));
+		ui.editor_set_text(*p.title, dc.fstr(pm, "title"));
+		p.single, p.required, p.in_onboarding, p.type = dc.fbool(pm, "single_select"), dc.fbool(pm, "required"), dc.fbool(pm, "in_onboarding"), dc.fint(pm, "type");
+		for dc.flist(pm, "options") {
+			if p.options.count >= MAX_PROMPT_OPTIONS break;
+			om := dc.vmap(it);
+			o := array_add(*p.options);
+			o.id = copy_string(dc.fstr(om, "id"));
+			ui.editor_set_text(*o.title, dc.fstr(om, "title"));
+			ui.editor_set_text(*o.desc, dc.fstr(om, "description"));
+			for dc.flist(om, "channel_ids") if it_index < 50 array_add(*o.channels, dc.vsnow(it));
+			for dc.flist(om, "role_ids") if it_index < 50 array_add(*o.roles, dc.vsnow(it));
+			e := dc.fmap(om, "emoji");
+			if dc.fstr(e, "name") || dc.fsnow(e, "id") {
+				o.has_emoji, o.emoji_id, o.emoji_animated = true, dc.fsnow(e, "id"), dc.fbool(e, "animated");
+				o.emoji_name = copy_string(dc.fstr(e, "name"));
+			}
+		}
+	}
+	return out;
+}
+
+ob_free :: () {
+	for * p: ss.ob_prompts {
+		for * p.options {
+			ui.editor_destroy(*it.title);
+			ui.editor_destroy(*it.desc);
+			array_free(it.channels);
+			array_free(it.roles);
+			free(it.id);
+			free(it.emoji_name);
+		}
+		array_free(p.options);
+		ui.editor_destroy(*p.title);
+		free(p.id);
+	}
+	array_reset(*ss.ob_prompts);
+}
+
+// {"prompts":[...]} with the client's keys (its prompt serializer): id, options (id, channel_ids, role_ids,
+// emoji, emoji_id, emoji_name, emoji_animated, title, description), title, single_select, required,
+// in_onboarding, type.
+prompts_json :: (prompts: []Ob_Prompt) -> string {
+	ids :: (list: []dc.Snowflake) -> string {
+		parts := NewArray(list.count, string,, temp);
+		for list parts[it_index] = tprint("\"%\"", it);
+		return join(..parts, ",",, temp);
+	}
+	sb: String_Builder;
+	sb.allocator = temp;
+	append(*sb, "{\"prompts\":[");
+	for p, pi: prompts {
+		print_to_builder(*sb, "%{\"id\":%,\"options\":[", ifx pi then "," else "", dc.json_quote(p.id));
+		for o, oi: p.options {
+			print_to_builder(*sb, "%{\"id\":%,\"channel_ids\":[%],\"role_ids\":[%],", ifx oi then "," else "", dc.json_quote(o.id), ids(o.channels), ids(o.roles));
+			if o.has_emoji {
+				eid := ifx o.emoji_id then tprint("\"%\"", o.emoji_id) else "null";
+				print_to_builder(*sb, "\"emoji\":{\"id\":%,\"name\":%,\"animated\":%},\"emoji_id\":%,\"emoji_name\":%,\"emoji_animated\":%,", eid, dc.json_quote(o.emoji_name), o.emoji_animated, eid, dc.json_quote(o.emoji_name), o.emoji_animated);
+			} else append(*sb, "\"emoji\":null,");
+			print_to_builder(*sb, "\"title\":%,\"description\":%}", dc.json_quote(trim(ui.editor_text(*o.title))), dc.json_quote(trim(ui.editor_text(*o.desc))));
+		}
+		print_to_builder(*sb, "],\"title\":%,\"single_select\":%,\"required\":%,\"in_onboarding\":%,\"type\":%}", dc.json_quote(trim(ui.editor_text(*p.title))), p.single, p.required, p.in_onboarding, p.type);
+	}
+	append(*sb, "]}");
+	return builder_to_string(*sb,, temp);
+}
+
+// A new question or answer's ID, as the client makes them (String(Date.now())), kept unique.
+ob_new_id :: () -> string {
+	id := wall_ms();
+	for p: ss.ob_prompts {
+		if p.id == tprint("%", id) id += 1;
+		for p.options if it.id == tprint("%", id) id += 1;
+	}
+	return sprint("%", id);
 }
 
 onboarding_page :: (g: *dc.Guild) {
@@ -3099,24 +3218,212 @@ onboarding_page :: (g: *dc.Guild) {
 		label(ifx ch.kind == .Guild_Voice then ch.name else tprint("#%", ch.name), .Medium, 15, T("--text-strong"), 20);
 	}
 	set_divider();
-	section_heading("obq", "Questions", "Questions are edited in the official client for now; they're kept as they are here.");
-	prompts := dc.flist(m, "prompts");
-	if !prompts.count set_para("noq", "No questions yet.", .Normal, 14, 18, T("--text-muted"));
-	for prompts {
-		p := dc.vmap(it);
-		ui.id_scope(cast(u64) it_index + 1);
+	section_heading("obq", "Questions", "Ask new members what they're here for; each answer gives them channels and roles.");
+	if !ss.ob_prompts.count set_para("noq", "No questions yet.", .Normal, 14, 18, T("--text-muted"));
+	gone := -1;
+	for * p, pi: ss.ob_prompts {
+		ui.id_scope(cast(u64) pi + 1);
 		defer ui.pop_seed();
-		label(dc.fstr(p, "title"), .Semibold, 15, T("--text-strong"), 20);
-		set_para("n", tprint("% options%", dc.flist(p, "options").count, ifx dc.fbool(p, "required") then ", required" else ""), .Normal, 13, 18, T("--text-muted"));
-		spacer(.Y, 8);
+		if prompt_card(g, p, pi) gone = pi;
+	}
+	if gone >= 0 {
+		p := ss.ob_prompts[gone];
+		for * p.options { ui.editor_destroy(*it.title); ui.editor_destroy(*it.desc); array_free(it.channels); array_free(it.roles); free(it.id); free(it.emoji_name); }
+		array_free(p.options);
+		ui.editor_destroy(*p.title);
+		free(p.id);
+		array_ordered_remove_by_index(*ss.ob_prompts, gone);
+		ss.ob_open = 0;
+	}
+	spacer(.Y, 8);
+	if ss.ob_prompts.count < MAX_PROMPTS && set_button("Add a Question##addq", .Secondary) {
+		p := array_add(*ss.ob_prompts);
+		p.id = ob_new_id();
+		p.in_onboarding = true;
+		ss.ob_open = ss.ob_prompts.count;
 	}
 }
 
+// One question: its title and answer count, opened to edit (true: Delete Question).
+prompt_card :: (g: *dc.Guild, p: *Ob_Prompt, pi: int) -> bool {
+	open := ss.ob_open == pi + 1;
+	card := ui.box("q", .Draw_Background);
+	card.semantic_size = .[ui.pct(1), ui.children()];
+	card.layout_axis = .Y;
+	card.style.radius = all4(8);
+	card.style.bg = T("--background-mod-subtle");
+	ui.parent(card); defer ui.pop_parent();
+	head := row("h", .Clickable);
+	head.semantic_size = .[ui.pct(1), ui.px(56)];
+	head.hover_cursor = .Pointer;
+	if ui.signal(head).clicked ss.ob_open = ifx open then 0 else pi + 1;
+	{ ui.parent(head); defer ui.pop_parent();
+		spacer(.X, 16);
+		col := ui.box("t");
+		col.semantic_size = .[ui.fill(), ui.children()];
+		col.layout_axis = .Y;
+		{ ui.parent(col); defer ui.pop_parent();
+			title := trim(ui.editor_text(*p.title));
+			label(ifx title then title else "Untitled question", .Semibold, 15, T("--text-strong"), 20);
+			label(tprint("% answer%%", p.options.count, ifx p.options.count == 1 then "" else "s", ifx p.required then " · required" else ""), .Normal, 13, T("--text-muted"), 16);
+		}
+		icon("chev", ifx open then "chevron-small-up" else "chevron-small-down", 20, T("--interactive-icon-default"));
+		spacer(.X, 16);
+	}
+	spacer(.Y, 8);
+	if !open return false;
+	inner := row("e");
+	inner.semantic_size = .[ui.pct(1), ui.children()];
+	ui.parent(inner); defer ui.pop_parent();
+	spacer(.X, 16);
+	gone := false;
+	col := ui.box("f");
+	col.semantic_size = .[ui.fill(), ui.children()];
+	col.layout_axis = .Y;
+	{ ui.parent(col); defer ui.pop_parent();
+		field_title("Question");
+		if set_input("qtitle", *p.title, "What brings you here?", max_runes = 100) == .Escape ss.field_escape = true;
+		spacer(.Y, 8);
+		if set_toggle_row("multi", "Members can pick more than one answer", "", !p.single) p.single = !p.single;
+		spacer(.Y, 12);
+		if set_toggle_row("req", "Required", "Members must answer this question to join.", p.required) p.required = !p.required;
+		spacer(.Y, 8);
+		removed := -1;
+		for * o, oi: p.options {
+			ui.id_scope(cast(u64) oi + 1);
+			defer ui.pop_seed();
+			if option_editor(g, o) removed = oi;
+			spacer(.Y, 8);
+		}
+		if removed >= 0 {
+			o := *p.options[removed];
+			ui.editor_destroy(*o.title); ui.editor_destroy(*o.desc); array_free(o.channels); array_free(o.roles); free(o.id); free(o.emoji_name);
+			array_ordered_remove_by_index(*p.options, removed);
+		}
+		br := row("btns");
+		br.semantic_size = .[ui.pct(1), ui.px(38)];
+		{ ui.parent(br); defer ui.pop_parent();
+			if p.options.count < MAX_PROMPT_OPTIONS && set_button("Add Answer##adda", .Secondary) {
+				o := array_add(*p.options);
+				o.id = ob_new_id();
+			}
+			filler(.X);
+			if set_button("Delete Question##delq", .Danger) gone = true;
+		}
+		spacer(.Y, 16);
+	}
+	spacer(.X, 16);
+	return gone;
+}
+
+// One answer: title, description, and the channels and roles it gives (true: Remove).
+option_editor :: (g: *dc.Guild, o: *Ob_Option) -> bool {
+	box := ui.box("o", .Draw_Border);
+	box.semantic_size = .[ui.pct(1), ui.children()];
+	box.layout_axis = .Y;
+	box.style.radius = all4(8);
+	box.style.border = 1;
+	box.style.border_color = T("--border-subtle");
+	ui.parent(box); defer ui.pop_parent();
+	inner := row("i");
+	inner.semantic_size = .[ui.pct(1), ui.children()];
+	ui.parent(inner); defer ui.pop_parent();
+	spacer(.X, 12);
+	col := ui.box("c");
+	col.semantic_size = .[ui.fill(), ui.children()];
+	col.layout_axis = .Y;
+	drop := false;
+	{ ui.parent(col); defer ui.pop_parent();
+		spacer(.Y, 12);
+		if set_input("atitle", *o.title, "Answer", max_runes = 50) == .Escape ss.field_escape = true;
+		spacer(.Y, 8);
+		if set_input("adesc", *o.desc, "Description (optional)", max_runes = 100) == .Escape ss.field_escape = true;
+		spacer(.Y, 8);
+		chips := row("chips");
+		chips.semantic_size = .[ui.pct(1), ui.children()];
+		chips.style.child_gap = 6;
+		drop_ch, drop_role: dc.Snowflake;
+		{ ui.parent(chips); defer ui.pop_parent();
+			for o.channels {
+				ch := dc.channel_get(store(), it);
+				if chip(tprint("c%", it), ifx ch then tprint("#%", ch.name) else "deleted-channel") drop_ch = it;
+			}
+			for o.roles {
+				r := role_of(g, it);
+				if chip(tprint("r%", it), ifx r then tprint("@%", r.name) else "deleted-role") drop_role = it;
+			}
+		}
+		if drop_ch for o.channels if it == drop_ch { array_ordered_remove_by_index(*o.channels, it_index); break; }
+		if drop_role for o.roles if it == drop_role { array_ordered_remove_by_index(*o.roles, it_index); break; }
+		spacer(.Y, 8);
+		pick_row := row("picks");
+		pick_row.semantic_size = .[ui.pct(1), ui.px(40)];
+		pick_row.style.child_gap = 8;
+		{ ui.parent(pick_row); defer ui.pop_parent();
+			names: [..]string;
+			names.allocator = temp;
+			chan_ids: [..]dc.Snowflake;
+			chan_ids.allocator = temp;
+			array_add(*names, "Add a channel");
+			array_add(*chan_ids, 0);
+			for g.channels {
+				ch := dc.channel_get(store(), it);
+				if !ch || array_find(o.channels, it) || (ch.kind != .Guild_Text && ch.kind != .Guild_Announcement && ch.kind != .Guild_Forum && ch.kind != .Guild_Voice) continue;
+				array_add(*names, ifx ch.kind == .Guild_Voice then ch.name else tprint("#%", ch.name));
+				array_add(*chan_ids, it);
+			}
+			w := ui.box("cw");
+			w.semantic_size = .[ui.fill(), ui.children()];
+			{ ui.parent(w); defer ui.pop_parent(); pick := select_field("addch", names, 0); if pick > 0 && o.channels.count < 50 array_add(*o.channels, chan_ids[pick]); }
+			rnames: [..]string;
+			rnames.allocator = temp;
+			rids: [..]dc.Snowflake;
+			rids.allocator = temp;
+			array_add(*rnames, "Add a role");
+			array_add(*rids, 0);
+			for roles_sorted(g) if it.id != g.id && !it.managed && !array_find(o.roles, it.id) { array_add(*rnames, it.name); array_add(*rids, it.id); }
+			w = ui.box("rw");
+			w.semantic_size = .[ui.fill(), ui.children()];
+			{ ui.parent(w); defer ui.pop_parent(); pick := select_field("addrole", rnames, 0); if pick > 0 && o.roles.count < 50 array_add(*o.roles, rids[pick]); }
+		}
+		spacer(.Y, 4);
+		rr := row("rm");
+		rr.semantic_size = .[ui.pct(1), ui.px(32)];
+		{ ui.parent(rr); defer ui.pop_parent(); filler(.X); if set_button("Remove Answer##rma", .Link, true, 28) drop = true; }
+		spacer(.Y, 8);
+	}
+	spacer(.X, 12);
+	return drop;
+}
+
+// A small removable tag ("#general", "@mods"); true when its x is clicked.
+chip :: (id: string, text: string) -> bool {
+	c := row(id, .Draw_Background);
+	c.semantic_size = .[ui.children(), ui.px(26)];
+	c.style.radius = all4(13);
+	c.style.bg = T("--background-mod-normal");
+	ui.parent(c); defer ui.pop_parent();
+	spacer(.X, 10);
+	label(text, .Medium, 13, T("--text-strong"), 16);
+	spacer(.X, 2);
+	x := row_icon_button("x", "x-small");
+	return x;
+}
+
+// Save Changes: each changed part as its own PUT, as the client sends them ({default_channel_ids}, {prompts}).
 onboarding_save :: (g: *dc.Guild) {
-	ids: [..]string;
-	ids.allocator = temp;
-	for ss.ob_channels array_add(*ids, tprint("\"%\"", it));
-	save_call(g, .Save, "PUT", tprint("/guilds/%/onboarding", g.id), tprint("{\"default_channel_ids\":[%]}", join(..ids, ",",, temp)));
+	for p: ss.ob_prompts {
+		if !trim(ui.editor_text(*p.title)) || !p.options.count { ss_error("Every question needs a title and at least one answer."); return; }
+		for p.options if !trim(ui.editor_text(*it.title)) { ss_error("Every answer needs a title."); return; }
+	}
+	ss_error("");
+	if channels_dirty() {
+		ids: [..]string;
+		ids.allocator = temp;
+		for ss.ob_channels array_add(*ids, tprint("\"%\"", it));
+		save_call(g, .Save, "PUT", tprint("/guilds/%/onboarding", g.id), tprint("{\"default_channel_ids\":[%]}", join(..ids, ",",, temp)));
+	}
+	if prompts_dirty() save_call(g, .Save, "PUT", tprint("/guilds/%/onboarding", g.id), prompts_json(ss.ob_prompts));
 }
 
 #scope_export
@@ -3192,6 +3499,8 @@ server_settings_script_reply :: (name: string, json: string) -> bool {
 	}
 	return false;
 }
+
+#scope_file
 
 // ---- Channel Settings ----
 

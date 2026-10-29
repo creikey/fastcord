@@ -21,7 +21,7 @@
   - Done: Audit Log (actor, target, changes, reason; filter by user and action), on Discord and hosted (serve audits server, profile, kick / ban / unban and emoji changes). Still missing: paging and the client's per-action wording.
   - Done: Bans (searchable list with reason, Revoke Ban), on Discord and hosted. Still missing: paging past 1000.
   - Done: Enable Community and Community Overview (rules, updates and safety channels, primary language, Disable Community) on Discord.
-  - Done: Onboarding on Discord: enable, default channels, the questions listed. Still missing: editing questions and prompts, the Server Guide (welcome message, new member to-dos, resource pages), the requirement checks.
+  - Done: Onboarding on Discord: enable, default channels, and the questions edited: add, delete, title, multiple answers, required, and each answer's title, description, channels and roles (an answer's emoji is kept, not edited) (`tests/ui/server_settings_community.txt`, on a COMMUNITY copy of the chat fixture). Still missing: answer emoji, the Server Guide (welcome message, new member to-dos, resource pages), the requirement checks.
   - Server Insights (open the official web page in the system browser if no API), Discovery (eligibility checklist, categories, tags).
   - Done: Widget (in Engagement, as the client has it): enable, invite channel, server ID and JSON API URL. Still missing: the premade widget snippet.
   - Done: Server Template on Discord (create, sync, delete, copy link).

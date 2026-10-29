@@ -1,0 +1,48 @@
+# Server Settings on a Community server (the fixture with COMMUNITY and NEWS): Community Overview,
+# Onboarding (enable, default channels, a question opened and edited, answers with channels and roles),
+# and the Announcement Channel switch in Channel Settings.
+wait 5
+click 200 57
+wait 10
+click_text "Server Settings"
+wait 10
+move 250 500
+scroll 0 -600
+wait 5
+click_text "Community Overview"
+wait 10
+expect_visible "Disable Community"
+click_text "Onboarding"
+wait 10
+settings_reply Onboarding {"guild_id":"1546820558300258304","enabled":true,"mode":0,"default_channel_ids":["1546820603343016006"],"prompts":[{"id":"1565000000000000001","type":0,"title":"What brings you here?","single_select":false,"required":true,"in_onboarding":true,"options":[{"id":"1565000000000000002","title":"Battles","description":"Fight it out","emoji":{"id":null,"name":"⚔️","animated":false},"channel_ids":["1546820603343016006"],"role_ids":["1546822593921679420"]},{"id":"1565000000000000003","title":"Just looking","description":"","emoji":null,"channel_ids":[],"role_ids":[]}]}]}
+wait 5
+expect_visible "Enable Onboarding"
+expect_visible "What brings you here?"
+expect_not_visible "Careful — you have unsaved changes!"
+click_text "What brings you here?"
+wait 5
+move 700 500
+scroll 0 -300
+wait 5
+expect_visible "#dingus-battle"
+expect_visible "@champion"
+click_text "Remove Answer"
+wait 5
+expect_visible "Careful — you have unsaved changes!"
+shot build/ui-server_settings_onboarding.png
+click_text Reset
+wait 5
+expect_not_visible "Careful — you have unsaved changes!"
+click_text "Add a Question"
+wait 5
+expect_visible "Untitled question"
+expect_visible "Careful — you have unsaved changes!"
+click_text Reset
+wait 5
+key escape
+wait 10
+click 350 198
+wait 10
+expect_visible "Announcement Channel"
+key escape
+wait 10
