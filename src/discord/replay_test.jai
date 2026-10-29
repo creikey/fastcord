@@ -39,6 +39,8 @@ Replay :: struct {
 	sends: [..]Replay_Send;
 	beats: [..]string; // QoS heartbeats since the mark: "<sends before it>:<reasons>"
 	science: [..]Sci_Batch; // our /science POSTs since the mark
+	ready_timing: [2]float64; // our ready_payload_received's r_ready_timing (ready_seen)
+	ready_seen: bool;
 	marked: bool;
 	fail: string; // requests whose URL contains it are answered fail_status (failure paths)
 	fail_status: int;
@@ -246,6 +248,8 @@ replay_exchange :: (r: *Replay, host: string, req: http.Request) -> http.Respons
 		push_allocator(pool_allocator(*r.pool));
 		if r_is_science(url) {
 			if perr == .None {
+				ok, timing := r_ready_timing(body);
+				if ok r.ready_seen, r.ready_timing = true, timing;
 				b := r_sci_parse(body);
 				b.wire = copy_string(wire);
 				array_add(*r.science, b);
@@ -2931,6 +2935,18 @@ session_start_identify :: (t: *T) {
 // already sent in an earlier launch (persisted).
 R_LAUNCH_ALLOW :: string.["science:fetch_user_offer_started", "science:notification_permission_status", "science:network_action_detectable_non_games_fetch", "science:network_action_detectable_applications_fetch", "science:experiment_user_evaluation_exposed", "science:experiment_installation_evaluation_exposed"];
 
+// r_ready_timing: a /science body's ready_payload_received durations as [READY handled - identify
+// start, identify start - connection start] (its three mixed-clock durations, combined).
+r_ready_timing :: (body: V) -> bool, [2]float64 {
+	for ev: flist(vmap(body), "events") {
+		if fstr(vmap(ev), "type") != "ready_payload_received" continue;
+		p := fmap(vmap(ev), "properties");
+		id, conn, emit := vf64(vget(p, "duration_ms_since_identify_start")), vf64(vget(p, "duration_ms_since_connection_start")), vf64(vget(p, "duration_ms_since_emit_start"));
+		return true, .[emit + id, conn - id];
+	}
+	return false, .[0, 0];
+}
+
 // r_launch plays a fixture's launch on the fixture's own timeline (ms after the socket's creation):
 // its socket opens (at its app IDENTIFY when it took the app's path, else at 150 ms, before
 // fast-connect.js ran), HELLO and READY arrive. The IDENTIFY and the window's telemetry are compared.
@@ -2977,6 +2993,20 @@ r_launch :: (t: *T, scenario: string, window: string, guild: Snowflake, channel:
 	for run.r.sends if it.op == 2 { ours_identify = it.shape; break; }
 	locks.unlock(*run.r.mu);
 	expect_value(t, ours_identify, official_identify);
+	// ready_payload_received's timings, played on the fixture's timeline: within 60 ms of the official
+	official_ready: [2]float64;
+	seen := false;
+	for e: replay_window(*run.r, window) {
+		if fstr(e, "k") != "req" || !r_is_science(fstr(e, "url")) continue;
+		bv, ok := r_body_value(vget(e, "body"));
+		if ok && !seen seen, official_ready = r_ready_timing(bv);
+	}
+	locks.lock(*run.r.mu);
+	ours_seen, ours_ready := run.r.ready_seen, run.r.ready_timing;
+	locks.unlock(*run.r.mu);
+	if expect(t, seen && ours_seen, "ready_payload_received") {
+		for 0..1 expectf(t, abs(ours_ready[it] - official_ready[it]) <= 60, "ready_payload_received % ms: official %, ours %", ifx it == 0 then "emit + identify" else "connection - identify", official_ready[it], ours_ready[it]);
+	}
 	all: [..]string;
 	all.allocator = temp;
 	array_add(*all, ..R_LAUNCH_ALLOW);
