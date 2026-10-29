@@ -31,10 +31,19 @@ create_channel_open :: (gid: dc.Snowflake, category_id: dc.Snowflake) {
 	adm.channel = category_id;
 	adm.kind = .Guild_Text;
 	adm.busy = false;
+	adm.clone, adm.private = 0, false;
 	ui.editor_set_text(*adm.name, "");
 	set_error("");
 	adm.focus_field = true;
 	if app.client != null dc.open_create_channel(app.client, gid);
+}
+
+// Duplicate Channel (the client's clone): the Create Channel modal with its type, name and category, which
+// creates it with the same permission overwrites, bitrate and user limit.
+channel_duplicate_open :: (ch: *dc.Channel) {
+	create_channel_open(ch.guild_id, ch.parent_id);
+	adm.kind, adm.clone = ch.kind, ch.id;
+	ui.editor_set_text(*adm.name, ch.name);
 }
 
 // channel_delete_open: Delete Channel / Category / Thread (a sidebar row menu, Channel Settings). Gone
@@ -336,6 +345,8 @@ Admin_State :: struct {
 	emoji_busy: bool;
 	move_target: dc.Snowflake; // Sync_Move: the drop (adm.channel is the dragged channel)
 	move_after: bool;
+	private: bool; // Create Channel's Private Channel switch
+	clone: dc.Snowflake; // Duplicate Channel: the channel whose overwrites, bitrate and user limit the new one takes
 }
 
 adm: Admin_State;
@@ -414,7 +425,8 @@ create_channel_modal :: () {
 	}
 	submit := false;
 	spacer(.Y, 24);
-	if !is_cat {
+	clone := dc.channel_get(store(), adm.clone);
+	if !is_cat && !clone {
 		lr := row("typelbl");
 		lr.semantic_size = .[ui.pct(1), ui.px(20)];
 		{ ui.parent(lr); defer ui.pop_parent();
@@ -490,6 +502,33 @@ create_channel_modal :: () {
 	if res == .Changed normalize_name_field(adm.kind);
 	if res == .Submit submit = true;
 	if res == .Escape adm.modal = .None;
+	if clone {
+		spacer(.Y, 8);
+		hr := row("clonehelp");
+		hr.semantic_size = .[ui.pct(1), ui.children()];
+		ui.parent(hr); defer ui.pop_parent();
+		spacer(.X, 25);
+		h := ui.box("t", .Wrap_Text);
+		h.semantic_size = .[ui.fill(), ui.text_size()];
+		ui.set_spans(h, ui.Span.[.{text = L("A new channel will be created with the same permissions, user limit and bitrate as "), font = F(.Normal), size = 14, color = T("--text-muted")},
+			.{text = clone.name, font = F(.Bold), size = 14, color = T("--text-muted")}, .{text = ".", font = F(.Normal), size = 14, color = T("--text-muted")}]);
+		spacer(.X, 25);
+	}
+	if !clone && adm.kind != .Guild_Announcement && adm.kind != .Guild_Stage_Voice {
+		spacer(.Y, 16);
+		pr := row("private");
+		pr.semantic_size = .[ui.pct(1), ui.children()];
+		ui.parent(pr); defer ui.pop_parent();
+		spacer(.X, 25);
+		pc := ui.box("c");
+		pc.semantic_size = .[ui.fill(), ui.children()];
+		pc.layout_axis = .Y;
+		{ ui.parent(pc); defer ui.pop_parent();
+			if set_toggle_row("private_sw", ifx is_cat then L("Private Category") else L("Private Channel"),
+				ifx is_cat then L("By making a category private, only select members and roles will be able to view this category. Linked channels in this category will automatically match to this setting.") else L("Only selected members and roles will be able to view this channel."), adm.private) adm.private = !adm.private;
+		}
+		spacer(.X, 25);
+	}
 	error_line();
 	spacer(.Y, 24);
 	name := trim(ui.editor_text(*adm.name), "- ");
@@ -512,7 +551,7 @@ create_channel_modal :: () {
 	if submit && name != "" && !adm.busy && net_action() {
 		adm.busy = true;
 		set_error("");
-		dc.create_channel(app.client, adm.guild, adm.kind, dc.channel_name_normalize(name, text_named(adm.kind)), adm.channel);
+		dc.create_channel(app.client, adm.guild, adm.kind, dc.channel_name_normalize(name, text_named(adm.kind)), adm.channel, clone, adm.private);
 	}
 }
 

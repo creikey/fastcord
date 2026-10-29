@@ -1,0 +1,10 @@
+# A channel row's Duplicate Channel opens Create Channel with its name, which makes a copy with its
+# permission overwrites, bitrate and user limit (POST /guilds/{id}/channels).
+wait 5
+rclick 165 199
+wait 10
+click_text "Duplicate Channel"
+wait 10
+expect_visible "Create Channel"
+expect_input "dingus-battle"
+shot build/ui-channel_duplicate.png

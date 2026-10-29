@@ -1718,6 +1718,13 @@ channel_menu :: () {
 				channel_settings_open(ch);
 				close = true;
 			} else if sig.hovering hover_any = true;
+			if !cat {
+				sig = menu_item("dup", L("Duplicate Channel"));
+				if sig.clicked {
+					channel_duplicate_open(ch);
+					close = true;
+				} else if sig.hovering hover_any = true;
+			}
 			if cat {
 				sig = menu_item("create", L("Create Channel"));
 				if sig.clicked {

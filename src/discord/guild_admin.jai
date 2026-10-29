@@ -515,9 +515,13 @@ open_delete_channel :: (c: *Client, guild_id: Snowflake) {
 	aux_get(c, tprint("/guilds/%/roles/member-counts", guild_id), guild_id);
 }
 
-// POST /guilds/{id}/channels {"type","name","permission_overwrites":[],"parent_id"} -> 201.
+// POST /guilds/{id}/channels {"type","name","permission_overwrites":[],"parent_id"} -> 201 (createChannel:
+// bitrate only when not 64000, user_limit only above 0, parent_id only with one). clone: Duplicate Channel's
+// source, whose overwrites, bitrate and user limit it takes. private: the Private Channel switch, as its
+// members-and-roles step skipped: @everyone denied View Channel (and Connect for voice), and you allowed them
+// unless you're an administrator or the owner (permission_overwrites' CG and n3).
 // tag: the channel type (guild_admin_apply reports it to science).
-create_channel :: (c: *Client, guild_id: Snowflake, kind: Channel_Type, name: string, parent_id: Snowflake) {
+create_channel :: (c: *Client, guild_id: Snowflake, kind: Channel_Type, name: string, parent_id: Snowflake, clone: *Channel = null, private := false) {
 	w: Json;
 	json_init(*w);
 	json_obj(*w);
@@ -525,9 +529,36 @@ create_channel :: (c: *Client, guild_id: Snowflake, kind: Channel_Type, name: st
 	json_kstr(*w, "name", name);
 	json_key(*w, "permission_overwrites");
 	json_arr(*w);
+	if clone for clone.overwrites {
+		json_obj(*w);
+		json_ksnow(*w, "id", it.id);
+		json_kint(*w, "type", it.kind);
+		json_kstr(*w, "allow", tprint("%", it.allow));
+		json_kstr(*w, "deny", tprint("%", it.deny));
+		json_obj_end(*w);
+	}
+	if private && !clone {
+		bits := PERM_VIEW_CHANNEL | (ifx kind == .Guild_Voice || kind == .Guild_Category then PERM_CONNECT else 0);
+		json_obj(*w);
+		json_ksnow(*w, "id", guild_id);
+		json_kint(*w, "type", 0);
+		json_kstr(*w, "allow", "0");
+		json_kstr(*w, "deny", tprint("%", bits));
+		json_obj_end(*w);
+		g := guild_get(*c.store, guild_id);
+		if (guild_permissions(*c.store, guild_id) & PERM_ADMINISTRATOR) == 0 && !(g && g.owner_id == c.store.me) {
+			json_obj(*w);
+			json_ksnow(*w, "id", c.store.me);
+			json_kint(*w, "type", 1);
+			json_kstr(*w, "deny", "0");
+			json_kstr(*w, "allow", tprint("%", bits));
+			json_obj_end(*w);
+		}
+	}
 	json_arr_end(*w);
+	if clone && clone.bitrate > 0 && clone.bitrate != 64000 json_kint(*w, "bitrate", clone.bitrate);
+	if clone && clone.user_limit > 0 json_kint(*w, "user_limit", clone.user_limit);
 	if parent_id json_ksnow(*w, "parent_id", parent_id);
-	else json_knull(*w, "parent_id");
 	json_obj_end(*w);
 	feature_submit(c, .Channel_Create, "POST", tprint("/guilds/%/channels", guild_id), json_string(*w), channel_id = guild_id, tag = xx kind);
 }

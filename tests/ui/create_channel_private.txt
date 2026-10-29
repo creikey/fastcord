@@ -1,0 +1,8 @@
+# Create Channel has the Private Channel switch (a private channel denies @everyone View Channel).
+wait 5
+click 349 169
+wait 10
+expect_visible "Private Channel"
+click_text "Voice"
+wait 5
+shot build/ui-create_channel_private.png
