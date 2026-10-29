@@ -9,7 +9,7 @@ icon_texture :: (name: string, size_pt: float32) -> gfx.Texture {
 		if ok tex = gfx.texture_create(px, px, .R8, vector.rasterize(*ic, px, px, temp));
 		break;
 	}
-	if tex == 0 print("icon \"%\" is missing or failed to parse (assets/icons)\n", name, to_standard_error = true);
+	if tex == 0 log_error("icon \"%\" is missing or failed to parse (assets/icons)", name);
 	table_set(*icon_cache, .{copy_string(name), px}, tex);
 	return tex;
 }

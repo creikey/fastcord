@@ -59,16 +59,7 @@ log_to_file :: (message: string, data: *void, info: Log_Info) {
 LOG_MAX :: 1 << 20;
 LOG_PENDING_MAX :: 64 * 1024;
 
-#scope_file
-
-lg: struct {
-	mu: locks.Mutex;
-	pending: String_Builder; // heap
-};
-
-two :: (x: s64) -> string { return tprint("%", formatInt(x, minimum_digits = 2)); }
-
-// Watchdog thread: appends what was logged since the last second.
+// The watchdog thread each second, and fail before it exits: appends what was logged since the last second.
 flush_log :: () {
 	text: string;
 	{
@@ -96,6 +87,15 @@ flush_log :: () {
 	file_write(*f, text);
 	file_close(*f);
 }
+
+#scope_file
+
+lg: struct {
+	mu: locks.Mutex;
+	pending: String_Builder; // heap
+};
+
+two :: (x: s64) -> string { return tprint("%", formatInt(x, minimum_digits = 2)); }
 
 wd: struct {
 	main_tid: int;
@@ -184,7 +184,7 @@ report_hang :: (stuck_ns: s64) {
 	dir := app_data_dir("logs");
 	make_directory_if_it_does_not_exist(dir, recursive = true);
 	path := tprint("%/hang-%.txt", dir, to_seconds(current_time_consensus() - dc.UNIX_EPOCH));
-	if write_entire_file(path, text) print("hang report written to %\n", path, to_standard_error = true);
+	if write_entire_file(path, text) log_error("hang report written to %", path);
 }
 
 loc :: (l: Source_Code_Location) -> string { return tprint("%(%:%)", l.fully_pathed_filename, l.line_number, l.character_number); }

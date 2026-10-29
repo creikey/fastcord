@@ -1173,8 +1173,7 @@ box_visible :: (b: *ui.Box) -> bool {
 }
 
 script_fail :: (path: string, what: string, args: ..Any) {
-	print("%: ", path, to_standard_error = true);
-	fail(what, ..args);
+	fail(join(path, ": ", what,, temp), ..args);
 }
 
 script_t: float64; // headless clock for scripts run outside run_script (the sweep)
@@ -1277,11 +1276,11 @@ stats_reported_at: float64; // FASTCORD_STATS: last [stats] line
 stats_reported_frame: u64;
 unpaced := -1; // bench_unpaced, read once
 
-// Prints the message to stderr and exits with status 1.
+// Logs the message (stderr, and fastcord.log in a GUI launch) and exits with status 1.
 fail :: (what: string, args: ..Any) {
 	#if OS == .WINDOWS if serve_out { say(what, ..args); say("\n"); exit(1); }
-	print(what, ..args, to_standard_error = true);
-	print("\n", to_standard_error = true);
+	log_error(what, ..args);
+	flush_log();
 	exit(1);
 }
 

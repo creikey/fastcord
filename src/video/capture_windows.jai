@@ -158,7 +158,7 @@ camera_thread :: (t: *Thread) -> s64 {
 	source: *void;
 	hr := mf.com(act, 33, #type (*void, *GUID, **void) -> HRESULT #c_call)(act, *mf.IID_IMFMediaSource, *source);
 	if hr < 0 {
-		print("camera: opening device % of % failed (hr %)\n", pick, n, hr, to_standard_error = true);
+		log_error("camera: opening device % of % failed (hr %)", pick, n, hr);
 		c.error = "Couldn't open the camera. Another app may be using it.";
 		return 0;
 	}
@@ -173,7 +173,7 @@ camera_thread :: (t: *Thread) -> s64 {
 	mf.release(attrs);
 	mf.release(source);
 	if hr < 0 {
-		print("camera: source reader failed (hr %)\n", hr, to_standard_error = true);
+		log_error("camera: source reader failed (hr %)", hr);
 		c.error = "Couldn't open the camera.";
 		return 0;
 	}
@@ -207,7 +207,7 @@ camera_thread :: (t: *Thread) -> s64 {
 	ok := out && set_type(reader, out);
 	mf.release(out);
 	if !ok {
-		print("camera: no NV12 output at %x%\n", w, h, to_standard_error = true);
+		log_error("camera: no NV12 output at %x%", w, h);
 		c.error = "The camera's video format isn't supported.";
 		return 0;
 	}
@@ -227,7 +227,7 @@ camera_thread :: (t: *Thread) -> s64 {
 		s: *void;
 		hr = mf.com(reader, 9, #type (*void, u32, u32, *u32, *u32, *s64, **void) -> HRESULT #c_call)(reader, STREAM, 0, *idx, *flags, *ts, *s);
 		if hr < 0 || flags & (mf.MF_SOURCE_READERF_ERROR | mf.MF_SOURCE_READERF_ENDOFSTREAM) {
-			print("camera: capture stopped (hr %, flags %)\n", hr, flags, to_standard_error = true);
+			log_error("camera: capture stopped (hr %, flags %)", hr, flags);
 			c.error = "The camera stopped. Another app may have taken it.";
 			mf.release(s);
 			break;
