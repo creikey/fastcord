@@ -1590,6 +1590,7 @@ overlays :: () {
 	if app.settings_open { settings_modal(); } else { settings_closed(); }
 	account_logout_modal(); // view_settings_account.jai
 	account_modal();
+	guild_privacy_modal(); // view_settings_user.jai
 	mfa_modal();
 	add_server_overlay(); // view_add_server.jai
 	invite_accept_overlay(); // view_invites.jai

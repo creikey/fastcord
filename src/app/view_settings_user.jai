@@ -137,6 +137,57 @@ messaging_page :: () {
 	}
 }
 
+// The server header menu's Privacy Settings: DMs and message requests from that server's members
+// (privacy.restricted_guild_ids 8.3 and message_request_restricted_guild_ids 8.16, guild ids).
+guild_privacy: dc.Snowflake; // the open modal's server (0: closed)
+
+guild_privacy_modal :: () {
+	if !guild_privacy return;
+	s := store();
+	g := dc.guild_get(s, guild_privacy);
+	W :: 440;
+	if !g || !adm_modal_begin("gprivacy", W, "Privacy Settings", g.name) {
+		guild_privacy = 0;
+		return;
+	}
+	body := row("body");
+	body.semantic_size = .[ui.pct(1), ui.children()];
+	{ ui.parent(body); defer ui.pop_parent();
+		spacer(.X, 25);
+		col := ui.box("col");
+		col.semantic_size = .[ui.fill(), ui.children()];
+		col.layout_axis = .Y;
+		{ ui.parent(col); defer ui.pop_parent();
+			spacer(.Y, 16);
+			for field: u32.[3, 16] {
+				ids := dc.settings_ids(s, 8, field);
+				on := !array_find(ids, cast(u64) guild_privacy);
+				title := ifx field == 3 then "Direct Messages" else "Message Requests";
+				help := ifx field == 3 then "Allow direct messages from other members in this server." else "Messages from members you may not know go to Message Requests.";
+				if set_toggle_row(tprint("f%", field), title, help, on) {
+					list: [..]u64;
+					list.allocator = temp;
+					for ids if it != guild_privacy array_add(*list, it);
+					if on array_add(*list, guild_privacy);
+					proto_put(8, field, dc.pb_field_ids(field, list));
+				}
+				spacer(.Y, 16);
+			}
+		}
+		spacer(.X, 25);
+	}
+	btns := row("btns");
+	btns.semantic_size = .[ui.pct(1), ui.px(40)];
+	{ ui.parent(btns); defer ui.pop_parent();
+		filler(.X);
+		if wide_button("done", "Done", .Primary) guild_privacy = 0;
+		spacer(.X, 25);
+	}
+	spacer(.Y, 24);
+	adm_modal_end();
+	if adm_escape() guild_privacy = 0;
+}
+
 // ---- Pages that load from REST: Logged-in Devices, Connected Apps ----
 
 US_Req :: enum u8 {

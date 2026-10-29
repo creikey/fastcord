@@ -501,6 +501,10 @@ guild_menu :: () {
 			gm.nm_guild = gid;
 			close = true;
 		}
+		if !on_hosted() && menu_item("privacy", "Privacy Settings", lead = "lock", h = GM_HDR_ROW_H).clicked {
+			guild_privacy = gid; // view_settings_user.jai
+			close = true;
+		}
 		if !on_hosted() && menu_item("serverprofile", "Edit Per-server Profile", lead = "pencil", h = GM_HDR_ROW_H).clicked {
 			per_server_profile_open(gid); // view_settings_account.jai
 			close = true;

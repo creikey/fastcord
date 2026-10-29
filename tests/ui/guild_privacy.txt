@@ -1,0 +1,14 @@
+# The server header menu's Privacy Settings: DMs and message requests from this server's members,
+# each a switch kept in the settings proto's per-server lists.
+wait 5
+click 200 57
+wait 10
+click_text "Privacy Settings"
+wait 10
+expect_visible "Direct Messages"
+click_text "Direct Messages"
+wait 5
+shot build/ui-guild_privacy_modal.png
+click_text "Done"
+wait 5
+expect_not_visible "Message Requests"

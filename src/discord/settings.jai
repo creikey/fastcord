@@ -184,6 +184,21 @@ settings_proto_edit :: (s: *Store, cat: u32, num: u32, encoded: []u8, sub: u32 =
 	s.changed += 1;
 }
 
+// settings_ids: a packed repeated fixed64 field at path (guild ids), in temp.
+settings_ids :: (s: *Store, path: ..u32) -> []u64 {
+	f, ok := protobuf.find_path(s.settings.proto, ..path);
+	if !ok || f.wire != .Len return .[];
+	return protobuf.packed_fixed64(f.bytes,, temp);
+}
+
+// pb_field_ids: ids as a packed fixed64 field (nothing for none, as protobuf-ts writes it).
+pb_field_ids :: (num: u32, ids: []u64) -> []u8 {
+	if !ids return .[];
+	b := NewArray(ids.count * 8, u8, false,, temp);
+	for id, i: ids for k: 0..7 b[i * 8 + k] = cast(u8) (id >> (8 * k));
+	return pb_field_msg(num, b);
+}
+
 // settings_value: a varint at path in the kept proto (a wrapper's value: its field 1 last), and
 // whether it is set.
 settings_value :: (s: *Store, path: ..u32) -> u64, bool {
