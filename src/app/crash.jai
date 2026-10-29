@@ -1,8 +1,9 @@
 // Crash reports. A crash (a fatal signal, an unhandled Windows exception) writes <data>/logs/crash.txt with
 // the version, the signal or exception and the stack, then the process dies as it would have (the OS's own
 // report still happens). The next launch says so in a toast and renames the file crash-<time>.txt, so a bug
-// report has something to attach. It runs inside the crashing process, so a smashed stack (an overflow) or
-// heap can lose the report; the handler only calls async-signal-safe functions and allocates nothing.
+// report has something to attach. It runs inside the crashing process, so a smashed heap can lose the
+// report; the handler only calls async-signal-safe functions and allocates nothing. A stack overflow on the
+// main thread still reports: the handler runs on its own stack (sigaltstack; on Windows, a stack guarantee).
 crash_start :: () {
 	dir := app_data_dir("logs");
 	make_directory_if_it_does_not_exist(dir, recursive = true);
@@ -14,10 +15,16 @@ crash_start :: () {
 	crash_path = to_c_string(path); // heap, for the handler
 	#if OS == .WINDOWS {
 		SetUnhandledExceptionFilter(on_exception);
+		guarantee: u32 = ALT_STACK;
+		SetThreadStackGuarantee(*guarantee);
 	} else {
+		ss: posix.stack_t;
+		ss.ss_sp = alloc(ALT_STACK);
+		ss.ss_size = ALT_STACK;
+		posix.sigaltstack(*ss, null);
 		sa: posix.sigaction_t;
 		sa.sa_handler = on_signal;
-		sa.sa_flags = posix.SA_RESETHAND; // the handler runs once, then the default action kills the process
+		sa.sa_flags = posix.SA_RESETHAND | posix.SA_ONSTACK; // runs once, then the default action kills the process
 		for s32.[posix.SIGSEGV, posix.SIGBUS, posix.SIGILL, posix.SIGFPE, posix.SIGABRT] posix.sigaction(it, *sa, null);
 	}
 }
@@ -25,6 +32,7 @@ crash_start :: () {
 #scope_file
 
 crash_path: *u8;
+ALT_STACK :: 64 * 1024; // the handler's own stack: its buffers plus backtrace's
 
 // Appends v to b at *n in the given base, without allocating.
 put_num :: (b: []u8, n: *int, v: u64, base: u64 = 10) #no_context {
@@ -78,6 +86,7 @@ HEADER :: #run tprint("fastcord % crashed: ", FASTCORD_VERSION);
 
 	EXCEPTION_POINTERS :: struct { record: *struct { code: u32; flags: u32; next: *void; address: *void; }; ctx: *void; }
 	k32 :: #system_library "kernel32";
+	SetThreadStackGuarantee :: (size: *u32) -> s32 #foreign k32;
 	SetUnhandledExceptionFilter :: (filter: (info: *EXCEPTION_POINTERS) -> s32 #c_call) -> *void #foreign k32;
 	CreateFileA :: (name: *u8, access: u32, share: u32, sec: *void, disposition: u32, flags: u32, template: *void) -> *void #foreign k32;
 	WriteFile :: (h: *void, data: *void, count: u32, written: *u32, overlapped: *void) -> s32 #foreign k32;
