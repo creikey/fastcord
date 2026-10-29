@@ -1478,6 +1478,7 @@ open_message_context_menu :: (c: *Client, guild_id: Snowflake, message_menu := f
 			analytics_command_cache_fetch(c, true, n);
 		};
 		j.on_done = analytics_command_index_loaded;
+		j.on_response = command_index_response;
 		job_submit(c, j);
 	}
 	if !c.command_index_user {
@@ -1487,8 +1488,20 @@ open_message_context_menu :: (c: *Client, guild_id: Snowflake, message_menu := f
 		j.path = "/users/@me/application-command-index";
 		j.not_before = now_ms() + delay;
 		j.on_done = analytics_command_index_loaded;
+		j.on_response = command_index_response;
 		job_submit(c, j);
 	}
+}
+
+// The index's commands, kept for the composer's "/" (commands.jai), by the guild in its path (0: the user's).
+command_index_response :: (c: *Client, j: *Job, status: int, body: V) {
+	if status < 200 || status >= 300 return;
+	id := j.path;
+	if !begins_with(id, "/guilds/") { note_command_index(0, body); return; }
+	id = advance(id, "/guilds/".count);
+	slash := find_index_from_left(id, #char "/");
+	if slash > 0 id.count = slash;
+	note_command_index(parse_snowflake(id), body);
 }
 
 // open_emoji_picker: the reaction/emoji picker's first open in a session.

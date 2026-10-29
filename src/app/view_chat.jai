@@ -2390,6 +2390,7 @@ composer :: (ch: *dc.Channel, cs: *Chat_State) {
 			ui.push_parent(stack);
 			emoji_autocomplete(ch, *cs.editor, input_focused);
 			mention_autocomplete(ch, *cs.editor, input_focused);
+			slash_autocomplete(ch, *cs.editor, input_focused); // slash_commands.jai
 			ui.pop_parent();
 			ui.push_parent(sc);
 			res := text_field("input", *cs.editor, placeholder, input_focused, pad_y = (COMPOSER_H - MSG_LINE_H) / 2, placeholder_color = T("--channel-text-area-placeholder"), markdown = true);
@@ -2419,8 +2420,9 @@ composer :: (ch: *dc.Channel, cs: *Chat_State) {
 			} else if res == .Submit {
 				text := trim(ui.editor_text(*cs.editor), " \t\n\r\x0b\x0c");
 				jump_to_present(ch.id);
-				// a send that can't go yet (offline, a file still being read) keeps the text
-				if composer_send(ch, mentions_convert(emoji_convert_shortcodes(text, ch.id), ch)) {
+				// a send that can't go yet (offline, a file still being read) keeps the text; "/" commands first
+				out, act := slash_command(ch, text);
+				if act != .Kept && (act == .Sent || composer_send(ch, mentions_convert(emoji_convert_shortcodes(out, ch.id), ch))) {
 					cs.scroll_target = 0;
 					ui.editor_set_text(*cs.editor, "");
 					length = 0;

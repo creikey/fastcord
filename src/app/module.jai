@@ -64,6 +64,7 @@ voice :: #import "voice";
 #load "pickers_data.jai";
 #load "polls.jai";
 #load "components.jai";
+#load "slash_commands.jai";
 #load "pickers_emoji.jai";
 #load "pickers_gif.jai";
 #load "pickers_lottie.jai";

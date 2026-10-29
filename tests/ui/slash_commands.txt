@@ -1,0 +1,23 @@
+# The composer's "/" commands on a hosted server: "/shr" lists /shrug, Enter puts it in the composer, and
+# sending it appends the shrug; /me sends its text in italics.
+wait 5
+serve_join
+settle 3
+click 36 157
+settle 3
+click 700 683
+type /shr
+settle 1
+expect_visible "Commands matching /shr"
+expect_visible "/shrug"
+shot build/ui-slash_commands-list.png
+key enter
+expect_input "/shrug "
+type hi
+key enter
+settle 2
+expect_input ""
+type /me waves
+key enter
+settle 2
+expect_served
