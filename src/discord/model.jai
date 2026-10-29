@@ -240,6 +240,7 @@ Message :: struct {
 	timestamp: string;
 	edited_timestamp: string;
 	call_ended: string; // CALL (type 3): call.ended_timestamp, "" while ongoing
+	call_joined: bool; // CALL: we're among call.participants (an ended call we weren't in was missed)
 	attachments: [..]Attachment;
 	embeds: [..]Embed;
 	reactions: [..]Reaction;

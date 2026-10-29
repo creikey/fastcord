@@ -1462,7 +1462,7 @@ message_row :: (m: *dc.Message, grouped: bool, new_day: bool, show_new: bool) ->
 			{ ui.parent(anchor); defer ui.pop_parent(); message_toolbar(m); }
 		}
 		spacer(.Y, 2);
-		if m.referenced_id != 0 {
+		if m.referenced_id != 0 && m.kind != MSG_PIN { // a pin notice references the pinned message: no reply line
 			rr := row("replyrow");
 			rr.semantic_size = .[ui.pct(1), ui.px(22)];
 			{ ui.parent(rr); defer ui.pop_parent();
@@ -1568,6 +1568,9 @@ system_notice :: (m: *dc.Message) {
 		pin := m.kind == MSG_PIN;
 		friend := m.kind == MSG_FRIEND_ACCEPTED;
 		ic_name, ic_color := "phone", T("--icon-feedback-positive");
+		// an ended call we weren't in: the client's "You missed a call" (red phone)
+		missed := m.kind == MSG_CALL && m.call_ended != "" && !m.call_joined && m.author_id != store().me;
+		if missed ic_color = T("--status-danger");
 		if m.kind == {
 			case MSG_PIN; ic_name, ic_color = "pin", T("--text-muted");
 			case MSG_FRIEND_ACCEPTED; ic_name = "user-check";
@@ -1638,12 +1641,19 @@ system_notice :: (m: *dc.Message) {
 			name(*spans, strong, m.author_id, m.channel_id);
 			add(*spans, muted, " changed the group icon.");
 		} else if pin {
+			// "a message" jumps to the pinned message and "pinned messages" opens the pins (span ids 1, 2)
 			name(*spans, strong, m.author_id, m.channel_id);
 			add(*spans, muted, " pinned ");
 			add(*spans, strong, "a message");
+			spans[spans.count - 1].id = 1;
 			add(*spans, muted, " to this channel. See all ");
 			add(*spans, strong, "pinned messages");
+			spans[spans.count - 1].id = 2;
 			add(*spans, muted, ".");
+		} else if missed {
+			add(*spans, muted, "You missed a call from ");
+			name(*spans, strong, m.author_id, m.channel_id);
+			add(*spans, muted, tprint(" that lasted %.", humanize_duration(dc.iso_to_ms(m.call_ended) - dc.iso_to_ms(m.timestamp))));
 		} else {
 			name(*spans, strong, m.author_id, m.channel_id);
 			add(*spans, muted, ifx m.call_ended then tprint(" started a call that lasted %.", humanize_duration(dc.iso_to_ms(m.call_ended) - dc.iso_to_ms(m.timestamp))) else " started a call.");
@@ -1656,10 +1666,17 @@ system_notice :: (m: *dc.Message) {
 		ui.set_spans(b, spans);
 		b.sel_order = m.id * 8 + 2;
 		tl := b.prev_layout;
+		if tl && ui.mouse_over(b) && !ui.overlay_at(app.ui.mouse) {
+			si := ui.span_at(tl, app.ui.mouse);
+			if si >= 0 && si < tl.spans.count && (tl.spans[si].user || (pin && tl.spans[si].id)) app.ui.span_cursor = .Pointer;
+		}
 		if tl for e: app.ui.events {
 			if e.kind != .Mouse_Up || e.button != .Left || e.consumed || ui.has_selection() || ui.overlay_at(e.pos) continue;
 			si := ui.span_at(tl, e.pos);
-			if si < 0 || si >= tl.spans.count || tl.spans[si].user == null continue;
+			if si < 0 || si >= tl.spans.count continue;
+			if pin && tl.spans[si].id == 1 && m.referenced_id jump_to_message(m.channel_id, m.referenced_id);
+			if pin && tl.spans[si].id == 2 pins_toggle(m.channel_id, header_pin_rect);
+			if tl.spans[si].user == null continue;
 			open_profile(cast(dc.Snowflake) tl.spans[si].user, .{e.pos.x, e.pos.y - 10, e.pos.x + 1, e.pos.y + 10});
 		}
 		spacer(.X, 48);

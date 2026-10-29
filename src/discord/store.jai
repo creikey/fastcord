@@ -559,7 +559,11 @@ parse_message_fields :: (s: *Store, msg: *Message, m: etf.Map) {
 	if vhas(m, "timestamp") set_str(s, *msg.timestamp, fstr(m, "timestamp"));
 	if vhas(m, "edited_timestamp") set_str(s, *msg.edited_timestamp, fstr(m, "edited_timestamp"));
 	call := fmap(m, "call");
-	if call set_str(s, *msg.call_ended, fstr(call, "ended_timestamp"));
+	if call {
+		set_str(s, *msg.call_ended, fstr(call, "ended_timestamp"));
+		msg.call_joined = false;
+		for flist(call, "participants") if vsnow(it) == s.me msg.call_joined = true;
+	}
 	if vhas(m, "nonce") set_str(s, *msg.nonce, nonce_text(vget(m, "nonce")));
 	if vhas(m, "flags") msg.flags = cast(u64) fint(m, "flags");
 	if vhas(m, "mention_everyone") msg.mention_everyone = fbool(m, "mention_everyone");

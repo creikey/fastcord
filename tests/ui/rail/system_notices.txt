@@ -1,0 +1,15 @@
+# Run with -fixture:tests/ui/rail.jsonl. Sam's DM: an ended call we weren't in reads "You missed a call from
+# Sam" (red phone); the pin notice has no reply line, its "a message" and "pinned messages" show the hand,
+# and "pinned messages" opens the pins.
+wait 5
+click 36 52
+wait 5
+open 1700000000000000002
+wait 20
+shot build/ui-rail_system_notices.png
+move 566 540
+wait 2
+expect_cursor Pointer
+click 822 540
+wait 10
+expect_visible "This channel doesn't have any pinned messages... yet."
