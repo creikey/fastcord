@@ -152,6 +152,18 @@ rail_view :: () {
 			ui.id_scope(cast(u64)(cid)); defer ui.pop_seed();
 			rail_dm(cid);
 		}
+		// Hosted servers' unread DMs too, each under its own client.
+		main := app.client;
+		if !notify_prefs.lotus for h: hosted if h.client && h.client != main && h.client.store.ready && !h.forget {
+			app.client = h.client;
+			g1, c1 := app.view.guild, app.view.channel;
+			for cid: unread_dms() {
+				ui.id_scope(cast(u64)(cid)); defer ui.pop_seed();
+				rail_dm(cid);
+			}
+			if moved(g1, c1) { active = h.client; g0, c0 = app.view.guild, app.view.channel; } // not Discord's below
+			app.client = main;
+		}
 		sep := ui.box("sep");
 		sep.semantic_size = .[ui.pct(1), ui.px(9)];
 		{ ui.parent(sep); defer ui.pop_parent();
