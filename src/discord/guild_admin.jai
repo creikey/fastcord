@@ -965,13 +965,14 @@ api_error_message :: (body: V) -> string {
 	return fstr(m, "message");
 }
 
-// kick_member and ban_member: the user menu's Kick and Ban. The reason rides in X-Audit-Log-Reason,
-// URI-encoded as the client's HTTP layer sends it; Discord applies the result through GUILD_MEMBER_REMOVE.
+// kick_member and ban_member: the user menu's Kick and Ban. Kick's reason rides in the query (the client's
+// kickUser), Ban's in X-Audit-Log-Reason, both URI-encoded; Discord applies the result through GUILD_MEMBER_REMOVE.
 kick_member :: (c: *Client, guild_id: Snowflake, user_id: Snowflake, reason: string) {
 	j := job_new(.Api, .None);
 	j.method = "DELETE";
-	j.path = job_str(j, tprint("/guilds/%/members/%", guild_id, user_id));
-	audit_reason(j, reason);
+	r := trim(reason);
+	j.path = job_str(j, ifx r then tprint("/guilds/%/members/%?reason=%", guild_id, user_id, uri_component(r))
+		else tprint("/guilds/%/members/%", guild_id, user_id));
 	job_submit(c, j);
 }
 

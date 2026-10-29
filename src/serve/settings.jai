@@ -62,6 +62,14 @@ audit_reason :: (req: http.Request) -> string, bool {
 	return reason, text_ok(reason) && utf16_units(reason) <= 512;
 }
 
+query_reason :: (query: string) -> string, bool {
+	for split(query, "&",, temp) if begins_with(it, "reason=") {
+		reason := trim(percent_decode(slice(it, 7, it.count - 7)));
+		return reason, text_ok(reason) && utf16_units(reason) <= 512;
+	}
+	return "", true;
+}
+
 // guild_fields_locked adds the meta-kept fields (GUILD_FIELDS) to a guild object.
 guild_fields_locked :: (s: *Server, g: *etf.Map_Builder) {
 	for GUILD_FIELDS etf.map_put(g, it.key, guild_field_locked(s, it));

@@ -1255,8 +1255,10 @@ main :: () {
 		bans := tprint("/api/v9/guilds/%/bans/%", gid, other_id);
 		status, body = rest("DELETE", tprint("/api/v9/guilds/%/members/%", gid, field(said, "author", "id").s), "", other_token);
 		check(status == 403, tprint("a member can't kick: % %", status, body));
-		status, body = rest("DELETE", members, "", token);
+		status, body = rest("DELETE", join(members, "?reason=Spam%20bot",, temp), "", token); // kickUser's query reason
 		check(status == 204, tprint("the owner kicks: % %", status, body));
+		status, body = rest("GET", tprint("/api/v9/guilds/%/audit-logs?limit=50", gid), "", token);
+		check(status == 200 && contains(body, "\"reason\":\"Spam bot\""), tprint("the kick's query reason is logged: % %", status, body));
 		status, body = rest("GET", tprint("%?limit=1", messages), "", other_token);
 		check(status == 401, tprint("a kick ends the member's session: % %", status, body));
 		status, body = rest("DELETE", members, "", token);
