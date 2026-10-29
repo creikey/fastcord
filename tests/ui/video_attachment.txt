@@ -1,0 +1,10 @@
+# A video attachment's player has a download button beside fullscreen (offline: a "File saved." toast).
+# The fixture (video_attachment.jsonl) is chat.jsonl's READY and one message with clip.mp4.
+wait 20
+move 600 560
+wait 2
+expect_visible "a clip"
+shot build/ui-video_attachment-controls.png
+click 712 596
+wait 3
+expect_visible "File saved."

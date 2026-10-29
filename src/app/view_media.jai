@@ -139,7 +139,7 @@ attachments_view :: (m: *dc.Message, max_w: float32 = 400) {
 			h := cast(float32) a.height;
 			sc := min(1.0, min(max_w / w, 300 / h));
 			// poster frame from the media proxy (?format=webp of a video returns a still)
-			video_player(a.id, a.url, attachment_image_url(a, cast(int) (w * sc), cast(int) (h * sc)), w * sc, h * sc, cast(float64) a.duration_secs);
+			video_player(a.id, a.url, attachment_image_url(a, cast(int) (w * sc), cast(int) (h * sc)), w * sc, h * sc, cast(float64) a.duration_secs, download = a);
 			spacer(.Y, 4);
 		} else if is_audio(a) {
 			audio_attachment(a);
@@ -420,7 +420,7 @@ is_audio :: (a: *dc.Attachment) -> bool { return begins_with(a.content_type, "au
 // Video attachment or embed video: poster with a play button and the control bar (play, time, seek,
 // volume, fullscreen) until clicked, then plays inline; the bar hides while it plays unhovered. key names
 // its player (an attachment id, or embed_player_key); full draws it in the fullscreen overlay.
-video_player :: (key: dc.Snowflake, url: string, poster: string, w: float32, h: float32, duration: float64 = 0, full := false, any_host := false, autostart := false) -> *ui.Box {
+video_player :: (key: dc.Snowflake, url: string, poster: string, w: float32, h: float32, duration: float64 = 0, full := false, any_host := false, autostart := false, download: *dc.Attachment = null) -> *ui.Box {
 	box := ui.box(tprint("vid%", cast(u64) key), .Draw_Background | .Clickable | .Clip);
 	box.semantic_size = .[ui.px(w), ui.px(h)];
 	box.style.radius = all4(ifx full then 0.0 else 8.0);
@@ -500,6 +500,7 @@ video_player :: (key: dc.Snowflake, url: string, poster: string, w: float32, h: 
 			}
 			if video_button("mute", ifx video_muted || video_volume == 0 then "speaker-slash" else "voice-normal") video_volume_set(ifx video_volume == 0 then 1 else video_volume, !video_muted);
 		}
+		if download && video_button("dl", "download") file_download(download); // an attachment: the file itself
 		if video_button("full", "fullscreen") {
 			start();
 			fullscreen_video = ifx full then 0 else key;
