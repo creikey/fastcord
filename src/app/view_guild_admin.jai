@@ -481,7 +481,6 @@ create_channel_modal :: () {
 			.{.Guild_Forum, "forum", "Forum", "Create a space for organized discussions"}
 		];
 		for o: opts {
-			if app.client && app.client.cfg.hosted.host && o.kind == .Guild_Forum continue; // -serve has no forums yet.
 			selected := adm.kind == o.kind;
 			r := row(tprint("type_%", o.title), .Clickable);
 			r.semantic_size = .[ui.pct(1), ui.px(58)];

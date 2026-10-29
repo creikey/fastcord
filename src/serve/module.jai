@@ -1514,6 +1514,9 @@ EVERYONE_PERMISSIONS :: (1 << 0) | (1 << 6) | (1 << 9) | (1 << 10) | (1 << 11) |
 // Channel types, as Discord numbers them.
 TEXT :: 0;
 CATEGORY :: 4;
+ANNOUNCEMENT :: 5; // A text channel whose messages can be published (crossposted); no followers here.
+FORUM :: 15; // Takes no messages itself: each post is a thread whose starter message shares its ID.
+CROSSPOSTED :: 1 << 0;
 THREAD :: 11; // Public, under a text channel; one started from a message takes that message's ID.
 
 CHANNEL_SELECT :: "SELECT c.id, c.name, c.position, c.topic, (SELECT max(id) FROM messages WHERE channel = c.id), c.type, c.parent, coalesce(c.owner, 0), CASE WHEN c.type = 11 THEN (SELECT count(*) FROM messages WHERE channel = c.id) END, c.slowmode, c.nsfw, c.archived, c.locked, c.archive_after, coalesce(c.archived_at, c.id) FROM channels c";
@@ -1526,9 +1529,17 @@ row_channel :: (s: *Server, st: *sqlite.Stmt, member := etf.Value.{}) -> etf.Val
 	etf.map_put(*m, "guild_id", snow(s.guild));
 	etf.map_put(*m, "name", etf.vstring(copy_string(sqlite.col_text(st, 1),, temp)));
 	etf.map_put(*m, "position", etf.vint(sqlite.col_int(st, 2)));
-	if kind == TEXT etf.map_put(*m, "topic", etf.vstring(copy_string(sqlite.col_text(st, 3),, temp)));
-	if kind == TEXT || kind == THREAD etf.map_put(*m, "rate_limit_per_user", etf.vint(sqlite.col_int(st, 9)));
-	if kind == TEXT etf.map_put(*m, "nsfw", etf.vbool(sqlite.col_int(st, 10) != 0));
+	texty := kind == TEXT || kind == ANNOUNCEMENT || kind == FORUM;
+	if texty etf.map_put(*m, "topic", etf.vstring(copy_string(sqlite.col_text(st, 3),, temp)));
+	if kind == TEXT || kind == THREAD || kind == FORUM etf.map_put(*m, "rate_limit_per_user", etf.vint(sqlite.col_int(st, 9)));
+	if texty etf.map_put(*m, "nsfw", etf.vbool(sqlite.col_int(st, 10) != 0));
+	if kind == FORUM {
+		etf.map_put(*m, "available_tags", etf.vlist(.[]));
+		etf.map_put(*m, "default_reaction_emoji", .{});
+		etf.map_put(*m, "default_sort_order", .{});
+		etf.map_put(*m, "default_forum_layout", etf.vint(0));
+		etf.map_put(*m, "default_thread_rate_limit_per_user", etf.vint(0));
+	}
 	if kind == VOICE { etf.map_put(*m, "bitrate", etf.vint(64000)); etf.map_put(*m, "user_limit", etf.vint(0)); }
 	if !sqlite.col_is_null(st, 4) etf.map_put(*m, "last_message_id", snow(sqlite.col_int(st, 4)));
 	etf.map_put(*m, "parent_id", ifx sqlite.col_is_null(st, 6) then etf.Value.{} else snow(sqlite.col_int(st, 6)));
@@ -1661,12 +1672,13 @@ thread_search :: (c: *Conn, user: s64, parent: s64, query: string) -> bool {
 		if kv[0] == "limit" limit = clamp(string_to_int(kv[1]), 1, 25);
 		if kv[0] == "offset" offset = clamp(string_to_int(kv[1]), 0, 10000);
 	}
-	threads, members: [..]etf.Value;
-	threads.allocator, members.allocator = temp, temp;
+	threads, members, firsts: [..]etf.Value;
+	threads.allocator, members.allocator, firsts.allocator = temp, temp, temp;
 	total := 0;
 	{
 		locks.guard(*s.db_mu);
-		if channel_type_locked(s, parent) != TEXT return json_error(c, 404, 10003, "Unknown Channel");
+		forum := channel_type_locked(s, parent) == FORUM;
+		if !forum && !text_like_locked(s, parent) return json_error(c, 404, 10003, "Unknown Channel");
 		st := sqlite.prepare(s.db, tprint("SELECT count(*) FROM channels WHERE parent = ? AND type = % AND archived = 1;", THREAD));
 		sqlite.bind_all(st, parent);
 		if sqlite.step(st) == .Row total = sqlite.col_int(st, 0);
@@ -1677,13 +1689,16 @@ thread_search :: (c: *Conn, user: s64, parent: s64, query: string) -> bool {
 			member := thread_member_locked(s, sqlite.col_int(st, 0), user);
 			array_add(*threads, row_channel(s, st));
 			if member.kind != .Nil array_add(*members, member);
+			// A forum post's preview is its starter message, which shares its ID.
+			first := ifx forum then message_locked(s, sqlite.col_int(st, 0)) else etf.Value.{};
+			if first.kind == .Map array_add(*firsts, first);
 		}
 		sqlite.finalize(st);
 	}
 	m := etf.map_builder(5,, temp);
 	etf.map_put(*m, "threads", etf.vlist(threads));
 	etf.map_put(*m, "members", etf.vlist(members));
-	etf.map_put(*m, "first_messages", etf.vlist(.[]));
+	etf.map_put(*m, "first_messages", etf.vlist(firsts));
 	etf.map_put(*m, "has_more", etf.vbool(offset + threads.count < total));
 	etf.map_put(*m, "total_results", etf.vint(total));
 	return json_reply(c, 200, etf.vmap(etf.map_done(*m)));
@@ -1998,6 +2013,7 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 	if ok && parts.count == 2 && parts[1] == "threads" && req.method == "POST" return create_thread(c, req, user, channel, 0);
 	if ok && parts.count == 2 && parts[1] == "webhooks" return channel_webhooks(c, req, user, channel);
 	if ok && parts.count == 3 && parts[1] == "threads" && parts[2] == "search" && req.method == "GET" return thread_search(c, user, channel, query);
+	if ok && parts.count == 2 && parts[1] == "post-data" && req.method == "POST" return post_data(c, req, channel);
 	if !ok || (!typing && (parts.count < 2 || parts[1] != "messages")) return json_error(c, 404, 0, "404: Not Found");
 	if parts.count >= 3 && parts[2] == "pins" {
 		if parts.count == 3 && req.method == "GET" return list_pins(c, channel);
@@ -2014,11 +2030,12 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 		if parts[3] == "reactions" return reaction(c, req, user, channel, message, array_view(parts, 4), query);
 		if parts[3] == "ack" && parts.count == 4 && req.method == "POST" return ack(c, req, user, channel, message);
 		if parts[3] == "threads" && parts.count == 4 && req.method == "POST" return create_thread(c, req, user, channel, message);
+		if parts[3] == "crosspost" && parts.count == 4 && req.method == "POST" return crosspost(c, user, channel, message);
 		return json_error(c, 404, 0, "404: Not Found");
 	}
 	{
 		locks.guard(*s.db_mu);
-		st := sqlite.prepare(s.db, tprint("SELECT 1 FROM channels WHERE id = ? AND type IN (%, %, %);", TEXT, THREAD, VOICE));
+		st := sqlite.prepare(s.db, tprint("SELECT 1 FROM channels WHERE id = ? AND type IN (%, %, %, %);", TEXT, THREAD, VOICE, ANNOUNCEMENT));
 		sqlite.bind(st, 1, channel);
 		ok = sqlite.step(st) == .Row;
 		sqlite.finalize(st);
@@ -2341,7 +2358,8 @@ create_channel :: (c: *Conn, req: http.Request) -> bool {
 	if parent_v.kind == .String parent, has_parent = string_to_int(parent_v.s, T = s64);
 	// Categories and voice channels keep the name as typed; text channels get Discord's lowercase-dashed form.
 	name := ifx raw.kind != .String then "" else ifx kind == CATEGORY || kind == VOICE then trim(raw.s) else channel_name(raw.s);
-	if !name || name.count > 100 || !text_ok(name) || (kind != TEXT && kind != VOICE && kind != CATEGORY) || (has_parent && kind == CATEGORY) return json_error(c, 400, 50035, "Invalid Form Body");
+	known := kind == TEXT || kind == VOICE || kind == CATEGORY || kind == ANNOUNCEMENT || kind == FORUM;
+	if !name || name.count > 100 || !text_ok(name) || !known || (has_parent && kind == CATEGORY) return json_error(c, 400, 50035, "Invalid Form Body");
 	ch: etf.Value;
 	{
 		locks.guard(*s.db_mu);
@@ -2364,21 +2382,36 @@ create_channel :: (c: *Conn, req: http.Request) -> bool {
 	return json_reply(c, 201, ch);
 }
 
+// Whether a channel is a text or announcement channel, which take threads and webhooks.
+// The caller holds db_mu.
+text_like_locked :: (s: *Server, id: s64) -> bool {
+	kind := channel_type_locked(s, id);
+	return kind == TEXT || kind == ANNOUNCEMENT;
+}
+
 // POST /channels/{id}/threads {name, type: 11} and POST /channels/{id}/messages/{message}/threads {name}:
 // any member starts a public thread under a text channel. One started from a message takes its ID, so a
-// message has at most one, and the message then carries it as `thread`.
+// message has at most one, and the message then carries it as `thread`. In a forum, the post's
+// `message` {content} becomes its starter message, with the thread's ID, as on Discord.
 create_thread :: (c: *Conn, req: http.Request, user: s64, parent: s64, message: s64) -> bool {
 	s := c.server;
 	v, err := etf.from_json(cast(string) req.body,, temp);
 	if err != .None || v.kind != .Map return json_error(c, 400, 50035, "Invalid Form Body");
 	raw, _ := etf.map_get(v.map, "name");
 	kind_v, has_kind := etf.map_get(v.map, "type");
+	post_v, has_post := etf.map_get(v.map, "message");
 	name := ifx raw.kind == .String then trim(raw.s) else "";
 	if !name || name.count > 100 || !text_ok(name) || (has_kind && !(kind_v.kind == .Int && kind_v.i == THREAD)) return json_error(c, 400, 50035, "Invalid Form Body");
-	thread, starter, member: etf.Value;
+	content: etf.Value;
+	if post_v.kind == .Map content, _ = etf.map_get(post_v.map, "content");
+	if has_post && (content.kind != .String || !trim(content.s) || !text_ok(content.s, lines = true)) return json_error(c, 400, 50006, "Cannot send an empty message");
+	if has_post && utf16_units(content.s) > MAX_CONTENT return content_too_long(c);
+	thread, starter, member, post: etf.Value;
 	{
 		locks.guard(*s.db_mu);
-		if channel_type_locked(s, parent) != TEXT return json_error(c, 404, 10003, "Unknown Channel");
+		forum := channel_type_locked(s, parent) == FORUM;
+		if (forum && message) || (!forum && !text_like_locked(s, parent)) return json_error(c, 404, 10003, "Unknown Channel");
+		if forum != has_post return json_error(c, 400, 50035, "Invalid Form Body");
 		id := message;
 		if message {
 			st := sqlite.prepare(s.db, "SELECT (SELECT 1 FROM messages WHERE id = ?1 AND channel = ?2), (SELECT 1 FROM channels WHERE id = ?1);");
@@ -2392,17 +2425,80 @@ create_thread :: (c: *Conn, req: http.Request, user: s64, parent: s64, message: 
 			id = snowflake(s);
 		}
 		if !sqlite.run(s.db, "INSERT INTO channels(id, name, position, type, parent, owner) VALUES(?, ?, 0, ?, ?, ?);", id, name, THREAD, parent, user) return json_error(c, 500, 0, "500: Internal Server Error");
+		if forum {
+			everyone := (contains(content.s, "@everyone") || contains(content.s, "@here")) && owner_id(s) == user;
+			ok := sqlite.run(s.db, "INSERT INTO messages(id, channel, author, content, everyone) VALUES(?1, ?1, ?, ?, ?);", id, user, content.s, cast(int) everyone);
+			for mention_ids(content.s) if ok ok = sqlite.run(s.db, "INSERT OR IGNORE INTO mentions(message, user) SELECT ?, id FROM users WHERE id = ? AND left = 0;", id, it);
+			if !ok || !sqlite.run(s.db, COUNT_MENTIONS, id, user, cast(int) everyone, id) return json_error(c, 500, 0, "500: Internal Server Error");
+			post = message_locked(s, id, nested = false);
+		}
 		thread = channel_locked(s, id);
 		member = thread_member_locked(s, id, user);
 		if message starter = message_locked(s, message);
 	}
 	broadcast(s, "THREAD_CREATE", thread);
 	if message broadcast(s, "MESSAGE_UPDATE", starter);
-	// The starter's own copy says it has joined, as Discord's reply does.
-	m := etf.map_builder(thread.map.count + 1,, temp);
+	if post.kind == .Map broadcast(s, "MESSAGE_CREATE", post);
+	// The starter's own copy says it has joined, as Discord's reply does, and carries a post's message.
+	m := etf.map_builder(thread.map.count + 2,, temp);
 	for thread.map etf.map_put(*m, it.key.s, it.value);
 	etf.map_put(*m, "member", member);
+	if post.kind == .Map etf.map_put(*m, "message", post);
 	return json_reply(c, 201, etf.vmap(etf.map_done(*m)));
+}
+
+// POST /channels/{forum}/post-data {thread_ids}: up to 10 posts' starter messages, for the forum's cards,
+// as {threads: {"<id>": {first_message, owner}}}.
+post_data :: (c: *Conn, req: http.Request, forum: s64) -> bool {
+	s := c.server;
+	v, err := etf.from_json(cast(string) req.body,, temp);
+	ids: etf.Value;
+	if err == .None && v.kind == .Map ids, _ = etf.map_get(v.map, "thread_ids");
+	if ids.kind != .List || ids.list.count > 10 return json_error(c, 400, 50035, "Invalid Form Body");
+	out := etf.map_builder(ids.list.count,, temp);
+	{
+		locks.guard(*s.db_mu);
+		if channel_type_locked(s, forum) != FORUM return json_error(c, 404, 10003, "Unknown Channel");
+		for ids.list {
+			id, ok := string_to_int(ifx it.kind == .String then it.s else "", T = s64);
+			st := sqlite.prepare(s.db, tprint("SELECT 1 FROM channels WHERE id = ? AND parent = ? AND type = %;", THREAD));
+			sqlite.bind_all(st, id, forum);
+			found := ok && sqlite.step(st) == .Row;
+			sqlite.finalize(st);
+			if !found continue;
+			first := message_locked(s, id, nested = false);
+			p := etf.map_builder(2,, temp);
+			etf.map_put(*p, "first_message", first);
+			etf.map_put(*p, "owner", .{});
+			etf.map_put(*out, tprint("%", id), etf.vmap(etf.map_done(*p)));
+		}
+	}
+	m := etf.map_builder(1,, temp);
+	etf.map_put(*m, "threads", etf.vmap(etf.map_done(*out)));
+	return json_reply(c, 200, etf.vmap(etf.map_done(*m)));
+}
+
+// POST /channels/{id}/messages/{id}/crosspost: Publish, in an announcement channel, by the author or the
+// owner. With no other servers to follow it, publishing only marks the message, once (40033 after).
+crosspost :: (c: *Conn, user: s64, channel: s64, message: s64) -> bool {
+	s := c.server;
+	m: etf.Value;
+	{
+		locks.guard(*s.db_mu);
+		if channel_type_locked(s, channel) != ANNOUNCEMENT return json_error(c, 404, 10003, "Unknown Channel");
+		st := sqlite.prepare(s.db, "SELECT author, flags, type FROM messages WHERE id = ? AND channel = ?;");
+		sqlite.bind_all(st, message, channel);
+		found := sqlite.step(st) == .Row;
+		author, flags, kind := ifx found then sqlite.col_int(st, 0) else 0, ifx found then sqlite.col_int(st, 1) else 0, ifx found then sqlite.col_int(st, 2) else 0;
+		sqlite.finalize(st);
+		if !found return json_error(c, 404, 10008, "Unknown Message");
+		if author != user && owner_id(s) != user return json_error(c, 403, 50013, "Missing Permissions");
+		if flags & CROSSPOSTED || kind != DEFAULT return json_error(c, 400, 40033, "This message has already been crossposted.");
+		if !sqlite.run(s.db, "UPDATE messages SET flags = flags | ? WHERE id = ?;", CROSSPOSTED, message) return json_error(c, 500, 0, "500: Internal Server Error");
+		m = message_locked(s, message, nested = false);
+	}
+	broadcast(s, "MESSAGE_UPDATE", m);
+	return json_reply(c, 200, m);
 }
 
 ICON_MAX_BYTES :: 512 * 1024;
@@ -2446,7 +2542,7 @@ channel_webhooks :: (c: *Conn, req: http.Request, user: s64, channel: s64) -> bo
 	{
 		locks.guard(*s.db_mu);
 		if owner_id(s) != user return json_error(c, 403, 50013, "Missing Permissions");
-		if channel && channel_type_locked(s, channel) != TEXT return json_error(c, 404, 10003, "Unknown Channel");
+		if channel && !text_like_locked(s, channel) return json_error(c, 404, 10003, "Unknown Channel");
 		if req.method == "POST" {
 			st := sqlite.prepare(s.db, "SELECT count(*) FROM webhooks WHERE channel = ?;");
 			sqlite.bind_all(st, channel);
