@@ -197,6 +197,7 @@ Client :: struct {
 	invite_mu: locks.Mutex;
 	invite_codes: Table(Snowflake, string);
 	invite_previews: Table(string, Invite_Preview); // invite links in messages (invite_preview_key -> resolved guild)
+	stream_previews: Table(string, Stream_Preview); // Go Live stream key -> its preview (stream_preview; under invite_mu)
 	pending_join_guild: Snowflake;
 	pending_join_channel: Snowflake;
 	soundboard_loaded: bool; // the soundboard sounds were fetched this session (first RTC_CONNECTED)
@@ -261,6 +262,7 @@ client_create :: (cfg: Config, allocator := context.allocator) -> *Client {
 	c.command_index_guilds.allocator = c.allocator;
 	c.invite_codes.allocator = c.allocator;
 	c.invite_previews.allocator = c.allocator;
+	c.stream_previews.allocator = c.allocator;
 	c.etags.allocator = c.allocator;
 	c.quick_switcher.fetched.allocator = c.allocator;
 	c.preflights.allocator = c.allocator;
@@ -350,6 +352,8 @@ client_destroy :: (c: *Client) {
 	deinit(*c.invite_codes);
 	for * v, k: c.invite_previews { free(k,, c.allocator); free(v.name,, c.allocator); free(v.icon,, c.allocator); free(v.error,, c.allocator); event_free(*v.event, c.allocator); }
 	deinit(*c.invite_previews);
+	for v, k: c.stream_previews { free(k,, c.allocator); free(v.url,, c.allocator); }
+	deinit(*c.stream_previews);
 	for v, k: c.etags { free(k); free(v); }
 	deinit(*c.etags);
 	quick_switcher_destroy(c);

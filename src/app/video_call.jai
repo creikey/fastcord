@@ -223,7 +223,7 @@ video_frame :: () {
 			info, ver, ok := dc.stream_server_info(call_client(), vid.own_key);
 			if ok && ver != vid.own_version && !teardown_busy() {
 				if vid.own_conn { sender_stop(*vid.screen); voice_release(vid.own_conn); }
-				vid.own_conn = stream_connect(info);
+				vid.own_conn = stream_connect(info, own = true);
 				vid.own_version = ver;
 			}
 			if vid.own_conn && !vid.screen.capture {
@@ -233,7 +233,7 @@ video_frame :: () {
 					w, h := screen_size(vid.own_target);
 					sender_init(s, vid.own_conn, vid.go_fps, go_live_bitrate(w, h));
 					if video_test("stream") s.capture = video.pattern_start(on_capture_frame, s, vid.own_target.width, vid.own_target.height, vid.go_fps);
-					else s.capture = video.screen_start(vid.own_target, on_capture_frame, s, vid.go_fps, h);
+					else s.capture = video.screen_start(vid.own_target, on_capture_frame, s, vid.go_fps, h, on_share_audio);
 					voice.set_video(vid.own_conn, true, w, h, vid.go_fps, go_live_bitrate(w, h));
 				} else if st == .Disconnected {
 					go_live_stop();
@@ -373,9 +373,13 @@ send_voice_state :: () {
 	dc.voice_set_state(call_client(), ifx ch then ch.guild_id else 0, app.voice_channel, app.self_mute || app.self_deaf, app.self_deaf, camera_on());
 }
 
-stream_connect :: (info: dc.Voice_Server_Info) -> *voice.Conn {
+stream_connect :: (info: dc.Voice_Server_Info, own := false) -> *voice.Conn {
 	o := voice.Options.{no_audio_devices = voice_headless() || !voice_audio_ready()};
 	add_video_options(*o, true);
+	if own {
+		share_reset();
+		o.capture = share_pull;
+	}
 	o.hosted = hosted_voice(call_client());
 	return voice.voice_connect(voice.Voice_Server_Info.{
 		endpoint = info.endpoint,
@@ -410,6 +414,39 @@ remote_video :: (t: *Table(u64, *Remote_Video), uid: u64) -> *Remote_Video {
 	rv = New(Remote_Video);
 	table_set(t, uid, rv);
 	return rv;
+}
+
+// Soundshare: the shared screen's sound (video.Audio_Proc, on the capture's queue) waits here for our
+// stream's voice connection, which takes a 20 ms frame per tick (voice.Options.capture). At most
+// SHARE_MAX samples wait: past that the oldest go, so a stalled connection never builds up delay.
+SHARE_MAX :: 48000 / 5;
+share: struct {
+	mu: locks.Mutex;
+	buf: [..]float32;
+};
+
+share_reset :: () {
+	locks.guard(*share.mu);
+	share.buf.count = 0;
+}
+
+on_share_audio :: (user: *void, pcm: []float32) {
+	locks.guard(*share.mu);
+	array_add(*share.buf, ..pcm);
+	if share.buf.count > SHARE_MAX {
+		drop := share.buf.count - SHARE_MAX;
+		memcpy(share.buf.data, share.buf.data + drop, SHARE_MAX * size_of(float32));
+		share.buf.count = SHARE_MAX;
+	}
+}
+
+share_pull :: (data: *void, out: []float32) -> int {
+	locks.guard(*share.mu);
+	n := min(out.count, share.buf.count);
+	memcpy(out.data, share.buf.data, n * size_of(float32));
+	for n..share.buf.count - 1 share.buf[it - n] = share.buf[it];
+	share.buf.count -= n;
+	return n;
 }
 
 // remote_reset drops the decoder and the shown frame (UI thread).

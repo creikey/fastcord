@@ -473,6 +473,13 @@ call_tile :: (t: Call_Tile, x: float32, y: float32, w: float32, h: float32) {
 		b.custom_draw = tile_video_draw;
 		b.custom_user = d;
 	}
+	preview := "";
+	if !img.y && t.stream && !watching && call_client() {
+		// a stream we don't watch shows its streamer's last preview, dimmed under Watch Stream
+		ch := dc.channel_get(s, app.voice_channel);
+		preview = dc.stream_preview(call_client(), dc.stream_key(ifx ch then ch.guild_id else 0, app.voice_channel, t.user));
+		set_remote_image(b, preview, cover = true);
+	}
 	if t.absent { absent_tile(b, t.user, h); return; }
 	sig := ui.signal(b);
 	if sig.right_clicked open_voice_user_menu(t.user, app.ui.mouse);
@@ -482,6 +489,11 @@ call_tile :: (t: Call_Tile, x: float32, y: float32, w: float32, h: float32) {
 	vs := table_find_pointer(*s.voice_states, t.user);
 	gid := ifx vs then vs.guild_id else 0;
 	{ ui.parent(b); defer ui.pop_parent();
+		if preview {
+			dim := ui.box("dim", .Draw_Background | .Floating_X | .Floating_Y);
+			dim.semantic_size = .[ui.px(w), ui.px(h)];
+			dim.style.bg = .{0, 0, 0, 0.5};
+		}
 		if !img.y {
 			av := min(80.0, h * 0.35);
 			spacer(.Y, (h - av) / 2 - (ifx t.stream && !watching then 24.0 else 0));

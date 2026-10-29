@@ -11,6 +11,9 @@ Frame_Proc :: #type (user: *void, pixbuf: *void, width: int, height: int);
 // encoder_encode, on its caller's) with a temp that thread resets.
 Encoded_Proc :: #type (user: *void, annexb: []u8, keyframe: bool, pts_90k: u32);
 
+// A screen capture's sound (soundshare), mono 48 kHz float, on the capture's queue with a temp reset after.
+Audio_Proc :: #type (user: *void, pcm: []float32);
+
 Video_Codec :: enum u8 { H264; H265; }
 
 SUPPORTED :: OS == .MACOS || OS == .WINDOWS || OS == .LINUX; // capture and encoding exist on this platform

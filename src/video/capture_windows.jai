@@ -66,7 +66,7 @@ screen_targets_refresh :: () {
 
 screen_targets :: () -> []Screen_Target, ready: bool { return screens, true; }
 
-screen_start :: (target: Screen_Target, on_frame: Frame_Proc, user: *void, fps := 30, max_height := 1080) -> *Capture {
+screen_start :: (target: Screen_Target, on_frame: Frame_Proc, user: *void, fps := 30, max_height := 1080, on_audio: Audio_Proc = null) -> *Capture {
 	c := New(Capture);
 	w, h := max(target.width, 2), max(target.height, 2);
 	if h > max_height { w = w * max_height / h; h = max_height; }

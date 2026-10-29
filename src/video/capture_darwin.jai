@@ -17,6 +17,7 @@ Capture :: struct {
 	mu: locks.Mutex;
 	cv: locks.Cond;
 	stopped: bool;
+	on_audio: Audio_Proc; // soundshare, macOS 13+
 	ended: bool;     // atomic: the system stopped the stream (the menu bar's Stop Sharing, a closed window)
 	// test pattern (pattern_darwin.jai)
 	pattern: *Thread;
@@ -128,7 +129,7 @@ screen_targets :: () -> []Screen_Target, ready: bool {
 	return targets.list, targets.ready;
 }
 
-screen_start :: (target: Screen_Target, on_frame: Frame_Proc, user: *void, fps := 30, max_height := 1080) -> *Capture {
+screen_start :: (target: Screen_Target, on_frame: Frame_Proc, user: *void, fps := 30, max_height := 1080, on_audio: Audio_Proc = null) -> *Capture {
 	pool := objc_autoreleasePoolPush();
 	defer objc_autoreleasePoolPop(pool);
 	source: Id;
@@ -155,6 +156,14 @@ screen_start :: (target: Screen_Target, on_frame: Frame_Proc, user: *void, fps :
 	msg(Void, config, "setPixelFormat:", fourcc("420v"));
 	msg(Void, config, "setShowsCursor:", true);
 	msg(Void, config, "setQueueDepth:", cast(s64) 5);
+	// the shared screen's or window's sound, mono 48 kHz, without ours (the call's voices)
+	share_audio := on_audio && msg(bool, config, "respondsToSelector:", sel("setCapturesAudio:"));
+	if share_audio {
+		msg(Void, config, "setCapturesAudio:", true);
+		msg(Void, config, "setSampleRate:", cast(s64) 48000);
+		msg(Void, config, "setChannelCount:", cast(s64) 1);
+		msg(Void, config, "setExcludesCurrentProcessAudio:", true);
+	}
 
 	c := new_capture(on_frame, user, "FCVideoScreenOutput", "stream:didOutputSampleBuffer:ofType:", "v@:@^{opaqueCMSampleBuffer=}q", xx screen_frame,
 		"stream:didStopWithError:", "v@:@@", xx stream_ended);
@@ -165,6 +174,7 @@ screen_start :: (target: Screen_Target, on_frame: Frame_Proc, user: *void, fps :
 		capture_stop(c);
 		return null;
 	}
+	if share_audio && msg(bool, c.stream, "addStreamOutput:type:sampleHandlerQueue:error:", c.delegate, cast(s64) 1, c.frames, *err) c.on_audio = on_audio;
 	msg(Void, c.stream, "startCaptureWithCompletionHandler:", *noop_block);
 	return c;
 }
@@ -204,6 +214,7 @@ capture_stop :: (c: *Capture) {
 		locks.unlock(*c.mu);
 		err: Id;
 		msg(bool, c.stream, "removeStreamOutput:type:error:", c.delegate, cast(s64) 0, *err);
+		if c.on_audio msg(bool, c.stream, "removeStreamOutput:type:error:", c.delegate, cast(s64) 1, *err);
 		msg(Void, c.stream, "release");
 	}
 	// Frame callbacks already queued run before this returns; none start after.
@@ -269,6 +280,7 @@ deliver :: (self: Id, sample: CFRef) #c_call {
 camera_frame :: (self: Id, cmd: *void, output: Id, sample: CFRef, connection: Id) #c_call { deliver(self, sample); }
 
 screen_frame :: (self: Id, cmd: *void, stream: Id, sample: CFRef, type: s64) #c_call {
+	if type == 1 { screen_audio(self, sample); return; } // SCStreamOutputTypeAudio
 	if type != 0 return; // SCStreamOutputTypeScreen
 	// Idle, blank and suspended frames carry no new image.
 	atts := CMSampleBufferGetSampleAttachmentsArray(sample, false);
@@ -278,6 +290,30 @@ screen_frame :: (self: Id, cmd: *void, stream: Id, sample: CFRef, type: s64) #c_
 	if !n || !CFNumberGetValue(n, 3, *status) || status != 0 return; // SCFrameStatusComplete
 	deliver(self, sample);
 }
+
+// Soundshare: ScreenCaptureKit's float PCM, as configured (mono, 48 kHz), handed on.
+screen_audio :: (self: Id, sample: CFRef) #c_call {
+	c := (cast(**Capture) object_getIndexedIvars(self)).*;
+	if !c.on_audio return;
+	asbd := CMAudioFormatDescriptionGetStreamBasicDescription(CMSampleBufferGetFormatDescription(sample));
+	if !asbd || asbd.mChannelsPerFrame != 1 || asbd.mBitsPerChannel != 32 || !(asbd.mFormatFlags & 1) || asbd.mSampleRate != 48000 return; // float
+	bb := CMSampleBufferGetDataBuffer(sample);
+	if !bb return;
+	n := cast(int) CMBlockBufferGetDataLength(bb) / 4;
+	if n <= 0 || n > 48000 return;
+	push_context c.ctx {
+		pcm := NewArray(n, float32,, temp);
+		if CMBlockBufferCopyDataBytes(bb, 0, cast(u64) n * 4, pcm.data) == 0 c.on_audio(c.user, pcm);
+		reset_temporary_storage();
+	}
+}
+
+Asbd :: struct { mSampleRate: float64; mFormatID, mFormatFlags, mBytesPerPacket, mFramesPerPacket, mBytesPerFrame, mChannelsPerFrame, mBitsPerChannel, mReserved: u32; }
+CMAudioFormatDescriptionGetStreamBasicDescription :: (fmt: CFRef) -> *Asbd #foreign CoreMedia;
+CMSampleBufferGetFormatDescription :: (sb: CFRef) -> CFRef #foreign CoreMedia;
+CMSampleBufferGetDataBuffer :: (sb: CFRef) -> CFRef #foreign CoreMedia;
+CMBlockBufferGetDataLength :: (bb: CFRef) -> u64 #foreign CoreMedia;
+CMBlockBufferCopyDataBytes :: (bb: CFRef, offset: u64, n: u64, dst: *void) -> OSStatus #foreign CoreMedia;
 
 // SCStreamDelegate's stream:didStopWithError:, when the system ends the stream rather than capture_stop.
 stream_ended :: (self: Id, cmd: *void, stream: Id, err: Id) #c_call {

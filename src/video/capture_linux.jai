@@ -15,7 +15,7 @@ camera_start :: (on_frame: Frame_Proc, user: *void, width := 1280, height := 720
 screen_supported :: () -> bool { return false; }
 screen_targets_refresh :: () {}
 screen_targets :: () -> []Screen_Target, ready: bool { return .[], true; }
-screen_start :: (target: Screen_Target, on_frame: Frame_Proc, user: *void, fps := 30, max_height := 1080) -> *Capture { return null; }
+screen_start :: (target: Screen_Target, on_frame: Frame_Proc, user: *void, fps := 30, max_height := 1080, on_audio: Audio_Proc = null) -> *Capture { return null; }
 
 #scope_file
 

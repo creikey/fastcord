@@ -1269,6 +1269,41 @@ stream_watch :: (c: *Client, key: string) { stream_key_op(c, .Stream_Watch, key)
 stream_delete :: (c: *Client, key: string) { stream_key_op(c, .Stream_Delete, key); }
 stream_set_paused :: (c: *Client, key: string, paused: bool) { stream_key_op(c, .Stream_Set_Paused, key, xx paused); }
 
+// stream_preview: the image URL of someone's stream as its streamer last uploaded it ("" until known),
+// fetched on first use and again once PREVIEW_REFRESH_MS old while it's shown (the client's
+// ApplicationStreamPreviewStore: GET /streams/{key}/preview?version=<ms>, answered {"url"}). UI thread;
+// the URL is in temp.
+PREVIEW_REFRESH_MS :: 60_000;
+Stream_Preview :: struct { url: string; fetched_ms: s64; }
+
+stream_preview :: (c: *Client, key: string) -> string {
+	now := now_ms();
+	locks.lock(*c.invite_mu);
+	p := table_find_pointer(*c.stream_previews, key);
+	if !p p = table_add(*c.stream_previews, copy_string(key,, c.allocator), .{});
+	url := copy_string(p.url,, temp);
+	due := now - p.fetched_ms >= PREVIEW_REFRESH_MS;
+	if due p.fetched_ms = now;
+	locks.unlock(*c.invite_mu);
+	if !due return url;
+	j := job_new(.Api, .None);
+	j.method = "GET";
+	j.path = job_str(j, tprint("/streams/%/preview?version=%", uri_component(key), now));
+	j.track_props = job_str(j, key);
+	j.on_response = (cl: *Client, j: *Job, status: int, body: V) {
+		u := fstr(vmap(body), "url");
+		if status != 200 || !begins_with(u, "https://") || u.count > 2048 return;
+		locks.lock(*cl.invite_mu);
+		defer locks.unlock(*cl.invite_mu);
+		p := table_find_pointer(*cl.stream_previews, j.track_props);
+		if !p return;
+		free(p.url,, cl.allocator);
+		p.url = copy_string(u,, cl.allocator);
+	};
+	job_submit(c, j);
+	return url;
+}
+
 // stream_server_info: the voice connection for a stream once STREAM_CREATE and
 // STREAM_SERVER_UPDATE arrived; version changes per STREAM_SERVER_UPDATE.
 stream_server_info :: (c: *Client, key: string) -> Voice_Server_Info, u64, bool {

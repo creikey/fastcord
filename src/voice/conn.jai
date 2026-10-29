@@ -59,7 +59,7 @@ Options :: struct {
     dial: Dial_Proc;          // null = TCP + TLS (ALPN http/1.1, SNI = host)
     hosted: Hosted;           // host "" = Discord
     no_audio_devices: bool;   // don't touch the audio module (tests / headless)
-    capture: (data: *void, out: []float32) -> int;          // mono 48 kHz pull, used when no_audio_devices
+    capture: (data: *void, out: []float32) -> int;          // mono 48 kHz pull instead of the mic (tests, headless; a Go Live stream's soundshare)
     playback: (data: *void, user_id: u64, pcm: []float32);  // stereo interleaved, 960 frames
     // a received video frame (Annex B, decrypted), on the UDP thread; the data is valid during the call
     video: (data: *void, user_id: u64, codec: Video_Codec, au: []u8, keyframe: bool);
@@ -1344,8 +1344,8 @@ mic_frames_due :: (c: *Conn) -> int {
 
 read_mic :: (c: *Conn, pcm: []float32) {
     n := 0;
-    if c.opts.no_audio_devices {
-        if c.opts.capture n = c.opts.capture(c.opts.callback_data, pcm);
+    if c.opts.capture {
+        n = c.opts.capture(c.opts.callback_data, pcm);
     } else if c.capture_on {
         // after a stall, drop the backlog beyond 3 frames to keep latency bounded
         if audio.capture_available() > 10 * SAMPLES_PER_FRAME
@@ -1358,14 +1358,17 @@ read_mic :: (c: *Conn, pcm: []float32) {
 }
 
 tx_tick :: (c: *Conn, pcm: []float32) {
-    if c.info.stream return;  // Go Live: video only (no soundshare yet)
+    // Go Live: the shared screen's sound (soundshare) when its capture gives one, untouched by the mic's
+    // processing, speaking as soundshare while it isn't silent
+    share := c.info.stream;
+    if share && !c.opts.capture return;
     read_mic(c, pcm);
     locks.lock(*c.mu);
-    muted := c.self_mute || c.self_deaf;
-    gain := c.input_gain;
+    muted := !share && (c.self_mute || c.self_deaf);
+    gain := ifx share then 1.0 else c.input_gain;
     echo, denoise, agc := c.echo_on && c.capture_on, c.denoise_on, c.agc_on && c.capture_on;
     locks.unlock(*c.mu);
-    mic_process(*c.proc, pcm, echo, denoise, agc);
+    if !share mic_process(*c.proc, pcm, echo, denoise, agc);
     if gain != 1 {
         for * pcm it.* *= gain;
         audio.limit(*c.input_limiter, pcm, 1);
@@ -1386,8 +1389,9 @@ tx_tick :: (c: *Conn, pcm: []float32) {
         locks.guard(*c.mu);
         c.input_db = db;
         c.vad_open = active;
-        if c.ptt_mode active = c.ptt_pressed || now_ms() < c.ptt_until_ms;
+        if c.ptt_mode && !share active = c.ptt_pressed || now_ms() < c.ptt_until_ms;
     }
+    if share active = db > SOUNDSHARE_SILENT_DB;
     if mixing active = true;
     if muted active = false;
     c.diag.voiced += xx active;
@@ -1395,7 +1399,7 @@ tx_tick :: (c: *Conn, pcm: []float32) {
     c.ts += SAMPLES_PER_FRAME;
     if active {
         if !c.self_speaking {
-            send_text(c, msg_speaking(SPEAKING_VOICE, c.ssrc));
+            send_text(c, msg_speaking(ifx share then SPEAKING_SOUNDSHARE else SPEAKING_VOICE, c.ssrc));
             {
                 locks.guard(*c.mu);
                 c.self_speaking = true;
@@ -1436,6 +1440,8 @@ tx_tick :: (c: *Conn, pcm: []float32) {
     memcpy(c.preroll[c.preroll_n].data, pcm.data, pcm.count * size_of(float32));
     c.preroll_n += 1;
 }
+
+SOUNDSHARE_SILENT_DB :: -70.0;
 
 send_audio :: (c: *Conn, pcm: []float32, ts: u32, db: float32, voice: bool) {
     opus: [MAX_OPUS_PACKET]u8;
