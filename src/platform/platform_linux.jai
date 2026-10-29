@@ -423,9 +423,21 @@ os_clipboard_get :: (allocator: Allocator) -> string {
         locks.guard(*xs.own_lock);
         return copy_string(xs.own_text,, allocator);
     }
-    for Atom.[xs.a.UTF8_STRING, xs.a.text_plain] {
-        b, ok := read_selection(it, allocator);
-        if ok return string.{b.count, b.data};
+    for Atom.[xs.a.UTF8_STRING, xs.a.text_plain, xs.a.TEXT, XA_STRING] {
+        b, ok, type := read_selection(it, allocator);
+        if ok && (type == xs.a.UTF8_STRING || type == xs.a.text_plain) return string.{b.count, b.data};
+        if ok && type == XA_STRING {
+            // X11 STRING is Latin-1, not UTF-8 (TEXT can negotiate either).
+            text := string.{0, NewArray(b.count * 2, u8,, allocator).data};
+            for b {
+                ch := string.{0, text.data + text.count};
+                character_utf32_to_utf8(it, *ch);
+                text.count += ch.count;
+            }
+            array_free(b);
+            return text;
+        }
+        array_free(b);
     }
     return "";
 }
@@ -472,7 +484,7 @@ os_clipboard_kind :: () -> Clipboard_Kind {
     // a link copied in a browser can be a uri-list too: only file URLs count
     if (array_find(targets, xs.a.uri_list) || array_find(targets, xs.a.gnome_files)) && read_files(temp).count return .Files;
     if array_find(targets, xs.a.png) return .Image;
-    if array_find(targets, xs.a.UTF8_STRING) || array_find(targets, xs.a.text_plain) || array_find(targets, XA_STRING) return .Text;
+    if array_find(targets, xs.a.UTF8_STRING) || array_find(targets, xs.a.text_plain) || array_find(targets, xs.a.TEXT) || array_find(targets, XA_STRING) return .Text;
     return .None;
 }
 
@@ -555,7 +567,7 @@ Xlib :: struct {
     FilterEvent: (ev: *XEvent, w: Window) -> s32 #c_call;
     GetGeometry: (d: *void, w: Window, root: *Window, x: *s32, y: *s32, width: *u32, height: *u32, border: *u32, depth: *u32) -> s32 #c_call;
     TranslateCoordinates: (d: *void, src: Window, dst: Window, x: s32, y: s32, dx: *s32, dy: *s32, child: *Window) -> s32 #c_call;
-    LookupKeysym: (ev: *XKeyEvent, index: s32) -> u64 #c_call;
+    kbLookupKeySym: (d: *void, code: u8, state: u32, consumed: *u32, sym: *u64) -> s32 #c_call;
     RefreshKeyboardMapping: (ev: *XEvent) -> s32 #c_call;
     kbSetDetectableAutoRepeat: (d: *void, detectable: s32, supported: *s32) -> s32 #c_call;
     OpenIM: (d: *void, db: *void, res_name: *u8, res_class: *u8) -> *void #c_call;
@@ -1030,7 +1042,14 @@ key_press :: (k: *XKeyEvent) {
     push_event(.{kind = .Text, text = text, time = now});
 }
 
-map_key :: (k: *XKeyEvent) -> Key { return map_key_code(X.LookupKeysym(k, 0), k.keycode, (k.state & 0x10) != 0); }
+// Logical keys in the active XKB group; Shift/Caps affect modifiers/text, not shortcut identity.
+map_key :: (k: *XKeyEvent) -> Key {
+    sym: u64;
+    consumed: u32;
+    if !X.kbLookupKeySym(k.display, cast(u8) k.keycode, k.state & ~cast(u32) 3 /*Shift|Lock*/, *consumed, *sym) return .None;
+    if sym >= 0xff95 && sym <= 0xff9f && (k.state & 0x10) return .None; // keypad with NumLock (Mod2) types digits
+    return map_keysym(sym);
+}
 
 #scope_module
 
@@ -1198,26 +1217,26 @@ foreign_owner :: () -> bool {
 
 // read_lock held: converts CLIPBOARD to target on the reading connection and returns the bytes, INCR
 // transfers (large images) included.
-read_selection :: (target: Atom, allocator: Allocator) -> [..]u8, bool {
+read_selection :: (target: Atom, allocator: Allocator) -> [..]u8, bool, Atom {
     d, win, prop := xs.clip_d, xs.clip_win, xs.a.FC_SELECTION;
     out: [..]u8;
     out.allocator = allocator;
     ev: XEvent;
     while X.CheckTypedWindowEvent(d, win, PropertyNotify, *ev) {}
     X.ConvertSelection(d, xs.a.CLIPBOARD, target, prop, win, 0);
-    if !wait_event(d, win, SelectionNotify, *ev) || !ev.xselection.property return out, false;
+    if !wait_event(d, win, SelectionNotify, *ev) || !ev.xselection.property return out, false, 0;
     while X.CheckTypedWindowEvent(d, win, PropertyNotify, *ev) {} // the owner's write, read below
     type := get_property(d, win, prop, *out, delete = true);
-    if type != xs.a.INCR return out, type != 0;
+    if type != xs.a.INCR return out, type != 0, type;
     // INCR: deleting the property asked for the first chunk; each comes as a new value, an empty one ends it
     out.count = 0;
     while wait_event(d, win, PropertyNotify, *ev) {
         if ev.xproperty.atom != prop || ev.xproperty.state != 0 /*NewValue*/ continue;
         t, n := get_property(d, win, prop, *out, delete = true);
-        if t && !n return out, true;
+        if t && !n return out, true, t;
     }
     array_reset(*out);
-    return out, false;
+    return out, false, 0;
 }
 
 // The next event of a type for win on d, waiting up to a second.

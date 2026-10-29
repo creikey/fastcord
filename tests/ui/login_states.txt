@@ -45,3 +45,20 @@ expect_visible "Instructions Sent"
 click_text "Okay"
 wait 3
 expect_not_visible "Instructions Sent"
+
+# Token entry: the same primary-modifier shortcuts as other text fields.
+# Synthetic text only; never submit it or contact Discord.
+login_state token
+wait 3
+type clipboard-test-not-a-token
+key a cmd
+key c cmd
+expect_clipboard "clipboard-test-not-a-token"
+key x cmd
+expect_input ""
+key v cmd
+expect_input "clipboard-test-not-a-token"
+key z cmd
+expect_input ""
+key v cmd
+expect_input "clipboard-test-not-a-token"
