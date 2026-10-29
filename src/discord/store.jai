@@ -692,7 +692,7 @@ upsert_message :: (s: *Store, m: etf.Map) -> Snowflake {
 	}
 	nonce := nonce_text(vget(m, "nonce"));
 	if nonce for * l.messages {
-		if it.pending && it.nonce == nonce {
+		if (it.pending || it.failed) && it.nonce == nonce { // a send marked failed whose echo came late
 			free_message(s, it);
 			array_ordered_remove_by_index(*l.messages, it_index);
 			break;

@@ -1216,6 +1216,26 @@ r_count :: (run: *Replay_Run, method: string, part: string) -> int {
 	return n;
 }
 
+// A send marked failed whose MESSAGE_CREATE echo comes late is replaced by it, not shown twice.
+failed_send_echo :: (t: *T) {
+	run: Replay_Run;
+	if !replay_begin(*run, t, "add_reaction", R_GUILD, R_TEXT) { return; }
+	defer replay_end(*run);
+	c := run.c;
+	l := message_list(*c.store, R_TEXT);
+	before := l.messages.count;
+	nonce: Snowflake = 1564300000000000999;
+	m: Message;
+	m.id, m.failed = nonce, true;
+	m.channel_id, m.author_id = R_TEXT, c.store.me;
+	m.nonce = clone_str(snowflake_string(nonce), c.store.allocator);
+	insert_message(l, m);
+	d, _ := etf.from_json(tprint("{\"id\":\"%\",\"channel_id\":\"%\",\"nonce\":\"%\",\"content\":\"late\",\"author\":{\"id\":\"%\",\"username\":\"me\"},\"type\":0}", nonce + 1, R_TEXT, nonce, c.store.me),, temp);
+	upsert_message(*c.store, vmap(d));
+	expect_value(t, l.messages.count, before + 1);
+	expect(t, message_index(l, nonce + 1) >= 0 && message_index(l, nonce) < 0, "the echo replaced the failed copy");
+}
+
 // A jump to an old message (around=) shows that stretch alone, behind a gap (hasMoreAfter), not merged
 // into the loaded present; newer pages (after=) close the gap when short or when they reach the present,
 // and Jump to Present drops the stretch.
