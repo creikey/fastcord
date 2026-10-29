@@ -590,7 +590,7 @@ guild_unread_shown :: (gid: dc.Snowflake) -> bool {
 	now := wall_ms();
 	if dc.guild_is_muted(s, gid, now) { return false; }
 	for id: g.channels {
-		if dc.channel_unread(s, id) && !dc.channel_effectively_muted(s, gid, id, now) { return true; }
+		if unread_counts(s, id) && !dc.channel_effectively_muted(s, gid, id, now) { return true; }
 	}
 	return false;
 }
@@ -600,9 +600,18 @@ guild_has_unread :: (gid: dc.Snowflake) -> bool {
 	g := dc.guild_get(s, gid);
 	if g == null { return false; }
 	for id: g.channels {
-		if dc.channel_unread(s, id) { return true; }
+		if unread_counts(s, id) { return true; }
 	}
 	return false;
+}
+
+// An unread channel the server's pill counts: a thread only while joined and active (the client's
+// unread state skips the rest; they have no read state of their own).
+unread_counts :: (s: *dc.Store, id: dc.Snowflake) -> bool {
+	if !dc.channel_unread(s, id) return false;
+	if !dc.is_thread(dc.channel_get(s, id)) return true;
+	tm := dc.thread_meta(id);
+	return tm != null && tm.joined && !tm.archived;
 }
 
 sidebar :: () {
