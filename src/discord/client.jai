@@ -548,7 +548,10 @@ client_load_state :: (c: *Client) {
 				f := split(v, "\t",, temp);
 				if f.count == 3 table_set(*c.affinities.users, cast(Snowflake) parse_s64(f[0]), .{copy_string(f[1],, c.allocator), parse_s64(f[2])});
 			case "web_build";       identity_load_build(*c.id, parse_s64(v));
-			case "host_version";    identity_load_host(*c.id, v);
+			case "updater_install_id"; c.id.updater_install_id = copy_string(v,, c.allocator);
+			case "host";
+				f := split(v, "\t",, temp);
+				if f.count == 4 identity_load_host(*c.id, .{f[0], parse_s64(f[1]), f[2], f[3]});
 			case "locale";          c.id.platform.locale = discord_locale(v);
 			case "exposed";         table_set(*c.analytics.exposed, copy_string(v,, c.allocator), true);
 			case "frecency"; // FrecencyUserSettings pending usage (persisted by its stores, written next launch)
@@ -589,7 +592,8 @@ client_save_state :: (c: *Client) {
 	locks.unlock(*c.analytics.mu);
 	if c.id.installation_id print_to_builder(*sb, "installation_id\t%\n", c.id.installation_id);
 	if c.id.web_build print_to_builder(*sb, "web_build\t%\n", c.id.web_build);
-	if c.id.host_version print_to_builder(*sb, "host_version\t%\n", c.id.host_version);
+	print_to_builder(*sb, "updater_install_id\t%\n", c.id.updater_install_id);
+	if c.id.host.version print_to_builder(*sb, "host\t%\t%\t%\t%\n", c.id.host.version, c.id.host.native, c.id.host.electron, c.id.host.chrome);
 	if c.store.settings.locale print_to_builder(*sb, "locale\t%\n", c.store.settings.locale); // the cached settings' (CACHE_LOADED)
 	for c.store.frecency.pending print_to_builder(*sb, "frecency\t%\t%\t%\n", cast(int) it.kind, it.at, it.key);
 	using c.id.heartbeat;

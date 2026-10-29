@@ -10,7 +10,9 @@ Platform_Info :: struct {
 	app_arch: string;
 	system_locale: string;
 	browser_user_agent: string;
-	browser_version: string;
+	browser_version: string; // Electron's version
+	ua_os_token: string; // the user agent's OS token, frozen by Chrome's reduced UA
+	chrome_version: string; // the user agent's Chrome/ (sec-ch-ua names its major)
 	os_sdk_version: string; // "" omits the key (Linux)
 	// Linux only ("" omits them): "$XDG_CURRENT_DESKTOP,$GDMSESSION", os-release PRETTY_NAME, native/flatpak, x11/wayland
 	window_manager: string;
@@ -29,44 +31,81 @@ Platform_Info :: struct {
 	api_version: int;
 }
 
-// Pinned from a capture: bump them together from a new capture's super properties. The host and web
-// versions are only fallbacks: each launch learns the current web build from the /app document and the
-// current host version from the updater's manifest (startup.jai `app_document_loaded`, `host_manifest_loaded`).
-HOST_VERSION :: "0.0.419"; // macOS client_version
-NATIVE_BUILD :: 96312; // macOS native_build_number (the updater's metadata_version)
+// Host_Build: one release of the desktop host as the official client reports it.
+Host_Build :: struct {
+	version: string; // client_version and the user agent's discord/
+	native: s64; // native_build_number: the updater manifest's metadata_version
+	electron: string; // browser_version
+	chrome: string;
+}
+
+// Pinned from captures, the fallbacks until a launch learns its install's current host (startup.jai
+// `host_manifest_loaded`, `hosts_table_loaded`). macOS: 0.0.419; Windows: 1.0.9266, read from the official
+// client on 2026-10-28; Linux: 1.0.167, its version from the updater and Electron from the package (no capture).
+// The web build is learnt from each launch's /app document (`app_document_loaded`).
+MAC_HOST_VERSION :: "0.0.419";
+MAC_NATIVE_BUILD :: 96312;
+MAC_ELECTRON :: "42.11.15";
+MAC_CHROME :: "148.0.7778.280";
+MAC_HOST :: Host_Build.{MAC_HOST_VERSION, MAC_NATIVE_BUILD, MAC_ELECTRON, MAC_CHROME};
+WINDOWS_HOST :: Host_Build.{"1.0.9266", 97026, "44.9.3", "152.0.7977.167"};
+LINUX_HOST :: Host_Build.{"1.0.167", 0, "44.9.3", "152.0.7977.167"};
 WEB_BUILD :: 649389; // client_build_number
-CHROME_VERSION :: "148.0.7778.280";
-CHROME_MAJOR :: "148";
-ELECTRON_VERSION :: "42.11.15";
-// The updater's latest host versions on 2026-10-28; native build guessed (traffic/CLIENT_RULES.md "Gateway,
-// startup, identity").
-WINDOWS_HOST_VERSION :: "1.0.9266";
-WINDOWS_NATIVE_BUILD :: 96312;
-LINUX_HOST_VERSION :: "1.0.167";
+
+// The updater's manifest is staged per install (`install_id`); this table, which a daily GitHub workflow
+// rebuilds from each host package (tools/host_versions.py), gives a host version's Electron and Chrome.
+HOSTS_TABLE_HOST :: "raw.githubusercontent.com";
+HOSTS_TABLE_PATH :: "/creikey/fastcord/main/site/hosts.json";
 
 // electron_user_agent: Chrome's reduced user agent, whose OS token is frozen (every Mac is "Intel Mac OS X
 // 10_15_7", every Windows "Windows NT 10.0; Win64; x64"), with Electron's insertions.
-electron_user_agent :: (os_token: string, host_version: string) -> string {
-	return join("Mozilla/5.0 (", os_token, ") AppleWebKit/537.36 (KHTML, like Gecko) discord/", host_version, " Chrome/", CHROME_VERSION, " Electron/", ELECTRON_VERSION, " Safari/537.36");
+electron_user_agent :: (os_token: string, h: Host_Build) -> string {
+	return join("Mozilla/5.0 (", os_token, ") AppleWebKit/537.36 (KHTML, like Gecko) discord/", h.version, " Chrome/", h.chrome, " Electron/", h.electron, " Safari/537.36");
 }
 
-DEFAULT_USER_AGENT :: #run electron_user_agent("Macintosh; Intel Mac OS X 10_15_7", HOST_VERSION);
+// sec_ch_ua: Chromium's GenerateBrandVersionList for an embedder with no brand of its own: a GREASE brand
+// seeded by the major version ("Not/A)Brand";v="99" for 148) and Chromium, ordered by the seed's parity.
+sec_ch_ua :: (chrome: string) -> string {
+	GREASE_CHARS :: string.[" ", "(", ":", "-", ".", "/", ")", ";", "=", "?", "_"];
+	GREASE_VERSIONS :: string.["8", "99", "24"];
+	dot := find_index_from_left(chrome, #char ".");
+	major := ifx dot > 0 then slice(chrome, 0, dot) else chrome;
+	seed := parse_s64(major);
+	grease := join("\"Not", GREASE_CHARS[seed % 11], "A", GREASE_CHARS[(seed + 1) % 11], "Brand\";v=\"", GREASE_VERSIONS[seed % 3], "\"",, temp);
+	chromium := join("\"Chromium\";v=\"", major, "\"",, temp);
+	if seed % 2 return join(chromium, ", ", grease);
+	return join(grease, ", ", chromium);
+}
+
+// apply_host: report host h. The strings live for the process (the platform is copied by value).
+apply_host :: (p: *Platform_Info, h: Host_Build) {
+	p.client_version = h.version;
+	p.native_build_number = ifx p.os == "Linux" then 0 else h.native;
+	p.browser_version = h.electron;
+	p.chrome_version = h.chrome;
+	p.browser_user_agent = electron_user_agent(p.ua_os_token, h);
+	p.sec_ch_ua = sec_ch_ua(h.chrome,, context.default_allocator);
+}
+
+DEFAULT_USER_AGENT :: #run electron_user_agent("Macintosh; Intel Mac OS X 10_15_7", MAC_HOST);
 
 DEFAULT_PLATFORM :: Platform_Info.{
 	os = "Mac OS X",
 	browser = "Discord Client",
 	release_channel = "stable",
-	client_version = HOST_VERSION,
+	client_version = MAC_HOST_VERSION,
 	os_version = "27.0.0",
 	os_arch = "arm64",
 	app_arch = "arm64",
 	system_locale = "en-US",
 	browser_user_agent = DEFAULT_USER_AGENT,
-	browser_version = ELECTRON_VERSION,
+	browser_version = MAC_ELECTRON,
+	ua_os_token = "Macintosh; Intel Mac OS X 10_15_7",
+	chrome_version = MAC_CHROME,
 	os_sdk_version = "27",
 	client_build_number = WEB_BUILD,
-	native_build_number = NATIVE_BUILD,
-	sec_ch_ua = #run join("\"Not/A)Brand\";v=\"99\", \"Chromium\";v=\"", CHROME_MAJOR, "\""),
+	native_build_number = MAC_NATIVE_BUILD,
+	sec_ch_ua = "\"Not/A)Brand\";v=\"99\", \"Chromium\";v=\"148\"",
 	sec_ch_ua_platform = "\"macOS\"",
 	accept_language = "en-US",
 	locale = "en-US",
@@ -184,7 +223,12 @@ Identity :: struct {
 	// The super properties went out: client_build_number stays as it is for the launch.
 	build_sealed: bool;
 	web_build: s64; // the last /app document's build (identity.tsv), 0 = none yet
-	host_version: string; // the updater's last host version (identity.tsv), "" = none yet
+	// The updater's: this install's id (sent with every manifest check), the host it offered this launch
+	// (version and native build) and the hosts table's Electron and Chrome per version for this platform.
+	updater_install_id: string;
+	offered: Host_Build;
+	table: [..]Host_Build;
+	host: Host_Build; // the newest host known in full (identity.tsv), run from the next launch; version "" = none
 	nonces: Nonce_Gen;
 	allocator: Allocator;
 }
@@ -195,6 +239,7 @@ identity_init :: (id: *Identity, platform: Platform_Info, allocator := context.a
 	id.client_launch_id = uuid4(,, allocator);
 	id.fast_connect_launch_id = uuid4(,, allocator);
 	id.launch_signature = launch_signature(,, allocator);
+	id.updater_install_id = uuid4(,, allocator); // replaced by the persisted one
 	id.app_state = .Focused;
 }
 
@@ -344,24 +389,50 @@ identity_load_build :: (id: *Identity, build: s64) {
 	id.platform.client_build_number = max(id.platform.client_build_number, build);
 }
 
-// identity_learn_host: the updater's latest host version, persisted for the next launch: the official
-// client installs an update at its next start.
-identity_learn_host :: (id: *Identity, version: string) {
+// identity_learn_offered: the host the updater's manifest offers this install, and the host table for this
+// platform; once both name the same version, it is the host for the next launch (identity_load_host): the
+// official client installs an update at its next start.
+identity_learn_offered :: (id: *Identity, version: string, native: s64) {
 	locks.lock(*id.mu);
-	free_str(id.host_version, id.allocator);
-	id.host_version = copy_string(version,, id.allocator);
-	locks.unlock(*id.mu);
+	defer locks.unlock(*id.mu);
+	id.offered = .{copy_string(version,, id.allocator), native, "", ""};
+	resolve_host_locked(id);
 }
 
-// identity_load_host: run the persisted host version, unless this fastcord pins a newer one. The user agent
-// names it too ("discord/<version>").
-identity_load_host :: (id: *Identity, version: string) {
-	if !host_version_parse(version) return;
-	id.host_version = copy_string(version,, id.allocator);
-	old := id.platform.client_version;
-	if !host_version_newer(version, old) return;
-	id.platform.client_version = id.host_version;
-	id.platform.browser_user_agent = replace(id.platform.browser_user_agent, join("discord/", old,, temp), join("discord/", version,, temp),, id.allocator);
+identity_learn_table :: (id: *Identity, table: []Host_Build) {
+	locks.lock(*id.mu);
+	defer locks.unlock(*id.mu);
+	for table array_add(*id.table, .{copy_string(it.version,, id.allocator), 0, copy_string(it.electron,, id.allocator), copy_string(it.chrome,, id.allocator)},, id.allocator);
+	resolve_host_locked(id);
+}
+
+resolve_host_locked :: (id: *Identity) {
+	if !id.offered.version return;
+	for id.table if it.version == id.offered.version {
+		id.host = .{id.offered.version, id.offered.native, it.electron, it.chrome};
+		return;
+	}
+}
+
+// identity_load_host: run the persisted host, even one older than the pinned default: the updater stages
+// each rollout by install_id, so an install may still be offered the previous host.
+identity_load_host :: (id: *Identity, h: Host_Build) {
+	if !host_version_parse(h.version) || !electron_version_ok(h.electron) || !chrome_version_ok(h.chrome) return;
+	id.host = .{copy_string(h.version,, id.allocator), h.native, copy_string(h.electron,, id.allocator), copy_string(h.chrome,, id.allocator)};
+	apply_host(*id.platform, id.host);
+}
+
+electron_version_ok :: (s: string) -> bool { return dotted_digits(s, 3); }
+chrome_version_ok :: (s: string) -> bool { return dotted_digits(s, 4); }
+
+dotted_digits :: (s: string, parts: int) -> bool {
+	p := split(s, ".",, temp);
+	if p.count != parts return false;
+	for p {
+		if it.count < 1 || it.count > 6 return false;
+		for ch: cast([]u8) it if ch < #char "0" || ch > #char "9" return false;
+	}
+	return true;
 }
 
 // host_version_parse: "a.b.c", each part 1-6 digits.
@@ -375,15 +446,6 @@ host_version_parse :: (s: string) -> bool, [3]s64 {
 		v[it_index] = parse_s64(it);
 	}
 	return true, v;
-}
-
-host_version_newer :: (a: string, b: string) -> bool {
-	oka, va := host_version_parse(a);
-	okb, vb := host_version_parse(b);
-	if !oka return false;
-	if !okb return true;
-	for 0..2 if va[it] != vb[it] return va[it] > vb[it];
-	return false;
 }
 
 // identity_set_locale: x-discord-locale (LocaleStore). locale must be static (a DISCORD_LOCALES entry):

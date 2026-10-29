@@ -35,14 +35,12 @@ system_idle_ms :: () -> s64, bool {
 	return cast(s64) (tick_count() - li.dwTime), true;
 }
 
-// windows_platform: the official Windows client (no capture: traffic/CLIENT_RULES.md). os_version is
+// windows_platform: the official Windows client (read from 1.0.9266: traffic/CLIENT_RULES.md). os_version is
 // os.release() ("10.0.26100", RtlGetVersion: Windows 11 is 10.0 too), os_sdk_version its build. The app is
 // x64; os_arch is arm64 when the bundle's PROCESSOR_* check says so. The strings live for the process.
 windows_platform :: () -> Platform_Info {
 	p := DEFAULT_PLATFORM;
 	p.os = "Windows";
-	p.client_version = WINDOWS_HOST_VERSION;
-	p.native_build_number = WINDOWS_NATIVE_BUILD;
 	v := Os_Version_Info.{size = size_of(Os_Version_Info)};
 	if RtlGetVersion(*v) == 0 {
 		p.os_version = sprint("%.%.%", v.major, v.minor, v.build);
@@ -56,7 +54,8 @@ windows_platform :: () -> Platform_Info {
 	arm := env("PROCESSOR_ARCHITECTURE") == "arm64" || env("PROCESSOR_ARCHITEW6432") == "arm64" || contains(env("PROCESSOR_IDENTIFIER"), "arm");
 	p.os_arch = ifx arm then "arm64" else "x64";
 	p.app_arch = "x64";
-	p.browser_user_agent = electron_user_agent("Windows NT 10.0; Win64; x64", WINDOWS_HOST_VERSION);
+	p.ua_os_token = "Windows NT 10.0; Win64; x64";
+	apply_host(*p, WINDOWS_HOST);
 	p.sec_ch_ua_platform = "\"Windows\"";
 	with_system(*p, ui_language(), windows_timezone());
 	return p;

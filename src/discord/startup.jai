@@ -116,10 +116,18 @@ schedule_app_load :: (c: *Client) {
 	m.host_manifest = true;
 	m.method = "GET";
 	m.host = "updates.discord.com";
-	os := ifx p.os == "Windows" then "win" else ifx p.os == "Linux" then "linux" else "osx";
-	m.path = job_str(m, tprint("/distributions/app/manifests/latest?channel=stable&platform=%&arch=%", os, p.app_arch));
+	locks.lock(*c.id.mu);
+	m.path = job_str(m, tprint("/distributions/app/manifests/latest?channel=stable&platform=%&arch=%&install_id=%", updater_platform(p), p.app_arch, c.id.updater_install_id));
+	locks.unlock(*c.id.mu);
 	m.not_before = c.launch_ms;
 	job_submit(c, m);
+	h := job_new(.Web, .Startup);
+	h.hosts_table = true;
+	h.method = "GET";
+	h.host = HOSTS_TABLE_HOST;
+	h.path = HOSTS_TABLE_PATH;
+	h.not_before = c.launch_ms;
+	job_submit(c, h);
 	j := job_new(.Web, .Startup);
 	j.document = true;
 	j.method = "GET";
@@ -145,8 +153,12 @@ app_document_loaded :: (c: *Client, html: string) {
 	if build > 0 identity_learn_build(*c.id, build, adopt = now_ms() < gateway_open_at(c));
 }
 
-// host_manifest_loaded (worker): the updater's latest host version ({"full":{"host_version":[0,0,420]...}}),
-// run from the next launch (identity_load_host).
+updater_platform :: (p: Platform_Info) -> string {
+	return ifx p.os == "Windows" then "win" else ifx p.os == "Linux" then "linux" else "osx";
+}
+
+// host_manifest_loaded (worker): the host the updater offers this install ({"full":{"host_version":[0,0,420]
+// ...},"metadata_version":96312}; metadata_version is the native build, sent only with an install_id).
 host_manifest_loaded :: (c: *Client, body: []u8) {
 	if body.count > 1 << 20 return;
 	v, err := etf.from_json(cast(string) body,, temp);
@@ -154,8 +166,30 @@ host_manifest_loaded :: (c: *Client, body: []u8) {
 	hv := flist(fmap(vmap(v), "full"), "host_version");
 	if hv.count != 3 return;
 	for hv if it.kind != .Int || it.i < 0 || it.i > 999_999 return;
+	native := vget(vmap(v), "metadata_version");
+	if native.kind != .Int || native.i < 1 || native.i > 999_999_999 return;
 	version := tprint("%.%.%", hv[0].i, hv[1].i, hv[2].i);
-	if host_version_parse(version) identity_learn_host(*c.id, version);
+	if host_version_parse(version) identity_learn_offered(*c.id, version, native.i);
+}
+
+// hosts_table_loaded (worker): {"osx":{"0.0.420":{"electron":"44.9.3","chrome":"152.0.7977.167"},...},...},
+// this platform's entries (tools/host_versions.py).
+hosts_table_loaded :: (c: *Client, body: []u8) {
+	if body.count > 1 << 20 return;
+	v, err := etf.from_json(cast(string) body,, temp);
+	if err != .None || v.kind != .Map return;
+	p := identity_platform(*c.id);
+	hosts := fmap(v.map, updater_platform(p));
+	if hosts.count > 256 return;
+	table: [..]Host_Build;
+	table.allocator = temp;
+	for hosts {
+		electron, chrome := vget(vmap(it.value), "electron"), vget(vmap(it.value), "chrome");
+		if it.key.kind != .String || electron.kind != .String || chrome.kind != .String continue;
+		if !host_version_parse(it.key.s) || !electron_version_ok(electron.s) || !chrome_version_ok(chrome.s) continue;
+		array_add(*table, .{it.key.s, 0, electron.s, chrome.s});
+	}
+	identity_learn_table(*c.id, table);
 }
 
 // html_build_number: window.GLOBAL_ENV = {..."BUILD_NUMBER":"649389"...}; 0 when absent.

@@ -35,18 +35,17 @@ process_exe_paths :: () -> []string {
 }
 
 // linux_platform: the official Linux desktop client's super properties (no capture yet: see
-// traffic/CLIENT_RULES.md). Electron and the web build are the captured macOS ones; the Linux app has its
-// own version line. The strings live for the process.
+// traffic/CLIENT_RULES.md). The Linux app has its own version line; Electron is read from its package. The
+// strings live for the process.
 linux_platform :: () -> Platform_Info {
 	p := DEFAULT_PLATFORM;
 	p.os = "Linux";
-	p.client_version = LINUX_HOST_VERSION;
 	u: utsname;
 	if uname(*u) == 0 p.os_version = copy_string(to_string(u.release.data));
 	p.os_arch, p.app_arch = "x64", "x64";
-	p.browser_user_agent = electron_user_agent("X11; Linux x86_64", LINUX_HOST_VERSION);
+	p.ua_os_token = "X11; Linux x86_64";
+	apply_host(*p, LINUX_HOST);
 	p.os_sdk_version = "";
-	p.native_build_number = 0;
 	p.sec_ch_ua_platform = "\"Linux\"";
 	env :: (name: *u8, default: string) -> string { v := to_string(c_getenv(name)); return ifx v then copy_string(v) else default; }
 	// Chromium's locale on Linux: the first of $LANGUAGE, else $LC_ALL / $LC_MESSAGES / $LANG ("C" = en-US)

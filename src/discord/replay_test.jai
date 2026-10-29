@@ -3180,7 +3180,9 @@ platform_locales :: (t: *T) {
 		expect(t, p.browser_user_agent == DEFAULT_USER_AGENT && p.sec_ch_ua_platform == "\"macOS\"", "the macOS user agent is Chrome's frozen one");
 		expect(t, begins_with(p.os_version, p.os_sdk_version) && (p.os_arch == "arm64" || p.os_arch == "x64"), "os_sdk_version is the Darwin major");
 	}
-	expect(t, electron_user_agent("Windows NT 10.0; Win64; x64", "1.0.9266") == "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) discord/1.0.9266 Chrome/148.0.7778.280 Electron/42.11.15 Safari/537.36");
+	expect(t, electron_user_agent("Windows NT 10.0; Win64; x64", WINDOWS_HOST) == "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) discord/1.0.9266 Chrome/152.0.7977.167 Electron/44.9.3 Safari/537.36");
+	// Chromium's GREASE brand per major: 148 and 152 as captured.
+	expect(t, sec_ch_ua("148.0.7778.280") == DEFAULT_PLATFORM.sec_ch_ua && sec_ch_ua("152.0.7977.167") == "\"Not?A_Brand\";v=\"24\", \"Chromium\";v=\"152\"", "sec-ch-ua from the Chrome major");
 }
 
 // The /app document at launch: Chrome's navigation headers, GLOBAL_ENV.BUILD_NUMBER adopted before the
@@ -3196,7 +3198,13 @@ app_document_build :: (t: *T) {
 			locks.unlock(*r.mu);
 			resp := http.make_response(.Http2,, context.default_allocator);
 			resp.status = 200;
-			append_string(*resp.body, "{\"full\":{\"host_version\":[0,0,421],\"url\":\"x\"},\"required_update\":true}");
+			append_string(*resp.body, "{\"full\":{\"host_version\":[0,0,421],\"url\":\"x\"},\"metadata_version\":97100,\"required_update\":true}");
+			return resp, .None;
+		}
+		if host == HOSTS_TABLE_HOST {
+			resp := http.make_response(.Http2,, context.default_allocator);
+			resp.status = 200;
+			append_string(*resp.body, "{\"win\":{\"1.0.9300\":{\"electron\":\"1.2.3\",\"chrome\":\"1.0.0.0\"}},\"osx\":{\"0.0.420\":{\"electron\":\"44.9.3\",\"chrome\":\"152.0.7977.167\"},\"0.0.421\":{\"electron\":\"45.0.1\",\"chrome\":\"153.0.8000.12\"},\"0.0.422\":{\"electron\":\"x\",\"chrome\":\"153\"}}}");
 			return resp, .None;
 		}
 		names: [..]string;
@@ -3220,10 +3228,12 @@ app_document_build :: (t: *T) {
 	client_start(c);
 	schedule_app_load(c);
 	start := mono_ms();
-	while (c.id.web_build == 0 || !c.id.host_version) && mono_ms() - start < 3000 sleep_milliseconds(5);
+	while (c.id.web_build == 0 || !c.id.host.version) && mono_ms() - start < 3000 sleep_milliseconds(5);
 	expect_value(t, c.id.web_build, 650001);
-	expect(t, c.id.host_version == "0.0.421" && c.id.platform.client_version == HOST_VERSION, "the updater's host version waits for the next launch");
-	expect(t, rec.manifest == "/distributions/app/manifests/latest?channel=stable&platform=osx&arch=arm64", "the updater's manifest check");
+	expect(t, c.id.host.version == "0.0.421" && c.id.host.native == 97100 && c.id.host.electron == "45.0.1" && c.id.platform.client_version == MAC_HOST_VERSION, "the updater's host waits for the next launch");
+	expect(t, rec.manifest == tprint("/distributions/app/manifests/latest?channel=stable&platform=osx&arch=arm64&install_id=%", c.id.updater_install_id), "the updater's manifest check");
+	install_id := copy_string(c.id.updater_install_id);
+	defer free(install_id);
 	expect_value(t, c.id.platform.client_build_number, 650001);
 	locks.lock(*rec.mu);
 	expect(t, rec.paths.count == 1 && rec.paths[0] == tprint("/app?_=%", c.launch_ms), "the launch's first request is /app?_=<Date.now()>");
@@ -3244,9 +3254,10 @@ app_document_build :: (t: *T) {
 	c = client_create(.{token = "<token>", state_dir = dir, disable_startup = true, disable_gateway = true, disable_analytics = true, disable_remote_auth = true});
 	expect_value(t, c.id.platform.client_build_number, 650002);
 	expect(t, c.id.platform.locale == "fr", "the cached language is the boot locale");
-	expect(t, c.id.platform.client_version == "0.0.421" && contains(c.id.platform.browser_user_agent, " discord/0.0.421 Chrome/"), "the next launch runs the updated host");
+	expect(t, c.id.platform.client_version == "0.0.421" && c.id.platform.browser_user_agent == "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) discord/0.0.421 Chrome/153.0.8000.12 Electron/45.0.1 Safari/537.36", "the next launch runs the updated host");
+	expect(t, c.id.platform.native_build_number == 97100 && c.id.platform.browser_version == "45.0.1" && c.id.platform.sec_ch_ua == "\"Chromium\";v=\"153\", \"Not_A Brand\";v=\"8\"", "with its native build, Electron and Chrome");
+	expect(t, c.id.updater_install_id == install_id, "the updater's install id persists");
 	client_destroy(c);
-	expect(t, host_version_newer("0.0.421", "0.0.419") && host_version_newer("1.0.10000", "1.0.9266") && !host_version_newer("0.0.418", "0.0.419") && !host_version_newer("0.0.x", "0.0.419") && !host_version_newer("0.0.1.2", "0.0.1"), "host version order");
 	free(rec.manifest);
 	for rec.paths free(it);
 	for rec.wire free(it);

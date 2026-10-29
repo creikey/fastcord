@@ -51,6 +51,7 @@ Job :: struct {
 	preflight_only: bool; // send only the CORS preflight (the request is a later job)
 	document: bool; // the window's navigation to /app (startup.jai schedule_app_load)
 	host_manifest: bool; // the updater's manifest check (startup.jai schedule_app_load)
+	hosts_table: bool; // the hosts table: each host version's Electron and Chrome (schedule_app_load)
 	on_body: (c: *Client, body: V); // worker-side follow-up on a 2xx JSON body (body in temp)
 	on_done: (c: *Client, j: *Job, status: int); // worker-side, after any response (status 0: network failure)
 	track_props: string; // on_done's event properties, built on the UI thread (job pool)
@@ -414,6 +415,13 @@ run_web :: (c: *Client, j: *Job) {
 		req := http.Request.{method = "GET", scheme = "https", authority = j.host, path = j.path};
 		resp, err := transport_round_trip(*c.transport, j.host, req);
 		if err == .None && resp.status == 200 host_manifest_loaded(c, resp.body);
+		http.response_destroy(*resp);
+		return;
+	}
+	if j.hosts_table {
+		req := http.Request.{method = "GET", scheme = "https", authority = j.host, path = j.path};
+		resp, err := transport_round_trip(*c.transport, j.host, req);
+		if err == .None && resp.status == 200 hosts_table_loaded(c, resp.body);
 		http.response_destroy(*resp);
 		return;
 	}
