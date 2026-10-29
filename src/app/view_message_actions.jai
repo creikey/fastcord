@@ -534,7 +534,8 @@ composer_send :: (ch: *dc.Channel, text: string) -> bool {
 		track_sent_emoji(body);
 		return true;
 	}
-	if !attachments_sealed(ch.id, false) { toast_show(L("Remove the files added while encryption was on: they'd arrive as unreadable ciphertext."), false); return false; }
+	_, plain := attachments_sealed(ch.id, false); // its first result is the files: empty is the usual case
+	if !plain { toast_show(L("Remove the files added while encryption was on: they'd arrive as unreadable ciphertext."), false); return false; }
 	if ma.replying != 0 {
 		opts.reply_to = ma.replying;
 		opts.reply_guild_id = ch.guild_id;
