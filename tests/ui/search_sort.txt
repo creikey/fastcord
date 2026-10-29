@@ -1,0 +1,11 @@
+# The search results header switches between Newest, Oldest and Most Relevant (the search runs again).
+wait 5
+click 1150 57
+wait 3
+type spoiler
+key enter
+wait 20
+click_text "Oldest"
+wait 5
+shot build/ui-search_sort.png
+expect_visible "No results found"

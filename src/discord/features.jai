@@ -870,7 +870,10 @@ Search_Query :: struct {
 	channel_ids: []Snowflake;
 	pinned: bool;
 	offset: int;
+	sort: Search_Sort;
 }
+
+Search_Sort :: enum u8 { Newest; Oldest; Most_Relevant; }
 
 // GET /guilds/{id}/messages/search (guild) or /channels/{id}/messages/search (DMs):
 // filter keys in the client's search-token order (author_id, mentions, has,
@@ -885,8 +888,9 @@ search_messages :: (c: *Client, guild_id: Snowflake, channel_id: Snowflake, sq: 
 	for sq.channel_ids query_add_snow(*q, "channel_id", it);
 	if sq.pinned query_add(*q, "pinned", "true");
 	if sq.content query_add(*q, "content", sq.content);
-	query_add(*q, "sort_by", "timestamp");
-	query_add(*q, "sort_order", "desc");
+	// the client's sort options: relevance / desc, timestamp / asc, timestamp / desc
+	query_add(*q, "sort_by", ifx sq.sort == .Most_Relevant then "relevance" else "timestamp");
+	query_add(*q, "sort_order", ifx sq.sort == .Oldest then "asc" else "desc");
 	if sq.offset > 0 query_add_int(*q, "offset", sq.offset);
 	f_submit(c, .{op = .Search, tag = tag, channel_id = channel_id, method = "GET", path = query_string(*q), retries = 0});
 }

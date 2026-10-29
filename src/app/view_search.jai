@@ -26,6 +26,7 @@ Search_State :: struct {
 	box_rect: ui.Rect;
 	offset: int;
 	sq: dc.Search_Query;
+	sort: dc.Search_Sort; // the results' sort, kept for later searches this session
 }
 
 search: Search_State;
@@ -311,6 +312,26 @@ search_panel :: () {
 			txt := ifx search.loading then "Searching..." else ifx search.total == 1 then "1 Result" else tprint("% Results", search.total);
 			label(txt, .Semibold, 16, T("--text-strong"), 20);
 			filler(.X);
+			// Newest / Oldest / Most Relevant: the search again in that order
+			for name, k: string.["Newest", "Oldest", "Relevant"] {
+				sel := cast(int) search.sort == k;
+				b := ui.box(tprint("%##sort%", name, k), .Clickable | .Draw_Text | .Hot_Animation);
+				b.semantic_size = .[ui.text_size(4), ui.px(20)];
+				b.style.font = F(ifx sel then .Semibold else .Medium);
+				b.style.font_size = 13;
+				bs := ui.signal(b);
+				b.style.text_color = ifx sel then T("--text-strong") else ifx bs.hovering then T("--interactive-text-hover") else T("--text-muted");
+				b.hover_cursor = .Pointer;
+				if bs.clicked && !sel {
+					search.sort = cast(dc.Search_Sort) k;
+					search.sq.sort, search.sq.offset, search.offset = search.sort, 0, 0;
+					search.seq += 1;
+					search.loading = app.client != null;
+					ch := dc.channel_get(s, app.view.channel);
+					if app.client != null && ch dc.search_messages(app.client, ch.guild_id, ch.id, search.sq, search.seq);
+				}
+			}
+			spacer(.X, 8);
 			x := ui.box("close", .Clickable);
 			x.semantic_size = .[ui.px(24), ui.px(24)];
 			if ui.signal(x).clicked { search.active = false; }
@@ -444,7 +465,8 @@ search_run :: (ch: *dc.Channel, text: string) {
 		mentions = mentions,
 		has = has,
 		channel_ids = chans,
-		pinned = pinned
+		pinned = pinned,
+		sort = search.sort
 	};
 	search.seq += 1;
 	search.loading = app.client != null;

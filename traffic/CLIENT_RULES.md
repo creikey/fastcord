@@ -385,6 +385,12 @@ call's `retries` (the bundle's value for that call: search the endpoint) and, fo
 | Newer pages of a jumped-to stretch: `GET /channels/{id}/messages?after=<newest>&limit=50` (query order before, after, limit, around); hasMoreAfter = a full page. fastcord also closes the gap when a page reaches the stored present. It asks when the stretch's bottom is within one screen (the official scroll manager's bottom loading region, its exact offset unchecked) | code (query, hasMoreAfter) + guess (trigger offset) | `query:{before:n,after:i,limit:r,around:N` | `rest.jai` `.Fetch_Messages` (`r.after`), `view_chat.jai` `message_list` |
 | While hasMoreAfter the list shows the `jumpToPresentBar` ("You're Viewing Older Messages", Jump To Present); clicking it tracks `jump` {context "Present", channel_id, message_id null} and shows the present. The channel isn't acked and counts as scrolled up meanwhile (`isPinned` needs !hasMoreAfter). Sending from the stretch goes to the present first (guess) | code (bar, jump, pinned) + guess (send) | `jumpToPresent(e,t){eX.trackJump(e,null,"Present")`, `isPinned(){return this.pinned&&!this.props.messages.hasMoreAfter}` | `view_chat.jai` `jump_to_present_bar`, `jump_to_present` |
 
+## Search
+
+| Rule | Kind | Anchor | fastcord |
+|---|---|---|---|
+| Search sorts: Newest = `sort_by=timestamp&sort_order=desc` (the default), Oldest = `timestamp` / `asc`, Most Relevant = `relevance` / `desc`; switching runs the search again from the first page. fastcord shows the three as text tabs in the results header (the official has a sort dropdown) and sends no `search_result_sort_changed` (its emitter wasn't in the cached bundle) | code (params) + guess (UI, event) | `case T.BBH.MOST_RELEVANT:return{sort_by:"relevance",sort_order:"desc"}` | `features.jai` `search_messages`; `view_search.jai` `search_panel` |
+
 ## Message rendering
 
 | Rule | Kind | Anchor | fastcord |
