@@ -109,6 +109,7 @@ voice :: #import "voice";
 #load "view_voice_settings.jai";
 #load "views.jai";
 #load "watchdog.jai";
+#load "crash.jai";
 #if OS == .WINDOWS #load "watchdog_windows.jai";
 else #load "watchdog_posix.jai";
 #load "util.jai";
