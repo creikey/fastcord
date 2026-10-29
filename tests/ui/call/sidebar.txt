@@ -1,0 +1,6 @@
+# The channel list: a voice channel with a user limit shows N/limit, and a stage lists who is on it.
+wait 5
+expect_visible "01/05"
+expect_visible "Avery"
+expect_visible "Jules"
+shot build/ui-call_sidebar.png

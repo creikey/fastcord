@@ -34,12 +34,12 @@ group_dm_popout_open :: (anchor: ui.Rect, from_dm: dc.Snowflake) {
 	ui.editor_set_text(*gdm.search, "");
 }
 
-// Small tooltip under a rect (overlay, window coordinates).
-tooltip_below :: (text: string, r: ui.Rect) {
+// Small tooltip under a rect, or above it (overlay, window coordinates).
+tooltip_below :: (text: string, r: ui.Rect, above := false) {
 	tip := row("tipb###tooltip_below", .Draw_Background | .Draw_Shadow | .Floating_X | .Floating_Y | .Overlay);
 	tip.semantic_size = .[ui.children(), ui.px(32)];
 	p := ui.top_parent();
-	tip.fixed_pos = .{r.x0 - 40 - p.rect.x0, r.y1 + 8 - p.rect.y0};
+	tip.fixed_pos = .{r.x0 - 40 - p.rect.x0, (ifx above then r.y0 - 40 else r.y1 + 8) - p.rect.y0};
 	tip.style.bg = T("--background-surface-highest");
 	tip.style.radius = all4(8);
 	tip.style.shadow_color = .{0, 0, 0, 0.3};

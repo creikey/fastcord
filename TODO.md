@@ -337,7 +337,6 @@
 - [ ] Text editing: on Windows and Linux, Home / End jump to the start / end of the whole message, not the current line, in multi-line text. Ctrl+Home / Ctrl+End should do the whole message (`ui/textedit.jai`: `.Home` / `.End` ignore lines off macOS).
 - [ ] Messages: a failed upload (a message with attachments) offers only Delete, not Retry, since the staged files are gone once sent (`view_chat.jai` `failed_send_note`); keep them until the send succeeds so Retry can re-upload.
 - [ ] System messages: boosts, tier-ups, channel follows, thread created, thread starter, discovery, invite reminder, AutoMod, stage events, role-subscription purchases and incident alerts render as an empty message (`view_chat.jai` `is_notice` covers only types 1-7 and 67).
-- [ ] Voice: the sidebar has no N/limit counter on voice channels, and stage channels list no one.
 - [ ] Tray: the icon doesn't show call state. Like the official client, in a voice call it should be a gray circle that turns green while you talk. Check the bundle for whether muted and deafened show red. The icon is set in `src/platform/platform_windows.jai`. Update it only when the state changes.
 - [ ] Tray: Linux has no tray icon (StatusNotifierItem over D-Bus) and macOS doesn't keep running when the window closes (hide it; the Dock icon reopens it), so closing quits there. Windows has the tray.
 - [ ] Settings: keep every fastcord setting in one place so deleting them all is easy (may already be done).
@@ -395,7 +394,6 @@
 - [ ] Attachments: several images in one message stack at 400x300 each instead of the mosaic grid.
 - [ ] Bug (Windows): once, a headless live run with the camera on, while watching another camera, never exited after its final screenshot (`app_exit` after `video_shutdown`); five more runs of the same exit were clean. Take every thread's stack the next time it happens (lldb -p).
 - [ ] Threads: no Join / Leave Thread and no thread member list; the thread menu lacks Mute, Notification Settings, Close/Lock and Edit Tags.
-- [ ] Voice: server mute and deafen are never shown, in the panel or beside participants.
 - [ ] Bug: a message whose send failed gets a duplicate when the server's echo arrives late; the failure clears `pending` and `upsert_message` matches the nonce only on pending messages (`store.jai`).
 - [ ] HTTP/2: closing a connection gives up after 5 s and leaks it while a reader is still blocked (`http/h2.jai`).
 - [ ] Undo, not confirm (fastcord-only): one shared mechanism for destructive actions. Apply the change locally at once and hold the server write ~5 s behind an "Undo" toast (and Ctrl+Z); flush pending writes on quit. Then drop the confirm modals it replaces, and drop the destructive-action exception from act on press. Today Delete and Unpin modals confirm on Enter, and Shift-click skips them.
@@ -767,3 +765,5 @@
 - [x] E2E (safety): in a 1:1 DM that has used encryption, every message says whether it was encrypted: a green lock after an encrypted one's timestamp, a warning sign and "Not encrypted" on a plain one (forwards included), and the same icon in the gutter of grouped follow-ups (`e2e_mark`). The composer reads "(encrypted)" or, once a session exists, "(not encrypted)" (`tests/ui/dm/e2e_marks.txt`).
 - [x] Profiles: others' custom statuses (type 4 activity: unicode emoji and text, `Presence.custom`) show in the profile popout, member list rows, 1:1 DM rows and friends rows (instead of Online), hidden while they're offline (`user_custom_status`, `tests/ui/rail/custom_status_others.txt`).
 - [x] Profiles: someone online only on their phone gets the phone-shaped status instead of the dot on their avatars (`avatar_with_status`, `assets/icons/status-mobile.svg`; `tests/ui/rail/custom_status_others.txt`).
+- [x] Voice: the sidebar shows a voice channel's N/limit ("01/05") and lists who is on a stage (`channel_row`; `tests/ui/call/sidebar.txt`).
+- [x] Voice: server mute and deafen show: red in the sidebar and on call tiles, the panel's mic / headphones crossed out in red with "Server Muted" on hover, and they stop sending and playing here (`server_muted`; `tests/ui/call/server_mute.txt`).

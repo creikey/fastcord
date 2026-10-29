@@ -152,8 +152,10 @@ voice_frame :: () {
 		dc.voice_set_state(cl, vc.guild, app.voice_channel, app.self_mute || app.self_deaf, app.self_deaf, camera_on());
 	}
 	if vc.conn != null {
-		voice.set_self_mute(vc.conn, app.self_mute || app.self_deaf);
-		voice.set_self_deaf(vc.conn, app.self_deaf);
+		// A server mute or deafen also stops sending and playing here; op 4 keeps only our own choice.
+		smute, sdeaf := server_muted();
+		voice.set_self_mute(vc.conn, app.self_mute || app.self_deaf || smute || sdeaf);
+		voice.set_self_deaf(vc.conn, app.self_deaf || sdeaf);
 	}
 
 	info, ver, ok := dc.voice_server_info(cl);
@@ -202,6 +204,15 @@ voice_frame :: () {
 }
 
 voice_is_speaking :: (uid: dc.Snowflake) -> bool { return table_contains(*vc.speaking, uid); }
+
+// server_muted / server_deafened: a moderator muted or deafened us in the call (our voice state's mute / deaf).
+server_muted :: () -> bool, deafened: bool {
+	s := call_store();
+	if !app.voice_channel return false, false;
+	vs := table_find_pointer(*s.voice_states, s.me);
+	if !vs || vs.channel_id != app.voice_channel return false, false;
+	return vs.mute, vs.deaf;
+}
 
 // A guild voice channel at its user limit refuses joining, unless we may move members (who can join it
 // anyway, as on Discord). A stage's limit isn't checked.

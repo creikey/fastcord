@@ -645,3 +645,10 @@ Fixture: `traffic/account_edits.jsonl` windows `logout` and `login_submit`
 | Server Settings > Soundboard: the list (sound with emoji, volume, uploader; preview, Edit, Delete), "N of M slots used" with 8 / 24 / 36 / 48 slots by boost level (48 on a hosted server; no boost prompt), Upload a Sound with File, Sound Name (the file's name), Related Emoji (one Unicode emoji) and Volume. Delete asks once on the row. The layout and the confirm are guesses | guessed (no capture) | `GuildSettingsSoundboard`, `soundboard-sounds` | `view_server_soundboard.jai` |
 | Upload body: {"name", "volume", "emoji_id", "emoji_name", "sound": data URI}, the type by magic bytes (audio/ogg or audio/mpeg); PATCH takes the same fields but the sound. The key order is a guess | guessed (no capture) | `soundboard-sounds` | `guild_admin.jai` `file_job_body`, `soundboard.jai` `soundboard_fields` |
 | A file dropped on the Soundboard page or the Upload a Sound dialog fills its File; the official client only offers the picker | fastcord-only | — | `view_server_soundboard.jai` `sound_settings_drop` |
+
+## Voice and calls
+
+| Rule | Kind | Anchor in the client | fastcord |
+|---|---|---|---|
+| A voice channel with a user limit shows "NN/MM" (two digits each) at the right of its sidebar row, replaced by Invite / Edit Channel on hover; a stage lists everyone on it under its row, like a voice channel | guessed (no capture) | `userLimit`, `ChannelItemVoiceUsers` | `views.jai` `channel_row` |
+| Server mute / deafen (our voice state's `mute` / `deaf`) stops sending and playing locally while op 4 keeps our own `self_mute` / `self_deaf`; the panel's mic / headphones are crossed out in red with "Server Muted" / "Server Deafened" on hover, and call tiles draw a moderator's mute in red | guessed (no capture) | `isServerMute`, `serverMute` | `view_voice.jai` `server_muted`, `views.jai` `user_panel`, `view_call.jai` `call_tile` |

@@ -1,0 +1,10 @@
+# A moderator muted us: the panel's mic is crossed out in red with "Server Muted" on hover, and our call
+# tile's mute badge is red.
+wait 5
+in_voice 1546820558950371411
+click_text "General"
+wait 10
+move 224 683
+wait 5
+expect_visible "Server Muted"
+shot build/ui-call_server_mute.png

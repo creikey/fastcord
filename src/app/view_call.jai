@@ -293,7 +293,8 @@ call_tile :: (t: Call_Tile, x: float32, y: float32, w: float32, h: float32) {
 			m.style.radius = all4(14);
 			ui.parent(m); defer ui.pop_parent();
 			spacer(.X, 6);
-			icon("i", ifx deaf then "headphones-slash" else "microphone-slash", 16, .{1, 1, 1, 1});
+			server := ifx deaf then vs.deaf else vs.mute; // a moderator's, drawn red like the official client
+			icon("i", ifx deaf then "headphones-slash" else "microphone-slash", 16, ifx server then T("--status-danger") else .{1, 1, 1, 1});
 		}
 	}
 	if !t.stream && voice_is_speaking(t.user) {
@@ -331,7 +332,8 @@ call_controls :: (cid: dc.Snowflake) {
 		return;
 	}
 	can_video := voice_conn() != null && voice.state(voice_conn()) == .Connected;
-	mic_off := app.self_mute || app.self_deaf;
+	smute, sdeaf := server_muted();
+	mic_off := app.self_mute || app.self_deaf || smute || sdeaf;
 	if control("mic", ifx mic_off then "microphone-slash" else "microphone", mic_off, false, true) toggle_self_mute();
 	spacer(.X, 8);
 	// video.camera_supported asks AVFoundation, which TCC may kill us for: only on click

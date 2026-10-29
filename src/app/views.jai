@@ -888,8 +888,21 @@ channel_row :: (ch: *dc.Channel, gid: dc.Snowflake) {
 					set_icon(cog, "settings", ifx cs.hovering then T("--interactive-icon-active") else T("--interactive-icon-hover"));
 					if cs.clicked { channel_settings_open(ch); }
 				}
+			} else if ch.kind == .Guild_Voice && ch.user_limit > 0 {
+				// N/limit, in place of the hover buttons
+				n := 0;
+				for v: store().voice_states if v.channel_id == ch.id n += 1;
+				lim := row("limit", .Draw_Background);
+				lim.semantic_size = .[ui.children(), ui.px(16)];
+				lim.style.bg = T("--background-mod-normal");
+				lim.style.radius = all4(4);
+				{ ui.parent(lim); defer ui.pop_parent();
+					spacer(.X, 4);
+					label(tprint("%/%", formatInt(n, minimum_digits = 2), formatInt(ch.user_limit, minimum_digits = 2)), .Medium, 12, T("--channels-default"), 16);
+					spacer(.X, 4);
+				}
 			}
-			mentions := ifx selected || notify_prefs.lotus then 0 else channel_mentions(ch.id);
+			mentions :=ifx selected || notify_prefs.lotus then 0 else channel_mentions(ch.id);
 			if mentions > 0 {
 				spacer(.X, 4);
 				text := ifx mentions > 99 then "99+" else tprint("%", mentions);
@@ -913,7 +926,7 @@ channel_row :: (ch: *dc.Channel, gid: dc.Snowflake) {
 		}
 		spacer(.X, 9);
 	}
-	if ch.kind == .Guild_Voice {
+	if ch.kind == .Guild_Voice || ch.kind == .Guild_Stage_Voice {
 		s := store();
 		for vs, uid: s.voice_states {
 			if vs.channel_id != ch.id { continue; }
@@ -1023,8 +1036,11 @@ user_panel :: () {
 				b.cross_align = .Center;
 				sig := ui.signal(b);
 				ic := name;
-				muted := (name == "microphone" && (app.self_mute || app.self_deaf)) || (name == "headphones" && app.self_deaf);
+				smute, sdeaf := server_muted();
+				server := (name == "microphone" && smute) || (name == "headphones" && sdeaf);
+				muted := server || (name == "microphone" && (app.self_mute || app.self_deaf)) || (name == "headphones" && app.self_deaf);
 				if muted { ic = tprint("%-slash", name); }
+				if server && sig.hovering tooltip_below(ifx name == "microphone" then "Server Muted" else "Server Deafened", b.rect, above = true);
 				{ ui.parent(b); defer ui.pop_parent();
 					spacer(.X, 6);
 					color := ifx muted then T("--status-danger") else (ifx sig.hovering then T("--interactive-icon-hover") else T("--interactive-icon-default"));
