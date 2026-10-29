@@ -113,6 +113,7 @@ voice :: #import "voice";
 #load "view_threads_browser.jai";
 #load "view_voice.jai";
 #load "view_voice_settings.jai";
+#load "youtube.jai";
 #load "views.jai";
 #load "watchdog.jai";
 #load "crash.jai";

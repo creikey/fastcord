@@ -1,0 +1,24 @@
+# A YouTube card's first play asks whether to use the user's own yt-dlp; Open in YouTube remembers no
+# and opens the link (Play Here would run yt-dlp, which an offline test never does).
+wait 20
+key pageup
+key pageup
+key pageup
+key pageup
+key pageup
+key pageup
+wait 30
+move 600 400
+scroll 0 -860
+wait 20
+click 663 467
+wait 10
+scroll 0 -300
+wait 10
+expect_visible "Play Here"
+expect_in_window "Play Here"
+shot build/ui-youtube_ask-asked.png
+click_text "Open in YouTube"
+wait 3
+expect_opened_url "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+expect_not_visible "Play Here"

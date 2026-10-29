@@ -23,6 +23,7 @@ Media_Request :: struct {
 	save_to: string; // set: a file download streamed to this path (no cache), see run_stream
 	progress: *Media_Progress; // save_to's; the caller's, kept until the result arrives
 	stream: http.Body_Sink; // set: the body goes here as it arrives (no cache), see run_stream; called on a worker
+	any_host: bool; // a stream from an address the user chose to load (yt-dlp's), not only Discord's media hosts
 }
 
 // A download's bytes so far, written by the worker and read by the UI thread.
@@ -123,7 +124,7 @@ site_for_host :: (host: string) -> Fetch_Site {
 // after client_poll (or the wakeup).
 fetch_media :: (c: *Client, req: Media_Request) {
 	j := job_new(.Web, .Media);
-	j.media = .{url = job_str(j, req.url), kind = req.kind, visible = req.visible, referer = job_str(j, req.referer), tag = req.tag, discard = req.discard, save_to = job_str(j, req.save_to), progress = req.progress, stream = req.stream};
+	j.media = .{url = job_str(j, req.url), kind = req.kind, visible = req.visible, referer = job_str(j, req.referer), tag = req.tag, discard = req.discard, save_to = job_str(j, req.save_to), progress = req.progress, stream = req.stream, any_host = req.any_host};
 	j.result.tag = req.tag;
 	job_submit(c, j);
 }
@@ -316,7 +317,7 @@ run_stream :: (c: *Client, j: *Job) {
 	f: File;
 	opened := false;
 	if m.save_to f, opened = file_open(m.save_to, for_writing = true, log_errors = false);
-	if (opened || !m.save_to) && ok && media_host_ok(c, host) {
+	if (opened || !m.save_to) && ok && (media_host_ok(c, host) || (m.any_host && m.stream.take)) {
 		Writer :: struct { f: *File; p: *Media_Progress; out: http.Body_Sink; ok := true; }
 		w := Writer.{f = *f, p = m.progress, out = m.stream};
 		take :: (data: *void, piece: []u8) -> bool {

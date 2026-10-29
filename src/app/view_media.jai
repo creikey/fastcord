@@ -52,7 +52,7 @@ blob_get :: (url: string) -> *Blob {
 // blob_stream: a video or audio clip downloaded as a <video> element does (range bytes=0-), its player
 // reading the bytes as they arrive, so a long clip starts at once (when its index comes first: an MP4 with
 // the moov at the end still waits for the whole file). Offline runs read it whole, as blob_get.
-blob_stream :: (url: string, kind: dc.Media_Kind) -> *Blob {
+blob_stream :: (url: string, kind: dc.Media_Kind, any_host := false) -> *Blob {
 	b := table_find_pointer(*blobs, url);
 	if b return b;
 	c := ifx app.client then media_client(url);
@@ -67,7 +67,7 @@ blob_stream :: (url: string, kind: dc.Media_Kind) -> *Blob {
 		media.growing_append(g, piece);
 		return true;
 	}
-	dc.fetch_media(c, .{url = key, kind = kind, visible = true, stream = .{b.stream, take}});
+	dc.fetch_media(c, .{url = key, kind = kind, visible = true, stream = .{b.stream, take}, any_host = any_host});
 	return b;
 }
 
@@ -377,7 +377,7 @@ is_audio :: (a: *dc.Attachment) -> bool { return begins_with(a.content_type, "au
 // Video attachment or embed video: poster with a play button and the control bar (play, time, seek,
 // volume, fullscreen) until clicked, then plays inline; the bar hides while it plays unhovered. key names
 // its player (an attachment id, or embed_player_key); full draws it in the fullscreen overlay.
-video_player :: (key: dc.Snowflake, url: string, poster: string, w: float32, h: float32, duration: float64 = 0, full := false) -> *ui.Box {
+video_player :: (key: dc.Snowflake, url: string, poster: string, w: float32, h: float32, duration: float64 = 0, full := false, any_host := false, autostart := false) -> *ui.Box {
 	box := ui.box(tprint("vid%", cast(u64) key), .Draw_Background | .Clickable | .Clip);
 	box.semantic_size = .[ui.px(w), ui.px(h)];
 	box.style.radius = all4(ifx full then 0.0 else 8.0);
@@ -386,9 +386,10 @@ video_player :: (key: dc.Snowflake, url: string, poster: string, w: float32, h: 
 	ip := table_find_pointer(*players, key);
 	start :: () #expand {
 		if `ip return;
-		blob_stream(url, .Video);
+		blob_stream(url, .Video, any_host);
 		`ip = table_set(*players, key, .{url = copy_string(url), poster = copy_string(poster), size = .{w, h}});
 	}
+	if autostart start();
 	p := ifx ip then ip.player else null;
 	if p && (full || fullscreen_video != key) {
 		player_open_ready(ip);
@@ -771,11 +772,24 @@ embeds_view :: (m: *dc.Message, max_w: float32 = 400) {
 					h := cast(float32) ifx e.video_h > 0 then e.video_h else e.thumbnail_h;
 					sc := min(1.0, min(max_w / w, 300 / h));
 					video_player(embed_player_key(m, i), e.video_url, e.thumbnail_url, w * sc, h * sc);
+				} else if poster && yt_ready(e.url) {
+					// played through yt-dlp (youtube.jai)
+					spacer(.Y, 16);
+					w := cast(float32) e.thumbnail_w;
+					h := cast(float32) e.thumbnail_h;
+					sc := min(max_w / w, 300 / h);
+					video_player(embed_player_key(m, i), youtube_find(e.url).stream, e.thumbnail_url, w * sc, h * sc, any_host = true, autostart = true);
 				} else if poster {
 					spacer(.Y, 16);
 					w := cast(float32) e.thumbnail_w;
 					h := cast(float32) e.thumbnail_h;
 					sc := min(max_w / w, 300 / h);
+					yt := ifx is_youtube(e.url) then youtube_find(e.url) else null;
+					if yt && atomic_load(*yt.state) == .Failed && !yt.failed_seen {
+						yt.failed_seen = true;
+						toast_show("Couldn't play it here, so it opened in your browser.", false);
+						open_url(e.url);
+					}
 					th := media_box("poster", e.thumbnail_url, "", w * sc, h * sc);
 					th.style.radius = all4(4);
 					{ ui.parent(th); defer ui.pop_parent();
@@ -787,9 +801,40 @@ embeds_view :: (m: *dc.Message, max_w: float32 = 400) {
 						ic := icon("i", "play", 24, .{1, 1, 1, 1}, .Floating_X | .Floating_Y);
 						ic.fixed_pos = .{(w * sc - 24) / 2 + 1, (h * sc - 24) / 2};
 					}
+					if yt && atomic_load(*yt.state) == .Resolving {
+						ui.parent(th); defer ui.pop_parent();
+						l := row("finding", .Draw_Background | .Floating_X | .Floating_Y);
+						l.semantic_size = .[ui.children(), ui.px(24)];
+						l.fixed_pos = .{8, h * sc - 32};
+						l.style.bg = .{0, 0, 0, 0.6};
+						l.style.radius = all4(4);
+						app.ui.animating = true;
+						ui.parent(l); defer ui.pop_parent();
+						spacer(.X, 8);
+						label(tprint("Finding the video%", string.["", ".", "..", "..."][cast(int) (app.ui.time * 3) % 4]), .Medium, 12, .{1, 1, 1, 1}, 16);
+						spacer(.X, 8);
+					}
 					sig := ui.signal(th);
-					if sig.clicked open_url(e.url);
+					if sig.clicked {
+						if !is_youtube(e.url) || youtube_ytdlp == YT_OFF open_url(e.url);
+						else if youtube_ytdlp == YT_ON youtube_play(e.url);
+						else yt_ask = embed_player_key(m, i);
+					}
 					if sig.right_clicked media_menu_open(e.url, "");
+					if yt_ask == embed_player_key(m, i) {
+						// the first play asks once whether to use the user's own yt-dlp
+						spacer(.Y, 8);
+						q := ui.box("ytask", .Draw_Text | .Wrap_Text);
+						q.semantic_size = .[ui.px(w * sc), ui.text_size()];
+						ui.set_spans(q, ui.Span.[.{text = "Play YouTube videos here with yt-dlp? It needs yt-dlp installed, and connects to YouTube from your computer. Settings > Chat can change this.", font = F(.Normal), size = 13, color = T("--text-muted")}]);
+						spacer(.Y, 8);
+						br := row("ytbtns");
+						br.semantic_size = .[ui.children(), ui.px(32)];
+						ui.parent(br); defer ui.pop_parent();
+						if set_button("Play Here##ytyes", .Primary, true, 32) { youtube_ytdlp = YT_ON; yt_ask = 0; youtube_play(e.url); }
+						spacer(.X, 8);
+						if set_button("Open in YouTube##ytno", .Secondary, true, 32) { youtube_ytdlp = YT_OFF; yt_ask = 0; open_url(e.url); }
+					}
 				} else if images.count == 1 {
 					spacer(.Y, 16);
 					w := cast(float32) e.image_w;

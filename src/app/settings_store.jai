@@ -78,6 +78,7 @@ Persisted :: struct {
 	streamer: Streamer_Settings;
 	video_volume: float32 = 1; // the video player's, 0..4
 	video_muted: bool;
+	youtube_ytdlp: int; // Chat > play YouTube with yt-dlp: 0 ask on first play, 1 yes, 2 no (youtube.jai)
 	members_hidden: bool; // the member list toggle (shown by default)
 	dm_profile_hidden: bool;
 	window: Persisted_Window; // the restored rect and maximized state (platform.Window_Placement)
@@ -321,6 +322,7 @@ apply_persisted :: (p: *Persisted) {
 	streamer_settings = p.streamer;
 	video_volume = clamp(p.video_volume, 0, 4);
 	video_muted = p.video_muted;
+	youtube_ytdlp = clamp(p.youtube_ytdlp, YT_ASK, YT_OFF);
 	app.view.hide_members = p.members_hidden;
 	app.view.hide_dm_profile = p.dm_profile_hidden;
 	hosted_restore(p.hosted_servers, *p.hosted_names);
@@ -376,6 +378,7 @@ snapshot :: () -> string {
 	p.streamer = streamer_settings;
 	p.video_volume = video_volume;
 	p.video_muted = video_muted;
+	p.youtube_ytdlp = youtube_ytdlp;
 	p.members_hidden = app.view.hide_members;
 	p.dm_profile_hidden = app.view.hide_dm_profile;
 	p.hosted_servers = hosted_invites();

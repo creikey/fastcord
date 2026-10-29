@@ -462,6 +462,9 @@ chat_page :: () {
 	}
 	toggle("embeds", 12, "Show embeds and preview website links pasted into chat");
 	toggle("reactions", 13, "Show emoji reactions on messages");
+	if set_toggle_row("ytdlp", "Play YouTube videos in fastcord with yt-dlp", "Uses the yt-dlp you installed to play YouTube links in the chat instead of opening your browser. It connects to YouTube from your computer.", youtube_ytdlp == YT_ON)
+		youtube_ytdlp = ifx youtube_ytdlp == YT_ON then YT_OFF else YT_ON;
+	set_divider();
 	spacer(.Y, 24);
 	set_heading("Spoiler Content");
 	SPOILERS :: string.["On click", "On servers I moderate", "Always"];
