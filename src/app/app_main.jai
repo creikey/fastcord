@@ -1215,6 +1215,8 @@ handle_results_of :: (c: *dc.Client) {
 			invite_receive(r);
 		case .Edit_Message;
 			edit_result(r);
+		case .Add_Reaction;
+			reaction_refused(r);
 		}
 		req_result(r);
 	}

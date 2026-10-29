@@ -71,10 +71,12 @@ mime_for :: (name: string) -> string {
 message_toolbar :: (m: *dc.Message) {
 	s := store();
 	own := can_edit(m);
-	quick := quick_reactions();
+	reacts := can_add_reactions(m);
+	quick := ifx reacts then quick_reactions() else .[];
 	names: [..]string;
 	names.allocator = temp;
-	array_add(*names, "reaction", ifx own then "pencil" else "arrow-angle-left-up");
+	if reacts array_add(*names, "reaction");
+	array_add(*names, ifx own then "pencil" else "arrow-angle-left-up");
 	if can_forward(m) array_add(*names, "arrow-angle-right-up");
 	if can_thread_from(m) array_add(*names, "thread");
 	array_add(*names, "more-horizontal");
@@ -259,8 +261,25 @@ react :: (m: *dc.Message, e: dc.Emoji, location: string, toggle := false) {
 		undo_cancel(it);
 		return;
 	}
-	dc.add_reaction(app.client, m.channel_id, m.id, e.name, e.id, location = location, animated = e.animated);
+	if !dc.add_reaction(app.client, m.channel_id, m.id, e.name, e.id, location = location, animated = e.animated) {
+		show_notice("Oops!", "You can’t react and super react with the same emoji. There’s a lot of emoji to choose from, so maybe try another one.", "Got It");
+		return;
+	}
 	frec_use(*frecency.reaction, frec_key_of(e.name, e.id)); // every reaction added is a use, from anywhere
+}
+
+// New reactions need Add Reactions in a server channel; without it the ones already there can still be
+// clicked (the toolbar's, menu's and pills' add buttons and quick reactions go).
+can_add_reactions :: (m: *dc.Message) -> bool {
+	ch := dc.channel_get(store(), m.channel_id);
+	return !ch || !ch.guild_id || dc.has_permission(dc.channel_permissions(store(), ch.id), dc.PERM_ADD_REACTIONS);
+}
+
+// A reaction refused with TOO_MANY_REACTIONS (403, code 30010): the client's alert (the store already
+// rolled it back).
+reaction_refused :: (r: dc.Rest_Result) {
+	if r.op == .Add_Reaction && r.status == 403 && r.error_code == 30010
+		show_notice("We appreciate the enthusiasm, but...", "Your reaction was not added because there are too many reactions on this message.");
 }
 
 send_unreact :: (u: *Undo) { if u.client dc.remove_reaction(u.client, u.b, u.a, u.s, u.c, location = u.t); }
@@ -557,8 +576,9 @@ message_menu :: () {
 	// a right-clicked link: its native items first (the client's copy-native-link / open-native-link)
 	if ma.menu_link array_add(*items, .{label = "Copy Link", icon = "link"}, .{label = "Open Link", icon = "window-launch"});
 	if sel array_add(*items, .{label = "Copy", icon = "copy", sep = ma.menu_link != ""});
-	array_add(*items, .{label = "Add Reaction", icon = "reaction", sub = true, sep = sel || ma.menu_link != ""});
-	if m.reactions array_add(*items, .{label = "View Reactions", icon = "reaction"});
+	reacts := can_add_reactions(m);
+	if reacts array_add(*items, .{label = "Add Reaction", icon = "reaction", sub = true, sep = sel || ma.menu_link != ""});
+	if m.reactions array_add(*items, .{label = "View Reactions", icon = "reaction", sep = !reacts && (sel || ma.menu_link != "")});
 	// a card outside the chat (search, pins) has no inline editor or composer to reply from
 	in_chat := m != ma.loose;
 	if in_chat && can_edit(m) array_add(*items, .{label = "Edit Message", icon = "pencil", sep = true});
@@ -577,7 +597,7 @@ message_menu :: () {
 	if remove_all array_add(*items, .{label = "Remove All Reactions", icon = "reaction", sep = true});
 	if can_manage_message(m) array_add(*items, .{label = "Delete Message", icon = "trash", danger = true, sep = !remove_all});
 	if s.settings.developer_mode array_add(*items, .{label = "Copy Message ID", icon = "id", sep = true});
-	quick := ifx sel then .[] else quick_reactions();
+	quick := ifx sel || !reacts then .[] else quick_reactions();
 	// official: 222 wide, 8px padding, 44px quick-reaction squares, 36px rows, 17px dividers
 	h := 2 * MENU_PAD + 2 + cast(float32) items.count * MENU_ROW_H + (ifx quick then MENU_QUICK + 8 else 0);
 	for items if it.sep h += MENU_SEP_H;

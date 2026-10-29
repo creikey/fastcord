@@ -72,9 +72,9 @@ emoji_upload_busy :: () -> bool { return adm.emoji_busy; }
 guild_admin_modal_open :: () -> bool { return adm.modal != .None; }
 
 // A one-button "Okay" notice (also the message actions' failures: pins).
-show_notice :: (title: string, text: string) {
+show_notice :: (title: string, text: string, button := "Okay") {
 	adm.modal = .Notice;
-	adm.notice_title = title;
+	adm.notice_title, adm.notice_button = title, button;
 	free(adm.notice);
 	adm.notice = copy_string(text);
 }
@@ -330,7 +330,7 @@ Admin_State :: struct {
 	focus_field: bool; // focus the name field on the next frame
 	busy: bool; // a create / save / delete is in flight
 	error: string; // heap; shown under the fields
-	notice_title: string; // static
+	notice_title, notice_button: string; // static
 	notice: string; // heap
 	pending_select: dc.Snowflake; // created channel to open once the gateway delivers it
 	emoji_busy: bool;
@@ -590,7 +590,7 @@ notice_modal :: () {
 	btns.style.radius = .[0, 0, 11, 11];
 	{ ui.parent(btns); defer ui.pop_parent();
 		filler(.X);
-		if adm_button("ok", "Okay", .Primary) ok = true;
+		if adm_button("ok", adm.notice_button, .Primary) ok = true;
 		spacer(.X, 25);
 	}
 	adm_modal_end();

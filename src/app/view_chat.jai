@@ -2437,8 +2437,10 @@ reactions_view :: (m: *dc.Message) {
 				else if me && net_action() dc.remove_reaction(app.client, m.channel_id, m.id, re.emoji.name, re.emoji.id, burst = true, location = "Message Inline Button");
 			}
 		}
-		if app.chat_hover == m.id || (picker_is_open() && pk.mode == .Reaction && pk.message == m.id) place(34);
-		reaction_add_button(m);
+		if can_add_reactions(m) {
+			if app.chat_hover == m.id || (picker_is_open() && pk.mode == .Reaction && pk.message == m.id) place(34);
+			reaction_add_button(m);
+		}
 		if lines ui.pop_parent();
 	}
 	spacer(.Y, 2);

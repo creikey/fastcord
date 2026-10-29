@@ -1,0 +1,12 @@
+# Runs on no_add_reactions.jsonl: a server where @everyone lacks Add Reactions. Hovering the message shows
+# no reaction button or quick reactions in its toolbar and no add button after its reactions (in the shot),
+# its menu has no Add Reaction, and the existing 👍 can still be clicked.
+wait 5
+settle 1
+move 700 578
+wait 3
+shot build/ui-no_add_reactions.png
+rclick_text "react to this"
+wait 3
+expect_visible "View Reactions"
+expect_not_visible "Add Reaction"
