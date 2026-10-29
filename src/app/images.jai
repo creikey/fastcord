@@ -43,8 +43,15 @@ image_get :: (url: string, visible := true) -> *Remote_Image {
 	im := table_find_pointer(*images, url);
 	if im {
 		im.last_use = app.frame;
-		if im.state != .Failed || !retry_due(im.retry) return im;
+		if im.state != .Failed || !retry_due(im.retry) || begins_with(url, E2E_URL) return im;
 		im.state = .Loading;
+	} else if begins_with(url, E2E_URL) {
+		// An opened encrypted file (encrypted.jai): decoded from its bytes, never fetched.
+		b := table_find_pointer(*blobs, url);
+		if !b || b.state != .Ready return null;
+		im = table_set(*images, copy_string(url), .{state = .Loading, last_use = app.frame});
+		decode_submit(.{kind = .Image, url = copy_string(url), data = array_copy(b.data)});
+		return im;
 	} else {
 		im = table_set(*images, copy_string(url), .{state = .Loading, last_use = app.frame});
 	}

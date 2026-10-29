@@ -452,8 +452,12 @@ contents :: (a: *Client, b: *Client) {
 
 	// A reply names the delivery it answers, inside the packet.
 	s := post(b, a, .Text, "answer", reply = orig_at);
-	r = land(b, a, s);
+	answer_at := copy_string(delivery());
+	r = land(b, a, s, answer_at);
 	check(r.result == .Ok && r.content == .Post && r.reply == orig_at && r.out_text == "answer", "a reply carries its target");
+	s = post(b, a, .Edit, "answer, edited", target = answer_at, reply = orig_at);
+	r = land(b, a, s, answer_at);
+	check(r.result == .Ok && r.content == .Edit && r.reply == orig_at && r.out_text == "answer, edited", tprint("an edit keeps the reply (%)", r.result));
 
 	// Files: the ciphertext goes wherever the carrier keeps files; the message holds key, digest and what it is.
 	data := cast([]u8) repeat("picture bytes ", 1000);

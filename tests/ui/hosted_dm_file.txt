@@ -1,0 +1,48 @@
+# E2E 7: in a hosted DM an image goes as ciphertext (serve keeps only encrypted.bin); our own copy
+# downloads it back, checks its digest, decrypts it and shows it as an image. A reply, an edit and a
+# reaction go inside packets too.
+wait 5
+serve_join
+serve_member Bob bundle
+settle 5
+click 36 157
+settle 3
+click 1089 244
+settle 2
+click_text "Message @Bob"
+settle 3
+expect_visible "You accepted encryption."
+type first
+key enter
+settle 3
+stage tests/scenarios/assets/test.png
+wait_attachments
+settle 2
+type a picture
+key enter
+settle 5
+expect_visible "a picture"
+expect_not_visible "encrypted.bin"
+expect_not_visible "couldn't be opened"
+rclick 600 531
+settle 1
+click_text "Reply"
+settle 1
+type answer
+key enter
+settle 3
+key up
+settle 2
+expect_input "answer"
+type -edited
+key enter
+settle 3
+expect_not_visible "Couldn't encrypt the message."
+move 600 600
+settle 1
+click 763 552
+settle 4
+move 600 640
+settle 1
+shot build/ui-hosted_dm_file.png
+expect_served

@@ -253,6 +253,7 @@ on_hosted :: () -> bool { return app.client && app.client.cfg.hosted.host != "";
 // that server (host = its ID, as serve writes them) go through it; Discord's CDN and assets go through Discord's,
 // and while a hosted server is selected with no Discord login, nowhere (null): they load offline or not at all.
 media_client :: (url: string) -> *dc.Client {
+	if begins_with(url, E2E_URL) return null; // an opened encrypted file: only in memory
 	host := url;
 	if begins_with(host, "https://") host = advance(host, "https://".count);
 	slash := find_index_from_left(host, #char "/");

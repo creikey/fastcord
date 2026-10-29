@@ -197,6 +197,7 @@ open :: (path: string) -> *Server, bool {
 	sqlite.exec(db, "ALTER TABLE messages ADD COLUMN stickers TEXT;");
 	sqlite.exec(db, "ALTER TABLE channels ADD COLUMN tags TEXT;");
 	sqlite.exec(db, "ALTER TABLE embeds ADD COLUMN rich TEXT;");
+	sqlite.exec(db, "ALTER TABLE dm_messages ADD COLUMN edited INTEGER;");
 	sqlite.exec(db, "CREATE INDEX IF NOT EXISTS messages_everyone ON messages(id) WHERE everyone = 1;");
 	sqlite.exec(db, "CREATE INDEX IF NOT EXISTS messages_nonce ON messages(author, nonce) WHERE nonce IS NOT NULL;");
 	st := sqlite.prepare(db, "SELECT 1 FROM sqlite_master WHERE name = 'message_text';");
@@ -3807,7 +3808,7 @@ MAX_UPLOADS :: 10;      // Files per message.
 UPLOAD_TTL_S :: 86400;  // An upload no message claimed by then is dropped.
 
 // POST /api/v9/channels/{id}/attachments {files: [{id, filename, file_size, original_content_type?}]}.
-request_uploads :: (c: *Conn, req: http.Request, user: s64, channel: s64) -> bool {
+request_uploads :: (c: *Conn, req: http.Request, user: s64, channel: s64, dm := false) -> bool {
 	s := c.server;
 	v, err := etf.from_json(cast(string) req.body,, temp);
 	if err != .None || v.kind != .Map return json_error(c, 400, 50035, "Invalid Form Body");
@@ -3817,7 +3818,7 @@ request_uploads :: (c: *Conn, req: http.Request, user: s64, channel: s64) -> boo
 	out.allocator = temp;
 	now := to_seconds(current_time_consensus() - APOLLO_TIME_FOR_JAN_1_1970);
 	locks.guard(*s.db_mu);
-	if channel_locked(s, channel).kind == .Nil return json_error(c, 404, 10003, "Unknown Channel");
+	if !dm && channel_locked(s, channel).kind == .Nil return json_error(c, 404, 10003, "Unknown Channel");
 	sqlite.run(s.db, "DELETE FROM uploads WHERE created < ?;", now - UPLOAD_TTL_S);
 	if !sqlite.exec(s.db, "BEGIN;") return json_error(c, 500, 0, "500: Internal Server Error");
 	for f: files_v.list {

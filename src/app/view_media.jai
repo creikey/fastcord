@@ -187,7 +187,7 @@ attachments_view :: (m: *dc.Message, max_w: float32 = 400) {
 			sig := ui.signal(img);
 			dragged := drag_out_gesture(sig, a.url, a.filename);
 			if sig.clicked && !dragged open_viewer(ifx a.proxy_url then a.proxy_url else a.url, .{a.width, a.height}, link = a.url, msg = m.id);
-			if sig.right_clicked media_menu_open(a.url, a.url);
+			if sig.right_clicked && !begins_with(a.url, E2E_URL) media_menu_open(a.url, a.url);
 			if a.description {
 				ui.parent(img);
 				alt := row("alt", .Draw_Background | .Floating_X | .Floating_Y);
@@ -1341,6 +1341,18 @@ file_download :: (a: *dc.Attachment) {
 	app.ext_actions += 1;
 	dest := platform.save_file_dialog(ifx a.filename then a.filename else download_name(a.url));
 	if !dest return;
+	b := table_find_pointer(*blobs, a.url);
+	if begins_with(a.url, E2E_URL) && b {
+		// An opened encrypted file is already in memory: written on a thread, as a download would be.
+		Save :: struct { path: string; data: []u8; }
+		dc.spawn(Save.{dest, array_copy(b.data)}, (s: Save) {
+			if !write_entire_file(s.path, s.data.data, s.data.count) log_error("cannot save %", s.path);
+			free(s.path);
+			array_free(s.data);
+		});
+		toast_show(L("File saved."), true);
+		return;
+	}
 	c := ifx app.client then media_client(a.url);
 	if !c { toast_show(L("File saved."), true); free(dest); return; } // offline runs write nothing
 	d := array_add(*file_downloads);

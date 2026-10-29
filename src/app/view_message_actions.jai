@@ -205,7 +205,7 @@ start_reply :: (m: *dc.Message) {
 
 // Yours, sent, not a forward, and a plain message or reply (type 0 or 19), not a system notice.
 can_edit :: (m: *dc.Message) -> bool {
-	return m.author_id == store().me && !m.forwarded && !m.pending && (m.kind == 0 || m.kind == 19) && !encrypted_packet(m.channel_id, m.content);
+	return m.author_id == store().me && !m.forwarded && !m.pending && (m.kind == 0 || m.kind == 19) && (!encrypted_packet(m.channel_id, m.content) || encrypted_editable(m));
 }
 
 start_edit :: (m: *dc.Message) {
@@ -213,7 +213,7 @@ start_edit :: (m: *dc.Message) {
 	ma.editing = m.id;
 	ch := dc.channel_get(store(), m.channel_id);
 	if edit_draft.msg == m.id ui.editor_set_text(*ma.edit_editor, edit_draft.text);
-	else ui.editor_set_text(*ma.edit_editor, ifx ch then mentions_readable(m.content, ch) else m.content);
+	else ui.editor_set_text(*ma.edit_editor, ifx ch then mentions_readable(shown_text(m.id, m.channel_id, m.content), ch) else m.content);
 }
 
 // An edit closed without saving (Escape, Cancel, editing another message) keeps its text: editing that
@@ -225,7 +225,7 @@ edit_stash :: () {
 	m := find_message(ma.editing);
 	text := ui.editor_text(*ma.edit_editor);
 	ch := ifx m then dc.channel_get(store(), m.channel_id) else null;
-	if m && text != (ifx ch then mentions_readable(m.content, ch) else m.content) {
+	if m && text != (ifx ch then mentions_readable(shown_text(m.id, m.channel_id, m.content), ch) else m.content) {
 		free(edit_draft.text);
 		edit_draft.msg, edit_draft.text = m.id, copy_string(text);
 	}
@@ -252,7 +252,7 @@ open_message_menu :: (m: *dc.Message, at: ui.Vec2, location := "") {
 // Removing our own reaction (toggle) shows at once and holds the DELETE (undo.jai, no toast): adding it
 // again within the window cancels the removal with nothing sent.
 react :: (m: *dc.Message, e: dc.Emoji, location: string, toggle := false) {
-	if !net_action() return;
+	if !net_action() || encrypted_react(m, e, toggle) return;
 	if toggle for m.reactions if it.me && dc.emoji_matches(it.emoji, e.id, e.name) {
 		// pushed first: it copies the name, which the store frees with the reaction
 		u := undo_push("", send_unreact, (u: *Undo) {
@@ -366,7 +366,7 @@ edit_box :: (m: *dc.Message) {
 		if text != "" && ch text = mentions_convert(emoji_convert_shortcodes(text, ch.id), ch);
 		if text == "" {
 			delete_now(m);
-		} else if text != m.content && req_begin(EDIT_REQ) {
+		} else if text != shown_text(m.id, m.channel_id, m.content) && !encrypted_edit(m.channel_id, m.id, text) && req_begin(EDIT_REQ) {
 			dc.edit_message(app.client, m.channel_id, m.id, text);
 			req_end();
 		}
@@ -510,7 +510,6 @@ reply_bar :: () {
 
 // Send what's in the composer: text, reply, staged files.
 composer_send :: (ch: *dc.Channel, text: string) -> bool {
-	if ma.replying != 0 && encrypting(ch) { toast_show(L("Replies can't be sent encrypted yet."), false); return false; } // until E2E 7
 	if !net_action() return false;
 	atts, ready := attachments_for_send(ch.id);
 	if !ready { return false; } // a file is still being read
@@ -524,11 +523,13 @@ composer_send :: (ch: *dc.Channel, text: string) -> bool {
 		if body == "" && !atts return false;
 	}
 	if encrypting(ch) {
-		if !encrypted_send(ch, body, atts.count > 0, opts.flags != 0) return false;
+		if !encrypted_send(ch, body, opts.flags != 0, ma.replying, atts) return false;
 		ma.replying = 0;
+		attachments_sent(ch.id, 0);
 		track_sent_emoji(body);
 		return true;
 	}
+	if !attachments_sealed(ch.id, false) { toast_show(L("Remove the files added while encryption was on: they'd arrive as unreadable ciphertext."), false); return false; }
 	if ma.replying != 0 {
 		opts.reply_to = ma.replying;
 		opts.reply_guild_id = ch.guild_id;
@@ -862,6 +863,7 @@ pin_now :: (m: *dc.Message, pin: bool) {
 #scope_file
 
 send_delete :: (u: *Undo) {
+	if u.client && encrypted_edit(u.b, u.a, "", delete = true) return; // edited into a Delete, as E2E 7 says
 	if u.client { req_begin(DELETE_REQ); dc.delete_message(u.client, u.b, u.a); req_end(); return; }
 	l := table_find_pointer(*store().messages, u.b); // offline (fixture) runs: gone as MESSAGE_DELETE would make it
 	i := ifx l then dc.message_index(l, u.a) else -1;

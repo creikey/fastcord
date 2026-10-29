@@ -1,6 +1,8 @@
 // Direct messages between members. Serve is only their carrier: every DM message is an end-to-end
 // encrypted packet in its `fc-` text form (`src/fc_text`), and anything else is refused, so serve relays
-// and stores what it can't read. DMs live apart from the guild's channels and messages, so nothing
+// and stores what it can't read. Files are ciphertext too (E2E 7): they upload as for a channel and are
+// kept as opaque bytes, named DM_FILE_NAME whatever the client says, up to MAX_DM_FILE_BYTES per DM, the
+// oldest going first. An edit replaces a packet with another, which is how E2E edits and deletes. DMs live apart from the guild's channels and messages, so nothing
 // guild-wide (READY's channels, search, mentions, audit) lists them; only the two members see a DM, its
 // messages, typing and read state. Messages wait here for a member who is offline, up to MAX_DM_MESSAGES
 // per DM, the oldest going first.
@@ -14,6 +16,8 @@ CREATE TABLE IF NOT EXISTS e2e_bundles(user INTEGER PRIMARY KEY, bundle TEXT NOT
 SQL
 
 MAX_DM_MESSAGES :: 10000;
+MAX_DM_FILE_BYTES :: 1 << 30;
+DM_FILE_NAME :: "encrypted.bin";
 DM :: 1; // Discord's channel type.
 
 // dm_peer_locked is the other member of DM dm, or 0 when it isn't a DM of user's. The caller holds db_mu.
@@ -58,7 +62,7 @@ dm_list_locked :: (s: *Server, user: s64) -> etf.Value {
 	return etf.vlist(list);
 }
 
-DM_SELECT :: "SELECT m.id, m.dm, m.author, u.name, m.content, m.nonce, m.flags FROM dm_messages m JOIN users u ON u.id = m.author";
+DM_SELECT :: "SELECT m.id, m.dm, m.author, u.name, m.content, m.nonce, m.flags, m.edited FROM dm_messages m JOIN users u ON u.id = m.author";
 
 row_dm_message :: (s: *Server, st: *sqlite.Stmt, with_nonce := false) -> etf.Value {
 	id := sqlite.col_int(st, 0);
@@ -69,9 +73,9 @@ row_dm_message :: (s: *Server, st: *sqlite.Stmt, with_nonce := false) -> etf.Val
 	etf.map_put(*m, "author", user_value(s, sqlite.col_int(st, 2), copy_string(sqlite.col_text(st, 3),, temp)));
 	etf.map_put(*m, "content", etf.vstring(copy_string(sqlite.col_text(st, 4),, temp)));
 	etf.map_put(*m, "timestamp", etf.vstring(iso(id)));
-	etf.map_put(*m, "edited_timestamp", .{});
+	etf.map_put(*m, "edited_timestamp", ifx sqlite.col_is_null(st, 7) then etf.Value.{} else etf.vstring(iso(sqlite.col_int(st, 7))));
 	etf.map_put(*m, "flags", etf.vint(sqlite.col_int(st, 6)));
-	etf.map_put(*m, "attachments", etf.vlist(.[]));
+	etf.map_put(*m, "attachments", attachments_locked(s, id));
 	etf.map_put(*m, "embeds", etf.vlist(.[]));
 	etf.map_put(*m, "mentions", etf.vlist(.[]));
 	etf.map_put(*m, "mention_everyone", etf.vbool(false));
@@ -144,19 +148,46 @@ dm_route :: (c: *Conn, req: http.Request, user: s64, peer: s64, dm: s64, parts: 
 		send_to(s, .[peer], "TYPING_START", etf.vmap(etf.map_done(*d)));
 		return respond(c, 204, json = false);
 	}
+	if parts.count == 2 && parts[1] == "attachments" && req.method == "POST" return request_uploads(c, req, user, dm, dm = true);
 	if parts.count < 2 || parts[1] != "messages" return json_error(c, 404, 0, "404: Not Found");
 	if parts.count == 4 && parts[3] == "ack" && req.method == "POST" {
 		message, ok := string_to_int(parts[2], T = s64);
 		if !ok return json_error(c, 404, 0, "404: Not Found");
 		return ack(c, req, user, dm, message);
 	}
+	if parts.count == 3 && req.method == "PATCH" {
+		// An edit: the author's packet replaced by another. Nothing else of a DM message changes.
+		message, ok := string_to_int(parts[2], T = s64);
+		v, err := etf.from_json(cast(string) req.body,, temp);
+		content: etf.Value;
+		if err == .None && v.kind == .Map content, _ = etf.map_get(v.map, "content");
+		if !ok || content.kind != .String return json_error(c, 400, 50035, "Invalid Form Body");
+		_, packet := fc_text.decode(content.s);
+		if !packet return json_error(c, 400, 50035, "Invalid Form Body");
+		m: etf.Value;
+		{
+			locks.guard(*s.db_mu);
+			if !sqlite.run(s.db, "UPDATE dm_messages SET content = ?, edited = ? WHERE id = ? AND dm = ? AND author = ?;", content.s, snowflake(s), message, dm, user) return json_error(c, 500, 0, "500: Internal Server Error");
+			if sqlite.changes(s.db) != 1 return json_error(c, 404, 10008, "Unknown Message");
+			st := sqlite.prepare(s.db, tprint("% WHERE m.id = ?;", DM_SELECT));
+			sqlite.bind(st, 1, message);
+			if sqlite.step(st) == .Row m = row_dm_message(s, st);
+			sqlite.finalize(st);
+		}
+		send_to(s, .[user, peer], "MESSAGE_UPDATE", m);
+		return json_reply(c, 200, m);
+	}
 	if parts.count == 3 && req.method == "DELETE" {
 		message, ok := string_to_int(parts[2], T = s64);
 		if !ok return json_error(c, 404, 0, "404: Not Found");
 		{
 			locks.guard(*s.db_mu);
-			if !sqlite.run(s.db, "DELETE FROM dm_messages WHERE id = ? AND dm = ? AND author = ?;", message, dm, user) return json_error(c, 500, 0, "500: Internal Server Error");
-			if sqlite.changes(s.db) != 1 return json_error(c, 404, 10008, "Unknown Message");
+			ok = sqlite.exec(s.db, "BEGIN;")
+				&& sqlite.run(s.db, "DELETE FROM attachments WHERE message = (SELECT id FROM dm_messages WHERE id = ? AND dm = ? AND author = ?);", message, dm, user)
+				&& sqlite.run(s.db, "DELETE FROM dm_messages WHERE id = ? AND dm = ? AND author = ?;", message, dm, user);
+			found := sqlite.changes(s.db) == 1;
+			if !ok || !sqlite.exec(s.db, "COMMIT;") { sqlite.exec(s.db, "ROLLBACK;"); return json_error(c, 500, 0, "500: Internal Server Error"); }
+			if !found return json_error(c, 404, 10008, "Unknown Message");
 		}
 		d := etf.map_builder(2,, temp);
 		etf.map_put(*d, "id", snow(message));
@@ -204,8 +235,10 @@ dm_route :: (c: *Conn, req: http.Request, user: s64, peer: s64, dm: s64, parts: 
 	content, _ := etf.map_get(v.map, "content");
 	nonce, _ := etf.map_get(v.map, "nonce");
 	flags_v, _ := etf.map_get(v.map, "flags");
-	// Only a packet: no files, stickers, polls, replies or forwards, which would go in the clear.
-	for string.["attachments", "sticker_ids", "poll", "message_reference"] {
+	// Only a packet and its files: no stickers, polls, replies or forwards, which would go in the clear.
+	atts, _ := etf.map_get(v.map, "attachments");
+	if (atts.kind != .Nil && atts.kind != .List) || (atts.kind == .List && atts.list.count > MAX_UPLOADS) return json_error(c, 400, 50035, "Invalid Form Body");
+	for string.["sticker_ids", "poll", "message_reference"] {
 		x, _ := etf.map_get(v.map, it);
 		if x.kind != .Nil && !(x.kind == .List && !x.list.count) return json_error(c, 400, 50035, "Invalid Form Body");
 	}
@@ -244,8 +277,22 @@ dm_route :: (c: *Conn, req: http.Request, user: s64, peer: s64, dm: s64, parts: 
 		sqlite.finalize(st);
 		// Each unread DM message counts as a mention for the peer, as on Discord; the author has read it.
 		ok := sqlite.exec(s.db, "BEGIN;")
-			&& sqlite.run(s.db, "INSERT INTO dm_messages(id, dm, author, content, nonce, flags) VALUES(?, ?, ?, ?, nullif(?, ''), ?);", id, dm, user, content.s, nonce_s, flags)
+			&& sqlite.run(s.db, "INSERT INTO dm_messages(id, dm, author, content, nonce, flags) VALUES(?, ?, ?, ?, nullif(?, ''), ?);", id, dm, user, content.s, nonce_s, flags);
+		if atts.kind == .List for a: atts.list {
+			// Each a ciphertext uploaded to this DM: named and typed alike, so serve says nothing of what it is.
+			token: etf.Value;
+			if a.kind == .Map token, _ = etf.map_get(a.map, "uploaded_filename");
+			key: [8]u8;
+			crypto.random_bytes(key);
+			ok = ok && token.kind == .String && sqlite.run(s.db, "INSERT INTO attachments(id, message, key, filename, content_type, size, width, height, description, data) SELECT ?, ?, ?, ?, 'application/octet-stream', size, 0, 0, '', data FROM uploads WHERE token = ? AND user = ? AND channel = ? AND data IS NOT NULL;",
+					snowflake(s), id, hex(key,, temp), DM_FILE_NAME, token.s, user, dm)
+				&& sqlite.changes(s.db) == 1 && sqlite.run(s.db, "DELETE FROM uploads WHERE token = ?;", token.s);
+			if !ok { sqlite.exec(s.db, "ROLLBACK;"); return json_error(c, 400, 50035, "Invalid Form Body"); }
+		}
+		ok = ok
+			&& sqlite.run(s.db, "DELETE FROM attachments WHERE message IN (SELECT id FROM dm_messages WHERE dm = ?1 AND id NOT IN (SELECT id FROM dm_messages WHERE dm = ?1 ORDER BY id DESC LIMIT ?2));", dm, MAX_DM_MESSAGES)
 			&& sqlite.run(s.db, "DELETE FROM dm_messages WHERE dm = ?1 AND id NOT IN (SELECT id FROM dm_messages WHERE dm = ?1 ORDER BY id DESC LIMIT ?2);", dm, MAX_DM_MESSAGES)
+			&& sqlite.run(s.db, "DELETE FROM attachments WHERE id IN (SELECT id FROM (SELECT a.id, sum(a.size) OVER (ORDER BY a.id DESC) AS total FROM attachments a JOIN dm_messages m ON m.id = a.message WHERE m.dm = ?) WHERE total > ?);", dm, MAX_DM_FILE_BYTES)
 			&& sqlite.run(s.db, "DELETE FROM dm_closed WHERE dm = ?;", dm)
 			&& sqlite.run(s.db, "INSERT INTO read_states(user, channel, last, mentions) VALUES(?, ?, 0, 1) ON CONFLICT(user, channel) DO UPDATE SET mentions = mentions + 1;", peer, dm)
 			&& sqlite.run(s.db, "INSERT OR REPLACE INTO read_states(user, channel, last, mentions) VALUES(?, ?, ?, 0);", user, dm, id)

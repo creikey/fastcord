@@ -97,14 +97,14 @@ main :: () {
 	check(status == 200 && id_of(body) == tprint("%", dm), "opening it again gives the same DM");
 	messages := tprint("/api/v9/channels/%/messages", dm);
 
-	// Only packets: plaintext, files and replies are refused.
+	// Only packets: plaintext, files never uploaded and replies are refused.
 	status, body = rest("POST", messages, "{\"content\": \"hello in the clear\"}", a_token);
 	check(status == 400, tprint("plaintext refused: %", status));
 	status, body = rest("POST", messages, "{\"content\": \"fc-AA+A\"}", a_token);
 	check(status == 400, tprint("a malformed packet refused: %", status));
 	packet := fc_text.encode(cast([]u8) "\x04\x03 an opaque packet");
 	status, body = rest("POST", messages, tprint("{\"content\": \"%\", \"attachments\": [{\"id\": \"0\", \"filename\": \"x\"}]}", packet), a_token);
-	check(status == 400, tprint("files refused: %", status));
+	check(status == 400, tprint("a file never uploaded is refused: %", status));
 	status, body = rest("POST", messages, tprint("{\"content\": \"%\", \"nonce\": \"77\"}", packet), a_token);
 	check(status == 200 && contains(body, packet) && !contains(body, "guild_id"), tprint("a packet is relayed: % %", status, body));
 	first := id_of(body);
@@ -156,7 +156,35 @@ main :: () {
 	found, l = table_find(*a.store.messages, dm);
 	check(found && l.messages.count == 2 && l.messages[1].content == reply, "Alice gets the answer");
 
-	// Deleting: only your own.
+	// Files are ciphertext uploaded to the DM, kept as encrypted.bin whatever the client called them.
+	status, body = rest("POST", tprint("/api/v9/channels/%/attachments", dm), "{\"files\": [{\"id\": \"0\", \"filename\": \"cat.png\", \"file_size\": 20}]}", a_token);
+	up := etf.from_json(body,, temp);
+	token := "";
+	if status == 200 && up.kind == .Map {
+		list := etf.map_get(up.map, "attachments");
+		if list.kind == .List && list.list.count == 1 token = etf.map_get(list.list[0].map, "upload_filename").s;
+	}
+	check(token != "", tprint("an upload to the DM: % %", status, body));
+	status, body = rest("PUT", tprint("/upload/%", token), "twenty opaque bytes!", "");
+	check(status == 200, tprint("its bytes: % %", status, body));
+	status, body = rest("POST", messages, tprint("{\"content\": \"%\", \"attachments\": [{\"id\": \"0\", \"filename\": \"cat.png\", \"uploaded_filename\": \"%\"}]}", packet, token), a_token);
+	check(status == 200 && contains(body, "encrypted.bin") && contains(body, "application/octet-stream") && !contains(body, "cat.png"), tprint("a packet with its file: % %", status, body));
+	with_file := id_of(body);
+	status, body = rest("POST", messages, tprint("{\"content\": \"%\", \"attachments\": [{\"id\": \"0\", \"filename\": \"cat.png\", \"uploaded_filename\": \"%\"}]}", packet, token), a_token);
+	check(status == 400, tprint("an upload is used once: %", status));
+
+	// An edit replaces the author's packet with another; nothing else of the message changes.
+	edited := fc_text.encode(cast([]u8) "\x04\x03 edited packet");
+	status, body = rest("PATCH", tprint("%/%", messages, with_file), "{\"content\": \"edited in the clear\"}", a_token);
+	check(status == 400, tprint("an edit to plaintext is refused: %", status));
+	status, body = rest("PATCH", tprint("%/%", messages, with_file), tprint("{\"content\": \"%\"}", edited), a_token);
+	check(status == 200 && contains(body, edited) && contains(body, "encrypted.bin") && !contains(body, "\"edited_timestamp\":null"), tprint("an edit: % %", status, body));
+	status, body = rest("DELETE", tprint("%/%", messages, with_file), "", a_token);
+	check(status == 204, tprint("deleting it takes its file: %", status));
+
+	// Editing and deleting: only your own.
+	status, body = rest("PATCH", tprint("%/%", messages, answer), tprint("{\"content\": \"%\"}", edited), a_token);
+	check(status == 404, tprint("no editing someone else's: %", status));
 	status, body = rest("DELETE", tprint("%/%", messages, answer), "", a_token);
 	check(status == 404, tprint("not someone else's: %", status));
 	status, body = rest("DELETE", tprint("%/%", messages, answer), "", b_token);

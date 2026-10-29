@@ -84,6 +84,7 @@ Allow message requests from server members you may not know
 Allow voice channel participants to join your game
 Allowed words
 An emoji name, like smile
+An encrypted file couldn't be opened.|% encrypted files couldn't be opened.
 An error occurred, please try again.
 An error occurred. Please try again.
 Announcement Channel
@@ -159,6 +160,7 @@ Channel Topic
 Channel Type
 Channel unmuted
 Channels Followed (%)
+Chat Font Scaling
 Check your email for a login link
 Check your phone!
 Checking the file…
@@ -181,6 +183,7 @@ Commands matching /%
 Community Updates Channel
 Community servers follow Discord's Community Guidelines.
 Community servers have more tools to help you moderate and grow your server.
+Compact
 Compare
 Compare these with %, in person or on a call. If they match, no one can read this DM in between.##note
 Confirm
@@ -236,6 +239,7 @@ Couldn't save the file.
 Couldn't save the image.
 Couldn't turn on encryption.
 Couldn't upload emoji
+Cozy
 Create
 Create Category
 Create Channel
@@ -286,6 +290,7 @@ Delete Template##deltpl
 Delete Thread
 Delete Webhook##del
 Delete##sbdel
+Deleted message
 Describe your sticker
 Description
 Description (alt text)
@@ -389,7 +394,6 @@ Favorites
 File
 File saved.
 Filename
-Files can't be sent encrypted yet.
 Fill out the details of your event.
 Filter by Action
 Filter by User
@@ -397,6 +401,7 @@ Find or start a conversation##btn
 Finding the video%
 Finish
 Finishing touches
+Fit more messages on screen at one time. #IRC
 Flagged as spam
 Folder Color
 Folder Name
@@ -568,6 +573,7 @@ Mention raid protection
 Mention removed
 Message
 Message @%##msgbtn
+Message Display
 Message Requests
 Message deleted
 Message failed to send.
@@ -580,6 +586,7 @@ Minimize to Tray
 Mobile Push Notifications
 Moderators must have two-factor authentication enabled to ban, kick, or timeout members and delete messages.
 Moderators only##mod
+Modern, beautiful, and easy on your eyes.
 Motion
 Move To
 Move to Audience
@@ -760,12 +767,13 @@ Remove Vote
 Remove all embeds
 Remove from Favorites
 Remove notification override for %
+Remove the files added before encryption was on: they'd go unencrypted.
+Remove the files added while encryption was on: they'd arrive as unreadable ciphertext.
 Remove##hrm
 Remove##rm
 Remove##rmow
 Removing…##rmtotp
 Repeated encrypted message
-Replies can't be sent encrypted yet.
 Replying to
 Request Data##harvest
 Request all of my Data
@@ -945,6 +953,7 @@ That file couldn't be read. Server icons must be PNG, JPEG, GIF or WEBP images.
 That file is too large. Stickers must be under 512 KB.
 That image is too large. Avatars must be under %.
 That image is too large. Server icons must be under 512 KB.
+That's too long to send encrypted.
 The Pin Is Stuck!
 The badge chosen in the official client stays as it is.
 The invite is invalid or has expired.

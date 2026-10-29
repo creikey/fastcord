@@ -74,7 +74,7 @@ forward_send :: () {
 		dc.send_message(app.client, fwd.dest, "", opts);
 		note := trim(ui.editor_text(*fwd.note));
 		dest := dc.channel_get(s, fwd.dest);
-		if note && encrypting(dest) encrypted_send(dest, note, false, false);
+		if note && encrypting(dest) encrypted_send(dest, note, false);
 		else if note dc.send_message(app.client, fwd.dest, note);
 	}
 	fwd.msg = 0;

@@ -35,6 +35,8 @@ Staged :: struct {
 	data: []u8; // videos keep their bytes for the poster player
 	player: *media.Player;
 	poster: media.Video_Image;
+	sealed: bool; // staged in an encrypted DM: what uploads is its ciphertext (e2e.seal_file)
+	file: e2e.File; // then its key, digest, size and dimensions
 }
 
 Att_Notice :: enum u8 {
@@ -215,6 +217,8 @@ Att_Result :: struct {
 	blur: []u8;
 	bw, bh: int;
 	paths: []string; // Paste_Files: the clipboard's files
+	sealed: []u8; // the ciphertext, when staged in an encrypted DM
+	file: e2e.File;
 }
 // Jobs still running (tests wait for them).
 attachments_busy :: () -> bool {
@@ -330,6 +334,7 @@ attachments_frame :: () {
 		defer {
 			free(r.thumb.data);
 			free(r.blur.data);
+			free(r.sealed.data);
 			for r.paths free(it);
 			free(r.paths.data);
 		}
@@ -373,7 +378,10 @@ attachments_frame :: () {
 			u.thumb_size = .{r.tw, r.th};
 			u.blur = gfx.texture_from_rgba(r.bw, r.bh, r.blur);
 		}
-		if app.client u.draft = dc.upload_draft(app.client, r.channel, u.filename, u.mime, r.data, u.origin);
+		// In an encrypted DM only the ciphertext uploads, under a name and type that say nothing.
+		u.sealed, u.file = r.sealed.data != null, r.file;
+		if app.client && u.sealed u.draft = dc.upload_draft(app.client, r.channel, ENCRYPTED_NAME, "application/octet-stream", r.sealed, u.origin);
+		else if app.client u.draft = dc.upload_draft(app.client, r.channel, u.filename, u.mime, r.data, u.origin);
 		if u.kind == .Video {
 			u.data = r.data; // the poster player reads it in place
 			ensure_audio();
@@ -420,14 +428,30 @@ attachments_frame :: () {
 }
 
 // Send: the composer's staged files go with the message (they are already uploading).
-// Returns false while a file is still being read.
+// Returns false while a file is still being read. A sealed file goes as ENCRYPTED_NAME with nothing else.
 attachments_for_send :: (channel_id: dc.Snowflake) -> []dc.Draft_Attachment, bool {
 	l := table_find_pointer(*att.by_channel, channel_id);
 	if !l || !l.count return .[], true;
 	out := NewArray(l.count, dc.Draft_Attachment,, temp);
 	for l.* {
 		if it.loading return .[], false;
-		out[it_index] = .{handle = it.draft, filename = it.filename, description = it.description, spoiler = it.spoiler};
+		out[it_index] = ifx it.sealed then dc.Draft_Attachment.{handle = it.draft, filename = ENCRYPTED_NAME} else .{handle = it.draft, filename = it.filename, description = it.description, spoiler = it.spoiler};
+	}
+	return out, true;
+}
+
+// attachments_sealed: what the encrypted message says of each staged file, in upload order (temp), or
+// false when one was staged before encryption was on (or after it went off) and so uploads in the open.
+attachments_sealed :: (channel_id: dc.Snowflake, sealing: bool) -> []e2e.File, bool {
+	l := table_find_pointer(*att.by_channel, channel_id);
+	if !l || !l.count return .[], true;
+	out := NewArray(l.count, e2e.File,, temp);
+	for l.* {
+		if it.sealed != sealing return .[], false;
+		f := *out[it_index];
+		f.* = it.file;
+		f.name, f.mime, f.description, f.spoiler = it.filename, it.mime, it.description, it.spoiler;
+		if it.kind == .Video && it.poster.y f.width, f.height = it.poster.size[0], it.poster.size[1];
 	}
 	return out, true;
 }
@@ -778,6 +802,7 @@ Att_Job :: struct {
 	path: string;
 	mime: string;
 	limit: s64;
+	seal: bool; // staged in an encrypted DM
 }
 
 // A worker's Jai *Thread (local.jai's fc Thread alias hides the name for now).
@@ -787,6 +812,8 @@ att_spawn :: (j: Att_Job) {
 	job := j;
 	job.path = copy_string(j.path);
 	job.mime = copy_string(j.mime);
+	job.seal = encrypting(dc.channel_get(store(), j.channel));
+	if job.seal job.limit -= e2e.FILE_BLOCK + e2e.TAG_BYTES; // the ciphertext must fit the limit too
 	array_add(*att.threads, dc.spawn(job, att_work));
 }
 
@@ -814,8 +841,10 @@ att_work :: (j: Att_Job) {
 			if err == .None && img.frames {
 				res.thumb, res.tw, res.th = downscale(img.frames[0].pixels, img.width, img.height, 400);
 				res.blur, res.bw, res.bh = downscale(res.thumb, res.tw, res.th, 12);
+				res.file.width, res.file.height = img.width, img.height;
 			}
 		}
+		if j.seal res.sealed = e2e.seal_file(res.data, *res.file);
 	}
 	locks.lock(*att.mu);
 	array_add(*att.results, res);

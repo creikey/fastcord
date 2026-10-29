@@ -1163,6 +1163,7 @@ message_list :: (channel_id: dc.Snowflake, cs: *Chat_State) {
 	// Scrolling is managed here (anchored to the bottom), not by ui's scroll offset.
 	list.flags &= ~ui.Box_Flag.Scroll_Y;
 	msgs := dc.messages_get(s, channel_id);
+	encrypted_prepare(channel_id, msgs);
 	view_h := list.rect.y1 - list.rect.y0;
 	if view_h <= 0 view_h = app.ui.window.y;
 
@@ -1329,15 +1330,16 @@ message_list :: (channel_id: dc.Snowflake, cs: *Chat_State) {
 			for i: max(i0, 0)..i1 {
 				m := *msgs[i];
 				ui.id_scope(m.id); defer ui.pop_seed();
-				if message_held(m.id) { // deleted, behind Undo
+				if message_held(m.id) || encrypted_hidden(m) { // deleted, behind Undo, or an encrypted reaction or delete
 					ok, old := table_find(*cs.heights, m.id);
 					if ok cs.height_sum -= old;
 					table_set(*cs.heights, m.id, 0);
 					continue;
 				}
 				p := i - 1;
-				while p >= 0 && message_held(msgs[p].id) p -= 1;
+				while p >= 0 && (message_held(msgs[p].id) || encrypted_hidden(*msgs[p])) p -= 1;
 				prev: *dc.Message = ifx p >= 0 then *msgs[p] else null;
+				m = encrypted_view(m); // its reply, files and reactions, from inside the packet
 				new_day := prev == null || day_of(prev.id) != day_of(m.id);
 				show_new := cs.unread_after != 0 && m.id > cs.unread_after && (prev == null || prev.id <= cs.unread_after) && m.author_id != s.me;
 				grouped := continues_group(prev, m) && !show_new;
