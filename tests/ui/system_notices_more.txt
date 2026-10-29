@@ -1,7 +1,0 @@
-# Runs on system_notices_more.jsonl. Checked in the shot: a thread's starter message (the parent message, by
-# its author, and the notice when it can't load), an AutoMod alert, a role subscription, security actions and
-# a raid report. The invite reminder (type 22) isn't drawn, as in the client.
-wait 5
-settle 1
-expect_visible "The first message of the thread, by Sam"
-shot build/ui-system_notices_more.png

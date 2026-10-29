@@ -1029,11 +1029,10 @@ embeds_view :: (m: *dc.Message, max_w: float32 = 400) {
 				spacer(.X, 16);
 				tw, tht := cast(float32) e.thumbnail_w, cast(float32) max(e.thumbnail_h, 1);
 				tsc := min(80 / tw, 80 / tht);
-				th := media_box("thumb", e.thumbnail_url, "", tw * tsc, tht * tsc);
+				th := ui.box("thumb", .Draw_Background);
+				th.semantic_size = .[ui.px(tw * tsc), ui.px(tht * tsc)];
 				th.style.radius = all4(4);
-				sig := ui.signal(th);
-				if sig.clicked open_viewer(e.thumbnail_url, .{e.thumbnail_w, e.thumbnail_h}, msg = m.id);
-				if sig.right_clicked media_menu_open(e.thumbnail_url, e.thumbnail_url);
+				set_remote_image(th, e.thumbnail_url);
 			}
 			spacer(.X, 16);
 		}

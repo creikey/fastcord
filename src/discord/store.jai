@@ -625,21 +625,6 @@ parse_message_fields :: (s: *Store, msg: *Message, m: etf.Map) {
 	} else if ref {
 		msg.referenced_id = fsnow(ref, "message_id");
 		if msg.kind == 18 msg.forward_channel_id = fsnow(ref, "channel_id"); // THREAD_CREATED: the thread
-		// THREAD_STARTER_MESSAGE: the parent message shown as itself, by its author; without it, a notice
-		rm := fmap(m, "referenced_message");
-		if msg.kind == 21 && rm {
-			parse_message_content(s, msg, rm);
-			ra := fmap(rm, "author");
-			if ra msg.author_id = parse_user_into(s, ra);
-			msg.referenced_id = 0;
-		}
-	}
-	rs := fmap(m, "role_subscription_data");
-	if rs {
-		tier := fstr(rs, "tier_name");
-		set_str(s, *msg.content, slice(tier, 0, min(tier.count, 100)));
-		msg.sub_months = clamp(fint(rs, "total_months_subscribed"), 0, 10_000);
-		msg.sub_renewal = fbool(rs, "is_renewal");
 	}
 	// "X used /command": interaction_metadata (its name when the API sends one), else the older interaction
 	im, old := fmap(m, "interaction_metadata"), fmap(m, "interaction");
@@ -781,40 +766,6 @@ upsert_message :: (s: *Store, m: etf.Map) -> Snowflake {
 
 // ---- presence / voice / misc ----
 
-free_presence :: (s: *Store, p: *Presence) {
-	a := s.allocator;
-	free_str(p.activity, a);
-	free_str(p.custom, a);
-	free_str(p.game, a);
-	r := *p.rich;
-	for string.[r.name, r.details, r.state, r.large_image, r.large_text, r.small_image, r.small_text, r.sync_id] free_str(it, a);
-}
-
-// parse_activity: one rich presence activity, every string capped (another user's, so untrusted).
-parse_activity :: (s: *Store, m: etf.Map) -> Activity {
-	str :: (m: etf.Map, k: string) -> string #expand {
-		v := fstr(m, k);
-		if v.count > 128 {
-			v.count = 128;
-			while v.count > 0 && (v.data[v.count] & 0xC0) == 0x80 v.count -= 1; // on a UTF-8 boundary
-		}
-		return clone_str(v, `s.allocator);
-	}
-	ts := fmap(m, "timestamps");
-	as := fmap(m, "assets");
-	size := flist(fmap(m, "party"), "size");
-	return .{
-		kind = fint(m, "type"),
-		name = str(m, "name"), details = str(m, "details"), state = str(m, "state"),
-		app_id = fsnow(m, "application_id"),
-		start_ms = fint(ts, "start"), end_ms = fint(ts, "end"),
-		large_image = str(as, "large_image"), large_text = str(as, "large_text"),
-		small_image = str(as, "small_image"), small_text = str(as, "small_text"),
-		party = .[ifx size.count == 2 then clamp(vint(size[0]), 0, 1_000_000) else 0, ifx size.count == 2 then clamp(vint(size[1]), 0, 1_000_000) else 0],
-		sync_id = str(m, "sync_id"),
-	};
-}
-
 apply_presence :: (s: *Store, m: etf.Map, user_hint: Snowflake = 0) {
 	uid := user_hint;
 	um := fmap(m, "user");
@@ -833,10 +784,9 @@ apply_presence :: (s: *Store, m: etf.Map, user_hint: Snowflake = 0) {
 		p.web = status_from_string(fstr(cs, "web"));
 	}
 	old := table_find_pointer(*s.presences, uid);
-	if old free_presence(s, old);
+	if old { free_str(old.activity, s.allocator); free_str(old.custom, s.allocator); free_str(old.game, s.allocator); }
 	for flist(m, "activities") {
 		am := vmap(it);
-		if fint(am, "type") != 4 && p.rich.kind < 0 && fint(am, "type") >= 0 && fint(am, "type") <= 5 p.rich = parse_activity(s, am);
 		if it_index < 8 p.activity_types |= cast(u32) ((fint(am, "type") + 1) & 0xF) << (4 * it_index);
 		txt := ifx fint(am, "type") == 4 then fstr(am, "state") else fstr(am, "name");
 		if txt && !p.activity p.activity = clone_str(txt, s.allocator);
@@ -1819,7 +1769,7 @@ store_reset_session :: (s: *Store) {
 		deinit(gm);
 	}
 	table_reset(*s.members);
-	for * s.presences free_presence(s, it);
+	for s.presences { free_str(it.activity, a); free_str(it.custom, a); free_str(it.game, a); }
 	table_reset(*s.presences);
 	for s.relationships {
 		free_str(it.nickname, a);

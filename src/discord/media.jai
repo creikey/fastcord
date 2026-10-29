@@ -292,13 +292,12 @@ media_get :: (c: *Client, url: string, kind: Media_Kind, visible: bool, referer:
 
 // media_host_ok: media privacy. A URL a server sends can point anywhere, and fetching it shows the viewer's
 // IP to whoever runs that host, so Discord's media loads only from Discord's own hosts (its CDN and media
-// proxy, which fetches outside images for us), the GIF picker's Tenor and Spotify's album art (a Listening
-// activity's `spotify:` asset), as the official client's does.
+// proxy, which fetches outside images for us) and the GIF picker's Tenor, as the official client's does.
 // A hosted server's requests all reach the pinned server whatever the host (hosted_round_trip).
 media_host_ok :: (c: *Client, host: string) -> bool {
 	if c.cfg.hosted.host return true;
 	return host == "discord.com" || ends_with(host, ".discord.com") || ends_with(host, ".discordapp.com")
-		|| ends_with(host, ".discordapp.net") || host == "media.tenor.com" || host == "i.scdn.co"; // Spotify's album art, as the client loads it
+		|| ends_with(host, ".discordapp.net") || host == "media.tenor.com";
 }
 
 // run_media executes a media job on a worker thread.

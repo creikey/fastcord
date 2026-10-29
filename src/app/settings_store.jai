@@ -62,6 +62,7 @@ Persisted :: struct {
 	reduce_motion: bool; // Accessibility > Reduced Motion
 	role_colors: int; // Accessibility > role colours: 0 in names, 1 next to names, 2 hidden
 	group_spacing: int = 16; // Accessibility > Space between message groups, px
+	chat_font: int = 16; // Appearance > Chat Font Scaling, px (CHAT_FONT_SIZES)
 	saturation: int = 100; // Accessibility > Saturation, percent
 	notify: Persisted_Notify;
 	voice: Persisted_Voice;
@@ -317,6 +318,7 @@ apply_persisted :: (p: *Persisted) {
 	a11y.reduce_motion, a11y.role_colors = p.reduce_motion, clamp(p.role_colors, 0, 2);
 	a11y.group_spacing = ifx array_find(GROUP_SPACINGS, p.group_spacing) then p.group_spacing else 16;
 	a11y.saturation = clamp(p.saturation, 0, 100);
+	chat_font_px = ifx array_find(CHAT_FONT_SIZES, p.chat_font) then p.chat_font else 16;
 	notify_prefs = p.notify;
 	voice_settings_restore(*p.voice);
 	keybinds_restore(p.keybinds, p.voice.ptt_key);
@@ -362,6 +364,7 @@ snapshot :: () -> string {
 	p.install_declined = install_declined;
 	p.zoom = zoom_pct;
 	p.reduce_motion, p.role_colors, p.group_spacing, p.saturation = a11y.reduce_motion, a11y.role_colors, a11y.group_spacing, a11y.saturation;
+	p.chat_font = chat_font_px;
 	p.notify = notify_prefs;
 	voice_settings_snapshot(*p.voice);
 	sounds_snapshot(*p.sounds);

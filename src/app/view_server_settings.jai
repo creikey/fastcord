@@ -1006,6 +1006,35 @@ section_heading :: (id: string, title: string, help := "") {
 }
 
 #scope_export
+
+// A choice with a description under it (radio on the left); true when picked.
+radio_choice :: (id: string, title: string, desc: string, on: bool, enabled := true) -> bool {
+	r := row(id, .Clickable | .Draw_Background | .Hot_Animation);
+	r.semantic_size = .[ui.pct(1), ui.children()];
+	r.style.radius = all4(8);
+	r.style.bg = ifx on then T("--background-mod-normal") else T("--background-mod-subtle");
+	r.style.bg_hot = T("--background-mod-normal");
+	r.hover_cursor = .Pointer;
+	if !enabled r.flags |= .Disabled;
+	sig := ui.signal(r);
+	{ ui.parent(r); defer ui.pop_parent();
+		spacer(.X, 12);
+		radio_dot(on);
+		spacer(.X, 12);
+		col := ui.box("col");
+		col.semantic_size = .[ui.fill(), ui.children()];
+		col.layout_axis = .Y;
+		ui.parent(col); defer ui.pop_parent();
+		spacer(.Y, 10);
+		label(title, .Medium, 16, T("--text-strong"), 20);
+		spacer(.Y, 2);
+		set_para("d", desc, .Normal, 14, 18, T("--text-muted"));
+		spacer(.Y, 10);
+	}
+	spacer(.Y, 8);
+	return sig.clicked && !on && enabled;
+}
+
 // A select field showing current; returns the option picked this frame (-1 for none). The option list
 // is drawn by dropdown_list at the end of the layer (here and in User Settings).
 select_field ::(id: string, options: []string, current: int) -> int {
@@ -2520,34 +2549,6 @@ EXPLICIT :: struct { value: int; name: string; desc: string; }.[
 	.{1, "Filter messages from server members without roles", "Messages from server members without a role will be filtered for sensitive image-based media."},
 	.{0, "Do not filter", "Messages will not be filtered for sensitive image-based media."},
 ];
-
-// A choice with a description under it (radio on the left); true when picked.
-radio_choice :: (id: string, title: string, desc: string, on: bool, enabled := true) -> bool {
-	r := row(id, .Clickable | .Draw_Background | .Hot_Animation);
-	r.semantic_size = .[ui.pct(1), ui.children()];
-	r.style.radius = all4(8);
-	r.style.bg = ifx on then T("--background-mod-normal") else T("--background-mod-subtle");
-	r.style.bg_hot = T("--background-mod-normal");
-	r.hover_cursor = .Pointer;
-	if !enabled r.flags |= .Disabled;
-	sig := ui.signal(r);
-	{ ui.parent(r); defer ui.pop_parent();
-		spacer(.X, 12);
-		radio_dot(on);
-		spacer(.X, 12);
-		col := ui.box("col");
-		col.semantic_size = .[ui.fill(), ui.children()];
-		col.layout_axis = .Y;
-		ui.parent(col); defer ui.pop_parent();
-		spacer(.Y, 10);
-		label(title, .Medium, 16, T("--text-strong"), 20);
-		spacer(.Y, 2);
-		set_para("d", desc, .Normal, 14, 18, T("--text-muted"));
-		spacer(.Y, 10);
-	}
-	spacer(.Y, 8);
-	return sig.clicked && !on && enabled;
-}
 
 AUTOMOD_KEYWORD :: 1;
 AUTOMOD_SPAM :: 3;

@@ -2,9 +2,28 @@
 MSG_GUTTER :: 72; // content x offset
 MSG_AVATAR :: 40;
 MSG_GROUP_GAP :: 17; // space above the first message of a group (by default: group_gap())
-group_gap :: () -> float32 { return cast(float32) a11y.group_spacing + 1; } // Accessibility > Space between message groups
+// Accessibility > Space between message groups; Compact's default is 0 (the client's default per display)
+group_gap :: () -> float32 { return cast(float32) (ifx message_compact() && a11y.group_spacing == 16 then 0 else a11y.group_spacing) + 1; }
 MSG_LINE_H :: 22;
 MSG_FONT :: 16;
+
+// Appearance > Chat Font Scaling (settings.json): message text in px; the client's slider marks. Messages'
+// text sizes and line heights scale with it (chat_px), as rem does in the client; avatars and the gutter don't.
+CHAT_FONT_SIZES :: int.[12, 14, 15, 16, 18, 20, 24];
+chat_font_px := 16;
+chat_px :: (px: float32) -> float32 { return ifx chat_font_px == 16 then px else floor(px * cast(float32) chat_font_px / 16 + 0.5); }
+
+// Appearance > Message Display: Compact (text_and_images.message_display_compact, 6.17, a BoolValue, off
+// while unset): no avatars, each group's first line is "time name text", the time in the gutter.
+message_compact :: () -> bool {
+	if compact_frame != app.frame {
+		v, set := dc.settings_value(store(), 6, 17, 1);
+		compact_frame, compact_on = app.frame, set && v != 0;
+	}
+	return compact_on;
+}
+compact_frame: u64;
+compact_on: bool;
 MSG_SCROLL_GUTTER :: 16;
 MSG_PAD_R :: 48; // content padding-right (room for the hover toolbar)
 MSG_EDIT_PAD_R :: 23; // the inline edit form ends 23px from the item edge
@@ -21,20 +40,12 @@ MSG_BOOST :: 8; // 8: boosted (content: how many times), 9-11: and reached level
 MSG_CHANNEL_FOLLOW :: 12; // CHANNEL_FOLLOW_ADD: content is the followed channel's name
 MSG_DISCOVERY_FIRST :: 14; // 14-17: removed from / back in Server Discovery, and its two grace-period warnings
 MSG_THREAD_CREATED :: 18; // content is the thread's name, message_reference.channel_id the thread
-MSG_THREAD_STARTER :: 21; // the thread's first message: the parent message (store.jai), a notice when it's gone
-MSG_INVITE_REMINDER :: 22; // GUILD_INVITE_REMINDER: the client doesn't draw it
-MSG_AUTOMOD :: 24; // AUTO_MODERATION_ACTION: an auto_moderation_message embed
-MSG_ROLE_SUB :: 25; // ROLE_SUBSCRIPTION_PURCHASE
 MSG_STAGE_FIRST :: 27; // 27-31: STAGE_START, STAGE_END, STAGE_SPEAKER, STAGE_RAISE_HAND, STAGE_TOPIC
-MSG_INCIDENT_FIRST :: 36; // 36-39: security actions enabled / disabled, raid reported, false alarm
 
 // Drawn as a one-line notice (system_notice), not a message with an avatar.
-is_notice :: (m: *dc.Message) -> bool {
-	kind := m.kind;
-	if kind == MSG_THREAD_STARTER return m.referenced_id != 0;
+is_notice :: (kind: int) -> bool {
 	return kind == MSG_CALL || kind == MSG_PIN || kind == MSG_MEMBER_JOIN || kind == MSG_FRIEND_ACCEPTED || (kind >= MSG_RECIPIENT_ADD && kind <= MSG_ICON_CHANGE) || kind == MSG_POLL_RESULT
-		|| (kind >= MSG_BOOST && kind <= MSG_CHANNEL_FOLLOW) || (kind >= MSG_DISCOVERY_FIRST && kind <= MSG_THREAD_CREATED) || (kind >= MSG_STAGE_FIRST && kind <= MSG_STAGE_FIRST + 4)
-		|| kind == MSG_AUTOMOD || kind == MSG_ROLE_SUB || (kind >= MSG_INCIDENT_FIRST && kind <= MSG_INCIDENT_FIRST + 3);
+		|| (kind >= MSG_BOOST && kind <= MSG_CHANNEL_FOLLOW) || (kind >= MSG_DISCOVERY_FIRST && kind <= MSG_THREAD_CREATED) || (kind >= MSG_STAGE_FIRST && kind <= MSG_STAGE_FIRST + 4);
 }
 CALL_ROW_H :: 26; // call notice content row (official item: 2 + 26 + 2)
 COMPOSER_H :: 58; // official form height (1px border included): 22px line + 18px padding
@@ -1133,7 +1144,7 @@ stamps: struct {
 // Groups with the previous message: same author, within 7 minutes, plain message type, not a reply.
 continues_group :: (prev: *dc.Message, m: *dc.Message) -> bool {
 	// A webhook posting under another name starts a new group, as the official client's isGrouped does.
-	if prev == null || prev.author_id != m.author_id || prev.webhook_name != m.webhook_name || is_notice(prev) return false;
+	if prev == null || prev.author_id != m.author_id || prev.webhook_name != m.webhook_name || is_notice(prev.kind) return false;
 	if m.referenced_id != 0 || (m.kind != 0 && m.kind != 19) return false;
 	if dc.snowflake_time_ms(m.id) - dc.snowflake_time_ms(prev.id) > GROUP_WINDOW_MS return false;
 	return day_of(prev.id) == day_of(m.id);
@@ -1318,7 +1329,7 @@ message_list :: (channel_id: dc.Snowflake, cs: *Chat_State) {
 			for i: max(i0, 0)..i1 {
 				m := *msgs[i];
 				ui.id_scope(m.id); defer ui.pop_seed();
-				if message_held(m.id) || m.kind == MSG_INVITE_REMINDER { // deleted, behind Undo
+				if message_held(m.id) { // deleted, behind Undo
 					ok, old := table_find(*cs.heights, m.id);
 					if ok cs.height_sum -= old;
 					table_set(*cs.heights, m.id, 0);
@@ -1331,7 +1342,7 @@ message_list :: (channel_id: dc.Snowflake, cs: *Chat_State) {
 				show_new := cs.unread_after != 0 && m.id > cs.unread_after && (prev == null || prev.id <= cs.unread_after) && m.author_id != s.me;
 				grouped := continues_group(prev, m) && !show_new;
 				// consecutive call notices stack with no group gap
-				if is_notice(m) grouped = prev != null && prev.kind == m.kind && !new_day && !show_new;
+				if is_notice(m.kind) grouped = prev != null && prev.kind == m.kind && !new_day && !show_new;
 				// a run of blocked or ignored authors' messages is one collapsed row, measured on its first
 				hide := hidden_kind(m);
 				row: *ui.Box;
@@ -1625,7 +1636,7 @@ message_row :: (m: *dc.Message, grouped: bool, new_day: bool, show_new: bool) ->
 				command_used_line(m);
 			}
 		}
-		if m.referenced_id != 0 && !is_notice(m) { // a pin notice references the pinned message: no reply line
+		if m.referenced_id != 0 && !is_notice(m.kind) { // a pin notice references the pinned message: no reply line
 			rr := row("replyrow");
 			rr.semantic_size = .[ui.pct(1), ui.px(22)];
 			{ ui.parent(rr); defer ui.pop_parent();
@@ -1633,7 +1644,7 @@ message_row :: (m: *dc.Message, grouped: bool, new_day: bool, show_new: bool) ->
 				reply_preview(m);
 			}
 		}
-		if is_notice(m) {
+		if is_notice(m.kind) {
 			system_notice(m);
 			if m.kind == MSG_POLL_RESULT poll_result_card(m);
 			if m.kind == MSG_MEMBER_JOIN wave_button(m);
@@ -1644,9 +1655,10 @@ message_row :: (m: *dc.Message, grouped: bool, new_day: bool, show_new: bool) ->
 		body.semantic_size = .[ui.pct(1), ui.children()];
 		body.cross_align = .Start;
 		{ ui.parent(body); defer ui.pop_parent();
+			compact := message_compact();
 			gutter := ui.box("gutter");
-			gutter.semantic_size = .[ui.px(MSG_GUTTER), ui.px(MSG_LINE_H)];
-			if !grouped {
+			gutter.semantic_size = .[ui.px(MSG_GUTTER), ui.px(chat_px(MSG_LINE_H))];
+			if !grouped && !compact {
 				// the avatar floats, so the gutter holds its height: a header-only row
 				// (a message type with no body) must not let it hang below the row
 				gutter.semantic_size[ui.Axis.Y] = ui.px(2 + MSG_AVATAR);
@@ -1655,13 +1667,13 @@ message_row :: (m: *dc.Message, grouped: bool, new_day: bool, show_new: bool) ->
 					av.flags |= .Floating_X | .Floating_Y;
 					av.fixed_pos = .{16, 2};
 				}
-			} else if hovered || e2e_mark(m) != .None {
+			} else if hovered || (compact && !grouped) || e2e_mark(m) != .None {
 				gutter.layout_axis = .X;
 				gutter.cross_align = .Center;
 				{ ui.parent(gutter); defer ui.pop_parent();
 					filler(.X);
-					if hovered {
-						gt := label(format_timestamp(m.id, true), .Medium, 11, T("--text-muted"), MSG_LINE_H);
+					if hovered || (compact && !grouped) {
+						gt := label(format_timestamp(m.id, true), .Medium, chat_px(11), T("--text-muted"), chat_px(MSG_LINE_H));
 						if ui.mouse_over(gt) tooltip_below(full_timestamp(dc.snowflake_time_ms(m.id)), gt.rect);
 						spacer(.X, 8);
 					} else {
@@ -1674,11 +1686,13 @@ message_row :: (m: *dc.Message, grouped: bool, new_day: bool, show_new: bool) ->
 			content.semantic_size = .[ui.fill(), ui.children()];
 			content.layout_axis = .Y;
 			{ ui.parent(content); defer ui.pop_parent();
-				if !grouped message_header(m);
+				// compact: the name leads the first paragraph; else (a code block first, no text, editing) its own line
+				name_inline := compact && !grouped && !editing && compact_name_inline(m);
+				if !grouped && !name_inline message_header(m, with_time = !compact);
 				if m.forwarded {
 					forward_block(m);
 				} else {
-					if editing { edit_box(m); } else { message_body(m); }
+					if editing { edit_box(m); } else { message_body(m, name_inline = name_inline); }
 					if m.sticker_ids message_stickers_view(m);
 				}
 				thread_summary_pill(m);
@@ -1754,11 +1768,8 @@ system_notice :: (m: *dc.Message) {
 			case MSG_NAME_CHANGE; #through; case MSG_ICON_CHANGE; ic_name, ic_color = "pencil", T("--text-muted");
 			case MSG_POLL_RESULT; ic_name, ic_color = "analytics", T("--text-muted");
 			case MSG_CHANNEL_FOLLOW; ic_name, ic_color = "announcements", T("--text-muted");
-			case MSG_THREAD_CREATED; #through; case MSG_THREAD_STARTER; ic_name, ic_color = "thread", T("--text-muted");
-			case MSG_AUTOMOD; ic_name, ic_color = "flag", T("--text-muted");
-			case MSG_ROLE_SUB; ic_name, ic_color = "star", T("--text-muted");
+			case MSG_THREAD_CREATED; ic_name, ic_color = "thread", T("--text-muted");
 		}
-		if m.kind >= MSG_INCIDENT_FIRST && m.kind <= MSG_INCIDENT_FIRST + 3 then ic_name, ic_color = "flag", T("--text-muted");
 		if m.kind >= MSG_BOOST && m.kind <= MSG_BOOST + 3 then ic_name, ic_color = "star", T("--text-muted");
 		if m.kind >= MSG_DISCOVERY_FIRST && m.kind <= MSG_DISCOVERY_FIRST + 3 then ic_name, ic_color = ifx m.kind == MSG_DISCOVERY_FIRST + 1 then "compass" else "warning", T("--text-muted");
 		if m.kind >= MSG_STAGE_FIRST && m.kind <= MSG_STAGE_FIRST + 4 then ic_name, ic_color = "stage", T("--text-muted");
@@ -1769,8 +1780,8 @@ system_notice :: (m: *dc.Message) {
 		}
 		spans: [..]ui.Span;
 		spans.allocator = temp;
-		muted := ui.Span.{font = F(.Normal), size = MSG_FONT, color = T("--text-muted")};
-		strong := ui.Span.{font = F(.Medium), size = MSG_FONT, color = T("--text-strong")};
+		muted := ui.Span.{font = F(.Normal), size = chat_px(MSG_FONT), color = T("--text-muted")};
+		strong := ui.Span.{font = F(.Medium), size = chat_px(MSG_FONT), color = T("--text-strong")};
 		add :: (spans: *[..]ui.Span, s: ui.Span, text: string) { x := s; x.text = text; array_add(spans, x); }
 		// a user's name: clicking it opens their profile, as in the client
 		name :: (spans: *[..]ui.Span, s: ui.Span, uid: dc.Snowflake, channel_id: dc.Snowflake) {
@@ -1879,55 +1890,6 @@ system_notice :: (m: *dc.Message) {
 			name(*spans, strong, m.author_id, m.channel_id);
 			add(*spans, muted, STAGE[k]);
 			if k == 0 || k == 1 || k == 4 add(*spans, strong, m.content);
-		} else if m.kind == MSG_THREAD_STARTER {
-			add(*spans, muted, "Sorry, we couldn't load the first message in this thread");
-		} else if m.kind == MSG_AUTOMOD {
-			// the client's AutoMod alert: the rule's fields ride on the embed (decision_outcome "flagged" or not)
-			e := ifx m.embeds.count then *m.embeds[0] else null;
-			add(*spans, strong, "AutoMod");
-			add(*spans, muted, ifx automod_field(e, "decision_outcome") == "flagged" then " has flagged a message in " else " has blocked a message in ");
-			ch := dc.channel_get(store(), automod_channel(m));
-			add(*spans, strong, ifx ch then tprint("#%", ch.name) else "a channel");
-			if ch spans[spans.count - 1].id = 6;
-			add(*spans, muted, "\n");
-			name(*spans, strong, m.author_id, m.channel_id);
-			add(*spans, muted, ": ");
-			add(*spans, .{font = F(.Normal), size = MSG_FONT, color = T("--text-default")}, ifx e then e.description else "");
-			rule, kw := automod_field(e, "rule_name"), automod_field(e, "keyword");
-			if rule add(*spans, muted, tprint("\nRule: %", rule));
-			if kw add(*spans, muted, tprint(" · Keyword: %", kw));
-		} else if m.kind == MSG_ROLE_SUB {
-			// the client's lines, with the server's name not a link to its subscriptions page
-			ch := dc.channel_get(store(), m.channel_id);
-			g := ifx ch then dc.guild_get(store(), ch.guild_id) else null;
-			name(*spans, strong, m.author_id, m.channel_id);
-			add(*spans, muted, ifx m.sub_renewal then " renewed " else " joined ");
-			add(*spans, strong, m.content);
-			if m.sub_months > 0 {
-				add(*spans, muted, " and has been a subscriber of ");
-				add(*spans, strong, ifx g then g.name else "this server");
-				add(*spans, muted, tprint(Lp(" for % month!", " for % months!", m.sub_months), m.sub_months));
-			} else {
-				add(*spans, muted, ifx m.sub_renewal then " in their " else " as a subscriber of ");
-				add(*spans, strong, ifx g then g.name else "this server");
-				add(*spans, muted, ifx m.sub_renewal then " membership!" else "!");
-			}
-		} else if m.kind >= MSG_INCIDENT_FIRST && m.kind <= MSG_INCIDENT_FIRST + 3 {
-			// sent as AutoMod: enabling carries the end time as content
-			k := m.kind - MSG_INCIDENT_FIRST;
-			name(*spans, strong, m.author_id, m.channel_id);
-			if k == 0 {
-				until := dc.iso_to_ms(m.content);
-				add(*spans, muted, ifx until > 0 then tprint(" enabled security actions until %.", format_time_ms(until)) else " enabled security actions.");
-			} else if k == 1 {
-				add(*spans, muted, " disabled security actions.");
-			} else {
-				ch := dc.channel_get(store(), m.channel_id);
-				g := ifx ch then dc.guild_get(store(), ch.guild_id) else null;
-				add(*spans, muted, ifx k == 2 then " reported a raid in " else " resolved an Activity Alert in ");
-				add(*spans, strong, ifx g then g.name else "this server");
-				add(*spans, muted, ".");
-			}
 		} else if missed {
 			add(*spans, muted, "You missed a call from ");
 			name(*spans, strong, m.author_id, m.channel_id);
@@ -1967,9 +1929,6 @@ system_notice :: (m: *dc.Message) {
 					th := dc.channel_get(store(), m.forward_channel_id);
 					if th select_channel(th.guild_id, th.id);
 				case 5; threads_browser_toggle(m.channel_id, header_thread_rect);
-				case 6;
-					ch := dc.channel_get(store(), automod_channel(m));
-					if ch select_channel(ch.guild_id, ch.id);
 			}
 			if tl.spans[si].user == null continue;
 			open_profile(cast(dc.Snowflake) tl.spans[si].user, .{e.pos.x, e.pos.y - 10, e.pos.x + 1, e.pos.y + 10});
@@ -1978,23 +1937,13 @@ system_notice :: (m: *dc.Message) {
 	}
 }
 
-// An AutoMod alert's embed field (rule_name, keyword, channel_id, decision_outcome), "" when absent.
-automod_field :: (e: *dc.Embed, name: string) -> string {
-	if e for e.fields if it.name == name return it.value;
-	return "";
-}
-automod_channel :: (m: *dc.Message) -> dc.Snowflake {
-	v, ok := string_to_int(automod_field(ifx m.embeds.count then *m.embeds[0] else null, "channel_id"), T = u64);
-	return ifx ok then v else 0;
-}
-
-message_header :: (m: *dc.Message) {
+message_header :: (m: *dc.Message, with_time := true) {
 	name := author_name(m);
 	h := row("header");
-	h.semantic_size = .[ui.pct(1), ui.px(MSG_LINE_H)];
+	h.semantic_size = .[ui.pct(1), ui.px(chat_px(MSG_LINE_H))];
 	h.cross_align = .End;
 	{ ui.parent(h); defer ui.pop_parent();
-		n := label(name, .Medium, 16, author_color(m), MSG_LINE_H);
+		n := label(name, .Medium, chat_px(16), author_color(m), chat_px(MSG_LINE_H));
 		n.flags |= .Clickable | .Selectable_Text;
 		n.sel_order = m.id * 8;
 		nsig := ui.signal(n);
@@ -2016,13 +1965,15 @@ message_header :: (m: *dc.Message) {
 		if u && u.bot app_tag();
 		if !m.webhook_name { ch := dc.channel_get(store(), m.channel_id); if ch role_icon(ch.guild_id, m.author_id, 20); }
 		new_member_badge(m);
-		spacer(.X, 8);
-		// copies as "Name — 4:56 AM" like the client's hidden separator
-		ts := label(header_timestamp(m.id), .Medium, 12, T("--chat-text-muted"), 20);
-		ts.flags |= .Selectable_Text;
-		ts.sel_order = m.id * 8 + 1;
-		ts.sel_join = " — ";
-		if ui.mouse_over(ts) tooltip_below(full_timestamp(dc.snowflake_time_ms(m.id)), ts.rect);
+		if with_time {
+			spacer(.X, 8);
+			// copies as "Name — 4:56 AM" like the client's hidden separator
+			ts := label(header_timestamp(m.id), .Medium, chat_px(12), T("--chat-text-muted"), chat_px(20));
+			ts.flags |= .Selectable_Text;
+			ts.sel_order = m.id * 8 + 1;
+			ts.sel_join = " — ";
+			if ui.mouse_over(ts) tooltip_below(full_timestamp(dc.snowflake_time_ms(m.id)), ts.rect);
+		}
 		if m.flags & SUPPRESS_NOTIFICATIONS || encrypted_silent(m.id) {
 			spacer(.X, 4);
 			bell := icon("silent", "bell-slash", 16, T("--chat-text-muted"), .Clickable);
@@ -2356,7 +2307,16 @@ md_free :: (e: *Md_Cached) {
 }
 
 // terms: search words to highlight (search result cards).
-message_body :: (m: *dc.Message, terms: []string = .[], decrypted := false) {
+// Compact puts the author's name at the start of the first block when that is plain text.
+compact_name_inline :: (m: *dc.Message) -> bool {
+	if m.content == "" || m.forwarded || begins_with(packet_text(m.content), fc_text.PREFIX) return false;
+	blocks := md_cached(m.content);
+	return blocks.count > 0 && blocks[0].kind == .Paragraph && !(blocks.count == 1 && is_emoji_only(blocks[0].tokens));
+}
+
+NAME_SPAN : u64 : 0xffff_ffff_ffff_ffe0; // compact's name span at the start of the first paragraph
+
+message_body :: (m: *dc.Message, terms: []string = .[], decrypted := false, name_inline := false) {
 	if m.content == "" return;
 	if !decrypted {
 		handled, plaintext := encrypted_body(m);
@@ -2383,7 +2343,7 @@ message_body :: (m: *dc.Message, terms: []string = .[], decrypted := false) {
 				spacer(.X, 16);
 			}
 			cb :=ui.box(tprint("code%", bi), .Draw_Background | .Draw_Border | .Draw_Text | .Selectable_Text | .Wrap_Text);
-			code := code_spans(blk.code, blk.lang, F(.Mono), 14);
+			code := code_spans(blk.code, blk.lang, F(.Mono), chat_px(14));
 			ui.set_spans(cb, ifx terms then highlight_spans(code, terms) else code);
 			cb.semantic_size = .[ifx blk.quoted then ui.fill() else ui.pct(1), ui.text_size()];
 			cb.style.bg = T("--background-base-lowest");
@@ -2391,8 +2351,8 @@ message_body :: (m: *dc.Message, terms: []string = .[], decrypted := false) {
 			cb.style.border = 1;
 			cb.style.radius = all4(4);
 			cb.style.font = F(.Mono);
-			cb.style.font_size = 14;
-			cb.style.line_height = 18;
+			cb.style.font_size = chat_px(14);
+			cb.style.line_height = chat_px(18);
 			cb.style.padding = .{8, 8};
 			cb.style.text_color = T("--text-code");
 			cb.sel_order = m.id * 8 + 2;
@@ -2413,6 +2373,7 @@ message_body :: (m: *dc.Message, terms: []string = .[], decrypted := false) {
 				size, line_h = 13, 18;
 				color = T("--text-muted");
 			}
+			size, line_h = chat_px(size), chat_px(line_h);
 			// quotes get a 4px bar, list items a bullet; both indent the text
 			wrap := row(tprint("blk%", bi));
 			wrap.semantic_size = .[ui.pct(1), ui.children()];
@@ -2441,14 +2402,21 @@ message_body :: (m: *dc.Message, terms: []string = .[], decrypted := false) {
 				// jumbo: a message of only emoji (up to 27) renders them at 3rem; the
 				// spaces between keep the text size (.emoji.jumboable sizes only the img)
 				if blocks.count == 1 && is_emoji_only(blk.tokens) {
-					for * spans if it.object != .{} it.object = emoji_object(48, size);
-					b.style.line_height = 56;
+					for * spans if it.object != .{} it.object = emoji_object(chat_px(48), size);
+					b.style.line_height = chat_px(56);
+				}
+				if name_inline && bi == 0 {
+					named := NewArray(spans.count + 2, ui.Span,, temp);
+					named[0] = .{text = author_name(m), font = F(.Medium), size = size, color = author_color(m), id = NAME_SPAN};
+					named[1] = .{text = " ", font = F(.Normal), size = size, id = NAME_SPAN + 1};
+					memcpy(named.data + 2, spans.data, spans.count * size_of(ui.Span));
+					spans = named;
 				}
 				if bi == blocks.count - 1 && m.edited_timestamp {
 					// "(edited)" rides at the end of the last paragraph, like the client
 					edited := NewArray(spans.count + 1, ui.Span,, temp);
 					memcpy(edited.data, spans.data, spans.count * size_of(ui.Span));
-					edited[spans.count] = .{text = " (edited)", font = F(.Normal), size = 10, color = T("--text-muted"), id = EDITED_SPAN};
+					edited[spans.count] = .{text = " (edited)", font = F(.Normal), size = chat_px(10), color = T("--text-muted"), id = EDITED_SPAN};
 					spans = edited;
 					edited_inline = true;
 				}
@@ -2458,11 +2426,27 @@ message_body :: (m: *dc.Message, terms: []string = .[], decrypted := false) {
 				b.sel_sub = cast(u32) bi;
 			}
 			handle_span_clicks(b, blk.tokens, m.id, ifx edited_inline then dc.iso_to_ms(m.edited_timestamp) else 0);
+			if name_inline && bi == 0 compact_name_clicks(b, m);
 		}
 	}
 	if m.edited_timestamp && !edited_inline {
-		ed := label("(edited)", .Normal, 10, T("--text-muted"), 22);
+		ed := label("(edited)", .Normal, chat_px(10), T("--text-muted"), chat_px(22));
 		if ui.mouse_over(ed) tooltip_below(full_timestamp(dc.iso_to_ms(m.edited_timestamp)), ed.rect);
+	}
+}
+
+// Compact's inline name opens the profile like the header's (right-click gives the message menu).
+compact_name_clicks :: (b: *ui.Box, m: *dc.Message) {
+	tl := b.prev_layout;
+	if !tl return;
+	on_name :: (p: ui.Vec2) -> bool #expand {
+		si := ui.span_at(`tl, p);
+		return si >= 0 && si < `tl.spans.count && `tl.spans[si].id == NAME_SPAN && !ui.overlay_at(p);
+	}
+	if ui.mouse_over(b) && on_name(app.ui.mouse) app.ui.span_cursor = .Pointer;
+	for e: app.ui.events {
+		if e.kind != .Mouse_Up || e.button != .Left || e.consumed || ui.has_selection() || !on_name(e.pos) continue;
+		open_profile(m.author_id, .{e.pos.x, e.pos.y - 10, e.pos.x + 1, e.pos.y + 10}, .Message_Author, m.id, m.webhook_name);
 	}
 }
 

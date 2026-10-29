@@ -272,7 +272,7 @@ encrypted_body :: (m: *dc.Message) -> handled: bool, plaintext: string {
 	if !begins_with(packet_text(m.content), fc_text.PREFIX) return false, "";
 	if !encrypted_dm(dc.channel_get(store(), m.channel_id)) return false, "";
 	sh := ifx m.pending then table_find_pointer(*ee.shown, m.id) else encrypted_open(m.id, m.channel_id, m.content, m.author_id);
-	muted :: (text: string) { label(text, .Normal, MSG_FONT, T("--text-muted"), MSG_LINE_H); }
+	muted :: (text: string) { label(text, .Normal, chat_px(MSG_FONT), T("--text-muted"), chat_px(MSG_LINE_H)); }
 	if !sh || sh.pending { muted(L("Encrypted message")); return true, ""; }
 	mine := m.author_id == store().me;
 	name := ifx mine then "You" else author_name(m);

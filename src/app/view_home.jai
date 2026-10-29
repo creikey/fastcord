@@ -716,15 +716,6 @@ active_now_column :: () {
 					label(dc.user_name(s, uid, 0, "Unknown"), .Semibold, 16, T("--text-strong"), 20);
 					label(user_game(uid), .Normal, 14, T("--text-muted"), 18);
 				}
-				act := rich_activity(uid); // the activity's art on the right, as the client's card has
-				art := ifx act then activity_asset_url(act.app_id, act.large_image, 64) else "";
-				if art {
-					a := ui.box("art", .Draw_Background);
-					a.semantic_size = .[ui.px(32), ui.px(32)];
-					a.style.radius = all4(6);
-					a.style.bg = T("--background-mod-normal");
-					set_remote_image(a, art);
-				}
 				spacer(.X, 12);
 			}
 			spacer(.X, 16);
