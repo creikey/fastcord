@@ -68,6 +68,7 @@ SETTINGS_TERMS :: [2]string.[
 	.["Language & Time", "language, locale, time format, 12-hour, 24-hour, clock"],
 	.["Devices", "logged-in devices, sessions, log out of device"],
 	.["Connected Apps", "connections, authorized apps, github, steam, spotify, twitch, youtube, xbox, playstation, deauthorize"],
+	.["Activity Privacy", "activity status, playing, current game, detected activities, join game, rich presence"],
 	.["Developer", "developer mode, copy id"],
 ];
 

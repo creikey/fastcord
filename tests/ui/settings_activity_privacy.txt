@@ -1,0 +1,15 @@
+# Settings > Activity Privacy: sharing the detected activity (status.show_current_game) and activity
+# joining (privacy), BoolValues in the settings proto that read on when unset; the first switch turns off.
+wait 5
+click 338 683
+wait 20
+click_text "Search"
+wait 3
+type activity
+wait 5
+click_text "Activity Privacy"
+wait 10
+expect_visible "Activity Joining"
+click_text "Share your detected activities with others"
+wait 5
+shot build/ui-settings_activity_privacy.png

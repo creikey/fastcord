@@ -137,6 +137,27 @@ messaging_page :: () {
 	}
 }
 
+// Activity Privacy (ACTIVITY_PRIVACY_PANEL): sharing the detected activity (status.show_current_game,
+// 11.3) and who may join it (privacy 8.1 friends, 8.2 voice channel), BoolValues on when unset.
+activity_page :: () {
+	if !set_page_begin("actpage") return;
+	defer set_page_end();
+	s := store();
+	bool_row :: (s: *dc.Store, id: string, text: string, help: string, cat: u32, num: u32) {
+		_, set := dc.settings_value(s, cat, num);
+		v, _ := dc.settings_value(s, cat, num, 1);
+		on := !set || v != 0;
+		if set_toggle_row(id, text, help, on) proto_put(cat, num, dc.pb_field_bool_value(num, !on));
+	}
+	set_heading("Activity Status");
+	bool_row(s, "showgame", "Share your detected activities with others", "Show the game or app you're using on your profile and in member lists.", 11, 3);
+	spacer(.Y, 40);
+	set_heading("Activity Joining");
+	bool_row(s, "joinfriends", "Allow friends to join your game", "Friends can ask to join or join the game you're playing.", 8, 1);
+	set_divider();
+	bool_row(s, "joinvoice", "Allow voice channel participants to join your game", "People in a voice channel with you can join the game you're playing.", 8, 2);
+}
+
 // The server header menu's Privacy Settings: DMs and message requests from that server's members
 // (privacy.restricted_guild_ids 8.3 and message_request_restricted_guild_ids 8.16, guild ids).
 guild_privacy: dc.Snowflake; // the open modal's server (0: closed)
