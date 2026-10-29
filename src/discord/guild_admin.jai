@@ -299,9 +299,10 @@ event_create_body :: (d: Event_Draft) -> string {
 	return json_string(*w);
 }
 
-// POST /guilds/{gid}/scheduled-events. guild_admin_apply sends the follow-ups.
-create_scheduled_event :: (c: *Client, guild_id: Snowflake, d: Event_Draft) {
-	feature_submit(c, .Event_Create, "POST", tprint("/guilds/%/scheduled-events", guild_id), event_create_body(d), channel_id = guild_id);
+// POST /guilds/{gid}/scheduled-events. guild_admin_apply sends the follow-ups. cover: an image file for its
+// "image" (a data URI, read on the feature worker), "" for none.
+create_scheduled_event :: (c: *Client, guild_id: Snowflake, d: Event_Draft, cover := "") {
+	feature_submit(c, .Event_Create, "POST", tprint("/guilds/%/scheduled-events", guild_id), event_create_body(d), channel_id = guild_id, file = cover);
 }
 
 // The channel an event's invite points at: its own channel, else the guild's
@@ -909,6 +910,11 @@ file_job_body :: (path: string, name: string, op: Feature_Op, hosted: bool) -> s
 	if !mime return "", .[], -1;
 	data, ok := read_entire_file(path, log_errors = false,, temp);
 	if !ok || !data return "", .[], -1;
+	if op == .Event_Create {
+		// the event's body (name) takes "image" before its closing brace
+		if data.count > image_max_bytes(hosted) return "", .[], -2;
+		return tprint("%,\"image\":\"data:%;base64,%\"}", slice(name, 0, name.count - 1), mime, base64_encode(data,, temp)), .[], 0;
+	}
 	if op == .Guild_Edit || op == .Avatar_Edit || op == .Banner_Edit || op == .Guild_Settings {
 		if data.count > image_max_bytes(hosted) return "", .[], -2;
 		w: Json;

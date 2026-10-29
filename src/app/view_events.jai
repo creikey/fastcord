@@ -238,7 +238,8 @@ Events_UI :: struct {
 	wiz_open: bool;
 	step: Wizard_Step;
 	entity: dc.Event_Entity; // .Unknown until a location type is picked
-	channel: dc.Snowflake; // voice
+	channel: dc.Snowflake; // voice or stage
+	cover: string; // heap: the cover image's file ("" for none), read when the event is created
 	location: ui.Editor;
 	name: ui.Editor;
 	desc: ui.Editor;
@@ -793,6 +794,8 @@ wizard_open :: () {
 	evu.entity = ifx voice_channels(evu.guild).count then dc.Event_Entity.Unknown else .External;
 	evu.channel = 0;
 	evu.busy = false;
+	free(evu.cover);
+	evu.cover = "";
 	set_wiz_error("");
 	ui.editor_set_text(*evu.location, "");
 	ui.editor_set_text(*evu.name, "");
@@ -801,13 +804,13 @@ wizard_open :: () {
 	if app.client != null dc.open_create_event(app.client, evu.guild);
 }
 
-voice_channels :: (gid: dc.Snowflake) -> []dc.Snowflake {
+voice_channels :: (gid: dc.Snowflake, kind := dc.Channel_Type.Guild_Voice) -> []dc.Snowflake {
 	out: [..]dc.Snowflake;
 	out.allocator = temp;
 	s := store();
 	for id: dc.guild_channels_sorted(s, gid) {
 		ch := dc.channel_get(s, id);
-		if ch != null && ch.kind == .Guild_Voice array_add(*out, id);
+		if ch != null && ch.kind == kind array_add(*out, id);
 	}
 	return out;
 }
@@ -815,7 +818,7 @@ voice_channels :: (gid: dc.Snowflake) -> []dc.Snowflake {
 step_valid :: (step: Wizard_Step) -> bool {
 	if step == {
 	case .Location;
-		if evu.entity == .Voice return evu.channel != 0;
+		if evu.entity == .Voice || evu.entity == .Stage_Instance return evu.channel != 0;
 		if evu.entity == .External return trim(ui.editor_text(*evu.location)) != "";
 		return false;
 	case .Info;
@@ -935,7 +938,7 @@ wizard_modal :: () {
 		case .Review;
 			if !evu.busy && net_action() {
 				evu.busy = true;
-				dc.create_scheduled_event(app.client, evu.guild, draft());
+				dc.create_scheduled_event(app.client, evu.guild, draft(), evu.cover);
 			}
 		}
 	}
@@ -1045,21 +1048,28 @@ pad_end :: () {
 
 step_location :: () {
 	step_heading(L("Where is your event?"), L("So no one gets lost on where to go."));
+	// a Community server's Stage Channel comes first, as in the client
+	g := dc.guild_get(store(), evu.guild);
+	stages := voice_channels(evu.guild, .Guild_Stage_Voice);
+	if g && array_find(g.features, "COMMUNITY") && stages.count && radio_row("stage", "stage", L("Stage Channel"), L("Great for larger community audio events."), evu.entity == .Stage_Instance) && evu.entity != .Stage_Instance {
+		evu.entity, evu.channel = dc.Event_Entity.Stage_Instance, stages[0];
+	}
 	if voice_channels(evu.guild).count && radio_row("voice", "voice-normal", L("Voice Channel"), L("Hang out with voice, video, screenshare, and Go Live."), evu.entity == .Voice) && evu.entity != .Voice {
 		evu.entity = .Voice;
 		vcs := voice_channels(evu.guild);
-		if evu.channel == 0 && vcs.count > 0 evu.channel = vcs[0];
+		evu.channel = ifx vcs.count then vcs[0] else 0;
 	}
 	if radio_row("external", "location", L("Somewhere Else"), L("Text channel, external link, or in-person location."), evu.entity == .External) && evu.entity != .External {
 		evu.entity = .External;
 		evu.focus_next = true;
 	}
 	if evu.entity == {
-	case .Voice;
+	case .Voice; #through;
+	case .Stage_Instance;
 		spacer(.Y, 8);
 		pad_begin("chans");
 		field_label(L("Select a channel"), true);
-		vcs := voice_channels(evu.guild);
+		vcs := voice_channels(evu.guild, ifx evu.entity == .Voice then dc.Channel_Type.Guild_Voice else .Guild_Stage_Voice);
 		if vcs.count == 0 label(L("This server has no voice channels."), .Normal, 14, T("--text-muted"), 18);
 		for id: vcs {
 			ch := dc.channel_get(store(), id);
@@ -1076,7 +1086,7 @@ step_location :: () {
 			if ui.signal(item).clicked evu.channel = id;
 			{ ui.parent(item); defer ui.pop_parent();
 				spacer(.X, 12);
-				icon("i", "voice-normal", 18, T("--text-strong"));
+				icon("i", ifx evu.entity == .Voice then "voice-normal" else "stage", 18, T("--text-strong"));
 				spacer(.X, 8);
 				label(ch.name, .Medium, 16, T("--text-strong"), 20);
 			}
@@ -1165,6 +1175,24 @@ step_info :: () {
 	}
 	field_label(L("Description"), false);
 	set_input("desc", *evu.desc, L("Tell people a little more about your event. Markdown, new lines, and links are supported."), multiline = true, max_runes = 1000, min_h = 70);
+	spacer(.Y, 20);
+	field_label(L("Cover Image"), false);
+	label(L("We recommend an image of at least 800px wide and 320px tall."), .Normal, 14, T("--text-muted"), 18);
+	spacer(.Y, 8);
+	cr := row("cover");
+	cr.semantic_size = .[ui.pct(1), ui.px(32)];
+	{ ui.parent(cr); defer ui.pop_parent();
+		if set_button(ifx evu.cover then L("Change Image##cover") else L("Upload Cover Image##cover"), .Secondary, true, 32) {
+			paths := pick_files();
+			if paths.count && dc.image_mime(paths[0]) { free(evu.cover); evu.cover = copy_string(paths[0]); }
+		}
+		if evu.cover {
+			spacer(.X, 8);
+			label(ellipsize(path_filename(evu.cover), .Normal, 14, 220), .Normal, 14, T("--text-default"), 32);
+			spacer(.X, 8);
+			if set_button(L("Remove##coverx"), .Link, true, 32) { free(evu.cover); evu.cover = ""; }
+		}
+	}
 	pad_end();
 }
 

@@ -16,6 +16,7 @@ click_text Next
 wait 10
 expect_visible "What's your event about?"
 expect_visible "End Date"
+expect_visible "Cover Image"
 expect_visible "1:00 PM"
 type picnic
 wait 5
