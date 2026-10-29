@@ -255,10 +255,22 @@ profile_full_overlay :: () {
 }
 #scope_file
 
-// Message (friends / others) or Add Friend, plus More — top right under the banner.
+// Message (friends / others) or Add Friend, plus More — top right under the banner; your own
+// profile has Edit Profile (Settings > Profiles) instead.
 profile_actions :: (uid: dc.Snowflake) {
 	s := store();
-	if uid == s.me { return; }
+	if uid == s.me {
+		bar := row("actions", .Floating_X | .Floating_Y);
+		bar.semantic_size = .[ui.children(), ui.px(32)];
+		bar.fixed_pos = .{PF_W - PF_PAD - 120, PF_PAD};
+		ui.parent(bar); defer ui.pop_parent();
+		if action_button("Edit Profile", "pencil", 120, true) {
+			pf.user = 0;
+			settings_page = "Profiles";
+			app.settings_open = true;
+		}
+		return;
+	}
 	rel := table_find_pointer(*s.relationships, uid);
 	friend := rel && rel.kind == .Friend;
 	bar := row("actions", .Floating_X | .Floating_Y);
@@ -351,34 +363,36 @@ profile_tabs :: (uid: dc.Snowflake, prof: Pf_Profile) {
 }
 
 // The note about uid, edited in place: a click focuses it, and leaving it (or Enter) saves a
-// change, as the official note box does on blur (only you can see it).
-note_field :: (uid: dc.Snowflake) {
+// change, as the official note box does on blur (only you can see it). The DM profile column has its
+// own editor (ed, was_focused), as both can show at once.
+#scope_export
+note_field :: (uid: dc.Snowflake, pad: float32, ed: *ui.Editor, was_focused: *bool) {
 	note, loaded := dc.note_get(store(), uid);
 	if !loaded && app.client dc.fetch_note(app.client, uid);
 	nr := row("note");
 	nr.semantic_size = .[ui.pct(1), ui.children()];
 	ui.parent(nr); defer ui.pop_parent();
-	spacer(.X, PF_PAD + 4);
+	spacer(.X, pad);
 	box := row("notebox", .Clickable | .Draw_Background);
 	box.semantic_size = .[ui.fill(), ui.children()];
 	box.style.radius = all4(4);
 	box.hover_cursor = .IBeam;
 	focused := app.ui.focus == box.key;
 	if focused box.style.bg = T("--background-mod-normal");
-	if (ui.signal(box).pressed || pf.note_focus_next) && !focused {
+	if (ui.signal(box).pressed || (pf.note_focus_next && ed == *pf.note)) && !focused {
 		app.ui.focus = box.key;
 		focused = true;
 	}
-	pf.note_focus_next = false;
-	if focused && !pf.note_focused ui.editor_set_text(*pf.note, note);
+	if ed == *pf.note pf.note_focus_next = false;
+	if focused && !was_focused.* ui.editor_set_text(ed, note);
 	res: ui.Edit_Result;
 	{ ui.parent(box); defer ui.pop_parent();
 		spacer(.X, 4);
 		if focused {
-			res = text_field("f", *pf.note, "Click to add a note", true, 14, 18, 4, T("--text-muted"));
-			t := ui.editor_text(*pf.note);
+			res = text_field("f", ed, "Click to add a note", true, 14, 18, 4, T("--text-muted"));
+			t := ui.editor_text(ed);
 			cut := cut_runes(t, dc.NOTE_MAX);
-			if cut.count < t.count ui.editor_set_text(*pf.note, copy_string(cut,, temp));
+			if cut.count < t.count ui.editor_set_text(ed, copy_string(cut,, temp));
 		} else {
 			l := label(ifx note then note else "Click to add a note", .Normal, 14, ifx note then T("--text-default") else T("--text-muted"), 18);
 			l.flags |= .Wrap_Text;
@@ -387,14 +401,15 @@ note_field :: (uid: dc.Snowflake) {
 		}
 		spacer(.X, 4);
 	}
-	spacer(.X, PF_PAD + 4);
+	spacer(.X, pad);
 	if res == .Submit || res == .Escape app.ui.focus = 0;
-	if pf.note_focused && app.ui.focus != box.key {
-		t := trim(ui.editor_text(*pf.note));
+	if was_focused.* && app.ui.focus != box.key {
+		t := trim(ui.editor_text(ed));
 		if t != note { if net_action() dc.set_note(app.client, uid, t); else dc.note_set_local(store(), uid, t); } // offline (fixtures): shown only
 	}
-	pf.note_focused = app.ui.focus == box.key;
+	was_focused.* = app.ui.focus == box.key;
 }
+#scope_file
 
 section_title :: (text: string) {
 	r := row(text);
@@ -468,7 +483,7 @@ profile_about :: (uid: dc.Snowflake, u: *dc.User, prof: Pf_Profile) {
 	spacer(.Y, 16);
 	if uid != store().me && !streamer_hide_personal() {
 		section_title("Note");
-		note_field(uid);
+		note_field(uid, PF_PAD + 4, *pf.note, *pf.note_focused);
 	}
 }
 

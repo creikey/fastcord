@@ -1,0 +1,12 @@
+# Your own full profile (from the card's avatar) has Edit Profile, which opens Settings > Profiles.
+wait 5
+click 112 683
+wait 20
+expect_profile_open
+click 64 400
+wait 20
+expect_visible "Edit Profile"
+shot build/ui-own_full_profile_modal.png
+click_text "Edit Profile"
+wait 20
+expect_visible "About Me"

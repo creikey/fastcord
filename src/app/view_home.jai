@@ -818,6 +818,8 @@ profile_banner_color :: (uid: dc.Snowflake) -> ui.Color {
 // 1:1 DM user profile column (official: 306x(h-14) card inset 7px, banner 105,
 // 80px avatar in a 6px ring, name/username, Member Since, View Full Profile).
 DMP_COL_W :: 320;
+dmp_note: ui.Editor; // the DM profile column's note field (note_field)
+dmp_note_focused: bool;
 MONTH_SHORT := string.["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 DMP_INSET :: 7;
 DMP_BANNER_H :: 105;
@@ -912,14 +914,52 @@ dm_profile_panel :: (uid: dc.Snowflake) {
 				}
 				line("name", dc.user_name(s, uid), .Semibold, 20, 24, T("--text-strong"));
 				spacer(.Y, 2);
-				line("user", u.username, .Normal, 14, 18, T("--text-strong"));
+				line("user", ifx u.pronouns then tprint("%  •  %", u.username, u.pronouns) else u.username, .Normal, 14, 18, T("--text-strong"));
 				spacer(.Y, 20);
+				if u.bio {
+					line("about_h", "About Me", .Semibold, 12, 16, T("--text-strong"));
+					spacer(.Y, 6);
+					ar := row("about");
+					ar.semantic_size = .[ui.pct(1), ui.children()];
+					{ ui.parent(ar); defer ui.pop_parent();
+						spacer(.X, DMP_PAD);
+						b := ui.box("bio", .Selectable_Text | .Wrap_Text);
+						b.semantic_size = .[ui.fill(), ui.text_size()];
+						b.style.line_height = 18;
+						b.style.text_color = T("--text-default");
+						blocks := md_parse(u.bio);
+						if blocks.count ui.set_spans(b, tokens_to_spans(blocks[0].tokens, .Normal, 14, null));
+						spacer(.X, DMP_PAD);
+					}
+					spacer(.Y, 16);
+				}
 				line("since_h", "Member Since", .Semibold, 12, 16, T("--text-strong"));
 				spacer(.Y, 6);
 				created := local_ms(dc.snowflake_time_ms(uid));
 				t := to_calendar(APOLLO_TIME_FOR_JAN_1_1970 + milliseconds_to_apollo(created), .UTC);
 				line("since", tprint("% %, %", MONTH_SHORT[t.month_starting_at_0], t.day_of_month_starting_at_0 + 1, t.year), .Normal, 14, 18, T("--text-default"));
+				spacer(.Y, 16);
+				line("note_h", "Note (only visible to you)", .Semibold, 12, 16, T("--text-strong"));
+				spacer(.Y, 4);
+				note_field(uid, DMP_PAD - 4, *dmp_note, *dmp_note_focused);
 				encrypted_profile(dc.channel_get(s, app.view.channel), DMP_PAD);
+				// the mutual servers and friends counts (the profile fetch's), each opening the full profile
+				for kind: 0..1 {
+					n := ifx kind == 0 then u.mutual_guilds else u.mutual_friends;
+					if n <= 0 continue;
+					if kind == 0 || u.mutual_guilds <= 0 spacer(.Y, 16);
+					mr := row(tprint("mutual%", kind), .Clickable | .Draw_Background | .Hot_Animation);
+					mr.semantic_size = .[ui.pct(1), ui.px(36)];
+					mr.style.bg_hot = T("--background-mod-subtle");
+					mr.hover_cursor = .Pointer;
+					if ui.signal(mr).clicked profile_full_open(uid);
+					ui.parent(mr); defer ui.pop_parent();
+					spacer(.X, DMP_PAD);
+					label(tprint("% — %", ifx kind == 0 then "Mutual Servers" else "Mutual Friends", n), .Medium, 14, T("--text-default"), 18);
+					filler(.X);
+					icon("chev", "chevron-small-right", 16, T("--interactive-icon-default"));
+					spacer(.X, DMP_PAD - 4);
+				}
 				filler(.Y);
 				br := row("viewfull");
 				br.semantic_size = .[ui.pct(1), ui.px(40)];

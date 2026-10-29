@@ -1,0 +1,16 @@
+# The DM profile column: pronouns after the username, About Me, the note box (only you see it), and
+# the mutual counts once the profile is known.
+open 1800000000000000001
+wait 30
+dispatch USER_UPDATE {"id":"1000000000000000101","username":"creikey","bio":"writes **fast** clients","pronouns":"he/him"}
+wait 10
+expect_visible "creikey  •  he/him"
+expect_visible "About Me"
+expect_visible "Note (only visible to you)"
+click_text "Click to add a note"
+wait 5
+type met at the meetup
+key enter
+wait 10
+expect_visible "met at the meetup"
+shot build/ui-dm_profile_panel_shot.png
