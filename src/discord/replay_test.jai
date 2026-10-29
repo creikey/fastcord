@@ -3897,6 +3897,21 @@ platform_locales :: (t: *T) {
 		expect(t, p.browser_user_agent == DEFAULT_USER_AGENT && p.sec_ch_ua_platform == "\"macOS\"", "the macOS user agent is Chrome's frozen one");
 		expect(t, begins_with(p.os_version, p.os_sdk_version) && (p.os_arch == "arm64" || p.os_arch == "x64"), "os_sdk_version is the Darwin major");
 	}
+	#if OS == .WINDOWS {
+		// The official 1.0.9266 on Windows 11 (2026-10-28 netlog): os_version "10.0.26200", os_sdk_version
+		// "26200", x64 app on x64, the frozen user agent, no os_product_version.
+		expectf(t, begins_with(p.os_version, "10.0.") && p.os_sdk_version == slice(p.os_version, 5, p.os_version.count - 5), "Windows os_version % / os_sdk_version %", p.os_version, p.os_sdk_version);
+		expect(t, p.browser_user_agent == electron_user_agent("Windows NT 10.0; Win64; x64", WINDOWS_HOST) && p.sec_ch_ua_platform == "\"Windows\"" && p.app_arch == "x64" && p.os_product_version == "", "the Windows identity is the captured one");
+		w: Json;
+		json_init(*w);
+		json_obj(*w);
+		write_base_properties(*w, p, "L");
+		json_obj_end(*w);
+		got := json_string(*w);
+		want := tprint("{\"os\":\"Windows\",\"browser\":\"Discord Client\",\"release_channel\":\"stable\",\"client_version\":\"1.0.9266\",\"os_version\":\"%\",\"os_arch\":\"%\",\"app_arch\":\"x64\",\"system_locale\":\"%\",\"has_client_mods\":false,\"client_launch_id\":\"L\",\"browser_user_agent\":\"%\",\"browser_version\":\"44.9.3\",\"os_sdk_version\":\"%\",\"client_build_number\":%,\"native_build_number\":97026,\"client_event_source\":null}", p.os_version, p.os_arch, p.system_locale, p.browser_user_agent, p.os_sdk_version, p.client_build_number);
+		expectf(t, got == want, "Windows super properties\n got %\nwant %", got, want);
+		print("windows platform: % tz=% accept-language=% locale=%\n", got, p.timezone, p.accept_language, p.locale);
+	}
 	expect(t, electron_user_agent("Windows NT 10.0; Win64; x64", WINDOWS_HOST) == "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) discord/1.0.9266 Chrome/152.0.7977.167 Electron/44.9.3 Safari/537.36");
 	// Chromium's GREASE brand per major: 148 and 152 as captured.
 	expect(t, sec_ch_ua("148.0.7778.280") == "\"Not/A)Brand\";v=\"99\", \"Chromium\";v=\"148\"" && sec_ch_ua("152.0.7977.167") == DEFAULT_PLATFORM.sec_ch_ua, "sec-ch-ua from the Chrome major");
