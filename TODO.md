@@ -1,5 +1,47 @@
 # TODO
 
+- [ ] Server settings: full parity with the official client's Server Settings layer, on Discord and on hosted servers. Today there is only a 440 px modal with name and icon (`view_guild_admin.jai` `server_settings_modal`). Build the full-window layer the official client opens from the server menu (same shell as channel settings: sidebar of sections, Escape / ESC button closes, unsaved-changes bar with Reset / Save Changes), each page shown only to members with the permission it needs, then fill the pages below. No Boost Perks, Server Boost Status, Server Subscriptions / Monetization, Server Shop or any Nitro upsell (AGENTS.md); boost-gated fields (banner, invite splash, vanity URL, server tag) appear only when the guild already has the feature, never with an upsell. On a hosted server every page talks to serve, which needs the matching routes (same paths and shapes as Discord) and records each change in its audit log.
+  - Server Profile: name, icon, banner (if `BANNER` feature), banner colour, traits, description. `PATCH /guilds/{id}`.
+  - Server Tag: the 2-4 character tag and badge (only with `GUILD_TAGS`).
+  - Engagement: System Messages channel and its four flags (`system_channel_flags`: welcome, sticker replies, boost messages are hidden but kept, setup tips), Activity Feed, Inactive Channel and Inactive Timeout, Default Notification Settings (All Messages / Only @mentions).
+  - Emoji: list with uploader, upload (`POST /guilds/{id}/emojis`, 256 KB, static and animated slots), rename and delete (`PATCH`/`DELETE /guilds/{id}/emojis/{id}`), role-restricted emoji shown read-only.
+  - Stickers: upload PNG/APNG/GIF/Lottie with name, related emoji and description (`POST /guilds/{id}/stickers` multipart), edit and delete.
+  - Soundboard: list, upload (mp3/ogg, 512 KB, 5.2 s, name, emoji, volume; `POST /guilds/{id}/soundboard-sounds`), edit and delete, preview.
+  - Members: searchable list with join date, joined via, roles and the row menu (Kick, Ban, Timeout, Roles, Transfer Ownership for the owner, with the official confirm).
+  - Roles: list with member counts, Create Role, drag to reorder (`PATCH /guilds/{id}/roles` positions), each role's Display (name, colour, icon if feature, hoist, mentionable), Permissions (every flag with the official descriptions, Clear Permissions), Links, Manage Members (add/remove), Delete; the @everyone default permissions; View Server As Role.
+  - Invites: every invite with inviter, uses, expiry; Revoke; Pause Invites (`invites_disabled`).
+  - Access: Invite Only / Apply to Join / Discoverable, server rules, join applications (member verification form).
+  - Integrations: webhooks (create, rename, avatar, channel, Copy Webhook URL, delete), followed channels, bots and apps with their command permissions. App Directory opens the system browser (no webview).
+  - Safety Setup: verification level, explicit image filter, DM spam filter, raid protection and CAPTCHA, require 2FA for moderation, and AutoMod rules (Block Custom Words, Spam, Mention Spam, Member Profile Names; actions block / alert channel / timeout; exempt roles and channels; `/guilds/{id}/auto-moderation/rules`).
+  - Audit Log: entries with actor, target, changes and reason; filter by user and action type (`GET /guilds/{id}/audit-logs`).
+  - Bans: searchable list with reason, Revoke Ban, paging past 1000.
+  - Enable Community, then Community Overview (rules and updates channels, safety alerts channel, primary language, description), Onboarding (default channels, questions and prompts, Server Guide: welcome message, new member to-dos, resource pages), Server Insights (open the official web page in the system browser if no API), Discovery (eligibility checklist, categories, tags).
+  - Widget: enable, invite channel, server ID and JSON API URL, premade widget snippet.
+  - Server Template: create, sync, delete, copy link (`/guilds/{id}/templates`).
+  - Custom Invite Link: vanity URL (only with `VANITY_URL`).
+  - Delete Server: owner only, type the name, MFA code when required.
+- [ ] Hosted server settings: the owner of a self-hosted server manages all of it from Server Settings in the app, from any machine, with no console. Every page above works on hosted servers, plus a host section only hosted servers have:
+  - Storage: disk usage of the server file, split by messages, attachments, emoji, stickers, sounds, avatars and the search index, with the disk's free space.
+  - Attachments: browse every stored file (name, size, uploader, channel, date, jump to message), delete one or many, and cleanup rules (delete older than N days, larger than N MB), freeing space with `VACUUM` off the request path.
+  - Limits: max upload size, per-member and whole-server storage quotas (40005 past them), message history retention.
+  - Transfer Ownership: the owner picks a member; it takes effect only once the new owner's client signs to accept (Hosting 3); the old owner becomes a member.
+  - Backups: rolling `VACUUM INTO` snapshots with integrity check, folder, Back Up Now, Restore (Hosting 3).
+  - Network: public address or DNS name invites carry, port, UPnP / NAT-PMP state, reachable-from-outside check (Hosting 3).
+  - Sessions and connections: who is online from where, end a session.
+  - Server info: fastcord version, uptime, log tail, certificate pin, Delete Server (to a 30-day trash).
+- [ ] Self-hosting, for anyone: the site has a Self-hosting section with a download button, and running a server takes one command.
+  - `site/index.html`: a Self-hosting section (what it is, the one command `fastcord -serve:myserver.db`, the port to open, how to share the `fc://` invite, how the owner manages it from Server Settings, backups and updates), with download buttons for each platform's release archive and the headless server build.
+  - `release.yml` publishes a headless Linux server archive (`fastcord-server-linux-x86_64.tar.gz`: the binary plus a systemd unit and README) next to the client archives; the site's button points at `releases/latest/download/...`.
+  - README links the hosting section.
+- [ ] Hosted servers: full parity with Discord servers, so moving a community off Discord loses nothing.
+  - Voice channels with an SFU in serve: create voice channels, join, speak, mute/deafen, speaking indicators; the hosted client reuses the voice gateway and RTP code (Hosting 4).
+  - Camera video and Go Live screen streaming over the same SFU, watched like on Discord.
+  - Stickers: upload and send server stickers; the picker's Stickers tab shows them on hosted servers.
+  - Soundboard: server sounds served and played to everyone in the voice channel.
+  - Roles and permissions, channel permission overwrites, private channels (Hosting 4).
+  - Emoji rename/delete, animated emoji, emoji in the picker across servers.
+  - Polls, forum channels, announcement channels, stage channels, events in voice channels.
+- [ ] Soundboard on Discord: the voice panel's soundboard button opens the official picker (default sounds from `GET /soundboard-default-sounds`, each server's from `GET /guilds/{id}/soundboard-sounds` or the gateway's `SOUNDBOARD_SOUNDS`), searchable, with favourites; clicking sends `POST /channels/{id}/send-soundboard-sound` (needs USE_SOUNDBOARD, and USE_EXTERNAL_SOUNDS for other servers' sounds), and `VOICE_CHANNEL_EFFECT_SEND` from others plays the sound locally at its volume, with the Soundboard Volume slider in Voice & Video. Full channels (user limit reached) refuse joining without MOVE_MEMBERS.
 - [ ] Windows: with an auto-hiding taskbar, a maximized fastcord may keep it from sliding up, since the frameless window covers the whole monitor (`WM_NCCALCSIZE` in `platform_windows.jai`). Leave a pixel free on the taskbar's edge while maximized (`SHAppBarMessage` `ABM_GETSTATE` / `ABM_GETAUTOHIDEBAREX`), as Windows Terminal does.
 - [ ] Hosting 1: several connections at once (Discord, plus self-hosted servers), each with its own store. `store()` in `views.jai` picks the store from the selected guild; the roughly 90 hardcoded Discord URLs come from the connection instead. Never send a Discord token to another host. This also delivers multiple Discord accounts (see Accounts below). Test against Spacebar, an open-source Discord-compatible server.
   - Done: `discord.Config.hosted` points one client at a `fastcord -serve` server with the plain profile: pinned TLS on `fc/1`, no zstd, only the token and content type as headers, no startup burst or telemetry. `src/tests/serve.jai` runs the real client to READY, a message page and a send.
@@ -260,7 +302,6 @@
 - [ ] Linux: presence never goes idle (`procinfo_linux.jai` `system_idle_ms`), and the IME window isn't placed at the caret.
 - [ ] Voice: a voice channel's text chat can't be opened; clicking always joins.
 - [ ] GIFs: favourites can be browsed but not changed: no star on hover in the picker, results or chat GIFs to add or remove one, and nothing writes `/users/@me/settings-proto/2` (`favorite_gifs` is read-only in `pickers_data.jai`). In the Favorites view, clicking a filled star only empties it; the GIF stays in place until the user leaves the view or closes the picker, so a second click undoes a mistake. Write the change to the server only then, and skip the write if the star was toggled back. This keeps act-on-press non-destructive.
-- [ ] Voice: no soundboard; full channels aren't blocked.
 - [ ] Voice: the Voice & Video mic meter outside a call shows the raw mic, so the Voice Processing switches can't be heard or seen there (`view_voice_settings.jai` meter path).
 - [ ] Localisation: translate the whole UI into every language the official client offers (its Language settings list, about 30), with Discord's own strings from the bundle so wording matches, and follow the account's `locale` setting.
 - [ ] Locale: no language picker; times are always 12-hour AM/PM, hard-coded in several views, ignoring the locale and 24-hour setting.
@@ -316,7 +357,6 @@
 - [ ] Composer: no spellcheck (red underline and suggestions on right-click).
 - [ ] Media: images and files can't be dragged out of fastcord. Every platform has a drop target but no drag source (no `DoDragDrop`, `beginDraggingSession:` or XDND source in `src/platform`). In the official client you drag an image or attachment onto the desktop, a folder or another app, and it gets the file, or the link where only text is accepted.
 - [ ] Media: the image viewer has no previous/next across a message's media and no "Open in Browser".
-- [ ] Server settings: none at all (overview, roles, emoji, stickers, AutoMod, audit log, bans, integrations, webhooks, invites).
 - [ ] Windows: nothing installs. The release is a bare `Fastcord.exe` in a zip (`build.jai` `release`), so it runs from wherever it was unzipped, usually Downloads. There's no Start menu entry or search hit, no uninstall entry, and no fixed path for the updater, startup and `discord://` items to point at. On first run, offer to move it to `%LOCALAPPDATA%\Programs\fastcord` and add a Start menu shortcut carrying the AppUserModelID that toasts and the taskbar badge need, plus a per-user Apps entry. Its uninstall removes the program and asks before touching `<state>`, never deleting the keys silently. On macOS, offer Move to Applications.
 - [ ] Windows: desktop notifications don't work. `notify_show` (`platform_windows.jai`) is a stub returning false, so only the sound plays. Show WinRT toasts through `ToastNotificationManager`, with the AppUserModelID set on the process and on a Start menu shortcut (toasts from an unregistered app are silently dropped). Check they appear, respect Focus Assist, stay in Action Center, and open the message's channel on click (the `id` argument). The unread badge is only a dot on the tray icon; the taskbar button gets no overlay (`ITaskbarList3::SetOverlayIcon`).
 - [ ] Linux: desktop notifications are a hairball. `notify_show` (`platform_linux.jai`) spawns `notify-send` per message when it's on PATH and otherwise silently does nothing. Clicking does nothing (the `id` argument is unused), there's no app icon, and one channel's notifications stack instead of replacing each other. Talk to `org.freedesktop.Notifications` over D-Bus directly (actions, `replaces_id`, icon), use the `org.freedesktop.portal.Notification` portal under Flatpak or Snap, and check GNOME, KDE, and a bare window manager with dunst or mako. There's no unread badge (`set_badge` is empty); KDE and Ubuntu docks read `com.canonical.Unity.LauncherEntry`.
