@@ -371,6 +371,9 @@ frame :: () {
 			toggle_self_mute();
 		case .Tray_Deafen;
 			app.self_deaf = !app.self_deaf;
+		case .Notification_Click;
+			platform.window_show();
+			notify_clicked(e.text);
 		case .Open_Url;
 			platform.window_show();
 			if e.text != "" {

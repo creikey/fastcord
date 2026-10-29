@@ -65,13 +65,27 @@ save_file_dialog :: (name: string, allocator := context.allocator) -> string {
     return copy_string(out,, allocator);
 }
 
-// Desktop notifications by notify-send (libnotify), when installed. No badge on Linux.
+// Desktop notifications on Linux: org.freedesktop.Notifications over the session bus, through libdbus
+// (opened at run time; every desktop with a notification daemon has it), else notify-send. The unread badge
+// is com.canonical.Unity.LauncherEntry, which KDE's task manager and Ubuntu's dock read. All bus traffic
+// runs on one thread, so a stuck daemon never holds the UI thread; a click on a notification comes back as a
+// Notification_Click event carrying its id.
+
 notify_show :: (title: string, body: string, id: string) -> bool {
-    if s.headless || !in_path("notify-send") return false;
-    spawn_detached("notify-send", "-a", "fastcord", "--", title, body);
+    if s.headless return false;
+    if !bus_start() {
+        if !in_path("notify-send") return false;
+        spawn_detached("notify-send", "-a", "fastcord", "-i", "fastcord", "--", title, body);
+        return true;
+    }
+    bus_post(.{title = copy_string(title), body = copy_string(body), id = copy_string(id)});
     return true;
 }
-set_badge :: (text: string) {}
+
+set_badge :: (text: string) {
+    if s.headless || !bus_start() return;
+    bus_post(.{badge = true, id = copy_string(text)});
+}
 
 // Opens a file or folder with its default app (Explorer, the file manager).
 open_path :: (path: string) { open_url(path); }
@@ -1178,3 +1192,189 @@ dnd_send :: (type: Atom, data: [4]s64) {
     X.SendEvent(xs.d, xs.dnd_source, 0, 0, *ev);
     X.Flush(xs.d);
 }
+
+// ---- Notifications over D-Bus (notify_show, set_badge)
+
+Bus_Job :: struct {
+    badge: bool; // a badge update (id = its text, "" = none), else a notification
+    title, body, id: string; // heap
+}
+
+bus: struct {
+    state: s32; // 0 not tried, 1 running, 2 unavailable
+    conn: *void;
+    lock: locks.Mutex;
+    jobs: [..]Bus_Job;
+    wake: s32 = -1; // eventfd: jobs waiting
+    thread: Thread;
+    sent: [64]struct { server_id: u32; id: string; }; // recent notifications, for ActionInvoked (ring)
+    sent_next: int;
+};
+
+bus_post :: (j: Bus_Job) {
+    {
+        locks.guard(*bus.lock);
+        array_add(*bus.jobs, j);
+    }
+    one: u64 = 1;
+    write(bus.wake, *one, 8);
+}
+
+// Loads libdbus and connects on first use (UI thread); false when there is no session bus.
+bus_start :: () -> bool {
+    if bus.state == 1 return true;
+    if bus.state == 2 return false;
+    bus.state = 2;
+    lib := dlopen("libdbus-1.so.3", RTLD_NOW);
+    if !lib || !load_syms(lib, *D, "dbus_") return false;
+    D.threads_init_default();
+    err: DBus_Error;
+    D.error_init(*err);
+    bus.conn = D.bus_get_private(0 /*DBUS_BUS_SESSION*/, *err);
+    if !bus.conn { D.error_free(*err); return false; }
+    D.connection_set_exit_on_disconnect(bus.conn, 0);
+    D.bus_add_match(bus.conn, "type='signal',interface='org.freedesktop.Notifications',member='ActionInvoked'", *err);
+    D.error_free(*err);
+    bus.wake = eventfd(0, xx (EFD.NONBLOCK | .CLOEXEC));
+    thread_init(*bus.thread, bus_proc);
+    thread_start(*bus.thread);
+    bus.state = 1;
+    return true;
+}
+
+bus_proc :: (t: *Thread) -> s64 {
+    fd: s32 = -1;
+    D.connection_get_unix_fd(bus.conn, *fd);
+    while true {
+        fds := pollfd.[.{fd = fd, events = POLLIN}, .{fd = bus.wake, events = POLLIN}];
+        poll(fds.data, 2, -1);
+        n: u64;
+        read(bus.wake, *n, 8);
+        jobs: [..]Bus_Job;
+        {
+            locks.guard(*bus.lock);
+            jobs, bus.jobs = bus.jobs, jobs;
+        }
+        for jobs {
+            if it.badge send_badge(it.id); else send_notify(it);
+            free(it.title.data); free(it.body.data); free(it.id.data);
+        }
+        array_free(jobs);
+        if !D.connection_read_write(bus.conn, 0) return 0; // disconnected
+        while true {
+            m := D.connection_pop_message(bus.conn);
+            if !m break;
+            defer D.message_unref(m);
+            if !D.message_is_signal(m, "org.freedesktop.Notifications", "ActionInvoked") continue;
+            mi: DBus_Iter;
+            server_id: u32;
+            if !D.message_iter_init(m, *mi) || D.message_iter_get_arg_type(*mi) != #char "u" continue;
+            D.message_iter_get_basic(*mi, *server_id);
+            for bus.sent if it.server_id == server_id && it.id {
+                push_event(.{kind = .Notification_Click, text = it.id, time = time_now()});
+                request_frame();
+                break;
+            }
+        }
+        reset_temporary_storage();
+    }
+    return 0;
+}
+
+// Notify(app_name s, replaces_id u, app_icon s, summary s, body s, actions as, hints a{sv}, timeout i) -> u
+send_notify :: (j: Bus_Job) {
+    m := D.message_new_method_call("org.freedesktop.Notifications", "/org/freedesktop/Notifications", "org.freedesktop.Notifications", "Notify");
+    if !m return;
+    defer D.message_unref(m);
+    it, arr: DBus_Iter;
+    D.message_iter_init_append(m, *it);
+    str :: (it: *DBus_Iter, v: string) { p := temp_c_string(v); D.message_iter_append_basic(it, #char "s", *p); }
+    zero: u32;
+    str(*it, "fastcord");
+    D.message_iter_append_basic(*it, #char "u", *zero);
+    str(*it, "fastcord"); // the icon the desktop entry installs
+    str(*it, j.title);
+    str(*it, j.body);
+    D.message_iter_open_container(*it, #char "a", "s", *arr);
+    str(*arr, "default"); // a click on the notification
+    str(*arr, "Open");
+    D.message_iter_close_container(*it, *arr);
+    D.message_iter_open_container(*it, #char "a", "{sv}", *arr);
+    D.message_iter_close_container(*it, *arr);
+    timeout: s32 = -1;
+    D.message_iter_append_basic(*it, #char "i", *timeout);
+    err: DBus_Error;
+    D.error_init(*err);
+    reply := D.connection_send_with_reply_and_block(bus.conn, m, 5000, *err);
+    D.error_free(*err);
+    if !reply return;
+    defer D.message_unref(reply);
+    server_id: u32;
+    if !D.message_iter_init(reply, *it) || D.message_iter_get_arg_type(*it) != #char "u" return;
+    D.message_iter_get_basic(*it, *server_id);
+    slot := *bus.sent[bus.sent_next];
+    bus.sent_next = (bus.sent_next + 1) % bus.sent.count;
+    free(slot.id.data);
+    slot.* = .{server_id, copy_string(j.id)};
+}
+
+// Update(app_uri s, properties a{sv}) on com.canonical.Unity.LauncherEntry: count and count-visible.
+send_badge :: (text: string) {
+    m := D.message_new_signal("/com/creikey/fastcord", "com.canonical.Unity.LauncherEntry", "Update");
+    if !m return;
+    defer D.message_unref(m);
+    it, arr, entry, v: DBus_Iter;
+    D.message_iter_init_append(m, *it);
+    uri := "application://fastcord.desktop".data;
+    D.message_iter_append_basic(*it, #char "s", *uri);
+    D.message_iter_open_container(*it, #char "a", "{sv}", *arr);
+    count: s64 = ifx text then max(string_to_int(text), 1) else 0;
+    visible: u32 = xx (text != "");
+    D.message_iter_open_container(*arr, #char "e", null, *entry);
+    key := "count".data;
+    D.message_iter_append_basic(*entry, #char "s", *key);
+    D.message_iter_open_container(*entry, #char "v", "x", *v);
+    D.message_iter_append_basic(*v, #char "x", *count);
+    D.message_iter_close_container(*entry, *v);
+    D.message_iter_close_container(*arr, *entry);
+    D.message_iter_open_container(*arr, #char "e", null, *entry);
+    key = "count-visible".data;
+    D.message_iter_append_basic(*entry, #char "s", *key);
+    D.message_iter_open_container(*entry, #char "v", "b", *v);
+    D.message_iter_append_basic(*v, #char "b", *visible);
+    D.message_iter_close_container(*entry, *v);
+    D.message_iter_close_container(*arr, *entry);
+    D.message_iter_close_container(*it, *arr);
+    D.connection_send(bus.conn, m, null);
+    D.connection_flush(bus.conn);
+}
+
+DBus_Error :: struct { name, message: *u8; dummy: u32; padding: *void; } // DBusError
+DBus_Iter :: struct { data: [16]u64; } // DBusMessageIter (72 bytes on 64-bit), opaque
+
+// libdbus, loaded by load_syms (each name prefixed "dbus_").
+D: struct {
+    threads_init_default: () -> u32 #c_call;
+    error_init: (e: *DBus_Error) #c_call;
+    error_free: (e: *DBus_Error) #c_call;
+    bus_get_private: (type: s32, e: *DBus_Error) -> *void #c_call;
+    bus_add_match: (c: *void, rule: *u8, e: *DBus_Error) #c_call;
+    connection_set_exit_on_disconnect: (c: *void, exit: u32) #c_call;
+    connection_get_unix_fd: (c: *void, fd: *s32) -> u32 #c_call;
+    connection_read_write: (c: *void, timeout_ms: s32) -> u32 #c_call;
+    connection_pop_message: (c: *void) -> *void #c_call;
+    connection_send: (c: *void, m: *void, serial: *u32) -> u32 #c_call;
+    connection_send_with_reply_and_block: (c: *void, m: *void, timeout_ms: s32, e: *DBus_Error) -> *void #c_call;
+    connection_flush: (c: *void) #c_call;
+    message_new_method_call: (dest: *u8, path: *u8, iface: *u8, method: *u8) -> *void #c_call;
+    message_new_signal: (path: *u8, iface: *u8, name: *u8) -> *void #c_call;
+    message_unref: (m: *void) #c_call;
+    message_is_signal: (m: *void, iface: *u8, name: *u8) -> u32 #c_call;
+    message_iter_init: (m: *void, it: *DBus_Iter) -> u32 #c_call;
+    message_iter_init_append: (m: *void, it: *DBus_Iter) #c_call;
+    message_iter_get_arg_type: (it: *DBus_Iter) -> s32 #c_call;
+    message_iter_get_basic: (it: *DBus_Iter, value: *void) #c_call;
+    message_iter_append_basic: (it: *DBus_Iter, type: s32, value: *void) -> u32 #c_call;
+    message_iter_open_container: (it: *DBus_Iter, type: s32, signature: *u8, sub: *DBus_Iter) -> u32 #c_call;
+    message_iter_close_container: (it: *DBus_Iter, sub: *DBus_Iter) -> u32 #c_call;
+};

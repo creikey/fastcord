@@ -49,6 +49,18 @@ notifications_sent :: () -> int { return ns.notified; }
 
 notify_reset_for_test :: () { ns = .{}; }
 
+// A click on a notification (Linux; id is the message's): opens its channel at the message, as the client's
+// onClick does, when it's in the open connection's store.
+notify_clicked :: (id: string) {
+	mid, ok := dc.parse_u64(id);
+	if !ok return;
+	for ns.recent if it[0] == mid {
+		ch := dc.channel_get(store(), it[1]);
+		if ch jump_to_message(ch.id, mid);
+		return;
+	}
+}
+
 #scope_file
 
 ns: struct {
@@ -56,6 +68,8 @@ ns: struct {
 	badge_set: bool;
 	notified: int;
 	waiting: [..]Waiting;
+	recent: [32][2]u64; // message and channel of the latest notifications (ring), for notify_clicked
+	recent_next: int;
 };
 
 Waiting :: struct { #as using m: dc.New_Message; until: float64; }
@@ -95,6 +109,8 @@ notify_message :: (s: *dc.Store, m: *dc.New_Message) {
 	// Streamer Mode > Hide Personal Information: no DM names or DM content on screen
 	if (ch.kind == .DM || ch.kind == .Group_DM) && streamer_hide_personal() title, body = author, "";
 	platform.notify_show(title, body, tprint("%", cast(u64) m.id));
+	ns.recent[ns.recent_next] = .[cast(u64) m.id, cast(u64) m.channel_id];
+	ns.recent_next = (ns.recent_next + 1) % ns.recent.count;
 	// the library reports it as acked (notification_action ACK) when the channel's MESSAGE_ACK comes
 	if app.client != null dc.analytics_notification_shown(app.client, m.id, m.channel_id, m.author_id, m.kind, !notify_prefs.badge_off);
 	ns.notified += 1;

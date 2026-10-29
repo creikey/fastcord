@@ -47,6 +47,7 @@ Event_Kind :: enum u8 {
     Tray_Mute;   // the tray menu's Mute or Deafen was picked (Windows)
     Tray_Deafen;
     Open_Url;    // another launch or app handed us a URL (text; "" = only show the window): instance_claim
+    Notification_Click; // a desktop notification was clicked (text = the id notify_show got; Linux)
 }
 
 Event :: struct {
