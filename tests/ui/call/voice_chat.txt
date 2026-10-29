@@ -1,0 +1,20 @@
+# A voice channel's chat opens without joining: the row's chat button shows the call view with the chat
+# beside it (the header's chat button is on, the status where a topic goes); then, in the call, the
+# fullscreen button fills the window and Escape leaves.
+wait 5
+move_text "Duos"
+wait 3
+click 309 434
+wait 10
+expect_visible "Join Voice"
+expect_visible "ranked grind, come watch"
+shot build/ui-call_voice_chat.png
+in_voice 1546820558950371412
+wait 5
+click 852 680
+wait 5
+expect_not_visible "Events"
+shot build/ui-call_voice_full.png
+key escape
+wait 5
+expect_visible "Events"

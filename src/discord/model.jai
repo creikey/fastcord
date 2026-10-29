@@ -120,6 +120,7 @@ Channel :: struct {
 	owner_id: Snowflake;
 	overwrites: [..]Overwrite;
 	flags: u64;
+	status: string; // a voice channel's status (CHANNEL_INFO, VOICE_CHANNEL_STATUS_UPDATE)
 }
 
 Emoji :: struct {

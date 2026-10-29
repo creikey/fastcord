@@ -331,6 +331,7 @@ call_controls :: (cid: dc.Snowflake) {
 		filler(.X);
 		return;
 	}
+	spacer(.X, 72); // balances the fullscreen button on the right
 	can_video := voice_conn() != null && voice.state(voice_conn()) == .Connected;
 	smute, sdeaf := server_muted();
 	mic_off := app.self_mute || app.self_deaf || smute || sdeaf;
@@ -352,6 +353,8 @@ call_controls :: (cid: dc.Snowflake) {
 		voice_leave_channel();
 	}
 	filler(.X);
+	if control("full", "fullscreen", false, app.view.call_full, true) app.view.call_full = !app.view.call_full; // Escape also leaves
+	spacer(.X, 16);
 }
 
 // A 56x48 control: red when danger (muted / disconnect), white when on.

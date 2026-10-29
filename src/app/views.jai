@@ -35,6 +35,8 @@ View_State :: struct {
 	hide_muted: Table(dc.Snowflake, bool); // guild -> "Hide Muted Channels" (device-local)
 	hide_members: bool;
 	hide_dm_profile: bool; // 1:1 DM user profile column (header toggle)
+	voice_chat: bool; // a voice channel's text chat beside its call view (header "chat", the row's chat button)
+	call_full: bool; // the call view fills the window (its fullscreen button; Escape leaves)
 	add_friend: ui.Editor;
 	friends_search: ui.Editor; // Friends page search (filters the list)
 	token_input: ui.Editor;
@@ -229,6 +231,12 @@ build_ui :: () {
 	prof.zone("app.build_ui");
 	title_bar();
 	streamer_notice();
+	if call_fullscreen() {
+		call_view(app.view.channel);
+		overlays();
+		for * app.ui.events if it.kind == .Key_Down && it.key == .Escape { app.view.call_full = false; it.consumed = true; }
+		return;
+	}
 	body := row("body");
 	body.semantic_size = .[ui.pct(1), ui.fill()];
 	body.cross_align = .Start;
@@ -596,7 +604,22 @@ page :: () {
 		}
 		chat_header(ch);
 		if ch.kind == .Guild_Voice || ch.kind == .Guild_Stage_Voice {
+			cb := row("callbody");
+			cb.semantic_size = .[ui.pct(1), ui.fill()];
+			cb.cross_align = .Start;
+			ui.parent(cb); defer ui.pop_parent();
 			call_view(ch.id);
+			if app.view.voice_chat {
+				// text in voice: the channel's chat beside the call
+				col := ui.box("voicechat", .Draw_Background | .Draw_Border | .Clip);
+				col.semantic_size = .[ui.px(clamp(app.ui.window.x * 0.3, 320, 480)), ui.pct(1)];
+				col.layout_axis = .Y;
+				col.style.bg = T("--background-base-lower");
+				col.style.border_color = T("--border-subtle");
+				col.style.border = 1;
+				ui.parent(col); defer ui.pop_parent();
+				chat_view(ch.id);
+			}
 			return;
 		}
 		if ch.guild_id == 0 && app.voice_channel == ch.id { dm_call_panel(ch.id); }
@@ -630,7 +653,9 @@ chat_header :: (ch: *dc.Channel) {
 			icon("hash", channel_icon_name(ch), 20, T("--channel-icon"));
 			spacer(.X, 8);
 			label(ch.name, .Medium, 16, T("--text-strong"), 20).semantic_size[ui.Axis.X].strictness = 1;
-			if ch.topic != "" {
+			// a voice channel shows its status where a text channel has its topic
+			topic := first_line(ifx ch.kind == .Guild_Voice || ch.kind == .Guild_Stage_Voice then ch.status else ch.topic);
+			if topic != "" {
 				spacer(.X, 12);
 				d := ui.box("div", .Draw_Background);
 				d.semantic_size = .[ui.px(1), ui.px(24)];
@@ -638,7 +663,6 @@ chat_header :: (ch: *dc.Channel) {
 				spacer(.X, 12);
 				// the topic gives way first on narrow windows (clipped by its wrapper;
 				// a label can't clip its own text)
-				topic := first_line(ch.topic);
 				tw := ui.box("topic", .Clip);
 				tw.semantic_size = .[ui.px(ui.layout_text(F(.Medium), 14, topic, -1).width, 0), ui.px(18)];
 				{ ui.parent(tw); defer ui.pop_parent();
@@ -653,13 +677,14 @@ chat_header :: (ch: *dc.Channel) {
 		if ch.kind == .Group_DM { tools = .["phone-call", "pin", "group-plus", "group"]; } // member list toggle
 		encrypted := encrypting(ch);
 		if encrypted_dm(ch) { tools = .["lock", "phone-call", "pin", "group-plus", "user-circle"]; }
+		if ch.kind == .Guild_Voice || ch.kind == .Guild_Stage_Voice { tools = .["chat"]; } // the call view's header: Show Chat
 		for name: tools {
 			b := ui.box(name, .Clickable);
 			b.semantic_size = .[ui.px(HEADER_TOOL_W), ui.px(24)];
 			b.layout_axis = .X;
 			b.cross_align = .Center;
 			sig := ui.signal(b);
-			active := (name == "group" && !app.view.hide_members) || (name == "user-circle" && !app.view.hide_dm_profile) || (name == "phone-call" && app.voice_channel == ch.id) || (name == "lock" && encrypted);
+			active := (name == "group" && !app.view.hide_members) || (name == "user-circle" && !app.view.hide_dm_profile) || (name == "phone-call" && app.voice_channel == ch.id) || (name == "lock" && encrypted) || (name == "chat" && app.view.voice_chat);
 			color := ifx sig.hovering || active then T("--interactive-icon-hover") else T("--icon-muted");
 			{ ui.parent(b); defer ui.pop_parent();
 				spacer(.X, (HEADER_TOOL_W - 20) / 2);
@@ -670,6 +695,8 @@ chat_header :: (ch: *dc.Channel) {
 			if sig.clicked && name == "user-circle" { app.view.hide_dm_profile = !app.view.hide_dm_profile; }
 			if name == "lock" && sig.hovering tooltip_below(ifx encrypted then "Turn off encryption" else "Encrypt this DM", b.rect);
 			if sig.clicked && name == "lock" { encrypted_toggle(ch); }
+			if name == "chat" && sig.hovering tooltip_below(ifx app.view.voice_chat then "Hide Chat" else "Show Chat", b.rect);
+			if sig.clicked && name == "chat" { voice_chat_open(ch, !app.view.voice_chat); }
 			if name == "pin" header_pin_rect = b.rect;
 			if name == "thread" header_thread_rect = b.rect;
 			if sig.clicked && name == "pin" { pins_toggle(ch.id, b.rect); }
@@ -878,7 +905,17 @@ channel_row :: (ch: *dc.Channel, gid: dc.Snowflake) {
 			label(ch.name, ifx unread || selected then .Semibold else .Medium, 16, color, 20);
 			filler(.X);
 			if selected || sig.hovering || ui.mouse_over(item) {
-				// invite / settings, shown on the selected or hovered row
+				// invite / settings, shown on the selected or hovered row (in place of a voice channel's N/limit);
+				// a voice channel's chat opens without joining
+				if ch.kind == .Guild_Voice || ch.kind == .Guild_Stage_Voice {
+					chat := ui.box("openchat", .Clickable);
+					chat.semantic_size = .[ui.px(16), ui.px(16)];
+					cs := ui.signal(chat);
+					set_icon(chat, "chat", ifx cs.hovering then T("--interactive-icon-active") else T("--interactive-icon-hover"));
+					if cs.hovering tooltip_below("Open Chat", chat.rect);
+					if cs.clicked voice_chat_open(ch, true);
+					spacer(.X, 4);
+				}
 				if ui.signal(icon("invite", "group-plus", 16, T("--interactive-icon-hover"), .Clickable)).clicked { invite_open(gid, ch.id, dc.INVITE_LOC_CHANNELS); }
 				if can_manage_channel(ch) {
 					spacer(.X, 4);
@@ -928,6 +965,15 @@ channel_row :: (ch: *dc.Channel, gid: dc.Snowflake) {
 	}
 	if ch.kind == .Guild_Voice || ch.kind == .Guild_Stage_Voice {
 		s := store();
+		if ch.status != "" {
+			// the channel status, one line under the name
+			st := row("status");
+			st.semantic_size = .[ui.pct(1), ui.px(18)];
+			ui.parent(st); defer ui.pop_parent();
+			spacer(.X, 44);
+			text := first_line(ch.status);
+			label(tprint("%##status", ellipsize(text, .Medium, 12, app.view.sidebar_w - 60)), .Medium, 12, T("--channels-default"), 16);
+		}
 		for vs, uid: s.voice_states {
 			if vs.channel_id != ch.id { continue; }
 			{ ui.id_scope(cast(u64)(uid)); defer ui.pop_seed();
@@ -1163,6 +1209,20 @@ tooltip_right :: (text: string) {
 
 // A voice channel's row joins it and opens its call view (the join already loads
 // the channel's text page, so no channel select goes out).
+// voice_chat_open: a voice channel's text chat beside its call view, without joining; opening it loads the
+// channel like any other (go_to).
+voice_chat_open :: (ch: *dc.Channel, open: bool) {
+	app.view.voice_chat = open;
+	if open select_channel(ch.guild_id, ch.id, prefetch = true);
+}
+
+// call_fullscreen: the call view fills the window while the open channel is a call.
+call_fullscreen :: () -> bool {
+	ch := dc.channel_get(store(), app.view.channel);
+	if !ch || !(ch.kind == .Guild_Voice || ch.kind == .Guild_Stage_Voice || app.voice_channel == ch.id) app.view.call_full = false;
+	return app.view.call_full;
+}
+
 join_voice :: (gid: dc.Snowflake, cid: dc.Snowflake) {
 	voice_join_channel(gid, cid);
 	app.view.guild = gid;

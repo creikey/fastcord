@@ -1,6 +1,10 @@
-# The channel list: a voice channel with a user limit shows N/limit, and a stage lists who is on it.
+# The channel list: a voice channel with a user limit shows N/limit and its status (CHANNEL_INFO), and a
+# stage lists who is on it. The open voice channel's header shows the status in place of a topic.
 wait 5
 expect_visible "01/05"
 expect_visible "Avery"
 expect_visible "Jules"
+expect_visible "ranked grind, come watch"
+click_text "Duos"
+wait 10
 shot build/ui-call_sidebar.png

@@ -97,6 +97,16 @@ set_str :: (s: *Store, dst: *string, v: string) {
 	dst.* = clone_str(v, s.allocator);
 }
 
+// A voice channel status: Discord caps it at 500 characters; cut longer ones on a UTF-8 boundary.
+set_channel_status :: (s: *Store, c: *Channel, v: string) {
+	t := v;
+	if t.count > 2000 {
+		t.count = 2000;
+		while t.count > 0 && (t.data[t.count] & 0xC0) == 0x80 t.count -= 1;
+	}
+	set_str(s, *c.status, t);
+}
+
 // ---- freeing ----
 
 free_user :: (s: *Store, u: *User) {
@@ -116,6 +126,7 @@ free_channel :: (s: *Store, c: *Channel) {
 	free_str(c.name, a);
 	free_str(c.topic, a);
 	free_str(c.icon, a);
+	free_str(c.status, a);
 	array_free(c.recipient_ids);
 	array_free(c.overwrites);
 }
@@ -260,6 +271,7 @@ parse_channel_into :: (s: *Store, m: etf.Map, guild_id: Snowflake = 0) -> Snowfl
 	if vhas(m, "user_limit") c.user_limit = fint(m, "user_limit");
 	if vhas(m, "owner_id") c.owner_id = fsnow(m, "owner_id");
 	if vhas(m, "flags") c.flags = cast(u64) fint(m, "flags");
+	if vhas(m, "status") set_channel_status(s, c, fstr(m, "status"));
 	if vhas(m, "permission_overwrites") {
 		c.overwrites.count = 0;
 		for flist(m, "permission_overwrites") {
@@ -1404,6 +1416,16 @@ store_apply_dispatch :: (s: *Store, name: string, data: V, now: s64) -> bool {
 			if sm && fint(sm, "type") == 1 apply_settings_proto(s, fstr(sm, "proto"));
 		case "USER_GUILD_SETTINGS_UPDATE";
 			apply_guild_settings(s, d);
+		case "CHANNEL_INFO"; // op 43's reply: {guild_id, channels: [{id, status?, voice_start_time?}]}
+			gid := fsnow(d, "guild_id");
+			for flist(d, "channels") {
+				cm := vmap(it);
+				c := table_find_pointer(*s.channels, fsnow(cm, "id"));
+				if c && c.guild_id == gid && vhas(cm, "status") set_channel_status(s, c, fstr(cm, "status"));
+			}
+		case "VOICE_CHANNEL_STATUS_UPDATE"; // {id, guild_id, status}
+			c := table_find_pointer(*s.channels, fsnow(d, "id"));
+			if c && c.guild_id == fsnow(d, "guild_id") set_channel_status(s, c, fstr(d, "status"));
 		case "VOICE_STATE_UPDATE";
 			apply_voice_state(s, d);
 		case "VOICE_SERVER_UPDATE";
