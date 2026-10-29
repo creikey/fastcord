@@ -14,6 +14,10 @@
 // Clock: audio-driven when there is (unmuted) audio — the device's consumed
 // sample position minus output latency — otherwise the wall clock. Video frames
 // are presented when their pts <= clock (frame-accurate, B-frame reordered).
+//
+// Rate (player_set_rate): audio is resampled linearly by the rate before it is queued, so it plays
+// faster and higher, like a tape (voice messages' 1.5x / 2x); each segment keeps the rate its samples
+// were made at, so the clock stays exact.
 
 MAX_FRAMES :: 5;
 AUDIO_AHEAD :: 0.3; // seconds queued in the mixer ring
@@ -49,6 +53,7 @@ Player :: struct {
 	looping: bool;
 	muted: bool;
 	volume: float32;
+	rate: float64; // playback speed (1 = normal)
 	seek_req: bool;
 	seek_to: float64;
 	starved: bool; // worker waiting for bytes that haven't downloaded yet (buffering)
@@ -69,6 +74,8 @@ Player :: struct {
 	discard_v: float64;
 	discard_a: float64;
 	pcm: [..]float32;
+	rs_buf: [..]float32; // resampled audio (rate != 1)
+	rs_pos: float64; // the next output frame's input position, from the start of the next chunk
 	pkt: [..]u8;
 	vframes_tmp: [..]Video_Frame;
 
@@ -95,6 +102,7 @@ player_open :: (src: Byte_Source, autoplay := false, looping := false, muted := 
 	p.vtrack = -1;
 	p.atrack = -1;
 	p.volume = 1;
+	p.rate = 1;
 	p.looping = looping;
 	p.muted = muted;
 	p.playing = autoplay;
@@ -120,6 +128,7 @@ player_destroy :: (p: *Player) {
 	array_free(p.frames);
 	array_free(p.vframes_tmp);
 	array_free(p.pcm);
+	array_free(p.rs_buf);
 	array_free(p.pkt);
 	video_decoder_destroy(p.vdec);
 	audio_decoder_destroy(p.adec);
@@ -185,6 +194,17 @@ player_set_loop :: (p: *Player, on: bool) {
 	p.looping = on;
 	locks.unlock(*p.mu);
 	locks.cond_broadcast(*p.cond);
+}
+
+// Playback speed, 0.25..4: the position is kept and audio restarts there at the new rate.
+player_set_rate :: (p: *Player, r: float64) {
+	r = clamp(r, 0.25, 4);
+	t := player_clock(p, now_s());
+	locks.lock(*p.mu);
+	same := p.rate == r;
+	p.rate = r;
+	locks.unlock(*p.mu);
+	if !same player_seek(p, t);
 }
 
 player_set_volume :: (p: *Player, v: float32) {
@@ -302,6 +322,7 @@ player_clock :: (p: *Player, now: float64) -> float64 {
 	nseg := p.nseg;
 	eos_audio := p.eos_audio;
 	buffering := p.starved && p.frames.count == 0;
+	rate := p.rate;
 	locks.unlock(*p.mu);
 	if !playing return p.anchor_media;
 	if audio_on && nseg > 0 {
@@ -314,7 +335,7 @@ player_clock :: (p: *Player, now: float64) -> float64 {
 			played := cast(float64) (rp - sg.mark) / audio.SAMPLE_RATE - lat;
 			if played <= 0 break; // device hasn't reached it yet: hold
 			if eos_audio && audio.source_queued_frames(p.asrc) == 0 break; // drained
-			t := sg.base + played;
+			t := sg.base + played * sg.rate;
 			p.anchor_media = t;
 			p.anchor_wall = now;
 			p.audio_driving = true;
@@ -332,7 +353,7 @@ player_clock :: (p: *Player, now: float64) -> float64 {
 		p.anchor_wall = now;
 		return p.anchor_media;
 	}
-	return p.anchor_media + (now - p.anchor_wall);
+	return p.anchor_media + (now - p.anchor_wall) * rate;
 }
 
 // Drops a[lo..hi-1], keeping order.
@@ -348,6 +369,7 @@ remove_range :: (a: *[..]$T, lo: int, hi: int) {
 Segment :: struct {
 	mark: u64; // audio write position (frames) where this segment starts
 	base: float64; // global time of that sample
+	rate: float64; // media seconds per played second
 }
 
 worker :: (th: *Thread) -> s64 {
@@ -463,7 +485,7 @@ add_segment :: (p: *Player, base: float64) {
 		for i: 0..p.nseg - 2 p.segments[i] = p.segments[i + 1];
 		p.nseg -= 1;
 	}
-	p.segments[p.nseg] = .{audio.source_write_pos(p.asrc), base};
+	p.segments[p.nseg] = .{audio.source_write_pos(p.asrc), base, p.rate};
 	p.nseg += 1;
 }
 
@@ -499,6 +521,7 @@ worker_seek :: (p: *Player, target: float64) {
 		p.anext = demux_find_keyframe(t, track_ticks(t, max(target - 0.1, 0)));
 		audio_decoder_reset(p.adec);
 		p.pcm.count = 0;
+		p.rs_pos = 0;
 		p.discard_a = target;
 		audio.source_flush(p.asrc);
 		locks.lock(*p.mu);
@@ -645,6 +668,7 @@ audio_step :: (p: *Player) -> bool {
 	audio_decode(p.adec, p.pkt, *p.pcm);
 	locks.lock(*p.mu);
 	p.stats.audio_packets += 1;
+	rate := p.rate;
 	locks.unlock(*p.mu);
 	// Trim samples before the seek target / pre-skip (pts < 0).
 	pts := track_seconds(t, pk.pts);
@@ -652,6 +676,21 @@ audio_step :: (p: *Player) -> bool {
 	if pts < cut_before {
 		drop := cast(int) ((cut_before - pts) * audio.SAMPLE_RATE) * 2;
 		remove_range(*p.pcm, start, start + min(drop, p.pcm.count - start));
+	}
+	if rate != 1 && p.pcm.count > start {
+		n := (p.pcm.count - start) / 2;
+		p.rs_buf.count = 0;
+		pos := p.rs_pos;
+		while pos < cast(float64) n {
+			i := cast(int) pos;
+			f := cast(float32) (pos - i);
+			j := min(i + 1, n - 1);
+			for c: 0..1 array_add(*p.rs_buf, p.pcm[start + 2 * i + c] * (1 - f) + p.pcm[start + 2 * j + c] * f);
+			pos += rate;
+		}
+		p.rs_pos = pos - n;
+		p.pcm.count = start;
+		array_add(*p.pcm, ..p.rs_buf);
 	}
 	if p.pcm.count > 0 remove_range(*p.pcm, 0, audio.source_write(p.asrc, p.pcm) * 2);
 	return true;

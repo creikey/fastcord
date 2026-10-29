@@ -13,6 +13,7 @@ Inline_Player :: struct {
 	player: *media.Player;
 	url: string;
 	poster: string;
+	voice: bool; // a voice message: plays at voice_rate
 	size: Vector2; // inline size: the fullscreen view's aspect
 	img: media.Video_Image;
 }
@@ -563,7 +564,7 @@ audio_attachment :: (a: *dc.Attachment) {
 		if ui.signal(pb).clicked {
 			if !playing {
 				blob_stream(a.url, .Audio);
-				table_set(*players, a.id, .{url = copy_string(a.url)});
+				table_set(*players, a.id, .{url = copy_string(a.url), voice = a.waveform != ""});
 			} else if ip.player {
 				media.player_toggle(ip.player);
 			}
@@ -581,8 +582,23 @@ audio_attachment :: (a: *dc.Attachment) {
 		if ok && wave.count {
 			voice_waveform(wave, ifx dur > 0 then cast(float32) (pos / dur) else 0, ip, dur);
 			spacer(.X, 12);
-			label(fmt_clock(ifx playing then max(dur - pos, 0) else dur), .Mono, 12, T("--text-muted"), 16);
-			spacer(.X, 16);
+			label(fmt_clock(ifx playing then max(dur - pos, 0) / voice_rate else dur), .Mono, 12, T("--text-muted"), 16);
+			spacer(.X, 8);
+			// playback speed: 1x, 1.5x, 2x, then back
+			rb := ui.box(tprint("%x##rate", voice_rate), .Clickable | .Draw_Background | .Draw_Text | .Hot_Animation);
+			rb.semantic_size = .[ui.px(36), ui.px(22)];
+			rb.style.radius = all4(11);
+			rb.style.bg = T("--background-mod-normal");
+			rb.style.bg_hot = T("--background-mod-strong");
+			rb.style.font = F(.Semibold);
+			rb.style.font_size = 12;
+			rb.style.text_align = .Center;
+			rb.style.text_color = T("--text-default");
+			if ui.signal(rb).clicked {
+				voice_rate = ifx voice_rate == 1 then 1.5 else ifx voice_rate == 1.5 then 2.0 else 1.0;
+				if playing && ip.player media.player_set_rate(ip.player, voice_rate);
+			}
+			spacer(.X, 12);
 			return;
 		}
 		col := ui.box("col");
@@ -1309,7 +1325,10 @@ player_open_ready :: (ip: *Inline_Player) {
 	src := ifx blob.stream then media.source_from_growing(blob.stream) else media.source_from_memory(blob.data);
 	ip.player = media.player_open(src, autoplay = true, muted = video_muted);
 	media.player_set_volume(ip.player, video_volume);
+	if ip.voice media.player_set_rate(ip.player, voice_rate);
 }
+
+voice_rate: float64 = 1; // voice messages' playback speed (the card's 1x / 1.5x / 2x), for every one
 
 video_draw :: (b: *ui.Box, user: *void) {
 	ip := table_find_pointer(*players, cast(dc.Snowflake) cast(u64) user);

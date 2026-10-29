@@ -12,3 +12,11 @@ wait 30
 expect_not_visible "voice-message.ogg"
 expect_visible "0:14"
 shot build/ui-voice_message.png
+expect_visible "1x"
+click_text "1x"
+wait 5
+expect_visible "1.5x"
+click_text "1.5x"
+wait 5
+expect_visible "2x"
+shot build/ui-voice_message_rate.png
