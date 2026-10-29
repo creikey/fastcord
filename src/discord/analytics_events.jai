@@ -2700,3 +2700,29 @@ analytics_first_render :: (c: *Client, guild_id: Snowflake, channel_id: Snowflak
 	aw_track(c, "app_web_perf_startup_metrics", *p);
 }
 
+// The new-member sprout's popout (open_popout "New Member Badge Popout") and its Mention button
+// (new_member_mention_cta_clicked, trackWithMetadata), and a join message's Wave (welcome_cta_clicked).
+track_new_member_popout :: (c: *Client, guild_id: Snowflake, channel_id: Snowflake) {
+	w := aw_begin();
+	json_kstr(*w, "type", "New Member Badge Popout");
+	json_ksnow(*w, "guild_id", guild_id);
+	json_ksnow(*w, "channel_id", channel_id);
+	aw_track(c, "open_popout", *w);
+}
+
+track_new_member_mention :: (c: *Client, guild_id: Snowflake, channel_id: Snowflake, target: Snowflake) {
+	w := aw_begin();
+	aw_route_props(*w, c, guild_id, channel_id);
+	json_ksnow(*w, "target_user_id", target);
+	aw_track(c, "new_member_mention_cta_clicked", *w);
+}
+
+track_welcome_cta :: (c: *Client, sticker_id: Snowflake, target: Snowflake) {
+	w := aw_begin();
+	json_kbool(*w, "is_reply", true);
+	json_ksnow(*w, "sticker_id", sticker_id);
+	json_ksnow(*w, "target_user", target);
+	json_ksnow(*w, "sender", c.store.me);
+	aw_track(c, "welcome_cta_clicked", *w);
+}
+

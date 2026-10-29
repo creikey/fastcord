@@ -270,7 +270,7 @@ Message :: struct {
 	command_name: string;
 	// forwarded (message_reference type 1): the origin, and content etc. above come from the snapshot
 	forwarded: bool;
-	forward_channel_id: Snowflake;
+	forward_channel_id: Snowflake; // also THREAD_CREATED's (type 18) thread
 	forward_message_id: Snowflake;
 	forward_timestamp: string; // the original's timestamp
 	flags: u64;

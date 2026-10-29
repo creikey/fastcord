@@ -1,0 +1,16 @@
+# Runs on system_messages.jsonl. System messages read as the client's one-line notices (checked in the
+# shot): boosts (with no Boost prompt), a channel follow, a thread created, stage events and Discovery.
+# A join has "Wave to say hi!", and a newcomer's sprout opens a popout with Mention.
+wait 5
+settle 1
+expect_visible "Wave to say hi!"
+shot build/ui-system_messages.png
+# the sprout after Sam's name
+click 490 588
+wait 5
+expect_visible "I'm new here, say hi!"
+shot build/ui-system_messages-newcomer.png
+click_text "Mention sam"
+wait 5
+expect_not_visible "I'm new here, say hi!"
+expect_input "@sam "

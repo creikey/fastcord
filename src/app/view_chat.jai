@@ -17,10 +17,16 @@ MSG_NAME_CHANGE :: 4;
 MSG_ICON_CHANGE :: 5;
 MSG_MEMBER_JOIN :: 7; // USER_JOIN: "Welcome, Name. We hope you brought pizza."
 MSG_POLL_RESULT :: 46; // "Name's poll Question has closed." with the winner (polls.jai)
+MSG_BOOST :: 8; // 8: boosted (content: how many times), 9-11: and reached level 1-3; drawn plainly, with no Boost prompt
+MSG_CHANNEL_FOLLOW :: 12; // CHANNEL_FOLLOW_ADD: content is the followed channel's name
+MSG_DISCOVERY_FIRST :: 14; // 14-17: removed from / back in Server Discovery, and its two grace-period warnings
+MSG_THREAD_CREATED :: 18; // content is the thread's name, message_reference.channel_id the thread
+MSG_STAGE_FIRST :: 27; // 27-31: STAGE_START, STAGE_END, STAGE_SPEAKER, STAGE_RAISE_HAND, STAGE_TOPIC
 
 // Drawn as a one-line notice (system_notice), not a message with an avatar.
 is_notice :: (kind: int) -> bool {
-	return kind == MSG_CALL || kind == MSG_PIN || kind == MSG_MEMBER_JOIN || kind == MSG_FRIEND_ACCEPTED || (kind >= MSG_RECIPIENT_ADD && kind <= MSG_ICON_CHANGE) || kind == MSG_POLL_RESULT;
+	return kind == MSG_CALL || kind == MSG_PIN || kind == MSG_MEMBER_JOIN || kind == MSG_FRIEND_ACCEPTED || (kind >= MSG_RECIPIENT_ADD && kind <= MSG_ICON_CHANGE) || kind == MSG_POLL_RESULT
+		|| (kind >= MSG_BOOST && kind <= MSG_CHANNEL_FOLLOW) || (kind >= MSG_DISCOVERY_FIRST && kind <= MSG_THREAD_CREATED) || (kind >= MSG_STAGE_FIRST && kind <= MSG_STAGE_FIRST + 4);
 }
 CALL_ROW_H :: 26; // call notice content row (official item: 2 + 26 + 2)
 COMPOSER_H :: 58; // official form height (1px border included): 22px line + 18px padding
@@ -1603,7 +1609,7 @@ message_row :: (m: *dc.Message, grouped: bool, new_day: bool, show_new: bool) ->
 				command_used_line(m);
 			}
 		}
-		if m.referenced_id != 0 && m.kind != MSG_PIN && m.kind != MSG_POLL_RESULT { // a pin notice references the pinned message: no reply line
+		if m.referenced_id != 0 && !is_notice(m.kind) { // a pin notice references the pinned message: no reply line
 			rr := row("replyrow");
 			rr.semantic_size = .[ui.pct(1), ui.px(22)];
 			{ ui.parent(rr); defer ui.pop_parent();
@@ -1614,6 +1620,7 @@ message_row :: (m: *dc.Message, grouped: bool, new_day: bool, show_new: bool) ->
 		if is_notice(m.kind) {
 			system_notice(m);
 			if m.kind == MSG_POLL_RESULT poll_result_card(m);
+			if m.kind == MSG_MEMBER_JOIN wave_button(m);
 			spacer(.Y, 2);
 			return r0;
 		}
@@ -1730,7 +1737,12 @@ system_notice :: (m: *dc.Message) {
 			case MSG_RECIPIENT_REMOVE; ic_name, ic_color = "arrow-large-left", T("--status-danger");
 			case MSG_NAME_CHANGE; #through; case MSG_ICON_CHANGE; ic_name, ic_color = "pencil", T("--text-muted");
 			case MSG_POLL_RESULT; ic_name, ic_color = "analytics", T("--text-muted");
+			case MSG_CHANNEL_FOLLOW; ic_name, ic_color = "announcements", T("--text-muted");
+			case MSG_THREAD_CREATED; ic_name, ic_color = "thread", T("--text-muted");
 		}
+		if m.kind >= MSG_BOOST && m.kind <= MSG_BOOST + 3 then ic_name, ic_color = "star", T("--text-muted");
+		if m.kind >= MSG_DISCOVERY_FIRST && m.kind <= MSG_DISCOVERY_FIRST + 3 then ic_name, ic_color = ifx m.kind == MSG_DISCOVERY_FIRST + 1 then "compass" else "warning", T("--text-muted");
+		if m.kind >= MSG_STAGE_FIRST && m.kind <= MSG_STAGE_FIRST + 4 then ic_name, ic_color = "stage", T("--text-muted");
 		{ ui.parent(g); defer ui.pop_parent();
 			ic := icon("ic", ic_name, 16, ic_color);
 			ic.flags |= .Floating_X | .Floating_Y;
@@ -1808,6 +1820,46 @@ system_notice :: (m: *dc.Message) {
 			add(*spans, strong, "pinned messages");
 			spans[spans.count - 1].id = 2;
 			add(*spans, muted, ".");
+		} else if m.kind >= MSG_BOOST && m.kind <= MSG_BOOST + 3 {
+			// the client's strings, without its "Learn more" about Boosts
+			name(*spans, strong, m.author_id, m.channel_id);
+			n := string_to_int(m.content);
+			add(*spans, muted, ifx n > 1 then " just boosted the server " else " just boosted the server!");
+			if n > 1 { add(*spans, strong, tprint("%", n)); add(*spans, muted, " times!"); }
+			if m.kind > MSG_BOOST {
+				ch := dc.channel_get(store(), m.channel_id);
+				g := ifx ch then dc.guild_get(store(), ch.guild_id) else null;
+				add(*spans, muted, tprint(" % has achieved ", ifx g then g.name else "The server"));
+				add(*spans, strong, tprint("Level %!", m.kind - MSG_BOOST));
+			}
+		} else if m.kind == MSG_CHANNEL_FOLLOW {
+			name(*spans, strong, m.author_id, m.channel_id);
+			add(*spans, muted, " has added ");
+			add(*spans, strong, m.content);
+			add(*spans, muted, " to this channel. Its most important updates will show up here.");
+		} else if m.kind >= MSG_DISCOVERY_FIRST && m.kind <= MSG_DISCOVERY_FIRST + 3 {
+			DISCOVERY :: string.[
+				"This server has been removed from Server Discovery because it no longer passes all the requirements. Check Server Settings for more details.",
+				"This server is eligible for Server Discovery again and has been automatically relisted!",
+				"This server has failed Discovery activity requirements for 1 week. If this server fails for 4 weeks in a row, it will be automatically removed from Discovery.",
+				"This server has failed Discovery activity requirements for 3 weeks in a row. If this server fails for 1 more week, it will be removed from Discovery."];
+			add(*spans, muted, DISCOVERY[m.kind - MSG_DISCOVERY_FIRST]);
+		} else if m.kind == MSG_THREAD_CREATED {
+			// the thread's name opens it (span id 4), "threads" the threads browser (5)
+			name(*spans, strong, m.author_id, m.channel_id);
+			add(*spans, muted, " started a thread: ");
+			add(*spans, strong, m.content);
+			spans[spans.count - 1].id = 4;
+			add(*spans, muted, ". See all ");
+			add(*spans, strong, "threads");
+			spans[spans.count - 1].id = 5;
+			add(*spans, muted, ".");
+		} else if m.kind >= MSG_STAGE_FIRST && m.kind <= MSG_STAGE_FIRST + 4 {
+			STAGE :: string.[" started ", " ended ", " is now a speaker.", " requested to speak.", " changed the Stage topic: "];
+			k := m.kind - MSG_STAGE_FIRST;
+			name(*spans, strong, m.author_id, m.channel_id);
+			add(*spans, muted, STAGE[k]);
+			if k == 0 || k == 1 || k == 4 add(*spans, strong, m.content);
 		} else if missed {
 			add(*spans, muted, "You missed a call from ");
 			name(*spans, strong, m.author_id, m.channel_id);
@@ -1815,6 +1867,13 @@ system_notice :: (m: *dc.Message) {
 		} else {
 			name(*spans, strong, m.author_id, m.channel_id);
 			add(*spans, muted, ifx m.call_ended then tprint(" started a call that lasted %.", humanize_duration(dc.iso_to_ms(m.call_ended) - dc.iso_to_ms(m.timestamp))) else " started a call.");
+			// the client's "Join the call" (span id 3): this message's call is still going and we aren't in it
+			call := ifx app.client then dc.call_get(app.client, m.channel_id) else null;
+			if call && call.message_id == m.id && app.voice_channel != m.channel_id {
+				add(*spans, muted, " ");
+				add(*spans, .{font = F(.Medium), size = MSG_FONT, color = T("--text-link")}, "Join the call");
+				spans[spans.count - 1].id = 3;
+			}
 		}
 		add(*spans, .{font = F(.Medium), size = 12, color = T("--chat-text-muted")}, tprint(" %", header_timestamp(m.id)));
 		b := ui.box("text", .Selectable_Text | .Wrap_Text);
@@ -1826,14 +1885,21 @@ system_notice :: (m: *dc.Message) {
 		tl := b.prev_layout;
 		if tl && ui.mouse_over(b) && !ui.overlay_at(app.ui.mouse) {
 			si := ui.span_at(tl, app.ui.mouse);
-			if si >= 0 && si < tl.spans.count && (tl.spans[si].user || (pin && tl.spans[si].id)) app.ui.span_cursor = .Pointer;
+			if si >= 0 && si < tl.spans.count && (tl.spans[si].user || tl.spans[si].id) app.ui.span_cursor = .Pointer;
 		}
 		if tl for e: app.ui.events {
 			if e.kind != .Mouse_Up || e.button != .Left || e.consumed || ui.has_selection() || ui.overlay_at(e.pos) continue;
 			si := ui.span_at(tl, e.pos);
 			if si < 0 || si >= tl.spans.count continue;
-			if pin && tl.spans[si].id == 1 && m.referenced_id jump_to_message(m.channel_id, m.referenced_id);
-			if pin && tl.spans[si].id == 2 pins_toggle(m.channel_id, header_pin_rect);
+			if tl.spans[si].id == {
+				case 1; if m.referenced_id jump_to_message(m.channel_id, m.referenced_id);
+				case 2; pins_toggle(m.channel_id, header_pin_rect);
+				case 3; call_join_incoming(m.channel_id);
+				case 4;
+					th := dc.channel_get(store(), m.forward_channel_id);
+					if th select_channel(th.guild_id, th.id);
+				case 5; threads_browser_toggle(m.channel_id, header_thread_rect);
+			}
 			if tl.spans[si].user == null continue;
 			open_profile(cast(dc.Snowflake) tl.spans[si].user, .{e.pos.x, e.pos.y - 10, e.pos.x + 1, e.pos.y + 10});
 		}
@@ -1900,7 +1966,113 @@ new_member_badge :: (m: *dc.Message) {
 	if now - dc.snowflake_time_ms(ch.guild_id) < 7 * DAY || now - dc.iso_to_ms(mem.joined_at) > 7 * DAY return;
 	spacer(.X, 4);
 	b := icon("newmember", "new-member", 20, T("--text-feedback-positive"), .Clickable);
-	if ui.signal(b).hovering tooltip_below("I'm new here, say hi!", b.rect);
+	b.hover_cursor = .Pointer;
+	sig := ui.signal(b);
+	if sig.hovering && newcomer.msg != m.id tooltip_below("I'm new here, say hi!", b.rect);
+	if sig.clicked {
+		newcomer = .{msg = m.id, user = m.author_id, channel = m.channel_id, anchor = b.rect};
+		if app.client dc.track_new_member_popout(app.client, ch.guild_id, m.channel_id);
+	}
+}
+
+#scope_export
+
+// The sprout's popout (the client's NewMemberBadgePopout): "Mention @name" puts their mention in the composer.
+Newcomer :: struct { msg, user, channel: dc.Snowflake; anchor: ui.Rect; }
+newcomer: Newcomer;
+
+new_member_popout :: () {
+	if !newcomer.msg return;
+	ch := dc.channel_get(store(), newcomer.channel);
+	u := dc.user_get(store(), newcomer.user);
+	if !ch || !u || app.view.channel != ch.id || outside_pressed("newcomer_scrim") || escape_pressed() { newcomer = .{}; return; }
+	W :: cast(float32) 300;
+	p := ui.box("newcomer", .Draw_Background | .Draw_Border | .Draw_Shadow | .Floating_X | .Floating_Y | .Overlay | .Clickable);
+	h := p.rect.y1 - p.rect.y0; // last frame's
+	p.semantic_size = .[ui.px(W), ui.children()];
+	p.fixed_pos = .{min(newcomer.anchor.x0, app.ui.window.x - W - 8), max(8.0, newcomer.anchor.y0 - h - 8)};
+	p.layout_axis = .Y;
+	p.style.bg = T("--background-surface-higher");
+	p.style.border = 1;
+	p.style.border_color = T("--border-subtle");
+	p.style.radius = all4(8);
+	p.style.shadow_color = .{0, 0, 0, 0.3};
+	p.style.shadow_blur = 16;
+	ui.signal(p);
+	ui.parent(p); defer ui.pop_parent();
+	inset_begin(16, 16);
+	defer inset_end(16, 16);
+	top := row("top");
+	top.semantic_size = .[ui.pct(1), ui.children()];
+	{ ui.parent(top); defer ui.pop_parent();
+		icon("sprout", "new-member", 40, T("--text-feedback-positive"));
+		spacer(.X, 12);
+		col := ui.box("col");
+		col.semantic_size = .[ui.fill(), ui.children()];
+		col.layout_axis = .Y;
+		ui.parent(col); defer ui.pop_parent();
+		label("I'm new here, say hi!", .Semibold, 16, T("--text-strong"), 20);
+		t := label("System icon for new server members.", .Normal, 14, T("--text-default"), 18);
+		t.flags |= .Wrap_Text;
+		t.semantic_size = .[ui.pct(1), ui.text_size()];
+	}
+	spacer(.Y, 12);
+	if composer_blocked(ch) return; // the client hides the button where you can't send
+	b := row("mention", .Clickable | .Draw_Background | .Hot_Animation);
+	b.semantic_size = .[ui.pct(1), ui.px(32)];
+	b.style.radius = all4(8);
+	b.style.bg = T("--background-brand");
+	b.style.bg_hot = with_alpha(b.style.bg, 0.85);
+	b.hover_cursor = .Pointer;
+	{ ui.parent(b); defer ui.pop_parent(); filler(.X); label(tprint("Mention %", u.username), .Medium, 14, .{1, 1, 1, 1}, 18); filler(.X); }
+	if ui.signal(b).clicked {
+		if app.client dc.track_new_member_mention(app.client, ch.guild_id, ch.id, u.id);
+		ui.editor_insert(*chat_state(ch.id).editor, tprint("@% ", u.username));
+		newcomer = .{};
+	}
+}
+
+#scope_file
+
+// The client's welcome stickers (USER_JOIN's "Wave to say hi!"), picked by our id and the message's.
+Wave_Sticker :: struct { id: dc.Snowflake; format: int; }
+WAVE_STICKERS :: Wave_Sticker.[
+	.{749054660769218631, 3}, .{751606379340365864, 3}, .{754108890559283200, 3},
+	.{781291131828699156, 2}, .{816087792291282944, 3}, .{819128604311027752, 3}];
+
+// Under a member's join message: "Wave to say hi!" with a sticker, which replies to the join with it
+// (hidden when the server turned off join replies, system channel flag 8, or you can't send there).
+wave_button :: (m: *dc.Message) {
+	s := store();
+	ch := dc.channel_get(s, m.channel_id);
+	u := dc.user_get(s, m.author_id);
+	if !ch || !ch.guild_id || on_hosted() || (u && u.bot) || composer_blocked(ch) return;
+	g := dc.guild_get(s, ch.guild_id);
+	if !g || (g.system_channel_flags & 8) return;
+	st := WAVE_STICKERS[(dc.snowflake_time_ms(s.me) + dc.snowflake_time_ms(m.id)) % WAVE_STICKERS.count];
+	r := row("waverow");
+	r.semantic_size = .[ui.pct(1), ui.px(40)];
+	ui.parent(r); defer ui.pop_parent();
+	spacer(.X, MSG_GUTTER);
+	b := row("wave", .Clickable | .Draw_Background | .Hot_Animation);
+	b.semantic_size = .[ui.children(), ui.px(36)];
+	b.style.radius = all4(8);
+	b.style.bg = T("--background-mod-normal");
+	b.style.bg_hot = T("--background-mod-strong");
+	b.hover_cursor = .Pointer;
+	b.cross_align = .Center;
+	sig := ui.signal(b);
+	{ ui.parent(b); defer ui.pop_parent();
+		spacer(.X, 12);
+		sticker_box("st", .{id = st.id, format_type = st.format}, 24, sig.hovering && app.focused);
+		spacer(.X, 8);
+		label("Wave to say hi!", .Medium, 14, T("--text-default"), 18);
+		spacer(.X, 12);
+	}
+	if sig.clicked && net_action() {
+		dc.greet_message(app.client, ch.guild_id, ch.id, m.id, st.id);
+		dc.track_welcome_cta(app.client, st.id, m.author_id);
+	}
 }
 
 // Under a message whose send failed: Retry sends a fresh copy (same text and reply), Delete forgets it locally.

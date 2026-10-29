@@ -617,6 +617,7 @@ parse_message_fields :: (s: *Store, msg: *Message, m: etf.Map) {
 		}
 	} else if ref {
 		msg.referenced_id = fsnow(ref, "message_id");
+		if msg.kind == 18 msg.forward_channel_id = fsnow(ref, "channel_id"); // THREAD_CREATED: the thread
 	}
 	// "X used /command": interaction_metadata (its name when the API sends one), else the older interaction
 	im, old := fmap(m, "interaction_metadata"), fmap(m, "interaction");

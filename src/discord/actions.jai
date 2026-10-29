@@ -628,6 +628,31 @@ crosspost_message :: (c: *Client, channel_id: Snowflake, message_id: Snowflake) 
 	job_submit(c, j);
 }
 
+// greet_message: a join message's "Wave to say hi!" (sendGreetMessage): POST /channels/{c}/greet with one
+// sticker, replying to the join with the mention on; the gateway's MESSAGE_CREATE shows it.
+greet_message :: (c: *Client, guild_id: Snowflake, channel_id: Snowflake, message_id: Snowflake, sticker_id: Snowflake) {
+	w: Json;
+	json_init(*w);
+	json_obj(*w);
+	json_key(*w, "sticker_ids");
+	json_arr(*w);
+	json_snowflake(*w, sticker_id);
+	json_arr_end(*w);
+	json_key(*w, "message_reference");
+	json_obj(*w);
+	json_ksnow(*w, "guild_id", guild_id);
+	json_ksnow(*w, "channel_id", channel_id);
+	json_ksnow(*w, "message_id", message_id);
+	json_obj_end(*w);
+	json_obj_end(*w);
+	j := job_new(.Api, .None);
+	j.method = "POST";
+	j.path = job_str(j, channel_path(channel_id, "/greet"));
+	j.body = cast([]u8) job_str(j, json_string(*w));
+	j.content_type = "application/json";
+	job_submit(c, j);
+}
+
 // remove_all_reactions: DELETE /channels/{c}/messages/{m}/reactions (MANAGE_MESSAGES); the gateway's
 // MESSAGE_REACTION_REMOVE_ALL clears them.
 remove_all_reactions :: (c: *Client, channel_id: Snowflake, message_id: Snowflake) {
