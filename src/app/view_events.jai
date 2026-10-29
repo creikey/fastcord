@@ -18,13 +18,20 @@ events_open :: (gid: dc.Snowflake) {
 	if app.client != null dc.open_guild_events(app.client, gid);
 }
 
+// One event's details (the client's GuildEventDetailsModal), from an invite card or a card in the list.
+event_details_open :: (gid: dc.Snowflake, id: dc.Snowflake) {
+	evu.guild = gid;
+	evu.details = id;
+	evu.menu_event = 0;
+}
+
 // Create Event straight from a menu, without the Events list behind it.
 create_event_open :: (gid: dc.Snowflake) {
 	evu.guild = gid;
 	wizard_open();
 }
 
-events_modal_open :: () -> bool { return evu.open || evu.wiz_open || evu.share_event != 0; }
+events_modal_open :: () -> bool { return evu.open || evu.wiz_open || evu.share_event != 0 || evu.details != 0; }
 
 events_reset_for_test :: () {
 	ui.editor_destroy(*evu.location);
@@ -93,10 +100,11 @@ shown_events :: (gid: dc.Snowflake) -> []*dc.Scheduled_Event {
 events_modal :: () {
 	if evu.guild != 0 && (dc.guild_get(store(), evu.guild) == null || app.view.guild != evu.guild) {
 		evu.open, evu.wiz_open = false, false;
-		evu.share_event, evu.menu_event, evu.guild = 0, 0, 0;
+		evu.share_event, evu.menu_event, evu.guild, evu.details = 0, 0, 0, 0;
 		return;
 	}
-	if evu.open && !evu.wiz_open events_list_modal();
+	if evu.open && !evu.wiz_open && !evu.details events_list_modal();
+	if evu.details details_modal();
 	if evu.wiz_open wizard_modal();
 	if evu.menu_event != 0 event_menu();
 	if evu.share_event != 0 share_modal();
@@ -157,7 +165,7 @@ event_invite_card :: (id: string, key: string, p: dc.Invite_Preview, m: *dc.Mess
 	card.style.border = 1;
 	card.style.radius = all4(8);
 	card.hover_cursor = .Pointer;
-	if ui.signal(card).clicked && member events_open(p.guild_id);
+	if ui.signal(card).clicked && member && e event_details_open(e.guild_id, e.id);
 	ui.parent(card); defer ui.pop_parent();
 	ui.id_scope(cast(u64) p.event.id); defer ui.pop_seed();
 	event_card_head(*shown);
@@ -204,7 +212,7 @@ event_invite_card :: (id: string, key: string, p: dc.Invite_Preview, m: *dc.Mess
 		} else if e && e.status == .Scheduled {
 			interested_button(e, 40);
 		} else if e && e.status == .Active && e.entity == .External {
-			if pill_button("details", "View Details", "", secondary, fg, 40) events_open(p.guild_id);
+			if pill_button("details", "View Details", "", secondary, fg, 40) event_details_open(e.guild_id, e.id);
 		} else if e && e.status == .Active {
 			if pill_button("go", "Go To Channel", "", secondary, fg, 40) select_channel(p.guild_id, e.channel_id);
 		} else if e {
@@ -250,6 +258,7 @@ Events_UI :: struct {
 	// card menu
 	menu_event: dc.Snowflake;
 	menu_pos: ui.Vec2;
+	details: dc.Snowflake; // the event whose details modal is open
 }
 
 evu: Events_UI;
@@ -415,6 +424,63 @@ events_list_modal :: () {
 	if top && adm_escape() evu.open = false;
 }
 
+// An event's details: its card's head (start, interested count, name, description), where it is, who
+// made it, and the card's actions; Escape, the x or a click outside goes back (to the list if it was open).
+details_modal :: () {
+	e := dc.event_get(evu.details);
+	top := evu.share_event == 0 && evu.menu_event == 0;
+	W :: 600;
+	if !e || undo_hides(e.id) || !ev_dialog_begin("evdetails", W) {
+		if !e || top evu.details = 0;
+		return;
+	}
+	defer ui.pop_parent();
+	if e.user_count < 0 && app.client != null dc.event_ask_counts(app.client, e.id);
+	ui.id_scope(cast(u64) e.id); defer ui.pop_seed();
+	spacer(.Y, 24);
+	event_card_head(e);
+	if close_x("close", W - 24 - 12, 12) && top evu.details = 0;
+	spacer(.Y, 16);
+	hline("hl", 16);
+	spacer(.Y, 12);
+	info :: (id: string, icon_name: string, text: string) {
+		r := row(id);
+		r.semantic_size = .[ui.pct(1), ui.px(24)];
+		ui.parent(r); defer ui.pop_parent();
+		spacer(.X, 16);
+		icon("i", icon_name, 20, T("--text-default"));
+		spacer(.X, 8);
+		label(ellipsize(text, .Medium, 14, 520), .Medium, 14, T("--text-default"), 18);
+	}
+	place, place_icon := place_of(e);
+	info("place", place_icon, place);
+	if e.creator_id {
+		spacer(.Y, 8);
+		info("creator", "user", tprint("Created by %", dc.user_name(store(), e.creator_id, e.guild_id, "unknown")));
+	}
+	spacer(.Y, 12);
+	hline("hl2", 16);
+	br := row("actions");
+	br.semantic_size = .[ui.pct(1), ui.px(60)];
+	{ ui.parent(br); defer ui.pop_parent();
+		filler(.X);
+		if pill_button("more", "", "more-horizontal", T("--background-mod-normal"), T("--text-strong")) menu_open(e.id, app.ui.mouse);
+		spacer(.X, 8);
+		if pill_button("share", "Share", "share", T("--background-mod-normal"), T("--text-strong")) {
+			share_open(e.id);
+			if net_action() dc.event_share(app.client, e.id);
+		}
+		spacer(.X, 8);
+		if e.status == .Active && e.entity != .External {
+			if pill_button("join", "Join", "", T("--status-positive-background"), T("--status-positive-text")) && net_action() join_voice(e.guild_id, e.channel_id);
+		} else {
+			interested_button(e);
+		}
+		spacer(.X, 16);
+	}
+	if top && adm_escape() evu.details = 0;
+}
+
 center_line :: (id: string, text: string, font: Font_Id, size: float32, lh: float32, color: ui.Color) {
 	r := row(id);
 	r.semantic_size = .[ui.pct(1), ui.px(lh)];
@@ -446,8 +512,10 @@ event_card :: (e: *dc.Scheduled_Event) {
 		card.style.border_color = T("--border-subtle");
 		card.style.border = 1;
 		card.style.radius = all4(8);
+		card.hover_cursor = .Pointer;
 		csig := ui.signal(card);
 		if csig.right_clicked menu_open(e.id, app.ui.mouse);
+		else if csig.clicked evu.details = e.id;
 		{ ui.parent(card); defer ui.pop_parent(); event_card_body(e, true); }
 		spacer(.X, 24);
 	}
@@ -579,7 +647,8 @@ event_menu :: () {
 	W :: 188.0;
 	manage := dc.can_manage_event(store(), e);
 	can_start := manage && e.status == .Scheduled && e.entity == .Voice;
-	n := 1 + cast(int) can_start + cast(int) manage;
+	can_end := manage && e.status == .Active;
+	n := 1 + cast(int) can_start + cast(int) can_end + cast(int) manage;
 	h := cast(float32)(16 + n * GM_ROW_H);
 	pos := evu.menu_pos;
 	pos.x = min(pos.x, app.ui.window.x - W - 8);
@@ -591,6 +660,12 @@ event_menu :: () {
 			if menu_item("start", "Start Event").clicked {
 				evu.menu_event = 0;
 				if net_action() dc.start_scheduled_event(app.client, e.id);
+			}
+		}
+		if can_end {
+			if menu_item("end", "End Event", danger = true).clicked {
+				evu.menu_event = 0;
+				if net_action() dc.end_scheduled_event(app.client, e.id);
 			}
 		}
 		if manage {

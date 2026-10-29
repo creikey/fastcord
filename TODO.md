@@ -358,7 +358,8 @@
 - [ ] Group DMs: 5 of the 8 default icon colours fall back to the brand colour (`group_icon_color`); the client draws DEFAULT_GROUP_DM_AVATARS[timestamp % 8], images whose colours need taking from the bundle's assets.
 - [ ] Markdown: clicking a slash-command or server page chip (`/name`, Channels & Roles, Browse Channels, Server Guide) does nothing; it should fill the composer or open that page.
 - [ ] Chat: an age-gated channel still loads its messages behind the gate (the official mounts no chat until you agree), and age-restricted servers (`nsfw_level` 3) aren't gated (`nsfw_gated`).
-- [ ] Events: clicking an event invite card should open the event's details modal (fastcord has none; it opens the Events list); event cards lack the cover image and recurring-event series picker.
+- [ ] Events: event cards lack the cover image and the recurring-event series picker; the details modal has no Interested tab (who RSVP'd).
+  - Done: clicking an event invite card (in a server you're in) or a card in the Events list opens the event's details modal: its start, name, description, place, creator and actions (`details_modal`, `tests/ui/threads/event_details.txt`).
 - [ ] Forums: a new post can't carry files, there's no gallery layout, and archived posts load only the first page.
   - Done: "Search or create a post..." filters by title, Enter or New Post opens the post form (title, tags, first message; Post opens the new post), a tag filter and Sort (Recent Activity, Date Posted), on Discord and hosted servers (`forum_view`, `forum_post_form`, `tests/ui/forum_post.txt`).
 - [ ] Profiles: per-server banners never show, and animated avatars never animate.
@@ -400,7 +401,8 @@
 - [ ] Messages: the menu lacks Report, Apps, Speak Message and the per-emoji Remove Reactions submenu; announcement channels have no Publish button in the hover toolbar.
 - [ ] Channel settings: a forum's Default Reaction, its tags' emoji and the default slowmode inside posts (`default_thread_rate_limit_per_user`) can't be set; tags show without their emoji in the editor.
 - [ ] Free emoji (fastcord-only, like Vencord's FakeNitro): let a non-Nitro user send any emoji, including the picker's locked ones (`pickers_emoji.jai`), from any server. Send it as a masked CDN link (`[name](https://cdn.discordapp.com/emojis/<id>.webp?size=48&name=<name>)`, `.gif`/`animated=true` when animated), so official clients show the image. Copy the exact format from Vencord's `src/plugins/fakeNitro` so Vencord users see real emoji. On receipt, draw those links as inline emoji (the official client shows a link and an image embed), so FakeNitro and fastcord messages look native. Real emoji stay real when the user can use them.
-- [ ] Events: no Edit Event or End Event; the wizard has no Stage location or cover image.
+- [ ] Events: no Edit Event; the wizard has no Stage location or cover image.
+  - Done: End Event in a live event's menu (Manage Events, or your own), `PATCH {"status":3}` (`end_scheduled_event`).
 - [ ] Create Channel: no Media type and no Private Channel switch (its `permission_overwrites`, and the members-and-roles step after it, need a capture: the modal's chunk isn't in the cached bundle).
 - [ ] No lost typing: Escape or the x drops the reply target, and a new reply replaces it; keep it recoverable per channel, restored on reopen.
   - Done: an edit closed without saving (Escape, cancel, starting another edit) keeps its text, and editing that message again restores it (`edit_stash`, `tests/ui/edit_draft.txt`).

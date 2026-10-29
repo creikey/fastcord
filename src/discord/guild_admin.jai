@@ -372,6 +372,13 @@ start_scheduled_event :: (c: *Client, event_id: Snowflake) {
 	feature_submit(c, .Event_Start, "PATCH", tprint("/guilds/%/scheduled-events/%", e.guild_id, event_id), "{\"status\":2}", channel_id = e.guild_id, tag = event_id);
 }
 
+// end_scheduled_event: End Event on a live one, status 3 (COMPLETED); the reply upserts it like a start's.
+end_scheduled_event :: (c: *Client, event_id: Snowflake) {
+	e := event_get(event_id);
+	if !e return;
+	feature_submit(c, .Event_Start, "PATCH", tprint("/guilds/%/scheduled-events/%", e.guild_id, event_id), "{\"status\":3}", channel_id = e.guild_id, tag = event_id);
+}
+
 // can_create_events / can_manage_event: the client's gates for Create Event and
 // for Start / Cancel on a card (MANAGE_EVENTS, or CREATE_EVENTS for your own).
 can_create_events :: (s: *Store, guild_id: Snowflake) -> bool {

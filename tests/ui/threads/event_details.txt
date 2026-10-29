@@ -1,0 +1,12 @@
+# Runs on chat_threads.jsonl (tests/ui/threads). Clicking an event's card opens its details (start, name, place, creator and
+# the card's actions); Escape goes back to the list.
+wait 5
+click_text "2 Events"
+wait 10
+click_text "Friday game night"
+wait 10
+expect_not_visible "Create Event"
+shot build/ui-event_details.png
+key escape
+wait 10
+expect_visible "Create Event"

@@ -385,6 +385,7 @@ call's `retries` (the bundle's value for that call: search the endpoint) and, fo
 | Inbox "Mark All as Read" = `POST /read-states/ack-bulk` | guess | not captured | `inbox.jai` |
 | Thread browser Archived tab sends `thread_browser_tab_changed` | guess | not captured | `view_threads_browser.jai` |
 | External-location event body (`scheduled_end_time`, `entity_metadata.location`), Start Event (`PATCH {"status":2}`) | guess | not captured | `src/discord/guild_admin.jai` |
+| End Event on a live event (Manage Events, or Create Events for your own) sends `PATCH {"status":3}`. Clicking an event card (in the list, or an invite card in a server you're in) opens its details: the card's head, the place, "Created by", and More / Share / Interested (Join while a voice or stage one is live); fastcord's details have no Interested tab and no cover image | guess | not captured | `guild_admin.jai` `end_scheduled_event`; `view_events.jai` `details_modal` |
 | Declining a DM call sends nothing (dismissed locally) | guess | not captured | `src/discord/calls.jai` |
 | Message menu with text selected (desktop): a "Copy" item (copy icon, ⌘C) heads it and the quick-reaction row is hidden (`""===textSelection?quickReactions:null`) | code | `MessageContextMenu`: search `textSelection:` and `id:"copy",label` | `src/app/view_message_actions.jai` `message_menu` |
 | Member join (type 7) text: 13 lines picked by the message's snowflake time (ms) mod 13, in the bundle's order | code | `getSystemMessageUserJoin:function(e)` | `src/app/view_chat.jai` `system_notice` |
