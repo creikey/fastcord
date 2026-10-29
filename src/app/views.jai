@@ -786,7 +786,7 @@ chat_header :: (ch: *dc.Channel) {
 			if sig.clicked && name == "pin" { pins_toggle(ch.id, b.rect); }
 			if sig.clicked && name == "phone-call" { dm_call_toggle(ch); }
 			if sig.clicked && name == "thread" { threads_browser_toggle(ch.id, b.rect); }
-			if sig.clicked && name == "group-plus" && ch.kind == .DM { group_dm_popout_open(b.rect, ch.id); }
+			if sig.clicked && name == "group-plus" { group_dm_popout_open(b.rect, ch.id); }
 		}
 		spacer(.X, 8);
 		search_hint := ch.name;

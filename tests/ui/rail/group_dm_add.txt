@@ -1,0 +1,18 @@
+# Run with -fixture:tests/ui/rail.jsonl. In a group DM (ours), the header's Add Friends to DM lists friends not in
+# it with "Add to Group DM"; a member's menu offers Remove From Group.
+wait 5
+click 36 52
+wait 10
+click 180 203
+wait 30
+click 959 57
+wait 10
+expect_visible "Add to Group DM"
+expect_visible "Robin"
+shot build/ui-rail_group_dm_add.png
+key escape
+wait 5
+rclick 1100 244
+wait 10
+expect_visible "Remove From Group"
+shot build/ui-rail_group_dm_remove.png

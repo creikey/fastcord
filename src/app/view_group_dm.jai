@@ -78,19 +78,20 @@ group_dm_overlay :: () {
 	fixed: dc.Snowflake;
 	c := dc.channel_get(s, gdm.from_dm);
 	if c && c.kind == .DM && c.recipient_ids.count > 0 fixed = c.recipient_ids[0];
+	group := ifx c && c.kind == .Group_DM then c else null; // adding to this group DM
 	friends := friends_sorted();
 	q := to_lower_copy(trim(ui.editor_text(*gdm.search)),, temp);
 	has_q :: (text: string, q: string) -> bool { return contains(to_lower_copy(text,, temp), q); }
 	shown: [..]dc.Snowflake;
 	shown.allocator = temp;
 	for uid: friends {
-		if uid == fixed continue;
+		if uid == fixed || (group && array_find(group.recipient_ids, uid)) continue;
 		u := dc.user_get(s, uid);
 		if u == null continue;
 		if q != "" && !has_q(dc.user_name(s, uid), q) && !has_q(dc.display_name(u), q) && !has_q(u.username, q) continue;
 		array_add(*shown, uid);
 	}
-	others := gdm.selected.count + (ifx fixed != 0 then 1 else 0);
+	others := gdm.selected.count + (ifx fixed != 0 then 1 else 0) + (ifx group then group.recipient_ids.count else 0);
 	{ ui.parent(pop); defer ui.pop_parent();
 		spacer(.Y, GDM_PAD);
 		h := row("title");
@@ -143,7 +144,7 @@ group_dm_overlay :: () {
 		br.semantic_size = .[ui.pct(1), ui.px(GDM_BUTTON_H)];
 		{ ui.parent(br); defer ui.pop_parent();
 			spacer(.X, GDM_PAD);
-			text := ifx others >= 2 then "Create Group DM" else "Create DM";
+			text := ifx group then "Add to Group DM" else ifx others >= 2 then "Create Group DM" else "Create DM";
 			btn := ui.box(tprint("%##create", text), .Clickable | .Draw_Background | .Draw_Text | .Hot_Animation);
 			btn.semantic_size = .[ui.fill(), ui.px(GDM_BUTTON_H)];
 			btn.style.radius = all4(8);
@@ -353,6 +354,12 @@ gdm_create :: (fixed: dc.Snowflake) {
 	gdm.open = false;
 	app.ui.focus = 0;
 	if !net_action() return;
+	// Add Friends to DM in a group DM: PUT /channels/{id}/recipients/{user} for each (CHANNEL_RECIPIENT_ADD follows)
+	g := dc.channel_get(store(), gdm.from_dm);
+	if g && g.kind == .Group_DM {
+		for ids dc.add_group_recipient(app.client, g.id, it);
+		return;
+	}
 	if ids.count == 1 {
 		existing := dc.open_dm(app.client, ids[0], "Create DM");
 		if existing != 0 {

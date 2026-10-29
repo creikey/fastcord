@@ -666,6 +666,8 @@ user_context_menu :: () {
 	fn := friend_nick_menu_item(uid);
 	if fn != "" { array_add(*items, fn); }
 	if dm { array_add(*items, "Close DM"); }
+	gdm_ch := dc.channel_get(s, app.view.channel);
+	if gdm_ch && gdm_ch.kind == .Group_DM && gdm_ch.owner_id == s.me && uid != s.me && array_find(gdm_ch.recipient_ids, uid) { array_add(*items, "Remove From Group"); }
 	if uid != s.me && !on_hosted() {
 		if kind == .None || kind == .Implicit { array_add(*items, "Add Friend"); }
 		if kind == .Friend { array_add(*items, "Remove Friend"); }
@@ -725,6 +727,9 @@ user_context_menu :: () {
 				if it == {
 				case "Mark As Read";
 					if net_action() dc.ack_message(app.client, dm.id, dm.last_message_id, true);
+				case "Remove From Group";
+					// DELETE /channels/{id}/recipients/{user}; CHANNEL_RECIPIENT_REMOVE follows
+					if net_action() dc.remove_group_recipient(app.client, gdm_ch.id, uid);
 				case "Close DM";
 					close_private_now(dm);
 				case "Profile";
