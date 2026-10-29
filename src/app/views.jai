@@ -741,7 +741,7 @@ chat_header :: (ch: *dc.Channel) {
 			}
 			follow_button(ch); // view_chat.jai
 		}
-		if vid.watch_user && app.voice_channel == ch.id {
+		if vid.watches.count && app.voice_channel == ch.id {
 			// watching a Go Live stream: LIVE and its quality, as the official call header shows
 			spacer(.X, 12);
 			live := row("live", .Draw_Background);

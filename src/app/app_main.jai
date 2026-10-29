@@ -688,7 +688,7 @@ script_command :: (path: string, f: []string, t: *float64, depth := 0) {
 		call_effect_show(dc.parse_snowflake(f[1]), .{name = f[2]});
 	case "watching";
 		// watching <user id>: as if watching their Go Live stream (fixtures have no stream connection)
-		vid.watch_user = dc.parse_snowflake(f[1]);
+		array_add(*vid.watches, .{user = dc.parse_snowflake(f[1])});
 	case "developer_mode";
 		// the account's Developer Mode (off in the fixtures): the menus' Copy ... ID items
 		store().settings.developer_mode = true;

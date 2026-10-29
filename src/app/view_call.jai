@@ -145,7 +145,7 @@ stage_moderator :: (cid: dc.Snowflake) -> bool {
 call_pip :: () {
 	if !app.voice_channel || app.view.channel == app.voice_channel || call_fullscreen() return;
 	img: media.Video_Image;
-	if vid.watch_user img = stream_image(vid.watch_user);
+	if vid.watches.count img = stream_image(vid.watches[0].user);
 	cs := call_store();
 	if !img.y for v, uid: cs.voice_states if v.channel_id == app.voice_channel && uid != cs.me && v.self_video {
 		img = camera_image(uid);
@@ -459,7 +459,7 @@ call_tile :: (t: Call_Tile, x: float32, y: float32, w: float32, h: float32) {
 	s := store();
 	ui.id_scope(cast(u64) t.user * 2 + cast(u64) t.stream); defer ui.pop_seed();
 	img := ifx t.stream then stream_image(t.user) else camera_image(t.user);
-	watching := t.stream && (t.user == s.me || vid.watch_user == t.user);
+	watching := t.stream && (t.user == s.me || watch_of(t.user) != null);
 	b := ui.box("tile", .Draw_Background | .Clickable | .Floating_X | .Floating_Y | .Clip);
 	b.semantic_size = .[ui.px(w), ui.px(h)];
 	b.fixed_pos = .{x, y};
@@ -522,6 +522,20 @@ call_tile :: (t: Call_Tile, x: float32, y: float32, w: float32, h: float32) {
 			spacer(.X, 5);
 			label("LIVE", .Bold, 11, .{1, 1, 1, 1}, 14);
 			spacer(.X, 5);
+		}
+		if t.stream && watching && t.user != s.me && (sig.hovering || ui.mouse_over(b)) {
+			// each watched stream can be left on its own (several play at once)
+			sw := row("stopwatch", .Clickable | .Draw_Background | .Floating_X | .Floating_Y | .Hot_Animation);
+			sw.semantic_size = .[ui.children(), ui.px(28)];
+			sw.fixed_pos = .{w - 128, 8};
+			sw.style.bg = .{0, 0, 0, 0.6};
+			sw.style.bg_hot = .{0, 0, 0, 0.8};
+			sw.style.radius = all4(6);
+			if ui.signal(sw).clicked watch_stop(t.user);
+			ui.parent(sw); defer ui.pop_parent();
+			spacer(.X, 10);
+			label("Stop Watching", .Semibold, 13, .{1, 1, 1, 1}, 16);
+			spacer(.X, 10);
 		}
 		if sig.hovering || t.stream || img.y {
 			// name pill, bottom left

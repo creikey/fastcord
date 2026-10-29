@@ -61,11 +61,8 @@ Video_App :: struct {
 	picker_test: bool; // the `screen_picker` script command: made-up targets, never the real screens
 	go_height := 720; // Go Live settings: 720, 1080, or 0 for the source's own height
 	go_fps := 30;     // 15, 30 or 60
-	// the stream we watch
-	watch_key: string;
-	watch_user: dc.Snowflake;
-	watch_conn: *voice.Conn;
-	watch_version: u64;
+	// the streams we watch, each on a voice connection of its own, in the order they were opened
+	watches: [..]Watch;
 }
 
 vid: Video_App;
@@ -135,27 +132,42 @@ go_live_stop :: () {
 	vid.own_key = "";
 }
 
-watch_stream :: (uid: dc.Snowflake) {
-	if !net_action() || app.voice_channel == 0 return;
-	if vid.watch_user == uid return;
-	watch_stop();
-	ch := dc.channel_get(call_store(), app.voice_channel);
-	vid.watch_key = dc.stream_key(ifx ch then ch.guild_id else 0, app.voice_channel, uid, context.allocator);
-	vid.watch_user = uid;
-	dc.stream_watch(call_client(), vid.watch_key);
+Watch :: struct {
+	key: string; // heap ("" in a script's made-up watch)
+	user: dc.Snowflake;
+	conn: *voice.Conn;
+	version: u64;
 }
 
-watch_stop :: () {
-	if vid.watch_key == "" return;
-	if call_client() dc.stream_delete(call_client(), vid.watch_key);
-	voice_release(vid.watch_conn);
-	vid.watch_conn = null;
-	vid.watch_version = 0;
-	free(vid.watch_key);
-	vid.watch_key = "";
-	rv := remote_video(*vid.streams, cast(u64) vid.watch_user);
-	remote_reset(rv);
-	vid.watch_user = 0;
+MAX_WATCHES :: 4; // a fifth stream takes the place of the one opened first
+
+watch_of :: (uid: dc.Snowflake) -> *Watch {
+	for * vid.watches if it.user == uid return it;
+	return null;
+}
+
+// watch_stream: start watching uid's stream, beside the ones already watched.
+watch_stream :: (uid: dc.Snowflake) {
+	if !net_action() || app.voice_channel == 0 || watch_of(uid) return;
+	if vid.watches.count >= MAX_WATCHES watch_stop(vid.watches[0].user);
+	ch := dc.channel_get(call_store(), app.voice_channel);
+	w := array_add(*vid.watches);
+	w.* = .{key = dc.stream_key(ifx ch then ch.guild_id else 0, app.voice_channel, uid, context.allocator), user = uid};
+	dc.stream_watch(call_client(), w.key);
+}
+
+// watch_stop: stop watching uid's stream (0: every one).
+watch_stop :: (uid: dc.Snowflake = 0) {
+	i := 0;
+	while i < vid.watches.count {
+		w := vid.watches[i];
+		if uid && w.user != uid { i += 1; continue; }
+		if w.key && call_client() dc.stream_delete(call_client(), w.key);
+		voice_release(w.conn);
+		free(w.key);
+		remote_reset(remote_video(*vid.streams, cast(u64) w.user));
+		array_ordered_remove_by_index(*vid.watches, i);
+	}
 }
 
 // video_stop_all: leaving the call ends every video (before the voice connection is released).
@@ -208,7 +220,7 @@ camera_image :: (uid: dc.Snowflake) -> media.Video_Image {
 
 stream_image :: (uid: dc.Snowflake) -> media.Video_Image {
 	if uid == call_store().me return ifx screen_sharing() then vid.screen.img else .{};
-	if uid != vid.watch_user return .{};
+	if !watch_of(uid) return .{};
 	locks.guard(*vid.mu);
 	found, rv := table_find(*vid.streams, cast(u64) uid);
 	return ifx found then rv.img else .{};
@@ -241,24 +253,28 @@ video_frame :: () {
 				}
 			}
 		}
-		if vid.watch_key != "" {
-			vs := table_find_pointer(*call_store().voice_states, vid.watch_user);
+		for < vid.watches {
+			if !it.key continue;
+			vs := table_find_pointer(*call_store().voice_states, it.user);
 			if !vs || !vs.self_stream || vs.channel_id != app.voice_channel {
-				watch_stop();
-			} else {
-				info, ver, ok := dc.stream_server_info(call_client(), vid.watch_key);
-				if ok && ver != vid.watch_version && !teardown_busy() {
-					voice_release(vid.watch_conn);
-					vid.watch_conn = stream_connect(info);
-					vid.watch_version = ver;
-				}
+				watch_stop(it.user);
+				continue;
+			}
+			info, ver, ok := dc.stream_server_info(call_client(), it.key);
+			if ok && ver != it.version && !teardown_busy() {
+				voice_release(it.conn);
+				vid.watches[it_index].conn = stream_connect(info);
+				vid.watches[it_index].version = ver;
 			}
 		}
 	}
 	// a decoder that failed asks its sender for a keyframe (the voice connections do the rate limiting)
 	locks.lock(*vid.mu);
 	for rv, uid: vid.cams if atomic_swap(*rv.want_key, false) && vc_conn() voice.request_keyframe(vc_conn(), uid);
-	for rv, uid: vid.streams if atomic_swap(*rv.want_key, false) && vid.watch_conn voice.request_keyframe(vid.watch_conn, uid);
+	for rv, uid: vid.streams if atomic_swap(*rv.want_key, false) {
+		w := watch_of(cast(dc.Snowflake) uid);
+		if w && w.conn voice.request_keyframe(w.conn, uid);
+	}
 
 	for vid.cams show_pending(*it.pending, *it.img, *it.shown_ms);
 	for vid.streams {
@@ -323,11 +339,11 @@ go_live_set :: (height: int, fps: int) {
 	if screen_sharing() && vid.screen.capture sender_stop(*vid.screen); // video_frame starts it again
 }
 
-// watched_stream_quality: "720p 30FPS" for the stream we watch, once frames arrive.
+// watched_stream_quality: "720p 30FPS" for the stream we watch (the first one), once frames arrive.
 watched_stream_quality :: () -> string {
-	if !vid.watch_user return "";
+	if !vid.watches.count return "";
 	locks.guard(*vid.mu);
-	found, rv := table_find(*vid.streams, cast(u64) vid.watch_user);
+	found, rv := table_find(*vid.streams, cast(u64) vid.watches[0].user);
 	if !found || !rv.img.y return "";
 	return ifx rv.fps then tprint("%p %FPS", rv.img.size[1], rv.fps) else tprint("%p", rv.img.size[1]);
 }
@@ -346,7 +362,7 @@ video_test_frame :: () {
 		go_live_start(.{name = "test pattern", width = 1280, height = 720});
 	}
 	now := wall_ms();
-	if video_test("watch") && vid.watch_key == "" {
+	if video_test("watch") && !vid.watches.count {
 		for vs, uid: call_store().voice_states if vs.channel_id == app.voice_channel && vs.self_stream && uid != call_store().me { watch_stream(uid); break; }
 	}
 	if now < vt_next_log return;
@@ -360,7 +376,7 @@ video_test_frame :: () {
 	}
 	report("voice", conn);
 	report("own-stream", vid.own_conn);
-	report("watch", vid.watch_conn);
+	for vid.watches report("watch", it.conn);
 	locks.guard(*vid.mu);
 	for rv, uid: vid.cams if rv.img.y print("[video-test] showing camera of % (%x%)\n", uid, rv.img.size[0], rv.img.size[1], to_standard_error = true);
 	for rv, uid: vid.streams if rv.img.y print("[video-test] showing stream of % (%x%)\n", uid, rv.img.size[0], rv.img.size[1], to_standard_error = true);

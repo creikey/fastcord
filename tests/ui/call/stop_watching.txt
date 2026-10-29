@@ -1,0 +1,15 @@
+# A watched stream's tile offers Stop Watching on hover (several streams can be watched at once, each left
+# on its own); it goes back to Watch Stream.
+wait 5
+in_voice 1546820558950371411
+click_text "General"
+wait 10
+watching 181531813351522304
+wait 10
+move 670 180
+wait 3
+expect_visible "Stop Watching"
+shot build/ui-call_stop_watching-hover.png
+click_text "Stop Watching"
+wait 5
+expect_visible "Watch Stream"
