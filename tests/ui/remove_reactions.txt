@@ -1,0 +1,15 @@
+# With Manage Messages, a message with reactions offers Remove All Reactions; it asks first, then
+# the reactions go.
+wait 30
+move 600 300
+scroll 0 120
+wait 30
+rclick 600 128
+wait 5
+click_text "Remove All Reactions"
+wait 5
+expect_visible "Are you sure you want to remove all the reactions on this message?"
+click_text "Remove"
+wait 5
+expect_not_visible "Are you sure you want to remove all the reactions on this message?"
+shot build/ui-remove_reactions.png

@@ -497,7 +497,11 @@ message_menu :: () {
 	array_add(*items, .{label = "Copy Text", icon = "copy", sep = true});
 	if dc.can_pin_message(s, m) array_add(*items, .{label = ifx m.pinned then "Unpin Message" else "Pin Message", icon = "pin"});
 	array_add(*items, .{label = "Mark Unread", icon = "chat-mark-unread"}, .{label = "Copy Message Link", icon = "link"});
-	if can_manage_message(m) array_add(*items, .{label = "Delete Message", icon = "trash", danger = true, sep = true});
+	// MessageContextMenu's last group: Remove All Reactions (MANAGE_MESSAGES in a server channel), then Delete
+	ch := dc.channel_get(s, m.channel_id);
+	remove_all := m.reactions && ch && ch.guild_id && (dc.channel_permissions(s, ch.id) & dc.PERM_MANAGE_MESSAGES);
+	if remove_all array_add(*items, .{label = "Remove All Reactions", icon = "reaction", sep = true});
+	if can_manage_message(m) array_add(*items, .{label = "Delete Message", icon = "trash", danger = true, sep = !remove_all});
 	if s.settings.developer_mode array_add(*items, .{label = "Copy Message ID", icon = "id", sep = true});
 	quick := ifx sel then .[] else quick_reactions();
 	// official: 222 wide, 8px padding, 44px quick-reaction squares, 36px rows, 17px dividers
@@ -615,6 +619,8 @@ message_menu :: () {
 					clipboard_set(tprint("%", cast(u64) m.id));
 				case "Delete Message";
 					if app.ui_mods & .Shift delete_now(m); else ma.confirming, ma.confirm = m.id, Confirm.Delete;
+				case "Remove All Reactions";
+					if app.ui_mods & .Shift remove_reactions_now(m); else ma.confirming, ma.confirm = m.id, Confirm.Remove_Reactions;
 				}
 				ma.menu_msg = 0;
 			}
@@ -628,7 +634,13 @@ delete_now :: (m: *dc.Message) {
 	if net_action() dc.delete_message(app.client, m.channel_id, m.id);
 }
 
-Confirm :: enum u8 { Delete; Pin; Unpin; Remove_Embeds; }
+Confirm :: enum u8 { Delete; Pin; Unpin; Remove_Embeds; Remove_Reactions; }
+
+// DELETE .../reactions: gone for everyone once MESSAGE_REACTION_REMOVE_ALL comes.
+remove_reactions_now :: (m: *dc.Message) {
+	if net_action() dc.remove_all_reactions(app.client, m.channel_id, m.id);
+	else array_reset(*m.reactions); // offline (fixture) runs
+}
 
 // Yours, or in a server channel where you have MANAGE_MESSAGES.
 can_manage_message :: (m: *dc.Message) -> bool {
@@ -653,6 +665,7 @@ confirm_now :: (m: *dc.Message) {
 	if ma.confirm == {
 	case .Delete; delete_now(m);
 	case .Remove_Embeds; remove_embeds_now(m);
+	case .Remove_Reactions; remove_reactions_now(m);
 	case; pin_now(m, ma.confirm == .Pin);
 	}
 }
@@ -672,6 +685,8 @@ confirm_modal :: () {
 		question = ifx ch && ch.guild_id then tprint("Hey, just double checking that you want to pin this message to #% for posterity and greatness?", ch.name) else "Hey, just double checking that you want to pin this message to the current channel for posterity and greatness?";
 	} else if ma.confirm == .Unpin {
 		title, question, tip, ok = "Unpin Message", "You sure you want to remove this pinned message?", "unpin message", "Remove it please!";
+	} else if ma.confirm == .Remove_Reactions {
+		title, question, tip, ok = "Remove All Reactions", "Are you sure you want to remove all the reactions on this message?", "", "Remove";
 	} else if ma.confirm == .Remove_Embeds {
 		title, question, tip, ok = "Remove Embeds", "Are you sure you want to remove all embeds on this message? This will remove them for everyone.", "remove embeds", "Remove All Embeds";
 	}
