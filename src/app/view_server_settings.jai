@@ -115,6 +115,12 @@ server_settings_reset_for_test :: () {
 	free(ss.chan_region);
 	array_free(ss.ows);
 	array_free(ss.cursors);
+	array_free(ss.rule.exempt_roles);
+	array_free(ss.rule.exempt_channels);
+	ui.editor_destroy(*ss.rule_allow);
+	ui.editor_destroy(*ss.rule_limit);
+	free(ss.rule_saved);
+	free(ss.rule_regex);
 	ob_free();
 	free(ss.ob_saved);
 	ss = .{};
@@ -454,6 +460,13 @@ ss: struct {
 	ow_id: dc.Snowflake; // the role or member whose permissions are shown
 	ow_adding: bool; // the Add members or roles search is open
 	cursors: [..]dc.Snowflake; // Bans and Audit Log: the cursor each page shown so far loaded from (empty: page 1)
+	// Safety Setup: the AutoMod rule open for editing (ss.words holds its words) and its draft
+	rule_id: dc.Snowflake;
+	rule: Rule_Draft;
+	rule_allow: ui.Editor;
+	rule_limit: ui.Editor;
+	rule_saved: string; // heap: rule_body of the rule as loaded, what the draft compares with
+	rule_regex: string; // heap: its regex patterns' JSON, kept as they are
 };
 
 ss_set :: (dst: *string, v: string) {
@@ -528,7 +541,7 @@ section_enter :: (g: *dc.Guild) {
 		load(g, .Webhooks, tprint("/channels/%/webhooks", ss.channel));
 	}
 	ss.ow_id, ss.ow_adding = g.id, false;
-	ss.role_id, ss.pending_role, ss.hook_id = 0, 0, 0;
+	ss.role_id, ss.pending_role, ss.hook_id, ss.rule_id = 0, 0, 0, 0;
 	array_reset(*ss.cursors);
 	ui.editor_set_text(*ss.hook_name, "");
 	ui.editor_set_text(*ss.words, "");
@@ -764,6 +777,8 @@ form_dirty :: (g: *dc.Guild) -> bool {
 		return tag_dirty();
 	case .Onboarding;
 		return onboarding_dirty();
+	case .Safety;
+		return rule_dirty();
 	case .Chan_Overview;
 		return chan_overview_dirty();
 	case .Chan_Permissions;
@@ -796,6 +811,7 @@ form_reset :: (g: *dc.Guild) {
 		ss.private = f.visibility == 2;
 	}
 	if ss.section == .Roles role_reset(g);
+	if ss.section == .Safety && ss.rule_id rule_open(rule_of_id(ss.rule_id));
 	if ss.channel chan_reset();
 	if ss.section == .Onboarding onboarding_reset();
 	ss.comm = community_form_of(g);
@@ -859,6 +875,8 @@ form_save :: (g: *dc.Guild) {
 	case .Tag;
 		ss_error("");
 		save_call(g, .Save, "PATCH", tprint("/guilds/%/profile", g.id), tprint("{\"tag\":%}", dc.json_quote(trim(ui.editor_text(*ss.tag)))));
+	case .Safety;
+		rule_save(g);
 	case .Chan_Overview;
 		chan_overview_save();
 	case .Chan_Permissions;
@@ -2460,7 +2478,8 @@ automod_section :: (g: *dc.Guild) {
 		r := dc.vmap(it);
 		t := dc.fint(r, "trigger_type");
 		if t >= 0 && t < has.count has[t] = true;
-		ui.id_scope(cast(u64) dc.fsnow(r, "id"));
+		id := dc.fsnow(r, "id");
+		ui.id_scope(cast(u64) id);
 		defer ui.pop_seed();
 		card := ui.box("rule", .Draw_Background);
 		card.semantic_size = .[ui.pct(1), ui.children()];
@@ -2469,8 +2488,13 @@ automod_section :: (g: *dc.Guild) {
 		card.style.bg = T("--background-mod-subtle");
 		{ ui.parent(card); defer ui.pop_parent();
 			spacer(.Y, 12);
-			hr := row("h");
+			hr := row("h", .Clickable);
 			hr.semantic_size = .[ui.pct(1), ui.children()];
+			hr.hover_cursor = .Pointer;
+			if ui.signal(hr).clicked && !rule_dirty() {
+				if ss.rule_id == id ss.rule_id = 0;
+				else rule_open(r);
+			}
 			{ ui.parent(hr); defer ui.pop_parent();
 				spacer(.X, 16);
 				col := ui.box("t");
@@ -2501,6 +2525,7 @@ automod_section :: (g: *dc.Guild) {
 				spacer(.X, 12);
 			}
 			spacer(.Y, 12);
+			if ss.rule_id == id rule_editor(g, r);
 		}
 		spacer(.Y, 8);
 	}
@@ -2527,6 +2552,229 @@ automod_section :: (g: *dc.Guild) {
 		ss_action(g, .Automod, "POST", tprint("/guilds/%/auto-moderation/rules", g.id), automod_new_body(g, "Block Mention Spam", AUTOMOD_MENTION_SPAM, "{\"mention_total_limit\":20,\"mention_raid_protection_enabled\":true}"));
 	if !has[AUTOMOD_SPAM] && set_button("Block Suspected Spam Content##sp", .Secondary, !ss.busy)
 		ss_action(g, .Automod, "POST", tprint("/guilds/%/auto-moderation/rules", g.id), automod_new_body(g, "Block Suspected Spam Content", AUTOMOD_SPAM, "{}"));
+	ui.pop_parent();
+	spacer(.Y, 8);
+	br = row("addrules2");
+	br.semantic_size = .[ui.pct(1), ui.px(38)];
+	br.style.child_gap = 8;
+	ui.push_parent(br);
+	if !has[AUTOMOD_PRESET] && set_button("Block Commonly Flagged Words##pr", .Secondary, !ss.busy)
+		ss_action(g, .Automod, "POST", tprint("/guilds/%/auto-moderation/rules", g.id), automod_new_body(g, "Block Commonly Flagged Words", AUTOMOD_PRESET, "{\"presets\":[1,2,3],\"allow_list\":[]}"));
+	if !has[AUTOMOD_PROFILE] && set_button("Block Words in Member Profile Names##pn", .Secondary, !ss.busy)
+		ss_action(g, .Automod, "POST", tprint("/guilds/%/auto-moderation/rules", g.id), tprint("{\"name\":\"Block Words in Member Profile Names\",\"guild_id\":\"%\",\"event_type\":2,\"trigger_type\":6,\"trigger_metadata\":{\"keyword_filter\":[\"*nitro*\"],\"regex_patterns\":[],\"allow_list\":[]},\"actions\":[{\"type\":4,\"metadata\":{}}],\"enabled\":true,\"exempt_channels\":[],\"exempt_roles\":[]}", g.id));
+}
+
+AUTOMOD_PRESET :: 4;
+AUTOMOD_PROFILE :: 6;
+PRESETS :: struct { id: int; name: string; }.[.{3, "Insults and Slurs"}, .{2, "Sexual Content"}, .{1, "Severe Profanity"}];
+
+// An AutoMod rule's editable parts (ss.words: its words; ss.rule_allow: allowed words; ss.rule_limit: mentions).
+Rule_Draft :: struct {
+	trigger: int;
+	block, alert, timeout, raid: bool;
+	alert_channel: dc.Snowflake;
+	timeout_secs: int;
+	presets: [4]bool; // by preset id
+	exempt_roles, exempt_channels: [..]dc.Snowflake;
+}
+
+rule_of_id :: (id: dc.Snowflake) -> etf.Map {
+	r := reply(.Automod);
+	if r for dc.vlist(r.body) if dc.fsnow(dc.vmap(it), "id") == id return dc.vmap(it);
+	return .[];
+}
+
+words_of :: (list: []dc.V) -> string {
+	parts := NewArray(list.count, string,, temp);
+	for list parts[it_index] = dc.vstr(it);
+	return join(..parts, ", ",, temp);
+}
+
+rule_open :: (r: etf.Map) {
+	ss.rule_id = dc.fsnow(r, "id");
+	if !ss.rule_id return;
+	meta := dc.fmap(r, "trigger_metadata");
+	d := *ss.rule;
+	array_reset(*d.exempt_roles);
+	array_reset(*d.exempt_channels);
+	ex_roles, ex_channels := d.exempt_roles, d.exempt_channels;
+	d.* = .{trigger = dc.fint(r, "trigger_type"), exempt_roles = ex_roles, exempt_channels = ex_channels, timeout_secs = 60};
+	for dc.flist(r, "exempt_roles") if it_index < 20 array_add(*d.exempt_roles, dc.vsnow(it));
+	for dc.flist(r, "exempt_channels") if it_index < 50 array_add(*d.exempt_channels, dc.vsnow(it));
+	for dc.flist(r, "actions") {
+		a := dc.vmap(it);
+		m := dc.fmap(a, "metadata");
+		if dc.fint(a, "type") == {
+		case 1; d.block = true;
+		case 2; d.alert, d.alert_channel = true, dc.fsnow(m, "channel_id");
+		case 3; d.timeout, d.timeout_secs = true, dc.fint(m, "duration_seconds");
+		}
+	}
+	for dc.flist(meta, "presets") { p := dc.vint(it); if p >= 1 && p <= 3 d.presets[p] = true; }
+	d.raid = dc.fbool(meta, "mention_raid_protection_enabled");
+	ui.editor_set_text(*ss.words, words_of(dc.flist(meta, "keyword_filter")));
+	ui.editor_set_text(*ss.rule_allow, words_of(dc.flist(meta, "allow_list")));
+	ui.editor_set_text(*ss.rule_limit, tprint("%", dc.fint(meta, "mention_total_limit")));
+	sb: String_Builder;
+	sb.allocator = temp;
+	rx := dc.vget(meta, "regex_patterns");
+	if rx.kind == .List etf.to_json(rx, *sb); else append(*sb, "[]");
+	ss_set(*ss.rule_regex, builder_to_string(*sb,, temp));
+	ss_set(*ss.rule_saved, rule_body(r));
+}
+
+rule_dirty :: () -> bool {
+	if !ss.rule_id return false;
+	r := rule_of_id(ss.rule_id);
+	return r.count > 0 && rule_body(r) != ss.rule_saved;
+}
+
+// The rule with the draft's trigger metadata, actions and exemptions, in the client's keys (automod_rule_body).
+rule_body :: (r: etf.Map) -> string {
+	d := *ss.rule;
+	q :: (text: string) -> string {
+		words := split_words(text);
+		for * words it.* = dc.json_quote(it.*);
+		return join(..words, ",",, temp);
+	}
+	ids :: (list: []dc.Snowflake) -> string {
+		parts := NewArray(list.count, string,, temp);
+		for list parts[it_index] = tprint("\"%\"", it);
+		return join(..parts, ",",, temp);
+	}
+	meta: string;
+	if d.trigger == {
+	case AUTOMOD_KEYWORD; #through; case AUTOMOD_PROFILE;
+		meta = tprint("{\"keyword_filter\":[%],\"regex_patterns\":%,\"allow_list\":[%]}", q(ui.editor_text(*ss.words)), ss.rule_regex, q(ui.editor_text(*ss.rule_allow)));
+	case AUTOMOD_PRESET;
+		ps: [..]string;
+		ps.allocator = temp;
+		for 1..3 if d.presets[it] array_add(*ps, tprint("%", it));
+		meta = tprint("{\"presets\":[%],\"allow_list\":[%]}", join(..ps, ",",, temp), q(ui.editor_text(*ss.rule_allow)));
+	case AUTOMOD_MENTION_SPAM;
+		n, ok := string_to_int(trim(ui.editor_text(*ss.rule_limit)));
+		meta = tprint("{\"mention_total_limit\":%,\"mention_raid_protection_enabled\":%}", ifx ok then n else 0, d.raid);
+	case;
+		meta = "{}";
+	}
+	acts: [..]string;
+	acts.allocator = temp;
+	if d.trigger == AUTOMOD_PROFILE array_add(*acts, "{\"type\":4,\"metadata\":{}}");
+	else if d.block array_add(*acts, "{\"type\":1,\"metadata\":{}}");
+	if d.alert array_add(*acts, tprint("{\"type\":2,\"metadata\":{\"channel_id\":\"%\"}}", d.alert_channel));
+	if d.timeout array_add(*acts, tprint("{\"type\":3,\"metadata\":{\"duration_seconds\":%}}", d.timeout_secs));
+	return tprint("{\"id\":\"%\",\"name\":%,\"guild_id\":\"%\",\"event_type\":%,\"trigger_type\":%,\"trigger_metadata\":%,\"actions\":[%],\"enabled\":%,\"creator_id\":\"%\",\"position\":%,\"exempt_channels\":[%],\"exempt_roles\":[%]}",
+		dc.fsnow(r, "id"), dc.json_quote(dc.fstr(r, "name")), dc.fsnow(r, "guild_id"), dc.fint(r, "event_type"), d.trigger, meta, join(..acts, ",",, temp),
+		dc.fbool(r, "enabled"), dc.fsnow(r, "creator_id"), dc.fint(r, "position"), ids(d.exempt_channels), ids(d.exempt_roles));
+}
+
+// Save Changes: PATCH .../auto-moderation/rules/{id} with the whole rule, then the list reloads.
+rule_save :: (g: *dc.Guild) {
+	r := rule_of_id(ss.rule_id);
+	if !r.count return;
+	d := *ss.rule;
+	if (d.trigger == AUTOMOD_KEYWORD || d.trigger == AUTOMOD_PROFILE) && !split_words(ui.editor_text(*ss.words)).count && ss.rule_regex == "[]" { ss_error("Add at least one word to block."); return; }
+	if d.trigger == AUTOMOD_MENTION_SPAM {
+		n, ok := string_to_int(trim(ui.editor_text(*ss.rule_limit)));
+		if !ok || n < 1 || n > 50 { ss_error("The mention limit is between 1 and 50."); return; }
+	}
+	if d.trigger != AUTOMOD_PROFILE && !d.block && !d.alert && !d.timeout { ss_error("Pick at least one response."); return; }
+	if d.alert && !d.alert_channel { ss_error("Pick a channel for the alerts."); return; }
+	ss_action(g, .Automod, "PATCH", tprint("/guilds/%/auto-moderation/rules/%", g.id, ss.rule_id), rule_body(r));
+}
+
+rule_editor :: (g: *dc.Guild, r: etf.Map) {
+	d := *ss.rule;
+	inner := row("edit");
+	inner.semantic_size = .[ui.pct(1), ui.children()];
+	ui.parent(inner); defer ui.pop_parent();
+	spacer(.X, 16);
+	col := ui.box("f");
+	col.semantic_size = .[ui.fill(), ui.children()];
+	col.layout_axis = .Y;
+	{ ui.parent(col); defer ui.pop_parent();
+		if d.trigger == AUTOMOD_KEYWORD || d.trigger == AUTOMOD_PROFILE {
+			field_title(ifx d.trigger == AUTOMOD_PROFILE then "Blocked words in names" else "Blocked words");
+			if set_input("words", *ss.words, "Words to block, separated by commas (* matches anything)", multiline = true, max_runes = 6000, min_h = 60) == .Escape ss.field_escape = true;
+			spacer(.Y, 12);
+		}
+		if d.trigger == AUTOMOD_PRESET {
+			for PRESETS if set_toggle_row(tprint("pr%", it.id), it.name, "", d.presets[it.id]) d.presets[it.id] = !d.presets[it.id];
+			spacer(.Y, 12);
+		}
+		if d.trigger == AUTOMOD_KEYWORD || d.trigger == AUTOMOD_PROFILE || d.trigger == AUTOMOD_PRESET {
+			field_title("Allowed words");
+			if set_input("allow", *ss.rule_allow, "Words that are never blocked, separated by commas", multiline = true, max_runes = 6000, min_h = 40) == .Escape ss.field_escape = true;
+			spacer(.Y, 12);
+		}
+		if d.trigger == AUTOMOD_MENTION_SPAM {
+			field_title("Mention limit");
+			if set_input("limit", *ss.rule_limit, "20", max_runes = 2) == .Escape ss.field_escape = true;
+			spacer(.Y, 8);
+			if set_toggle_row("raid", "Mention raid protection", "Detects a burst of mention spam across the server and locks it down.", d.raid) d.raid = !d.raid;
+			spacer(.Y, 12);
+		}
+		field_title("Responses");
+		if d.trigger == AUTOMOD_PROFILE set_para("blocknote", "Members with a matching name can't talk or interact until they change it.", .Normal, 14, 18, T("--text-muted"));
+		else if set_toggle_row("block", "Block message", "", d.block) d.block = !d.block;
+		spacer(.Y, 10);
+		if set_toggle_row("alert", "Send an alert", "", d.alert) d.alert = !d.alert;
+		spacer(.Y, 10);
+		if d.alert {
+			names, cids := channel_options(g, "Pick a channel", false);
+			pick := select_field("alertch", names, index_of(cids, d.alert_channel));
+			if pick >= 0 d.alert_channel = cids[pick];
+			spacer(.Y, 8);
+		}
+		if d.trigger == AUTOMOD_KEYWORD || d.trigger == AUTOMOD_MENTION_SPAM {
+			if set_toggle_row("timeout", "Timeout member", "", d.timeout) d.timeout = !d.timeout;
+			spacer(.Y, 10);
+			if d.timeout {
+				opts := NewArray(TIMEOUTS.count, string,, temp);
+				cur := 0;
+				for TIMEOUTS { opts[it_index] = it.name; if it.secs == d.timeout_secs cur = it_index; }
+				pick := select_field("tdur", opts, cur);
+				if pick >= 0 d.timeout_secs = TIMEOUTS[pick].secs;
+				spacer(.Y, 8);
+			}
+		}
+		spacer(.Y, 12);
+		field_title("Exemptions");
+		chips := row("ex");
+		chips.semantic_size = .[ui.pct(1), ui.children()];
+		chips.style.child_gap = 6;
+		drop_role, drop_ch: dc.Snowflake;
+		{ ui.parent(chips); defer ui.pop_parent();
+			for d.exempt_roles { role := role_of(g, it); if chip(tprint("r%", it), ifx role then tprint("@%", role.name) else "deleted-role") drop_role = it; }
+			for d.exempt_channels { ch := dc.channel_get(store(), it); if chip(tprint("c%", it), ifx ch then tprint("#%", ch.name) else "deleted-channel") drop_ch = it; }
+		}
+		if drop_role for d.exempt_roles if it == drop_role { array_ordered_remove_by_index(*d.exempt_roles, it_index); break; }
+		if drop_ch for d.exempt_channels if it == drop_ch { array_ordered_remove_by_index(*d.exempt_channels, it_index); break; }
+		if d.exempt_roles.count || d.exempt_channels.count spacer(.Y, 8);
+		picks := row("picks");
+		picks.semantic_size = .[ui.pct(1), ui.px(40)];
+		picks.style.child_gap = 8;
+		{ ui.parent(picks); defer ui.pop_parent();
+			rnames: [..]string;
+			rnames.allocator = temp;
+			rids: [..]dc.Snowflake;
+			rids.allocator = temp;
+			array_add(*rnames, "Exempt a role");
+			array_add(*rids, 0);
+			for roles_sorted(g) if it.id != g.id && !array_find(d.exempt_roles, it.id) { array_add(*rnames, it.name); array_add(*rids, it.id); }
+			w := ui.box("rw");
+			w.semantic_size = .[ui.fill(), ui.children()];
+			{ ui.parent(w); defer ui.pop_parent(); pick := select_field("exrole", rnames, 0); if pick > 0 && d.exempt_roles.count < 20 array_add(*d.exempt_roles, rids[pick]); }
+			if d.trigger != AUTOMOD_PROFILE {
+				names, cids := channel_options(g, "Exempt a channel", false);
+				w = ui.box("cw");
+				w.semantic_size = .[ui.fill(), ui.children()];
+				{ ui.parent(w); defer ui.pop_parent(); pick := select_field("exch", names, 0); if pick > 0 && !array_find(d.exempt_channels, cids[pick]) && d.exempt_channels.count < 50 array_add(*d.exempt_channels, cids[pick]); }
+			}
+		}
+		spacer(.Y, 16);
+	}
+	spacer(.X, 16);
 }
 
 // Comma or newline separated words, trimmed, at most 1000 (Discord's keyword_filter cap).

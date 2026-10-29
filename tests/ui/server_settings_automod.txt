@@ -1,0 +1,32 @@
+# Safety Setup's AutoMod rule editor: a keyword rule opened (words, allowed words, responses with the alert
+# channel and timeout, exemptions), a change shows the unsaved bar and Reset clears it.
+wait 5
+click 200 57
+wait 10
+click_text "Server Settings"
+wait 10
+click_text "Safety Setup"
+wait 10
+settings_reply Automod [{"id":"1565281995485870001","guild_id":"1546820558300258304","name":"Block Custom Words","event_type":1,"trigger_type":1,"trigger_metadata":{"keyword_filter":["dingus","bad*"],"regex_patterns":[],"allow_list":["badge"]},"actions":[{"type":1,"metadata":{}},{"type":2,"metadata":{"channel_id":"1546820603343016006"}}],"enabled":true,"creator_id":"1546820603343016100","position":0,"exempt_channels":[],"exempt_roles":["1546822593921679420"]}]
+wait 5
+move 700 400
+scroll 0 -2000
+wait 60
+click_text "Block Custom Words"
+wait 5
+expect_visible "Blocked words"
+expect_visible "Allowed words"
+scroll 0 -2000
+wait 60
+expect_visible "@champion"
+expect_not_visible "Careful — you have unsaved changes!"
+click_text "Timeout member"
+wait 5
+expect_visible "Careful — you have unsaved changes!"
+expect_visible "60 seconds"
+shot build/ui-server_settings_automod.png
+click_text Reset
+wait 5
+expect_not_visible "Careful — you have unsaved changes!"
+key escape
+wait 5
