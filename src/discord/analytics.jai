@@ -37,6 +37,7 @@ Analytics :: struct {
 	gateway_seen: bool; // the AccessibilityStore's bits join at gateway_connected
 	identify_ms: s64; // the launch's IDENTIFY (0 after READY)
 	launch_fast: bool; // that IDENTIFY was fast-connect.js's
+	identify_start: s64; // the app's last IDENTIFY (identifyStartTime)
 	takeover_pending: bool; // the launch's app has not taken the socket over yet
 	launch_focused: bool; // until then the app reports itself focused (54 launches)
 	pending_connected: string; // a gateway_connected waiting for the takeover

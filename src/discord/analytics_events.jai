@@ -2461,6 +2461,9 @@ analytics_login :: (c: *Client) {
 // RESUME track nothing. Sent before HELLO it lands just before that socket's
 // gateway_connected (fixtures typing, account_edits); after HELLO, at once (open_dm).
 analytics_identify :: (c: *Client, after_hello: bool) {
+	locks.lock(*c.analytics.mu);
+	c.analytics.identify_start = now_ms(); // identifyStartTime (ready_payload_received)
+	locks.unlock(*c.analytics.mu);
 	if after_hello {
 		analytics_track(c, "session_start_client", "");
 		return;
@@ -2530,10 +2533,11 @@ analytics_ready_payload :: (c: *Client, data: V, is_reconnect: bool) {
 	f := a.ready_frame;
 	a.ready_frame = .{};
 	a.ready_unpack_ms = f.unpack_ms;
-	identify := a.identify_ms;
-	fast := identify != 0 && a.launch_fast; // the launch's fast-connect IDENTIFY
-	a.identify_ms, a.launch_fast = 0, false;
+	fast := a.identify_ms != 0 && a.launch_fast; // the launch's fast-connect IDENTIFY
+	start := a.identify_start;
+	a.identify_ms, a.launch_fast, a.identify_start = 0, false, 0;
 	ident_bytes := cast(s64) synth_between(*a.synth, 1020, 1110);
+	lag := cast(s64) synth_between(*a.synth, cast(float64) ifx fast then 15 else 55, cast(float64) ifx fast then 50 else 90);
 	locks.unlock(*a.mu);
 	if f.raw == 0 {
 		bytes, err := etf.encode(data,, temp);
@@ -2588,10 +2592,10 @@ analytics_ready_payload :: (c: *Client, data: V, is_reconnect: bool) {
 	for gs grest -= it;
 	conn := ifx c.gw then c.gw.attempt_start else 0;
 	if conn == 0 conn = now - 1000;
-	if !identify identify = conn + 160; // sent on HELLO
-	if fast conn = identify; // the app's connection to fast-connect's socket (fixtures: identify and connection durations equal)
+	if fast start = conn; // _doFastConnectIdentify at the takeover, right after _connect
+	if !start start = conn + 160; // sent on HELLO
 	frac := 0.1 * cast(float64) (mono_ms() % 10);
-	perf := cast(float64) (identify - c.launch_ms) + frac; // performance.now() at the identify
+	o := cast(float64) (now - c.launch_ms) + frac; // performance.now() as READY's dispatch starts
 	w := aw_begin();
 	json_kint(*w, "compressed_byte_size", f.wire);
 	json_kint(*w, "uncompressed_byte_size", f.raw);
@@ -2609,9 +2613,13 @@ analytics_ready_payload :: (c: *Client, data: V, is_reconnect: bool) {
 	for GUILD_NAMES json_kint(*w, it, gs[it_index]);
 	json_kint(*w, "guild_remaining_data_size", max(grest, 0));
 	json_kint(*w, "size_metrics_duration_ms", now_ms() - now);
-	aw_kf64(*w, "duration_ms_since_identify_start", perf - cast(float64) now);
-	aw_kf64(*w, "duration_ms_since_connection_start", perf + cast(float64) (identify - conn) - cast(float64) now);
-	aw_kf64(*w, "duration_ms_since_emit_start", cast(float64) now - perf + cast(float64) (identify - conn + 160));
+	// The official mix: o - identifyStartTime, o - connectionStartTime (Date.now()), Date.now() - o after
+	// the READY handlers. Their sum (READY handled - identify start) runs `lag` short of this event's
+	// track time against the identify's (fixtures: 57-87 ms after session_start_client, 8-92 after a
+	// fast launch's takeover).
+	aw_kf64(*w, "duration_ms_since_identify_start", o - cast(float64) start);
+	aw_kf64(*w, "duration_ms_since_connection_start", o - cast(float64) conn);
+	aw_kf64(*w, "duration_ms_since_emit_start", cast(float64) (now_ms() - lag) - o);
 	json_kbool(*w, "is_reconnect", is_reconnect);
 	json_kbool(*w, "is_fast_connect", fast);
 	json_kbool(*w, "did_force_clear_guild_hashes", false);
