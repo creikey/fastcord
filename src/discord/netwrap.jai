@@ -23,6 +23,15 @@ dial_tls_stream :: (host: string, alpn: []string) -> netio.Stream, string, bool 
 
 HOSTED_ALPN :: "fc/1";
 
+// serve gives up on a connection quiet for netio.DIAL_IO_TIMEOUT_MS. A request sent on one it gave up on
+// can wait out the whole timeout with no reply and no close, so a connection idle this long is redialled.
+HOSTED_IDLE_MS :: netio.DIAL_IO_TIMEOUT_MS - 5_000;
+
+Hosted_Idle :: struct {
+	conn: *http.H1_Conn;
+	since: Apollo_Time; // monotonic
+}
+
 // dial_hosted: TCP + TLS 1.3 to a self-hosted server, accepting only its pinned certificate.
 dial_hosted :: (h: Hosted) -> netio.Stream, bool {
 	tcp, derr := netio.dial_tcp(h.host, h.port);
@@ -50,7 +59,11 @@ hosted_round_trip :: (data: *void, host: string, req_in: http.Request) -> http.R
 	for attempt: 0..1 {
 		conn: *http.H1_Conn;
 		locks.lock(*c.hosted_mu);
-		if c.hosted_idle.count conn = pop(*c.hosted_idle);
+		while !conn && c.hosted_idle.count {
+			e := pop(*c.hosted_idle);
+			if current_time_monotonic() - e.since < milliseconds_to_apollo(HOSTED_IDLE_MS) conn = e.conn;
+			else { http.h1_destroy(e.conn); free(e.conn,, c.allocator); }
+		}
 		locks.unlock(*c.hosted_mu);
 		reused := conn != null;
 		if !conn {
@@ -63,7 +76,7 @@ hosted_round_trip :: (data: *void, host: string, req_in: http.Request) -> http.R
 		if err == .None && conn.reusable {
 			locks.lock(*c.hosted_mu);
 			kept := c.hosted_idle.count < 2;
-			if kept array_add(*c.hosted_idle, conn);
+			if kept array_add(*c.hosted_idle, .{conn, current_time_monotonic()});
 			locks.unlock(*c.hosted_mu);
 			if kept return resp, err;
 		}

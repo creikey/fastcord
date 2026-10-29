@@ -728,6 +728,9 @@ accept_loop :: (s: *Server) {
 // Its stream is closed by whoever reaps it (accept_loop or stop), so a shutdown never races a close.
 serve_conn :: (c: *Conn) {
 	defer atomic_store(*c.done, true);
+	// Closed now, not at the next accept's reap: a client's next request on a connection given up on
+	// (a read timing out) would otherwise get no reply and no close until its own timeout.
+	defer netio.shutdown(netio.tcp_stream(c.tcp));
 	session, _, _ := tls.accept(c.s, c.server.ctx, none_ok = true);
 	if !session return;
 	c.s = tls.stream(session);
