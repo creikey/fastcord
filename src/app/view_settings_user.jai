@@ -194,6 +194,7 @@ US_Req :: enum u8 {
 	Sessions; // GET /auth/sessions
 	Connections; // GET /users/@me/connections
 	Tokens; // GET /oauth2/tokens (Authorized Apps)
+	Consent; // GET /users/@me/consent (Data & Privacy)
 	COUNT;
 	Action :: 100; // a change, then `us.after` reloads
 	Authorize; // GET /connections/{type}/authorize: the page to finish in the browser
@@ -209,7 +210,7 @@ us: struct {
 	error: string; // heap
 };
 
-US_PATHS :: string.["/auth/sessions", "/users/@me/connections", "/oauth2/tokens"];
+US_PATHS :: string.["/auth/sessions", "/users/@me/connections", "/oauth2/tokens", "/users/@me/consent"];
 
 us_load :: (req: US_Req) {
 	if us.loading[req] || !net_action() return;
@@ -411,6 +412,39 @@ device_row :: (v: dc.V, index: int, current: bool) {
 	spacer(.Y, 16);
 }
 #scope_export
+
+// Data & Privacy (DATA_AND_PRIVACY_PANEL): Use data to improve Discord (a consent on the account) and
+// Profile Privacy (privacy.profile_visibility, 8.32).
+data_privacy_page :: () {
+	us_enter("Data & Privacy", .Consent);
+	if !set_page_begin("datapage") return;
+	defer set_page_end();
+	s := store();
+	set_heading("How Discord Uses My Data");
+	if us_ready(.Consent) {
+		on := dc.fbool(dc.fmap(dc.vmap(us_reply(.Consent)), "usage_statistics"), "consented");
+		if set_toggle_row("usage", "Use data to improve Discord", "Allow Discord to use and process my information to understand and improve Discord's services.", on, us.busy) {
+			us_action(.Consent, "POST", "/users/@me/consent", ifx on then "{\"grant\":[],\"revoke\":[\"usage_statistics\"]}" else "{\"grant\":[\"usage_statistics\"],\"revoke\":[]}");
+		}
+	}
+	us_error_line();
+	spacer(.Y, 40);
+	set_heading("Profile Privacy");
+	set_para("pphelp", "Control who can see your profile info, like your bio and connected accounts.", .Normal, 14, 18, T("--text-muted"));
+	spacer(.Y, 12);
+	label("Share my full profile with", .Medium, 16, T("--text-strong"), 20);
+	spacer(.Y, 8);
+	VIS :: string.["Friends & All Servers", "Friends & Small Servers Only", "Friends Only"];
+	VIS_V :: u64.[3, 2, 1]; // ProfileVisibility: FRIENDS_AND_ALL_GUILDS, FRIENDS_AND_SMALL_GUILDS, FRIENDS_ONLY
+	HELP :: string.["Your full profile is visible to friends and any server you join.", "Your full profile is visible to friends and any server you join with 200 or fewer members. Everyone else sees a limited version.", "Your full profile is visible to friends. Everyone else sees a limited version."];
+	v, _ := dc.settings_value(s, 8, 32);
+	cur := 0; // unset: all servers
+	for VIS_V if it == v cur = it_index;
+	pick := select_field("profilevis", VIS, cur);
+	if pick >= 0 && pick != cur proto_put(8, 32, dc.pb_field_uint(32, VIS_V[pick]));
+	spacer(.Y, 8);
+	set_para("vishelp", HELP[cur], .Normal, 14, 18, T("--text-muted"));
+}
 
 // The platforms the client connects with an OAuth page (type, name); those needing a handle or a DNS
 // record (Bluesky, Mastodon, Domain) are left out.

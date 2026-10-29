@@ -1,0 +1,17 @@
+# Settings > Data & Privacy: Use data to improve Discord (the consent from GET /users/@me/consent) and
+# Profile Privacy's select.
+wait 5
+click 338 683
+wait 20
+click_text "Data & Privacy"
+wait 10
+expect_visible "Loading..."
+settings_reply Consent {"usage_statistics":{"consented":true},"personalization":{"consented":false}}
+wait 5
+expect_visible "Use data to improve Discord"
+click_text "Friends & All Servers"
+wait 5
+click_text "Friends Only"
+wait 5
+expect_visible "Your full profile is visible to friends. Everyone else sees a limited version."
+shot build/ui-settings_data_privacy_page.png
