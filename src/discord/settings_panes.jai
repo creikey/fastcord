@@ -20,6 +20,12 @@ Settings_Pane :: enum u8 {
 	Notifications;
 	Language_And_Time;
 	Developer;
+	Data_And_Privacy;
+	Messaging_Permissions;
+	Accessibility;
+	System;
+	Activity_Privacy;
+	Connected_Apps;
 }
 
 settings_pane_name :: (p: Settings_Pane) -> string {
@@ -30,6 +36,12 @@ settings_pane_name :: (p: Settings_Pane) -> string {
 		case .Notifications; return "notifications_panel";
 		case .Language_And_Time; return "language_and_time_panel";
 		case .Developer;     return "developer_panel";
+		case .Data_And_Privacy; return "data_and_privacy_panel";
+		case .Messaging_Permissions; return "messaging_permissions_panel";
+		case .Accessibility; return "accessibility_panel";
+		case .System;        return "system_panel";
+		case .Activity_Privacy; return "activity_privacy_panel";
+		case .Connected_Apps; return "connected_apps_panel";
 	}
 	return "";
 }
@@ -115,11 +127,8 @@ settings_pane_shown :: (c: *Client, origin: Settings_Pane, dest: Settings_Pane, 
 			}
 		}
 		settings_pane_viewed(c, origin, dest, guild_id, channel_id);
-	case .Voice; #through;
-	case .Language_And_Time; #through;
-	case .Developer;
+	case;
 		settings_pane_viewed(c, origin, dest, guild_id, channel_id);
-	case .None;
 	}
 }
 

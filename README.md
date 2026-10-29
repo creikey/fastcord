@@ -21,7 +21,7 @@ webview (but for Discord's captcha, below). Metal on macOS, Direct3D 11 on Windo
 | `build.jai` | The whole build: C libraries, the app, tools, tests, benches, releases. |
 | `src/netio` | `Stream` interface (read/write/close) + TCP. Every protocol sits on a `Stream`. |
 | `src/tls`, `src/quic` | TLS and QUIC over vendored BoringSSL and ngtcp2, configured like Chrome (the official client is Electron); OS trust store. |
-| `src/ostls` | TLS through the OS's own library (SecureTransport, SChannel, the system libssl), set up as Rust's native-tls does, for the native updater's requests. |
+| `src/ostls` | The native updater's TLS: the OS's own library (SecureTransport, SChannel) set up as Rust's native-tls does, and on Linux `src/tls`'s rustls profile. |
 | `src/inflate`, `src/zstd`, `src/brotli` | Decoders (Wuffs, zstd, brotli): the gateway uses zstd-stream; HTTP responses may be gzip/br/zstd. |
 | `src/crypto` | Hashes, HMAC/HKDF, AEADs, P-256, SLH-DSA, X25519 over BoringSSL; BLAKE3. |
 | `src/keys` | Identity keypairs for self-hosted servers: the BLAKE3 Merkle root, durable key files beside `<state>`. |
@@ -185,11 +185,15 @@ patches that do this are listed in their `vendor/*/README.md`.
 Packet numbers come from one counter across the Initial, Handshake and 1-RTT spaces with none skipped, as
 QUICHE's do (`QuicPacketCreator::NextSendingPacketNumber`). No known fingerprint gap remains against Chrome.
 
-The official client's native updater (`updater.node`, Rust) is not Chrome: its manifest checks and package
-downloads are HTTP/1.1 over the OS's TLS with native-tls's settings. fastcord sends them through `src/ostls`
-on the same libraries, so the hello is the OS's by construction; on macOS it equals the official updater's
-but for the random (`ostls_client_hello`), and the request is byte for byte the captured one (`updater_wire`).
-On Windows SChannel's hello equals the 1.0.9266 capture too; Linux (libssl) is type-checked only.
+The official client's native updater (`updater.node`, Rust) is not Chrome: on macOS and Windows its manifest
+checks and package downloads are HTTP/1.1 over the OS's TLS with native-tls's settings. fastcord sends them
+through `src/ostls` on the same libraries, so the hello is the OS's by construction: on macOS and Windows it
+equals the official updater's (0.0.419, 1.0.9266) but for the random (`ostls_client_hello`), and the request
+is byte for byte the captured one (`updater_wire`). The Linux updater links rustls 0.23 instead, and fastcord's
+hello there (BoringSSL with `vendor/boringssl/patches/0001-rustls-hello.patch`) has every field of 1.0.167's
+but the random values, with its extensions in one of the 65536 orders rustls makes (`ostls_client_hello`).
+Its ALPN offers h2; over HTTP/2 the requests are framed as hyper's h2 client frames them (`updater_h2_wire`),
+which comes from hyper's and h2's sources: the Linux updater's HTTP/2 traffic itself is not captured.
 
 ## Releasing
 

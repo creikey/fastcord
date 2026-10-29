@@ -1,7 +1,7 @@
 # BoringSSL
 
 TLS for every TCP connection (`src/tls`), and the TLS 1.3 stack ngtcp2 will drive for QUIC. Upstream's
-libcrypto and libssl sources, unmodified: the `bcm`, `crypto` and `ssl` targets' `srcs`, `hdrs`,
+libcrypto and libssl sources, unmodified (our one change is a patch, below): the `bcm`, `crypto` and `ssl` targets' `srcs`, `hdrs`,
 `internal_hdrs`, `asm` and `nasm` from `gen/sources.json`, plus `LICENSE`. No tests, tools, `pki/`,
 `decrepit/` or Rust.
 
@@ -27,7 +27,22 @@ itself by OS and CPU and assembles to nothing elsewhere, so all are compiled for
 Windows `.asm` files are NASM's: `build.jai` downloads a pinned NASM on Windows and skips them on other
 hosts.
 
+## Patches
+
+`patches/` holds our changes to the upstream files; `build.jai` applies them to a copy in
+`build/patched/boringssl` (AGENTS.md). Chrome's hello is unchanged by them (`tls_chrome_hello`).
+
+- `0001-rustls-hello.patch`: `SSL_CTX_fc_set_rustls_hello`, for `src/tls`'s rustls 0.23 profile (the
+  official Linux updater's ClientHello; `ostls_client_hello` checks it against a capture). On such a
+  context a client with TLS 1.2 enabled sends `TLS_EMPTY_RENEGOTIATION_INFO_SCSV` last among its cipher
+  suites instead of the renegotiation_info extension (still accepting the server's), never adds the
+  padding extension, and orders its extensions as rustls does: sorted by rustls's
+  `low_quality_integer_hash` of a random 16-bit seed and each extension's type, not uniformly permuted.
+  BoringSSL has no setting for any of the three. The TLS 1.3 suite order rustls uses is the CNSA
+  compliance policy's, so that needs no patch.
+
 To update: download the new commit's tarball, copy the same subset (every file those three targets
 list in `gen/sources.json`), regenerate `fc_boringssl.sources` from their `srcs`, `asm` and `nasm`
-(paths prefixed with `vendor/boringssl/`, sorted), record the commit and sha256 here, then check the
-ClientHello against a Chrome capture.
+(paths prefixed with `vendor/boringssl/`, sorted), record the commit and sha256 here, re-make the patch
+against the new files (`diff -ru boringssl.orig boringssl`), then check the ClientHello against a Chrome
+capture and run `jai build.jai - test ostls_client_hello`.

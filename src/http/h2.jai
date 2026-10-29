@@ -26,6 +26,16 @@
 //     8 KiB read; DATA for a stream already closed counts toward the connection's too
 //   - a PING before HEADERS or DATA when nothing was read for 10 s; if it stays unanswered and nothing
 //     is read for 10 s, GOAWAY (PROTOCOL_ERROR, "Failed ping.") and the connection closes
+//
+// H2_Config.hyper speaks as hyper 1's client (the h2 0.4 crate, with the defaults reqwest 0.12 leaves) does
+// for the native updater instead, from their sources (traffic/CLIENT_RULES.md):
+//   - the preface in a write of its own, then SETTINGS [2:0, 4:2097152, 5:16384, 6:16384] and WINDOW_UPDATE
+//     stream 0 increment 5177345 (window 5 MiB)
+//   - HEADERS with the h2 crate's HPACK (hpack.jai), no PRIORITY, split at 16384-byte frames
+//   - each DATA frame given back as the body reads it: a WINDOW_UPDATE once the bytes given back reach half
+//     of what is left of the window (FlowControl::unclaimed_capacity), the connection's first; none for a
+//     stream the server has ended
+//   - no PINGs; h2_close sends GOAWAY then close_notify
 
 Setting :: struct {
 	id: s32;
@@ -37,9 +47,14 @@ CHROME_STREAM_WINDOW :: 6291456;
 CHROME_CONNECTION_WINDOW :: 15728640;
 CHROME_CONNECTION_WINDOW_INCREMENT :: CHROME_CONNECTION_WINDOW - 65535;
 
+HYPER_SETTINGS := Setting.[.{2, 0}, .{4, HYPER_STREAM_WINDOW}, .{5, 16384}, .{6, 16384}];
+HYPER_STREAM_WINDOW :: 2 * 1024 * 1024;
+HYPER_CONNECTION_WINDOW :: 5 * 1024 * 1024;
+
 H2_Config :: struct {
 	max_response_body: int; // 0 -> 256 MiB
 	max_header_block: int;  // decoded header bytes per response; 0 -> 1 MiB
+	hyper: bool;            // hyper's client, not Chrome's
 }
 
 H2_Conn :: struct {
@@ -82,6 +97,7 @@ h2_connect :: (s: netio.Stream, cfg := H2_Config.{}) -> *H2_Conn, Error {
 	c.rbuf = NewArray(8 * 1024, u8, initialized = false); // Chrome's kReadBufferSize: window updates follow its reads.
 	c.wbuf.allocator, c.out.allocator, c.block.allocator = a, a, a;
 	c.enc.allocator, c.enc.table.allocator = a, a;
+	c.enc.hyper = cfg.hyper;
 	for * c.tree it.allocator = a;
 	c.acked_at = current_time_monotonic();
 	c.last_read = c.acked_at;
@@ -103,8 +119,9 @@ h2_connect :: (s: netio.Stream, cfg := H2_Config.{}) -> *H2_Conn, Error {
 	nghttp2_session_callbacks_del(cbs);
 	assert(rv == 0, "nghttp2: out of memory");
 	c.ctx = *context;
-	nghttp2_submit_settings(c.session, 0, CHROME_SETTINGS.data, xx CHROME_SETTINGS.count);
-	nghttp2_submit_window_update(c.session, 0, 0, CHROME_CONNECTION_WINDOW_INCREMENT);
+	settings := ifx cfg.hyper then HYPER_SETTINGS else CHROME_SETTINGS;
+	nghttp2_submit_settings(c.session, 0, settings.data, xx settings.count);
+	nghttp2_submit_window_update(c.session, 0, 0, xx ifx cfg.hyper then HYPER_CONNECTION_WINDOW - 65535 else CHROME_CONNECTION_WINDOW_INCREMENT);
 	err := flush(c);
 	if err != .None {
 		h2_destroy(c);
@@ -121,9 +138,11 @@ h2_close :: (c: *H2_Conn) {
 	lock(c);
 	alive := c.dead == .None;
 	if alive nghttp2_session_terminate_session(c.session, 0);
+	// hyper's connection ends with close_notify: shutting the stream down only wakes a reader
+	wake := c.reading || !c.cfg.hyper;
 	locks.unlock(*c.mu);
 	if alive flush(c);
-	netio.shutdown(c.s);
+	if wake netio.shutdown(c.s);
 	lock(c);
 	fail_conn_locked(c, .Closed);
 	locks.cond_broadcast(*c.cond);
@@ -400,9 +419,23 @@ give_back :: (c: *H2_Conn, st: *H2_Stream, id: s32, n: int) {
 	}
 }
 
+// give_back_hyper returns a whole DATA frame (n bytes, padding included) as hyper's body does once it reads
+// it; h2 then sends a WINDOW_UPDATE when what was given back reaches half of what is left of the window. The
+// connection's count is nghttp2's (DATA for closed streams too).
+give_back_hyper :: (c: *H2_Conn, st: *H2_Stream, id: s32, n: int, ended: bool) {
+	unacked := cast(int) nghttp2_session_get_effective_recv_data_length(c.session);
+	if unacked >= (HYPER_CONNECTION_WINDOW - unacked) / 2 nghttp2_submit_window_update(c.session, 0, 0, xx unacked);
+	if !st || ended return;
+	st.unacked += n;
+	if st.unacked >= (HYPER_STREAM_WINDOW - st.unacked) / 2 {
+		nghttp2_submit_window_update(c.session, 0, id, xx st.unacked);
+		st.unacked = 0;
+	}
+}
+
 on_begin_frame :: (s: *Ng_Session, f: *Ng_Frame_Hd, user: *void) -> s32 #c_call {
 	c := cast(*H2_Conn) user;
-	push_context c.ctx.* { give_back(c, null, 0, 0); }
+	if !c.cfg.hyper push_context c.ctx.* { give_back(c, null, 0, 0); }
 	return 0;
 }
 
@@ -440,7 +473,8 @@ on_frame_recv :: (s: *Ng_Session, f: *Ng_Frame_Hd, user: *void) -> s32 #c_call {
 		if st && st.done st = null;
 		// Chrome counts padding as consumed at once.
 		pad := cast(int) (cast(*Ng_Data) f).padlen;
-		if f.type == NG_FRAME_DATA && pad > 0 give_back(c, st, f.stream_id, pad);
+		if f.type == NG_FRAME_DATA && c.cfg.hyper give_back_hyper(c, st, f.stream_id, xx f.length, (f.flags & NG_FLAG_END_STREAM) != 0);
+		else if f.type == NG_FRAME_DATA && pad > 0 give_back(c, st, f.stream_id, pad);
 		if !st return 0;
 		if f.type == NG_FRAME_HEADERS && !st.got_headers {
 			if st.resp.status < 200 {
@@ -461,7 +495,7 @@ on_data_chunk :: (s: *Ng_Session, flags: u8, id: s32, data: *u8, n: u64, user: *
 	push_context c.ctx.* {
 		st := stream_of(s, id);
 		if st && st.done st = null;
-		give_back(c, st, id, xx n);
+		if !c.cfg.hyper give_back(c, st, id, xx n);
 		if !st return 0;
 		if sinking(st.req.sink, *st.resp) {
 			if !st.req.sink.take(st.req.sink.data, .{xx n, data}) finish(c, st, .Closed, NG_CANCEL);
@@ -532,10 +566,17 @@ flush :: (c: *H2_Conn) -> Error {
 		if n <= 0 break;
 		array_add(*c.wbuf, ..[]u8.{n, p});
 	}
+	first := !c.sent_preface;
 	rewrite_frames(c);
 	locks.unlock(*c.mu);
 	if !c.out.count return .None;
-	return map_net_error(netio.write(c.s, c.out));
+	out: []u8 = c.out;
+	if first && c.cfg.hyper && out.count >= 24 { // h2's bind_connection writes the preface by itself
+		err := netio.write(c.s, array_view(out, 0, 24));
+		if err != .None || out.count == 24 return map_net_error(err);
+		out = array_view(out, 24);
+	}
+	return map_net_error(netio.write(c.s, out));
 }
 
 // rewrite_frames copies nghttp2's output (whole frames) to c.out, replacing each HEADERS and its
@@ -555,11 +596,31 @@ rewrite_frames :: (c: *H2_Conn) {
 		id := cast(s32) ((((cast(u32) b[5]) << 24) | ((cast(u32) b[6]) << 16) | ((cast(u32) b[7]) << 8) | (cast(u32) b[8])) & 0x7fffffff);
 		frame := array_view(b, 0, n);
 		b = array_view(b, n);
-		if type == NG_FRAME_HEADERS || (type == NG_FRAME_DATA && n > 9) preface_ping(c);
+		if !c.cfg.hyper && (type == NG_FRAME_HEADERS || (type == NG_FRAME_DATA && n > 9)) preface_ping(c);
 		if type == NG_FRAME_CONTINUATION continue;
 		_, st := table_find(*c.streams, id);
 		if type != NG_FRAME_HEADERS || !st {
 			array_add(*c.out, ..frame);
+			continue;
+		}
+		c.block.count = 0;
+		hpack_encode(*c.enc, *c.block, st.req);
+		if c.cfg.hyper { // h2's FramedWrite: no PRIORITY, CONTINUATION past the server's 16384-byte frames
+			rest: []u8 = c.block;
+			first := true;
+			while true {
+				k := min(rest.count, 16384);
+				end: u8 = xx ifx k == rest.count then NG_FLAG_END_HEADERS else 0;
+				array_add(*c.out, cast(u8) (k >> 16), cast(u8) (k >> 8), cast(u8) k);
+				kind: u8 = xx ifx first then NG_FRAME_HEADERS else NG_FRAME_CONTINUATION;
+				eos: u8 = xx ifx first then flags & NG_FLAG_END_STREAM else 0;
+				array_add(*c.out, kind, eos | end);
+				put_u32(*c.out, cast(u32) id);
+				array_add(*c.out, ..array_view(rest, 0, k));
+				rest = array_view(rest, k);
+				if end break;
+				first = false;
+			}
 			continue;
 		}
 		p := CHROME_SPDY_PRIORITY[st.req.priority];
@@ -573,8 +634,6 @@ rewrite_frames :: (c: *H2_Conn) {
 			array_add(*c.tree[p], id);
 			st.in_tree = true;
 		}
-		c.block.count = 0;
-		hpack_encode(*c.enc, *c.block, st.req);
 		rest: []u8 = c.block;
 		first := true;
 		while true {

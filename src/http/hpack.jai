@@ -7,6 +7,13 @@
 //   - a table size update starts the next block after the server's SETTINGS_HEADER_TABLE_SIZE changes
 // nghttp2's encoder never indexes authorization, short cookies, content-length and a few others, so
 // h2.jai swaps its header blocks for these. Decoding the server's headers stays nghttp2's.
+// With hyper set it makes the h2 crate's (0.4, hpack::Encoder) choices instead, for hyper's client:
+//   - pseudo-headers :method :scheme :authority :path; exact static matches only for the entries with values
+//   - incremental indexing for every header but :path, age, authorization, content-length, cookie, etag,
+//     if-modified-since, if-none-match, location and set-cookie (Header::skip_value_index), and those over
+//     3/4 of the table (literals without indexing)
+//   - Huffman for every non-empty string, shorter or not
+//   - a table of at most 4096 bytes whatever the server allows (DEFAULT_MAX_ALLOWED_SIZE)
 
 #scope_module
 
@@ -18,6 +25,7 @@ Hpack_Encoder :: struct {
 	bound := 4096;     // the server's SETTINGS_HEADER_TABLE_SIZE, our table's maximum
 	min_bound := NO_MIN_BOUND; // smallest bound since the last block
 	emit_size: bool;
+	hyper: bool;
 	allocator: Allocator;
 }
 
@@ -28,7 +36,8 @@ hpack_destroy :: (e: *Hpack_Encoder) {
 }
 
 // hpack_set_table_size applies one SETTINGS_HEADER_TABLE_SIZE from the server (ApplyHeaderTableSizeSetting).
-hpack_set_table_size :: (e: *Hpack_Encoder, size: int) {
+hpack_set_table_size :: (e: *Hpack_Encoder, size_in: int) {
+	size := ifx e.hyper then min(size_in, 4096) else size_in;
 	if size == e.bound return;
 	if size < e.bound e.min_bound = min(e.min_bound, size);
 	e.bound = size;
@@ -45,11 +54,12 @@ hpack_encode :: (e: *Hpack_Encoder, out: *[..]u8, req: Request) {
 		e.min_bound = NO_MIN_BOUND;
 	}
 	field(e, out, ":method", req.method);
-	field(e, out, ":authority", req.authority);
+	if !e.hyper field(e, out, ":authority", req.authority);
 	field(e, out, ":scheme", req.scheme);
+	if e.hyper field(e, out, ":authority", req.authority);
 	field(e, out, ":path", req.path);
 	for h: req.headers {
-		if h.name != "cookie" { field(e, out, h.name, h.value); continue; }
+		if h.name != "cookie" || e.hyper { field(e, out, h.name, h.value); continue; }
 		v := trim(h.value, " \t");
 		while true {
 			found, crumb, rest := split_from_left(v, #char ";");
@@ -83,7 +93,7 @@ field :: (e: *Hpack_Encoder, out: *[..]u8, name: string, value: string) {
 	for HPACK_STATIC {
 		if it.name != name continue;
 		if !by_name by_name = it_index + 1;
-		if it.value == value { full = it_index + 1; break; }
+		if it.value == value && (it.value || !e.hyper) { full = it_index + 1; break; }
 	}
 	if !full for < e.table {
 		if it.name != name continue;
@@ -92,13 +102,14 @@ field :: (e: *Hpack_Encoder, out: *[..]u8, name: string, value: string) {
 		if it.value == value { full = idx; break; }
 	}
 	if full { put_int(out, 0x80, 7, full); return; }
+	size := name.count + value.count + 32;
 	index := name[0] != #char ":" || name == ":authority";
+	if e.hyper index = !array_find(H2_NEVER_INDEXED, name) && size * 4 <= e.bound * 3;
 	if index put_int(out, 0x40, 6, by_name);
 	else     put_int(out, 0x00, 4, by_name);
-	if !by_name put_string(out, name);
-	put_string(out, value);
+	if !by_name put_string(out, name, e.hyper);
+	put_string(out, value, e.hyper);
 	if !index return;
-	size := name.count + value.count + 32;
 	evict(e, size);
 	if e.size + size > e.bound return;
 	array_add(*e.table, copy_header(name, value, e.allocator));
@@ -117,10 +128,10 @@ put_int :: (out: *[..]u8, first: u8, prefix: int, v: int) {
 	array_add(out, cast(u8) r);
 }
 
-put_string :: (out: *[..]u8, s: string) {
+put_string :: (out: *[..]u8, s: string, always_huffman := false) {
 	bits := 0;
 	for s bits += HUFFMAN_LENS[it];
-	if (bits + 7) / 8 >= s.count {
+	if !s || (!always_huffman && (bits + 7) / 8 >= s.count) {
 		put_int(out, 0, 7, s.count);
 		array_add(out, ..cast([]u8) s);
 		return;
@@ -135,6 +146,8 @@ put_string :: (out: *[..]u8, s: string) {
 	}
 	if n array_add(out, (cast(u8) (acc << (8 - n))) | (cast(u8) (0xff >> n))); // padded with EOS's leading ones
 }
+
+H2_NEVER_INDEXED :: string.[":path", "age", "authorization", "content-length", "cookie", "etag", "if-modified-since", "if-none-match", "location", "set-cookie"];
 
 // RFC 7541 Appendix A, 1-based on the wire.
 HPACK_STATIC := Header.[

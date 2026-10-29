@@ -3314,16 +3314,16 @@ parity_dm_call :: (t: *T) {
 	r_voice_connect(*run3, R_AIRPODS, speak = false, prompt = false);
 	for 1..16 {
 		replay_pump(*run3, 100);
-		analytics_voice_frame(run3.c, .{speaking = it % 4 != 0, hearing = it % 4 == 0, packets_sent = 20 * it, packets_received = 12 * it, jitter_ms = 30, target_frames = 2, ping_ms = 18, members = 2});
+		rx: [1]Voice_Stream;
+		rx[0] = .{user_id = R_B, packets = 12 * it, bytes = 80 * it, jitter_ms = 30, target_frames = 2};
+		analytics_voice_frame(run3.c, .{speaking = it % 4 != 0, hearing = it % 4 == 0, packets_sent = 20 * it, packets_received = 12 * it, jitter_ms = 30, target_frames = 2, ping_ms = 18, members = 2, streams = rx});
 	}
 	replay_settle(*run3, 300);
 	replay_mark(*run3);
 	analytics_call_disconnect(run3.c, 0, R_DM); // the app: the voice panel's Disconnect
 	voice_leave(run3.c);
 	replay_settle(*run3, 300);
-	// voice_stream_ended (0.0.420, per stream on leaving a call with others: the media engine's send
-	// and receive statistics) is not reported yet (TODO.md)
-	replay_check(*run3, "a_hang_up", string.["science:voice_stream_ended"]);
+	replay_check(*run3, "a_hang_up");
 }
 
 
@@ -3891,11 +3891,51 @@ platform_locales :: (t: *T) {
 		d := discord_locale(c);
 		expectf(t, d == cases[3 * i + 2], "discord_locale(%) = %", c, d);
 	}
+	// Linux Accept-Language as the official 1.0.167 sent it in WSL (2026-10-29), per environment.
+	Al :: struct { app, language, lc_all, lang, want: string; }
+	for Al.[
+		.{"en-US", "", "", "en_US.UTF-8", "en-US,en;q=0.9,en;q=0.8"},
+		.{"de", "", "", "de_DE.UTF-8", "de,de-DE;q=0.9,de-DE;q=0.8"},
+		.{"es-419", "", "", "es_MX.UTF-8", "es-419,es-MX;q=0.9,es-MX;q=0.8,es;q=0.7,es;q=0.6"},
+		.{"ko", "", "ko_KR.UTF-8", "ja_JP.UTF-8", "ko,ko-KR;q=0.9,ko-KR;q=0.8"},
+		.{"en-GB", "en_AU:en", "", "en_AU.UTF-8", "en-GB,en-AU;q=0.9,en;q=0.8,en;q=0.7"},
+		.{"de", "", "", "de_DE", "de,de-DE;q=0.9"},
+		.{"de", "de", "", "C.UTF-8", "de"},
+		.{"en-US", "", "", "C.UTF-8", "en-US,c;q=0.9"},
+		.{"en-US", "", "", "C", "en-US"}] {
+		got := linux_accept_language(it.app, it.language, it.lc_all, "", it.lang);
+		expectf(t, got == it.want, "Linux Accept-Language for LANGUAGE=% LC_ALL=% LANG=%: % (want %)", it.language, it.lc_all, it.lang, got, it.want);
+	}
+	// macOS Accept-Language as 0.0.420 sent it with per-process AppleLanguages (2026-10-29).
+	Pl :: struct { langs: []string; want: string; }
+	for Pl.[
+		.{.["en-US"], "en-US"}, .{.["de-DE"], "de,de-DE;q=0.9"}, .{.["fr-FR", "en-US"], "fr,fr-FR;q=0.9,en-US;q=0.8"},
+		.{.["es-MX"], "es-419,es-MX;q=0.9"}, .{.["de", "en-US", "fr"], "de,en-US;q=0.9,fr;q=0.8"}, .{.["pt-BR"], "pt-BR"},
+		.{.["zh-Hans-CN"], "zh-CN,zh-Hans-CN;q=0.9"}] {
+		q: Platform_Info;
+		with_system(*q, it.langs, "");
+		expectf(t, q.accept_language == it.want, "Accept-Language for %: % (want %)", it.langs, q.accept_language, it.want);
+	}
 	p := host_platform();
 	expect(t, p.os_version != "" && p.timezone != "" && p.locale != "", "host platform has OS version, timezone and locale");
 	#if OS == .MACOS {
 		expect(t, p.browser_user_agent == DEFAULT_USER_AGENT && p.sec_ch_ua_platform == "\"macOS\"", "the macOS user agent is Chrome's frozen one");
 		expect(t, begins_with(p.os_version, p.os_sdk_version) && (p.os_arch == "arm64" || p.os_arch == "x64"), "os_sdk_version is the Darwin major");
+	}
+	#if OS == .WINDOWS {
+		// The official 1.0.9266 on Windows 11 (2026-10-28 netlog): os_version "10.0.26200", os_sdk_version
+		// "26200", x64 app on x64, the frozen user agent, no os_product_version.
+		expectf(t, begins_with(p.os_version, "10.0.") && p.os_sdk_version == slice(p.os_version, 5, p.os_version.count - 5), "Windows os_version % / os_sdk_version %", p.os_version, p.os_sdk_version);
+		expect(t, p.browser_user_agent == electron_user_agent("Windows NT 10.0; Win64; x64", WINDOWS_HOST) && p.sec_ch_ua_platform == "\"Windows\"" && p.app_arch == "x64" && p.os_product_version == "", "the Windows identity is the captured one");
+		w: Json;
+		json_init(*w);
+		json_obj(*w);
+		write_base_properties(*w, p, "L");
+		json_obj_end(*w);
+		got := json_string(*w);
+		want := tprint("{\"os\":\"Windows\",\"browser\":\"Discord Client\",\"release_channel\":\"stable\",\"client_version\":\"1.0.9266\",\"os_version\":\"%\",\"os_arch\":\"%\",\"app_arch\":\"x64\",\"system_locale\":\"%\",\"has_client_mods\":false,\"client_launch_id\":\"L\",\"browser_user_agent\":\"%\",\"browser_version\":\"44.9.3\",\"os_sdk_version\":\"%\",\"client_build_number\":%,\"native_build_number\":97026,\"client_event_source\":null}", p.os_version, p.os_arch, p.system_locale, p.browser_user_agent, p.os_sdk_version, p.client_build_number);
+		expectf(t, got == want, "Windows super properties\n got %\nwant %", got, want);
+		print("windows platform: % tz=% accept-language=% locale=%\n", got, p.timezone, p.accept_language, p.locale);
 	}
 	expect(t, electron_user_agent("Windows NT 10.0; Win64; x64", WINDOWS_HOST) == "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) discord/1.0.9266 Chrome/152.0.7977.167 Electron/44.9.3 Safari/537.36");
 	// Chromium's GREASE brand per major: 148 and 152 as captured.
@@ -4025,6 +4065,98 @@ updater_wire :: (t: *T) {
 	expect(t, host == "" && host2 == "", "only https on the default port");
 }
 
+// updater_h2_wire: over HTTP/2 the updater speaks as hyper 1.12's client (h2 0.4) with reqwest's defaults:
+// hyper's SETTINGS and a 5 MiB connection window, the manifest request's HEADERS (END_STREAM, no PRIORITY) with
+// the h2 crate's HPACK (expected blocks worked out by hand from its encoder's rules), a stream WINDOW_UPDATE
+// once a third of the 2 MiB window has been read, and GOAWAY when the connection is dropped.
+updater_h2_wire :: (t: *T) {
+	FIRST :: "8287418db6b90692a1790c821ec91721e904ff0c624321361a3b5263d486075d6c523a8d2950943140d25427fc354848e8a223490332848f8db12cec8d1566a3786b3e410566cae4a01863111993e0938eaa8b440848e3a0bf15d034ca7b298283556f9f81d849e0f2e35f15d034ca7b298bb96c418f540e2ee2ef3ab896a4c4b0e83ca959091d520ec916e5bb38be09418b5262ee5b1063d5005702e171df5383f963e77a8cbe6410f648b70ae41a4b630150839bd9ab";
+	SECOND :: "8287c104ff0c624321361a3b5263d486075d6c523a8d2950943140d25427fc354848e8a223490332848f8db12cec8d1566a3786b3e410566cae4a01863111993e0938eaa8b440848e3a0bf15d034ca7b298283556f9f81d849e0f2e35f15d034ca7b298bb96c418f540e2ee2ef3ab896a4c4b0e83ca959091d520ec916e5bb38be09418b5262ee5b1063d5005702e171dfc0bfbe";
+	unhex :: (h: string) -> string {
+		out := alloc_string(h.count / 2,, temp);
+		for 0..out.count - 1 out[it] = cast(u8) (hex_digit(h[2 * it]) * 16 + hex_digit(h[2 * it + 1]));
+		return out;
+	}
+	Frame :: struct { type, flags: u8; id: int; payload: string; }
+	be :: (p: string, i: int, n: int) -> int { v := 0; for 0..n - 1 v = (v << 8) | p[i + it]; return v; }
+	Srv :: struct { s: netio.Stream; buf: [..]u8; }
+	read_n :: (v: *Srv, n: int) -> string {
+		tmp: [16384]u8;
+		while v.buf.count < n {
+			got, err := netio.read(v.s, tmp);
+			if err != .None return "";
+			array_add(*v.buf, ..array_view(tmp, 0, got));
+		}
+		out := copy_string(to_string(v.buf.data, n),, temp);
+		for n..v.buf.count - 1 v.buf[it - n] = v.buf[it];
+		v.buf.count -= n;
+		return out;
+	}
+	frame :: (v: *Srv, skip := 0) -> Frame {
+		while true {
+			h := read_n(v, 9);
+			if !h return .{type = 255};
+			f := Frame.{type = h[3], flags = h[4], id = be(h, 5, 4) & 0x7fff_ffff, payload = read_n(v, be(h, 0, 3))};
+			if f.type != skip || skip == 255 return f;
+		}
+		return .{};
+	}
+	send :: (v: *Srv, type: u8, flags: u8, id: int, payload: string) {
+		b: [..]u8;
+		b.allocator = temp;
+		n := payload.count;
+		array_add(*b, cast(u8) (n >> 16), cast(u8) (n >> 8), cast(u8) n, type, flags, cast(u8) (id >> 24), cast(u8) (id >> 16), cast(u8) (id >> 8), cast(u8) id);
+		array_add(*b, ..cast([]u8) payload);
+		netio.write(v.s, b);
+	}
+	Job :: struct { c: *http.H2_Conn; err: http.Error; status: int; took: int; }
+	get :: (job: *Job) -> *Thread {
+		return spawn(job, (j: *Job) {
+			req := updater_request(UPDATER_HOST, "/distributions/app/manifests/latest?install_id=3f1c9a52-7d4e-4b8a-9c21-5e6f0a1b2c3d&channel=stable&platform=linux&arch=x64&platform_version=6.6.87.2-microsoft-standard-WSL2&client_version=1.0.167", h2 = true);
+			req.sink = .{j, (data: *void, piece: []u8) -> bool { (cast(*Job) data).took += piece.count; return true; }};
+			resp: http.Response;
+			resp, j.err = http.h2_request(j.c, req);
+			j.status = resp.status;
+			http.response_destroy(*resp);
+		});
+	}
+	a, b := http.pipe_make();
+	c, err := http.h2_connect(a, .{hyper = true, max_response_body = UPDATER_MANIFEST_MAX});
+	if !expect(t, err == .None, "connects") return;
+	srv := Srv.{s = b};
+	srv.buf.allocator = temp;
+	expect(t, read_n(*srv, 24) == "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n", "the preface");
+	f := frame(*srv);
+	expect(t, f.type == 4 && f.payload == unhex("000200000000000400200000000500004000000600004000"), "SETTINGS ENABLE_PUSH 0, INITIAL_WINDOW_SIZE 2 MiB, MAX_FRAME_SIZE and MAX_HEADER_LIST_SIZE 16384");
+	f = frame(*srv);
+	expect(t, f.type == 8 && f.id == 0 && be(f.payload, 0, 4) == 5 * 1024 * 1024 - 65535, "WINDOW_UPDATE to a 5 MiB connection window");
+	send(*srv, 4, 0, 0, "");
+	send(*srv, 4, 1, 0, "");
+	job := Job.{c = c};
+	th := get(*job);
+	f = frame(*srv, skip = 4);
+	expect(t, f.type == 1 && f.flags == 5 && f.id == 1, "HEADERS with END_STREAM and END_HEADERS, no PRIORITY");
+	expectf(t, f.payload == unhex(FIRST), "the h2 crate's header block, got %", f.payload);
+	send(*srv, 1, 4, 1, unhex("88"));
+	chunk := alloc_string(16384,, temp);
+	for 1..43 send(*srv, 0, 0, 1, chunk);
+	f = frame(*srv, skip = 4);
+	expect(t, f.type == 8 && f.id == 1 && be(f.payload, 0, 4) == 43 * 16384, "the stream's WINDOW_UPDATE once a third of its window was read, not before");
+	send(*srv, 0, 1, 1, "x");
+	locks.join(th);
+	expect(t, job.err == .None && job.status == 200 && job.took == 43 * 16384 + 1, "the body goes to the sink");
+	job = .{c = c};
+	th = get(*job);
+	f = frame(*srv);
+	expect(t, f.type == 1 && f.id == 3 && f.payload == unhex(SECOND), "the next request indexes what the first inserted");
+	send(*srv, 1, 5, 3, unhex("88"));
+	locks.join(th);
+	http.h2_close(c);
+	f = frame(*srv);
+	expect(t, f.type == 7 && f.payload == unhex("0000000000000000"), "dropped with GOAWAY 0, NO_ERROR");
+	netio.close(b);
+}
+
 // updater_schedule: the launch check, the splash's Backoff(1 s, 30 s) after failures, then hourly; a newer
 // host's package is fetched through a hash with the updater's request shape, and once more if it is bad.
 updater_schedule :: (t: *T) {
@@ -4085,47 +4217,131 @@ updater_schedule :: (t: *T) {
 	array_free(rec.calls);
 }
 
-// ostls_client_hello: the OS library's ClientHello to a local listener equals the official updater's, captured
-// with SNI "localhost" (macOS 0.0.419: SecureTransport; Windows 1.0.9266: SChannel), but for the random. Linux
-// has no capture: its libssl's hello is only checked to be one.
+// ostls_client_hello: the updater's ClientHello to a local listener equals the official updater's. On macOS and
+// Windows it is the OS library's, captured with SNI "localhost" (macOS 0.0.419: SecureTransport; Windows
+// 1.0.9266: SChannel), equal but for the random. On Linux it is rustls's: the same fields as Linux 1.0.167's to
+// updates.discord.com (RUSTLS_HELLO) but for the random, session ID, SNI and key share, its extensions in an
+// order rustls makes, a new one per hello. tls.Config.rustls, which Linux sends, is checked on every OS.
 ostls_client_hello :: (t: *T) {
 	#if OS == .MACOS WANT :: "16030100a4010000a00303000000000000000000000000000000000000000000000000000000000000000000002c00ffc02cc02bc024c023c00ac009c008c030c02fc028c027c014c013c012009d009c003d003c0035002f000a0100004b0000000e000c0000096c6f63616c686f7374000a00080006001700180019000b00020100000d00120010040102010501060104030203050306030005000501000000000012000000170000";
 	else #if OS == .WINDOWS WANT :: "16030300a00100009c03030000000000000000000000000000000000000000000000000000000000000000000024c02cc02bc030c02fc024c023c028c027c00ac009c014c013009d009c003d003c0035002f0100004f0000000e000c0000096c6f63616c686f7374000a00080006001d00170018000b00020100000d001a00180804080508060401050102010403050302030202060106030023000000170000ff01000100";
-	else WANT :: "";
-	l, lerr := netio.listen_tcp(0);
-	if !expect(t, lerr == .None, "listens") return;
-	Dial :: struct { port: int; err: ostls.Error; }
-	d := Dial.{port = l.port};
-	th := spawn(*d, (d: *Dial) {
-		tcp, err := netio.dial_tcp("localhost", d.port);
-		if err != .None { d.err = .Handshake; return; }
-		s, terr := ostls.connect(netio.tcp_stream(tcp), "localhost");
-		d.err = terr;
-		if terr == .None netio.close(s);
-	});
-	conn, aerr := netio.accept_tcp(l);
-	got: [..]u8;
-	got.allocator = temp;
-	if aerr == .None {
-		s := netio.tcp_stream(conn);
-		buf: [4096]u8;
-		while got.count < 5 || got.count < 5 + ((cast(int) got[3]) << 8 | got[4]) {
-			n, rerr := netio.read(s, buf);
-			if rerr != .None break;
-			array_add(*got, ..array_view(buf, 0, n));
+	RUSTLS_HELLO :: "1603010103010000ff0303f225acc4398e7621c0a00cceaf096c96f8c158ad5d6824cf075ff13d42eabd99201a0fd4401cec80a791910821d879eceed67e032aad2dacbe0c587c58f26ef35f0014130213011303c02cc02bcca9c030c02fcca800ff010000a2000b00020100002b0005040304030300170000002d00020101000000180016000013757064617465732e646973636f72642e636f6d0010000e000c02683208687474702f312e31003300260024001d0020b3c014f871c64959d1e17d2fa7f62947bb4e0e3c554b0fa533c4acb3021fc20c00230000000a00080006001d00170018000500050100000000000d00140012050304030807080608050804060105010401";
+	// via_ostls: the record ostls.connect sends to a listener that hangs up after it.
+	via_ostls :: (t: *T) -> []u8 {
+		l, lerr := netio.listen_tcp(0);
+		if !expect(t, lerr == .None, "listens") return .[];
+		Dial :: struct { port: int; err: ostls.Error; }
+		d := Dial.{port = l.port};
+		th := spawn(*d, (d: *Dial) {
+			tcp, err := netio.dial_tcp("localhost", d.port);
+			if err != .None { d.err = .Handshake; return; }
+			s, terr := ostls.connect(netio.tcp_stream(tcp), "localhost");
+			d.err = terr;
+			if terr == .None netio.close(s);
+		});
+		conn, aerr := netio.accept_tcp(l);
+		got: [..]u8;
+		got.allocator = temp;
+		if aerr == .None {
+			s := netio.tcp_stream(conn);
+			buf: [4096]u8;
+			while got.count < 5 || got.count < 5 + ((cast(int) got[3]) << 8 | got[4]) {
+				n, rerr := netio.read(s, buf);
+				if rerr != .None break;
+				array_add(*got, ..array_view(buf, 0, n));
+			}
+			netio.close(s);
 		}
-		netio.close(s);
+		locks.join(th);
+		netio.close_listener(l);
+		free(l);
+		expect(t, d.err != .None, "the handshake stops at the listener");
+		if !expect(t, got.count > 43 && got[0] == 0x16 && got[5] == 1, "a ClientHello") return .[];
+		return got;
 	}
-	locks.join(th);
-	netio.close_listener(l);
-	free(l);
-	expect(t, d.err != .None, "the handshake stops at the listener");
-	if !expect(t, got.count > 43 && got[0] == 0x16 && got[5] == 1, "a ClientHello") return;
-	for 11..42 got[it] = 0;
-	hex: String_Builder;
-	hex.allocator = temp;
-	for got print_to_builder(*hex, "%", formatInt(it, base = 16, minimum_digits = 2));
-	if WANT expectf(t, builder_to_string(*hex,, temp) == WANT, "the official updater's ClientHello, got %", builder_to_string(*hex,, temp));
+	#if OS != .LINUX {
+		got := via_ostls(t);
+		if !got return;
+		for 11..42 got[it] = 0;
+		hex: String_Builder;
+		hex.allocator = temp;
+		for got print_to_builder(*hex, "%", formatInt(it, base = 16, minimum_digits = 2));
+		expectf(t, builder_to_string(*hex,, temp) == WANT, "the official updater's ClientHello, got %", builder_to_string(*hex,, temp));
+	}
+
+	Hello :: struct { suites: string; sid: int; types: [..]u16; bodies: [..]string; }
+	// parse: a ClientHello handshake message's fields, false unless it is one offering TLS 1.2 and no compression
+	parse :: (m: []u8) -> Hello, bool {
+		be :: (m: []u8, p: int) -> int { return (cast(int) m[p]) << 8 | m[p + 1]; }
+		h: Hello;
+		h.types.allocator, h.bodies.allocator = temp, temp;
+		if m.count < 39 || m[0] != 1 || be(m, 4) != 0x0303 return h, false;
+		h.sid = m[38];
+		p := 39 + h.sid;
+		if p + 2 > m.count || p + 2 + be(m, p) + 2 > m.count return h, false;
+		h.suites = to_string(m.data + p + 2, be(m, p));
+		p += 2 + h.suites.count;
+		if be(m, p) != 0x0100 return h, false;
+		p += 2;
+		end := p + 2 + be(m, p);
+		if end != m.count return h, false;
+		p += 2;
+		while p + 4 <= end {
+			n := be(m, p + 2);
+			if p + 4 + n > end return h, false;
+			array_add(*h.types, cast(u16) be(m, p));
+			array_add(*h.bodies, to_string(m.data + p + 4, n));
+			p += 4 + n;
+		}
+		return h, p == end;
+	}
+	// rustls_order: rustls sorts its extensions by low_quality_integer_hash of a 16-bit seed and their type.
+	rustls_order :: (types: []u16) -> bool {
+		hash :: (v: u32) -> u32 {
+			x := v;
+			x = x + 0x7ed55d16 + (x << 12);
+			x = (x ^ 0xc761c23c) ^ (x >> 19);
+			x = x + 0x165667b1 + (x << 5);
+			x = (x + 0xd3a2646c) ^ (x << 9);
+			x = x + 0xfd7046c5 + (x << 3);
+			return (x ^ 0xb55a4f09) ^ (x >> 16);
+		}
+		for seed: 0..0xffff {
+			sorted := true;
+			for 1..types.count - 1 if hash(cast(u32) ((seed << 16) | types[it - 1])) > hash(cast(u32) ((seed << 16) | types[it])) { sorted = false; break; }
+			if sorted return true;
+		}
+		return false;
+	}
+	raw := NewArray(RUSTLS_HELLO.count / 2, u8,, temp);
+	for * raw it.* = cast(u8) (hex_digit(RUSTLS_HELLO[2 * it_index]) * 16 + hex_digit(RUSTLS_HELLO[2 * it_index + 1]));
+	want, wok := parse(array_view(raw, 5));
+	if !expect(t, wok && rustls_order(want.types), "the captured hello parses, in an order rustls makes") return;
+	orders: [3]string;
+	for * orders {
+		#if OS == .LINUX {
+			rec := via_ostls(t);
+			if !expect(t, rec.count > 5 && rec[1] == 3 && rec[2] == 1, "in a TLS 1.0 record, as rustls's") return;
+			msg := array_view(rec, 5);
+		} else {
+			msg := tls.client_hello(.{server_name = "localhost", alpn = .["h2", "http/1.1"], rustls = true},, temp);
+		}
+		got, ok := parse(msg);
+		if !expect(t, ok, "a ClientHello") return;
+		expect(t, got.sid == 32 && got.suites == want.suites, "rustls's session ID length and cipher suites");
+		if !expectf(t, got.types.count == want.types.count, "% extensions, want %", got.types.count, want.types.count) return;
+		for type, i: want.types {
+			found, j := array_find(got.types, type);
+			if !expectf(t, found, "extension % is sent", type) continue;
+			body, wbody := got.bodies[j], want.bodies[i];
+			if type == 0x0000 expect(t, body.count == 14 && body[1] == 12 && body[4] == 9 && slice(body, 5, 9) == "localhost", "SNI localhost");
+			else if type == 0x0033 expectf(t, body.count == 38 && slice(body, 0, 6) == slice(wbody, 0, 6), "an X25519 key share");
+			else expectf(t, body == wbody, "extension % is rustls's", type);
+		}
+		expect(t, rustls_order(got.types), "the extensions are in an order rustls makes");
+		it.* = to_string(cast(*u8) got.types.data, got.types.count * 2);
+	}
+	expect(t, orders[0] != orders[1] || orders[1] != orders[2], "the order changes between hellos");
 }
 
 // quic_chrome_initials: our first flight has the layout of Chrome 148's (QUICHE's multi-packet chaos protection,

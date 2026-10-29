@@ -42,7 +42,8 @@ Host_Build :: struct {
 
 // Pinned from captures, the fallbacks until a launch learns its install's current host (startup.jai
 // `host_manifest_loaded`, `hosts_table_loaded`). macOS: 0.0.420; Windows: 1.0.9266, read from the official
-// client on 2026-10-28; Linux: 1.0.167, its version from the updater and Electron from the package (no capture).
+// client on 2026-10-28; Linux: 1.0.167, read from the official client in WSL on 2026-10-29 (native build 97026,
+// as on every OS).
 // The web build is learnt from each launch's /app document (`app_document_loaded`).
 MAC_HOST_VERSION :: "0.0.420";
 MAC_NATIVE_BUILD :: 97026;
@@ -50,7 +51,7 @@ MAC_ELECTRON :: "44.9.3";
 MAC_CHROME :: "152.0.7977.167";
 MAC_HOST :: Host_Build.{MAC_HOST_VERSION, MAC_NATIVE_BUILD, MAC_ELECTRON, MAC_CHROME};
 WINDOWS_HOST :: Host_Build.{"1.0.9266", 97026, "44.9.3", "152.0.7977.167"};
-LINUX_HOST :: Host_Build.{"1.0.167", 0, "44.9.3", "152.0.7977.167"};
+LINUX_HOST :: Host_Build.{"1.0.167", 97026, "44.9.3", "152.0.7977.167"};
 WEB_BUILD :: 653945; // client_build_number
 
 // The updater's manifest is staged per install (`install_id`); this table, which a daily GitHub workflow
@@ -85,7 +86,7 @@ chrome_major :: (chrome: string) -> int {
 // apply_host: report host h. The strings live for the process (the platform is copied by value).
 apply_host :: (p: *Platform_Info, h: Host_Build) {
 	p.client_version = h.version;
-	p.native_build_number = ifx p.os == "Linux" then 0 else h.native;
+	p.native_build_number = h.native;
 	p.browser_version = h.electron;
 	p.chrome_version = h.chrome;
 	p.browser_user_agent = electron_user_agent(p.ua_os_token, h);
@@ -132,11 +133,68 @@ else host_platform :: darwin_platform;
 // with_system: Electron's app locale (the OS's first preferred language resolved to a Chromium UI locale)
 // is navigator.languages[0] and Accept-Language; the intl locale (x-discord-locale) starts as its Discord
 // match until the user's language setting is known. timezone = Intl's resolved IANA zone ("" omits it).
-with_system :: (p: *Platform_Info, os_language: string, timezone: string) {
-	p.system_locale = chromium_locale(os_language);
-	p.accept_language = p.system_locale;
+with_system :: (p: *Platform_Info, os_languages: []string, timezone: string) {
+	p.system_locale = chromium_locale(ifx os_languages.count then os_languages[0] else "en-US");
+	p.accept_language = accept_language(p.system_locale, os_languages);
 	p.locale = discord_locale(p.system_locale);
 	p.timezone = timezone;
+}
+
+// accept_language: Electron's Accept-Language, the app locale and then the OS's preferred languages as they
+// are given, less any copy of the app locale, with q falling by 0.1. macOS (0.0.420, per-process
+// AppleLanguages, 2026-10-29): (fr-FR, en-US) gives "fr,fr-FR;q=0.9,en-US;q=0.8", (en-GB) "en-GB".
+accept_language :: (app_locale: string, preferred: []string) -> string {
+	sb: String_Builder;
+	append(*sb, app_locale);
+	q := 9;
+	for preferred {
+		if !it || it == app_locale continue;
+		print_to_builder(*sb, ",%;q=0.%", it, q);
+		if q > 1 q -= 1;
+	}
+	return builder_to_string(*sb);
+}
+
+// linux_accept_language: on Linux the preferred languages are GLib's language names (g_get_language_names:
+// each of $LANGUAGE's entries, else the first of $LC_ALL / $LC_MESSAGES / $LANG, expanded to every territory /
+// codeset / modifier variant) as tags, less the bare "C" / "POSIX". Captured (1.0.167 in WSL): de_DE.UTF-8
+// gives "de,de-DE;q=0.9,de-DE;q=0.8", C.UTF-8 "en-US,c;q=0.9", C "en-US".
+linux_accept_language :: (app_locale: string, language: string, lc_all: string, lc_messages: string, lang: string) -> string {
+	names: [..]string;
+	names.allocator = temp;
+	if language {
+		for split(language, ":",, temp) if it locale_variants(*names, it);
+	} else {
+		v := ifx lc_all then lc_all else ifx lc_messages then lc_messages else lang;
+		if v locale_variants(*names, v);
+	}
+	tags: [..]string;
+	tags.allocator = temp;
+	for names {
+		if it == "C" || it == "POSIX" continue;
+		tag := replace(it, "_", "-",, temp);
+		for u8.[#char ".", #char "@"] { i := find_index_from_left(tag, it); if i >= 0 tag = slice(tag, 0, i); }
+		array_add(*tags, ifx tag == "C" then "c" else tag);
+	}
+	return accept_language(app_locale, tags);
+}
+
+// locale_variants: GLib's _g_compute_locale_variants, most specific first: lang_TERR.CODE@MOD down to lang.
+locale_variants :: (out: *[..]string, locale: string) {
+	at := find_index_from_left(locale, #char "@");
+	mod := ifx at >= 0 then slice(locale, at, locale.count - at) else "";
+	rest := ifx at >= 0 then slice(locale, 0, at) else locale;
+	dot := find_index_from_left(rest, #char ".");
+	code := ifx dot >= 0 then slice(rest, dot, rest.count - dot) else "";
+	rest = ifx dot >= 0 then slice(rest, 0, dot) else rest;
+	us := find_index_from_left(rest, #char "_");
+	terr := ifx us >= 0 then slice(rest, us, rest.count - us) else "";
+	l := ifx us >= 0 then slice(rest, 0, us) else rest;
+	have := (ifx code then 1 else 0) | (ifx terr then 2 else 0) | (ifx mod then 4 else 0);
+	for < i: 0..7 {
+		if i & ~have continue;
+		array_add(out, join(l, ifx i & 2 then terr else "", ifx i & 1 then code else "", ifx i & 4 then mod else "",, temp));
+	}
 }
 
 // chromium_locale: l10n_util::CheckAndResolveLocale as Electron's app.getLocale() returns it ("de_DE.UTF-8"

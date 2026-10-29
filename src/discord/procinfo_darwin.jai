@@ -52,20 +52,24 @@ darwin_platform :: () -> Platform_Info {
 	arm64 := sysctlbyname("hw.optional.arm64", *arm, *size, null, 0) == 0 && arm == 1;
 	p.os_arch = ifx arm64 then "arm64" else "x64";
 	p.app_arch = p.os_arch;
-	with_system(*p, preferred_language(), posix_timezone());
+	with_system(*p, preferred_languages(), posix_timezone());
 	return p;
 }
 
 #scope_file
 
-// preferred_language: the first of the user's preferred languages ("en-US", "zh-Hans-CN").
-preferred_language :: () -> string {
+// preferred_languages: the user's preferred languages in order ("en-US", "zh-Hans-CN").
+preferred_languages :: () -> []string {
+	out: [..]string;
+	out.allocator = temp;
 	langs := CFLocaleCopyPreferredLanguages();
-	if !langs return "en-US";
+	if !langs return out;
 	defer CFRelease(langs);
-	buf: [64]u8;
-	if CFArrayGetCount(langs) < 1 || !CFStringGetCString(CFArrayGetValueAtIndex(langs, 0), buf.data, buf.count, 0x0800_0100) return "en-US"; // UTF-8
-	return copy_string(to_string(buf.data),, temp);
+	for 0..min(CFArrayGetCount(langs), 32) - 1 {
+		buf: [64]u8;
+		if CFStringGetCString(CFArrayGetValueAtIndex(langs, it), buf.data, buf.count, 0x0800_0100) array_add(*out, copy_string(to_string(buf.data),, temp)); // UTF-8
+	}
+	return out;
 }
 
 libc :: #system_library "libc";

@@ -769,6 +769,23 @@ pane_of :: (page: string) -> dc.Settings_Pane {
 		return .Language_And_Time;
 	case "Developer";
 		return .Developer;
+	case "Data & Privacy";
+		return .Data_And_Privacy;
+	case "Messaging Permissions";
+		return .Messaging_Permissions;
+	case "Accessibility";
+		return .Accessibility;
+	case "System"; #through;
+	case "Keybinds"; // the client's keybinds are a category of System
+		return .System;
+	case "Chat"; // a category of the client's Appearance
+		return .Appearance;
+	case "Devices"; // the client's sessions are nested in Account
+		return .Account;
+	case "Activity Privacy";
+		return .Activity_Privacy;
+	case "Connected Apps";
+		return .Connected_Apps;
 	}
 	return .None; // Profiles: the profile editor opens over the settings
 }

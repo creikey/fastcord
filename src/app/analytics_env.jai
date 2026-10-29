@@ -80,12 +80,15 @@ voice_analytics_frame :: () {
 	for voice.speaking_users(conn,, temp) {
 		if it == cast(u64) c.store.me speaking = true; else hearing = true;
 	}
+	streams: [..]dc.Voice_Stream;
+	streams.allocator = temp;
+	for voice.stream_stats(conn,, temp) array_add(*streams, .{user_id = it.user_id, packets = xx it.packets, lost = xx it.lost, bytes = xx it.bytes, jitter_ms = it.jitter_ms, target_frames = it.target_frames});
 	dc.analytics_voice_frame(c, .{
 		speaking = speaking, hearing = hearing, muted = app.self_mute, deafened = app.self_deaf,
 		packets_sent = cast(s64) st.packets_sent, packets_received = cast(s64) st.packets_received, packets_lost = cast(s64) st.jitter.lost,
 		bytes_sent = cast(s64) st.bytes_sent, bytes_received = cast(s64) st.bytes_received,
 		ping_ms = st.ws_ping_ms, jitter_ms = st.jitter.jitter_ms, target_frames = st.jitter.target_frames,
-		members = ifx e2ee.active then e2ee.members else 0
+		members = ifx e2ee.active then e2ee.members else 0, streams = streams
 	});
 }
 
