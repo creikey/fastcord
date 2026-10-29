@@ -4,6 +4,7 @@ Zstandard decoding (gateway `compress=zstd-stream`, HTTP `content-encoding: zstd
 half of upstream's `lib/`, unmodified: `lib/zstd.h`, `lib/zstd_errors.h`, `lib/common/`,
 `lib/decompress/` (minus the x86-64 assembly, which `ZSTD_DISABLE_ASM` replaces with C).
 
+- Upstream: https://github.com/facebook/zstd v1.5.7
 - Source: https://github.com/facebook/zstd/releases/tag/v1.5.7, `zstd-1.5.7.tar.gz`
   (tag commit f8745da6ff1ad1e7bab384bd1f9d742439278e99)
 - sha256 of the tarball: eb33e51f49a15e023950cd7825ca74a4a2b43db8354825ac24fc1b7ee09e6fa3

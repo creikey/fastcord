@@ -5,6 +5,7 @@ and Windows use CoreText and DirectWrite, so `build.jai` builds this only for Li
 Upstream's release files, unmodified: the `include/` and `src/` files the build compiles or includes
 (found with `zig cc -M` for x86_64-linux-gnu over every source), plus `LICENSE.TXT` and `docs/FTL.TXT`.
 
+- Upstream: https://gitlab.freedesktop.org/freetype/freetype VER-2-13-3
 - Source: https://download.savannah.gnu.org/releases/freetype/freetype-2.13.3.tar.xz
 - sha256 of the tarball: 0550350666d427c74daeb85d5ac7bb353acba5f76956395995311a9c6f063289
 - Licence: the FreeType License (`docs/FTL.TXT`; FreeType is dual-licensed FTL / GPLv2, fastcord uses FTL).

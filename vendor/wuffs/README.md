@@ -2,6 +2,7 @@
 
 PNG/APNG, GIF, JPEG and WebP decoding. `wuffs-v0.4.c` is upstream's single-file release, unmodified:
 
+- Upstream: https://github.com/google/wuffs 4be865da258c4b5e6d3e716fd4f36be016496a46
 - Source: https://github.com/google/wuffs, `release/c/wuffs-v0.4.c` at commit
   4be865da258c4b5e6d3e716fd4f36be016496a46
 - sha256: 458066457347bd6d9bc3c906aa8292bea4488577727569ddd9436fdd89d5f04d

@@ -4,6 +4,7 @@ WebSocket framing (RFC 6455): masking, fragmentation, control frames, the close 
 and close-code validation (`src/http/ws.jai` binds it; the HTTP upgrade is ours). Upstream's `lib/`
 sources and headers, unmodified (build files dropped), plus `COPYING`.
 
+- Upstream: https://github.com/tatsuhiro-t/wslay 0e7d106ff89ad6638090fd811a9b2e4c5dda8d40
 - Source: https://github.com/tatsuhiro-t/wslay at commit 0e7d106ff89ad6638090fd811a9b2e4c5dda8d40
   (2022-08-25: release 1.1.1 plus upstream's UBSan fixes), GitHub's tarball of that commit
 - sha256 of the tarball: ce62e7108b2f281c630ce3b12470703f208bc5c97bc3a5ba61e7591838c52448

@@ -190,7 +190,10 @@ On Windows SChannel's hello equals the 1.0.9266 capture too; Linux (libssl) is t
 
 ## Releasing
 
-Releases ship only when a human asks for one, usually by asking Claude. Push `main`, pick the version
+Releases ship only when a human asks for one, usually by asking Claude. First run
+`python3 -I tools/vendor_check.py`: it lists vendored libraries with a newer upstream release or an OSV.dev
+advisory (each `vendor/<lib>/README.md` has an `- Upstream: <repo> <tag or commit>` line); update any with a
+security fix (`vendor-check.yml` also checks monthly and opens an issue). Push `main`, pick the version
 after `gh release list -L 1`, and run `.github/workflows/release.yml`:
 
 ```sh

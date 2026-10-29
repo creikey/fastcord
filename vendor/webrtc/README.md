@@ -4,6 +4,8 @@ Echo cancellation on the mic in calls (Voice & Video > Echo Cancellation), on ev
 the official client's voice engine uses too. Only AEC3 and what it needs are vendored, upstream's files
 unmodified at their upstream paths:
 
+- Upstream: https://gitlab.freedesktop.org/pulseaudio/webrtc-audio-processing v2.1
+- Upstream: https://github.com/abseil/abseil-cpp 20240722.0
 - WebRTC's audio processing as packaged by PulseAudio: https://freedesktop.org/software/pulseaudio/webrtc-audio-processing/webrtc-audio-processing-2.1.tar.xz
   - sha256: ae9302824b2038d394f10213cab05312c564a038434269f11dbf68f511f9f9fe
   - Licence: BSD 3-clause (LICENSE, PATENTS)

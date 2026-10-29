@@ -5,6 +5,7 @@ unmodified: `lib/` (sources, private headers, public `includes/nghttp3/nghttp3.h
 generated `version.h`), `lib/sfparse/` (its structured-field parser, with its own `COPYING`), plus
 `COPYING`. No tests or examples.
 
+- Upstream: https://github.com/ngtcp2/nghttp3 v1.18.0
 - Source: https://github.com/ngtcp2/nghttp3, release v1.18.0, `nghttp3-1.18.0.tar.gz`
 - sha256 of the tarball: 2812e9c06583fa24c8dc46bdb5291310a69196352ceaca8fbe98106ff36ae7d8
 - Licence: MIT (COPYING).

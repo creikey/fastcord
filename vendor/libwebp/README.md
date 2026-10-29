@@ -6,6 +6,7 @@ and `muxi.h`, `sharpyuv/`, plus `COPYING` and `PATENTS`. Only `.c` / `.h` files;
 animation encoder, examples, tests or build files. The decoder (`src/dec`) is here only because the mux
 checks the image it is given with it; decoding for display stays with Wuffs.
 
+- Upstream: https://github.com/webmproject/libwebp v1.6.0
 - Source: https://storage.googleapis.com/downloads.webmproject.org/releases/webp/libwebp-1.6.0.tar.gz
 - sha256 of the tarball: e4ab7009bf0629fd11982d4c2aa83964cf244cffba7347ecd39019a9e38c4564
   (the same as Homebrew's `webp` 1.6.0 formula)

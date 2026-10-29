@@ -3,6 +3,7 @@
 HTTP/1.1 response-head parser and chunked-body decoder (`src/http/h1.jai` binds it).
 `picohttpparser.c` and `picohttpparser.h`, unmodified.
 
+- Upstream: https://github.com/h2o/picohttpparser 465a7ff09fbd3432fe56c673451f5460154d1f07
 - Source: https://github.com/h2o/picohttpparser at commit 465a7ff09fbd3432fe56c673451f5460154d1f07
   (2026-09-29), GitHub's tarball of that commit
 - sha256 of the tarball: d65d80b362fcb11f6e982ebc4515442d93b937b166558120031c38a8b6c173cd

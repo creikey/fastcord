@@ -5,6 +5,7 @@ libcrypto and libssl sources, unmodified: the `bcm`, `crypto` and `ssl` targets'
 `internal_hdrs`, `asm` and `nasm` from `gen/sources.json`, plus `LICENSE`. No tests, tools, `pki/`,
 `decrepit/` or Rust.
 
+- Upstream: https://github.com/google/boringssl 572a4c68475d284b34675f45ddbb9c158ef3c2ae
 - Source: https://github.com/google/boringssl, commit 572a4c68475d284b34675f45ddbb9c158ef3c2ae
   (2026-07-27, the `boringssl_revision` in Chromium 152.0.7977.167's DEPS), `archive/<commit>.tar.gz`
 - sha256 of the tarball: d032402a5b2304dda097aba638101ea53b4014f8f176dcf26033d0354083c06a

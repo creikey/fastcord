@@ -3,6 +3,7 @@
 MP3 decoding on Windows and Linux (macOS decodes MP3 with AudioToolbox), for the UI sounds
 (`discord.com/assets/<hash>.mp3`) and MP3 attachments. `minimp3.h` is upstream's header, unmodified:
 
+- Upstream: https://github.com/lieff/minimp3 afb604c06bc8beb145fecd42c0ceb5bda8795144
 - Source: https://github.com/lieff/minimp3, `minimp3.h` at commit afb604c06bc8beb145fecd42c0ceb5bda8795144
 - sha256: 5fb296a790734772b65a5514438cc06d14f24e539c13475ff2a7f737681c82c0
 - Licence: CC0 1.0 (LICENSE)

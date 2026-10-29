@@ -4,6 +4,7 @@ Noise suppression on the mic in calls (Voice & Video > Noise Suppression), on ev
 and `src/` are upstream's files, unmodified (only the library's sources and the headers they include; the
 training and dump tools are left out):
 
+- Upstream: https://github.com/xiph/rnnoise v0.2
 - Source: https://github.com/xiph/rnnoise, release v0.2, `rnnoise-0.2.tar.gz`
 - sha256 (tarball): 90fce4b00b9ff24c08dbfe31b82ffd43bae383d85c5535676d28b0a2b11c0d37
 - Licence: BSD 3-clause (COPYING)

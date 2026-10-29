@@ -6,6 +6,7 @@ BoringSSL. Upstream's release files, unmodified: `lib/` (sources, private header
 `crypto/boringssl/boringssl.c`, `crypto/includes/ngtcp2/ngtcp2_crypto.h` and
 `ngtcp2_crypto_boringssl.h`, plus `COPYING`. No tests, examples, qlog writer use or other TLS backends.
 
+- Upstream: https://github.com/ngtcp2/ngtcp2 v1.25.0
 - Source: https://github.com/ngtcp2/ngtcp2, release v1.25.0, `ngtcp2-1.25.0.tar.gz`
 - sha256 of the tarball: 1c0843076528a87b65e9a9d455100941f4cb65d44f96c5da6ae56df146043955
 - Licence: MIT (COPYING).
