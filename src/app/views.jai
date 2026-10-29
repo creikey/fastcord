@@ -1367,6 +1367,7 @@ overlays :: () {
 	if ma.menu_msg != 0 { message_menu(); }
 	if ma.confirming != 0 { confirm_modal(); }
 	events_modal();
+	server_settings_layer(); // under the admin modals, which open over it
 	guild_admin_overlays();
 	attachments_overlays(); // attachments.jai: Modify modal, drag target, limit notices
 	req_toast(); // requests.jai: a failed request, on top
