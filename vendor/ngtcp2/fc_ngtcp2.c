@@ -51,13 +51,14 @@ typedef struct fc_quic {
     int failed;
     size_t burst;
     uint64_t rtt_us;
+    int orig;
     uint8_t tp[256], ztp[256];
     size_t tplen, ztplen;
     fc_quic_events ev;
     fc_body *bodies;
 } fc_quic;
 
-// Chrome 148's client transport parameters (QUICHE): 30 s idle, 15 MiB connection and 6 MiB stream windows,
+// Chrome's client transport parameters (QUICHE, unchanged from 148 to 152): 30 s idle, 15 MiB connection and 6 MiB stream windows,
 // 100 bidi and 103 uni streams, 1472-byte UDP payloads, 64 KiB datagram frames.
 static void chrome_params(ngtcp2_transport_params *p) {
     ngtcp2_transport_params_default(p);
@@ -81,10 +82,11 @@ static uint8_t *put_varint(uint8_t *p, uint64_t v) {
 
 // fc_quic_chrome_tp writes into buf (256 bytes) the transport parameters Chrome's ClientHello carries, as
 // QUICHE encodes them: chrome_params' values, a zero-length initial_source_connection_id,
-// version_information {v1; v1, GREASE}, one GREASE parameter, and Google's initial_rtt (0x3127, in
-// microseconds) when rtt_us > 0, in a fresh random order. ngtcp2 keeps its own encoding of the same values
-// for its checks; only the bytes the server sees come from here. Returns the length.
-size_t fc_quic_chrome_tp(uint8_t *buf, uint64_t rtt_us) {
+// version_information {v1; v1, GREASE}, one GREASE parameter, Google's initial_rtt (0x3127, in
+// microseconds) when rtt_us > 0, and with orig (Chrome 152 on) Google's connection options (0x3128) holding
+// the one tag "ORIG" (net/base/features.cc kQuicOptions), in a fresh random order. ngtcp2 keeps its own
+// encoding of the same values for its checks; only the bytes the server sees come from here. Returns the length.
+size_t fc_quic_chrome_tp(uint8_t *buf, uint64_t rtt_us, int orig) {
     ngtcp2_transport_params p;
     chrome_params(&p);
     uint8_t r[64];
@@ -97,7 +99,7 @@ size_t fc_quic_chrome_tp(uint8_t *buf, uint64_t rtt_us) {
         uint64_t id, v;
         const uint8_t *raw;
         size_t rawlen;
-    } tmp, tp[13] = {
+    } tmp, tp[14] = {
         {0x03, p.max_udp_payload_size},
         {0x06, p.initial_max_stream_data_bidi_remote},
         {0x07, p.initial_max_stream_data_uni},
@@ -112,9 +114,12 @@ size_t fc_quic_chrome_tp(uint8_t *buf, uint64_t rtt_us) {
         // Reserved ids are 31 * N + 27 (RFC 9000 18.1), N below (2^62 - 28) / 31 as QUICHE picks it, with
         // up to 15 random bytes.
         {31 * (g % (((1ull << 62) - 28) / 31)) + 27, 0, r + 16, r[3] % 16},
+        {0x3128, 0, (const uint8_t *)"ORIG", 4}, // QUICHE writes each tag's 4 bytes in order
         {0x3127, rtt_us},
     };
-    size_t n = rtt_us ? 13 : 12;
+    size_t n = 12;
+    if (orig) tp[n++] = tp[12];
+    if (rtt_us) tp[n++] = tp[13];
     for (size_t i = n - 1; i > 0; i--) {
         size_t j = r[48 + i] % (i + 1);
         tmp = tp[i], tp[i] = tp[j], tp[j] = tmp;
@@ -291,7 +296,7 @@ static int setup_h3(fc_quic *q) {
 // HTTP/3 starts in 0-RTT, as Chrome's does on a resumed session.
 static int client_initial(ngtcp2_conn *conn, void *user) {
     fc_quic *q = user;
-    q->tplen = fc_quic_chrome_tp(q->tp, q->rtt_us);
+    q->tplen = fc_quic_chrome_tp(q->tp, q->rtt_us, q->orig);
     if (ngtcp2_crypto_derive_and_install_initial_key(conn, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, ngtcp2_conn_get_client_chosen_version2(conn), ngtcp2_conn_get_dcid2(conn)) ||
         SSL_set_quic_transport_params(q->ssl, q->tp, q->tplen) != 1 || ngtcp2_crypto_read_write_crypto_data(conn, NGTCP2_ENCRYPTION_LEVEL_INITIAL, NULL, 0)) {
         return NGTCP2_ERR_CALLBACK_FAILURE;
@@ -412,8 +417,9 @@ void fc_quic_del(fc_quic *q) {
 // fc_quic_new takes ownership of ssl (an SSL from src/tls's new_ssl on a context passed to
 // ngtcp2_crypto_boringssl_configure_client_context) and frees it, even on failure. family is 4 or 6; addr
 // holds 4 or 16 bytes. ztp is fc_quic_0rtt_tp's from the last connection to this server, if any (at most
-// 256 bytes). The ClientHello goes out with the first fc_quic_write.
-fc_quic *fc_quic_new(SSL *ssl, int family, const uint8_t *addr, int port, int local_port, uint64_t now, uint64_t initial_rtt, const uint8_t *ztp, size_t ztplen, const fc_quic_events *ev) {
+// 256 bytes). orig adds Chrome 152's connection options to the transport parameters (fc_quic_chrome_tp). The
+// ClientHello goes out with the first fc_quic_write.
+fc_quic *fc_quic_new(SSL *ssl, int family, const uint8_t *addr, int port, int local_port, uint64_t now, uint64_t initial_rtt, const uint8_t *ztp, size_t ztplen, int orig, const fc_quic_events *ev) {
     static const ngtcp2_callbacks cb = {
         .client_initial = client_initial,
         .recv_crypto_data = ngtcp2_crypto_recv_crypto_data_cb,
@@ -444,6 +450,7 @@ fc_quic *fc_quic_new(SSL *ssl, int family, const uint8_t *addr, int port, int lo
     }
     q->ssl = ssl;
     q->rtt_us = initial_rtt / 1000;
+    q->orig = orig;
     q->ev = *ev;
     if (ztplen && ztplen <= sizeof q->ztp) memcpy(q->ztp, ztp, q->ztplen = ztplen);
     q->ref.get_conn = get_conn;

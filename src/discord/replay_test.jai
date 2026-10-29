@@ -3444,3 +3444,55 @@ quic_h3_control_stream :: (t: *T) {
 	}
 }
 
+// tls_chrome_hello: our TCP ClientHello has Chrome 152's signature algorithms (a GREASE value, ML-DSA-44/65/87,
+// then 148's list) by default, and exactly Chrome 148's when the host runs 148; the rest is the same in both.
+tls_chrome_hello :: (t: *T) {
+	be :: (h: []u8, p: int) -> int { return (cast(int) h[p]) * 256 + h[p + 1]; }
+	// exts returns the number of extensions and signature_algorithms' body.
+	exts :: (h: []u8) -> int, []u8 {
+		if h.count < 39 return 0, .[];
+		p := 39 + cast(int) h[38];
+		p += 2 + be(h, p);
+		p += 1 + cast(int) h[p];
+		end := p + 2 + be(h, p);
+		p += 2;
+		count: int;
+		sig: []u8;
+		while p + 4 <= end && end <= h.count {
+			n := be(h, p + 2);
+			if be(h, p) == 13 sig = array_view(h, p + 4, n);
+			count += 1;
+			p += 4 + n;
+		}
+		return count, sig;
+	}
+	n152, sig152 := exts(tls.client_hello(.{alpn = .["h2", "http/1.1"], server_name = "discord.com"},, temp));
+	n148, sig148 := exts(tls.client_hello(.{alpn = .["h2", "http/1.1"], server_name = "discord.com", chrome_major = 148},, temp));
+	expect(t, n152 == 18 && n148 == 18, "18 extensions, two of them GREASE");
+	if !expect(t, sig152.count == 26 && sig148.count == 18, "signature_algorithms") return;
+	expect(t, (sig152[2] & 0x0f) == 0x0a && sig152[2] == sig152[3], "Chrome 152 leads with a GREASE value");
+	expect(t, cast(string) array_view(sig152, 4) == cast(string) u8.[0x09, 0x04, 0x09, 0x05, 0x09, 0x06, 0x04, 0x03, 0x08, 0x04, 0x04, 0x01, 0x05, 0x03, 0x08, 0x05, 0x05, 0x01, 0x08, 0x06, 0x06, 0x01], "then ML-DSA and 148's list");
+	expect(t, cast(string) array_view(sig148, 2) == cast(string) array_view(sig152, 10), "Chrome 148 sends just its list");
+}
+
+// quic_chrome_transport_params: Chrome 152 adds Google's connection options (0x3128) holding "ORIG"; 148 has none.
+quic_chrome_transport_params :: (t: *T) {
+	for major: int.[148, 152] {
+		tp := quic.chrome_transport_params(1000, major,, temp);
+		ids: [..]u64;
+		ids.allocator = temp;
+		orig := false;
+		i := 0;
+		while i < tp.count {
+			id, ok := get_varint(tp, *i);
+			n, ok2 := get_varint(tp, *i);
+			if !expect(t, ok && ok2 && i + cast(int) n <= tp.count, "transport parameters parse") return;
+			array_add(*ids, id);
+			if id == 0x3128 orig = n == 4 && to_string(tp.data + i, 4) == "ORIG";
+			i += xx n;
+		}
+		expectf(t, ids.count == 13 + cast(int) (major >= 152), "Chrome % sends % transport parameters", major, ids.count);
+		expectf(t, orig == (major >= 152), "Chrome % connection options", major);
+	}
+}
+

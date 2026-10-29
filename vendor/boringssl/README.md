@@ -5,14 +5,16 @@ libcrypto and libssl sources, unmodified: the `bcm`, `crypto` and `ssl` targets'
 `internal_hdrs`, `asm` and `nasm` from `gen/sources.json`, plus `LICENSE`. No tests, tools, `pki/`,
 `decrepit/` or Rust.
 
-- Source: https://github.com/google/boringssl, commit d8be2b4a71155bf82da092ef543176351eeb59ff
-  (2026-04-06, the revision Chrome 148 pins), `archive/<commit>.tar.gz`
-- sha256 of the tarball: a388ff327ec27e6519a9c75a971b6c362ec1e8c05feca8a81d838ee0a7f49b54
+- Source: https://github.com/google/boringssl, commit 572a4c68475d284b34675f45ddbb9c158ef3c2ae
+  (2026-07-27, the `boringssl_revision` in Chromium 152.0.7977.167's DEPS), `archive/<commit>.tar.gz`
+- sha256 of the tarball: d032402a5b2304dda097aba638101ea53b4014f8f176dcf26033d0354083c06a
 - Licence: Apache-2.0 (LICENSE).
 
 Why: it is Chrome's TLS library, so Chrome's ClientHello comes from the same code, and it is fuzzed
-continuously by OSS-Fuzz. It replaced a hand-written TLS 1.3 client. Chrome's revision, not a newer
-one: later revisions change the hello (ce9c15c, 2026-10-26, adds a GREASE signature algorithm).
+continuously by OSS-Fuzz. It replaced a hand-written TLS 1.3 client. Chrome's revision, not another: the
+hello changes between revisions. This one is Chrome 152's (the official client's Electron 44), and with
+`src/tls`'s settings for an older host it still sends Chrome 148's hello byte for byte: 152 differs only in
+the signature algorithms Chromium configures (ML-DSA, and `SSL_CTX_set_grease_sigalgs_enabled`).
 
 `fc_boringssl.sources` lists the 437 files `build.jai` compiles (in parallel) into
 `build/fc_vendor.a` (arm64 + x86_64); `fc_boringssl.cflags` holds the defines. It is C++17, built

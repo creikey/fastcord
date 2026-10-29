@@ -19,7 +19,8 @@ its BoringSSL backend lets the handshake use the same TLS library and Chrome-sha
 
 `fc_ngtcp2.c` is ours, not upstream: the glue `src/quic` calls, bridging ngtcp2 and nghttp3. Its
 `client_initial` uses `ngtcp2_crypto_derive_and_install_initial_key`, which is exported but declared only
-in `crypto/shared.h`, so that we can set Chrome's exact transport parameter bytes; recheck it on update.
+in `crypto/shared.h`, so that we can set Chrome's exact transport parameter bytes (`fc_quic_chrome_tp`, with
+Chrome 152's `google_connection_options` "ORIG" unless the host runs an older Chrome); recheck it on update.
 
 Its `fc_quic_new` takes the server's 0-RTT transport parameters from the last connection
 (`fc_quic_0rtt_tp`): with them a resumed session starts HTTP/3 in 0-RTT, and if the server refuses early data
@@ -28,7 +29,7 @@ the requests go again on 1-RTT. `fc_h3_preview` is for `quic_h3_control_stream` 
 ## Patches
 
 `patches/` holds our changes to the upstream files; `build.jai` applies them to a copy in `build/patched/ngtcp2`
-(AGENTS.md). They make ngtcp2 send what Chrome 148 (QUICHE) sends; `quic_chrome_initials` checks them.
+(AGENTS.md). They make ngtcp2 send what Chrome 148 and 152 (QUICHE) send; `quic_chrome_initials` checks them.
 
 - `0001-chrome-initial-packets.patch`:
   - `conn_crumble_initial_crypto` replaced by QUICHE's layout of Initial CRYPTO data

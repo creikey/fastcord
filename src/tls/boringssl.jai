@@ -38,6 +38,7 @@ SSL_CTX_set1_group_ids :: (ctx: *SSL_CTX, ids: *u16, n: u64) -> s32 #foreign bss
 SSL_CTX_set_verify_algorithm_prefs :: (ctx: *SSL_CTX, prefs: *u16, n: u64) -> s32 #foreign bssl;
 SSL_CTX_add_cert_compression_alg :: (ctx: *SSL_CTX, alg: u16, compress: *void, decompress: Decompress_Callback) -> s32 #foreign bssl;
 SSL_CTX_set_grease_enabled :: (ctx: *SSL_CTX, enabled: s32) #foreign bssl;
+SSL_CTX_set_grease_sigalgs_enabled :: (ctx: *SSL_CTX, enabled: s32) #foreign bssl;
 SSL_CTX_set_permute_extensions :: (ctx: *SSL_CTX, enabled: s32) #foreign bssl;
 SSL_CTX_enable_ocsp_stapling :: (ctx: *SSL_CTX) #foreign bssl;
 SSL_CTX_enable_signed_cert_timestamps :: (ctx: *SSL_CTX) #foreign bssl;

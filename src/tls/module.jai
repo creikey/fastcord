@@ -1,7 +1,8 @@
 // fastcord's TLS client: a thin binding over vendored BoringSSL (vendor/boringssl) that wraps a netio.Stream
 // and exposes one. BoringSSL is configured the way Chrome configures it, so the ClientHello has the shape of
-// the official Discord client's (Electron 42 / Chrome 148). Certificates are checked by the OS trust store
-// for the server name (trust_*.jai), never by BoringSSL's own verifier.
+// the official Discord client's (Electron 44 / Chrome 152, or Chrome 148 per Config.chrome_major).
+// Certificates are checked by the OS trust store for the server name (trust_*.jai), never by BoringSSL's own
+// verifier.
 #import "Basic";
 #import "Hash_Table";
 #import "Atomics";
