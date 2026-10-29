@@ -1316,7 +1316,7 @@ member_menu :: (g: *dc.Guild) {
 	uid := ss.menu_user;
 	name := ss.menu_name;
 	pick := "";
-	if dc.can_moderate(store(), g.id, uid, dc.PERM_MODERATE_MEMBERS) && !on_hosted() {
+	if dc.can_moderate(store(), g.id, uid, dc.PERM_MODERATE_MEMBERS) {
 		if ss.menu_timed_out {
 			if menu_item("untimeout", "Remove Timeout").clicked pick = "untimeout";
 		} else if menu_item("timeout", tprint("Timeout %", name), danger = true).clicked pick = "timeout";

@@ -153,6 +153,7 @@ open :: (path: string) -> *Server, bool {
 	sqlite.exec(db, "ALTER TABLE users ADD COLUMN left INTEGER NOT NULL DEFAULT 0;");
 	sqlite.exec(db, "ALTER TABLE users ADD COLUMN banned INTEGER NOT NULL DEFAULT 0;");
 	sqlite.exec(db, "ALTER TABLE users ADD COLUMN ban_reason TEXT;");
+	sqlite.exec(db, "ALTER TABLE users ADD COLUMN timeout_until INTEGER;");
 	sqlite.exec(db, "ALTER TABLE users ADD COLUMN joined_name TEXT;");
 	sqlite.exec(db, "ALTER TABLE users ADD COLUMN avatar TEXT;");
 	sqlite.exec(db, "ALTER TABLE users ADD COLUMN avatar_type TEXT;");
@@ -2189,6 +2190,7 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 		if flags_v.kind != .Int && flags_v.kind != .Nil return json_error(c, 400, 50035, "Invalid Form Body");
 		// A send may set only these, as on Discord; any other bit is dropped.
 		flags := flags_v.i & (SUPPRESS_EMBEDS | SUPPRESS_NOTIFICATIONS);
+		if timed_out(s, user) return json_error(c, 403, 50013, "Missing Permissions");
 		if atts.kind == .List && atts.list.count > MAX_UPLOADS return json_error(c, 400, 50035, "Invalid Form Body");
 		if atts.kind == .List && atts.list.count && !(perms & P_ATTACH_FILES) return json_error(c, 403, 50013, "Missing Permissions");
 		ref, _ := etf.map_get(v.map, "message_reference");
@@ -3068,7 +3070,7 @@ moderate :: (c: *Conn, req: http.Request) -> bool {
 			_, ch := etf.map_get(v.map, "channel_id");
 			if m || d || ch return voice_moderate(c, user, target, v.map);
 		}
-		return rename(c, req);
+		return member_patch(c, req); // settings.jai: a timeout, else rename
 	}
 	if !(ban && (req.method == "PUT" || req.method == "DELETE")) && !(!ban && req.method == "DELETE") return json_error(c, 405, 0, "405: Method Not Allowed");
 	target, tok := string_to_int(parts[6], T = s64);

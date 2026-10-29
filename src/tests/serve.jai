@@ -897,6 +897,18 @@ main :: () {
 	check(status == 200, tprint("the new owner offers it back: % %", status, body));
 	status, body = rest("PUT", transfer, "", token);
 	check(status == 200 && contains(body, tprint("\"owner_id\":\"%\"", field(welcome.list[0], "author", "id").s)), tprint("and it comes back: % %", status, body));
+	// Timeout: a member in one can't send until it ends.
+	member_path := tprint("/api/v9/guilds/%/members/%", gid, other_id);
+	status, body = rest("PATCH", member_path, "{\"communication_disabled_until\":\"2099-01-01T00:00:00.000Z\"}", token);
+	check(status == 400, tprint("a timeout is at most 28 days: % %", status, body));
+	status, body = rest("PATCH", member_path, tprint("{\"communication_disabled_until\":\"%\"}", serve.iso_ms(to_milliseconds(current_time_consensus() - APOLLO_TIME_FOR_JAN_1_1970) + 3600_000)), token);
+	check(status == 200 && contains(body, "communication_disabled_until\":\"20"), tprint("the owner times a member out: % %", status, body));
+	status, body = rest("POST", messages, "{\"content\": \"let me talk\"}", other_token);
+	check(status == 403, tprint("a member in a timeout can't send: % %", status, body));
+	status, body = rest("PATCH", member_path, "{\"communication_disabled_until\":null}", token);
+	check(status == 200, tprint("the owner ends the timeout: % %", status, body));
+	status, body = rest("POST", messages, "{\"content\": \"thanks\"}", other_token);
+	check(status == 200, tprint("and they can send again: % %", status, body));
 
 	// Custom emoji: the owner adds one, it is served, and members react with it as name:id.
 	emoji_path := tprint("/api/v9/guilds/%/emojis", gid);

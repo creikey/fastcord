@@ -150,6 +150,7 @@ members_search :: (c: *Conn, req: http.Request) -> bool {
 		etf.map_put(*m, "joined_at", etf.vstring(iso(id)));
 		etf.map_put(*m, "roles", etf.vlist(.[]));
 		etf.map_put(*m, "nick", .{});
+		etf.map_put(*m, "communication_disabled_until", timeout_value_locked(s, id));
 		e := etf.map_builder(4,, temp);
 		etf.map_put(*e, "member", etf.vmap(etf.map_done(*m)));
 		etf.map_put(*e, "join_source_type", etf.vint(0));
@@ -593,4 +594,69 @@ edit_webhook :: (c: *Conn, req: http.Request, user: s64, id: s64) -> bool {
 	sqlite.bind_all(st, id);
 	if sqlite.step(st) != .Row return json_error(c, 500, 0, "500: Internal Server Error");
 	return json_reply(c, 200, row_webhook(s, st, true));
+}
+
+TIMEOUT_MAX_MS :: 28 * 24 * 3600_000; // Discord's longest timeout
+
+unix_now_ms :: () -> s64 { return to_milliseconds(current_time_consensus() - APOLLO_TIME_FOR_JAN_1_1970); }
+
+// timed_out: the member is in a timeout, so they can't send messages (takes db_mu).
+timed_out :: (s: *Server, user: s64) -> bool {
+	locks.guard(*s.db_mu);
+	return timeout_until_locked(s, user) > unix_now_ms();
+}
+
+timeout_until_locked :: (s: *Server, user: s64) -> s64 {
+	st := sqlite.prepare(s.db, "SELECT timeout_until FROM users WHERE id = ?;");
+	defer sqlite.finalize(st);
+	sqlite.bind(st, 1, user);
+	return ifx sqlite.step(st) == .Row then sqlite.col_int(st, 0) else 0;
+}
+
+timeout_value_locked :: (s: *Server, user: s64) -> etf.Value {
+	until := timeout_until_locked(s, user);
+	return ifx until > unix_now_ms() then etf.vstring(iso_ms(until)) else .{};
+}
+
+// PATCH /api/v9/guilds/{id}/members/{user} {communication_disabled_until}: the owner times a member out
+// until a time at most 28 days ahead, or null to end it (audited with the reason given); a body without it
+// renames (Change Nickname).
+member_patch :: (c: *Conn, req: http.Request) -> bool {
+	s := c.server;
+	v, err := etf.from_json(cast(string) req.body,, temp);
+	until_v, has := etf.map_get(v.map, "communication_disabled_until");
+	if err != .None || v.kind != .Map || !has return rename(c, req);
+	user := owner_session(c, req);
+	if !user return json_error(c, 401, 0, "401: Unauthorized");
+	reason, rok := audit_reason(req);
+	target, tok := string_to_int(slice(req.path, find_index_from_right(req.path, #char "/") + 1, req.path.count), T = s64);
+	if !rok || !tok return json_error(c, 400, 50035, "Invalid Form Body");
+	until: s64;
+	if until_v.kind != .Nil {
+		ok: bool;
+		until, ok = parse_iso(ifx until_v.kind == .String then until_v.s else "");
+		if !ok || until > unix_now_ms() + TIMEOUT_MAX_MS + 60_000 return json_error(c, 400, 50035, "Invalid Form Body");
+	}
+	d := etf.map_builder(4,, temp);
+	{
+		locks.guard(*s.db_mu);
+		if owner_id(s) != user || target == user return json_error(c, 403, 50013, "Missing Permissions");
+		st := sqlite.prepare(s.db, "SELECT name FROM users WHERE id = ? AND left = 0 AND signing_pub != x'';");
+		sqlite.bind(st, 1, target);
+		found := sqlite.step(st) == .Row;
+		name := ifx found then copy_string(sqlite.col_text(st, 0),, temp) else "";
+		sqlite.finalize(st);
+		if !found return json_error(c, 404, 10007, "Unknown Member");
+		old := timeout_value_locked(s, target);
+		if !sqlite.run(s.db, "UPDATE users SET timeout_until = nullif(?, 0) WHERE id = ?;", until, target) return json_error(c, 500, 0, "500: Internal Server Error");
+		new := timeout_value_locked(s, target);
+		audit_locked(s, user, AUDIT_MEMBER_UPDATE, target, .[audit_change("communication_disabled_until", old, new)], reason);
+		etf.map_put(*d, "guild_id", snow(s.guild));
+		etf.map_put(*d, "user", user_value(s, target, name));
+		etf.map_put(*d, "roles", etf.vlist(.[]));
+		etf.map_put(*d, "communication_disabled_until", new);
+	}
+	member := etf.vmap(etf.map_done(*d));
+	broadcast(s, "GUILD_MEMBER_UPDATE", member);
+	return json_reply(c, 200, member);
 }
