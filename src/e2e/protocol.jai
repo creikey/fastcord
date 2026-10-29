@@ -27,6 +27,8 @@ Kind :: enum u8 { Hello :: 1; Init :: 2; Msg :: 3; Group :: 4; }
 // name their target, the delivery they change.
 Content :: enum u8 { Text :: 0; Accept :: 1; Post :: 2; Edit :: 3; Delete :: 4; React :: 5; Unreact :: 6; Sender_Key :: 7; }
 SILENT :: cast(u8) 0x80; // Set on the Content byte: sent with @silent, so no sound or notification on any carrier.
+FORWARDED :: cast(u8) 0x40; // Set on a Post's Content byte: a forward, whose Body holds the original's author and time after its stickers.
+FLAGS :: SILENT | FORWARDED;
 
 HEADER_BYTES :: 40;
 TAG_BYTES :: 16;
@@ -45,8 +47,8 @@ max_text :: (limit: int) -> int { return limit - MSG_PREFIX_BYTES - HEADER_BYTES
 
 // A Body, after the Content byte: target and reply (u8 length, then the carrier's delivery ID), a u8 count
 // of files, each key[32] digest[32] size[u32 LE] width[u16 LE] height[u16 LE] flags[u8] name (u8 length)
-// mime (u8 length) description (u16 LE length), a u8 count of stickers (u8 length each), then the text to
-// the end.
+// mime (u8 length) description (u16 LE length), a u8 count of stickers (u8 length each), on a FORWARDED Post
+// the original's author and time (u8 length each), then the text to the end.
 Body :: struct {
 	content: Content;
 	silent: bool;
@@ -55,6 +57,9 @@ Body :: struct {
 	files: []File;
 	text: string;   // React and Unreact: the emoji.
 	stickers: []string; // Opaque, as the carrier names them.
+	forwarded: bool;    // Post only: a forward of forward_author's message sent at forward_at, both opaque.
+	forward_author: string;
+	forward_at: string;
 }
 
 // A File is sent as its own ciphertext (seal_file), uploaded wherever the carrier keeps files, in the order
@@ -79,7 +84,8 @@ FILE_CONTEXT :: "fastcord 2026-10-29 e2e file v1";
 encode_body :: (b: Body) -> []u8 {
 	out: [..]u8;
 	out.allocator = temp;
-	array_add(*out, (cast(u8) b.content) | (ifx b.silent then SILENT else 0));
+	forwarded := b.forwarded && b.content == .Post;
+	array_add(*out, (cast(u8) b.content) | (ifx b.silent then SILENT else 0) | (ifx forwarded then FORWARDED else 0));
 	if b.content == .Text || b.content == .Sender_Key { array_add(*out, ..cast([]u8) b.text); return out; }
 	if b.content == .Accept return out;
 	add_str :: (out: *[..]u8, s: string, wide := false) {
@@ -99,6 +105,7 @@ encode_body :: (b: Body) -> []u8 {
 	}
 	array_add(*out, xx b.stickers.count);
 	for b.stickers add_str(*out, it);
+	if forwarded { add_str(*out, b.forward_author); add_str(*out, b.forward_at); }
 	array_add(*out, ..cast([]u8) b.text);
 	return out;
 }
@@ -107,8 +114,9 @@ encode_body :: (b: Body) -> []u8 {
 // strings point into pt; files are in temp.
 parse_body :: (pt: []u8) -> Body, bool {
 	b: Body;
-	if pt.count < 1 || (pt[0] & ~SILENT) > xx Content.Sender_Key return b, false;
-	b.content, b.silent = xx (pt[0] & ~SILENT), (pt[0] & SILENT) != 0;
+	if pt.count < 1 || (pt[0] & ~FLAGS) > xx Content.Sender_Key return b, false;
+	b.content, b.silent, b.forwarded = xx (pt[0] & ~FLAGS), (pt[0] & SILENT) != 0, (pt[0] & FORWARDED) != 0;
+	if b.forwarded && b.content != .Post return b, false;
 	r := array_view(pt, 1, pt.count - 1);
 	if b.content == .Text { b.text = xx r; return b, valid_utf8(b.text); }
 	if b.content == .Sender_Key { b.text = xx r; return b, r.count == SENDER_KEY_BYTES; } // binary, never shown
@@ -147,6 +155,12 @@ parse_body :: (pt: []u8) -> Body, bool {
 	stickers := NewArray(n, string,, temp);
 	for * stickers { it.* = str(); ok &&= it.count && valid_utf8(it.*); }
 	b.stickers = stickers;
+	if b.forwarded {
+		b.forward_author = str();
+		b.forward_at = str();
+		ok &&= b.forward_author.count && b.forward_author.count <= MAX_TARGET && printable(b.forward_author)
+			&& b.forward_at.count <= MAX_TARGET && printable(b.forward_at);
+	}
 	b.text = xx r;
 	if !ok || b.target.count > MAX_TARGET || b.reply.count > MAX_TARGET || !valid_utf8(b.text) return b, false;
 	some := b.text.count || files.count || stickers.count;

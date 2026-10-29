@@ -77,6 +77,7 @@ store_init :: (s: *Store, allocator := context.allocator) {
 	s.sessions.allocator = allocator;
 	s.settings.guild_folders.allocator = allocator;
 	s.settings.guild_positions.allocator = allocator;
+	s.settings.edits.allocator = allocator;
 	s.soundboard.allocator = allocator;
 	s.effects.allocator = allocator;
 }
@@ -966,8 +967,9 @@ apply_settings_proto :: (s: *Store, b64: string, partial := false) {
 		}
 		raw = merged;
 	}
-	// categories with an edit not yet saved keep it (sent again after a failed PATCH)
-	for n: 1..63 if s.settings.unsent & ((cast(u64) 1) << n) raw = protobuf.with_field(raw, xx n, pb_categories(s.settings.proto, (cast(u64) 1) << n),, temp);
+	// edits not yet saved are put again over what came (sent again after a failed PATCH)
+	settings_edits_prune(s);
+	for s.settings.edits raw = proto_with_edit(raw, it.cat, it.num, it.encoded, it.sub);
 	settings_proto_set(s, raw);
 }
 

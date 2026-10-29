@@ -130,6 +130,8 @@ Request :: struct {
 	detached: bool; // Send: the Edit goes as a new delivery, which the receiving side hides and applies to its target.
 	order: s64; // Receive: the carrier's order of this delivery, later ones larger (0: none). The latest of a message's detached edits wins.
 	reply: string;
+	forward_author: string; // Send: a forward of this author's message, sent at forward_at (opaque). Receive: what the forward named.
+	forward_at: string;
 	files: [..]File; // Strings on the heap.
 	stickers: [..]string;
 	members: [..]string; // Send in a group (E2E 8): its other parties, each given our sender key.
@@ -161,7 +163,7 @@ request :: (op: Op, conv := Conversation.{}, text := "", packet := "") -> *Reque
 
 free_request :: (r: *Request) {
 	crypto.zero(*r.me);
-	for string.[r.conv.carrier, r.conv.id, r.conv.me, r.conv.peer, r.from, r.delivery, r.text, r.out_text, r.packet, r.target, r.reply] free(it);
+	for string.[r.conv.carrier, r.conv.id, r.conv.me, r.conv.peer, r.from, r.delivery, r.text, r.out_text, r.packet, r.target, r.reply, r.forward_author, r.forward_at] free(it);
 	for * r.files { crypto.zero(*it.key); free(it.name); free(it.mime); free(it.description); }
 	array_free(r.files);
 	for r.stickers free(it);
@@ -368,8 +370,8 @@ run_request :: (d: *Db, r: *Request) {
 			r.packet = copy_string(xx bytes(*p),, context.default_allocator);
 			if !commit_sent(d, r, conv, *s, true, hello.root, hello.id, encode_body(.{content = .Accept})) r.result = .Failed;
 		case .Send;
-			if r.content == .Text && (r.reply.count || r.files.count || r.stickers.count) r.content = .Post;
-			body := encode_body(.{r.content, r.silent, r.target, r.reply, r.files, r.text, r.stickers});
+			if r.content == .Text && (r.reply.count || r.files.count || r.stickers.count || r.forward_author.count) r.content = .Post;
+			body := encode_body(.{r.content, r.silent, r.target, r.reply, r.files, r.text, r.stickers, r.forward_author.count > 0, r.forward_author, r.forward_at});
 			_, valid := parse_body(body);
 			if !valid || r.content == .Accept { r.result = .Failed; return; }
 			if r.members { group_send(d, r, conv, body); return; }
@@ -610,6 +612,7 @@ take_plaintext :: (r: *Request, pt: []u8) -> bool {
 	b, ok := parse_body(pt);
 	if !ok return false;
 	r.content, r.silent, r.out_text, r.target, r.reply = b.content, b.silent, copy_string(b.text), copy_string(b.target), copy_string(b.reply);
+	r.forward_author, r.forward_at = copy_string(b.forward_author), copy_string(b.forward_at);
 	for b.files {
 		f := array_add(*r.files);
 		f.* = it;
@@ -786,6 +789,8 @@ store_plaintext :: (d: *Db, hash: [32]u8, delivery: string, body: []u8, conv: []
 		free(r.out_text);
 		free(r.target);
 		free(r.reply);
+		free(r.forward_author);
+		free(r.forward_at);
 		for * r.files { crypto.zero(*it.key); free(it.name); free(it.mime); free(it.description); }
 		r.files.count = 0;
 		for r.stickers free(it);
@@ -821,7 +826,7 @@ reseal :: (d: *Db, query: string, delivery: string, conv: []u8, author: string, 
 		if h.count != 32 || b.count <= SEAL_BYTES continue;
 		pt := NewArray(b.count - SEAL_BYTES, u8,, temp);
 		defer crypto.zero(pt);
-		if !unseal(d, ad("plaintexts", h), b, pt) || (pt[0] & ~SILENT) == xx Content.Delete continue;
+		if !unseal(d, ad("plaintexts", h), b, pt) || (pt[0] & ~FLAGS) == xx Content.Delete continue;
 		array_add(*hashes, (cast(*[32]u8) h.data).*);
 	}
 	sqlite.finalize(st);
