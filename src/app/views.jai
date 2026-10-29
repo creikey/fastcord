@@ -861,6 +861,52 @@ channel_sidebar :: (gid: dc.Snowflake) {
 		}
 		spacer(.Y, USER_PANEL_H + voice_panel_height() + 16);
 	}
+	channel_drag(gid);
+}
+
+// ---- drag to reorder channels and categories (Manage Channels) ----
+
+cdrag: struct {
+	id: dc.Snowflake; // the row pressed, then dragged
+	from: ui.Vec2;
+	down, active: bool;
+	target: dc.Snowflake; // the row under the mouse this frame
+	after: bool; // in its lower half
+};
+
+// A row's press starts a possible drag; while dragging, the row under the mouse marks where it would go.
+channel_drag_row :: (ch: *dc.Channel, sig: ui.Signal, b: *ui.Box) {
+	if sig.pressed && can_manage_channels(ch.guild_id) {
+		cdrag.id, cdrag.from, cdrag.down, cdrag.active = ch.id, app.ui.mouse, true, false;
+	}
+	if !cdrag.active return;
+	r := b.rect;
+	m := app.ui.mouse;
+	if m.y < r.y0 || m.y >= r.y1 || m.x < r.x0 - 8 || m.x >= r.x1 + 8 || cdrag.id == ch.id return;
+	cdrag.target, cdrag.after = ch.id, m.y >= (r.y0 + r.y1) / 2;
+	ui.parent(b); defer ui.pop_parent();
+	line := ui.box("dropline", .Draw_Background | .Floating_X | .Floating_Y);
+	line.semantic_size = .[ui.px(r.x1 - r.x0), ui.px(2)];
+	line.fixed_pos = .{0, ifx cdrag.after && ch.kind != .Guild_Category then (r.y1 - r.y0) else -2};
+	line.style.bg = T("--background-brand");
+}
+
+// After the rows: the threshold, and on release the PATCH of the new order.
+channel_drag :: (gid: dc.Snowflake) {
+	if !cdrag.down return;
+	released := false;
+	for app.ui.events if it.kind == .Mouse_Up && it.button == .Left released = true;
+	d := app.ui.mouse - cdrag.from;
+	if !cdrag.active && d.x * d.x + d.y * d.y > DRAG_THRESHOLD * DRAG_THRESHOLD cdrag.active = true;
+	if cdrag.active app.ui.animating = true;
+	if released {
+		if cdrag.active && cdrag.target && net_action() {
+			body := dc.channel_move_body(store(), gid, cdrag.id, cdrag.target, cdrag.after);
+			if body dc.reorder_channels(app.client, gid, body);
+		}
+		cdrag.down, cdrag.active = false, false;
+	}
+	cdrag.target = 0;
 }
 
 // "Events" row above the channel list (32px on a 34px pitch).
@@ -897,7 +943,9 @@ category_row :: (ch: *dc.Channel) {
 	spacer(.Y, CATEGORY_GAP);
 	r := row("cat", .Clickable);
 	r.semantic_size = .[ui.pct(1), ui.px(CATEGORY_ROW_H)];
+	if can_manage_channels(ch.guild_id) r.flags |= .Click_On_Release; // a press may start a drag, not a collapse
 	sig := ui.signal(r);
+	channel_drag_row(ch, sig, r);
 	collapsed := dc.category_collapsed(store(), ch.guild_id, ch.id);
 	if sig.clicked category_set_collapsed(ch.guild_id, ch.id, !collapsed);
 	if sig.right_clicked channel_menu_open(ch.id, app.ui.mouse);
@@ -918,6 +966,7 @@ category_row :: (ch: *dc.Channel) {
 		}
 		spacer(.X, 16);
 	}
+	if cdrag.active && cdrag.id == ch.id pk_fade(r, 0.4);
 }
 
 channel_row :: (ch: *dc.Channel, gid: dc.Snowflake) {
@@ -934,7 +983,10 @@ channel_row :: (ch: *dc.Channel, gid: dc.Snowflake) {
 		item.style.radius = all4(8);
 		item.style.bg = ifx selected then T("--background-mod-normal") else .{};
 		item.style.bg_hot = ifx selected then item.style.bg else T("--background-mod-subtle");
+		vocal := ch.kind == .Guild_Voice || ch.kind == .Guild_Stage_Voice;
+		if vocal && can_manage_channels(gid) item.flags |= .Click_On_Release; // a press may start a drag, not a join
 		sig := ui.signal(item);
+		channel_drag_row(ch, sig, item);
 		sig.hovering ||= ui.mouse_over(item); // stays hovered over its invite / settings buttons
 		if sig.right_clicked channel_menu_open(ch.id, app.ui.mouse);
 		if sig.hovering && !selected { item.style.bg = item.style.bg_hot; }
@@ -1018,6 +1070,7 @@ channel_row :: (ch: *dc.Channel, gid: dc.Snowflake) {
 		}
 		spacer(.X, 9);
 	}
+	if cdrag.active && cdrag.id == ch.id pk_fade(outer, 0.4);
 	if ch.kind == .Guild_Voice || ch.kind == .Guild_Stage_Voice {
 		s := store();
 		if ch.status != "" {

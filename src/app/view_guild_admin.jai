@@ -91,6 +91,9 @@ guild_admin_receive :: (r: *dc.Feature_Result) {
 	if r.op == {
 	case .Guild_Aux;
 		return;
+	case .Channel_Order;
+		if !r.ok show_notice("Couldn't move the channel", result_error(r));
+		return;
 	case .Emoji_Upload;
 		adm.emoji_busy = false;
 		if !r.ok show_notice("Couldn't upload emoji", result_error(r));

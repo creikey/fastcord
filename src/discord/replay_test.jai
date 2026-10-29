@@ -1019,6 +1019,27 @@ file_atomic_replace :: (t: *T) {
 	expect(t, !File_Utilities.file_exists(tprint("%.tmp", path)), "no .tmp left behind");
 }
 
+// Dragging channels and categories in the sidebar: the PATCH /guilds/{id}/channels body (channel_move_body).
+channel_move :: (t: *T) {
+	s: Store;
+	store_init(*s);
+	defer store_destroy(*s);
+	// categories A (1) and B (2); texts a1, a2 and voice av in A; text b1 in B; uncategorized text u
+	g, _ := etf.from_json("{\"id\":\"100\",\"name\":\"g\",\"channels\":[{\"id\":\"1\",\"type\":4,\"name\":\"A\",\"position\":0},{\"id\":\"2\",\"type\":4,\"name\":\"B\",\"position\":1},{\"id\":\"10\",\"type\":0,\"name\":\"u\",\"position\":0},{\"id\":\"11\",\"type\":0,\"name\":\"a1\",\"position\":1,\"parent_id\":\"1\"},{\"id\":\"12\",\"type\":0,\"name\":\"a2\",\"position\":2,\"parent_id\":\"1\"},{\"id\":\"13\",\"type\":2,\"name\":\"av\",\"position\":0,\"parent_id\":\"1\"},{\"id\":\"21\",\"type\":0,\"name\":\"b1\",\"position\":3,\"parent_id\":\"2\"}]}",, temp);
+	parse_guild_into(*s, g.map);
+	expect_value(t, channel_move_body(*s, 100, 12, 11, false), "[{\"id\":\"12\",\"position\":1},{\"id\":\"11\",\"position\":2}]");
+	expect_value(t, channel_move_body(*s, 100, 11, 11, false), "");
+	expect_value(t, channel_move_body(*s, 100, 11, 12, false), ""); // a1 is already above a2
+	// into B, on its category row: the top of B's text channels
+	expect_value(t, channel_move_body(*s, 100, 11, 2, false), "[{\"id\":\"12\",\"position\":1},{\"id\":\"11\",\"position\":2,\"parent_id\":\"2\"}]");
+	// out of A, below the uncategorized u
+	expect_value(t, channel_move_body(*s, 100, 12, 10, true), "[{\"id\":\"12\",\"position\":1,\"parent_id\":null},{\"id\":\"11\",\"position\":2}]");
+	// a text channel on a voice one: the end of that category's text channels
+	expect_value(t, channel_move_body(*s, 100, 11, 13, false), "[{\"id\":\"12\",\"position\":1},{\"id\":\"11\",\"position\":2}]");
+	// category B above A: categories, then the text channels in their new order
+	expect_value(t, channel_move_body(*s, 100, 2, 1, false), "[{\"id\":\"2\",\"position\":0},{\"id\":\"1\",\"position\":1},{\"id\":\"21\",\"position\":1},{\"id\":\"11\",\"position\":2},{\"id\":\"12\",\"position\":3}]");
+}
+
 frecency_persisted :: (t: *T) {
 	Rec :: struct { mu: locks.Mutex; methods: [..]string; }
 	rec: Rec;

@@ -1,0 +1,13 @@
+# Dragging a channel in the sidebar (Manage Channels): the dragged row fades and a line marks where it
+# would go; the drop itself is checked by the channel_move test (its PATCH body).
+wait 5
+down 160 198
+wait 2
+move 170 230
+wait 2
+move 170 266
+wait 2
+shot build/ui-channel_drag.png
+up 170 266
+wait 5
+expect_visible "dingus-battle"

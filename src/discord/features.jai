@@ -568,6 +568,7 @@ Feature_Op :: enum u8 {
 	Reactors;
 	Guild_Settings; // server_settings.jai
 	Sticker_Upload;
+	Channel_Order; // guild_admin.jai reorder_channels
 }
 
 Feature_Result :: struct {

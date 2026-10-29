@@ -844,6 +844,10 @@ serve_conn :: (c: *Conn) {
 			if !create_channel(c, req) return;
 			continue;
 		}
+		if req.method == "PATCH" && req.path == tprint("/api/v9/guilds/%/channels", c.server.guild) {
+			if !reorder_channels(c, req) return;
+			continue;
+		}
 		if req.method == "GET" && begins_with(req.path, "/api/v9/users/") && req.path.count > "/api/v9/users/".count && is_digit(req.path["/api/v9/users/".count]) {
 			if !user_profile(c, req) return;
 			continue;
@@ -2575,6 +2579,55 @@ channel_name :: (raw: string) -> string {
 	n := to_lower_copy(trim(raw),, temp);
 	for 0..n.count - 1 if n[it] == #char " " n[it] = #char "-";
 	return ifx n.count <= 100 then n else "";
+}
+
+// PATCH /api/v9/guilds/{id}/channels [{id, position?, parent_id?}]: with Manage Channels, the client's drag
+// reorders channels and moves them between categories (lock_permissions is ignored: a moved channel keeps
+// its overwrites). All or nothing; each one changed is audited and gets a CHANNEL_UPDATE.
+reorder_channels :: (c: *Conn, req: http.Request) -> bool {
+	s := c.server;
+	token, _ := http.header_get(req.headers, "authorization");
+	user := session_user(c, token);
+	if !user return json_error(c, 401, 0, "401: Unauthorized");
+	v, err := etf.from_json(cast(string) req.body,, temp);
+	if err != .None || v.kind != .List || !v.list.count || v.list.count > 500 return json_error(c, 400, 50035, "Invalid Form Body");
+	changed: [..]etf.Value;
+	changed.allocator = temp;
+	{
+		locks.guard(*s.db_mu);
+		if !can_locked(s, user, P_MANAGE_CHANNELS) return json_error(c, 403, 50013, "Missing Permissions");
+		if !sqlite.exec(s.db, "BEGIN;") return json_error(c, 500, 0, "500: Internal Server Error");
+		ids: [..]s64;
+		ids.allocator = temp;
+		for v.list {
+			bad := it.kind != .Map;
+			id_v, pos_v, par_v: etf.Value;
+			has_par: bool;
+			if !bad {
+				id_v, _ = etf.map_get(it.map, "id");
+				pos_v, _ = etf.map_get(it.map, "position");
+				par_v, has_par = etf.map_get(it.map, "parent_id");
+			}
+			id, ok := string_to_int(ifx id_v.kind == .String then id_v.s else "", T = s64);
+			kind := ifx ok then channel_type_locked(s, id) else -1;
+			parent: s64;
+			if par_v.kind == .String parent, ok = string_to_int(par_v.s, T = s64);
+			bad ||= !ok || kind < 0 || kind == THREAD || (pos_v.kind != .Nil && !(pos_v.kind == .Int && pos_v.i >= 0 && pos_v.i < 10000))
+				|| (par_v.kind != .Nil && par_v.kind != .String) || (parent && (kind == CATEGORY || channel_type_locked(s, parent) != CATEGORY));
+			if bad { sqlite.exec(s.db, "ROLLBACK;"); return json_error(c, 400, 50035, "Invalid Form Body"); }
+			ok = (pos_v.kind != .Int || sqlite.run(s.db, "UPDATE channels SET position = ? WHERE id = ?;", pos_v.i, id))
+				&& (!has_par || sqlite.run(s.db, "UPDATE channels SET parent = nullif(?, 0) WHERE id = ?;", parent, id));
+			if !ok { sqlite.exec(s.db, "ROLLBACK;"); return json_error(c, 500, 0, "500: Internal Server Error"); }
+			array_add(*ids, id);
+		}
+		if !sqlite.exec(s.db, "COMMIT;") { sqlite.exec(s.db, "ROLLBACK;"); return json_error(c, 500, 0, "500: Internal Server Error"); }
+		for ids {
+			audit_locked(s, user, AUDIT_CHANNEL_UPDATE, it, .[], "");
+			array_add(*changed, channel_locked(s, it));
+		}
+	}
+	for changed broadcast(s, "CHANNEL_UPDATE", it);
+	return respond(c, 204, json = false);
 }
 
 // POST /api/v9/guilds/{id}/channels {name, type, parent_id?}: the owner adds a text or voice channel, or a

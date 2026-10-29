@@ -387,7 +387,7 @@
 - [ ] Search: the suggestions popout has no search history; the client lists your recent searches under "History" with a clear button (`view_search.jai` keeps none).
 - [ ] Member list: stored per server and resubscribed only when empty, so a private channel likely shows the previous channel's members.
 - [ ] Links: outside links open with no "Leaving Discord" warning (masked links, untrusted domains, "Trust this domain" checkbox).
-- [ ] Channels: no drag to reorder channels and categories.
+- [ ] Channels: dragging a channel whose permissions are synced into another category doesn't ask the client's "Sync Permissions?" (its `lock_permissions`); the channel keeps its own overwrites.
 - [ ] Apps: message components are ignored. Nothing reads a message's `components`, so bot buttons and select menus never show. Verify buttons, role pickers and music-bot controls all go missing, and servers that gate channels behind a Verify button can't be joined. Components V2 messages (flag `IS_COMPONENTS_V2`, 1 << 15) keep everything in components, with no content or embeds, so they render as empty messages.
   - Draw action rows: buttons in every style, with emoji and disabled state. Link buttons open the browser.
   - Draw select menus: string, user, role, channel and mentionable.
@@ -811,3 +811,4 @@
 - [x] Apps: slash-command and context-menu replies show "<user> used /command" on the reply spine above them (`command_used_line`, `tests/ui/command_reply.txt`).
 - [x] Group DMs: the start of a group DM's history shows its icon, name and "Welcome to the beginning of the <name> group." (`group_dm_welcome`, `tests/ui/rail/group_dm_members.txt`).
 - [x] Badges: the dock / taskbar badge counts only channels that still exist (not servers you left or DMs you closed), and a message of your own, from any device, marks its channel read locally as ReadStateStore does, so replying elsewhere clears the badge (`actions.jai` MESSAGE_CREATE, `notify.jai`).
+- [x] Channels: drag to reorder channels and categories (Manage Channels): the dragged row fades, a line marks the drop, and the drop sends the client's `PATCH /guilds/{id}/channels` position deltas (text, voice and categories each numbered across the sidebar; `parent_id` when the category changes). Voice rows and category rows of managers act on release so a drag doesn't join or collapse. Hosted too: serve takes the same PATCH, all or nothing (`views.jai` `channel_drag`, `dc.channel_move_body`; the `channel_move` test, `tests/ui/channel_drag.txt`).

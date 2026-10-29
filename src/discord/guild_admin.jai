@@ -572,6 +572,93 @@ edit_channel :: (c: *Client, channel_id: Snowflake, f: Channel_Form) {
 	feature_submit(c, .Channel_Edit, "PATCH", channel_path(channel_id), channel_edit_body(f), channel_id = channel_id);
 }
 
+// channel_move_body: a channel or category dropped on target (above it, or below when after) in the sidebar,
+// as the body of PATCH /guilds/{id}/channels; "" when that drop does nothing. As the client's drop
+// (batchChannelUpdate after calculatePositionDeltas), text-like channels, voice channels and categories each
+// count positions from 0 across the whole sidebar order, uncategorized first, and only the changed ones are
+// sent, {"id","position"}, the moved one with "parent_id" when it changes category. A channel dropped on a
+// category goes to the top of its kind there; on a channel of the other kind, a text channel goes to the end
+// of the text channels and a voice channel to the start of the voice ones.
+channel_move_body :: (s: *Store, guild_id: Snowflake, moved: Snowflake, target: Snowflake, after: bool) -> string {
+	x, t := channel_get(s, moved), channel_get(s, target);
+	if !x || !t || moved == target || x.guild_id != guild_id || t.guild_id != guild_id || is_thread(x) || is_thread(t) return "";
+	vocal :: (c: *Channel) -> bool { return c.kind == .Guild_Voice || c.kind == .Guild_Stage_Voice; }
+	sorted := guild_channels_sorted(s, guild_id);
+	cats: [..]Snowflake;
+	cats.allocator = temp;
+	array_add(*cats, 0); // the uncategorized channels' place, first
+	for sorted { c := channel_get(s, it); if c && c.kind == .Guild_Category && it != moved array_add(*cats, it); }
+	parent := x.parent_id;
+	if x.kind == .Guild_Category {
+		tc := ifx t.kind == .Guild_Category then t.id else t.parent_id;
+		if !tc || tc == moved return "";
+		at := 0;
+		for cats if it == tc at = it_index + cast(int) after;
+		array_insert_at(*cats, moved, at);
+		parent = 0;
+	} else parent = ifx t.kind == .Guild_Category then t.id else t.parent_id;
+	order_of :: (cats: []Snowflake, p: Snowflake) -> int { for cats if it == p return it_index; return 0; }
+	// One kind's channels across the sidebar, x left out: the uncategorized, then each category's.
+	flat :: (s: *Store, sorted: []Snowflake, cats: []Snowflake, moved: Snowflake, want_vocal: bool) -> [..]Snowflake {
+		out: [..]Snowflake;
+		out.allocator = temp;
+		for p: cats for sorted {
+			c := channel_get(s, it);
+			if c && it != moved && c.kind != .Guild_Category && !is_thread(c) && c.parent_id == p && vocal(c) == want_vocal array_add(*out, it);
+		}
+		return out;
+	}
+	texty, voice := flat(s, sorted, cats, moved, false), flat(s, sorted, cats, moved, true);
+	if x.kind != .Guild_Category {
+		list := ifx vocal(x) then *voice else *texty;
+		at := -1;
+		if t.kind != .Guild_Category && vocal(t) == vocal(x) for list.* if it == target at = it_index + cast(int) after;
+		if at < 0 {
+			// the start of x's kind in its new category, or for a text channel dropped on a voice one, the end
+			po := order_of(cats, parent);
+			start, n := 0, 0;
+			for list.* {
+				o := order_of(cats, channel_get(s, it).parent_id);
+				if o < po start += 1;
+				else if o == po n += 1;
+			}
+			at = ifx t.kind != .Guild_Category && !vocal(x) then start + n else start;
+		}
+		array_insert_at(list, moved, at);
+	}
+	w: Json;
+	json_init(*w);
+	json_arr(*w);
+	any := false;
+	lists: [3][]Snowflake;
+	lists[0], lists[1], lists[2] = cats, texty, voice;
+	for list: lists {
+		pos := 0;
+		for list {
+			c := channel_get(s, it);
+			if !c continue; // the uncategorized place
+			moved_here := it == moved && parent != x.parent_id;
+			if c.position != pos || moved_here {
+				json_obj(*w);
+				json_ksnow(*w, "id", it);
+				if c.position != pos json_kint(*w, "position", pos);
+				if moved_here { if parent json_ksnow(*w, "parent_id", parent); else json_knull(*w, "parent_id"); }
+				json_obj_end(*w);
+				any = true;
+			}
+			pos += 1;
+		}
+	}
+	json_arr_end(*w);
+	return ifx any then json_string(*w) else "";
+}
+
+// PATCH /guilds/{id}/channels with channel_move_body's list (the client's batchChannelUpdate), then the
+// templates' dirty check.
+reorder_channels :: (c: *Client, guild_id: Snowflake, body: string) {
+	feature_submit(c, .Channel_Order, "PATCH", tprint("/guilds/%/channels", guild_id), body, channel_id = guild_id);
+}
+
 // DELETE /channels/{id}
 delete_channel :: (c: *Client, channel_id: Snowflake) {
 	feature_submit(c, .Channel_Delete, "DELETE", channel_path(channel_id), channel_id = channel_id);
@@ -657,6 +744,8 @@ guild_admin_apply :: (c: *Client, r: *Feature_Result) {
 			if !r.ok return;
 			analytics_track(c, "network_action_channel_create", tprint("\"status_code\":%,\"url\":\"/guilds/%/channels\",\"request_method\":\"post\",\"is_private\":false,\"channel_id\":\"%\",\"channel_type\":%", r.status, r.channel_id, fsnow(vmap(r.body), "id"), r.tag));
 			refresh_templates(c, r.channel_id);
+		case .Channel_Order;
+			if r.ok refresh_templates(c, r.channel_id);
 		case .Channel_Edit; #through;
 		case .Channel_Delete;
 			if !r.ok return;

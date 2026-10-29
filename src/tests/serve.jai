@@ -506,6 +506,14 @@ main :: () {
 	for 1..300 { ic := discord.channel_get(*cl.store, in_id); if ic && !ic.parent_id break; pump(); }
 	ic := discord.channel_get(*cl.store, in_id);
 	check(ic && !ic.parent_id, "a deleted category's channels stay, uncategorized");
+	// Dragging in the sidebar: PATCH /guilds/{id}/channels moves channels, all or nothing.
+	order := tprint("/api/v9/guilds/%/channels", gid);
+	status, body = rest("PATCH", order, tprint("[{\"id\":\"%\",\"position\":7},{\"id\":\"%\",\"parent_id\":\"%\"}]", inside_id, inside_id, cid), token);
+	check(status == 400, tprint("only a category is a parent: % %", status, body));
+	status, body = rest("PATCH", order, tprint("[{\"id\":\"%\",\"position\":7}]", inside_id), token);
+	check(status == 204, tprint("reorder a channel: % %", status, body));
+	for 1..300 { ic = discord.channel_get(*cl.store, in_id); if ic && ic.position == 7 break; pump(); }
+	check(ic && ic.position == 7, "its CHANNEL_UPDATE carries the position");
 	status, body = rest("DELETE", tprint("/api/v9/channels/%", inside_id), "", token);
 
 	// A member's invite, as the Invite modal makes it; opening the modal again gets the same one.

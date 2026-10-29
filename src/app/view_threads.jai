@@ -565,7 +565,7 @@ features_receive_of :: (c: *dc.Client) {
 			account_receive(r); // view_settings_account.jai
 		case .Event_Create; #through; case .Event_Counts; #through; case .Event_Rsvps; #through; case .Event_Interest; #through; case .Event_Invite; #through; case .Event_Delete; #through; case .Event_Start;
 			events_receive(r); // view_events.jai (dc.guild_admin_apply first)
-		case .Guild_Aux; #through; case .Channel_Create; #through; case .Channel_Edit; #through; case .Channel_Delete; #through; case .Avatar_Edit; #through; case .Emoji_Upload;
+		case .Guild_Aux; #through; case .Channel_Order; #through; case .Channel_Create; #through; case .Channel_Edit; #through; case .Channel_Delete; #through; case .Avatar_Edit; #through; case .Emoji_Upload;
 			guild_admin_receive(r);
 		case .Sound_Upload; #through; case .Sound_Edit; #through; case .Sound_Delete;
 			sound_settings_receive(r); // view_server_soundboard.jai
