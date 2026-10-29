@@ -448,13 +448,6 @@ section_title :: (text: string) {
 	spacer(.Y, 6);
 }
 
-// "Oct 26, 2026"
-short_date :: (ms: s64) -> string {
-	t := utc_calendar(local_ms(ms));
-	MONTHS :: string.["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-	return tprint("% %, %", MONTHS[t.month_starting_at_0], t.day_of_month_starting_at_0 + 1, t.year);
-}
-
 profile_about :: (uid: dc.Snowflake, u: *dc.User, prof: Pf_Profile) {
 	spacer(.Y, PF_PAD);
 	bio := ifx prof.bio != "" then prof.bio else u.bio;
@@ -628,6 +621,13 @@ profile_mutual_friends :: (uid: dc.Snowflake, prof: Pf_Profile) {
 	}
 }
 #scope_export
+
+// "Oct 26, 2026"
+short_date :: (ms: s64) -> string {
+	t := utc_calendar(local_ms(ms));
+	MONTHS :: string.["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+	return tprint("% %, %", MONTHS[t.month_starting_at_0], t.day_of_month_starting_at_0 + 1, t.year);
+}
 
 // ---- user context menu (right-click on a member / author) ----
 

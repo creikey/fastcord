@@ -1,5 +1,5 @@
 # Settings > Data & Privacy: Use data to improve Discord (the consent from GET /users/@me/consent) and
-# Profile Privacy's select.
+# Profile Privacy's select, and Request all of my Data with a request in progress (GET /users/@me/harvest).
 wait 5
 click 338 683
 wait 20
@@ -14,4 +14,7 @@ wait 5
 click_text "Friends Only"
 wait 5
 expect_visible "Your full profile is visible to friends. Everyone else sees a limited version."
+settings_reply Harvest {"harvest_id":"1","status":1,"created_at":"2026-10-20T10:00:00.000000+00:00"}
+wait 5
+expect_visible "Your request from Oct 20, 2026 is being prepared."
 shot build/ui-settings_data_privacy_page.png

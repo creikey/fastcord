@@ -216,6 +216,7 @@ US_Req :: enum u8 {
 	Connections; // GET /users/@me/connections
 	Tokens; // GET /oauth2/tokens (Authorized Apps)
 	Consent; // GET /users/@me/consent (Data & Privacy)
+	Harvest; // GET /users/@me/harvest: the last data request (Data & Privacy)
 	COUNT;
 	Action :: 100; // a change, then `us.after` reloads
 	Authorize; // GET /connections/{type}/authorize: the page to finish in the browser
@@ -229,9 +230,10 @@ us: struct {
 	busy: bool;
 	after: US_Req;
 	error: string; // heap
+	harvest_confirm: bool; // Request Data clicked once: the second click sends it
 };
 
-US_PATHS :: string.["/auth/sessions", "/users/@me/connections", "/oauth2/tokens", "/users/@me/consent"];
+US_PATHS :: string.["/auth/sessions", "/users/@me/connections", "/oauth2/tokens", "/users/@me/consent", "/users/@me/harvest"];
 
 us_load :: (req: US_Req) {
 	if us.loading[req] || !net_action() return;
@@ -243,6 +245,7 @@ us_load :: (req: US_Req) {
 us_enter :: (page: string, reqs: ..US_Req) {
 	if us.page == page return;
 	us.page = page;
+	us.harvest_confirm = false;
 	us_set_error("");
 	for reqs {
 		us.loading[it] = false;
@@ -475,7 +478,7 @@ chat_page :: () {
 // Data & Privacy (DATA_AND_PRIVACY_PANEL): Use data to improve Discord (a consent on the account) and
 // Profile Privacy (privacy.profile_visibility, 8.32).
 data_privacy_page :: () {
-	us_enter("Data & Privacy", .Consent);
+	us_enter("Data & Privacy", .Consent, .Harvest);
 	if !set_page_begin("datapage") return;
 	defer set_page_end();
 	s := store();
@@ -503,6 +506,23 @@ data_privacy_page :: () {
 	if pick >= 0 && pick != cur proto_put(8, 32, dc.pb_field_uint(32, VIS_V[pick]));
 	spacer(.Y, 8);
 	set_para("vishelp", HELP[cur], .Normal, 14, 18, T("--text-muted"));
+	spacer(.Y, 40);
+	// Request all of my Data: the last request's state (null: none), then POST starts one
+	set_heading("Request all of my Data");
+	set_para("harvesthelp", "Get a copy of your data. It can take up to 30 days to prepare, and a download link is emailed to you when it's ready.", .Normal, 14, 18, T("--text-muted"));
+	spacer(.Y, 12);
+	if !us_ready(.Harvest) return;
+	h := dc.vmap(us_reply(.Harvest));
+	created := dc.iso_to_ms(dc.fstr(h, "created_at"));
+	pending := created && !dc.fstr(h, "completed_at");
+	if created {
+		set_para("harveststate", tprint(ifx pending then "Your request from % is being prepared." else "Your last request was on %.", short_date(created)), .Normal, 14, 18, T("--text-default"));
+		spacer(.Y, 12);
+	}
+	if set_button(ifx us.harvest_confirm then "Confirm Request##harvest" else "Request Data##harvest", ifx us.harvest_confirm then .Danger else .Primary, !us.busy && !pending, 32) {
+		if us.harvest_confirm us_action(.Harvest, "POST", "/users/@me/harvest", "{}");
+		us.harvest_confirm = !us.harvest_confirm;
+	}
 }
 
 // The platforms the client connects with an OAuth page (type, name); those needing a handle or a DNS
