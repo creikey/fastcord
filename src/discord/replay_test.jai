@@ -3122,7 +3122,7 @@ settings_retry :: (t: *T) {
 	settings_saved(c, *fail, "");
 	expect(t, e.cats == 1 << 13 && e.due && e.retry_ms == 10_000 && st.unsent == 1 << 13, "failed: resent later");
 	apply_settings_proto(*c.store, "agIIAg=="); // READY: {appearance: {theme: LIGHT}}
-	expect(t, st.hour_cycle == .H23 && st.developer_mode && st.theme != .Light && !protobuf.find(st.proto, 12).num, "READY keeps the unsent category only");
+	expect(t, st.hour_cycle == .H23 && st.developer_mode && st.theme == .Light && !protobuf.find(st.proto, 12).num, "READY keeps the unsent edits only, not their whole category");
 	e.due = now_ms();
 	flush_settings(c, now_ms());
 	expect_value(t, protobuf.find_path(pb_categories(st.proto, e.sending), 13, 9).value, 2);
