@@ -140,6 +140,50 @@ stage_moderator :: (cid: dc.Snowflake) -> bool {
 	return dc.has_permission(dc.channel_permissions(call_store(), cid), dc.PERM_MUTE_MEMBERS | dc.PERM_MOVE_MEMBERS | dc.PERM_MANAGE_CHANNELS);
 }
 
+// call_pip: picture-in-picture. While in a call with another channel open, the stream we watch (else someone's
+// camera) plays in a small player over the app, in a corner it can be dragged to; a click returns to the call.
+call_pip :: () {
+	if !app.voice_channel || app.view.channel == app.voice_channel || call_fullscreen() return;
+	img: media.Video_Image;
+	if vid.watch_user img = stream_image(vid.watch_user);
+	cs := call_store();
+	if !img.y for v, uid: cs.voice_states if v.channel_id == app.voice_channel && uid != cs.me && v.self_video {
+		img = camera_image(uid);
+		if img.y break;
+	}
+	if !img.y return;
+	W :: cast(float32) 320;
+	H :: W * 9 / 16;
+	M :: cast(float32) 16;
+	corner := ui.Vec2.{ifx pip.corner & 1 then M + RAIL_W + app.view.sidebar_w else app.ui.window.x - W - M,
+		ifx pip.corner & 2 then TITLE_BAR_H + HEADER_H + M else app.ui.window.y - H - 96};
+	b := ui.box("pip", .Clickable | .Click_On_Release | .Draw_Background | .Draw_Shadow | .Floating_X | .Floating_Y | .Overlay | .Clip);
+	b.semantic_size = .[ui.px(W), ui.px(H)];
+	b.style.bg = .{0, 0, 0, 1};
+	b.style.radius = all4(8);
+	b.style.shadow_color = .{0, 0, 0, 0.4};
+	b.style.shadow_blur = 16;
+	sig := ui.signal(b);
+	pos := corner;
+	if sig.dragging pos += sig.drag_delta;
+	b.fixed_pos = pos;
+	d := New(Tile_Draw,, temp);
+	d.* = .{img, false};
+	b.custom_draw = tile_video_draw;
+	b.custom_user = d;
+	if sig.released {
+		moved := abs(sig.drag_delta.x) + abs(sig.drag_delta.y) > 6;
+		if !moved { voice_return(); return; }
+		// the corner nearest where it was dropped
+		mid := pos + .{W / 2, H / 2};
+		page_mid := ui.Vec2.{(RAIL_W + app.view.sidebar_w + app.ui.window.x) / 2, app.ui.window.y / 2};
+		pip.corner = (ifx mid.x < page_mid.x then 1 else 0) | (ifx mid.y < page_mid.y then 2 else 0);
+	}
+	if sig.hovering tooltip_below("Return to call", b.rect, above = true);
+}
+
+pip: struct { corner: int; }; // 0 bottom right, 1 bottom left, 2 top right, 3 top left
+
 // The screen share picker: screens and windows (names; ScreenCaptureKit lists them asynchronously).
 screen_picker :: () {
 	if !vid.picker_open return;
