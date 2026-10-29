@@ -415,6 +415,12 @@ ReleaseStgMedium :: (medium: *STGMEDIUM) #foreign ole32;
 CreateStreamOnHGlobal :: (h: *void, delete_on_release: s32, stream: **void) -> win.HRESULT #foreign ole32;
 
 Shell_NotifyIconW :: (msg: u32, data: *NOTIFYICONDATAW) -> s32 #foreign shell32;
+SHAppBarMessage :: (msg: u32, data: *APPBARDATA) -> u64 #foreign shell32;
+APPBARDATA :: struct { cbSize: u32; hWnd: win.HWND; uCallbackMessage: u32; uEdge: u32; rc: win.RECT; lParam: s64; }
+#assert size_of(APPBARDATA) == 48;
+ABM_GETSTATE :: 4;
+ABM_GETAUTOHIDEBAREX :: 0xB;
+ABS_AUTOHIDE :: 1;
 RegisterWindowMessageW :: (name: *u16) -> u32 #foreign user32;
 GetSystemMetricsForDpi :: (index: s32, dpi: u32) -> s32 #foreign user32;
 LoadImageW :: (inst: win.HINSTANCE, name: *u16, type: u32, cx: s32, cy: s32, flags: u32) -> win.HICON #foreign user32;
@@ -1032,6 +1038,23 @@ wndproc :: (hwnd: win.HWND, msg: u32, wp: win.WPARAM, lp: win.LPARAM) -> win.LRE
                 r.right -= fx;
                 r.top += fy;
                 r.bottom -= fy;
+                // An auto-hiding taskbar slides up only when the mouse reaches a pixel no window covers:
+                // leave 2 px free on its edge of this monitor, as Chromium does.
+                abd := APPBARDATA.{cbSize = size_of(APPBARDATA)};
+                mi := win.MONITORINFO.{cbSize = size_of(win.MONITORINFO)};
+                if (SHAppBarMessage(ABM_GETSTATE, *abd) & ABS_AUTOHIDE) && win.GetMonitorInfoW(win.MonitorFromWindow(hwnd, win.MONITOR_DEFAULTTONEAREST), *mi) {
+                    for edge: 0..3 { // ABE_LEFT, TOP, RIGHT, BOTTOM
+                        abd.uEdge = xx edge;
+                        abd.rc = mi.rcMonitor;
+                        if !SHAppBarMessage(ABM_GETAUTOHIDEBAREX, *abd) continue;
+                        if edge == {
+                            case 0; r.left += 2;
+                            case 1; r.top += 2;
+                            case 2; r.right -= 2;
+                            case 3; r.bottom -= 2;
+                        }
+                    }
+                }
             }
             return 0;
         case win.WM_NCHITTEST;
