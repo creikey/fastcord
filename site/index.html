@@ -250,19 +250,18 @@
       <div><b>Double Ratchet</b><span>A new key for every message, with ChaCha20-Poly1305.</span></div>
       <div><b>Safety numbers</b><span>Compare 60 digits to confirm who you're talking to.</span></div>
     </div>
-    <p class="fine">From the next release, for one-on-one and group DMs: text, files, replies, edits, deletes and reactions. Discord still sees who you message and when, and roughly how large each message and file is. Prekeys are signed with SLH-DSA. The Triple Ratchet comes next.</p>
+    <p class="fine">For one-on-one and group DMs: text, files, replies, edits, deletes and reactions. Discord still sees who you message and when, and roughly how large each message and file is. Prekeys are signed with SLH-DSA. The Triple Ratchet comes next.</p>
     <p class="fine">In progress: federated routing between self-hosted servers, so no central service is needed.</p>
   </section>
   <section class="host" id="self-hosting">
     <h3 class="subhead">Self-hosting</h3>
-    <p class="sub">Fastcord can also run a server of its own: one file on your machine, with text channels, invites, pins and reactions. It speaks no Discord and needs no account; members join with their Fastcord key instead of a password.</p>
+    <p class="sub">Fastcord can also run a server of its own: one file on your machine, with text and voice channels, threads, files, emoji, events, roles and moderation. It speaks no Discord and needs no account; members join with their Fastcord key instead of a password.</p>
     <div class="steps">
       <div><b>Start it</b><span>Run the app with <b>-serve:myserver.db</b>: <b>./fastcord</b> on Linux, <b>Fastcord.app/Contents/MacOS/Fastcord</b> on macOS, <b>Fastcord.exe</b> on Windows. It makes the file on first run and prints an invite.</span></div>
       <div><b>Open the port</b><span>It listens on TCP <b>4433</b> (<b>-port:N</b> for another). Allow it when Windows Firewall asks, and forward it on your router for friends outside your network.</span></div>
-      <div><b>Share the invite</b><span>The <b>fc://</b> link goes in <b>Add a Server → Join a Server</b>. Put your public address in place of <b>localhost</b>. Join first with the one-use owner invite to own the server.</span></div>
+      <div><b>Share the invite</b><span>The <b>fc://</b> link goes in <b>Add a Server → Join a Server</b>. Put your public address in place of <b>localhost</b>. To own it, start it with <b>-owner:&lt;key&gt;</b> (<b>fastcord -key</b> prints yours), or join first with the one-use owner invite.</span></div>
     </div>
-    <p class="fine">To stop it, press Ctrl-C. To back it up, stop it and copy the file. To update, download the new release and start it again on the same file. Whoever runs a server can read its channels.</p>
-    <p class="fine">The next release adds voice (UDP on the same port), threads, files, emoji, events, roles, kicks and bans, the server's settings in the app, daily backups and restore, <b>-install</b> to keep it running as a service, the console on Windows, and a headless Linux server.</p>
+    <p class="fine">Voice uses UDP on the same port. The owner manages it from Server Settings in the app, including storage, files, limits and backups. It keeps daily backups, and <b>-install</b> keeps it running as a service. To stop it, press Ctrl-C; to update, download the new release and start it again on the same file. Whoever runs a server can read its channels, but not its encrypted DMs.</p>
     <div class="downloads">
       <a class="btn" href="https://github.com/creikey/fastcord/releases/latest/download/fastcord-macos.zip">macOS</a>
       <a class="btn" href="https://github.com/creikey/fastcord/releases/latest/download/fastcord-windows.zip">Windows</a>
