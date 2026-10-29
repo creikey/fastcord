@@ -1,0 +1,18 @@
+# Settings > Voice & Video: the device dropdown closes on a press outside it and on Escape (the settings
+# stay open).
+wait 5
+click 338 683
+wait 20
+click_text "Voice & Video"
+wait 20
+click_text "Test Speakers"
+wait 10
+shot build/ui-voice_device_close_open.png
+click 1100 650
+wait 10
+shot build/ui-voice_device_close_outside.png
+click_text "Test Speakers"
+wait 10
+key escape
+wait 10
+expect_visible "Voice & Video"

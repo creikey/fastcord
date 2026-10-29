@@ -327,7 +327,6 @@
 - [ ] Video (Linux): Go Live / screen sharing (the PipeWire portal); `screen_supported` is false in `src/video/capture_linux.jai`. Hardware encoding (VA-API) would also take the software H.264 encoder off the CPU.
 - [ ] Uploads: a pasted image's progress bar sits still. `run_draft_upload` (`discord/uploads.jai`) sets `u.sent` only when the upload ends, so the bar stays at its minimum, then vanishes. Report bytes sent during the PUT. Also check that pasted uploads complete at all.
 - [ ] Undo: the trash on a staged upload deletes the uploaded file at once; keep the card restorable and hold the remote delete.
-- [ ] Voice: a chosen audio device that is unplugged stays selected by its dead id (`sel_input`/`sel_output` in `audio/darwin.jai`), so the page shows "Default" while capture keeps the old device instead of falling back.
 - [ ] Scrolling: middle-click autoscroll, as in browsers on Windows: a middle click drops an anchor icon, then moving the mouse above or below it scrolls that way, faster the farther away; any click or Escape ends it.
 - [ ] Undo: messages: Delete Message (including an emptied edit), Unpin Message, and the Shift-hover trash can.
 - [ ] Text editing: on Windows and Linux, Home / End jump to the start / end of the whole message, not the current line, in multi-line text. Ctrl+Home / Ctrl+End should do the whole message (`ui/textedit.jai`: `.Home` / `.End` ignore lines off macOS).
@@ -471,7 +470,6 @@
 - [ ] Friends: no Blocked list or unblock outside a DM header; no friend suggestions.
 - [ ] Profiles: the user menu lacks Remove Friend, Block/Unblock, Call, Invite to Server, Mention, Add Note and Ignore (a comment in `view_home.jai` claims some exist).
 - [ ] Friends: rows never show an activity ("Playing X"); the "Friends" item in the DM sidebar has no pending-request badge.
-- [ ] Voice: the device dropdown in Voice & Video doesn't close on an outside click, Escape or page switch.
 - [ ] Profiles: no badges or connections.
 - [ ] Activities: fastcord doesn't show what people are doing, and doesn't tell anyone what you're doing. It keeps one string per user: `store.jai` takes the first activity's name and drops the rest, and nothing draws even that. Every op 3 it sends has an empty `activities` list (`gateway.jai`). What it takes, in the order that matters most:
   - Seeing others: parse every activity: type, name, details, state, timestamps, assets, party, buttons and Spotify's `sync_id`.
@@ -775,3 +773,5 @@
 - [x] Messages: in an announcement channel the menu offers Publish on a message not yet crossposted (yours, or with MANAGE_MESSAGES), sent as `POST .../crosspost`; the rail fixture gained a #news announcement channel (`tests/ui/rail/publish.txt`).
 - [x] Member list: rows crown the server's owner and tag bots with APP, laid out after the name (the group DM crown no longer guesses 8.2 px per character) (`member_row`, `tests/ui/rail/group_dm_members.txt`).
 - [x] Media: Save Image and the attachment download button ask where to save in the system Save dialog (NSSavePanel, IFileSaveDialog, zenity or kdialog), offering the file name in Downloads; cancelling downloads nothing (`platform.save_file_dialog`, `media_action`; `tests/ui/media/save_image.txt`). Windows and Linux dialogs are built, not run.
+- [x] Voice: the Voice & Video device dropdown closes on a press outside it, Escape (the settings stay open) or leaving the page (`voice_user_menu`; `tests/ui/voice_device_close.txt`).
+- [x] Voice (macOS): a chosen audio device that goes away falls back to the system default: the HAL device listeners are on from init, and `update()` drops a selection whose device is no longer alive (`device_rate_changed` in `audio/darwin.jai`).

@@ -262,12 +262,20 @@ open_voice_user_menu :: (uid: dc.Snowflake, at: ui.Vec2) {
 	vs.menu_pos = at;
 }
 
+voice_dropdown_open :: () -> bool { return vs.open_dropdown != 0; }
+
 voice_user_menu :: () {
 	// device dropdown popup: drawn here so it lands above the settings modal
-	if app.settings_open && settings_page == "Voice & Video" && vs.open_dropdown != 0 && vs.dd_anchor.x1 > vs.dd_anchor.x0 {
-		input := vs.open_dropdown == 1;
-		r := vs.dd_anchor;
-		device_list(vs_list_devices(input), audio.selected_device(input), input, r.x1 - r.x0, .{r.x0, r.y1 + 4});
+	// (closes on a press outside it, Escape, or leaving the page)
+	if !app.settings_open || settings_page != "Voice & Video" vs.open_dropdown = 0;
+	if vs.open_dropdown != 0 && vs.dd_anchor.x1 > vs.dd_anchor.x0 {
+		if outside_pressed("dd_scrim") || escape_pressed() {
+			vs.open_dropdown = 0;
+		} else {
+			input := vs.open_dropdown == 1;
+			r := vs.dd_anchor;
+			device_list(vs_list_devices(input), audio.selected_device(input), input, r.x1 - r.x0, .{r.x0, r.y1 + 4});
+		}
 	}
 	if vs.menu_user == 0 return;
 	uid := vs.menu_user;

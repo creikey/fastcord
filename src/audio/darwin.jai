@@ -52,13 +52,7 @@ Device_Info :: struct {
 // lists per frame, 78 ms cold), so the lists are kept and HAL listeners mark
 // them stale when the devices or the defaults change.
 list_devices :: (input: bool, allocator := context.allocator) -> []Device_Info {
-	if !dev.listening {
-		dev.listening = true;
-		for sel: string.["dev#", "dIn ", "dOut"] {
-			a := AudioObjectPropertyAddress.{fourcc(sel), fourcc("glob"), 0};
-			AudioObjectAddPropertyListener(SYSTEM_OBJECT, *a, devices_changed, null);
-		}
-	}
+	listen_devices();
 	if dev.stale {
 		dev.stale = false; // a change during the enumeration marks it stale again
 		for * dev.lists {
@@ -85,6 +79,10 @@ select_device :: (input: bool, id: u32) {
 // apply_device_selection moves the running capture and the output to the chosen devices.
 apply_device_selection :: () {
 	locks.guard(*st.device_mu);
+	apply_selection_locked();
+}
+
+apply_selection_locked :: () {
 	if mac.in_unit reopen_input();
 	if mac.out_unit && mac.out_dev != sel_output {
 		unit := make_output_unit();
@@ -107,6 +105,7 @@ device_init :: () -> bool {
 	update_latency();
 	addr := AudioObjectPropertyAddress.{fourcc("dOut"), fourcc("glob"), 0};
 	AudioObjectAddPropertyListener(SYSTEM_OBJECT, *addr, default_device_changed, null);
+	listen_devices();
 	return true;
 }
 
@@ -142,8 +141,14 @@ device_capture_stop :: () {
 	if mac.in_unit close_input_unit();
 }
 
+// device_rate_changed (update(), device_mu held): the input's rate changed, or the devices did. A chosen
+// device that went away (unplugged) falls back to the system default, as the official client does.
 device_rate_changed :: () {
-	if mac.in_unit && device_rate(mac.rate_dev) != mac.in_rate reopen_input();
+	gone := false;
+	if sel_input && !dev_prop_u32(sel_input, "livn", "glob") { sel_input = 0; gone = true; }
+	if sel_output && !dev_prop_u32(sel_output, "livn", "glob") { sel_output = 0; gone = true; }
+	if gone apply_selection_locked();
+	else if mac.in_unit && device_rate(mac.rate_dev) != mac.in_rate reopen_input();
 }
 
 #scope_file
@@ -277,8 +282,18 @@ dev: struct {
 	listening: bool;
 };
 
+listen_devices :: () {
+	if dev.listening return;
+	dev.listening = true;
+	for sel: string.["dev#", "dIn ", "dOut"] {
+		a := AudioObjectPropertyAddress.{fourcc(sel), fourcc("glob"), 0};
+		AudioObjectAddPropertyListener(SYSTEM_OBJECT, *a, devices_changed, null);
+	}
+}
+
 devices_changed :: (obj: AudioObjectID, n: u32, addrs: *AudioObjectPropertyAddress, user: *void) -> OSStatus #c_call {
 	dev.stale = true;
+	atomic_store(*st.rate_changed, true); // update() checks the chosen devices are still there
 	return 0;
 }
 

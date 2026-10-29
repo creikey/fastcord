@@ -541,7 +541,7 @@ settings_modal :: () {
 		}
 	}
 	for * e: app.ui.events {
-		if e.kind == .Key_Down && e.key == .Escape { app.settings_open = false; e.consumed = true; }
+		if e.kind == .Key_Down && e.key == .Escape && !voice_dropdown_open() { app.settings_open = false; e.consumed = true; } // the dropdown's own Escape closes only it
 	}
 }
 
