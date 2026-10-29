@@ -91,6 +91,14 @@ OBJ :: () -> string {
     if MAC_ARCH return tprint("build/mac-%", MAC_ARCH);
     return "build";
 }
+// Every module links "build/fc_vendor", so a Linux build on macOS and the macOS build share that path;
+// VENDOR_TARGET names which one it holds, and a build for the other target remakes it.
+VENDOR_TARGET :: "build/fc_vendor.target";
+vendor_lib_target :: () -> string {
+    s, ok := read_entire_file(VENDOR_TARGET, log_errors = false);
+    return ifx ok then s else "";
+}
+
 VENDOR_LIB :: () -> string {
     #if OS == .WINDOWS if !LINUX return "build/fc_vendor.lib";
     if MAC_ARCH return tprint("%/fc_vendor.a", OBJ());
@@ -503,8 +511,10 @@ build_c :: () -> bool {
         lib := VENDOR_LIB();
         arm, x64 := "build/mac-aarch64/fc_vendor.a", "build/mac-x86_64/fc_vendor.a";
         m, _, ok := file_modtime_and_size(lib);
-        if ok && file_modtime_and_size(arm) <= m && file_modtime_and_size(x64) <= m return true;
-        return run_command("lipo", "-create", arm, x64, "-output", lib).exit_code == 0;
+        if ok && vendor_lib_target() == "mac" && file_modtime_and_size(arm) <= m && file_modtime_and_size(x64) <= m return true;
+        file_delete(lib);
+        if run_command("lipo", "-create", arm, x64, "-output", lib).exit_code != 0 return false;
+        return write_entire_file(VENDOR_TARGET, "mac");
     }
     return build_c_target();
 }
@@ -595,7 +605,7 @@ build_c_target :: () -> bool {
     // One archive for the Jai side: every module's `#library,no_dll "../../build/fc_vendor"`.
     lib := VENDOR_LIB();
     m, _, ok := file_modtime_and_size(lib);
-    need := !ok;
+    need := !ok || (LINUX && vendor_lib_target() != "linux");
     objs := vendor_outputs();
     for objs { t := file_modtime_and_size(it); if t > m need = true; }
     if !need return true;
@@ -603,7 +613,8 @@ build_c_target :: () -> bool {
     // the object list goes in a response file: it is longer than a Windows command line
     rsp := tprint("%.rsp", lib);
     write_entire_file(rsp, join(..objs, "\n"));
-    return run_command(ZIG, "ar", "rcs", lib, tprint("@%", rsp)).exit_code == 0;
+    if run_command(ZIG, "ar", "rcs", lib, tprint("@%", rsp)).exit_code != 0 return false;
+    return !LINUX || write_entire_file(VENDOR_TARGET, "linux");
 }
 
 run_parallel :: (jobs: [][..]string) -> bool {

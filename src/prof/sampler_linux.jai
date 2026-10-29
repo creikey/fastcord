@@ -130,7 +130,7 @@ capture_thread_gated :: (t: Thread_Ref, buf: []u64, gate: *s32) -> int, bool {
 			if atomic_load(*shot.done) == 1 && atomic_exchange(*shot.abandoned, 0) == 1 atomic_store(*shot.busy, 0);
 			return 0, true;
 		}
-		#asm { pause; }
+		sleep_milliseconds(0); // yields: x64 #asm would stop an arm64-hosted cross build
 	}
 	defer atomic_store(*shot.busy, 0);
 	if shot.n < 0 return 0, false;
