@@ -1376,6 +1376,7 @@ fetch_profile_ex :: (c: *Client, user_id: Snowflake, o: Profile_Options, tag: u6
 
 // fetch_note: GET /users/@me/notes/{id} (profile popouts/sidebars); the answer lands in s.notes.
 fetch_note :: (c: *Client, user_id: Snowflake, delay_ms: s64 = 0) {
+	if c.cfg.hosted.host return; // a hosted server keeps no notes
 	j := job_new(.Api, .Note);
 	j.method = "GET";
 	j.path = job_str(j, tprint("/users/@me/notes/%", user_id));

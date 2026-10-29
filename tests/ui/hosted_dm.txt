@@ -1,0 +1,19 @@
+# DMs on a hosted server: the member popout's Message box opens an encrypted DM, which sends its Hello by
+# itself and is listed under the server's name on Home; until the peer answers, a send waits with a toast.
+wait 5
+serve_join
+serve_member Bob
+settle 3
+click 36 157
+settle 3
+click 1089 244
+settle 2
+shot build/ui-hosted_dm-popout.png
+click_text "Message @Bob"
+settle 3
+expect_visible "You turned on encryption."
+type hello
+key enter
+settle 1
+shot build/ui-hosted_dm.png
+expect_served

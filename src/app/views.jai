@@ -757,6 +757,7 @@ chat_header :: (ch: *dc.Channel) {
 		if ch.kind == .Group_DM { tools = .["phone-call", "pin", "group-plus", "group"]; } // member list toggle
 		encrypted := encrypting(ch);
 		if encrypted_dm(ch) { tools = .["lock", "phone-call", "pin", "group-plus", "user-circle"]; }
+		if encrypted_dm(ch) && on_hosted() { tools = .["user-circle"]; } // always encrypted; no calls, pins or groups there yet
 		if ch.kind == .Guild_Voice || ch.kind == .Guild_Stage_Voice { tools = .["chat"]; } // the call view's header: Show Chat
 		for name: tools {
 			b := ui.box(name, .Clickable);
@@ -795,7 +796,7 @@ chat_header :: (ch: *dc.Channel) {
 		} else {
 			search_hint = dm_name(ch);
 		}
-		search_box(ch, tprint("Search %", search_hint));
+		if !(on_hosted() && ch.guild_id == 0) search_box(ch, tprint("Search %", search_hint)); // serve can't search what it can't read
 		spacer(.X, 8);
 	}
 	line := ui.box("hline", .Draw_Background);

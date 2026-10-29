@@ -868,6 +868,15 @@ script_command :: (path: string, f: []string, t: *float64, depth := 0) {
 		script_server = s;
 		hosted_join(serve.invite_url(s, "127.0.0.1", s.listener.port, serve.owner_invite(s)));
 		return;
+	case "serve_member";
+		// serve_member <name>: another member joins the serve_join server with a fresh key, on a thread.
+		if !script_server || f.count != 2 script_fail(path, "serve_member: needs serve_join and a name");
+		Member :: struct { invite: string; name: string; }
+		m := New(Member);
+		m.invite = serve.invite_url(script_server, "127.0.0.1", script_server.listener.port, serve.first_invite(script_server), allocator = context.default_allocator);
+		m.name = copy_string(f[1]);
+		dc.spawn(m, (m: *Member) { serve.member_login(serve.parse_invite(m.invite), keys.generate(m.name), m.name); });
+		return;
 	case "expect_served";
 		if !script_server script_fail(path, "expect_served: no serve_join");
 		locks.guard(*script_server.misses_mu);

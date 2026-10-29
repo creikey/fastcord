@@ -1,8 +1,10 @@
 // Encrypted DMs in the UI (TODO.md E2E 2-3). The `e2e` module does the crypto on the database thread;
-// this file is its Discord carrier: it asks it to open the `fc-` messages a 1:1 DM shows, and sends what
-// it encrypts. A conversation is the DM's channel ID and the parties are user IDs, all as decimal text;
-// a delivery is a message ID. The UI never waits: a message shows "Encrypted message" until its request
-// comes back.
+// this file is its carrier for Discord's DMs and hosted servers' (serve's `dms.jai`), which both move
+// `fc-` text in a 1:1 DM's messages: it asks it to open the packets a DM shows, and sends what it
+// encrypts. The carrier is "discord" or "fc:" plus the hosted server's ID, a conversation is the DM's
+// channel ID and the parties are user IDs, all as decimal text, and a delivery is a message ID. Hosted
+// DMs are always encrypted: serve takes nothing else. The UI never waits: a message shows "Encrypted
+// message" until its request comes back.
 
 Shown :: struct {
 	result: e2e.Result;
@@ -24,6 +26,7 @@ Encrypted_Channel :: struct {
 	peer_root: [32]u8;
 	verified: bool;
 	key_changed: bool;
+	hello_asked: bool; // A hosted DM sent its Hello by itself.
 }
 
 Encrypted_State :: struct {
@@ -31,15 +34,15 @@ Encrypted_State :: struct {
 	channels: Table(dc.Snowflake, Encrypted_Channel);
 	inflight: [..]*e2e.Request;
 	generation: int; // Bumped when a session appears, so messages that were waiting for it retry.
-	outbox_asked: bool;
+	outbox_asked: [..]*dc.Client; // Each connection's outbox is sent once it's ready.
 }
 ee: Encrypted_State;
 
 encrypted_frame :: () {
 	if !e2e_db return;
-	if !ee.outbox_asked && app.discord && app.discord.store.ready {
-		ee.outbox_asked = true;
-		e2e_submit(e2e.request(.Outbox));
+	for c: connections() if c.store.ready && !array_find(ee.outbox_asked, c) {
+		array_add(*ee.outbox_asked, c);
+		e2e_submit(e2e.request(.Outbox, .{carrier = carrier_name(c)}));
 	}
 	// Requests finish in submit order, so taking them from the front keeps sends in order.
 	while ee.inflight.count && e2e.is_done(ee.inflight[0]) {
@@ -60,6 +63,13 @@ encrypted_frame :: () {
 					ee.generation += 1;
 					ch.encrypted, ch.has_session, ch.loaded = true, true, false; // Reload for the peer's root.
 				}
+				// On a hosted server every DM is encrypted, so a peer's Hello is answered without asking.
+				if r.result == .Hello && !r.accepted && r.from != r.conv.me && begins_with(r.conv.carrier, HOSTED) && identity_ready() {
+					sh.accepted = true;
+					q := e2e.request(.Accept, .{r.conv.carrier, r.conv.id, r.conv.me, r.from, r.conv.limit}, packet = r.packet);
+					q.me = my_identity();
+					e2e_submit(q);
+				}
 			case .Hello;
 				if r.result != .Ok { toast_show("Couldn't turn on encryption.", false); continue; }
 				ch.encrypted = true;
@@ -73,9 +83,10 @@ encrypted_frame :: () {
 				if r.result != .Ok { toast_show("Couldn't encrypt the message.", false); continue; }
 				send_packet(r, .Ok, r.text);
 			case .Outbox;
-				// Packets saved before a crash, never handed to Discord: their keys are spent, so send them now.
-				for r.outbox if app.discord && it.carrier == DISCORD {
-					dc.send_message(app.discord, dc.parse_snowflake(it.conversation), fc_text.encode(xx it.packet,, temp));
+				// Packets saved before a crash, never handed to their carrier: their keys are spent, so send them now.
+				c := carrier_client(r.conv.carrier);
+				for r.outbox if c && it.carrier == r.conv.carrier {
+					dc.send_message(c, dc.parse_snowflake(it.conversation), fc_text.encode(xx it.packet,, temp));
 					e2e_submit(e2e.request(.Sent, packet = it.packet));
 				}
 		}
@@ -85,10 +96,7 @@ encrypted_frame :: () {
 // encrypted_packet: an `fc-` message in a Discord 1:1 DM, whose raw text must never be shown, copied
 // or edited.
 encrypted_packet :: (channel_id: dc.Snowflake, content: string) -> bool {
-	if !begins_with(content, fc_text.PREFIX) return false;
-	s := discord_store();
-	ch := ifx s then dc.channel_get(s, channel_id);
-	return ch && ch.kind == .DM && ch.recipient_ids.count == 1;
+	return begins_with(content, fc_text.PREFIX) && encrypted_dm(dc.channel_get(store(), channel_id));
 }
 
 // e2e_mark: in a 1:1 DM that has used encryption, whether a message was encrypted, so a plain one
@@ -142,10 +150,22 @@ shown_text :: (id: dc.Snowflake, channel_id: dc.Snowflake, content: string) -> s
 	return "Encrypted message";
 }
 
-encrypted_dm :: (ch: *dc.Channel) -> bool { return ch && ch.kind == .DM && ch.recipient_ids.count == 1 && app.client == app.discord; }
+encrypted_dm :: (ch: *dc.Channel) -> bool { return ch && ch.kind == .DM && ch.recipient_ids.count == 1; }
 
-// encrypting: what the composer sends in this channel goes encrypted.
-encrypting :: (ch: *dc.Channel) -> bool { return encrypted_dm(ch) && encrypted_channel(ch.id).encrypted; }
+// encrypting: what the composer sends in this channel goes encrypted. A hosted DM always does, and sends
+// its Hello the first time it's shown.
+encrypting :: (ch: *dc.Channel) -> bool {
+	if !encrypted_dm(ch) return false;
+	if !on_hosted() return encrypted_channel(ch.id).encrypted;
+	e := encrypted_channel(ch.id);
+	if e.loaded && !e.encrypted && !e.has_session && !e.hello_asked && identity_ready() && e2e_db {
+		find_or_add(*ee.channels, ch.id).hello_asked = true;
+		r := e2e.request(.Hello, conversation(ch.id));
+		r.me = my_identity();
+		e2e_submit(r);
+	}
+	return true;
+}
 
 // encrypted_channel loads the DM's encryption state once; until then it reports encryption off.
 encrypted_channel :: (id: dc.Snowflake) -> Encrypted_Channel {
@@ -159,7 +179,7 @@ encrypted_channel :: (id: dc.Snowflake) -> Encrypted_Channel {
 
 // The header's lock: turns encryption on (sending a Hello the first time) or off.
 encrypted_toggle :: (dm: *dc.Channel) {
-	if !net_action() return;
+	if !net_action() || on_hosted() return;
 	ch := encrypted_channel(dm.id);
 	if !ch.loaded || !identity_ready() return;
 	if ch.encrypted || ch.has_session {
@@ -178,7 +198,10 @@ encrypted_toggle :: (dm: *dc.Channel) {
 // e.g. while the peer hasn't accepted yet.
 encrypted_send :: (dm: *dc.Channel, text: string, has_attachments: bool, silent: bool) -> bool {
 	ch := encrypted_channel(dm.id);
-	if !ch.has_session { toast_show(tprint("% hasn't accepted encryption yet.", dm_name(dm)), false); return false; }
+	if !ch.has_session {
+		toast_show(tprint(ifx on_hosted() then "Setting up encryption: % needs to open fastcord once." else "% hasn't accepted encryption yet.", dm_name(dm)), false);
+		return false;
+	}
 	if has_attachments { toast_show("Files can't be sent encrypted yet.", false); return false; }
 	most := e2e.max_text(fc_text.MAX_PACKET);
 	if text.count > most { toast_show(tprint("Encrypted messages are limited to % bytes for now.", most), false); return false; }
@@ -317,16 +340,23 @@ encrypted_warning :: (dm: *dc.Channel) {
 
 #scope_file
 
-DISCORD :: "discord"; // The carrier's name, kept with every conversation in fastcord.db.
+// Carrier names, kept with every conversation in fastcord.db: Discord's, or a hosted server's by its ID.
+DISCORD :: "discord";
+HOSTED :: "fc:";
 
-discord_store :: () -> *dc.Store { return ifx app.discord then *app.discord.store else ifx app.client then null else *app.offline_store; } // Offline: a fixture's Discord.
+carrier_name :: (c: *dc.Client) -> string { return ifx c && c.cfg.hosted.host then tprint("%1%2", HOSTED, c.cfg.hosted.server_id) else DISCORD; }
 
-// conversation names a 1:1 DM to the e2e core; peer defaults to the DM's recipient.
+carrier_client :: (name: string) -> *dc.Client {
+	for connections() if carrier_name(it) == name return it;
+	return null;
+}
+
+// conversation names a 1:1 DM on the selected connection to the e2e core; peer defaults to the DM's recipient.
 conversation :: (channel_id: dc.Snowflake, peer: dc.Snowflake = 0) -> e2e.Conversation {
-	s := discord_store();
-	ch := ifx s then dc.channel_get(s, channel_id);
+	s := store();
+	ch := dc.channel_get(s, channel_id);
 	if !peer && ch && ch.recipient_ids.count peer = ch.recipient_ids[0];
-	return .{DISCORD, tprint("%", channel_id), tprint("%", ifx s then s.me else 0), tprint("%", peer), fc_text.MAX_PACKET};
+	return .{carrier_name(app.client), tprint("%", channel_id), tprint("%", s.me), tprint("%", peer), fc_text.MAX_PACKET};
 }
 
 identity_ready ::() -> bool { return atomic_load(*idk.done) != 0 && idk.list.count > 0; }
@@ -338,12 +368,13 @@ e2e_submit :: (r: *e2e.Request) {
 	e2e.submit(e2e_db, r);
 }
 
-// send_packet hands a committed packet to Discord, shows its pending copy as what it holds, and drops
+// send_packet hands a committed packet to its carrier, shows its pending copy as what it holds, and drops
 // it from the outbox.
 send_packet :: (r: *e2e.Request, result: e2e.Result, text: string, content := e2e.Content.Text) {
-	if !app.discord return; // The outbox sends it on the next start.
-	// Discord's own flag too, so its push stays quiet; it says nothing about the content.
-	nonce := dc.send_message(app.discord, dc.parse_snowflake(r.conv.id), fc_text.encode(xx r.packet,, temp), .{flags = ifx r.silent then SUPPRESS_NOTIFICATIONS else 0});
+	c := carrier_client(r.conv.carrier);
+	if !c return; // The outbox sends it on the next start.
+	// The carrier's own flag too, so its push stays quiet; it says nothing about the content.
+	nonce := dc.send_message(c, dc.parse_snowflake(r.conv.id), fc_text.encode(xx r.packet,, temp), .{flags = ifx r.silent then SUPPRESS_NOTIFICATIONS else 0});
 	sh := find_or_add(*ee.shown, nonce);
 	free(sh.text);
 	sh.* = .{result = result, content = content, text = copy_string(text), silent = r.silent};

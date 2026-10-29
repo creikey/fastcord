@@ -7,6 +7,7 @@
 #import "Hash_Table";
 crypto :: #import "crypto";
 etf :: #import "etf";
+fc_text :: #import "fc_text";
 http :: #import "http";
 imagefmt :: #import "imagefmt";
 keys :: #import "keys";
@@ -24,6 +25,7 @@ mls :: #import "voice_mls";
 #load "roles.jai";
 #load "webhook_formats.jai";
 #load "polls.jai";
+#load "dms.jai";
 
 ALPN :: "fc/1";
 HEARTBEAT_INTERVAL_MS :: 41_250;
@@ -155,7 +157,7 @@ open :: (path: string) -> *Server, bool {
 	if !ok return null, false;
 	s := New(Server);
 	s.db = db;
-	if !sqlite.exec(db, SCHEMA) || !sqlite.exec(db, SOUND_SCHEMA) || !sqlite.exec(db, SETTINGS_SCHEMA) || !sqlite.exec(db, STICKER_SCHEMA) || !sqlite.exec(db, ROLE_SCHEMA) || !sqlite.exec(db, POLL_SCHEMA) || !sqlite.exec(db, THREAD_MEMBER_SCHEMA) { close(s); return null, false; }
+	if !sqlite.exec(db, SCHEMA) || !sqlite.exec(db, SOUND_SCHEMA) || !sqlite.exec(db, SETTINGS_SCHEMA) || !sqlite.exec(db, STICKER_SCHEMA) || !sqlite.exec(db, ROLE_SCHEMA) || !sqlite.exec(db, POLL_SCHEMA) || !sqlite.exec(db, THREAD_MEMBER_SCHEMA) || !sqlite.exec(db, DM_SCHEMA) { close(s); return null, false; }
 	// Files made before these columns; each fails harmlessly once it exists.
 	sqlite.exec(db, "ALTER TABLE users ADD COLUMN left INTEGER NOT NULL DEFAULT 0;");
 	sqlite.exec(db, "ALTER TABLE users ADD COLUMN banned INTEGER NOT NULL DEFAULT 0;");
@@ -846,6 +848,10 @@ serve_conn :: (c: *Conn) {
 		}
 		if req.method == "PATCH" && req.path == tprint("/api/v9/guilds/%/channels", c.server.guild) {
 			if !reorder_channels(c, req) return;
+			continue;
+		}
+		if req.method == "POST" && req.path == "/api/v9/users/@me/channels" {
+			if !open_dm(c, req) return; // dms.jai
 			continue;
 		}
 		if req.method == "GET" && begins_with(req.path, "/api/v9/users/") && req.path.count > "/api/v9/users/".count && is_digit(req.path["/api/v9/users/".count]) {
@@ -1951,7 +1957,8 @@ ready_value ::(s: *Server, user: s64, name: string, session: [16]u8) -> etf.Valu
 	merged := NewArray(1, etf.Value,, temp);
 	merged[0] = etf.vlist(mine_list);
 
-	d := etf.map_builder(7,, temp);
+	d := etf.map_builder(8,, temp);
+	etf.map_put(*d, "private_channels", dm_list_locked(s, user)); // dms.jai
 	etf.map_put(*d, "merged_members", etf.vlist(merged));
 	etf.map_put(*d, "read_state", etf.vmap(etf.map_done(*read_state)));
 	etf.map_put(*d, "user_guild_settings", etf.vmap(etf.map_done(*guild_settings)));
@@ -2213,6 +2220,14 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 	rest := advance(path, "/api/v9/channels/".count);
 	parts := split(rest, "/",, temp);
 	channel, ok := string_to_int(parts[0], T = s64);
+	if ok {
+		peer: s64;
+		{
+			locks.guard(*s.db_mu);
+			peer = dm_peer_locked(s, channel, user);
+		}
+		if peer return dm_route(c, req, user, peer, channel, parts, query); // dms.jai
+	}
 	// A channel its member can't see answers 403 to everything in it, as Discord's Missing Access.
 	perms: u64;
 	kind := -1;
@@ -4207,7 +4222,7 @@ guild_settings_locked :: (s: *Server, user: s64) -> etf.Value {
 store_ack :: (s: *Server, user: s64, channel: s64, message: s64, count: int, is_manual: bool) -> int {
 	{
 		locks.guard(*s.db_mu);
-		if channel_locked(s, channel).kind == .Nil return 404;
+		if channel_locked(s, channel).kind == .Nil && !dm_peer_locked(s, channel, user) return 404;
 		if !sqlite.run(s.db, "INSERT OR REPLACE INTO read_states(user, channel, last, mentions) VALUES(?, ?, ?, ?);", user, channel, message, count) return 500;
 	}
 	send_ack(s, user, channel, message, count, is_manual);

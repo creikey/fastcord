@@ -244,7 +244,7 @@ profile_popout :: () {
 			}
 			spacer(.Y, 16);
 			if uid == s.me { account_actions(); }
-			if uid != s.me && !on_hosted() && !hook {
+			if uid != s.me && !hook {
 				mr := row("msgrow");
 				mr.semantic_size = .[ui.pct(1), ui.px(40)];
 				{ ui.parent(mr); defer ui.pop_parent();

@@ -1,5 +1,4 @@
 home_sidebar :: () {
-	s := store();
 	search := row("search");
 	search.semantic_size = .[ui.pct(1), ui.px(HEADER_H - 1)];
 	{ ui.parent(search); defer ui.pop_parent();
@@ -28,6 +27,13 @@ home_sidebar :: () {
 	list.layout_axis = .Y;
 	ui.signal(list);
 	{ ui.parent(list); defer ui.pop_parent();
+		// Discord's DMs, then each hosted server's, each drawn under its own client so store() reads the
+		// right one; a click that moves the route makes that connection app.client, as rail_view does.
+		active := app.client;
+		if app.discord app.client = app.discord;
+		moved :: (g: dc.Snowflake, c: dc.Snowflake) -> bool { return app.view.guild != g || app.view.channel != c; }
+		g0, c0 := app.view.guild, app.view.channel;
+		s := store();
 		spacer(.Y, 8);
 		if dm_nav_item("Friends", app.view.channel == 0).clicked {
 			friends_tab_telemetry("friends_list_clicked");
@@ -67,7 +73,7 @@ home_sidebar :: () {
 				skel("name", cast(float32) (60 + (i * 41) % 80), 14);
 			}
 		}
-		dms := undo_filter(dc.private_channels_sorted(s));
+		dms := ifx on_hosted() then .[] else undo_filter(dc.private_channels_sorted(s)); // with no Discord login, only hosted sections
 		w := ui.list_window(list, DM_ROW_PITCH, dms.count);
 		for cid: array_view(dms, w.first, w.last - w.first) {
 			// A missing channel still takes its row, keeping the window's arithmetic exact.
@@ -79,6 +85,27 @@ home_sidebar :: () {
 			{ ui.id_scope(cast(u64)(cid)); defer ui.pop_seed(); dm_row(ch); }
 		}
 		ui.list_window_end(w);
+		if moved(g0, c0) active = app.client;
+		for h: hosted {
+			if h.forget || !h.client || !h.client.store.ready || !h.client.store.private_channels.count continue;
+			ui.id_scope(cast(u64) it_index); defer ui.pop_seed();
+			app.client = h.client;
+			g1, c1 := app.view.guild, app.view.channel;
+			spacer(.Y, 12);
+			header := row("hosted");
+			header.semantic_size = .[ui.pct(1), ui.px(DM_HEADER_H)];
+			{ ui.parent(header); defer ui.pop_parent();
+				spacer(.X, 17);
+				label(ellipsize(ifx h.title then h.title else h.inv.host, .Medium, 14, 220), .Medium, 14, T("--channels-default"), 18);
+			}
+			for cid: undo_filter(dc.private_channels_sorted(store())) {
+				ch := dc.channel_get(store(), cid);
+				if ch { ui.id_scope(cast(u64)(cid)); defer ui.pop_seed(); dm_row(ch); }
+			}
+			if moved(g1, c1) active = h.client;
+			app.client = ifx app.discord then app.discord else active;
+		}
+		app.client = active;
 		spacer(.Y, USER_PANEL_H + voice_panel_height() + 16);
 	}
 }
@@ -862,11 +889,12 @@ dm_profile_panel :: (uid: dc.Snowflake) {
 					{ ui.parent(banner); defer ui.pop_parent();
 						btns := row("btns", .Floating_X | .Floating_Y);
 						btns.semantic_size = .[ui.children(), ui.px(DMP_BTN)];
-						btns.fixed_pos = .{DMP_COL_W - 2 * DMP_INSET - 4 - 9 - 2 * DMP_BTN - 8, 8};
+						btns.fixed_pos = .{cast(float32) (DMP_COL_W - 2 * DMP_INSET - 4 - 9 - ifx on_hosted() then DMP_BTN else 2 * DMP_BTN + 8), 8};
 						{ ui.parent(btns); defer ui.pop_parent();
 							rel := relationship(uid);
 							names := string.[ifx rel == .Friend then "user-check" else "user-plus", "more-horizontal"];
 							for name, i: names {
+								if i == 0 && on_hosted() continue; // a hosted server has no friends
 								b := ui.box(name, .Clickable | .Draw_Background | .Hot_Animation);
 								b.semantic_size = .[ui.px(DMP_BTN), ui.px(DMP_BTN)];
 								b.style.radius = all4(DMP_BTN / 2);
@@ -939,9 +967,11 @@ dm_profile_panel :: (uid: dc.Snowflake) {
 				t := to_calendar(APOLLO_TIME_FOR_JAN_1_1970 + milliseconds_to_apollo(created), .UTC);
 				line("since", tprint("% %, %", MONTH_SHORT[t.month_starting_at_0], t.day_of_month_starting_at_0 + 1, t.year), .Normal, 14, 18, T("--text-default"));
 				spacer(.Y, 16);
-				line("note_h", "Note (only visible to you)", .Semibold, 12, 16, T("--text-strong"));
-				spacer(.Y, 4);
-				note_field(uid, DMP_PAD - 4, *dmp_note, *dmp_note_focused);
+				if !on_hosted() { // a hosted server keeps no notes
+					line("note_h", "Note (only visible to you)", .Semibold, 12, 16, T("--text-strong"));
+					spacer(.Y, 4);
+					note_field(uid, DMP_PAD - 4, *dmp_note, *dmp_note_focused);
+				}
 				encrypted_profile(dc.channel_get(s, app.view.channel), DMP_PAD);
 				// the mutual servers and friends counts (the profile fetch's), each opening the full profile
 				for kind: 0..1 {
@@ -1060,7 +1090,7 @@ dm_welcome :: (ch: *dc.Channel) -> *ui.Box {
 				spacer(.X, 8);
 				return clicked;
 			}
-			if rel == {
+			if !on_hosted() if rel == { // a hosted server has no friends or blocks
 			case .Friend;
 				if btn("Remove Friend", false) rel_change(uid, .Remove, "DM Header");
 				if btn("Block", false) rel_change(uid, .Block, "DM Header");

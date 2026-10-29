@@ -300,7 +300,7 @@ profile_actions :: (uid: dc.Snowflake) {
 	friend := rel && rel.kind == .Friend;
 	bar := row("actions", .Floating_X | .Floating_Y);
 	bar.semantic_size = .[ui.children(), ui.px(32)];
-	w: float32 = cast(float32) (ifx friend then 110 + 8 + 32 else 110 + 8 + 120 + 8 + 32);
+	w: float32 = cast(float32) (ifx friend || on_hosted() then 110 + 8 + 32 else 110 + 8 + 120 + 8 + 32);
 	bar.fixed_pos = .{PF_W - PF_PAD - w, PF_PAD};
 	bar.style.child_gap = 8;
 	{ ui.parent(bar); defer ui.pop_parent();
@@ -309,7 +309,7 @@ profile_actions :: (uid: dc.Snowflake) {
 			add := action_button(ifx pending then "Pending" else "Add Friend", "user-plus", 120, false, rel_req("Add Friend", uid));
 			if add && !pending && req_begin(rel_req("Add Friend", uid)) { dc.add_relationship(app.client, uid, "User Profile"); req_end(); }
 		}
-		if !on_hosted() && action_button("Message", "chat", 110, true, dm_req(uid)) && open_dm_with(uid, "User Profile") { pf.user = 0; }
+		if action_button("Message", "chat", 110, true, dm_req(uid)) && open_dm_with(uid, "User Profile") { pf.user = 0; }
 		more := ui.box("more", .Clickable | .Draw_Background | .Hot_Animation);
 		more.semantic_size = .[ui.px(32), ui.px(32)];
 		more.style.radius = all4(8);
@@ -658,8 +658,8 @@ user_context_menu :: () {
 	if ch && !dm && !composer_blocked(ch) { array_add(*items, "Mention"); }
 	rel := table_find_pointer(*s.relationships, uid);
 	kind := ifx rel then rel.kind else .None;
+	if uid != s.me && !dm { array_add(*items, "Message"); }
 	if uid != s.me && !on_hosted() {
-		if !dm { array_add(*items, "Message"); }
 		if kind != .Blocked { array_add(*items, "Call"); }
 		array_add(*items, "Add Note");
 	}
