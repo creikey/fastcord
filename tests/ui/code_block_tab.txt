@@ -1,0 +1,5 @@
+# Runs on chat.jsonl. A tab in a code block reaches the next stop of 4 spaces on every platform: in the
+# shot, fmt.println sits four columns in from main.
+wait 5
+settle 1
+shot build/ui-code_block_tab.png

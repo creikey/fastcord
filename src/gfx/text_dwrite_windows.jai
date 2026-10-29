@@ -166,7 +166,7 @@ native_shape :: (inst: u32, text: string, out: *[..]Raw_Glyph) -> float32 {
             array_add(*map16, i, i);
         } else if r == #char "\n" || r == #char "\r" || r == #char "\t" {
             // DirectWrite would start a new layout line; ui breaks lines itself and needs one glyph here.
-            // Tabs are widened below, once line starts are known.
+            // Tabs are widened to their stops by text.jai's widen_tabs.
             array_add(*wide, #char " ");
             array_add(*map16, i);
         } else {
@@ -206,25 +206,6 @@ native_shape :: (inst: u32, text: string, out: *[..]Raw_Glyph) -> float32 {
     (cast(#type (*void, *DWRITE_LINE_METRICS, u32, *u32) -> HRESULT #c_call) vt(layout, 59))(layout, *line, 1, *nlines);
     run := array_view(out.*, first);
     for * run  it.y -= line.baseline;
-
-    // Tab stops every 4 spaces from the start of each hard line (CSS tab-size: 4).
-    line_x, shift: float32;
-    for * gl: run {
-        gl.x += shift;
-        if gl.cluster_start >= text.count continue;
-        c := text[gl.cluster_start];
-        if c == #char "\n" {
-            line_x = gl.x + gl.advance;
-        } else if c == #char "\t" {
-            stop := 4 * gl.advance; // the tab was shaped as a space
-            if stop <= 0 continue;
-            col := gl.x - line_x;
-            adv := (floor(col / stop) + 1) * stop - col;
-            shift += adv - gl.advance;
-            gl.advance = adv;
-        }
-    }
-    dw.cur_width += shift;
 
     // cluster_end = next distinct cluster start
     for * r, i: out.* {

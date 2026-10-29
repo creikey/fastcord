@@ -98,6 +98,7 @@ shape :: (face: Font_Face, size_pt: float32, text: string, allocator := temp) ->
 
     tx.raw.count = 0;
     width_px := native_shape(inst, text, *tx.raw);
+    if find_index_from_left(text, #char "\t") >= 0 width_px += widen_tabs(inst, text, tx.raw);
 
     glyphs := NewArray(tx.raw.count, Shaped_Glyph,, tx.alloc);
     for r, i: tx.raw {
@@ -124,6 +125,31 @@ shape :: (face: Font_Face, size_pt: float32, text: string, allocator := temp) ->
     if old { free_entry(old.*); old.* = entry; }
     else table_add(*tx.shape_cache, h, entry);
     return .{glyphs = array_copy(glyphs,, allocator), width = entry.width, text_len = text.count};
+}
+
+// Tab stops every 4 spaces from the start of each hard line (CSS tab-size: 4), for every backend: each
+// tab glyph is widened to the next stop and what follows moves right. Returns the width added.
+widen_tabs :: (inst: u32, text: string, run: []Raw_Glyph) -> float32 {
+    sp: [..]Raw_Glyph;
+    sp.allocator = temp;
+    native_shape(inst, " ", *sp);
+    if !sp.count || sp[0].advance <= 0 return 0;
+    stop := 4 * sp[0].advance;
+    line_x, shift: float32;
+    for * gl: run {
+        gl.x += shift;
+        if gl.cluster_start >= text.count continue;
+        c := text[gl.cluster_start];
+        if c == #char "\n" {
+            line_x = gl.x + gl.advance;
+        } else if c == #char "\t" {
+            col := gl.x - line_x;
+            adv := (floor(col / stop) + 1) * stop - col;
+            shift += adv - gl.advance;
+            gl.advance = adv;
+        }
+    }
+    return shift;
 }
 
 // Width only (uses the shape cache).
