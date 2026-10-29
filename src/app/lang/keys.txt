@@ -46,6 +46,7 @@
 % of %
 % removed the custom group name.
 % started a call.
+% still can't be reached. Its address may have changed: ask its owner for a new invite.
 % turned on encryption.
 % user|% users
 % use|% uses

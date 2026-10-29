@@ -97,6 +97,8 @@ hosted_frame :: () {
 			} else {
 				// A server we're in that is down or refusing for now: try again later, saying so once.
 				if !h.backoff toast_show(tprint(L("Couldn't reach %1: %2 Retrying."), ifx h.title then h.title else h.inv.host, tprint("%1%2", h.error, ifx ends_with(h.error, ".") then "" else ".")), false);
+				// Still down after minutes of retries: a home server's address may have changed under its invite.
+				if h.backoff == 160 toast_show(tprint(L("% still can't be reached. Its address may have changed: ask its owner for a new invite."), ifx h.title then h.title else h.inv.host), false);
 				h.backoff = clamp(h.backoff * 2, 5, 300);
 				h.retry_at = platform.time_now() + h.backoff;
 			}
