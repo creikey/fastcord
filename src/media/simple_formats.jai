@@ -282,6 +282,7 @@ flac_scan :: (d: *Demuxer) -> Scan_Status {
 		}
 		d.scan_pos += 4 + size;
 		if last {
+			if !d.tracks.count return .Error; // no STREAMINFO
 			f.in_frames = true;
 			d.ready = d.tracks.count > 0;
 		}

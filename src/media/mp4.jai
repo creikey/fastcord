@@ -64,6 +64,8 @@ parse_es_descriptor :: (b: []u8) -> u8, []u8 {
 
 #scope_file
 
+MAX_PACKETS :: 10_000_000; // per track
+
 Trex :: struct {
 	track_id: u32;
 	def_dur, def_size, def_flags: u32;
@@ -96,7 +98,7 @@ mp4_scan :: (d: *Demuxer) -> Scan_Status {
 		if !complete return .Need_Data;
 		size = avail - d.scan_pos;
 	}
-	if size < hdr return .Error;
+	if size < hdr || size > S64_MAX - d.scan_pos return .Error; // a 64-bit size can be negative or wrap
 	type := str(hb, 4, 4);
 	if type == "moov" || type == "moof" {
 		if d.scan_pos + size > avail return ifx complete then .Error else .Need_Data;
@@ -135,7 +137,7 @@ children :: (b: []u8) -> [..]Child {
 		} else if size == 0 {
 			size = b.count - i;
 		}
-		if size < hdr || i + size > b.count break;
+		if size < hdr || size > b.count - i break;
 		array_add(*out, .{str(b, i + 4, 4), array_view(b, i + hdr, size - hdr)});
 		i += size;
 	}
@@ -170,7 +172,7 @@ parse_trak :: (d: *Demuxer, m: *Mp4, trak: []u8) {
 	mdia, ok2 := find(trak, "mdia");
 	if !ok2 return;
 	mdhd := find(mdia, "mdhd");
-	if mdhd.count >= 24 {
+	if mdhd.count >= 20 {
 		if mdhd[0] == 1 {
 			t.timescale = be32(mdhd, 20);
 			t.duration = cast(s64) be64(mdhd, 24);
@@ -336,7 +338,7 @@ build_sample_table :: (t: *Track, stbl: []u8, shift: s64) {
 	co64 := find(stbl, "co64");
 	if stsz.count < 12 || stts.count < 8 || stsc.count < 8 return;
 
-	count := min(cast(int) be32(stsz, 8), 10_000_000);
+	count := min(cast(int) be32(stsz, 8), MAX_PACKETS);
 	fixed_size := be32(stsz, 4);
 	if fixed_size == 0 count = min(count, (stsz.count - 12) / 4);
 	array_reserve(*t.packets, count);
@@ -383,10 +385,11 @@ build_sample_table :: (t: *Track, stbl: []u8, shift: s64) {
 	}
 	// chunk offsets
 	nchunks := ifx has_stco then cast(int) be32(stco, 4) else ifx co64.count >= 8 then cast(int) be32(co64, 4) else 0;
-	stsc_n := cast(int) be32(stsc, 4);
+	nchunks = min(nchunks, ifx has_stco then (stco.count - 8) / 4 else (co64.count - 8) / 8);
+	stsc_n := min(cast(int) be32(stsc, 4), (stsc.count - 8) / 12);
 	s := 0;
 	for ent: 0..stsc_n - 1 {
-		first := cast(int) be32(stsc, 8 + ent * 12) - 1;
+		first := max(cast(int) be32(stsc, 8 + ent * 12) - 1, 0);
 		per := cast(int) be32(stsc, 12 + ent * 12);
 		last := ifx ent + 1 < stsc_n then cast(int) be32(stsc, 8 + (ent + 1) * 12) - 1 else nchunks;
 		for c: first..min(last, nchunks) - 1 {
@@ -425,7 +428,7 @@ parse_moof :: (d: *Demuxer, m: *Mp4, moof: []u8, moof_start: s64) {
 		if !track continue;
 		_, shift := table_find(*m.elst_shift, tid);
 		_, dts := table_find(*m.frag_dts, tid);
-		for tcs if it.type == "tfdt" && it.body.count >= 8 {
+		for tcs if it.type == "tfdt" && it.body.count >= (ifx it.body[0] == 1 then 12 else 8) {
 			dts = ifx it.body[0] == 1 then cast(s64) be64(it.body, 4) else cast(s64) be32(it.body, 4);
 		}
 		data_end := base; // running data pointer for successive truns without offset
@@ -433,7 +436,7 @@ parse_moof :: (d: *Demuxer, m: *Mp4, moof: []u8, moof_start: s64) {
 			if x.type != "trun" || x.body.count < 8 continue;
 			b := x.body;
 			tf := be24(b, 1);
-			n := cast(int) be32(b, 4);
+			n := min(cast(int) be32(b, 4), MAX_PACKETS - track.packets.count); // samples need not take bytes here
 			j := 8;
 			ptr := data_end;
 			if tf & 0x1 { ptr = base + cast(s32) be32(b, j); j += 4; }

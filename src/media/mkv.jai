@@ -141,7 +141,7 @@ mkv_scan :: (d: *Demuxer) -> Scan_Status {
 		// EBML header then Segment
 		e, s := read_elem(d, 0);
 		if s != .Ok return ifx s == .Error then .Error else .Need_Data;
-		if e.id != ID_EBML return .Error;
+		if e.id != ID_EBML || e.size == UNKNOWN_SIZE return .Error;
 		at := e.hdr + e.size;
 		seg, s2 := read_elem(d, at);
 		if s2 != .Ok return ifx s2 == .Error then .Error else .Need_Data;
@@ -169,12 +169,14 @@ mkv_scan :: (d: *Demuxer) -> Scan_Status {
 	body_at := d.scan_pos + e.hdr;
 
 	if m.in_cluster {
+		if (e.id == ID_CLUSTER_TIMECODE || e.id == ID_SIMPLE_BLOCK || e.id == ID_BLOCK_GROUP) && e.size == UNKNOWN_SIZE return .Error;
 		if d.scan_pos >= m.cluster_end || is_top_level(e.id) {
 			m.in_cluster = false;
 			return .Progress;
 		}
 		if e.id == {
 		case ID_CLUSTER_TIMECODE;
+			if e.size > 8 return .Error;
 			b, rs := reader_peek(*d.reader, body_at, e.size);
 			if rs != .Ok return .Need_Data;
 			m.cluster_tc = uint_of(b);
@@ -192,13 +194,14 @@ mkv_scan :: (d: *Demuxer) -> Scan_Status {
 			has_ref := false;
 			while pos < end {
 				c, cs := read_elem(d, pos);
-				if cs != .Ok break;
+				if cs != .Ok || c.size == UNKNOWN_SIZE break;
 				cb := pos + c.hdr;
 				if c.id == {
 				case ID_BLOCK;
 					blk_at, blk_size = cb, c.size;
 				case ID_BLOCK_DURATION;
-					b, rs := reader_peek(*d.reader, cb, c.size);
+					b, rs := reader_peek(*d.reader, cb, min(c.size, 8));
+					if c.size > 8 rs = .Error; // invalid
 					if rs == .Ok dur = uint_of(b);
 				case ID_REFERENCE_BLOCK;
 					has_ref = true;
@@ -262,7 +265,7 @@ parse_tracks :: (d: *Demuxer, m: *Mkv, b: []u8) {
 		if !ok break;
 		if id != ID_TRACK_ENTRY continue;
 		t: Track;
-		t.timescale = 1_000_000_000 / m.tc_scale;
+		t.timescale = max(1_000_000_000 / m.tc_scale, 1);
 		t.duration = cast(s64) m.duration;
 		codec_id: string;
 		codec_delay_ns: s64;

@@ -165,12 +165,17 @@ demux_destroy :: (d: *Demuxer) {
 }
 
 // Read packet payload into buf (resized). .Pending if not downloaded yet.
+MAX_PACKET_BYTES :: 64 * 1024 * 1024;
 demux_read :: (d: *Demuxer, p: Packet_Ref, buf: *[..]u8) -> Read_Status {
+	// sizes come from the file (and were cut to s32): refuse what no real packet is
+	if p.size < 0 || p.size > MAX_PACKET_BYTES || p.offset < 0 return .Error;
 	array_resize(buf, p.size, initialize = false);
 	if p.pieces == 0 return read_full(d.src, p.offset, buf.*);
+	if p.pieces < 0 || p.piece_at < 0 || p.piece_at > d.pieces.count - p.pieces return .Error;
 	at := 0;
 	for i: 0..p.pieces - 1 {
 		pc := d.pieces[p.piece_at + i];
+		if pc.size < 0 || pc.size > p.size - at return .Error;
 		s := read_full(d.src, pc.offset, array_view(buf.*, at, pc.size));
 		if s != .Ok return s;
 		at += pc.size;
@@ -208,19 +213,21 @@ demux_track :: (d: *Demuxer, kind: Track_Kind) -> int {
 	return -1;
 }
 
-// Byte helpers: big/little endian at b[i].
-be16 :: inline (b: []u8, i := 0) -> u16 { return ((cast(u16) b[i]) << 8) | b[i + 1]; }
-be24 :: inline (b: []u8, i := 0) -> u32 { return ((cast(u32) b[i]) << 16) | ((cast(u32) b[i + 1]) << 8) | b[i + 2]; }
-be32 :: inline (b: []u8, i := 0) -> u32 { return ((cast(u32) b[i]) << 24) | ((cast(u32) b[i + 1]) << 16) | ((cast(u32) b[i + 2]) << 8) | b[i + 3]; }
+// Byte helpers: big/little endian at b[i]. Files are untrusted: a read past the end of b gives 0, so a
+// box shorter than its fields reads as zeros instead of whatever lies beyond it.
+inside :: inline (b: []u8, i: int, n: int) -> bool { return i >= 0 && i <= b.count - n; }
+be16 :: inline (b: []u8, i := 0) -> u16 { if !inside(b, i, 2) return 0; return ((cast(u16) b[i]) << 8) | b[i + 1]; }
+be24 :: inline (b: []u8, i := 0) -> u32 { if !inside(b, i, 3) return 0; return ((cast(u32) b[i]) << 16) | ((cast(u32) b[i + 1]) << 8) | b[i + 2]; }
+be32 :: inline (b: []u8, i := 0) -> u32 { if !inside(b, i, 4) return 0; return ((cast(u32) b[i]) << 24) | ((cast(u32) b[i + 1]) << 16) | ((cast(u32) b[i + 2]) << 8) | b[i + 3]; }
 be64 :: inline (b: []u8, i := 0) -> u64 { return ((cast(u64) be32(b, i)) << 32) | be32(b, i + 4); }
-le16 :: inline (b: []u8, i := 0) -> u16 { return b[i] | ((cast(u16) b[i + 1]) << 8); }
-le32 :: inline (b: []u8, i := 0) -> u32 { return b[i] | ((cast(u32) b[i + 1]) << 8) | ((cast(u32) b[i + 2]) << 16) | ((cast(u32) b[i + 3]) << 24); }
+le16 :: inline (b: []u8, i := 0) -> u16 { if !inside(b, i, 2) return 0; return b[i] | ((cast(u16) b[i + 1]) << 8); }
+le32 :: inline (b: []u8, i := 0) -> u32 { if !inside(b, i, 4) return 0; return b[i] | ((cast(u32) b[i + 1]) << 8) | ((cast(u32) b[i + 2]) << 16) | ((cast(u32) b[i + 3]) << 24); }
 le64 :: inline (b: []u8, i := 0) -> u64 { return le32(b, i) | ((cast(u64) le32(b, i + 4)) << 32); }
 
 #scope_module
 
-// n bytes at b[i] as a string (no copy).
-str :: inline (b: []u8, i: int, n: int) -> string { return to_string(b.data + i, n); }
+// n bytes at b[i] as a string (no copy); "" past the end.
+str :: inline (b: []u8, i: int, n: int) -> string { if !inside(b, i, n) return ""; return to_string(b.data + i, n); }
 
 finalize_tracks :: (d: *Demuxer) {
 	for * t: d.tracks {
@@ -252,7 +259,7 @@ finalize_tracks :: (d: *Demuxer) {
 
 // Returns a view of n bytes at offset (n <= 64 KiB), or a status.
 reader_peek :: (r: *Buf_Reader, offset: s64, n: int) -> []u8, Read_Status {
-	assert(n <= r.buf.count);
+	if n < 0 || n > r.buf.count || offset < 0 return .[], .Error; // a size from the file
 	if r.start >= 0 && offset >= r.start && offset + n <= r.start + r.len {
 		return array_view(r.buf, offset - r.start, n), .Ok;
 	}
