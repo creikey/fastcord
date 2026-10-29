@@ -154,7 +154,7 @@ Keep the UI immediate-mode. Make each pass cheaper instead of caching results ac
 
 ## Fingerprint regressions
 
-Where our traffic still differs from the official client (Chrome 148 captures in the repo), and why.
+Where our traffic differs from the official client (Chrome 148 captures in the repo), and why.
 QUIC transport parameters, ALPN and the Initial datagrams match exactly: two 1250-byte datagrams with an 8-byte
 DCID, empty SCID, no token and a 2-byte Length, packets 1 and 2 numbered with 1 then 2 bytes, and QUICHE's chaos
 protection inside (the ClientHello's head and tail in packet 1, its middle in packet 2, CRYPTO frames split
@@ -163,10 +163,8 @@ setting and frame, QPACK streams silent until used, each PRIORITY_UPDATE just be
 (`quic_h3_control_stream`), and replay-safe requests in 0-RTT on resumed sessions. The ngtcp2 and nghttp3
 patches that do this are listed in their `vendor/*/README.md`.
 
-- QUIC packet numbers: QUICHE numbers every packet from one counter across the Initial, Handshake and 1-RTT
-  spaces (`QuicPacketCreator::NextSendingPacketNumber`); ngtcp2 counts each space from 1 and skips 1-RTT
-  numbers at random. Only the server sees them (they are header-protected). Fix: an ngtcp2 patch sharing
-  `tx.last_pkt_num` across spaces.
+Packet numbers come from one counter across the Initial, Handshake and 1-RTT spaces with none skipped, as
+QUICHE's do (`QuicPacketCreator::NextSendingPacketNumber`). No known fingerprint gap remains against Chrome.
 
 ## Releasing
 

@@ -1,0 +1,66 @@
+diff -ru ngtcp2.orig/lib/ngtcp2_conn.c ngtcp2/lib/ngtcp2_conn.c
+--- ngtcp2.orig/lib/ngtcp2_conn.c	2026-10-28 20:30:34
++++ ngtcp2/lib/ngtcp2_conn.c	2026-10-28 20:30:50
+@@ -1209,6 +1209,25 @@
+   return 0;
+ }
+ 
++/*
++ * fastcord: conn_next_pkt_num advances |pktns| past the packet just
++ * sent and moves the other packet number spaces up to it, so packets
++ * are numbered from one counter across the Initial, Handshake and
++ * 1-RTT spaces, as Chrome (QUICHE's
++ * QuicPacketCreator::NextSendingPacketNumber) numbers them.
++ */
++static void conn_next_pkt_num(ngtcp2_conn *conn, ngtcp2_pktns *pktns) {
++  int64_t pkt_num = ++pktns->tx.last_pkt_num;
++
++  if (conn->in_pktns) {
++    conn->in_pktns->tx.last_pkt_num = pkt_num;
++  }
++  if (conn->hs_pktns) {
++    conn->hs_pktns->tx.last_pkt_num = pkt_num;
++  }
++  conn->pktns.tx.last_pkt_num = pkt_num;
++}
++
+ static size_t buflen_align(size_t buflen) {
+   return (buflen + 0x7U) & ~(size_t)0x7U;
+ }
+@@ -1480,7 +1499,8 @@
+              &(*pconn)->qlog, &(*pconn)->rtb_entry_objalloc,
+              &(*pconn)->frc_objalloc, mem);
+ 
+-  conn_update_skip_pkt(*pconn, &(*pconn)->pktns);
++  /* fastcord: Chrome skips no packet numbers. */
++  (*pconn)->pktns.tx.skip_pkt.next_pkt_num = INT64_MAX;
+ 
+   scident = ngtcp2_mem_malloc(mem, sizeof(*scident));
+   if (scident == NULL) {
+@@ -2942,7 +2962,7 @@
+ 
+   ngtcp2_qlog_metrics_updated(&conn->qlog, &conn->cstat);
+ 
+-  ++pktns->tx.last_pkt_num;
++  conn_next_pkt_num(conn, pktns);
+ 
+   return spktlen;
+ }
+@@ -4696,7 +4716,7 @@
+ 
+   ngtcp2_qlog_metrics_updated(&conn->qlog, &conn->cstat);
+ 
+-  ++pktns->tx.last_pkt_num;
++  conn_next_pkt_num(conn, pktns);
+ 
+   return nwrite;
+ }
+@@ -4909,7 +4929,7 @@
+ 
+   ngtcp2_qlog_metrics_updated(&conn->qlog, &conn->cstat);
+ 
+-  ++pktns->tx.last_pkt_num;
++  conn_next_pkt_num(conn, pktns);
+ 
+   return nwrite;
+ }

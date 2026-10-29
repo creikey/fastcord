@@ -38,6 +38,11 @@ the requests go again on 1-RTT. `fc_h3_preview` is for `quic_h3_control_stream` 
     of them shuffled.
   - `pktns_select_pkt_numlen`: packet numbers take at least 2 bytes, except the Initial packet numbered 1.
   - `NGTCP2_PKT_LENGTHLEN` 2: the long header's Length field is a 2-byte varint, not 4.
+- `0002-chrome-packet-numbers.patch`: packets are numbered from one counter shared by the Initial, Handshake
+  and 1-RTT spaces (`conn_next_pkt_num`), as QUICHE's `QuicPacketCreator::NextSendingPacketNumber` does, and
+  no 1-RTT packet number is skipped (ngtcp2 skips some at random against optimistic ACKs; Chrome doesn't).
+  A space's numbers then have gaps where other spaces sent, so near the handshake's end loss detection's
+  packet threshold can count a packet lost early, costing at most a spurious retransmission.
 
 To update: download the new release tarball, copy the same files, regenerate `fc_ngtcp2.sources`
 (`lib/*.c` plus the two crypto files, sorted), record the version and sha256 here, re-make each patch against the
