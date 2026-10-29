@@ -116,6 +116,7 @@ server_settings_reset_for_test :: () {
 	free(ss.chan_region);
 	array_free(ss.ows);
 	array_free(ss.cursors);
+	array_free(ss.cursor_joined);
 	array_free(ss.rule.exempt_roles);
 	array_free(ss.rule.exempt_channels);
 	ui.editor_destroy(*ss.rule_allow);
@@ -465,7 +466,8 @@ ss: struct {
 	ows: [..]dc.Overwrite; // the overwrites as edited
 	ow_id: dc.Snowflake; // the role or member whose permissions are shown
 	ow_adding: bool; // the Add members or roles search is open
-	cursors: [..]dc.Snowflake; // Bans and Audit Log: the cursor each page shown so far loaded from (empty: page 1)
+	cursors: [..]dc.Snowflake; // Bans, Audit Log, Members: the cursor each page shown so far loaded from (empty: page 1)
+	cursor_joined: [..]s64; // Members: beside each cursor, its member's join time (ms)
 	// Safety Setup: the AutoMod rule open for editing (ss.words holds its words) and its draft
 	rule_id: dc.Snowflake;
 	rule: Rule_Draft;
@@ -549,6 +551,7 @@ section_enter :: (g: *dc.Guild) {
 	ss.ow_id, ss.ow_adding = g.id, false;
 	ss.role_id, ss.pending_role, ss.hook_id, ss.rule_id = 0, 0, 0, 0;
 	array_reset(*ss.cursors);
+	array_reset(*ss.cursor_joined);
 	ui.editor_set_text(*ss.hook_name, "");
 	ui.editor_set_text(*ss.words, "");
 	array_reset(*ss.role_order);
@@ -1425,15 +1428,23 @@ TIMEOUTS :: struct { secs: int; name: string; }.[
 members_search :: (g: *dc.Guild) {
 	q := trim(ui.editor_text(*ss.search));
 	or := ifx q.count > 1 then tprint("{\"usernames\":{\"or_query\":[%]}}", dc.json_quote(q)) else "{}";
+	// a later page: after the last member of the one before, by join time (the client's cursor)
+	after := "";
+	if ss.section == .Members && ss.cursors.count && ss.cursor_joined.count == ss.cursors.count
+		after = tprint(",\"after\":{\"guild_joined_at\":%,\"user_id\":\"%\"}", peek(ss.cursor_joined), peek(ss.cursors));
 	ss.loading[Req.Members] = false;
 	if !net_action() return;
 	ss.loading[Req.Members] = true;
-	dc.guild_settings_call(app.client, g.id, xx Req.Members, "POST", tprint("/guilds/%/members-search", g.id), tprint("{\"or_query\":%,\"and_query\":{},\"limit\":250}", or));
+	dc.guild_settings_call(app.client, g.id, xx Req.Members, "POST", tprint("/guilds/%/members-search", g.id), join(tprint("{\"or_query\":%,\"and_query\":{},\"limit\":%", or, MEMBERS_PAGE), after, "}",, temp));
 }
 
 members_page :: (g: *dc.Guild) {
 	res := set_input("search", *ss.search, "Search by username or id");
-	if res == .Changed ss.search_at = wall_ms();
+	if res == .Changed {
+		ss.search_at = wall_ms();
+		array_reset(*ss.cursors);
+		array_reset(*ss.cursor_joined);
+	}
 	if res == .Escape ss.field_escape = true;
 	if ss.search_at {
 		app.ui.animating = true;
@@ -1451,6 +1462,8 @@ members_page :: (g: *dc.Guild) {
 	table_header("mhead", .["NAME", "MEMBER SINCE", "JOINED DISCORD", "ROLES"], W);
 	list := dc.flist(m, "members");
 	if !list.count ss_empty("No members found");
+	last := ifx list.count == MEMBERS_PAGE then dc.fmap(dc.vmap(list[list.count - 1]), "member") else .[];
+	defer pager(g, dc.fsnow(dc.fmap(last, "user"), "id"), members_search, dc.iso_to_ms(dc.fstr(last, "joined_at")));
 	for list {
 		mm := dc.fmap(dc.vmap(it), "member");
 		u := dc.fmap(mm, "user");
@@ -1604,6 +1617,7 @@ bans_page :: (g: *dc.Guild) {
 }
 
 BANS_PAGE :: 1000;
+MEMBERS_PAGE :: 250;
 AUDIT_PAGE :: 50;
 
 // GET /guilds/{id}/bans?limit=1000, after the last ban of the page before.
@@ -1613,8 +1627,9 @@ bans_load :: (g: *dc.Guild) {
 	load(g, .Bans, join(tprint("/guilds/%/bans?limit=%", g.id, BANS_PAGE), after,, temp));
 }
 
-// Previous / Next under a paged list; next is the cursor of the page after this one (0: it's the last).
-pager :: (g: *dc.Guild, next: dc.Snowflake, reload: (*dc.Guild)) {
+// Previous / Next under a paged list; next is the cursor of the page after this one (0: it's the last), and
+// for Members its member's join time.
+pager :: (g: *dc.Guild, next: dc.Snowflake, reload: (*dc.Guild), next_joined: s64 = 0) {
 	if !ss.cursors.count && !next return;
 	spacer(.Y, 12);
 	r := row("pager");
@@ -1623,8 +1638,16 @@ pager :: (g: *dc.Guild, next: dc.Snowflake, reload: (*dc.Guild)) {
 	ui.parent(r); defer ui.pop_parent();
 	label(tprint("Page %", ss.cursors.count + 1), .Medium, 14, T("--text-muted"), 18);
 	filler(.X);
-	if set_button("Previous##prev", .Secondary, ss.cursors.count > 0) { pop(*ss.cursors); reload(g); }
-	if set_button("Next##next", .Secondary, next != 0) { array_add(*ss.cursors, next); reload(g); }
+	if set_button("Previous##prev", .Secondary, ss.cursors.count > 0) {
+		pop(*ss.cursors);
+		if ss.cursor_joined.count pop(*ss.cursor_joined);
+		reload(g);
+	}
+	if set_button("Next##next", .Secondary, next != 0) {
+		array_add(*ss.cursors, next);
+		if next_joined array_add(*ss.cursor_joined, next_joined);
+		reload(g);
+	}
 }
 
 // ---- Emoji ----
