@@ -284,10 +284,7 @@ run_api :: (c: *Client, j: *Job) {
 	}
 	if j.op == .Startup && r.ok && begins_with(j.path, "/quests/@me") note_quest_applications(c, r.body);
 	if j.op == .Startup && r.ok && begins_with(j.path, "/users/@me/collectibles-marketing") promo_shop_marketing(c, r.body);
-	if j.op == .Startup && r.status && begins_with(j.path, "/quests/decision?") {
-		promo_quest_roundtrip(c, j, r);
-		if r.ok promo_quest_decision(c, r);
-	}
+	if j.op == .Startup && begins_with(j.path, "/quests/decision?placement=1&") promo_quest_decision(c, j, r);
 	if j.on_body && r.ok j.on_body(c, r.body);
 	if j.on_done j.on_done(c, j, r.status);
 	if j.on_response j.on_response(c, j, r.status, r.body);

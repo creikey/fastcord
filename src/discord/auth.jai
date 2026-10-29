@@ -641,6 +641,7 @@ client_session_reset :: (c: *Client) {
 	free_str(c.analytics.ad_session, c.analytics.allocator); // AdSessionStore LOGOUT: the next use starts one
 	c.analytics.ad_session = "";
 	locks.unlock(*c.analytics.mu);
+	promo_quest_reset(c);
 	store_destroy(*c.store);
 	store_init(*c.store, c.allocator);
 	c.store.changed += 1;

@@ -447,6 +447,7 @@ client_poll :: (c: *Client) -> bool {
 	flush_user_menu(c, now);
 	flush_username_check(c, now);
 	analytics_tick(c, now);
+	promo_quest_tick(c, now);
 	analytics_flush(c, now);
 	if changed c.store.changed += 1;
 	return changed;

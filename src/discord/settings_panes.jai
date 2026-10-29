@@ -189,11 +189,18 @@ open_profile_editor :: (c: *Client) {
 			m := vmap(body);
 			sid := string.{c.social.profile_sid_len, c.social.profile_sid.data};
 			profile_action(c, sid, "VIEW", fint(m, "mutual_friends_count"), flist(m, "mutual_guilds").count, true);
+			promo_editor_held(c, body);
 		};
 		job_submit(c, j);
 	}
 	api_get_later(c, "/users/@me/referrals/eligibility", 75);
-	api_get_later(c, "/collectibles-categories/v2?include_bundles=true&variants_return_style=2&skip_num_categories=0", 75);
+	atomic_store(*c.promo.editor_held, 0);
+	j := job_new(.Api, .None); // the empty fields preview Shop items from it
+	j.method = "GET";
+	j.path = job_str(j, "/collectibles-categories/v2?include_bundles=true&variants_return_style=2&skip_num_categories=0");
+	j.not_before = now_ms() + 75;
+	j.on_body = promo_editor_previews;
+	job_submit(c, j);
 	api_get_later(c, "/users/@me/collectibles-purchases?variants_return_style=2", 75);
 	fetch_note(c, me, 75);
 	api_get_later(c, tprint("/users/%/application-identities?with_profiles=true", us), 75);

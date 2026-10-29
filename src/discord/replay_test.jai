@@ -22,9 +22,9 @@ R_B :: cast(Snowflake) 1564202918369042442;
 R_TEXT2 :: cast(Snowflake) 1564405699197407414;
 
 // Requests the comparison leaves out: UI assets and images the app fetches
-// itself, Shop art (collectibles-shop: the Shop entry's marketing art, which the
-// library loads and drops, its hover art and the profile editor's product images),
-// the RTC probe and Cloudflare's page challenge. Telemetry (/science) is compared
+// itself, Shop art (collectibles-shop: the Shop entry's marketing art and the profile
+// editor's random previews, which the library loads and drops, checked by editor_previews;
+// the Shop entry's hover art; users' avatar decorations, `<sku>/static`), the RTC probe and Cloudflare's page challenge. Telemetry (/science) is compared
 // on its own, per event (r_science_check).
 R_IGNORE :: string.["/assets/", "collectibles-shop", "latency.discord.media", "/cdn-cgi/", "media.discordapp.net", "/app-icons/", "/emojis/", "/avatars/", "/stickers/", "images-ext"];
 
@@ -1636,7 +1636,77 @@ parity_quest_decision :: (t: *T) {
 	}
 	replay_pump(*run, 700);
 	replay_settle(*run, 300);
-	replay_check(*run, "setup", allow);
+	replay_check(*run, "setup", allow, keep = true);
+	defer replay_end(*run);
+
+	// useQuestBarFetch's 30 s check once the decision outlived its TTL (bundle, no capture)
+	c, b := run.c, *run.c.promo.bar;
+	expire :: (b: *Quest_Bar) {
+		locks.lock(*b.mu);
+		b.fetched_at, b.check_at = now_ms() - b.ttl_ms - 1, now_ms();
+		locks.unlock(*b.mu);
+	}
+	sci :: (run: *Replay_Run, type: string, key: string) -> string {
+		locks.lock(*run.r.mu);
+		defer locks.unlock(*run.r.mu);
+		for b: run.r.science for e: b.events if e.type == type for e.keys if it == key return copy_string(e.consts[it_index],, temp);
+		return "-";
+	}
+	// unfocused: the decision is cleared, which unmounts the shown bar (mode null), and nothing is fetched
+	client_set_focused(c, false);
+	replay_mark(*run);
+	expire(b);
+	replay_pump(*run, 200);
+	expect_value(t, sci(*run, "quest_bar_mode_changed", "previous_mode"), "\"collapsed\"");
+	expect_value(t, sci(*run, "quest_bar_mode_changed", "mode"), "null");
+	expect_value(t, sci(*run, "quest_bar_mode_changed", "is_targeted"), "false");
+	expect_value(t, run.r.ours.count, 0);
+	// focused: /quests/@me, then the decision again ("questBar-interval"); it serves nothing now
+	client_set_focused(c, true);
+	c.promo.quest_roundtrip_sample = 1;
+	replay_mark(*run);
+	expire(b);
+	replay_pump(*run, 400);
+	locks.lock(*run.r.mu);
+	keys: [..]string;
+	keys.allocator = temp;
+	for run.r.ours if !contains(it.key, "/science") array_add(*keys, copy_string(it.key,, temp));
+	locks.unlock(*run.r.mu);
+	expect_value(t, join(..keys, separator = " | ",, temp), "GET discord.com/api/v9/quests/@me | GET discord.com/api/v9/quests/decision?placement&client_heartbeat_session_id&client_ad_session_id");
+	expect_value(t, sci(*run, "quest_decision_roundtrip", "caller_source"), "\"questBar-interval\"");
+	expect_value(t, sci(*run, "quest_decision_roundtrip", "transition_case"), "\"no_serve_to_no_serve\"");
+	expect_value(t, sci(*run, "quest_decision_roundtrip", "previous_ad_request_id"), "null");
+	expect_value(t, sci(*run, "quest_decision_received", "caller_source"), "-");
+}
+
+// Edit Profiles' empty fields preload one random Shop item each (settings, open_profiles): with the
+// picks the capture drew, the URLs and their order are the official ones. The categories answer
+// is not in the fixture (3 MB): tests/data/collectibles_categories.json is that answer cut to five
+// categories, including the picked products.
+editor_previews :: (t: *T) {
+	r: Replay;
+	if !expect(t, replay_load(*r, "settings"), "fixture") return;
+	defer fini(*r.pool);
+	official: [..]string;
+	official.allocator = temp;
+	for replay_window(*r, "open_profiles") if fstr(it, "k") == "req" && contains(fstr(it, "url"), "collectibles-shop") array_add(*official, fstr(it, "url"));
+	text, ok := read_entire_file("tests/data/collectibles_categories.json",, temp);
+	if !expect(t, ok, "test data") return;
+	body, _ := etf.from_json(text,, temp);
+	lists := editor_preview_items(body);
+	expectf(t, lists[0].count == 7 && lists[1].count == 9 && lists[2].count == 4 && lists[3].count == 1, "item lists % % % %", lists[0].count, lists[1].count, lists[2].count, lists[3].count);
+	picked := Snowflake.[1511111194394628196, 1341506443701911552, 0, 1551750280960286770]; // by field: nameplate, decoration, effect (by its thumbnail), frame
+	ours: [..]string;
+	ours.allocator = temp;
+	for type, i: int.[2, 0, 1, 3] {
+		for item: lists[type] {
+			sku := fsnow(item, "sku_id");
+			if sku != picked[i] && !(type == 1 && contains(fstr(item, "thumbnailPreviewSrc"), "9f583302ac84")) continue;
+			array_add(*ours, ..editor_preview_urls(item, type));
+			break;
+		}
+	}
+	expect_value(t, join(..ours, separator = "\n",, temp), join(..official, separator = "\n",, temp));
 }
 
 // ---- telemetry of navigation and small UI events (science only: the request
