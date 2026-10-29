@@ -210,21 +210,22 @@ api_call :: (c: *Client, method: string, path: string, body: []u8, content_type:
 			}
 			retries_left -= 1;
 			failed += 1;
-			sleep_milliseconds(xx backoff_fail(*backoff));
+			if !client_nap(c, backoff_fail(*backoff)) return .{status = 0};
 			continue;
 		}
 		pool := New(Flat_Pool,, context.default_allocator);
 		alloc := pool_allocator(pool);
 		bv := parse_json(resp.body,, alloc);
 		hold := rate_note_response(*c.limiter, url_key, resp.status, resp.headers, bv, now_ms());
-		if resp.status == 429 && retry_429_left > 0 {
+		ra, has := retry_after_seconds(resp.headers, bv);
+		wait := ifx has then cast(s64) (ra * 1000) else hold;
+		// any server's Retry-After: past a minute the 429 is the answer
+		if resp.status == 429 && retry_429_left > 0 && wait <= MAX_RETRY_AFTER_MS {
 			retry_429_left -= 1;
-			ra, has := retry_after_seconds(resp.headers, bv);
-			wait := ifx has then cast(s64) (ra * 1000) else hold;
 			http.response_destroy(*resp);
 			fini(pool);
 			free(pool,, context.default_allocator);
-			if wait > 0 sleep_milliseconds(xx wait);
+			if !client_nap(c, wait) return .{status = 0};
 			queued = true;
 			continue;
 		}
@@ -234,6 +235,17 @@ api_call :: (c: *Client, method: string, path: string, body: []u8, content_type:
 		http.response_destroy(*resp);
 		return r;
 	}
+}
+
+MAX_RETRY_AFTER_MS :: 60_000;
+
+// client_nap waits ms on a worker; false when the client is quitting (the wait ends at once).
+client_nap :: (c: *Client, ms: s64) -> bool {
+	until := now_ms() + ms;
+	locks.lock(*c.job_mu);
+	defer locks.unlock(*c.job_mu);
+	while !c.quit && now_ms() < until locks.cond_wait_with_timeout(*c.job_cond, *c.job_mu, max(until - now_ms(), 1));
+	return !c.quit;
 }
 
 push_result :: (c: *Client, j: *Job, r: Api_Response) {

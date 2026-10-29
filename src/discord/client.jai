@@ -308,6 +308,15 @@ client_destroy :: (c: *Client) {
 	c.quit = true;
 	locks.cond_broadcast(*c.job_cond);
 	locks.unlock(*c.job_mu);
+	// Requests already going get 2 s to finish; then their sessions are failed, since after sleep or a
+	// network change a dead socket would hold the quit until a PING timed out.
+	locks.lock(*c.limiter.mu);
+	c.limiter.closed = true;
+	locks.cond_broadcast(*c.limiter.cond);
+	locks.unlock(*c.limiter.mu);
+	quit_at := now_ms();
+	for c.workers while !thread_is_done(it, 50) && now_ms() - quit_at < 2000 {}
+	transport_drop_sessions(*c.transport, close = true);
 	for c.workers locks.join(it);
 	array_free(c.workers);
 	feature_pool_release(c); // its feature jobs end before the transport goes

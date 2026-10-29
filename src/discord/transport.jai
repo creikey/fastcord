@@ -101,6 +101,28 @@ transport_init :: (t: *Transport, jar: *Cookie_Jar, allocator := context.allocat
 	t.use_h3 = true;
 }
 
+// transport_drop_sessions retires every HTTP/2 session and fails what is in flight on them, so the next
+// requests dial again: after the machine wakes or the gateway finds its socket dead, the old sessions
+// may be dead too and would hold each request until a PING times out. close also refuses new dials
+// (quitting).
+transport_drop_sessions :: (t: *Transport, close := false) {
+	locks.lock(*t.mu);
+	defer locks.unlock(*t.mu);
+	if close t.closed = true;
+	for o: t.origins if o.h2 {
+		r := o.h2;
+		o.h2 = null;
+		r.retired = true; // finalized by the last h2_release
+		http.h2_abort(r.c);
+		if r.refs == 0 {
+			r.refs = 1; // h2_release finalizes it outside mu
+			locks.unlock(*t.mu);
+			h2_release(t, r);
+			locks.lock(*t.mu);
+		}
+	}
+}
+
 transport_destroy :: (t: *Transport) {
 	locks.lock(*t.mu);
 	t.closed = true;
@@ -183,8 +205,10 @@ network_round_trip :: (t: *Transport, host: string, req: http.Request) -> http.R
 		o, ref := origin_get_h2(t, host);
 		if ref {
 			resp, err = http.h2_request(ref.c, req);
-			// Refused / GOAWAY before processing: safe to retry on a new session (Chrome does).
-			retry := err == .Refused || err == .Goaway || (err == .Closed && attempt == 0);
+			// Refused / GOAWAY before processing: safe to retry on a new session (Chrome does). So is a
+			// request that can be repeated when its session died (a failed PING, dropped sessions).
+			again := req.method == "GET" || req.method == "HEAD" || req.method == "PUT" || req.method == "DELETE";
+			retry := err == .Refused || err == .Goaway || ((err == .Closed || (err == .Timeout && again)) && attempt == 0);
 			if retry origin_drop_h2(t, o, ref);
 			h2_release(t, ref);
 			if retry continue;

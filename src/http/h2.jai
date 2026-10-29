@@ -141,6 +141,17 @@ h2_close :: (c: *H2_Conn) {
 	h2_destroy(c);
 }
 
+// h2_abort fails the connection now without waiting: requests in flight end with .Closed and the reader
+// wakes (after sleep or a network change the socket may be dead with nothing to notice it). h2_close
+// still frees it.
+h2_abort :: (c: *H2_Conn) {
+	netio.shutdown(c.s);
+	lock(c);
+	fail_conn_locked(c, .Closed);
+	locks.cond_broadcast(*c.cond);
+	locks.unlock(*c.mu);
+}
+
 // h2_request sends req and blocks until its response is complete (caller owns it: response_destroy).
 // nghttp2 holds the request back while the server's MAX_CONCURRENT_STREAMS is reached. Thread-safe.
 h2_request :: (c: *H2_Conn, req: Request) -> Response, Error {

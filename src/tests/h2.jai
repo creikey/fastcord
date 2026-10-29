@@ -52,6 +52,21 @@ main :: () {
 	check(req.err == .Timeout, "the request fails");
 	join(service);
 	http.h2_close(c);
+
+	// A request waiting on a dead connection (after sleep): h2_abort fails it at once.
+	a2, b2 := http.pipe_make(read_timeout_ms = 60_000);
+	srv2 := Server.{s = b2};
+	c2 := http.h2_connect(a2, .{});
+	read_n(*srv2, preface);
+	send(*srv2, SETTINGS, 0, 0, .[]);
+	req2 := Request_Job.{c = c2};
+	t3 := start(*req2);
+	until(*srv2, HEADERS);
+	start_time = current_time_monotonic();
+	http.h2_abort(c2);
+	join(t3);
+	check(req2.err == .Closed && to_milliseconds(current_time_monotonic() - start_time) < 1000, "h2_abort fails the request at once");
+	http.h2_close(c2);
 	print("h2: % failed\n", failed);
 	exit(xx ifx failed then 1 else 0);
 }

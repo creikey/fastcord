@@ -872,7 +872,12 @@ gateway_control_proc :: (g: *Gateway) {
 		now := now_ms();
 		// A round waits at most 1 s, so a longer gap is the machine waking from sleep: the client's
 		// powerMonitor "resume" sends expeditedHeartbeat(5000).
-		if now - last_round > WAKE_GAP_MS gateway_expedited_heartbeat_locked(g, 5000);
+		if now - last_round > WAKE_GAP_MS {
+			gateway_expedited_heartbeat_locked(g, 5000);
+			locks.unlock(*g.mu);
+			transport_drop_sessions(*g.c.transport); // REST's sessions slept too
+			locks.lock(*g.mu);
+		}
 		last_round = now;
 		if now >= next_idle_poll {
 			next_idle_poll = now + 10_000;
@@ -926,7 +931,11 @@ gateway_control_proc :: (g: *Gateway) {
 						g.beat_acked = false;
 						send_heartbeat_locked(g);
 					} else if g.expedited_deadline == 0 {
-						// ACK timeout: close 4000 and reconnect through the backoff.
+						// ACK timeout: close 4000 and reconnect through the backoff. REST's sessions
+						// likely died with the socket (a network change): dial them again too.
+						locks.unlock(*g.mu);
+						transport_drop_sessions(*g.c.transport);
+						locks.lock(*g.mu);
 						g.pending_teardown = true;
 						g.pending_code = 0;
 						g.pending_gen = g.gen;

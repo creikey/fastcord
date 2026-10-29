@@ -60,6 +60,7 @@ Rate_Limiter :: struct {
 	cond: locks.Cond;
 	holds: Table(string, Url_Hold);
 	allocator: Allocator;
+	closed: bool; // quitting: rate_acquire waits no more
 }
 
 rate_limiter_init :: (r: *Rate_Limiter, allocator := context.allocator) {
@@ -79,7 +80,7 @@ rate_acquire :: (r: *Rate_Limiter, url: string) {
 	ticket := -1;
 	while true {
 		h := table_find_pointer(*r.holds, url);
-		if !h || (ticket >= 0 && ticket < h.released) return;
+		if !h || (ticket >= 0 && ticket < h.released) || r.closed return;
 		now := now_ms();
 		if h.timer_due && now >= h.until {
 			h.timer_due = false;
