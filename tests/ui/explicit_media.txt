@@ -1,0 +1,13 @@
+# Content Filters set to blur explicit media and block gore in servers: an attachment the scan flagged
+# explicit is blurred under "Sensitive" until clicked, an embed flagged gore is replaced by a note (in the
+# shots).
+dispatch USER_SETTINGS_PROTO_UPDATE {"settings":{"type":1,"proto":"MgrqAQIIAoICAggD"},"partial":true}
+dispatch MESSAGE_CREATE {"id":"1600000000000000010","channel_id":"1546820603343016006","guild_id":"1546820558300258304","author":{"id":"1000000000000000001","username":"robin"},"content":"look","timestamp":"2026-10-28T10:00:00.000000+00:00","attachments":[{"id":"1600000000000000011","filename":"a.png","size":100,"url":"https://cdn.discordapp.com/attachments/1/2/a.png","proxy_url":"https://media.discordapp.net/attachments/1/2/a.png","width":320,"height":200,"content_type":"image/png","flags":16,"content_scan_version":4}],"embeds":[{"type":"image","url":"https://example.com/x.png","flags":64,"thumbnail":{"url":"https://example.com/x.png","proxy_url":"https://media.discordapp.net/external/x.png","width":200,"height":100}}],"mentions":[],"type":0}
+wait 20
+settle 1
+expect_visible "Sensitive"
+expect_visible "Blocked by your content filters"
+shot build/ui-explicit_media-blurred.png
+click_text "Sensitive"
+wait 5
+expect_not_visible "Sensitive"

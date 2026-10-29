@@ -233,6 +233,7 @@ Embed :: struct {
 	fields: []Embed_Field;
 	footer, footer_icon: string;
 	timestamp_ms: s64;
+	flags: u64; // MessageEmbedFlags: 16 explicit, 64 gore (content scan results)
 }
 
 Embed_Field :: struct {

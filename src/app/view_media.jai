@@ -146,7 +146,18 @@ attachments_view :: (m: *dc.Message, max_w: float32 = 400) {
 	}
 	for * a, i: m.attachments {
 		if grid.count >= 2 && mosaic_image(a) continue;
-		if !is_audio(a) && a.width > 0 && a.height > 0 && is_spoiler(a) && !table_find_pointer(*revealed_spoilers, a.id) {
+		redact := media_redaction(m, a.flags);
+		if redact == .Block {
+			blocked_media_note(tprint("blocked%", i));
+			continue;
+		}
+		if redact == .Blur && a.width > 0 && a.height > 0 && !table_find_pointer(*revealed_spoilers, a.id) {
+			w := cast(float32) a.width;
+			h := cast(float32) a.height;
+			sc := min(1.0, min(max_w / w, 300 / h));
+			if spoiler_cover(tprint("att%", i), attachment_image_url(a, cast(int) (w * sc), cast(int) (h * sc)), w * sc, h * sc, "Sensitive") table_set(*revealed_spoilers, a.id, true);
+			spacer(.Y, 4);
+		} else if !is_audio(a) && a.width > 0 && a.height > 0 && is_spoiler(a) && !table_find_pointer(*revealed_spoilers, a.id) {
 			w := cast(float32) a.width;
 			h := cast(float32) a.height;
 			sc := min(1.0, min(max_w / w, 300 / h));
@@ -357,7 +368,41 @@ drag_write :: (url: string, path: string) -> bool {
 is_video ::(a: *dc.Attachment) -> bool { return begins_with(a.content_type, "video/"); }
 
 // A plain image (not a video, audio clip or spoiler): what joins a message's mosaic.
-mosaic_image :: (a: *dc.Attachment) -> bool { return !is_video(a) && !is_audio(a) && !is_spoiler(a) && a.width > 0 && a.height > 0; }
+mosaic_image :: (a: *dc.Attachment) -> bool { return !is_video(a) && !is_audio(a) && !is_spoiler(a) && !(a.flags & MEDIA_FLAGGED) && a.width > 0 && a.height > 0; }
+
+// Explicit and gore media: the content scan's flags (attachments' and embeds' alike) against the synced
+// Content Filters for this kind of channel (servers, friends' DMs, others' DMs). Unset: blur everywhere
+// without NSFW access, else block in others' DMs (as analytics_redactable_page reads it). Never ours.
+MEDIA_EXPLICIT : u64 : 16;
+MEDIA_GORE : u64 : 64;
+MEDIA_FLAGGED :: MEDIA_EXPLICIT | MEDIA_GORE;
+Redaction :: enum u8 { Show; Blur; Block; }
+
+media_redaction :: (m: *dc.Message, flags: u64) -> Redaction {
+	s := store();
+	if !(flags & MEDIA_FLAGGED) || m.author_id == s.me return .Show;
+	ch := dc.channel_get(s, m.channel_id);
+	kind := 0;
+	if ch && !ch.guild_id {
+		_, rel := table_find(*s.relationships, m.author_id);
+		kind = ifx rel.kind == .Friend then 1 else 2;
+	}
+	out := Redaction.Show;
+	for harm: 0..1 {
+		if !(flags & (ifx harm then MEDIA_GORE else MEDIA_EXPLICIT)) continue;
+		v := s.settings.media_redaction[harm][kind];
+		if v == 0 v = cast(u64) ifx s.settings.nsfw_blocked then 2 else ifx kind == 2 then 3 else 1;
+		if v == 3 return .Block;
+		if v == 2 out = .Blur;
+	}
+	return out;
+}
+
+// In place of media the Content Filters block.
+blocked_media_note :: (id: string) {
+	label(tprint("Blocked by your content filters##%", id), .Normal, 14, T("--text-muted"), 20);
+	spacer(.Y, 4);
+}
 
 // Several images as the client's mosaic, gw wide with 4 px gaps: rows of 2 and 3 (5: 2+3, 6: 3+3,
 // 8: 2+3+3, 9: 3x3), a lone first row on top for 7 and 10, and 3 as one large tile beside two
@@ -416,7 +461,7 @@ is_spoiler :: (a: *dc.Attachment) -> bool { return begins_with(a.filename, "SPOI
 
 // A spoilered attachment: the image blurred (url "" for a file: a plain box) under a "SPOILER" pill until
 // clicked. True when clicked.
-spoiler_cover :: (id: string, url: string, w: float32, h: float32) -> bool {
+spoiler_cover :: (id: string, url: string, w: float32, h: float32, text := "SPOILER") -> bool {
 	b := ui.box(id, .Draw_Background | .Clickable);
 	b.semantic_size = .[ui.px(w), ui.px(h)];
 	b.style.radius = all4(8);
@@ -432,7 +477,7 @@ spoiler_cover :: (id: string, url: string, w: float32, h: float32) -> bool {
 	pill.style.radius = all4(16);
 	{ ui.parent(pill); defer ui.pop_parent();
 		filler(.X);
-		label("SPOILER", .Bold, 15, .{1, 1, 1, 1}, 32);
+		label(text, .Bold, 15, .{1, 1, 1, 1}, 32);
 		filler(.X);
 	}
 	return sig.clicked;
@@ -744,6 +789,18 @@ embeds_view :: (m: *dc.Message, max_w: float32 = 400) {
 		// a free emoji link's image already shows inline, as the emoji (markdown.jai free_emoji_link)
 		_, _, free := free_emoji_link(e.url);
 		if free && e.kind == "image" && contains(m.content, tprint("](%", e.url)) continue;
+		redact := media_redaction(m, e.flags);
+		if redact == .Block { blocked_media_note(tprint("eblocked%", i)); continue; }
+		ekey := cast(u64) m.id + cast(u64) i + 1; // revealed_spoilers' key for this embed
+		if redact == .Blur && !table_find_pointer(*revealed_spoilers, ekey) {
+			url := ifx e.thumbnail_url != "" then e.thumbnail_url else e.image_url;
+			w := cast(float32) max(max(e.thumbnail_w, e.image_w), 160);
+			h := cast(float32) max(max(e.thumbnail_h, e.image_h), 90);
+			sc := min(1.0, min(max_w / w, 300 / h));
+			if spoiler_cover(tprint("eblur%", i), url, w * sc, h * sc, "Sensitive") table_set(*revealed_spoilers, ekey, true);
+			spacer(.Y, 4);
+			continue;
+		}
 		if e.kind == "gifv" || (e.kind == "image" && e.title == "") {
 			// bare media links render as the media itself; GIFV (Tenor, Klipy) as its looping video
 			url := ifx e.thumbnail_url != "" then e.thumbnail_url else e.image_url;
@@ -1127,11 +1184,13 @@ viewer_items :: (m: *dc.Message) -> []Viewer_Item {
 	out.allocator = temp;
 	if !m return out;
 	for * a: m.attachments {
-		if is_video(a) || is_audio(a) || a.width <= 0 || a.height <= 0 || (is_spoiler(a) && !table_find_pointer(*revealed_spoilers, a.id)) continue;
+		hidden := (is_spoiler(a) || media_redaction(m, a.flags) != .Show) && !table_find_pointer(*revealed_spoilers, a.id);
+		if is_video(a) || is_audio(a) || a.width <= 0 || a.height <= 0 || hidden || media_redaction(m, a.flags) == .Block continue;
 		array_add(*out, .{ifx a.proxy_url then a.proxy_url else a.url, .{a.width, a.height}, "", a.url});
 	}
 	if m.flags & 4 return out; // SUPPRESS_EMBEDS
-	for * e: m.embeds {
+	for * e, i: m.embeds {
+		if media_redaction(m, e.flags) != .Show && (media_redaction(m, e.flags) == .Block || !table_find_pointer(*revealed_spoilers, cast(u64) m.id + cast(u64) i + 1)) continue;
 		if e.kind == "gifv" || (e.kind == "image" && e.title == "") {
 			url := ifx e.thumbnail_url != "" then e.thumbnail_url else e.image_url;
 			w, h := max(e.thumbnail_w, e.image_w), max(e.thumbnail_h, e.image_h);

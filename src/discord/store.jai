@@ -518,7 +518,8 @@ parse_embed :: (m: etf.Map, a: Allocator) -> Embed {
 		title = clone_str(fstr(m, "title"), a),
 		description = clone_str(fstr(m, "description"), a),
 		url = clone_str(fstr(m, "url"), a),
-		color = cast(u32) fint(m, "color")
+		color = cast(u32) fint(m, "color"),
+		flags = cast(u64) fint(m, "flags")
 	};
 	t := fmap(m, "thumbnail");
 	if t {
