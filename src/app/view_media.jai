@@ -753,7 +753,7 @@ media_menu_open :: (link: string, image: string) {
 media_action_receive :: (r: *dc.Media_Result) -> bool {
 	if r.tag != MEDIA_TAG_COPY && r.tag != MEDIA_TAG_SAVE return false;
 	if r.status == 200 && r.data {
-		decode_submit(.{kind = ifx r.tag == MEDIA_TAG_COPY then Decode_Kind.Copy_Image else .Save_Image, url = copy_string(r.url), data = r.data});
+		decode_submit(.{kind = ifx r.tag == MEDIA_TAG_COPY then Decode_Kind.Copy_Image else .Save_Image, url = copy_string(r.url), data = r.data, path = save_path_take(r.url)});
 		r.data = .[];
 	} else if r.tag == MEDIA_TAG_SAVE {
 		toast_show("Couldn't save the image.", false);
@@ -866,8 +866,38 @@ media_action :: (tag: u64, u: string) {
 	}
 	if url_ext(path) == "" print_to_builder(*sb, "%format=png", sep);
 	url := builder_to_string(*sb,, temp);
+	if tag == MEDIA_TAG_SAVE {
+		// Asked first, as the client's Save dialog: nothing downloads when it's cancelled.
+		app.ext_actions += 1;
+		dest := platform.save_file_dialog(download_name(path));
+		if !dest return;
+		save_path_take(url);
+		table_set(*save_paths, copy_string(url), dest);
+	}
 	if app.client dc.fetch_media(media_client(url), .{url = url, kind = .Image, visible = true, tag = tag});
-	else decode_submit(.{kind = ifx tag == MEDIA_TAG_COPY then Decode_Kind.Copy_Image else .Save_Image, url = copy_string(url)});
+	else decode_submit(.{kind = ifx tag == MEDIA_TAG_COPY then Decode_Kind.Copy_Image else .Save_Image, url = copy_string(url), path = save_path_take(url)});
+}
+
+// The file name Save Image offers: the URL's last path segment.
+download_name :: (url: string) -> string {
+	name := url;
+	q := find_index_from_left(name, #char "?");
+	if q >= 0 name.count = q;
+	advance(*name, find_index_from_right(name, #char "/") + 1);
+	if !name return "image.png";
+	return ifx find_index_from_left(name, #char ".") < 0 then tprint("%.png", name) else name; // media_action asks for format=png
+}
+
+// Where each pending Save Image download goes, by its URL (heap keys and values).
+save_paths: Table(string, string);
+
+save_path_take :: (url: string) -> string {
+	k, v: string;
+	for path, key: save_paths if key == url { k, v = key, path; break; }
+	if !k return "";
+	table_remove(*save_paths, k);
+	free(k);
+	return v;
 }
 
 url_host :: (u: string) -> string {

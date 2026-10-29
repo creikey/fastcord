@@ -77,6 +77,31 @@ open_file_dialog :: (allow_multiple := true, allocator := context.allocator) -> 
     return out;
 }
 
+// Modal "save file" dialog (IFileSaveDialog) offering name, first in Downloads. The path, or "" if cancelled.
+save_file_dialog :: (name: string, allocator := context.allocator) -> string {
+    if s.headless return copy_string(name,, allocator);
+    CLSID_FileSaveDialog := win.GUID.{0xC0B4E2F3, 0xBA21, 0x4773, .[0x8D, 0xBA, 0x33, 0x5E, 0xC9, 0x46, 0xEB, 0x8B]};
+    IID_IFileSaveDialog := win.GUID.{0x84BCCD23, 0x5FDE, 0x4CDB, .[0xAE, 0xA4, 0xAF, 0x64, 0xB8, 0x3D, 0x78, 0xAB]};
+    IID_IShellItem := win.GUID.{0x43826D1E, 0xE718, 0x42EE, .[0xBC, 0x55, 0xA1, 0xE2, 0x61, 0xC3, 0x7B, 0xFE]};
+    HR :: win.HRESULT;
+    dlg, folder, item: *void;
+    defer { release(item); release(folder); release(dlg); }
+    // IFileDialog::GetOptions (10), SetOptions (9), SetDefaultFolder (11), SetFileName (15), GetResult (20)
+    opts: u32;
+    if CoCreateInstance(*CLSID_FileSaveDialog, null, 1 /*CLSCTX_INPROC_SERVER*/, *IID_IFileSaveDialog, *dlg) < 0 ||
+        vt(dlg, 10, #type (*void, *u32) -> HR #c_call)(dlg, *opts) < 0 return "";
+    vt(dlg, 9, #type (*void, u32) -> HR #c_call)(dlg, opts | 0x2 /*FOS_OVERWRITEPROMPT*/ | 0x40 /*FOS_FORCEFILESYSTEM*/);
+    dl := downloads_dir();
+    if dl && SHCreateItemFromParsingName(wide(dl), null, *IID_IShellItem, *folder) >= 0 vt(dlg, 11, #type (*void, *void) -> HR #c_call)(dlg, folder);
+    vt(dlg, 15, #type (*void, *u16) -> HR #c_call)(dlg, wide(name));
+    if vt(dlg, 3, #type (*void, win.HWND) -> HR #c_call)(dlg, w.hwnd) < 0 || // cancelled: ERROR_CANCELLED
+        vt(dlg, 20, #type (*void, **void) -> HR #c_call)(dlg, *item) < 0 return "";
+    p: *u16;
+    if vt(item, 5, #type (*void, u32, **u16) -> HR #c_call)(item, 0x80058000 /*SIGDN_FILESYSPATH*/, *p) < 0 return "";
+    defer CoTaskMemFree(p);
+    return utf16_to_utf8(p, -1, allocator);
+}
+
 // A notification through the tray icon's balloon, which Windows 10 and 11 show as a toast (Action Center,
 // Focus Assist) with no AppUserModelID or Start menu shortcut. Clicking it opens the window. Each one replaces
 // the last, so `id` is unused. The app plays the notification sound itself.
@@ -524,6 +549,7 @@ CoInitializeEx :: (reserved: *void, coinit: u32) -> win.HRESULT #foreign ole32;
 CoUninitialize :: () #foreign ole32;
 CoTaskMemFree :: (p: *void) #foreign ole32;
 SHGetKnownFolderPath :: (id: *win.GUID, flags: u32, token: *void, path: **u16) -> win.HRESULT #foreign shell32;
+SHCreateItemFromParsingName :: (path: *u16, ctx: *void, iid: *win.GUID, out: **void) -> win.HRESULT #foreign shell32;
 CoCreateInstance :: (clsid: *win.GUID, outer: *void, ctx: u32, iid: *win.GUID, out: **void) -> win.HRESULT #foreign ole32;
 OleInitialize :: (reserved: *void) -> win.HRESULT #foreign ole32;
 RegisterDragDrop :: (hwnd: win.HWND, target: *void) -> win.HRESULT #foreign ole32;

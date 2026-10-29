@@ -50,6 +50,21 @@ open_file_dialog :: (allow_multiple := true, allocator := context.allocator) -> 
     return paths;
 }
 
+// "Save file" dialog by zenity or kdialog, offering name in ~/Downloads. The path, or "" if cancelled or
+// neither is installed. Blocks like the other platforms' modal panels.
+save_file_dialog :: (name: string, allocator := context.allocator) -> string {
+    if s.headless return copy_string(name,, allocator);
+    start := tprint("%/Downloads/%", to_string(getenv("HOME")), name);
+    r: Process_Result;
+    out: string;
+    if in_path("zenity") r, out = run_command("zenity", "--file-selection", "--save", "--confirm-overwrite", tprint("--filename=%", start), capture_and_return_output = true,, temp);
+    else if in_path("kdialog") r, out = run_command("kdialog", "--getsavefilename", start, capture_and_return_output = true,, temp);
+    else return "";
+    out = trim_right(out, "\n");
+    if r.exit_code != 0 || !begins_with(out, "/") return "";
+    return copy_string(out,, allocator);
+}
+
 // Desktop notifications by notify-send (libnotify), when installed. No badge on Linux.
 notify_show :: (title: string, body: string, id: string) -> bool {
     if s.headless || !in_path("notify-send") return false;

@@ -35,6 +35,17 @@ system_a11y :: () -> System_A11y {
     return a;
 }
 
+// Modal "save file" panel offering name (NSSavePanel asks before replacing). The path, or "" if cancelled.
+save_file_dialog :: (name: string, allocator := context.allocator) -> string {
+    if s.headless return copy_string(name,, allocator);
+    panel := msg(Id, cls("NSSavePanel"), "savePanel");
+    msg(Void, panel, "setNameFieldStringValue:", nsstr(name));
+    dl := msg(Id, cls("NSURL"), "fileURLWithPath:", nsstr(tprint("%/Downloads", to_string(posix.getenv("HOME")))));
+    msg(Void, panel, "setDirectoryURL:", dl);
+    if msg(NSInteger, panel, "runModal") != 1 return ""; // NSModalResponseOK
+    return to_jai_string(msg(Id, msg(Id, panel, "URL"), "path"), allocator);
+}
+
 // Modal "open file" panel. Returns absolute paths (empty if cancelled).
 open_file_dialog :: (allow_multiple := true, allocator := context.allocator) -> []string {
     if s.headless return .[];

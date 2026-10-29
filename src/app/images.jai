@@ -294,6 +294,7 @@ Decode_Kind :: enum u8 {
 Decode_Job :: struct {
 	kind: Decode_Kind;
 	url: string; // heap, owned: the images key / the media URL (offline reads)
+	path: string; // heap, owned: Save_Image's destination, picked in the Save dialog
 	data: []u8; // heap, owned; empty: read the URL from FASTCORD_MEDIA_DIR
 	id: dc.Snowflake; // Lottie
 	px: int;
@@ -427,7 +428,7 @@ decode_run :: (j: Decode_Job, players: *[..]*lottie.Player) -> Decoded {
 		if data platform.clipboard_set_image(data);
 	case .Save_Image;
 		// Offline (fixture) runs read the bytes from FASTCORD_MEDIA_DIR and never write to the real Downloads.
-		d.saved = data && (!j.data || save_download(j.url, data));
+		d.saved = data && (!j.data || write_entire_file(j.path, data.data, data.count));
 	}
 	if j.kind != .Fetch {
 		array_free(d.data);
@@ -435,27 +436,6 @@ decode_run :: (j: Decode_Job, players: *[..]*lottie.Player) -> Decoded {
 	}
 	d.ok = d.frames.count > 0 || d.anim != null || d.data.count > 0 || j.kind == .Lottie_Scene;
 	return d;
-}
-
-// Save Image: ~/Downloads/<name from the URL>, " (n)" before the extension when taken (worker thread).
-save_download :: (url: string, data: []u8) -> bool {
-	name := url;
-	q := find_index_from_left(name, #char "?");
-	if q >= 0 name.count = q;
-	advance(*name, find_index_from_right(name, #char "/") + 1);
-	if !name name = "image.png";
-	dot := find_index_from_right(name, #char ".");
-	stem, ext := name, "";
-	if dot > 0 stem, ext = slice(name, 0, dot), slice(name, dot, name.count - dot);
-	#if OS == .WINDOWS dir := platform.downloads_dir(); // HOME is normally unset on Windows
-	else               dir := tprint("%/Downloads", env_var("HOME"));
-	if !dir return false;
-	path := tprint("%/%", dir, name);
-	for 1..999 {
-		if !file_exists(path) break;
-		path = tprint("%/% (%)%", dir, stem, it, ext);
-	}
-	return write_entire_file(path, data.data, data.count);
 }
 
 decode_free :: (d: *Decoded) {
@@ -466,6 +446,7 @@ decode_free :: (d: *Decoded) {
 	array_free(d.tex);
 	array_free(d.blur);
 	free(d.url);
+	free(d.path);
 }
 
 // Textures for finished decodes, within the frame's upload budget; the rest waits for the next frame.
@@ -489,7 +470,7 @@ decode_upload :: () {
 			blob_decoded(d.url, d.data);
 			d.data = .[];
 		} else if d.kind == .Save_Image {
-			toast_show(ifx d.saved then "Image saved to Downloads." else "Couldn't save the image.", d.saved);
+			toast_show(ifx d.saved then "Image saved." else "Couldn't save the image.", d.saved);
 		} else if d.kind == .Lottie_Load || d.kind == .Lottie_Still || d.kind == .Lottie_Frame || d.kind == .Lottie_Scene {
 			budget -= d.size.x * d.size.y * 4;
 			lottie_decoded(d);
