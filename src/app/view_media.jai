@@ -61,15 +61,33 @@ blob_stream :: (url: string, kind: dc.Media_Kind, any_host := false) -> *Blob {
 	b.state = .Loading;
 	if b.stream media.growing_release(b.stream); // a failed try's player keeps its own reference
 	b.stream = media.growing_create();
+	// the head's writer also asks for the tail when an MP4's index comes after its media (growing_tail_wanted)
+	s := New(Stream_Fetch);
+	s.* = .{g = b.stream, c = c, url = copy_string(url), kind = kind, any_host = any_host};
 	take :: (data: *void, piece: []u8) -> bool {
-		g := cast(*media.Growing_Buffer) data;
-		if g.data.count + piece.count > STREAM_MAX return false; // only this worker grows it
-		media.growing_append(g, piece);
+		s := cast(*Stream_Fetch) data;
+		if s.g.data.count + piece.count > STREAM_MAX return false; // only this worker grows it
+		media.growing_append(s.g, piece);
+		off := media.growing_tail_wanted(s.g);
+		if off > 0 {
+			tail :: (data: *void, piece: []u8) -> bool {
+				s := cast(*Stream_Fetch) data;
+				if s.g.tail.count + piece.count > STREAM_MAX return false;
+				media.growing_append_tail(s.g, piece);
+				return true;
+			}
+			dc.fetch_media(s.c, .{url = s.url, kind = s.kind, visible = true, stream = .{s, tail}, any_host = s.any_host, range_from = off, tag = MEDIA_TAG_TAIL});
+		}
 		return true;
 	}
-	dc.fetch_media(c, .{url = url, kind = kind, visible = true, stream = .{b.stream, take}, any_host = any_host});
+	dc.fetch_media(c, .{url = url, kind = kind, visible = true, stream = .{s, take}, any_host = any_host});
 	return b;
 }
+
+// A streamed download's state for its workers (heap, kept: a late tail may still write through it).
+Stream_Fetch :: struct { g: *media.Growing_Buffer; c: *dc.Client; url: string; kind: dc.Media_Kind; any_host: bool; }
+
+MEDIA_TAG_TAIL :: 0x6d65_6469_6104;
 
 STREAM_MAX :: 512 << 20;
 
@@ -84,6 +102,10 @@ blob_decoded :: (url: string, data: []u8) {
 blob_receive :: (r: *dc.Media_Result) -> bool {
 	b := table_find_pointer(*blobs, r.url);
 	if !b return false;
+	if b.stream && r.tag == MEDIA_TAG_TAIL {
+		media.growing_finish_tail(b.stream, r.status == 200);
+		return true;
+	}
 	if b.stream {
 		media.growing_finish(b.stream, r.status == 200);
 		b.state = ifx r.status == 200 then Image_State.Ready else .Failed;

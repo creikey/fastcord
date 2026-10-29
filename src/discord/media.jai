@@ -24,6 +24,7 @@ Media_Request :: struct {
 	progress: *Media_Progress; // save_to's; the caller's, kept until the result arrives
 	stream: http.Body_Sink; // set: the body goes here as it arrives (no cache), see run_stream; called on a worker
 	any_host: bool; // a stream from an address the user chose to load (yt-dlp's), not only Discord's media hosts
+	range_from: s64; // a <video>'s later range request: bytes=range_from- (a stream's moov after its media)
 }
 
 // A download's bytes so far, written by the worker and read by the UI thread.
@@ -57,7 +58,7 @@ IMAGE_ACCEPT :: "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.
 //   image same-origin: same without sec-fetch-storage-access; cookie after accept-language
 //   font: origin first, then platform..accept(*/*),site,cors,font,referer(css),..,cookie,priority u=0
 //   fetch cross-site: ...,accept,origin,site,cors,empty,referer,...
-media_headers :: (p: Platform_Info, kind: Media_Kind, site: Fetch_Site, visible: bool, referer: string, cookie: string, etag: string, last_modified: string, allocator := temp) -> []http.Header {
+media_headers :: (p: Platform_Info, kind: Media_Kind, site: Fetch_Site, visible: bool, referer: string, cookie: string, etag: string, last_modified: string, allocator := temp, range_from: s64 = 0) -> []http.Header {
 	h: [..]http.Header;
 	h.allocator = allocator;
 	array_reserve(*h, 20);
@@ -76,7 +77,7 @@ media_headers :: (p: Platform_Info, kind: Media_Kind, site: Fetch_Site, visible:
 		add("referer", referer);
 		add("accept-language", p.accept_language);
 		if cookie add("cookie", cookie);
-		add("range", "bytes=0-");
+		add("range", tprint("bytes=%-", range_from,, allocator));
 		add("priority", "i");
 		return h;
 	}
@@ -124,7 +125,7 @@ site_for_host :: (host: string) -> Fetch_Site {
 // after client_poll (or the wakeup).
 fetch_media :: (c: *Client, req: Media_Request) {
 	j := job_new(.Web, .Media);
-	j.media = .{url = job_str(j, req.url), kind = req.kind, visible = req.visible, referer = job_str(j, req.referer), tag = req.tag, discard = req.discard, save_to = job_str(j, req.save_to), progress = req.progress, stream = req.stream, any_host = req.any_host};
+	j.media = .{url = job_str(j, req.url), kind = req.kind, visible = req.visible, referer = job_str(j, req.referer), tag = req.tag, discard = req.discard, save_to = job_str(j, req.save_to), progress = req.progress, stream = req.stream, any_host = req.any_host, range_from = req.range_from};
 	j.result.tag = req.tag;
 	job_submit(c, j);
 }
@@ -334,7 +335,7 @@ run_stream :: (c: *Client, j: *Job) {
 		else {
 			site := site_for_host(host);
 			ref := ifx m.referer then m.referer else ifx site == .Same_Origin then client_route_referer(c) else #run join(API_ORIGIN, "/");
-			req.headers = media_headers(c.id.platform, m.kind, site, m.visible, ref, cookie, "", "");
+			req.headers = media_headers(c.id.platform, m.kind, site, m.visible, ref, cookie, "", "", range_from = m.range_from);
 		}
 		resp, err := transport_round_trip(*c.transport, host, req);
 		if err == .None && resp.body take(*w, resp.body); // an encoded body, or a transport that doesn't sink

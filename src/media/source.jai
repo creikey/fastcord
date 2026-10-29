@@ -91,7 +91,9 @@ source_from_memory :: (data: []u8) -> Byte_Source {
 	};
 }
 
-// Growing buffer: a downloader appends, the player reads concurrently.
+// Growing buffer: a downloader appends, the player reads concurrently. An MP4 whose index (moov) comes after
+// its media also gets a tail from a second download (from tail_off, as a browser's range request), so the
+// player can start before the media in between is in.
 Growing_Buffer :: struct {
 	mu: locks.Mutex;
 	cond: locks.Cond;
@@ -99,6 +101,11 @@ Growing_Buffer :: struct {
 	complete: bool;
 	failed: bool;
 	refs: int;
+	tail: [..]u8;
+	tail_off: s64 = -1;
+	tail_complete: bool;
+	probe_pos: s64; // growing_tail_wanted's next top-level box (the head's writer only)
+	probe_done: bool;
 }
 
 growing_create :: (expected_size := 0) -> *Growing_Buffer {
@@ -112,6 +119,50 @@ growing_create :: (expected_size := 0) -> *Growing_Buffer {
 growing_append :: (g: *Growing_Buffer, bytes: []u8) {
 	locks.lock(*g.mu);
 	array_add(*g.data, ..bytes);
+	locks.unlock(*g.mu);
+	locks.cond_broadcast(*g.cond);
+}
+
+// growing_tail_wanted: called by the head's writer after each append. The offset to fetch the rest from,
+// once (an MP4's mdat came first and the moov follows it at that offset), else -1.
+growing_tail_wanted :: (g: *Growing_Buffer) -> s64 {
+	if g.probe_done return -1;
+	d := g.data; // only this writer grows it
+	for 1..64 {
+		p := g.probe_pos;
+		if p + 8 > d.count return -1;
+		size := ((cast(s64) d[p]) << 24) | ((cast(s64) d[p + 1]) << 16) | ((cast(s64) d[p + 2]) << 8) | cast(s64) d[p + 3];
+		type := string.{4, d.data + p + 4};
+		if size == 1 {
+			if p + 16 > d.count return -1;
+			size = 0;
+			for i: 0..7 size = (size << 8) | d[p + 8 + i];
+		}
+		if (p == 0 && type != "ftyp") || type == "moov" || size < 8 || size > (1 << 40) { g.probe_done = true; return -1; }
+		if type == "mdat" {
+			g.probe_done = true;
+			locks.lock(*g.mu);
+			g.tail_off = p + size;
+			locks.unlock(*g.mu);
+			return p + size;
+		}
+		g.probe_pos = p + size;
+	}
+	g.probe_done = true;
+	return -1;
+}
+
+growing_append_tail :: (g: *Growing_Buffer, bytes: []u8) {
+	locks.lock(*g.mu);
+	array_add(*g.tail, ..bytes);
+	locks.unlock(*g.mu);
+	locks.cond_broadcast(*g.cond);
+}
+
+growing_finish_tail :: (g: *Growing_Buffer, ok: bool) {
+	locks.lock(*g.mu);
+	g.tail_complete = ok;
+	if !ok { g.tail_off = -1; array_reset(*g.tail); } // the head alone, as before
 	locks.unlock(*g.mu);
 	locks.cond_broadcast(*g.cond);
 }
@@ -131,6 +182,7 @@ growing_release :: (g: *Growing_Buffer) {
 	locks.unlock(*g.mu);
 	if last {
 		array_free(g.data);
+		array_free(g.tail);
 		free(g);
 	}
 }
@@ -146,6 +198,11 @@ source_from_growing :: (g: *Growing_Buffer) -> Byte_Source {
 			locks.lock(*g.mu);
 			defer locks.unlock(*g.mu);
 			if offset >= g.data.count {
+				if g.tail_off >= 0 && offset >= g.tail_off && offset < g.tail_off + g.tail.count && !g.complete {
+					n := min(buf.count, g.tail_off + g.tail.count - offset);
+					memcpy(buf.data, g.tail.data + (offset - g.tail_off), n);
+					return n, .Ok;
+				}
 				if g.failed return 0, .Error;
 				return 0, ifx g.complete then .Eof else .Pending;
 			}
@@ -157,13 +214,15 @@ source_from_growing :: (g: *Growing_Buffer) -> Byte_Source {
 			g := cast(*Growing_Buffer) user;
 			locks.lock(*g.mu);
 			defer locks.unlock(*g.mu);
+			// with a tail, as far as it reaches: the head's gap reads as pending until it's in
+			if !g.complete && g.tail_off >= 0 && g.tail.count return g.tail_off + g.tail.count, g.tail_complete;
 			return g.data.count, g.complete;
 		},
 		wait = (user: *void, have: s64, timeout_ms: s64) {
 			g := cast(*Growing_Buffer) user;
 			locks.lock(*g.mu);
 			defer locks.unlock(*g.mu);
-			if g.data.count <= have && !g.complete locks.cond_wait_with_timeout(*g.cond, *g.mu, timeout_ms);
+			if !g.complete locks.cond_wait_with_timeout(*g.cond, *g.mu, timeout_ms); // the head or the tail grows
 		},
 		destroy = (user: *void) { growing_release(cast(*Growing_Buffer) user); },
 		user = g
