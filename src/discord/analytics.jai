@@ -61,7 +61,7 @@ Analytics :: struct {
 	// READY's legacy experiments that fastcord reads (ETF lists of their entries) and session_id
 	legacy_user, legacy_guild: []u8;
 	ready_session: string;
-	session_start: bool; // a login's session_start_client waits for gateway_connected
+	session_start: bool; // an app IDENTIFY's session_start_client waits for gateway_connected
 	gdm_entry: Gdm_Entry;
 	gdm_searches: int;
 	gdm_pending: bool;

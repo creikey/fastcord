@@ -565,9 +565,11 @@ identify_locked :: (g: *Gateway) {
 	g.state = .Identifying;
 	d := identify_value(g);
 	g.identified = true;
+	hello := g.received_hello;
 	locks.unlock(*g.mu);
 	client_push_state(g.c, .Identifying);
 	gateway_send(g, .Identify, d);
+	analytics_identify(g.c, hello);
 	locks.lock(*g.mu);
 }
 
