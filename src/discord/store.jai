@@ -1192,6 +1192,16 @@ apply_member_list_update :: (s: *Store, d: etf.Map) {
 			if !item.is_group continue;
 			for ml.groups if it.id == item.group_id item.count = it.count;
 		}
+		// The groups size the list: a header per non-empty group plus its rows. A shorter list (a member
+		// went online, so the Offline header left) drops its stale tail, which would show as a duplicate.
+		if vhas(d, "groups") {
+			rows := 0;
+			for ml.groups if it.count > 0 rows += 1 + it.count;
+			while ml.items.count > rows {
+				free_str(ml.items[ml.items.count - 1].group_id, s.allocator);
+				ml.items.count -= 1;
+			}
+		}
 	}
 	MAX_MEMBER_LIST_ITEMS :: 1 << 17;
 	for opv: flist(d, "ops") {
