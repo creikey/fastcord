@@ -343,10 +343,11 @@ channel_path :: (channel_id: Snowflake, rest: ..string) -> string {
 }
 
 // fetch_messages: GET /channels/{id}/messages?before=&limit= (retries 2).
-fetch_messages :: (c: *Client, channel_id: Snowflake, before: Snowflake = 0, limit := 50, tag: u64 = 0, referer := "") {
+fetch_messages :: (c: *Client, channel_id: Snowflake, before: Snowflake = 0, limit := 50, tag: u64 = 0, referer := "", after: Snowflake = 0) {
 	q: Query;
 	query_init(*q, channel_path(channel_id, "/messages"));
 	if before query_add_snow(*q, "before", before);
+	if after query_add_snow(*q, "after", after);
 	query_add_int(*q, "limit", limit);
 	j := job_new(.Api, .Fetch_Messages);
 	j.method = "GET";
@@ -356,6 +357,7 @@ fetch_messages :: (c: *Client, channel_id: Snowflake, before: Snowflake = 0, lim
 	j.result.channel_id = channel_id;
 	j.result.limit = limit;
 	j.result.before = before;
+	j.result.after = after;
 	j.result.tag = tag;
 	message_list(*c.store, channel_id).loading = true;
 	job_submit(c, j);

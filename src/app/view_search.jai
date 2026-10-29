@@ -51,7 +51,11 @@ jump_to_message :: (channel_id: dc.Snowflake, message_id: dc.Snowflake) {
 	if app.view.channel != channel_id { select_channel(ch.guild_id, channel_id); }
 	jump = .{channel = channel_id, message = message_id};
 	loaded := false;
-	for m: dc.messages_get(s, channel_id) { if m.id == message_id { loaded = true; } }
+	l := table_find_pointer(*s.messages, channel_id);
+	if l for m: l.messages if m.id == message_id {
+		loaded = true;
+		if l.gap_after && m.id > l.gap_after dc.drop_jumped_stretch(s, l); // stored on the present side
+	}
 	if !loaded && app.client != null {
 		dc.fetch_messages_around(app.client, channel_id, message_id);
 		jump.requested = true;

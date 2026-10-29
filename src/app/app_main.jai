@@ -817,8 +817,13 @@ script_command :: (path: string, f: []string, t: *float64) {
 		}
 		return;
 	case "history";
-		// history loading|failed|older: the open channel's message list as the network left it
+		// history loading|failed|older|gap: the open channel's message list as the network left it
 		l := dc.message_list(store(), app.view.channel);
+		if f[1] == "gap" {
+			// history gap <n>: a jump showed all but the newest n messages, the rest are the present side
+			l.gap_after = l.messages[max(0, l.messages.count - 1 - cast(int) num(f[2]))].id;
+			return;
+		}
 		l.loading = f[1] == "loading" || f[1] == "older";
 		l.failed = f[1] == "failed";
 		l.loaded = f[1] != "loading";

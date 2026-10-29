@@ -568,13 +568,15 @@ client_apply_rest :: (c: *Client, e: *Event) {
 			l := message_list(s, r.channel_id);
 			l.loading = false;
 			l.failed = !r.ok;
-			if r.ok {
+			// a newer page whose stretch Jump to Present (or another jump) dropped meanwhile is stale
+			if r.ok && (!r.after || r.after == l.gap_after) {
 				items := vlist(e.data);
 				// a refetch after a fresh READY: the page is the channel's present, so messages deleted
 				// meanwhile and the gap before it go (our unsent messages stay)
-				refetch := l.stale && r.before == 0;
+				refetch := l.stale && r.before == 0 && r.after == 0;
 				if refetch {
 					l.stale = false;
+					l.gap_after = 0;
 					n := 0;
 					for * l.messages {
 						if it.pending || it.failed l.messages[n] = it.*;
@@ -583,15 +585,24 @@ client_apply_rest :: (c: *Client, e: *Event) {
 					}
 					l.messages.count = n;
 				}
+				present := present_oldest(l);
 				for items upsert_message(s, vmap(it));
+				if r.after {
+					// a newer page of the jumped-to stretch: a short page, or one reaching the stored present, closes the gap
+					newest := r.after;
+					for items newest = max(newest, fsnow(vmap(it), "id"));
+					l.gap_after = ifx items.count < r.limit || (present && newest >= present) then 0 else newest;
+				}
 				locks.lock(*c.route_mu);
 				on_route := c.route_channel == r.channel_id;
 				locks.unlock(*c.route_mu);
 				if on_route analytics_redactable_page(c, r.channel_id, items);
-				first := !l.loaded && !refetch;
+				first := !l.loaded && !refetch && !r.after;
 				l.loaded = true;
-				if r.before != 0 || items.count > 0 l.has_more_before = items.count >= r.limit;
-				if items.count < r.limit l.has_more_before = false;
+				if !r.after {
+					if r.before != 0 || items.count > 0 l.has_more_before = items.count >= r.limit;
+					if items.count < r.limit l.has_more_before = false;
+				}
 				if first && r.before == 0 on_channel_page(c, r.channel_id, items.count, items.count >= r.limit);
 				request_page_members(c, r.channel_id, items);
 			}

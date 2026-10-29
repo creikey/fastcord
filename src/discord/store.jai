@@ -1430,10 +1430,29 @@ member_get :: (s: *Store, guild_id: Snowflake, user_id: Snowflake) -> *Member {
 	return ifx gm then table_find_pointer(gm, user_id) else null;
 }
 
+// The messages shown: after a jump to an older stretch, that stretch (not the stored present side).
 messages_get :: (s: *Store, channel_id: Snowflake) -> []Message {
 	l := table_find_pointer(*s.messages, channel_id);
 	if !l return .[];
+	if l.gap_after return array_view(l.messages, 0, message_search(l, l.gap_after + 1));
 	return l.messages;
+}
+
+// The oldest stored (sent) message on the present side of a jump's gap, 0 for none.
+present_oldest :: (l: *Message_List) -> Snowflake {
+	for i: message_search(l, l.gap_after + 1)..l.messages.count - 1 if !l.messages[i].pending && !l.messages[i].failed return l.messages[i].id;
+	return 0;
+}
+
+// Drops the stretch a jump showed (the messages up to gap_after), so the present side shows again.
+drop_jumped_stretch :: (s: *Store, l: *Message_List) {
+	if !l.gap_after return;
+	n := message_search(l, l.gap_after + 1);
+	for i: 0..n - 1 free_message(s, *l.messages[i]);
+	for i: n..l.messages.count - 1 l.messages[i - n] = l.messages[i];
+	l.messages.count -= n;
+	l.gap_after = 0;
+	l.has_more_before = true;
 }
 
 channel_unread :: (s: *Store, channel_id: Snowflake) -> bool {

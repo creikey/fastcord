@@ -786,12 +786,12 @@ mark_unread :: (c: *Client, channel_id: Snowflake, message_id: Snowflake) {
 
 // GET /channels/{id}/messages?limit=30&around={mid}; the page is merged into
 // the channel's message list by apply_around (UI thread).
-fetch_messages_around :: (c: *Client, channel_id: Snowflake, message_id: Snowflake, tag: u64 = 0) {
+fetch_messages_around :: (c: *Client, channel_id: Snowflake, message_id: Snowflake) {
 	q: Query;
 	query_init(*q, channel_path(channel_id, "/messages"));
 	query_add_int(*q, "limit", 30);
 	query_add_snow(*q, "around", message_id);
-	f_submit(c, .{op = .Around, tag = tag, channel_id = channel_id, method = "GET", path = query_string(*q), retries = 2});
+	f_submit(c, .{op = .Around, tag = message_id, channel_id = channel_id, method = "GET", path = query_string(*q), retries = 2});
 }
 
 apply_around :: (c: *Client, r: *Feature_Result) {
@@ -801,7 +801,33 @@ apply_around :: (c: *Client, r: *Feature_Result) {
 		c.store.changed += 1;
 		return;
 	}
-	for vlist(r.body) upsert_message(*c.store, vmap(it));
+	// The official fetchMessages' hasMoreBefore / hasMoreAfter for an around page (limit 30): the
+	// target's index among the page's ids decides whether older and newer messages remain.
+	l := message_list(*c.store, r.channel_id);
+	target := cast(Snowflake) r.tag;
+	items := vlist(r.body);
+	lo, hi := target, target;
+	i := 0; // the target's index, ascending
+	for items {
+		id := fsnow(vmap(it), "id");
+		lo, hi = min(lo, id), max(hi, id);
+		if id < target i += 1;
+	}
+	LIMIT :: 30;
+	more_before := i >= LIMIT / 2 + LIMIT % 2 - 1;
+	ch := channel_get(*c.store, r.channel_id);
+	more_after := items.count - i >= LIMIT / 2 && !(ch && hi == ch.last_message_id);
+	// Keep one jumped stretch at most: a page reaching the stored present joins it, else the old stretch goes
+	present := present_oldest(l);
+	reaches := present && hi >= present;
+	if !reaches || lo > l.gap_after drop_jumped_stretch(*c.store, l);
+	for items upsert_message(*c.store, vmap(it));
+	if reaches {
+		l.gap_after = 0;
+	} else {
+		l.gap_after = ifx present || more_after then hi else 0;
+		l.has_more_before = more_before;
+	}
 	c.store.changed += 1;
 }
 

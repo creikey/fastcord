@@ -320,6 +320,9 @@ Message_List :: struct {
 	failed: bool; // the last page request failed (LOAD_MESSAGES_FAILURE: "Messages Failed To Load")
 	has_more_before: bool;
 	stale: bool; // loaded before a fresh READY: the next first page replaces the messages
+	// A jump landed on an older stretch: it ends at this id (the official hasMoreAfter). Newer stored
+	// messages are the present side, not contiguous with it; messages_get leaves them out.
+	gap_after: Snowflake;
 }
 
 Member_List_Item :: struct {

@@ -85,6 +85,7 @@ Rest_Result :: struct {
 	id: Snowflake; // created object (message, DM channel...)
 	limit: int;
 	before: Snowflake;
+	after: Snowflake;
 	tag: u64; // caller-provided correlation value
 }
 

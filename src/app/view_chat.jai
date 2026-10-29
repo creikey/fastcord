@@ -35,6 +35,8 @@ Chat_State :: struct {
 	unread_after: dc.Snowflake; // read marker when the channel was opened ("NEW" divider)
 	opened: bool;
 	marker_stale: bool; // the window lost focus with the channel read: the next unread message moves the marker
+	shown_newest: dc.Snowflake; // the newest row last frame, and whether a jump's gap was open then:
+	shown_gap: bool;            // newer pages of a jumped-to stretch land below without moving the view
 }
 
 chat_state :: (channel_id: dc.Snowflake) -> *Chat_State { return find_or_add(*app.chats, channel_id); }
@@ -124,8 +126,9 @@ chat_view :: (channel_id: dc.Snowflake) {
 	}
 	// Ack what's on screen while focused, not idle and scrolled to the bottom, like the client.
 	msgs := dc.messages_get(s, channel_id);
-	if app.client dc.set_route_scrolled_up(app.client, cs.scroll_from_bottom >= 2);
-	if app.client && app.focused && !app.client.idle_sent && msgs && cs.scroll_from_bottom < 2 && !held {
+	at_present := cs.scroll_from_bottom < 2 && !(rs_list(channel_id) && rs_list(channel_id).gap_after);
+	if app.client dc.set_route_scrolled_up(app.client, !at_present);
+	if app.client && app.focused && !app.client.idle_sent && msgs && at_present && !held {
 		// ack({messageId: undefined}) acks the read state's lastMessageId: the channel's newest
 		newest := ch.last_message_id;
 		for < msgs if !it.pending { newest = max(newest, it.id); break; }
@@ -942,6 +945,15 @@ message_list :: (channel_id: dc.Snowflake, cs: *Chat_State) {
 		return ifx ok then h else guess;
 	}
 	for msgs total += est(cs, it.id, guess);
+	gap := l && l.gap_after != 0;
+	newest := ifx msgs then msgs[msgs.count - 1].id else 0;
+	if cs.shown_gap && cs.shown_newest && newest > cs.shown_newest && cs.scroll_target > 0 {
+		added: float32;
+		for < msgs { if it.id <= cs.shown_newest break; added += est(cs, it.id, guess); }
+		cs.scroll_from_bottom += added;
+		cs.scroll_target += added;
+	}
+	cs.shown_newest, cs.shown_gap = newest, gap;
 	max_scroll := max(0.0, total - view_h);
 	jump_apply(channel_id, cs, msgs, view_h, BOTTOM_PAD);
 	cs.scroll_target = clamp(cs.scroll_target, 0, max_scroll);
@@ -953,6 +965,10 @@ message_list :: (channel_id: dc.Snowflake, cs: *Chat_State) {
 	// the client waits for Try Again)
 	if total - cs.scroll_from_bottom - view_h < view_h && older && !l.loading && app.client {
 		dc.fetch_messages(app.client, channel_id, msgs[0].id);
+	}
+	// a jumped-to stretch: newer pages when within a screen of its bottom
+	if gap && cs.scroll_from_bottom < view_h && !l.loading && !failed && app.client {
+		dc.fetch_messages(app.client, channel_id, after = l.gap_after);
 	}
 	if failed && history_failed_bar(l.loading) history_retry(channel_id, l);
 	if first_loading {
@@ -1044,7 +1060,49 @@ message_list :: (channel_id: dc.Snowflake, cs: *Chat_State) {
 		ui.scrollbar(list, .Auto, *cs.scroll_from_bottom, *cs.scroll_target, total, from_end = true);
 		typing_line(channel_id);
 		new_messages_bar(channel_id, msgs, lw, cs, new_top < list.rect.y0);
+		if gap && jump_to_present_bar(lw) jump_to_present(channel_id);
 	}
+}
+
+rs_list :: (channel_id: dc.Snowflake) -> *dc.Message_List { return table_find_pointer(*store().messages, channel_id); }
+
+// "You're Viewing Older Messages ... Jump To Present" over the list's bottom while a jump shows an
+// older stretch (the official jumpToPresentBar, shown while hasMoreAfter).
+jump_to_present_bar :: (lw: float32) -> bool {
+	bar := row("jumppresent", .Floating_X | .Floating_Y | .Anchor_End_Y | .Draw_Background | .Draw_Border | .Draw_Shadow | .Clickable | .Hot_Animation);
+	bar.semantic_size = .[ui.px(max(lw - 24, 0)), ui.px(32)];
+	bar.fixed_pos = .{8, 0};
+	bar.style.bg = T("--background-surface-highest");
+	bar.style.bg_hot = T("--background-surface-higher");
+	bar.style.border_color = T("--border-subtle");
+	bar.style.border = 1;
+	bar.style.radius = .[8, 8, 0, 0];
+	bar.style.shadow_color = .{0, 0, 0, 0.2};
+	bar.style.shadow_offset = .{0, -1};
+	ui.parent(bar); defer ui.pop_parent();
+	spacer(.X, 16);
+	label("You're Viewing Older Messages", .Medium, 14, T("--text-default"), 18);
+	filler(.X);
+	label("Jump To Present", .Semibold, 14, T("--text-default"), 18);
+	spacer(.X, 8);
+	icon("ic", "chevron-small-down", 16, T("--text-default"));
+	spacer(.X, 16);
+	return ui.signal(bar).clicked;
+}
+
+// Back to the newest messages from a jumped-to stretch: the stored present side, else the newest page.
+jump_to_present :: (channel_id: dc.Snowflake) {
+	s := store();
+	l := rs_list(channel_id);
+	if !l || !l.gap_after return;
+	dc.drop_jumped_stretch(s, l);
+	if app.client {
+		dc.track_jump(app.client, "Present", channel_id, 0);
+		if !l.messages dc.fetch_messages(app.client, channel_id);
+	}
+	cs := chat_state(channel_id);
+	cs.scroll_target, cs.scroll_from_bottom, cs.shown_newest = 0, 0, 0;
+	s.changed += 1;
 }
 
 // "3 blocked messages — Show messages" in place of the run of hidden messages starting at msgs[i].
@@ -2096,6 +2154,7 @@ composer :: (ch: *dc.Channel, cs: *Chat_State) {
 				toast_show(tprint("Your message is too long (% / %).", length, limit), false);
 			} else if res == .Submit {
 				text := trim(ui.editor_text(*cs.editor), " \t\n\r\x0b\x0c");
+				jump_to_present(ch.id);
 				if composer_send(ch, mentions_convert(emoji_convert_shortcodes(text, ch.id), ch)) cs.scroll_target = 0;
 				ui.editor_set_text(*cs.editor, "");
 				length = 0;

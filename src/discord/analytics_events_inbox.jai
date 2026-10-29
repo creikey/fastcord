@@ -54,7 +54,8 @@ track_jump :: (c: *Client, ctx: string, channel_id: Snowflake, message_id: Snowf
 	w := aw_begin();
 	json_kstr(*w, "context", ctx);
 	json_ksnow(*w, "channel_id", channel_id);
-	json_ksnow(*w, "message_id", message_id);
+	if message_id json_ksnow(*w, "message_id", message_id);
+	else json_knull(*w, "message_id"); // Jump to Present
 	if ch.guild_id != 0 {
 		json_ksnow(*w, "guild_id", ch.guild_id);
 		aw_guild(*w, c, ch.guild_id, false);

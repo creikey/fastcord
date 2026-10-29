@@ -371,6 +371,14 @@ call's `retries` (the bundle's value for that call: search the endpoint) and, fo
 | New-messages bar box: `.barBase` inset 8 px left and 16 px right, 1 px `--border-subtle` border; `.newMessagesBar` 32 px tall, 16 px side padding, radius 0 0 8 8, `--elevation-low`; the main button pads its text 4 px more; Mark As Read (`.barButtonAlt`) 4 x 8 px padding, `--radius-sm`, `--control-secondary-background-hover` on hover, icon 8 px after the text | code (CSS) | `.newMessagesBar__`, `.barButtonAlt__` | `view_chat.jai` `new_messages_bar` |
 | Composer reply bar: clicking "Replying to <name>" goes to the message (`transitionTo(CHANNEL(guild, channel, message))`); its X deletes the pending reply; Escape (global keybind: open layers such as popouts, menus and modals take it first, then it ends an edit, else deletes the pending reply, else marks the channel read) deletes it too | code | `channel-reply-bar-a11y-description`, `DELETE_PENDING_REPLY` | `view_message_actions.jai` `reply_bar`; `view_chat.jai` `channel_escape`, run at the end of `views.jai` `overlays()` once no layer consumed the Escape |
 
+## History paging
+
+| Rule | Kind | Anchor | fastcord |
+|---|---|---|---|
+| An `around=` page (limit 30): with e = floor(limit/2), n = e + limit%2 and i the target's index among the page's ids plus itself, ascending: hasMoreBefore is false when i < n - 1; hasMoreAfter is false when count - i < e or the newest is the channel's last message. A jump that doesn't reach the loaded present shows that stretch alone (the official resets the list and keeps the present as a cache, so Jump to Present loads nothing when it is cached) | code | `if(null!=N){let e=Math.floor(r/2),n=e+r%2` | `features.jai` `apply_around`, `store.jai` `messages_get` (`gap_after`) |
+| Newer pages of a jumped-to stretch: `GET /channels/{id}/messages?after=<newest>&limit=50` (query order before, after, limit, around); hasMoreAfter = a full page. fastcord also closes the gap when a page reaches the stored present. It asks when the stretch's bottom is within one screen (the official scroll manager's bottom loading region, its exact offset unchecked) | code (query, hasMoreAfter) + guess (trigger offset) | `query:{before:n,after:i,limit:r,around:N` | `rest.jai` `.Fetch_Messages` (`r.after`), `view_chat.jai` `message_list` |
+| While hasMoreAfter the list shows the `jumpToPresentBar` ("You're Viewing Older Messages", Jump To Present); clicking it tracks `jump` {context "Present", channel_id, message_id null} and shows the present. The channel isn't acked and counts as scrolled up meanwhile (`isPinned` needs !hasMoreAfter). Sending from the stretch goes to the present first (guess) | code (bar, jump, pinned) + guess (send) | `jumpToPresent(e,t){eX.trackJump(e,null,"Present")`, `isPinned(){return this.pinned&&!this.props.messages.hasMoreAfter}` | `view_chat.jai` `jump_to_present_bar`, `jump_to_present` |
+
 ## Message rendering
 
 | Rule | Kind | Anchor | fastcord |

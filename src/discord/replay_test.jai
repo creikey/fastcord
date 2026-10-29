@@ -1216,6 +1216,51 @@ r_count :: (run: *Replay_Run, method: string, part: string) -> int {
 	return n;
 }
 
+// A jump to an old message (around=) shows that stretch alone, behind a gap (hasMoreAfter), not merged
+// into the loaded present; newer pages (after=) close the gap when short or when they reach the present,
+// and Jump to Present drops the stretch.
+history_gap :: (t: *T) {
+	run: Replay_Run;
+	if !replay_begin(*run, t, "add_reaction", R_GUILD, R_TEXT) { return; }
+	defer replay_end(*run);
+	c := run.c;
+	l := message_list(*c.store, R_TEXT);
+	present := l.messages.count;
+	if !expect(t, present > 0, "the scenario loads messages") return;
+	page :: (first: Snowflake, n: int) -> V {
+		sb: String_Builder;
+		append(*sb, "[");
+		for i: 0..n - 1 print_to_builder(*sb, "%{\"id\":\"%\",\"channel_id\":\"%\",\"content\":\"old\",\"author\":{\"id\":\"1\",\"username\":\"a\"},\"timestamp\":\"\",\"type\":0}", ifx i then "," else "", first + cast(Snowflake) i * (1 << 22), R_TEXT);
+		append(*sb, "]");
+		v, _ := etf.from_json(builder_to_string(*sb,, temp),, temp);
+		return v;
+	}
+	start := l.messages[0].id - (cast(Snowflake) 1_000_000 << 22); // well before the loaded history
+	r := Feature_Result.{op = .Around, tag = start + 15 * (1 << 22), channel_id = R_TEXT, ok = true, body = page(start, 30)};
+	apply_around(c, *r);
+	expect_value(t, messages_get(*c.store, R_TEXT).count, 30);
+	expect_value(t, l.gap_after, start + 29 * (1 << 22));
+	expect(t, l.has_more_before, "older messages remain before the stretch");
+	// a full newer page moves the gap, a short one closes it
+	e := Event.{data = page(start + 30 * (1 << 22), 50), result = .{op = .Fetch_Messages, ok = true, channel_id = R_TEXT, limit = 50, after = l.gap_after}};
+	client_apply_rest(c, *e);
+	expect_value(t, messages_get(*c.store, R_TEXT).count, 80);
+	expect_value(t, l.gap_after, start + 79 * (1 << 22));
+	e = .{data = page(start + 80 * (1 << 22), 3), result = .{op = .Fetch_Messages, ok = true, channel_id = R_TEXT, limit = 50, after = l.gap_after}};
+	client_apply_rest(c, *e);
+	expect_value(t, l.gap_after, 0);
+	expect_value(t, messages_get(*c.store, R_TEXT).count, present + 83);
+	// another jump, then Jump to Present: only the present stays
+	r.body = page(start - (cast(Snowflake) 1000 << 22), 30);
+	r.tag = start - (cast(Snowflake) 1000 << 22) + 15 * (1 << 22);
+	apply_around(c, *r);
+	expect_value(t, messages_get(*c.store, R_TEXT).count, 30);
+	expect_value(t, l.messages.count, present + 83 + 30);
+	drop_jumped_stretch(*c.store, l);
+	expect_value(t, l.gap_after, 0);
+	expect_value(t, messages_get(*c.store, R_TEXT).count, present + 83);
+}
+
 // Reactions are predicted (ReactionActionCreators): the store changes before the request,
 // the gateway echo doesn't count twice, a quick add -> remove sends PUT then DELETE and ends
 // removed, and a failure is retried once (403: not) and then rolled back.
