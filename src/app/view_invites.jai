@@ -331,6 +331,149 @@ invite_accept_close :: (dismissed: bool, p: dc.Invite_Preview) {
 }
 
 // Per frame (overlay pass).
+// The rules screen (member verification): a member of a server with MEMBER_VERIFICATION_GATE_ENABLED who
+// hasn't agreed yet (member.pending) can't talk; Complete shows the server's rules (its TERMS field) and
+// Submit agrees: PUT /guilds/{id}/requests/@me {version, form_fields} with the field's response true, after
+// which GUILD_MEMBER_UPDATE clears pending. Forms with questions (Apply to Join) go to the browser.
+rules: struct {
+	guild: dc.Snowflake;
+	loading, failed, agreed, submitting: bool;
+	form: string; // heap: the GET's body as JSON, read each frame (parsed into temp)
+};
+
+rules_pending :: (gid: dc.Snowflake) -> bool {
+	s := store();
+	g := dc.guild_get(s, gid);
+	if !g || !array_find(g.features, "MEMBER_VERIFICATION_GATE_ENABLED") return false;
+	m := dc.member_get(s, gid, s.me);
+	return m && m.pending;
+}
+
+rules_open :: (gid: dc.Snowflake) {
+	free(rules.form);
+	rules.form, rules.guild, rules.loading, rules.failed, rules.agreed, rules.submitting = "", gid, true, false, false, false;
+	if net_action() dc.feature_submit(app.client, .Member_Verify, "GET", tprint("/guilds/%/member-verification?with_guild=false", gid), tag = 0);
+	else rules.loading, rules.failed = false, true;
+}
+
+rules_receive :: (r: *dc.Feature_Result) {
+	if r.tag == 0 {
+		rules.loading = false;
+		rules.failed = !r.ok || r.body.kind != .Map;
+		if rules.failed return;
+		sb: String_Builder;
+		sb.allocator = temp;
+		etf.to_json(r.body, *sb);
+		free(rules.form);
+		rules.form = copy_string(builder_to_string(*sb,, temp));
+		return;
+	}
+	rules.submitting = false;
+	if !r.ok { toast_show(L("Something went wrong. Please try again."), false); return; }
+	m := dc.member_get(store(), rules.guild, store().me);
+	if m m.pending = false; // GUILD_MEMBER_UPDATE says so too
+	rules.guild = 0;
+}
+
+rules_modal :: () {
+	if !rules.guild return;
+	g := dc.guild_get(store(), rules.guild);
+	if !g || !adm_modal_begin("rules", 440, g.name, L("Read and agree to the server rules")) { rules.guild = 0; return; }
+	defer adm_modal_end();
+	if adm_escape() { rules.guild = 0; return; }
+	form, err := etf.from_json(rules.form,, temp);
+	fields: []etf.Value;
+	if rules.form && err == .None && form.kind == .Map fields = dc.flist(form.map, "form_fields");
+	terms: etf.Map;
+	questions := false;
+	for fields if it.kind == .Map {
+		if dc.fstr(it.map, "field_type") == "TERMS" terms = it.map;
+		else questions = true;
+	}
+	pad :: (id: string, text: string, size: float32, color: ui.Color, weight := Font_Id.Normal) {
+		r := row(id);
+		r.semantic_size = .[ui.pct(1), ui.children()];
+		ui.parent(r); defer ui.pop_parent();
+		spacer(.X, 25);
+		b := ui.box("t", .Wrap_Text | .Selectable_Text);
+		b.semantic_size = .[ui.fill(), ui.text_size()];
+		ui.set_spans(b, ui.Span.[.{text = text, font = F(weight), size = size, color = color}]);
+		spacer(.X, 25);
+	}
+	spacer(.Y, 16);
+	if rules.loading || rules.failed || !fields {
+		pad("state", ifx rules.loading then L("Loading…") else L("Couldn't load the server's rules."), 14, T("--text-muted"));
+		spacer(.Y, 24);
+		return;
+	}
+	desc := ifx form.kind == .Map then dc.fstr(form.map, "description") else "";
+	if desc { pad("desc", desc, 14, T("--text-default")); spacer(.Y, 12); }
+	for dc.flist(terms, "values") {
+		if it_index >= 64 break;
+		pad(tprint("rule%", it_index), tprint("%. %", it_index + 1, dc.vstr(it)), 16, T("--text-default"));
+		spacer(.Y, 8);
+	}
+	spacer(.Y, 8);
+	if questions {
+		pad("q", L("This server asks a few questions before you can join. Answer them on discord.com."), 14, T("--text-muted"));
+		spacer(.Y, 16);
+		br := row("btns");
+		br.semantic_size = .[ui.pct(1), ui.px(38)];
+		ui.parent(br); defer ui.pop_parent();
+		filler(.X);
+		if adm_button("web", L("Open in Browser"), .Primary) open_url(tprint("https://discord.com/channels/%", g.id));
+		spacer(.X, 25);
+		spacer(.Y, 24);
+		return;
+	}
+	ar := row("agree", .Clickable);
+	ar.semantic_size = .[ui.pct(1), ui.px(24)];
+	ar.cross_align = .Center;
+	ar.hover_cursor = .Pointer;
+	if ui.signal(ar).clicked rules.agreed = !rules.agreed;
+	{ ui.parent(ar); defer ui.pop_parent();
+		spacer(.X, 25);
+		cb := ui.box("box", .Draw_Background | .Draw_Border);
+		cb.semantic_size = .[ui.px(20), ui.px(20)];
+		cb.style.radius = all4(4);
+		cb.style.border = 1;
+		cb.style.border_color = ifx rules.agreed then T("--background-brand") else T("--border-strong");
+		cb.style.bg = ifx rules.agreed then T("--background-brand") else T("--input-background-default");
+		if rules.agreed { ui.parent(cb); defer ui.pop_parent(); icon("ok", "checkmark-small", 20, .{1, 1, 1, 1}); }
+		spacer(.X, 8);
+		label(L("I have read and agree to the rules"), .Medium, 14, T("--text-default"), 18);
+	}
+	spacer(.Y, 24);
+	br := row("btns");
+	br.semantic_size = .[ui.pct(1), ui.px(38)];
+	{ ui.parent(br); defer ui.pop_parent();
+		filler(.X);
+		if adm_button("submit", ifx rules.submitting then L("Submitting") else L("Submit"), .Primary, enabled = rules.agreed && !rules.submitting) && net_action() {
+			// the form as fetched, each field with its response (the rules: true)
+			sb: String_Builder;
+			sb.allocator = temp;
+			append(*sb, "{\"version\":");
+			v, _ := etf.map_get(form.map, "version");
+			etf.to_json(v, *sb);
+			append(*sb, ",\"form_fields\":[");
+			for fields {
+				fb: String_Builder;
+				fb.allocator = temp;
+				etf.to_json(it, *fb);
+				f := builder_to_string(*fb,, temp);
+				if it_index append(*sb, ",");
+				append(*sb, slice(f, 0, f.count - 1)); // its closing brace takes the response before it
+				append(*sb, ",\"response\":true}");
+			}
+			append(*sb, "]}");
+			rules.submitting = true;
+			dc.feature_submit(app.client, .Member_Verify, "PUT", tprint("/guilds/%/requests/@me", g.id), builder_to_string(*sb,, temp), tag = 1);
+		}
+		spacer(.X, 25);
+	}
+	spacer(.Y, 24);
+}
+
 invite_accept_overlay :: () {
 	if !invite_accept_open() return;
 	if app.client == null {

@@ -2900,6 +2900,11 @@ composer :: (ch: *dc.Channel, cs: *Chat_State) {
 			{ ui.parent(b); defer ui.pop_parent();
 				spacer(.X, 16);
 				label(blocked, .Normal, 16, T("--text-muted"), MSG_LINE_H);
+				if rules_pending(ch.guild_id) {
+					filler(.X);
+					if adm_button("rules", L("Complete"), .Primary) rules_open(ch.guild_id);
+					spacer(.X, 12);
+				}
 			}
 			spacer(.X, 8);
 		}
@@ -3108,6 +3113,7 @@ composer_blocked :: (ch: *dc.Channel) -> string {
 	if ch.msg_request || ch.spam return L("Accept this message request (Friends, Message Requests) to reply.");
 	g := dc.guild_get(store(), ch.guild_id);
 	if !g return "";
+	if rules_pending(g.id) return L("You must complete a few more steps before you can talk.");
 	until := dc.timed_out(store(), ch.guild_id, store().me);
 	if until && g.owner_id != store().me && !(dc.guild_permissions(store(), ch.guild_id) & dc.PERM_ADMINISTRATOR) {
 		request_wake(app.ui.time + cast(float64) (until - dc.now_ms()) / 1000 + 0.05);

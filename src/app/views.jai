@@ -1629,6 +1629,7 @@ overlays :: () {
 	mfa_modal();
 	add_server_overlay(); // view_add_server.jai
 	invite_accept_overlay(); // view_invites.jai
+	rules_modal();
 	voice_user_menu();
 	voice_info_popout(); // view_voice.jai
 	new_member_popout(); // view_chat.jai

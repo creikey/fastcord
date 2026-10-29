@@ -1,0 +1,9 @@
+# Runs on rules_pending.jsonl (chat.jsonl in a server with member verification, where you haven't agreed
+# to the rules yet): the composer says so with Complete, which opens the rules screen (offline: it can't load them).
+wait 5
+expect_visible "You must complete a few more steps before you can talk."
+shot build/ui-rules_pending.png
+click_text "Complete"
+wait 10
+expect_visible "Read and agree to the server rules"
+shot build/ui-rules_pending-modal.png

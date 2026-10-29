@@ -639,6 +639,8 @@ feature_route :: (r: *dc.Feature_Result) {
 		mfa_receive(r); // view_settings_account.jai
 	case .E2E_Bundle;
 		encrypted_bundle_receive(r); // encrypted.jai
+	case .Member_Verify;
+		rules_receive(r); // view_invites.jai
 	}
 }
 
