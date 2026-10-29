@@ -665,6 +665,7 @@ page :: () {
 	p.style.bg = T("--background-base-lower");
 	p.layout_axis = .Y;
 	{ ui.parent(p); defer ui.pop_parent();
+		if server_page() return; // view_onboarding.jai
 		ch := ifx app.view.channel != 0 then dc.channel_get(store(), app.view.channel) else null;
 		if ch == null {
 			if app.view.requests requests_page(); else friends_page();
@@ -862,7 +863,12 @@ channel_sidebar :: (gid: dc.Snowflake) {
 	ui.signal(list);
 	{ ui.parent(list); defer ui.pop_parent();
 		spacer(.Y, 12);
+		if array_find(g.features, "GUILD_SERVER_GUIDE") && guild_action_row("guide", "flag", L("Server Guide"), onb.page == .Guide).clicked server_page_open(gid, .Guide);
 		if guild_action_row("events", "calendar", events_row_label(gid)).clicked { events_open(gid); }
+		if array_find(g.features, "GUILD_ONBOARDING") {
+			if guild_action_row("customize", "user-check", L("Channels & Roles"), onb.page == .Customize).clicked server_page_open(gid, .Customize);
+			if guild_action_row("browse", "menu", L("Browse Channels"), onb.page == .Browse).clicked server_page_open(gid, .Browse);
+		}
 		spacer(.Y, 11);
 		sep := row("sep");
 		sep.semantic_size = .[ui.pct(1), ui.px(1)];
@@ -948,7 +954,7 @@ channel_drag :: (gid: dc.Snowflake) {
 }
 
 // "Events" row above the channel list (32px on a 34px pitch).
-guild_action_row :: (id: string, icon_name: string, text: string) -> ui.Signal {
+guild_action_row :: (id: string, icon_name: string, text: string, selected := false) -> ui.Signal {
 	sig: ui.Signal;
 	outer := row(id);
 	outer.semantic_size = .[ui.pct(1), ui.px(CHANNEL_ROW_PITCH)];
@@ -958,8 +964,9 @@ guild_action_row :: (id: string, icon_name: string, text: string) -> ui.Signal {
 		item.semantic_size = .[ui.fill(), ui.px(CHANNEL_ROW_H)];
 		item.style.radius = all4(8);
 		item.style.bg_hot = T("--background-mod-subtle");
+		if selected item.style.bg = T("--background-mod-normal");
 		sig = ui.signal(item);
-		color := ifx sig.hovering then T("--interactive-text-hover") else T("--channels-default");
+		color := ifx sig.hovering || selected then T("--interactive-text-hover") else T("--channels-default");
 		{ ui.parent(item); defer ui.pop_parent();
 			spacer(.X, 8);
 			icon("ic", icon_name, 20, color);
@@ -1684,9 +1691,12 @@ go_to :: (gid: dc.Snowflake, cid: dc.Snowflake, source := "", prefetch := false)
 		if cs cs.opened = false;
 		replies_switch(app.view.channel, cid);
 	}
+	opened := gid != app.view.guild;
 	app.view.guild = gid;
 	app.view.channel = cid;
 	table_set(*app.view.last_channel, gid, cid);
+	onb.page = .None; // a server page gives way to the channel (view_onboarding.jai)
+	if opened onboarding_check(gid);
 	if app.client != null {
 		limit := dc.initial_message_limit(cast(int)(app.ui.window.y));
 		dc.select_channel(app.client, gid, cid, limit, prefetch = prefetch, source = source);

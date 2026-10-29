@@ -2,3 +2,7 @@
 # mention chips "/dingus roll" and "Channels & Roles", not raw text; the role mention draws as "@champion" in its colour.
 wait 10
 shot build/ui-command_mentions.png
+# the server page chip opens that page in place of the chat
+click 775 376
+wait 5
+expect_visible "Answer questions to get roles and see channels."

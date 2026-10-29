@@ -884,7 +884,8 @@ script_command :: (path: string, f: []string, t: *float64, depth := 0) {
 		if f.count < 3 || !server_settings_script_reply(f[1], json) && !user_settings_script_reply(f[1], json) script_fail(path, "settings_reply: bad request or JSON");
 		return;
 	case "feature_reply";
-		// feature_reply <Feature_Op> <tag> <status> <json>: a REST reply routed as if it came back (fixtures carry no REST)
+		// feature_reply <Feature_Op> <tag> <status> <json>: a REST reply routed as if it came back (fixtures carry no
+		// REST), its channel_id the open server
 		if f.count < 5 script_fail(path, "feature_reply: <op> <tag> <status> <json>");
 		for i: 0..enum_highest_value(dc.Feature_Op) {
 			if tprint("%", cast(dc.Feature_Op) i) != f[1] { if i == enum_highest_value(dc.Feature_Op) script_fail(path, "feature_reply: no op %", f[1]); continue; }
@@ -892,7 +893,7 @@ script_command :: (path: string, f: []string, t: *float64, depth := 0) {
 			body, err := etf.from_json(join(..array_view(f, 4), separator = " ",, temp),, dc.pool_allocator(arena));
 			if err != .None script_fail(path, "feature_reply: bad JSON");
 			status := parse_int_prefix(f[3]);
-			r := dc.Feature_Result.{op = xx i, tag = xx parse_int_prefix(f[2]), ok = status / 100 == 2, status = status, body = body, arena = arena};
+			r := dc.Feature_Result.{op = xx i, tag = xx parse_int_prefix(f[2]), channel_id = app.view.guild, ok = status / 100 == 2, status = status, body = body, arena = arena};
 			feature_route(*r);
 			dc.feature_result_free(*r);
 			break;

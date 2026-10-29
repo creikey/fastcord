@@ -554,6 +554,7 @@ Feature_Op :: enum u8 {
 	Sticker_Upload;
 	Channel_Order; // guild_admin.jai reorder_channels
 	E2E_Bundle; // e2e_bundle_call
+	Onboarding; // a server's own pages (view_onboarding.jai): its onboarding, guide and their answers; channel_id = guild
 	Member_Verify; // the rules screen: GET /guilds/{id}/member-verification (tag 0), PUT /guilds/{id}/requests/@me (1)
 }
 

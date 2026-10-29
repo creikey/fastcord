@@ -601,9 +601,15 @@ try_entity :: (p: *Md_Parser, s: string, pending: string) -> bool {
 		// <url> suppresses embeds but still links
 		tok = .{kind = .Link, text = inner};
 	} else {
-		// <id:customize> and friends: the server's own pages
-		found, gid, page := split_from_left(inner, #char ":");
-		_, ok := dc.parse_u64(gid);
+		// <id:customize> and friends (<id:linked-roles:role>): the server's own pages; name the label, url the page
+		if !begins_with(inner, "id:") return false;
+		page := span(inner, 3, inner.count);
+		colon := find_index_from_left(page, #char ":");
+		ok := true;
+		if colon >= 0 {
+			_, ok = dc.parse_u64(span(page, colon + 1, page.count));
+			page.count = colon;
+		}
 		label: string;
 		if page == {
 		case "customize"; label = L("Channels & Roles");
@@ -611,8 +617,8 @@ try_entity :: (p: *Md_Parser, s: string, pending: string) -> bool {
 		case "guide"; #through; case "home"; label = L("Server Guide");
 		case "linked-roles"; label = L("Linked Roles");
 		}
-		if !found || !ok || label == "" return false;
-		tok = .{kind = .Command, name = label, text = whole};
+		if !ok || label == "" return false;
+		tok = .{kind = .Command, name = label, url = page, text = whole};
 	}
 	emit(p, .Text, pending);
 	tok.styles = p.styles;

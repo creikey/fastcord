@@ -1,0 +1,41 @@
+# Runs on onboarding.jsonl (chat.jsonl in a server with GUILD_ONBOARDING and GUILD_SERVER_GUIDE, onboarding not
+# done): its questions take the chat's place, a required one blocks Next, Finish lands in the default channel.
+# Then Channels & Roles (every question), Browse Channels, the Server Guide, and a <id:customize> chip.
+wait 5
+feature_reply Onboarding 0 200 {"guild_id":"1546820558300258304","enabled":true,"mode":0,"default_channel_ids":["1546820603343016006"],"responses":[],"prompts":[{"id":"1565000000000000001","type":0,"title":"What brings you here?","single_select":true,"required":true,"in_onboarding":true,"options":[{"id":"1565000000000000002","title":"Battles","description":"Fight it out","emoji":{"id":null,"name":"⚔️","animated":false},"channel_ids":["1546820603343016006"],"role_ids":["1546822593921679420"]},{"id":"1565000000000000003","title":"Just looking","description":"","emoji":null,"channel_ids":[],"role_ids":[]},{"id":"1565000000000000004","title":"News","description":"Announcements only","emoji":{"id":null,"name":"📰"},"channel_ids":[],"role_ids":[]}]},{"id":"1565000000000000011","type":0,"title":"Pick your games","single_select":false,"required":false,"in_onboarding":true,"options":[{"id":"1565000000000000012","title":"Chess","description":"","emoji":null,"channel_ids":[],"role_ids":[]}]},{"id":"1565000000000000021","type":0,"title":"Later question","single_select":false,"required":false,"in_onboarding":false,"options":[{"id":"1565000000000000022","title":"Extra","description":"","emoji":null,"channel_ids":[],"role_ids":[]}]}]}
+wait 5
+expect_visible "Welcome to Dingus Battle"
+expect_visible "What brings you here?"
+expect_visible "Fight it out"
+expect_not_visible "Later question"
+click_text "Battles"
+wait 5
+shot build/ui-onboarding.png
+click_text "Next"
+wait 5
+expect_visible "Pick your games"
+click_text "Finish"
+wait 5
+expect_not_visible "Pick your games"
+expect_visible "Message #dingus-battle"
+click_text "Channels & Roles"
+wait 5
+expect_visible "Later question"
+expect_visible "What brings you here?"
+shot build/ui-onboarding-customize.png
+click_text "Browse Channels"
+wait 5
+expect_visible "TEXT CHANNELS"
+click_text "Server Guide"
+wait 5
+feature_reply Onboarding 1 200 {"guild_id":"1546820558300258304","enabled":true,"welcome_message":{"author_ids":["1546819257420087346"],"message":"Glad you made it. Start with the to-dos below."},"new_member_actions":[{"channel_id":"1546820603343016006","action_type":1,"title":"Say hello","description":"Introduce yourself","emoji":{"id":null,"name":"👋"}}],"resource_channels":[{"channel_id":"1546820603343016006","title":"How battles work","description":"","emoji":null}]}
+feature_reply Onboarding 2 200 {"channel_actions":{"1546820603343016006":{"completed":true}}}
+wait 5
+expect_visible "Welcome to Dingus Battle!"
+expect_visible "NEW MEMBER TO-DOS"
+expect_visible "Say hello"
+expect_visible "How battles work"
+shot build/ui-onboarding-guide.png
+click_text "How battles work"
+wait 5
+expect_visible "Message #dingus-battle"

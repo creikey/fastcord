@@ -323,6 +323,7 @@ An error occurred. Please try again.
 Announcement
 Announcement Channel
 Answer
+Answer questions to get roles and see channels.
 Answers
 Anyone can join your server directly through Server Discovery
 Anyone can use##mod
@@ -376,6 +377,7 @@ Automatically scan and delete messages sent in this server that contain explicit
 Avatar
 BACK
 BACKUP CODES
+Back
 Back / forward
 Back##back
 Backup codes can only be used one time each and are for emergency access to your account!
@@ -551,6 +553,7 @@ Couldn't load the server's rules.
 Couldn't load the server's tag.
 Couldn't load the template.
 Couldn't load the webhooks.
+Couldn't load this page.
 Couldn't move the channel
 Couldn't play it here, so it opened in your browser.
 Couldn't reach %1: %2 Retrying.
@@ -1152,6 +1155,7 @@ My Account
 My server
 NAME
 NEW
+NEW MEMBER TO-DOS
 NEW PASSWORD
 NO ACTIVE INVITE LINKS
 NOTHING
@@ -1175,6 +1179,7 @@ New members pick channels and roles from your questions when they join.
 New tag
 New threads will stop showing in the channel list after being inactive for the specified duration.
 Newest
+Next
 Next##next
 Nickname
 Nicknames are visible to everyone on this server. Do not change them unless you are enforcing a naming system or clearing a bad nickname.##warntext
@@ -1308,7 +1313,9 @@ Permissions: %
 Phone Number
 Pick a channel
 Pick a channel for the alerts.
+Pick as many as you like.
 Pick at least one response.
+Pick one.
 Pin It. Pin It Good.
 Pin Message
 Pin Messages
@@ -1362,7 +1369,9 @@ Push to Talk
 Push to Talk (Normal)
 Q: %
 Question
+Question % of %
 Questions
+RESOURCES
 ROLES
 ROLES — %
 ROLES/MEMBERS
@@ -1428,6 +1437,7 @@ Require 2FA for moderator actions
 Require members to agree to the server rules
 Require people to select tags when posting
 Required
+Required.
 Resend SMS?##resend
 Reset Friend Nickname##reset
 Reset Voice Settings##vreset
@@ -1576,6 +1586,7 @@ Show spoiler content
 Show the game or app you're using on your profile and in member lists.
 Shows a red badge on the app icon when you have unread mentions.
 Silence every sound and notification and hide all badges and unread marks, so fastcord never asks for your attention.
+Skip
 Slow down! Are you sure?
 Slowmode
 Slowmode is enabled
@@ -1733,6 +1744,7 @@ This server asks a few questions before you can join. Answer them on discord.com
 This server has been removed from Server Discovery because it no longer passes all the requirements. Check Server Settings for more details.
 This server has failed Discovery activity requirements for 1 week. If this server fails for 4 weeks in a row, it will be automatically removed from Discovery.
 This server has failed Discovery activity requirements for 3 weeks in a row. If this server fails for 1 more week, it will be removed from Discovery.
+This server has no questions.
 This server has no voice channels.
 This server is currently full.
 This server is currently full. Please try again later.
@@ -1920,6 +1932,8 @@ Webhooks are a simple way to post messages from other apps and websites into thi
 Welcome %. Say hi!
 Welcome back!
 Welcome to #%!
+Welcome to %
+Welcome to %!
 Welcome to the beginning of the % group.
 Welcome, %. We hope you brought pizza.
 What brings you here?

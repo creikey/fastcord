@@ -641,6 +641,8 @@ feature_route :: (r: *dc.Feature_Result) {
 		encrypted_bundle_receive(r); // encrypted.jai
 	case .Member_Verify;
 		rules_receive(r); // view_invites.jai
+	case .Onboarding;
+		onboarding_receive(r); // view_onboarding.jai
 	}
 }
 

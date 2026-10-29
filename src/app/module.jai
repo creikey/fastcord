@@ -101,6 +101,7 @@ voice :: #import "voice";
 #load "view_media.jai";
 #load "view_message_actions.jai";
 #load "view_misc.jai";
+#load "view_onboarding.jai";
 #load "view_pickers.jai";
 #load "view_pins.jai";
 #load "view_profile_full.jai";
