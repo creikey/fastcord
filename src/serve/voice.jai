@@ -12,6 +12,9 @@
 #load "dave.jai";
 
 VOICE :: 2;
+STAGE :: 13; // A voice channel with speakers and an audience: who joins listens until a moderator lets them speak.
+P_REQUEST_TO_SPEAK : u64 : 1 << 32;
+STAGE_MODERATOR :: P_MUTE_MEMBERS | P_MOVE_MEMBERS | P_MANAGE_CHANNELS; // Discord's stage moderators
 // Voice gateway opcodes and speaking flags, as src/voice/gateway.jai names them.
 OP_IDENTIFY :: 0;
 OP_SELECT_PROTOCOL :: 1;
@@ -36,6 +39,9 @@ Voice_State :: struct {
 	token: [16]u8;   // VOICE_SERVER_UPDATE's, which the voice gateway's Identify must show.
 	self_mute, self_deaf, self_video: bool;
 	mute, deaf: bool;     // A moderator's (voice_moderate), until the member leaves voice.
+	suppress: bool;       // On a stage: in the audience.
+	request_ms: s64;      // On a stage: when they raised their hand, or a moderator invited them to speak; 0: neither.
+	invited: bool;        // that hand is a moderator's invitation
 	stream: s64;          // Go Live: the stream's room, 0 when not streaming. A stream ends with its voice state.
 	stream_token: [16]u8; // STREAM_SERVER_UPDATE's, for the streamer and every viewer.
 }
@@ -84,6 +90,8 @@ voice_state_value :: (s: *Server, vs: *Voice_State, user: s64 = 0) -> etf.Value 
 	etf.map_put(*m, "self_stream", etf.vbool(vs && vs.stream != 0));
 	etf.map_put(*m, "mute", etf.vbool(vs && vs.mute));
 	etf.map_put(*m, "deaf", etf.vbool(vs && vs.deaf));
+	etf.map_put(*m, "suppress", etf.vbool(vs && vs.suppress));
+	etf.map_put(*m, "request_to_speak_timestamp", ifx vs && vs.request_ms then etf.vstring(iso_ms(vs.request_ms)) else .{});
 	return etf.vmap(etf.map_done(*m));
 }
 
@@ -95,12 +103,15 @@ voice_state_update :: (c: *Conn, d: etf.Value) {
 	g, _ := etf.map_get(d.map, "guild_id");
 	ch, _ := etf.map_get(d.map, "channel_id");
 	channel: s64;
+	audience := false; // joining a stage without moderating it
 	if ch.kind == .String {
 		ok: bool;
 		channel, ok = string_to_int(ch.s, T = s64);
 		if !ok || g.kind != .String || g.s != tprint("%", s.guild) return;
 		locks.guard(*s.db_mu);
-		if channel_type_locked(s, channel) != VOICE || !can_locked(s, c.user, P_CONNECT, channel) return; // Connect, and View Channel with it.
+		kind := channel_type_locked(s, channel);
+		if (kind != VOICE && kind != STAGE) || !can_locked(s, c.user, P_CONNECT, channel) return; // Connect, and View Channel with it.
+		audience = kind == STAGE && !can_locked(s, c.user, STAGE_MODERATOR, channel);
 	} else if ch.kind != .Nil return;
 	flag :: (m: etf.Map, k: string) -> bool { v, _ := etf.map_get(m, k); return v.kind == .Bool && v.b; }
 	state, server, gone: etf.Value;
@@ -125,6 +136,7 @@ voice_state_update :: (c: *Conn, d: etf.Value) {
 				if vs gone = end_locked(s, vs);
 				else vs = array_add(*s.voice_states);
 				vs.user, vs.channel, vs.gateway = c.user, channel, c;
+				vs.suppress, vs.request_ms, vs.invited = audience, 0, false;
 				crypto.random_bytes(vs.token);
 				m := etf.map_builder(3,, temp);
 				etf.map_put(*m, "token", etf.vstring(hex(vs.token,, temp)));
@@ -172,7 +184,7 @@ voice_moderate :: (c: *Conn, user: s64, target: s64, v: etf.Map) -> bool {
 		if !from return json_error(c, 400, 40032, "Target user is not connected to voice.");
 		if (has_mute && !can_locked(s, user, P_MUTE_MEMBERS, from)) || (has_deaf && !can_locked(s, user, P_DEAFEN_MEMBERS, from)) || (has_ch && !can_locked(s, user, P_MOVE_MEMBERS, from))
 			return json_error(c, 403, 50013, "Missing Permissions");
-		if to && (channel_type_locked(s, to) != VOICE || !can_locked(s, user, P_MOVE_MEMBERS | P_CONNECT, to) || !can_locked(s, target, P_CONNECT, to))
+		if to && ((channel_type_locked(s, to) != VOICE && channel_type_locked(s, to) != STAGE) || !can_locked(s, user, P_MOVE_MEMBERS | P_CONNECT, to) || !can_locked(s, target, P_CONNECT, to))
 			return json_error(c, 403, 50013, "Missing Permissions");
 		locks.guard(*s.voice_mu);
 		vs: *Voice_State;
@@ -181,7 +193,7 @@ voice_moderate :: (c: *Conn, user: s64, target: s64, v: etf.Map) -> bool {
 		if !vs || vs.channel != from return json_error(c, 400, 40032, "Target user is not connected to voice.");
 		if has_mute vs.mute = mute.b;
 		if has_deaf vs.deaf = deaf.b;
-		for s.voice_sessions if it.user == target && it.room == vs.channel { it.muted, it.deafened = vs.mute, vs.deaf; }
+		for s.voice_sessions if it.user == target && it.room == vs.channel { it.muted, it.deafened = vs.mute || vs.suppress, vs.deaf; }
 		if has_ch && to != from {
 			left = from;
 			if !to {
@@ -215,6 +227,62 @@ voice_moderate :: (c: *Conn, user: s64, target: s64, v: etf.Map) -> bool {
 	}
 	if left end_voice_events(s, left);
 	return respond(c, 204, json = false);
+}
+
+// PATCH /api/v9/guilds/{id}/voice-states/@me {channel_id, suppress?, request_to_speak_timestamp?} and
+// /voice-states/{user} {channel_id, suppress}, on a stage. Anyone may go to the audience, raise a hand (Request to
+// Speak) or lower it; becoming a speaker, or moving someone to the audience, takes a stage moderator's
+// permissions. A moderator's suppress: false on someone else is an invitation (a raised hand they didn't raise),
+// which they accept with their own suppress: false, as on Discord.
+stage_voice_state :: (c: *Conn, req: http.Request) -> bool {
+	s := c.server;
+	token, _ := http.header_get(req.headers, "authorization");
+	user := session_user(c, token);
+	if !user return json_error(c, 401, 0, "401: Unauthorized");
+	if req.method != "PATCH" return json_error(c, 405, 0, "405: Method Not Allowed");
+	who := slice(req.path, find_index_from_right(req.path, #char "/") + 1, req.path.count);
+	target := user;
+	if who != "@me" {
+		ok: bool;
+		target, ok = string_to_int(who, T = s64);
+		if !ok return json_error(c, 404, 10013, "Unknown User");
+	}
+	v, err := etf.from_json(cast(string) req.body,, temp);
+	if err != .None || v.kind != .Map return json_error(c, 400, 50035, "Invalid Form Body");
+	ch, _ := etf.map_get(v.map, "channel_id");
+	sup, has_sup := etf.map_get(v.map, "suppress");
+	req_ts, has_req := etf.map_get(v.map, "request_to_speak_timestamp");
+	channel, ok := string_to_int(ifx ch.kind == .String then ch.s else "", T = s64);
+	if !ok || (has_sup && sup.kind != .Bool) || (has_req && req_ts.kind != .String && req_ts.kind != .Nil) || (has_req && target != user) return json_error(c, 400, 50035, "Invalid Form Body");
+	state: etf.Value;
+	{
+		locks.guard(*s.db_mu);
+		if channel_type_locked(s, channel) != STAGE return json_error(c, 400, 50024, "Cannot execute action on this channel type");
+		moderator := can_locked(s, user, STAGE_MODERATOR, channel);
+		if has_sup && !sup.b && target == user && !moderator && !voice_invited(s, user, channel) return json_error(c, 403, 50013, "Missing Permissions");
+		if has_sup && target != user && !moderator return json_error(c, 403, 50013, "Missing Permissions");
+		if has_req && req_ts.kind == .String && !can_locked(s, user, P_REQUEST_TO_SPEAK, channel) return json_error(c, 403, 50013, "Missing Permissions");
+		locks.guard(*s.voice_mu);
+		vs: *Voice_State;
+		for * s.voice_states if it.user == target && it.channel == channel vs = it;
+		if !vs return json_error(c, 400, 10065, "Unknown Voice State");
+		if has_req vs.request_ms, vs.invited = ifx req_ts.kind == .String then now_ms(s) else 0, false;
+		if has_sup {
+			if !sup.b && target != user && vs.suppress vs.request_ms, vs.invited = now_ms(s), true; // an invitation
+			else { vs.suppress, vs.request_ms, vs.invited = sup.b, 0, false; }
+		}
+		for s.voice_sessions if it.user == target && it.room == channel it.muted = vs.mute || vs.suppress;
+		state = voice_state_value(s, vs);
+	}
+	broadcast(s, "VOICE_STATE_UPDATE", state);
+	return respond(c, 204, json = false);
+}
+
+// voice_invited: a moderator invited user to speak on channel (their hand is up while they're in the audience).
+voice_invited :: (s: *Server, user: s64, channel: s64) -> bool {
+	locks.guard(*s.voice_mu);
+	for s.voice_states if it.user == user && it.channel == channel && it.suppress && it.invited return true;
+	return false;
 }
 
 // end_voice_events completes the events going on in channel once everyone has left it, as Discord does.
@@ -482,7 +550,7 @@ voice_identify :: (c: *Conn, server_id: etf.Value, user_id: etf.Value, session_i
 	if !room return null;
 	vs := New(Voice_Session);
 	vs.conn, vs.user, vs.room = c, user, room;
-	if room == mine.channel vs.muted, vs.deafened = mine.mute, mine.deaf;
+	if room == mine.channel vs.muted, vs.deafened = mine.mute || mine.suppress, mine.deaf;
 	// Four SSRCs apart, so a member's audio, camera and retransmissions never meet another's.
 	while true {
 		b: [4]u8;

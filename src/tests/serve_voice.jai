@@ -247,6 +247,34 @@ main :: () {
 	check(status == 204 && !table_find_pointer(*a.cl.store.voice_states, b.cl.store.me), tprint("disconnect: %", status));
 	voice.voice_disconnect(b.conn);
 
+	// A stage: the member joins the audience, raises a hand, can't make themselves a speaker, and accepts the
+	// owner's invitation to speak.
+	body = "{\"name\": \"Town Hall\", \"type\": 13}";
+	status, made = rest("POST", tprint("/api/v9/guilds/%/channels", s.guild), body);
+	id_v, _ = etf.map_get(made.map, "id");
+	stage := cast(discord.Snowflake) string_to_int(id_v.s, T = u64);
+	check(status == 201, tprint("create a stage: %", status));
+	discord.voice_join(b.cl, guild, stage);
+	stage_state :: () -> *discord.Voice_State #expand {
+		vs := table_find_pointer(*`a.cl.store.voice_states, `b.cl.store.me);
+		return ifx vs && vs.channel_id == `stage then vs else null;
+	}
+	for 1..300 { if stage_state() break; pump(); }
+	check(stage_state() && stage_state().suppress && !stage_state().requested_to_speak, "the member joins the audience");
+	discord.stage_request_to_speak(b.cl, guild, stage, true);
+	for 1..300 { if stage_state() && stage_state().requested_to_speak break; pump(); }
+	check(stage_state() && stage_state().requested_to_speak, "a raised hand reaches the owner");
+	discord.stage_set_suppress(b.cl, guild, stage, b.cl.store.me, false);
+	for 1..50 pump();
+	check(stage_state() && stage_state().suppress, "the member can't make themselves a speaker");
+	discord.stage_set_suppress(a.cl, guild, stage, b.cl.store.me, false);
+	for 1..50 pump();
+	check(stage_state() && stage_state().suppress && stage_state().requested_to_speak, "the owner's Invite to Speak is an invitation");
+	discord.stage_set_suppress(b.cl, guild, stage, b.cl.store.me, false);
+	for 1..300 { if stage_state() && !stage_state().suppress break; pump(); }
+	check(stage_state() && !stage_state().suppress && !stage_state().requested_to_speak, "accepting makes them a speaker");
+	discord.voice_leave(b.cl);
+
 	// Events in the voice channel: started by hand, they end once everyone has left.
 	event_status :: (id: string) -> int #expand {
 		status, v := rest("GET", tprint("/api/v9/guilds/%/scheduled-events/%", `s.guild, id));

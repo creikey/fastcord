@@ -877,6 +877,10 @@ serve_conn :: (c: *Conn) {
 			if !roles(c, req) return; // roles.jai
 			continue;
 		}
+		if begins_with(req.path, tprint("/api/v9/guilds/%/voice-states/", c.server.guild)) {
+			if !stage_voice_state(c, req) return; // voice.jai
+			continue;
+		}
 		if begins_with(req.path, tprint("/api/v9/guilds/%/members/", c.server.guild)) || begins_with(req.path, tprint("/api/v9/guilds/%/bans/", c.server.guild)) {
 			if !moderate(c, req) return;
 			continue;
@@ -1591,7 +1595,7 @@ mention_ids :: (content: string) -> [..]s64 {
 
 // @everyone's permissions on a new server (roles.jai): read, write, react, embed, attach, make invites, start
 // threads, and in voice connect, speak, use voice activity, stream and play soundboard sounds.
-EVERYONE_PERMISSIONS :: (1 << 0) | (1 << 6) | (1 << 9) | (1 << 10) | (1 << 11) | (1 << 14) | (1 << 15) | (1 << 16) | (1 << 18) | (1 << 20) | (1 << 21) | (1 << 25) | (1 << 26) | (1 << 35) | (1 << 38) | (1 << 42);
+EVERYONE_PERMISSIONS :: (1 << 0) | (1 << 6) | (1 << 9) | (1 << 10) | (1 << 11) | (1 << 14) | (1 << 15) | (1 << 16) | (1 << 18) | (1 << 20) | (1 << 21) | (1 << 25) | (1 << 26) | (1 << 32) | (1 << 35) | (1 << 38) | (1 << 42);
 
 // Channel types, as Discord numbers them.
 TEXT :: 0;
@@ -1626,7 +1630,7 @@ row_channel :: (s: *Server, st: *sqlite.Stmt, member := etf.Value.{}) -> etf.Val
 		etf.map_put(*m, "default_forum_layout", etf.vint(0));
 		etf.map_put(*m, "default_thread_rate_limit_per_user", etf.vint(0));
 	}
-	if kind == VOICE { etf.map_put(*m, "bitrate", etf.vint(64000)); etf.map_put(*m, "user_limit", etf.vint(0)); }
+	if kind == VOICE || kind == STAGE { etf.map_put(*m, "bitrate", etf.vint(64000)); etf.map_put(*m, "user_limit", etf.vint(0)); }
 	if !sqlite.col_is_null(st, 4) etf.map_put(*m, "last_message_id", snow(sqlite.col_int(st, 4)));
 	etf.map_put(*m, "parent_id", ifx sqlite.col_is_null(st, 6) then etf.Value.{} else snow(sqlite.col_int(st, 6)));
 	if kind == THREAD {
@@ -2174,7 +2178,7 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 	}
 	{
 		locks.guard(*s.db_mu);
-		st := sqlite.prepare(s.db, tprint("SELECT 1 FROM channels WHERE id = ? AND type IN (%, %, %, %);", TEXT, THREAD, VOICE, ANNOUNCEMENT));
+		st := sqlite.prepare(s.db, tprint("SELECT 1 FROM channels WHERE id = ? AND type IN (%, %, %, %, %);", TEXT, THREAD, VOICE, ANNOUNCEMENT, STAGE));
 		sqlite.bind(st, 1, channel);
 		ok = sqlite.step(st) == .Row;
 		sqlite.finalize(st);
@@ -2507,8 +2511,8 @@ create_channel :: (c: *Conn, req: http.Request) -> bool {
 	has_parent := false;
 	if parent_v.kind == .String parent, has_parent = string_to_int(parent_v.s, T = s64);
 	// Categories and voice channels keep the name as typed; text channels get Discord's lowercase-dashed form.
-	name := ifx raw.kind != .String then "" else ifx kind == CATEGORY || kind == VOICE then trim(raw.s) else channel_name(raw.s);
-	known := kind == TEXT || kind == VOICE || kind == CATEGORY || kind == ANNOUNCEMENT || kind == FORUM;
+	name := ifx raw.kind != .String then "" else ifx kind == CATEGORY || kind == VOICE || kind == STAGE then trim(raw.s) else channel_name(raw.s);
+	known := kind == TEXT || kind == VOICE || kind == CATEGORY || kind == ANNOUNCEMENT || kind == FORUM || kind == STAGE;
 	if !name || name.count > 100 || !text_ok(name) || !known || (has_parent && kind == CATEGORY) return json_error(c, 400, 50035, "Invalid Form Body");
 	// A private channel comes with overwrites, as the official client's Private Channel switch sends them.
 	ow_v, _ := etf.map_get(v.map, "permission_overwrites");
@@ -3440,7 +3444,7 @@ edit_channel :: (c: *Conn, req: http.Request, user: s64, channel: s64) -> bool {
 		// A thread's starter may rename, archive and reopen it too, until someone who manages threads locks it.
 		by_starter := kind == THREAD && !has_topic && !has_slow && !has_nsfw && !has_locked && !was_locked && thread_owner_locked(s, channel) == user;
 		if !can_locked(s, user, ifx kind == THREAD then P_MANAGE_THREADS else P_MANAGE_CHANNELS, channel) && !by_starter return json_error(c, 403, 50013, "Missing Permissions");
-		name := ifx raw.kind != .String then "" else ifx kind == CATEGORY || kind == THREAD || kind == VOICE then trim(raw.s) else channel_name(raw.s);
+		name := ifx raw.kind != .String then "" else ifx kind == CATEGORY || kind == THREAD || kind == VOICE || kind == STAGE then trim(raw.s) else channel_name(raw.s);
 		if (has_name && (!name || name.count > 100 || !text_ok(name))) || (has_topic && topic.kind == .String && (topic.s.count > 1024 || !text_ok(topic.s, lines = true))) return json_error(c, 400, 50035, "Invalid Form Body");
 		ok := (!has_name || sqlite.run(s.db, "UPDATE channels SET name = ? WHERE id = ?;", name, channel))
 			&& (!has_topic || sqlite.run(s.db, "UPDATE channels SET topic = ? WHERE id = ?;", ifx topic.kind == .String then topic.s else "", channel))
@@ -3507,7 +3511,7 @@ edit_channel :: (c: *Conn, req: http.Request, user: s64, channel: s64) -> bool {
 	} else {
 		return json_error(c, 405, 0, "405: Method Not Allowed");
 	}
-	if req.method == "DELETE" && kind == VOICE voice_leave(s, 0, channel = channel); // After db_mu: it takes s.mu.
+	if req.method == "DELETE" && (kind == VOICE || kind == STAGE) voice_leave(s, 0, channel = channel); // After db_mu: it takes s.mu.
 	thread := kind == THREAD;
 	if req.method == "PATCH" broadcast(s, ifx thread then "THREAD_UPDATE" else "CHANNEL_UPDATE", ch);
 	else broadcast(s, ifx thread then "THREAD_DELETE" else "CHANNEL_DELETE", ch);
