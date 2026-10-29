@@ -139,6 +139,7 @@ Client :: struct {
 	results: [..]Rest_Result;
 	media_mu: locks.Mutex;
 	media_results: [..]Media_Result;
+	cache_writes: s64; // atomic; every CACHE_TRIM_EVERY bodies written, the disk cache is trimmed
 	subs: Subscriptions;
 	typing_local: Typing_Local;
 	pending_acks: [..]Pending_Ack;

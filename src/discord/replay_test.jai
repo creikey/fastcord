@@ -1219,6 +1219,24 @@ r_count :: (run: *Replay_Run, method: string, part: string) -> int {
 // A jump to an old message (around=) shows that stretch alone, behind a gap (hasMoreAfter), not merged
 // into the loaded present; newer pages (after=) close the gap when short or when they reach the present,
 // and Jump to Present drops the stretch.
+// The disk cache is trimmed to three quarters of its cap, the files written longest ago first.
+cache_trimmed :: (t: *T) {
+	dir := "build/cache_trim_test";
+	delete_directory(dir);
+	make_directory_if_it_does_not_exist(dir, recursive = true);
+	kb := NewArray(1024, u8,, temp);
+	for 0..9 {
+		write_entire_file(tprint("%/%.body", dir, it), kb.data, kb.count);
+		sleep_milliseconds(15); // distinct modification times
+	}
+	cache_trim(dir, 8 * 1024);
+	left := File_Utilities.file_list(dir,, temp);
+	expect_value(t, left.count, 6);
+	expect(t, File_Utilities.file_exists(tprint("%/9.body", dir)) && !File_Utilities.file_exists(tprint("%/0.body", dir)), "the oldest go first");
+	cache_trim(dir, 8 * 1024);
+	expect_value(t, File_Utilities.file_list(dir,, temp).count, 6);
+}
+
 // Content-Encoding: a chain past two codings (nested decompression bombs) is refused before decoding.
 content_encoding_chain :: (t: *T) {
 	r: http.Response;

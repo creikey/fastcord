@@ -167,9 +167,36 @@ cache_read :: (c: *Client, url: string) -> Cache_Entry, []u8, bool {
 cache_write :: (c: *Client, url: string, e: Cache_Entry, body: []u8, write_body: bool) {
 	if !c.cfg.state_dir return;
 	make_directory_if_it_does_not_exist(tprint("%/cache", c.cfg.state_dir), recursive = true);
-	if write_body write_file_atomic(cache_path(c, url, ".body"), body);
+	if write_body {
+		write_file_atomic(cache_path(c, url, ".body"), body);
+		if atomic_add(*c.cache_writes, 1) % CACHE_TRIM_EVERY == 0 cache_trim(tprint("%/cache", c.cfg.state_dir));
+	}
 	meta := tprint("url\t%\nstatus\t%\ncontent-type\t%\netag\t%\nlast-modified\t%\nfresh-until\t%\n", url, e.status, e.content_type, e.etag, e.last_modified, e.fresh_until);
 	write_file_atomic(cache_path(c, url, ".meta"), cast([]u8) meta);
+}
+
+// The disk cache stays under CACHE_MAX_BYTES: past it, the files written longest ago go until it is down to
+// three quarters (Chrome keeps its own cache bounded the same way). Checked at the first body written and
+// every CACHE_TRIM_EVERY after, on the worker that wrote it.
+CACHE_MAX_BYTES :: 512 << 20;
+CACHE_TRIM_EVERY :: 200;
+cache_trim :: (dir: string, max_bytes := CACHE_MAX_BYTES) {
+	File :: struct { path: string; time: Apollo_Time; size: s64; }
+	files: [..]File;
+	files.allocator = temp;
+	total: s64;
+	for File_Utilities.file_list(dir,, temp) {
+		t, size, ok := File_Utilities.file_modtime_and_size(it);
+		if !ok continue;
+		array_add(*files, .{it, t, size});
+		total += size;
+	}
+	if total <= max_bytes return;
+	quick_sort(files, (a: File, b: File) -> s64 { return ifx a.time < b.time then -1 else ifx a.time > b.time then 1 else 0; });
+	for files {
+		if total <= max_bytes / 4 * 3 break;
+		if file_delete(it.path) total -= it.size; // a .body and its .meta go at about the same time
+	}
 }
 
 // freshness_ms: Cache-Control max-age (no-store/no-cache honoured), else Expires - Date,
