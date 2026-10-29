@@ -22,8 +22,8 @@ VOICE_HEARTBEAT_MS :: 13_750;
 MAX_VOICE_ROOM :: 25;       // Members in one voice channel: Discord's cap with video on.
 MAX_VOICE_SESSIONS :: 256;  // Voice WebSockets at once.
 // What one member may send per second; more is dropped, since serve sends each packet to everyone else.
-MAX_MEDIA_PACKETS :: 1500;
-MAX_MEDIA_BYTES :: 1_500_000;
+MAX_MEDIA_PACKETS :: 1000;
+MAX_MEDIA_BYTES :: 750_000; // 6 Mbit/s: a 4 Mbit/s stream or a camera with audio, and retransmissions.
 // Offered in READY, in the client's order of preference.
 VOICE_MODES :: "[\"aead_aes256_gcm_rtpsize\",\"aead_xchacha20_poly1305_rtpsize\"]";
 

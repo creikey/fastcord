@@ -46,7 +46,7 @@
   - Soundboard: server sounds served and played to everyone in the voice channel.
   - Roles and permissions, channel permission overwrites, private channels (Hosting 4).
   - Emoji rename/delete, animated emoji, emoji in the picker across servers.
-  - Polls, forum channels, announcement channels, stage channels, events in voice channels.
+  - Polls, forum channels, announcement channels, stage channels, events in voice channels. Stage channels wait on the client's own stage support, which Discord's lack too: Create Channel offers no Stage type and stage channels list no one (the Voice and Create Channel items below).
 - [ ] Hosting 1: several connections at once (Discord, plus self-hosted servers), each with its own store. `store()` in `views.jai` picks the store from the selected guild; the roughly 90 hardcoded Discord URLs come from the connection instead. Never send a Discord token to another host. This also delivers multiple Discord accounts (see Accounts below). Test against Spacebar, an open-source Discord-compatible server.
   - Done: `discord.Config.hosted` points one client at a `fastcord -serve` server with the plain profile: pinned TLS on `fc/1`, no zstd, only the token and content type as headers, no startup burst or telemetry. `src/tests/serve.jai` runs the real client to READY, a message page and a send.
   - Done: pasting an `fc://` invite into Add a Server > Join joins by key off the UI thread (`src/app/hosted.jai`). Invites persist in `settings.json` and each start logs in again, so no server token is stored. Each hosted server gets its own client; the rail shows its guilds and `app.client` follows the selected guild, while `app.discord` stays Discord's and is the only client the login screen may drop.

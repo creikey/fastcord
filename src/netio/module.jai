@@ -210,10 +210,10 @@ udp_recv :: (u: *Udp, buf: []u8) -> n: int, addr: [16]u8, port: int {
 udp_send :: (u: *Udp, data: []u8, addr: [16]u8, port: int) {
 	a: sockaddr_in6;
 	#if OS == .MACOS a.sin6_len = size_of(sockaddr_in6);
-	a.sin6_family = AF_INET6;
+	a.sin6_family = xx AF_INET6;
 	a.sin6_port = htons(cast(u16) port);
 	memcpy(*a.sin6_addr, addr.data, 16);
-	sendto(u.sock, data.data, xx data.count, 0, cast(*sockaddr) *a, size_of(sockaddr_in6));
+	sendto(u.sock, data.data, xx data.count, 0, cast(*sockaddr) *a, xx size_of(sockaddr_in6));
 }
 
 // close_udp: once no thread is in udp_recv (its timeout bounds the wait).
