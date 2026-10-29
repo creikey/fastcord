@@ -1721,16 +1721,28 @@ home_open :: (c: *Client) {
 
 // ---- guilds ----
 
-// GUILD_TEMPLATE_FRIENDS: "Create My Own" -> "For me and my friends".
-GUILD_TEMPLATE_FRIENDS :: "2TffvPucqHkN";
+// The create-guild modal's templates (the client's guild template table): Create My Own, then those listed
+// under "Start from a template". School Club is left out: its roles carry computed permissions.
+// channels: "id parent type name" per channel, the ids the client gives them; system: the system channel's id.
+Guild_Template :: struct { id: string; code: string; label: string; icon: string; system: string; channels: []string; }
+GUILD_TEMPLATES :: Guild_Template.[
+	.{"CREATE", "2TffvPucqHkN", "Create My Own", "circle-plus", "", .[]},
+	.{"GAMING", "hvtBQMfw6uSJ", "Gaming", "game-controller", "01", .["00 - 4 Text Channels", "01 00 0 general", "02 00 0 clips-and-highlights", "10 - 4 Voice Channels", "11 10 2 Lobby", "12 10 2 Gaming"]},
+	.{"FRIENDS", "hgM48av5Q69A", "Friends", "heart", "01", .["00 - 4 Text Channels", "01 00 0 general", "02 00 0 games", "03 00 0 music", "10 - 4 Voice Channels", "11 10 2 Lounge", "12 10 2 Stream Room"]},
+	.{"STUDY", "FbwUwRp4j8Es", "Study Group", "pencil", "11", .["00 - 4 Information", "01 00 0 welcome-and-rules", "02 00 0 notes-resources", "10 - 4 Text Channels", "11 10 0 general", "12 10 0 homework-help", "13 10 0 session-planning", "14 10 0 off-topic", "20 - 4 Voice Channels", "21 20 2 Lounge", "22 20 2 Study Room 1", "23 20 2 Study Room 2"]},
+	.{"LOCAL_COMMUNITY", "64UDvRNCC52Y", "Local Community", "home", "11", .["00 - 4 Information", "01 00 0 welcome-and-rules", "02 00 0 announcements", "03 00 0 resources", "10 - 4 Text Channels", "11 10 0 general", "12 10 0 meeting-plans", "13 10 0 off-topic", "20 - 4 Voice Channels", "21 20 2 Lounge", "22 20 2 Meeting Room"]},
+	.{"CREATORS", "6exdzMgjZgah", "Artists & Creators", "paint-palette", "11", .["00 - 4 Information", "01 00 0 welcome-and-rules", "02 00 0 announcements", "10 - 4 Text Channels", "11 10 0 general", "12 10 0 events", "13 10 0 ideas-and-feedback", "20 - 4 Voice Channels", "21 20 2 Lounge", "22 20 2 Community Hangout", "23 20 2 Stream Room"]},
+];
 
-// create_guild: POST /guilds as the create-guild modal sends it
-// ({name, icon, channels: [], system_channel_id, guild_template_code}); when
-// GUILD_CREATE arrives the client navigates into it (select_channel) and loads
-// the new-guild extras (guild_created_followups).
+// create_guild: POST /guilds as the create-guild modal sends it (createGuildFromTemplate:
+// {name, icon, channels, system_channel_id, guild_template_code}); when GUILD_CREATE arrives the client
+// navigates into it (select_channel) and loads the new-guild extras (guild_created_followups).
+// community: "For a club or community" on the purpose step (telemetry, is_community_intent).
 // step_shown_ms: when the modal's last step ("Customize your server") was shown (telemetry).
-create_guild :: (c: *Client, name: string, icon_data_uri := "", template := GUILD_TEMPLATE_FRIENDS, step_shown_ms: s64 = 0) {
+create_guild :: (c: *Client, name: string, icon_data_uri := "", template := GUILD_TEMPLATES[0], community := false, step_shown_ms: s64 = 0) {
 	c.analytics.guild_create_step_ms = step_shown_ms;
+	c.analytics.guild_create_template = template.id;
+	c.analytics.guild_create_community = community;
 	w: Json;
 	json_init(*w);
 	json_obj(*w);
@@ -1738,9 +1750,19 @@ create_guild :: (c: *Client, name: string, icon_data_uri := "", template := GUIL
 	if icon_data_uri json_kstr(*w, "icon", icon_data_uri);
 	else json_knull(*w, "icon");
 	json_key(*w, "channels");
-	json_raw(*w, "[]");
-	json_knull(*w, "system_channel_id");
-	json_kstr(*w, "guild_template_code", template);
+	json_arr(*w);
+	for template.channels {
+		f := split(it, " ",, temp);
+		json_obj(*w);
+		json_kstr(*w, "id", f[0]);
+		if f[1] == "-" json_knull(*w, "parent_id"); else json_kstr(*w, "parent_id", f[1]);
+		json_kstr(*w, "name", join(..array_view(f, 3, f.count - 3), separator = " ",, temp));
+		json_kint(*w, "type", string_to_int(f[2]));
+		json_obj_end(*w);
+	}
+	json_arr_end(*w);
+	if template.system json_kstr(*w, "system_channel_id", template.system); else json_knull(*w, "system_channel_id");
+	json_kstr(*w, "guild_template_code", template.code);
 	json_obj_end(*w);
 	j := job_new(.Api, .None);
 	j.method = "POST";

@@ -1,7 +1,8 @@
 // The guild rail's "Add a Server" modal (the client's CreateGuildModal):
-//   Create Your Server -> "Create My Own" -> Customize Your Server (name) -> Create
+//   Create Your Server -> "Create My Own" or a template -> Tell Us More (friends / community, or skip)
+//                         -> Customize Your Server (name) -> Create
 //                      -> "Join a Server" -> invite link / code -> Join Server
-// Create posts /guilds (dc.create_guild, "For me and my friends" template); the
+// Create posts /guilds (dc.create_guild with the template's channels); the
 // library opens the new guild when its GUILD_CREATE arrives and the view follows.
 // Join resolves and accepts the invite on a worker thread (dc.join_invite blocks);
 // the library opens the guild at the invite's channel when its GUILD_CREATE
@@ -10,6 +11,7 @@
 Add_Server_Step :: enum u8 {
 	Closed;
 	Choose;
+	Purpose;
 	Create;
 	Join;
 }
@@ -150,6 +152,8 @@ asv: struct {
 	job: *Join_Job; // join in flight
 	open_guild: dc.Snowflake; // joined: select it once it is in the store
 	step_ms: s64; // when the current step was shown (nuo_transition seconds_on_from_step)
+	template: int; // into dc.GUILD_TEMPLATES
+	community: bool; // "For a club or community"
 };
 
 add_server_step :: (st: Add_Server_Step) {
@@ -222,6 +226,8 @@ add_server_modal :: () {
 		if asv.step == {
 		case .Choose;
 			step_choose();
+		case .Purpose;
+			step_purpose();
 		case .Create;
 			step_create();
 		case .Join;
@@ -245,28 +251,21 @@ step_choose :: () {
 	spacer(.Y, 8);
 	centered("sub", L("Your server is where you and your friends hang out. Make yours and start talking."), .Normal, 16, 20, T("--text-subtle"));
 	spacer(.Y, 24);
-	own := row("own", .Clickable | .Draw_Background | .Draw_Border | .Hot_Animation);
-	own.semantic_size = .[ui.pct(1), ui.px(64)];
-	own.style.radius = all4(8);
-	own.style.border = 1;
-	own.style.border_color = T("--border-subtle");
-	own.style.bg = T("--background-base-low");
-	own.style.bg_hot = T("--background-mod-normal");
-	if ui.signal(own).clicked {
-		add_server_step(.Create);
-		s := store();
-		u := dc.user_get(s, s.me);
-		ui.editor_set_text(*asv.name_ed, ifx u then tprint(L("%'s server"), u.username) else L("My server"));
-		set_err("");
-	}
-	{ ui.parent(own); defer ui.pop_parent();
-		spacer(.X, 16);
-		icon("i", "circle-plus", 32, T("--text-brand"));
-		spacer(.X, 12);
-		label(L("Create My Own"), .Semibold, 16, T("--text-strong"), 20);
-		filler(.X);
-		icon("chev", "chevron-small-right", 20, T("--interactive-icon-default"));
-		spacer(.X, 12);
+	for t: dc.GUILD_TEMPLATES {
+		if it_index == 1 {
+			spacer(.Y, 8);
+			label(L("START FROM A TEMPLATE"), .Bold, 12, T("--text-default"), 16);
+			spacer(.Y, 8);
+		}
+		if it_index > 1 spacer(.Y, 8);
+		b := choice_row(tprint("tpl%", it_index), t.icon, t.label, ifx it_index then 56.0 else 64.0);
+		if ui.signal(b).clicked {
+			asv.template = it_index;
+			add_server_step(.Purpose);
+			s := store();
+			u := dc.user_get(s, s.me);
+			ui.editor_set_text(*asv.name_ed, ifx u then tprint(L("%'s server"), u.username) else L("My server"));
+		}
 	}
 	inset_end(16, 0);
 	spacer(.Y, 24);
@@ -294,6 +293,59 @@ step_choose :: () {
 			if ui.signal(b).clicked { add_server_step(.Join); }
 		}
 		inset_end(16, 16);
+	}
+}
+
+// A row of the template list or the purpose step: icon, label, chevron.
+choice_row :: (id: string, icon_name: string, text: string, h: float32) -> *ui.Box {
+	b := row(id, .Clickable | .Draw_Background | .Draw_Border | .Hot_Animation);
+	b.semantic_size = .[ui.pct(1), ui.px(h)];
+	b.style.radius = all4(8);
+	b.style.border = 1;
+	b.style.border_color = T("--border-subtle");
+	b.style.bg = T("--background-base-low");
+	b.style.bg_hot = T("--background-mod-normal");
+	b.cross_align = .Center;
+	ui.parent(b); defer ui.pop_parent();
+	spacer(.X, 16);
+	icon("i", icon_name, 32, T("--text-brand"));
+	spacer(.X, 12);
+	label(text, .Semibold, 16, T("--text-strong"), 20);
+	filler(.X);
+	icon("chev", "chevron-small-right", 20, T("--interactive-icon-default"));
+	spacer(.X, 12);
+	return b;
+}
+
+// Tell Us More About Your Server: the answer only goes to telemetry (is_community_intent).
+step_purpose :: () {
+	inset_begin(16, 0);
+	spacer(.Y, 24);
+	centered("title", L("Tell Us More About Your Server"), .Bold, 24, 30, T("--text-strong"));
+	spacer(.Y, 8);
+	centered("sub", L("In order to help you with your setup, is your new server for just a few friends or a larger community?"), .Normal, 16, 20, T("--text-subtle"));
+	spacer(.Y, 24);
+	if ui.signal(choice_row("club", "group", L("For a club or community"), 64)).clicked { asv.community = true; add_server_step(.Create); }
+	spacer(.Y, 8);
+	if ui.signal(choice_row("friends", "friends", L("For me and my friends"), 64)).clicked { asv.community = false; add_server_step(.Create); }
+	spacer(.Y, 16);
+	sk := ui.box("skip", .Wrap_Text);
+	sk.semantic_size = .[ui.pct(1), ui.text_size()];
+	sk.style.text_align = .Center;
+	ui.set_spans(sk, ui.Span.[.{text = L("Not sure? You can "), font = F(.Normal), size = 14, color = T("--text-subtle")},
+		.{text = L("skip this question"), font = F(.Normal), size = 14, color = T("--text-link"), id = 1}, .{text = L(" for now."), font = F(.Normal), size = 14, color = T("--text-subtle")}]);
+	if sk.prev_layout && ui.mouse_over(sk) && ui.span_at(sk.prev_layout, app.ui.mouse) == 1 app.ui.span_cursor = .Pointer;
+	if sk.prev_layout for e: app.ui.events {
+		if e.kind != .Mouse_Up || e.button != .Left || e.consumed || ui.span_at(sk.prev_layout, e.pos) != 1 continue;
+		asv.community = false;
+		add_server_step(.Create);
+	}
+	inset_end(16, 0);
+	spacer(.Y, 24);
+	{ ui.parent(footer_begin()); defer ui.pop_parent();
+		spacer(.X, 16);
+		if set_button(L("Back##back"), .Link) { add_server_step(.Choose); }
+		filler(.X);
 	}
 }
 
@@ -326,11 +378,11 @@ step_create :: () {
 	name := trim(ui.editor_text(*asv.name_ed));
 	{ ui.parent(footer_begin()); defer ui.pop_parent();
 		spacer(.X, 16);
-		if set_button(L("Back##back"), .Link) { add_server_step(.Choose); }
+		if set_button(L("Back##back"), .Link) { add_server_step(.Purpose); }
 		filler(.X);
 		ok := name != "" && !asv.creating;
 		if (set_button(ifx asv.creating then L("Creating…##create") else L("Create##create"), .Primary, ok) || res == .Submit && ok) && net_action() {
-			dc.create_guild(app.client, name, step_shown_ms = asv.step_ms);
+			dc.create_guild(app.client, name, template = dc.GUILD_TEMPLATES[asv.template], community = asv.community, step_shown_ms = asv.step_ms);
 			asv.creating = true;
 		}
 		spacer(.X, 16);

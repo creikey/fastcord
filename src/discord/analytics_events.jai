@@ -1726,8 +1726,8 @@ analytics_guild_create_result :: (c: *Client, status: int, step_shown_ms: s64) {
 	json_kint(*w, "status_code", status);
 	json_kstr(*w, "url", "/guilds");
 	json_kstr(*w, "request_method", "post");
-	json_kstr(*w, "template_name", "CREATE");
-	json_kbool(*w, "is_community_intent", false);
+	json_kstr(*w, "template_name", c.analytics.guild_create_template);
+	json_kbool(*w, "is_community_intent", c.analytics.guild_create_community);
 	aw_track(c, "network_action_guild_create", *w);
 	if status < 200 || status >= 300 return;
 	w2 := aw_begin();

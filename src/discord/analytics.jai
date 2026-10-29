@@ -72,6 +72,8 @@ Analytics :: struct {
 	gdm_searches: int;
 	gdm_pending: bool;
 	guild_create_step_ms: s64;
+	guild_create_template: string = "CREATE"; // static: a GUILD_TEMPLATES id
+	guild_create_community: bool;
 	last_notification_ms, last_mention_ms, last_role_mention_ms, last_everyone_mention_ms: s64;
 	shown: [..]Shown_Notification; // desktop notifications not acked yet (UI thread)
 }

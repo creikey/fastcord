@@ -6,10 +6,19 @@ expect_opened_url https://discord.com/servers
 click 36 157
 wait 20
 expect_visible "Create Your Server"
+expect_visible "START FROM A TEMPLATE"
+shot build/ui-add_server-templates.png
 click_text "Create My Own"
+wait 20
+expect_visible "Tell Us More About Your Server"
+shot build/ui-add_server-purpose.png
+click_text "For me and my friends"
 wait 20
 expect_visible "Customize Your Server"
 expect_input "dingus's server"
+click_text "Back"
+wait 20
+expect_visible "Tell Us More About Your Server"
 click_text "Back"
 wait 20
 click_text "Join a Server"

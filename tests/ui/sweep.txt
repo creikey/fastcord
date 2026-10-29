@@ -126,6 +126,14 @@ screen add_server_create tests/ui/chat.jsonl channel=1546820603343016006
   wait 20
   click_text "Create My Own"
   wait 20
+screen add_server_purpose tests/ui/chat.jsonl channel=1546820603343016006
+  wait 5
+  click 36 157
+  wait 20
+  click_text "Gaming"
+  wait 20
+  click_text "For me and my friends"
+  wait 20
 screen add_server_join tests/ui/chat.jsonl channel=1546820603343016006
   wait 5
   click 36 157
