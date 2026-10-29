@@ -412,8 +412,7 @@ invite_code :: () -> string {
 muted_until :: (end_ms: s64) -> string {
 	if end_ms == 0 return "";
 	t := to_calendar(dc.UNIX_EPOCH + milliseconds_to_apollo(local_ms(end_ms)));
-	h12 := ifx t.hour % 12 then t.hour % 12 else 12;
-	return tprint("Muted until %/%, %:% %", t.month_starting_at_0 + 1, t.day_of_month_starting_at_0 + 1, h12, formatInt(t.minute, minimum_digits = 2), ifx t.hour < 12 then "AM" else "PM");
+	return tprint("Muted until %/%, %", t.month_starting_at_0 + 1, t.day_of_month_starting_at_0 + 1, clock_text(t));
 }
 
 // Mute duration list; returns the chosen seconds (0 = none).

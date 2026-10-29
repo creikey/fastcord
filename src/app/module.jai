@@ -99,6 +99,7 @@ voice :: #import "voice";
 #load "view_search.jai";
 #load "view_settings_account.jai";
 #load "view_settings_prefs.jai";
+#load "view_settings_user.jai";
 #load "view_server_settings.jai";
 #load "view_server_soundboard.jai";
 #load "view_streamer.jai";

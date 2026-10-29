@@ -398,8 +398,7 @@ status_until :: (end_ms: s64) -> string {
 	same_day :: (a: Calendar_Time, b: Calendar_Time) -> bool { return a.year == b.year && a.month_starting_at_0 == b.month_starting_at_0 && a.day_of_month_starting_at_0 == b.day_of_month_starting_at_0; }
 	t := cal(end_ms);
 	now := wall_ms();
-	h12 := ifx t.hour % 12 then t.hour % 12 else 12;
-	tm := tprint("%:% %", h12, formatInt(t.minute, minimum_digits = 2), ifx t.hour < 12 then "AM" else "PM");
+	tm := clock_text(t);
 	if same_day(t, cal(now)) return tprint("Until %", tm);
 	if same_day(t, cal(now + 86_400_000)) return tprint("Until tomorrow at %", tm);
 	return tprint("Until %/%/% at %", t.month_starting_at_0 + 1, t.day_of_month_starting_at_0 + 1, formatInt(t.year % 100, minimum_digits = 2), tm);
@@ -469,7 +468,7 @@ settings_modal :: () {
 				settings_nav_search(); // view_settings_prefs.jai: filters the items below
 				spacer(.Y, 8);
 				// 0.0.419: Streamer Mode is a section of Appearance (its sub-nav), not a page
-				items := Settings_Item.[.{"Account", "user-circle"}, .{"Profiles", "pencil"}, .{"Appearance", "paint-palette"}, .{"Voice & Video", "microphone"}, .{"Notifications", "bell"}, .{"Accessibility", "eye"}, .{"System", "screen"}];
+				items := Settings_Item.[.{"Account", "user-circle"}, .{"Profiles", "pencil"}, .{"Appearance", "paint-palette"}, .{"Voice & Video", "microphone"}, .{"Notifications", "bell"}, .{"Accessibility", "eye"}, .{"System", "screen"}, .{"Language & Time", "clock"}, .{"Developer", "angle-brackets"}];
 				for items {
 					if it.name == "System" && OS == .MACOS continue; // the client's System panel: Windows and Linux
 					if !settings_nav_match(it.name) && !(it.name == "Appearance" && settings_nav_match("Streamer Mode")) { continue; }
@@ -536,12 +535,20 @@ settings_modal :: () {
 					accessibility_page();
 				} else if settings_page == "System" {
 					system_page();
+				} else if settings_page == "Language & Time" {
+					language_page(); // view_settings_user.jai
+				} else if settings_page == "Developer" {
+					developer_page();
 				}
 			}
 		}
+		if select_is_open() dropdown_list(); // a select_field's open list (view_server_settings.jai), over the modal
 	}
 	for * e: app.ui.events {
-		if e.kind == .Key_Down && e.key == .Escape && !voice_dropdown_open() { app.settings_open = false; e.consumed = true; } // the dropdown's own Escape closes only it
+		if e.kind == .Key_Down && e.key == .Escape && !voice_dropdown_open() { // the dropdown's own Escape closes only it
+			if select_is_open() select_close(); else app.settings_open = false;
+			e.consumed = true;
+		}
 	}
 }
 
@@ -565,6 +572,10 @@ pane_of :: (page: string) -> dc.Settings_Pane {
 		return .Voice;
 	case "Notifications";
 		return .Notifications;
+	case "Language & Time";
+		return .Language_And_Time;
+	case "Developer";
+		return .Developer;
 	}
 	return .None; // Profiles: the profile editor opens over the settings
 }
@@ -586,7 +597,10 @@ settings_track :: () {
 #scope_export
 
 // settings_closed: the modal is not shown this frame (the next open starts over).
-settings_closed :: () {set_tr.open = false;}
+settings_closed :: () {
+	if set_tr.open select_close(); // a select left open here (the list is shared with Server Settings)
+	set_tr.open = false;
+}
 
 settings_reset_for_test :: () {set_tr = .{};}
 #scope_file

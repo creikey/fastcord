@@ -18,6 +18,8 @@ Settings_Pane :: enum u8 {
 	Appearance;
 	Voice;
 	Notifications;
+	Language_And_Time;
+	Developer;
 }
 
 settings_pane_name :: (p: Settings_Pane) -> string {
@@ -26,6 +28,8 @@ settings_pane_name :: (p: Settings_Pane) -> string {
 		case .Appearance;    return "appearance_panel";
 		case .Voice;         return "voice_and_video_panel";
 		case .Notifications; return "notifications_panel";
+		case .Language_And_Time; return "language_and_time_panel";
+		case .Developer;     return "developer_panel";
 	}
 	return "";
 }
@@ -111,7 +115,9 @@ settings_pane_shown :: (c: *Client, origin: Settings_Pane, dest: Settings_Pane, 
 			}
 		}
 		settings_pane_viewed(c, origin, dest, guild_id, channel_id);
-	case .Voice;
+	case .Voice; #through;
+	case .Language_And_Time; #through;
+	case .Developer;
 		settings_pane_viewed(c, origin, dest, guild_id, channel_id);
 	case .None;
 	}

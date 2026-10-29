@@ -28,8 +28,7 @@ Settings_Edit :: struct {
 	has_custom: bool;
 	custom_ms: s64; // CustomStatus.created_at_ms
 	clear_custom: bool;
-	theme: Theme;
-	has_theme: bool;
+	cats: u64; // bit n: category n of the kept proto is part of the delta, whole (settings_put)
 	friend_online: bool; // NotificationSettings.notify_friends_on_launch (12)
 	has_friend_online: bool;
 	folders: []Guild_Folder;
@@ -70,8 +69,9 @@ pb_wrapped_uint :: (w: *protobuf.Writer, num: u32, v: u64) {
 
 #scope_export
 
-// settings_delta_proto encodes the pending edit as a PreloadedUserSettings delta (temp).
-settings_delta_proto :: (e: *Settings_Edit) -> []u8 {
+// settings_delta_proto encodes the pending edit as a PreloadedUserSettings delta (temp); the
+// categories in e.cats come whole from the kept proto.
+settings_delta_proto :: (e: *Settings_Edit, proto: []u8 = .[]) -> []u8 {
 	root := pb_new();
 	if e.has_inbox_tab {
 		ib := pb_new(); // InboxSettings (2)
@@ -107,12 +107,6 @@ settings_delta_proto :: (e: *Settings_Edit) -> []u8 {
 		pb_msg(*ns, 12, bv);
 		pb_msg(*root, 7, ns);
 	}
-	if e.has_theme {
-		ap := pb_new(); // AppearanceSettings (13): theme + client_theme_settings (3, empty)
-		protobuf.write_uint(*ap, 1, cast(u64) e.theme);
-		pb_msg(*ap, 3, pb_new());
-		pb_msg(*root, 13, ap);
-	}
 	if e.has_folders {
 		gf := pb_new(); // GuildFolders (14)
 		for f: e.folders {
@@ -133,7 +127,51 @@ settings_delta_proto :: (e: *Settings_Edit) -> []u8 {
 		}
 		pb_msg(*root, 14, gf);
 	}
-	return root.buf;
+	out: []u8 = root.buf;
+	for n: 1..63 {
+		if !(e.cats & ((cast(u64) 1) << n)) continue;
+		r := protobuf.Reader.{buf = proto};
+		while true {
+			start := r.pos;
+			f, more := protobuf.next(*r);
+			if !more break;
+			if f.num == xx n out = protobuf.with_field(out, xx n, array_view(proto, start, r.pos - start),, temp);
+		}
+	}
+	return out;
+}
+
+// Field encoders for settings_put (temp). Like protobuf-ts, a default scalar is not written; a
+// wrapper (BoolValue, StringValue...) is a message, written even when it holds the default.
+pb_field_uint :: (num: u32, v: u64) -> []u8 {
+	w := pb_new();
+	if v protobuf.write_uint(*w, num, v);
+	return w.buf;
+}
+pb_field_msg :: (num: u32, inner: []u8) -> []u8 {
+	w := pb_new();
+	protobuf.write_bytes(*w, num, inner);
+	return w.buf;
+}
+pb_field_bool_value :: (num: u32, v: bool) -> []u8 { return pb_field_msg(num, pb_field_uint(1, xx v)); }
+pb_field_string_value :: (num: u32, v: string) -> []u8 {
+	w := pb_new();
+	if v protobuf.write_string(*w, 1, v);
+	return pb_field_msg(num, w.buf);
+}
+
+// settings_put edits field `num` of category `cat` (a PreloadedUserSettings field) as
+// updateAsync does: the delta carries the whole category as it now is, with the change
+// (`encoded`: the whole field, empty to unset it), applied locally at once, saved after delay_ms.
+settings_put :: (c: *Client, cat: u32, num: u32, encoded: []u8, delay_ms := SETTINGS_DELAY_INFREQUENT_MS) {
+	assert(cat < 64 && cat != 2 && cat != 7 && cat != 11 && cat != 14); // those are written from Settings_Edit's own fields
+	s := *c.store;
+	f := protobuf.find(s.settings.proto, cat);
+	body := protobuf.with_field(f.bytes, num, encoded,, temp);
+	settings_proto_set(s, protobuf.with_field(s.settings.proto, cat, pb_field_msg(cat, body),, temp));
+	c.settings_edit.cats |= (cast(u64) 1) << cat;
+	s.changed += 1;
+	settings_mark(c, delay_ms);
 }
 
 #scope_module
@@ -283,12 +321,20 @@ presence_value :: (c: *Client, old_afk := false) -> V {
 // set_theme: the user picked a theme (system: "Sync with computer", t resolved from the OS).
 set_theme :: (c: *Client, t: Theme, system := false) {
 	analytics_theme_updated(c, t, system);
-	c.settings_edit.theme = t;
-	c.settings_edit.has_theme = true;
-	c.store.settings.theme = t;
-	c.store.changed += 1;
-	settings_mark(c, SETTINGS_DELAY_INFREQUENT_MS);
+	// AppearanceSettings (13): theme, and client_theme_settings (3) set, empty when it was unset
+	settings_put(c, 13, 1, pb_field_uint(1, cast(u64) t));
+	_, has := protobuf.find_path(c.store.settings.proto, 13, 3);
+	if !has settings_put(c, 13, 3, pb_field_msg(3, .[]));
 }
+
+// set_hour_cycle: Language & Time > Time format (AppearanceSettings.timestamp_hour_cycle).
+set_hour_cycle :: (c: *Client, h: Hour_Cycle) { settings_put(c, 13, 9, pb_field_uint(9, xx h)); }
+
+// set_developer_mode: Advanced > Developer Mode (AppearanceSettings.developer_mode).
+set_developer_mode :: (c: *Client, on: bool) { settings_put(c, 13, 2, pb_field_uint(2, xx on)); }
+
+// set_locale: Language & Time > Language (LocalizationSettings.locale, a StringValue).
+set_locale :: (c: *Client, locale: string) { settings_put(c, 12, 1, pb_field_string_value(1, locale)); }
 
 // set_inbox_tab: switching the Inbox tab (FREQUENT_USER_ACTION: the 10 s
 // timer starts at the first switch and saves the tab current then; fixture
@@ -328,7 +374,7 @@ flush_settings :: (c: *Client, now: s64) {
 	frecency_tick(c, now); // settings-proto/2 (expressions.jai)
 	e := *c.settings_edit;
 	if e.due == 0 || now < e.due return;
-	delta := settings_delta_proto(e);
+	delta := settings_delta_proto(e, c.store.settings.proto);
 	// PresenceStore: the gateway presence goes out with the settings write
 	if (e.has_status || e.has_custom || e.clear_custom) && c.gw gateway_send(c.gw, .Presence_Update, presence_value(c,, temp));
 	free_custom(c, e);

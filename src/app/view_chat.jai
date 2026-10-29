@@ -70,7 +70,7 @@ format_timestamp :: (id: dc.Snowflake, short := false) -> string { return format
 format_time_ms :: (unix_ms: s64, short := false) -> string {
 	ms := local_ms(unix_ms);
 	t := utc_calendar(ms);
-	clock := tprint("%:%\u202f%", hour12(t), formatInt(t.minute, minimum_digits = 2), am_pm(t)); // narrow no-break space, as Intl formats it
+	clock := clock_text(t, sep = "\u202f"); // narrow no-break space, as Intl formats it
 	if short return clock;
 	day := ms / 86_400_000;
 	today := local_ms(wall_ms()) / 86_400_000;
@@ -83,7 +83,7 @@ format_time_ms :: (unix_ms: s64, short := false) -> string {
 full_timestamp :: (unix_ms: s64) -> string {
 	DAYS :: string.["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 	t := utc_calendar(local_ms(unix_ms));
-	return tprint("%, % %, % %:% %", DAYS[t.day_of_week_starting_at_0], MONTHS[t.month_starting_at_0], t.day_of_month_starting_at_0 + 1, t.year, hour12(t), formatInt(t.minute, minimum_digits = 2), am_pm(t));
+	return tprint("%, % %, % %", DAYS[t.day_of_week_starting_at_0], MONTHS[t.month_starting_at_0], t.day_of_month_starting_at_0 + 1, t.year, clock_text(t));
 }
 
 // Unix ms now (or the -now: override).
@@ -93,10 +93,10 @@ wall_ms :: () -> s64 { return ifx app.now_override_ms then app.now_override_ms e
 // and a selection is read (copy, scripts) after the frame's temp memory is gone.
 header_timestamp :: (id: dc.Snowflake) -> string {
 	today := local_ms(wall_ms()) / 86_400_000;
-	if today != stamps.day {
+	if today != stamps.day || use_24h() != stamps.h24 {
 		for stamps.texts free(it);
 		table_reset_keeping_memory(*stamps.texts);
-		stamps.day = today;
+		stamps.day, stamps.h24 = today, use_24h();
 	}
 	p, added := find_or_add(*stamps.texts, id);
 	if added p.* = copy_string(format_timestamp(id));
@@ -582,13 +582,13 @@ markdown_key :: (ed: *ui.Editor, e: ui.Input_Event) -> bool {
 
 format_unix :: (secs: s64, style: string) -> string {
 	t := utc_calendar(local_ms(secs * 1000));
-	clock := tprint("%:% %", hour12(t), formatInt(t.minute, minimum_digits = 2), am_pm(t));
+	clock := clock_text(t);
 	date := tprint("% %, %", MONTHS[t.month_starting_at_0], t.day_of_month_starting_at_0 + 1, t.year);
 	if style == {
 	case "t";
 		return clock;
 	case "T";
-		return tprint("%:%:% %", hour12(t), formatInt(t.minute, minimum_digits = 2), formatInt(t.second, minimum_digits = 2), am_pm(t));
+		return clock_text(t, seconds = true);
 	case "d";
 		return tprint("%/%/%", t.month_starting_at_0 + 1, t.day_of_month_starting_at_0 + 1, t.year);
 	case "D";
@@ -967,8 +967,23 @@ quote_bar_draw :: (b: *ui.Box, user: *void) {
 
 // ms is already shifted to local time, so the UTC breakdown is the local one.
 utc_calendar :: (ms: s64) -> Calendar_Time { return to_calendar(dc.UNIX_EPOCH + seconds_to_apollo(ms / 1000)); }
-hour12 :: (t: Calendar_Time) -> int { h := t.hour % 12; return ifx h then h else 12; }
-am_pm :: (t: Calendar_Time) -> string { return ifx t.hour >= 12 then "PM" else "AM"; }
+// "3:04 PM", or "15:04" on a 24-hour clock (Language & Time > Time format).
+clock_text :: (t: Calendar_Time, seconds := false, sep := " ") -> string {
+	m := tprint("%", formatInt(t.minute, minimum_digits = 2));
+	if seconds m = tprint("%:%", m, formatInt(t.second, minimum_digits = 2));
+	if use_24h() return tprint("%:%", formatInt(t.hour, minimum_digits = 2), m);
+	h := t.hour % 12;
+	return tprint("%:%%%", ifx h then h else 12, m, sep, ifx t.hour >= 12 then "PM" else "AM");
+}
+
+// use_24h: the Time format setting; Auto follows the language's own clock, as Intl does (CLDR:
+// these languages of the client's list use 12 hours).
+use_24h :: () -> bool {
+	st := *store().settings;
+	if st.hour_cycle != .Auto return st.hour_cycle == .H23;
+	for string.["en-US", "es-419", "hi", "ko", "zh-TW", "el"] if (ifx st.locale then st.locale else "en-US") == it return false;
+	return true;
+}
 
 // A search, pins or inbox card's text: the chat's blocks, with the search terms highlighted.
 card_body :: (m: *dc.Message, terms: []string) { message_body(m, terms); }
@@ -988,6 +1003,7 @@ hidden_kind :: (m: *dc.Message) -> string {
 
 stamps: struct {
 	day: s64;
+	h24: bool; // the texts' clock (Time format)
 	texts: Table(dc.Snowflake, string);
 };
 

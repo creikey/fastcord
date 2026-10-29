@@ -376,6 +376,9 @@ Guild_Folder :: struct {
 	guild_ids: [..]Snowflake;
 }
 
+// TimestampHourCycle: Language & Time > Time format.
+Hour_Cycle :: enum u8 { Auto :: 0; H12 :: 1; H23 :: 2; }
+
 User_Settings :: struct {
 	theme: Theme;
 	inbox_tab: Inbox_Tab; // InboxSettings.current_tab
@@ -386,9 +389,11 @@ User_Settings :: struct {
 	custom_status_expires_ms: s64;
 	status_created_ms: s64; // StatusSettings.status_created_at_ms
 	status_expires_ms: s64; // StatusSettings.status_expires_at_ms, 0 = forever
+	proto: []u8; // the whole PreloadedUserSettings as last loaded or edited (store allocator)
 	locale: string;
 	timezone_offset: int; // minutes
 	developer_mode: bool;
+	hour_cycle: Hour_Cycle; // AppearanceSettings.timestamp_hour_cycle
 	friend_online_off: bool; // NotificationSettings.notify_friends_on_launch = false
 	// TextAndImages explicit (29) and gore (32) content settings for guilds, friend DMs and other
 	// DMs (0 unset, 1 show, 2 blur, 3 block); unset ones default by nsfw_blocked (READY user's

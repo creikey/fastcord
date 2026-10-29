@@ -115,6 +115,28 @@ write_bytes :: (w: *Writer, num: u32, b: []u8) {
 }
 write_string :: (w: *Writer, num: u32, s: string) { write_bytes(w, num, cast([]u8) s); }
 
+// with_field returns msg (context.allocator) without its fields `num`, with `encoded` (whole fields,
+// tags included; empty removes) before the first higher-numbered field: protobuf-ts's number order.
+with_field :: (msg: []u8, num: u32, encoded: []u8) -> []u8 {
+    out: [..]u8;
+    array_reserve(*out, msg.count + encoded.count);
+    r := Reader.{buf = msg};
+    placed := encoded.count == 0;
+    while true {
+        start := r.pos;
+        f, ok := next(*r);
+        if !ok break;
+        if f.num == num continue;
+        if !placed && f.num > num {
+            array_add(*out, ..encoded);
+            placed = true;
+        }
+        array_add(*out, ..array_view(msg, start, r.pos - start));
+    }
+    if !placed array_add(*out, ..encoded);
+    return out;
+}
+
 #scope_file
 le :: (p: *u8, n: int) -> u64 {
     v: u64;

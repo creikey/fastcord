@@ -956,9 +956,10 @@ section_heading :: (id: string, title: string, help := "") {
 	spacer(.Y, 12);
 }
 
+#scope_export
 // A select field showing current; returns the option picked this frame (-1 for none). The option list
-// is drawn by dropdown_list at the end of the layer.
-select_field :: (id: string, options: []string, current: int) -> int {
+// is drawn by dropdown_list at the end of the layer (here and in User Settings).
+select_field ::(id: string, options: []string, current: int) -> int {
 	open := ss.dd == id;
 	dd := row(id, .Clickable | .Draw_Background | .Draw_Border);
 	dd.semantic_size = .[ui.pct(1), ui.px(40)];
@@ -987,6 +988,9 @@ select_field :: (id: string, options: []string, current: int) -> int {
 	}
 	return -1;
 }
+
+select_close :: () {ss.dd = "";}
+select_is_open :: () -> bool { return ss.dd != ""; }
 
 // The open select's option list, under (or over) its field.
 dropdown_list :: () {
@@ -1033,6 +1037,7 @@ dropdown_list :: () {
 	}
 	spacer(.Y, 4);
 }
+#scope_file
 
 // A radio row ("All Messages"); true when clicked.
 radio_row :: (id: string, text: string, on: bool) -> bool {

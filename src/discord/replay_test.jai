@@ -2936,6 +2936,23 @@ parity_settings_theme_dark :: (t: *T) {
 	replay_check(*run, "appearance_sync_off");
 }
 
+// Language & Time > Time format: like every proto edit (settings_put), the delta holds the whole
+// category as it now is (updateAsync, CLIENT_RULES "Settings"); not captured. Another device's
+// partial update replaces only the categories it carries.
+parity_settings_put :: (t: *T) {
+	run: Replay_Run;
+	if !replay_begin(*run, t, "settings", R_GUILD, R_TEXT) { return; }
+	c := run.c;
+	set_hour_cycle(c, .H23);
+	want :: u8.[0x6a, 0x04, 0x08, 0x03, 0x48, 0x02]; // AppearanceSettings {theme: 3, timestamp_hour_cycle: H23}
+	expect(t, cast(string) settings_delta_proto(*c.settings_edit, c.store.settings.proto) == cast(string) want, "whole AppearanceSettings");
+	expect(t, c.store.settings.hour_cycle == .H23, "applied locally");
+	apply_settings_proto(*c.store, "agIIAg==", partial = true); // {appearance: {theme: LIGHT}}
+	st := *c.store.settings;
+	expect(t, st.theme == .Light && st.hour_cycle == .Auto && st.locale == "en-US" && st.status == .Online, "partial: only appearance replaced");
+	replay_end(*run);
+}
+
 parity_settings_friend_online_toggle :: (t: *T) {
 	run: Replay_Run;
 	if !replay_begin(*run, t, "streamer_mode", R_GUILD, R_TEXT) { return; }

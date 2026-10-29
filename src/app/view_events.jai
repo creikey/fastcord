@@ -263,9 +263,7 @@ set_wiz_error :: (msg: string) {
 calendar :: (local_ms: s64) -> Calendar_Time { return to_calendar(dc.UNIX_EPOCH + milliseconds_to_apollo(local_ms)); }
 
 clock_text :: (local_ms: s64) -> string {
-	t := calendar(local_ms);
-	h12 := ifx t.hour % 12 then t.hour % 12 else 12;
-	return tprint("%:% %", h12, formatInt(t.minute, minimum_digits = 2), ifx t.hour >= 12 then "PM" else "AM");
+	return clock_text(calendar(local_ms));
 }
 
 MONTHS :: string.["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];

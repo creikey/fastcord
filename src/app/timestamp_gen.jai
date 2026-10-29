@@ -17,7 +17,7 @@ timestamp_gen_open :: (channel_id: dc.Snowflake) {
 	tsg.on_time = true;
 	t := utc_calendar(local_ms(wall_ms()));
 	ui.editor_set_text(*tsg.date, tprint("%-%-%", t.year, formatInt(t.month_starting_at_0 + 1, minimum_digits = 2), formatInt(t.day_of_month_starting_at_0 + 1, minimum_digits = 2)));
-	ui.editor_set_text(*tsg.time, tprint("%:% %", hour12(t), formatInt(t.minute, minimum_digits = 2), am_pm(t)));
+	ui.editor_set_text(*tsg.time, clock_text(t));
 }
 
 // Unix seconds of a local date ("2026-10-28", "10/28/2026", "10/28") and time ("3pm", "3:05 PM",

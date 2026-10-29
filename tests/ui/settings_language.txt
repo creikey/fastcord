@@ -1,0 +1,28 @@
+# Settings > Language & Time: the language select, Time format 24-hour (the page's sample time and
+# the chat's message times follow it), and Developer's Developer Mode.
+wait 5
+click 338 683
+wait 20
+click_text "Language & Time"
+wait 10
+expect_visible "Select a Language"
+expect_visible "English, US"
+click_text "Auto"
+wait 5
+click_text "24-hour"
+wait 10
+expect_visible "Times show as 12:00."
+click_text "English, US"
+wait 5
+click_text "Français  ·  French"
+wait 10
+expect_visible "Français  ·  French"
+shot build/ui-settings_language_page.png
+click_text "Developer"
+wait 10
+click_text "Developer Mode"
+wait 5
+key escape
+wait 10
+expect_visible "07:55"
+expect_not_visible "AM"

@@ -839,14 +839,38 @@ apply_guild_settings :: (s: *Store, m: etf.Map) {
 
 // ---- user_settings_proto (PreloadedUserSettings) ----
 
-// apply_settings_proto decodes the fields the UI uses: status (11), localization
-// (12), appearance/theme (13), guild folders (14).
-apply_settings_proto :: (s: *Store, b64: string) {
+// apply_settings_proto keeps the whole proto and decodes the fields the UI uses: status (11),
+// localization (12), appearance/theme (13), guild folders (14). A partial update (another
+// device's delta) replaces only the categories it holds, as each delta is a whole category.
+apply_settings_proto :: (s: *Store, b64: string, partial := false) {
 	decoded, ok := base64_decode(b64,, temp);
 	if !ok return;
 	raw := cast([]u8) decoded;
+	if partial {
+		r := protobuf.Reader.{buf = raw};
+		merged := s.settings.proto;
+		while true {
+			start := r.pos;
+			f, more := protobuf.next(*r);
+			if !more break;
+			merged = protobuf.with_field(merged, f.num, array_view(raw, start, r.pos - start),, temp);
+		}
+		raw = merged;
+	}
+	settings_proto_set(s, raw);
+}
+
+// settings_proto_set replaces the kept proto with raw and decodes it.
+settings_proto_set :: (s: *Store, new_proto: []u8) {
 	st := *s.settings;
 	a := s.allocator;
+	if new_proto.data != st.proto.data {
+		old := st.proto;
+		st.proto = NewArray(new_proto.count, u8, false,, a);
+		memcpy(st.proto.data, new_proto.data, new_proto.count);
+		free(old.data,, a);
+	}
+	raw := st.proto;
 	f: protobuf.Field;
 	found: bool;
 	f, found = protobuf.find_path(raw, 2, 1);
@@ -874,7 +898,9 @@ apply_settings_proto :: (s: *Store, b64: string) {
 	f, found = protobuf.find_path(raw, 13, 1);
 	st.theme = ifx found && f.value != 0 then cast(Theme) f.value else .Darker;
 	f, found = protobuf.find_path(raw, 13, 2);
-	if found st.developer_mode = f.value != 0;
+	st.developer_mode = found && f.value != 0;
+	f, found = protobuf.find_path(raw, 13, 9);
+	st.hour_cycle = ifx found && f.value <= 2 then cast(Hour_Cycle) f.value else .Auto;
 	_, found = protobuf.find_path(raw, 7, 12);
 	if found {
 		f, found = protobuf.find_path(raw, 7, 12, 1);
@@ -1433,7 +1459,7 @@ store_apply_dispatch :: (s: *Store, name: string, data: V, now: s64) -> bool {
 			parse_user_into(s, d);
 		case "USER_SETTINGS_PROTO_UPDATE";
 			sm := fmap(d, "settings");
-			if sm && fint(sm, "type") == 1 apply_settings_proto(s, fstr(sm, "proto"));
+			if sm && fint(sm, "type") == 1 apply_settings_proto(s, fstr(sm, "proto"), fbool(d, "partial"));
 		case "USER_GUILD_SETTINGS_UPDATE";
 			apply_guild_settings(s, d);
 		case "CHANNEL_INFO"; // op 43's reply: {guild_id, channels: [{id, status?, voice_start_time?}]}
