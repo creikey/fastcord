@@ -210,8 +210,10 @@ profile_popout :: () {
 				un := label(u.username, .Normal, 14, T("--text-default"), 18);
 				un.flags |= .Selectable_Text;
 				un.sel_order = 2;
-				if u.pronouns != "" {
-					label(tprint(" • %", u.pronouns), .Normal, 14, T("--text-default"), 18);
+				mem := dc.member_get(s, app.view.guild, uid);
+				pron := ifx mem && mem.pronouns then mem.pronouns else u.pronouns; // the server's profile first
+				if pron != "" {
+					label(tprint(" • %", pron), .Normal, 14, T("--text-default"), 18);
 				}
 			}
 			custom := ifx hook then "" else user_custom_status(uid);
@@ -227,7 +229,9 @@ profile_popout :: () {
 				cl.sel_order = 3;
 				spacer(.X, 16);
 			}
-			if u.bio != "" && !hook {
+			gm := dc.member_get(s, app.view.guild, uid);
+			about := ifx gm && gm.bio then gm.bio else u.bio; // the server's profile first
+			if about != "" && !hook {
 				spacer(.Y, 12);
 				bio := ui.box("bio", .Selectable_Text | .Wrap_Text);
 				bio.semantic_size = .[ui.pct(1), ui.text_size()];
@@ -235,7 +239,7 @@ profile_popout :: () {
 				bio.style.line_height = 18;
 				bio.style.text_color = T("--text-default");
 				bio.sel_order = 3;
-				blocks := md_parse(u.bio);
+				blocks := md_parse(about);
 				if blocks.count > 0 { ui.set_spans(bio, tokens_to_spans(blocks[0].tokens, .Normal, 14, null)); }
 			}
 			spacer(.Y, 16);

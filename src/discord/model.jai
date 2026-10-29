@@ -185,7 +185,9 @@ Guild :: struct {
 Member :: struct {
 	user_id: Snowflake;
 	nick: string;
-	avatar: string;
+	avatar: string; // the per-server avatar's hash ("" = theirs)
+	bio: string; // the per-server profile's About Me and pronouns ("" = theirs; GET /users/{id}/profile?guild_id=)
+	pronouns: string;
 	roles: [..]Snowflake;
 	joined_at: string;
 	flags: u64; // GuildMemberFlags: 1 DID_REJOIN

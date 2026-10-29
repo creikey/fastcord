@@ -154,6 +154,11 @@ avatar_url_for :: (uid: dc.Snowflake, size: float32) -> string {
 		if s >= px break;
 	}
 	if u == null return dc.default_avatar_url(uid, "0");
+	hosted_server := false;
+	for hosted if it.client && it.client == app.client hosted_server = true;
+	// in a server, a member's per-server avatar replaces theirs (the open server is the avatar's context)
+	mem := ifx app.view.guild && !hosted_server then dc.member_get(store(), app.view.guild, uid) else null;
+	if mem && mem.avatar && dc.is_hash(mem.avatar) return dc.guild_member_avatar_url(app.view.guild, uid, mem.avatar, sz);
 	if u.avatar == "" return dc.default_avatar_url(uid, u.discriminator);
 	for hosted if it.client && it.client == app.client return tprint("https://%/avatars/%/%.png?size=%", it.inv.id_hex, uid, u.avatar, sz);
 	return dc.avatar_url(uid, u.avatar, sz);
