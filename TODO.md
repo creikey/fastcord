@@ -450,7 +450,6 @@
   - QUIC can't go through an HTTP proxy, so use HTTP/2 when proxied, as Chromium does.
   - Voice is UDP and can't use an HTTP proxy either. Say so in the call panel rather than failing silently. SOCKS5 UDP ASSOCIATE could carry it later.
   - Never send the proxy's credentials anywhere but the proxy.
-- [ ] Connection: when the gateway drops, nothing shows it; the app silently goes stale while `gateway.jai` reconnects (no UI reads `Gw_State`). Show the official client's "Connecting..." / offline state.
 - [ ] Bug: after a re-identify, typing indicators, threads and activities stop for every server visited earlier, and the member sidebar freezes. `subscribe_guild` skips servers already in `c.subs.guilds`, and the member list resubscribes only when empty (`actions.jai`, `view_home.jai`).
 - [ ] Friends: no Blocked list or unblock outside a DM header; no friend suggestions.
 - [ ] Profiles: the user menu lacks Remove Friend, Block/Unblock, Call, Invite to Server, Mention, Add Note and Ignore (a comment in `view_home.jai` claims some exist).
@@ -808,3 +807,4 @@
 - [x] DMs: the 1:1 DM row's menu offers Mark As Read (while unread) and Close DM, and drops Message (`open_user_menu` `dm`, `tests/ui/rail/dm_row_menu.txt`).
 - [x] Composer: slowmode. Unless you bypass it (Manage Messages or Channels, Manage Threads in a thread), the typing row says "Slowmode is enabled" with the interval on hover, a send starts the cooldown shown as m:ss, and Enter during it keeps the text; a SLOWMODE_RATE_LIMITED 429 is re-sent after its Retry-After. Tooltips now stay inside the window (`slowmode_secs`, `tests/ui/slowmode.txt`).
 - [x] Locale: Settings > Language & Time picks the account's language (`localization.locale`) and the Time format (Auto / 12-hour / 24-hour, `timestamp_hour_cycle`); every clock (message times, tooltips, `<t:>` stamps, events, mutes, status expiry) follows it. Proto edits now send the whole category, as the client does, and another device's partial settings update no longer resets the fields it doesn't carry (`settings_put`, `apply_settings_proto`).
+- [x] Connection: when the gateway drops after READY, a warning bar under the title bar says "Connection lost. Messages may be out of date." with Reconnect (skipping the backoff), or "Connecting..." while it reconnects; a quick resume shows nothing (`connection_notice`, `tests/ui/connection_notice.txt`).

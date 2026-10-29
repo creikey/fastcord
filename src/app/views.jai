@@ -264,6 +264,7 @@ build_ui :: () {
 	view_gone_check();
 	title_bar();
 	streamer_notice();
+	connection_notice();
 	if call_fullscreen() {
 		call_view(app.view.channel);
 		overlays();

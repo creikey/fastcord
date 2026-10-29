@@ -1,0 +1,10 @@
+# The gateway drops after READY: a bar under the title bar says so, with Reconnect; it goes when the
+# connection is back.
+wait 5
+gateway down
+wait 5
+expect_visible "Connection lost. Messages may be out of date."
+expect_visible "Reconnect"
+gateway up
+wait 5
+expect_not_visible "Connection lost. Messages may be out of date."

@@ -183,6 +183,45 @@ streamer_notice :: () {
 	}
 }
 
+// A bar under the title bar while the open connection's gateway is down after its first READY (after a
+// 3 s grace, so a quick resume shows nothing): the app is stale until it reconnects. Waiting out a
+// backoff, "Reconnect" tries at once.
+connection_notice :: () {
+	s := store();
+	now := platform.time_now();
+	if s.connection == .Ready || s.connection == .Auth_Failed || s.me == 0 {
+		sm.conn_lost_at = 0;
+		return;
+	}
+	if sm.conn_lost_at == 0 sm.conn_lost_at = now;
+	if now - sm.conn_lost_at < 3 && !platform.is_headless() { request_wake(sm.conn_lost_at + 3); return; }
+	WHITE :: ui.Color.{1, 1, 1, 1};
+	bar := row("conn_notice", .Draw_Background);
+	bar.semantic_size = .[ui.pct(1), ui.px(36)];
+	bar.style.bg = T("--status-warning");
+	{ ui.parent(bar); defer ui.pop_parent();
+		filler(.X);
+		closed := s.connection == .Disconnected;
+		label(ifx closed then "Connection lost. Messages may be out of date." else "Connecting...", .Medium, 14, WHITE, 18);
+		if closed {
+			spacer(.X, 10);
+			b := row("reconnect", .Clickable | .Draw_Border | .Draw_Background | .Hot_Animation);
+			b.semantic_size = .[ui.children(), ui.px(24)];
+			b.style.border = 1;
+			b.style.border_color = WHITE;
+			b.style.radius = all4(4);
+			b.style.bg_hot = with_alpha(WHITE, 0.1);
+			{ ui.parent(b); defer ui.pop_parent();
+				spacer(.X, 10);
+				label("Reconnect", .Medium, 14, WHITE, 18);
+				spacer(.X, 10);
+			}
+			if ui.signal(b).clicked && app.client dc.gateway_reconnect_now(app.client);
+		}
+		filler(.X);
+	}
+}
+
 // Settings > Appearance > Streamer Mode (a section of Appearance in 0.0.419).
 streamer_settings_section :: () {
 	s := *streamer_settings;
@@ -247,6 +286,7 @@ sm: struct {
 	notice_closed: bool;
 	notice_viewed: bool;
 	notice_guild: dc.Snowflake; // the route's guild when app_notice_viewed was sent
+	conn_lost_at: float64; // when the open connection left READY (0: it is up; connection_notice)
 };
 
 streamer_analytics :: (x: Streamer_Settings) -> dc.Streamer_Mode_Analytics {

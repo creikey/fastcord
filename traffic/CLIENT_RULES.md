@@ -563,6 +563,7 @@ Fixture: `traffic/account_edits.jsonl` windows `logout` and `login_submit`
 
 | Rule | Kind | Anchor in the client | fastcord |
 |---|---|---|---|
+| While the gateway is down after READY (3 s grace for a quick resume), a warning bar under the title bar reads "Connection lost. Messages may be out of date." with Reconnect (resetBackoff), or "Connecting..." while a socket is opening or identifying. The official client's offline UI was not found in the bundle | guess | search `Connecting...` (`ULvRFd`) | `view_streamer.jai` `connection_notice`, `gateway.jai` `gateway_reconnect_now` |
 | A failed message page (`LOAD_MESSAGES_FAILURE`, once `api_call` has used the endpoint's `retries`) sets the channel's `error` and stops loading; the UI adds no retry of its own. A bar reads "Messages Failed To Load" with "Try Again"; while the retry runs, `PULSING_ELLIPSIS` replaces "Try Again" | code | `LOAD_MESSAGES_FAILURE:function`, string `1zUvlw`; component with `"1zUvlw"` and `PULSING_ELLIPSIS` | `view_chat.jai` `history_failed_bar`, `history_retry`; `rest.jai` `Message_List.failed` |
 | Older pages are not re-requested by scrolling after a failure (only Try Again) | guess | — | `message_list` (`older` gate) |
 | A failed jump (`around=`) shows the same bar | guess | — | `features.jai` `apply_around` |

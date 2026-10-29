@@ -972,6 +972,14 @@ gateway_expedited_heartbeat_locked :: (g: *Gateway, timeout_ms: s64) {
 	locks.cond_broadcast(*g.cond);
 }
 
+// gateway_reconnect_now: a closed gateway waiting out its backoff reconnects at once (resetBackoff).
+gateway_reconnect_now :: (c: *Client) {
+	if !c.gw return;
+	locks.lock(*c.gw.mu);
+	if c.gw.state == .Closed gateway_expedited_heartbeat_locked(c.gw, 5000);
+	locks.unlock(*c.gw.mu);
+}
+
 // gateway_established: isSessionEstablished (SESSION_ESTABLISHED or RESUMING), when the stores
 // commit their state; what they skip goes out with READY or RESUMED.
 gateway_established :: (g: *Gateway) -> bool {

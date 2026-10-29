@@ -924,6 +924,10 @@ script_command :: (path: string, f: []string, t: *float64, depth := 0) {
 		case; req_offline = .Hold;
 		}
 		return;
+	case "gateway";
+		// gateway down|up: the open connection's gateway drops (reconnecting) or is back
+		store().connection = ifx f[1] == "down" then .Disconnected else .Ready;
+		return;
 	case "history";
 		// history loading|failed|older|gap: the open channel's message list as the network left it
 		l := dc.message_list(store(), app.view.channel);
