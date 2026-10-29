@@ -1032,6 +1032,8 @@ channel_move :: (t: *T) {
 	expect_value(t, channel_move_body(*s, 100, 11, 12, false), ""); // a1 is already above a2
 	// into B, on its category row: the top of B's text channels
 	expect_value(t, channel_move_body(*s, 100, 11, 2, false), "[{\"id\":\"12\",\"position\":1},{\"id\":\"11\",\"position\":2,\"parent_id\":\"2\"}]");
+	// Sync Permissions: the moved one also asks for its new category's overwrites
+	expect_value(t, channel_move_body(*s, 100, 11, 2, false, lock = true), "[{\"id\":\"12\",\"position\":1},{\"id\":\"11\",\"position\":2,\"parent_id\":\"2\",\"lock_permissions\":true}]");
 	// out of A, below the uncategorized u
 	expect_value(t, channel_move_body(*s, 100, 12, 10, true), "[{\"id\":\"12\",\"position\":1,\"parent_id\":null},{\"id\":\"11\",\"position\":2}]");
 	// a text channel on a voice one: the end of that category's text channels

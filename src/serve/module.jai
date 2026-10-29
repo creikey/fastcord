@@ -2581,9 +2581,10 @@ channel_name :: (raw: string) -> string {
 	return ifx n.count <= 100 then n else "";
 }
 
-// PATCH /api/v9/guilds/{id}/channels [{id, position?, parent_id?}]: with Manage Channels, the client's drag
-// reorders channels and moves them between categories (lock_permissions is ignored: a moved channel keeps
-// its overwrites). All or nothing; each one changed is audited and gets a CHANNEL_UPDATE.
+// PATCH /api/v9/guilds/{id}/channels [{id, position?, parent_id?, lock_permissions?}]: with Manage Channels,
+// the client's drag reorders channels and moves them between categories; lock_permissions (Sync
+// Permissions, with Manage Roles there) gives a moved channel its new category's overwrites, else it keeps
+// its own. All or nothing; each one changed is audited and gets a CHANNEL_UPDATE.
 reorder_channels :: (c: *Conn, req: http.Request) -> bool {
 	s := c.server;
 	token, _ := http.header_get(req.headers, "authorization");
@@ -2593,6 +2594,7 @@ reorder_channels :: (c: *Conn, req: http.Request) -> bool {
 	if err != .None || v.kind != .List || !v.list.count || v.list.count > 500 return json_error(c, 400, 50035, "Invalid Form Body");
 	changed: [..]etf.Value;
 	changed.allocator = temp;
+	synced := false; // a channel took its category's overwrites: who sees it may have changed
 	{
 		locks.guard(*s.db_mu);
 		if !can_locked(s, user, P_MANAGE_CHANNELS) return json_error(c, 403, 50013, "Missing Permissions");
@@ -2601,12 +2603,13 @@ reorder_channels :: (c: *Conn, req: http.Request) -> bool {
 		ids.allocator = temp;
 		for v.list {
 			bad := it.kind != .Map;
-			id_v, pos_v, par_v: etf.Value;
+			id_v, pos_v, par_v, lock_v: etf.Value;
 			has_par: bool;
 			if !bad {
 				id_v, _ = etf.map_get(it.map, "id");
 				pos_v, _ = etf.map_get(it.map, "position");
 				par_v, has_par = etf.map_get(it.map, "parent_id");
+				lock_v, _ = etf.map_get(it.map, "lock_permissions");
 			}
 			id, ok := string_to_int(ifx id_v.kind == .String then id_v.s else "", T = s64);
 			kind := ifx ok then channel_type_locked(s, id) else -1;
@@ -2615,8 +2618,13 @@ reorder_channels :: (c: *Conn, req: http.Request) -> bool {
 			bad ||= !ok || kind < 0 || kind == THREAD || (pos_v.kind != .Nil && !(pos_v.kind == .Int && pos_v.i >= 0 && pos_v.i < 10000))
 				|| (par_v.kind != .Nil && par_v.kind != .String) || (parent && (kind == CATEGORY || channel_type_locked(s, parent) != CATEGORY));
 			if bad { sqlite.exec(s.db, "ROLLBACK;"); return json_error(c, 400, 50035, "Invalid Form Body"); }
+			lock := lock_v.kind == .Bool && lock_v.b && parent;
+			if lock && !(can_locked(s, user, P_MANAGE_ROLES, id) && can_locked(s, user, P_MANAGE_ROLES, parent)) { sqlite.exec(s.db, "ROLLBACK;"); return json_error(c, 403, 50013, "Missing Permissions"); }
+			synced ||= lock;
 			ok = (pos_v.kind != .Int || sqlite.run(s.db, "UPDATE channels SET position = ? WHERE id = ?;", pos_v.i, id))
-				&& (!has_par || sqlite.run(s.db, "UPDATE channels SET parent = nullif(?, 0) WHERE id = ?;", parent, id));
+				&& (!has_par || sqlite.run(s.db, "UPDATE channels SET parent = nullif(?, 0) WHERE id = ?;", parent, id))
+				&& (!lock || (sqlite.run(s.db, "DELETE FROM overwrites WHERE channel = ?;", id)
+					&& sqlite.run(s.db, "INSERT INTO overwrites(channel, target, type, allow, deny) SELECT ?, target, type, allow, deny FROM overwrites WHERE channel = ?;", id, parent)));
 			if !ok { sqlite.exec(s.db, "ROLLBACK;"); return json_error(c, 500, 0, "500: Internal Server Error"); }
 			array_add(*ids, id);
 		}
@@ -2626,6 +2634,7 @@ reorder_channels :: (c: *Conn, req: http.Request) -> bool {
 			array_add(*changed, channel_locked(s, it));
 		}
 	}
+	if synced resync(s);
 	for changed broadcast(s, "CHANNEL_UPDATE", it);
 	return respond(c, 204, json = false);
 }

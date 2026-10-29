@@ -579,9 +579,9 @@ edit_channel :: (c: *Client, channel_id: Snowflake, f: Channel_Form) {
 // sent, {"id","position"}, the moved one with "parent_id" when it changes category. A channel dropped on a
 // category goes to the top of its kind there; on a channel of the other kind, a text channel goes to the end
 // of the text channels and a voice channel to the start of the voice ones.
-channel_move_body :: (s: *Store, guild_id: Snowflake, moved: Snowflake, target: Snowflake, after: bool) -> string {
+channel_move_body :: (s: *Store, guild_id: Snowflake, moved: Snowflake, target: Snowflake, after: bool, lock := false) -> body: string, parent: Snowflake {
 	x, t := channel_get(s, moved), channel_get(s, target);
-	if !x || !t || moved == target || x.guild_id != guild_id || t.guild_id != guild_id || is_thread(x) || is_thread(t) return "";
+	if !x || !t || moved == target || x.guild_id != guild_id || t.guild_id != guild_id || is_thread(x) || is_thread(t) return "", 0;
 	vocal :: (c: *Channel) -> bool { return c.kind == .Guild_Voice || c.kind == .Guild_Stage_Voice; }
 	sorted := guild_channels_sorted(s, guild_id);
 	cats: [..]Snowflake;
@@ -591,7 +591,7 @@ channel_move_body :: (s: *Store, guild_id: Snowflake, moved: Snowflake, target: 
 	parent := x.parent_id;
 	if x.kind == .Guild_Category {
 		tc := ifx t.kind == .Guild_Category then t.id else t.parent_id;
-		if !tc || tc == moved return "";
+		if !tc || tc == moved return "", 0;
 		at := 0;
 		for cats if it == tc at = it_index + cast(int) after;
 		array_insert_at(*cats, moved, at);
@@ -643,6 +643,7 @@ channel_move_body :: (s: *Store, guild_id: Snowflake, moved: Snowflake, target: 
 				json_ksnow(*w, "id", it);
 				if c.position != pos json_kint(*w, "position", pos);
 				if moved_here { if parent json_ksnow(*w, "parent_id", parent); else json_knull(*w, "parent_id"); }
+				if moved_here && lock json_kbool(*w, "lock_permissions", true);
 				json_obj_end(*w);
 				any = true;
 			}
@@ -650,7 +651,29 @@ channel_move_body :: (s: *Store, guild_id: Snowflake, moved: Snowflake, target: 
 		}
 	}
 	json_arr_end(*w);
-	return ifx any then json_string(*w) else "";
+	return ifx any then json_string(*w) else "", parent;
+}
+
+// overwrites_equal: the same overwrites, in any order (a channel synced with its category).
+overwrites_equal :: (a: []Overwrite, b: []Overwrite) -> bool {
+	if a.count != b.count return false;
+	for x: a {
+		found := false;
+		for b if it.id == x.id && it.allow == x.allow && it.deny == x.deny found = true;
+		if !found return false;
+	}
+	return true;
+}
+
+// move_asks_sync: whether moving the channel into the category asks "Sync permissions?" first (the client's
+// check): both under Manage Roles, not already matching the category, and synced with where it was (or
+// uncategorized).
+move_asks_sync :: (s: *Store, moved: Snowflake, category: Snowflake) -> bool {
+	ch, cat := channel_get(s, moved), channel_get(s, category);
+	if !ch || !cat || cat.kind != .Guild_Category || ch.parent_id == category || ch.kind == .Guild_Category return false;
+	if !(channel_permissions(s, ch.id) & PERM_MANAGE_ROLES) || !(channel_permissions(s, cat.id) & PERM_MANAGE_ROLES) || overwrites_equal(ch.overwrites, cat.overwrites) return false;
+	old := channel_get(s, ch.parent_id);
+	return !ch.parent_id || (old && overwrites_equal(ch.overwrites, old.overwrites));
 }
 
 // PATCH /guilds/{id}/channels with channel_move_body's list (the client's batchChannelUpdate), then the

@@ -931,8 +931,9 @@ channel_drag :: (gid: dc.Snowflake) {
 	if cdrag.active app.ui.animating = true;
 	if released {
 		if cdrag.active && cdrag.target && net_action() {
-			body := dc.channel_move_body(store(), gid, cdrag.id, cdrag.target, cdrag.after);
-			if body dc.reorder_channels(app.client, gid, body);
+			body, parent := dc.channel_move_body(store(), gid, cdrag.id, cdrag.target, cdrag.after);
+			if body && dc.move_asks_sync(store(), cdrag.id, parent) channel_sync_prompt(gid, cdrag.id, cdrag.target, cdrag.after); // view_guild_admin.jai
+			else if body dc.reorder_channels(app.client, gid, body);
 		}
 		cdrag.down, cdrag.active = false, false;
 	}

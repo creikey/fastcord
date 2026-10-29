@@ -4112,15 +4112,6 @@ ow_find :: (list: []dc.Overwrite, id: dc.Snowflake) -> *dc.Overwrite {
 	return null;
 }
 
-ows_equal :: (a: []dc.Overwrite, b: []dc.Overwrite) -> bool {
-	if a.count != b.count return false;
-	for a {
-		o := ow_find(b, it.id);
-		if !o || o.allow != it.allow || o.deny != it.deny return false;
-	}
-	return true;
-}
-
 // Whether the draft d differs from the channel's (an @everyone allowing and denying nothing is no change).
 ow_changed :: (ch: *dc.Channel, d: dc.Overwrite) -> bool {
 	o := ow_find(ch.overwrites, d.id);
@@ -4250,7 +4241,7 @@ chan_permissions_page :: (g: *dc.Guild) {
 	is_cat := ch.kind == .Guild_Category;
 	cat := dc.channel_get(store(), ch.parent_id);
 	if cat && !is_cat {
-		synced := ows_equal(ch.overwrites, cat.overwrites);
+		synced := dc.overwrites_equal(ch.overwrites, cat.overwrites);
 		b := row("sync", .Draw_Background);
 		b.semantic_size = .[ui.pct(1), ui.px(52)];
 		b.style.bg = T("--background-mod-subtle");

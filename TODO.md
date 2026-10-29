@@ -381,7 +381,6 @@
 - [ ] Search: the suggestions popout has no search history; the client lists your recent searches under "History" with a clear button (`view_search.jai` keeps none).
 - [ ] Member list: stored per server and resubscribed only when empty, so a private channel likely shows the previous channel's members.
 - [ ] Links: outside links open with no "Leaving Discord" warning (masked links, untrusted domains, "Trust this domain" checkbox).
-- [ ] Channels: dragging a channel whose permissions are synced into another category doesn't ask the client's "Sync Permissions?" (its `lock_permissions`); the channel keeps its own overwrites.
 - [ ] Apps: message components are ignored. Nothing reads a message's `components`, so bot buttons and select menus never show. Verify buttons, role pickers and music-bot controls all go missing, and servers that gate channels behind a Verify button can't be joined. Components V2 messages (flag `IS_COMPONENTS_V2`, 1 << 15) keep everything in components, with no content or embeds, so they render as empty messages.
   - Draw action rows: buttons in every style, with emoji and disabled state. Link buttons open the browser.
   - Draw select menus: string, user, role, channel and mentionable.
@@ -838,3 +837,4 @@
 - [x] Undo: relationships: Remove Friend, Unblock, Block (its confirm modal is gone), Ignore Friend Request and cancelling a request change the list and the DM header at once and send after 5 s (`rel_change`; `tests/ui/rail/undo_remove_friend.txt`, `tests/ui/dm/request_feedback.txt`).
 - [x] Messages: a failed message with files offers Retry: a failed send keeps its uploaded files, and Retry sends the message again with them without re-uploading; they are released once the message lands or is deleted (`attachments_retry`, `run_draft_send`).
 - [x] Video: H.265 is advertised as decodable only where `media.video_codec_supported(.HEVC)` (on Windows, the HEVC Video Extensions), so the SFU can't pick a codec whose every camera stays black (`codecs_json` in `voice/gateway.jai`, `Options.no_hevc_decode`; checked on Windows with the extensions installed, and `src/tests/voice_wire.jai` prints the list without).
+- [x] Channels: dragging a channel into a category it isn't synced with (when it was synced, or uncategorized, and you manage roles in both) asks "Sync permissions?"; Sync Permissions sends the move with `lock_permissions`, which serve honours too (`dc.move_asks_sync`, `sync_move_modal`).

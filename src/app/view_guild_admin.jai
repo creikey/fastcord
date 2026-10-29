@@ -52,6 +52,13 @@ channel_delete_open :: (th: *dc.Channel) {
 	if net_action() dc.fetch_role_member_counts(app.client, th.guild_id);
 }
 
+// channel_sync_prompt: a channel dragged into a category it isn't synced with asks "Sync permissions?";
+// either answer sends the move, Sync Permissions with lock_permissions (the client's prompt).
+channel_sync_prompt :: (gid: dc.Snowflake, moved: dc.Snowflake, target: dc.Snowflake, after: bool) {
+	adm.modal = .Sync_Move;
+	adm.guild, adm.channel, adm.move_target, adm.move_after = gid, moved, target, after;
+}
+
 // emoji_upload_pick: "Add Emoji" in the picker. The OS file dialog runs here
 // (UI thread); reading and encoding the file happens on a feature worker.
 emoji_upload_pick :: (gid: dc.Snowflake) {
@@ -257,6 +264,8 @@ guild_admin_overlays :: () {
 		create_channel_modal();
 	case .Delete_Channel;
 		delete_channel_modal();
+	case .Sync_Move;
+		sync_move_modal();
 	case .Notice;
 		notice_modal();
 	}
@@ -318,6 +327,7 @@ Admin_Modal :: enum u8 {
 	None;
 	Create_Channel;
 	Delete_Channel;
+	Sync_Move;
 	Notice;
 }
 
@@ -336,6 +346,8 @@ Admin_State :: struct {
 	emoji_busy: bool;
 	from_menu: bool; // delete opened from a context menu: Cancel closes
 	del_parent: dc.Snowflake; // a thread being deleted: where to go after
+	move_target: dc.Snowflake; // Sync_Move: the drop (adm.channel is the dragged channel)
+	move_after: bool;
 }
 
 adm: Admin_State;
@@ -570,6 +582,52 @@ delete_channel_modal :: () {
 		set_error("");
 		dc.delete_channel(app.client, ch.id);
 	}
+}
+
+sync_move_modal :: () {
+	ch := dc.channel_get(store(), adm.channel);
+	target := dc.channel_get(store(), adm.move_target);
+	if !ch || !target { admin_close(); return; }
+	_, parent := dc.channel_move_body(store(), adm.guild, ch.id, target.id, adm.move_after);
+	cat := dc.channel_get(store(), parent);
+	if !cat { admin_close(); return; }
+	if !adm_modal_begin("syncmove", 440, "Sync permissions?") { admin_close(); return; }
+	spacer(.Y, 8);
+	br := row("body");
+	br.semantic_size = .[ui.pct(1), ui.children()];
+	{ ui.parent(br); defer ui.pop_parent();
+		spacer(.X, 25);
+		b := ui.box("text", .Wrap_Text);
+		b.semantic_size = .[ui.fill(), ui.text_size()];
+		b.style.line_height = 20;
+		b.style.text_color = T("--text-default");
+		spans := NewArray(5, ui.Span,, temp);
+		spans[0] = .{text = "Would you like to sync ", font = F(.Normal), size = 16};
+		spans[1] = .{text = ifx text_named(ch.kind) then tprint("#%", ch.name) else ch.name, font = F(.Bold), size = 16};
+		spans[2] = .{text = " permissions with ", font = F(.Normal), size = 16};
+		spans[3] = .{text = cat.name, font = F(.Bold), size = 16};
+		spans[4] = .{text = "?", font = F(.Normal), size = 16};
+		ui.set_spans(b, spans);
+		spacer(.X, 25);
+	}
+	spacer(.Y, 24);
+	answer := -1;
+	btns := row("btns");
+	btns.semantic_size = .[ui.pct(1), ui.px(40)];
+	btns.style.child_gap = 8;
+	{ ui.parent(btns); defer ui.pop_parent();
+		spacer(.X, 25 - 8);
+		if wide_button("keep", "Keep Current Permissions", .Secondary) answer = 0;
+		if wide_button("sync", "Sync Permissions", .Primary) answer = 1;
+		spacer(.X, 25 - 8);
+	}
+	spacer(.Y, 24);
+	adm_modal_end();
+	if adm_escape() { admin_close(); return; }
+	if answer < 0 return;
+	body := dc.channel_move_body(store(), adm.guild, ch.id, target.id, adm.move_after, lock = answer == 1);
+	if body && net_action() dc.reorder_channels(app.client, adm.guild, body);
+	admin_close();
 }
 
 notice_modal :: () {
