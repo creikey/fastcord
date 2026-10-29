@@ -37,7 +37,8 @@
 - [ ] Hosted servers: full parity with Discord servers, so moving a community off Discord loses nothing.
   - Done: voice channels, with serve as the SFU. The owner creates them (Create Channel offers Voice; names keep their case); members join, talk, mute and deafen, and see who is in and who is speaking, with text chat in the channel. Gateway op 4 gives a voice state and VOICE_SERVER_UPDATE; the client's own voice stack connects to a voice WebSocket on serve's listener (`/?v=9`) and UDP on the same port number, pinned like the gateway; serve opens each packet with its sender's transport key and seals it again for each listener, never decoding it, with per-member rate caps (`serve/voice.jai`, `src/tests/serve_voice.jai`). The call stays on its connection while another server is selected (`call_client`).
   - Hosted voice has no end-to-end encryption: serve answers DAVE version 0 and the client accepts it there, so whoever runs the server could record calls. Make serve DAVE's MLS delivery service (external sender, add/remove proposals, picking the commit and relaying welcomes, as Discord's voice gateway does in `src/tests/voice_fake_server.jai`) so calls are E2E as on Discord, and drop the client's exception.
-  - Camera video and Go Live screen streaming over the same SFU, watched like on Discord.
+  - Done: camera video in hosted voice channels: op 12 and the camera's RTP, retransmissions and keyframe requests go through serve like audio, in H.264, which every fastcord sends and shows (`src/tests/serve_voice.jai`).
+  - Go Live screen streaming over the same SFU, watched like on Discord.
   - Stickers: upload and send server stickers; the picker's Stickers tab shows them on hosted servers.
   - Soundboard: server sounds served and played to everyone in the voice channel.
   - Roles and permissions, channel permission overwrites, private channels (Hosting 4).

@@ -24,6 +24,7 @@ Member :: struct {
 	cl: *discord.Client;
 	conn: *voice.Conn;
 	heard: s64;  // Atomic: 20 ms frames with sound from the other member.
+	frames: s64; // Atomic: whole camera frames from the other member, as sent.
 	phase: float64;
 }
 
@@ -104,6 +105,9 @@ main :: () {
 				energy: float32;
 				for pcm energy += it * it;
 				if energy > 1 atomic_add(*(cast(*Member) data).heard, 1);
+			},
+			video = (data: *void, user_id: u64, codec: voice.Video_Codec, au: []u8, keyframe: bool) {
+				if codec == .H264 && keyframe && au.count > 4000 atomic_add(*(cast(*Member) data).frames, 1);
 			}});
 	}
 	if failed { serve.stop(s); exit(1); }
@@ -117,6 +121,28 @@ main :: () {
 	check(array_find(speaking, xx b.cl.store.me), tprint("the owner sees the member speaking: %", speaking));
 	stats := voice.get_stats(a.conn);
 	check(stats.transport_failures == 0 && stats.remote_users == 1, tprint("clean media: % failures, % users", stats.transport_failures, stats.remote_users));
+
+	// Camera: the owner turns it on; the member learns of it from op 12 and gets every frame, in H.264.
+	check(voice.video_codec(a.conn) == .H264, tprint("the call's video codec: %", voice.video_codec(a.conn)));
+	voice.set_video(a.conn, true);
+	frame: [..]u8;
+	for nal: ([2]u8).[.[0x67, 0x42], .[0x68, 0xCE], .[0x65, 0x88]] {
+		array_add(*frame, 0, 0, 0, 1, nal[0], nal[1]);
+		for 1..ifx nal[0] == 0x65 then 4000 else 8 array_add(*frame, cast(u8) (it * 7 + 3));
+	}
+	ts: u32;
+	for 1..500 {
+		if atomic_load(*b.frames) >= 5 break;
+		voice.send_video(a.conn, .H264, frame, ts);
+		ts += 3000;
+		pump();
+	}
+	shown := voice.video_user_ids(b.conn,, temp);
+	check(shown.count == 1 && shown[0] == xx a.cl.store.me, tprint("op 12 announces the owner's camera: %", shown));
+	check(atomic_load(*b.frames) >= 5, tprint("the member gets the owner's camera frames: %", b.frames));
+	voice.set_video(a.conn, false);
+	for 1..300 { if !voice.video_user_ids(b.conn,, temp).count break; pump(); }
+	check(!voice.video_user_ids(b.conn,, temp).count, "turning the camera off reaches the member");
 
 	// The member leaves: their voice state goes, and the owner's connection drops them.
 	voice.voice_disconnect(b.conn);
