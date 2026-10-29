@@ -16,6 +16,10 @@ Message_Actions :: struct {
 	menu_link: string; // the link right-clicked in the message (owned): the menu opens with Copy / Open Link
 	hover_link: string; // the link under the mouse in a message, with the frame it was seen (owned)
 	hover_link_frame: u64;
+	// Remove Reactions' emoji list (its message and where it opens), and the emoji a confirm removes
+	emoji_menu: dc.Snowflake;
+	emoji_menu_pos: ui.Vec2;
+	confirm_emoji: dc.Emoji; // name owned
 }
 
 Parked_Reply :: struct {
@@ -594,7 +598,7 @@ message_menu :: () {
 	// MessageContextMenu's last group: Remove All Reactions (MANAGE_MESSAGES in a server channel), then Delete
 	ch := dc.channel_get(s, m.channel_id);
 	remove_all := m.reactions && ch && ch.guild_id && (dc.channel_permissions(s, ch.id) & dc.PERM_MANAGE_MESSAGES);
-	if remove_all array_add(*items, .{label = "Remove All Reactions", icon = "reaction", sep = true});
+	if remove_all array_add(*items, .{label = "Remove Reactions", icon = "reaction", danger = true, sub = true, sep = true}, .{label = "Remove All Reactions", icon = "reaction"});
 	if can_manage_message(m) array_add(*items, .{label = "Delete Message", icon = "trash", danger = true, sep = !remove_all});
 	if s.settings.developer_mode array_add(*items, .{label = "Copy Message ID", icon = "id", sep = true});
 	quick := ifx sel || !reacts then .[] else quick_reactions();
@@ -725,6 +729,8 @@ message_menu :: () {
 					else m.poll.finalized = true; // offline (fixture) runs
 				case "Remove All Reactions";
 					if app.ui_mods & .Shift remove_reactions_now(m); else ma.confirming, ma.confirm = m.id, Confirm.Remove_Reactions;
+				case "Remove Reactions";
+					ma.emoji_menu, ma.emoji_menu_pos = m.id, .{outer.rect.x1 - 4, outer.rect.y0};
 				}
 				ma.menu_msg = 0;
 			}
@@ -752,7 +758,58 @@ edit_result :: (r: dc.Rest_Result) {
 // A message whose Delete (or, for pins, Unpin) is held: lists leave it out.
 message_held :: (id: dc.Snowflake, unpin := false) -> bool { return undo_held(send_delete, id) || (unpin && undo_held(send_unpin, id)); }
 
-Confirm :: enum u8 { Pin; Remove_Embeds; Remove_Reactions; }
+Confirm :: enum u8 { Pin; Remove_Embeds; Remove_Reactions; Remove_Emoji_Reactions; }
+
+// Remove Reactions' list: each emoji on the message once; one removes all of its reactions (the client's
+// "Remove Reactions for Emoji" confirm; Shift skips it), DELETE .../reactions/{emoji}.
+emoji_reactions_menu :: () {
+	m := find_message(ma.emoji_menu);
+	if !m || !m.reactions || outside_pressed("emojirm_out") || escape_pressed() { ma.emoji_menu = 0; return; }
+	seen: [..]dc.Emoji;
+	seen.allocator = temp;
+	for r: m.reactions {
+		dup := false;
+		for seen if dc.emoji_matches(it, r.emoji.id, r.emoji.name) dup = true;
+		if !dup array_add(*seen, r.emoji);
+	}
+	W :: 200.0;
+	h := cast(float32)(16 + seen.count * GM_ROW_H);
+	pos := ma.emoji_menu_pos;
+	if pos.x + W > app.ui.window.x - 8 pos.x = app.ui.window.x - 8 - W;
+	pos.y = min(pos.y, app.ui.window.y - h - 8);
+	p := menu_panel("emojirm", pos, W);
+	ui.parent(p); defer ui.pop_parent();
+	spacer(.Y, 8);
+	for e, i: seen {
+		ui.id_scope(cast(u64) i); defer ui.pop_seed();
+		r := row("e", .Clickable | .Draw_Background | .Hot_Animation);
+		r.semantic_size = .[ui.pct(1), ui.px(GM_ROW_H)];
+		r.style.radius = all4(4);
+		r.style.bg_hot = T("--status-danger");
+		r.cross_align = .Center;
+		sig := ui.signal(r);
+		{ ui.parent(r); defer ui.pop_parent();
+			spacer(.X, 8);
+			emoji_box("em", e, 20);
+			spacer(.X, 8);
+			label(ifx e.id then tprint(":%:", e.name) else e.name, .Medium, 14, ifx sig.hovering then ui.Color.{1, 1, 1, 1} else T("--text-feedback-critical"), 18);
+		}
+		if sig.clicked {
+			free(ma.confirm_emoji.name);
+			ma.confirm_emoji = e;
+			ma.confirm_emoji.name = copy_string(e.name);
+			ma.emoji_menu = 0;
+			if app.ui_mods & .Shift remove_emoji_reactions_now(m); else ma.confirming, ma.confirm = m.id, Confirm.Remove_Emoji_Reactions;
+		}
+	}
+	spacer(.Y, 8);
+}
+
+remove_emoji_reactions_now :: (m: *dc.Message) {
+	e := ma.confirm_emoji;
+	if net_action() { dc.remove_emoji_reactions(app.client, m.channel_id, m.id, e.name, e.id); return; }
+	for m.reactions if dc.emoji_matches(it.emoji, e.id, e.name) { array_ordered_remove_by_index(*m.reactions, it_index); break; } // offline (fixture) runs
+}
 
 // DELETE .../reactions: gone for everyone once MESSAGE_REACTION_REMOVE_ALL comes.
 remove_reactions_now :: (m: *dc.Message) {
@@ -816,6 +873,7 @@ confirm_now :: (m: *dc.Message) {
 	if ma.confirm == {
 	case .Remove_Embeds; remove_embeds_now(m);
 	case .Remove_Reactions; remove_reactions_now(m);
+	case .Remove_Emoji_Reactions; remove_emoji_reactions_now(m);
 	case; pin_now(m, ma.confirm == .Pin);
 	}
 }
@@ -835,6 +893,8 @@ confirm_modal :: () {
 		question = ifx ch && ch.guild_id then tprint("Hey, just double checking that you want to pin this message to #% for posterity and greatness?", ch.name) else "Hey, just double checking that you want to pin this message to the current channel for posterity and greatness?";
 	} else if ma.confirm == .Remove_Reactions {
 		title, question, tip, ok = "Remove All Reactions", "Are you sure you want to remove all the reactions on this message?", "", "Remove";
+	} else if ma.confirm == .Remove_Emoji_Reactions {
+		title, question, tip, ok = "Remove Reactions for Emoji", "Are you sure you want to remove all of the reactions for this emoji from this message?", "", "Remove";
 	} else if ma.confirm == .Remove_Embeds {
 		title, question, tip, ok = "Remove Embeds", "Are you sure you want to remove all embeds on this message? This will remove them for everyone.", "remove embeds", "Remove All Embeds";
 	}

@@ -678,6 +678,15 @@ remove_all_reactions :: (c: *Client, channel_id: Snowflake, message_id: Snowflak
 	job_submit(c, j);
 }
 
+// remove_emoji_reactions: DELETE /channels/{c}/messages/{m}/reactions/{emoji} (MANAGE_MESSAGES), every
+// reaction with that emoji; the gateway's MESSAGE_REACTION_REMOVE_EMOJI clears it.
+remove_emoji_reactions :: (c: *Client, channel_id: Snowflake, message_id: Snowflake, emoji_name: string, emoji_id: Snowflake) {
+	j := job_new(.Api, .None);
+	j.method = "DELETE";
+	j.path = job_str(j, channel_path(channel_id, "/messages/", snowflake_string(message_id), "/reactions/", emoji_route(emoji_name, emoji_id)));
+	job_submit(c, j);
+}
+
 remove_reaction :: (c: *Client, channel_id: Snowflake, message_id: Snowflake, emoji_name: string, emoji_id: Snowflake = 0, burst := false, location := "Message") {
 	reaction_send(c, .{channel_id = channel_id, message_id = message_id, emoji = .{id = emoji_id, name = emoji_name, available = true}, location = location, burst = burst});
 }

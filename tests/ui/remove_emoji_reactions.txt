@@ -1,0 +1,17 @@
+# Runs on remove_emoji_reactions.jsonl (you own the server). The message menu's Remove Reactions lists each
+# emoji on the message; picking one asks first, then removes every reaction with it and leaves the others.
+wait 5
+settle 1
+rclick_text "vote with reactions"
+wait 3
+click_text "Remove Reactions"
+wait 3
+expect_visible "🎉"
+shot build/ui-remove_emoji_reactions.png
+click_text "🎉"
+wait 3
+expect_visible "Remove Reactions for Emoji"
+click_text "Remove"
+wait 3
+expect_not_visible "Remove Reactions for Emoji"
+shot build/ui-remove_emoji_reactions-done.png

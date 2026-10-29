@@ -1625,6 +1625,7 @@ overlays :: () {
 	search_suggestions();
 	// above the pins and inbox popouts, whose cards open them too
 	if ma.menu_msg != 0 { message_menu(); }
+	if ma.emoji_menu != 0 { emoji_reactions_menu(); } // view_message_actions.jai: Remove Reactions' list
 	if ma.confirming != 0 { confirm_modal(); }
 	events_modal();
 	guild_admin_overlays();
