@@ -1,0 +1,8 @@
+# A load that fails as the network does (here `net fail`) is tried again when next viewed, once the
+# backoff (2 s) has passed: the emoji and avatars show after the network is back.
+net fail
+wait 5
+shot build/ui-emoji-retry-failed.png
+net ok
+settle 3
+shot build/ui-emoji-retry.png

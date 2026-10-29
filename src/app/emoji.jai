@@ -92,11 +92,13 @@ twemoji_receive :: (url: string, status: int, data: []u8) -> bool {
 	if !t return false;
 	if status != 200 || data.count == 0 {
 		t.state = .Failed;
+		retry_fail(*t.retry, status);
 		return true;
 	}
 	icon, ok := vector.parse_svg(cast(string) data);
 	if !ok {
 		t.state = .Failed;
+		t.retry.at_ms = 0;
 		return true;
 	}
 	t.icon = icon;
@@ -429,6 +431,7 @@ could_start :: inline (r: u32, next: u32) -> bool {
 
 Twemoji :: struct {
 	state: Image_State;
+	retry: Retry;
 	icon: vector.Icon;
 }
 
@@ -437,17 +440,18 @@ tw_tex: Name_Px_Map;
 
 twemoji_get :: (hash: string, visible := true) -> *Twemoji {
 	t := table_find_pointer(*twemojis, hash);
-	if t return t;
-	key := copy_string(hash);
-	t = table_add(*twemojis, key, .{state = .Loading});
-	url := twemoji_url(key);
+	if t && (t.state != .Failed || !retry_due(t.retry)) return t;
+	if t t.state = .Loading;
+	else t = table_add(*twemojis, copy_string(hash), .{state = .Loading});
+	url := twemoji_url(hash);
 	c := ifx app.client then media_client(url);
 	if c {
 		// an <img src="/assets/<hash>.svg"> load, like the client's emoji images
 		dc.fetch_media(c, .{url = url, kind = .Image, visible = visible});
 	} else {
 		data, ok := offline_media(url);
-		if ok twemoji_receive(url, 200, data);
+		if req_offline == .Fail twemoji_receive(url, 0, .[]);
+		else if ok twemoji_receive(url, 200, data);
 		else t.state = .Failed;
 	}
 	return t;

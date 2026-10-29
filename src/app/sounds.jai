@@ -107,10 +107,10 @@ sound_play :: (name: string) {
 sound_play_url :: (url: string, volume: float32, conn: *voice.Conn = null) {
 	if platform.is_headless() || app.client == null || volume <= 0 return;
 	found := table_find_pointer(*snd.sounds, url);
-	if !found {
-		s := New(Sound);
-		s.ready_volume, s.ready_conn = volume, conn;
-		table_set(*snd.sounds, copy_string(url), s);
+	if !found || (found.*.state == .Failed && retry_due(found.*.retry)) {
+		s := ifx found then found.* else New(Sound);
+		s.state, s.ready_volume, s.ready_conn = Sound_State.Loading, volume, conn;
+		if !found table_set(*snd.sounds, copy_string(url), s);
 		c := media_client(url);
 		if c dc.fetch_media(c, dc.Media_Request.{url = url, kind = .Audio, tag = SOUND_TAG});
 		return;
@@ -127,6 +127,7 @@ sounds_receive :: (r: *dc.Media_Result) -> bool {
 	s := found.*;
 	if (r.status != 200 && r.status != 206) || r.data.count == 0 {
 		s.state = .Failed;
+		retry_fail(*s.retry, r.status);
 		return true;
 	}
 	s.pcm = media.decode_sound(r.data);
@@ -235,6 +236,7 @@ Sound_State :: enum u8 {
 
 Sound :: struct {
 	state: Sound_State;
+	retry: Retry;
 	pcm: []float32; // stereo 48 kHz
 	ready_volume: float32; // > 0: play at this volume once loaded
 	ready_conn: *voice.Conn; // and through this call's mic (start checks it is still the call)

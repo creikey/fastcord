@@ -2,6 +2,7 @@
 
 Blob :: struct {
 	state: Image_State;
+	retry: Retry;
 	data: []u8;
 	stream: *media.Growing_Buffer; // blob_stream's: the bytes so far (data stays empty)
 }
@@ -38,14 +39,13 @@ video_os_full_t: float64;
 
 blob_get :: (url: string) -> *Blob {
 	b := table_find_pointer(*blobs, url);
-	if b return b;
-	key := copy_string(url);
-	b = find_or_add(*blobs, key);
+	if b && (b.state != .Failed || !retry_due(b.retry)) return b;
+	if !b b = find_or_add(*blobs, copy_string(url));
 	b.state = .Loading;
 	// offline: a decode worker reads FASTCORD_MEDIA_DIR
-	c := ifx app.client then media_client(key);
-	if c dc.fetch_media(c, .{url = key, kind = .Fetch, visible = true});
-	else decode_submit(.{kind = .Fetch, url = copy_string(key)});
+	c := ifx app.client then media_client(url);
+	if c dc.fetch_media(c, .{url = url, kind = .Fetch, visible = true});
+	else decode_submit(.{kind = .Fetch, url = copy_string(url)});
 	return b;
 }
 
@@ -54,12 +54,12 @@ blob_get :: (url: string) -> *Blob {
 // the moov at the end still waits for the whole file). Offline runs read it whole, as blob_get.
 blob_stream :: (url: string, kind: dc.Media_Kind, any_host := false) -> *Blob {
 	b := table_find_pointer(*blobs, url);
-	if b return b;
+	if b && (b.state != .Failed || !retry_due(b.retry)) return b;
 	c := ifx app.client then media_client(url);
 	if !c return blob_get(url);
-	key := copy_string(url);
-	b = find_or_add(*blobs, key);
+	if !b b = find_or_add(*blobs, copy_string(url));
 	b.state = .Loading;
+	if b.stream media.growing_release(b.stream); // a failed try's player keeps its own reference
 	b.stream = media.growing_create();
 	take :: (data: *void, piece: []u8) -> bool {
 		g := cast(*media.Growing_Buffer) data;
@@ -67,7 +67,7 @@ blob_stream :: (url: string, kind: dc.Media_Kind, any_host := false) -> *Blob {
 		media.growing_append(g, piece);
 		return true;
 	}
-	dc.fetch_media(c, .{url = key, kind = kind, visible = true, stream = .{b.stream, take}, any_host = any_host});
+	dc.fetch_media(c, .{url = url, kind = kind, visible = true, stream = .{b.stream, take}, any_host = any_host});
 	return b;
 }
 
@@ -94,7 +94,21 @@ blob_receive :: (r: *dc.Media_Result) -> bool {
 	} else {
 		b.state = .Failed;
 	}
+	if b.state == .Failed retry_fail(*b.retry, r.status);
 	return true;
+}
+
+// A clip whose download failed plays again from a new download once its retry is due: drop its player.
+player_retry :: (key: dc.Snowflake) -> *Inline_Player {
+	ip := table_find_pointer(*players, key);
+	if !ip return null;
+	b := table_find_pointer(*blobs, ip.url);
+	if !b || b.state != .Failed || !retry_due(b.retry) return ip;
+	media.player_destroy(ip.player);
+	free(ip.url);
+	free(ip.poster);
+	table_remove(*players, key);
+	return null;
 }
 
 // Message attachments: videos, audio, images (GIFs animate), other files as cards; max_w narrows them
@@ -412,7 +426,7 @@ video_player :: (key: dc.Snowflake, url: string, poster: string, w: float32, h: 
 	box.style.radius = all4(ifx full then 0.0 else 8.0);
 	box.style.bg = .{0, 0, 0, 1};
 	sig := ui.signal(box);
-	ip := table_find_pointer(*players, key);
+	ip := ifx full then table_find_pointer(*players, key) else player_retry(key); // full: url is ip.url
 	start :: () #expand {
 		if `ip return;
 		blob_stream(url, .Video, any_host);
@@ -574,7 +588,7 @@ audio_attachment :: (a: *dc.Attachment) {
 	card.style.border_color = T("--border-subtle");
 	card.style.border = 1;
 	card.style.radius = all4(8);
-	ip := table_find_pointer(*players, a.id);
+	ip := player_retry(a.id);
 	playing := ip != null;
 	if playing player_open_ready(ip);
 	{ ui.parent(card); defer ui.pop_parent();

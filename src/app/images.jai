@@ -4,8 +4,24 @@ Image_State :: enum u8 {
 	Failed;
 }
 
+// A load that failed for a reason that may pass (offline, sleep, 408, 429, 5xx) is tried again when it is
+// next viewed, 2 s after the first failure, doubling to 5 min. Another 4xx, or bytes that don't decode, is final.
+Retry :: struct {
+	fails: u8;
+	at_ms: s64; // 0: final
+}
+
+retry_fail :: (r: *Retry, status: int) {
+	if status != 0 && status != 408 && status != 429 && status < 500 { r.at_ms = 0; return; }
+	r.fails = min(r.fails + 1, 8);
+	r.at_ms = to_milliseconds(current_time_monotonic()) + min(1000 << r.fails, 300_000);
+}
+
+retry_due :: (r: Retry) -> bool { return r.at_ms != 0 && to_milliseconds(current_time_monotonic()) >= r.at_ms; }
+
 Remote_Image :: struct {
 	state: Image_State;
+	retry: Retry;
 	tex: gfx.Texture;
 	size: Int2;
 	frames: []gfx.Texture; // animated images: one texture per frame
@@ -27,13 +43,16 @@ image_get :: (url: string, visible := true) -> *Remote_Image {
 	im := table_find_pointer(*images, url);
 	if im {
 		im.last_use = app.frame;
-		return im;
+		if im.state != .Failed || !retry_due(im.retry) return im;
+		im.state = .Loading;
+	} else {
+		im = table_set(*images, copy_string(url), .{state = .Loading, last_use = app.frame});
 	}
-	key := copy_string(url);
-	im = table_set(*images, key, .{state = .Loading, last_use = app.frame});
-	// offline: a worker reads FASTCORD_MEDIA_DIR (no data)
+	key := url;
+	// offline: a worker reads FASTCORD_MEDIA_DIR (no data); a script's `net fail` fails it as a dropped connection
 	c := media_client(key);
 	if c != null dc.fetch_media(c, .{url = key, kind = .Image, visible = visible});
+	else if req_offline == .Fail { im.state = .Failed; retry_fail(*im.retry, 0); }
 	else decode_submit(.{kind = .Image, url = copy_string(key)});
 	return im;
 }
@@ -57,6 +76,7 @@ images_receive :: () {
 		if !im continue;
 		if r.status != 200 || r.data.count == 0 {
 			im.state = .Failed;
+			retry_fail(*im.retry, r.status);
 			continue;
 		}
 		if ends_with(r.url, ".woff2") || contains(r.content_type, "font") continue;
@@ -520,6 +540,7 @@ decode_upload :: () {
 			lottie_decoded(d);
 		} else if im && !d.ok {
 			im.state = .Failed;
+			im.retry.at_ms = 0; // the bytes came, so trying again gets the same ones
 		} else if im {
 			if !d.tex d.tex = NewArray(d.frames.count, gfx.Texture);
 			while d.next < d.frames.count && budget > 0 {
