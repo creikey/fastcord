@@ -8,7 +8,8 @@
 //
 // Inside the packet (E2E 7): a reply names its message; files upload as ciphertext attachments named
 // ENCRYPTED_NAME, in the packet's order, and open into `blobs` under an E2E_URL key that is never fetched;
-// an edit or delete edits the message itself into a new packet; a reaction is a packet of its own, hidden
+// an edit or delete edits the message itself into a new packet (an edit too long for a message's text goes
+// as a hidden message of its own, which the receiving side applies to the one it names); a reaction is a packet of its own, hidden
 // from the list and drawn on the message it names. A sticker goes as its ID, a GIF as a file the sender
 // fetched, and a forward as a new message re-encrypted for its destination.
 
@@ -24,6 +25,8 @@ Shown :: struct {
 	generation: int; // ee.generation when a No_Session result came back.
 	kind: u8; // The packet's (e2e.Kind), once opened or not.
 	edited: string; // The message's edited_timestamp when it was opened: an edit brings a new packet.
+	detached: bool; // An Edit too long for its message's place, sent as a hidden message of its own.
+	stale: bool; // A detached edit of this message came: open it again for its latest text.
 	reply: dc.Snowflake;
 	files: [..]e2e.File;
 	packet: string; // A Hello's, for Accept: its text may only name an attachment.
@@ -147,6 +150,13 @@ encrypted_frame :: () {
 					edited = edited, reply = dc.parse_snowflake(r.reply), files = files_copy(r.files), packet = ifx r.result == .Hello then copy_string(r.packet),
 					stickers = stickers_of(r.stickers), kind = ifx r.packet.count > 1 then r.packet[1]};
 				if r.result == .Ok && r.content == .Sender_Key && r.from != r.conv.me ee.generation += 1; // a group's messages waiting for this chain retry
+				if r.result == .Ok && r.content == .Edit && r.target != r.delivery {
+					// Detached: hidden, and its message, already open, opens again with the latest edit. One still
+					// opening was asked after this one, so it gets it.
+					sh.detached = true;
+					t := table_find_pointer(*ee.shown, dc.parse_snowflake(r.target));
+					if t && !t.pending t.stale = true;
+				}
 				if r.result == .Ok && (r.content == .React || r.content == .Unreact) reaction_note(dc.parse_snowflake(r.target), dc.parse_snowflake(r.from), r.out_text, id, r.content == .React);
 				if r.result == .Ok && r.content == .Accept && r.from != r.conv.me {
 					ee.generation += 1;
@@ -220,7 +230,7 @@ encrypted_files_frame :: () {
 				packet := ifx b && b.state == .Ready && b.data.count <= e2e.MAX_PACKET && e2e.same(crypto.blake3(b.data), o.digest) then cast(string) b.data;
 				if packet {
 					r := e2e.request(.Receive, conversation(o.channel), packet = packet);
-					r.me, r.from, r.delivery = my_identity(), sprint("%", o.author), sprint("%", o.message);
+					r.me, r.from, r.delivery, r.order = my_identity(), sprint("%", o.author), sprint("%", o.message), xx o.message;
 					e2e_submit(r);
 				} else {
 					sh.pending = false;
@@ -289,7 +299,7 @@ e2e_mark_icon :: (mark: E2E_Mark, size: float32) {
 // back, or for good with no identity.
 encrypted_open :: (id: dc.Snowflake, channel_id: dc.Snowflake, packet: string, author: dc.Snowflake, edited := "") -> *Shown {
 	sh := table_find_pointer(*ee.shown, id);
-	retry := sh && ((sh.result == .No_Session && sh.generation != ee.generation) || sh.edited != edited || sh.sent) && !sh.pending;
+	retry := sh && ((sh.result == .No_Session && sh.generation != ee.generation) || sh.edited != edited || sh.sent || sh.stale) && !sh.pending;
 	if (!sh || retry) && e2e_db && identity_ready() {
 		sh = find_or_add(*ee.shown, id);
 		bytes, ok := fc_text.decode(packet_text(packet));
@@ -314,7 +324,7 @@ encrypted_open :: (id: dc.Snowflake, channel_id: dc.Snowflake, packet: string, a
 		if !ok { e := sh.edited; sh.edited = ""; shown_free(sh); sh.* = .{result = .Undecryptable, edited = e}; return sh; }
 		sh.pending = true;
 		r := e2e.request(.Receive, conversation(channel_id), packet = xx bytes);
-		r.me, r.from, r.delivery = my_identity(), sprint("%", author), sprint("%", id);
+		r.me, r.from, r.delivery, r.order = my_identity(), sprint("%", author), sprint("%", id), xx id;
 		e2e_submit(r);
 	}
 	return sh;
@@ -324,7 +334,7 @@ encrypted_open :: (id: dc.Snowflake, channel_id: dc.Snowflake, packet: string, a
 // carrier's flags say.
 encrypted_silent :: (id: dc.Snowflake) -> bool {
 	sh := table_find_pointer(*ee.shown, id);
-	return sh && !sh.pending && sh.result == .Ok && (sh.silent || !is_text(sh.content));
+	return sh && !sh.pending && sh.result == .Ok && (sh.silent || !is_text(sh.content) || sh.detached);
 }
 
 // encrypted_hidden: a packet that isn't a message of its own (a reaction, or a message deleted), so the
@@ -333,7 +343,7 @@ encrypted_hidden :: (m: *dc.Message) -> bool {
 	if !encrypted_packet(m.channel_id, m.content) return false;
 	sh := table_find_pointer(*ee.shown, m.id);
 	if !sh || sh.pending return false;
-	if sh.result == .Ok return sh.content == .Delete || sh.content == .React || sh.content == .Unreact || sh.content == .Sender_Key;
+	if sh.result == .Ok return sh.content == .Delete || sh.content == .React || sh.content == .Unreact || sh.content == .Sender_Key || sh.detached;
 	// In a group, the pairwise packets between two other members aren't ours to show.
 	ch := dc.channel_get(store(), m.channel_id);
 	return ch && ch.kind == .Group_DM && ((sh.result == .No_Session && sh.kind == xx e2e.Kind.Msg) || (sh.result == .Undecryptable && sh.kind == xx e2e.Kind.Init));
@@ -452,9 +462,9 @@ encrypted_edit :: (channel_id: dc.Snowflake, id: dc.Snowflake, text: string, del
 	if !m || m.author_id != store().me || !encrypted_packet(channel_id, m.content) return false;
 	sh := table_find_pointer(*ee.shown, id);
 	if !sh || sh.pending || sh.result != .Ok || !is_text(sh.content) || !identity_ready() return true;
-	r := e2e.request(.Send, conversation(channel_id, limit = fc_text.MAX_PACKET), ifx delete then "" else text);
+	r := e2e.request(.Send, conversation(channel_id), ifx delete then "" else text);
 	group_members(r, dc.channel_get(store(), channel_id));
-	r.me, r.content, r.target = my_identity(), ifx delete then e2e.Content.Delete else .Edit, sprint("%", id);
+	r.me, r.content, r.target, r.in_place = my_identity(), ifx delete then e2e.Content.Delete else .Edit, sprint("%", id), fc_text.MAX_PACKET;
 	if !delete {
 		r.reply = ifx sh.reply then sprint("%", sh.reply) else "";
 		r.files = files_copy(sh.files);
@@ -852,8 +862,9 @@ carrier_client :: (name: string) -> *dc.Client {
 }
 
 // conversation names a 1:1 DM on the selected connection to the e2e core; peer defaults to the DM's recipient.
-// limit: a packet larger than a message goes as the message's attachment, but an edit can't add one, and
-// an Accept's Init fits one message when its padding stops there.
+// limit: a packet larger than a message goes as the message's attachment (an edit can't add one, so a
+// longer edit goes as a hidden message of its own), and an Accept's Init fits one message when its padding
+// stops there.
 conversation :: (channel_id: dc.Snowflake, peer: dc.Snowflake = 0, limit := e2e.MAX_PACKET) -> e2e.Conversation {
 	s := store();
 	ch := dc.channel_get(s, channel_id);
@@ -886,7 +897,12 @@ send_packet :: (r: *e2e.Request, result: e2e.Result, text: string, content := e2
 	}
 	if content == .Edit || content == .Delete {
 		target := dc.parse_snowflake(r.target);
-		dc.edit_message(c, channel, target, carrier_text(r.conv.carrier, r.packet));
+		if r.detached {
+			own := find_or_add(*ee.shown, post_packet(c, channel, r.conv.carrier, r.packet, true));
+			own.* = .{result = .Ok, content = .Edit, detached = true, sent = true}; // hidden while it's on its way
+		} else {
+			dc.edit_message(c, channel, target, carrier_text(r.conv.carrier, r.packet));
+		}
 		sh := table_find_pointer(*ee.shown, target);
 		if sh { free(sh.text); sh.text, sh.content = copy_string(text), content; } // until the edit comes back
 		e2e_submit(e2e.request(.Sent, packet = r.packet));
