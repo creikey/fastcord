@@ -1,0 +1,19 @@
+# A code file shows inline: highlighted, its first 6 lines, with its name, size and download above;
+# Expand shows the rest and Collapse folds it again.
+wait 20
+key pageup
+key pageup
+key pageup
+key pageup
+key pageup
+key pageup
+wait 30
+move 600 400
+scroll 0 -200
+wait 10
+expect_visible "burst.py"
+expect_visible "Expand (13 lines)"
+click_text "Expand (13 lines)"
+wait 5
+expect_visible "Collapse"
+shot build/ui-text_attachment.png

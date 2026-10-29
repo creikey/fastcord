@@ -1,4 +1,4 @@
-# Builds tests/ui/media/media.jsonl (chat.jsonl's READY plus an FxTwitter video embed, a GIF attachment and a Klipy GIFV embed, shaped
+# Builds tests/ui/media/media.jsonl (a text file and a code file, chat.jsonl's READY plus an FxTwitter video embed, a GIF attachment and a Klipy GIFV embed, shaped
 # like traffic/gif_send.jsonl) and its media: dance.gif, poster.webp (a PNG; files are sniffed), clip.mp4 is
 # tests/ui/attach/clip.mp4. The UI scripts here run with FASTCORD_MEDIA_DIR=tests/ui/media.
 # Run: python3 -I tests/ui/media/make_media_fixture.py
@@ -52,6 +52,25 @@ grid = [dict({'type': 'rich', 'url': POST, 'image': {'url': 'https://pbs.twimg.c
 note = {'id': sf(base_ms - 20000, 9), 'filename': 'notes.txt', 'size': 416, 'content_type': 'text/plain; charset=utf-8',
         'url': 'https://cdn.discordapp.com/attachments/%d/%d/notes.txt%s' % (CH, sf(base_ms - 20000, 9), Q),
         'proxy_url': 'https://media.discordapp.net/attachments/%d/%d/notes.txt%s' % (CH, sf(base_ms - 20000, 9), Q)}
+# a code file: shown inline, highlighted, its first lines until expanded
+BURST = '''# Sends a burst of pings and prints the round trips.
+import socket, time
+
+def ping(host, port=7):
+    s = socket.create_connection((host, port), timeout=2)
+    t = time.monotonic()
+    s.sendall(b"ping")
+    s.recv(4)
+    return (time.monotonic() - t) * 1000
+
+if __name__ == "__main__":
+    for i in range(10):
+        print(f"{i}: {ping('localhost'):.2f} ms")
+'''
+open(os.path.join(here, 'burst.py'), 'w', newline='\n').write(BURST)
+code = {'id': sf(base_ms - 20000, 10), 'filename': 'burst.py', 'size': len(BURST), 'content_type': 'text/x-python; charset=utf-8',
+        'url': 'https://cdn.discordapp.com/attachments/%d/%d/burst.py%s' % (CH, sf(base_ms - 20000, 10), Q),
+        'proxy_url': 'https://media.discordapp.net/attachments/%d/%d/burst.py%s' % (CH, sf(base_ms - 20000, 10), Q)}
 # a spoilered image: covered until clicked
 spoiler = {'id': sf(base_ms - 15000, 9), 'filename': 'SPOILER_poster.webp', 'size': 2000, 'content_type': 'image/webp', 'width': 320, 'height': 180,
            'url': 'https://cdn.discordapp.com/attachments/%d/%d/poster.webp%s' % (CH, sf(base_ms - 15000, 9), Q),
@@ -68,7 +87,7 @@ voice = {'id': sf(base_ms - 25000, 9), 'filename': 'voice-message.ogg', 'size': 
 voice_msg = msg(sf(base_ms - 25000, 8), '', [voice], [])
 voice_msg['etf']['d']['flags'] = 8192
 old_msgs = [voice_msg,
-            msg(sf(base_ms - 20000, 5), 'https://www.imdb.com/title/tt1231583/', [note], [imdb]),
+            msg(sf(base_ms - 20000, 5), 'https://www.imdb.com/title/tt1231583/', [note, code], [imdb]),
             msg(sf(base_ms - 15000, 6), 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', [spoiler, spoiler_file], [yt]),
             msg(sf(base_ms - 10000, 7), POST, [], grid)]
 # the grid post is Robin's: as the server's owner (MANAGE_MESSAGES) you may still remove its embeds

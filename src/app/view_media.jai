@@ -126,7 +126,7 @@ attachments_view :: (m: *dc.Message, max_w: float32 = 400) {
 				if ui.mouse_over(alt) tooltip_below(a.description, alt.rect);
 			}
 			spacer(.Y, 4);
-		} else {
+		} else if !text_attachment(a, i, max_w) {
 			f := row(tprint("file%", i), .Draw_Background | .Draw_Border);
 			f.semantic_size = .[ui.px(min(432.0, max_w + 32)), ui.px(72)];
 			f.style.bg = T("--background-surface-high");
@@ -162,22 +162,105 @@ attachments_view :: (m: *dc.Message, max_w: float32 = 400) {
 						ui.pop_parent();
 					} else label(human_size(a.size), .Normal, 12, T("--text-muted"), 16);
 				}
-				dl := ui.box("dl", .Clickable);
-				dl.semantic_size = .[ui.px(32), ui.px(32)];
-				dl.hover_cursor = .Pointer;
-				sig := ui.signal(dl);
-				{ ui.parent(dl); defer ui.pop_parent();
-					ic := icon("i", "download", 24, T(ifx sig.hovering then "--interactive-icon-hover" else "--interactive-icon-default"), .Floating_X | .Floating_Y);
-					ic.fixed_pos = .{4, 4};
-				}
-				if sig.hovering tooltip_below("Download", dl.rect);
-				if sig.clicked || download file_download(a);
+				if download_icon() || download file_download(a);
 				spacer(.X, 12);
 			}
 			spacer(.Y, 4);
 		}
 	}
 }
+
+download_icon :: (size: float32 = 24) -> clicked: bool {
+	dl := ui.box("dl", .Clickable);
+	dl.semantic_size = .[ui.px(size + 8), ui.px(size + 8)];
+	dl.hover_cursor = .Pointer;
+	sig := ui.signal(dl);
+	{ ui.parent(dl); defer ui.pop_parent();
+		ic := icon("i", "download", size, T(ifx sig.hovering then "--interactive-icon-hover" else "--interactive-icon-default"), .Floating_X | .Floating_Y);
+		ic.fixed_pos = .{4, 4};
+	}
+	if sig.hovering tooltip_below("Download", dl.rect);
+	return sig.clicked;
+}
+
+// A text or code file under TEXT_PREVIEW_MAX shows inline as a code box, highlighted by its extension:
+// the first TEXT_LINES lines, Expand for up to TEXT_LINES_OPEN, its name, size and download above. False
+// (the plain file card) while it loads, when it fails, or when it isn't text after all.
+TEXT_PREVIEW_MAX :: 512 << 10;
+TEXT_LINES :: 6;
+TEXT_LINES_OPEN :: 100;
+
+text_attachment :: (a: *dc.Attachment, i: int, max_w: float32) -> bool {
+	ext := url_ext(a.filename);
+	if a.size <= 0 || a.size > TEXT_PREVIEW_MAX return false;
+	if !begins_with(a.content_type, "text/") && hl_lang(ext) == HL_NONE && !array_find(string.["txt", "log", "md", "csv", "ini", "cfg", "conf"], ext) return false;
+	blob := blob_get(a.url);
+	if blob.state != .Ready return false;
+	text := cast(string) blob.data;
+	text.count = min(text.count, TEXT_PREVIEW_MAX); // the server may send more than it said
+	if !text || find_index_from_left(text, #char "\0") >= 0 return false;
+	open := array_find(text_open, a.id);
+	shown, lines := text, 0;
+	for cast([]u8) text if it == #char "\n" {
+		lines += 1;
+		if lines == ifx open then TEXT_LINES_OPEN else TEXT_LINES shown.count = min(shown.count, it_index);
+	}
+	if text[text.count - 1] != #char "\n" lines += 1;
+	if shown && shown[shown.count - 1] == #char "\n" shown.count -= 1;
+	card := ui.box(tprint("text%", i), .Draw_Background | .Draw_Border);
+	card.semantic_size = .[ui.px(min(432.0, max_w + 32)), ui.children()];
+	card.layout_axis = .Y;
+	card.style.bg = T("--background-base-lowest");
+	card.style.border_color = T("--border-subtle");
+	card.style.border = 1;
+	card.style.radius = all4(8);
+	{ ui.parent(card); defer ui.pop_parent();
+		head := row("head");
+		head.semantic_size = .[ui.pct(1), ui.px(40)];
+		{ ui.parent(head); defer ui.pop_parent();
+			spacer(.X, 12);
+			name := label(a.filename, .Medium, 14, T("--text-link"), 18);
+			name.flags |= .Clickable;
+			name.hover_cursor = .Pointer;
+			spacer(.X, 8);
+			dl := file_download_find(a.url);
+			label(ifx dl then tprint("% of %", human_size(dl.progress.done), human_size(a.size)) else human_size(a.size), .Normal, 12, T("--text-muted"), 16);
+			if dl app.ui.animating = true;
+			gap := ui.box("gap");
+			gap.semantic_size = .[ui.fill(), ui.px(1)];
+			if download_icon(20) || ui.signal(name).clicked file_download(a);
+			spacer(.X, 6);
+		}
+		code := ui.box("code", .Draw_Text | .Selectable_Text | .Wrap_Text);
+		ui.set_spans(code, code_spans(shown, ext, F(.Mono), 13));
+		code.semantic_size = .[ui.pct(1), ui.text_size()];
+		code.style.font = F(.Mono);
+		code.style.font_size = 13;
+		code.style.line_height = 18;
+		code.style.padding = .{12, 4};
+		code.style.text_color = T("--text-code");
+		if lines > TEXT_LINES {
+			more := row("more", .Clickable);
+			more.semantic_size = .[ui.pct(1), ui.px(32)];
+			more.hover_cursor = .Pointer;
+			sig := ui.signal(more);
+			ui.parent(more); defer ui.pop_parent();
+			spacer(.X, 12);
+			color := T(ifx sig.hovering then "--interactive-icon-hover" else "--interactive-icon-default");
+			icon("chev", ifx open then "chevron-small-up" else "chevron-small-down", 16, color);
+			spacer(.X, 4);
+			label(ifx open then "Collapse" else ifx lines > TEXT_LINES_OPEN then tprint("Expand (% of % lines)", TEXT_LINES_OPEN, lines) else tprint("Expand (% lines)", lines), .Medium, 13, color, 16);
+			if sig.clicked {
+				if open array_unordered_remove_by_value(*text_open, a.id);
+				else array_add(*text_open, a.id);
+			}
+		} else spacer(.Y, 8);
+	}
+	spacer(.Y, 4);
+	return true;
+}
+
+text_open: [..]dc.Snowflake; // text previews expanded, by attachment id
 
 is_video ::(a: *dc.Attachment) -> bool { return begins_with(a.content_type, "video/"); }
 
