@@ -1,0 +1,8 @@
+# The Windows install bar (shown here by install_offer, on any OS; headless, Install does nothing): Not Now hides it.
+install_offer
+wait 5
+shot build/ui-install_notice_bar.png
+expect_visible "Install Fastcord to open it from the Start menu."
+click_text "Not Now"
+wait 5
+expect_not_visible "Install Fastcord to open it from the Start menu."

@@ -54,6 +54,7 @@ Persisted :: struct {
 	smooth_scroll_off: bool; // Appearance > "Smooth Scrolling" (fastcord's own), off
 	start_minimized: bool; // System > Start Minimized (Windows)
 	tray_close_off: bool; // System > Minimize to Tray, off
+	install_declined: bool; // Not Now on the Windows install bar (update.jai)
 	zoom: int = 100; // Accessibility > Zoom level, percent (ZOOM_SCALES)
 	notify: Persisted_Notify;
 	voice: Persisted_Voice;
@@ -300,6 +301,7 @@ apply_persisted :: (p: *Persisted) {
 	smooth_scroll_off = p.smooth_scroll_off;
 	start_minimized, tray_close_off = p.start_minimized, p.tray_close_off;
 	platform.set_close_to_tray(!tray_close_off);
+	install_declined = p.install_declined;
 	zoom_set(p.zoom);
 	notify_prefs = p.notify;
 	voice_settings_restore(*p.voice);
@@ -340,6 +342,7 @@ snapshot :: () -> string {
 	p.theme_follow_os = theme_follow_os;
 	p.smooth_scroll_off = smooth_scroll_off;
 	p.start_minimized, p.tray_close_off = start_minimized, tray_close_off;
+	p.install_declined = install_declined;
 	p.zoom = zoom_pct;
 	p.notify = notify_prefs;
 	voice_settings_snapshot(*p.voice);

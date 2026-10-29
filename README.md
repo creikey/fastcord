@@ -196,7 +196,8 @@ archives into `dist/` locally (macOS: `fastcord-macos.zip`; Windows: `fastcord-w
 `fastcord-linux-x86_64.tar.gz`).
 
 - Windows: `Fastcord.exe` (GUI subsystem, icon from `assets/fastcord.ico`), zipped. Not code-signed, so
-  SmartScreen warns on first launch.
+  SmartScreen warns on first launch. It then offers to install itself per user (`%LOCALAPPDATA%\Programs\fastcord`,
+  a Start menu shortcut, an Apps & Features entry; `platform.install`).
 - Linux: one x86_64 binary for every distribution. It links only glibc (2.17+) and opens everything else at
   run time with `dlopen`: libX11 (Wayland desktops through XWayland), libEGL for OpenGL 3.3, fontconfig,
   libasound (ALSA, which PipeWire and PulseAudio serve), and when present libdbus (notifications, the tray, the launcher badge), libXss (idle time) and libXi (global keybinds). `tools/package_linux.py` packs it with a desktop entry (the

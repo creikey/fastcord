@@ -24,7 +24,59 @@ update_start :: () {
 		return;
 	}
 	if FASTCORD_VERSION == "dev" || platform.is_headless() return;
+	#if OS == .WINDOWS inst.offer = !install_declined && !platform.is_installed();
 	dc.spawn(cast(*void) null, update_loop); // runs until the process exits
+}
+
+// Windows release builds run from wherever the zip was unpacked: a bar offers the per-user install
+// (platform.install) until Not Now. Installed, the new copy starts and this one quits.
+install_declined: bool; // settings.json
+inst: struct {
+	offer: bool;
+	state: s32; // atomic: 0 idle, 1 installing, 2 done, 3 failed
+};
+
+install_notice :: () {
+	if !inst.offer return;
+	st := atomic_load(*inst.state);
+	#if OS == .WINDOWS if st == 2 {
+		inst.offer = false;
+		platform.launch_installed();
+		platform.inject_event(.{kind = .Quit});
+		return;
+	}
+	WHITE :: ui.Color.{1, 1, 1, 1};
+	bar := row("install_notice", .Draw_Background);
+	bar.semantic_size = .[ui.pct(1), ui.px(36)];
+	bar.style.bg = T("--background-brand");
+	ui.parent(bar); defer ui.pop_parent();
+	filler(.X);
+	label(ifx st == 1 then "Installing…" else ifx st == 3 then "Fastcord couldn't be installed." else "Install Fastcord to open it from the Start menu.", .Medium, 14, WHITE, 18);
+	if st == 1 { filler(.X); return; }
+	for b: string.["Install", "Not Now"] {
+		spacer(.X, 10);
+		r := row(b, .Clickable | .Draw_Border | .Draw_Background | .Hot_Animation);
+		r.semantic_size = .[ui.children(), ui.px(24)];
+		r.style.border = 1;
+		r.style.border_color = WHITE;
+		r.style.radius = all4(4);
+		r.style.bg_hot = with_alpha(WHITE, 0.1);
+		{ ui.parent(r); defer ui.pop_parent();
+			spacer(.X, 10);
+			label(b, .Medium, 14, WHITE, 18);
+			spacer(.X, 10);
+		}
+		if !ui.signal(r).clicked continue;
+		if b == "Not Now" { inst.offer = false; install_declined = true; }
+		#if OS == .WINDOWS if b == "Install" && !platform.is_headless() {
+			atomic_store(*inst.state, 1);
+			dc.spawn(cast(*void) null, (_: *void) {
+				atomic_store(*inst.state, cast(s32) ifx platform.install(FASTCORD_VERSION) then 2 else 3);
+				platform.request_frame();
+			});
+		}
+	}
+	filler(.X);
 }
 
 // GET https://api.github.com/repos/<repo>/releases/latest -> tag_name.

@@ -254,11 +254,18 @@ set_open_at_login :: (on: bool, minimized := false) {
 }
 
 RUN_KEY :: "Software\\Microsoft\\Windows\\CurrentVersion\\Run";
-exe_quoted :: () -> string { return tprint("\"%\"", replace(system.get_path_of_running_executable(), "/", "\\",, temp)); }
+exe_quoted :: () -> string { return tprint("\"%\"", exe_path()); }
 
-reg_set :: (path: string, name: string, value: string) {
+// A REG_SZ value, or a REG_DWORD when dword >= 0.
+reg_set :: (path: string, name: string, value: string, dword: s64 = -1) {
     k: win.HKEY;
     if RegCreateKeyExW(reg.HKEY_CURRENT_USER, wide(path), 0, null, 0, reg.KEY_WRITE, null, *k, null) != 0 return;
+    if dword >= 0 {
+        d: u32 = xx dword;
+        RegSetValueExW(k, wide(name), 0, 4 /*REG_DWORD*/, xx *d, 4);
+        reg.RegCloseKey(k);
+        return;
+    }
     v, _, bytes := utf8_to_wide(value,, temp);
     zero: u16;
     if !v v = *zero;
@@ -271,6 +278,113 @@ RegDeleteValueW :: (key: win.HKEY, name: *u16) -> s32 #foreign advapi32;
 RegSetValueExW :: (key: win.HKEY, name: *u16, reserved: u32, type: u32, data: *u8, bytes: u32) -> s32 #foreign advapi32;
 REG_SZ :: 1;
 advapi32 :: #system_library "advapi32";
+
+// ---- Per-user install (release builds): %LOCALAPPDATA%\Programs\fastcord\Fastcord.exe, a Start menu shortcut
+// carrying APP_ID (which toasts and taskbar grouping key on), and an Apps & Features entry under HKCU whose
+// uninstall runs `Fastcord.exe --uninstall`. No admin rights, nothing outside the user's profile.
+
+APP_ID :: "creikey.fastcord";
+UNINSTALL_KEY :: "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\fastcord";
+
+install_dir :: () -> string {
+    FOLDERID_UserProgramFiles := win.GUID.{0x5CD7AEE2, 0x2219, 0x4A67, .[0xB8, 0x5D, 0x6C, 0x9C, 0xE1, 0x56, 0x60, 0xCB]};
+    return tprint("%\\fastcord", known_folder(*FOLDERID_UserProgramFiles));
+}
+
+// True when this exe is the installed one.
+is_installed :: () -> bool {
+    return to_lower_copy(exe_path(),, temp) == to_lower_copy(tprint("%\\Fastcord.exe", install_dir()),, temp);
+}
+
+// Copies this exe in, writes the shortcut and the uninstall entry. Slow (disk): call it from a worker thread.
+install :: (version: string) -> bool {
+    dir := install_dir();
+    exe := tprint("%\\Fastcord.exe", dir);
+    win.CreateDirectoryW(wide(dir), null);
+    if !win.CopyFileW(wide(exe_path()), wide(exe), .FALSE) return false;
+    CoInitializeEx(null, 2 /*COINIT_APARTMENTTHREADED*/);
+    defer CoUninitialize();
+    CLSID_ShellLink := win.GUID.{0x00021401, 0, 0, .[0xC0, 0, 0, 0, 0, 0, 0, 0x46]};
+    IID_IShellLinkW := win.GUID.{0x000214F9, 0, 0, .[0xC0, 0, 0, 0, 0, 0, 0, 0x46]};
+    IID_IPropertyStore := win.GUID.{0x886D8EEB, 0x8CF2, 0x4446, .[0x8D, 0x02, 0xCD, 0xBA, 0x1D, 0xBD, 0xCF, 0x99]};
+    IID_IPersistFile := win.GUID.{0x0000010B, 0, 0, .[0xC0, 0, 0, 0, 0, 0, 0, 0x46]};
+    link, store, file: *void;
+    if CoCreateInstance(*CLSID_ShellLink, null, 1, *IID_IShellLinkW, *link) < 0 return false;
+    defer release(link);
+    HR :: win.HRESULT;
+    vt(link, 20, #type (*void, *u16) -> HR #c_call)(link, wide(exe)); // SetPath
+    vt(link, 9, #type (*void, *u16) -> HR #c_call)(link, wide(dir)); // SetWorkingDirectory
+    if vt(link, 0, #type (*void, *win.GUID, **void) -> HR #c_call)(link, *IID_IPropertyStore, *store) >= 0 {
+        PKEY_AppUserModel_ID := struct { fmtid: win.GUID; pid: u32; }.{.{0x9F4C2855, 0x9F79, 0x4B39, .[0xA8, 0xD0, 0xE1, 0xD4, 0x2D, 0xE1, 0xD5, 0xF3]}, 5};
+        pv := struct { vt: u16; r1, r2, r3: u16; str: *u16; pad: u64; }.{vt = 31 /*VT_LPWSTR*/, str = wide(APP_ID)};
+        vt(store, 6, #type (*void, *void, *void) -> HR #c_call)(store, *PKEY_AppUserModel_ID, *pv); // SetValue
+        vt(store, 7, #type (*void) -> HR #c_call)(store); // Commit
+        release(store);
+    }
+    if vt(link, 0, #type (*void, *win.GUID, **void) -> HR #c_call)(link, *IID_IPersistFile, *file) < 0 return false;
+    defer release(file);
+    if vt(file, 6, #type (*void, *u16, s32) -> HR #c_call)(file, wide(shortcut_path()), 1) < 0 return false; // Save
+    reg_set(UNINSTALL_KEY, "DisplayName", "Fastcord");
+    reg_set(UNINSTALL_KEY, "DisplayIcon", exe);
+    reg_set(UNINSTALL_KEY, "DisplayVersion", version);
+    reg_set(UNINSTALL_KEY, "Publisher", "fastcord");
+    reg_set(UNINSTALL_KEY, "InstallLocation", dir);
+    reg_set(UNINSTALL_KEY, "UninstallString", tprint("\"%\" --uninstall", exe));
+    for string.["NoModify", "NoRepair"] reg_set(UNINSTALL_KEY, it, "", 1);
+    return true;
+}
+
+// Starts the installed exe, which waits for this process to end and deletes the copy it was installed from.
+launch_installed :: () {
+    params := tprint("--replace:% \"%\"", win.GetCurrentProcessId(), exe_path());
+    ShellExecuteW(null, wide("open"), wide(tprint("%\\Fastcord.exe", install_dir())), wide(params), null, win.SW_SHOWNORMAL);
+}
+
+// The installed exe's first launch: once the old process (pid) has ended, its exe goes (it is in Downloads).
+replace_finish :: (pid: u32, old: string) {
+    h := OpenProcess(0x0010_0000 /*SYNCHRONIZE*/, 0, pid);
+    if h { win.WaitForSingleObject(h, 10_000); win.CloseHandle(h); }
+    if to_lower_copy(old,, temp) != to_lower_copy(exe_path(),, temp) && ends_with(to_lower_copy(old,, temp), ".exe") win.DeleteFileW(wide(old));
+}
+
+// Apps & Features' Uninstall: asks first, removes the program, shortcut, login item, links and entry, and
+// asks again before deleting data_dir (the login, settings and E2E keys).
+uninstall :: (data_dir: string, running: bool) {
+    if running { win.MessageBoxW(null, wide("Quit Fastcord first (from its tray icon), then uninstall it again."), wide("Fastcord"), 0x40); return; }
+    if win.MessageBoxW(null, wide("Uninstall Fastcord?"), wide("Fastcord"), 0x24 /*MB_YESNO | MB_ICONQUESTION*/) != 6 return;
+    keep := win.MessageBoxW(null, wide(tprint("Also delete your Fastcord data in %?\n\nThis signs you out and removes your settings and your encryption keys: without them, your encrypted messages can't be read again.", data_dir)),
+        wide("Fastcord"), 0x134 /*MB_YESNO | MB_ICONWARNING | MB_DEFBUTTON2*/) != 6;
+    win.DeleteFileW(wide(shortcut_path()));
+    k: win.HKEY;
+    if RegCreateKeyExW(reg.HKEY_CURRENT_USER, wide(RUN_KEY), 0, null, 0, reg.KEY_WRITE, null, *k, null) == 0 { RegDeleteValueW(k, wide("fastcord")); reg.RegCloseKey(k); }
+    for string.[UNINSTALL_KEY, "Software\\Classes\\fc"] RegDeleteTreeW(reg.HKEY_CURRENT_USER, wide(it));
+    buf: [1024]u8;
+    n: u32 = buf.count;
+    if reg.RegGetValueA(reg.HKEY_CURRENT_USER, "Software\\Classes\\discord\\shell\\open\\command", null, reg.RRF_RT_REG_SZ, null, buf.data, *n) == 0 && contains(to_lower_copy(string.{n, buf.data},, temp), "fastcord")
+        RegDeleteTreeW(reg.HKEY_CURRENT_USER, wide("Software\\Classes\\discord"));
+    // This exe can't delete itself while it runs: cmd does it a moment after it exits.
+    gone := tprint("\"%\"", install_dir());
+    if !keep gone = tprint("% \"%\"", gone, data_dir);
+    ShellExecuteW(null, wide("open"), wide("cmd.exe"), wide(tprint("/c ping -n 3 127.0.0.1 >nul & rmdir /s /q %", gone)), null, win.SW_HIDE);
+}
+
+shortcut_path :: () -> string {
+    FOLDERID_Programs := win.GUID.{0xA77F5D77, 0x2E2B, 0x44C3, .[0xA6, 0xA2, 0xAB, 0xA6, 0x01, 0x05, 0x4A, 0x51]};
+    return tprint("%\\Fastcord.lnk", known_folder(*FOLDERID_Programs));
+}
+
+known_folder :: (id: *win.GUID) -> string {
+    p: *u16;
+    if SHGetKnownFolderPath(id, 0x8000 /*KF_FLAG_CREATE*/, null, *p) < 0 return "";
+    defer CoTaskMemFree(p);
+    return utf16_to_utf8(p, -1, temp);
+}
+
+exe_path :: () -> string { return replace(system.get_path_of_running_executable(), "/", "\\",, temp); }
+
+OpenProcess :: (access: u32, inherit: s32, pid: u32) -> *void #foreign kernel32;
+RegDeleteTreeW :: (key: win.HKEY, sub: *u16) -> s32 #foreign advapi32;
+SetCurrentProcessExplicitAppUserModelID :: (id: *u16) -> win.HRESULT #foreign shell32;
 
 #scope_module
 
@@ -372,6 +486,7 @@ PostThreadMessageW :: (tid: u32, msg: u32, wp: win.WPARAM, lp: win.LPARAM) -> s3
 os_init ::(title: string, width: int, height: int) -> bool {
     SetProcessDpiAwarenessContext(win.DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     w.instance = win.GetModuleHandleW(null);
+    SetCurrentProcessExplicitAppUserModelID(wide(APP_ID)); // the installed shortcut's, so the taskbar groups them
     dpi := GetDpiForSystem();
     // The exe's icon (build.jai embeds it as resource 2) goes on every window this thread creates, as Happenlance does.
     big := GetSystemMetricsForDpi(SM_CXICON, dpi);

@@ -265,6 +265,7 @@ build_ui :: () {
 	title_bar();
 	streamer_notice();
 	connection_notice();
+	install_notice(); // update.jai
 	if call_fullscreen() {
 		call_view(app.view.channel);
 		overlays();

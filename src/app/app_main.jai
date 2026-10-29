@@ -111,6 +111,8 @@ Options :: struct {
 	port: int;
 	url: string; // an fc:// or discord:// link to open (the OS's URL handler passes it)
 	start_minimized: bool; // --start-minimized: the login item of Start Minimized
+	uninstall: bool; // --uninstall: Apps & Features' Uninstall (Windows)
+	replace: string; // --replace:<pid>:<path>: the first launch of an install, from the copy at path
 }
 
 parse_options :: () -> Options {
@@ -163,6 +165,10 @@ parse_options :: () -> Options {
 			o.port = parse_int_prefix(v);
 		} else if a == "--start-minimized" {
 			o.start_minimized = true;
+		} else if a == "--uninstall" {
+			o.uninstall = true;
+		} else if flag("--replace:") {
+			o.replace = v;
 		} else if begins_with_nocase(a, "fc://") || begins_with_nocase(a, "discord:") {
 			o.url = a;
 		} else {
@@ -191,6 +197,13 @@ main :: () {
 		while true sleep_milliseconds(1000 * 60 * 60);
 	}
 	headless := opt.shot != "" || bench.on;
+	#if OS == .WINDOWS {
+		if opt.uninstall { platform.uninstall(app_data_dir(""), !platform.instance_claim(app_state_dir(), "")); return; }
+		if opt.replace {
+			colon := find_index_from_left(opt.replace, ":");
+			if colon > 0 platform.replace_finish(xx parse_int_prefix(slice(opt.replace, 0, colon)), advance(opt.replace, colon + 1));
+		}
+	}
 	if !headless && !platform.instance_claim(app_state_dir(), opt.url) return; // the running one takes it
 	app.launch_url = copy_string(opt.url);
 	if !headless {
@@ -204,6 +217,7 @@ main :: () {
 	}
 	sw, sh := settings_load(headless);
 	if opt.start_minimized && !headless platform.start_minimized();
+	#if OS == .WINDOWS if !headless && FASTCORD_VERSION != "dev" && platform.open_at_login() platform.set_open_at_login(true, start_minimized); // the exe may have moved (installed)
 	if sw >= 400 && sh >= 300 {
 		// an old save may be below today's minimum window size
 		opt.width = max(sw, platform.MIN_WINDOW_W);
@@ -650,6 +664,9 @@ script_command :: (path: string, f: []string, t: *float64, depth := 0) {
 	case "in_voice";
 		// in_voice <channel id>: show the voice panel as if joined (fixtures have no voice connection)
 		app.voice_channel = dc.parse_snowflake(f[1]);
+	case "install_offer";
+		// the Windows install bar (update.jai), shown on any OS; Install does nothing headless
+		inst.offer = true;
 	case "screen_picker";
 		// the Go Live picker, which needs a connected call to open by its button
 		vid.picker_open = true;
