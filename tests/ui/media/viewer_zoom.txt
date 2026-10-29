@@ -1,0 +1,20 @@
+# Run with FASTCORD_MEDIA_DIR=tests/ui/media. In the image viewer a click zooms 2x at the mouse
+# (-zoomed.png fills the window), a drag pans, and the wheel zooms back out to fit (-fit.png).
+wait 20
+move 600 300
+scroll 0 700
+wait 30
+click 560 240
+wait 30
+click 400 200
+wait 10
+down 640 360
+move 700 400
+up 700 400
+wait 5
+shot build/ui-media_viewer_zoom-zoomed.png
+expect_visible "1 / 4"
+move 640 360
+scroll 0 -600
+wait 10
+shot build/ui-media_viewer_zoom-fit.png

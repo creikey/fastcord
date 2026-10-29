@@ -23,6 +23,10 @@ viewer_link: string; // the media menu's target
 viewer_size: Int2;
 viewer_t: float32;
 viewer_msg: dc.Snowflake; // the message the viewer's image is from: its other images are the gallery
+viewer_zoom: float32 = 1; // 1 = fit; the wheel zooms at the mouse up to 8x, a click toggles 2x
+viewer_pan: Vector2; // the zoomed image's centre from the window's
+viewer_pan0: Vector2; // at the press of a drag
+viewer_moved: bool; // the press became a drag (not a zoom click)
 audio_ready: bool;
 video_volume: float32 = 1;
 video_muted: bool;
@@ -697,6 +701,7 @@ gifv_frame :: () {
 
 open_viewer :: (url: string, size: Int2, video := "", link := "", msg: dc.Snowflake = 0) {
 	viewer_msg = msg;
+	viewer_zoom, viewer_pan = 1, .{};
 	free(viewer_url);
 	free(viewer_video);
 	free(viewer_link);
@@ -756,13 +761,34 @@ image_viewer :: () {
 		h := cast(float32) max(viewer_size.y, 1);
 		sc := min(app.ui.window.x * 0.8 / w, app.ui.window.y * 0.8 / h);
 		sc *= 0.95 + 0.05 * viewer_t;
-		img := media_box("img", viewer_url, viewer_video, w * sc, h * sc);
-		img.flags |= .Floating_X | .Floating_Y;
+		// zoom: the wheel at the mouse, a click toggles 2x there, a drag pans
+		c := app.ui.window * 0.5;
+		zoom_to :: (z: float32, at: Vector2) #expand {
+			z = clamp(z, 1, 8);
+			viewer_pan = ifx z <= 1 then Vector2.{} else at - c - (at - c - viewer_pan) * (z / viewer_zoom);
+			viewer_zoom = z;
+		}
+		for * app.ui.events if it.kind == .Scroll && !it.consumed && !mm.open {
+			zoom_to(viewer_zoom * exp(it.delta.y * 0.002), app.ui.mouse);
+			it.consumed = true;
+		}
+		zw, zh := w * sc * viewer_zoom, h * sc * viewer_zoom;
+		lim := Vector2.{max(0.0, (zw - app.ui.window.x) / 2 + 40), max(0.0, (zh - app.ui.window.y) / 2 + 40)};
+		viewer_pan = .{clamp(viewer_pan.x, -lim.x, lim.x), clamp(viewer_pan.y, -lim.y, lim.y)};
+		img := media_box("img", viewer_url, viewer_video, zw, zh);
+		img.flags |= .Floating_X | .Floating_Y | .Click_On_Release;
 		img.flags &= ~ui.Box_Flags.Draw_Background;
 		img.style.radius = all4(0);
-		img.fixed_pos = .{(app.ui.window.x - w * sc) / 2, (app.ui.window.y - h * sc) / 2};
+		img.fixed_pos = c + viewer_pan - Vector2.{zw, zh} * 0.5;
 		img.opacity = viewer_t;
-		if ui.signal(img).right_clicked media_menu_open(viewer_link, ifx viewer_video then "" else viewer_url);
+		isig := ui.signal(img);
+		if isig.pressed viewer_pan0, viewer_moved = viewer_pan, false;
+		if isig.dragging && viewer_zoom > 1 {
+			if length(isig.drag_delta) > 3 viewer_moved = true;
+			if viewer_moved viewer_pan = viewer_pan0 + isig.drag_delta;
+		}
+		if isig.clicked && !viewer_moved zoom_to(ifx viewer_zoom > 1 then 1.0 else 2.0, app.ui.mouse);
+		if isig.right_clicked media_menu_open(viewer_link, ifx viewer_video then "" else viewer_url);
 		// the client's link under the image
 		ob := ui.box("Open in Browser##ob", .Clickable | .Draw_Text | .Floating_X | .Floating_Y);
 		ob.semantic_size = .[ui.text_size(0), ui.px(20)];
