@@ -62,12 +62,15 @@ developer_page :: () {
 	}
 }
 
-// ---- Pages that load from REST: Logged-in Devices ----
+// ---- Pages that load from REST: Logged-in Devices, Connected Apps ----
 
 US_Req :: enum u8 {
 	Sessions; // GET /auth/sessions
+	Connections; // GET /users/@me/connections
+	Tokens; // GET /oauth2/tokens (Authorized Apps)
 	COUNT;
 	Action :: 100; // a change, then `us.after` reloads
+	Authorize; // GET /connections/{type}/authorize: the page to finish in the browser
 }
 
 #scope_file
@@ -80,7 +83,7 @@ us: struct {
 	error: string; // heap
 };
 
-US_PATHS :: string.["/auth/sessions"];
+US_PATHS :: string.["/auth/sessions", "/users/@me/connections", "/oauth2/tokens"];
 
 us_load :: (req: US_Req) {
 	if us.loading[req] || !net_action() return;
@@ -151,6 +154,12 @@ user_settings_receive :: (r: *dc.Feature_Result) {
 	us.busy = false;
 	if !r.ok {
 		us_set_error(us_result_error(r));
+		return;
+	}
+	if req == .Authorize {
+		url := dc.fstr(dc.vmap(r.body), "url");
+		if begins_with(url, "https://") open_url(url); // no webview: the platform's sign-in opens in the browser
+		us.page = ""; // coming back to the page shows the new account
 		return;
 	}
 	us.loading[us.after] = false;
@@ -276,6 +285,132 @@ device_row :: (v: dc.V, index: int, current: bool) {
 	spacer(.Y, 16);
 }
 #scope_export
+
+// The platforms the client connects with an OAuth page (type, name); those needing a handle or a DNS
+// record (Bluesky, Mastodon, Domain) are left out.
+CONNECT_PLATFORMS :: [2]string.[
+	.["battlenet", "Battle.net"], .["bungie", "Bungie.net"], .["crunchyroll", "Crunchyroll"], .["ebay", "eBay"],
+	.["epicgames", "Epic Games"], .["github", "GitHub"], .["leagueoflegends", "League of Legends"], .["paypal", "PayPal"],
+	.["playstation", "PlayStation Network"], .["reddit", "Reddit"], .["riotgames", "Riot Games"], .["roblox", "Roblox"],
+	.["spotify", "Spotify"], .["steam", "Steam"], .["tiktok", "TikTok"], .["twitch", "Twitch"], .["twitter", "X"],
+	.["xbox", "Xbox"], .["youtube", "YouTube"], .["amazon-music", "Amazon Music"]
+];
+
+platform_name :: (kind: string) -> string {
+	for CONNECT_PLATFORMS if it[0] == kind return it[1];
+	for string.["bluesky", "Bluesky", "mastodon", "Mastodon", "domain", "Domain", "facebook", "Facebook", "instagram", "Instagram", "letterboxd", "Letterboxd", "soundcloud", "SoundCloud"] {
+		if it_index % 2 == 0 && it == kind return string.["Bluesky", "Mastodon", "Domain", "Facebook", "Instagram", "Letterboxd", "SoundCloud"][it_index / 2];
+	}
+	return kind;
+}
+
+// Connected Apps (CONNECTED_APPS_PANEL): the accounts linked to the profile, adding one (its sign-in
+// opens in the browser), and the apps authorized with the account.
+connected_apps_page :: () {
+	us_enter("Connected Apps", .Connections, .Tokens);
+	if !set_page_begin("connpage") return;
+	defer set_page_end();
+	set_heading("Connections");
+	set_para("connhelp", "Connect these accounts and unlock special Discord integrations. The sign-in opens in your browser.", .Normal, 14, 18, T("--text-muted"));
+	spacer(.Y, 12);
+	PER_ROW :: 5;
+	for line: 0..(CONNECT_PLATFORMS.count - 1) / PER_ROW {
+		pills := row(tprint("add%", line));
+		pills.semantic_size = .[ui.pct(1), ui.px(32)];
+		pills.style.child_gap = 8;
+		{ ui.parent(pills); defer ui.pop_parent();
+			for k: line * PER_ROW..min(CONNECT_PLATFORMS.count, (line + 1) * PER_ROW) - 1 {
+				p := CONNECT_PLATFORMS[k];
+				if set_button(tprint("%##add_%", p[1], p[0]), .Secondary, !us.busy, 32) && net_action() {
+					us_set_error("");
+					dc.user_settings_call(app.client, xx US_Req.Authorize, "GET", tprint("/connections/%/authorize?", p[0]));
+				}
+			}
+		}
+		spacer(.Y, 8);
+	}
+	us_error_line();
+	spacer(.Y, 24);
+	if us_ready(.Connections) {
+		body := us_reply(.Connections);
+		list := dc.vlist(body);
+		if !list.count set_para("noconn", "You haven't connected any accounts yet.", .Normal, 14, 18, T("--text-muted"));
+		for list {
+			m := dc.vmap(it);
+			if dc.fbool(m, "revoked") continue;
+			ui.id_scope(cast(u64) it_index + 1);
+			defer ui.pop_seed();
+			card := ui.box("conn", .Draw_Background);
+			card.semantic_size = .[ui.pct(1), ui.children()];
+			card.layout_axis = .Y;
+			card.style.bg = T("--background-base-lowest");
+			card.style.radius = all4(8);
+			{ ui.parent(card); defer ui.pop_parent();
+				inset_begin(16, 12);
+				kind, id := dc.fstr(m, "type"), dc.fstr(m, "id");
+				r := row("head");
+				r.semantic_size = .[ui.pct(1), ui.px(32)];
+				{ ui.parent(r); defer ui.pop_parent();
+					col := ui.box("col");
+					col.semantic_size = .[ui.fill(), ui.children()];
+					col.layout_axis = .Y;
+					{ ui.parent(col); defer ui.pop_parent();
+						label(dc.fstr(m, "name"), .Semibold, 16, T("--text-strong"), 20);
+						label(platform_name(kind), .Normal, 12, T("--text-muted"), 16);
+					}
+					if set_button("Remove##rm", .Link, !us.busy, 32) us_action(.Connections, "DELETE", tprint("/users/@me/connections/%/%", kind, id));
+				}
+				spacer(.Y, 8);
+				shown := dc.fint(m, "visibility") == 1;
+				if set_toggle_row("vis", "Display on profile", "", shown, us.busy) {
+					us_action(.Connections, "PATCH", tprint("/users/@me/connections/%/%", kind, id), tprint("{\"visibility\":%}", ifx shown then 0 else 1));
+				}
+				inset_end(16, 12);
+			}
+			spacer(.Y, 8);
+		}
+	}
+	spacer(.Y, 40);
+	set_heading("Authorized Apps");
+	if !us_ready(.Tokens) return;
+	apps := dc.vlist(us_reply(.Tokens));
+	if !apps.count set_para("noapps", "You haven't authorized any apps.", .Normal, 14, 18, T("--text-muted"));
+	for apps {
+		m := dc.vmap(it);
+		a := dc.fmap(m, "application");
+		ui.id_scope(cast(u64) it_index + 1000);
+		defer ui.pop_seed();
+		card := ui.box("app", .Draw_Background);
+		card.semantic_size = .[ui.pct(1), ui.children()];
+		card.layout_axis = .Y;
+		card.style.bg = T("--background-base-lowest");
+		card.style.radius = all4(8);
+		{ ui.parent(card); defer ui.pop_parent();
+			inset_begin(16, 12);
+			r := row("head");
+			r.semantic_size = .[ui.pct(1), ui.px(32)];
+			{ ui.parent(r); defer ui.pop_parent();
+				label(dc.fstr(a, "name"), .Semibold, 16, T("--text-strong"), 20);
+				filler(.X);
+				if set_button("Deauthorize##deauth", .Danger, !us.busy, 32) us_action(.Tokens, "DELETE", tprint("/oauth2/tokens/%", dc.fstr(m, "id")));
+			}
+			desc := dc.fstr(a, "description");
+			if desc {
+				spacer(.Y, 4);
+				set_para("desc", desc, .Normal, 14, 18, T("--text-default"));
+			}
+			scopes: [..]string;
+			scopes.allocator = temp;
+			for dc.flist(m, "scopes") array_add(*scopes, dc.vstr(it));
+			if scopes.count {
+				spacer(.Y, 8);
+				set_para("scopes", tprint("Permissions: %", join(..scopes, separator = ", ",, temp)), .Normal, 12, 16, T("--text-muted"));
+			}
+			inset_end(16, 12);
+		}
+		spacer(.Y, 8);
+	}
+}
 
 // Script command `settings_reply <Request> <json>` for the pages here (tests).
 user_settings_script_reply :: (name: string, json: string) -> bool {

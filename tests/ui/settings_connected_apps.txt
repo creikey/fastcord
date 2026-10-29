@@ -1,0 +1,20 @@
+# Settings > Connected Apps: the platforms to connect, the linked accounts (Remove, Display on profile)
+# and the authorized apps (Deauthorize), each from a canned reply.
+wait 5
+click 338 683
+wait 20
+click_text "Connected Apps"
+wait 10
+expect_visible "GitHub"
+settings_reply Connections [{"type":"github","id":"42","name":"dingus-gh","visibility":1,"verified":true,"revoked":false},{"type":"steam","id":"7656","name":"dingus_steam","visibility":0,"verified":true,"revoked":false}]
+settings_reply Tokens [{"id":"990","scopes":["identify","guilds"],"application":{"id":"880","name":"Cool Bot Dashboard","description":"Manage your servers from the web."}}]
+wait 5
+expect_visible "dingus-gh"
+expect_visible "dingus_steam"
+shot build/ui-settings_connected_apps_top.png
+move 760 400
+scroll 0 -600
+wait 10
+expect_visible "Cool Bot Dashboard"
+expect_visible "Permissions: identify, guilds"
+expect_visible "Deauthorize"
