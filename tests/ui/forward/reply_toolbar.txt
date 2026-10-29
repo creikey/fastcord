@@ -1,0 +1,6 @@
+# Hovering a reply (filler 21) draws the message toolbar over its quoted line, not under it (-png).
+wait 10
+move 700 455
+wait 5
+shot build/ui-forward_reply_toolbar.png
+expect_visible "filler message 21 replies to filler 5"

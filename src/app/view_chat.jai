@@ -1455,12 +1455,6 @@ message_row :: (m: *dc.Message, grouped: bool, new_day: bool, show_new: bool) ->
 				e.consumed = true;
 			}
 		}
-		if (hovered || ma.menu_msg == m.id) && !editing && !is_notice(m.kind) {
-			// the toolbar hangs 16px above the item's top edge (official: top -16, right 14)
-			anchor := ui.box("tbanchor");
-			anchor.semantic_size = .[ui.pct(1), ui.px(0)];
-			{ ui.parent(anchor); defer ui.pop_parent(); message_toolbar(m); }
-		}
 		spacer(.Y, 2);
 		if m.referenced_id != 0 && m.kind != MSG_PIN { // a pin notice references the pinned message: no reply line
 			rr := row("replyrow");
@@ -1552,6 +1546,14 @@ message_row :: (m: *dc.Message, grouped: bool, new_day: bool, show_new: bool) ->
 			spacer(.X, ifx editing then cast(float32) MSG_EDIT_PAD_R else cast(float32) MSG_PAD_R); // the edit form reaches further right
 		}
 		spacer(.Y, 2);
+		if (hovered || ma.menu_msg == m.id) && !editing {
+			// the toolbar hangs 16px above the item's top edge (official: top -16, right 14); declared
+			// last, floating at the top, so it draws over the reply line and the content
+			anchor := ui.box("tbanchor", .Floating_X | .Floating_Y);
+			anchor.semantic_size = .[ui.px(li.rect.x1 - li.rect.x0), ui.px(0)];
+			anchor.fixed_pos = .{0, 0};
+			{ ui.parent(anchor); defer ui.pop_parent(); message_toolbar(m); }
+		}
 	}
 	return r0;
 }
