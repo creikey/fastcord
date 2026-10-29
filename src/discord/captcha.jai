@@ -80,6 +80,75 @@ captcha_headers :: (ch: Captcha, key: string) -> []http.Header {
 	return h;
 }
 
+// ---- a send that asked for a captcha ----
+
+// A message send Discord answered with a captcha (UI thread). Its copy stays pending while the app
+// shows the challenge (send_captcha_take); the solved token sends the same POST again with the captcha's
+// headers and the same nonce (send_captcha_answer), and closing it marks the copy failed. One at a time:
+// a newer one replaces it, and the older copy fails.
+Send_Captcha :: struct {
+	channel_id: Snowflake;
+	nonce: Snowflake; // 0: none
+	tag: u64;
+	body: string;
+	context_b64: string;
+	captcha: Captcha;
+	shown: bool; // handed to the app
+}
+
+// send_captcha_keep (a failed send's result): true when it asked for a well-formed captcha, now kept.
+send_captcha_keep :: (c: *Client, e: *Event) -> bool {
+	r := e.result;
+	if !r.captcha || r.status != 400 || !e.sent_body || e.data.kind != .Map return false;
+	ch, ok := captcha_parse(e.data.map);
+	if !ok return false;
+	sc := *c.send_captcha;
+	if sc.nonce send_captcha_drop(c, true);
+	sc.* = .{channel_id = r.channel_id, nonce = r.nonce, tag = r.tag, body = copy_string(e.sent_body,, c.allocator),
+		context_b64 = copy_string(e.sent_context,, c.allocator), captcha = captcha_copy(ch, c.allocator)};
+	analytics_captcha_opened(c, ch);
+	return true;
+}
+
+// send_captcha_take: a send's captcha the app hasn't shown yet (strings valid until it's answered).
+send_captcha_take :: (c: *Client) -> Captcha, bool {
+	sc := *c.send_captcha;
+	if !sc.nonce || sc.shown return .{}, false;
+	sc.shown = true;
+	return sc.captcha, true;
+}
+
+// send_captcha_answer: the solved token; the send goes again with the captcha's headers.
+send_captcha_answer :: (c: *Client, key: string) {
+	sc := *c.send_captcha;
+	if !sc.nonce return;
+	if !key || !captcha_token_ok(key, 16384) {
+		send_captcha_cancel(c);
+		return;
+	}
+	j := job_new(.Api, .Send_Message);
+	j.method = "POST";
+	j.path = job_str(j, channel_path(sc.channel_id, "/messages"));
+	j.body = cast([]u8) job_str(j, sc.body);
+	j.content_type = "application/json";
+	j.context_b64 = job_str(j, sc.context_b64);
+	headers := captcha_headers(sc.captcha, key);
+	j.extra = NewArray(headers.count, http.Header,, job_alloc(j));
+	for headers j.extra[it_index] = .{job_str(j, it.name), job_str(j, it.value)};
+	j.retries = 3;
+	j.retry_429 = 3;
+	j.result = .{op = .Send_Message, channel_id = sc.channel_id, nonce = sc.nonce, tag = sc.tag};
+	job_submit(c, j);
+	send_captcha_drop(c, false);
+}
+
+// send_captcha_cancel: the captcha was closed unsolved (or couldn't be shown): the send fails.
+send_captcha_cancel :: (c: *Client) {
+	if !c.send_captcha.nonce return;
+	analytics_captcha_dismissed(c);
+	send_captcha_drop(c, true);
+}
+
 // ---- telemetry (the modal's CaptchaModal and its captcha component) ----
 
 // analytics_captcha_opened: the modal mounted. The captcha component's effect runs first
@@ -110,4 +179,19 @@ analytics_captcha_dismissed :: (c: *Client) {
 	w := aw_begin();
 	json_kstr(*w, "type", "Guild Join Captcha");
 	aw_track(c, "modal_dismissed", *w);
+}
+
+#scope_file
+
+send_captcha_drop :: (c: *Client, failed: bool) {
+	sc := *c.send_captcha;
+	if failed {
+		send_failed(*c.store, sc.channel_id, sc.nonce);
+		array_add(*c.results, .{op = .Send_Message, status = 400, captcha = true, channel_id = sc.channel_id, nonce = sc.nonce, tag = sc.tag});
+		c.store.changed += 1;
+	}
+	free_str(sc.body, c.allocator);
+	free_str(sc.context_b64, c.allocator);
+	captcha_free(*sc.captcha, c.allocator);
+	sc.* = .{};
 }

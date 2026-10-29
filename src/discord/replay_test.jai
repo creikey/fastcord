@@ -41,6 +41,7 @@ Replay :: struct {
 	marked: bool;
 	fail: string; // requests whose URL contains it are answered fail_status (failure paths)
 	fail_status: int;
+	fail_body: string; // their body ("{}" when empty)
 }
 
 Replay_Req :: struct {
@@ -302,7 +303,7 @@ replay_exchange :: (r: *Replay, host: string, req: http.Request) -> http.Respons
 	}
 	if r.fail && contains(url, r.fail) {
 		resp.status = r.fail_status;
-		body = "{}";
+		body = ifx r.fail_body then r.fail_body else "{}";
 	}
 	append_string(*resp.body, body);
 	return resp, .None, delay_ms;
@@ -1257,6 +1258,52 @@ failed_send_echo :: (t: *T) {
 	upsert_message(*c.store, vmap(d));
 	expect_value(t, l.messages.count, before + 1);
 	expect(t, message_index(l, nonce + 1) >= 0 && message_index(l, nonce) < 0, "the echo replaced the failed copy");
+}
+
+// A send Discord answers with a captcha stays pending until it's answered: the solved token sends the
+// same body again with X-Captcha-Key and the same nonce; closing it marks the copy failed.
+send_captcha :: (t: *T) {
+	run: Replay_Run;
+	if !replay_begin(*run, t, "add_reaction", R_GUILD, R_TEXT) { return; }
+	defer replay_end(*run);
+	c := run.c;
+	replay_mark(*run);
+	run.r.fail, run.r.fail_status = "/messages", 400;
+	run.r.fail_body = "{\"captcha_key\":[\"captcha-required\"],\"captcha_sitekey\":\"a5f74b19-9e45-40e0-b45d-47ff91b7a6c2\",\"captcha_service\":\"hcaptcha\",\"captcha_rqdata\":\"rq\",\"captcha_rqtoken\":\"tok.en\"}";
+	pending :: (c: *Client, nonce: Snowflake) -> pending: bool, failed: bool {
+		l := message_list(*c.store, R_TEXT);
+		i := message_index(l, nonce);
+		if i < 0 return false, false;
+		return l.messages[i].pending, l.messages[i].failed;
+	}
+	nonce := send_message(c, R_TEXT, "behind a captcha");
+	replay_settle(*run, 200);
+	p, f := pending(c, nonce);
+	expect(t, p && !f, "a captcha keeps the send pending");
+	ch, ok := send_captcha_take(c);
+	expect(t, ok && ch.service == .Hcaptcha && ch.rqtoken == "tok.en", "the app is handed the captcha");
+	_, ok = send_captcha_take(c);
+	expect(t, !ok, "handed once");
+	run.r.fail = "";
+	posts := r_count(*run, "POST", "/messages");
+	send_captcha_answer(c, "P1_solved");
+	replay_settle(*run, 200);
+	expect_value(t, r_count(*run, "POST", "/messages") - posts, 1);
+	wire := "";
+	locks.lock(*run.r.mu);
+	for run.r.ours if begins_with(it.key, "POST") && contains(it.key, "/messages") wire = it.wire;
+	locks.unlock(*run.r.mu);
+	expect(t, contains(wire, "x-captcha-key") && contains(wire, "x-captcha-rqtoken"), "the retry carries the captcha's headers");
+	expect(t, c.send_captcha.nonce == 0, "answered");
+	// closing it unsolved fails the send
+	run.r.fail = "/messages";
+	nonce = send_message(c, R_TEXT, "closed");
+	replay_settle(*run, 200);
+	send_captcha_take(c);
+	send_captcha_cancel(c);
+	p, f = pending(c, nonce);
+	expect(t, !p && f, "a closed captcha fails the send");
+	run.r.fail = "";
 }
 
 // A jump to an old message (around=) shows that stretch alone, behind a gap (hasMoreAfter), not merged

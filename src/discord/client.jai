@@ -80,7 +80,7 @@ Rest_Result :: struct {
 	ok: bool;
 	status: int; // HTTP status, 0 = network failure
 	error_code: int; // a failure's JSON "code" (Discord's error codes)
-	captcha: bool; // the failure asks for a captcha (captcha_key), which needs a webview: never shown
+	captcha: bool; // the failure asks for a captcha (captcha_key); a send's is shown (Send_Captcha)
 	channel_id: Snowflake;
 	message_id: Snowflake;
 	user_id: Snowflake;
@@ -99,6 +99,8 @@ Event :: struct {
 	arena: *Flat_Pool;
 	state: Connection_State;
 	result: Rest_Result;
+	sent_body: string; // a send that asked for a captcha: its POST body and context, to go again (in arena)
+	sent_context: string;
 }
 
 // ---- client ----
@@ -139,6 +141,7 @@ Client :: struct {
 	ready_qos_token: string;
 	// UI-thread state
 	results: [..]Rest_Result;
+	send_captcha: Send_Captcha; // UI thread
 	media_mu: locks.Mutex;
 	media_results: [..]Media_Result;
 	cache_writes: s64; // atomic; every CACHE_TRIM_EVERY bodies written, the disk cache is trimmed
