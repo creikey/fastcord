@@ -88,7 +88,19 @@ backend_native_device :: () -> *void { return mt.device; }
 backend_device_lost :: () -> bool { return false; } // TODO: MTLDevice removal (eGPU unplug)
 
 backend_wait_idle :: () {
-    if mt.last_cmd  msg(Void, mt.last_cmd, "waitUntilCompleted");
+    if mt.last_cmd {
+        msg(Void, mt.last_cmd, "waitUntilCompleted");
+        read_gpu_time(mt.last_cmd, mt.last_frame);
+    }
+}
+
+// A finished command buffer's GPU start and end times (seconds, host clock) give the frame's GPU time.
+read_gpu_time :: (cmd: Id, frame: u64) {
+    t := msg(float64, cmd, "GPUEndTime") - msg(float64, cmd, "GPUStartTime");
+    if t > 0 && frame >= g.stats.gpu_frame {
+        g.stats.gpu_ns = cast(s64) (t * 1000000000);
+        g.stats.gpu_frame = frame;
+    }
 }
 
 backend_shutdown :: () {
@@ -121,6 +133,7 @@ backend_submit :: (insts: []Instance, batches: []Batch, clear: Color, fb: [2]s32
     mt.ring_idx = (mt.ring_idx + 1) % FRAMES_IN_FLIGHT;
     if slot.cmdbuf {
         msg(Void, slot.cmdbuf, "waitUntilCompleted"); // normally long done; bounds CPU run-ahead
+        read_gpu_time(slot.cmdbuf, slot.frame);
         msg(Void, slot.cmdbuf, "release");
         slot.cmdbuf = null;
     }
@@ -192,6 +205,8 @@ backend_submit :: (insts: []Instance, batches: []Batch, clear: Color, fb: [2]s32
     }
     msg(Id, cmd, "retain");
     slot.cmdbuf = cmd;
+    slot.frame = g.frame_index;
+    mt.last_frame = g.frame_index;
     if mt.last_cmd  msg(Void, mt.last_cmd, "release");
     msg(Id, cmd, "retain");
     mt.last_cmd = cmd;
@@ -278,6 +293,7 @@ Ring_Slot :: struct {
     buf: Id;    // MTLBuffer
     cap: int;   // bytes
     cmdbuf: Id; // last submission using this slot (retained)
+    frame: u64; // its g.frame_index
 }
 
 mt: struct {
@@ -291,6 +307,7 @@ mt: struct {
     off_size: [2]s32;
     readback: Id;
     last_cmd: Id;
+    last_frame: u64;
 
     scene_pipeline: Id; // null: scenes unsupported
     scene_ring: [FRAMES_IN_FLIGHT]Ring_Slot; // instances, gradients and ramps of the frame's scenes

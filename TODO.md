@@ -508,7 +508,6 @@
 - [ ] Reactions: the controls ignore the ADD_REACTIONS permission; no modals for TOO_MANY_REACTIONS or the burst "Oops!" (`CLIENT_RULES.md`).
 - [ ] Notifications: the server modal lacks channel overrides, Suppress Highlights, Mute New Events and Mobile Push (parsed, sent only to analytics).
 - [ ] Undo: hanging up voice, from the panel, call view or DM phone button. Offer "Rejoin" for a few seconds, restoring camera and screen share.
-- [ ] macOS: the Metal backend never sets `gpu_ns`, so the bench has no GPU time there.
 - [ ] Channels: a collapsed category also hides its unread and occupied voice channels; only the selected one stays (`views.jai`).
 - [ ] Profiles: your own full profile has no Edit Profile button; the DM side panel lacks About Me, pronouns, mutual servers and friends, and the note.
 - [ ] Media: a video's fullscreen fills the window, not the screen (no native fullscreen on any platform) (`view_media.jai` `video_fullscreen`).
@@ -762,3 +761,4 @@
 - [x] Notifications: a ping of one of your roles raises the channel's live mention badge, and its desktop notification shows "@Role" instead of the raw `<@&id>` (`actions.jai` MESSAGE_CREATE, `notify.jai` `notification_body`).
 - [x] Releases: notes list the commit titles since the previous tag, grouped by area, without Docs, Site, TODO, Tests, Tools, CI and Traffic (`tools/release_notes.py`, run by `release.yml` in place of `--generate-notes`).
 - [x] Bug (E2E): in an encrypted DM the GIF and sticker pickers no longer send in the clear; they refuse with a toast, as files do (`encrypting`, `tests/ui/dm/e2e_pickers.txt`). Sending them encrypted is part of E2E 7.
+- [x] macOS: the Metal backend sets `gpu_ns` from each finished command buffer's `GPUStartTime` / `GPUEndTime`, so the bench has GPU time there.
