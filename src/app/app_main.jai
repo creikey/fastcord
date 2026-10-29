@@ -366,6 +366,7 @@ frame :: () {
 		login_events();
 		voice_frame();
 		login_check_auth();
+		accounts_frame();
 	}
 	voice_settings_frame(voice_conn(), voice_headless(), voice_audio_ready()); // also offline: push to talk, the meter
 	video_frame();
@@ -697,6 +698,13 @@ script_command :: (path: string, f: []string, t: *float64, depth := 0) {
 	case "show_login";
 		// the login page (normally shown when there is no token)
 		app.needs_login = true;
+	case "accounts";
+		// accounts <name>...: saved accounts behind the fixture's own (accounts.jai), with fake tokens
+		accounts_clear();
+		me := dc.user_get(store(), store().me);
+		array_add(*accounts, .{token = copy_string("fake0"), id = store().me, username = copy_string(ifx me then me.username)});
+		accts.active = 0;
+		for f if it_index > 0 array_add(*accounts, .{token = copy_string(tprint("fake%", it_index)), id = cast(dc.Snowflake) (1546819257420087000 + it_index), username = copy_string(it)});
 	case "login_state";
 		// the login page in a given state, without a server (view_login.jai login_test_state)
 		if !login_test_state(f[1]) script_fail(path, "login_state: unknown state \"%\"", f[1]);
@@ -1142,7 +1150,7 @@ script_exec :: (lines: []string, path: string, t := *script_t) {
 	}
 }
 
-// Token: $FASTCORD_TOKEN, else <state>/token (written by the login flow).
+// Token: $FASTCORD_TOKEN, else the active account's from <state>/token (accounts.jai; none while adding one).
 // Without one the client starts logged out and the login page shows.
 connect :: () {
 	if teardown_busy() {
@@ -1155,8 +1163,8 @@ connect :: () {
 	make_directory_if_it_does_not_exist(state_dir, recursive = true);
 	token := env_var("FASTCORD_TOKEN");
 	if token == "" {
-		data, ok := read_entire_file(tprint("%/token", state_dir), log_errors = false,, temp);
-		if ok token = trim(data);
+		if !accounts.count accounts_load(state_dir); // accounts.jai
+		if accts.active >= 0 && !accts.adding token = accounts[accts.active].token;
 	}
 	app.client = dc.client_create(.{token = copy_string(token), state_dir = state_dir, platform = dc.host_platform(), wakeup = (_: *void) { platform.request_frame(); },
 		initial_guild_id = app.start_guild, initial_channel_id = app.start_channel});

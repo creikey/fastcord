@@ -1,0 +1,22 @@
+# Switch Accounts: the account popout's submenu lists the saved accounts, the active one checked, then
+# Manage Accounts. Its modal shows each with Active or Log In, and Log Out, then Add an Account; Log Out
+# of a saved account that isn't active forgets it (accounts.jai).
+wait 5
+accounts dingus_alt robin_two
+click 112 683
+wait 20
+move_text "Switch Accounts"
+wait 5
+expect_visible "dingus_alt"
+expect_visible "robin_two"
+shot build/shots/account_switch_menu.png
+click_text "Manage Accounts"
+wait 10
+expect_visible "Manage Accounts"
+expect_visible "Active"
+expect_visible "Add an Account"
+shot build/shots/account_switch_manage.png
+click_text "Log Out"
+wait 5
+expect_not_visible "robin_two"
+expect_visible "dingus_alt"

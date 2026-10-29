@@ -77,7 +77,7 @@ account_receive :: (r: *dc.Feature_Result) {
 	if tok != "" {
 		// username, password and 2FA changes rotate the token: use it now and keep it for the next start
 		dc.client_set_token(app.client, tok);
-		if !platform.is_headless() dc.write_file_atomic(tprint("%/token", app_state_dir()), cast([]u8) tok);
+		if app.client == app.discord accounts_set_token(tok);
 	}
 	tag := cast(dc.User_Patch_Tag) r.tag;
 	if r.op == .User_Patch && tag >= .Password {
@@ -116,13 +116,13 @@ account_logout_ask :: () {acct.logout_confirm = true;}
 
 // Log Out (AuthenticationActionCreators.logout("settings")): POST /auth/logout
 // revokes the session; the same client then shows the login page (auth.jai).
-account_logout :: () {
+// Only the active account is forgotten; the other saved ones stay (accounts.jai).
+account_logout :: (source := "settings") {
 	acct.logout_confirm = false;
 	voice_leave_channel();
-	if net_action() { dc.client_logout(app.client, "settings"); }
-	if !platform.is_headless() && env_var("FASTCORD_TOKEN") == "" {
-		file_delete(tprint("%/token", app_state_dir()));
-	}
+	if net_action() { dc.client_logout(app.client, source); }
+	accounts_drop(accts.active);
+	accts.adding = accounts.count > 0 && !accts.switch_after_logout; // Back to the next saved account
 	login_reset();
 	app.settings_open = false;
 	app.profile_user = 0;

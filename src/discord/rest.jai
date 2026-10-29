@@ -45,6 +45,7 @@ Job :: struct {
 	drafts: []Draft_Attachment; // message send waiting on these drafts
 	requeue: bool; // run again at not_before instead of being freed
 	no_auth: bool; // logged-out request (no authorization header)
+	token: string; // another saved account's token instead of the client's (the account switcher's checks)
 	no_super_props: bool;
 	etag: bool; // fetch(cache:'no-cache') + remembered If-None-Match
 	preflight_if_etag: bool;
@@ -166,7 +167,7 @@ Api_Response :: struct {
 
 // api_call performs one authenticated request with the HTTP util's retry and
 // rate-limit semantics. The returned arena (if any) owns body.
-api_call :: (c: *Client, method: string, path: string, body: []u8, content_type: string, context_b64: string, extra: []http.Header, retries: int, retry_429: int, no_auth := false, no_super_props := false, referer := "") -> Api_Response {
+api_call :: (c: *Client, method: string, path: string, body: []u8, content_type: string, context_b64: string, extra: []http.Header, retries: int, retry_429: int, no_auth := false, no_super_props := false, referer := "", token := "") -> Api_Response {
 	full_path := join(API_PREFIX, path,, temp);
 	url_key := join(API_ORIGIN, full_path,, temp);
 	retries_left := retries;
@@ -192,7 +193,7 @@ api_call :: (c: *Client, method: string, path: string, body: []u8, content_type:
 			has_body = body.count > 0,
 			body_len = body.count,
 			content_type = content_type,
-			token = ifx no_auth then "" else client_token(c),
+			token = ifx no_auth then "" else ifx token then token else client_token(c),
 			fingerprint = auth_fingerprint(c),
 			installation_id = c.id.installation_id,
 			super_props_b64 = ifx no_super_props then "" else super_properties_b64(*c.id, now),
@@ -282,11 +283,11 @@ run_api :: (c: *Client, j: *Job) {
 	context.tl_js_lower_auth = j.js_lower_auth;
 	j.started_ms = context.tl_dispatch_ms;
 	if j.on_start j.on_start(c, j);
-	r := api_call(c, j.method, j.path, j.body, j.content_type, j.context_b64, extra, j.retries, j.retry_429, j.no_auth, j.no_super_props, j.referer);
+	r := api_call(c, j.method, j.path, j.body, j.content_type, j.context_b64, extra, j.retries, j.retry_429, j.no_auth, j.no_super_props, j.referer, j.token);
 	for try: 1..ifx j.network_aware then 2 else 0 {
 		if r.ok || !client_nap(c, try * 2000) break;
 		if r.arena { fini(r.arena); free(r.arena,, context.default_allocator); }
-		r = api_call(c, j.method, j.path, j.body, j.content_type, j.context_b64, extra, j.retries, j.retry_429, j.no_auth, j.no_super_props, j.referer);
+		r = api_call(c, j.method, j.path, j.body, j.content_type, j.context_b64, extra, j.retries, j.retry_429, j.no_auth, j.no_super_props, j.referer, j.token);
 	}
 	context.tl_js_lower_auth = false;
 	if j.etag && r.status == 200 {

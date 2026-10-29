@@ -1770,11 +1770,11 @@ delete_guild :: (c: *Client, guild_id: Snowflake) {
 // identities and the featured widget configs; when those arrive the popout
 // loads activity statistics, the featured applications and /users/@me.
 // Later opens only refresh /users/@me (fixtures status_change, custom_status).
-open_account_popout :: (c: *Client) {
+open_account_popout :: (c: *Client, tokens: []string = .[]) {
 	profile_view_begin(c, .Account_Popout, c.store.me, 0, 0, 0);
 	if c.account_popout_opened {
 		analytics_on_profile(c, c.store.me); // the profile is loaded: it shows at once
-		users_me_refresh(c, 650);
+		users_me_refresh(c, 650, tokens);
 		return;
 	}
 	c.account_popout_opened = true;
@@ -1783,7 +1783,9 @@ open_account_popout :: (c: *Client) {
 	j := job_new(.Api, .None);
 	j.method = "GET";
 	j.path = "/widget-configs/featured";
-	j.on_body = (c: *Client, body: V) {
+	j.track_props = job_str(j, join(..tokens, "\n",, temp)); // for the token checks below
+	j.on_response = (c: *Client, j: *Job, status: int, body: V) {
+		if status < 200 || status >= 300 return;
 		api_get_later(c, "/users/@me/activities/statistics/applications", 55);
 		q: Query;
 		query_init(*q, "/applications/public");
@@ -1795,20 +1797,26 @@ open_account_popout :: (c: *Client) {
 			n += 1;
 		}
 		if n api_get_later(c, query_string(*q), 55);
-		users_me_refresh(c, 55);
+		users_me_refresh(c, 55, ifx j.track_props then split(j.track_props, "\n",, temp) else .[]);
 	};
 	job_submit(c, j);
 }
 
-// users_me_refresh: the popout's GET /users/@me (its fetch spells the header
-// "authorization" in lowercase).
-users_me_refresh :: (c: *Client, delay_ms: s64) {
-	j := job_new(.Api, .None);
-	j.method = "GET";
-	j.path = "/users/@me";
-	j.js_lower_auth = true;
-	j.not_before = now_ms() + delay_ms;
-	job_submit(c, j);
+// users_me_refresh: the popout's account switcher checks every saved account's token
+// (MultiAccountActionCreators.validateMultiAccountTokens, retries 3): GET /users/@me with that
+// token, its fetch spelling the header "authorization" in lowercase. tokens: the saved accounts in
+// order, the client's own included; none means only the client's. The bodies aren't applied.
+users_me_refresh :: (c: *Client, delay_ms: s64, tokens: []string) {
+	for 0..max(tokens.count, 1)-1 {
+		j := job_new(.Api, .None);
+		j.method = "GET";
+		j.path = "/users/@me";
+		j.js_lower_auth = true;
+		j.retries = 3;
+		j.not_before = now_ms() + delay_ms;
+		if tokens.count && tokens[it] != client_token(c) j.token = job_str(j, tokens[it]);
+		job_submit(c, j);
+	}
 }
 
 // request_page_members: GuildMemberRequester. Authors and mentioned users of a

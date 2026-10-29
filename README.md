@@ -63,7 +63,8 @@ about a minute the first time); `jai build.jai - c` does only that.
 (Windows) or `${XDG_DATA_HOME:-~/.local/share}/fastcord/state` (Linux). With no token (or a rejected one) the app
 opens the login page: email or phone number and password (with the multi-factor step), or the QR code
 for the mobile app, as the official client does (`src/discord/auth.jai`, `remote_auth.jai`). The token
-it gets is saved there. A small "Log in with a token" link takes a token copied from a browser instead.
+it gets is saved there, in `<state>/token`, with up to four more from the account popout's Switch Accounts
+(`src/app/accounts.jai`). A small "Log in with a token" link takes a token copied from a browser instead.
 
 ## Testing
 

@@ -3,7 +3,7 @@ wait 5
 click 112 683
 wait 20
 expect_profile_open
-click 64 400
+click 64 350
 wait 20
 expect_visible "Edit Profile"
 shot build/ui-own_full_profile_modal.png

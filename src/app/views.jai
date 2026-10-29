@@ -1584,6 +1584,7 @@ overlays :: () {
 	if sw.open { quick_switcher(); }
 	if edit_menu_state.open { edit_menu(); }
 	if fnick.user != 0 { friend_nick_modal(); }
+	if accts.manage_open manage_accounts_modal();
 	if modr.user != 0 {
 		moderation_modal();
 		if modr.user != 0 && modr.history_open ban_history_list();

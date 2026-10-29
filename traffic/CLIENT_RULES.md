@@ -591,7 +591,7 @@ Fixture: `traffic/account_edits.jsonl` windows `logout` and `login_submit`
 | `POST /auth/logout {"provider":null,"voip_provider":null}` (token / voip_token undefined on desktop) | code + captured | `logout(e){` | `client_logout` |
 | When it settles (any status): `network_action_user_logout {…, logout_source}` and `hotspot_hidden {hotspot_location: "VOICE_PANEL_INTRODUCTION"}` (VOICE_CHANNEL_SELECT without a channel), then LOGOUT | code + captured | `Dw.sF(vR._.VOICE_PANEL_INTRODUCTION)` | `auth_after_logout` |
 | `hotspot_hidden` also follows every voice leave in the client; fastcord sends it only on logout | known gap | same | — |
-| `multi_account_account_remove {location_section: "Manage Accounts Modal"}` only for the account switcher's "Remove account" (logout_source `multi_accounts_list`); fastcord has no switcher, the library takes the source | code | `MULTI_ACCOUNT_ACCOUNT_REMOVE` | `client_logout` |
+| `multi_account_account_remove {location_section: "Manage Accounts Modal"}` only for the account switcher's "Remove account" (logout_source `multi_accounts_list`): Manage Accounts' Log Out of the active account | code | `MULTI_ACCOUNT_ACCOUNT_REMOVE` | `client_logout`, `account_remove` |
 | After LOGOUT: `/experiments` from the old route (Referer and context location = old path); components still mounted refetch without a token and get 401: referrals eligibility ×3 (Home route), settings-proto/2 15 ms later from the login page; 401s are ignored | inferred | fixture logout (other routes not captured) | `auth_after_logout` |
 | Login page Referer: `https://discord.com/login?redirect_to=<encodeURIComponent(old path)>` | captured | fixture logout | `auth_after_logout` |
 | LOGIN_SUCCESS: a new heartbeat session at once (op 41's initialization time is the login's); IDENTIFY's properties still carry the stale id (null where the key was); the gateway opens at once without fast connect, `gateway_connect_reasons: "AppSkeleton"`, presence `"online"`, capabilities 1734653 (the logout cleared localStorage) | inferred | fixture login_submit | `client_login_token`, `gateway.jai` `identify_value` |
@@ -606,6 +606,24 @@ Fixture: `traffic/account_edits.jsonl` windows `logout` and `login_submit`
 | The client makes the key pair after the socket opens (WebCrypto, tens of ms); fastcord's keygen (BoringSSL, tens to hundreds of ms) runs before the dial so `init` follows the open at once | known gap | `generateRsaKeyPair` | `ra_run_socket` |
 | The socket's upgrade request is the gateway's (Chrome's headers, `permessage-deflate` offered); if the server accepts deflate, fastcord inflates what it receives and sends stored DEFLATE blocks (Chrome compresses) | guess | not captured whether the server negotiates it | `src/http/ws.jai` |
 | "Document not visible" (reconnect deferred while the window is hidden) is not modelled | known gap | `document is not visible` | — |
+
+## Account switching
+
+| Rule | Kind | Anchor | fastcord |
+|---|---|---|---|
+| Up to 5 saved accounts (MultiAccountStore `users`, in the order added; CONNECTION_OPEN appends the user or refreshes its avatar and username); a 6th is dropped from the list (fastcord, whose Add an Account stops at 5, drops the oldest instead) | code | `persistKey="MultiAccountStore"`, `_.length>5&&_.splice(5)` | `accounts.jai` `accounts_set_token`, `accounts_frame` |
+| The account popout's Switch Accounts submenu: each saved account (24 px avatar, the username), the active one checked, a separator, Manage Accounts | code | `id:"manage-accounts"`, `getUserTag(s,{mode:"username"` | `accounts_menu` |
+| Opening the popout checks every saved account's token: `GET /users/@me` with that token in a lowercase `authorization` header, retries 3; the bodies don't change the current user | code | `validateMultiAccountTokens` (`MULTI_ACCOUNT_VALIDATE_TOKEN_REQUEST`), `useEffect(()=>{s.F6()},[])` | `users_me_refresh` |
+| A token that fails the check (401/403) shows a red mark and a click opens the login page; fastcord doesn't mark it, and a rejected token on switching drops it and shows the login page with Back to the next account | known gap | `MULTI_ACCOUNT_VALIDATE_TOKEN_FAILURE`, `tokenStatus===nN.U.INVALID` | `login_check_auth` |
+| Picking another account: `multi_account_switch_attempt {location: {section: "User Profile"}}`, then a local LOGOUT `{isSwitchingAccount: true}` (no `/auth/logout`, the token kept) and LOGIN_SUCCESS with the other token, which opens a new gateway session; fastcord drops the Discord client and starts one, so the new session's startup requests are a launch's rather than a login's | code + inferred | `MULTI_ACCOUNT_SWITCH_ATTEMPT`, `switchAccountToken(e){` | `account_switch`, `discord_restart` |
+| Manage Accounts' Log In: attempt section "Manage Accounts Modal", switch origin `multi_accounts_list` (the modal's chunk wasn't in the cache) | guess | `MANAGE_ACCOUNTS_MODAL="Manage Accounts Modal"` | `manage_accounts_modal` |
+| On the new session's READY: `multi_account_switch_success {from_user_id, to_user_id, actual_user_id, fast_connect_user_id: null, linked_user_ids, has_ever_connected, switch_origin}` (`_failure` when the same user came back); origin `multi_account_menu` from the popout | code | `MULTI_ACCOUNT_SWITCH_SUCCESS`, `switch_origin:A` | `accounts_frame`, `analytics_multi_account_switched` |
+| Manage Accounts opening: `impression_multi_account_switch_landing {impression_type: "modal", location_section: "impression_multi_account_switch_landing"}` | captured | fixture account_edits | `analytics_multi_account_landing` |
+| Manage Accounts' layout (rows with Active or Log In, and Log Out; Add an Account; "up to 5") is drawn from memory, not from the modal's code | guess | — | `manage_accounts_modal` |
+| Log Out of the active account from Manage Accounts brings up the next saved account once `/auth/logout` settles; Log Out of another one only forgets its token (no request) | guess | `MULTI_ACCOUNT_REMOVE_ACCOUNT` | `account_remove`, `accounts_logged_out` |
+| Add an Account opens the login page without logging the current account out; the login then switches to the new account (`switchAccountToken` after `isMultiAccount` logins). The page offers Back to the current account | code + guess (Back) | `isMultiAccount`, `switchAccountToken(e.body.token)` | `account_add`, `login_form` |
+| Settings' Log Out forgets only the active account; the login page then offers Back to the next saved one | guess | — | `account_logout` |
+| Hosted servers stay connected across switches (their identity is fastcord's key) | fastcord only | — | `discord_restart` |
 
 
 ## Layout: scrollbars, column borders, resizable columns

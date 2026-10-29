@@ -91,6 +91,7 @@ open_profile :: (uid: dc.Snowflake, anchor: ui.Rect, source := Profile_Source.Ot
 	app.profile_above = false;
 	app.profile_open_t = 0;
 	sm = .{};
+	accts.menu_open = false;
 	free(app.profile_webhook);
 	app.profile_webhook = copy_string(webhook_name);
 	if app.client == null || webhook_name { return; }
@@ -98,7 +99,7 @@ open_profile :: (uid: dc.Snowflake, anchor: ui.Rect, source := Profile_Source.Ot
 	case .Message_Author;
 		dc.profile_view_begin(app.client, .Popout, uid, app.view.guild, app.view.channel, message_id);
 	case .Account_Panel;
-		dc.open_account_popout(app.client); // its own profile fetch and follow-ups (fixture status_change)
+		dc.open_account_popout(app.client, account_tokens()); // its own profile fetch and follow-ups (fixture status_change)
 		return;
 	case .Other;
 	}
@@ -243,7 +244,10 @@ profile_popout :: () {
 				if blocks.count > 0 { ui.set_spans(bio, tokens_to_spans(blocks[0].tokens, .Normal, 14, null)); }
 			}
 			spacer(.Y, 16);
-			if uid == s.me { account_actions(); }
+			if uid == s.me {
+				account_actions();
+				if app.client == app.discord account_switch_group(); // accounts.jai: Discord accounts only
+			}
 			if uid != s.me && !hook {
 				mr := row("msgrow");
 				mr.semantic_size = .[ui.pct(1), ui.px(40)];
@@ -271,6 +275,7 @@ profile_popout :: () {
 		}
 	}
 	if uid == s.me && sm.open { status_menu(p); }
+	if uid == s.me && accts.menu_open accounts_menu(p);
 	if user_menu_open() return; // its own Escape and outside press close only the menu
 	for * e: app.ui.events {
 		if e.kind == .Key_Down && e.key == .Escape { app.profile_user = 0; e.consumed = true; }
@@ -313,7 +318,7 @@ account_actions :: () {
 		{ ui.parent(g); defer ui.pop_parent();
 			spacer(.Y, 4);
 			ep := menu_item("editprofile", "Edit Profile", lead = "pencil");
-			if ep.hovering sm.open = false;
+			if ep.hovering sm.open, accts.menu_open = false, false;
 			if ep.clicked {
 				// opens Settings > Profiles, like the client
 				app.profile_user = 0;
@@ -324,17 +329,17 @@ account_actions :: () {
 			st := ifx s.settings.status == .Offline then dc.Status.Online else s.settings.status; // before READY
 			ss := menu_item("setstatus", status_text(st), .Chevron, sub = status_until(s.settings.status_expires_ms), open = sm.open, lead_status = st, warn = st == .Invisible);
 			if ss.hovering || ss.clicked {
-				sm.open = true;
+				sm.open, accts.menu_open = true, false;
 				sm.row_y = ss.box.rect.y0;
 			}
 			menu_sep("s2");
 			custom := custom_status_line();
 			cs := menu_item("customstatus", ifx custom then custom else "Set Custom Status", lead = "emoji-people");
-			if cs.hovering sm.open = false;
+			if cs.hovering sm.open, accts.menu_open = false, false;
 			if cs.clicked custom_status_open();
 			if custom {
 				cl := menu_item("clearcustom", "Clear Custom Status", lead = "circle-x");
-				if cl.hovering sm.open = false;
+				if cl.hovering sm.open, accts.menu_open = false, false;
 				if cl.clicked set_my_custom_status("", .Dont_Clear);
 			}
 			spacer(.Y, 4);

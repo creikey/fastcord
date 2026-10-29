@@ -36,6 +36,42 @@ analytics_multi_account_remove :: (c: *Client) {
 	aw_track(c, "multi_account_account_remove", *w);
 }
 
+// impression_multi_account_switch_landing: the account switcher's Manage Accounts modal opened.
+analytics_multi_account_landing :: (c: *Client) {
+	w := aw_begin();
+	json_kstr(*w, "impression_type", "modal");
+	json_kstr(*w, "location_section", "impression_multi_account_switch_landing");
+	aw_track(c, "impression_multi_account_switch_landing", *w);
+}
+
+// multi_account_switch_attempt: an account picked in the switcher; section "User Profile" (the popout's
+// menu) or, guessed, "Manage Accounts Modal".
+analytics_multi_account_attempt :: (c: *Client, section: string) {
+	w := aw_begin();
+	json_key(*w, "location");
+	json_obj(*w);
+	json_kstr(*w, "section", section);
+	json_obj_end(*w);
+	aw_track(c, "multi_account_switch_attempt", *w);
+}
+
+// multi_account_switch_success (or _failure: the same user came back) on the new session's READY
+// (MultiAccountSwitchStore CONNECTION_OPEN). linked: the saved accounts in order.
+analytics_multi_account_switched :: (c: *Client, from: Snowflake, to: Snowflake, linked: []Snowflake, ever_connected: bool, origin: string) {
+	w := aw_begin();
+	json_ksnow(*w, "from_user_id", from);
+	json_ksnow(*w, "to_user_id", to);
+	json_ksnow(*w, "actual_user_id", c.store.me);
+	json_knull(*w, "fast_connect_user_id");
+	json_key(*w, "linked_user_ids");
+	json_arr(*w);
+	for linked json_snowflake(*w, it);
+	json_arr_end(*w);
+	json_kbool(*w, "has_ever_connected", ever_connected);
+	json_kstr(*w, "switch_origin", origin);
+	aw_track(c, ifx from != c.store.me then "multi_account_switch_success" else "multi_account_switch_failure", *w);
+}
+
 // hotspot_hidden: HotspotActionCreators.hideHotspot; VOICE_PANEL_INTRODUCTION
 // is hidden on every VOICE_CHANNEL_SELECT without a channel (a logout included).
 analytics_hotspot_hidden :: (c: *Client, location: string) {

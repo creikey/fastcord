@@ -41,6 +41,7 @@ voice :: #import "voice";
 #if OS == .WINDOWS libc :: #system_library "msvcrt"; else libc :: #system_library "libc";
 #if OS == .WINDOWS kernel32 :: #system_library "kernel32";
 #load "app_main.jai";
+#load "accounts.jai";
 #load "analytics_env.jai";
 #load "attachments.jai";
 #load "bench.jai";

@@ -108,6 +108,7 @@ login_events :: () {
 		case .Logged_Out;
 			login_reset();
 			app.needs_login = true;
+			accounts_logged_out();
 		}
 	}
 }
@@ -291,6 +292,7 @@ login_form_box :: () {
 }
 
 login_form :: () {
+	if accts.adding && accounts.count && link(tprint("← Back to %##back", account_name(accounts[max(accts.active, 0)]))) account_add_cancel();
 	centered("title", "Welcome back!", .Semibold, 24, 30, T("--text-strong"), 416);
 	spacer(.Y, 8);
 	centered("sub", "We're so excited to see you again!", .Normal, 16, 20, T("--text-muted"), 416);
@@ -837,7 +839,8 @@ login_check_auth :: () {
 	if app.discord == null || app.discord.store.connection != .Auth_Failed { return; }
 	client_release(app.discord);
 	app.client, app.discord = null, null;
-	file_delete(tprint("%/token", app_state_dir()));
+	accounts_drop(accts.active);
+	accts.adding = accounts.count > 0; // the login page offers going back to the next saved account
 	login_reset();
 	app.needs_login = true;
 	set_str(*lg.message, "Discord didn't accept the saved login. Log in again.");
@@ -915,18 +918,13 @@ zero_editor :: (ed: *ui.Editor) {
 }
 
 login_save_token :: (token: string) {
-	if token == "" || env_var("FASTCORD_TOKEN") != "" { return; }
-	dir := app_state_dir();
-	make_directory_if_it_does_not_exist(dir, recursive = true);
-	dc.write_file_atomic(tprint("%/token", dir), cast([]u8) token);
+	if token != "" accounts_set_token(token);
 }
 
 // A pasted token connects like a launch with a saved token: the logged-out
 // session (its QR socket) ends first.
 login_with_token :: (token: string) {
-	dir := app_state_dir();
-	make_directory_if_it_does_not_exist(dir, recursive = true);
-	if !dc.write_file_atomic(tprint("%/token", dir), cast([]u8) token) {
+	if !accounts_set_token(token) {
 		app.login_error = "Couldn't save the token.";
 		return;
 	}

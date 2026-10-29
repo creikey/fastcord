@@ -207,6 +207,19 @@ avatar_box :: (id: string, uid: dc.Snowflake, size: float32) -> *ui.Box {
 	return b;
 }
 
+// An avatar from a URL, for a user who isn't in the store (saved accounts); default: its color index.
+url_avatar_box :: (id: string, url: string, default: int, size: float32) -> *ui.Box {
+	b := ui.box(id, .Draw_Background);
+	b.semantic_size = .[ui.px(size), ui.px(size)];
+	b.style.radius = all4(size / 2);
+	d := New(Avatar_Draw,, temp);
+	d.url, d.default = url, default;
+	image_get(url);
+	b.custom_draw = avatar_draw;
+	b.custom_user = d;
+	return b;
+}
+
 // Avatar with the status dot cut out of the bottom-right, ringed in the surface color.
 avatar_with_status :: (id: string, uid: dc.Snowflake, size: float32, surface: ui.Color) -> *ui.Box {
 	b := avatar_box(id, uid, size);

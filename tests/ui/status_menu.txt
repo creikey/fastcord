@@ -6,7 +6,7 @@ developer_mode
 wait 5
 click 112 683
 wait 20
-click 282 368
+click 282 274
 wait 10
 expect_profile_open
 expect_visible "Copy User ID"
