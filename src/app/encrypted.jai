@@ -98,6 +98,9 @@ shown_text :: (id: dc.Snowflake, channel_id: dc.Snowflake, content: string) -> s
 
 encrypted_dm :: (ch: *dc.Channel) -> bool { return ch && ch.kind == .DM && ch.recipient_ids.count == 1 && app.client == app.discord; }
 
+// encrypting: what the composer sends in this channel goes encrypted.
+encrypting :: (ch: *dc.Channel) -> bool { return encrypted_dm(ch) && encrypted_channel(ch.id).encrypted; }
+
 // encrypted_channel loads the DM's encryption state once; until then it reports encryption off.
 encrypted_channel :: (id: dc.Snowflake) -> Encrypted_Channel {
 	ch := find_or_add(*ee.channels, id);

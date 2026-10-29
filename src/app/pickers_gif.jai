@@ -426,12 +426,18 @@ gif_results :: (list: *ui.Box, view: ui.Rect, cols: int, col_w: float32) {
 	}
 }
 
+#scope_export
+
 // The client's onSelectGIF (chunk "n_"): shift-click inserts the url into the
 // composer, otherwise the url is sent as its own message; then POST /gifs/select,
 // close the picker and refocus the composer.
 gif_select :: (it: Gif_Item, insert: bool) {
 	if insert {
 		ui.editor_insert(*chat_state(pk.channel).editor, it.url);
+	} else if encrypting(dc.channel_get(store(), pk.channel)) {
+		toast_show("GIFs can't be sent encrypted yet.", false);
+		picker_close();
+		return;
 	} else if app.client != null && it.url != "" {
 		dc.send_message(app.client, pk.channel, it.url);
 		chat_state(pk.channel).scroll_target = 0;
@@ -439,6 +445,8 @@ gif_select :: (it: Gif_Item, insert: bool) {
 	if app.client != null dc.gif_select(app.client, it.id, gv.result_query);
 	picker_close();
 }
+
+#scope_file
 
 Cover_Draw :: struct {
 	url: string;

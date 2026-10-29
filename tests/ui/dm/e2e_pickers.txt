@@ -1,0 +1,17 @@
+# E2E: in an encrypted DM the GIF and sticker pickers send nothing in the clear; they say so instead.
+open 1800000000000000002
+wait 10
+encrypted
+wait 10
+click 883 683
+wait 20
+pick sticker 749054660769218631
+expect_drawn "Stickers can't be sent encrypted yet."
+wait 2
+click 843 683
+wait 20
+pick gif https://tenor.com/view/cat-12345
+expect_drawn "GIFs can't be sent encrypted yet."
+wait 10
+expect_not_visible "https://tenor.com/view/cat-12345"
+shot build/ui-dm_e2e_pickers-toast.png

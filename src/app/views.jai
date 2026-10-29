@@ -651,7 +651,7 @@ chat_header :: (ch: *dc.Channel) {
 		tools: []string = string.["thread", "bell", "pin", "group"];
 		if ch.guild_id == 0 { tools = .["phone-call", "pin", "group-plus", "user-circle"]; }
 		if ch.kind == .Group_DM { tools = .["phone-call", "pin", "group-plus", "group"]; } // member list toggle
-		encrypted := encrypted_dm(ch) && encrypted_channel(ch.id).encrypted;
+		encrypted := encrypting(ch);
 		if encrypted_dm(ch) { tools = .["lock", "phone-call", "pin", "group-plus", "user-circle"]; }
 		for name: tools {
 			b := ui.box(name, .Clickable);

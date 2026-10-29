@@ -425,7 +425,7 @@ composer_send :: (ch: *dc.Channel, text: string) -> bool {
 	atts, ready := attachments_for_send(ch.id);
 	if !ready { return false; } // a file is still being read
 	if text == "" && !atts return false;
-	if encrypted_dm(ch) && encrypted_channel(ch.id).encrypted {
+	if encrypting(ch) {
 		if !encrypted_send(ch, text, atts.count > 0) return false;
 		ma.replying = 0;
 		return true;

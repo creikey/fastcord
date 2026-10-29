@@ -610,6 +610,16 @@ script_command :: (path: string, f: []string, t: *float64) {
 	case "login_state";
 		// the login page in a given state, without a server (view_login.jai login_test_state)
 		if !login_test_state(f[1]) script_fail(path, "login_state: unknown state \"%\"", f[1]);
+	case "encrypted";
+		// encrypted: the open DM has a session and encryption on, as after both sides accepted
+		e := find_or_add(*ee.channels, app.view.channel);
+		e.loaded, e.encrypted, e.has_session = true, true, true;
+		return;
+	case "pick";
+		// pick gif <url> | pick sticker <id>: choose one in the open picker, as a click on it does
+		if f[1] == "gif" gif_select(.{id = "1", url = f[2]}, false);
+		else sticker_select(.{id = dc.parse_snowflake(f[2])}, false);
+		return;
 	case "open_url";
 		// open_url <url>: what a click on a link to <url> does
 		open_url(f[1]);

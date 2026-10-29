@@ -406,13 +406,17 @@ sticker_inspector :: (secs: []St_Section) {
 	if from != "" label(tprint("from %", from), .Normal, 12, T("--interactive-text-default"), 16);
 }
 
+#scope_export
+
 // The client's onSelectSticker: an empty composer sends the sticker right away
 // ({content:"", sticker_ids:[id]}); the picker closes and the composer refocuses.
 // (With text in the composer the client stages a sticker preview instead; we send.)
 sticker_select :: (item: Pk_Sticker, keep_open: bool) {
 	if item.locked return;
 	frec_use(*frecency.sticker, tprint("%", item.id));
-	if app.client != null {
+	if encrypting(dc.channel_get(store(), pk.channel)) {
+		toast_show("Stickers can't be sent encrypted yet.", false);
+	} else if app.client != null {
 		ids := NewArray(1, dc.Snowflake,, temp);
 		ids[0] = item.id;
 		dc.send_message(app.client, pk.channel, "", .{sticker_ids = ids});
@@ -420,6 +424,8 @@ sticker_select :: (item: Pk_Sticker, keep_open: bool) {
 	}
 	picker_close();
 }
+
+#scope_file
 
 Sticker_Draw :: struct {
 	url: string;
