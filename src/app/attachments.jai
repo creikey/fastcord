@@ -228,7 +228,7 @@ staged_count :: (channel_id: dc.Snowflake) -> int {
 
 // Files from the picker, a drop or a paste: one loading card each, read on a worker.
 stage_paths :: (channel_id: dc.Snowflake, paths: []string, origin: string) {
-	if channel_id == 0 || !paths return;
+	if channel_id == 0 || !paths || !attach_allowed(channel_id) return;
 	l := staged_list(channel_id);
 	if too_many_files(l.count, paths.count) {
 		att.notice = .Too_Many;
@@ -248,6 +248,7 @@ stage_paths :: (channel_id: dc.Snowflake, paths: []string, origin: string) {
 // otherwise the text field pastes text.
 paste_attachments :: (channel_id: dc.Snowflake) -> bool {
 	kind := platform.clipboard_kind();
+	if (kind == .Files || kind == .Image) && !attach_allowed(channel_id) return true; // taken, staging nothing
 	if kind == {
 	case .Files;
 		att_spawn(.{kind = .Paste_Files, channel = channel_id});

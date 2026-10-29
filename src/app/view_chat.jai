@@ -2224,6 +2224,28 @@ utf16_length :: (s: string) -> int {
 }
 
 composer :: (ch: *dc.Channel, cs: *Chat_State) {
+	blocked := composer_blocked(ch);
+	if blocked {
+		// the form's frame with the reason in place of the text area, and no buttons
+		outer := row("composer_outer");
+		outer.semantic_size = .[ui.pct(1), ui.children()];
+		{ ui.parent(outer); defer ui.pop_parent();
+			spacer(.X, 8);
+			b := row("composer_blocked", .Draw_Background | .Draw_Border);
+			b.semantic_size = .[ui.fill(), ui.px(COMPOSER_H + 2)];
+			b.style.bg = with_alpha(T("--chat-background-default"), 0.5);
+			b.style.border_color = T("--border-subtle");
+			b.style.border = 1;
+			b.style.radius = all4(8);
+			{ ui.parent(b); defer ui.pop_parent();
+				spacer(.X, 16);
+				label(blocked, .Normal, 16, T("--text-muted"), MSG_LINE_H);
+			}
+			spacer(.X, 8);
+		}
+		spacer(.Y, 8);
+		return;
+	}
 	s := store();
 	outer := row("composer_outer");
 	outer.semantic_size = .[ui.pct(1), ui.children()];
@@ -2390,9 +2412,29 @@ composer :: (ch: *dc.Channel, cs: *Chat_State) {
 // The composer's "+" menu: Upload a File, Create Thread, Create Poll, each where it's allowed.
 plus_menu: struct { channel: dc.Snowflake; anchor: ui.Rect; };
 
-// Files need Attach Files in a server.
+// Why the composer can't send here, or "" when it can: Send Messages (in a thread, Send Messages in Threads),
+// and a locked thread needs Manage Threads. A server whose roles haven't arrived blocks nothing.
+composer_blocked :: (ch: *dc.Channel) -> string {
+	g := dc.guild_get(store(), ch.guild_id);
+	if !g || !g.roles.count return "";
+	perms := dc.channel_permissions(store(), ch.id);
+	if dc.is_thread(ch) {
+		tm := dc.thread_meta(ch.id);
+		if tm && tm.locked && !(perms & dc.PERM_MANAGE_THREADS) return "This thread is locked.";
+		if !(perms & dc.PERM_SEND_MESSAGES_IN_THREADS) return "You do not have permission to send messages in this channel.";
+	} else if !(perms & dc.PERM_SEND_MESSAGES) return "You do not have permission to send messages in this channel.";
+	return "";
+}
+
+// Files need Attach Files in a server (unknown until its roles arrive), and a composer that can send.
 can_attach :: (ch: *dc.Channel) -> bool {
-	return ch.guild_id == 0 || dc.has_permission(dc.channel_permissions(store(), ch.id), dc.PERM_ATTACH_FILES);
+	g := dc.guild_get(store(), ch.guild_id);
+	return composer_blocked(ch) == "" && (!g || !g.roles.count || dc.has_permission(dc.channel_permissions(store(), ch.id), dc.PERM_ATTACH_FILES));
+}
+
+attach_allowed :: (channel_id: dc.Snowflake) -> bool {
+	ch := dc.channel_get(store(), channel_id);
+	return !ch || can_attach(ch);
 }
 
 composer_plus_menu :: () {

@@ -38,6 +38,7 @@ PERM_REQUEST_TO_SPEAK :: (cast(u64) 1) << 32;
 PERM_MANAGE_EVENTS :: (cast(u64) 1) << 33;
 PERM_MANAGE_THREADS :: (cast(u64) 1) << 34;
 PERM_CREATE_PUBLIC_THREADS :: (cast(u64) 1) << 35;
+PERM_SEND_MESSAGES_IN_THREADS :: (cast(u64) 1) << 38;
 PERM_CREATE_GUILD_EXPRESSIONS :: (cast(u64) 1) << 43;
 PERM_CREATE_EVENTS :: (cast(u64) 1) << 44;
 PERM_SEND_POLLS :: (cast(u64) 1) << 49;

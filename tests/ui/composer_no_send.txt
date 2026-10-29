@@ -1,0 +1,7 @@
+# Without Send Messages (the fixture's @everyone lacks it and we don't own the server) the composer shows
+# why in place of its text area, with no buttons, and typing sends nothing.
+wait 5
+expect_visible "You do not have permission to send messages in this channel."
+expect_not_visible "Message #dingus-battle"
+type hello
+key enter
