@@ -395,6 +395,17 @@ encrypted_view :: (m: *dc.Message) -> *dc.Message {
 	return v;
 }
 
+// encrypted_reactors: who has an encrypted reaction with emoji on the message (temp), oldest first.
+encrypted_reactors :: (id: dc.Snowflake, e: dc.Emoji) -> []dc.Snowflake {
+	list := table_find_pointer(*ee.reactions, id);
+	if !list return .[];
+	out: [..]dc.Snowflake;
+	out.allocator = temp;
+	emoji := ifx e.id then tprint("%:%", e.name, e.id) else e.name;
+	for list.* if it.on && it.emoji == emoji array_add(*out, it.user);
+	return out;
+}
+
 // encrypted_react sends a reaction in an encrypted DM as a packet of its own (true: taken). toggle takes
 // back ours.
 encrypted_react :: (m: *dc.Message, e: dc.Emoji, toggle: bool) -> bool {

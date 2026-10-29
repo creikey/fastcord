@@ -43,6 +43,9 @@ move 600 600
 settle 1
 click 763 552
 settle 4
+move 466 602
+wait 40
+shot build/ui-hosted_dm_file-reactors.png
 move 600 640
 settle 1
 shot build/ui-hosted_dm_file.png

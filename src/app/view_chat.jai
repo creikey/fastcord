@@ -2643,11 +2643,16 @@ reactors_tooltip :: (m: *dc.Message, re: *dc.Reaction, burst: bool, count: int, 
 		app.ui.animating = true;
 		return;
 	}
-	reactors_want(m.channel_id, m.id, re.emoji, burst);
-	if !reactors.loaded || !reactors.users return;
-	shown := min(reactors.users.count, 3);
+	// Encrypted reactions are known here only: Discord never saw them.
+	users := encrypted_reactors(m.id, re.emoji);
+	if !users {
+		reactors_want(m.channel_id, m.id, re.emoji, burst);
+		if !reactors.loaded || !reactors.users return;
+		users = reactors.users;
+	}
+	shown := min(users.count, 3);
 	names: [3]string;
-	for i: 0..shown - 1 names[i] = name_in(reactors.users[i], m.channel_id);
+	for i: 0..shown - 1 names[i] = name_in(users[i], m.channel_id);
 	who_text: string;
 	if count > shown {
 		k := count - shown;
