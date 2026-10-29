@@ -45,7 +45,24 @@ notification_center :: () -> Id {
         bundle := msg(Id, cls("NSBundle"), "mainBundle");
         ident := ifx bundle then msg(Id, bundle, "bundleIdentifier") else null;
         notify.available = ident != null && cls("UNUserNotificationCenter") != null;
+        if notify.available {
+            // A delegate, so a click reports the notification's id (Notification_Click).
+            d := objc.allocate_class(cls("NSObject"), "FCNotificationDelegate");
+            objc.add_method(d, "userNotificationCenter:didReceiveNotificationResponse:withCompletionHandler:", cast(*void) notification_clicked, "v@:@@@");
+            objc.register_class(d);
+            msg(Void, msg(Id, cls("UNUserNotificationCenter"), "currentNotificationCenter"), "setDelegate:", objc.new_obj("FCNotificationDelegate"));
+        }
     }
     if !notify.available return null;
     return msg(Id, cls("UNUserNotificationCenter"), "currentNotificationCenter");
 }
+
+notification_clicked :: (self: Id, cmd: SEL, center: Id, response: Id, done: *Block) #c_call {
+    c := s.ctx; push_context,defer_pop c;
+    id := msg(Id, msg(Id, msg(Id, response, "notification"), "request"), "identifier");
+    push_event(.{kind = .Notification_Click, text = to_jai_string(id, temp), time = time_now()});
+    request_frame();
+    if done done.invoke(done); // the completion handler must run
+}
+
+Block :: struct { isa: *void; flags, reserved: s32; invoke: (b: *Block) #c_call; } // a void(^)(void) block

@@ -103,10 +103,12 @@ save_file_dialog :: (name: string, allocator := context.allocator) -> string {
 }
 
 // A notification through the tray icon's balloon, which Windows 10 and 11 show as a toast (Action Center,
-// Focus Assist) with no AppUserModelID or Start menu shortcut. Clicking it opens the window. Each one replaces
-// the last, so `id` is unused. The app plays the notification sound itself.
+// Focus Assist) with no AppUserModelID or Start menu shortcut. Each one replaces the last, so a click on it
+// (NIN_BALLOONUSERCLICK) opens the window and reports the latest id. The app plays the notification sound.
 notify_show :: (title: string, body: string, id: string) -> bool {
     if s.headless || !w.tray return false;
+    free(w.balloon_id);
+    w.balloon_id = copy_string(id);
     nid := NOTIFYICONDATAW.{cbSize = size_of(NOTIFYICONDATAW), hWnd = w.hwnd, uID = 1, uFlags = NIF_INFO};
     nid.dwInfoFlags = NIIF_USER | NIIF_LARGE_ICON | NIIF_NOSOUND;
     nid.hBalloonIcon = w.big_icon;
@@ -727,6 +729,7 @@ w: struct {
     class_name: string; // set by instance_claim: names the <state>
     fullscreen: bool;
     before_fullscreen: WINDOWPLACEMENT;
+    balloon_id: string; // the latest notification's id (heap)
     instance: win.HINSTANCE;
     frame_wait: *void; // swap chain frame-latency waitable (set by gfx)
     frame_ready: bool; // os_wait already took this frame's signal from frame_wait
@@ -1180,6 +1183,7 @@ wndproc :: (hwnd: win.HWND, msg: u32, wp: win.WPARAM, lp: win.LPARAM) -> win.LRE
         case WM_FC_TRAY;
             ev := lp & 0xffff;
             if ev == win.WM_LBUTTONUP || ev == NIN_BALLOONUSERCLICK window_show();
+            if ev == NIN_BALLOONUSERCLICK push_event(.{kind = .Notification_Click, text = w.balloon_id, time = time_now()});
             else if ev == win.WM_RBUTTONUP tray_menu();
             return 0;
         case win.WM_QUERYENDSESSION;
