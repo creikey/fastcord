@@ -1,0 +1,19 @@
+# Settings > Profiles: Change Avatar, no Profile Banner without Nitro, Banner Color from the "#rrggbb"
+# field (the preview's banner follows, the unsaved-changes bar shows, Reset drops it).
+wait 5
+click 338 683
+wait 20
+click_text "Edit Profiles"
+wait 20
+expect_visible "Change Avatar"
+expect_visible "Banner Color"
+expect_not_visible "Profile Banner"
+click_text "#rrggbb"
+wait 3
+type e91e63
+wait 10
+expect_visible "Careful — you have unsaved changes!"
+shot build/ui-settings_profiles_color.png
+click_text "Reset"
+wait 10
+expect_not_visible "Careful — you have unsaved changes!"

@@ -1,6 +1,6 @@
 // Settings > My Account (user card, display name / username edits, masked email
-// and phone, Log Out) and Settings > Profiles (display name, pronouns, About Me
-// with a live preview and the client's unsaved-changes bar). Requests go out
+// and phone, Log Out) and Settings > Profiles (display name, pronouns, avatar, banner,
+// banner colour, About Me with a live preview and the client's unsaved-changes bar). Requests go out
 // through dc.update_* and come back in account_receive (features_receive).
 
 #scope_file
@@ -27,6 +27,8 @@ acct: struct {
 	base_name: string; // heap: the saved values the editors started from
 	base_pronouns: string;
 	base_bio: string;
+	pf_accent: s64 = dc.ACCENT_UNCHANGED; // Banner Color picked and not saved yet (-1: back to the default)
+	pf_hex: ui.Editor; // its "#rrggbb" field
 	pf_pending: int;
 	pf_error: string; // heap
 };
@@ -37,7 +39,8 @@ PROFILE_PRONOUNS_MAX :: 40;
 PROFILE_BIO_MAX :: 190;
 
 account_reset_for_test :: () {
-	for e: (*ui.Editor.[*acct.name_ed, *acct.user_ed, *acct.pass_ed, *acct.pf_name, *acct.pf_pronouns, *acct.pf_bio]) { ui.editor_set_text(e, ""); }
+	for e: (*ui.Editor.[*acct.name_ed, *acct.user_ed, *acct.pass_ed, *acct.pf_name, *acct.pf_pronouns, *acct.pf_bio, *acct.pf_hex]) { ui.editor_set_text(e, ""); }
+	acct.pf_accent = dc.ACCENT_UNCHANGED;
 	for (*string).[*acct.error, *acct.pf_error, *acct.base_name, *acct.base_pronouns, *acct.base_bio] { free(it.*); it.* = ""; }
 	acct.editing = .None;
 	acct.reveal_email, acct.reveal_phone, acct.pending, acct.logout_confirm = false, false, false, false;
@@ -57,8 +60,13 @@ account_receive :: (r: *dc.Feature_Result) {
 		// a username change rotates the token: keep the new one for the next start
 		dc.write_file_atomic(tprint("%/token", app_state_dir()), cast([]u8) tok);
 	}
-	if r.op == .Profile_Patch || r.tag == cast(u64)(dc.User_Patch_Tag.Profile_Name) {
+	if r.op == .Banner_Edit {
+		if r.status == -1 err = "That file couldn't be read. Banners must be PNG, JPEG, GIF or WEBP images.";
+		if r.status == -2 err = "That image is too large. Banners must be under 10 MB.";
+		set_error(*acct.pf_error, err);
+	} else if r.op == .Profile_Patch || r.tag == cast(u64)(dc.User_Patch_Tag.Profile_Name) {
 		acct.pf_pending = max(acct.pf_pending - 1, 0);
+		if r.op == .Profile_Patch && r.ok acct.pf_accent = dc.ACCENT_UNCHANGED;
 		set_error(*acct.pf_error, err);
 	} else {
 		acct.pending = false;
@@ -374,7 +382,93 @@ pf_follow :: (ed: *ui.Editor, base: *string, cur: string) {
 }
 
 pf_dirty :: () -> bool {
-	return ui.editor_text(*acct.pf_name) != acct.base_name || ui.editor_text(*acct.pf_pronouns) != acct.base_pronouns || ui.editor_text(*acct.pf_bio) != acct.base_bio;
+	return ui.editor_text(*acct.pf_name) != acct.base_name || ui.editor_text(*acct.pf_pronouns) != acct.base_pronouns || ui.editor_text(*acct.pf_bio) != acct.base_bio || acct.pf_accent != dc.ACCENT_UNCHANGED;
+}
+
+// The banner colour the preview shows: the picked one, else the saved one (or the avatar's).
+pf_banner_color :: () -> ui.Color {
+	if acct.pf_accent >= 0 return rgb_u32(cast(u32) acct.pf_accent);
+	if acct.pf_accent == -1 return profile_banner_color_default();
+	return profile_banner_color(store().me);
+}
+
+// Change / Remove buttons for the avatar or banner image (sent at once, like the client's upload).
+pf_image_row :: (id: string, what: string, has: bool, change: (path: string)) {
+	r := row(id);
+	r.semantic_size = .[ui.pct(1), ui.px(32)];
+	ui.parent(r); defer ui.pop_parent();
+	if set_button(tprint("Change %##change", what), .Primary, true, 32) {
+		paths := pick_files();
+		if paths.count && net_action() change(paths[0]);
+	}
+	if has {
+		spacer(.X, 8);
+		if set_button(tprint("Remove %##remove", what), .Link, true, 32) && net_action() change("");
+	}
+}
+
+// Banner Color: the avatar's colour (Default), the role palette, or any "#rrggbb".
+pf_color_picker :: (u: *dc.User) {
+	cur := ifx acct.pf_accent != dc.ACCENT_UNCHANGED then acct.pf_accent else ifx u != null && u.has_accent_color then cast(s64) u.accent_color else -1;
+	grid := row("bannercolors");
+	grid.semantic_size = .[ui.pct(1), ui.children()];
+	grid.cross_align = .Start;
+	ui.parent(grid); defer ui.pop_parent();
+	pick := ACCENT_NONE;
+	def := ui.box("def", .Clickable | .Draw_Background | .Draw_Border);
+	def.semantic_size = .[ui.px(66), ui.px(50)];
+	def.style.radius = all4(4);
+	def.style.bg = profile_banner_color_default();
+	def.style.border = ifx cur == -1 then 3.0 else 0;
+	def.style.border_color = T("--text-strong");
+	def.hover_cursor = .Pointer;
+	if ui.signal(def).clicked pick = -1;
+	spacer(.X, 12);
+	col := ui.box("sw");
+	col.semantic_size = .[ui.children(), ui.children()];
+	col.layout_axis = .Y;
+	{ ui.parent(col); defer ui.pop_parent();
+		for line: 0..1 {
+			lr := row(tprint("l%", line));
+			lr.semantic_size = .[ui.children(), ui.px(28)];
+			lr.style.child_gap = 8;
+			ui.parent(lr); defer ui.pop_parent();
+			for k: 0..9 {
+				c := ROLE_COLORS[line * 10 + k];
+				sw := ui.box(tprint("s%", k), .Clickable | .Draw_Background | .Draw_Border);
+				sw.semantic_size = .[ui.px(20), ui.px(20)];
+				sw.style.radius = all4(4);
+				sw.style.bg = rgb_u32(c);
+				sw.style.border = ifx cur == c then 2.0 else 0;
+				sw.style.border_color = T("--text-strong");
+				sw.hover_cursor = .Pointer;
+				if ui.signal(sw).clicked pick = c;
+			}
+		}
+	}
+	spacer(.X, 16);
+	hx := ui.box("hex");
+	hx.semantic_size = .[ui.px(120), ui.children()];
+	{ ui.parent(hx); defer ui.pop_parent();
+		res := set_input("hexin", *acct.pf_hex, ifx cur >= 0 then tprint("#%", formatInt(cur, base = 16, minimum_digits = 6)) else "#rrggbb", max_runes = 7);
+		if res == .Changed || res == .Submit {
+			t := trim(ui.editor_text(*acct.pf_hex));
+			if begins_with(t, "#") advance(*t);
+			v, ok, rest := string_to_int(t, 16, s64);
+			if ok && t.count == 6 && rest.count == 0 pick = v;
+		}
+	}
+	if pick == ACCENT_NONE return;
+	saved := ifx u != null && u.has_accent_color then cast(s64) u.accent_color else -1;
+	acct.pf_accent = ifx pick == saved then dc.ACCENT_UNCHANGED else pick;
+}
+ACCENT_NONE :: -3; // nothing picked this frame
+
+// The banner's colour with no Banner Color set: the avatar's dominant colour.
+profile_banner_color_default :: () -> ui.Color {
+	im := image_get(avatar_url_for(store().me, 80));
+	if im != null && im.state == .Ready && im.dominant.w > 0 return im.dominant;
+	return T("--background-brand");
 }
 #scope_export
 
@@ -408,6 +502,20 @@ profiles_page :: () {
 				label("Pronouns", .Semibold, 16, T("--text-strong"), 20);
 				spacer(.Y, 8);
 				set_input("pronouns", *acct.pf_pronouns, "Add your pronouns", max_runes = PROFILE_PRONOUNS_MAX);
+				set_divider();
+				label("Avatar", .Semibold, 16, T("--text-strong"), 20);
+				spacer(.Y, 8);
+				pf_image_row("avatar", "Avatar", u != null && u.avatar != "", (path: string) { dc.edit_my_avatar(app.client, path); });
+				set_divider();
+				if u != null && u.premium_type == 2 { // a custom banner is Nitro's: hidden otherwise, never offered
+					label("Profile Banner", .Semibold, 16, T("--text-strong"), 20);
+					spacer(.Y, 8);
+					pf_image_row("banner", "Banner", u.banner != "", (path: string) { dc.edit_my_banner(app.client, path); });
+					set_divider();
+				}
+				label("Banner Color", .Semibold, 16, T("--text-strong"), 20);
+				spacer(.Y, 8);
+				pf_color_picker(u);
 				set_divider();
 				label("About Me", .Semibold, 16, T("--text-strong"), 20);
 				spacer(.Y, 4);
@@ -458,7 +566,7 @@ profile_preview_card :: (u: *dc.User) {
 	defer ui.pop_parent();
 	banner := ui.box("banner", .Draw_Background);
 	banner.semantic_size = .[ui.pct(1), ui.px(90)];
-	banner.style.bg = profile_banner_color(s.me);
+	banner.style.bg = pf_banner_color();
 	if u != null && u.banner != "" { set_remote_image(banner, dc.banner_url(s.me, u.banner, 600)); }
 	avr := ui.box("avrow");
 	avr.semantic_size = .[ui.pct(1), ui.px(40)];
@@ -519,6 +627,8 @@ profile_save_bar :: () {
 		ui.editor_set_text(*acct.pf_name, acct.base_name);
 		ui.editor_set_text(*acct.pf_pronouns, acct.base_pronouns);
 		ui.editor_set_text(*acct.pf_bio, acct.base_bio);
+		ui.editor_set_text(*acct.pf_hex, "");
+		acct.pf_accent = dc.ACCENT_UNCHANGED;
 		set_error(*acct.pf_error, "");
 	}
 	spacer(.X, 8);
@@ -529,8 +639,8 @@ profile_save_bar :: () {
 			dc.update_global_name(app.client, name, .Profile_Name);
 			acct.pf_pending += 1;
 		}
-		if ui.editor_text(*acct.pf_pronouns) != acct.base_pronouns || ui.editor_text(*acct.pf_bio) != acct.base_bio {
-			dc.update_profile(app.client, ui.editor_text(*acct.pf_pronouns), ui.editor_text(*acct.pf_bio));
+		if ui.editor_text(*acct.pf_pronouns) != acct.base_pronouns || ui.editor_text(*acct.pf_bio) != acct.base_bio || acct.pf_accent != dc.ACCENT_UNCHANGED {
+			dc.update_profile(app.client, ui.editor_text(*acct.pf_pronouns), ui.editor_text(*acct.pf_bio), acct.pf_accent);
 			acct.pf_pending += 1;
 		}
 	}

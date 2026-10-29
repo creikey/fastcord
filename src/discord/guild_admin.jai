@@ -587,15 +587,23 @@ edit_guild_name :: (c: *Client, guild_id: Snowflake, name: string) {
 	feature_submit(c, .Guild_Edit, "PATCH", tprint("/guilds/%", guild_id), json_string(*w), channel_id = guild_id);
 }
 
-// PATCH /users/@me {"avatar": data URI} from an image file, or null for "". Only hosted servers offer it:
-// Discord's needs its own profile editor.
+// PATCH /users/@me {"avatar": data URI} from an image file, or null for "" (Profiles > Change Avatar;
+// the client crops it to a square first, fastcord sends the file as it is).
 edit_my_avatar :: (c: *Client, path: string) {
 	if path feature_submit(c, .Avatar_Edit, "PATCH", "/users/@me", file = path);
 	else feature_submit(c, .Avatar_Edit, "PATCH", "/users/@me", "{\"avatar\":null}");
 }
 
+// PATCH /users/%40me/profile {"banner": data URI} (Nitro), or null for "".
+edit_my_banner :: (c: *Client, path: string) {
+	if path feature_submit(c, .Banner_Edit, "PATCH", "/users/%40me/profile", file = path);
+	else feature_submit(c, .Banner_Edit, "PATCH", "/users/%40me/profile", "{\"banner\":null}");
+}
+
 // The serve's caps (`ICON_MAX_BYTES`, `AVATAR_MAX_BYTES`), which keep the base64 body under its 1 MiB request limit.
 HOSTED_ICON_MAX_BYTES :: 512 * 1024;
+DISCORD_IMAGE_MAX_BYTES :: 10 * 1024 * 1024; // Discord's avatar, banner and icon uploads
+image_max_bytes :: (hosted: bool) -> int { return ifx hosted then HOSTED_ICON_MAX_BYTES else DISCORD_IMAGE_MAX_BYTES; }
 
 // PATCH /guilds/{id} {"icon": data URI} from an image file (read off the UI thread), or "" to remove it.
 edit_guild_icon :: (c: *Client, guild_id: Snowflake, path: string) {
@@ -718,7 +726,7 @@ image_mime :: (path: string) -> string {
 // file_job_body (feature worker thread): reads the image at path and builds
 // {"image":"data:<mime>;base64,..","name":<name>} plus X-Discord-Original-MD5, all in temp.
 // status: 0 ok, -1 unreadable / not an image, -2 over EMOJI_MAX_BYTES.
-file_job_body :: (path: string, name: string, op: Feature_Op) -> string, []http.Header, int {
+file_job_body :: (path: string, name: string, op: Feature_Op, hosted: bool) -> string, []http.Header, int {
 	if op == .Sticker_Upload {
 		b, h, st := sticker_job_body(path, name); // server_settings.jai
 		return b, h, st;
@@ -736,12 +744,12 @@ file_job_body :: (path: string, name: string, op: Feature_Op) -> string, []http.
 	if !mime return "", .[], -1;
 	data, ok := read_entire_file(path, log_errors = false,, temp);
 	if !ok || !data return "", .[], -1;
-	if op == .Guild_Edit || op == .Avatar_Edit {
-		if data.count > HOSTED_ICON_MAX_BYTES return "", .[], -2;
+	if op == .Guild_Edit || op == .Avatar_Edit || op == .Banner_Edit {
+		if data.count > image_max_bytes(hosted) return "", .[], -2;
 		w: Json;
 		json_init(*w);
 		json_obj(*w);
-		json_kstr(*w, ifx op == .Avatar_Edit then "avatar" else "icon", tprint("data:%;base64,%", mime, base64_encode(data,, temp)));
+		json_kstr(*w, ifx op == .Avatar_Edit then "avatar" else ifx op == .Banner_Edit then "banner" else "icon", tprint("data:%;base64,%", mime, base64_encode(data,, temp)));
 		json_obj_end(*w);
 		return json_string(*w), .[], 0;
 	}

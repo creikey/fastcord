@@ -543,6 +543,7 @@ Feature_Op :: enum u8 {
 	Thread_Create;
 	User_Patch; // account.jai
 	Profile_Patch;
+	Banner_Edit; // PATCH /users/%40me/profile {"banner"} from an image file
 	// guild_admin.jai (guild_admin_apply first)
 	Event_Create;
 	Event_Counts;
@@ -640,7 +641,7 @@ f_worker :: (_: *void) {
 		if !j.client.quit {
 			body, file_status := j.body, 0;
 			extra: []http.Header;
-			if j.file body, extra, file_status = file_job_body(j.file, j.body, j.op);
+			if j.file body, extra, file_status = file_job_body(j.file, j.body, j.op, j.client.cfg.hosted.host != "");
 			if j.reason {
 				with := NewArray(extra.count + 1, http.Header,, temp);
 				for extra with[it_index] = it;

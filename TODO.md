@@ -337,7 +337,8 @@
 - [ ] Profiles: the popout shows no roles, with no add/remove role.
 - [ ] Undo: Leave Server, Delete Channel / Category / Thread and Cancel Event (confirm modals today).
 - [ ] System messages: a call message offers no "Join the call" while the call is still going and you aren't in it.
-- [ ] Settings: Profiles can't change avatar, banner or banner colour; no per-server profiles.
+- [ ] Settings: no per-server profiles (the client's Per-server Profiles tab: nickname, avatar, banner, About Me and pronouns for one server, `PATCH /guilds/{id}/profile/@me`).
+  - Done: Profiles changes the avatar (Change / Remove Avatar), the banner (Nitro accounts only) and the Banner Color (palette or `#rrggbb`, with the preview), `tests/ui/settings_profiles.txt`.
 - [ ] Profiles: server tags never show. Each user's `primary_guild` (`tag`, `badge`, `identity_guild_id`, `identity_enabled`) is dropped; only `tool_scrub` knows the key. So the tag and badge the official client puts after names in chat, the member list and profiles are missing, and Settings > Profiles can't pick your own. The captures hold only an account without one (`"tag": null`), so first capture one that has a tag, with its badge image request, and record the rules in `traffic/CLIENT_RULES.md`.
 - [ ] Status: the Set a custom status modal has no emoji picker, and Clear after is a row of pills where the official has a dropdown (`custom_status.jai`).
 - [ ] Undo: clicking your own reaction removes it at once (`react()` toggle); hold the DELETE so a second click within a few seconds cancels it with nothing sent.

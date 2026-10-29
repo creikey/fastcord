@@ -76,13 +76,17 @@ update_username :: (c: *Client, username: string, password: string) {
 }
 
 // update_profile: PATCH /users/%40me/profile {"bio": .., "pronouns": ..} (the
-// editor's path is percent-encoded, unlike PATCH /users/@me; fixture settings).
-update_profile :: (c: *Client, pronouns: string, bio: string) {
+// editor's path is percent-encoded, unlike PATCH /users/@me; fixture settings), with
+// "accent_color" (Banner Color; -1 clears it: null) when it changed (pendingAccentColor).
+ACCENT_UNCHANGED :: -2;
+update_profile :: (c: *Client, pronouns: string, bio: string, accent: s64 = ACCENT_UNCHANGED) {
 	w: Json;
 	json_init(*w);
 	json_obj(*w);
 	json_kstr(*w, "bio", bio);
 	json_kstr(*w, "pronouns", pronouns);
+	if accent == -1 json_knull(*w, "accent_color");
+	else if accent >= 0 json_kint(*w, "accent_color", accent);
 	json_obj_end(*w);
 	f_submit(c, .{op = .Profile_Patch, method = "PATCH", path = "/users/%40me/profile", body = json_string(*w)});
 }
@@ -101,12 +105,19 @@ apply_account_result :: (s: *Store, r: *Feature_Result) -> string {
 			note_account(*account, m);
 		}
 		new_token = fstr(m, "token");
-	case .Profile_Patch;
+	case .Profile_Patch; #through;
+	case .Banner_Edit;
 		u := table_find_pointer(*s.users, s.me);
 		if u {
 			a := s.allocator;
 			if vhas(m, "bio") { free_str(u.bio, a); u.bio = clone_str(fstr(m, "bio"), a); }
 			if vhas(m, "pronouns") { free_str(u.pronouns, a); u.pronouns = clone_str(fstr(m, "pronouns"), a); }
+			if vhas(m, "banner") { free_str(u.banner, a); u.banner = clone_str(fstr(m, "banner"), a); }
+			if vhas(m, "accent_color") {
+				ac := vget(m, "accent_color");
+				u.has_accent_color = !vis_null(ac);
+				u.accent_color = ifx u.has_accent_color then cast(u32) vint(ac) else 0;
+			}
 		}
 	}
 	s.changed += 1;

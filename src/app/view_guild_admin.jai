@@ -108,7 +108,7 @@ guild_admin_receive :: (r: *dc.Feature_Result) {
 		return;
 	case .Avatar_Edit;
 		if r.status == -1 show_notice("Couldn't change avatar", "That file couldn't be read. Avatars must be PNG, JPEG, GIF or WEBP images.");
-		else if r.status == -2 show_notice("Couldn't change avatar", "That image is too large. Avatars must be under 512 KB.");
+		else if r.status == -2 show_notice("Couldn't change avatar", tprint("That image is too large. Avatars must be under %.", ifx on_hosted() then "512 KB" else "10 MB"));
 		else if !r.ok show_notice("Couldn't change avatar", result_error(r));
 		return;
 	case .Channel_Delete;
