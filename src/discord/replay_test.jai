@@ -2970,6 +2970,7 @@ parity_settings_put :: (t: *T) {
 	want :: u8.[0x6a, 0x04, 0x08, 0x03, 0x48, 0x02]; // AppearanceSettings {theme: 3, timestamp_hour_cycle: H23}
 	expect(t, cast(string) settings_delta_proto(*c.settings_edit, c.store.settings.proto) == cast(string) want, "whole AppearanceSettings");
 	expect(t, c.store.settings.hour_cycle == .H23, "applied locally");
+	c.store.settings.unsent = 0; // the server took the edit (an unsent one would win over the update)
 	apply_settings_proto(*c.store, "agIIAg==", partial = true); // {appearance: {theme: LIGHT}}
 	st := *c.store.settings;
 	expect(t, st.theme == .Light && st.hour_cycle == .Auto && st.locale == "en-US" && st.status == .Online, "partial: only appearance replaced");
