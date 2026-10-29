@@ -648,7 +648,20 @@ audio_attachment :: (a: *dc.Attachment) {
 		col := ui.box("col");
 		col.semantic_size = .[ui.fill(), ui.children()];
 		{ ui.parent(col); defer ui.pop_parent();
-			label(a.filename, .Medium, 14, T("--text-link"), 18);
+			// the name, its size and a download, as the client's audio card
+			nr := row("name");
+			nr.semantic_size = .[ui.pct(1), ui.px(20)];
+			{ ui.parent(nr); defer ui.pop_parent();
+				name := label(a.filename, .Medium, 14, T("--text-link"), 18);
+				name.flags |= .Clickable;
+				name.hover_cursor = .Pointer;
+				spacer(.X, 6);
+				dl := file_download_find(a.url);
+				label(ifx dl then tprint("% of %", human_size(dl.progress.done), human_size(a.size)) else human_size(a.size), .Normal, 12, T("--text-muted"), 16);
+				if dl app.ui.animating = true;
+				filler(.X);
+				if download_icon(16) || ui.signal(name).clicked file_download(a);
+			}
 			// time, the seek bar once loaded, and the shared media volume (as on videos)
 			tr := row("time");
 			tr.semantic_size = .[ui.pct(1), ui.px(18)];
