@@ -21,6 +21,7 @@ mls :: #import "voice_mls";
 #load "voice.jai";
 #load "soundboard.jai";
 #load "expressions.jai";
+#load "roles.jai";
 
 ALPN :: "fc/1";
 HEARTBEAT_INTERVAL_MS :: 41_250;
@@ -107,7 +108,7 @@ open :: (path: string) -> *Server, bool {
 	if !ok return null, false;
 	s := New(Server);
 	s.db = db;
-	if !sqlite.exec(db, SCHEMA) || !sqlite.exec(db, SOUND_SCHEMA) || !sqlite.exec(db, SETTINGS_SCHEMA) || !sqlite.exec(db, STICKER_SCHEMA) { close(s); return null, false; }
+	if !sqlite.exec(db, SCHEMA) || !sqlite.exec(db, SOUND_SCHEMA) || !sqlite.exec(db, SETTINGS_SCHEMA) || !sqlite.exec(db, STICKER_SCHEMA) || !sqlite.exec(db, ROLE_SCHEMA) { close(s); return null, false; }
 	// Files made before these columns; each fails harmlessly once it exists.
 	sqlite.exec(db, "ALTER TABLE users ADD COLUMN left INTEGER NOT NULL DEFAULT 0;");
 	sqlite.exec(db, "ALTER TABLE users ADD COLUMN banned INTEGER NOT NULL DEFAULT 0;");
@@ -180,6 +181,7 @@ open :: (path: string) -> *Server, bool {
 	s.guild = string_to_int(cast(string) meta_get(s, "guild_id"), T = s64);
 	s.name = copy_string(cast(string) meta_get(s, "name"));
 	if !s.guild { close(s); return null, false; }
+	sqlite.run(db, "INSERT OR IGNORE INTO roles(id, name, position, permissions) VALUES(?, '@everyone', 0, ?);", s.guild, EVERYONE_PERMISSIONS);
 	st = sqlite.prepare(db, "SELECT max((SELECT coalesce(max(id), 0) FROM users), (SELECT coalesce(max(id), 0) FROM channels), (SELECT coalesce(max(id), 0) FROM attachments), (SELECT coalesce(max(max(id), coalesce(max(edited), 0), coalesce(max(pinned_at), 0)), 0) FROM messages));");
 	if sqlite.step(st) == .Row s.last_id = max(s.guild, sqlite.col_int(st, 0));
 	sqlite.finalize(st);
@@ -796,6 +798,10 @@ serve_conn :: (c: *Conn) {
 			if !manage_invites(c, req) return;
 			continue;
 		}
+		if begins_with(req.path, tprint("/api/v9/guilds/%/roles", c.server.guild)) || (begins_with(req.path, tprint("/api/v9/guilds/%/members/", c.server.guild)) && contains(req.path, "/roles/")) {
+			if !roles(c, req) return; // roles.jai
+			continue;
+		}
 		if begins_with(req.path, tprint("/api/v9/guilds/%/members/", c.server.guild)) || begins_with(req.path, tprint("/api/v9/guilds/%/bans/", c.server.guild)) {
 			if !moderate(c, req) return;
 			continue;
@@ -818,7 +824,7 @@ serve_conn :: (c: *Conn) {
 	}
 }
 
-// Scheduled events. Until roles land (Hosting 4) only the owner creates them, the owner or the creator
+// Scheduled events. Create Events makes them; Manage Events, or the creator,
 // edits, starts, ends and cancels them, and anyone marks themselves Interested. An event takes place in a voice
 // channel (entity type 2), which has no end and ends once the channel empties, or Somewhere Else (3), with
 // an end. Both start on time by themselves (archive_idle).
@@ -999,7 +1005,7 @@ scheduled_events :: (c: *Conn, req: http.Request) -> bool {
 		id := snowflake(s);
 		{
 			locks.guard(*s.db_mu);
-			if owner_id(s) != user return json_error(c, 403, 50013, "Missing Permissions");
+			if !can_any_locked(s, user, P_CREATE_EVENTS | P_MANAGE_EVENTS) return json_error(c, 403, 50013, "Missing Permissions");
 			if in_voice && channel_type_locked(s, channel) != VOICE return json_error(c, 400, 50035, "Invalid Form Body");
 			st := sqlite.prepare(s.db, tprint("SELECT count(*) FROM events WHERE status IN (%, %);", EVENT_SCHEDULED, EVENT_ACTIVE));
 			n := ifx sqlite.step(st) == .Row then sqlite.col_int(st, 0) else 0;
@@ -1074,7 +1080,7 @@ scheduled_events :: (c: *Conn, req: http.Request) -> bool {
 	if req.method == "DELETE" {
 		{
 			locks.guard(*s.db_mu);
-			if owner_id(s) != user && creator != user return json_error(c, 403, 50013, "Missing Permissions");
+			if !can_locked(s, user, P_MANAGE_EVENTS) && creator != user return json_error(c, 403, 50013, "Missing Permissions");
 			event = event_locked(s, id);
 			ok := sqlite.exec(s.db, "BEGIN;")
 				&& sqlite.run(s.db, "DELETE FROM rsvps WHERE event = ?;", id)
@@ -1090,7 +1096,7 @@ scheduled_events :: (c: *Conn, req: http.Request) -> bool {
 	if err != .None || v.kind != .Map return json_error(c, 400, 50035, "Invalid Form Body");
 	{
 		locks.guard(*s.db_mu);
-		if owner_id(s) != user && creator != user return json_error(c, 403, 50013, "Missing Permissions");
+		if !can_locked(s, user, P_MANAGE_EVENTS) && creator != user return json_error(c, 403, 50013, "Missing Permissions");
 		st := sqlite.prepare(s.db, "SELECT name, description, location, start, end, status, coalesce(channel, 0) FROM events WHERE id = ?;");
 		sqlite.bind(st, 1, id);
 		if sqlite.step(st) != .Row { sqlite.finalize(st); return json_error(c, 404, 10070, "Unknown Guild Scheduled Event"); }
@@ -1507,8 +1513,8 @@ mention_ids :: (content: string) -> [..]s64 {
 	return out;
 }
 
-// Until roles land (Hosting 4) everyone may read, write, react, embed, attach, make invites, and in voice
-// connect, speak, use voice activity, stream and play soundboard sounds.
+// @everyone's permissions on a new server (roles.jai): read, write, react, embed, attach, make invites, start
+// threads, and in voice connect, speak, use voice activity, stream and play soundboard sounds.
 EVERYONE_PERMISSIONS :: (1 << 0) | (1 << 6) | (1 << 9) | (1 << 10) | (1 << 11) | (1 << 14) | (1 << 15) | (1 << 16) | (1 << 18) | (1 << 20) | (1 << 21) | (1 << 25) | (1 << 26) | (1 << 35) | (1 << 38) | (1 << 42);
 
 // Channel types, as Discord numbers them.
@@ -1533,6 +1539,7 @@ row_channel :: (s: *Server, st: *sqlite.Stmt, member := etf.Value.{}) -> etf.Val
 	if texty etf.map_put(*m, "topic", etf.vstring(copy_string(sqlite.col_text(st, 3),, temp)));
 	if kind == TEXT || kind == THREAD || kind == FORUM etf.map_put(*m, "rate_limit_per_user", etf.vint(sqlite.col_int(st, 9)));
 	if texty etf.map_put(*m, "nsfw", etf.vbool(sqlite.col_int(st, 10) != 0));
+	if kind != THREAD etf.map_put(*m, "permission_overwrites", overwrites_locked(s, sqlite.col_int(st, 0)));
 	if kind == FORUM {
 		etf.map_put(*m, "available_tags", etf.vlist(.[]));
 		etf.map_put(*m, "default_reaction_emoji", .{});
@@ -1708,8 +1715,10 @@ ready_value ::(s: *Server, user: s64, name: string, session: [16]u8) -> etf.Valu
 	locks.guard(*s.db_mu);
 	channels, threads: [..]etf.Value;
 	channels.allocator, threads.allocator = temp, temp;
+	hidden := hidden_channels_locked(s, user);
 	st := sqlite.prepare(s.db, tprint("% ORDER BY c.position, c.id;", CHANNEL_SELECT));
 	while sqlite.step(st) == .Row {
+		if array_find(hidden, sqlite.col_int(st, 0)) continue;
 		if sqlite.col_int(st, 5) != THREAD { array_add(*channels, row_channel(s, st)); continue; }
 		if sqlite.col_int(st, 11) continue; // Archived threads come from /threads/search, as on Discord.
 		array_add(*threads, row_channel(s, st, thread_member_locked(s, sqlite.col_int(st, 0), user)));
@@ -1720,13 +1729,6 @@ ready_value ::(s: *Server, user: s64, name: string, session: [16]u8) -> etf.Valu
 	if sqlite.step(st) == .Row members = sqlite.col_int(st, 0);
 	sqlite.finalize(st);
 
-	everyone := etf.map_builder(4,, temp);
-	etf.map_put(*everyone, "id", snow(s.guild));
-	etf.map_put(*everyone, "name", etf.vstring("@everyone"));
-	etf.map_put(*everyone, "position", etf.vint(0));
-	etf.map_put(*everyone, "permissions", etf.vstring(tprint("%", EVERYONE_PERMISSIONS)));
-	roles := NewArray(1, etf.Value,, temp);
-	roles[0] = etf.vmap(etf.map_done(*everyone));
 
 	g := etf.map_builder(8,, temp);
 	etf.map_put(*g, "id", snow(s.guild));
@@ -1742,7 +1744,7 @@ ready_value ::(s: *Server, user: s64, name: string, session: [16]u8) -> etf.Valu
 	etf.map_put(*g, "channels", etf.vlist(channels));
 	etf.map_put(*g, "threads", etf.vlist(threads));
 	etf.map_put(*g, "guild_scheduled_events", events_locked(s));
-	etf.map_put(*g, "roles", etf.vlist(roles));
+	etf.map_put(*g, "roles", role_list_locked(s));
 	etf.map_put(*g, "voice_states", voice_states_value(s));
 	guilds :=NewArray(1, etf.Value,, temp);
 	guilds[0] = etf.vmap(etf.map_done(*g));
@@ -1752,6 +1754,7 @@ ready_value ::(s: *Server, user: s64, name: string, session: [16]u8) -> etf.Valu
 	st = sqlite.prepare(s.db, "SELECT channel, last, mentions FROM read_states WHERE user = ?;");
 	sqlite.bind(st, 1, user);
 	while sqlite.step(st) == .Row {
+		if array_find(hidden, sqlite.col_int(st, 0)) continue;
 		e := etf.map_builder(3,, temp);
 		etf.map_put(*e, "id", snow(sqlite.col_int(st, 0)));
 		etf.map_put(*e, "last_message_id", snow(sqlite.col_int(st, 1)));
@@ -1773,7 +1776,18 @@ ready_value ::(s: *Server, user: s64, name: string, session: [16]u8) -> etf.Valu
 	etf.map_put(*guild_settings, "partial", etf.vbool(false));
 	etf.map_put(*guild_settings, "version", etf.vint(0));
 
-	d := etf.map_builder(6,, temp);
+	// merged_members[0] is our member in the one guild, with our roles, as Discord's user READY has it.
+	me := etf.map_builder(3,, temp);
+	etf.map_put(*me, "user_id", snow(user));
+	etf.map_put(*me, "roles", member_roles_locked(s, user));
+	etf.map_put(*me, "joined_at", etf.vstring(iso(user)));
+	mine_list := NewArray(1, etf.Value,, temp);
+	mine_list[0] = etf.vmap(etf.map_done(*me));
+	merged := NewArray(1, etf.Value,, temp);
+	merged[0] = etf.vlist(mine_list);
+
+	d := etf.map_builder(7,, temp);
+	etf.map_put(*d, "merged_members", etf.vlist(merged));
 	etf.map_put(*d, "read_state", etf.vmap(etf.map_done(*read_state)));
 	etf.map_put(*d, "user_guild_settings", etf.vmap(etf.map_done(*guild_settings)));
 	etf.map_put(*d, "v", etf.vint(9));
@@ -1875,14 +1889,14 @@ member_list_value :: (s: *Server) -> etf.Value {
 	}
 	locks.unlock(*s.mu);
 
-	Row :: struct { id: s64; name: string; }
+	Row :: struct { id: s64; name: string; roles: etf.Value; }
 	on, off: [..]Row;
 	on.allocator, off.allocator = temp, temp;
 	{
 		locks.guard(*s.db_mu);
 		st := sqlite.prepare(s.db, "SELECT id, name FROM users WHERE left = 0 ORDER BY name COLLATE NOCASE, id;");
 		while sqlite.step(st) == .Row {
-			r := Row.{sqlite.col_int(st, 0), copy_string(sqlite.col_text(st, 1),, temp)};
+			r := Row.{sqlite.col_int(st, 0), copy_string(sqlite.col_text(st, 1),, temp), member_roles_locked(s, sqlite.col_int(st, 0))};
 			array_add(ifx array_find(online, r.id) then *on else *off, r);
 		}
 		sqlite.finalize(st);
@@ -1905,8 +1919,9 @@ member_list_value :: (s: *Server) -> etf.Value {
 			found, at := array_find(`online, it.id);
 			etf.map_put(*p, "status", etf.vstring(ifx found then STATUSES[`statuses[at]] else "offline"));
 			if found etf.map_put(*p, "activities", `activities[at]);
-			m := etf.map_builder(2,, temp);
+			m := etf.map_builder(3,, temp);
 			etf.map_put(*m, "user", user_value(`s, it.id, it.name));
+			etf.map_put(*m, "roles", it.roles);
 			etf.map_put(*m, "presence", etf.vmap(etf.map_done(*p)));
 			wrap := etf.map_builder(1,, temp);
 			etf.map_put(*wrap, "member", etf.vmap(etf.map_done(*m)));
@@ -1986,7 +2001,21 @@ writer :: (c: *Conn) {
 }
 
 // broadcast dispatches to every identified gateway connection.
+// broadcast sends an event to every member, or for an event about a channel only some see, to those who
+// see it (roles.jai). The caller holds no lock.
 broadcast :: (s: *Server, t: string, d: etf.Value) {
+	channel := event_channel(t, d);
+	if channel {
+		public: bool;
+		{
+			locks.guard(*s.db_mu);
+			public = public_locked(s, channel);
+		}
+		if !public {
+			send_to(s, viewers(s, channel, connected_users(s)), t, d);
+			return;
+		}
+	}
 	locks.guard(*s.mu);
 	for s.conns if it.ws dispatch(it, t, d);
 }
@@ -2003,6 +2032,17 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 	rest := advance(path, "/api/v9/channels/".count);
 	parts := split(rest, "/",, temp);
 	channel, ok := string_to_int(parts[0], T = s64);
+	// A channel its member can't see answers 403 to everything in it, as Discord's Missing Access.
+	perms: u64;
+	kind := -1;
+	if ok {
+		locks.guard(*s.db_mu);
+		p := perms_of_locked(s, user);
+		kind = channel_type_locked(s, channel);
+		perms = channel_perms_locked(s, *p, channel);
+		if kind >= 0 && !perms return json_error(c, 403, 50001, "Missing Access");
+	}
+	if ok && parts.count == 3 && parts[1] == "permissions" return channel_permission(c, req, user, channel, parts[2]); // roles.jai
 	typing := parts.count == 2 && parts[1] == "typing";
 	if typing && req.method != "POST" return json_error(c, 405, 0, "405: Method Not Allowed");
 	if ok && parts.count == 1 return edit_channel(c, req, user, channel);
@@ -2041,6 +2081,10 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 		sqlite.finalize(st);
 	}
 	if !ok return json_error(c, 404, 10003, "Unknown Channel");
+	sending := ifx kind == THREAD then P_SEND_MESSAGES_IN_THREADS else P_SEND_MESSAGES;
+	if (typing || req.method == "POST") && !(perms & sending) return json_error(c, 403, 50013, "Missing Permissions");
+	// Without Read Message History the channel shows no past messages, as on Discord.
+	if req.method == "GET" && !(perms & P_READ_MESSAGE_HISTORY) return respond(c, 200, "[]");
 	if typing {
 		member := etf.map_builder(1,, temp);
 		etf.map_put(*member, "user", user_value(s, user, name));
@@ -2100,6 +2144,7 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 		// A send may set only these, as on Discord; any other bit is dropped.
 		flags := flags_v.i & (SUPPRESS_EMBEDS | SUPPRESS_NOTIFICATIONS);
 		if atts.kind == .List && atts.list.count > MAX_UPLOADS return json_error(c, 400, 50035, "Invalid Form Body");
+		if atts.kind == .List && atts.list.count && !(perms & P_ATTACH_FILES) return json_error(c, 403, 50013, "Missing Permissions");
 		ref, _ := etf.map_get(v.map, "message_reference");
 		ref_id, ref_channel, ref_type: etf.Value;
 		if ref.kind == .Map {
@@ -2149,21 +2194,22 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 			}
 			if forward {
 				source = string_to_int(ref_id.s, T = s64);
+				if !can_locked(s, user, P_VIEW_CHANNEL | P_READ_MESSAGE_HISTORY, string_to_int(ref_channel.s, T = s64)) return json_error(c, 403, 50001, "Missing Access");
 				snapshot = forward_snapshot(s, source, string_to_int(ref_channel.s, T = s64));
 				if !snapshot return json_error(c, 400, 50035, "Invalid Form Body");
 			}
 			stickers, stickers_ok := sticker_items_locked(s, sticker_ids);
 			if !stickers_ok return json_error(c, 400, 50035, "Invalid Form Body");
-			// A message reopens an archived thread, unless it's locked: then only the owner may post.
+			// A message reopens an archived thread, unless it's locked: then only those who manage threads may post.
 			st := sqlite.prepare(s.db, tprint("SELECT archived, locked FROM channels WHERE id = ? AND type = %;", THREAD));
 			sqlite.bind_all(st, channel);
 			if sqlite.step(st) == .Row && sqlite.col_int(st, 0) {
-				if sqlite.col_int(st, 1) && owner_id(s) != user { sqlite.finalize(st); return json_error(c, 400, 50083, "Thread is archived"); }
+				if sqlite.col_int(st, 1) && !(perms & P_MANAGE_THREADS) { sqlite.finalize(st); return json_error(c, 400, 50083, "Thread is archived"); }
 				reopened = true;
 			}
 			sqlite.finalize(st);
-			// Slowmode spaces each member's messages; the owner is exempt, as MANAGE_MESSAGES holders are on Discord.
-			if owner_id(s) != user {
+			// Slowmode spaces each member's messages; those who manage messages or the channel are exempt.
+			if !(perms & (P_MANAGE_MESSAGES | P_MANAGE_CHANNELS)) {
 				st := sqlite.prepare(s.db, "SELECT slowmode, (SELECT max(id) FROM messages WHERE channel = ?1 AND author = ?2 AND type = 0) FROM channels WHERE id = ?1;");
 				sqlite.bind_all(st, channel, user);
 				wait_ms := 0;
@@ -2173,8 +2219,7 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 				sqlite.finalize(st);
 				if wait_ms > 0 return respond(c, 429, tprint("{\"message\": \"This action cannot be performed due to slowmode rate limit.\", \"code\": 20016, \"retry_after\": %, \"global\": false}", formatFloat(wait_ms / 1000.0, trailing_width = 3)));
 			}
-			// Until roles land (Hosting 4) only the owner may ping @everyone or @here.
-			everyone := (contains(content.s, "@everyone") || contains(content.s, "@here")) && owner_id(s) == user;
+			everyone := (contains(content.s, "@everyone") || contains(content.s, "@here")) && (perms & P_MENTION_EVERYONE) != 0;
 			ids := mention_ids(content.s);
 			// A reply pings the replied-to author unless the sender turned that off.
 			am, _ := etf.map_get(v.map, "allowed_mentions");
@@ -2230,8 +2275,8 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 	return respond(c, 200, builder_to_string(*sb,, temp));
 }
 
-// PATCH and DELETE /api/v9/channels/{id}/messages/{id}. Until roles land (Hosting 4) only the author may
-// edit a message, and only the author or the owner delete it.
+// PATCH and DELETE /api/v9/channels/{id}/messages/{id}. Only the author may
+// edit a message; the author or those with Manage Messages delete it.
 one_message :: (c: *Conn, req: http.Request, user: s64, name: string, channel: s64, message: s64) -> bool {
 	s := c.server;
 	author, owner, kind := 0, 0, DEFAULT;
@@ -2242,7 +2287,7 @@ one_message :: (c: *Conn, req: http.Request, user: s64, name: string, channel: s
 		sqlite.bind_all(st, message, channel);
 		if sqlite.step(st) == .Row author, kind = sqlite.col_int(st, 0), sqlite.col_int(st, 1);
 		sqlite.finalize(st);
-		owner = owner_id(s);
+		owner = ifx can_locked(s, user, P_MANAGE_MESSAGES, channel) then user else 0; // user == owner: may manage others' messages.
 		archived = archived_locked(s, channel);
 	}
 	if !author return json_error(c, 404, 10008, "Unknown Message");
@@ -2293,7 +2338,7 @@ one_message :: (c: *Conn, req: http.Request, user: s64, name: string, channel: s
 			locks.guard(*s.db_mu);
 			// Mentions follow the new text, as on Discord, but an edit pings nobody: read-state counts stay.
 			// A reply's ping of its original author is kept.
-			everyone := (contains(content.s, "@everyone") || contains(content.s, "@here")) && owner_id(s) == user;
+			everyone := (contains(content.s, "@everyone") || contains(content.s, "@here")) && can_locked(s, user, P_MENTION_EVERYONE, channel);
 			ok := sqlite.exec(s.db, "BEGIN;")
 				&& sqlite.run(s.db, "UPDATE messages SET content = ?, edited = ?, everyone = ? WHERE id = ?;", content.s, snowflake(s), cast(int) everyone, message)
 				&& sqlite.run(s.db, "DELETE FROM mentions WHERE message = ? AND user IS NOT (SELECT r.author FROM messages m JOIN messages r ON r.id = m.reply WHERE m.id = ?);", message, message);
@@ -2360,10 +2405,23 @@ create_channel :: (c: *Conn, req: http.Request) -> bool {
 	name := ifx raw.kind != .String then "" else ifx kind == CATEGORY || kind == VOICE then trim(raw.s) else channel_name(raw.s);
 	known := kind == TEXT || kind == VOICE || kind == CATEGORY || kind == ANNOUNCEMENT || kind == FORUM;
 	if !name || name.count > 100 || !text_ok(name) || !known || (has_parent && kind == CATEGORY) return json_error(c, 400, 50035, "Invalid Form Body");
+	// A private channel comes with overwrites, as the official client's Private Channel switch sends them.
+	ow_v, _ := etf.map_get(v.map, "permission_overwrites");
+	ows: [..]Overwrite;
+	ows.allocator = temp;
+	if ow_v.kind == .List {
+		if ow_v.list.count > MAX_OVERWRITES return json_error(c, 400, 50035, "Invalid Form Body");
+		for ow_v.list {
+			o, ook := overwrite_value(it);
+			if !ook return json_error(c, 400, 50035, "Invalid Form Body");
+			array_add(*ows, o);
+		}
+	} else if ow_v.kind != .Nil return json_error(c, 400, 50035, "Invalid Form Body");
 	ch: etf.Value;
 	{
 		locks.guard(*s.db_mu);
-		if owner_id(s) != user return json_error(c, 403, 50013, "Missing Permissions");
+		p := perms_of_locked(s, user);
+		if !(p.base & P_MANAGE_CHANNELS) || (ows.count && !(p.base & P_MANAGE_ROLES)) return json_error(c, 403, 50013, "Missing Permissions");
 		if has_parent {
 			st := sqlite.prepare(s.db, tprint("SELECT 1 FROM channels WHERE id = ? AND type = %;", CATEGORY));
 			sqlite.bind(st, 1, parent);
@@ -2372,10 +2430,21 @@ create_channel :: (c: *Conn, req: http.Request) -> bool {
 			if !found return json_error(c, 400, 50035, "Invalid Form Body");
 		}
 		id := snowflake(s);
+		if !sqlite.exec(s.db, "BEGIN;") return json_error(c, 500, 0, "500: Internal Server Error");
 		ok := ifx has_parent
 			then sqlite.run(s.db, "INSERT INTO channels(id, name, position, type, parent) VALUES(?, ?, (SELECT coalesce(max(position), -1) + 1 FROM channels), ?, ?);", id, name, kind, parent)
 			else sqlite.run(s.db, "INSERT INTO channels(id, name, position, type) VALUES(?, ?, (SELECT coalesce(max(position), -1) + 1 FROM channels), ?);", id, name, kind);
-		if !ok return json_error(c, 500, 0, "500: Internal Server Error");
+		// Without overwrites of its own, a channel in a category starts synced to it.
+		if ok && !ows.count && has_parent ok = sqlite.run(s.db, "INSERT INTO overwrites(channel, target, type, allow, deny) SELECT ?, target, type, allow, deny FROM overwrites WHERE channel = ?;", id, parent);
+		for ows {
+			if !ok break;
+			status, code := set_overwrite_locked(s, *p, id, it);
+			if status {
+				sqlite.exec(s.db, "ROLLBACK;");
+				return json_error(c, status, code, ifx status == 403 then "Missing Permissions" else "Invalid Form Body");
+			}
+		}
+		if !ok || !sqlite.exec(s.db, "COMMIT;") { sqlite.exec(s.db, "ROLLBACK;"); return json_error(c, 500, 0, "500: Internal Server Error"); }
 		ch = channel_locked(s, id);
 	}
 	broadcast(s, "CHANNEL_CREATE", ch);
@@ -2412,6 +2481,10 @@ create_thread :: (c: *Conn, req: http.Request, user: s64, parent: s64, message: 
 		forum := channel_type_locked(s, parent) == FORUM;
 		if (forum && message) || (!forum && !text_like_locked(s, parent)) return json_error(c, 404, 10003, "Unknown Channel");
 		if forum != has_post return json_error(c, 400, 50035, "Invalid Form Body");
+		// A forum post takes Send Messages there, as on Discord; any other thread Create Public Threads.
+		p := perms_of_locked(s, user);
+		perms := channel_perms_locked(s, *p, parent);
+		if !(perms & (ifx forum then P_SEND_MESSAGES else P_CREATE_PUBLIC_THREADS)) return json_error(c, 403, 50013, "Missing Permissions");
 		id := message;
 		if message {
 			st := sqlite.prepare(s.db, "SELECT (SELECT 1 FROM messages WHERE id = ?1 AND channel = ?2), (SELECT 1 FROM channels WHERE id = ?1);");
@@ -2426,7 +2499,7 @@ create_thread :: (c: *Conn, req: http.Request, user: s64, parent: s64, message: 
 		}
 		if !sqlite.run(s.db, "INSERT INTO channels(id, name, position, type, parent, owner) VALUES(?, ?, 0, ?, ?, ?);", id, name, THREAD, parent, user) return json_error(c, 500, 0, "500: Internal Server Error");
 		if forum {
-			everyone := (contains(content.s, "@everyone") || contains(content.s, "@here")) && owner_id(s) == user;
+			everyone := (contains(content.s, "@everyone") || contains(content.s, "@here")) && (perms & P_MENTION_EVERYONE) != 0;
 			ok := sqlite.run(s.db, "INSERT INTO messages(id, channel, author, content, everyone) VALUES(?1, ?1, ?, ?, ?);", id, user, content.s, cast(int) everyone);
 			for mention_ids(content.s) if ok ok = sqlite.run(s.db, "INSERT OR IGNORE INTO mentions(message, user) SELECT ?, id FROM users WHERE id = ? AND left = 0;", id, it);
 			if !ok || !sqlite.run(s.db, COUNT_MENTIONS, id, user, cast(int) everyone, id) return json_error(c, 500, 0, "500: Internal Server Error");
@@ -2492,7 +2565,7 @@ crosspost :: (c: *Conn, user: s64, channel: s64, message: s64) -> bool {
 		author, flags, kind := ifx found then sqlite.col_int(st, 0) else 0, ifx found then sqlite.col_int(st, 1) else 0, ifx found then sqlite.col_int(st, 2) else 0;
 		sqlite.finalize(st);
 		if !found return json_error(c, 404, 10008, "Unknown Message");
-		if author != user && owner_id(s) != user return json_error(c, 403, 50013, "Missing Permissions");
+		if author != user && !can_locked(s, user, P_MANAGE_MESSAGES, channel) return json_error(c, 403, 50013, "Missing Permissions");
 		if flags & CROSSPOSTED || kind != DEFAULT return json_error(c, 400, 40033, "This message has already been crossposted.");
 		if !sqlite.run(s.db, "UPDATE messages SET flags = flags | ? WHERE id = ?;", CROSSPOSTED, message) return json_error(c, 500, 0, "500: Internal Server Error");
 		m = message_locked(s, message, nested = false);
@@ -2541,7 +2614,7 @@ channel_webhooks :: (c: *Conn, req: http.Request, user: s64, channel: s64) -> bo
 	result: etf.Value;
 	{
 		locks.guard(*s.db_mu);
-		if owner_id(s) != user return json_error(c, 403, 50013, "Missing Permissions");
+		if !can_locked(s, user, P_MANAGE_WEBHOOKS, channel) return json_error(c, 403, 50013, "Missing Permissions");
 		if channel && !text_like_locked(s, channel) return json_error(c, 404, 10003, "Unknown Channel");
 		if req.method == "POST" {
 			st := sqlite.prepare(s.db, "SELECT count(*) FROM webhooks WHERE channel = ?;");
@@ -2679,7 +2752,7 @@ webhook :: (c: *Conn, req: http.Request) -> bool {
 		}
 		sqlite.finalize(st);
 		if !found return json_error(c, 404, 10015, "Unknown Webhook");
-		if !by_token && owner_id(s) != user return json_error(c, 403, 50013, "Missing Permissions");
+		if !by_token && !can_locked(s, user, P_MANAGE_WEBHOOKS, channel) return json_error(c, 403, 50013, "Missing Permissions");
 		if own {
 			st =sqlite.prepare(s.db, "SELECT content, (SELECT count(*) FROM embeds e WHERE e.message = m.id AND e.rich IS NOT NULL), channel FROM messages m WHERE id = ? AND author = ? AND webhook = 1;");
 			sqlite.bind_all(st, own, id);
@@ -2808,7 +2881,7 @@ create_emoji :: (c: *Conn, req: http.Request) -> bool {
 	emoji, list: etf.Value;
 	{
 		locks.guard(*s.db_mu);
-		if owner_id(s) != user return json_error(c, 403, 50013, "Missing Permissions");
+		if !can_any_locked(s, user, P_CREATE_GUILD_EXPRESSIONS | P_MANAGE_GUILD_EXPRESSIONS) return json_error(c, 403, 50013, "Missing Permissions");
 		st := sqlite.prepare(s.db, "SELECT count(*) FROM emojis WHERE animated = ?;");
 		sqlite.bind_all(st, cast(int) animated);
 		n := ifx sqlite.step(st) == .Row then sqlite.col_int(st, 0) else 0;
@@ -2829,8 +2902,8 @@ create_emoji :: (c: *Conn, req: http.Request) -> bool {
 	return json_reply(c, 201, emoji);
 }
 
-// PATCH /api/v9/guilds/{id}/members/@me {nick}: Change Nickname, and /members/{user} for the owner on
-// anyone. A member has one name here, so the nick replaces it, and members see it as their name with no
+// PATCH /api/v9/guilds/{id}/members/@me {nick}: Change Nickname, and /members/{user} with Manage Nicknames on
+// those you outrank, or {roles} to set their roles (roles.jai). A member has one name here, so the nick replaces it, and members see it as their name with no
 // nick; an empty nick goes back to the name they joined with, as Discord falls back to the username.
 rename :: (c: *Conn, req: http.Request) -> bool {
 	s := c.server;
@@ -2844,13 +2917,49 @@ rename :: (c: *Conn, req: http.Request) -> bool {
 		if !ok return json_error(c, 404, 10013, "Unknown User");
 	}
 	v, err := etf.from_json(cast(string) req.body,, temp);
-	nick: etf.Value;
-	if err == .None && v.kind == .Map nick, _ = etf.map_get(v.map, "nick");
+	nick, roles_v: etf.Value;
+	has_nick, has_roles: bool;
+	if err == .None && v.kind == .Map {
+		nick, has_nick = etf.map_get(v.map, "nick");
+		roles_v, has_roles = etf.map_get(v.map, "roles");
+	}
 	name := ifx nick.kind == .String then trim(nick.s) else "";
-	if (nick.kind != .String && nick.kind != .Nil) || name.count > 32 || !text_ok(name) return json_error(c, 400, 50035, "Invalid Form Body");
+	if (nick.kind != .String && nick.kind != .Nil) || name.count > 32 || !text_ok(name) || (has_roles && (roles_v.kind != .List || roles_v.list.count > MAX_ROLES)) return json_error(c, 400, 50035, "Invalid Form Body");
+	// {roles} sets the member's roles to the list: those added and taken away must each be manageable.
+	if has_roles {
+		wanted, add, drop: [..]s64;
+		wanted.allocator, add.allocator, drop.allocator = temp, temp, temp;
+		for roles_v.list {
+			id, ok := string_to_int(ifx it.kind == .String then it.s else "", T = s64);
+			if !ok return json_error(c, 400, 50035, "Invalid Form Body");
+			array_add_if_unique(*wanted, id);
+		}
+		{
+			locks.guard(*s.db_mu);
+			for member_roles_locked(s, target).list {
+				id := string_to_int(it.s, T = s64);
+				if !array_find(wanted, id) array_add(*drop, id);
+			}
+			current := member_roles_locked(s, target);
+			for wanted {
+				held := false;
+				for r: current.list if r.s == tprint("%", it) held = true;
+				if !held array_add(*add, it);
+			}
+		}
+		reason, rok := audit_reason(req);
+		if !rok return json_error(c, 400, 50035, "Invalid Form Body");
+		member, status, code := set_member_roles(s, user, target, add, drop, reason);
+		if status return json_error(c, status, code, ifx status == 403 then "Missing Permissions" else ifx status == 404 then "Unknown Member" else "Invalid Form Body");
+		if !has_nick return json_reply(c, 200, member);
+	}
+	member: etf.Value;
 	{
 		locks.guard(*s.db_mu);
-		if target != user && owner_id(s) != user return json_error(c, 403, 50013, "Missing Permissions");
+		// Your own name takes Change Nickname; anyone else's Manage Nicknames over a member you outrank.
+		p := perms_of_locked(s, user);
+		if target == user && !(p.base & (P_CHANGE_NICKNAME | P_MANAGE_NICKNAMES)) return json_error(c, 403, 50013, "Missing Permissions");
+		if target != user && (!(p.base & P_MANAGE_NICKNAMES) || !outranks_locked(s, *p, target)) return json_error(c, 403, 50013, "Missing Permissions");
 		if !sqlite.run(s.db, "UPDATE users SET name = coalesce(nullif(?, ''), joined_name, name) WHERE id = ? AND left = 0;", name, target) return json_error(c, 500, 0, "500: Internal Server Error");
 		if sqlite.changes(s.db) != 1 return json_error(c, 404, 10007, "Unknown Member");
 		if !name {
@@ -2859,14 +2968,8 @@ rename :: (c: *Conn, req: http.Request) -> bool {
 			if sqlite.step(st) == .Row name = copy_string(sqlite.col_text(st, 0),, temp);
 			sqlite.finalize(st);
 		}
+		member = member_value_locked(s, target, name);
 	}
-	m := etf.map_builder(4,, temp);
-	etf.map_put(*m, "guild_id", snow(s.guild));
-	etf.map_put(*m, "user", user_value(s, target, name));
-	etf.map_put(*m, "nick", .{});
-	no_roles: []etf.Value;
-	etf.map_put(*m, "roles", etf.vlist(no_roles));
-	member := etf.vmap(etf.map_done(*m));
 	broadcast(s, "GUILD_MEMBER_UPDATE", member);
 	broadcast(s, "GUILD_MEMBER_LIST_UPDATE", member_list_value(s));
 	return json_reply(c, 200, member);
@@ -2889,7 +2992,7 @@ leave :: (c: *Conn, req: http.Request) -> bool {
 }
 
 // DELETE /guilds/{id}/members/{user} kicks, PUT /guilds/{id}/bans/{user} {delete_message_seconds?} bans and
-// DELETE unbans, for the owner. Both end the member's sessions and gateways as a leave does; a ban is on
+// DELETE unbans, with Kick or Ban Members over those you outrank. Both end the member's sessions and gateways as a leave does; a ban is on
 // their key, so no invite lets them back until it's lifted. A ban can also delete what they sent in the
 // last week at most, as on Discord, sent to each channel as one MESSAGE_DELETE_BULK. The ban keeps the
 // reason from X-Audit-Log-Reason for the ban list.
@@ -2921,8 +3024,10 @@ moderate :: (c: *Conn, req: http.Request) -> bool {
 	gone.allocator = temp;
 	{
 		locks.guard(*s.db_mu);
-		if owner_id(s) != user return json_error(c, 403, 50013, "Missing Permissions");
-		if !tok || target == user return json_error(c, 403, 50013, "Missing Permissions");
+		// Kicking takes Kick Members, banning and unbanning Ban Members, and only over members you outrank.
+		p := perms_of_locked(s, user);
+		if !(p.base & (ifx ban then P_BAN_MEMBERS else P_KICK_MEMBERS)) return json_error(c, 403, 50013, "Missing Permissions");
+		if !tok || target == user || !outranks_locked(s, *p, target) return json_error(c, 403, 50013, "Missing Permissions");
 		left, banned := 1, 0;
 		st := sqlite.prepare(s.db, "SELECT left, banned FROM users WHERE id = ?;");
 		sqlite.bind(st, 1, target);
@@ -2978,7 +3083,7 @@ moderate :: (c: *Conn, req: http.Request) -> bool {
 	return respond(c, 204, json = false);
 }
 
-// GET /guilds/{id}/bans[?limit=&after=] lists banned members by ID, with the reason given, for the owner.
+// GET /guilds/{id}/bans[?limit=&after=] lists banned members by ID, with the reason given, with Ban Members.
 list_bans :: (c: *Conn, req: http.Request) -> bool {
 	s := c.server;
 	token, _ := http.header_get(req.headers, "authorization");
@@ -2999,7 +3104,7 @@ list_bans :: (c: *Conn, req: http.Request) -> bool {
 		}
 	}
 	locks.guard(*s.db_mu);
-	if owner_id(s) != user return json_error(c, 403, 50013, "Missing Permissions");
+	if !can_locked(s, user, P_BAN_MEMBERS) return json_error(c, 403, 50013, "Missing Permissions");
 	list: [..]etf.Value;
 	list.allocator = temp;
 	st := sqlite.prepare(s.db, "SELECT id, name, ban_reason FROM users WHERE banned = 1 AND id > ? ORDER BY id LIMIT ?;");
@@ -3014,15 +3119,15 @@ list_bans :: (c: *Conn, req: http.Request) -> bool {
 	return json_reply(c, 200, etf.vlist(list));
 }
 
-// GET /guilds/{id}/invites lists the working invites, for the owner. DELETE /invites/{code} revokes one,
-// for the owner or whoever made it; the row stays, used up, so the code never works again.
+// GET /guilds/{id}/invites lists the working invites, with Manage Server. DELETE /invites/{code} revokes one,
+// with Manage Server or for whoever made it; the row stays, used up, so the code never works again.
 manage_invites :: (c: *Conn, req: http.Request) -> bool {
 	s := c.server;
 	token, _ := http.header_get(req.headers, "authorization");
 	user := session_user(c, token);
 	if !user return json_error(c, 401, 0, "401: Unauthorized");
 	locks.guard(*s.db_mu);
-	owner := owner_id(s) == user;
+	owner := can_locked(s, user, P_MANAGE_GUILD); // Manages everyone's invites.
 	if req.method == "DELETE" {
 		code := slice(req.path, "/api/v9/invites/".count, req.path.count - "/api/v9/invites/".count);
 		st := sqlite.prepare(s.db, tprint("SELECT inviter FROM invites WHERE code = ? AND owner = 0 AND %;", INVITE_LIVE));
@@ -3063,6 +3168,7 @@ remove_member_locked :: (s: *Server, user: s64, banned: bool) -> bool {
 	ok := sqlite.exec(s.db, "BEGIN;")
 		&& sqlite.run(s.db, "UPDATE users SET left = 1, banned = banned OR ? WHERE id = ?;", cast(s64) banned, user)
 		&& sqlite.run(s.db, "DELETE FROM sessions WHERE user = ?;", user)
+		&& sqlite.run(s.db, "DELETE FROM member_roles WHERE user = ?;", user) // Discord drops a leaver's roles.
 		&& sqlite.exec(s.db, "COMMIT;");
 	if !ok sqlite.exec(s.db, "ROLLBACK;");
 	return ok;
@@ -3086,7 +3192,7 @@ removed :: (s: *Server, user: s64) {
 	broadcast(s, "GUILD_MEMBER_LIST_UPDATE", member_list_value(s));
 }
 
-// PATCH /api/v9/channels/{id} {name?, topic?} and DELETE /api/v9/channels/{id}, for the owner. The last
+// PATCH /api/v9/channels/{id} {name?, topic?} and DELETE /api/v9/channels/{id}, with Manage Channels. The last
 // channel can't be deleted, so the server always has somewhere to talk.
 edit_channel :: (c: *Conn, req: http.Request, user: s64, channel: s64) -> bool {
 	s := c.server;
@@ -3120,9 +3226,9 @@ edit_channel :: (c: *Conn, req: http.Request, user: s64, channel: s64) -> bool {
 			was_locked = sqlite.step(st) == .Row && sqlite.col_int(st, 0) != 0;
 			sqlite.finalize(st);
 		}
-		// A thread's starter may rename, archive and reopen it too, until the owner locks it.
+		// A thread's starter may rename, archive and reopen it too, until someone who manages threads locks it.
 		by_starter := kind == THREAD && !has_topic && !has_slow && !has_nsfw && !has_locked && !was_locked && thread_owner_locked(s, channel) == user;
-		if owner_id(s) != user && !by_starter return json_error(c, 403, 50013, "Missing Permissions");
+		if !can_locked(s, user, ifx kind == THREAD then P_MANAGE_THREADS else P_MANAGE_CHANNELS, channel) && !by_starter return json_error(c, 403, 50013, "Missing Permissions");
 		name := ifx raw.kind != .String then "" else ifx kind == CATEGORY || kind == THREAD || kind == VOICE then trim(raw.s) else channel_name(raw.s);
 		if (has_name && (!name || name.count > 100 || !text_ok(name))) || (has_topic && topic.kind == .String && (topic.s.count > 1024 || !text_ok(topic.s, lines = true))) return json_error(c, 400, 50035, "Invalid Form Body");
 		ok := (!has_name || sqlite.run(s.db, "UPDATE channels SET name = ? WHERE id = ?;", name, channel))
@@ -3136,10 +3242,10 @@ edit_channel :: (c: *Conn, req: http.Request, user: s64, channel: s64) -> bool {
 		ch = channel_locked(s, channel);
 	} else if req.method == "DELETE" {
 		locks.guard(*s.db_mu);
-		if owner_id(s) != user return json_error(c, 403, 50013, "Missing Permissions");
+		kind = channel_type_locked(s, channel);
+		if !can_locked(s, user, ifx kind == THREAD then P_MANAGE_THREADS else P_MANAGE_CHANNELS, channel) return json_error(c, 403, 50013, "Missing Permissions");
 		ch = channel_locked(s, channel);
 		if ch.kind == .Nil return json_error(c, 404, 10003, "Unknown Channel");
-		kind = channel_type_locked(s, channel);
 		st := sqlite.prepare(s.db, tprint("SELECT count(*) FROM channels WHERE type = %;", TEXT));
 		last := kind == TEXT && sqlite.step(st) == .Row && sqlite.col_int(st, 0) <= 1;
 		sqlite.finalize(st);
@@ -3171,6 +3277,7 @@ edit_channel :: (c: *Conn, req: http.Request, user: s64, channel: s64) -> bool {
 			&& sqlite.run(s.db, tprint("DELETE FROM webhooks WHERE channel IN %;", doomed), channel)
 			&& sqlite.run(s.db, tprint("DELETE FROM messages WHERE channel IN %;", doomed), channel)
 			&& sqlite.run(s.db, tprint("DELETE FROM read_states WHERE channel IN %;", doomed), channel)
+			&& sqlite.run(s.db, "DELETE FROM overwrites WHERE channel = ?;", channel)
 			&& sqlite.run(s.db, tprint("DELETE FROM channels WHERE id IN %;", doomed), channel)
 			&& sqlite.run(s.db, "DELETE FROM rsvps WHERE event IN (SELECT id FROM events WHERE channel = ?1);", channel)
 			&& sqlite.run(s.db, "DELETE FROM events WHERE channel = ?1;", channel)
@@ -3216,6 +3323,7 @@ create_invite :: (c: *Conn, req: http.Request, user: s64, name: string, channel:
 		guild_icon = guild_icon_locked(s);
 		ch = channel_locked(s, channel);
 		if ch.kind == .Nil return json_error(c, 404, 10003, "Unknown Channel");
+		if !can_locked(s, user, P_CREATE_INSTANT_INVITE, channel) return json_error(c, 403, 50013, "Missing Permissions");
 		if validate.kind == .String {
 			st := sqlite.prepare(s.db, tprint("SELECT code, max_age, expires FROM invites WHERE code = ? AND inviter = ? AND channel = ? AND %;", INVITE_LIVE));
 			sqlite.bind_all(st, validate.s, user, channel);
@@ -3784,6 +3892,7 @@ search :: (c: *Conn, req: http.Request) -> bool {
 	found.allocator = temp;
 	{
 		locks.guard(*s.db_mu);
+		filter = tprint("% AND m.channel NOT IN %", filter, id_list(hidden_channels_locked(s, viewer, P_VIEW_CHANNEL | P_READ_MESSAGE_HISTORY)));
 		st := sqlite.prepare(s.db, tprint("SELECT count(*) FROM messages m%;", filter));
 		bind_params(st);
 		if sqlite.step(st) == .Row total = sqlite.col_int(st, 0);
@@ -3807,7 +3916,7 @@ MAX_PINS :: 50; // Per channel, as Discord had it; so the pins list never needs 
 MAX_REACTIONS :: 20; // Distinct emoji per message, as on Discord.
 MAX_SESSIONS :: 16; // Per member: one per running client, so this many devices at once.
 
-// PUT/DELETE /api/v9/channels/{id}/messages/pins/{id}: until roles land (Hosting 4) only the owner pins.
+// PUT/DELETE /api/v9/channels/{id}/messages/pins/{id}: Pin Messages or Manage Messages.
 // The message (now pinned or not) follows as MESSAGE_UPDATE, then CHANNEL_PINS_UPDATE.
 pin :: (c: *Conn, user: s64, channel: s64, message: s64, on: bool) -> bool {
 	s := c.server;
@@ -3815,7 +3924,8 @@ pin :: (c: *Conn, user: s64, channel: s64, message: s64, on: bool) -> bool {
 	last := "";
 	{
 		locks.guard(*s.db_mu);
-		if owner_id(s) != user return json_error(c, 403, 50013, "Missing Permissions");
+		p := perms_of_locked(s, user);
+		if !(channel_perms_locked(s, *p, channel) & (P_PIN_MESSAGES | P_MANAGE_MESSAGES)) return json_error(c, 403, 50013, "Missing Permissions");
 		st := sqlite.prepare(s.db, "SELECT (SELECT count(*) FROM messages WHERE channel = ?1 AND pinned_at IS NOT NULL) FROM messages WHERE id = ?2 AND channel = ?1;");
 		sqlite.bind_all(st, channel, message);
 		found := sqlite.step(st) == .Row;
@@ -3911,7 +4021,7 @@ recent_mentions :: (c: *Conn, req: http.Request) -> bool {
 	{
 		locks.guard(*s.db_mu);
 		pinged := ifx everyone then "(m.id IN (SELECT message FROM mentions WHERE user = ?1) OR m.everyone = 1)" else "m.id IN (SELECT message FROM mentions WHERE user = ?1)";
-		st := sqlite.prepare(s.db, tprint("% WHERE % AND m.author != ?1 AND m.id < ?2 AND m.id NOT IN (SELECT message FROM mention_dismissals WHERE user = ?1) ORDER BY m.id DESC LIMIT %;", MESSAGE_SELECT, pinged, limit));
+		st := sqlite.prepare(s.db, tprint("% WHERE % AND m.author != ?1 AND m.id < ?2 AND m.id NOT IN (SELECT message FROM mention_dismissals WHERE user = ?1) AND m.channel NOT IN % ORDER BY m.id DESC LIMIT %;", MESSAGE_SELECT, pinged, id_list(hidden_channels_locked(s, viewer)), limit));
 		sqlite.bind_all(st, viewer, before);
 		while sqlite.step(st) == .Row array_add(*found, row_message(s, st, viewer = viewer));
 		sqlite.finalize(st);
@@ -3993,7 +4103,7 @@ reaction :: (c: *Conn, req: http.Request, user: s64, channel: s64, message: s64,
 		found := sqlite.step(st) == .Row;
 		sqlite.finalize(st);
 		if !found return json_error(c, 404, 10008, "Unknown Message");
-		if target != user && owner_id(s) != user return json_error(c, 403, 50013, "Missing Permissions");
+		if target != user && !can_locked(s, user, P_MANAGE_MESSAGES, channel) return json_error(c, 403, 50013, "Missing Permissions");
 		if !list && archived_locked(s, channel) return json_error(c, 400, 50083, "Thread is archived");
 		if list {
 			// Who reacted, by user ID as Discord orders them, a page after `after`; no one gives super reactions here.
@@ -4022,6 +4132,8 @@ reaction :: (c: *Conn, req: http.Request, user: s64, channel: s64, message: s64,
 			if sqlite.step(st) == .Row kinds, has = sqlite.col_int(st, 0), sqlite.col_int(st, 1);
 			sqlite.finalize(st);
 			if !has && kinds >= MAX_REACTIONS return json_error(c, 400, 30010, "Maximum number of reactions reached (20)");
+			// Adding to a reaction already there needs nothing more; a new one takes Add Reactions.
+			if !has && !can_locked(s, user, P_ADD_REACTIONS, channel) return json_error(c, 403, 50013, "Missing Permissions");
 		}
 		sql := ifx add then "INSERT OR IGNORE INTO reactions(message, emoji, user) VALUES(?, ?, ?);" else "DELETE FROM reactions WHERE message = ? AND emoji = ? AND user = ?;";
 		if !sqlite.run(s.db, sql, message, emoji, target) return json_error(c, 500, 0, "500: Internal Server Error");

@@ -1,6 +1,6 @@
 // Server Settings on a hosted server: the routes the app's Server Settings pages call, at Discord's paths
-// and in Discord's shapes, and the audit log every change lands in. Only the owner manages the server
-// until roles land (Hosting 4).
+// and in Discord's shapes, and the audit log every change lands in. Each page takes the permission Discord asks
+// for (roles.jai).
 
 SETTINGS_SCHEMA :: #string SQL
 CREATE TABLE IF NOT EXISTS audit(id INTEGER PRIMARY KEY, user INTEGER NOT NULL, action INTEGER NOT NULL, target INTEGER, changes TEXT NOT NULL, reason TEXT, options TEXT);
@@ -125,7 +125,7 @@ members_search :: (c: *Conn, req: http.Request) -> bool {
 		}
 	}
 	locks.guard(*s.db_mu);
-	if owner_id(s) != user return json_error(c, 403, 50013, "Missing Permissions");
+	if !(perms_of_locked(s, user).base & (P_MANAGE_GUILD | P_KICK_MEMBERS | P_BAN_MEMBERS | P_MANAGE_ROLES)) return json_error(c, 403, 50013, "Missing Permissions");
 	list: [..]etf.Value;
 	list.allocator = temp;
 	total := 0;
@@ -188,7 +188,7 @@ incident_actions :: (c: *Conn, req: http.Request) -> bool {
 	g := etf.map_builder(2,, temp);
 	{
 		locks.guard(*s.db_mu);
-		if owner_id(s) != user return json_error(c, 403, 50013, "Missing Permissions");
+		if !can_locked(s, user, P_MANAGE_GUILD) return json_error(c, 403, 50013, "Missing Permissions");
 		old := guild_incidents_locked(s);
 		ok := ifx text then meta_put(s, "invites_disabled_until", text) else sqlite.run(s.db, "DELETE FROM meta WHERE k = 'invites_disabled_until';");
 		if !ok return json_error(c, 500, 0, "500: Internal Server Error");
@@ -240,7 +240,7 @@ edit_guild :: (c: *Conn, req: http.Request) -> bool {
 	etf.map_put(*g, "id", snow(s.guild));
 	{
 		locks.guard(*s.db_mu);
-		if owner_id(s) != user return json_error(c, 403, 50013, "Missing Permissions");
+		if !can_locked(s, user, P_MANAGE_GUILD) return json_error(c, 403, 50013, "Missing Permissions");
 		// Every field is checked before anything is written.
 		Set :: struct { f: Guild_Field; value: string; new: etf.Value; }
 		sets: [..]Set;
@@ -366,7 +366,7 @@ guild_profile :: (c: *Conn, req: http.Request) -> bool {
 		}
 		{
 			locks.guard(*s.db_mu);
-			if owner_id(s) != user return json_error(c, 403, 50013, "Missing Permissions");
+			if !can_locked(s, user, P_MANAGE_GUILD) return json_error(c, 403, 50013, "Missing Permissions");
 			changes: [..]etf.Value;
 			changes.allocator = temp;
 			ok := true;
@@ -444,7 +444,7 @@ audit_logs :: (c: *Conn, req: http.Request, query: string) -> bool {
 		}
 	}
 	locks.guard(*s.db_mu);
-	if owner_id(s) != user return json_error(c, 403, 50013, "Missing Permissions");
+	if !can_locked(s, user, P_VIEW_AUDIT_LOG) return json_error(c, 403, 50013, "Missing Permissions");
 	entries: [..]etf.Value;
 	entries.allocator = temp;
 	ids: [..]s64;

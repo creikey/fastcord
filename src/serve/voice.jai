@@ -98,7 +98,7 @@ voice_state_update :: (c: *Conn, d: etf.Value) {
 		channel, ok = string_to_int(ch.s, T = s64);
 		if !ok || g.kind != .String || g.s != tprint("%", s.guild) return;
 		locks.guard(*s.db_mu);
-		if channel_type_locked(s, channel) != VOICE return;
+		if channel_type_locked(s, channel) != VOICE || !can_locked(s, c.user, P_CONNECT, channel) return; // Connect, and View Channel with it.
 	} else if ch.kind != .Nil return;
 	flag :: (m: etf.Map, k: string) -> bool { v, _ := etf.map_get(m, k); return v.kind == .Bool && v.b; }
 	state, server, gone: etf.Value;

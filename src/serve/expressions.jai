@@ -83,9 +83,8 @@ sticker_items_locked :: (s: *Server, ids: etf.Value) -> string, bool {
 }
 
 // The routes: /api/v9/guilds/{id}/stickers[/{sticker}], /api/v9/stickers/{sticker} and
-// /api/v9/guilds/{id}/emojis[/{emoji}]. Adding, editing and deleting are the owner's until roles land
-// (Hosting 4); whoever added a sticker or emoji may edit or delete it too, as Discord's Create
-// Expressions allows.
+// /api/v9/guilds/{id}/emojis[/{emoji}]. Adding takes Create Expressions, and whoever added one may edit or
+// delete it; anyone else's takes Manage Expressions, as on Discord.
 expressions :: (c: *Conn, req: http.Request) -> bool {
 	s := c.server;
 	emojis := tprint("/api/v9/guilds/%/emojis", s.guild);
@@ -109,7 +108,7 @@ expressions :: (c: *Conn, req: http.Request) -> bool {
 	}
 	if req.method == "GET" {
 		locks.guard(*s.db_mu);
-		owner := owner_id(s) == user;
+		owner := can_locked(s, user, P_MANAGE_GUILD_EXPRESSIONS); // Manages everyone's.
 		if !id return json_reply(c, 200, ifx is_emoji then emoji_list_locked(s, with_user = owner) else sticker_list_locked(s, owner));
 		if is_emoji {
 			for emoji_list_locked(s, with_user = owner).list if etf.map_get(it.map, "id").s == tprint("%", id) return json_reply(c, 200, it);
@@ -172,9 +171,9 @@ expressions :: (c: *Conn, req: http.Request) -> bool {
 	result, list: etf.Value;
 	{
 		locks.guard(*s.db_mu);
-		owner := owner_id(s) == user;
+		owner := can_locked(s, user, P_MANAGE_GUILD_EXPRESSIONS); // Manages everyone's.
 		if id == 0 {
-			if !owner return json_error(c, 403, 50013, "Missing Permissions");
+			if !can_any_locked(s, user, P_CREATE_GUILD_EXPRESSIONS | P_MANAGE_GUILD_EXPRESSIONS) return json_error(c, 403, 50013, "Missing Permissions");
 			st := sqlite.prepare(s.db, "SELECT count(*) FROM stickers;");
 			n := ifx sqlite.step(st) == .Row then sqlite.col_int(st, 0) else 0;
 			sqlite.finalize(st);

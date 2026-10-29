@@ -33,8 +33,8 @@ sound_list_locked :: (s: *Server) -> etf.Value {
 }
 
 // Soundboard routes: /api/v9/guilds/{id}/soundboard-sounds[/{sound}], /api/v9/soundboard-default-sounds and
-// /api/v9/channels/{id}/send-soundboard-sound. Adding, editing and deleting are the owner's until roles
-// land (Hosting 4); the one who added a sound may edit or delete it too.
+// /api/v9/channels/{id}/send-soundboard-sound. Adding takes Create Expressions, and the one who added a
+// sound may edit or delete it; anyone else's takes Manage Expressions.
 soundboard :: (c: *Conn, req: http.Request) -> bool {
 	s := c.server;
 	token, _ := http.header_get(req.headers, "authorization");
@@ -95,7 +95,7 @@ soundboard :: (c: *Conn, req: http.Request) -> bool {
 	list: etf.Value;
 	{
 		locks.guard(*s.db_mu);
-		owner := owner_id(s) == user;
+		owner := can_locked(s, user, P_MANAGE_GUILD_EXPRESSIONS); // Manages everyone's.
 		if emoji_id {
 			st := sqlite.prepare(s.db, "SELECT 1 FROM emojis WHERE id = ?;");
 			sqlite.bind_all(st, emoji_id);
@@ -104,7 +104,7 @@ soundboard :: (c: *Conn, req: http.Request) -> bool {
 			if !known return json_error(c, 400, 50035, "Invalid Form Body");
 		}
 		if id == 0 {
-			if !owner return json_error(c, 403, 50013, "Missing Permissions");
+			if !can_any_locked(s, user, P_CREATE_GUILD_EXPRESSIONS | P_MANAGE_GUILD_EXPRESSIONS) return json_error(c, 403, 50013, "Missing Permissions");
 			st := sqlite.prepare(s.db, "SELECT count(*) FROM sounds;");
 			n := ifx sqlite.step(st) == .Row then sqlite.col_int(st, 0) else 0;
 			sqlite.finalize(st);
@@ -177,6 +177,7 @@ send_sound :: (c: *Conn, req: http.Request, user: s64) -> bool {
 	emoji_name: string;
 	{
 		locks.guard(*s.db_mu);
+		if !can_locked(s, user, P_SPEAK | P_USE_SOUNDBOARD, channel) return json_error(c, 403, 50013, "Missing Permissions");
 		st := sqlite.prepare(s.db, "SELECT volume, emoji_id, emoji_name FROM sounds WHERE id = ?;");
 		defer sqlite.finalize(st);
 		sqlite.bind_all(st, sound);
