@@ -264,6 +264,17 @@ os_frame_wait :: () {}
 // so no sleep here), a wake from another thread, or the timeout.
 os_wait :: (timeout: float64) {
     start := time_now();
+    // The caret, for the input method's candidate window (ibus and fcitx read the spot even with
+    // XIMPreeditNothing, which keeps preedit drawing theirs).
+    if xs.ic && s.ime_rect != xs.ime_spot {
+        xs.ime_spot = s.ime_rect;
+        p := XPoint.{xx (s.ime_rect.x * s.scale), xx ((s.ime_rect.y + s.ime_rect.w) * s.scale)};
+        list := X.VaCreateNestedList(0, "spotLocation", *p, null);
+        if list {
+            X.SetICValues(xs.ic, "preeditAttributes", list, null);
+            X.Free(list);
+        }
+    }
     while true {
         n: u64;
         read(xs.wake_fd, *n, 8);
@@ -420,6 +431,8 @@ Xlib :: struct {
     CloseIM: (im: *void) -> s32 #c_call;
     // variadic in C: name/value pairs ending in null (integer arguments pass the same way)
     CreateIC: (im: *void, n1: *u8, v1: s64, n2: *u8, v2: Window, n3: *u8, v3: Window, end: *void) -> *void #c_call;
+    SetICValues: (ic: *void, n1: *u8, v1: *void, end: *void) -> *u8 #c_call;
+    VaCreateNestedList: (unused: s32, n1: *u8, v1: *XPoint, end: *void) -> *void #c_call;
     DestroyIC: (ic: *void) #c_call;
     SetICFocus: (ic: *void) #c_call;
     UnsetICFocus: (ic: *void) #c_call;
@@ -469,6 +482,7 @@ XSizeHints :: struct {
 #assert size_of(XSizeHints) == 80;
 
 XClassHint :: struct { res_name, res_class: *u8; }
+XPoint :: struct { x, y: s16; }
 XColor :: struct { pixel: u64; red, green, blue: u16; flags, pad: u8; }
 
 // The event structs' shared head: type, serial, send_event, display, then the window at 32.
@@ -633,6 +647,7 @@ xs: struct {
     px_w, px_h: s32;
     normal: Window_Placement; // the client area when neither maximized nor full screen (root pixels)
     fullscreen: bool; // set_fullscreen's
+    ime_spot: Vector4; // the ime_rect last sent to the input method
     focused: bool;
     keys_down: [256]bool; // by keycode: repeats
     cursors: [#run enum_highest_value(Cursor) + 1]u64;

@@ -63,9 +63,29 @@ linux_platform :: () -> Platform_Info {
 	return p;
 }
 
-// system_idle_ms: not measured on Linux (X has it only through the XScreenSaver extension, Wayland not at
-// all), so presence never goes idle on its own there.
-system_idle_ms :: () -> s64, bool { return 0, false; }
+// system_idle_ms: time since the last user input, from the XScreenSaver extension, as Chromium's X11
+// idle query does (on Wayland desktops, through XWayland: input to Wayland windows may not count). Each
+// client's gateway thread polls it every 10 s, so each call opens its own display connection.
+system_idle_ms :: () -> s64, bool {
+	if compare_and_swap(*xss.state, 0, 1) {
+		x11 := dlopen("libX11.so.6", RTLD_NOW);
+		ext := dlopen("libXss.so.1", RTLD_NOW);
+		if x11 && ext {
+			xss.open = xx dlsym(x11, "XOpenDisplay");
+			xss.close = xx dlsym(x11, "XCloseDisplay");
+			xss.root = xx dlsym(x11, "XDefaultRootWindow");
+			xss.query = xx dlsym(ext, "XScreenSaverQueryInfo");
+		}
+		atomic_store(*xss.state, cast(s32) ifx xss.open && xss.close && xss.root && xss.query then 2 else 3);
+	}
+	if atomic_load(*xss.state) != 2 return 0, false;
+	d := xss.open(null);
+	if !d return 0, false;
+	defer xss.close(d);
+	info: struct { window: u64; state, kind: s32; til_or_since, idle, event_mask: u64; }; // XScreenSaverInfo
+	if xss.query(d, xss.root(d), *info) == 0 return 0, false;
+	return cast(s64) info.idle, true;
+}
 
 #scope_file
 
@@ -84,7 +104,16 @@ os_release_name :: () -> string {
 	return "Linux";
 }
 
+xss: struct {
+	state: s32; // 0 not tried, 1 loading, 2 loaded, 3 missing
+	open: (name: *u8) -> *void #c_call;
+	close: (d: *void) -> s32 #c_call;
+	root: (d: *void) -> u64 #c_call;
+	query: (d: *void, drawable: u64, info: *void) -> s32 #c_call;
+};
+
 #import "POSIX";
+#import "Atomics";
 libc :: #system_library "libc";
 c_getenv :: (name: *u8) -> *u8 #foreign libc "getenv"; // not getenv: tests declare one at module scope
 #import "File";
