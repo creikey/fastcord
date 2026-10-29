@@ -624,7 +624,7 @@ feature_route :: (r: *dc.Feature_Result) {
 		inbox_receive(r);
 	case .User_Patch; #through; case .Profile_Patch; #through; case .Banner_Edit;
 		account_receive(r); // view_settings_account.jai
-	case .Event_Create; #through; case .Event_Counts; #through; case .Event_Rsvps; #through; case .Event_Interest; #through; case .Event_Invite; #through; case .Event_Delete; #through; case .Event_Start;
+	case .Event_Create; #through; case .Event_Edit; #through; case .Event_Counts; #through; case .Event_Rsvps; #through; case .Event_Interest; #through; case .Event_Invite; #through; case .Event_Delete; #through; case .Event_Start;
 		events_receive(r); // view_events.jai (dc.guild_admin_apply first)
 	case .Guild_Aux; #through; case .Channel_Order; #through; case .Channel_Create; #through; case .Channel_Edit; #through; case .Channel_Delete; #through; case .Avatar_Edit; #through; case .Emoji_Upload;
 		guild_admin_receive(r);

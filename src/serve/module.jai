@@ -1244,6 +1244,7 @@ scheduled_events :: (c: *Conn, req: http.Request) -> bool {
 				channel, ok = string_to_int(ifx val.kind == .String then val.s else "0", T = s64);
 				if !ok bad = true;
 			case "privacy_level"; #through;
+			case "image"; #through; // a cover, kept by Discord and not here (as on create)
 			case "recurrence_rule";
 			case; bad = true;
 			}

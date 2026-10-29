@@ -529,6 +529,7 @@ Feature_Op :: enum u8 {
 	Mfa_Finish; // POST /mfa/finish (account.jai mfa_finish)
 	// guild_admin.jai (guild_admin_apply first)
 	Event_Create;
+	Event_Edit; // PATCH /guilds/{g}/scheduled-events/{id} (tag = event)
 	Event_Counts;
 	Event_Rsvps;
 	Event_Interest;

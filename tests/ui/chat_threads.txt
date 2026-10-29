@@ -1,4 +1,4 @@
-# On the threads fixture. Cancel Event takes the card off the list at once behind Undo (no confirm); Undo brings it back.
+# On the threads fixture. Edit Event opens the wizard filled in. Cancel Event takes the card off the list at once behind Undo (no confirm); Undo brings it back.
 wait 5
 click_text "2 Events"
 wait 10
@@ -13,6 +13,22 @@ shot build/ui-undo_cancel_event.png
 click_text "Undo"
 wait 5
 expect_visible "Friday game night"
+# Edit Event (a scheduled event's menu): the wizard on its fields, ending in Save Event
+rclick_text "fastcord release party"
+wait 10
+click_text "Edit Event"
+wait 10
+expect_visible "Robin HQ, San Francisco"
+click_text Next
+wait 10
+expect_visible "End Date"
+click_text Next
+wait 10
+expect_visible "Save Event"
+expect_visible "fastcord release party"
+shot build/ui-event_edit.png
+key escape
+wait 10
 key escape
 wait 10
 # Delete Thread (a sidebar thread row's menu), the same way

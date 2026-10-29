@@ -8,7 +8,8 @@
 //   Info (topic, start date and time from the next full hour, description; end
 //   for external events) -> Review (preview; GET counts for event -1) -> Create.
 // - after creating, the share dialog with the event's invite link.
-// - the card's menu: Start Event (voice, permitted), Cancel Event (confirm), Copy Event Link.
+// - the card's menu: Start Event (voice, permitted), Edit Event (the wizard filled in, Save Event PATCHes),
+//   Cancel Event (behind Undo), Copy Event Link.
 // Requests live in jai/discord/guild_admin.jai.
 
 events_open :: (gid: dc.Snowflake) {
@@ -57,7 +58,7 @@ events_receive :: (r: *dc.Feature_Result) {
 	if app.client != null dc.guild_admin_apply(app.client, r);
 	app.ui.animating = true;
 	if r.op == {
-	case .Event_Create;
+	case .Event_Create; #through; case .Event_Edit;
 		if !evu.wiz_open return;
 		evu.busy = false;
 		if !r.ok {
@@ -68,7 +69,7 @@ events_receive :: (r: *dc.Feature_Result) {
 		evu.wiz_open = false;
 		evu.open = true;
 		// the library already asked for the event's invite (dc.event_share)
-		share_open(dc.fsnow(dc.vmap(r.body), "id"), created = true);
+		if r.op == .Event_Create share_open(dc.fsnow(dc.vmap(r.body), "id"), created = true);
 	case .Event_Invite;
 		if cast(dc.Snowflake)(r.tag) != evu.share_event return;
 		evu.share_loading = false;
@@ -236,6 +237,7 @@ Events_UI :: struct {
 	guild: dc.Snowflake;
 	// Create Event wizard
 	wiz_open: bool;
+	editing: dc.Snowflake; // the event Edit Event opened the wizard on (0: Create Event)
 	step: Wizard_Step;
 	entity: dc.Event_Entity; // .Unknown until a location type is picked
 	channel: dc.Snowflake; // voice or stage
@@ -646,7 +648,7 @@ event_menu :: () {
 	manage := dc.can_manage_event(store(), e);
 	can_start := manage && e.status == .Scheduled && e.entity == .Voice;
 	can_end := manage && e.status == .Active;
-	n := 1 + cast(int) can_start + cast(int) can_end + cast(int) manage;
+	n := 1 + cast(int) can_start + cast(int) can_end + cast(int) manage + cast(int) (manage && e.status == .Scheduled);
 	h := cast(float32)(16 + n * GM_ROW_H);
 	pos := evu.menu_pos;
 	pos.x = min(pos.x, app.ui.window.x - W - 8);
@@ -665,6 +667,10 @@ event_menu :: () {
 				evu.menu_event = 0;
 				if net_action() dc.end_scheduled_event(app.client, e.id);
 			}
+		}
+		if manage && e.status == .Scheduled && menu_item("edit", L("Edit Event")).clicked {
+			evu.menu_event = 0;
+			event_edit_open(e);
 		}
 		if manage {
 			if menu_item("cancel", L("Cancel Event"), danger = true).clicked {
@@ -787,8 +793,19 @@ share_modal :: () {
 
 // ---- Create Event wizard ----
 
+// Edit Event: the wizard on the event's fields; the last step saves it (PATCH) instead of creating one.
+event_edit_open :: (e: *dc.Scheduled_Event) {
+	wizard_open();
+	evu.editing, evu.entity, evu.channel = e.id, e.entity, e.channel_id;
+	evu.start_ms, evu.end_ms = e.start_ms, ifx e.end_ms then e.end_ms else e.start_ms + 3_600_000;
+	ui.editor_set_text(*evu.location, e.location);
+	ui.editor_set_text(*evu.name, e.name);
+	ui.editor_set_text(*evu.desc, e.description);
+}
+
 wizard_open :: () {
 	evu.wiz_open = true;
+	evu.editing = 0;
 	evu.step = .Location;
 	// With no voice channel to hold it in, Somewhere Else is the only choice.
 	evu.entity = ifx voice_channels(evu.guild).count then dc.Event_Entity.Unknown else .External;
@@ -905,7 +922,9 @@ wizard_modal :: () {
 			if evu.step != .Location && set_button(L("Back##back"), .Link, !evu.busy, 40) back = true;
 			filler(.X);
 			if set_button(L("Cancel##cancel"), .Secondary, true, 40) cancel = true;
-			if evu.step == .Review {
+			if evu.step == .Review && evu.editing {
+				if set_button(ifx evu.busy then L("Saving...##next") else L("Save Event##next"), .Primary, !evu.busy, 40) next = true;
+			} else if evu.step == .Review {
 				if set_button(ifx evu.busy then L("Creating...##next") else L("Create Event##next"), .Primary, !evu.busy, 40) next = true;
 			} else {
 				if set_button(L("Next##next"), .Primary, step_valid(evu.step), 40) next = true;
@@ -927,8 +946,10 @@ wizard_modal :: () {
 		case .Location;
 			evu.step = .Info;
 			// defaults: the next full hour; external events end an hour later
-			evu.start_ms = dc.default_event_start_ms(wall_ms(), local_ms(wall_ms()) - wall_ms());
-			evu.end_ms = evu.start_ms + 3_600_000;
+			if !evu.editing {
+				evu.start_ms = dc.default_event_start_ms(wall_ms(), local_ms(wall_ms()) - wall_ms());
+				evu.end_ms = evu.start_ms + 3_600_000;
+			}
 			evu.focus_next = true;
 			app.ui.focus = 0; // the topic field takes it
 		case .Info;
@@ -938,7 +959,8 @@ wizard_modal :: () {
 		case .Review;
 			if !evu.busy && net_action() {
 				evu.busy = true;
-				dc.create_scheduled_event(app.client, evu.guild, draft(), evu.cover);
+				if evu.editing dc.edit_scheduled_event(app.client, evu.guild, evu.editing, draft(), evu.cover);
+				else dc.create_scheduled_event(app.client, evu.guild, draft(), evu.cover);
 			}
 		}
 	}

@@ -305,6 +305,12 @@ create_scheduled_event :: (c: *Client, guild_id: Snowflake, d: Event_Draft, cove
 	feature_submit(c, .Event_Create, "POST", tprint("/guilds/%/scheduled-events", guild_id), event_create_body(d), channel_id = guild_id, file = cover);
 }
 
+// Edit Event: PATCH /guilds/{gid}/scheduled-events/{id} with the wizard's body, as create's (a guess);
+// GUILD_SCHEDULED_EVENT_UPDATE and the reply update the list.
+edit_scheduled_event :: (c: *Client, guild_id: Snowflake, event_id: Snowflake, d: Event_Draft, cover := "") {
+	feature_submit(c, .Event_Edit, "PATCH", tprint("/guilds/%/scheduled-events/%", guild_id, event_id), event_create_body(d), channel_id = guild_id, tag = event_id, file = cover);
+}
+
 // The channel an event's invite points at: its own channel, else the guild's
 // system channel or first text channel.
 event_invite_channel :: (c: *Client, e: *Scheduled_Event) -> Snowflake {
@@ -791,6 +797,8 @@ guild_admin_apply :: (c: *Client, r: *Feature_Result) {
 	if r.op == {
 		case .Event_Create;
 			if r.ok event_created(c, r);
+		case .Event_Edit;
+			if r.ok && r.body.kind == .Map { events_init(); event_upsert(r.body.map); }
 		case .Event_Counts;
 			e := event_get(r.tag);
 			if !r.ok || !e return;
@@ -910,7 +918,7 @@ file_job_body :: (path: string, name: string, op: Feature_Op, hosted: bool) -> s
 	if !mime return "", .[], -1;
 	data, ok := read_entire_file(path, log_errors = false,, temp);
 	if !ok || !data return "", .[], -1;
-	if op == .Event_Create {
+	if op == .Event_Create || op == .Event_Edit {
 		// the event's body (name) takes "image" before its closing brace
 		if data.count > image_max_bytes(hosted) return "", .[], -2;
 		return tprint("%,\"image\":\"data:%;base64,%\"}", slice(name, 0, name.count - 1), mime, base64_encode(data,, temp)), .[], 0;
