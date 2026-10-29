@@ -89,8 +89,6 @@ settings_route :: (c: *Conn, req: http.Request) -> handled: bool, keep: bool {
 	if rest == "/audit-logs" && req.method == "GET" return true, audit_logs(c, req, query);
 	if rest == "/members-search" && req.method == "POST" return true, members_search(c, req);
 	if rest == "/incident-actions" && req.method == "PUT" return true, incident_actions(c, req);
-	if rest == "/emojis" && req.method == "GET" return true, list_emojis(c, req);
-	if begins_with(rest, "/emojis/") && (req.method == "PATCH" || req.method == "DELETE") return true, edit_emoji(c, req, advance(rest, "/emojis/".count));
 	return false, true;
 }
 
@@ -208,76 +206,6 @@ guild_incidents_locked :: (s: *Server) -> etf.Value {
 	etf.map_put(*m, "invites_disabled_until", ifx text then etf.vstring(text) else .{});
 	etf.map_put(*m, "dms_disabled_until", .{});
 	return etf.vmap(etf.map_done(*m));
-}
-
-// GET /api/v9/guilds/{id}/emojis: the custom emoji with who uploaded each, for the owner.
-list_emojis :: (c: *Conn, req: http.Request) -> bool {
-	s := c.server;
-	user := owner_session(c, req);
-	if !user return json_error(c, 401, 0, "401: Unauthorized");
-	locks.guard(*s.db_mu);
-	if owner_id(s) != user return json_error(c, 403, 50013, "Missing Permissions");
-	list: [..]etf.Value;
-	list.allocator = temp;
-	st := sqlite.prepare(s.db, "SELECT e.id, e.name, e.animated, e.user, u.name FROM emojis e LEFT JOIN users u ON u.id = e.user ORDER BY e.id;");
-	defer sqlite.finalize(st);
-	while sqlite.step(st) == .Row {
-		e := emoji_value(sqlite.col_int(st, 0), copy_string(sqlite.col_text(st, 1),, temp), sqlite.col_int(st, 2) != 0);
-		b := etf.map_builder(8,, temp);
-		for e.map etf.map_put(*b, it.key.s, it.value);
-		if !sqlite.col_is_null(st, 4) etf.map_put(*b, "user", user_value(s, sqlite.col_int(st, 3), copy_string(sqlite.col_text(st, 4),, temp)));
-		array_add(*list, etf.vmap(etf.map_done(*b)));
-	}
-	return json_reply(c, 200, etf.vlist(list));
-}
-
-// PATCH /api/v9/guilds/{id}/emojis/{emoji} {name} renames a custom emoji, DELETE removes it; every member
-// gets GUILD_EMOJIS_UPDATE.
-edit_emoji :: (c: *Conn, req: http.Request, id_text: string) -> bool {
-	s := c.server;
-	user := owner_session(c, req);
-	if !user return json_error(c, 401, 0, "401: Unauthorized");
-	id, idok := string_to_int(id_text, T = s64);
-	if !idok return json_error(c, 404, 10014, "Unknown Emoji");
-	reason, rok := audit_reason(req);
-	if !rok return json_error(c, 400, 50035, "Invalid Form Body");
-	name := "";
-	if req.method == "PATCH" {
-		v, err := etf.from_json(cast(string) req.body,, temp);
-		name_v, _ := etf.map_get(v.map, "name");
-		if err != .None || name_v.kind != .String return json_error(c, 400, 50035, "Invalid Form Body");
-		name = name_v.s;
-		name_ok := name.count >= 2 && name.count <= 32;
-		for name if !is_alnum(it) && it != #char "_" name_ok = false;
-		if !name_ok return json_error(c, 400, 50035, "Invalid Form Body");
-	}
-	emoji, list: etf.Value;
-	{
-		locks.guard(*s.db_mu);
-		if owner_id(s) != user return json_error(c, 403, 50013, "Missing Permissions");
-		st := sqlite.prepare(s.db, "SELECT name, animated FROM emojis WHERE id = ?;");
-		sqlite.bind(st, 1, id);
-		found := sqlite.step(st) == .Row;
-		old := ifx found then copy_string(sqlite.col_text(st, 0),, temp) else "";
-		animated := found && sqlite.col_int(st, 1) != 0;
-		sqlite.finalize(st);
-		if !found return json_error(c, 404, 10014, "Unknown Emoji");
-		if req.method == "DELETE" {
-			if !sqlite.run(s.db, "DELETE FROM emojis WHERE id = ?;", id) return json_error(c, 500, 0, "500: Internal Server Error");
-			audit_locked(s, user, AUDIT_EMOJI_DELETE, id, .[audit_change("name", etf.vstring(old), .{})], reason);
-		} else {
-			if !sqlite.run(s.db, "UPDATE emojis SET name = ? WHERE id = ?;", name, id) return json_error(c, 500, 0, "500: Internal Server Error");
-			audit_locked(s, user, AUDIT_EMOJI_UPDATE, id, .[audit_change("name", etf.vstring(old), etf.vstring(name))], reason);
-			emoji = emoji_value(id, name, animated);
-		}
-		list = emoji_list_locked(s);
-	}
-	d := etf.map_builder(2,, temp);
-	etf.map_put(*d, "guild_id", snow(s.guild));
-	etf.map_put(*d, "emojis", list);
-	broadcast(s, "GUILD_EMOJIS_UPDATE", etf.vmap(etf.map_done(*d)));
-	if req.method == "DELETE" return respond(c, 204, json = false);
-	return json_reply(c, 200, emoji);
 }
 
 owner_session :: (c: *Conn, req: http.Request) -> s64 {
