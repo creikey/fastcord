@@ -585,7 +585,9 @@ login :: (c: *Conn, session: *tls.Session, req: http.Request) -> bool {
 			sqlite.bind(st, 1, field("code"));
 			if sqlite.step(st) == .Row owner = sqlite.col_int(st, 0) != 0;
 			sqlite.finalize(st);
-			if !sqlite.run(s.db, tprint("UPDATE invites SET uses_left = uses_left - (uses_left > 0) WHERE code = ? AND %;", INVITE_LIVE), field("code")) || sqlite.changes(s.db) != 1 {
+			if !owner && invites_paused_locked(s) {
+				status, code, message = 403, 40069, "Invites are paused for this server.";
+			} else if !sqlite.run(s.db, tprint("UPDATE invites SET uses_left = uses_left - (uses_left > 0) WHERE code = ? AND %;", INVITE_LIVE), field("code")) || sqlite.changes(s.db) != 1 {
 				status, code, message = 404, 10006, "Unknown Invite";
 			} else if !name || name.count > 32 || !text_ok(name) {
 				status, code, message = 400, 50035, "Invalid Form Body";
@@ -2671,6 +2673,7 @@ create_emoji :: (c: *Conn, req: http.Request) -> bool {
 		if !sqlite.run(s.db, "INSERT INTO emojis(id, name, animated, type, data, user) VALUES(?, ?, ?, ?, ?, ?);", id, name, cast(int) animated, IMAGE_TYPES[cast(int) format], image, user) {
 			return json_error(c, 500, 0, "500: Internal Server Error");
 		}
+		audit_locked(s, user, AUDIT_EMOJI_CREATE, id, .[audit_change("name", .{}, etf.vstring(name))], "");
 		emoji = emoji_value(id, name, animated);
 		list = emoji_list_locked(s);
 	}

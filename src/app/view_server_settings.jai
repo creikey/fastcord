@@ -102,6 +102,15 @@ server_settings_receive :: (r: *dc.Feature_Result) {
 		return;
 	}
 	req := cast(Req) r.tag;
+	if req == .Action {
+		ss.busy = false;
+		if !r.ok { ss_error(settings_result_error(r)); return; }
+		if ss.confirm == .Delete_Server { server_settings_close(); return; }
+		ss.confirm = .None;
+		if ss.after == .Members members_search(g);
+		else if ss.after < .COUNT { ss.loading[ss.after] = false; section_enter(g); }
+		return;
+	}
 	if req == .Save || req == .Save_Widget {
 		if req == .Save && ss.save_widget && r.ok return; // the widget's reply ends the save
 		ss.busy = false;
@@ -161,7 +170,10 @@ server_settings_layer :: () {
 							if head nav_header(sec, head);
 							group = grp;
 						}
-						if nav_item(sec, g) && !dirty go = sec;
+						if nav_item(sec, g) && !dirty {
+							if sec == .Delete ss_confirm_open(.Delete_Server, 0, "");
+							else go = sec;
+						}
 					}
 					spacer(.Y, 60);
 				}
@@ -220,11 +232,19 @@ server_settings_layer :: () {
 			}
 		}
 	}
+	if ss.menu_user member_menu(g);
+	if ss.confirm != .None ss_confirm_modal(g);
 	if ss.dd {
 		dropdown_list();
 		if adm_escape() ss.dd = "";
 	}
-	if !close && !dirty && (adm_escape() || ss.field_escape) close = true;
+	if ss.reload_after_modr && modr.user == 0 {
+		ss.reload_after_modr = false;
+		ss.search_at = wall_ms() + 700; // after the kick or ban lands
+	}
+	covered := ss.confirm != .None || ss.menu_user != 0 || modr.user != 0 || guild_admin_modal_open();
+	if ss.menu_user && escape_pressed() ss.menu_user = 0;
+	if !close && !dirty && !covered && (adm_escape() || ss.field_escape) close = true;
 	ss.field_escape = false; // with unsaved changes the client keeps the page
 	if close && !dirty {
 		server_settings_close();
@@ -253,9 +273,15 @@ GROUP_NAMES :: string.["", "Expression", "People", "Apps", "Moderation", "", "Ho
 Req :: enum u8 {
 	Profile; // GET /guilds/{id}/profile
 	Widget; // GET /guilds/{id}/widget
+	Members; // POST /guilds/{id}/members-search
+	Invites; // GET /guilds/{id}/invites
+	Bans; // GET /guilds/{id}/bans
+	Emojis; // GET /guilds/{id}/emojis (who uploaded each)
+	Audit; // GET /guilds/{id}/audit-logs
 	COUNT;
 	Save :: 100; // a page's Save Changes
 	Save_Widget;
+	Action; // a list page's change (ss_action), then its list reloads
 }
 
 ss: struct {
@@ -286,7 +312,36 @@ ss: struct {
 	dd_current: int;
 	dd_pick: int = -1;
 	dd_pick_id: string;
+	after: Req; // what the action in flight reloads
+	form_w: float32; // this frame's page column width
+	col_unit: float32; // a table's width per column weight
+	// Members and Bans
+	search: ui.Editor;
+	search_at: s64; // Members: when the search text changed (searched 300 ms later)
+	menu_user: dc.Snowflake; // the member row menu
+	menu_pos: ui.Vec2;
+	menu_name: string; // heap
+	menu_timed_out: bool;
+	reload_after_modr: bool; // Kick / Ban went to moderation.jai's confirm
+	// Emoji
+	rename_emoji: dc.Snowflake;
+	rename: ui.Editor;
+	// Audit Log
+	audit_user: dc.Snowflake;
+	audit_action: int; // index into AUDIT_ACTIONS
+	// the open confirm
+	confirm: SS_Confirm;
+	confirm_id: dc.Snowflake;
+	confirm_text: string; // heap
+	reason: ui.Editor; // a reason, or the server's name (Delete Server)
+	confirm_pick: int;
+	confirm_ack: bool;
 };
+
+ss_set :: (dst: *string, v: string) {
+	free(dst.*);
+	dst.* = copy_string(v);
+}
 
 keep_reply :: (req: Req, r: *dc.Feature_Result) {
 	ss.loading[req] = false;
@@ -313,7 +368,19 @@ section_enter :: (g: *dc.Guild) {
 		load(g, .Profile, tprint("/guilds/%/profile", g.id));
 	case .Engagement;
 		load(g, .Widget, tprint("/guilds/%/widget", g.id));
+	case .Members;
+		members_search(g);
+	case .Invites;
+		load(g, .Invites, tprint("/guilds/%/invites", g.id));
+	case .Bans;
+		load(g, .Bans, tprint("/guilds/%/bans?limit=1000", g.id));
+	case .Emoji;
+		load(g, .Emojis, tprint("/guilds/%/emojis", g.id));
+	case .Audit_Log;
+		audit_load(g);
 	}
+	ui.editor_set_text(*ss.search, "");
+	ss.rename_emoji = 0;
 	form_reset(g);
 }
 
@@ -415,7 +482,7 @@ section_shown :: (g: *dc.Guild, s: Server_Section) -> bool {
 	case .Bans;
 		return has(p, dc.PERM_BAN_MEMBERS | dc.PERM_VIEW_AUDIT_LOG);
 	case .Delete;
-		return owner;
+		return owner && !on_hosted(); // hosted: the Host group's Server Info
 	}
 	return on_hosted() && owner; // Host
 }
@@ -423,7 +490,8 @@ section_shown :: (g: *dc.Guild, s: Server_Section) -> bool {
 // The sections fastcord has a page for (see the note at the top).
 page_exists :: (s: Server_Section) -> bool {
 	if s == {
-	case .Profile; #through; case .Engagement; #through; case .Soundboard;
+	case .Profile; #through; case .Engagement; #through; case .Members; #through; case .Invites; #through; case .Bans; #through;
+	case .Emoji; #through; case .Audit_Log; #through; case .Delete; #through; case .Soundboard;
 		return true;
 	}
 	return false;
@@ -431,11 +499,22 @@ page_exists :: (s: Server_Section) -> bool {
 
 // page_body draws a section's page into the form column; true asks to save (Enter in a field).
 page_body :: (g: *dc.Guild, s: Server_Section, w: float32) -> bool {
+	ss.form_w = w;
 	if s == {
 	case .Profile;
 		return profile_page(g, w);
 	case .Engagement;
 		engagement_page(g);
+	case .Members;
+		members_page(g);
+	case .Invites;
+		invites_page(g);
+	case .Bans;
+		bans_page(g);
+	case .Emoji;
+		emoji_page(g);
+	case .Audit_Log;
+		audit_page(g);
 	case .Soundboard;
 		sound_settings_page(g, w); // view_server_soundboard.jai
 	}
@@ -920,6 +999,624 @@ engagement_page :: (g: *dc.Guild) {
 		spacer(.Y, 16);
 		field_title("JSON API");
 		copy_field("jsonapi", tprint("https://discord.com/api/guilds/%/widget.json", g.id));
+	}
+}
+
+// ---- list pages: shared ----
+
+// A table header row ("NAME", "MEMBER SINCE", ...), the columns sized by weight like the rows under it.
+table_header :: (id: string, cols: []string, weights: []float32) {
+	table_units(weights);
+	r := row(id);
+	r.semantic_size = .[ui.pct(1), ui.px(28)];
+	ui.parent(r); defer ui.pop_parent();
+	for cols {
+		c := row(tprint("h%", it_index));
+		c.semantic_size = .[ui.px(ss.col_unit * weights[it_index]), ui.px(28)];
+		ui.parent(c); defer ui.pop_parent();
+		label(it, .Bold, 12, T("--text-muted"), 16);
+	}
+	spacer(.X, 36);
+}
+
+// A table row; returns it (pushed as parent: close with ui.pop_parent).
+table_row_begin :: (id: string) -> *ui.Box, ui.Signal {
+	r := row(id, .Clickable | .Draw_Background | .Hot_Animation);
+	r.semantic_size = .[ui.pct(1), ui.px(52)];
+	r.style.radius = all4(8);
+	r.style.bg_hot = T("--background-mod-subtle");
+	sig := ui.signal(r);
+	ui.push_parent(r);
+	return r, sig;
+}
+
+// The columns share the form's width (less a row's end button) by weight.
+table_units :: (weights: []float32) {
+	sum: float32;
+	for weights sum += it;
+	ss.col_unit = (ss.form_w - 36) / sum;
+}
+
+table_cell :: (i: int, weight: float32) -> *ui.Box {
+	c := row(tprint("c%", i));
+	c.semantic_size = .[ui.px(ss.col_unit * weight), ui.px(52)];
+	c.flags |= .Clip;
+	return c;
+}
+
+// A small icon button at a row's end ("...", "x"); true when clicked.
+row_icon_button :: (id: string, name: string, danger := false) -> bool {
+	b := ui.box(id, .Clickable | .Draw_Background | .Hot_Animation);
+	b.semantic_size = .[ui.px(28), ui.px(28)];
+	b.style.radius = all4(14);
+	b.style.bg_hot = T("--background-mod-normal");
+	b.hover_cursor = .Pointer;
+	sig := ui.signal(b);
+	{ ui.parent(b); defer ui.pop_parent();
+		i := icon("i", name, 16, ifx danger && sig.hovering then T("--text-feedback-critical") else T("--interactive-icon-default"));
+		i.flags |= .Floating_X | .Floating_Y;
+		i.fixed_pos = .{6, 6};
+	}
+	return sig.clicked;
+}
+
+user_display :: (u: etf.Map) -> string {
+	n := dc.fstr(u, "global_name");
+	return ifx n then n else dc.fstr(u, "username");
+}
+
+// A user cell: avatar, display name and username under it.
+user_cell :: (u: etf.Map) {
+	uid := dc.fsnow(u, "id");
+	avatar_box("av", uid, 32);
+	spacer(.X, 10);
+	col := ui.box("names");
+	col.semantic_size = .[ui.fill(), ui.children()];
+	col.layout_axis = .Y;
+	ui.parent(col); defer ui.pop_parent();
+	label(user_display(u), .Medium, 14, T("--text-strong"), 18);
+	label(dc.fstr(u, "username"), .Normal, 12, T("--text-muted"), 16);
+}
+
+// "Oct 26, 2026" (local time)
+ss_date :: (ms: s64) -> string {
+	t := utc_calendar(local_ms(ms));
+	MONTHS :: string.["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+	return tprint("% %, %", MONTHS[t.month_starting_at_0], t.day_of_month_starting_at_0 + 1, t.year);
+}
+
+snowflake_date :: (id: dc.Snowflake) -> string { return ss_date(cast(s64)(id >> 22) + 1420070400000); }
+
+ss_empty :: (text: string) {
+	spacer(.Y, 24);
+	r := row("empty");
+	r.semantic_size = .[ui.pct(1), ui.px(20)];
+	ui.parent(r); defer ui.pop_parent();
+	filler(.X);
+	label(text, .Normal, 14, T("--text-muted"), 18);
+	filler(.X);
+}
+
+loading_or :: (req: Req, failed: string) -> bool {
+	if reply(req) return true;
+	label(ifx ss.loading[req] then "Loading..." else failed, .Normal, 14, T("--text-muted"), 18);
+	return false;
+}
+
+// ---- Members ----
+
+TIMEOUTS :: struct { secs: int; name: string; }.[
+	.{60, "60 seconds"}, .{300, "5 minutes"}, .{600, "10 minutes"}, .{3600, "1 hour"}, .{86400, "1 day"}, .{604800, "1 week"},
+];
+
+members_search :: (g: *dc.Guild) {
+	q := trim(ui.editor_text(*ss.search));
+	or := ifx q.count > 1 then tprint("{\"usernames\":{\"or_query\":[%]}}", dc.json_quote(q)) else "{}";
+	ss.loading[Req.Members] = false;
+	if !net_action() return;
+	ss.loading[Req.Members] = true;
+	dc.guild_settings_call(app.client, g.id, xx Req.Members, "POST", tprint("/guilds/%/members-search", g.id), tprint("{\"or_query\":%,\"and_query\":{},\"limit\":250}", or));
+}
+
+members_page :: (g: *dc.Guild) {
+	res := set_input("search", *ss.search, "Search by username or id");
+	if res == .Changed ss.search_at = wall_ms();
+	if res == .Escape ss.field_escape = true;
+	if ss.search_at {
+		app.ui.animating = true;
+		if wall_ms() - ss.search_at > 300 || res == .Submit {
+			ss.search_at = 0;
+			members_search(g);
+		}
+	}
+	spacer(.Y, 16);
+	if !loading_or(.Members, "Couldn't load the members.") return;
+	m := dc.vmap(reply(.Members).body);
+	label(tprint("% members", dc.fint(m, "total_result_count")), .Semibold, 14, T("--text-default"), 18);
+	spacer(.Y, 8);
+	W :: float32.[4, 2, 2, 1];
+	table_header("mhead", .["NAME", "MEMBER SINCE", "JOINED DISCORD", "ROLES"], W);
+	list := dc.flist(m, "members");
+	if !list.count ss_empty("No members found");
+	for list {
+		mm := dc.fmap(dc.vmap(it), "member");
+		u := dc.fmap(mm, "user");
+		uid := dc.fsnow(u, "id");
+		ui.id_scope(cast(u64) uid);
+		defer ui.pop_seed();
+		r := table_row_begin("m");
+		defer ui.pop_parent();
+		{ c := table_cell(0, W[0]); ui.parent(c); defer ui.pop_parent(); user_cell(u); }
+		{ c := table_cell(1, W[1]); ui.parent(c); defer ui.pop_parent(); label(ss_date(dc.iso_to_ms(dc.fstr(mm, "joined_at"))), .Normal, 14, T("--text-default"), 18); }
+		{ c := table_cell(2, W[2]); ui.parent(c); defer ui.pop_parent(); label(snowflake_date(uid), .Normal, 14, T("--text-default"), 18); }
+		{ c := table_cell(3, W[3]); ui.parent(c); defer ui.pop_parent(); label(tprint("%", dc.flist(mm, "roles").count), .Normal, 14, T("--text-default"), 18); }
+		if uid != store().me && uid != g.owner_id && row_icon_button("more", "more-horizontal") {
+			ss.menu_user = uid;
+			ss.menu_pos = .{r.rect.x1 - 220, r.rect.y1};
+			ss.menu_timed_out = dc.iso_to_ms(dc.fstr(mm, "communication_disabled_until")) > wall_ms();
+			ss_set(*ss.menu_name, dc.fstr(u, "username"));
+		}
+	}
+}
+
+// The member row's menu: Kick, Ban, Timeout / Remove Timeout, Transfer Ownership (the owner).
+member_menu :: (g: *dc.Guild) {
+	if outside_pressed("mmenu_out") {
+		ss.menu_user = 0;
+		return;
+	}
+	menu := menu_panel("mmenu", ss.menu_pos, 220);
+	ui.parent(menu); defer ui.pop_parent();
+	spacer(.Y, 8);
+	uid := ss.menu_user;
+	name := ss.menu_name;
+	pick := "";
+	if dc.can_moderate(store(), g.id, uid, dc.PERM_MODERATE_MEMBERS) && !on_hosted() {
+		if ss.menu_timed_out {
+			if menu_item("untimeout", "Remove Timeout").clicked pick = "untimeout";
+		} else if menu_item("timeout", tprint("Timeout %", name), danger = true).clicked pick = "timeout";
+	}
+	if dc.can_moderate(store(), g.id, uid, dc.PERM_KICK_MEMBERS) && menu_item("kick", tprint("Kick %", name), danger = true).clicked pick = "kick";
+	if dc.can_moderate(store(), g.id, uid, dc.PERM_BAN_MEMBERS) && menu_item("ban", tprint("Ban %", name), danger = true).clicked pick = "ban";
+	if g.owner_id == store().me && menu_item("transfer", "Transfer Ownership", danger = true).clicked pick = "transfer";
+	spacer(.Y, 8);
+	if pick == "" return;
+	ss.menu_user = 0;
+	if pick == {
+	case "kick"; #through; case "ban";
+		modr.user, modr.guild, modr.ban = uid, g.id, pick == "ban";
+		modr.history, modr.history_open = 0, false;
+		ui.editor_set_text(*modr.ed, "");
+		ss.reload_after_modr = true;
+	case "timeout";
+		ss_confirm_open(.Timeout, uid, name);
+	case "untimeout";
+		ss_action(g, .Members, "PATCH", tprint("/guilds/%/members/%", g.id, uid), "{\"communication_disabled_until\":null}");
+	case "transfer";
+		ss_confirm_open(.Transfer, uid, name);
+	}
+}
+
+// ---- Invites ----
+
+invites_page :: (g: *dc.Guild) {
+	paused := dc.iso_to_ms(g.invites_disabled_until) > wall_ms() || dc.guild_has_feature(g, "INVITES_DISABLED");
+	if !loading_or(.Invites, "Couldn't load the invites.") return;
+	list := dc.vlist(reply(.Invites).body);
+	hr := row("ihead");
+	hr.semantic_size = .[ui.pct(1), ui.px(40)];
+	{ ui.parent(hr); defer ui.pop_parent();
+		label(ifx list.count then "ACTIVE INVITE LINKS" else "NO ACTIVE INVITE LINKS", .Bold, 12, T("--text-muted"), 16);
+		filler(.X);
+		if paused {
+			if set_button("Enable Invites##resume", .Primary, !ss.busy) ss_action(g, .COUNT, "PUT", tprint("/guilds/%/incident-actions", g.id), "{\"invites_disabled_until\":null,\"dms_disabled_until\":null,\"lockdown_duration_hours\":null}");
+		} else if set_button("Pause Invites##pause", .Danger, !ss.busy) ss_confirm_open(.Pause_Invites, 0, "");
+	}
+	if paused {
+		spacer(.Y, 8);
+		set_para("pausednote", "Invites are paused: nobody can join with an invite link until they're enabled again.", .Normal, 14, 18, T("--text-feedback-warning"));
+	}
+	spacer(.Y, 12);
+	W :: float32.[3, 2, 1, 2];
+	table_header("ithead", .["INVITER", "INVITE CODE", "USES", "EXPIRES"], W);
+	for list {
+		inv := dc.vmap(it);
+		code := dc.fstr(inv, "code");
+		ui.id_scope(get_hash(code));
+		defer ui.pop_seed();
+		table_row_begin("i");
+		defer ui.pop_parent();
+		{
+			c := table_cell(0, W[0]); ui.parent(c); defer ui.pop_parent();
+			u := dc.fmap(inv, "inviter");
+			if u.count user_cell(u);
+			else {
+				uid := dc.fsnow(inv, "inviter_id");
+				iu := dc.user_get(store(), uid);
+				avatar_box("av", uid, 32);
+				spacer(.X, 10);
+				label(ifx iu then dc.display_name(iu) else "", .Medium, 14, T("--text-strong"), 18);
+			}
+		}
+		{ c := table_cell(1, W[1]); ui.parent(c); defer ui.pop_parent(); label(code, .Normal, 14, T("--text-default"), 18); }
+		uses := dc.fint(inv, "uses");
+		max_uses := dc.fint(inv, "max_uses");
+		{ c := table_cell(2, W[2]); ui.parent(c); defer ui.pop_parent(); label(ifx max_uses then tprint("%/%", uses, max_uses) else tprint("%", uses), .Normal, 14, T("--text-default"), 18); }
+		exp := dc.iso_to_ms(dc.fstr(inv, "expires_at"));
+		{ c := table_cell(3, W[3]); ui.parent(c); defer ui.pop_parent(); label(ifx exp then duration_left(exp - wall_ms()) else "∞", .Normal, 14, T("--text-default"), 18); }
+		if row_icon_button("revoke", "x-small", danger = true) ss_confirm_open(.Revoke_Invite, 0, code);
+	}
+}
+
+// "6:23:41" until expiry, or days ("6 days").
+duration_left :: (ms: s64) -> string {
+	if ms <= 0 return "Expired";
+	s := ms / 1000;
+	if s >= 86400 * 2 return tprint("% days", s / 86400);
+	return tprint("%:%:%", s / 3600, formatInt((s / 60) % 60, minimum_digits = 2), formatInt(s % 60, minimum_digits = 2));
+}
+
+// ---- Bans ----
+
+bans_page :: (g: *dc.Guild) {
+	if set_input("bsearch", *ss.search, "Search Bans by User ID or Username") == .Escape ss.field_escape = true;
+	spacer(.Y, 16);
+	if !loading_or(.Bans, "Couldn't load the bans.") return;
+	list := dc.vlist(reply(.Bans).body);
+	q := to_lower_copy(trim(ui.editor_text(*ss.search)),, temp);
+	label(tprint("% Bans", list.count), .Semibold, 14, T("--text-default"), 18);
+	spacer(.Y, 8);
+	shown := 0;
+	table_units(.[3, 4]);
+	for list {
+		b := dc.vmap(it);
+		u := dc.fmap(b, "user");
+		uid := dc.fsnow(u, "id");
+		if q && !contains(to_lower_copy(dc.fstr(u, "username"),, temp), q) && !contains(to_lower_copy(user_display(u),, temp), q) && tprint("%", uid) != q continue;
+		shown += 1;
+		ui.id_scope(cast(u64) uid);
+		defer ui.pop_seed();
+		_, sig := table_row_begin("b");
+		defer ui.pop_parent();
+		{ c := table_cell(0, 3); ui.parent(c); defer ui.pop_parent(); user_cell(u); }
+		reason := dc.fstr(b, "reason");
+		{ c := table_cell(1, 4); ui.parent(c); defer ui.pop_parent(); label(ifx reason then reason else "No reason given", .Normal, 14, T("--text-muted"), 18); }
+		spacer(.X, 36);
+		if sig.clicked ss_confirm_open(.Revoke_Ban, uid, dc.fstr(u, "username"));
+	}
+	if !shown ss_empty(ifx list.count then "No bans match your search" else "No bans");
+}
+
+// ---- Emoji ----
+
+emoji_page :: (g: *dc.Guild) {
+	page_subtitle("Add up to 50 custom emoji that anyone can use in this server. Animated GIF emoji may be used by members with Discord Nitro. Emoji names must be at least 2 characters long and can only contain alphanumeric characters and underscores. Emoji must be under 256 KB in size.");
+	if set_button(ifx emoji_upload_busy() then "Uploading...##upload" else "Upload Emoji##upload", .Primary, !emoji_upload_busy()) emoji_upload_pick(g.id);
+	spacer(.Y, 20);
+	uploaders: Table(dc.Snowflake, etf.Map);
+	uploaders.allocator = temp;
+	r := reply(.Emojis);
+	if r for dc.vlist(r.body) table_set(*uploaders, dc.fsnow(dc.vmap(it), "id"), dc.fmap(dc.vmap(it), "user"));
+	for animated: bool.[false, true] {
+		n := 0;
+		for g.emojis if it.animated == animated n += 1;
+		label(tprint("% EMOJI — % SLOTS AVAILABLE", ifx animated then "ANIMATED" else "STATIC", max(0, 50 - n)), .Bold, 12, T("--text-muted"), 16);
+		spacer(.Y, 8);
+		W :: float32.[1, 3, 3];
+		if n table_header(tprint("ehead%", animated), .["IMAGE", "NAME", "UPLOADED BY"], W);
+		for e: g.emojis {
+			if e.animated != animated continue;
+			ui.id_scope(cast(u64) e.id);
+			defer ui.pop_seed();
+			table_row_begin("e");
+			defer ui.pop_parent();
+			{
+				c := table_cell(0, W[0]); ui.parent(c); defer ui.pop_parent();
+				img := ui.box("img");
+				img.semantic_size = .[ui.px(32), ui.px(32)];
+				set_remote_image(img, emoji_url(e.id, e.animated, 64));
+			}
+			{
+				c := table_cell(1, W[1]); ui.parent(c); defer ui.pop_parent();
+				if ss.rename_emoji == e.id {
+					col := ui.box("ed");
+					col.semantic_size = .[ui.fill(), ui.children()];
+					col.layout_axis = .Y;
+					ui.parent(col); defer ui.pop_parent();
+					res := set_input("name", *ss.rename, e.name, max_runes = 32, autofocus = true);
+					if res == .Escape ss.rename_emoji = 0;
+					if res == .Submit {
+						name := trim(ui.editor_text(*ss.rename));
+						if name != e.name ss_action(g, .Emojis, "PATCH", tprint("/guilds/%/emojis/%", g.id, e.id), tprint("{\"name\":%}", dc.json_quote(name)));
+						ss.rename_emoji = 0;
+					}
+				} else {
+					nb := row("name", .Clickable);
+					nb.semantic_size = .[ui.fill(), ui.px(52)];
+					nb.hover_cursor = .IBeam;
+					if ui.signal(nb).clicked {
+						ss.rename_emoji = e.id;
+						ui.editor_set_text(*ss.rename, e.name);
+						app.ui.focus = 0;
+					}
+					ui.parent(nb); defer ui.pop_parent();
+					label(tprint(":%:", e.name), .Normal, 14, T("--text-default"), 18);
+				}
+			}
+			{
+				c := table_cell(2, W[2]); ui.parent(c); defer ui.pop_parent();
+				found, u := table_find(*uploaders, e.id);
+				if found && u.count user_cell(u);
+			}
+			if row_icon_button("del", "x-small", danger = true) ss_confirm_open(.Delete_Emoji, e.id, e.name);
+		}
+		spacer(.Y, 24);
+	}
+}
+
+// ---- Audit Log ----
+
+AUDIT_ACTIONS :: struct { type: int; name: string; verb: string; }.[
+	.{0, "All Actions", ""},
+	.{1, "Update Server", "updated the server"},
+	.{10, "Create Channel", "created a channel"},
+	.{11, "Update Channel", "updated a channel"},
+	.{12, "Delete Channel", "deleted a channel"},
+	.{20, "Kick Member", "kicked"},
+	.{22, "Ban Member", "banned"},
+	.{23, "Unban Member", "unbanned"},
+	.{24, "Update Member", "updated"},
+	.{25, "Update Member Roles", "updated the roles of"},
+	.{30, "Create Role", "created a role"},
+	.{31, "Update Role", "updated a role"},
+	.{32, "Delete Role", "deleted a role"},
+	.{40, "Create Invite", "created an invite"},
+	.{42, "Delete Invite", "deleted an invite"},
+	.{50, "Create Webhook", "created a webhook"},
+	.{51, "Update Webhook", "updated a webhook"},
+	.{52, "Delete Webhook", "deleted a webhook"},
+	.{60, "Create Emoji", "created an emoji"},
+	.{61, "Update Emoji", "updated an emoji"},
+	.{62, "Delete Emoji", "deleted an emoji"},
+	.{72, "Delete Message", "deleted a message by"},
+];
+
+audit_load :: (g: *dc.Guild) {
+	q := "";
+	if ss.audit_user q = tprint("&user_id=%", ss.audit_user);
+	if ss.audit_action q = tprint("%&action_type=%", q, AUDIT_ACTIONS[ss.audit_action].type);
+	ss.loading[Req.Audit] = false;
+	load(g, .Audit, tprint("/guilds/%/audit-logs?limit=50%", g.id, q));
+}
+
+audit_page :: (g: *dc.Guild) {
+	r := reply(.Audit);
+	users: [..]string;
+	uids: [..]dc.Snowflake;
+	users.allocator, uids.allocator = temp, temp;
+	array_add(*users, "All Users");
+	array_add(*uids, 0);
+	names: Table(dc.Snowflake, etf.Map);
+	names.allocator = temp;
+	if r for dc.flist(dc.vmap(r.body), "users") {
+		u := dc.vmap(it);
+		table_set(*names, dc.fsnow(u, "id"), u);
+		array_add(*users, user_display(u));
+		array_add(*uids, dc.fsnow(u, "id"));
+	}
+	fr := row("filters");
+	fr.semantic_size = .[ui.pct(1), ui.children()];
+	fr.style.child_gap = 12;
+	{ ui.parent(fr); defer ui.pop_parent();
+		c1 := ui.box("fu");
+		c1.semantic_size = .[ui.fill(), ui.children()];
+		c1.layout_axis = .Y;
+		{ ui.parent(c1); defer ui.pop_parent();
+			field_title("Filter by User");
+			pick := select_field("audituser", users, index_of(uids, ss.audit_user));
+			if pick >= 0 { ss.audit_user = uids[pick]; audit_load(g); }
+		}
+		c2 := ui.box("fa");
+		c2.semantic_size = .[ui.fill(), ui.children()];
+		c2.layout_axis = .Y;
+		{ ui.parent(c2); defer ui.pop_parent();
+			field_title("Filter by Action");
+			acts: [..]string;
+			acts.allocator = temp;
+			for AUDIT_ACTIONS array_add(*acts, it.name);
+			pick := select_field("auditaction", acts, ss.audit_action);
+			if pick >= 0 { ss.audit_action = pick; audit_load(g); }
+		}
+	}
+	spacer(.Y, 20);
+	if !loading_or(.Audit, "Couldn't load the audit log.") return;
+	list := dc.flist(dc.vmap(r.body), "audit_log_entries");
+	if !list.count ss_empty("No logs yet");
+	for list {
+		e := dc.vmap(it);
+		ui.id_scope(cast(u64) dc.fsnow(e, "id"));
+		defer ui.pop_seed();
+		box := ui.box("entry", .Draw_Background);
+		box.semantic_size = .[ui.pct(1), ui.children()];
+		box.layout_axis = .Y;
+		box.style.radius = all4(8);
+		box.style.bg = T("--background-mod-subtle");
+		ui.parent(box); defer ui.pop_parent();
+		spacer(.Y, 10);
+		hr := row("head");
+		hr.semantic_size = .[ui.pct(1), ui.px(32)];
+		_, actor := table_find(*names, dc.fsnow(e, "user_id"));
+		target_id := dc.fsnow(e, "target_id");
+		has_target, target := table_find(*names, target_id);
+		type := dc.fint(e, "action_type");
+		verb := tprint("action %", type);
+		for AUDIT_ACTIONS if it.type == type && type verb = it.verb;
+		{ ui.parent(hr); defer ui.pop_parent();
+			spacer(.X, 12);
+			avatar_box("av", dc.fsnow(e, "user_id"), 32);
+			spacer(.X, 10);
+			text := tprint("% %", ifx actor.count then user_display(actor) else "Someone", verb);
+			if has_target && target.count text = tprint("% %", text, user_display(target));
+			label(text, .Medium, 14, T("--text-strong"), 18);
+			filler(.X);
+			label(snowflake_date(dc.fsnow(e, "id")), .Normal, 12, T("--text-muted"), 16);
+			spacer(.X, 12);
+		}
+		for ch: dc.flist(e, "changes") {
+			cm := dc.vmap(ch);
+			line := tprint("%: % → %", dc.fstr(cm, "key"), value_text(dc.vget(cm, "old_value")), value_text(dc.vget(cm, "new_value")));
+			lr := row(tprint("ch%", it_index));
+			lr.semantic_size = .[ui.pct(1), ui.children()];
+			ui.parent(lr); defer ui.pop_parent();
+			spacer(.X, 54);
+			set_para("t", line, .Normal, 13, 18, T("--text-default"));
+			spacer(.X, 12);
+		}
+		reason := dc.fstr(e, "reason");
+		if reason {
+			lr := row("reason");
+			lr.semantic_size = .[ui.pct(1), ui.children()];
+			ui.parent(lr); defer ui.pop_parent();
+			spacer(.X, 54);
+			set_para("t", tprint("Reason: %", reason), .Normal, 13, 18, T("--text-muted"));
+			spacer(.X, 12);
+		}
+		spacer(.Y, 10);
+	}
+}
+
+value_text :: (v: dc.V) -> string {
+	if v.kind == {
+	case .Nil; return "none";
+	case .String; return ifx v.s then v.s else "\"\"";
+	case .Int; return tprint("%", v.i);
+	case .Atom; return v.s;
+	}
+	sb: String_Builder;
+	sb.allocator = temp;
+	etf.to_json(v, *sb);
+	return builder_to_string(*sb,, temp);
+}
+
+// ---- actions and their confirms ----
+
+// action sends one change, then reloads `after` (a page's list) when it succeeds.
+ss_action :: (g: *dc.Guild, after: Req, method: string, path: string, body := "", reason := "") {
+	if ss.busy || !net_action() return;
+	ss.busy = true;
+	ss.after = after;
+	ss_error("");
+	dc.guild_settings_call(app.client, g.id, xx Req.Action, method, path, body, reason);
+}
+
+SS_Confirm :: enum u8 { None; Revoke_Invite; Revoke_Ban; Delete_Emoji; Timeout; Transfer; Delete_Server; Pause_Invites; }
+
+ss_confirm_open :: (kind: SS_Confirm, id: dc.Snowflake, text: string) {
+	ss.confirm, ss.confirm_id = kind, id;
+	ss_set(*ss.confirm_text, text);
+	ui.editor_set_text(*ss.reason, "");
+	ss.confirm_pick = ifx kind == .Pause_Invites then 1 else 0;
+	ss.confirm_ack = false;
+	ss_error("");
+}
+
+PAUSE_HOURS :: int.[1, 2, 4, 6, 12, 24];
+PAUSE_LABELS :: string.["1 hour", "2 hours", "4 hours", "6 hours", "12 hours", "24 hours"];
+
+ss_confirm_modal :: (g: *dc.Guild) {
+	title, body, button: string;
+	danger := true;
+	t := ss.confirm_text;
+	if ss.confirm == {
+	case .Revoke_Invite; title, body, button = "Revoke Invite", tprint("Are you sure you want to revoke the invite %? Nobody will be able to join with it.", t), "Revoke";
+	case .Revoke_Ban; title, body, button = tprint("'%'", t), "Revoke the ban? They will be able to join again with an invite.", "Revoke Ban";
+	case .Delete_Emoji; title, body, button = "Delete Emoji", tprint("Are you sure you want to delete :%:? This cannot be undone.", t), "Delete";
+	case .Timeout; title, body, button = tprint("Timeout %", t), "Members in timeout can't send messages, react, join voice or speak until it ends.", "Timeout";
+	case .Transfer; title, body, button = "Transfer Ownership", ifx on_hosted() then tprint("% becomes the owner once they accept on their device. You'll stay a member.", t) else tprint("This will transfer ownership of % to %. This cannot be undone!", g.name, t), "Transfer Ownership";
+	case .Delete_Server; title, body, button = tprint("Delete '%'", g.name), tprint("Are you sure you want to delete %? This action cannot be undone.", g.name), "Delete Server";
+	case .Pause_Invites; title, body, button = "Pause Invites", "Nobody can join this server with an invite link until the pause ends or you enable invites again.", "Pause Invites";
+	}
+	if !adm_modal_begin("ssconfirm", 440, title) {
+		ss.confirm = .None;
+		return;
+	}
+	go := false;
+	spacer(.Y, 8);
+	inset := row("body");
+	inset.semantic_size = .[ui.pct(1), ui.children()];
+	{ ui.parent(inset); defer ui.pop_parent();
+		spacer(.X, 25);
+		col := ui.box("col");
+		col.semantic_size = .[ui.fill(), ui.children()];
+		col.layout_axis = .Y;
+		{ ui.parent(col); defer ui.pop_parent();
+			set_para("text", body, .Normal, 16, 20, T("--text-default"));
+			if ss.confirm == .Timeout || ss.confirm == .Pause_Invites {
+				spacer(.Y, 16);
+				field_title("Duration");
+				pick: int;
+				if ss.confirm == .Timeout {
+					opts: [..]string;
+					opts.allocator = temp;
+					for TIMEOUTS array_add(*opts, it.name);
+					pick = select_field("cdur", opts, ss.confirm_pick);
+				} else pick = select_field("cdur", PAUSE_LABELS, ss.confirm_pick);
+				if pick >= 0 ss.confirm_pick = pick;
+			}
+			if ss.confirm == .Timeout {
+				spacer(.Y, 16);
+				field_title("Reason");
+				if set_input("reason", *ss.reason, "", max_runes = 512) == .Escape ss.confirm = .None;
+			}
+			if ss.confirm == .Delete_Server {
+				spacer(.Y, 16);
+				field_title("Enter server name");
+				res := set_input("sname", *ss.reason, "", max_runes = 100, autofocus = true);
+				if res == .Escape ss.confirm = .None;
+				if res == .Submit go = true;
+			}
+			if ss.confirm == .Transfer {
+				spacer(.Y, 16);
+				if set_toggle_row("ack", tprint("I acknowledge that by transferring ownership of this server to %, it officially belongs to them.", t), "", ss.confirm_ack) ss.confirm_ack = !ss.confirm_ack;
+			}
+			if ss.error {
+				spacer(.Y, 12);
+				set_para("err", ss.error, .Normal, 14, 18, T("--text-feedback-critical"));
+			}
+		}
+		spacer(.X, 25);
+	}
+	spacer(.Y, 24);
+	ok := !ss.busy;
+	if ss.confirm == .Delete_Server ok &&= trim(ui.editor_text(*ss.reason)) == g.name;
+	if ss.confirm == .Transfer ok &&= ss.confirm_ack;
+	btns := row("btns");
+	btns.semantic_size = .[ui.pct(1), ui.px(40)];
+	btns.style.child_gap = 8;
+	{ ui.parent(btns); defer ui.pop_parent();
+		spacer(.X, 25 - 8);
+		if wide_button("cancel", "Cancel", .Secondary) ss.confirm = .None;
+		if wide_button("go", button, ifx danger then Adm_Button.Danger else .Primary, ok) go = true;
+		spacer(.X, 25 - 8);
+	}
+	spacer(.Y, 24);
+	adm_modal_end();
+	if ss.dd == "" && adm_escape() ss.confirm = .None;
+	if !go || !ok return;
+	reason := trim(ui.editor_text(*ss.reason));
+	id := ss.confirm_id;
+	if ss.confirm == {
+	case .Revoke_Invite; ss_action(g, .Invites, "DELETE", tprint("/invites/%", t));
+	case .Revoke_Ban; ss_action(g, .Bans, "DELETE", tprint("/guilds/%/bans/%", g.id, id));
+	case .Delete_Emoji; ss_action(g, .Emojis, "DELETE", tprint("/guilds/%/emojis/%", g.id, id));
+	case .Timeout;
+		until := dc.ms_to_iso(wall_ms() + TIMEOUTS[ss.confirm_pick].secs * 1000);
+		ss_action(g, .Members, "PATCH", tprint("/guilds/%/members/%", g.id, id), tprint("{\"communication_disabled_until\":\"%\"}", until), reason);
+	case .Transfer; ss_action(g, .COUNT, "PATCH", tprint("/guilds/%", g.id), tprint("{\"owner_id\":\"%\",\"code\":null}", id));
+	case .Delete_Server; ss_action(g, .COUNT, "POST", tprint("/guilds/%/delete", g.id));
+	case .Pause_Invites;
+		hours := PAUSE_HOURS[ss.confirm_pick];
+		ss_action(g, .COUNT, "PUT", tprint("/guilds/%/incident-actions", g.id), tprint("{\"invites_disabled_until\":\"%\",\"dms_disabled_until\":null,\"lockdown_duration_hours\":%}", dc.ms_to_iso(wall_ms() + hours * 3600_000), hours));
 	}
 }
 

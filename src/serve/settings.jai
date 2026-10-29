@@ -64,6 +64,7 @@ audit_reason :: (req: http.Request) -> string, bool {
 // guild_fields_locked adds the meta-kept fields (GUILD_FIELDS) to a guild object.
 guild_fields_locked :: (s: *Server, g: *etf.Map_Builder) {
 	for GUILD_FIELDS etf.map_put(g, it.key, guild_field_locked(s, it));
+	etf.map_put(g, "incidents_data", guild_incidents_locked(s));
 }
 
 guild_field_locked :: (s: *Server, f: Guild_Field) -> etf.Value {
@@ -86,7 +87,197 @@ settings_route :: (c: *Conn, req: http.Request) -> handled: bool, keep: bool {
 	if rest == "" && req.method == "PATCH" return true, edit_guild(c, req);
 	if rest == "/profile" && (req.method == "GET" || req.method == "PATCH") return true, guild_profile(c, req);
 	if rest == "/audit-logs" && req.method == "GET" return true, audit_logs(c, req, query);
+	if rest == "/members-search" && req.method == "POST" return true, members_search(c, req);
+	if rest == "/incident-actions" && req.method == "PUT" return true, incident_actions(c, req);
+	if rest == "/emojis" && req.method == "GET" return true, list_emojis(c, req);
+	if begins_with(rest, "/emojis/") && (req.method == "PATCH" || req.method == "DELETE") return true, edit_emoji(c, req, advance(rest, "/emojis/".count));
 	return false, true;
+}
+
+MEMBER_SEARCH_MAX :: 1000;
+
+// POST /api/v9/guilds/{id}/members-search {or_query: {usernames: {or_query: [..]}, user_id: {..}}, limit}:
+// Server Settings' Members, newest first, in Discord's shape. For anyone who may open the page (the owner).
+members_search :: (c: *Conn, req: http.Request) -> bool {
+	s := c.server;
+	user := owner_session(c, req);
+	if !user return json_error(c, 401, 0, "401: Unauthorized");
+	v, err := etf.from_json(cast(string) req.body,, temp);
+	if err != .None || v.kind != .Map return json_error(c, 400, 50035, "Invalid Form Body");
+	limit := 250;
+	lv, has_limit := etf.map_get(v.map, "limit");
+	if has_limit {
+		if lv.kind != .Int || lv.i < 1 || lv.i > MEMBER_SEARCH_MAX return json_error(c, 400, 50035, "Invalid Form Body");
+		limit = cast(int) lv.i;
+	}
+	or, _ := etf.map_get(v.map, "or_query");
+	names: [..]string;
+	ids: [..]s64;
+	names.allocator, ids.allocator = temp, temp;
+	for k: string.["usernames", "user_id"] {
+		q, _ := etf.map_get(or.map, k);
+		terms, _ := etf.map_get(q.map, "or_query");
+		if terms.kind != .List continue;
+		if terms.list.count > 10 return json_error(c, 400, 50035, "Invalid Form Body");
+		for terms.list {
+			if it.kind != .String || it.s.count > 100 return json_error(c, 400, 50035, "Invalid Form Body");
+			if k == "usernames" array_add(*names, to_lower_copy(it.s,, temp));
+			else { id, ok := string_to_int(it.s, T = s64); if ok array_add(*ids, id); }
+		}
+	}
+	locks.guard(*s.db_mu);
+	if owner_id(s) != user return json_error(c, 403, 50013, "Missing Permissions");
+	list: [..]etf.Value;
+	list.allocator = temp;
+	total := 0;
+	st := sqlite.prepare(s.db, "SELECT id, name FROM users WHERE left = 0 ORDER BY id DESC;");
+	defer sqlite.finalize(st);
+	while sqlite.step(st) == .Row {
+		id := sqlite.col_int(st, 0);
+		name := copy_string(sqlite.col_text(st, 1),, temp);
+		u := user_value(s, id, name);
+		if names.count || ids.count {
+			match := array_find(ids, id);
+			handle := etf.map_get(u.map, "username");
+			for names if contains(to_lower_copy(name,, temp), it) || contains(handle.s, it) match = true;
+			if !match continue;
+		}
+		total += 1;
+		if list.count >= limit continue;
+		m := etf.map_builder(4,, temp);
+		etf.map_put(*m, "user", u);
+		etf.map_put(*m, "joined_at", etf.vstring(iso(id)));
+		etf.map_put(*m, "roles", etf.vlist(.[]));
+		etf.map_put(*m, "nick", .{});
+		e := etf.map_builder(4,, temp);
+		etf.map_put(*e, "member", etf.vmap(etf.map_done(*m)));
+		etf.map_put(*e, "join_source_type", etf.vint(0));
+		etf.map_put(*e, "source_invite_code", .{});
+		etf.map_put(*e, "inviter_id", .{});
+		array_add(*list, etf.vmap(etf.map_done(*e)));
+	}
+	r := etf.map_builder(4,, temp);
+	etf.map_put(*r, "guild_id", snow(s.guild));
+	etf.map_put(*r, "members", etf.vlist(list));
+	etf.map_put(*r, "page_result_count", etf.vint(list.count));
+	etf.map_put(*r, "total_result_count", etf.vint(total));
+	return json_reply(c, 200, etf.vmap(etf.map_done(*r)));
+}
+
+// invites_paused_locked: Pause Invites is on (incident-actions' invites_disabled_until is ahead).
+invites_paused_locked :: (s: *Server) -> bool {
+	until, ok := parse_iso(cast(string) meta_get(s, "invites_disabled_until"));
+	return ok && until > to_milliseconds(current_time_consensus() - APOLLO_TIME_FOR_JAN_1_1970);
+}
+
+// PUT /api/v9/guilds/{id}/incident-actions {invites_disabled_until, dms_disabled_until, lockdown_duration_hours}:
+// Pause Invites until a time at most a day ahead, or null to enable them. DMs aren't the server's to pause.
+incident_actions :: (c: *Conn, req: http.Request) -> bool {
+	s := c.server;
+	user := owner_session(c, req);
+	if !user return json_error(c, 401, 0, "401: Unauthorized");
+	v, err := etf.from_json(cast(string) req.body,, temp);
+	until, has := etf.map_get(v.map, "invites_disabled_until");
+	if err != .None || v.kind != .Map || !has return json_error(c, 400, 50035, "Invalid Form Body");
+	text := "";
+	if until.kind != .Nil {
+		ms, ok := parse_iso(ifx until.kind == .String then until.s else "");
+		now := to_milliseconds(current_time_consensus() - APOLLO_TIME_FOR_JAN_1_1970);
+		if !ok || ms > now + 24 * 3600_000 + 60_000 return json_error(c, 400, 50035, "Invalid Form Body");
+		text = until.s;
+	}
+	g := etf.map_builder(2,, temp);
+	{
+		locks.guard(*s.db_mu);
+		if owner_id(s) != user return json_error(c, 403, 50013, "Missing Permissions");
+		old := guild_incidents_locked(s);
+		ok := ifx text then meta_put(s, "invites_disabled_until", text) else sqlite.run(s.db, "DELETE FROM meta WHERE k = 'invites_disabled_until';");
+		if !ok return json_error(c, 500, 0, "500: Internal Server Error");
+		audit_locked(s, user, AUDIT_GUILD_UPDATE, s.guild, .[audit_change("invites_disabled_until", etf.map_get(old.map, "invites_disabled_until"), ifx text then etf.vstring(text) else .{})], "");
+		etf.map_put(*g, "id", snow(s.guild));
+		etf.map_put(*g, "incidents_data", guild_incidents_locked(s));
+	}
+	guild := etf.vmap(etf.map_done(*g));
+	broadcast(s, "GUILD_UPDATE", guild);
+	return json_reply(c, 200, etf.map_get(guild.map, "incidents_data"));
+}
+
+guild_incidents_locked :: (s: *Server) -> etf.Value {
+	text := copy_string(cast(string) meta_get(s, "invites_disabled_until"),, temp);
+	m := etf.map_builder(2,, temp);
+	etf.map_put(*m, "invites_disabled_until", ifx text then etf.vstring(text) else .{});
+	etf.map_put(*m, "dms_disabled_until", .{});
+	return etf.vmap(etf.map_done(*m));
+}
+
+// GET /api/v9/guilds/{id}/emojis: the custom emoji with who uploaded each, for the owner.
+list_emojis :: (c: *Conn, req: http.Request) -> bool {
+	s := c.server;
+	user := owner_session(c, req);
+	if !user return json_error(c, 401, 0, "401: Unauthorized");
+	locks.guard(*s.db_mu);
+	if owner_id(s) != user return json_error(c, 403, 50013, "Missing Permissions");
+	list: [..]etf.Value;
+	list.allocator = temp;
+	st := sqlite.prepare(s.db, "SELECT e.id, e.name, e.animated, e.user, u.name FROM emojis e LEFT JOIN users u ON u.id = e.user ORDER BY e.id;");
+	defer sqlite.finalize(st);
+	while sqlite.step(st) == .Row {
+		e := emoji_value(sqlite.col_int(st, 0), copy_string(sqlite.col_text(st, 1),, temp), sqlite.col_int(st, 2) != 0);
+		b := etf.map_builder(8,, temp);
+		for e.map etf.map_put(*b, it.key.s, it.value);
+		if !sqlite.col_is_null(st, 4) etf.map_put(*b, "user", user_value(s, sqlite.col_int(st, 3), copy_string(sqlite.col_text(st, 4),, temp)));
+		array_add(*list, etf.vmap(etf.map_done(*b)));
+	}
+	return json_reply(c, 200, etf.vlist(list));
+}
+
+// PATCH /api/v9/guilds/{id}/emojis/{emoji} {name} renames a custom emoji, DELETE removes it; every member
+// gets GUILD_EMOJIS_UPDATE.
+edit_emoji :: (c: *Conn, req: http.Request, id_text: string) -> bool {
+	s := c.server;
+	user := owner_session(c, req);
+	if !user return json_error(c, 401, 0, "401: Unauthorized");
+	id, idok := string_to_int(id_text, T = s64);
+	if !idok return json_error(c, 404, 10014, "Unknown Emoji");
+	reason, rok := audit_reason(req);
+	if !rok return json_error(c, 400, 50035, "Invalid Form Body");
+	name := "";
+	if req.method == "PATCH" {
+		v, err := etf.from_json(cast(string) req.body,, temp);
+		name_v, _ := etf.map_get(v.map, "name");
+		if err != .None || name_v.kind != .String return json_error(c, 400, 50035, "Invalid Form Body");
+		name = name_v.s;
+		name_ok := name.count >= 2 && name.count <= 32;
+		for name if !is_alnum(it) && it != #char "_" name_ok = false;
+		if !name_ok return json_error(c, 400, 50035, "Invalid Form Body");
+	}
+	emoji, list: etf.Value;
+	{
+		locks.guard(*s.db_mu);
+		if owner_id(s) != user return json_error(c, 403, 50013, "Missing Permissions");
+		st := sqlite.prepare(s.db, "SELECT name, animated FROM emojis WHERE id = ?;");
+		sqlite.bind(st, 1, id);
+		found := sqlite.step(st) == .Row;
+		old := ifx found then copy_string(sqlite.col_text(st, 0),, temp) else "";
+		animated := found && sqlite.col_int(st, 1) != 0;
+		sqlite.finalize(st);
+		if !found return json_error(c, 404, 10014, "Unknown Emoji");
+		if req.method == "DELETE" {
+			if !sqlite.run(s.db, "DELETE FROM emojis WHERE id = ?;", id) return json_error(c, 500, 0, "500: Internal Server Error");
+			audit_locked(s, user, AUDIT_EMOJI_DELETE, id, .[audit_change("name", etf.vstring(old), .{})], reason);
+		} else {
+			if !sqlite.run(s.db, "UPDATE emojis SET name = ? WHERE id = ?;", name, id) return json_error(c, 500, 0, "500: Internal Server Error");
+			audit_locked(s, user, AUDIT_EMOJI_UPDATE, id, .[audit_change("name", etf.vstring(old), etf.vstring(name))], reason);
+			emoji = emoji_value(id, name, animated);
+		}
+		list = emoji_list_locked(s);
+	}
+	d := etf.map_builder(2,, temp);
+	etf.map_put(*d, "guild_id", snow(s.guild));
+	etf.map_put(*d, "emojis", list);
+	broadcast(s, "GUILD_EMOJIS_UPDATE", etf.vmap(etf.map_done(*d)));
+	if req.method == "DELETE" return respond(c, 204, json = false);
+	return json_reply(c, 200, emoji);
 }
 
 owner_session :: (c: *Conn, req: http.Request) -> s64 {
@@ -255,7 +446,7 @@ guild_profile :: (c: *Conn, req: http.Request) -> bool {
 				new := ifx color.kind == .String then color.s else "";
 				if new != old {
 					array_add(*changes, audit_change("brand_color_primary", ifx old then etf.vstring(copy_string(old,, temp)) else .{}, ifx new then etf.vstring(new) else .{}));
-					ok = meta_put(s, "p.brand_color", new);
+					ok = ifx new then meta_put(s, "p.brand_color", new) else sqlite.run(s.db, "DELETE FROM meta WHERE k = 'p.brand_color';");
 				}
 			}
 			if has_vis && ok ok = meta_put(s, "p.visibility", tprint("%", vis.i));

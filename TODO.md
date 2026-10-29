@@ -8,22 +8,22 @@
   - Done: Server Profile (name, icon, banner colour, traits, description, Private Profile; `GET`/`PATCH /guilds/{id}/profile`, hosted too). Still missing: Games, the custom banner (with the feature) and the icon cropper.
   - Server Tag: the 2-4 character tag and badge (only with `GUILD_TAGS`).
   - Done: Engagement (System Messages channel and flags, Default Notification Settings, Inactive Channel and Timeout, Server Widget) on Discord and hosted; serve keeps the fields, audits every change and lists them (`GET /guilds/{id}/audit-logs`, `serve/settings.jai`).
-  - Emoji: list with uploader, upload (`POST /guilds/{id}/emojis`, 256 KB, static and animated slots), rename and delete (`PATCH`/`DELETE /guilds/{id}/emojis/{id}`), role-restricted emoji shown read-only.
+  - Done: Emoji (upload, static and animated slots, uploader, rename, delete), on Discord and hosted. Still missing: role-restricted emoji shown read-only.
   - Stickers: upload PNG/APNG/GIF/Lottie with name, related emoji and description (`POST /guilds/{id}/stickers` multipart), edit and delete.
   - Done: Soundboard: list with emoji, volume and uploader, preview, upload (mp3/ogg, 512 KB, 5.2 s checked on a worker, name, emoji, volume; `POST /guilds/{id}/soundboard-sounds`), edit and delete, on Discord and hosted servers (`view_server_soundboard.jai`).
-  - Members: searchable list with join date, joined via, roles and the row menu (Kick, Ban, Timeout, Roles, Transfer Ownership for the owner, with the official confirm).
+  - Done: Members (search, member since, joined Discord, role count; row menu Timeout / Remove Timeout, Kick, Ban, Transfer Ownership), on Discord and hosted (`members-search` in serve). Still missing: joined via, per-member Roles, filters and paging; hosted Timeout and the hosted Transfer Ownership accept step.
   - Roles: list with member counts, Create Role, drag to reorder (`PATCH /guilds/{id}/roles` positions), each role's Display (name, colour, icon if feature, hoist, mentionable), Permissions (every flag with the official descriptions, Clear Permissions), Links, Manage Members (add/remove), Delete; the @everyone default permissions; View Server As Role.
-  - Invites: every invite with inviter, uses, expiry; Revoke; Pause Invites (`invites_disabled`).
+  - Done: Invites (inviter, code, uses, expiry, Revoke, Pause / Enable Invites via `incident-actions`), hosted too (a paused server refuses new members).
   - Access: Invite Only / Apply to Join / Discoverable, server rules, join applications (member verification form).
   - Integrations: webhooks (create, rename, avatar, channel, Copy Webhook URL, delete), followed channels, bots and apps with their command permissions. App Directory opens the system browser (no webview).
   - Safety Setup: verification level, explicit image filter, DM spam filter, raid protection and CAPTCHA, require 2FA for moderation, and AutoMod rules (Block Custom Words, Spam, Mention Spam, Member Profile Names; actions block / alert channel / timeout; exempt roles and channels; `/guilds/{id}/auto-moderation/rules`).
-  - Audit Log: entries with actor, target, changes and reason; filter by user and action type (`GET /guilds/{id}/audit-logs`).
-  - Bans: searchable list with reason, Revoke Ban, paging past 1000.
+  - Done: Audit Log (actor, target, changes, reason; filter by user and action), on Discord and hosted (serve audits server, profile, kick / ban / unban and emoji changes). Still missing: paging and the client's per-action wording.
+  - Done: Bans (searchable list with reason, Revoke Ban), on Discord and hosted. Still missing: paging past 1000.
   - Enable Community, then Community Overview (rules and updates channels, safety alerts channel, primary language, description), Onboarding (default channels, questions and prompts, Server Guide: welcome message, new member to-dos, resource pages), Server Insights (open the official web page in the system browser if no API), Discovery (eligibility checklist, categories, tags).
   - Widget: enable, invite channel, server ID and JSON API URL, premade widget snippet.
   - Server Template: create, sync, delete, copy link (`/guilds/{id}/templates`).
   - Custom Invite Link: vanity URL (only with `VANITY_URL`).
-  - Delete Server: owner only, type the name, MFA code when required.
+  - Done: Delete Server on Discord (owner only, type the name). Still missing: the MFA code prompt.
 - [ ] Hosted server settings: the owner of a self-hosted server manages all of it from Server Settings in the app, from any machine, with no console. Every page above works on hosted servers, plus a host section only hosted servers have:
   - Storage: disk usage of the server file, split by messages, attachments, emoji, stickers, sounds, avatars and the search index, with the disk's free space.
   - Attachments: browse every stored file (name, size, uploader, channel, date, jump to message), delete one or many, and cleanup rules (delete older than N days, larger than N MB), freeing space with `VACUUM` off the request path.

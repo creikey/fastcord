@@ -877,6 +877,12 @@ main :: () {
 	check(status == 403, tprint("only the owner reads the audit log: % %", status, body));
 	status, body = rest("GET", tprint("/api/v9/guilds/%/audit-logs?limit=50", gid), "", token);
 	check(status == 200 && contains(body, "\"key\":\"description\"") && contains(body, "\"key\":\"icon_hash\"") && contains(body, "\"action_type\":1"), tprint("every change is audited: % %", status, body));
+	status, body = rest("POST", tprint("/api/v9/guilds/%/members-search", gid), "{\"or_query\":{\"usernames\":{\"or_query\":[\"renamed\"]}},\"and_query\":{},\"limit\":250}", token);
+	check(status == 200 && contains(body, "\"total_result_count\":1") && contains(body, "\"global_name\":\"Renamed\""), tprint("Members finds a member by name: % %", status, body));
+	status, body = rest("PUT", tprint("/api/v9/guilds/%/incident-actions", gid), "{\"invites_disabled_until\":\"2099-01-01T00:00:00.000Z\",\"dms_disabled_until\":null,\"lockdown_duration_hours\":24}", token);
+	check(status == 400, tprint("invites pause for at most a day: % %", status, body));
+	status, body = rest("PUT", tprint("/api/v9/guilds/%/incident-actions", gid), "{\"invites_disabled_until\":null,\"dms_disabled_until\":null,\"lockdown_duration_hours\":null}", token);
+	check(status == 200 && contains(body, "\"invites_disabled_until\":null"), tprint("the owner enables invites: % %", status, body));
 
 	// Custom emoji: the owner adds one, it is served, and members react with it as name:id.
 	emoji_path := tprint("/api/v9/guilds/%/emojis", gid);
@@ -890,6 +896,13 @@ main :: () {
 	check(status == 201 && field(emoji_v, "name").s == "blob" && emoji_id != "", tprint("the owner adds an emoji: % %", status, body));
 	status, body = rest("GET", tprint("/emojis/%.webp?size=48", emoji_id), "", "");
 	check(status == 200 && begins_with(body, "\x89PNG"), tprint("the emoji is served: %", status));
+	status, body = rest("GET", emoji_path, "", token);
+	check(status == 200 && contains(body, "\"name\":\"blob\"") && contains(body, "\"global_name\":\"Tester\""), tprint("the emoji list names who uploaded each: % %", status, body));
+	status, body = rest("PATCH", tprint("%/%", emoji_path, emoji_id), "{\"name\": \"blobby\"}", other_token);
+	check(status == 403, tprint("only the owner renames emoji: % %", status, body));
+	status, body = rest("PATCH", tprint("%/%", emoji_path, emoji_id), "{\"name\": \"blobby\"}", token);
+	check(status == 200 && contains(body, "\"name\":\"blobby\""), tprint("the owner renames an emoji: % %", status, body));
+	status, body = rest("PATCH", tprint("%/%", emoji_path, emoji_id), "{\"name\": \"blob\"}", token);
 	status, body = rest("POST", messages, "{\"content\": \"react here\"}", token);
 	react_v, _ := etf.from_json(body);
 	react_path := tprint("/api/v9/channels/%/messages/%/reactions", field(react_v, "channel_id").s, field(react_v, "id").s);

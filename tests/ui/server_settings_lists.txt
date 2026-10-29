@@ -1,0 +1,49 @@
+# Server Settings list pages: Members (with the row menu), Invites (Revoke's confirm, Pause Invites),
+# Bans (Revoke Ban), Emoji and Audit Log, each from a canned reply.
+wait 5
+click 200 57
+wait 10
+click_text "Server Settings"
+wait 10
+click_text "Members"
+wait 10
+settings_reply Members {"guild_id":"1","members":[{"member":{"user":{"id":"1546820603343016100","username":"robin","global_name":"Robin"},"joined_at":"2026-01-02T10:00:00.000+00:00","roles":["1"]},"join_source_type":1},{"member":{"user":{"id":"1546820603343016200","username":"sam","global_name":null},"joined_at":"2026-03-04T10:00:00.000+00:00","roles":[]}}],"page_result_count":2,"total_result_count":2}
+wait 5
+expect_visible "MEMBER SINCE"
+expect_visible "Robin"
+shot build/ui-server_settings_members.png
+click_text "Invites"
+wait 10
+settings_reply Invites [{"code":"abcDEF","uses":3,"max_uses":10,"max_age":604800,"expires_at":"2026-11-05T08:00:00.000+00:00","inviter":{"id":"1546820603343016100","username":"robin","global_name":"Robin"},"channel":{"id":"1546820603343016006","name":"dingus-battle"}}]
+wait 5
+expect_visible "abcDEF"
+expect_visible "3/10"
+click_text "Pause Invites"
+wait 5
+expect_visible "Duration"
+shot build/ui-server_settings_invites.png
+click_text Cancel
+wait 5
+click_text "Bans"
+wait 10
+settings_reply Bans [{"user":{"id":"1546820603343016300","username":"troll","global_name":"Troll"},"reason":"spam"}]
+wait 5
+expect_visible "spam"
+click_text "Troll"
+wait 5
+expect_visible "Revoke Ban"
+click_text Cancel
+wait 5
+click_text "Audit Log"
+wait 10
+settings_reply Audit {"audit_log_entries":[{"id":"1565281995485872128","user_id":"1546820603343016100","target_id":"1546820603343016300","action_type":22,"reason":"spam"},{"id":"1565281995485872000","user_id":"1546820603343016100","target_id":"1","action_type":1,"changes":[{"key":"name","old_value":"Old","new_value":"Dingus Battle"}]}],"users":[{"id":"1546820603343016100","username":"robin","global_name":"Robin"},{"id":"1546820603343016300","username":"troll","global_name":"Troll"}],"webhooks":[]}
+wait 5
+expect_visible "Robin banned Troll"
+expect_visible "name: Old → Dingus Battle"
+shot build/ui-server_settings_audit.png
+click_text "Emoji"
+wait 10
+expect_visible "Upload Emoji"
+key escape
+wait 10
+expect_not_visible "Upload Emoji"

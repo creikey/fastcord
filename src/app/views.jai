@@ -1342,6 +1342,7 @@ overlays :: () {
 			e.consumed = true;
 		}
 	}
+	server_settings_layer(); // view_server_settings.jai: under the modals that open over it
 	if sw.open { quick_switcher(); }
 	if edit_menu_state.open { edit_menu(); }
 	if block_confirm.user != 0 { block_confirm_modal(); }
@@ -1376,7 +1377,6 @@ overlays :: () {
 	if ma.menu_msg != 0 { message_menu(); }
 	if ma.confirming != 0 { confirm_modal(); }
 	events_modal();
-	server_settings_layer(); // under the admin modals, which open over it
 	guild_admin_overlays();
 	sound_settings_modal(); // view_server_soundboard.jai: over the Server Settings layer
 	attachments_overlays(); // attachments.jai: Modify modal, drag target, limit notices

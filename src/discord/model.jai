@@ -164,6 +164,7 @@ Guild :: struct {
 	public_updates_channel_id: Snowflake;
 	safety_alerts_channel_id: Snowflake;
 	preferred_locale: string;
+	invites_disabled_until: string; // incidents_data: Pause Invites
 	unavailable: bool;
 	lazy: bool;
 	joined_at: string;
