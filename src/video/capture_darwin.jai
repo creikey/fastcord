@@ -13,7 +13,7 @@ Capture :: struct {
 	output: Id;
 	// screen
 	stream: Id;
-	stop_block: Block;
+	stop_block: *Block; // from block_new
 	mu: locks.Mutex;
 	cv: locks.Cond;
 	stopped: bool;
@@ -206,8 +206,8 @@ capture_stop :: (c: *Capture) {
 	if c.output msg(Void, c.output, "release");
 	stopped := true;
 	if c.stream {
-		c.stop_block = make_block(xx stream_stopped, c);
-		msg(Void, c.stream, "stopCaptureWithCompletionHandler:", *c.stop_block);
+		c.stop_block = block_new(xx stream_stopped, c);
+		msg(Void, c.stream, "stopCaptureWithCompletionHandler:", c.stop_block);
 		locks.lock(*c.mu);
 		while !c.stopped if !locks.cond_wait_with_timeout(*c.cv, *c.mu, 2000) break;
 		stopped = c.stopped;
@@ -223,6 +223,7 @@ capture_stop :: (c: *Capture) {
 	msg(Void, c.delegate, "release");
 	// A stop handler that never came may still arrive and touch c: leak it rather than free under it.
 	if !stopped return;
+	if c.stop_block block_recycle(c.stop_block);
 	free_callback_context(*c.ts);
 	free(c);
 }
@@ -248,6 +249,30 @@ make_block :: (invoke: *void, user: *void) -> Block {
 }
 
 noop_block: Block;
+
+// Blocks made per call. The framework releases a block after calling it, and that release reads its flags
+// (a no-op only while they still say global), so their memory is never freed: a spent block is kept here
+// and only ever rewritten as another global block.
+spare_blocks: struct {
+	mu: locks.Mutex;
+	list: [..]*Block;
+};
+
+block_new :: (invoke: *void, user: *void) -> *Block {
+	b: *Block;
+	{
+		locks.guard(*spare_blocks.mu);
+		if spare_blocks.list.count b = pop(*spare_blocks.list);
+	}
+	if !b b = New(Block,, context.default_allocator);
+	b.* = make_block(invoke, user);
+	return b;
+}
+
+block_recycle :: (b: *Block) {
+	locks.guard(*spare_blocks.mu);
+	array_add(*spare_blocks.list, b,, context.default_allocator);
+}
 
 new_capture :: (on_frame: Frame_Proc, user: *void, class_name: *u8, selector: *u8, types: *u8, imp: *void, selector2: *u8 = null, types2: *u8 = null, imp2: *void = null) -> *Capture {
 	klass := cls(class_name);
@@ -393,8 +418,8 @@ content_ready :: (b: *Block, content: Id, err: Id) #c_call {
 			msg(Void, config, "setHeight:", cast(u64) clamp(h, 2, THUMB_W * 2));
 			msg(Void, config, "setShowsCursor:", false);
 			req := New(Thumb_Req);
-			req.* = .{block = make_block(xx thumb_taken, req), gen = gen, is_window = it.is_window, id = it.id};
-			msg(Void, cls("SCScreenshotManager"), "captureImageWithFilter:configuration:completionHandler:", filter, config, *req.block);
+			req.* = .{block = block_new(xx thumb_taken, req), gen = gen, is_window = it.is_window, id = it.id};
+			msg(Void, cls("SCScreenshotManager"), "captureImageWithFilter:configuration:completionHandler:", filter, config, req.block);
 			msg(Void, config, "release");
 			msg(Void, filter, "release");
 		}
@@ -402,7 +427,7 @@ content_ready :: (b: *Block, content: Id, err: Id) #c_call {
 }
 
 Thumb_Req :: struct {
-	block: Block;
+	block: *Block; // from block_new
 	gen: int;
 	is_window: bool;
 	id: u32;
@@ -412,7 +437,7 @@ Thumb_Req :: struct {
 thumb_taken :: (b: *Block, image: CFRef, err: Id) #c_call {
 	req := cast(*Thumb_Req) b.user;
 	push_context targets.ctx {
-		defer free(req);
+		defer { block_recycle(req.block); free(req); }
 		if !image return;
 		w, h := cast(int) CGImageGetWidth(image), cast(int) CGImageGetHeight(image);
 		if w <= 0 || h <= 0 || w > THUMB_W * 2 || h > THUMB_W * 2 return;
