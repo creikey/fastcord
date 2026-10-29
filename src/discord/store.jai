@@ -151,6 +151,7 @@ free_guild :: (s: *Store, g: *Guild) {
 	free_str(g.vanity_url_code, a);
 	free_str(g.preferred_locale, a);
 	free_str(g.invites_disabled_until, a);
+	free_str(g.owner_offer, a);
 	array_free(g.channels);
 	for * g.roles free_role(s, it);
 	array_free(g.roles);
@@ -376,6 +377,7 @@ parse_guild_props :: (s: *Store, g: *Guild, p: etf.Map) {
 	if vhas(p, "preferred_locale") set_str(s, *g.preferred_locale, fstr(p, "preferred_locale"));
 	if vhas(p, "incidents_data") set_str(s, *g.invites_disabled_until, fstr(fmap(p, "incidents_data"), "invites_disabled_until"));
 	if vhas(p, "pending_owner_id") g.pending_owner_id = fsnow(p, "pending_owner_id");
+	if vhas(p, "fc_owner_offer") set_str(s, *g.owner_offer, fstr(p, "fc_owner_offer"));
 	if vhas(p, "features") {
 		for g.features free_str(it, s.allocator);
 		g.features.count = 0;

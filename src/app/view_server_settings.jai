@@ -3811,20 +3811,55 @@ ownership_prompt :: () {
 	btns.semantic_size = .[ui.pct(1), ui.px(40)];
 	btns.style.child_gap = 8;
 	answer := "";
+	signing := osign.thread != null;
 	{ ui.parent(btns); defer ui.pop_parent();
 		spacer(.X, 25 - 8);
-		if wide_button("decline", "Decline", .Secondary) answer = "DELETE";
-		if wide_button("accept", "Accept", .Primary) answer = "PUT";
+		if wide_button("decline", "Decline", .Secondary, !signing) answer = "DELETE";
+		if wide_button("accept", ifx signing then "Accepting..." else "Accept", .Primary, !signing && g.owner_offer != "") answer = "PUT";
 		spacer(.X, 25 - 8);
 	}
 	spacer(.Y, 24);
 	adm_modal_end();
+	if signing {
+		// the signature (about half a second of SLH-DSA) is made off the UI thread, then the accept goes
+		app.ui.animating = true;
+		if !thread_is_done(osign.thread) return;
+		thread_deinit(osign.thread);
+		free(osign.thread);
+		osign.thread = null;
+		ss.declined = g.id;
+		if osign.sig && net_action() dc.guild_settings_call(app.client, g.id, xx Req.COUNT, "PUT", tprint("/guilds/%/owner-transfer", g.id), tprint("{\"sig\":\"%\"}", osign.sig));
+		free(osign.sig);
+		osign.sig = "";
+		return;
+	}
 	if adm_escape() ss.declined = g.id;
-	if answer && net_action() {
+	if answer == "DELETE" && net_action() {
 		ss.declined = g.id;
 		dc.guild_settings_call(app.client, g.id, xx Req.COUNT, answer, tprint("/guilds/%/owner-transfer", g.id));
 	}
+	if answer == "PUT" && atomic_load(*idk.done) && idk.list.count {
+		// accepting is signed with our identity key over the offer (serve's owner_accept_message)
+		for hosted if it.client && it.client == app.client osign.server_id = it.inv.id;
+		osign.key = idk.list[0];
+		free(osign.msg);
+		osign.msg = copy_string(cast(string) serve.owner_accept_message(osign.server_id, g.owner_offer, cast(s64) store().me));
+		osign.thread = dc.spawn(*osign, (o: *Owner_Sign) {
+			sig := crypto.slhdsa_sign(o.key.signing, serve.OWNER_CONTEXT, cast([]u8) o.msg,, temp);
+			o.sig = base64_encode(cast(string) sig);
+			platform.request_frame();
+		});
+	}
 }
+
+Owner_Sign :: struct {
+	thread: *Thread; // signing, until done
+	server_id: [16]u8;
+	key: keys.Keypair;
+	msg: string; // heap
+	sig: string; // heap, base64: the thread's result
+}
+osign: Owner_Sign;
 
 // Shared by the settings pages: the readable reason a request failed.
 settings_result_error :: (r: *dc.Feature_Result) -> string {

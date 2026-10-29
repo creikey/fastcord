@@ -893,20 +893,35 @@ main :: () {
 	check(status == 400, tprint("invites pause for at most a day: % %", status, body));
 	status, body = rest("PUT", tprint("/api/v9/guilds/%/incident-actions", gid), "{\"invites_disabled_until\":null,\"dms_disabled_until\":null,\"lockdown_duration_hours\":null}", token);
 	check(status == 200 && contains(body, "\"invites_disabled_until\":null"), tprint("the owner enables invites: % %", status, body));
-	// Transfer Ownership waits for the new owner to accept; then it goes back the same way.
+	// Transfer Ownership waits for the new owner to accept, signed with their key over the offer; then it
+	// goes back the same way.
 	transfer := tprint("/api/v9/guilds/%/owner-transfer", gid);
-	status, body = rest("PUT", transfer, "", other_token);
+	accept :: (k: keys.Keypair, offer: string, user: string) -> string #expand {
+		sig := crypto.slhdsa_sign(k.signing, serve.OWNER_CONTEXT, serve.owner_accept_message(`s.id, offer, string_to_int(user, T = s64)));
+		return tprint("{\"sig\":\"%\"}", base64_encode(cast(string) sig));
+	}
+	status, body = rest("PUT", transfer, accept(other, "00", other_id), other_token);
 	check(status == 403, tprint("nobody accepts an ownership never offered: % %", status, body));
 	status, body = rest("PATCH", tprint("/api/v9/guilds/%", gid), tprint("{\"owner_id\":\"%\",\"code\":null}", other_id), token);
-	check(status == 200 && contains(body, tprint("\"pending_owner_id\":\"%\"", other_id)), tprint("the owner offers the server: % %", status, body));
+	offer_v, _ := etf.from_json(body);
+	offer := copy_string(field(offer_v, "fc_owner_offer").s);
+	check(status == 200 && contains(body, tprint("\"pending_owner_id\":\"%\"", other_id)) && offer.count == 32, tprint("the owner offers the server: % %", status, body));
 	status, body = rest("PATCH", tprint("/api/v9/guilds/%", gid), "{\"name\": \"Mine Now\"}", other_token);
 	check(status == 403, tprint("an offer alone gives nothing: % %", status, body));
 	status, body = rest("PUT", transfer, "", other_token);
+	check(status == 400, tprint("a session alone can't accept: % %", status, body));
+	status, body = rest("PUT", transfer, accept(k, offer, other_id), other_token);
+	check(status == 403, tprint("nor another key's signature: % %", status, body));
+	status, body = rest("PUT", transfer, accept(other, offer, other_id), other_token);
 	check(status == 200 && contains(body, tprint("\"owner_id\":\"%\"", other_id)), tprint("the member accepts the server: % %", status, body));
-	status, body = rest("PATCH", tprint("/api/v9/guilds/%", gid), tprint("{\"owner_id\":\"%\",\"code\":null}", field(welcome.list[0], "author", "id").s), other_token);
+	me_id := field(welcome.list[0], "author", "id").s;
+	status, body = rest("PATCH", tprint("/api/v9/guilds/%", gid), tprint("{\"owner_id\":\"%\",\"code\":null}", me_id), other_token);
+	offer_v, _ = etf.from_json(body);
 	check(status == 200, tprint("the new owner offers it back: % %", status, body));
-	status, body = rest("PUT", transfer, "", token);
-	check(status == 200 && contains(body, tprint("\"owner_id\":\"%\"", field(welcome.list[0], "author", "id").s)), tprint("and it comes back: % %", status, body));
+	status, body = rest("PUT", transfer, accept(k, offer, me_id), token);
+	check(status == 403, tprint("the old offer's signature is no good for a new one: % %", status, body));
+	status, body = rest("PUT", transfer, accept(k, field(offer_v, "fc_owner_offer").s, me_id), token);
+	check(status == 200 && contains(body, tprint("\"owner_id\":\"%\"", me_id)), tprint("and it comes back: % %", status, body));
 	// Timeout: a member in one can't send until it ends.
 	member_path := tprint("/api/v9/guilds/%/members/%", gid, other_id);
 	status, body = rest("PATCH", member_path, "{\"communication_disabled_until\":\"2099-01-01T00:00:00.000Z\"}", token);

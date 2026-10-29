@@ -32,7 +32,7 @@
   - Storage: disk usage of the server file, split by messages, attachments, emoji, stickers, sounds, avatars and the search index, with the disk's free space.
   - Attachments: browse every stored file (name, size, uploader, channel, date, jump to message), delete one or many, and cleanup rules (delete older than N days, larger than N MB), freeing space with `VACUUM` off the request path.
   - Limits: max upload size, per-member and whole-server storage quotas (40005 past them), message history retention.
-  - Done: Transfer Ownership: the owner picks a member (Members' row menu); serve only records the offer (`pending_owner_id`) until that member accepts in the app's prompt (`PUT /guilds/{id}/owner-transfer`, `DELETE` declines); the old owner stays a member. Still missing: the accept signed with the member's identity key (Hosting 3) rather than carried by their session.
+  - Done: Transfer Ownership: the owner picks a member (Members' row menu); serve only records the offer (`pending_owner_id`) until that member accepts in the app's prompt (`PUT /guilds/{id}/owner-transfer`, `DELETE` declines); the old owner stays a member. The accept is signed with the member's identity key (SLH-DSA, off the UI thread) over the server, a fresh nonce per offer (`fc_owner_offer`) and their ID, so a stolen session alone can't take the server (`serve` `owner_accept_message`).
   - Backups: rolling `VACUUM INTO` snapshots with integrity check, folder, Back Up Now, Restore (Hosting 3).
   - Network: public address or DNS name invites carry, port, UPnP / NAT-PMP state, reachable-from-outside check (Hosting 3).
   - Sessions and connections: who is online from where, end a session.
@@ -185,7 +185,7 @@
   - The same file served by two processes isn't refused today: `sqlite.open` takes no exclusive lock, so a second `-serve` on another port (a manual run beside the service, say) splits members between two servers that never see each other's messages, and their snowflake counters can issue the same ID. Open serve's file with `PRAGMA locking_mode=EXCLUSIVE` (or an OS lock on it) and say "this server is already running".
   - The owner is a key from the start, never a code: the client that creates a server names its own key, and a headless `fastcord -serve -new <name> -owner <key>` names the owner's. Then drop Hosting 2's one-use owner invite, a bearer claim that whoever reads the console (or its log, once Hosting 3's service writes one) first can use.
   - Address, port or certificate changes revert after 2 minutes unless the owner reconnects and confirms.
-  - Ownership transfer takes effect only once the new owner signs to accept it.
+  - Done: ownership transfer takes effect only once the new owner signs to accept it (see Hosted server settings' Transfer Ownership).
   - Members > Keys: admins see each member's public keys. A member who lost their key asks the admin out of band with a new one. The admin can link it to the old account, which brings back its messages (to edit or delete), roles and channels. The admin can unlink it later. Admins never see private keys. This means an admin can link any key to any account, the same trust the host already has by reading channels. So no link is silent: each is signed by the admin's key and shown in the account's history to every member. E2E DMs stay safe: a peer still sees the root-changed warning.
   - Delete moves the file to a trash folder for 30 days.
   - Local access to the file can always set a new owner.

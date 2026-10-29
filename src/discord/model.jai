@@ -172,6 +172,7 @@ Guild :: struct {
 	preferred_locale: string;
 	invites_disabled_until: string; // incidents_data: Pause Invites
 	pending_owner_id: Snowflake; // hosted servers: offered to this member, waiting for them to accept
+	owner_offer: string; // and the offer's nonce, which they sign to accept (fc_owner_offer)
 	unavailable: bool;
 	lazy: bool;
 	joined_at: string;
