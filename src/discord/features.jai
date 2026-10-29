@@ -35,6 +35,24 @@ Thread_Meta :: struct {
 	// forum post previews (post-data / threads/search first_messages)
 	first_author: Snowflake;
 	first_content: string;
+	first_media: string; // its first image or video attachment (proxy url), a media channel card's picture
+	first_media_w, first_media_h: int;
+}
+
+// note_first_media: a post's first message's first image or video, for a media channel's grid. extras_mu is
+// held; the side table's allocator.
+note_first_media :: (tm: *Thread_Meta, msg: etf.Map) {
+	free(tm.first_media);
+	tm.first_media, tm.first_media_w, tm.first_media_h = "", 0, 0;
+	for flist(msg, "attachments") {
+		a := vmap(it);
+		ct := fstr(a, "content_type");
+		w, h := fint(a, "width"), fint(a, "height");
+		url := ifx fstr(a, "proxy_url") then fstr(a, "proxy_url") else fstr(a, "url");
+		if (!begins_with(ct, "image/") && !begins_with(ct, "video/")) || w <= 0 || h <= 0 || w > 16384 || h > 16384 || !url || url.count > 2048 continue;
+		tm.first_media, tm.first_media_w, tm.first_media_h = copy_string(url), w, h;
+		return;
+	}
 }
 
 Forum_Tag :: struct {
@@ -162,6 +180,7 @@ note_message :: (extras: *Extras, s: *Store, d: etf.Map, me: Snowflake) {
 			if !tm.first_content {
 				tm.first_author = fsnow(fmap(d, "author"), "id");
 				tm.first_content = copy_string(fstr(d, "content"));
+				note_first_media(tm, d);
 			}
 		} else {
 			tm.message_count += 1;
@@ -197,6 +216,7 @@ free_thread_meta :: (tm: *Thread_Meta) {
 	array_free(tm.applied_tags);
 	free(tm.create_ts);
 	free(tm.first_content);
+	free(tm.first_media);
 }
 
 // extras_on_dispatch: called by client_poll after the Store applied `name`.
@@ -460,6 +480,7 @@ apply_forum_threads :: (c: *Client, body: V) {
 		push_allocator(context.default_allocator); // the side table's
 		free(tm.first_content);
 		tm.first_content = copy_string(fstr(msg, "content"));
+		note_first_media(tm, msg);
 	}
 	for flist(m, "first_messages") note_first(c, vmap(it));
 	// post-data: {threads: {"<id>": {first_message: {...}, owner: {...}}}}

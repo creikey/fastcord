@@ -246,7 +246,30 @@ forum_view :: (ch: *dc.Channel) {
 				filler(.X);
 			}
 		}
-		for id: posts {
+		if ch.kind == .Guild_Media {
+			// the media grid: pictures in columns of at least 220px
+			GAP :: 16.0;
+			inner := (list.rect.x1 - list.rect.x0) - 48;
+			cols := clamp(cast(int) ((inner + GAP) / (220 + GAP)), 1, 6);
+			cw := max((inner - (cols - 1) * GAP) / cols, 1);
+			for i: 0..(posts.count + cols - 1) / cols - 1 {
+				gr := row(tprint("grid%", i));
+				gr.semantic_size = .[ui.pct(1), ui.children()];
+				gr.cross_align = .Start;
+				ui.parent(gr); defer ui.pop_parent();
+				spacer(.X, 24);
+				for j: 0..cols - 1 {
+					k := i * cols + j;
+					if k >= posts.count break;
+					th := dc.channel_get(s, posts[k]);
+					if j spacer(.X, GAP);
+					if th == null continue;
+					ui.id_scope(cast(u64) th.id);
+					media_card(ch, th, cw);
+					ui.pop_seed();
+				}
+			}
+		} else for id: posts {
 			th := dc.channel_get(s, id);
 			if th == null continue;
 			ui.id_scope(cast(u64) id);
@@ -406,6 +429,37 @@ forum_post_form :: (ch: *dc.Channel, st: *Forum_State, tags: []dc.Forum_Tag) {
 		st.error = "";
 		dc.create_forum_post(app.client, ch.id, title, mentions_convert(emoji_convert_shortcodes(body, ch.id), ch), st.tags, st.tag);
 	}
+}
+
+// A media channel post: its first picture (cropped square, a placeholder without one) and its title.
+media_card :: (forum: *dc.Channel, th: *dc.Channel, w: float32) {
+	tm := dc.thread_meta(store(), th.id);
+	card := ui.box("mcard", .Clickable | .Draw_Background | .Hot_Animation);
+	card.semantic_size = .[ui.px(w), ui.children()];
+	card.layout_axis = .Y;
+	card.style.radius = all4(8);
+	card.style.bg_hot = T("--background-mod-subtle");
+	if ui.signal(card).clicked select_channel(forum.guild_id, th.id);
+	ui.parent(card); defer ui.pop_parent();
+	pic := ui.box("pic", .Draw_Background | .Clip);
+	pic.semantic_size = .[ui.px(w), ui.px(w)];
+	pic.style.radius = all4(8);
+	pic.style.bg = T("--background-mod-normal");
+	if tm && tm.first_media set_remote_image(pic, tm.first_media, cover = true);
+	else { ui.parent(pic); defer ui.pop_parent(); ic := icon("i", "image", 40, T("--text-muted"), .Floating_X | .Floating_Y); ic.fixed_pos = .{(w - 40) / 2, (w - 40) / 2}; }
+	spacer(.Y, 8);
+	label(ellipsize(th.name, .Semibold, 16, w - 8), .Semibold, 16, T("--text-strong"), 20);
+	spacer(.Y, 4);
+	mr := row("meta");
+	mr.semantic_size = .[ui.pct(1), ui.px(18)];
+	{ ui.parent(mr); defer ui.pop_parent();
+		icon("ic", "chat", 16, T("--text-muted"));
+		spacer(.X, 4);
+		label(tprint("%", ifx tm then tm.message_count else 0), .Medium, 14, T("--text-muted"), 18);
+		spacer(.X, 8);
+		label(relative_age(ifx tm && tm.last_message_id > th.id then tm.last_message_id else th.id), .Normal, 14, T("--text-muted"), 18);
+	}
+	spacer(.Y, 16);
 }
 
 forum_card :: (forum: *dc.Channel, th: *dc.Channel, tags: []dc.Forum_Tag) {

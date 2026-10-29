@@ -1,0 +1,7 @@
+# Runs on media_channel.jsonl (the threads fixture with its forum made a media channel): a media channel's
+# posts are a grid of pictures with their titles, not the forum list.
+wait 5
+click_text "feedback"
+wait 10
+expect_visible "Emoji picker search"
+shot build/ui-media_channel.png
