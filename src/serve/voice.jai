@@ -3,6 +3,9 @@
 // WebSocket on this listener (/?v=9, JSON as Discord's) and media is UDP on the same port number. Serve only
 // forwards: each packet is opened with its sender's transport key and sealed again with each listener's, and
 // never decoded. There is no DAVE yet, so the host could listen in, as it can read every channel.
+//
+// Go Live is the same, as on Discord: gateway ops 18-20 give a stream its own room (its rtc_server_id), which
+// the streamer and each viewer join with a second voice connection.
 
 #load "../voice/rtp.jai"; // Discord's RTP framing and transport encryption, shared with the client.
 
@@ -30,13 +33,15 @@ Voice_State :: struct {
 	gateway: *Conn;  // The member's gateway that joined: its session ID goes out, and its close leaves.
 	token: [16]u8;   // VOICE_SERVER_UPDATE's, which the voice gateway's Identify must show.
 	self_mute, self_deaf, self_video: bool;
+	stream: s64;          // Go Live: the stream's room, 0 when not streaming. A stream ends with its voice state.
+	stream_token: [16]u8; // STREAM_SERVER_UPDATE's, for the streamer and every viewer.
 }
 
 // One voice WebSocket and the media it carries.
 Voice_Session :: struct {
 	conn: *Conn;
 	user: s64;
-	room: s64;      // The voice channel.
+	room: s64;      // The voice channel, or a stream's room.
 	ssrc: u32;      // Audio; the camera is ssrc + 1 and its retransmissions ssrc + 2.
 	mode: Mode;     // .None until SELECT_PROTOCOL.
 	tc: Transport_Crypto;
@@ -67,7 +72,7 @@ voice_state_value :: (s: *Server, vs: *Voice_State, user: s64 = 0) -> etf.Value 
 	etf.map_put(*m, "self_mute", etf.vbool(vs && vs.self_mute));
 	etf.map_put(*m, "self_deaf", etf.vbool(vs && vs.self_deaf));
 	etf.map_put(*m, "self_video", etf.vbool(vs && vs.self_video));
-	etf.map_put(*m, "self_stream", etf.vbool(false));
+	etf.map_put(*m, "self_stream", etf.vbool(vs && vs.stream != 0));
 	etf.map_put(*m, "mute", etf.vbool(false));
 	etf.map_put(*m, "deaf", etf.vbool(false));
 	return etf.vmap(etf.map_done(*m));
@@ -89,7 +94,7 @@ voice_state_update :: (c: *Conn, d: etf.Value) {
 		if channel_type_locked(s, channel) != VOICE return;
 	} else if ch.kind != .Nil return;
 	flag :: (m: etf.Map, k: string) -> bool { v, _ := etf.map_get(m, k); return v.kind == .Bool && v.b; }
-	state, server: etf.Value;
+	state, server, gone: etf.Value;
 	{
 		locks.guard(*s.voice_mu);
 		vs: *Voice_State;
@@ -97,7 +102,7 @@ voice_state_update :: (c: *Conn, d: etf.Value) {
 		for * s.voice_states if it.user == c.user { vs, at = it, it_index; }
 		if !channel {
 			if !vs return;
-			kick_locked(s, vs.user);
+			gone = end_locked(s, vs);
 			state = voice_state_value(s, null, c.user);
 			array_unordered_remove_by_index(*s.voice_states, at);
 		} else {
@@ -106,7 +111,7 @@ voice_state_update :: (c: *Conn, d: etf.Value) {
 				in_room := 0;
 				for s.voice_states if it.channel == channel && it.user != c.user in_room += 1;
 				if in_room >= MAX_VOICE_ROOM return;
-				if vs kick_locked(s, vs.user);
+				if vs gone = end_locked(s, vs);
 				else vs = array_add(*s.voice_states);
 				vs.user, vs.channel, vs.gateway = c.user, channel, c;
 				crypto.random_bytes(vs.token);
@@ -121,6 +126,7 @@ voice_state_update :: (c: *Conn, d: etf.Value) {
 			state = voice_state_value(s, vs);
 		}
 	}
+	if gone.kind == .Map broadcast(s, "STREAM_DELETE", gone);
 	broadcast(s, "VOICE_STATE_UPDATE", state);
 	if server.kind == .Map dispatch(c, "VOICE_SERVER_UPDATE", server);
 }
@@ -128,23 +134,107 @@ voice_state_update :: (c: *Conn, d: etf.Value) {
 // voice_leave ends user's voice state, when only gateway (null: any) holds it: that gateway closed, the
 // member was removed, or the channel went away (user 0 and channel: everyone in it).
 voice_leave :: (s: *Server, user: s64, gateway: *Conn = null, channel: s64 = 0) {
-	left: [..]s64;
-	left.allocator = temp;
+	left, gone: [..]etf.Value;
+	left.allocator, gone.allocator = temp, temp;
 	{
 		locks.guard(*s.voice_mu);
-		for s.voice_states {
+		for * s.voice_states {
 			if (user && it.user != user) || (gateway && it.gateway != gateway) || (channel && it.channel != channel) continue;
-			kick_locked(s, it.user);
-			array_add(*left, it.user);
+			ended := end_locked(s, it);
+			if ended.kind == .Map array_add(*gone, ended);
+			array_add(*left, voice_state_value(s, null, it.user));
 			remove it;
 		}
 	}
-	for left broadcast(s, "VOICE_STATE_UPDATE", voice_state_value(s, null, it));
+	for gone broadcast(s, "STREAM_DELETE", it);
+	for left broadcast(s, "VOICE_STATE_UPDATE", it);
 }
 
-// kick_locked closes user's voice WebSockets, whose threads then end their sessions.
-kick_locked :: (s: *Server, user: s64) {
-	for s.voice_sessions if it.user == user netio.shutdown(netio.tcp_stream(it.conn.tcp));
+// kick_locked closes the voice WebSockets of user (0: anyone) in room (0: any), whose threads then end their
+// sessions.
+kick_locked :: (s: *Server, user: s64, room: s64 = 0) {
+	for s.voice_sessions if (!user || it.user == user) && (!room || it.room == room) netio.shutdown(netio.tcp_stream(it.conn.tcp));
+}
+
+// end_locked closes vs's member's voice connections and ends their stream, the viewers' too. It returns the
+// STREAM_DELETE to send, or null.
+end_locked :: (s: *Server, vs: *Voice_State) -> etf.Value {
+	kick_locked(s, vs.user);
+	if !vs.stream return .{};
+	kick_locked(s, 0, vs.stream);
+	vs.stream = 0;
+	return stream_value(s, vs);
+}
+
+// stream_value is {stream_key} for vs's stream, as the client names it, with its room unless it ended.
+stream_value :: (s: *Server, vs: *Voice_State) -> etf.Value {
+	m := etf.map_builder(5,, temp);
+	etf.map_put(*m, "stream_key", etf.vstring(tprint("guild:%:%:%", s.guild, vs.channel, vs.user)));
+	if vs.stream {
+		etf.map_put(*m, "rtc_server_id", snow(vs.stream));
+		etf.map_put(*m, "region", etf.vstring("fastcord"));
+		etf.map_put(*m, "viewer_ids", etf.vlist(.[]));
+		etf.map_put(*m, "paused", etf.vbool(false));
+	}
+	return etf.vmap(etf.map_done(*m));
+}
+
+// Go Live: gateway ops 18 STREAM_CREATE {channel_id} for the caller's own stream in their voice channel, 20
+// STREAM_WATCH {stream_key} for one in theirs, and 19 STREAM_DELETE {stream_key}, which ends the caller's
+// own stream or stops watching another's. Both of the first answer STREAM_CREATE and STREAM_SERVER_UPDATE.
+stream_op :: (c: *Conn, op: int, d: etf.Value) {
+	s := c.server;
+	if d.kind != .Map return;
+	key, _ := etf.map_get(d.map, "stream_key");
+	ch, _ := etf.map_get(d.map, "channel_id");
+	created, server, gone, state: etf.Value;
+	{
+		locks.guard(*s.voice_mu);
+		me, streamer: *Voice_State;
+		for * s.voice_states if it.user == c.user && it.gateway == c me = it;
+		if !me return;
+		if op == 18 {
+			if ch.kind != .String || ch.s != tprint("%", me.channel) return;
+			if !me.stream {
+				me.stream = snowflake(s);
+				crypto.random_bytes(me.stream_token);
+				state = voice_state_value(s, me);
+			}
+			streamer = me;
+		} else {
+			parts := ifx key.kind == .String then split(key.s, ":",, temp) else .[];
+			if parts.count != 4 || parts[0] != "guild" || parts[1] != tprint("%", s.guild) || parts[2] != tprint("%", me.channel) return;
+			for * s.voice_states if it.stream && parts[3] == tprint("%", it.user) && it.channel == me.channel streamer = it;
+			if !streamer return;
+			if op == 19 {
+				if streamer != me {
+					kick_locked(s, me.user, streamer.stream);
+					gone = stream_value(s, streamer);
+				} else {
+					kick_locked(s, 0, me.stream);
+					me.stream = 0;
+					gone, state = stream_value(s, me), voice_state_value(s, me);
+				}
+			}
+		}
+		if op != 19 {
+			created = stream_value(s, streamer);
+			m := etf.map_builder(4,, temp);
+			etf.map_put(*m, "stream_key", etf.map_get(created.map, "stream_key"));
+			etf.map_put(*m, "token", etf.vstring(hex(streamer.stream_token,, temp)));
+			etf.map_put(*m, "guild_id", snow(s.guild));
+			etf.map_put(*m, "endpoint", etf.vstring(id_hex(s)));
+			server = etf.vmap(etf.map_done(*m));
+		}
+	}
+	if created.kind == .Map {
+		dispatch(c, "STREAM_CREATE", created);
+		dispatch(c, "STREAM_SERVER_UPDATE", server);
+	}
+	// A viewer who stops watching is the only one to hear of it; the end of a stream goes to everyone.
+	if gone.kind == .Map && state.kind != .Map dispatch(c, "STREAM_DELETE", gone);
+	else if gone.kind == .Map broadcast(s, "STREAM_DELETE", gone);
+	if state.kind == .Map broadcast(s, "VOICE_STATE_UPDATE", state);
 }
 
 // The voice gateway, upgraded from GET /?v=9. Identify must match a voice state's token and session.
@@ -256,13 +346,22 @@ voice_identify :: (c: *Conn, server_id: etf.Value, user_id: etf.Value, session_i
 	s := c.server;
 	if server_id.kind != .String || user_id.kind != .String || session_id.kind != .String || token.kind != .String return null;
 	user, ok := string_to_int(user_id.s, T = s64);
-	if !ok || server_id.s != tprint("%", s.guild) return null;
+	if !ok return null;
 	locks.guard(*s.voice_mu);
-	state: *Voice_State;
-	for * s.voice_states if it.user == user && constant_time_hex(token.s, it.token) && session_id.s == hex(it.gateway.session,, temp) state = it;
-	if !state || s.voice_sessions.count >= MAX_VOICE_SESSIONS || !s.udp return null;
+	mine: *Voice_State;
+	for * s.voice_states if it.user == user && session_id.s == hex(it.gateway.session,, temp) mine = it;
+	if !mine || s.voice_sessions.count >= MAX_VOICE_SESSIONS || !s.udp return null;
+	// The guild's ID for the voice channel itself; a stream's room for Go Live, where any viewer's voice state
+	// must be in the stream's channel.
+	room: s64;
+	if server_id.s == tprint("%", s.guild) {
+		if constant_time_hex(token.s, mine.token) room = mine.channel;
+	} else {
+		for s.voice_states if it.stream && server_id.s == tprint("%", it.stream) && it.channel == mine.channel && constant_time_hex(token.s, it.stream_token) room = it.stream;
+	}
+	if !room return null;
 	vs := New(Voice_Session);
-	vs.conn, vs.user, vs.room = c, user, state.channel;
+	vs.conn, vs.user, vs.room = c, user, room;
 	// Four SSRCs apart, so a member's audio, camera and retransmissions never meet another's.
 	while true {
 		b: [4]u8;

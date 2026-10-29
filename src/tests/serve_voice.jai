@@ -144,6 +144,50 @@ main :: () {
 	for 1..300 { if !voice.video_user_ids(b.conn,, temp).count break; pump(); }
 	check(!voice.video_user_ids(b.conn,, temp).count, "turning the camera off reaches the member");
 
+	// Go Live: the owner streams on a second connection, which the app opens once STREAM_SERVER_UPDATE is in;
+	// the member watches it on one of theirs. Frames reach the watcher, not the call.
+	key := discord.stream_key(guild, channel, a.cl.store.me);
+	stream_conn :: (m: *Member, frames: *s64) -> *voice.Conn #expand {
+		info, _, got := discord.stream_server_info(m.cl, `key);
+		for 1..500 { if got break; pump(); info, _, got = discord.stream_server_info(m.cl, `key); }
+		`check(got, "STREAM_CREATE and STREAM_SERVER_UPDATE");
+		if !got return null;
+		return voice.voice_connect(.{endpoint = info.endpoint, token = info.token, guild_or_channel_id = xx info.guild_or_channel_id,
+			user_id = xx info.user_id, session_id = info.session_id, channel_id = xx info.channel_id, stream = true}, .{
+			no_audio_devices = true, callback_data = frames,
+			hosted = .{host = `hosted.host, port = `hosted.port, server_id = `hosted.server_id, pin = `hosted.pin},
+			video = (data: *void, user_id: u64, codec: voice.Video_Codec, au: []u8, keyframe: bool) { if keyframe atomic_add(cast(*s64) data, 1); }});
+	}
+	discord.stream_create(a.cl, guild, channel);
+	sent, watched: s64;
+	own := stream_conn(*a, *sent);
+	streaming :: () -> bool #expand { vs := table_find_pointer(*`b.cl.store.voice_states, `a.cl.store.me); return vs && vs.self_stream; }
+	for 1..300 { if streaming() break; pump(); }
+	check(streaming(), "the member sees the owner is live");
+	discord.stream_watch(b.cl, key);
+	watch := stream_conn(*b, *watched);
+	if own && watch {
+		for 1..500 { if voice.state(own) == .Connected && voice.state(watch) == .Connected break; pump(); }
+		voice.set_video(own, true);
+		camera := atomic_load(*b.frames);
+		for 1..500 {
+			if atomic_load(*watched) >= 5 break;
+			voice.send_video(own, .H264, frame, ts);
+			ts += 3000;
+			pump();
+		}
+		check(atomic_load(*watched) >= 5 && atomic_load(*b.frames) == camera, tprint("the watcher gets the stream, apart from the call: % %", watched, b.frames - camera));
+		// The watcher stops: their stream connection is closed, and the stream goes on.
+		discord.stream_delete(b.cl, key);
+		for 1..500 { if voice.state(watch) == .Disconnected || voice.state(watch) == .Resuming break; pump(); }
+		check(voice.state(watch) != .Connected && streaming(), "a watcher stops watching");
+		voice.voice_disconnect(watch);
+		discord.stream_delete(a.cl, key);
+		for 1..300 { if !streaming() break; pump(); }
+		check(!streaming(), "the owner ends the stream");
+		voice.voice_disconnect(own);
+	}
+
 	// The member leaves: their voice state goes, and the owner's connection drops them.
 	voice.voice_disconnect(b.conn);
 	discord.voice_leave(b.cl);

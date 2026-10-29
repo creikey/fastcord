@@ -4061,6 +4061,10 @@ gateway :: (c: *Conn, req: http.Request) {
 				if changed broadcast(c.server, "GUILD_MEMBER_LIST_UPDATE", member_list_value(c.server));
 			case 4;
 				if c.ws voice_state_update(c, d);
+			case 18; #through;
+			case 19; #through;
+			case 20; // Go Live: create, delete and watch.
+				if c.ws stream_op(c, op.i, d);
 			case 6; // No resume: an invalid session makes the client identify again.
 				if !send(ws, 9, etf.vbool(false)) return;
 			case; // The rest are Discord-only; ignore them.
