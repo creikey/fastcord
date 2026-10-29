@@ -24,7 +24,8 @@ crash_start :: () {
 		posix.sigaltstack(*ss, null);
 		sa: posix.sigaction_t;
 		sa.sa_handler = on_signal;
-		sa.sa_flags = posix.SA_RESETHAND | posix.SA_ONSTACK; // runs once, then the default action kills the process
+		// runs once, then the default action kills the process; Linux's SA_RESETHAND is the s32 sign bit
+		sa.sa_flags = cast,no_check(type_of(sa.sa_flags)) (posix.SA_RESETHAND | posix.SA_ONSTACK);
 		for s32.[posix.SIGSEGV, posix.SIGBUS, posix.SIGILL, posix.SIGFPE, posix.SIGABRT] posix.sigaction(it, *sa, null);
 	}
 }
