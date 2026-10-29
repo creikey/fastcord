@@ -1105,6 +1105,14 @@ status_color :: (st: dc.Status) -> ui.Color {
 	return T("--icon-status-offline");
 }
 
+// Someone's custom status as one line ("" for none or while they're offline); yours from your settings.
+user_custom_status :: (uid: dc.Snowflake) -> string {
+	s := store();
+	if uid == s.me return custom_status_line();
+	p := table_find_pointer(*s.presences, uid);
+	return ifx p && user_status(uid) != .Offline then p.custom else "";
+}
+
 user_status :: (uid: dc.Snowflake) -> dc.Status {
 	s := store();
 	if uid == s.me {

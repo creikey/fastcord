@@ -1,0 +1,9 @@
+# Run with -fixture:tests/ui/rail.jsonl. A friend's custom status (Lil Bean: brewing tea) shows in their
+# friends row instead of "Online", and under their name in the group DM's member list.
+wait 5
+click 36 52
+wait 10
+expect_visible "☕ brewing tea"
+shot build/ui-custom_status_others-friends.png
+click 180 203
+wait 30

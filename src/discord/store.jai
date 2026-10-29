@@ -708,12 +708,19 @@ apply_presence :: (s: *Store, m: etf.Map, user_hint: Snowflake = 0) {
 		p.web = status_from_string(fstr(cs, "web"));
 	}
 	old := table_find_pointer(*s.presences, uid);
-	if old free_str(old.activity, s.allocator);
+	if old { free_str(old.activity, s.allocator); free_str(old.custom, s.allocator); }
 	for flist(m, "activities") {
 		am := vmap(it);
 		if it_index < 8 p.activity_types |= cast(u32) ((fint(am, "type") + 1) & 0xF) << (4 * it_index);
 		txt := ifx fint(am, "type") == 4 then fstr(am, "state") else fstr(am, "name");
 		if txt && !p.activity p.activity = clone_str(txt, s.allocator);
+		if fint(am, "type") == 4 && !p.custom {
+			em := fmap(am, "emoji");
+			emoji := ifx em && !fsnow(em, "id") then fstr(em, "name"); // custom emoji images aren't drawn here
+			if emoji.count > 32 emoji = ""; // a unicode emoji is a few code points; the state is capped like Discord's
+			state := slice(txt, 0, min(txt.count, 512));
+			if emoji || state p.custom = clone_str(ifx emoji && state then tprint("% %", emoji, state) else ifx emoji then emoji else state, s.allocator);
+		}
 	}
 	table_set(*s.presences, uid, p);
 }
@@ -1566,7 +1573,7 @@ store_reset_session :: (s: *Store) {
 		deinit(gm);
 	}
 	table_reset(*s.members);
-	for s.presences free_str(it.activity, a);
+	for s.presences { free_str(it.activity, a); free_str(it.custom, a); }
 	table_reset(*s.presences);
 	for s.relationships {
 		free_str(it.nickname, a);

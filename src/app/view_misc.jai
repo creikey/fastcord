@@ -213,6 +213,19 @@ profile_popout :: () {
 					label(tprint(" • %", u.pronouns), .Normal, 14, T("--text-default"), 18);
 				}
 			}
+			custom := ifx hook then "" else user_custom_status(uid);
+			if custom {
+				spacer(.Y, 8);
+				cr := row("custompad");
+				cr.semantic_size = .[ui.pct(1), ui.children()];
+				ui.parent(cr); defer ui.pop_parent();
+				spacer(.X, 16);
+				cl := label(custom, .Normal, 14, T("--text-default"), 18);
+				cl.flags |= .Wrap_Text | .Selectable_Text;
+				cl.semantic_size[ui.Axis.X] = ui.fill();
+				cl.sel_order = 3;
+				spacer(.X, 16);
+			}
 			if u.bio != "" && !hook {
 				spacer(.Y, 12);
 				bio := ui.box("bio", .Selectable_Text | .Wrap_Text);

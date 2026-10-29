@@ -265,6 +265,7 @@ Presence :: struct {
 	mobile: Status;
 	web: Status;
 	activity: string; // custom status text / "Playing X"
+	custom: string; // the custom status (type 4): its unicode emoji, a space, its text; "" for none
 	activity_types: u32; // each activity's type + 1, a nibble each in order (user_profile_action)
 }
 
