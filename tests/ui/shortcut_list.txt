@@ -1,9 +1,11 @@
-# Ctrl+/ opens the keyboard shortcut list; Escape closes it.
+# Ctrl+/ (Cmd+/ on macOS) opens the keyboard shortcut list; Escape closes it. The labels checked read the
+# same on every platform.
 wait 5
 key / cmd
 wait 5
 expect_visible "Keyboard Shortcuts"
-expect_visible "Ctrl+Alt+A"
+expect_visible "Return to the connected call"
+expect_visible "Alt+Up / Alt+Down"
 shot build/ui-shortcut_list.png
 key escape
 wait 5
