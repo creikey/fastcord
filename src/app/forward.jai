@@ -19,8 +19,9 @@ forward_open :: (m: *dc.Message) {
 }
 
 // can_forward: only plain messages and replies that the server has, as the official menu offers it.
+// An encrypted message can't be forwarded: the destination would get a packet nobody there can open.
 can_forward :: (m: *dc.Message) -> bool {
-	return !m.pending && !m.failed && !m.forwarded && (m.kind == 0 || m.kind == 19);
+	return !m.pending && !m.failed && !m.forwarded && (m.kind == 0 || m.kind == 19) && !encrypted_packet(m.channel_id, m.content);
 }
 
 Forward_Item :: struct {
@@ -72,7 +73,9 @@ forward_send :: () {
 	if net_action() {
 		dc.send_message(app.client, fwd.dest, "", opts);
 		note := trim(ui.editor_text(*fwd.note));
-		if note dc.send_message(app.client, fwd.dest, note);
+		dest := dc.channel_get(s, fwd.dest);
+		if note && encrypting(dest) encrypted_send(dest, note, false, false);
+		else if note dc.send_message(app.client, fwd.dest, note);
 	}
 	fwd.msg = 0;
 	app.ui.focus = 0;

@@ -84,8 +84,9 @@ encrypted_frame :: () {
 // encrypted_packet: an `fc-` message in a Discord 1:1 DM, whose raw text must never be shown, copied
 // or edited.
 encrypted_packet :: (channel_id: dc.Snowflake, content: string) -> bool {
-	if !begins_with(content, e2e.PREFIX) || !app.discord return false;
-	ch := dc.channel_get(*app.discord.store, channel_id);
+	if !begins_with(content, e2e.PREFIX) return false;
+	s := ifx app.discord then *app.discord.store else ifx app.client then null else *app.offline_store; // Offline: a fixture's Discord.
+	ch := ifx s then dc.channel_get(s, channel_id);
 	return ch && ch.kind == .DM && ch.recipient_ids.count == 1;
 }
 

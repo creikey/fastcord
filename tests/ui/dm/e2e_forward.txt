@@ -1,0 +1,18 @@
+# E2E: an encrypted message can't be forwarded (the destination would get a packet nobody there can
+# open); a plain one still can.
+open 1800000000000000001
+wait 20
+incoming fc-AwMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+wait 20
+shot build/ui-dm_e2e_forward-packet.png
+rclick 600 583
+wait 10
+expect_visible "Copy Text"
+expect_visible "Forward"
+key escape
+wait 10
+rclick 600 609
+wait 10
+expect_visible "Copy Text"
+expect_not_visible "Forward"
+shot build/ui-dm_e2e_forward-menu.png
