@@ -208,6 +208,16 @@ files_bytes_locked :: (s: *Server, user: s64) -> s64 {
 // The address invites carry, if the owner set one; else "".
 public_address_locked :: (s: *Server) -> string { return cast(string) meta_get(s, "host_address"); }
 
+// invite_authority_locked is "host:port" for invites when the owner set an address (READY's and GUILD_UPDATE's
+// fc_address, so every member's Invite button hands it out), else "".
+invite_authority_locked :: (s: *Server) -> string {
+	host := public_address_locked(s);
+	if !host return "";
+	port := limit_locked(s, "public_port");
+	if !port port = ifx s.listener then s.listener.port else 0;
+	return tprint("%:%", ifx contains(host, ":") then tprint("[%]", host) else copy_string(host,, temp), port);
+}
+
 // ---- Backups ----
 
 backup_dir_locked :: (s: *Server) -> string {
@@ -697,27 +707,33 @@ host_settings :: (c: *Conn, req: http.Request) -> bool {
 	s := c.server;
 	v, err := etf.from_json(cast(string) req.body,, temp);
 	if err != .None || v.kind != .Map return json_error(c, 400, 50035, "Invalid Form Body");
-	locks.guard(*s.db_mu);
-	for p: v.map {
-		if p.key.kind != .String return json_error(c, 400, 50035, "Invalid Form Body");
-		if p.key.s == "address" {
-			if p.value.kind != .String || !address_ok(p.value.s) return json_error(c, 400, 50035, "Invalid Form Body");
-			continue;
+	g := etf.map_builder(2,, temp);
+	etf.map_put(*g, "id", snow(s.guild));
+	{
+		locks.guard(*s.db_mu);
+		for p: v.map {
+			if p.key.kind != .String return json_error(c, 400, 50035, "Invalid Form Body");
+			if p.key.s == "address" {
+				if p.value.kind != .String || !address_ok(p.value.s) return json_error(c, 400, 50035, "Invalid Form Body");
+				continue;
+			}
+			known := false;
+			for LIMITS if it.key == p.key.s {
+				known = true;
+				if p.value.kind != .Int || p.value.i < it.lo || p.value.i > it.hi return json_error(c, 400, 50035, "Invalid Form Body");
+			}
+			if !known return json_error(c, 400, 50035, "Invalid Form Body");
 		}
-		known := false;
-		for LIMITS if it.key == p.key.s {
-			known = true;
-			if p.value.kind != .Int || p.value.i < it.lo || p.value.i > it.hi return json_error(c, 400, 50035, "Invalid Form Body");
+		if !sqlite.exec(s.db, "BEGIN;") return json_error(c, 500, 0, "500: Internal Server Error");
+		ok := true;
+		for p: v.map if ok {
+			if p.key.s == "address" ok = meta_put(s, "host_address", p.value.s);
+			else ok = meta_put(s, tprint("host_%", p.key.s), tprint("%", p.value.i));
 		}
-		if !known return json_error(c, 400, 50035, "Invalid Form Body");
+		if !ok || !sqlite.exec(s.db, "COMMIT;") { sqlite.exec(s.db, "ROLLBACK;"); return json_error(c, 500, 0, "500: Internal Server Error"); }
+		etf.map_put(*g, "fc_address", etf.vstring(invite_authority_locked(s)));
 	}
-	if !sqlite.exec(s.db, "BEGIN;") return json_error(c, 500, 0, "500: Internal Server Error");
-	ok := true;
-	for p: v.map if ok {
-		if p.key.s == "address" ok = meta_put(s, "host_address", p.value.s);
-		else ok = meta_put(s, tprint("host_%", p.key.s), tprint("%", p.value.i));
-	}
-	if !ok || !sqlite.exec(s.db, "COMMIT;") { sqlite.exec(s.db, "ROLLBACK;"); return json_error(c, 500, 0, "500: Internal Server Error"); }
+	broadcast(s, "GUILD_UPDATE", etf.vmap(etf.map_done(*g))); // every member's Invite button follows the address
 	return respond(c, 204, json = false);
 }
 

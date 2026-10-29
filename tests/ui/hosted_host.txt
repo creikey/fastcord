@@ -1,0 +1,58 @@
+# Server Settings' Host group on a self-hosted server in this process, as its owner: every page loads from
+# serve's /fc/host routes (expect_served fails on any it lacks), a file shows in Attachments, Back Up Now
+# lists a backup, and a limit saves.
+wait 5
+serve_join
+settle 3
+click 36 157
+settle 3
+click 700 683
+stage tests/scenarios/assets/test.png
+wait_attachments
+key enter
+settle 3
+click 160 58
+settle 1
+click_text "Server Settings"
+settle 2
+move 250 500
+scroll 0 -800
+settle 1
+click_text "Storage"
+settle 2
+shot build/ui-hosted_host-storage.png
+click 201 472
+settle 2
+click 470 272
+settle 1
+shot build/ui-hosted_host-attachments.png
+click_text "Limits"
+settle 2
+click 775 298
+key a cmd
+type 50
+settle 1
+shot build/ui-hosted_host-limits.png
+click_text "Save Changes"
+settle 2
+click_text "Backups"
+settle 2
+click_text "Back Up Now"
+settle 3
+shot build/ui-hosted_host-backups.png
+click_text "Network"
+settle 2
+click 775 212
+type chat.example.org
+click_text "Save Changes"
+settle 2
+shot build/ui-hosted_host-network.png
+click_text "Sessions"
+settle 2
+shot build/ui-hosted_host-sessions.png
+click_text "Server Info"
+settle 2
+shot build/ui-hosted_host-info.png
+key escape
+settle 1
+expect_served

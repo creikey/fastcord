@@ -126,6 +126,7 @@ server_settings_reset_for_test :: () {
 	free(ss.rule_regex);
 	ob_free();
 	free(ss.ob_saved);
+	host_free();
 	ss = .{};
 }
 
@@ -188,11 +189,12 @@ server_settings_receive :: (r: *dc.Feature_Result) {
 		ss.busy = false;
 		// Drafts of store values stay as saved: the gateway's update makes the store match them.
 		if ss.section == .Profile || ss.section == .Tag || ss.section == .Access || ss.section == .Onboarding form_reset(g);
+		if host_section(ss.section) host_enter(g); // the saved limits come back with Host
 		return;
 	}
 	if req >= .COUNT return;
 	keep_reply(req, r);
-	if req == .Profile || req == .Widget || req == .Verification || req == .Vanity || req == .Onboarding form_reset(g); // the forms these replies fill
+	if req == .Profile || req == .Widget || req == .Verification || req == .Vanity || req == .Onboarding || req == .Host form_reset(g); // the forms these replies fill
 }
 
 server_settings_layer :: () {
@@ -374,6 +376,11 @@ Req :: enum u8 {
 	Onboarding; // GET /guilds/{id}/onboarding
 	Regions; // GET /guilds/{id}/regions (Channel Settings: Region Override)
 	Applications; // GET /guilds/{id}/requests?status=SUBMITTED (Access: Apply to Join)
+	Host; // GET /fc/host: a hosted server's info, storage and limits (view_server_host.jai)
+	Host_Files; // GET /fc/host/attachments
+	Host_Backups; // GET /fc/host/backups
+	Host_Sessions; // GET /fc/host/sessions
+	Host_Log; // GET /fc/host/log
 	COUNT;
 	Save :: 100; // a page's Save Changes
 	Save_Widget;
@@ -553,6 +560,7 @@ section_enter :: (g: *dc.Guild) {
 		ss.loading[Req.Webhooks] = false;
 		load(g, .Webhooks, tprint("/channels/%/webhooks", ss.channel));
 	}
+	if host_section(ss.section) host_enter(g);
 	ss.ow_id, ss.ow_adding = g.id, false;
 	ss.role_id, ss.pending_role, ss.hook_id, ss.rule_id = 0, 0, 0, 0;
 	array_reset(*ss.cursors);
@@ -714,6 +722,7 @@ section_shown :: (g: *dc.Guild, s: Server_Section) -> bool {
 
 // The sections fastcord has a page for (see the note at the top).
 page_exists :: (s: Server_Section) -> bool {
+	if host_section(s) return true;
 	if s == {
 	case .Profile; #through; case .Engagement; #through; case .Members; #through; case .Invites; #through; case .Bans; #through;
 	case .Emoji; #through; case .Audit_Log; #through; case .Delete; #through; case .Soundboard; #through; case .Roles; #through; case .Safety; #through; case .Integrations; #through; case .Templates; #through;
@@ -727,6 +736,7 @@ page_exists :: (s: Server_Section) -> bool {
 // page_body draws a section's page into the form column; true asks to save (Enter in a field).
 page_body :: (g: *dc.Guild, s: Server_Section, w: float32) -> bool {
 	ss.form_w = w;
+	if host_section(s) return host_page(g, s);
 	if s == {
 	case .Profile;
 		return profile_page(g, w);
@@ -779,6 +789,7 @@ page_body :: (g: *dc.Guild, s: Server_Section, w: float32) -> bool {
 }
 
 form_dirty :: (g: *dc.Guild) -> bool {
+	if host_section(ss.section) return host_dirty();
 	if ss.section == {
 	case .Profile;
 		r := reply(.Profile);
@@ -834,6 +845,7 @@ form_reset :: (g: *dc.Guild) {
 		ss.private = f.visibility == 2;
 	}
 	if ss.section == .Roles role_reset(g);
+	if host_section(ss.section) host_reset();
 	if ss.section == .Safety && ss.rule_id rule_open(rule_of_id(ss.rule_id));
 	if ss.channel chan_reset();
 	if ss.section == .Onboarding onboarding_reset();
@@ -870,6 +882,7 @@ save_call :: (g: *dc.Guild, req: Req, method: string, path: string, body: string
 }
 
 form_save :: (g: *dc.Guild) {
+	if host_section(ss.section) { host_save(g); return; }
 	if ss.section == {
 	case .Profile;
 		r := reply(.Profile);
@@ -1918,7 +1931,7 @@ ss_action :: (g: *dc.Guild, after: Req, method: string, path: string, body := ""
 	dc.guild_settings_call(app.client, g.id, xx Req.Action, method, path, body, reason);
 }
 
-SS_Confirm :: enum u8 { None; Revoke_Invite; Revoke_Ban; Delete_Emoji; Timeout; Transfer; Delete_Server; Pause_Invites; Delete_Role; Delete_Rule; Delete_Webhook; Delete_Template; Delete_Sticker; }
+SS_Confirm :: enum u8 { None; Revoke_Invite; Revoke_Ban; Delete_Emoji; Timeout; Transfer; Delete_Server; Pause_Invites; Delete_Role; Delete_Rule; Delete_Webhook; Delete_Template; Delete_Sticker; Delete_Files; Restore_Backup; End_Session; }
 
 ss_confirm_open :: (kind: SS_Confirm, id: dc.Snowflake, text: string) {
 	ss.confirm, ss.confirm_id = kind, id;
@@ -1949,6 +1962,9 @@ ss_confirm_modal :: (g: *dc.Guild) {
 	case .Delete_Webhook; title, body, button = L("Delete Webhook"), tprint(L("Are you sure you want to delete %? This action cannot be undone."), t), L("Delete");
 	case .Delete_Template; title, body, button = L("Delete Template"), L("Are you sure you want to delete this template? Its link will stop working."), L("Delete Template");
 	case .Delete_Sticker; title, body, button = L("Delete Sticker"), tprint(L("Are you sure you want to delete %? This cannot be undone."), t), L("Delete");
+	case .Delete_Files; title, body, button = L("Delete Files"), tprint(L("Delete these % files from the server? Their messages lose them. This cannot be undone."), t), L("Delete");
+	case .Restore_Backup; title, body, button = L("Restore Backup"), tprint(L("Put % in place of the server as it is now? Everything since that backup is lost, though the current state is backed up first. Everyone reconnects."), t), L("Restore");
+	case .End_Session; title, body, button = L("End Sessions"), tprint(L("Sign % out on every device? Their key signs them back in."), t), L("End Sessions");
 	}
 	if !adm_modal_begin("ssconfirm", 440, title) {
 		ss.confirm = .None;
@@ -2033,6 +2049,9 @@ ss_confirm_modal :: (g: *dc.Guild) {
 	case .Delete_Webhook; ss.hook_id = 0; ss_action(g, .Webhooks, "DELETE", tprint("/webhooks/%", id));
 	case .Delete_Template; ss_action(g, .Templates, "DELETE", tprint("/guilds/%/templates/%", g.id, t));
 	case .Delete_Sticker; ss_action(g, .COUNT, "DELETE", tprint("/guilds/%/stickers/%", g.id, id));
+	case .Delete_Files; ss_action(g, .Host_Files, "POST", "/fc/host/attachments/delete", tprint("{\"ids\":[%]}", join_snowflakes(hs.sel)));
+	case .Restore_Backup; ss_action(g, .Host_Backups, "POST", tprint("/fc/host/backups/%/restore", t));
+	case .End_Session; ss_action(g, .Host_Sessions, "DELETE", tprint("/fc/host/sessions/%", id));
 	case .Pause_Invites;
 		hours := PAUSE_HOURS[ss.confirm_pick];
 		ss_action(g, .COUNT, "PUT", tprint("/guilds/%/incident-actions", g.id), tprint("{\"invites_disabled_until\":\"%\",\"dms_disabled_until\":null,\"lockdown_duration_hours\":%}", dc.ms_to_iso(wall_ms() + hours * 3600_000), hours));
@@ -4688,4 +4707,362 @@ ow_add_list :: (g: *dc.Guild) {
 	ow_draft(picked, kind);
 	ss.ow_id, ss.ow_adding = picked, false;
 	ui.editor_set_text(*ss.search, "");
+}
+
+// ---- Host: hosted servers only ----
+
+// Server Settings' Host group: the owner's management of a self-hosted server's host, from any machine (serve
+// host.jai, `/fc/host/...`). Storage, Attachments, Limits (with the cleanup rules), Backups, Network,
+// Sessions and Server Info. Shown only on hosted servers, to the owner (section_shown).
+
+host_section :: (s: Server_Section) -> bool { return s >= .Host_Storage && s <= .Host_Info; }
+
+// The Limits and Network form: serve's limit keys (host.jai LIMITS), each an editor.
+HOST_LIMITS :: struct { key: string; title: string; help: string; page: Server_Section; }.[
+	.{"max_upload_mb", "Max upload size (MB)", "Per file, 1 to 10.", .Host_Limits},
+	.{"member_quota_mb", "Storage per member (MB)", "What one member's files may take in all. 0: no limit.", .Host_Limits},
+	.{"server_quota_mb", "Storage for the server (MB)", "What everyone's files may take in all. 0: no limit.", .Host_Limits},
+	.{"retention_days", "Delete messages after (days)", "0 keeps them forever.", .Host_Limits},
+	.{"cleanup_days", "Delete files after (days)", "0 keeps them.", .Host_Limits},
+	.{"cleanup_mb", "Delete files larger than (MB)", "0 keeps them.", .Host_Limits},
+	.{"backup_every_h", "Back up every (hours)", "0 turns automatic backups off.", .Host_Backups},
+	.{"backup_keep", "Backups to keep", "The oldest goes when a new one is made, 1 to 100.", .Host_Backups},
+	.{"public_port", "Public port", "The port invites carry, if your router forwards another one to this server. 0: the one it serves on.", .Host_Network},
+]; // i18n
+
+hs: struct {
+	limits: [HOST_LIMITS.count]ui.Editor;
+	address: ui.Editor;
+	sel: [..]dc.Snowflake; // Attachments: the files picked for Delete
+	by_size: bool;
+};
+
+host_free :: () {
+	for * hs.limits ui.editor_destroy(it);
+	ui.editor_destroy(*hs.address);
+	array_free(hs.sel);
+	hs = .{};
+}
+
+host_enter :: (g: *dc.Guild) {
+	ss.loading[Req.Host] = false;
+	load(g, .Host, "/fc/host");
+	if ss.section == {
+	case .Host_Attachments; host_files_load(g);
+	case .Host_Backups; ss.loading[Req.Host_Backups] = false; load(g, .Host_Backups, "/fc/host/backups");
+	case .Host_Sessions; ss.loading[Req.Host_Sessions] = false; load(g, .Host_Sessions, "/fc/host/sessions");
+	case .Host_Info; ss.loading[Req.Host_Log] = false; load(g, .Host_Log, "/fc/host/log");
+	}
+}
+
+host_files_load :: (g: *dc.Guild) {
+	array_reset(*hs.sel);
+	ss.loading[Req.Host_Files] = false;
+	load(g, .Host_Files, ifx hs.by_size then "/fc/host/attachments?sort=size" else "/fc/host/attachments");
+}
+
+host_info :: () -> etf.Map { r := reply(.Host); return ifx r then dc.vmap(r.body) else .[]; }
+
+host_reset :: () {
+	limits := dc.fmap(host_info(), "limits");
+	for HOST_LIMITS ui.editor_set_text(*hs.limits[it_index], tprint("%", dc.fint(limits, it.key)));
+	ui.editor_set_text(*hs.address, dc.fstr(host_info(), "address"));
+}
+
+host_dirty :: () -> bool {
+	if !reply(.Host) return false;
+	limits := dc.fmap(host_info(), "limits");
+	for HOST_LIMITS if it.page == ss.section && trim(ui.editor_text(*hs.limits[it_index])) != tprint("%", dc.fint(limits, it.key)) return true;
+	return ss.section == .Host_Network && trim(ui.editor_text(*hs.address)) != dc.fstr(host_info(), "address");
+}
+
+host_save :: (g: *dc.Guild) {
+	b: String_Builder;
+	b.allocator = temp;
+	append(*b, "{");
+	fields := 0;
+	for HOST_LIMITS if it.page == ss.section {
+		text := trim(ui.editor_text(*hs.limits[it_index]));
+		n, ok, rest := string_to_int(text, T = s64);
+		if !ok || rest {
+			ss_error(tprint(L("%: enter a whole number."), tr(it.title)));
+			return;
+		}
+		print_to_builder(*b, "%1\"%2\":%3", ifx fields then "," else "", it.key, n);
+		fields += 1;
+	}
+	if ss.section == .Host_Network print_to_builder(*b, "%1\"address\":%2", ifx fields then "," else "", dc.json_quote(trim(ui.editor_text(*hs.address))));
+	append(*b, "}");
+	ss_error("");
+	save_call(g, .Save, "PATCH", "/fc/host", builder_to_string(*b,, temp));
+}
+
+// "\"1\",\"2\"": IDs as a JSON array's items.
+join_snowflakes :: (ids: []dc.Snowflake) -> string {
+	b: String_Builder;
+	b.allocator = temp;
+	for ids print_to_builder(*b, "%1\"%2\"", ifx it_index then "," else "", it);
+	return builder_to_string(*b,, temp);
+}
+
+// "12.4 MB"
+bytes_text :: (n: s64) -> string {
+	if n < 1024 return tprint(Lp("% byte", "% bytes", n), n);
+	if n < 1024 * 1024 return tprint(L("% KB"), tenths(n, 1024));
+	if n < 1024 * 1024 * 1024 return tprint(L("% MB"), tenths(n, 1024 * 1024));
+	return tprint(L("% GB"), tenths(n, 1024 * 1024 * 1024));
+}
+
+// n / unit to one decimal, without a trailing ".0": "12.4", "304".
+tenths :: (n: s64, unit: s64) -> string {
+	t := (n * 10 + unit / 2) / unit;
+	return ifx t % 10 then tprint("%.%", t / 10, t % 10) else tprint("%", t / 10);
+}
+
+// "3 days, 4 hours"
+uptime_text :: (s: s64) -> string {
+	if s >= 86400 return tprint(L("%1 d %2 h"), s / 86400, (s % 86400) / 3600);
+	if s >= 3600 return tprint(L("%1 h %2 min"), s / 3600, (s % 3600) / 60);
+	return tprint(L("% min"), s / 60);
+}
+
+// A label and its value on one line ("Version   v0.7.0").
+host_fact :: (id: string, name: string, value: string) {
+	r := row(id);
+	r.semantic_size = .[ui.pct(1), ui.px(28)];
+	ui.parent(r); defer ui.pop_parent();
+	c := row("k");
+	c.semantic_size = .[ui.px(200), ui.px(28)];
+	{ ui.parent(c); defer ui.pop_parent(); label(name, .Medium, 14, T("--text-muted"), 18); }
+	label(value, .Normal, 14, T("--text-default"), 18);
+}
+
+host_page :: (g: *dc.Guild, s: Server_Section) -> bool {
+	if !loading_or(.Host, L("Couldn't reach the server's host pages.")) return false;
+	info := host_info();
+	submit := false;
+	limit_fields :: () #expand {
+		for HOST_LIMITS if it.page == ss.section {
+			ui.id_scope(get_hash(it.key));
+			defer ui.pop_seed();
+			field_title(tr(it.title));
+			if set_input("v", *hs.limits[it_index], "0", max_runes = 9) == .Submit `submit = true;
+			spacer(.Y, 4);
+			set_para("help", tr(it.help), .Normal, 12, 16, T("--text-muted"));
+			spacer(.Y, 16);
+		}
+	}
+	if s == {
+	case .Host_Storage;
+		st := dc.fmap(info, "storage");
+		file, free_disk := dc.fint(info, "file_bytes"), dc.fint(info, "disk_free_bytes");
+		page_subtitle(L("Everything the server keeps is in its one file, on the machine that runs it."));
+		host_fact("file", L("Server file"), bytes_text(file));
+		host_fact("disk", L("Free on its disk"), ifx free_disk >= 0 then bytes_text(free_disk) else L("Unknown"));
+		spacer(.Y, 20);
+		PARTS :: struct { key: string; name: string; color: string; }.[
+			.{"messages", "Messages", "--background-brand"}, .{"attachments", "Attachments", "--status-positive"}, .{"uploads", "Uploads not yet sent", "--status-warning"},
+			.{"emoji", "Emoji", "--icon-status-idle"}, .{"stickers", "Stickers", "--status-danger"}, .{"sounds", "Sounds", "--text-brand"},
+			.{"avatars", "Avatars and icons", "--icon-status-offline"}, .{"other", "Search index and structure", "--interactive-icon-default"}, .{"free", "Free space inside the file", "--border-subtle"},
+		]; // i18n
+		bar := row("bar");
+		bar.semantic_size = .[ui.pct(1), ui.px(16)];
+		bar.style.radius = all4(4);
+		bar.flags |= .Clip;
+		{ ui.parent(bar); defer ui.pop_parent();
+			for PARTS {
+				n := dc.fint(st, it.key);
+				if !n || !file continue;
+				seg := ui.box(tprint("seg%", it_index), .Draw_Background);
+				seg.semantic_size = .[ui.px(max(2.0, ss.form_w * n / cast(float32) file)), ui.px(16)];
+				seg.style.bg = T(it.color);
+			}
+		}
+		spacer(.Y, 16);
+		for PARTS {
+			ui.id_scope(get_hash(it.key));
+			defer ui.pop_seed();
+			r := row("p");
+			r.semantic_size = .[ui.pct(1), ui.px(28)];
+			ui.parent(r); defer ui.pop_parent();
+			dot := ui.box("dot", .Draw_Background);
+			dot.semantic_size = .[ui.px(10), ui.px(10)];
+			dot.style.radius = all4(5);
+			dot.style.bg = T(it.color);
+			spacer(.X, 10);
+			label(tr(it.name), .Normal, 14, T("--text-default"), 18);
+			filler(.X);
+			label(bytes_text(dc.fint(st, it.key)), .Medium, 14, T("--text-strong"), 18);
+		}
+	case .Host_Attachments;
+		page_subtitle(L("Every file members have posted. Deleting one removes it from its message; a message left with nothing goes too. The rules that delete files on their own are in Limits."));
+		top := row("ftop");
+		top.semantic_size = .[ui.pct(1), ui.px(38)];
+		{ ui.parent(top); defer ui.pop_parent();
+			if set_button(ifx hs.by_size then L("Newest First##fsort") else L("Largest First##fsort"), .Secondary) { hs.by_size = !hs.by_size; host_files_load(g); }
+			spacer(.X, 8);
+			if set_button(tprint(L("Clean Up Now##fclean")), .Secondary, !ss.busy) ss_action(g, .Host_Files, "POST", "/fc/host/cleanup");
+			filler(.X);
+			text := ifx hs.sel.count then tprint(Lp("Delete % File##fdel", "Delete % Files##fdel", hs.sel.count), hs.sel.count) else L("Delete Files##fdel");
+			if set_button(text, .Danger, hs.sel.count > 0 && !ss.busy) {
+				ss_confirm_open(.Delete_Files, 0, tprint("%", hs.sel.count));
+			}
+		}
+		spacer(.Y, 16);
+		if !loading_or(.Host_Files, L("Couldn't load the files.")) return false;
+		files := dc.vlist(reply(.Host_Files).body);
+		if !files.count { ss_empty(L("No files yet.")); return false; }
+		W :: float32.[4, 1.5, 2.5, 2, 2];
+		table_header("fhead", .["FILE", "SIZE", "UPLOADER", "CHANNEL", "DATE"], W); // i18n
+		for files {
+			f := dc.vmap(it);
+			id := dc.fsnow(f, "id");
+			ui.id_scope(xx id);
+			defer ui.pop_seed();
+			picked := array_find(hs.sel, id);
+			r, sig := table_row_begin("f");
+			defer ui.pop_parent();
+			if picked r.style.bg = T("--background-mod-normal");
+			if sig.clicked {
+				if picked array_unordered_remove_by_value(*hs.sel, id);
+				else array_add(*hs.sel, id);
+			}
+			{ c := table_cell(0, W[0]); ui.parent(c); defer ui.pop_parent();
+				chk := ui.box("chk", .Draw_Background | .Draw_Border);
+				chk.semantic_size = .[ui.px(18), ui.px(18)];
+				chk.style.radius = all4(4);
+				chk.style.border = ifx picked then 0.0 else 2.0;
+				chk.style.border_color = T("--interactive-icon-default");
+				chk.style.bg = ifx picked then T("--background-brand") else .{};
+				if picked { ui.parent(chk); defer ui.pop_parent(); icon("tick", "checkmark-small", 18, .{1, 1, 1, 1}); }
+				spacer(.X, 8);
+				label(dc.fstr(f, "filename"), .Medium, 14, T("--text-strong"), 18); }
+			{ c := table_cell(1, W[1]); ui.parent(c); defer ui.pop_parent(); label(bytes_text(dc.fint(f, "size")), .Normal, 14, T("--text-default"), 18); }
+			{ c := table_cell(2, W[2]); ui.parent(c); defer ui.pop_parent(); label(dc.fstr(f, "uploader_name"), .Normal, 14, T("--text-default"), 18); }
+			{ c := table_cell(3, W[3]); ui.parent(c); defer ui.pop_parent(); label(tprint("#%", dc.fstr(f, "channel_name")), .Normal, 14, T("--text-default"), 18); }
+			{ c := table_cell(4, W[4]); ui.parent(c); defer ui.pop_parent(); label(snowflake_date(dc.fsnow(f, "message_id")), .Normal, 14, T("--text-default"), 18); }
+			if row_icon_button("jump", "arrow-large-right") {
+				server_settings_close();
+				jump_to_message(dc.fsnow(f, "channel_id"), dc.fsnow(f, "message_id"));
+			}
+		}
+	case .Host_Limits;
+		page_subtitle(L("What members may store, and what the server deletes on its own. Cleanup runs every hour, or now from Attachments."));
+		limit_fields();
+	case .Host_Backups;
+		page_subtitle(L("The server copies its file to a backup folder, checks each copy, and keeps the newest. Restoring puts a backup in place of everything since; the state it replaces is backed up first, and members stay signed in."));
+		limit_fields();
+		if !loading_or(.Host_Backups, L("Couldn't load the backups.")) return submit;
+		b := dc.vmap(reply(.Host_Backups).body);
+		field_title(L("Folder"));
+		copy_field("folder", dc.fstr(b, "folder"));
+		spacer(.Y, 4);
+		set_para("folderhelp", L("Set by whoever starts the server: -backups:<folder> on its command line, ideally another disk."), .Normal, 12, 16, T("--text-muted"));
+		spacer(.Y, 20);
+		r := row("btop");
+		r.semantic_size = .[ui.pct(1), ui.px(38)];
+		{ ui.parent(r); defer ui.pop_parent();
+			label(L("BACKUPS"), .Bold, 12, T("--text-muted"), 16);
+			filler(.X);
+			if set_button(L("Back Up Now##bnow"), .Primary, !ss.busy) ss_action(g, .Host_Backups, "POST", "/fc/host/backups");
+		}
+		spacer(.Y, 8);
+		list := dc.flist(b, "backups");
+		if !list.count { ss_empty(L("No backups yet.")); return submit; }
+		W :: float32.[5, 2, 2];
+		table_header("bhead", .["NAME", "SIZE", "MADE"], W); // i18n
+		for list {
+			m := dc.vmap(it);
+			name := dc.fstr(m, "name");
+			ui.id_scope(get_hash(name));
+			defer ui.pop_seed();
+			table_row_begin("b");
+			defer ui.pop_parent();
+			{ c := table_cell(0, W[0]); ui.parent(c); defer ui.pop_parent(); label(name, .Medium, 14, T("--text-strong"), 18); }
+			{ c := table_cell(1, W[1]); ui.parent(c); defer ui.pop_parent(); label(bytes_text(dc.fint(m, "size")), .Normal, 14, T("--text-default"), 18); }
+			{ c := table_cell(2, W[2]); ui.parent(c); defer ui.pop_parent(); label(ss_date(dc.fint(m, "time") * 1000), .Normal, 14, T("--text-default"), 18); }
+			if row_icon_button("restore", "refresh") ss_confirm_open(.Restore_Backup, 0, name);
+		}
+	case .Host_Network;
+		page_subtitle(L("Invites carry the address members connect to. Behind a home router, forward the port (TCP and UDP) to this machine and put your public address or a DNS name here; a dynamic DNS name keeps working when your address changes."));
+		field_title(L("Public address"));
+		if set_input("addr", *hs.address, "chat.example.org", max_runes = 253) == .Submit submit = true;
+		spacer(.Y, 4);
+		set_para("addrhelp", L("A DNS name or IP address, without a port. Empty: invites carry the address the inviting member reached the server at."), .Normal, 12, 16, T("--text-muted"));
+		spacer(.Y, 16);
+		limit_fields();
+		host_fact("port", L("Serving on"), tprint(L("Port % (TCP for the server, UDP for voice)"), dc.fint(info, "port")));
+	case .Host_Sessions;
+		page_subtitle(L("Who is connected now, and from where. Ending a member's sessions signs every device of theirs out; their key signs them back in, so to keep someone out, ban them."));
+		if !loading_or(.Host_Sessions, L("Couldn't load the sessions.")) return false;
+		list := dc.vlist(reply(.Host_Sessions).body);
+		if !list.count { ss_empty(L("Nobody is connected.")); return false; }
+		W :: float32.[3, 3, 2, 1];
+		table_header("shead", .["MEMBER", "ADDRESS", "CONNECTED FOR", "DEVICES"], W); // i18n
+		for list {
+			m := dc.vmap(it);
+			uid := dc.fsnow(m, "user_id");
+			ui.id_scope(get_hash(tprint("%/%", uid, it_index)));
+			defer ui.pop_seed();
+			table_row_begin("s");
+			defer ui.pop_parent();
+			{ c := table_cell(0, W[0]); ui.parent(c); defer ui.pop_parent();
+				avatar_box("av", uid, 32);
+				spacer(.X, 10);
+				label(dc.fstr(m, "name"), .Medium, 14, T("--text-strong"), 18); }
+			{ c := table_cell(1, W[1]); ui.parent(c); defer ui.pop_parent(); label(dc.fstr(m, "address"), .Normal, 14, T("--text-default"), 18); }
+			{ c := table_cell(2, W[2]); ui.parent(c); defer ui.pop_parent(); label(uptime_text(dc.fint(m, "connected_s")), .Normal, 14, T("--text-default"), 18); }
+			{ c := table_cell(3, W[3]); ui.parent(c); defer ui.pop_parent(); label(tprint("%", dc.fint(m, "sessions")), .Normal, 14, T("--text-default"), 18); }
+			if uid != store().me && row_icon_button("end", "x-small", danger = true) ss_confirm_open(.End_Session, uid, dc.fstr(m, "name"));
+		}
+	case .Host_Info;
+		host_fact("ver", L("fastcord version"), dc.fstr(info, "version"));
+		host_fact("up", L("Running for"), uptime_text(dc.fint(info, "uptime_s")));
+		host_fact("schema", L("Schema"), tprint("%", dc.fint(info, "schema")));
+		host_fact("file", L("Server file"), dc.fstr(info, "file"));
+		spacer(.Y, 16);
+		field_title(L("Server ID"));
+		copy_field("sid", dc.fstr(info, "id"));
+		spacer(.Y, 16);
+		field_title(L("Certificate pin"));
+		copy_field("pin", dc.fstr(info, "pin"));
+		spacer(.Y, 4);
+		set_para("pinhelp", L("Every invite carries it, and members' apps check it on each connection."), .Normal, 12, 16, T("--text-muted"));
+		spacer(.Y, 16);
+		field_title(L("Webhook pin"));
+		copy_field("wpin", dc.fstr(info, "webhook_pin"));
+		spacer(.Y, 24);
+		r := row("ltop");
+		r.semantic_size = .[ui.pct(1), ui.px(38)];
+		{ ui.parent(r); defer ui.pop_parent();
+			label(L("LOG"), .Bold, 12, T("--text-muted"), 16);
+			filler(.X);
+			if set_button(L("Refresh##lrefresh"), .Secondary) { ss.loading[Req.Host_Log] = false; load(g, .Host_Log, "/fc/host/log"); }
+		}
+		spacer(.Y, 8);
+		if !loading_or(.Host_Log, L("Couldn't load the log.")) return false;
+		text := dc.fstr(dc.vmap(reply(.Host_Log).body), "log");
+		// the last lines, newest last
+		lines := split(text, "\n",, temp);
+		first := max(0, lines.count - 40);
+		box := ui.box("log", .Draw_Background);
+		box.semantic_size = .[ui.pct(1), ui.children()];
+		box.layout_axis = .Y;
+		box.style.bg = T("--background-base-lowest");
+		box.style.radius = all4(8);
+		ui.parent(box); defer ui.pop_parent();
+		spacer(.Y, 8);
+		for i: first..lines.count - 1 if lines[i] {
+			ui.id_scope(xx i);
+			defer ui.pop_seed();
+			r := row("l");
+			r.semantic_size = .[ui.pct(1), ui.children()];
+			ui.parent(r); defer ui.pop_parent();
+			spacer(.X, 12);
+			set_para("t", lines[i], .Mono, 12, 16, T("--text-default"));
+			spacer(.X, 12);
+		}
+		spacer(.Y, 8);
+	}
+	return submit;
 }

@@ -246,6 +246,22 @@ sticker_file_url :: (id: dc.Snowflake, format_type: int, size := 160) -> string 
 	return dc.sticker_url(id, format_type, size);
 }
 
+// hosted_invite_address: where the selected hosted server's invites send members: the owner's public address
+// (its guild's fc_address, "host:port") when set, else the address this client reached it at.
+hosted_invite_address :: () -> dc.Hosted {
+	h := app.client.cfg.hosted;
+	g := dc.guild_get(store(), app.view.guild);
+	a := ifx g then g.fc_address else "";
+	colon := find_index_from_right(a, #char ":");
+	if colon <= 0 return h;
+	port := string_to_int(advance(a, colon + 1));
+	host := slice(a, 0, colon);
+	if host.count > 2 && host[0] == #char "[" && host[host.count - 1] == #char "]" host = slice(host, 1, host.count - 2);
+	if port <= 0 || port > 65535 || !host return h;
+	h.host, h.port = copy_string(host,, temp), port;
+	return h;
+}
+
 // Whether the selected connection is a self-hosted server, which has no DMs or friends yet.
 on_hosted :: () -> bool { return app.client && app.client.cfg.hosted.host != ""; }
 

@@ -4,6 +4,7 @@
 % (required)
 % Bans|% Bans
 % Event|% Events
+% GB
 % KB
 % MB
 % Member|% Members
@@ -38,6 +39,7 @@
 % just slid into the server.
 % left the group.
 % member|% members
+% min
 % minute ago|% minutes ago
 % minute|% minutes
 % month ago|% months ago
@@ -72,6 +74,7 @@
 %1 created a webhook
 %1 created an emoji
 %1 created an invite
+%1 d %2 h
 %1 deleted a channel
 %1 deleted a message by %2
 %1 deleted a role
@@ -80,6 +83,7 @@
 %1 deleted an invite
 %1 enabled security actions until %2.
 %1 ended %2
+%1 h %2 min
 %1 has achieved %2
 %1 has added %2 to this channel. Its most important updates will show up here.
 %1 has blocked a message in %2
@@ -120,6 +124,7 @@
 %1: %2
 %: a number
 %: a whole number
+%: enter a whole number.
 %: pick a channel
 %: pick a member
 %: pick a role
@@ -181,6 +186,7 @@
 @ ON##at
 @MENTIONS
 @everyone · applies to all server members
+A DNS name or IP address, without a port. Empty: invites carry the address the inviting member reached the server at.
 A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button.
 A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button. Works in every app.
 A new channel will be created with the same permissions, user limit and bitrate as 
@@ -189,6 +195,7 @@ A webhook needs a name.
 A wild % appeared.
 ACTION
 ACTIVE INVITE LINKS
+ADDRESS
 ALL
 ALL THE BITS! Going above 64 kbps may adversely affect people on poor connections.
 AM
@@ -378,8 +385,10 @@ Automatically scan and delete messages sent in this server that contain explicit
 Avatar
 BACK
 BACKUP CODES
+BACKUPS
 Back
 Back / forward
+Back Up Now##bnow
 Back##back
 Backup codes can only be used one time each and are for emergency access to your account!
 Backups
@@ -426,8 +435,10 @@ By making a category private, only select members and roles will be able to view
 By making a channel private, only select members and roles will be able to view this channel.
 By making a channel private, only select members and roles will have access to view or connect to this channel.
 Bypass Slowmode
+CHANNEL
 CHANNEL OR CATEGORY
 CONFIRM NEW PASSWORD
+CONNECTED FOR
 CURRENT PASSWORD
 Call
 Cancel
@@ -441,6 +452,7 @@ Cancel##sbmcancel
 Careful — you have unsaved changes!
 Category Name
 Category deleted
+Certificate pin
 Change %##change
 Change Avatar
 Change Avatar##hav
@@ -471,6 +483,7 @@ Choose a link people can use to join, discord.gg/<code>.
 Choose a server
 Choose the language you want Discord to display.
 Choose what happens to images and videos Discord detects as explicit.
+Clean Up Now##fclean
 Clear Custom Status
 Clear after
 Clear permissions##clear
@@ -545,13 +558,17 @@ Couldn't load onboarding.
 Couldn't load the AutoMod rules.
 Couldn't load the applications.
 Couldn't load the audit log.
+Couldn't load the backups.
 Couldn't load the bans.
+Couldn't load the files.
 Couldn't load the invites.
+Couldn't load the log.
 Couldn't load the members.
 Couldn't load the role's members.
 Couldn't load the server rules.
 Couldn't load the server's rules.
 Couldn't load the server's tag.
+Couldn't load the sessions.
 Couldn't load the template.
 Couldn't load the webhooks.
 Couldn't load this page.
@@ -560,6 +577,7 @@ Couldn't play it here, so it opened in your browser.
 Couldn't reach %1: %2 Retrying.
 Couldn't reach Discord. Check your connection and try again.
 Couldn't reach Discord. Try again.
+Couldn't reach the server's host pages.
 Couldn't reach the server.
 Couldn't reach the server. Check your connection and try again.
 Couldn't save the file.
@@ -610,8 +628,10 @@ Customize how your server appears in invite links and, if enabled, in Server Dis
 Customize your server with integrations. Manage webhooks, followed channels and apps.
 Cut
 Czech
+DATE
 DAVE v%, % members
 DEFAULT KEYBINDS
+DEVICES
 DM closed
 Danish
 Data & Privacy
@@ -631,12 +651,15 @@ Default Sort Order
 Default Themes
 Default notifications become Only @mentions.
 Delete
+Delete % File##fdel|Delete % Files##fdel
 Delete '%'
 Delete Account
 Delete Account##delete
 Delete Category
 Delete Channel
 Delete Emoji
+Delete Files
+Delete Files##fdel
 Delete Invite
 Delete Message
 Delete Message History
@@ -651,6 +674,7 @@ Delete Template##deltpl
 Delete Thread
 Delete Webhook
 Delete Webhook##del
+Delete these % files from the server? Their messages lose them. This cannot be undone.
 Delete##sbdel
 Deleted message
 Describe your sticker
@@ -755,6 +779,7 @@ Encrypted messages are limited to % bytes for now.
 End Date
 End Event
 End Poll Now
+End Sessions
 End Time
 End-to-end encrypted
 End-to-end encryption
@@ -777,11 +802,14 @@ Event is over
 Events
 Events Permissions
 Every answer needs a title.
+Every file members have posted. Deleting one removes it from its message; a message left with nothing goes too. The rules that delete files on their own are in Limits.
+Every invite carries it, and members' apps check it on each connection.
 Every question needs a title and at least one answer.
 Everyone
 Everyone in this channel connects to the selected region. Automatic picks the best one for whoever starts the call.
 Everyone welcome %!
 Everyone who joins sees these channels, whatever they answer.
+Everything the server keeps is in its one file, on the machine that runs it.
 Exempt a channel
 Exempt a role
 Exemptions
@@ -790,6 +818,7 @@ Expand (% of % lines)
 Expired
 Explicit image filter
 Expression
+FILE
 FRAME RATE
 Failed to follow the channel, please try again.
 Fastcord couldn't be installed.
@@ -816,6 +845,7 @@ Finnish
 Fit more messages on screen at one time. #IRC
 Flagged as spam
 Flags
+Folder
 Folder Color
 Folder Name
 Folder Settings
@@ -837,6 +867,7 @@ Forum
 Forward
 Forward To
 Forwarded
+Free on its disk
 French
 Frequently Used
 Friend Nickname
@@ -961,6 +992,7 @@ Invite to Speak
 Invites
 Invites are currently paused for this server. Please try again later.
 Invites are paused: nobody can join with an invite link until they're enabled again.
+Invites carry the address members connect to. Behind a home router, forward the port (TCP and UDP) to this machine and put your public address or a DNS name here; a dynamic DNS name keeps working when your address changes.
 It's quiet for now...##t
 Italian
 JOINED DISCORD
@@ -1003,8 +1035,10 @@ Kick##confirm
 Kick, Approve, and Reject Members
 Korean
 LIVE
+LOG
 Language
 Language & Time
+Largest First##fsort
 Last sync: %
 Leave Group
 Leave Server
@@ -1043,7 +1077,9 @@ Looking for screens…
 Lotus Mode
 Low
 Lower Hand
+MADE
 MAX NUMBER OF USES
+MEMBER
 MEMBER SINCE
 MEMBERS
 MUTE
@@ -1180,6 +1216,7 @@ New members pick channels and roles from your questions when they join.
 New tag
 New threads will stop showing in the channel list after being inactive for the specified duration.
 Newest
+Newest First##fsort
 Next
 Next##next
 Nickname
@@ -1191,11 +1228,13 @@ No Keybind Set
 No System Messages
 No applications waiting
 No apps have been added to this server.
+No backups yet.
 No bans
 No bans match your search
 No emoji found
 No favorites yet
 No file chosen
+No files yet.
 No friends in common
 No limit
 No logs yet
@@ -1220,6 +1259,7 @@ No stickers found
 No stickers yet
 Nobody can join this server with an invite link until the pause ends or you enable invites again.
 Nobody has mentioned you recently.
+Nobody is connected.
 Noise Suppression
 Noise Suppression: Off
 Noise Suppression: On
@@ -1333,6 +1373,7 @@ Please enter a valid invite link or invite code.
 Please try again later.
 Polish
 Poll closed
+Port % (TCP for the server, UDP for voice)
 Portuguese, Brazilian
 Post
 Post Guidelines
@@ -1365,10 +1406,12 @@ Prompt members to reply to welcome messages with a sticker.
 Pronouns
 Protect your Discord account with an extra layer of security. Once configured, you'll be required to enter your password and complete one additional step in order to sign in.
 Protip:
+Public address
 Publish
 Push to Mute
 Push to Talk
 Push to Talk (Normal)
+Put % in place of the server as it is now? Everything since that backup is lost, though the current state is backed up first. Everyone reconnects.
 Q: %
 Question
 Question % of %
@@ -1391,6 +1434,7 @@ Reconnect
 Record Keybind
 Reduce the saturation of colors within the application, for those with color sensitivities.
 Reduces the amount of animation and motion effects. On whenever your device asks for reduced motion.
+Refresh##lrefresh
 Region Override
 Register
 Reject##no
@@ -1448,6 +1492,8 @@ Reset##reset
 Resolving Invite
 Responses
 Restart to Update
+Restore
+Restore Backup
 Retry
 Retry Now
 Retry##retry
@@ -1469,10 +1515,12 @@ Roles
 Romanian, Romania
 Rule: %
 Rules or Guidelines Channel
+Running for
 Russian
 SELECT A CHANNEL
 SELECT A SERVER
 SERVER NAME
+SIZE
 SOUNDBOARD VOLUME
 START FROM A TEMPLATE
 STATIC EMOJI — % SLOTS AVAILABLE
@@ -1497,6 +1545,7 @@ Saving…
 Saving…##save
 Scan this with the Discord mobile app to log in instantly.
 Schedule an event for any planned activity in your server.
+Schema
 Screen
 Screen sharing isn't supported on this platform yet.
 Scroll chat
@@ -1557,14 +1606,17 @@ Server Settings
 Server Tag
 Server Template
 Server Widget
+Server file
 Server members
 Server members can only send you friend requests from servers where you also allow Direct Messages.
 Server name must be between 2 and 100 characters.
 Server unmuted
+Serving on
 Sessions
 Set Custom Status
 Set Voice Channel Status
 Set a custom status
+Set by whoever starts the server: -backups:<folder> on its command line, ideally another disk.
 Set up AutoMod to automatically filter messages in this server with the rules below. Members with Manage Server or Administrator are exempt.
 Sets camera video quality for all channel participants. Choose Auto for optimal performance.
 Setting up encryption: % needs to open fastcord once.
@@ -1589,6 +1641,7 @@ Show role colors next to names
 Show spoiler content
 Show the game or app you're using on your profile and in member lists.
 Shows a red badge on the app icon when you have unread mentions.
+Sign % out on every device? Their key signs them back in.
 Silence every sound and notification and hide all badges and unread marks, so fastcord never asks for your attention.
 Skip
 Slow down! Are you sure?
@@ -1714,6 +1767,7 @@ The related emoji must be one emoji.
 The results were tied
 The selected channel has too many webhooks. Please remove a webhook or select another channel.
 The server
+The server copies its file to a backup folder, checks each copy, and keeps the newest. Restoring puts a backup in place of everything since; the state it replaces is backed up first, and members stay signed in.
 The start time must be in the future.
 The thread stops showing in the channel list after being inactive for this long.
 Theme
@@ -1808,6 +1862,7 @@ Type the name of a member
 Type the username of a friend
 Type your answer
 UPLOADED BY
+UPLOADER
 USES
 Uh oh, you don't have webhook permissions in any server you're in. Ask your server admin to give you the permission or ask them to come follow themselves!
 Uh-oh. Looks like you've been banned.
@@ -1932,6 +1987,7 @@ We recommend an image of at least 800px wide and 320px tall.
 We sent instructions to change your password to %, please check both your inbox and spam folder.
 We're so excited to see you again!
 We've sent a message to %.  Please enter the code you received.
+Webhook pin
 Webhooks (%)
 Webhooks are a simple way to post messages from other apps and websites into this server.
 Welcome %. Say hi!
@@ -1943,6 +1999,7 @@ Welcome to the beginning of the % group.
 Welcome, %. We hope you brought pizza.
 What brings you here?
 What can people do in this server?
+What members may store, and what the server deletes on its own. Cleanup runs every hour, or now from Attachments.
 What question do you want to ask?
 What's cookin'?
 What's your event about?
@@ -1952,6 +2009,7 @@ When enabled, only server members can view profile content. Non-members won't be
 When you put a user in timeout they will not be able to send messages in chat, reply within threads, react to messages, or speak in voice or Stage channels.
 Where is your event?
 Where would you like to go?
+Who is connected now, and from where. Ending a member's sessions signs every device of theirs out; their key signs them back in, so to keep someone out, ban them.
 Who is this server for? E.g. School Club, Artists' Community
 Winning answer · %1%2
 Words that are never blocked, separated by commas
@@ -2053,6 +2111,7 @@ escape to %1 • enter to %2
 fastcord %
 fastcord quit unexpectedly last time. The report is in the logs folder (Settings, under Log Out).
 fastcord starts in the background and stays out of your way.
+fastcord version
 from %
 in %
 in % day|in % days

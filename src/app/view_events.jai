@@ -756,7 +756,7 @@ share_modal :: () {
 				spacer(.X, 12);
 				url := "";
 				if evu.share_len > 0 && app.client.cfg.hosted.host {
-					h := app.client.cfg.hosted;
+					h := hosted_invite_address();
 					url = serve.invite_url(h.pin, h.host, h.port, h.server_id, string.{evu.share_len, evu.share_code.data});
 				} else if evu.share_len > 0 {
 					url = dc.event_invite_link(string.{evu.share_len, evu.share_code.data}, evu.share_event);

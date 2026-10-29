@@ -436,7 +436,7 @@ invite_channel_for :: (gid: dc.Snowflake) -> dc.Snowflake {
 invite_url :: () -> string {
 	if gm.inv_code_len == 0 return "";
 	if app.client && app.client.cfg.hosted.host {
-		h := app.client.cfg.hosted;
+		h := hosted_invite_address();
 		return serve.invite_url(h.pin, h.host, h.port, h.server_id, invite_code());
 	}
 	return tprint("https://discord.gg/%", invite_code());

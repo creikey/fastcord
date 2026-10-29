@@ -68,6 +68,7 @@ guild_fields_locked :: (s: *Server, g: *etf.Map_Builder) {
 	etf.map_put(g, "incidents_data", guild_incidents_locked(s));
 	etf.map_put(g, "pending_owner_id", pending_owner_locked(s));
 	etf.map_put(g, "fc_owner_offer", owner_offer_locked(s));
+	etf.map_put(g, "fc_address", etf.vstring(invite_authority_locked(s)));
 }
 
 guild_field_locked :: (s: *Server, f: Guild_Field) -> etf.Value {
