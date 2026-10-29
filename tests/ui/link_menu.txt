@@ -1,0 +1,17 @@
+# Right-clicking a link in a message opens the message menu with Copy Link and Open Link first.
+wait 30
+move 600 300
+scroll 0 120
+wait 30
+move 840 128
+wait 2
+rclick 840 128
+wait 5
+expect_visible "Open Link"
+shot build/ui-link_menu.png
+click_text "Copy Link"
+wait 3
+expect_clipboard "https://discord.com/developers"
+rclick 500 128
+wait 5
+expect_not_visible "Open Link"

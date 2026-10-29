@@ -384,7 +384,7 @@
 - [ ] Video (Windows): only H.264 is sent (Microsoft's software encoder MFT, so CPU-heavy at 1080p); use a hardware (async) encoder MFT when present, and send H.265 then (`encode_windows.jai`; `gateway.jai` advertises H.265 `encode:false` on Windows).
 - [ ] Search: the suggestions popout has no search history; the client lists your recent searches under "History" with a clear button (`view_search.jai` keeps none).
 - [ ] Member list: stored per server and resubscribed only when empty, so a private channel likely shows the previous channel's members.
-- [ ] Links: right-clicking a link gives no Copy Link / Open Link menu, and outside links open with no "Leaving Discord" warning.
+- [ ] Links: outside links open with no "Leaving Discord" warning (masked links, untrusted domains, "Trust this domain" checkbox).
 - [ ] Channels: no drag to reorder channels and categories.
 - [ ] Apps: message components are ignored. Nothing reads a message's `components`, so bot buttons and select menus never show. Verify buttons, role pickers and music-bot controls all go missing, and servers that gate channels behind a Verify button can't be joined. Components V2 messages (flag `IS_COMPONENTS_V2`, 1 << 15) keep everything in components, with no content or embeds, so they render as empty messages.
   - Draw action rows: buttons in every style, with emoji and disabled state. Link buttons open the browser.
@@ -802,3 +802,4 @@
 - [x] Friends: the header's New Group DM icon opens the Create DM popout, with a tooltip (`tests/ui/rail/new_group_dm.txt`).
 - [x] Notifications: the dock / taskbar badge counts incoming friend requests on top of unread mentions (`notify.jai`).
 - [x] Notifications: "Hide Muted Channels" is account state, as in the official client (`toggleCollapseGuild` PATCHes `hide_muted_channels`): read from the server settings and saved there, no longer device-local.
+- [x] Links: right-clicking a link in a message opens the message menu with Copy Link and Open Link first (`ma.menu_link`, `tests/ui/link_menu.txt`).

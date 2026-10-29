@@ -653,6 +653,10 @@ handle_span_clicks :: (b: *ui.Box, toks: []Token, message_id: dc.Snowflake = 0, 
 		}
 		if id < cast(u64) toks.count && !ui.overlay_at(p) {
 			tk := toks[id];
+			if tk.kind == .Link && !((tk.styles & .Spoiler) && !spoiler_revealed(toks, cast(int) id)) {
+				free(ma.hover_link);
+				ma.hover_link, ma.hover_link_frame = copy_string(ifx tk.url then tk.url else tk.text), app.frame;
+			}
 			if ((tk.styles & .Spoiler) && !spoiler_revealed(toks, cast(int) id)) || tk.kind == .Link || tk.kind == .User_Mention || tk.kind == .Channel_Mention
 				app.ui.span_cursor = .Pointer;
 		}

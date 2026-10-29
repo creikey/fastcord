@@ -447,6 +447,7 @@ module were read.
 | Rule | Kind | Anchor | fastcord |
 |---|---|---|---|
 | Media loads only from Discord's hosts (`discord.com`, `*.discord.com`, `*.discordapp.com`, `*.discordapp.net`) and `media.tenor.com` (the GIF picker's results, which the official client also loads straight from Tenor); any other URL a server sends loads nothing. A hosted server's media all goes to the pinned server | guessed (Tenor), fastcord-only (the refusal) | GIF picker result `src` | `media.jai` `media_host_ok` |
+| Right-clicking a link in a message: the message menu gets the native Copy Link / Open Link items first (the client's copy-native-link / open-native-link) | guess (placement) | `"copy-native-link"`, `"open-native-link"` | `view_message_actions.jai` `message_menu` (`menu_link`) |
 | The image viewer steps through the message's images (image attachments, then bare image / GIFV embeds and rich embeds' images) with side arrows, Left / Right and an "n / N" count, and has "Open in Browser" under the image | guess (layout, which media count) | — | `view_media.jai` `image_viewer`, `viewer_items` |
 | Inline attachment image URL: an animated source (GIF) gets no `format` (the proxy sends the GIF); others `format=webp` + `width`/`height` | code | `getSrcWithWidthAndHeight`, `getFormatQuality` (`srcIsAnimated`) | `src/app/images.jai` `attachment_image_url` |
 | GIFV embeds (Tenor, Klipy) play `video.proxy_url` muted and looping, poster = thumbnail; only while on screen | inferred | embed `"type":"gifv"` in `traffic/gif_send.jsonl` | `src/app/view_media.jai` `media_box` |

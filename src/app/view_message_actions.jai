@@ -13,6 +13,9 @@ Message_Actions :: struct {
 	loose_id: dc.Snowflake;
 	menu_pos: ui.Vec2;
 	menu_t: float32;
+	menu_link: string; // the link right-clicked in the message (owned): the menu opens with Copy / Open Link
+	hover_link: string; // the link under the mouse in a message, with the frame it was seen (owned)
+	hover_link_frame: u64;
 }
 
 Parked_Reply :: struct {
@@ -211,6 +214,8 @@ open_message_menu :: (m: *dc.Message, at: ui.Vec2, location := "") {
 	ma.menu_msg = m.id;
 	ma.menu_pos = at;
 	ma.menu_t = 0;
+	free(ma.menu_link);
+	ma.menu_link = ifx ma.hover_link_frame + 1 >= app.frame then copy_string(ma.hover_link) else "";
 	if app.client {
 		ch := dc.channel_get(store(), m.channel_id);
 		gid := ifx ch then ch.guild_id else 0;
@@ -485,8 +490,10 @@ message_menu :: () {
 	items.allocator = temp;
 	// official (MessageContextMenu): with text selected, "Copy" heads the menu and the quick reactions go
 	sel := ui.has_selection();
-	if sel array_add(*items, .{label = "Copy", icon = "copy"});
-	array_add(*items, .{label = "Add Reaction", icon = "reaction", sub = true, sep = sel});
+	// a right-clicked link: its native items first (the client's copy-native-link / open-native-link)
+	if ma.menu_link array_add(*items, .{label = "Copy Link", icon = "link"}, .{label = "Open Link", icon = "window-launch"});
+	if sel array_add(*items, .{label = "Copy", icon = "copy", sep = ma.menu_link != ""});
+	array_add(*items, .{label = "Add Reaction", icon = "reaction", sub = true, sep = sel || ma.menu_link != ""});
 	if m.reactions array_add(*items, .{label = "View Reactions", icon = "reaction"});
 	// a card outside the chat (search, pins) has no inline editor or composer to reply from
 	in_chat := m != ma.loose;
@@ -595,6 +602,10 @@ message_menu :: () {
 				if it_.label == {
 				case "Copy";
 					app.copy_selection = true; // after end(): the selection text needs this frame's boxes
+				case "Copy Link";
+					clipboard_set(ma.menu_link);
+				case "Open Link";
+					open_url(ma.menu_link);
 				case "Add Reaction";
 					app.reaction_target = m.id;
 				case "Create Thread";
