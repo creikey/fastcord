@@ -80,7 +80,7 @@ events_receive :: (r: *dc.Feature_Result) {
 			evu.share_len = code.count;
 		}
 	case .Event_Delete;
-		if !r.ok toast_show("Couldn't cancel the event.", false);
+		if !r.ok toast_show(L("Couldn't cancel the event."), false);
 	case .Event_Start;
 		e := dc.event_get(cast(dc.Snowflake) r.tag);
 		if r.ok && e != null && e.entity == .Voice && e.channel_id != 0 join_voice(e.guild_id, e.channel_id);
@@ -205,18 +205,18 @@ event_invite_card :: (id: string, key: string, p: dc.Invite_Preview, m: *dc.Mess
 		}
 		secondary, fg := T("--background-mod-normal"), T("--text-strong");
 		if !member || (e && e.status == .Active && e.entity != .External && app.voice_channel != e.channel_id) {
-			if pill_button("join", ifx p.joining then "Joining…" else "Join", "", T("--status-positive-background"), T("--status-positive-text"), 40) && !p.joining && net_action() {
+			if pill_button("join", ifx p.joining then L("Joining…") else L("Join"), "", T("--status-positive-background"), T("--status-positive-text"), 40) && !p.joining && net_action() {
 				if member go_to_invite(p);
 				else dc.join_invite_preview(app.client, key, dc.INVITE_LOC_EMBED, invite_instance(m.id, key));
 			}
 		} else if e && e.status == .Scheduled {
 			interested_button(e, 40);
 		} else if e && e.status == .Active && e.entity == .External {
-			if pill_button("details", "View Details", "", secondary, fg, 40) event_details_open(e.guild_id, e.id);
+			if pill_button("details", L("View Details"), "", secondary, fg, 40) event_details_open(e.guild_id, e.id);
 		} else if e && e.status == .Active {
-			if pill_button("go", "Go To Channel", "", secondary, fg, 40) select_channel(p.guild_id, e.channel_id);
+			if pill_button("go", L("Go To Channel"), "", secondary, fg, 40) select_channel(p.guild_id, e.channel_id);
 		} else if e {
-			pill_button("over", "Event is over", "", secondary, T("--text-muted"), 40);
+			pill_button("over", L("Event is over"), "", secondary, T("--text-muted"), 40);
 		}
 		spacer(.X, 16);
 	}
@@ -397,7 +397,7 @@ events_list_modal :: () {
 			d.semantic_size = .[ui.px(1), ui.px(24)];
 			d.style.bg = T("--border-subtle");
 			spacer(.X, 16);
-			if pill_button("create", "Create Event", "", T("--background-brand"), .{1, 1, 1, 1}) { wizard_open(); }
+			if pill_button("create", L("Create Event"), "", T("--background-brand"), .{1, 1, 1, 1}) { wizard_open(); }
 		}
 	}
 	if close_x("close", W - 24 - 20, 20) && top evu.open = false;
@@ -463,13 +463,13 @@ details_modal :: () {
 		filler(.X);
 		if pill_button("more", "", "more-horizontal", T("--background-mod-normal"), T("--text-strong")) menu_open(e.id, app.ui.mouse);
 		spacer(.X, 8);
-		if pill_button("share", "Share", "share", T("--background-mod-normal"), T("--text-strong")) {
+		if pill_button("share", L("Share"), "share", T("--background-mod-normal"), T("--text-strong")) {
 			share_open(e.id);
 			if net_action() dc.event_share(app.client, e.id);
 		}
 		spacer(.X, 8);
 		if e.status == .Active && e.entity != .External {
-			if pill_button("join", "Join", "", T("--status-positive-background"), T("--status-positive-text")) && net_action() join_voice(e.guild_id, e.channel_id);
+			if pill_button("join", L("Join"), "", T("--status-positive-background"), T("--status-positive-text")) && net_action() join_voice(e.guild_id, e.channel_id);
 		} else {
 			interested_button(e);
 		}
@@ -490,9 +490,9 @@ center_line :: (id: string, text: string, font: Font_Id, size: float32, lh: floa
 
 events_empty :: () {
 	filler(.Y);
-	center_line("t", "There are no upcoming events.", .Bold, 24, 30, T("--text-strong"));
+	center_line("t", L("There are no upcoming events."), .Bold, 24, 30, T("--text-strong"));
 	spacer(.Y, 8);
-	center_line("s", "Schedule an event for any planned activity in your server.", .Normal, 14, 20, T("--text-default"));
+	center_line("s", L("Schedule an event for any planned activity in your server."), .Normal, 14, 20, T("--text-default"));
 	filler(.Y);
 	spacer(.Y, 60);
 }
@@ -538,7 +538,7 @@ event_card_body :: (e: *dc.Scheduled_Event, actions: bool) {
 				menu_open(e.id, app.ui.mouse);
 			}
 			spacer(.X, 8);
-			if pill_button("share", "Share", "share", T("--background-mod-normal"), T("--text-strong")) {
+			if pill_button("share", L("Share"), "share", T("--background-mod-normal"), T("--text-strong")) {
 				share_open(e.id);
 				if net_action() dc.event_share(app.client, e.id);
 			}
@@ -552,7 +552,7 @@ event_card_body :: (e: *dc.Scheduled_Event, actions: bool) {
 interested_button :: (e: *dc.Scheduled_Event, h: float32 = 32) {
 	bg := ifx e.interested then T("--status-positive") else T("--background-mod-normal");
 	fg: ui.Color = ifx e.interested then .{1, 1, 1, 1} else T("--text-strong");
-	if pill_button("interested", "Interested", ifx e.interested then "checkmark-small" else "bell", bg, fg, h) && !e.interest_pending && net_action() {
+	if pill_button("interested", L("Interested"), ifx e.interested then "checkmark-small" else "bell", bg, fg, h) && !e.interest_pending && net_action() {
 		dc.set_event_interest(app.client, e.id, !e.interested);
 	}
 }
@@ -570,7 +570,7 @@ event_card_head :: (e: *dc.Scheduled_Event) {
 			dot.style.radius = all4(4);
 			dot.style.bg = T("--status-positive");
 			spacer(.X, 6);
-			label(ifx e.entity == .External then "Happening Now" else "Live Now", .Semibold, 14, T("--text-feedback-positive"), 18);
+			label(ifx e.entity == .External then L("Happening Now") else L("Live Now"), .Semibold, 14, T("--text-feedback-positive"), 18);
 		} else {
 			icon("cal", "calendar", 18, T("--text-brand"));
 			spacer(.X, 8);
@@ -654,26 +654,26 @@ event_menu :: () {
 	{ ui.parent(p); defer ui.pop_parent();
 		spacer(.Y, 8);
 		if can_start {
-			if menu_item("start", "Start Event").clicked {
+			if menu_item("start", L("Start Event")).clicked {
 				evu.menu_event = 0;
 				if net_action() dc.start_scheduled_event(app.client, e.id);
 			}
 		}
 		if can_end {
-			if menu_item("end", "End Event", danger = true).clicked {
+			if menu_item("end", L("End Event"), danger = true).clicked {
 				evu.menu_event = 0;
 				if net_action() dc.end_scheduled_event(app.client, e.id);
 			}
 		}
 		if manage {
-			if menu_item("cancel", "Cancel Event", danger = true).clicked {
+			if menu_item("cancel", L("Cancel Event"), danger = true).clicked {
 				evu.menu_event = 0;
 				// gone at once, DELETE /guilds/{g}/scheduled-events/{id} after the undo window (undo.jai),
 				// instead of the client's "Cancel Event?" confirm
-				undo_push("Event cancelled", (u: *Undo) { if u.client dc.cancel_scheduled_event(u.client, u.a); }, a = e.id, hides = true);
+				undo_push(L("Event cancelled"), (u: *Undo) { if u.client dc.cancel_scheduled_event(u.client, u.a); }, a = e.id, hides = true);
 			}
 		}
-		if menu_item("copylink", "Copy Event Link").clicked {
+		if menu_item("copylink", L("Copy Event Link")).clicked {
 			clipboard_set(dc.event_link(e));
 			evu.menu_event = 0;
 		}
@@ -718,7 +718,7 @@ share_modal :: () {
 			filler(.X);
 		}
 		spacer(.Y, 24);
-		center_line("t", ifx evu.share_created then "All set. Now share your event!" else "Share Event", .Bold, 24, 30, T("--text-strong"));
+		center_line("t", ifx evu.share_created then L("All set. Now share your event!") else L("Share Event"), .Bold, 24, 30, T("--text-strong"));
 		spacer(.Y, 8);
 		pr := row("p");
 		pr.semantic_size = .[ui.pct(1), ui.children()];
@@ -764,7 +764,7 @@ share_modal :: () {
 				label(ellipsize(shown, .Normal, 16, W - 48 - 110), .Normal, 16, color, 20);
 				filler(.X);
 				kind := ifx evu.share_copied then Button_Kind.Positive else Button_Kind.Primary;
-				if set_button(ifx evu.share_copied then "Copied##copy" else "Copy##copy", kind, url != "", 32) {
+				if set_button(ifx evu.share_copied then L("Copied##copy") else L("Copy##copy"), kind, url != "", 32) {
 					clipboard_set(url);
 					evu.share_copied = true;
 				}
@@ -777,7 +777,7 @@ share_modal :: () {
 		er.semantic_size = .[ui.pct(1), ui.px(16)];
 		{ ui.parent(er); defer ui.pop_parent();
 			spacer(.X, 24);
-			label("Your invite link expires in 7 days.", .Normal, 12, T("--text-default"), 16);
+			label(L("Your invite link expires in 7 days."), .Normal, 12, T("--text-default"), 16);
 		}
 		spacer(.Y, 24);
 	}
@@ -899,13 +899,13 @@ wizard_modal :: () {
 		btns.style.child_gap = 8;
 		{ ui.parent(btns); defer ui.pop_parent();
 			spacer(.X, 16 - 8);
-			if evu.step != .Location && set_button("Back##back", .Link, !evu.busy, 40) back = true;
+			if evu.step != .Location && set_button(L("Back##back"), .Link, !evu.busy, 40) back = true;
 			filler(.X);
-			if set_button("Cancel##cancel", .Secondary, true, 40) cancel = true;
+			if set_button(L("Cancel##cancel"), .Secondary, true, 40) cancel = true;
 			if evu.step == .Review {
-				if set_button(ifx evu.busy then "Creating...##next" else "Create Event##next", .Primary, !evu.busy, 40) next = true;
+				if set_button(ifx evu.busy then L("Creating...##next") else L("Create Event##next"), .Primary, !evu.busy, 40) next = true;
 			} else {
-				if set_button("Next##next", .Primary, step_valid(evu.step), 40) next = true;
+				if set_button(L("Next##next"), .Primary, step_valid(evu.step), 40) next = true;
 			}
 			spacer(.X, 16 - 8);
 		}
@@ -1044,13 +1044,13 @@ pad_end :: () {
 }
 
 step_location :: () {
-	step_heading("Where is your event?", "So no one gets lost on where to go.");
-	if voice_channels(evu.guild).count && radio_row("voice", "voice-normal", "Voice Channel", "Hang out with voice, video, screenshare, and Go Live.", evu.entity == .Voice) && evu.entity != .Voice {
+	step_heading(L("Where is your event?"), L("So no one gets lost on where to go."));
+	if voice_channels(evu.guild).count && radio_row("voice", "voice-normal", L("Voice Channel"), L("Hang out with voice, video, screenshare, and Go Live."), evu.entity == .Voice) && evu.entity != .Voice {
 		evu.entity = .Voice;
 		vcs := voice_channels(evu.guild);
 		if evu.channel == 0 && vcs.count > 0 evu.channel = vcs[0];
 	}
-	if radio_row("external", "location", "Somewhere Else", "Text channel, external link, or in-person location.", evu.entity == .External) && evu.entity != .External {
+	if radio_row("external", "location", L("Somewhere Else"), L("Text channel, external link, or in-person location."), evu.entity == .External) && evu.entity != .External {
 		evu.entity = .External;
 		evu.focus_next = true;
 	}
@@ -1058,9 +1058,9 @@ step_location :: () {
 	case .Voice;
 		spacer(.Y, 8);
 		pad_begin("chans");
-		field_label("Select a channel", true);
+		field_label(L("Select a channel"), true);
 		vcs := voice_channels(evu.guild);
-		if vcs.count == 0 label("This server has no voice channels.", .Normal, 14, T("--text-muted"), 18);
+		if vcs.count == 0 label(L("This server has no voice channels."), .Normal, 14, T("--text-muted"), 18);
 		for id: vcs {
 			ch := dc.channel_get(store(), id);
 			ui.id_scope(cast(u64) id);
@@ -1086,8 +1086,8 @@ step_location :: () {
 	case .External;
 		spacer(.Y, 8);
 		pad_begin("loc");
-		field_label("Enter a location", true);
-		set_input("locin", *evu.location, "Add a location, link, or something.", max_runes = 100, autofocus = evu.focus_next);
+		field_label(L("Enter a location"), true);
+		set_input("locin", *evu.location, L("Add a location, link, or something."), max_runes = 100, autofocus = evu.focus_next);
 		evu.focus_next = false;
 		pad_end();
 	}
@@ -1148,23 +1148,23 @@ date_time_row :: (id: string, date_label: string, time_label: string, value: *s6
 }
 
 step_info :: () {
-	step_heading("What's your event about?", "Fill out the details of your event.");
+	step_heading(L("What's your event about?"), L("Fill out the details of your event."));
 	pad_begin("info");
-	field_label("Event Topic", true);
-	set_input("topic", *evu.name, "What's your event?", max_runes = 100, autofocus = evu.focus_next);
+	field_label(L("Event Topic"), true);
+	set_input("topic", *evu.name, L("What's your event?"), max_runes = 100, autofocus = evu.focus_next);
 	evu.focus_next = false;
 	spacer(.Y, 20);
-	date_time_row("start", "Start Date", "Start Time", *evu.start_ms);
+	date_time_row("start", L("Start Date"), L("Start Time"), *evu.start_ms);
 	if evu.entity == .External {
 		if evu.end_ms <= evu.start_ms evu.end_ms = evu.start_ms + 3_600_000;
-		date_time_row("end", "End Date", "End Time", *evu.end_ms);
+		date_time_row("end", L("End Date"), L("End Time"), *evu.end_ms);
 	}
 	if evu.start_ms <= wall_ms() {
-		label("The start time must be in the future.", .Normal, 14, T("--text-feedback-critical"), 18);
+		label(L("The start time must be in the future."), .Normal, 14, T("--text-feedback-critical"), 18);
 		spacer(.Y, 12);
 	}
-	field_label("Description", false);
-	set_input("desc", *evu.desc, "Tell people a little more about your event. Markdown, new lines, and links are supported.", multiline = true, max_runes = 1000, min_h = 70);
+	field_label(L("Description"), false);
+	set_input("desc", *evu.desc, L("Tell people a little more about your event. Markdown, new lines, and links are supported."), multiline = true, max_runes = 1000, min_h = 70);
 	pad_end();
 }
 
@@ -1197,8 +1197,8 @@ step_review :: () {
 		spacer(.X, 16);
 	}
 	spacer(.Y, 32);
-	center_line("t", "Here's a preview of your event.", .Bold, 24, 30, T("--text-strong"));
+	center_line("t", L("Here's a preview of your event."), .Bold, 24, 30, T("--text-strong"));
 	spacer(.Y, 8);
-	center_line("s", "This event will auto start when it's time.", .Normal, 16, 20, T("--text-default"));
+	center_line("s", L("This event will auto start when it's time."), .Normal, 16, 20, T("--text-default"));
 	spacer(.Y, 16);
 }

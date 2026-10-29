@@ -135,7 +135,7 @@ friend_nick_modal :: () {
 	}
 	spacer(.Y, PAD);
 	if server {
-		text_row("t", "Change Nickname", .Semibold, 20, 24, T("--text-strong"));
+		text_row("t", L("Change Nickname"), .Semibold, 20, 24, T("--text-strong"));
 		if uid != s.me {
 			spacer(.Y, 16);
 			wr := row("warnrow");
@@ -153,7 +153,7 @@ friend_nick_modal :: () {
 					pr.semantic_size = .[ui.pct(1), ui.children()];
 					{ ui.parent(pr); defer ui.pop_parent();
 						spacer(.X, 12);
-						p := ui.box("Nicknames are visible to everyone on this server. Do not change them unless you are enforcing a naming system or clearing a bad nickname.##warntext", .Draw_Text | .Wrap_Text);
+						p := ui.box(L("Nicknames are visible to everyone on this server. Do not change them unless you are enforcing a naming system or clearing a bad nickname.##warntext"), .Draw_Text | .Wrap_Text);
 						p.semantic_size = .[ui.fill(), ui.text_size()];
 						p.style.font = F(.Normal);
 						p.style.font_size = 14;
@@ -167,13 +167,13 @@ friend_nick_modal :: () {
 			}
 		}
 		spacer(.Y, 16);
-		text_row("lbl", "Nickname", .Semibold, 14, 18, T("--text-strong"));
+		text_row("lbl", L("Nickname"), .Semibold, 14, 18, T("--text-strong"));
 	} else {
-		text_row("t", ifx had then "Edit Friend Nickname" else "Add Friend Nickname", .Semibold, 20, 24, T("--text-strong"));
+		text_row("t", ifx had then L("Edit Friend Nickname") else L("Add Friend Nickname"), .Semibold, 20, 24, T("--text-strong"));
 		spacer(.Y, 8);
-		text_row("sub", tprint("Only you can see the nickname you give %.", dc.display_name(u)), .Normal, 14, 18, T("--text-default"));
+		text_row("sub", tprint(L("Only you can see the nickname you give %."), dc.display_name(u)), .Normal, 14, 18, T("--text-default"));
 		spacer(.Y, 16);
-		text_row("lbl", "Friend Nickname", .Semibold, 14, 18, T("--text-strong"));
+		text_row("lbl", L("Friend Nickname"), .Semibold, 14, 18, T("--text-strong"));
 	}
 	spacer(.Y, 8);
 	save := false;
@@ -209,10 +209,10 @@ friend_nick_modal :: () {
 	{ ui.parent(btns); defer ui.pop_parent();
 		spacer(.X, PAD - 8);
 		// like the client: Reset only clears the field; Save sends {"nickname":null}
-		if had && button("Reset Friend Nickname##reset", 170, .{}, T("--background-mod-normal"), T("--text-link")) { ui.editor_set_text(*fnick.ed, ""); }
+		if had && button(L("Reset Friend Nickname##reset"), 170, .{}, T("--background-mod-normal"), T("--text-link")) { ui.editor_set_text(*fnick.ed, ""); }
 		filler(.X);
-		if button("Cancel##cancel", 96, T("--background-mod-normal"), T("--background-mod-strong"), T("--text-strong")) { fnick.user = 0; }
-		if button("Save##save", 96, T("--background-brand"), with_alpha(T("--background-brand"), 0.85), .{1, 1, 1, 1}) { save = true; }
+		if button(L("Cancel##cancel"), 96, T("--background-mod-normal"), T("--background-mod-strong"), T("--text-strong")) { fnick.user = 0; }
+		if button(L("Save##save"), 96, T("--background-brand"), with_alpha(T("--background-brand"), 0.85), .{1, 1, 1, 1}) { save = true; }
 		spacer(.X, PAD - 8);
 	}
 	if save && fnick.user != 0 { friend_nick_save(ui.editor_text(*fnick.ed)); }

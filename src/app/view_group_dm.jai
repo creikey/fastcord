@@ -18,7 +18,7 @@ dm_create_button :: () {
 	b.semantic_size = .[ui.px(18), ui.px(18)];
 	sig := ui.signal(b);
 	set_icon(b, "plus-small", ifx sig.hovering || gdm.open then T("--interactive-icon-hover") else T("--interactive-icon-default"));
-	if sig.hovering && !gdm.open { tooltip_below("Create DM", b.rect); }
+	if sig.hovering && !gdm.open { tooltip_below(L("Create DM"), b.rect); }
 	if sig.clicked {
 		if gdm.open { gdm.open = false; } else { group_dm_popout_open(b.rect, 0); }
 	}
@@ -98,7 +98,7 @@ group_dm_overlay :: () {
 		h.semantic_size = .[ui.pct(1), ui.px(24)];
 		{ ui.parent(h); defer ui.pop_parent();
 			spacer(.X, GDM_PAD);
-			label("Select Friends", .Semibold, 20, T("--text-strong"), 24);
+			label(L("Select Friends"), .Semibold, 20, T("--text-strong"), 24);
 		}
 		spacer(.Y, 4);
 		sub := row("sub");
@@ -125,7 +125,7 @@ group_dm_overlay :: () {
 				e.cross_align = .Center;
 				{ ui.parent(e); defer ui.pop_parent();
 					spacer(.Y, 18);
-					label("You don't have any friends to add!", .Medium, 14, T("--text-muted"), 18);
+					label(L("You don't have any friends to add!"), .Medium, 14, T("--text-muted"), 18);
 				}
 			}
 			for uid, i: shown {
@@ -193,7 +193,7 @@ group_dm_members :: (ch: *dc.Channel) {
 		gr.cross_align = .End;
 		{ ui.parent(gr); defer ui.pop_parent();
 			spacer(.X, 16);
-			label(tprint("Members — %", ids.count), .Medium, 12, T("--channels-default"), 16);
+			label(tprint(L("Members — %"), ids.count), .Medium, 12, T("--channels-default"), 16);
 		}
 		spacer(.Y, 4);
 		for uid: ids {

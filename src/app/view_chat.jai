@@ -774,13 +774,13 @@ leaving_modal :: () {
 	if leaving.url == "" return;
 	host := url_host(leaving.url);
 	close := false;
-	if !adm_modal_begin("leaving", 440, "Leaving Discord") {
+	if !adm_modal_begin("leaving", 440, L("Leaving Discord")) {
 		close = true;
 	} else {
 		spacer(.Y, 8);
 		{ r := row("body"); r.semantic_size = .[ui.pct(1), ui.children()]; ui.parent(r); defer ui.pop_parent();
 			spacer(.X, 25);
-			label("This link is taking you to the following website", .Normal, 16, T("--text-default"), 20);
+			label(L("This link is taking you to the following website"), .Normal, 16, T("--text-default"), 20);
 		}
 		spacer(.Y, 12);
 		{ r := row("urlrow"); r.semantic_size = .[ui.pct(1), ui.children()]; ui.parent(r); defer ui.pop_parent();
@@ -809,7 +809,7 @@ leaving_modal :: () {
 			cb.style.bg = ifx leaving.trust then T("--background-brand") else .{};
 			if leaving.trust { ui.parent(cb); defer ui.pop_parent(); i := ui.box("i", .Floating_X | .Floating_Y); i.semantic_size = .[ui.px(18), ui.px(18)]; i.fixed_pos = .{1, 1}; set_icon(i, "checkmark-small", .{1, 1, 1, 1}); }
 			spacer(.X, 8);
-			label(tprint("Trust % links from now on", host), .Normal, 14, T("--text-default"), 18);
+			label(tprint(L("Trust % links from now on"), host), .Normal, 14, T("--text-default"), 18);
 		}
 		spacer(.Y, 24);
 		btns := row("btns");
@@ -817,8 +817,8 @@ leaving_modal :: () {
 		btns.style.child_gap = 8;
 		{ ui.parent(btns); defer ui.pop_parent();
 			spacer(.X, 25 - 8);
-			if wide_button("back", "Go Back", .Secondary) close = true;
-			if wide_button("visit", "Visit Site", .Primary) {
+			if wide_button("back", L("Go Back"), .Secondary) close = true;
+			if wide_button("visit", L("Visit Site"), .Primary) {
 				if leaving.trust && host != "" && !host_trusted(host) && trusted_domains.count < TRUSTED_DOMAINS_MAX array_add(*trusted_domains, copy_string(host));
 				open_url(leaving.url);
 				close = true;
@@ -870,7 +870,7 @@ nsfw_gate :: (ch: *dc.Channel) {
 	}
 	{ r := center("icon", 64); ui.parent(r); defer ui.pop_parent(); filler(.X); icon("i", "warning", 64, T("--text-feedback-warning")); filler(.X); }
 	spacer(.Y, 16);
-	{ r := center("t", 28); ui.parent(r); defer ui.pop_parent(); filler(.X); label("Age-Restricted Channel", .Semibold, 24, T("--text-strong"), 28); filler(.X); }
+	{ r := center("t", 28); ui.parent(r); defer ui.pop_parent(); filler(.X); label(L("Age-Restricted Channel"), .Semibold, 24, T("--text-strong"), 28); filler(.X); }
 	spacer(.Y, 8);
 	body := ifx blocked then "You must be at least 18 years old to view this channel." else "This channel contains adult content that may not be suitable for all audiences. You must be 18 or older to view it.";
 	{ r := center("b", 20); ui.parent(r); defer ui.pop_parent(); filler(.X); label(body, .Normal, 16, T("--text-default"), 20); filler(.X); }
@@ -879,12 +879,12 @@ nsfw_gate :: (ch: *dc.Channel) {
 		r := center("btns", 38);
 		ui.parent(r); defer ui.pop_parent();
 		filler(.X);
-		if modal_button("Nevermind##nsfwno", 120, T("--background-mod-normal"), T("--background-mod-strong"), T("--text-strong")) {
+		if modal_button(L("Nevermind##nsfwno"), 120, T("--background-mod-normal"), T("--background-mod-strong"), T("--text-strong")) {
 			if app.view.back.count history_step(false); else go_home();
 		}
 		if !blocked {
 			spacer(.X, 12);
-			if modal_button("Continue##nsfwyes", 120, T("--background-brand"), with_alpha(T("--background-brand"), 0.85), .{1, 1, 1, 1}) table_set(*app.view.nsfw_agreed, ch.guild_id, true);
+			if modal_button(L("Continue##nsfwyes"), 120, T("--background-brand"), with_alpha(T("--background-brand"), 0.85), .{1, 1, 1, 1}) table_set(*app.view.nsfw_agreed, ch.guild_id, true);
 		}
 		filler(.X);
 	}
@@ -1381,9 +1381,9 @@ jump_to_present_bar :: (lw: float32) -> bool {
 	bar.style.shadow_offset = .{0, -1};
 	ui.parent(bar); defer ui.pop_parent();
 	spacer(.X, 16);
-	label("You're Viewing Older Messages", .Medium, 14, T("--text-default"), 18);
+	label(L("You're Viewing Older Messages"), .Medium, 14, T("--text-default"), 18);
 	filler(.X);
-	label("Jump To Present", .Semibold, 14, T("--text-default"), 18);
+	label(L("Jump To Present"), .Semibold, 14, T("--text-default"), 18);
 	spacer(.X, 8);
 	icon("ic", "chevron-small-down", 16, T("--text-default"));
 	spacer(.X, 16);
@@ -1423,10 +1423,9 @@ hidden_row :: (msgs: []dc.Message, i: int, kind: string, new_day: bool, show_new
 	r.semantic_size = .[ui.pct(1), ui.px(22)];
 	ui.parent(r); defer ui.pop_parent();
 	spacer(.X, 72);
-	s := ifx n == 1 then "" else "s";
-	label(tprint("% % message% —", n, kind, s), .Normal, 14, T("--text-muted"), 18);
+	label(tprint(ifx kind == "blocked" then Lp("% blocked message —", "% blocked messages —", n) else Lp("% ignored message —", "% ignored messages —", n), n), .Normal, 14, T("--text-muted"), 18);
 	spacer(.X, 4);
-	b := ui.box(tprint("Show message%", s), .Clickable | .Draw_Text);
+	b := ui.box(ifx n == 1 then L("Show message") else L("Show messages"), .Clickable | .Draw_Text);
 	b.semantic_size = .[ui.text_size(0), ui.px(18)];
 	b.style.font = F(.Normal);
 	b.style.font_size = 14;
@@ -1465,7 +1464,7 @@ new_messages_bar :: (channel_id: dc.Snowflake, msgs: []dc.Message, lw: float32, 
 	jump := ui.signal(bar).clicked;
 	{ ui.parent(bar); defer ui.pop_parent();
 		spacer(.X, 20);
-		label(tprint("% new message% since %", ifx n >= 50 then "50+" else tprint("%", n), ifx n == 1 then "" else "s", format_timestamp(first)), .Medium, 14, .{1, 1, 1, 1}, 18);
+		label(tprint(L("% new message% since %"), ifx n >= 50 then "50+" else tprint("%", n), ifx n == 1 then "" else "s", format_timestamp(first)), .Medium, 14, .{1, 1, 1, 1}, 18);
 		filler(.X);
 		// .barButtonAlt: 4 x 8 px padding, a hover background, the icon 8 px after the text
 		mr := row("read", .Clickable | .Draw_Background | .Hot_Animation);
@@ -1479,7 +1478,7 @@ new_messages_bar :: (channel_id: dc.Snowflake, msgs: []dc.Message, lw: float32, 
 		}
 		{ ui.parent(mr); defer ui.pop_parent();
 			spacer(.X, 8);
-			label("Mark As Read", .Semibold, 14, .{1, 1, 1, 1}, 18);
+			label(L("Mark As Read"), .Semibold, 14, .{1, 1, 1, 1}, 18);
 			spacer(.X, 8);
 			icon("ic", "chat-mark-unread", 16, .{1, 1, 1, 1});
 			spacer(.X, 8);
@@ -1529,9 +1528,9 @@ history_failed_bar :: (loading: bool) -> bool {
 	bar.style.radius = .[0, 0, 8, 8];
 	ui.parent(bar); defer ui.pop_parent();
 	spacer(.X, 16);
-	label("Messages Failed To Load", .Medium, 14, .{1, 1, 1, 1}, 18);
+	label(L("Messages Failed To Load"), .Medium, 14, .{1, 1, 1, 1}, 18);
 	filler(.X);
-	if loading { pulsing_dots(.{1, 1, 1, 1}); } else { label("Try Again", .Semibold, 14, .{1, 1, 1, 1}, 18); }
+	if loading { pulsing_dots(.{1, 1, 1, 1}); } else { label(L("Try Again"), .Semibold, 14, .{1, 1, 1, 1}, 18); }
 	spacer(.X, 16);
 	return ui.signal(bar).clicked && !loading;
 }
@@ -1695,7 +1694,7 @@ message_row :: (m: *dc.Message, grouped: bool, new_day: bool, show_new: bool) ->
 						x.hover_cursor = .Pointer;
 						xs := ui.signal(x);
 						set_icon(x, "x-small", ifx xs.hovering then T("--interactive-icon-hover") else T("--interactive-icon-default"));
-						if xs.hovering tooltip_below("Remove all embeds", x.rect);
+						if xs.hovering tooltip_below(L("Remove all embeds"), x.rect);
 						if xs.clicked {
 							if app.ui_mods & .Shift remove_embeds_now(m);
 							else ma.confirming, ma.confirm = m.id, Confirm.Remove_Embeds;
@@ -1954,11 +1953,11 @@ message_header :: (m: *dc.Message) {
 		if m.flags & SUPPRESS_NOTIFICATIONS || encrypted_silent(m.id) {
 			spacer(.X, 4);
 			bell := icon("silent", "bell-slash", 16, T("--chat-text-muted"), .Clickable);
-			if ui.signal(bell).hovering tooltip_below("Suppress Notifications", bell.rect);
+			if ui.signal(bell).hovering tooltip_below(L("Suppress Notifications"), bell.rect);
 		}
 		mark := e2e_mark(m);
 		if mark != .None { spacer(.X, 4); e2e_mark_icon(mark, 16); }
-		if mark == .Plain { spacer(.X, 4); label("Not encrypted", .Medium, 12, T("--text-feedback-warning"), 20); }
+		if mark == .Plain { spacer(.X, 4); label(L("Not encrypted"), .Medium, 12, T("--text-feedback-warning"), 20); }
 	}
 }
 
@@ -1978,7 +1977,7 @@ new_member_badge :: (m: *dc.Message) {
 	b := icon("newmember", "new-member", 20, T("--text-feedback-positive"), .Clickable);
 	b.hover_cursor = .Pointer;
 	sig := ui.signal(b);
-	if sig.hovering && newcomer.msg != m.id tooltip_below("I'm new here, say hi!", b.rect);
+	if sig.hovering && newcomer.msg != m.id tooltip_below(L("I'm new here, say hi!"), b.rect);
 	if sig.clicked {
 		newcomer = .{msg = m.id, user = m.author_id, channel = m.channel_id, anchor = b.rect};
 		if app.client dc.track_new_member_popout(app.client, ch.guild_id, m.channel_id);
@@ -2021,8 +2020,8 @@ new_member_popout :: () {
 		col.semantic_size = .[ui.fill(), ui.children()];
 		col.layout_axis = .Y;
 		ui.parent(col); defer ui.pop_parent();
-		label("I'm new here, say hi!", .Semibold, 16, T("--text-strong"), 20);
-		t := label("System icon for new server members.", .Normal, 14, T("--text-default"), 18);
+		label(L("I'm new here, say hi!"), .Semibold, 16, T("--text-strong"), 20);
+		t := label(L("System icon for new server members."), .Normal, 14, T("--text-default"), 18);
 		t.flags |= .Wrap_Text;
 		t.semantic_size = .[ui.pct(1), ui.text_size()];
 	}
@@ -2034,7 +2033,7 @@ new_member_popout :: () {
 	b.style.bg = T("--background-brand");
 	b.style.bg_hot = with_alpha(b.style.bg, 0.85);
 	b.hover_cursor = .Pointer;
-	{ ui.parent(b); defer ui.pop_parent(); filler(.X); label(tprint("Mention %", u.username), .Medium, 14, .{1, 1, 1, 1}, 18); filler(.X); }
+	{ ui.parent(b); defer ui.pop_parent(); filler(.X); label(tprint(L("Mention %"), u.username), .Medium, 14, .{1, 1, 1, 1}, 18); filler(.X); }
 	if ui.signal(b).clicked {
 		if app.client dc.track_new_member_mention(app.client, ch.guild_id, ch.id, u.id);
 		ui.editor_insert(*chat_state(ch.id).editor, tprint("@% ", u.username));
@@ -2052,7 +2051,7 @@ follow_button :: (ch: *dc.Channel) {
 	g := dc.guild_get(store(), ch.guild_id);
 	if ch.kind != .Guild_Announcement || !g || !dc.guild_has_feature(g, "NEWS") || on_hosted() return;
 	spacer(.X, 12);
-	if ui.signal(fol_button("follow", "Follow", false, 24, 12)).clicked {
+	if ui.signal(fol_button("follow", L("Follow"), false, 24, 12)).clicked {
 		fol.channel, fol.guild, fol.target = ch.id, 0, 0;
 		req_clear(FOLLOW_REQ);
 	}
@@ -2114,19 +2113,19 @@ follow_modal :: () {
 		defer inset_end(16, 16);
 		st, _ := req_state(FOLLOW_REQ);
 		if st == .Done {
-			label("Followed!", .Semibold, 20, T("--text-strong"), 24);
+			label(L("Followed!"), .Semibold, 20, T("--text-strong"), 24);
 			spacer(.Y, 8);
-			set_para("fol_done", "The most important updates from this channel will now show up directly in your server. Enjoy!", .Normal, 14, 18, T("--text-default"));
+			set_para("fol_done", L("The most important updates from this channel will now show up directly in your server. Enjoy!"), .Normal, 14, 18, T("--text-default"));
 			spacer(.Y, 16);
-			if ui.signal(fol_button("fol_finish", "Finish", true, 32, 16)).clicked fol.channel = 0;
+			if ui.signal(fol_button("fol_finish", L("Finish"), true, 32, 16)).clicked fol.channel = 0;
 			return;
 		}
-		label("Add this channel's updates to your server!", .Semibold, 20, T("--text-strong"), 24);
+		label(L("Add this channel's updates to your server!"), .Semibold, 20, T("--text-strong"), 24);
 		spacer(.Y, 8);
-		set_para("fol_sub", "Select where you want these updates to go. You can remove this at any time in Server Settings > Integrations > Channels Followed.", .Normal, 14, 18, T("--text-muted"));
+		set_para("fol_sub", L("Select where you want these updates to go. You can remove this at any time in Server Settings > Integrations > Channels Followed."), .Normal, 14, 18, T("--text-muted"));
 		spacer(.Y, 16);
 		if !fol.guilds.count {
-			set_para("fol_none", "Uh oh, you don't have webhook permissions in any server you're in. Ask your server admin to give you the permission or ask them to come follow themselves!", .Normal, 14, 18, T("--text-default"));
+			set_para("fol_none", L("Uh oh, you don't have webhook permissions in any server you're in. Ask your server admin to give you the permission or ask them to come follow themselves!"), .Normal, 14, 18, T("--text-default"));
 			return;
 		}
 		names :: (ids: []dc.Snowflake, guilds: bool) -> []string {
@@ -2137,28 +2136,28 @@ follow_modal :: () {
 			}
 			return out;
 		}
-		label("SELECT A SERVER", .Bold, 12, T("--text-muted"), 16);
+		label(L("SELECT A SERVER"), .Bold, 12, T("--text-muted"), 16);
 		spacer(.Y, 8);
 		pick := select_field("fol_guild", names(fol.guilds, true), fol.guild);
 		if pick >= 0 && pick != fol.guild { fol.guild, fol.target = pick, 0; req_clear(FOLLOW_REQ); }
 		spacer(.Y, 16);
-		label("SELECT A CHANNEL", .Bold, 12, T("--text-muted"), 16);
+		label(L("SELECT A CHANNEL"), .Bold, 12, T("--text-muted"), 16);
 		spacer(.Y, 8);
 		pick = select_field("fol_chan", names(fol.targets, false), fol.target);
 		if pick >= 0 { fol.target = pick; req_clear(FOLLOW_REQ); }
 		spacer(.Y, 8);
-		label("Only servers and channels you have webhook permissions in are shown.", .Normal, 12, T("--text-muted"), 16);
+		label(L("Only servers and channels you have webhook permissions in are shown."), .Normal, 12, T("--text-muted"), 16);
 		if st == .Failed {
 			code, _ := req_error(FOLLOW_REQ);
 			spacer(.Y, 8);
-			set_para("fol_err", ifx code == 30007 then "The selected channel has too many webhooks. Please remove a webhook or select another channel." else "Failed to follow the channel, please try again.", .Normal, 14, 18, T("--text-feedback-critical"));
+			set_para("fol_err", ifx code == 30007 then L("The selected channel has too many webhooks. Please remove a webhook or select another channel.") else L("Failed to follow the channel, please try again."), .Normal, 14, 18, T("--text-feedback-critical"));
 		}
 		spacer(.Y, 16);
 		r := row("fol_btns");
 		r.semantic_size = .[ui.pct(1), ui.px(32)];
 		ui.parent(r); defer ui.pop_parent();
 		filler(.X);
-		if req_button(fol_button("fol_go", "Follow", true, 32, 16), FOLLOW_REQ) && fol.targets.count && req_begin(FOLLOW_REQ, inline_error = true) {
+		if req_button(fol_button("fol_go", L("Follow"), true, 32, 16), FOLLOW_REQ) && fol.targets.count && req_begin(FOLLOW_REQ, inline_error = true) {
 			dc.follow_channel(app.client, fol.channel, fol.targets[fol.target]);
 			req_end();
 		}
@@ -2200,7 +2199,7 @@ wave_button :: (m: *dc.Message) {
 		spacer(.X, 12);
 		sticker_box("st", .{id = st.id, format_type = st.format}, 24, sig.hovering && app.focused);
 		spacer(.X, 8);
-		label("Wave to say hi!", .Medium, 14, T("--text-default"), 18);
+		label(L("Wave to say hi!"), .Medium, 14, T("--text-default"), 18);
 		spacer(.X, 12);
 	}
 	if sig.clicked && net_action() {
@@ -2214,7 +2213,7 @@ failed_send_note :: (m: *dc.Message) {
 	r := row("failednote");
 	r.semantic_size = .[ui.pct(1), ui.px(20)];
 	ui.parent(r); defer ui.pop_parent();
-	label("Message failed to send.", .Normal, 12, T("--text-feedback-critical"), 16);
+	label(L("Message failed to send."), .Normal, 12, T("--text-feedback-critical"), 16);
 	link :: (text: string) -> bool {
 		spacer(.X, 6);
 		b := label(text, .Medium, 12, T("--text-link"), 16);
@@ -2224,8 +2223,8 @@ failed_send_note :: (m: *dc.Message) {
 	}
 	files := attachments_retry(m.id); // a message with files retries with the ones it uploaded
 	retry := ifx m.attachments then files.count > 0 else m.content != "";
-	retry = retry && link("Retry");
-	discard := link("Delete");
+	retry = retry && link(L("Retry"));
+	discard := link(L("Delete"));
 	if discard dc.drop_message(store(), m.channel_id, m.id);
 	if !retry || !net_action() return;
 	text := copy_string(m.content,, temp);
@@ -2414,7 +2413,7 @@ forward_block :: (m: *dc.Message) {
 	{ ui.parent(h); defer ui.pop_parent();
 		icon("ic", "arrow-angle-right-up", 16, T("--text-muted"));
 		spacer(.X, 4);
-		label("Forwarded", .Italic, 14, T("--text-muted"), 18);
+		label(L("Forwarded"), .Italic, 14, T("--text-muted"), 18);
 	}
 	message_body(m);
 	if m.sticker_ids message_stickers_view(m);
@@ -2562,7 +2561,7 @@ reactors_tooltip :: (m: *dc.Message, re: *dc.Reaction, burst: bool, count: int, 
 	spacer(.X, 10);
 	emoji_box("e", re.emoji, 24);
 	spacer(.X, 8);
-	label(tprint("% reacted with %", builder_to_string(*who,, temp), ifx re.emoji.id then tprint(":%:", re.emoji.name) else re.emoji.name), .Semibold, 14, T("--text-strong"), 18);
+	label(tprint(L("% reacted with %"), builder_to_string(*who,, temp), ifx re.emoji.id then tprint(":%:", re.emoji.name) else re.emoji.name), .Semibold, 14, T("--text-strong"), 18);
 	spacer(.X, 12);
 }
 
@@ -2662,7 +2661,7 @@ view_reactions_modal :: () {
 		r.semantic_size = .[ui.pct(1), ui.px(40)];
 		ui.parent(r); defer ui.pop_parent();
 		spacer(.X, 16);
-		label("Loading...", .Normal, 14, T("--text-muted"), 18);
+		label(L("Loading..."), .Normal, 14, T("--text-muted"), 18);
 	}
 	for uid, i: reactors.users {
 		r := row(tprint("vu%", i), .Clickable | .Draw_Background | .Hot_Animation);
@@ -2686,7 +2685,7 @@ view_reactions_modal :: () {
 			x.semantic_size = .[ui.px(16), ui.px(16)];
 			xs := ui.signal(x);
 			set_icon(x, "x-small", ifx xs.hovering then T("--status-danger") else T("--interactive-icon-default"));
-			if xs.hovering tooltip_below("Remove Reaction", x.rect);
+			if xs.hovering tooltip_below(L("Remove Reaction"), x.rect);
 			if xs.clicked drop = i;
 			spacer(.X, 16);
 		}
@@ -2750,7 +2749,7 @@ typing_line :: (channel_id: dc.Snowflake) {
 		b := label(text, .Medium, 12, T("--text-muted"), 24);
 		if ui.mouse_over(b) {
 			n, unit := ifx slow < 60 then slow else ifx slow < 3600 then slow / 60 else slow / 3600, ifx slow < 60 then "second" else ifx slow < 3600 then "minute" else "hour";
-			tooltip_below(tprint("Slowmode is enabled. Members can send one message every % %%.", n, unit, ifx n == 1 then "" else "s"), b.rect, above = true);
+			tooltip_below(tprint(L("Slowmode is enabled. Members can send one message every % %%."), n, unit, ifx n == 1 then "" else "s"), b.rect, above = true);
 		}
 		if left > 0 request_wake(app.ui.time + (left % 1000 + 1) / 1000.0);
 		spacer(.X, 16);
@@ -2902,7 +2901,7 @@ composer :: (ch: *dc.Channel, cs: *Chat_State) {
 			if res == .Submit && slowmode_left_ms(ch) > 0 {
 				// still cooling down: the text stays for when it can go
 			} else if res == .Submit && length > limit {
-				toast_show(tprint("Your message is too long (% / %).", length, limit), false);
+				toast_show(tprint(L("Your message is too long (% / %)."), length, limit), false);
 			} else if res == .Submit {
 				text := trim(ui.editor_text(*cs.editor), " \t\n\r\x0b\x0c");
 				jump_to_present(ch.id);
@@ -2932,7 +2931,7 @@ composer :: (ch: *dc.Channel, cs: *Chat_State) {
 			{ ui.parent(clk); defer ui.pop_parent();
 				csig := ui.signal(clk);
 				if csig.clicked timestamp_gen_open(ch.id);
-				if csig.hovering tooltip_below("Insert Timestamp", clk.rect);
+				if csig.hovering tooltip_below(L("Insert Timestamp"), clk.rect);
 				spacer(.Y, (COMPOSER_H - 24) / 2);
 				icon("i", "clock", 24, ifx csig.hovering then T("--interactive-icon-hover") else T("--interactive-icon-default"));
 			}
@@ -3035,15 +3034,15 @@ composer_plus_menu :: () {
 	m := menu_panel("plusmenu", .{plus_menu.anchor.x0 - 8, plus_menu.anchor.y0 - 16 - n * GM_ROW_H - 12}, W);
 	ui.parent(m); defer ui.pop_parent();
 	spacer(.Y, 8);
-	if can_attach(ch) && menu_item("upload", "Upload a File", lead = "file-up").clicked {
+	if can_attach(ch) && menu_item("upload", L("Upload a File"), lead = "file-up").clicked {
 		plus_menu.channel = 0;
 		stage_paths(ch.id, pick_files(), "file_picker");
 	}
-	if thread && menu_item("thread", "Create Thread", lead = "thread").clicked {
+	if thread && menu_item("thread", L("Create Thread"), lead = "thread").clicked {
 		plus_menu.channel = 0;
 		threads_browser_create(ch.id);
 	}
-	if can_send_poll(ch) && menu_item("poll", "Create Poll", lead = "analytics").clicked {
+	if can_send_poll(ch) && menu_item("poll", L("Create Poll"), lead = "analytics").clicked {
 		plus_menu.channel = 0;
 		poll_create_open(ch.id);
 	}

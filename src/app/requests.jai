@@ -211,5 +211,5 @@ req_find :: (key: string) -> *Req {
 }
 
 req_toast_show :: (status: int, captcha := false) {
-	toast_show(ifx captcha then CAPTCHA_TEXT else ifx status == 429 then "You're doing that too fast. Try again in a moment." else "Something went wrong. Try again.", false);
+	toast_show(ifx captcha then CAPTCHA_TEXT else ifx status == 429 then L("You're doing that too fast. Try again in a moment.") else L("Something went wrong. Try again."), false);
 }

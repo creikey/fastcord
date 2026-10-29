@@ -88,11 +88,11 @@ add_server_frame :: () {
 			asv.step = .Closed;
 			ui.editor_set_text(*asv.invite_ed, "");
 		} else if j.res.status == 0 {
-			set_err("Couldn't reach Discord. Try again.");
+			set_err(L("Couldn't reach Discord. Try again."));
 		} else if j.res.captcha {
 			set_err(CAPTCHA_TEXT);
 		} else if j.res.error_code == 10006 || j.res.status == 404 {
-			set_err("The invite is invalid or has expired.");
+			set_err(L("The invite is invalid or has expired."));
 		} else {
 			set_err(invite_error_text(j.res.error_code));
 		}
@@ -241,9 +241,9 @@ add_server_modal :: () {
 step_choose :: () {
 	inset_begin(16, 0);
 	spacer(.Y, 24);
-	centered("title", "Create Your Server", .Bold, 24, 30, T("--text-strong"));
+	centered("title", L("Create Your Server"), .Bold, 24, 30, T("--text-strong"));
 	spacer(.Y, 8);
-	centered("sub", "Your server is where you and your friends hang out. Make yours and start talking.", .Normal, 16, 20, T("--text-subtle"));
+	centered("sub", L("Your server is where you and your friends hang out. Make yours and start talking."), .Normal, 16, 20, T("--text-subtle"));
 	spacer(.Y, 24);
 	own := row("own", .Clickable | .Draw_Background | .Draw_Border | .Hot_Animation);
 	own.semantic_size = .[ui.pct(1), ui.px(64)];
@@ -264,7 +264,7 @@ step_choose :: () {
 		spacer(.X, 16);
 		icon("i", "circle-plus", 32, T("--text-brand"));
 		spacer(.X, 12);
-		label("Create My Own", .Semibold, 16, T("--text-strong"), 20);
+		label(L("Create My Own"), .Semibold, 16, T("--text-strong"), 20);
 		filler(.X);
 		icon("chev", "chevron-small-right", 20, T("--interactive-icon-default"));
 		spacer(.X, 12);
@@ -278,12 +278,12 @@ step_choose :: () {
 	foot.style.radius = .[0, 0, 12, 12];
 	{ ui.parent(foot); defer ui.pop_parent();
 		inset_begin(16, 16);
-		centered("have", "Have an invite already?", .Semibold, 20, 24, T("--text-strong"));
+		centered("have", L("Have an invite already?"), .Semibold, 20, 24, T("--text-strong"));
 		spacer(.Y, 8);
 		jr := row("jr");
 		jr.semantic_size = .[ui.pct(1), ui.px(38)];
 		{ ui.parent(jr); defer ui.pop_parent();
-			b := ui.box("Join a Server##join", .Clickable | .Draw_Background | .Draw_Text | .Hot_Animation);
+			b := ui.box(L("Join a Server##join"), .Clickable | .Draw_Background | .Draw_Text | .Hot_Animation);
 			b.semantic_size = .[ui.pct(1), ui.px(38)];
 			b.style.radius = all4(8);
 			b.style.font = F(.Medium);
@@ -309,15 +309,15 @@ footer_begin :: () -> *ui.Box {
 step_create :: () {
 	inset_begin(16, 0);
 	spacer(.Y, 24);
-	centered("title", "Customize Your Server", .Bold, 24, 30, T("--text-strong"));
+	centered("title", L("Customize Your Server"), .Bold, 24, 30, T("--text-strong"));
 	spacer(.Y, 8);
-	centered("sub", "Give your new server a personality with a name. You can always change it later.", .Normal, 16, 20, T("--text-subtle"));
+	centered("sub", L("Give your new server a personality with a name. You can always change it later."), .Normal, 16, 20, T("--text-subtle"));
 	spacer(.Y, 24);
-	label("SERVER NAME", .Bold, 12, T("--text-default"), 16);
+	label(L("SERVER NAME"), .Bold, 12, T("--text-default"), 16);
 	spacer(.Y, 8);
 	res := set_input("name", *asv.name_ed, "", max_runes = 100, autofocus = true);
 	spacer(.Y, 8);
-	set_para("terms", "By creating a server, you agree to Discord's Community Guidelines.", .Normal, 12, 16, T("--text-muted"));
+	set_para("terms", L("By creating a server, you agree to Discord's Community Guidelines."), .Normal, 12, 16, T("--text-muted"));
 	if asv.error != "" {
 		spacer(.Y, 8);
 		set_para("err", asv.error, .Normal, 14, 18, T("--text-feedback-critical"));
@@ -327,10 +327,10 @@ step_create :: () {
 	name := trim(ui.editor_text(*asv.name_ed));
 	{ ui.parent(footer_begin()); defer ui.pop_parent();
 		spacer(.X, 16);
-		if set_button("Back##back", .Link) { add_server_step(.Choose); }
+		if set_button(L("Back##back"), .Link) { add_server_step(.Choose); }
 		filler(.X);
 		ok := name != "" && !asv.creating;
-		if (set_button(ifx asv.creating then "Creating…##create" else "Create##create", .Primary, ok) || res == .Submit && ok) && net_action() {
+		if (set_button(ifx asv.creating then L("Creating…##create") else L("Create##create"), .Primary, ok) || res == .Submit && ok) && net_action() {
 			dc.create_guild(app.client, name, step_shown_ms = asv.step_ms);
 			asv.creating = true;
 		}
@@ -341,21 +341,21 @@ step_create :: () {
 step_join :: () {
 	inset_begin(16, 0);
 	spacer(.Y, 24);
-	centered("title", "Join a Server", .Bold, 24, 30, T("--text-strong"));
+	centered("title", L("Join a Server"), .Bold, 24, 30, T("--text-strong"));
 	spacer(.Y, 8);
-	centered("sub", "Enter an invite below to join an existing server", .Normal, 16, 20, T("--text-subtle"));
+	centered("sub", L("Enter an invite below to join an existing server"), .Normal, 16, 20, T("--text-subtle"));
 	spacer(.Y, 24);
 	lr := row("lr");
 	lr.semantic_size = .[ui.pct(1), ui.px(16)];
 	{ ui.parent(lr); defer ui.pop_parent();
-		label("INVITE LINK", .Bold, 12, ifx asv.error != "" then T("--text-feedback-critical") else T("--text-default"), 16);
+		label(L("INVITE LINK"), .Bold, 12, ifx asv.error != "" then T("--text-feedback-critical") else T("--text-default"), 16);
 		label(" *##req", .Bold, 12, T("--text-feedback-critical"), 16);
 		if asv.error != "" { label(tprint(" - %##err", asv.error), .Medium, 12, T("--text-feedback-critical"), 16); }
 	}
 	spacer(.Y, 8);
 	res := set_input("invite", *asv.invite_ed, "https://discord.gg/hTKzmak", autofocus = true);
 	spacer(.Y, 16);
-	label("INVITES SHOULD LOOK LIKE", .Bold, 12, T("--text-default"), 16);
+	label(L("INVITES SHOULD LOOK LIKE"), .Bold, 12, T("--text-default"), 16);
 	spacer(.Y, 8);
 	for ex: (string.["hTKzmak", "https://discord.gg/hTKzmak", "https://discord.gg/cool-people"]) {
 		label(ex, .Normal, 14, T("--text-default"), 20);
@@ -365,9 +365,9 @@ step_join :: () {
 	busy := asv.job != null;
 	{ ui.parent(footer_begin()); defer ui.pop_parent();
 		spacer(.X, 16);
-		if set_button("Back##back", .Link) { add_server_step(.Choose); }
+		if set_button(L("Back##back"), .Link) { add_server_step(.Choose); }
 		filler(.X);
-		if (set_button(ifx busy then "Joining…##joinsrv" else "Join Server##joinsrv", .Primary, !busy) || res == .Submit && !busy) {
+		if (set_button(ifx busy then L("Joining…##joinsrv") else L("Join Server##joinsrv"), .Primary, !busy) || res == .Submit && !busy) {
 			input := ui.editor_text(*asv.invite_ed);
 			if begins_with(trim(input), "fc://") {
 				ok, why := hosted_join(trim(input));
@@ -378,7 +378,7 @@ step_join :: () {
 					set_err(why);
 				}
 			} else if dc.invite_code_from_input(input) == "" {
-				set_err("Please enter a valid invite link or invite code.");
+				set_err(L("Please enter a valid invite link or invite code."));
 			} else if net_action() {
 				set_err("");
 				join_start(input);

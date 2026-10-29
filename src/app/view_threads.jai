@@ -84,7 +84,7 @@ thread_summary_pill :: (m: *dc.Message) {
 		{ ui.parent(r); defer ui.pop_parent();
 			label(th.name, .Semibold, 14, T("--text-strong"), 18);
 			spacer(.X, 8);
-			label(ifx count == 1 then "1 Message" else tprint("% Messages", count), .Semibold, 14, T("--text-link"), 18);
+			label(ifx count == 1 then L("1 Message") else tprint(L("% Messages"), count), .Semibold, 14, T("--text-link"), 18);
 			icon("chev", "chevron-small-right", 16, T("--text-link"));
 		}
 		// the latest message, when it's loaded
@@ -178,7 +178,7 @@ forum_view :: (ch: *dc.Channel) {
 				spacer(.X, 12);
 				icon("s", "magnifying-glass", 16, T("--text-muted"));
 				spacer(.X, 8);
-				res := text_field("q", *st.query, "Search or create a post...", app.ui.focus == sb.key && !st.creating, 14, 18, 11);
+				res := text_field("q", *st.query, L("Search or create a post..."), app.ui.focus == sb.key && !st.creating, 14, 18, 11);
 				if res == .Submit && can_post submit = true;
 				spacer(.X, 12);
 			}
@@ -194,7 +194,7 @@ forum_view :: (ch: *dc.Channel) {
 					spacer(.X, 12);
 					icon("i", "chat-plus", 18, .{1, 1, 1, 1});
 					spacer(.X, 6);
-					label("New Post", .Medium, 14, .{1, 1, 1, 1}, 18);
+					label(L("New Post"), .Medium, 14, .{1, 1, 1, 1}, 18);
 					spacer(.X, 12);
 				}
 				if ui.signal(nb).clicked submit = true;
@@ -230,7 +230,7 @@ forum_view :: (ch: *dc.Channel) {
 			sort.hover_cursor = .Pointer;
 			{ ui.parent(sort); defer ui.pop_parent();
 				spacer(.X, 8);
-				label(ifx st.by_date then "Sort: Date Posted" else "Sort: Recent Activity", .Medium, 14, T("--text-default"), 18);
+				label(ifx st.by_date then L("Sort: Date Posted") else L("Sort: Recent Activity"), .Medium, 14, T("--text-default"), 18);
 				spacer(.X, 8);
 			}
 			if ui.signal(sort).clicked st.by_date = !st.by_date;
@@ -242,7 +242,7 @@ forum_view :: (ch: *dc.Channel) {
 			r.semantic_size = .[ui.pct(1), ui.px(40)];
 			{ ui.parent(r); defer ui.pop_parent();
 				filler(.X);
-				label(ifx all.count then "No posts match" else "No posts yet", .Medium, 14, T("--text-muted"), 18);
+				label(ifx all.count then L("No posts match") else L("No posts yet"), .Medium, 14, T("--text-muted"), 18);
 				filler(.X);
 			}
 		}
@@ -350,14 +350,14 @@ forum_post_form :: (ch: *dc.Channel, st: *Forum_State, tags: []dc.Forum_Tag) {
 		spacer(.X, 12);
 		return res;
 	}
-	r1 := field("title", *st.title, "Post title", *st.focus_title, 16);
+	r1 := field("title", *st.title, L("Post title"), *st.focus_title, 16);
 	t := ui.editor_text(*st.title);
 	cut := cut_runes(t, 100);
 	if cut.count < t.count ui.editor_set_text(*st.title, copy_string(cut,, temp));
 	if tags.count {
 		spacer(.Y, 12);
 		need := (ch.flags & FORUM_REQUIRE_TAG) != 0;
-		label(ifx need then "Tags (pick at least one)" else "Tags", .Semibold, 12, T("--text-muted"), 16);
+		label(ifx need then L("Tags (pick at least one)") else L("Tags"), .Semibold, 12, T("--text-muted"), 16);
 		spacer(.Y, 6);
 		tr := row("tags");
 		tr.semantic_size = .[ui.pct(1), ui.px(28)];
@@ -372,7 +372,7 @@ forum_post_form :: (ch: *dc.Channel, st: *Forum_State, tags: []dc.Forum_Tag) {
 		}
 	}
 	spacer(.Y, 12);
-	r2 := field("body", *st.body, "Enter a message to start the conversation!", *st.focus_body, 16);
+	r2 := field("body", *st.body, L("Enter a message to start the conversation!"), *st.focus_body, 16);
 	if (r1 == .Changed || r2 == .Changed) && app.client != null && net_action() dc.typing_keystroke(app.client, ch.id);
 	if st.error {
 		spacer(.Y, 8);
@@ -391,14 +391,14 @@ forum_post_form :: (ch: *dc.Channel, st: *Forum_State, tags: []dc.Forum_Tag) {
 	cancel.semantic_size = .[ui.children(), ui.px(36)];
 	cancel.style.radius = all4(8);
 	cancel.style.bg_hot = T("--background-mod-subtle");
-	{ ui.parent(cancel); defer ui.pop_parent(); spacer(.X, 12); label("Cancel", .Medium, 14, T("--text-default"), 18); spacer(.X, 12); }
+	{ ui.parent(cancel); defer ui.pop_parent(); spacer(.X, 12); label(L("Cancel"), .Medium, 14, T("--text-default"), 18); spacer(.X, 12); }
 	if ui.signal(cancel).clicked st.creating = false; // what was typed stays for the next New Post
 	go := row("post", ifx ok then .Clickable | .Draw_Background | .Hot_Animation else .Draw_Background);
 	go.semantic_size = .[ui.children(), ui.px(36)];
 	go.style.radius = all4(8);
 	go.style.bg = ifx ok then T("--background-brand") else with_alpha(T("--background-brand"), 0.5);
 	go.style.bg_hot = with_alpha(T("--background-brand"), 0.85);
-	{ ui.parent(go); defer ui.pop_parent(); spacer(.X, 16); label(ifx st.busy then "Posting..." else "Post", .Medium, 14, .{1, 1, 1, 1}, 18); spacer(.X, 16); }
+	{ ui.parent(go); defer ui.pop_parent(); spacer(.X, 16); label(ifx st.busy then L("Posting...") else L("Post"), .Medium, 14, .{1, 1, 1, 1}, 18); spacer(.X, 16); }
 	if ok && (ui.signal(go).clicked || r1 == .Submit || r2 == .Submit) && net_action() {
 		st.busy = true;
 		st.tag = FORUM_POST_TAG | (st.tag + 1);
@@ -554,11 +554,11 @@ feature_route :: (r: *dc.Feature_Result) {
 		pins_receive(r);
 	case .Pins_Ack; #through; case .Mark_Unread;
 	case .Pin;
-		if !r.ok show_notice("Error", "An error occurred, please try again.");
+		if !r.ok show_notice(L("Error"), L("An error occurred, please try again."));
 	case .Reactors;
 		reactors_receive(r); // view_chat.jai
 	case .Unpin;
-		if !r.ok show_notice("The Pin Is Stuck!", "Discord failed to unpin that message for some reason. Sorry about that.");
+		if !r.ok show_notice(L("The Pin Is Stuck!"), L("Discord failed to unpin that message for some reason. Sorry about that."));
 	case .Around;
 		dc.apply_around(app.client, r);
 		app.ui.animating = true;

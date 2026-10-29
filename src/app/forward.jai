@@ -143,11 +143,11 @@ forward_modal :: () {
 
 	spacer(.Y, PAD);
 	padded("head");
-	label("Forward To", .Semibold, 20, T("--text-strong"), 24);
+	label(L("Forward To"), .Semibold, 20, T("--text-strong"), 24);
 	spacer(.Y, 4);
-	label("Select where you want to share this message.", .Normal, 14, T("--text-muted"), 18);
+	label(L("Select where you want to share this message."), .Normal, 14, T("--text-muted"), 18);
 	spacer(.Y, 16);
-	res := input("search", *fwd.search, "Search", false);
+	res := input("search", *fwd.search, L("Search"), false);
 	if res == .Submit && items fwd.dest = items[0].id;
 	if res == .Escape fwd.msg = 0;
 	unpad();
@@ -170,12 +170,12 @@ forward_modal :: () {
 	}
 	if !items {
 		padded("none");
-		label("No results", .Normal, 14, T("--text-muted"), 40);
+		label(L("No results"), .Normal, 14, T("--text-muted"), 40);
 		unpad();
 	}
 	spacer(.Y, 12);
 	padded("note");
-	res = input("note", *fwd.note, "Add an optional message...", true);
+	res = input("note", *fwd.note, L("Add an optional message..."), true);
 	if res == .Submit && fwd.dest send = true;
 	if res == .Escape fwd.msg = 0;
 	spacer(.Y, 16);
@@ -183,9 +183,9 @@ forward_modal :: () {
 	buttons.semantic_size = .[ui.pct(1), ui.children()];
 	{ ui.parent(buttons); defer ui.pop_parent();
 		filler(.X);
-		if adm_button("cancel", "Cancel", .Secondary) fwd.msg = 0;
+		if adm_button("cancel", L("Cancel"), .Secondary) fwd.msg = 0;
 		spacer(.X, 8);
-		if adm_button("send", "Send", .Primary, enabled = fwd.dest != 0) send = true;
+		if adm_button("send", L("Send"), .Primary, enabled = fwd.dest != 0) send = true;
 	}
 	unpad();
 	spacer(.Y, PAD);

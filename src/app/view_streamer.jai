@@ -153,7 +153,7 @@ streamer_notice :: () {
 	{ ui.parent(bar); defer ui.pop_parent();
 		spacer(.X, 36);
 		filler(.X);
-		label("Streamer Mode is enabled. Usernames have been truncated.", .Medium, 14, WHITE, 18);
+		label(L("Streamer Mode is enabled. Usernames have been truncated."), .Medium, 14, WHITE, 18);
 		spacer(.X, 10);
 		b := row("disable", .Clickable | .Draw_Border | .Draw_Background | .Hot_Animation);
 		b.semantic_size = .[ui.children(), ui.px(24)];
@@ -163,7 +163,7 @@ streamer_notice :: () {
 		b.style.bg_hot = with_alpha(WHITE, 0.1);
 		{ ui.parent(b); defer ui.pop_parent();
 			spacer(.X, 10);
-			label("Disable", .Medium, 14, WHITE, 18);
+			label(L("Disable"), .Medium, 14, WHITE, 18);
 			spacer(.X, 10);
 		}
 		if ui.signal(b).clicked {
@@ -202,7 +202,7 @@ connection_notice :: () {
 	{ ui.parent(bar); defer ui.pop_parent();
 		filler(.X);
 		closed := s.connection == .Disconnected;
-		label(ifx closed then "Connection lost. Messages may be out of date." else "Connecting...", .Medium, 14, WHITE, 18);
+		label(ifx closed then L("Connection lost. Messages may be out of date.") else L("Connecting..."), .Medium, 14, WHITE, 18);
 		if closed {
 			spacer(.X, 10);
 			b := row("reconnect", .Clickable | .Draw_Border | .Draw_Background | .Hot_Animation);
@@ -213,7 +213,7 @@ connection_notice :: () {
 			b.style.bg_hot = with_alpha(WHITE, 0.1);
 			{ ui.parent(b); defer ui.pop_parent();
 				spacer(.X, 10);
-				label("Reconnect", .Medium, 14, WHITE, 18);
+				label(L("Reconnect"), .Medium, 14, WHITE, 18);
 				spacer(.X, 10);
 			}
 			if ui.signal(b).clicked && app.client dc.gateway_reconnect_now(app.client);
@@ -232,23 +232,23 @@ streamer_settings_section :: () {
 		}
 		return false;
 	}
-	if row_toggle("sm_enable", "Enable Streamer Mode", "Streamer Mode hides your personal info so others watching your stream can't see it.", *s.enabled) && app.client != null {
+	if row_toggle("sm_enable", L("Enable Streamer Mode"), L("Streamer Mode hides your personal info so others watching your stream can't see it."), *s.enabled) && app.client != null {
 		dc.analytics_ui_setting(app.client, "streaming_enable_streamer_mode");
 	}
 	spacer(.Y, 24);
-	row_toggle("sm_auto", "Automatically enable Streamer Mode if OBS or XSplit are running", "", *s.auto_toggle);
+	row_toggle("sm_auto", L("Automatically enable Streamer Mode if OBS or XSplit are running"), "", *s.auto_toggle);
 	spacer(.Y, 32);
-	label("If Streamer Mode is enabled...", .Semibold, 16, T("--text-strong"), 20);
+	label(L("If Streamer Mode is enabled..."), .Semibold, 16, T("--text-strong"), 20);
 	spacer(.Y, 24);
-	row_toggle("sm_personal", "Hide my personal information, such as email, connected accounts, and notes", "", *s.hide_personal_information);
+	row_toggle("sm_personal", L("Hide my personal information, such as email, connected accounts, and notes"), "", *s.hide_personal_information);
 	spacer(.Y, 24);
-	row_toggle("sm_invites", "Hide invite links to my Discord servers", "", *s.hide_instant_invites);
+	row_toggle("sm_invites", L("Hide invite links to my Discord servers"), "", *s.hide_instant_invites);
 	spacer(.Y, 24);
-	row_toggle("sm_sounds", "Disable all sound effects", "", *s.disable_sounds);
+	row_toggle("sm_sounds", L("Disable all sound effects"), "", *s.disable_sounds);
 	spacer(.Y, 24);
-	row_toggle("sm_notifs", "Disable all notifications", "", *s.disable_notifications);
+	row_toggle("sm_notifs", L("Disable all notifications"), "", *s.disable_notifications);
 	spacer(.Y, 24);
-	row_toggle("sm_capture", "Hide Fastcord window from screen capture", "Hides Fastcord windows from most screen capture software.", *s.content_protection);
+	row_toggle("sm_capture", L("Hide Fastcord window from screen capture"), L("Hides Fastcord windows from most screen capture software."), *s.content_protection);
 }
 
 // Settings > Account while Streamer Mode is on: the page is replaced (email,
@@ -262,7 +262,7 @@ streamer_account_page :: () {
 		filler(.Y);
 		icon("art", "screen-stream", 160, T("--background-brand"));
 		spacer(.Y, 24);
-		b := row("Streamer Mode Enabled##smbadge", .Draw_Background | .Draw_Text);
+		b := row(L("Streamer Mode Enabled##smbadge"), .Draw_Background | .Draw_Text);
 		b.semantic_size = .[ui.px(244), ui.px(48)];
 		b.style.radius = all4(8);
 		b.style.bg = T("--background-brand");

@@ -135,9 +135,9 @@ message_toolbar :: (m: *dc.Message) {
 				if name == "trash" c = T("--status-danger");
 				icon("i", name, 20, c);
 			}
-			if name == "trash" && sig.hovering tooltip_below("Delete", b.rect);
-			if name == "thread" && sig.hovering tooltip_below("Create Thread", b.rect);
-			if name == "arrow-angle-right-up" && sig.hovering tooltip_below("Forward", b.rect);
+			if name == "trash" && sig.hovering tooltip_below(L("Delete"), b.rect);
+			if name == "thread" && sig.hovering tooltip_below(L("Create Thread"), b.rect);
+			if name == "arrow-angle-right-up" && sig.hovering tooltip_below(L("Forward"), b.rect);
 			if sig.clicked {
 				if name == {
 				case "arrow-angle-left-up";
@@ -266,7 +266,7 @@ react :: (m: *dc.Message, e: dc.Emoji, location: string, toggle := false) {
 		return;
 	}
 	if !dc.add_reaction(app.client, m.channel_id, m.id, e.name, e.id, location = location, animated = e.animated) {
-		show_notice("Oops!", "You can’t react and super react with the same emoji. There’s a lot of emoji to choose from, so maybe try another one.", "Got It");
+		show_notice(L("Oops!"), L("You can’t react and super react with the same emoji. There’s a lot of emoji to choose from, so maybe try another one."), "Got It");
 		return;
 	}
 	frec_use(*frecency.reaction, frec_key_of(e.name, e.id)); // every reaction added is a use, from anywhere
@@ -283,7 +283,7 @@ can_add_reactions :: (m: *dc.Message) -> bool {
 // rolled it back).
 reaction_refused :: (r: dc.Rest_Result) {
 	if r.op == .Add_Reaction && r.status == 403 && r.error_code == 30010
-		show_notice("We appreciate the enthusiasm, but...", "Your reaction was not added because there are too many reactions on this message.");
+		show_notice(L("We appreciate the enthusiasm, but..."), L("Your reaction was not added because there are too many reactions on this message."));
 }
 
 send_unreact :: (u: *Undo) { if u.client dc.remove_reaction(u.client, u.b, u.a, u.s, u.c, location = u.t); }
@@ -403,7 +403,7 @@ command_used_line :: (m: *dc.Message) {
 	label("used", .Normal, 14, T("--text-muted"), 18);
 	spacer(.X, 4);
 	if m.command_name label(ifx m.kind == 23 then m.command_name else tprint("/%", m.command_name), .Medium, 14, T("--text-link"), 18);
-	else label("a command", .Normal, 14, T("--text-muted"), 18);
+	else label(L("a command"), .Normal, 14, T("--text-muted"), 18);
 }
 
 reply_preview :: (m: *dc.Message) {
@@ -428,12 +428,12 @@ reply_preview :: (m: *dc.Message) {
 			spine.style.radius = .[6, 0, 0, 0];
 		}
 		if ref == null {
-			label("Original message was deleted", .Normal, 14, T("--text-muted"), 18);
+			label(L("Original message was deleted"), .Normal, 14, T("--text-muted"), 18);
 			return;
 		}
 		hide := hidden_kind(ref);
 		if hide != "" {
-			label(ifx hide == "blocked" then "Blocked message" else "Ignored message", .Normal, 14, T("--text-muted"), 18);
+			label(ifx hide == "blocked" then L("Blocked message") else L("Ignored message"), .Normal, 14, T("--text-muted"), 18);
 			return;
 		}
 		avatar_box("av", ref.author_id, 16);
@@ -482,13 +482,13 @@ reply_bar :: () {
 		who.semantic_size = .[ui.children(), ui.px(32)];
 		if ui.signal(who).clicked jump_to_message(m.channel_id, m.id);
 		{ ui.parent(who); defer ui.pop_parent();
-			label("Replying to", .Normal, 14, T("--text-default"), 18);
+			label(L("Replying to"), .Normal, 14, T("--text-default"), 18);
 			spacer(.X, 4);
 			label(author_name(m), .Semibold, 14, T("--text-default"), 18);
 		}
 		filler(.X);
 		if m.author_id != s.me {
-			at := ui.box(ifx ma.reply_mention then "@ ON##at" else "@ OFF##at", .Clickable | .Draw_Text);
+			at := ui.box(ifx ma.reply_mention then L("@ ON##at") else L("@ OFF##at"), .Clickable | .Draw_Text);
 			at.semantic_size = .[ui.text_size(), ui.px(18)];
 			at.style.font = F(.Bold);
 			at.style.font_size = 14;
@@ -510,7 +510,7 @@ reply_bar :: () {
 
 // Send what's in the composer: text, reply, staged files.
 composer_send :: (ch: *dc.Channel, text: string) -> bool {
-	if ma.replying != 0 && encrypting(ch) { toast_show("Replies can't be sent encrypted yet.", false); return false; } // until E2E 7
+	if ma.replying != 0 && encrypting(ch) { toast_show(L("Replies can't be sent encrypted yet."), false); return false; } // until E2E 7
 	if !net_action() return false;
 	atts, ready := attachments_for_send(ch.id);
 	if !ready { return false; } // a file is still being read
@@ -727,7 +727,7 @@ message_menu :: () {
 					ch := dc.channel_get(s, m.channel_id);
 					clipboard_set(channel_link(ifx ch then ch.guild_id else 0, m.channel_id, m.id));
 					open_url("https://dis.gd/report");
-					toast_show("Message link copied: paste it into Discord's report form", true);
+					toast_show(L("Message link copied: paste it into Discord's report form"), true);
 				case "Copy Message ID";
 					clipboard_set(tprint("%", cast(u64) m.id));
 				case "Delete Message";
@@ -753,7 +753,7 @@ message_menu :: () {
 
 // Delete Message: hidden at once (message_held), DELETE after the undo window (undo.jai).
 delete_now :: (m: *dc.Message) {
-	if !undo_held(send_delete, m.id) undo_push("Message deleted", send_delete, a = m.id, b = m.channel_id);
+	if !undo_held(send_delete, m.id) undo_push(L("Message deleted"), send_delete, a = m.id, b = m.channel_id);
 }
 
 EDIT_REQ :: "edit_message";
@@ -856,7 +856,7 @@ pin_now :: (m: *dc.Message, pin: bool) {
 	if undo_held(send_unpin, m.id) return;
 	set_pinned(m.channel_id, m.id, false);
 	m.pinned = false; // a pins card's copy
-	undo_push("Message unpinned", send_unpin, (u: *Undo) { set_pinned(u.b, u.a, true); }, a = m.id, b = m.channel_id);
+	undo_push(L("Message unpinned"), send_unpin, (u: *Undo) { set_pinned(u.b, u.a, true); }, a = m.id, b = m.channel_id);
 }
 
 #scope_file
@@ -1011,7 +1011,7 @@ confirm_modal :: () {
 			tc := ui.box("tc");
 			tc.semantic_size = .[ui.fill(), ui.children()];
 			{ ui.parent(tc); defer ui.pop_parent();
-				label("Protip:", .Semibold, 14, T("--text-feedback-positive"), 18);
+				label(L("Protip:"), .Semibold, 14, T("--text-feedback-positive"), 18);
 				body := ui.box("tipbody", .Wrap_Text);
 				body.semantic_size = .[ui.pct(1), ui.text_size()];
 				body.style.line_height = 16;
@@ -1030,7 +1030,7 @@ confirm_modal :: () {
 		btns.style.child_gap = 8;
 		{ ui.parent(btns); defer ui.pop_parent();
 			spacer(.X, PAD + 1 - 8);
-			cancel := ui.box("Cancel##c", .Clickable | .Draw_Background | .Draw_Text | .Hot_Animation);
+			cancel := ui.box(L("Cancel##c"), .Clickable | .Draw_Background | .Draw_Text | .Hot_Animation);
 			cancel.semantic_size = .[ui.fill(), ui.px(40)];
 			cancel.style.radius = all4(8);
 			cancel.style.font = F(.Medium);

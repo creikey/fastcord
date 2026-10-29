@@ -101,9 +101,9 @@ custom_status_modal :: () {
 		return r;
 	}
 	spacer(.Y, PAD);
-	{ r := padded("t", 24); ui.parent(r); defer ui.pop_parent(); label("Set a custom status", .Semibold, 20, T("--text-strong"), 24); }
+	{ r := padded("t", 24); ui.parent(r); defer ui.pop_parent(); label(L("Set a custom status"), .Semibold, 20, T("--text-strong"), 24); }
 	spacer(.Y, 20);
-	{ r := padded("lbl", 18); ui.parent(r); defer ui.pop_parent(); label("What's cookin'?", .Semibold, 14, T("--text-strong"), 18); }
+	{ r := padded("lbl", 18); ui.parent(r); defer ui.pop_parent(); label(L("What's cookin'?"), .Semibold, 14, T("--text-strong"), 18); }
 	spacer(.Y, 8);
 	save := false;
 	{
@@ -139,7 +139,7 @@ custom_status_modal :: () {
 		field.hover_cursor = .IBeam;
 		{ ui.parent(field); defer ui.pop_parent();
 			spacer(.X, 12);
-			res := text_field("field", *cstatus.ed, "Support has arrived!", true, 16, 20, 10, T("--input-placeholder-text-default"));
+			res := text_field("field", *cstatus.ed, L("Support has arrived!"), true, 16, 20, 10, T("--input-placeholder-text-default"));
 			t := ui.editor_text(*cstatus.ed);
 			cut := cut_runes(t, CUSTOM_STATUS_MAX);
 			if cut.count < t.count ui.editor_set_text(*cstatus.ed, copy_string(cut,, temp));
@@ -150,7 +150,7 @@ custom_status_modal :: () {
 		spacer(.X, PAD);
 	}
 	spacer(.Y, 20);
-	{ r := padded("clbl", 18); ui.parent(r); defer ui.pop_parent(); label("Clear after", .Semibold, 14, T("--text-strong"), 18); }
+	{ r := padded("clbl", 18); ui.parent(r); defer ui.pop_parent(); label(L("Clear after"), .Semibold, 14, T("--text-strong"), 18); }
 	spacer(.Y, 8);
 	{
 		r := padded("clear", 40);
@@ -173,8 +173,8 @@ custom_status_modal :: () {
 	btns.style.child_gap = 8;
 	{ ui.parent(btns); defer ui.pop_parent();
 		filler(.X);
-		if modal_button("Cancel##cancel", 96, T("--background-mod-normal"), T("--background-mod-strong"), T("--text-strong")) cstatus.open = false;
-		if modal_button("Save##save", 96, T("--background-brand"), with_alpha(T("--background-brand"), 0.85), .{1, 1, 1, 1}) save = true;
+		if modal_button(L("Cancel##cancel"), 96, T("--background-mod-normal"), T("--background-mod-strong"), T("--text-strong")) cstatus.open = false;
+		if modal_button(L("Save##save"), 96, T("--background-brand"), with_alpha(T("--background-brand"), 0.85), .{1, 1, 1, 1}) save = true;
 		spacer(.X, PAD - 8);
 	}
 	if select_is_open() dropdown_list(); // the Clear after list, over the modal

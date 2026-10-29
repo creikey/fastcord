@@ -66,9 +66,9 @@ edit_menu :: () {
 	key: platform.Key;
 	{ ui.parent(menu); defer ui.pop_parent();
 		spacer(.Y, 8);
-		if em.has_sel && menu_item("cut", "Cut").clicked key = .X;
-		if em.has_sel && menu_item("copy", "Copy").clicked key = .C;
-		if menu_item("paste", "Paste").clicked key = .V;
+		if em.has_sel && menu_item("cut", L("Cut")).clicked key = .X;
+		if em.has_sel && menu_item("copy", L("Copy")).clicked key = .C;
+		if menu_item("paste", L("Paste")).clicked key = .V;
 		spacer(.Y, 8);
 	}
 	if key != .None {
@@ -277,7 +277,7 @@ profile_popout :: () {
 				mr.semantic_size = .[ui.pct(1), ui.px(40)];
 				{ ui.parent(mr); defer ui.pop_parent();
 					spacer(.X, 16);
-					mb := row(tprint("Message @%##msgbtn", dc.user_name(s, uid)), .Clickable | .Draw_Background | .Draw_Border | .Draw_Text);
+					mb := row(tprint(L("Message @%##msgbtn"), dc.user_name(s, uid)), .Clickable | .Draw_Background | .Draw_Border | .Draw_Text);
 					mb.semantic_size = .[ui.fill(), ui.px(40)];
 					mb.style.bg = T("--input-background-default");
 					mb.style.border_color = T("--border-subtle");
@@ -341,7 +341,7 @@ account_actions :: () {
 		g.style.radius = all4(8);
 		{ ui.parent(g); defer ui.pop_parent();
 			spacer(.Y, 4);
-			ep := menu_item("editprofile", "Edit Profile", lead = "pencil");
+			ep := menu_item("editprofile", L("Edit Profile"), lead = "pencil");
 			if ep.hovering sm.open, accts.menu_open = false, false;
 			if ep.clicked {
 				// opens Settings > Profiles, like the client
@@ -358,11 +358,11 @@ account_actions :: () {
 			}
 			menu_sep("s2");
 			custom := custom_status_line();
-			cs := menu_item("customstatus", ifx custom then custom else "Set Custom Status", lead = "emoji-people");
+			cs := menu_item("customstatus", ifx custom then custom else L("Set Custom Status"), lead = "emoji-people");
 			if cs.hovering sm.open, accts.menu_open = false, false;
 			if cs.clicked custom_status_open();
 			if custom {
-				cl := menu_item("clearcustom", "Clear Custom Status", lead = "circle-x");
+				cl := menu_item("clearcustom", L("Clear Custom Status"), lead = "circle-x");
 				if cl.hovering sm.open, accts.menu_open = false, false;
 				if cl.clicked set_my_custom_status("", .Dont_Clear);
 			}
@@ -385,7 +385,7 @@ status_menu :: (card: *ui.Box) {
 	menu := menu_panel("statusmenu", .{x, clamp(sm.row_y - 8, 8, max(8.0, app.ui.window.y - (3 * 44 + GM_ROW_H + 25) - 8))}, W);
 	{ ui.parent(menu); defer ui.pop_parent();
 		spacer(.Y, 8);
-		on := menu_item("online", "Online", lead_status = .Online);
+		on := menu_item("online", L("Online"), lead_status = .Online);
 		if on.hovering sm.sub = .Offline;
 		if on.clicked set_my_status(.Online);
 		menu_sep("s1");
@@ -492,7 +492,7 @@ settings_modal :: () {
 						er.hover_cursor = .Pointer;
 						if ui.signal(er).clicked { settings_page = "Profiles"; }
 						{ ui.parent(er); defer ui.pop_parent();
-							label("Edit Profiles", .Medium, 14, T("--text-muted"), 18);
+							label(L("Edit Profiles"), .Medium, 14, T("--text-muted"), 18);
 							spacer(.X, 4);
 							icon("pen", "pencil", 12, T("--text-muted"));
 						}
@@ -704,7 +704,7 @@ appearance_page :: () {
 		col.layout_axis = .Y;
 		{ ui.parent(col); defer ui.pop_parent();
 			spacer(.Y, 64);
-			th := label("Theme", .Medium, 24, T("--text-strong"), 32);
+			th := label(L("Theme"), .Medium, 24, T("--text-strong"), 32);
 			appearance_scroll_target(scroll, th, "Theme");
 			spacer(.Y, 30);
 			dr := row("device", .Clickable);
@@ -714,14 +714,14 @@ appearance_page :: () {
 				c := ui.box("c");
 				c.semantic_size = .[ui.fill(), ui.children()];
 				{ ui.parent(c); defer ui.pop_parent();
-					label("Same as Device Theme", .Medium, 16, T("--text-strong"), 20);
+					label(L("Same as Device Theme"), .Medium, 16, T("--text-strong"), 20);
 					spacer(.Y, 2);
-					label("Match your device's light or dark mode.", .Normal, 14, T("--text-subtle"), 18);
+					label(L("Match your device's light or dark mode."), .Normal, 14, T("--text-subtle"), 18);
 				}
 				set_switch(theme_follow_os);
 			}
 			spacer(.Y, 32);
-			label("Default Themes", .Semibold, 16, T("--text-default"), 20);
+			label(L("Default Themes"), .Semibold, 16, T("--text-default"), 20);
 			spacer(.Y, 24);
 			sw := row("swatches");
 			sw.semantic_size = .[ui.pct(1), ui.px(SET_SWATCH)];
@@ -757,7 +757,7 @@ appearance_page :: () {
 				}
 			}
 			spacer(.Y, 48);
-			if set_toggle_row("smooth", "Smooth Scrolling", "Ease the chat and lists toward where you scroll. Off, they jump there at once (always, when your device asks for reduced motion).", !smooth_scroll_off) {
+			if set_toggle_row("smooth", L("Smooth Scrolling"), L("Ease the chat and lists toward where you scroll. Off, they jump there at once (always, when your device asks for reduced motion)."), !smooth_scroll_off) {
 				smooth_scroll_off = !smooth_scroll_off;
 			}
 			spacer(.Y, 48);
@@ -765,7 +765,7 @@ appearance_page :: () {
 			div.semantic_size = .[ui.pct(1), ui.px(1)];
 			div.style.bg = T("--border-subtle");
 			spacer(.Y, 48);
-			sh := label("Streamer Mode", .Medium, 24, T("--text-strong"), 32);
+			sh := label(L("Streamer Mode"), .Medium, 24, T("--text-strong"), 32);
 			appearance_scroll_target(scroll, sh, "Streamer Mode");
 			spacer(.Y, 24);
 			streamer_settings_section(); // view_streamer.jai

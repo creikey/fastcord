@@ -138,7 +138,7 @@ threads_browser_popout :: () {
 		spacer(.X, 16);
 		icon("i", "thread", 20, T("--interactive-icon-default"));
 		spacer(.X, 8);
-		label("Threads", .Semibold, 16, T("--text-strong"), 20);
+		label(L("Threads"), .Semibold, 16, T("--text-strong"), 20);
 		if !tb.creating {
 			spacer(.X, 12);
 			for t: enum_values_as_enum(TB_Tab) {
@@ -172,7 +172,7 @@ threads_browser_popout :: () {
 			csig := ui.signal(cb);
 			{ ui.parent(cb); defer ui.pop_parent();
 				spacer(.X, 12);
-				label("Create", .Medium, 14, .{1, 1, 1, 1}, 18);
+				label(L("Create"), .Medium, 14, .{1, 1, 1, 1}, 18);
 				spacer(.X, 12);
 			}
 			if csig.clicked create_form_open();
@@ -199,15 +199,15 @@ threads_browser_popout :: () {
 			{ ui.parent(r); defer ui.pop_parent();
 				filler(.X);
 				msg := ifx tb.tab == .Active then "There are no active threads." else "There are no archived threads.";
-				label(ifx tb.loading && tb.tab == .Archived then "Loading..." else msg, .Medium, 14, T("--text-muted"), 18);
+				label(ifx tb.loading && tb.tab == .Archived then L("Loading...") else msg, .Medium, 14, T("--text-muted"), 18);
 				filler(.X);
 			}
 		}
 		if tb.tab == .Active {
-			thread_section("joined", "Joined Threads", joined);
-			thread_section("active", "Other Active Threads", active);
+			thread_section("joined", L("Joined Threads"), joined);
+			thread_section("active", L("Other Active Threads"), active);
 		} else {
-			thread_section("older", "Archived Threads", older);
+			thread_section("older", L("Archived Threads"), older);
 		}
 		spacer(.Y, 8);
 	}
@@ -297,12 +297,12 @@ create_form :: () {
 	sub.semantic_size = .[ui.pct(1), ui.px(20)];
 	{ ui.parent(sub); defer ui.pop_parent();
 		spacer(.X, 16);
-		label("THREAD NAME", .Bold, 12, T("--text-muted"), 16);
+		label(L("THREAD NAME"), .Bold, 12, T("--text-muted"), 16);
 	}
 	spacer(.Y, 6);
-	r1 := field("name", *tb.name, "New Thread", tb.focus == 1);
+	r1 := field("name", *tb.name, L("New Thread"), tb.focus == 1);
 	spacer(.Y, 12);
-	r2 := field("first", *tb.first, "Enter a message to start the conversation!", tb.focus == 2);
+	r2 := field("first", *tb.first, L("Enter a message to start the conversation!"), tb.focus == 2);
 	tb.focus = 0;
 	// typing in the form is typing in the parent channel
 	if (r1 == .Changed || r2 == .Changed) && app.client != null && net_action() dc.typing_keystroke(app.client, tb.channel);
@@ -319,7 +319,7 @@ create_form :: () {
 		cancel.style.bg_hot = T("--background-mod-subtle");
 		{ ui.parent(cancel); defer ui.pop_parent();
 			spacer(.X, 12);
-			label("Cancel", .Medium, 14, T("--text-default"), 18);
+			label(L("Cancel"), .Medium, 14, T("--text-default"), 18);
 			spacer(.X, 12);
 		}
 		if ui.signal(cancel).clicked tb.creating = false;
@@ -332,7 +332,7 @@ create_form :: () {
 		go.style.bg_hot = with_alpha(T("--background-brand"), 0.85);
 		{ ui.parent(go); defer ui.pop_parent();
 			spacer(.X, 12);
-			label(ifx tb.busy then "Creating..." else "Create Thread", .Medium, 14, .{1, 1, 1, 1}, 18);
+			label(ifx tb.busy then L("Creating...") else L("Create Thread"), .Medium, 14, .{1, 1, 1, 1}, 18);
 			spacer(.X, 12);
 		}
 		if ok && ui.signal(go).clicked submit = true;
@@ -434,7 +434,7 @@ thread_browser_row :: (tid: dc.Snowflake) {
 					}
 				}
 				n := tm.message_count;
-				label(ifx n == 1 then "1 Message" else tprint("% Messages", n), .Medium, 13, T("--text-link"), 18);
+				label(ifx n == 1 then L("1 Message") else tprint(L("% Messages"), n), .Medium, 13, T("--text-link"), 18);
 				spacer(.X, 6);
 				label(tprint("· %", relative_age(max(tm.last_message_id, tid))), .Normal, 13, T("--text-muted"), 18);
 			}

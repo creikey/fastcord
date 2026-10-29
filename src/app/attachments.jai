@@ -294,7 +294,7 @@ staged_trash :: (channel_id: dc.Snowflake, key: u64) {
 		held := New(Staged);
 		held.* = u;
 		array_ordered_remove_by_index(l, i);
-		undo_push("Attachment removed", (u: *Undo) {
+		undo_push(L("Attachment removed"), (u: *Undo) {
 			st := cast(*Staged) u.p;
 			if st.draft && u.client dc.upload_draft_remove(u.client, st.draft);
 			staged_free(st);
@@ -628,13 +628,13 @@ modify_modal :: () {
 	spacer(.Y, PAD);
 	text_row("t", tprint("%##modtitle", ellipsize(u.filename, .Semibold, 20, W - 2 * PAD)), .Semibold, 20, 24, T("--text-strong"));
 	spacer(.Y, 20);
-	text_row("lname", "Filename", .Medium, 14, 18, T("--text-strong"));
+	text_row("lname", L("Filename"), .Medium, 14, 18, T("--text-strong"));
 	spacer(.Y, 8);
 	r1 := field("namerow", *att.mod_name, "", 0);
 	spacer(.Y, 16);
-	text_row("ldesc", "Description (alt text)", .Medium, 14, 18, T("--text-strong"));
+	text_row("ldesc", L("Description (alt text)"), .Medium, 14, 18, T("--text-strong"));
 	spacer(.Y, 8);
-	r2 := field("descrow", *att.mod_desc, "Add a description", 1);
+	r2 := field("descrow", *att.mod_desc, L("Add a description"), 1);
 	for r: (ui.Edit_Result.[r1, r2]) {
 		if r == .Submit save = true;
 		if r == .Escape cancel = true;
@@ -660,7 +660,7 @@ modify_modal :: () {
 			}
 		}
 		spacer(.X, 8);
-		label("Mark as spoiler", .Normal, 16, T("--text-default"), 20);
+		label(L("Mark as spoiler"), .Normal, 16, T("--text-default"), 20);
 	}
 	spacer(.Y, PAD);
 	btns := row("btns", .Draw_Background);
@@ -682,8 +682,8 @@ modify_modal :: () {
 	}
 	{ ui.parent(btns); defer ui.pop_parent();
 		filler(.X);
-		if button("Cancel##modcancel", 96, T("--background-mod-normal"), T("--background-mod-strong"), T("--text-strong")) cancel = true;
-		if button("Save##modsave", 96, T("--background-brand"), with_alpha(T("--background-brand"), 0.85), .{1, 1, 1, 1}) { save = true; }
+		if button(L("Cancel##modcancel"), 96, T("--background-mod-normal"), T("--background-mod-strong"), T("--text-strong")) cancel = true;
+		if button(L("Save##modsave"), 96, T("--background-brand"), with_alpha(T("--background-brand"), 0.85), .{1, 1, 1, 1}) { save = true; }
 		spacer(.X, PAD - 8);
 	}
 	for * e: app.ui.events {
@@ -724,7 +724,7 @@ attachments_overlays :: () {
 		}
 	} else if att.drag && ch != null && !server_settings_is_open() {
 		where_ := ifx ch.kind == .DM then tprint("@%", dm_name(ch)) else ifx ch.kind == .Group_DM then dm_name(ch) else tprint("#%", ch.name);
-		upload_card_overlay("att_drag", tprint("Upload to %", where_), "You can add comments before uploading.\nHold shift to upload directly.", T("--background-brand"), "file-up", false);
+		upload_card_overlay("att_drag", tprint(L("Upload to %"), where_), L("You can add comments before uploading.\nHold shift to upload directly."), T("--background-brand"), "file-up", false);
 	}
 }
 

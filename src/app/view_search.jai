@@ -293,9 +293,9 @@ search_suggestions :: () {
 			hr.semantic_size = .[ui.pct(1), ui.px(24)];
 			run := "";
 			{ ui.parent(hr); defer ui.pop_parent();
-				label("History", .Semibold, 12, T("--text-muted"), 24);
+				label(L("History"), .Semibold, 12, T("--text-muted"), 24);
 				filler(.X);
-				cl := ui.box("Clear##histclear", .Clickable | .Draw_Text);
+				cl := ui.box(L("Clear##histclear"), .Clickable | .Draw_Text);
 				cl.semantic_size = .[ui.text_size(), ui.px(24)];
 				cl.style.font = F(.Medium);
 				cl.style.font_size = 12;
@@ -399,7 +399,7 @@ search_panel :: () {
 				r.semantic_size = .[ui.pct(1), ui.px(80)];
 				{ ui.parent(r); defer ui.pop_parent();
 					filler(.X);
-					label("No results found", .Medium, 14, T("--text-muted"), 18);
+					label(L("No results found"), .Medium, 14, T("--text-muted"), 18);
 					filler(.X);
 				}
 			}

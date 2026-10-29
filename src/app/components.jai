@@ -24,7 +24,7 @@ message_components_view :: (m: *dc.Message) {
 		ui.parent(r); defer ui.pop_parent();
 		icon("w", "warning", 14, T("--text-feedback-critical"));
 		spacer(.X, 4);
-		label("This interaction failed", .Normal, 14, T("--text-feedback-critical"), 18);
+		label(L("This interaction failed"), .Normal, 14, T("--text-feedback-critical"), 18);
 	} else if st request_wake(app.ui.time + 1);
 }
 
@@ -36,8 +36,8 @@ ephemeral_note :: (m: *dc.Message) {
 	ui.parent(r); defer ui.pop_parent();
 	icon("eye", "eye", 14, T("--text-muted"));
 	spacer(.X, 4);
-	label("Only you can see this · ", .Normal, 12, T("--text-muted"), 18);
-	d := label("Dismiss message", .Normal, 12, T("--text-link"), 18);
+	label(L("Only you can see this · "), .Normal, 12, T("--text-muted"), 18);
+	d := label(L("Dismiss message"), .Normal, 12, T("--text-link"), 18);
 	d.flags |= .Clickable;
 	d.hover_cursor = .Pointer;
 	if ui.signal(d).clicked dc.drop_message(store(), m.channel_id, m.id);
@@ -227,7 +227,7 @@ component_select :: (m: *dc.Message, i: int, options: []int) {
 	{ ui.parent(b); defer ui.pop_parent();
 		spacer(.X, 12);
 		if pending pulsing_dots(T("--text-muted"));
-		else label(ifx c.placeholder then c.placeholder else "Make a selection", .Normal, 14, ifx enabled then T("--text-muted") else with_alpha(T("--text-muted"), 0.5), 18);
+		else label(ifx c.placeholder then c.placeholder else L("Make a selection"), .Normal, 14, ifx enabled then T("--text-muted") else with_alpha(T("--text-muted"), 0.5), 18);
 		filler(.X);
 		icon("chev", ifx open then "chevron-small-up" else "chevron-small-down", 20, T("--interactive-icon-default"));
 		spacer(.X, 8);

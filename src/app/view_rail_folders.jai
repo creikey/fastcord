@@ -629,7 +629,7 @@ rail_apply_drop :: (entries_in: [..]Rail_Entry, tg: Rail_Target, kind: Drop_Kind
 			c.* = .{id = it.id, name = copy_string(it.name), color = it.color, has_color = it.has_color};
 			array_copy(*c.guild_ids, it.guild_ids);
 		}
-		undo_push("Folder removed", (u: *Undo) { folders_free(u.p); }, (u: *Undo) {
+		undo_push(L("Folder removed"), (u: *Undo) { folders_free(u.p); }, (u: *Undo) {
 			entries: [..]Rail_Entry;
 			entries.allocator = temp;
 			for (cast(*[..]dc.Guild_Folder) u.p).* array_add(*entries, .{id = it.id, name = it.name, color = it.color, has_color = it.has_color, guilds = it.guild_ids});
@@ -723,12 +723,12 @@ folder_menu :: () {
 	menu.fixed_pos = .{clamp(fm.pos.x, 8, app.ui.window.x - W - 8), clamp(fm.pos.y, 8, max(8.0, app.ui.window.y - h - 8))};
 	ui.parent(menu); defer ui.pop_parent();
 	spacer(.Y, 8);
-	if menu_item("read", "Mark Folder As Read", disabled = !unread).clicked {
+	if menu_item("read", L("Mark Folder As Read"), disabled = !unread).clicked {
 		for e.guilds if guild_has_unread(it) mark_guild_read(it);
 		fm.menu = 0;
 	}
 	menu_sep("s1");
-	if menu_item("settings", "Folder Settings").clicked {
+	if menu_item("settings", L("Folder Settings")).clicked {
 		fm.modal = e.id;
 		fm.color = ifx e.has_color then cast(u32) e.color else 0;
 		ui.editor_set_text(*fm.ed, e.name);
@@ -751,12 +751,12 @@ down_menu :: () {
 	menu.fixed_pos = .{clamp(fm.down_pos.x, 8, app.ui.window.x - W - 8), clamp(fm.down_pos.y, 8, max(8.0, app.ui.window.y - mh - 8))};
 	ui.parent(menu); defer ui.pop_parent();
 	spacer(.Y, 8);
-	if menu_item("retry", "Retry Now", disabled = h.thread != null || !h.retry_at).clicked {
+	if menu_item("retry", L("Retry Now"), disabled = h.thread != null || !h.retry_at).clicked {
 		h.retry_at = platform.time_now();
 		fm.down = null;
 	}
 	menu_sep("s1");
-	if menu_item("remove", "Remove Server", danger = true).clicked {
+	if menu_item("remove", L("Remove Server"), danger = true).clicked {
 		h.forget = true;
 		fm.down = null;
 	}
@@ -796,9 +796,9 @@ folder_modal :: () {
 	}
 	save := false;
 	spacer(.Y, PAD);
-	text_row("t", "Folder Settings", .Semibold, 20, 24, T("--text-strong"));
+	text_row("t", L("Folder Settings"), .Semibold, 20, 24, T("--text-strong"));
 	spacer(.Y, 20);
-	text_row("lname", "Folder Name", .Semibold, 14, 18, T("--text-strong"));
+	text_row("lname", L("Folder Name"), .Semibold, 14, 18, T("--text-strong"));
 	spacer(.Y, 8);
 	ir := row("inrow");
 	ir.semantic_size = .[ui.pct(1), ui.px(40)];
@@ -821,7 +821,7 @@ folder_modal :: () {
 		spacer(.X, PAD);
 	}
 	spacer(.Y, 20);
-	text_row("lcolor", "Folder Color", .Semibold, 14, 18, T("--text-strong"));
+	text_row("lcolor", L("Folder Color"), .Semibold, 14, 18, T("--text-strong"));
 	spacer(.Y, 8);
 	half := FOLDER_COLORS.count / 2 + 1;
 	for line: 0..1 {
@@ -852,7 +852,7 @@ folder_modal :: () {
 	btns.style.radius = .[0, 0, 12, 12];
 	{ ui.parent(btns); defer ui.pop_parent();
 		filler(.X);
-		b := ui.box("Done##done", .Clickable | .Draw_Background | .Draw_Text | .Hot_Animation);
+		b := ui.box(L("Done##done"), .Clickable | .Draw_Background | .Draw_Text | .Hot_Animation);
 		b.semantic_size = .[ui.px(96), ui.px(38)];
 		b.style.radius = all4(8);
 		b.style.font = F(.Medium);

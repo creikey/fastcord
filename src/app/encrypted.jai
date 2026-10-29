@@ -51,7 +51,7 @@ encrypted_frame :: () {
 	if !e2e_db return;
 	if !ee.told_set_aside && atomic_load(*e2e_db.set_aside) {
 		ee.told_set_aside = true;
-		toast_show("This device's encryption keys couldn't be unlocked, so earlier encrypted DMs can't be opened here.", false);
+		toast_show(L("This device's encryption keys couldn't be unlocked, so earlier encrypted DMs can't be opened here."), false);
 	}
 	for c: connections() if c.store.ready && !array_find(ee.outbox_asked, c) {
 		array_add(*ee.outbox_asked, c);
@@ -95,16 +95,16 @@ encrypted_frame :: () {
 					e2e_submit(q);
 				}
 			case .Hello;
-				if r.result != .Ok { toast_show("Couldn't turn on encryption.", false); continue; }
+				if r.result != .Ok { toast_show(L("Couldn't turn on encryption."), false); continue; }
 				ch.encrypted = true;
 				send_packet(r, .Hello, "");
 			case .Accept;
-				if r.result != .Ok { toast_show("Couldn't accept encryption.", false); continue; }
+				if r.result != .Ok { toast_show(L("Couldn't accept encryption."), false); continue; }
 				ee.generation += 1;
 				ch.encrypted, ch.has_session, ch.loaded = true, true, false;
 				send_packet(r, .Ok, "", .Accept);
 			case .Send;
-				if r.result != .Ok { toast_show("Couldn't encrypt the message.", false); continue; }
+				if r.result != .Ok { toast_show(L("Couldn't encrypt the message."), false); continue; }
 				send_packet(r, .Ok, r.text);
 			case .Search;
 				search_add_decrypted(r); // view_search.jai
@@ -151,7 +151,7 @@ e2e_mark_icon :: (mark: E2E_Mark, size: float32) {
 	if mark == .None return;
 	enc := mark == .Encrypted;
 	ic := icon("e2e", ifx enc then "lock" else "warning", size, T(ifx enc then "--text-feedback-positive" else "--text-feedback-warning"), .Clickable);
-	if ui.signal(ic).hovering tooltip_below(ifx enc then "End-to-end encrypted" else "Not encrypted: Discord can read this message", ic.rect);
+	if ui.signal(ic).hovering tooltip_below(ifx enc then L("End-to-end encrypted") else L("Not encrypted: Discord can read this message"), ic.rect);
 }
 
 // encrypted_open asks once for a packet's plaintext (again after a session it waited for appears) and
@@ -253,12 +253,12 @@ send_hello :: (dm_id: dc.Snowflake) {
 encrypted_send :: (dm: *dc.Channel, text: string, has_attachments: bool, silent: bool) -> bool {
 	ch := encrypted_channel(dm.id);
 	if !ch.has_session {
-		toast_show(tprint(ifx on_hosted() then "Setting up encryption: % needs to open fastcord once." else "% hasn't accepted encryption yet.", dm_name(dm)), false);
+		toast_show(tprint(ifx on_hosted() then L("Setting up encryption: % needs to open fastcord once.") else L("% hasn't accepted encryption yet."), dm_name(dm)), false);
 		return false;
 	}
-	if has_attachments { toast_show("Files can't be sent encrypted yet.", false); return false; }
+	if has_attachments { toast_show(L("Files can't be sent encrypted yet."), false); return false; }
 	most := e2e.max_text(fc_text.MAX_PACKET);
-	if text.count > most { toast_show(tprint("Encrypted messages are limited to % bytes for now.", most), false); return false; }
+	if text.count > most { toast_show(tprint(L("Encrypted messages are limited to % bytes for now."), most), false); return false; }
 	if !identity_ready() return false;
 	r := e2e.request(.Send, conversation(dm.id), text);
 	r.me, r.silent = my_identity(), silent;
@@ -273,12 +273,12 @@ encrypted_body :: (m: *dc.Message) -> handled: bool, plaintext: string {
 	if !encrypted_dm(dc.channel_get(store(), m.channel_id)) return false, "";
 	sh := ifx m.pending then table_find_pointer(*ee.shown, m.id) else encrypted_open(m.id, m.channel_id, m.content, m.author_id);
 	muted :: (text: string) { label(text, .Normal, MSG_FONT, T("--text-muted"), MSG_LINE_H); }
-	if !sh || sh.pending { muted("Encrypted message"); return true, ""; }
+	if !sh || sh.pending { muted(L("Encrypted message")); return true, ""; }
 	mine := m.author_id == store().me;
 	name := ifx mine then "You" else author_name(m);
 	if sh.result == .Ok && sh.content == .Text return true, sh.text;
-	if sh.result == .Ok { muted(tprint("% accepted encryption.", name)); return true, ""; }
-	if sh.result == .Repeated { muted("Repeated encrypted message"); return true, ""; }
+	if sh.result == .Ok { muted(tprint(L("% accepted encryption."), name)); return true, ""; }
+	if sh.result == .Repeated { muted(L("Repeated encrypted message")); return true, ""; }
 	if sh.result == .No_Session && !mine {
 		// Its session isn't here: a new device, a reinstall, or a lost fastcord.db. A new Hello makes a new
 		// one, which both sides then use; or the message's Init may just not have loaded yet.
@@ -286,15 +286,15 @@ encrypted_body :: (m: *dc.Message) -> handled: bool, plaintext: string {
 		r.semantic_size = .[ui.pct(1), ui.children()];
 		r.cross_align = .Center;
 		ui.parent(r); defer ui.pop_parent();
-		muted("This device can't open this message.");
+		muted(L("This device can't open this message."));
 		if !encrypted_channel(m.channel_id).hello_asked && !on_hosted() {
 			spacer(.X, 12);
-			if adm_button("rekey", "Send New Key", .Secondary) && identity_ready() && net_action() send_hello(m.channel_id);
+			if adm_button("rekey", L("Send New Key"), .Secondary) && identity_ready() && net_action() send_hello(m.channel_id);
 		}
 		return true, "";
 	}
-	if sh.result != .Hello { muted("Encrypted message"); return true, ""; }
-	if mine || sh.accepted { muted(tprint("% turned on encryption.", name)); return true, ""; }
+	if sh.result != .Hello { muted(L("Encrypted message")); return true, ""; }
+	if mine || sh.accepted { muted(tprint(L("% turned on encryption."), name)); return true, ""; }
 	r := row("hello");
 	r.semantic_size = .[ui.pct(1), ui.children()];
 	r.cross_align = .Center;
@@ -302,12 +302,12 @@ encrypted_body :: (m: *dc.Message) -> handled: bool, plaintext: string {
 	if sh.key_changed {
 		icon("warn", "warning", 16, T("--status-warning"));
 		spacer(.X, 6);
-		label(tprint("% wants to encrypt this DM with a new key. Compare safety numbers after accepting.", name), .Normal, MSG_FONT, T("--text-default"), MSG_LINE_H);
+		label(tprint(L("% wants to encrypt this DM with a new key. Compare safety numbers after accepting."), name), .Normal, MSG_FONT, T("--text-default"), MSG_LINE_H);
 	} else {
-		label(tprint("% wants to encrypt this DM.", name), .Normal, MSG_FONT, T("--text-default"), MSG_LINE_H);
+		label(tprint(L("% wants to encrypt this DM."), name), .Normal, MSG_FONT, T("--text-default"), MSG_LINE_H);
 	}
 	spacer(.X, 12);
-	if adm_button("accept", "Accept", .Primary) && identity_ready() && net_action() {
+	if adm_button("accept", L("Accept"), .Primary) && identity_ready() && net_action() {
 		hello, ok := fc_text.decode(packet_text(m.content));
 		if ok {
 			sh.accepted = true;
@@ -351,11 +351,11 @@ encrypted_profile :: (dm: *dc.Channel, pad: float32) {
 	}
 	spacer(.Y, 20);
 	line("sn_h", pad);
-	label("Safety Number", .Semibold, 12, T("--text-strong"), 16);
+	label(L("Safety Number"), .Semibold, 12, T("--text-strong"), 16);
 	if ch.verified {
 		spacer(.X, 6);
 		icon("ok", "checkmark-small-bold", 14, T("--text-feedback-positive"));
-		label("Verified", .Medium, 12, T("--text-feedback-positive"), 16);
+		label(L("Verified"), .Medium, 12, T("--text-feedback-positive"), 16);
 	}
 	ui.pop_parent();
 	spacer(.Y, 6);
@@ -369,7 +369,7 @@ encrypted_profile :: (dm: *dc.Channel, pad: float32) {
 	}
 	spacer(.Y, 6);
 	line("sn_note", pad);
-	p := ui.box(tprint("Compare these with %, in person or on a call. If they match, no one can read this DM in between.##note", dm_name(dm)), .Draw_Text | .Wrap_Text);
+	p := ui.box(tprint(L("Compare these with %, in person or on a call. If they match, no one can read this DM in between.##note"), dm_name(dm)), .Draw_Text | .Wrap_Text);
 	p.semantic_size = .[ui.fill(), ui.text_size()];
 	p.style.font = F(.Normal);
 	p.style.font_size = 12;
@@ -379,7 +379,7 @@ encrypted_profile :: (dm: *dc.Channel, pad: float32) {
 	ui.pop_parent();
 	spacer(.Y, 8);
 	line("sn_b", pad);
-	if adm_button("verify", ifx ch.verified then "Unverify" else "Mark as Verified", ifx ch.verified then .Secondary else .Primary) encrypted_verify(dm.id, !ch.verified);
+	if adm_button("verify", ifx ch.verified then L("Unverify") else L("Mark as Verified"), ifx ch.verified then .Secondary else .Primary) encrypted_verify(dm.id, !ch.verified);
 	ui.pop_parent();
 }
 
@@ -395,16 +395,16 @@ encrypted_warning :: (dm: *dc.Channel) {
 		spacer(.X, 16);
 		icon("warn", "warning", 18, T("--status-warning"));
 		spacer(.X, 8);
-		p := ui.box(tprint("%'s encryption key changed. Compare safety numbers before trusting new messages.##text", dm_name(dm)), .Draw_Text | .Wrap_Text);
+		p := ui.box(tprint(L("%'s encryption key changed. Compare safety numbers before trusting new messages.##text"), dm_name(dm)), .Draw_Text | .Wrap_Text);
 		p.semantic_size = .[ui.fill(), ui.text_size()];
 		p.style.font = F(.Normal);
 		p.style.font_size = 14;
 		p.style.line_height = 18;
 		p.style.text_color = T("--text-default");
 		spacer(.X, 12);
-		if adm_button("compare", "Compare", .Primary) app.view.hide_dm_profile = false;
+		if adm_button("compare", L("Compare"), .Primary) app.view.hide_dm_profile = false;
 		spacer(.X, 8);
-		if adm_button("dismiss", "Dismiss", .Secondary) encrypted_verify(dm.id, false);
+		if adm_button("dismiss", L("Dismiss"), .Secondary) encrypted_verify(dm.id, false);
 		spacer(.X, 12);
 	}
 	sep := ui.box("keysep", .Draw_Background);

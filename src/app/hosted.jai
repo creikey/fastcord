@@ -83,7 +83,7 @@ hosted_frame :: () {
 			} else if !h.joined || h.status == 404 || h.status == 403 {
 				// A first join that fails, a server that no longer knows us and whose invite is dead, or one
 				// that banned us, is dropped, so settings.json doesn't keep it and a corrected invite can be pasted.
-				toast_show(tprint("Couldn't join %: %", h.inv.host, h.error), false);
+				toast_show(tprint(L("Couldn't join %: %"), h.inv.host, h.error), false);
 				if h.client {
 					if app.client == h.client {
 						app.client = app.discord;
@@ -96,7 +96,7 @@ hosted_frame :: () {
 				continue;
 			} else {
 				// A server we're in that is down or refusing for now: try again later, saying so once.
-				if !h.backoff toast_show(tprint("Couldn't reach %: %% Retrying.", ifx h.title then h.title else h.inv.host, h.error, ifx ends_with(h.error, ".") then "" else "."), false);
+				if !h.backoff toast_show(tprint(L("Couldn't reach %: %% Retrying."), ifx h.title then h.title else h.inv.host, h.error, ifx ends_with(h.error, ".") then "" else "."), false);
 				h.backoff = clamp(h.backoff * 2, 5, 300);
 				h.retry_at = platform.time_now() + h.backoff;
 			}
@@ -209,11 +209,11 @@ open_fc_link :: (url: string) -> bool {
 	h, cid, mid, ok := parse_fc_link(url);
 	if !ok return false;
 	if !h {
-		toast_show("You aren't in that server. Ask a member for an invite.", false);
+		toast_show(L("You aren't in that server. Ask a member for an invite."), false);
 		return true;
 	}
 	if !h.client || !h.client.store.ready {
-		toast_show(tprint("Not connected to % yet.", h.inv.host), false);
+		toast_show(tprint(L("Not connected to % yet."), h.inv.host), false);
 		return true;
 	}
 	keep := app.client;
@@ -221,7 +221,7 @@ open_fc_link :: (url: string) -> bool {
 	ch := dc.channel_get(store(), cid);
 	if !ch {
 		app.client = keep;
-		toast_show("That channel isn't on this server anymore.", false);
+		toast_show(L("That channel isn't on this server anymore."), false);
 		return true;
 	}
 	if mid jump_to_message(cid, mid);

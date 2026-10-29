@@ -110,7 +110,7 @@ timestamp_gen_modal :: () {
 	tr.semantic_size = .[ui.pct(1), ui.px(24)];
 	{ ui.parent(tr); defer ui.pop_parent();
 		spacer(.X, PAD);
-		label("Insert Timestamp", .Semibold, 20, T("--text-strong"), 24);
+		label(L("Insert Timestamp"), .Semibold, 20, T("--text-strong"), 24);
 	}
 	spacer(.Y, 16);
 	fields := row("fields");
@@ -124,7 +124,7 @@ timestamp_gen_modal :: () {
 			col.semantic_size = .[ui.fill(), ui.children()];
 			col.layout_axis = .Y;
 			ui.parent(col); defer ui.pop_parent();
-			label(ifx is_time then "Time" else "Date", .Semibold, 14, T("--text-strong"), 18);
+			label(ifx is_time then L("Time") else L("Date"), .Semibold, 14, T("--text-strong"), 18);
 			spacer(.Y, 8);
 			field := row("input", .Draw_Background | .Draw_Border | .Clickable);
 			field.semantic_size = .[ui.pct(1), ui.px(40)];
@@ -140,7 +140,7 @@ timestamp_gen_modal :: () {
 			{ ui.parent(field); defer ui.pop_parent();
 				spacer(.X, 12);
 				ed := ifx is_time then *tsg.time else *tsg.date;
-				res := text_field("field", ed, ifx is_time then "3:00 PM" else "2026-10-28", focused, 16, 20, 10, T("--input-placeholder-text-default"));
+				res := text_field("field", ed, ifx is_time then L("3:00 PM") else "2026-10-28", focused, 16, 20, 10, T("--input-placeholder-text-default"));
 				if res == .Submit && ok pick = "f";
 				if res == .Escape tsg.channel = 0;
 				spacer(.X, 12);
@@ -155,7 +155,7 @@ timestamp_gen_modal :: () {
 		r.style.bg_hot = T("--background-mod-normal");
 		{ ui.parent(r); defer ui.pop_parent();
 			spacer(.X, PAD);
-			label(ifx ok then format_unix(secs, style) else "Invalid date or time", .Normal, 16, ifx ok then T("--text-default") else T("--text-muted"), 20);
+			label(ifx ok then format_unix(secs, style) else L("Invalid date or time"), .Normal, 16, ifx ok then T("--text-default") else T("--text-muted"), 20);
 			filler(.X);
 			label(tprint("<t:%>", style), .Normal, 14, T("--text-muted"), 20);
 			spacer(.X, PAD);

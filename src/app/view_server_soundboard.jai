@@ -20,18 +20,18 @@ sound_settings_page :: (g: *dc.Guild, w: float32) {
 	create := manage || dc.has_permission(perms, dc.PERM_CREATE_GUILD_EXPRESSIONS);
 	sounds := dc.soundboard_list(s, g.id);
 	slots := ifx on_hosted() then 48 else int.[8, 24, 36, 48][clamp(g.premium_tier, 0, 3)];
-	set_para("sbhelp", "Upload custom sound reactions that anyone in this server can use. MP3 or OGG files, up to 512 KB and 5.2 seconds.", .Normal, 14, 18, T("--text-muted"));
+	set_para("sbhelp", L("Upload custom sound reactions that anyone in this server can use. MP3 or OGG files, up to 512 KB and 5.2 seconds."), .Normal, 14, 18, T("--text-muted"));
 	spacer(.Y, 16);
 	top := row("sbtop");
 	top.semantic_size = .[ui.pct(1), ui.px(38)];
 	{ ui.parent(top); defer ui.pop_parent();
-		if set_button("Upload Sound##sbupload", .Primary, create && sounds.count < slots) modal_open_upload("");
+		if set_button(L("Upload Sound##sbupload"), .Primary, create && sounds.count < slots) modal_open_upload("");
 		filler(.X);
-		label(tprint("% of % slots used", sounds.count, slots), .Medium, 14, T("--text-muted"), 18);
+		label(tprint(L("% of % slots used"), sounds.count, slots), .Medium, 14, T("--text-muted"), 18);
 	}
 	spacer(.Y, 20);
 	if !sounds.count {
-		set_para("sbempty", "No sounds yet.", .Medium, 16, 20, T("--text-muted"));
+		set_para("sbempty", L("No sounds yet."), .Medium, 16, 20, T("--text-muted"));
 		return;
 	}
 	head := row("sbhead");
@@ -40,7 +40,7 @@ sound_settings_page :: (g: *dc.Guild, w: float32) {
 		spacer(.X, 44);
 		col_label("SOUND", w * 0.42);
 		col_label("VOLUME", w * 0.16);
-		col_label("UPLOADED BY", w * 0.25);
+		col_label(L("UPLOADED BY"), w * 0.25);
 	}
 	for snd: sounds {
 		ui.id_scope(cast(u64) snd.id); defer ui.pop_seed();
@@ -68,12 +68,12 @@ sound_settings_page :: (g: *dc.Guild, w: float32) {
 		mine := snd.user_id == s.me;
 		if manage || (create && mine) {
 			if sbs.confirm_delete == snd.id {
-				if set_button("Delete##sbdel", .Danger, !sbs.busy, 32) && net_action() {
+				if set_button(L("Delete##sbdel"), .Danger, !sbs.busy, 32) && net_action() {
 					sbs.busy = true;
 					dc.soundboard_delete(app.client, g.id, snd.id);
 				}
 				spacer(.X, 4);
-				if set_button("Cancel##sbcancel", .Link, true, 32) sbs.confirm_delete = 0;
+				if set_button(L("Cancel##sbcancel"), .Link, true, 32) sbs.confirm_delete = 0;
 			} else {
 				ed := icon("edit", "pencil", 18, T("--interactive-icon-default"), .Clickable);
 				if ui.signal(ed).clicked modal_open_edit(snd);
@@ -144,10 +144,10 @@ sound_settings_modal :: () {
 		col.layout_axis = .Y;
 		{ ui.parent(col); defer ui.pop_parent();
 			spacer(.Y, 24);
-			label(ifx upload then "Upload a Sound" else "Edit Sound", .Semibold, 20, T("--text-strong"), 24);
+			label(ifx upload then L("Upload a Sound") else L("Edit Sound"), .Semibold, 20, T("--text-strong"), 24);
 			spacer(.Y, 20);
 			if upload {
-				title("File");
+				title(L("File"));
 				fr := row("filerow", .Draw_Background | .Draw_Border);
 				fr.semantic_size = .[ui.pct(1), ui.px(44)];
 				fr.style.bg = T("--input-background-default");
@@ -159,23 +159,23 @@ sound_settings_modal :: () {
 					name := ifx sbs.path then path_filename(sbs.path) else "Drop a file here, or browse";
 					label(ellipsize(name, .Normal, 14, W - 160), .Normal, 14, ifx sbs.path then T("--text-default") else T("--text-muted"), 18);
 					filler(.X);
-					if set_button("Browse##sbbrowse", .Secondary, !sbs.busy, 32) {
+					if set_button(L("Browse##sbbrowse"), .Secondary, !sbs.busy, 32) {
 						paths := pick_files();
 						if paths.count probe_start(paths[0]);
 					}
 					spacer(.X, 6);
 				}
-				if sbs.probing { spacer(.Y, 6); label("Checking the file…", .Normal, 12, T("--text-muted"), 16); }
+				if sbs.probing { spacer(.Y, 6); label(L("Checking the file…"), .Normal, 12, T("--text-muted"), 16); }
 				else if sbs.path && sbs.seconds > 0 { spacer(.Y, 6); label(tprint("% seconds", formatFloat(sbs.seconds, trailing_width = 1, zero_removal = .NO)), .Normal, 12, T("--text-muted"), 16); }
 				spacer(.Y, 16);
 			}
-			title("Sound Name");
-			res = set_input("sbname", *sbs.name, "Name your sound", max_runes = 32, autofocus = true);
+			title(L("Sound Name"));
+			res = set_input("sbname", *sbs.name, L("Name your sound"), max_runes = 32, autofocus = true);
 			spacer(.Y, 16);
-			title("Related Emoji");
-			set_input("sbemoji", *sbs.emoji, "Paste an emoji (optional)", max_runes = 8);
+			title(L("Related Emoji"));
+			set_input("sbemoji", *sbs.emoji, L("Paste an emoji (optional)"), max_runes = 8);
 			spacer(.Y, 16);
-			title("Volume");
+			title(L("Volume"));
 			vr := row("sbvolrow");
 			vr.semantic_size = .[ui.pct(1), ui.px(20)];
 			{ ui.parent(vr); defer ui.pop_parent();
@@ -198,7 +198,7 @@ sound_settings_modal :: () {
 	foot.style.radius = .[0, 0, 12, 12];
 	{ ui.parent(foot); defer ui.pop_parent();
 		filler(.X);
-		if set_button("Cancel##sbmcancel", .Link, !sbs.busy) modal_close();
+		if set_button(L("Cancel##sbmcancel"), .Link, !sbs.busy) modal_close();
 		spacer(.X, 8);
 		ready := !sbs.busy && !sbs.probing && (!upload || (sbs.path && sbs.seconds > 0));
 		label_text := ifx sbs.busy then (ifx upload then "Uploading...##sbsubmit" else "Saving...##sbsubmit") else (ifx upload then "Upload##sbsubmit" else "Save Changes##sbsubmit");
@@ -303,9 +303,9 @@ probe_poll :: () {
 	thread_deinit(*sbs.probe_thread);
 	sbs.probing = false;
 	p := *sbs.probe;
-	if p.status == -2 { set_error(*sbs.modal_error, "Sounds must be under 512 KB."); return; }
-	if p.status != 0 { set_error(*sbs.modal_error, "That file couldn't be read as an MP3 or OGG sound."); return; }
-	if p.seconds > dc.SOUNDBOARD_MAX_SECONDS + 0.05 { set_error(*sbs.modal_error, "Sounds must be 5.2 seconds or shorter."); return; }
+	if p.status == -2 { set_error(*sbs.modal_error, L("Sounds must be under 512 KB.")); return; }
+	if p.status != 0 { set_error(*sbs.modal_error, L("That file couldn't be read as an MP3 or OGG sound.")); return; }
+	if p.seconds > dc.SOUNDBOARD_MAX_SECONDS + 0.05 { set_error(*sbs.modal_error, L("Sounds must be 5.2 seconds or shorter.")); return; }
 	set_error(*sbs.path, p.path);
 	sbs.seconds = p.seconds;
 	if !trim(ui.editor_text(*sbs.name)) {
@@ -318,9 +318,9 @@ probe_poll :: () {
 
 submit :: () {
 	name := trim(ui.editor_text(*sbs.name));
-	if name.count < 2 || name.count > 32 { set_error(*sbs.modal_error, "Sound names must be between 2 and 32 characters."); return; }
+	if name.count < 2 || name.count > 32 { set_error(*sbs.modal_error, L("Sound names must be between 2 and 32 characters.")); return; }
 	emoji := trim(ui.editor_text(*sbs.emoji));
-	if emoji && emoji_lookup_surrogates(emoji) < 0 { set_error(*sbs.modal_error, "The related emoji must be one emoji."); return; }
+	if emoji && emoji_lookup_surrogates(emoji) < 0 { set_error(*sbs.modal_error, L("The related emoji must be one emoji.")); return; }
 	gid := sbs.fetched;
 	sbs.busy = true;
 	set_error(*sbs.modal_error, "");

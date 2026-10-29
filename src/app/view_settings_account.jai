@@ -157,17 +157,17 @@ account_logout_modal :: () {
 	ui.signal(d);
 	{ ui.parent(d); defer ui.pop_parent();
 		inset_begin(24, 24);
-		label("Log Out", .Semibold, 20, T("--text-strong"), 24);
+		label(L("Log Out"), .Semibold, 20, T("--text-strong"), 24);
 		spacer(.Y, 8);
-		set_para("q", "Are you sure you want to logout?", .Normal, 16, 20, T("--text-subtle"));
+		set_para("q", L("Are you sure you want to logout?"), .Normal, 16, 20, T("--text-subtle"));
 		spacer(.Y, 24);
 		btns := row("btns");
 		btns.semantic_size = .[ui.pct(1), ui.px(38)];
 		{ ui.parent(btns); defer ui.pop_parent();
 			filler(.X);
-			if set_button("Cancel##cancel", .Secondary) { acct.logout_confirm = false; }
+			if set_button(L("Cancel##cancel"), .Secondary) { acct.logout_confirm = false; }
 			spacer(.X, 8);
-			if set_button("Log Out##confirm", .Danger) { account_logout(); }
+			if set_button(L("Log Out##confirm"), .Danger) { account_logout(); }
 		}
 		inset_end(24, 24);
 	}
@@ -205,7 +205,7 @@ my_account_page :: () {
 	u := dc.user_get(s, s.me);
 	if !set_page_begin("accountpage") { return; }
 	defer set_page_end();
-	set_heading("My Account");
+	set_heading(L("My Account"));
 	card := ui.box("card", .Draw_Background | .Clip);
 	card.semantic_size = .[ui.pct(1), ui.children()];
 	card.layout_axis = .Y;
@@ -233,7 +233,7 @@ my_account_page :: () {
 			name := ifx u != null then dc.display_name(u) else "…";
 			label(name, .Semibold, 20, T("--text-strong"), 24);
 			filler(.X);
-			if set_button("Edit User Profile##editprofile", .Primary, true, 32) { settings_page = "Profiles"; }
+			if set_button(L("Edit User Profile##editprofile"), .Primary, true, 32) { settings_page = "Profiles"; }
 			spacer(.X, 16);
 		}
 		panel_row := row("panelrow");
@@ -248,19 +248,19 @@ my_account_page :: () {
 			{ ui.parent(panel); defer ui.pop_parent();
 				inset_begin(16, 16);
 				display := ifx u != null && u.global_name != "" then u.global_name else "You haven't added a display name yet.";
-				account_field("dname", "Display Name", display, .Display_Name);
+				account_field("dname", L("Display Name"), display, .Display_Name);
 				spacer(.Y, 24);
-				account_field("uname", "Username", ifx u != null then u.username else "", .Username);
+				account_field("uname", L("Username"), ifx u != null then u.username else "", .Username);
 				spacer(.Y, 24);
 				email := dc.account.email;
 				// Streamer Mode > Hide Personal Information: masked, with no Reveal
 				hide := streamer_hide_personal();
 				shown := ifx email == "" then "You haven't added an email yet." else (ifx acct.reveal_email && !hide then email else mask_email(email));
-				account_secret("email", "Email", shown, email != "" && !hide, *acct.reveal_email);
+				account_secret("email", L("Email"), shown, email != "" && !hide, *acct.reveal_email);
 				spacer(.Y, 24);
 				phone := dc.account.phone;
 				pshown := ifx phone == "" then "You haven't added a phone number yet." else (ifx acct.reveal_phone && !hide then phone else mask_phone(phone));
-				account_secret("phone", "Phone Number", pshown, phone != "" && !hide, *acct.reveal_phone);
+				account_secret("phone", L("Phone Number"), pshown, phone != "" && !hide, *acct.reveal_phone);
 				inset_end(16, 16);
 			}
 			spacer(.X, 16);
@@ -268,22 +268,22 @@ my_account_page :: () {
 		spacer(.Y, 16);
 	}
 	spacer(.Y, 40);
-	set_heading("Password and Authentication");
-	if set_button("Change Password##chpw", .Primary, true, 32) acct_modal_open(.Password);
+	set_heading(L("Password and Authentication"));
+	if set_button(L("Change Password##chpw"), .Primary, true, 32) acct_modal_open(.Password);
 	spacer(.Y, 28);
-	label("AUTHENTICATOR APP", .Bold, 12, T("--text-muted"), 16);
+	label(L("AUTHENTICATOR APP"), .Bold, 12, T("--text-muted"), 16);
 	spacer(.Y, 8);
 	on := dc.account.mfa_enabled;
-	set_para("mfa", ifx on then "Two-factor authentication is enabled on this account." else "Protect your Discord account with an extra layer of security. Once configured, you'll be required to enter your password and complete one additional step in order to sign in.", .Normal, 14, 18, T("--text-muted"));
+	set_para("mfa", ifx on then L("Two-factor authentication is enabled on this account.") else L("Protect your Discord account with an extra layer of security. Once configured, you'll be required to enter your password and complete one additional step in order to sign in."), .Normal, 14, 18, T("--text-muted"));
 	spacer(.Y, 12);
 	if on {
-		if set_button(ifx acct.pending then "Removing…##rmtotp" else "Remove Authenticator App##rmtotp", .Danger, !acct.pending, 32) && net_action() {
+		if set_button(ifx acct.pending then L("Removing…##rmtotp") else L("Remove Authenticator App##rmtotp"), .Danger, !acct.pending, 32) && net_action() {
 			acct.pending = true;
 			set_error(*acct.error, "");
 			dc.totp_disable(app.client); // the multi-factor check asks for a code
 		}
 	} else {
-		if set_button("Enable Authenticator App##entotp", .Primary, true, 32) acct_modal_open(.Totp);
+		if set_button(L("Enable Authenticator App##entotp"), .Primary, true, 32) acct_modal_open(.Totp);
 	}
 	if acct.modal == .None && acct.error != "" && acct.editing == .None {
 		spacer(.Y, 8);
@@ -291,22 +291,22 @@ my_account_page :: () {
 	}
 	if acct.backup_codes.count {
 		spacer(.Y, 16);
-		label("BACKUP CODES", .Bold, 12, T("--text-muted"), 16);
+		label(L("BACKUP CODES"), .Bold, 12, T("--text-muted"), 16);
 		spacer(.Y, 4);
-		set_para("bchelp", "Keep these somewhere safe. Each code signs you in once if you lose your authenticator app; they are shown only now.", .Normal, 14, 18, T("--text-muted"));
+		set_para("bchelp", L("Keep these somewhere safe. Each code signs you in once if you lose your authenticator app; they are shown only now."), .Normal, 14, 18, T("--text-muted"));
 		spacer(.Y, 8);
 		set_para("codes", join(..acct.backup_codes, separator = "    ",, temp), .Medium, 16, 22, T("--text-strong")).flags |= .Selectable_Text;
 	}
 	spacer(.Y, 40);
-	set_heading("Account Removal");
-	set_para("rmhelp", "Disabling your account means you can recover it at any time after taking this action.", .Normal, 14, 18, T("--text-muted"));
+	set_heading(L("Account Removal"));
+	set_para("rmhelp", L("Disabling your account means you can recover it at any time after taking this action."), .Normal, 14, 18, T("--text-muted"));
 	spacer(.Y, 12);
 	rm := row("rmbtns");
 	rm.semantic_size = .[ui.pct(1), ui.px(32)];
 	{ ui.parent(rm); defer ui.pop_parent();
-		if set_button("Disable Account##disable", .Danger, true, 32) acct_modal_open(.Disable);
+		if set_button(L("Disable Account##disable"), .Danger, true, 32) acct_modal_open(.Disable);
 		spacer(.X, 12);
-		if set_button("Delete Account##delete", .Secondary, true, 32) acct_modal_open(.Delete);
+		if set_button(L("Delete Account##delete"), .Secondary, true, 32) acct_modal_open(.Delete);
 	}
 }
 
@@ -370,12 +370,12 @@ account_modal :: () {
 				grouped := tprint("% % % %", slice(k, 0, 4), slice(k, 4, 4), slice(k, 8, 4), slice(k, 12, 4));
 				label(to_lower_copy(grouped,, temp), .Semibold, 18, T("--text-strong"), 24).flags |= .Selectable_Text;
 				spacer(.Y, 16);
-				field("code", "ENTER THE 6-DIGIT CODE", *acct.new_pass, *submit, *cancel, password = false, first = true);
+				field("code", L("ENTER THE 6-DIGIT CODE"), *acct.new_pass, *submit, *cancel, password = false, first = true);
 			} else {
-				field("pw", "CURRENT PASSWORD", *acct.pass_ed, *submit, *cancel, first = true);
+				field("pw", L("CURRENT PASSWORD"), *acct.pass_ed, *submit, *cancel, first = true);
 				if m == .Password {
-					field("newpw", "NEW PASSWORD", *acct.new_pass, *submit, *cancel);
-					field("confirmpw", "CONFIRM NEW PASSWORD", *acct.confirm_pass, *submit, *cancel);
+					field("newpw", L("NEW PASSWORD"), *acct.new_pass, *submit, *cancel);
+					field("confirmpw", L("CONFIRM NEW PASSWORD"), *acct.confirm_pass, *submit, *cancel);
 				}
 			}
 			if acct.error {
@@ -392,9 +392,9 @@ account_modal :: () {
 	ready := ifx m == .Totp then trim(ui.editor_text(*acct.new_pass)) != "" else ui.editor_text(*acct.pass_ed) != "" && (m != .Password || ui.editor_text(*acct.new_pass) != "");
 	{ ui.parent(btns); defer ui.pop_parent();
 		spacer(.X, 25 - 8);
-		if wide_button("cancel", "Cancel", .Secondary) cancel = true;
+		if wide_button("cancel", L("Cancel"), .Secondary) cancel = true;
 		verb := ifx m == .Totp then "Activate" else ifx m == .Disable then "Disable Account" else ifx m == .Delete then "Delete Account" else "Done";
-		if wide_button("ok", ifx acct.pending then "Saving…" else verb, ifx m == .Disable || m == .Delete then .Danger else .Primary, ready && !acct.pending) submit = true;
+		if wide_button("ok", ifx acct.pending then L("Saving…") else verb, ifx m == .Disable || m == .Delete then .Danger else .Primary, ready && !acct.pending) submit = true;
 		spacer(.X, 25 - 8);
 	}
 	spacer(.Y, 24);
@@ -408,7 +408,7 @@ account_modal :: () {
 	if !submit || !ready || acct.pending || !net_action() return;
 	pw := ui.editor_text(*acct.pass_ed);
 	if m == .Password && ui.editor_text(*acct.new_pass) != ui.editor_text(*acct.confirm_pass) {
-		set_error(*acct.error, "Passwords do not match!");
+		set_error(*acct.error, L("Passwords do not match!"));
 		return;
 	}
 	acct.pending = true;
@@ -437,7 +437,7 @@ account_field :: (id: string, title: string, value: string, which: Acct_Edit) {
 		{ ui.parent(vr); defer ui.pop_parent();
 			label(value, .Normal, 16, T("--text-default"), 20);
 			filler(.X);
-			if set_button("Edit##edit", .Secondary, true, 32) { acct_edit_open(which); }
+			if set_button(L("Edit##edit"), .Secondary, true, 32) { acct_edit_open(which); }
 		}
 		return;
 	}
@@ -446,10 +446,10 @@ account_field :: (id: string, title: string, value: string, which: Acct_Edit) {
 	enabled := false;
 	if which == {
 	case .Display_Name;
-		res = set_input("in", *acct.name_ed, "Display name", max_runes = PROFILE_NAME_MAX);
+		res = set_input("in", *acct.name_ed, L("Display name"), max_runes = PROFILE_NAME_MAX);
 		enabled = true; // empty clears it (the username shows instead)
 	case .Username;
-		res = set_input("in", *acct.user_ed, "Username", max_runes = 32);
+		res = set_input("in", *acct.user_ed, L("Username"), max_runes = 32);
 		uname := trim(ui.editor_text(*acct.user_ed));
 		// availability as you type (debounced in the library: POST pomelo-attempt)
 		if res == .Changed && app.client != null { dc.username_input_changed(app.client, uname); }
@@ -459,9 +459,9 @@ account_field :: (id: string, title: string, value: string, which: Acct_Edit) {
 			set_para("avail", msg, .Normal, 14, 18, col);
 		}
 		spacer(.Y, 12);
-		label("CURRENT PASSWORD", .Bold, 12, T("--text-muted"), 16);
+		label(L("CURRENT PASSWORD"), .Bold, 12, T("--text-muted"), 16);
 		spacer(.Y, 8);
-		pres := set_input("pw", *acct.pass_ed, "Password", password = true);
+		pres := set_input("pw", *acct.pass_ed, L("Password"), password = true);
 		if pres == .Submit { res = .Submit; }
 		enabled = uname != "" && ui.editor_text(*acct.pass_ed) != "";
 	case .None;
@@ -475,10 +475,10 @@ account_field :: (id: string, title: string, value: string, which: Acct_Edit) {
 	br.semantic_size = .[ui.pct(1), ui.px(32)];
 	{ ui.parent(br); defer ui.pop_parent();
 		filler(.X);
-		if set_button("Cancel##cancel", .Link, true, 32) || res == .Escape { acct_edit_close(); }
+		if set_button(L("Cancel##cancel"), .Link, true, 32) || res == .Escape { acct_edit_close(); }
 		spacer(.X, 8);
 		enabled = enabled && !acct.pending;
-		if (set_button(ifx acct.pending then "Saving…##save" else "Done##save", .Primary, enabled, 32) || res == .Submit && enabled) && net_action() {
+		if (set_button(ifx acct.pending then L("Saving…##save") else L("Done##save"), .Primary, enabled, 32) || res == .Submit && enabled) && net_action() {
 			acct.pending = true;
 			if which == .Display_Name {
 				dc.update_global_name(app.client, trim(ui.editor_text(*acct.name_ed)));
@@ -540,7 +540,7 @@ account_secret :: (id: string, title: string, shown: string, has: bool, reveal: 
 		label(shown, .Normal, 16, T("--text-default"), 20);
 		if has {
 			spacer(.X, 4);
-			l := ui.box(ifx reveal.* then "Hide##reveal" else "Reveal##reveal", .Clickable | .Draw_Text);
+			l := ui.box(ifx reveal.* then L("Hide##reveal") else L("Reveal##reveal"), .Clickable | .Draw_Text);
 			l.semantic_size = .[ui.text_size(0), ui.px(20)];
 			l.style.font = F(.Normal);
 			l.style.font_size = 14;
@@ -577,13 +577,13 @@ pf_image_row :: (id: string, what: string, has: bool, change: (path: string)) {
 	r := row(id);
 	r.semantic_size = .[ui.pct(1), ui.px(32)];
 	ui.parent(r); defer ui.pop_parent();
-	if set_button(tprint("Change %##change", what), .Primary, true, 32) {
+	if set_button(tprint(L("Change %##change"), what), .Primary, true, 32) {
 		paths := pick_files();
 		if paths.count && net_action() change(paths[0]);
 	}
 	if has {
 		spacer(.X, 8);
-		if set_button(tprint("Remove %##remove", what), .Link, true, 32) && net_action() change("");
+		if set_button(tprint(L("Remove %##remove"), what), .Link, true, 32) && net_action() change("");
 	}
 }
 
@@ -666,7 +666,7 @@ profiles_page :: () {
 	ui.push_parent(wrap);
 	defer ui.pop_parent();
 	if set_page_begin("profilespage") {
-		set_heading("Profiles");
+		set_heading(L("Profiles"));
 		tabs := row("pftabs");
 		tabs.semantic_size = .[ui.pct(1), ui.px(32)];
 		tabs.style.child_gap = 24;
@@ -690,31 +690,31 @@ profiles_page :: () {
 			form.semantic_size = .[ui.fill(), ui.children()];
 			form.layout_axis = .Y;
 			{ ui.parent(form); defer ui.pop_parent();
-				label("Display Name", .Semibold, 16, T("--text-strong"), 20);
+				label(L("Display Name"), .Semibold, 16, T("--text-strong"), 20);
 				spacer(.Y, 8);
 				set_input("name", *acct.pf_name, ifx u != null then u.username else "", max_runes = PROFILE_NAME_MAX);
 				set_divider();
-				label("Pronouns", .Semibold, 16, T("--text-strong"), 20);
+				label(L("Pronouns"), .Semibold, 16, T("--text-strong"), 20);
 				spacer(.Y, 8);
-				set_input("pronouns", *acct.pf_pronouns, "Add your pronouns", max_runes = PROFILE_PRONOUNS_MAX);
+				set_input("pronouns", *acct.pf_pronouns, L("Add your pronouns"), max_runes = PROFILE_PRONOUNS_MAX);
 				set_divider();
-				label("Avatar", .Semibold, 16, T("--text-strong"), 20);
+				label(L("Avatar"), .Semibold, 16, T("--text-strong"), 20);
 				spacer(.Y, 8);
-				pf_image_row("avatar", "Avatar", u != null && u.avatar != "", (path: string) { dc.edit_my_avatar(app.client, path); });
+				pf_image_row("avatar", L("Avatar"), u != null && u.avatar != "", (path: string) { dc.edit_my_avatar(app.client, path); });
 				set_divider();
 				if u != null && u.premium_type == 2 { // a custom banner is Nitro's: hidden otherwise, never offered
-					label("Profile Banner", .Semibold, 16, T("--text-strong"), 20);
+					label(L("Profile Banner"), .Semibold, 16, T("--text-strong"), 20);
 					spacer(.Y, 8);
-					pf_image_row("banner", "Banner", u.banner != "", (path: string) { dc.edit_my_banner(app.client, path); });
+					pf_image_row("banner", L("Banner"), u.banner != "", (path: string) { dc.edit_my_banner(app.client, path); });
 					set_divider();
 				}
-				label("Banner Color", .Semibold, 16, T("--text-strong"), 20);
+				label(L("Banner Color"), .Semibold, 16, T("--text-strong"), 20);
 				spacer(.Y, 8);
 				pf_color_picker(u);
 				set_divider();
-				label("About Me", .Semibold, 16, T("--text-strong"), 20);
+				label(L("About Me"), .Semibold, 16, T("--text-strong"), 20);
 				spacer(.Y, 4);
-				set_para("biohelp", "You can use markdown and links if you'd like.", .Normal, 14, 18, T("--text-muted"));
+				set_para("biohelp", L("You can use markdown and links if you'd like."), .Normal, 14, 18, T("--text-muted"));
 				spacer(.Y, 8);
 				set_input("bio", *acct.pf_bio, "", multiline = true, max_runes = PROFILE_BIO_MAX, min_h = 100);
 				spacer(.Y, 4);
@@ -765,10 +765,10 @@ per_server_form :: (u: *dc.User) {
 		array_add(*ids, it);
 	}
 	if !ids.count {
-		set_para("noservers", "You're not in any servers yet.", .Normal, 14, 18, T("--text-muted"));
+		set_para("noservers", L("You're not in any servers yet."), .Normal, 14, 18, T("--text-muted"));
 		return;
 	}
-	label("Choose a server", .Semibold, 16, T("--text-strong"), 20);
+	label(L("Choose a server"), .Semibold, 16, T("--text-strong"), 20);
 	spacer(.Y, 8);
 	pick := select_field("psguild", names, cur);
 	if pick >= 0 && ids[pick] != acct.ps_guild per_server_profile_open(ids[pick]); // and its bio and pronouns
@@ -781,21 +781,21 @@ per_server_form :: (u: *dc.User) {
 		pf_follow(*acct.ps_pronouns, *acct.ps_base[2], m0.pronouns);
 	}
 	set_divider();
-	label("Server Nickname", .Semibold, 16, T("--text-strong"), 20);
+	label(L("Server Nickname"), .Semibold, 16, T("--text-strong"), 20);
 	spacer(.Y, 8);
 	set_input("psnick", *acct.ps_nick, ifx u then dc.display_name(u) else "", max_runes = 32);
 	if u == null || u.premium_type == 0 return;
 	set_divider();
-	label("Server Avatar", .Semibold, 16, T("--text-strong"), 20);
+	label(L("Server Avatar"), .Semibold, 16, T("--text-strong"), 20);
 	spacer(.Y, 8);
 	mem := dc.member_get(s, acct.ps_guild, s.me);
-	pf_image_row("psavatar", "Avatar", mem != null && mem.avatar != "", (path: string) { dc.edit_my_avatar(app.client, path, acct.ps_guild); });
+	pf_image_row("psavatar", L("Avatar"), mem != null && mem.avatar != "", (path: string) { dc.edit_my_avatar(app.client, path, acct.ps_guild); });
 	set_divider();
-	label("Pronouns", .Semibold, 16, T("--text-strong"), 20);
+	label(L("Pronouns"), .Semibold, 16, T("--text-strong"), 20);
 	spacer(.Y, 8);
-	set_input("pspronouns", *acct.ps_pronouns, "Add your pronouns", max_runes = PROFILE_PRONOUNS_MAX);
+	set_input("pspronouns", *acct.ps_pronouns, L("Add your pronouns"), max_runes = PROFILE_PRONOUNS_MAX);
 	set_divider();
-	label("About Me", .Semibold, 16, T("--text-strong"), 20);
+	label(L("About Me"), .Semibold, 16, T("--text-strong"), 20);
 	spacer(.Y, 8);
 	set_input("psbio", *acct.ps_bio, "", multiline = true, max_runes = PROFILE_BIO_MAX, min_h = 100);
 }
@@ -836,12 +836,12 @@ per_server_save_bar :: () {
 	ui.push_parent(bar);
 	defer ui.pop_parent();
 	spacer(.X, 16);
-	label("Careful — you have unsaved changes!", .Medium, 15, T("--text-strong"), 20);
+	label(L("Careful — you have unsaved changes!"), .Medium, 15, T("--text-strong"), 20);
 	filler(.X);
 	eds := (*ui.Editor).[*acct.ps_nick, *acct.ps_bio, *acct.ps_pronouns];
-	if set_button("Reset##psreset", .Link, true, 32) for e, i: eds ui.editor_set_text(e, acct.ps_base[i]);
+	if set_button(L("Reset##psreset"), .Link, true, 32) for e, i: eds ui.editor_set_text(e, acct.ps_base[i]);
 	spacer(.X, 8);
-	if set_button("Save Changes##pssave", .Positive, true, 32) {
+	if set_button(L("Save Changes##pssave"), .Positive, true, 32) {
 		nick, bio, pron := trim(ui.editor_text(*acct.ps_nick)), ui.editor_text(*acct.ps_bio), ui.editor_text(*acct.ps_pronouns);
 		if net_action() {
 			if nick != acct.ps_base[0] dc.set_server_nickname(app.client, acct.ps_guild, store().me, nick);
@@ -921,10 +921,10 @@ profile_save_bar :: () {
 	ui.push_parent(bar);
 	defer ui.pop_parent();
 	spacer(.X, 16);
-	label("Careful — you have unsaved changes!", .Medium, 15, T("--text-strong"), 20);
+	label(L("Careful — you have unsaved changes!"), .Medium, 15, T("--text-strong"), 20);
 	filler(.X);
 	busy := acct.pf_pending > 0;
-	if set_button("Reset##reset", .Link, !busy, 32) {
+	if set_button(L("Reset##reset"), .Link, !busy, 32) {
 		ui.editor_set_text(*acct.pf_name, acct.base_name);
 		ui.editor_set_text(*acct.pf_pronouns, acct.base_pronouns);
 		ui.editor_set_text(*acct.pf_bio, acct.base_bio);
@@ -933,7 +933,7 @@ profile_save_bar :: () {
 		set_error(*acct.pf_error, "");
 	}
 	spacer(.X, 8);
-	if set_button(ifx busy then "Saving…##save" else "Save Changes##save", .Positive, !busy, 32) && net_action() {
+	if set_button(ifx busy then L("Saving…##save") else L("Save Changes##save"), .Positive, !busy, 32) && net_action() {
 		set_error(*acct.pf_error, "");
 		name := trim(ui.editor_text(*acct.pf_name));
 		if name != acct.base_name {
@@ -1032,7 +1032,7 @@ mfa_receive :: (r: *dc.Feature_Result) {
 	tok := dc.fstr(dc.vmap(r.body), "token");
 	if !r.ok || tok == "" {
 		e := dc.api_error_text(r.body);
-		set_error(*mfa.error, ifx e then e else "An error occurred. Please try again.");
+		set_error(*mfa.error, ifx e then e else L("An error occurred. Please try again."));
 		return;
 	}
 	if app.client != null dc.mfa_retry(app.client, tok);
@@ -1042,7 +1042,7 @@ mfa_receive :: (r: *dc.Feature_Result) {
 mfa_modal :: () {
 	if !mfa.open return;
 	W :: 440;
-	if !adm_modal_begin("mfa", W, "Multi-Factor Authentication", "This extra step shows it's really you.") {
+	if !adm_modal_begin("mfa", W, L("Multi-Factor Authentication"), "This extra step shows it's really you.") {
 		mfa_close(true);
 		return;
 	}
@@ -1071,7 +1071,7 @@ mfa_modal :: () {
 			}
 			if mfa.methods.count > 1 {
 				spacer(.Y, 12);
-				l := label("Verify with something else", .Medium, 14, T("--text-link"), 18);
+				l := label(L("Verify with something else"), .Medium, 14, T("--text-link"), 18);
 				l.flags |= .Clickable;
 				l.hover_cursor = .Pointer;
 				if ui.signal(l).clicked {
@@ -1090,8 +1090,8 @@ mfa_modal :: () {
 	cancel := false;
 	{ ui.parent(btns); defer ui.pop_parent();
 		spacer(.X, 25 - 8);
-		if wide_button("cancel", "Cancel", .Secondary) cancel = true;
-		if wide_button("confirm", ifx mfa.busy then "Confirming..." else "Confirm", .Primary, !mfa.busy && trim(ui.editor_text(*mfa.code)) != "") submit = true;
+		if wide_button("cancel", L("Cancel"), .Secondary) cancel = true;
+		if wide_button("confirm", ifx mfa.busy then L("Confirming...") else L("Confirm"), .Primary, !mfa.busy && trim(ui.editor_text(*mfa.code)) != "") submit = true;
 		spacer(.X, 25 - 8);
 	}
 	spacer(.Y, 24);

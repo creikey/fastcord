@@ -154,7 +154,7 @@ invite_card :: (id: string, code: string, p: dc.Invite_Preview, m: *dc.Message) 
 			label(tprint(L("Est. %"), date_format(replace(i18n_fmt().my, "{month}", "{mon}",, temp), t)), .Normal, 14, T("--text-muted"), 18);
 			spacer(.Y, 16);
 			member := is_member_of(p);
-			if wide_button("join", ifx member then "Go to Server" else ifx p.joining then "Joining…" else "Join Server", T("--status-positive-background")) && !p.joining && net_action() {
+			if wide_button("join", ifx member then L("Go to Server") else ifx p.joining then L("Joining…") else L("Join Server"), T("--status-positive-background")) && !p.joining && net_action() {
 				if member go_to_invite(p);
 				else dc.join_invite_preview(app.client, code, dc.INVITE_LOC_EMBED, invite_instance(m.id, code));
 			}
@@ -217,10 +217,10 @@ invite_counts :: (p: dc.Invite_Preview) {
 		spacer(.X, 4);
 	}
 	dot("on", T("--status-positive"));
-	label(tprint("% Online", p.online), .Normal, 14, T("--text-muted"), 18);
+	label(tprint(L("% Online"), p.online), .Normal, 14, T("--text-muted"), 18);
 	spacer(.X, 12);
 	dot("all", T("--text-muted"));
-	label(tprint("% Member%", p.members, ifx p.members == 1 then "" else "s"), .Normal, 14, T("--text-muted"), 18);
+	label(tprint(L("% Member%"), p.members, ifx p.members == 1 then "" else "s"), .Normal, 14, T("--text-muted"), 18);
 }
 
 // ---- fc:// invites (self-hosted servers) ----
@@ -269,7 +269,7 @@ fc_invite_cards_view :: (m: *dc.Message) {
 		col.layout_axis = .Y;
 		{ ui.parent(col); defer ui.pop_parent();
 			spacer(.Y, 16);
-			label(ifx m.author_id == store().me then "You sent an invite to a self-hosted server" else "You've been invited to a self-hosted server", .Medium, 14, T("--text-muted"), 18);
+			label(ifx m.author_id == store().me then L("You sent an invite to a self-hosted server") else L("You've been invited to a self-hosted server"), .Medium, 14, T("--text-muted"), 18);
 			spacer(.Y, 8);
 			ready := h && h.client && h.client.store.ready && h.client.store.guild_order.count;
 			name := "";
@@ -386,12 +386,12 @@ invite_accept_overlay :: () {
 	{ ui.parent(col); defer ui.pop_parent();
 		spacer(.Y, 32);
 		if p.state == .Loading || p.state == .Expired || p.state == .Banned {
-			centered("title", ifx p.state == .Loading then "Resolving Invite" else "Invite Invalid", .Semibold, 24, 30, T("--text-strong"));
+			centered("title", ifx p.state == .Loading then L("Resolving Invite") else L("Invite Invalid"), .Semibold, 24, 30, T("--text-strong"));
 			if p.state != .Loading {
 				spacer(.Y, 8);
-				centered("text", ifx p.state == .Banned then "Uh-oh. Looks like you've been banned." else "This invite may be expired, or you might not have permission to join.", .Normal, 16, 20, T("--text-muted"));
+				centered("text", ifx p.state == .Banned then L("Uh-oh. Looks like you've been banned.") else L("This invite may be expired, or you might not have permission to join."), .Normal, 16, 20, T("--text-muted"));
 				spacer(.Y, 24);
-				if wide_button("ok", "Okay", T("--background-brand")) invite_accept_close(true, p);
+				if wide_button("ok", L("Okay"), T("--background-brand")) invite_accept_close(true, p);
 			}
 			spacer(.Y, 24);
 			return;
@@ -400,7 +400,7 @@ invite_accept_overlay :: () {
 		tile.semantic_size = .[ui.pct(1), ui.px(64)];
 		{ ui.parent(tile); defer ui.pop_parent(); guild_tile(p, 64, .{(W - 48 - 64) / 2, 0}); }
 		spacer(.Y, 16);
-		centered("sub", "You've been invited to join", .Normal, 16, 20, T("--text-muted"));
+		centered("sub", L("You've been invited to join"), .Normal, 16, 20, T("--text-muted"));
 		spacer(.Y, 4);
 		centered("name", p.name, .Semibold, 24, 30, T("--text-strong"));
 		spacer(.Y, 8);
@@ -413,7 +413,7 @@ invite_accept_overlay :: () {
 			centered("err", invite_modal_error(p.error_code), .Normal, 14, 18, T("--text-feedback-critical"));
 			spacer(.Y, 8);
 		}
-		if wide_button("accept", ifx p.joining then "Joining…" else "Accept Invite", T("--background-brand")) && !p.joining && net_action() {
+		if wide_button("accept", ifx p.joining then L("Joining…") else L("Accept Invite"), T("--background-brand")) && !p.joining && net_action() {
 			iam.joined = true;
 			dc.join_invite_preview(app.client, iam.code, dc.INVITE_LOC_MODAL, iam.instance);
 		}

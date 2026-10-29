@@ -542,7 +542,7 @@ decode_upload :: () {
 			blob_decoded(d.url, d.data);
 			d.data = .[];
 		} else if d.kind == .Save_Image {
-			toast_show(ifx d.saved then "Image saved." else "Couldn't save the image.", d.saved);
+			toast_show(ifx d.saved then L("Image saved.") else L("Couldn't save the image."), d.saved);
 		} else if d.kind == .Lottie_Load || d.kind == .Lottie_Still || d.kind == .Lottie_Frame || d.kind == .Lottie_Scene {
 			budget -= d.size.x * d.size.y * 4;
 			lottie_decoded(d);

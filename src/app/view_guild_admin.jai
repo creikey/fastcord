@@ -96,11 +96,11 @@ guild_admin_receive :: (r: *dc.Feature_Result) {
 	case .Guild_Aux;
 		return;
 	case .Channel_Order;
-		if !r.ok show_notice("Couldn't move the channel", result_error(r));
+		if !r.ok show_notice(L("Couldn't move the channel"), result_error(r));
 		return;
 	case .Emoji_Upload;
 		adm.emoji_busy = false;
-		if !r.ok show_notice("Couldn't upload emoji", result_error(r));
+		if !r.ok show_notice(L("Couldn't upload emoji"), result_error(r));
 		return;
 	case .Channel_Create;
 		if adm.modal != .Create_Channel return;
@@ -114,12 +114,12 @@ guild_admin_receive :: (r: *dc.Feature_Result) {
 		channel_settings_saved(r); // view_server_settings.jai: the page stays open, now saved
 		return;
 	case .Avatar_Edit;
-		if r.status == -1 show_notice("Couldn't change avatar", "That file couldn't be read. Avatars must be PNG, JPEG, GIF or WEBP images.");
-		else if r.status == -2 show_notice("Couldn't change avatar", tprint("That image is too large. Avatars must be under %.", ifx on_hosted() then "512 KB" else "10 MB"));
-		else if !r.ok show_notice("Couldn't change avatar", result_error(r));
+		if r.status == -1 show_notice(L("Couldn't change avatar"), L("That file couldn't be read. Avatars must be PNG, JPEG, GIF or WEBP images."));
+		else if r.status == -2 show_notice(L("Couldn't change avatar"), tprint(L("That image is too large. Avatars must be under %."), ifx on_hosted() then "512 KB" else "10 MB"));
+		else if !r.ok show_notice(L("Couldn't change avatar"), result_error(r));
 		return;
 	case .Channel_Delete;
-		if !r.ok toast_show(tprint("Couldn't delete the channel: %", result_error(r)), false);
+		if !r.ok toast_show(tprint(L("Couldn't delete the channel: %"), result_error(r)), false);
 		return;
 	}
 	if !r.ok {
@@ -408,7 +408,7 @@ create_channel_modal :: () {
 	cat := dc.channel_get(store(), adm.channel);
 	sub := ifx cat then tprint("in %", cat.name) else "";
 	is_cat := adm.kind == .Guild_Category;
-	if !adm_modal_begin("createchan", W, ifx is_cat then "Create Category" else "Create Channel", sub) {
+	if !adm_modal_begin("createchan", W, ifx is_cat then L("Create Category") else L("Create Channel"), sub) {
 		admin_close();
 		return;
 	}
@@ -419,7 +419,7 @@ create_channel_modal :: () {
 		lr.semantic_size = .[ui.pct(1), ui.px(20)];
 		{ ui.parent(lr); defer ui.pop_parent();
 			spacer(.X, 25);
-			label("Channel Type", .Semibold, 16, T("--text-strong"), 20);
+			label(L("Channel Type"), .Semibold, 16, T("--text-strong"), 20);
 		}
 		spacer(.Y, 8);
 		Opt :: struct {
@@ -475,7 +475,7 @@ create_channel_modal :: () {
 	nl.semantic_size = .[ui.pct(1), ui.px(20)];
 	{ ui.parent(nl); defer ui.pop_parent();
 		spacer(.X, 25);
-		label(ifx is_cat then "Category Name" else "Channel Name", .Semibold, 16, T("--text-strong"), 20);
+		label(ifx is_cat then L("Category Name") else L("Channel Name"), .Semibold, 16, T("--text-strong"), 20);
 	}
 	spacer(.Y, 8);
 	icon_name := "hashmark";
@@ -486,7 +486,7 @@ create_channel_modal :: () {
 	case .Guild_Stage_Voice; icon_name = "stage";
 	case .Guild_Category; icon_name = "";
 	}
-	res := modal_field("name", *adm.name, ifx is_cat then "New Category" else "new-channel", icon_name);
+	res := modal_field("name", *adm.name, ifx is_cat then L("New Category") else "new-channel", icon_name);
 	if res == .Changed normalize_name_field(adm.kind);
 	if res == .Submit submit = true;
 	if res == .Escape adm.modal = .None;
@@ -498,8 +498,8 @@ create_channel_modal :: () {
 	btns.style.child_gap = 8;
 	{ ui.parent(btns); defer ui.pop_parent();
 		spacer(.X, 25 - 8);
-		if wide_button("cancel", "Cancel", .Secondary) adm.modal = .None;
-		if wide_button("create", ifx adm.busy then "Creating..." else ifx is_cat then "Create Category" else "Create Channel", .Primary, name != "" && !adm.busy) submit = true;
+		if wide_button("cancel", L("Cancel"), .Secondary) adm.modal = .None;
+		if wide_button("create", ifx adm.busy then L("Creating...") else ifx is_cat then L("Create Category") else L("Create Channel"), .Primary, name != "" && !adm.busy) submit = true;
 		spacer(.X, 25 - 8);
 	}
 	spacer(.Y, 24);
@@ -523,7 +523,7 @@ sync_move_modal :: () {
 	_, parent := dc.channel_move_body(store(), adm.guild, ch.id, target.id, adm.move_after);
 	cat := dc.channel_get(store(), parent);
 	if !cat { admin_close(); return; }
-	if !adm_modal_begin("syncmove", 440, "Sync permissions?") { admin_close(); return; }
+	if !adm_modal_begin("syncmove", 440, L("Sync permissions?")) { admin_close(); return; }
 	spacer(.Y, 8);
 	br := row("body");
 	br.semantic_size = .[ui.pct(1), ui.children()];
@@ -549,8 +549,8 @@ sync_move_modal :: () {
 	btns.style.child_gap = 8;
 	{ ui.parent(btns); defer ui.pop_parent();
 		spacer(.X, 25 - 8);
-		if wide_button("keep", "Keep Current Permissions", .Secondary) answer = 0;
-		if wide_button("sync", "Sync Permissions", .Primary) answer = 1;
+		if wide_button("keep", L("Keep Current Permissions"), .Secondary) answer = 0;
+		if wide_button("sync", L("Sync Permissions"), .Primary) answer = 1;
 		spacer(.X, 25 - 8);
 	}
 	spacer(.Y, 24);

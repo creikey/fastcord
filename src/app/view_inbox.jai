@@ -65,7 +65,7 @@ inbox_button :: () {
 	b.semantic_size = .[ui.px(20), ui.px(20)];
 	sig := ui.signal(b);
 	set_icon(b, "inbox", ifx sig.hovering || inbox.open then T("--interactive-icon-hover") else T("--icon-muted"));
-	if sig.hovering && !inbox.open { tooltip_below("Inbox", b.rect); }
+	if sig.hovering && !inbox.open { tooltip_below(L("Inbox"), b.rect); }
 	button_rect = b.rect;
 	if sig.clicked inbox_toggle();
 	// unread mentions badge at the icon's bottom-right
@@ -101,7 +101,7 @@ help_button :: () {
 	b.semantic_size = .[ui.px(20), ui.px(20)];
 	sig := ui.signal(b);
 	set_icon(b, "circle-question", ifx sig.hovering then T("--interactive-icon-hover") else T("--icon-muted"));
-	if sig.hovering { tooltip_below("Help", b.rect); }
+	if sig.hovering { tooltip_below(L("Help"), b.rect); }
 	if sig.clicked { open_url("https://support.discord.com"); }
 }
 
@@ -168,7 +168,7 @@ inbox_popout :: () {
 			spacer(.X, 16);
 			icon("i", "inbox", 20, T("--interactive-icon-default"));
 			spacer(.X, 8);
-			label("Inbox", .Semibold, 16, T("--text-strong"), 20);
+			label(L("Inbox"), .Semibold, 16, T("--text-strong"), 20);
 			filler(.X);
 			if inbox.tab == .Unreads {
 				rows := unread_rows();
@@ -182,7 +182,7 @@ inbox_popout :: () {
 						spacer(.X, 6);
 						icon("i", "double-checkmark", 20, ifx msig.hovering then T("--interactive-icon-hover") else T("--interactive-icon-default"));
 					}
-					if msig.hovering { tooltip_below("Mark All as Read", mb.rect); }
+					if msig.hovering { tooltip_below(L("Mark All as Read"), mb.rect); }
 					if msig.clicked {
 						for c: inbox_clients() {
 							if !c continue;
@@ -390,7 +390,7 @@ unreads_list :: () {
 	defer ui.pop_parent();
 	if rows.count == 0 {
 		spacer(.Y, 8);
-		empty_note("You're all caught up!");
+		empty_note(L("You're all caught up!"));
 		return;
 	}
 	w := ui.list_window(list, UNREAD_PITCH, rows.count);
@@ -517,7 +517,7 @@ unread_row :: (ch: *dc.Channel) -> clicked: bool {
 			spacer(.X, 4);
 			icon("i", "checkmark-small", 20, ifx asig.hovering then T("--interactive-icon-hover") else T("--interactive-icon-default"));
 		}
-		if asig.hovering { tooltip_below("Mark As Read", ack.rect); }
+		if asig.hovering { tooltip_below(L("Mark As Read"), ack.rect); }
 		if asig.clicked {
 			mark_read_now(app.client, .[ch.id], ack_loc = 1);
 			if app.client dc.track_inbox_channel_acked(app.client, ch.id);
@@ -568,7 +568,7 @@ mentions_list :: () {
 		spacer(.Y, 8);
 		shown := 0;
 		for inbox.items if !undo_hides(it.msg.id) shown += 1;
-		if shown == 0 { empty_note(ifx mentions_loading() then "Loading..." else "Nobody has mentioned you recently."); }
+		if shown == 0 { empty_note(ifx mentions_loading() then L("Loading...") else L("Nobody has mentioned you recently.")); }
 		for * item, i: inbox.items {
 			if undo_hides(item.msg.id) continue; // its "x" is behind Undo
 			// Each mention draws under its own connection; Jump switches to it.
@@ -607,9 +607,9 @@ mentions_list :: () {
 						spacer(.X, 2);
 						icon("i", "x-small", 20, ifx xs.hovering then T("--interactive-icon-hover") else T("--interactive-icon-default"));
 					}
-					if xs.hovering { tooltip_below("Mark As Read", x.rect); }
+					if xs.hovering { tooltip_below(L("Mark As Read"), x.rect); }
 					// gone at once, DELETE after the undo window (undo.jai)
-					if xs.clicked undo_push("Mention removed", (u: *Undo) {
+					if xs.clicked undo_push(L("Mention removed"), (u: *Undo) {
 						if u.client dc.delete_mention(u.client, u.a);
 						for inbox.items if it.msg.id == u.a { array_ordered_remove_by_index(*inbox.items, it_index); break; }
 					}, a = item.msg.id, hides = true);

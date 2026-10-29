@@ -288,7 +288,7 @@ profile_actions :: (uid: dc.Snowflake) {
 		bar.semantic_size = .[ui.children(), ui.px(32)];
 		bar.fixed_pos = .{PF_W - PF_PAD - 120, PF_PAD};
 		ui.parent(bar); defer ui.pop_parent();
-		if action_button("Edit Profile", "pencil", 120, true) {
+		if action_button(L("Edit Profile"), "pencil", 120, true) {
 			pf.user = 0;
 			settings_page = "Profiles";
 			app.settings_open = true;
@@ -305,10 +305,10 @@ profile_actions :: (uid: dc.Snowflake) {
 	{ ui.parent(bar); defer ui.pop_parent();
 		if !friend && !on_hosted() {
 			pending := rel && rel.kind == .Outgoing_Request;
-			add := action_button(ifx pending then "Pending" else "Add Friend", "user-plus", 120, false, rel_req("Add Friend", uid));
+			add := action_button(ifx pending then L("Pending") else L("Add Friend"), "user-plus", 120, false, rel_req("Add Friend", uid));
 			if add && !pending && req_begin(rel_req("Add Friend", uid)) { dc.add_relationship(app.client, uid, "User Profile"); req_end(); }
 		}
-		if action_button("Message", "chat", 110, true, dm_req(uid)) && open_dm_with(uid, "User Profile") { pf.user = 0; }
+		if action_button(L("Message"), "chat", 110, true, dm_req(uid)) && open_dm_with(uid, "User Profile") { pf.user = 0; }
 		more := ui.box("more", .Clickable | .Draw_Background | .Hot_Animation);
 		more.semantic_size = .[ui.px(32), ui.px(32)];
 		more.style.radius = all4(8);
@@ -413,12 +413,12 @@ note_field :: (uid: dc.Snowflake, pad: float32, ed: *ui.Editor, was_focused: *bo
 	{ ui.parent(box); defer ui.pop_parent();
 		spacer(.X, 4);
 		if focused {
-			res = text_field("f", ed, "Click to add a note", true, 14, 18, 4, T("--text-muted"));
+			res = text_field("f", ed, L("Click to add a note"), true, 14, 18, 4, T("--text-muted"));
 			t := ui.editor_text(ed);
 			cut := cut_runes(t, dc.NOTE_MAX);
 			if cut.count < t.count ui.editor_set_text(ed, copy_string(cut,, temp));
 		} else {
-			l := label(ifx note then note else "Click to add a note", .Normal, 14, ifx note then T("--text-default") else T("--text-muted"), 18);
+			l := label(ifx note then note else L("Click to add a note"), .Normal, 14, ifx note then T("--text-default") else T("--text-muted"), 18);
 			l.flags |= .Wrap_Text;
 			l.semantic_size[ui.Axis.X] = ui.fill();
 			l.style.padding = .{0, 4};
@@ -449,7 +449,7 @@ profile_about :: (uid: dc.Snowflake, u: *dc.User, prof: Pf_Profile) {
 	spacer(.Y, PF_PAD);
 	bio := ifx prof.bio != "" then prof.bio else u.bio;
 	if bio != "" {
-		section_title("About Me");
+		section_title(L("About Me"));
 		for blk, bi: md_parse(bio) {
 			w := row(tprint("bio%", bi));
 			w.semantic_size = .[ui.pct(1), ui.children()];
@@ -466,7 +466,7 @@ profile_about :: (uid: dc.Snowflake, u: *dc.User, prof: Pf_Profile) {
 		}
 		spacer(.Y, 16);
 	}
-	section_title("Member Since");
+	section_title(L("Member Since"));
 	ms := row("since");
 	ms.semantic_size = .[ui.pct(1), ui.px(20)];
 	{ ui.parent(ms); defer ui.pop_parent();
@@ -499,7 +499,7 @@ profile_about :: (uid: dc.Snowflake, u: *dc.User, prof: Pf_Profile) {
 	}
 	spacer(.Y, 16);
 	if prof.connections.count && !streamer_hide_personal() {
-		section_title("Connections");
+		section_title(L("Connections"));
 		for prof.connections {
 			cr := row(tprint("conn%", it_index));
 			cr.semantic_size = .[ui.pct(1), ui.px(24)];
@@ -514,7 +514,7 @@ profile_about :: (uid: dc.Snowflake, u: *dc.User, prof: Pf_Profile) {
 		spacer(.Y, 16);
 	}
 	if uid != store().me && !streamer_hide_personal() {
-		section_title("Note");
+		section_title(L("Note"));
 		note_field(uid, PF_PAD + 4, *pf.note, *pf.note_focused);
 	}
 }

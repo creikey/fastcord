@@ -80,7 +80,7 @@ call_view :: (cid: dc.Snowflake) {
 				r.semantic_size = .[ui.pct(1), ui.px(20)];
 				ui.parent(r); defer ui.pop_parent();
 				filler(.X);
-				label(ifx stage && audience.count then "No one is speaking yet" else "No one's here yet", .Medium, 16, T("--text-muted"), 20);
+				label(ifx stage && audience.count then L("No one is speaking yet") else L("No one's here yet"), .Medium, 16, T("--text-muted"), 20);
 				filler(.X);
 			} else {
 				place_tiles(tiles, aw, ah);
@@ -117,7 +117,7 @@ dm_call_banner :: (ch: *dc.Channel) {
 	spacer(.X, 16);
 	icon("ph", "phone-call", 20, T("--status-positive"));
 	spacer(.X, 10);
-	label("Ongoing call", .Semibold, 15, .{1, 1, 1, 1}, 20);
+	label(L("Ongoing call"), .Semibold, 15, .{1, 1, 1, 1}, 20);
 	spacer(.X, 12);
 	for in_call { ui.id_scope(cast(u64) it); defer ui.pop_seed(); avatar_box("av", it, 28); spacer(.X, 4); }
 	filler(.X);
@@ -129,7 +129,7 @@ dm_call_banner :: (ch: *dc.Channel) {
 	if ui.signal(jb).clicked call_join_incoming(ch.id);
 	{ ui.parent(jb); defer ui.pop_parent();
 		spacer(.X, 16);
-		label("Join Call", .Semibold, 14, .{1, 1, 1, 1}, 18);
+		label(L("Join Call"), .Semibold, 14, .{1, 1, 1, 1}, 18);
 		spacer(.X, 16);
 	}
 	spacer(.X, 16);
@@ -179,7 +179,7 @@ call_pip :: () {
 		page_mid := ui.Vec2.{(RAIL_W + app.view.sidebar_w + app.ui.window.x) / 2, app.ui.window.y / 2};
 		pip.corner = (ifx mid.x < page_mid.x then 1 else 0) | (ifx mid.y < page_mid.y then 2 else 0);
 	}
-	if sig.hovering tooltip_below("Return to call", b.rect, above = true);
+	if sig.hovering tooltip_below(L("Return to call"), b.rect, above = true);
 }
 
 pip: struct { corner: int; }; // 0 bottom right, 1 bottom left, 2 top right, 3 top left
@@ -215,7 +215,7 @@ screen_picker :: () {
 	hdr.semantic_size = .[ui.pct(1), ui.px(24)];
 	{ ui.parent(hdr); defer ui.pop_parent();
 		spacer(.X, 20);
-		label(ifx screen_sharing() then "Stream Settings" else "Share Your Screen", .Semibold, 20, T("--text-strong"), 24);
+		label(ifx screen_sharing() then L("Stream Settings") else L("Share Your Screen"), .Semibold, 20, T("--text-strong"), 24);
 		filler(.X);
 		x := icon("close", "x-large", 20, T("--interactive-icon-default"), .Clickable);
 		if ui.signal(x).clicked vid.picker_open = false;
@@ -238,7 +238,7 @@ screen_picker :: () {
 		if ui.signal(b).clicked { vid.picker_open = false; go_live_stop(); }
 		{ ui.parent(b); defer ui.pop_parent();
 			filler(.X);
-			label("Stop Streaming", .Semibold, 14, .{1, 1, 1, 1}, 18);
+			label(L("Stop Streaming"), .Semibold, 14, .{1, 1, 1, 1}, 18);
 			filler(.X);
 		}
 		spacer(.X, 20);
@@ -255,7 +255,7 @@ screen_picker :: () {
 		r.semantic_size = .[ui.pct(1), ui.px(40)];
 		ui.parent(r); defer ui.pop_parent();
 		spacer(.X, 20);
-		label(ifx video.screen_supported() then "Looking for screens…" else "Screen sharing isn't supported on this platform yet.", .Normal, 14, T("--text-muted"), 18);
+		label(ifx video.screen_supported() then L("Looking for screens…") else L("Screen sharing isn't supported on this platform yet."), .Normal, 14, T("--text-muted"), 18);
 		return;
 	}
 	for section: 0..1 {
@@ -380,7 +380,7 @@ go_live_quality :: () {
 		r.style.child_gap = 8;
 		ui.parent(r); defer ui.pop_parent();
 		spacer(.X, 12);
-		l := label(ifx section == 0 then "RESOLUTION" else "FRAME RATE", .Semibold, 12, T("--text-muted"), 16);
+		l := label(ifx section == 0 then "RESOLUTION" else L("FRAME RATE"), .Semibold, 12, T("--text-muted"), 16);
 		l.semantic_size[ui.Axis.X] = ui.px(96);
 		if section == 0 {
 			for h: int.[720, 1080, 0] {
@@ -508,7 +508,7 @@ call_tile :: (t: Call_Tile, x: float32, y: float32, w: float32, h: float32) {
 				if ui.signal(wb).clicked watch_stream(t.user);
 				ui.parent(wb); defer ui.pop_parent();
 				spacer(.X, 14);
-				label("Watch Stream", .Semibold, 14, T("--text-strong"), 18);
+				label(L("Watch Stream"), .Semibold, 14, T("--text-strong"), 18);
 				spacer(.X, 14);
 			}
 		}
@@ -534,7 +534,7 @@ call_tile :: (t: Call_Tile, x: float32, y: float32, w: float32, h: float32) {
 			if ui.signal(sw).clicked watch_stop(t.user);
 			ui.parent(sw); defer ui.pop_parent();
 			spacer(.X, 10);
-			label("Stop Watching", .Semibold, 13, .{1, 1, 1, 1}, 16);
+			label(L("Stop Watching"), .Semibold, 13, .{1, 1, 1, 1}, 16);
 			spacer(.X, 10);
 		}
 		if sig.hovering || t.stream || img.y {
@@ -609,7 +609,7 @@ absent_tile :: (b: *ui.Box, uid: dc.Snowflake, h: float32) {
 	if ui.signal(rb).clicked && !ringing && net_action() dc.ring_users(app.client, app.voice_channel, .[uid]);
 	ui.parent(rb); defer ui.pop_parent();
 	spacer(.X, 14);
-	label(ifx ringing then "Ringing…" else "Ring", .Semibold, 14, .{1, 1, 1, 1}, 18);
+	label(ifx ringing then L("Ringing…") else L("Ring"), .Semibold, 14, .{1, 1, 1, 1}, 18);
 	spacer(.X, 14);
 }
 
@@ -631,7 +631,7 @@ call_controls :: (cid: dc.Snowflake) {
 		}
 		{ ui.parent(jb); defer ui.pop_parent();
 			spacer(.X, 20);
-			label("Join Voice", .Semibold, 16, .{1, 1, 1, 1}, 20);
+			label(L("Join Voice"), .Semibold, 16, .{1, 1, 1, 1}, 20);
 			spacer(.X, 20);
 		}
 		filler(.X);
@@ -733,7 +733,7 @@ stage_audience :: (ids: []dc.Snowflake) {
 	r.semantic_size = .[ui.pct(1), ui.px(56)];
 	ui.parent(r); defer ui.pop_parent();
 	spacer(.X, CALL_PAD);
-	label(tprint("AUDIENCE — %", ids.count), .Semibold, 12, T("--text-muted"), 16);
+	label(tprint(L("AUDIENCE — %"), ids.count), .Semibold, 12, T("--text-muted"), 16);
 	spacer(.X, 12);
 	for ids {
 		ui.id_scope(cast(u64) it); defer ui.pop_seed();
@@ -769,11 +769,11 @@ stage_invite_banner :: (ch: *dc.Channel) {
 	r.style.bg = T("--background-surface-high");
 	ui.parent(r); defer ui.pop_parent();
 	spacer(.X, 16);
-	label("You've been invited to speak", .Semibold, 14, T("--text-strong"), 18);
+	label(L("You've been invited to speak"), .Semibold, 14, T("--text-strong"), 18);
 	filler(.X);
-	if set_button("Decline##stdecline", .Secondary, true, 32) && net_action() dc.stage_request_to_speak(call_client(), ch.guild_id, ch.id, false);
+	if set_button(L("Decline##stdecline"), .Secondary, true, 32) && net_action() dc.stage_request_to_speak(call_client(), ch.guild_id, ch.id, false);
 	spacer(.X, 8);
-	if set_button("Accept##staccept", .Positive, true, 32) && net_action() dc.stage_set_suppress(call_client(), ch.guild_id, ch.id, call_store().me, false);
+	if set_button(L("Accept##staccept"), .Positive, true, 32) && net_action() dc.stage_set_suppress(call_client(), ch.guild_id, ch.id, call_store().me, false);
 	spacer(.X, 16);
 }
 

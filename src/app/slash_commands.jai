@@ -99,7 +99,7 @@ slash_autocomplete :: (ch: *dc.Channel, ed: *ui.Editor, focused: bool) {
 		spacer(.Y, 8);
 		head := row("head");
 		head.semantic_size = .[ui.pct(1), ui.px(32)];
-		{ ui.parent(head); defer ui.pop_parent(); spacer(.X, 16); label(ifx q then tprint("Commands matching /%", q) else "Commands", .Medium, 14, T("--text-muted"), 18); }
+		{ ui.parent(head); defer ui.pop_parent(); spacer(.X, 16); label(ifx q then tprint(L("Commands matching /%"), q) else L("Commands"), .Medium, 14, T("--text-muted"), 18); }
 		for item, i: items {
 			r := row(tprint("r%", i), .Clickable);
 			r.semantic_size = .[ui.pct(1), ui.px(SAC_ROW_H)];

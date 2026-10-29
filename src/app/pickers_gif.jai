@@ -152,7 +152,7 @@ gif_header_back :: () {
 // Title instead of the search bar for Trending / Favorites (renderHeaderContent).
 gif_header_title :: () -> bool {
 	if gv.kind != .Trending && gv.kind != .Favorites return false;
-	label(ifx gv.kind == .Trending then "Trending GIFs" else "Favorites", .Semibold, 16, T("--text-strong"), 20);
+	label(ifx gv.kind == .Trending then L("Trending GIFs") else L("Favorites"), .Semibold, 16, T("--text-strong"), 20);
 	filler(.X);
 	return true;
 }
@@ -372,7 +372,7 @@ gif_results :: (list: *ui.Box, view: ui.Rect, cols: int, col_w: float32) {
 			msg.cross_align = .Center;
 			{ ui.parent(msg); defer ui.pop_parent();
 				spacer(.Y, vh / 2 - 30);
-				label(ifx gv.kind == .Favorites then "No favorites yet" else "No GIFs found", .Semibold, 16, T("--text-strong"), 20);
+				label(ifx gv.kind == .Favorites then L("No favorites yet") else L("No GIFs found"), .Semibold, 16, T("--text-strong"), 20);
 			}
 		}
 		for items {
@@ -402,7 +402,7 @@ gif_results :: (list: *ui.Box, view: ui.Rect, cols: int, col_w: float32) {
 				st.style.bg_hot = .{0, 0, 0, 0.7};
 				ssig := ui.signal(st);
 				star_clicked = ssig.clicked;
-				if ssig.hovering tooltip_below(ifx fav then "Remove from Favorites" else "Add to Favorites", st.rect);
+				if ssig.hovering tooltip_below(ifx fav then L("Remove from Favorites") else L("Add to Favorites"), st.rect);
 				ui.parent(st); defer ui.pop_parent();
 				ic := icon("i", "star", 18, ifx fav then ui.Color.{0xf0 / 255.0, 0xb2 / 255.0, 0x32 / 255.0, 1} else .{1, 1, 1, 0.9}, .Floating_X | .Floating_Y);
 				ic.fixed_pos = .{5, 5};
@@ -419,7 +419,7 @@ gif_results :: (list: *ui.Box, view: ui.Rect, cols: int, col_w: float32) {
 			{ ui.parent(f); defer ui.pop_parent();
 				spacer(.Y, 16);
 				if gv.suggestions.count > 0 {
-					label("Try searching for...", .Semibold, 14, T("--text-muted"), 18);
+					label(L("Try searching for..."), .Semibold, 14, T("--text-muted"), 18);
 					spacer(.Y, 8);
 					chips := row("chips");
 					chips.semantic_size = .[ui.children(), ui.px(28)];
@@ -490,7 +490,7 @@ gif_select :: (it: Gif_Item, insert: bool) {
 	if insert {
 		ui.editor_insert(*chat_state(pk.channel).editor, it.url);
 	} else if encrypting(dc.channel_get(store(), pk.channel)) {
-		toast_show("GIFs can't be sent encrypted yet.", false);
+		toast_show(L("GIFs can't be sent encrypted yet."), false);
 		picker_close();
 		return;
 	} else if app.client != null && it.url != "" {

@@ -37,7 +37,7 @@ message_poll_view :: (m: *dc.Message) {
 	spacer(.Y, 16);
 	set_para("q", p.question, .Semibold, 16, 20, T("--text-strong"));
 	spacer(.Y, 4);
-	label(ifx p.multiselect then "Select one or more answers" else "Select one answer", .Normal, 12, T("--text-muted"), 16);
+	label(ifx p.multiselect then L("Select one or more answers") else L("Select one answer"), .Normal, 12, T("--text-muted"), 16);
 	spacer(.Y, 12);
 	top := 0;
 	for p.answers top = max(top, it.count);
@@ -88,8 +88,8 @@ message_poll_view :: (m: *dc.Message) {
 		label(tprint("% vote% · %", total, ifx total == 1 then "" else "s", left), .Normal, 14, T("--text-muted"), 18);
 		filler(.X);
 		c := app.client; // the connection whose messages are on screen
-		if !closed && voted && poll_button("remove", "Remove Vote", false) dc.poll_vote(c, m.channel_id, m.id, .[]);
-		if !results && picked && poll_button("vote", "Vote", true) {
+		if !closed && voted && poll_button("remove", L("Remove Vote"), false) dc.poll_vote(c, m.channel_id, m.id, .[]);
+		if !results && picked && poll_button("vote", L("Vote"), true) {
 			ids: [..]int;
 			ids.allocator = temp;
 			for p.answers if picked & cast(u16) (1 << clamp(it.id, 0, 15)) array_add(*ids, it.id);
@@ -145,13 +145,13 @@ poll_result_card :: (m: *dc.Message) {
 					if emoji && !poll_result_field(m, "victor_answer_emoji_id") label(tprint("% ", emoji), .Normal, 16, T("--text-default"), 20);
 					label(winner, .Semibold, 16, T("--text-strong"), 20);
 				}
-				label(tprint("Winning answer · %1%2", (votes * 100 + total / 2) / total, "%"), .Normal, 14, T("--text-muted"), 18);
+				label(tprint(L("Winning answer · %1%2"), (votes * 100 + total / 2) / total, "%"), .Normal, 14, T("--text-muted"), 18);
 			} else {
-				label(ifx total > 0 then "The results were tied" else "There was no winner", .Semibold, 16, T("--text-strong"), 20);
+				label(ifx total > 0 then L("The results were tied") else L("There was no winner"), .Semibold, 16, T("--text-strong"), 20);
 				label(tprint("% vote%", total, ifx total == 1 then "" else "s"), .Normal, 14, T("--text-muted"), 18);
 			}
 		}
-		if m.referenced_id && poll_button("view", "View Poll", false) jump_to_message(m.channel_id, m.referenced_id);
+		if m.referenced_id && poll_button("view", L("View Poll"), false) jump_to_message(m.channel_id, m.referenced_id);
 		spacer(.X, 16);
 	}
 }
@@ -186,7 +186,7 @@ can_send_poll :: (ch: *dc.Channel) -> bool {
 poll_create_modal :: () {
 	if !npoll.channel return;
 	W :: 520;
-	if !adm_modal_begin("newpoll", W, "Create a poll") {
+	if !adm_modal_begin("newpoll", W, L("Create a poll")) {
 		npoll.channel = 0;
 		return;
 	}
@@ -205,10 +205,10 @@ poll_create_modal :: () {
 		c := cut_runes(t, n);
 		if c.count < t.count ui.editor_set_text(ed, copy_string(c,, temp));
 	}
-	heading("Question");
-	if modal_field("question", *npoll.question, "What question do you want to ask?") == .Escape npoll.channel = 0;
+	heading(L("Question"));
+	if modal_field("question", *npoll.question, L("What question do you want to ask?")) == .Escape npoll.channel = 0;
 	cut(*npoll.question, 300);
-	heading("Answers");
+	heading(L("Answers"));
 	drop := -1;
 	for i: 0..npoll.count-1 {
 		ui.id_scope(cast(u64) i + 1); defer ui.pop_seed();
@@ -219,7 +219,7 @@ poll_create_modal :: () {
 		f.semantic_size = .[ui.fill(), ui.children()];
 		f.layout_axis = .Y;
 		{ ui.parent(f); defer ui.pop_parent();
-			if modal_field("answer", *npoll.answers[i], "Type your answer") == .Escape npoll.channel = 0;
+			if modal_field("answer", *npoll.answers[i], L("Type your answer")) == .Escape npoll.channel = 0;
 		}
 		cut(*npoll.answers[i], 55);
 		if npoll.count > 1 {
@@ -254,12 +254,12 @@ poll_create_modal :: () {
 			spacer(.X, 8);
 			icon("i", "plus-small", 20, T("--text-link"));
 			spacer(.X, 4);
-			label("Add another answer", .Medium, 14, T("--text-link"), 18);
+			label(L("Add another answer"), .Medium, 14, T("--text-link"), 18);
 			spacer(.X, 8);
 		}
 		if ui.signal(add).clicked npoll.count += 1;
 	}
-	heading("Duration");
+	heading(L("Duration"));
 	dr := row("durrow");
 	dr.semantic_size = .[ui.pct(1), ui.px(40)];
 	dur_rect: ui.Rect;
@@ -296,7 +296,7 @@ poll_create_modal :: () {
 		cb.style.bg = ifx npoll.multi then T("--background-brand") else .{};
 		if npoll.multi { ui.parent(cb); defer ui.pop_parent(); icon("ck", "checkmark-small-bold", 20, .{1, 1, 1, 1}); }
 		spacer(.X, 8);
-		label("Allow Multiple Answers", .Normal, 16, T("--text-default"), 20);
+		label(L("Allow Multiple Answers"), .Normal, 16, T("--text-default"), 20);
 	}
 	question := trim(ui.editor_text(*npoll.question));
 	answers: [..]string;
@@ -312,7 +312,7 @@ poll_create_modal :: () {
 	btns.cross_align = .Center;
 	{ ui.parent(btns); defer ui.pop_parent();
 		filler(.X);
-		post := adm_button("post", "Post", .Primary, question != "" && answers.count > 0);
+		post := adm_button("post", L("Post"), .Primary, question != "" && answers.count > 0);
 		spacer(.X, 25);
 		if post && net_action() {
 			draft := dc.Poll_Draft.{question, answers, POLL_DURATIONS[npoll.duration].hours, npoll.multi};

@@ -104,7 +104,7 @@ moderation_modal :: () {
 		return ui.signal(b).clicked;
 	}
 	spacer(.Y, PAD);
-	text_row("t", ifx modr.timeout then tprint("Timeout %", u.username) else tprint("% '%' from Server", verb, u.username), .Semibold, 20, 24, T("--text-strong"));
+	text_row("t", ifx modr.timeout then tprint(L("Timeout %"), u.username) else tprint(L("% '%' from Server"), verb, u.username), .Semibold, 20, 24, T("--text-strong"));
 	spacer(.Y, 8);
 	sub := ifx modr.ban
 		then tprint("Are you sure you want to ban @% from %? They won't be able to come back until the ban is lifted.", u.username, g.name)
@@ -112,7 +112,7 @@ moderation_modal :: () {
 		else tprint("Are you sure you want to kick @% from %? They will be able to rejoin again with a new invite.", u.username, g.name);
 	text_row("sub", sub, .Normal, 14, 18, T("--text-default"));
 	spacer(.Y, 16);
-	text_row("lbl", tprint("Reason for %", verb), .Semibold, 14, 18, T("--text-strong"));
+	text_row("lbl", tprint(L("Reason for %"), verb), .Semibold, 14, 18, T("--text-strong"));
 	spacer(.Y, 8);
 	confirm := false;
 	ir := row("inrow");
@@ -137,7 +137,7 @@ moderation_modal :: () {
 	}
 	if modr.ban || modr.timeout {
 		spacer(.Y, 16);
-		text_row("hlbl", ifx modr.timeout then "Duration" else "Delete Message History", .Semibold, 14, 18, T("--text-strong"));
+		text_row("hlbl", ifx modr.timeout then L("Duration") else L("Delete Message History"), .Semibold, 14, 18, T("--text-strong"));
 		spacer(.Y, 8);
 		hr := row("histrow");
 		hr.semantic_size = .[ui.pct(1), ui.px(40)];
@@ -170,7 +170,7 @@ moderation_modal :: () {
 	btns.style.child_gap = 8;
 	{ ui.parent(btns); defer ui.pop_parent();
 		filler(.X);
-		if button("Cancel##cancel", 96, T("--background-mod-normal"), T("--background-mod-strong"), T("--text-strong")) modr.user = 0;
+		if button(L("Cancel##cancel"), 96, T("--background-mod-normal"), T("--background-mod-strong"), T("--text-strong")) modr.user = 0;
 		if button(tprint("%##confirm", verb), 96, T("--status-danger"), with_alpha(T("--status-danger"), 0.85), .{1, 1, 1, 1}) confirm = true;
 		spacer(.X, PAD - 8);
 	}

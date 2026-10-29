@@ -28,7 +28,7 @@ settings_nav_search :: () {
 			spacer(.X, 12);
 			icon("mag", "magnifying-glass", 16, T("--icon-default"));
 			spacer(.X, 8);
-			res := text_field("field", *nav.search, "Search", focused, 16, 20, 10, T("--input-placeholder-text-default"));
+			res := text_field("field", *nav.search, L("Search"), focused, 16, 20, 10, T("--input-placeholder-text-default"));
 			if res == .Escape && ui.editor_text(*nav.search) != "" { ui.editor_set_text(*nav.search, ""); }
 			if ui.editor_text(*nav.search) != "" {
 				x := ui.box("clear", .Clickable);
@@ -86,7 +86,7 @@ settings_nav_logout :: () {
 		spacer(.X, 24);
 	}
 	spacer(.Y, 8);
-	outer := row("Log Out");
+	outer := row(L("Log Out"));
 	outer.semantic_size = .[ui.pct(1), ui.px(37)];
 	{ ui.parent(outer); defer ui.pop_parent();
 		spacer(.X, 16);
@@ -100,7 +100,7 @@ settings_nav_logout :: () {
 			spacer(.X, 8);
 			icon("i", "door-exit", 20, c);
 			spacer(.X, 8);
-			label("Log Out", .Medium, 16, c, 20);
+			label(L("Log Out"), .Medium, 16, c, 20);
 		}
 		spacer(.X, 16);
 	}
@@ -110,13 +110,13 @@ settings_nav_logout :: () {
 	info.semantic_size = .[ui.pct(1), ui.px(16)];
 	{ ui.parent(info); defer ui.pop_parent();
 		spacer(.X, 24);
-		label(tprint("fastcord %", FASTCORD_VERSION), .Normal, 12, T("--text-muted"), 16);
+		label(tprint(L("fastcord %"), FASTCORD_VERSION), .Normal, 12, T("--text-muted"), 16);
 	}
 	logs := row("openlogs");
 	logs.semantic_size = .[ui.pct(1), ui.px(16)];
 	{ ui.parent(logs); defer ui.pop_parent();
 		spacer(.X, 24);
-		l := label("Open Logs Folder", .Normal, 12, T("--text-link"), 16);
+		l := label(L("Open Logs Folder"), .Normal, 12, T("--text-link"), 16);
 		l.flags |= .Clickable;
 		l.hover_cursor = .Pointer;
 		if ui.signal(l).clicked {
@@ -150,30 +150,30 @@ SOUND_ROWS :: [2]string.[
 
 notifications_page :: () {
 	if set_page_begin("notifpage") {
-		set_heading("Notifications");
-		if set_toggle_row("lotus", "Lotus Mode", "Silence every sound and notification and hide all badges and unread marks, so fastcord never asks for your attention.", notify_prefs.lotus) {
+		set_heading(L("Notifications"));
+		if set_toggle_row("lotus", L("Lotus Mode"), L("Silence every sound and notification and hide all badges and unread marks, so fastcord never asks for your attention."), notify_prefs.lotus) {
 			notify_prefs.lotus = !notify_prefs.lotus;
 		}
 		set_divider();
-		if set_toggle_row("desktop", "Enable Desktop Notifications", "Show a system notification for messages that would notify you (DMs, mentions, servers set to all messages).", !notify_prefs.desktop_off) {
+		if set_toggle_row("desktop", L("Enable Desktop Notifications"), L("Show a system notification for messages that would notify you (DMs, mentions, servers set to all messages)."), !notify_prefs.desktop_off) {
 			notify_prefs.desktop_off = !notify_prefs.desktop_off;
 		}
 		spacer(.Y, 24);
-		label("Notify me when...", .Semibold, 16, T("--text-strong"), 20);
+		label(L("Notify me when..."), .Semibold, 16, T("--text-strong"), 20);
 		spacer(.Y, 16);
 		// synced (NotificationSettings.notify_friends_on_launch), unlike the local rows here
 		friends_on := !store().settings.friend_online_off;
-		if set_toggle_row("friendsonline", "Friends come online", "", friends_on) {
+		if set_toggle_row("friendsonline", L("Friends come online"), "", friends_on) {
 			if net_action() { dc.set_friend_online_notifications(app.client, !friends_on); } else { store().settings.friend_online_off = friends_on; } // offline (fixture) runs
 		}
 		set_divider();
-		if set_toggle_row("badge", "Enable Unread Message Badge", "Shows a red badge on the app icon when you have unread mentions.", !notify_prefs.badge_off) {
+		if set_toggle_row("badge", L("Enable Unread Message Badge"), L("Shows a red badge on the app icon when you have unread mentions."), !notify_prefs.badge_off) {
 			notify_prefs.badge_off = !notify_prefs.badge_off;
 		}
 		spacer(.Y, 40);
-		set_heading("Sounds");
+		set_heading(L("Sounds"));
 		all_off := sounds_all_disabled();
-		if set_toggle_row("disableall", "Disable All Notification Sounds", "", all_off) { sounds_set_all_disabled(!all_off); }
+		if set_toggle_row("disableall", L("Disable All Notification Sounds"), "", all_off) { sounds_set_all_disabled(!all_off); }
 		set_divider();
 		for s: SOUND_ROWS {
 			on := !sound_own_disabled(s[0]) && !all_off;
@@ -196,8 +196,8 @@ GROUP_SPACINGS :: int.[0, 4, 8, 16, 24];
 // The client's Accessibility panel: Zoom level, message group spacing, role colours, Reduced Motion.
 accessibility_page :: () {
 	if set_page_begin("a11ypage") {
-		set_heading("Visual Density");
-		label("Zoom level", .Medium, 16, T("--text-strong"), 20);
+		set_heading(L("Visual Density"));
+		label(L("Zoom level"), .Medium, 16, T("--text-strong"), 20);
 		spacer(.Y, 4);
 		label(#run tprint("Adjust the size of the interface. You can also change this with % +/-.", ifx OS == .MACOS then "Cmd" else "Ctrl"), .Normal, 14, T("--text-muted"), 18);
 		spacer(.Y, 16);
@@ -219,7 +219,7 @@ accessibility_page :: () {
 			}
 		}
 		spacer(.Y, 32);
-		label("Space between message groups", .Medium, 16, T("--text-strong"), 20);
+		label(L("Space between message groups"), .Medium, 16, T("--text-strong"), 20);
 		spacer(.Y, 8);
 		SPACING_NAMES :: string.["0px", "4px", "8px", "16px", "24px"];
 		cur := 3;
@@ -227,18 +227,18 @@ accessibility_page :: () {
 		pick := select_field("groupspacing", SPACING_NAMES, cur);
 		if pick >= 0 a11y.group_spacing = GROUP_SPACINGS[pick];
 		spacer(.Y, 40);
-		set_heading("Role Colors");
+		set_heading(L("Role Colors"));
 		ROLE_NAMES :: string.["Show role colors in names", "Show role colors next to names", "Don't show role colors"];
 		rpick := select_field("rolecolors", ROLE_NAMES, a11y.role_colors);
 		if rpick >= 0 a11y.role_colors = rpick;
 		spacer(.Y, 40);
-		set_heading("Motion");
-		if set_toggle_row("reducemotion", "Enable Reduced Motion", "Reduces the amount of animation and motion effects. On whenever your device asks for reduced motion.", a11y.reduce_motion || system_reduce_motion, system_reduce_motion) {
+		set_heading(L("Motion"));
+		if set_toggle_row("reducemotion", L("Enable Reduced Motion"), L("Reduces the amount of animation and motion effects. On whenever your device asks for reduced motion."), a11y.reduce_motion || system_reduce_motion, system_reduce_motion) {
 			a11y.reduce_motion = !a11y.reduce_motion;
 		}
 		spacer(.Y, 40);
-		set_heading("Saturation");
-		set_para("sathelp", "Reduce the saturation of colors within the application, for those with color sensitivities.", .Normal, 14, 18, T("--text-muted"));
+		set_heading(L("Saturation"));
+		set_para("sathelp", L("Reduce the saturation of colors within the application, for those with color sensitivities."), .Normal, 14, 18, T("--text-muted"));
 		spacer(.Y, 16);
 		sv := cast(float32) a11y.saturation;
 		if slider("saturation", *sv, 0, 100, set_content_w(), tprint("%\%", cast(int) (sv + 0.5))) && cast(int) (sv + 0.5) != a11y.saturation {
@@ -275,19 +275,19 @@ zoom_snap :: (v: float32) -> int {
 // The client's System panel (Windows and Linux; macOS has Login Items instead): startup and the close button.
 system_page :: () {
 	#if OS != .MACOS if set_page_begin("systempage") {
-		set_heading("General");
+		set_heading(L("General"));
 		on := platform.open_at_login();
 		login :: (on: bool) { #if OS == .WINDOWS platform.set_open_at_login(on, start_minimized); else platform.set_open_at_login(on); }
-		if set_toggle_row("openatlogin", "Automatically open fastcord when your computer starts up", "", on) login(!on);
+		if set_toggle_row("openatlogin", L("Automatically open fastcord when your computer starts up"), "", on) login(!on);
 		#if OS == .WINDOWS {
 			spacer(.Y, 24);
-			if set_toggle_row("startmin", "Start Minimized", "fastcord starts in the background and stays out of your way.", start_minimized && on, !on) {
+			if set_toggle_row("startmin", L("Start Minimized"), L("fastcord starts in the background and stays out of your way."), start_minimized && on, !on) {
 				start_minimized = !start_minimized;
 				login(true);
 			}
 		}
 		spacer(.Y, 24);
-		if set_toggle_row("traymin", "Minimize to Tray", "Hitting X makes fastcord minimize to the system tray instead of closing.", !tray_close_off) {
+		if set_toggle_row("traymin", L("Minimize to Tray"), L("Hitting X makes fastcord minimize to the system tray instead of closing."), !tray_close_off) {
 			tray_close_off = !tray_close_off;
 			platform.set_close_to_tray(!tray_close_off);
 		}

@@ -51,7 +51,7 @@ install_notice :: () {
 	bar.style.bg = T("--background-brand");
 	ui.parent(bar); defer ui.pop_parent();
 	filler(.X);
-	label(ifx st == 1 then "Installing…" else ifx st == 3 then "Fastcord couldn't be installed." else "Install Fastcord to open it from the Start menu.", .Medium, 14, WHITE, 18);
+	label(ifx st == 1 then L("Installing…") else ifx st == 3 then L("Fastcord couldn't be installed.") else L("Install Fastcord to open it from the Start menu."), .Medium, 14, WHITE, 18);
 	if st == 1 { filler(.X); return; }
 	for b: string.["Install", "Not Now"] {
 		spacer(.X, 10);
@@ -141,7 +141,7 @@ update_button :: () {
 		spacer(.X, 8);
 		icon("dl", "download", 16, .{1, 1, 1, 1});
 		spacer(.X, 4);
-		label(tprint("Update %", latest), .Semibold, 12, .{1, 1, 1, 1}, 16);
+		label(tprint(L("Update %"), latest), .Semibold, 12, .{1, 1, 1, 1}, 16);
 		spacer(.X, 10);
 	}
 	if sig.clicked open_url(UPDATE_PAGE);

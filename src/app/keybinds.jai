@@ -166,15 +166,15 @@ keybinds_page :: () {
 	h := row("head");
 	h.semantic_size = .[ui.pct(1), ui.px(38)];
 	{ ui.parent(h); defer ui.pop_parent();
-		label("Keybinds", .Semibold, 20, T("--text-strong"), 24);
+		label(L("Keybinds"), .Semibold, 20, T("--text-strong"), 24);
 		filler(.X);
-		if set_button("Add a Keybind##kbadd", .Primary, kb.list.count < MAX_KEYBINDS) {
+		if set_button(L("Add a Keybind##kbadd"), .Primary, kb.list.count < MAX_KEYBINDS) {
 			array_add(*kb.list, .{});
 			kb.recording = -1;
 		}
 	}
 	spacer(.Y, 12);
-	set_para("kbhelp", "Keybinds work in every app, also while fastcord is in the background.", .Normal, 14, 18, T("--text-muted"));
+	set_para("kbhelp", L("Keybinds work in every app, also while fastcord is in the background."), .Normal, 14, 18, T("--text-muted"));
 	global_input_notice();
 	spacer(.Y, 20);
 	drop_i := -1;
@@ -227,7 +227,7 @@ keybinds_page :: () {
 		select_close();
 	}
 	set_divider();
-	label("DEFAULT KEYBINDS", .Bold, 12, T("--text-muted"), 16);
+	label(L("DEFAULT KEYBINDS"), .Bold, 12, T("--text-muted"), 16);
 	spacer(.Y, 8);
 	for i: 0..DEFAULT_SHORTCUTS.count / 2 - 1 {
 		r := row(tprint("def%", i));
@@ -253,7 +253,7 @@ shortcut_field :: (i: int, w: float32) {
 	if rec name = "Press a shortcut…";
 	label(name, .Medium, 16, T("--text-default"), 20).flags |= .Clip;
 	filler(.X);
-	label(ifx rec then "Stop Recording" else "Record Keybind", .Semibold, 14, T("--text-strong"), 18);
+	label(ifx rec then L("Stop Recording") else L("Record Keybind"), .Semibold, 14, T("--text-strong"), 18);
 	spacer(.X, 12);
 }
 
@@ -282,7 +282,7 @@ global_input_notice :: () {
 	}
 	if kb.global == .No_Permission {
 		spacer(.X, 12);
-		if set_button("Open Settings##giperm", .Secondary, true, 32) platform.request_global_input_permission();
+		if set_button(L("Open Settings##giperm"), .Secondary, true, 32) platform.request_global_input_permission();
 	}
 	spacer(.X, 12);
 }

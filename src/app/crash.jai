@@ -9,7 +9,7 @@ crash_start :: () {
 	path := tprint("%/crash.txt", dir);
 	if file_exists(path) {
 		file_move(path, tprint("%/crash-%.txt", dir, to_seconds(current_time_consensus() - dc.UNIX_EPOCH)));
-		toast_show("fastcord quit unexpectedly last time. The report is in the logs folder (Settings, under Log Out).", false);
+		toast_show(L("fastcord quit unexpectedly last time. The report is in the logs folder (Settings, under Log Out)."), false);
 	}
 	crash_path = to_c_string(path); // heap, for the handler
 	#if OS == .WINDOWS {

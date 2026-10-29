@@ -22,10 +22,10 @@ language_page :: () {
 	if !set_page_begin("langpage") return;
 	defer set_page_end();
 	s := store();
-	set_heading("Language");
-	label("Select a Language", .Medium, 16, T("--text-strong"), 20);
+	set_heading(L("Language"));
+	label(L("Select a Language"), .Medium, 16, T("--text-strong"), 20);
 	spacer(.Y, 4);
-	set_para("langhelp", "Choose the language you want Discord to display.", .Normal, 14, 18, T("--text-muted"));
+	set_para("langhelp", L("Choose the language you want Discord to display."), .Normal, 14, 18, T("--text-muted"));
 	spacer(.Y, 12);
 	names := NewArray(LANGUAGES.count, string,, temp); // read again by dropdown_list after the page
 	cur := 0; // en-US when unset
@@ -39,7 +39,7 @@ language_page :: () {
 		else s.settings.locale = LANGUAGES[pick][0]; // offline (fixture) runs: a static string
 	}
 	spacer(.Y, 40);
-	set_heading("Time format");
+	set_heading(L("Time format"));
 	FORMATS :: string.["Auto", "12-hour", "24-hour"];
 	h := select_field("hourcycle", FORMATS, cast(int) s.settings.hour_cycle);
 	if h >= 0 && h != cast(int) s.settings.hour_cycle {
@@ -47,7 +47,7 @@ language_page :: () {
 		else s.settings.hour_cycle = cast(dc.Hour_Cycle) h;
 	}
 	spacer(.Y, 8);
-	set_para("timehelp", tprint("Times show as %.", clock_text(utc_calendar(local_ms(wall_ms())))), .Normal, 14, 18, T("--text-muted"));
+	set_para("timehelp", tprint(L("Times show as %."), clock_text(utc_calendar(local_ms(wall_ms())))), .Normal, 14, 18, T("--text-muted"));
 }
 
 // Developer (DEVELOPER_PANEL): Developer Mode (AppearanceSettings.developer_mode).
@@ -55,9 +55,9 @@ developer_page :: () {
 	if !set_page_begin("devpage") return;
 	defer set_page_end();
 	s := store();
-	set_heading("Developer");
+	set_heading(L("Developer"));
 	on := s.settings.developer_mode;
-	if set_toggle_row("devmode", "Developer Mode", "Developer Mode exposes context menu items helpful for people writing apps using the Discord API.", on) {
+	if set_toggle_row("devmode", L("Developer Mode"), L("Developer Mode exposes context menu items helpful for people writing apps using the Discord API."), on) {
 		if net_action() dc.set_developer_mode(app.client, !on);
 		else s.settings.developer_mode = !on;
 	}
@@ -76,8 +76,8 @@ messaging_page :: () {
 	if !set_page_begin("msgpage") return;
 	defer set_page_end();
 	s := store();
-	set_heading("Content Filters");
-	set_para("cfhelp", "Choose what happens to images and videos Discord detects as explicit.", .Normal, 14, 18, T("--text-muted"));
+	set_heading(L("Content Filters"));
+	set_para("cfhelp", L("Choose what happens to images and videos Discord detects as explicit."), .Normal, 14, 18, T("--text-muted"));
 	spacer(.Y, 16);
 	FILTER :: string.["Show", "Blur", "Block"];
 	PLACES :: string.["Messages in servers", "Direct messages from friends", "Direct messages from others"];
@@ -93,10 +93,10 @@ messaging_page :: () {
 		spacer(.Y, 16);
 	}
 	spacer(.Y, 24);
-	set_heading("Spam Filters");
-	label("Automatically filter suspected spam messages", .Medium, 16, T("--text-strong"), 20);
+	set_heading(L("Spam Filters"));
+	label(L("Automatically filter suspected spam messages"), .Medium, 16, T("--text-strong"), 20);
 	spacer(.Y, 4);
-	set_para("spamhelp", "Discord can filter out some messages that contain spam. These messages go to your Spam inbox.", .Normal, 14, 18, T("--text-muted"));
+	set_para("spamhelp", L("Discord can filter out some messages that contain spam. These messages go to your Spam inbox."), .Normal, 14, 18, T("--text-muted"));
 	spacer(.Y, 8);
 	SPAM :: string.["Filter direct messages from everyone", "Filter direct messages from non-friends", "Do not filter direct messages"];
 	SPAM_V :: u64.[3, 2, 1]; // DmSpamFilterV2: FRIENDS_AND_NON_FRIENDS, NON_FRIENDS, DISABLED
@@ -107,39 +107,39 @@ messaging_page :: () {
 	spick := select_field("spam", SPAM, scur);
 	if spick >= 0 && spick != scur proto_put(6, 27, dc.pb_field_uint(27, SPAM_V[spick]));
 	spacer(.Y, 40);
-	set_heading("Direct Message (DM) Permissions");
+	set_heading(L("Direct Message (DM) Permissions"));
 	restricted, _ := dc.settings_value(s, 8, 4); // default_guilds_restricted
-	if set_toggle_row("guilddms", "Allow DMs from other members in servers", "This setting is applied when you join a new server. It does not apply retroactively to your existing servers.", restricted == 0) {
+	if set_toggle_row("guilddms", L("Allow DMs from other members in servers"), L("This setting is applied when you join a new server. It does not apply retroactively to your existing servers."), restricted == 0) {
 		proto_put(8, 4, dc.pb_field_uint(4, xx (restricted == 0)));
 	}
 	set_divider();
 	mr, _ := dc.settings_value(s, 8, 17, 1); // default_message_request_restricted (BoolValue)
-	if set_toggle_row("msgreq", "Allow message requests from server members you may not know", "Messages from people you may not know go to Message Requests instead of your DMs.", mr == 0) {
+	if set_toggle_row("msgreq", L("Allow message requests from server members you may not know"), L("Messages from people you may not know go to Message Requests instead of your DMs."), mr == 0) {
 		proto_put(8, 17, dc.pb_field_bool_value(17, mr == 0));
 	}
 	spacer(.Y, 40);
-	set_heading("Friend Request Permissions");
-	label("Allow Friend Requests from...", .Semibold, 12, T("--text-muted"), 16);
+	set_heading(L("Friend Request Permissions"));
+	label(L("Allow Friend Requests from..."), .Semibold, 12, T("--text-muted"), 16);
 	spacer(.Y, 12);
 	MUTUAL_FRIENDS :: cast(u64) 2; MUTUAL_GUILDS :: cast(u64) 4; NO_RELATION :: cast(u64) 8; ALL :: cast(u64) 14;
 	flags, fset := dc.settings_value(s, 8, 11, 1); // friend_source_flags (UInt32Value); unset: everyone
 	if !fset flags = ALL;
 	everyone := (flags & NO_RELATION) != 0;
 	put_flags :: (f: u64) { proto_put(8, 11, dc.pb_field_msg(11, dc.pb_field_uint(1, f))); }
-	if set_toggle_row("frall", "Everyone", "", everyone) put_flags(ifx everyone then ALL & ~NO_RELATION else ALL);
+	if set_toggle_row("frall", L("Everyone"), "", everyone) put_flags(ifx everyone then ALL & ~NO_RELATION else ALL);
 	set_divider();
 	mf := everyone || (flags & MUTUAL_FRIENDS) != 0;
-	if set_toggle_row("frmf", "Friends of friends", "", mf) put_flags(ifx mf then flags & ~(MUTUAL_FRIENDS | NO_RELATION) else flags | MUTUAL_FRIENDS);
+	if set_toggle_row("frmf", L("Friends of friends"), "", mf) put_flags(ifx mf then flags & ~(MUTUAL_FRIENDS | NO_RELATION) else flags | MUTUAL_FRIENDS);
 	set_divider();
 	mg := everyone || (flags & MUTUAL_GUILDS) != 0;
-	if set_toggle_row("frmg", "Server members", "Server members can only send you friend requests from servers where you also allow Direct Messages.", mg) {
+	if set_toggle_row("frmg", L("Server members"), L("Server members can only send you friend requests from servers where you also allow Direct Messages."), mg) {
 		put_flags(ifx mg then flags & ~(MUTUAL_GUILDS | NO_RELATION) else flags | MUTUAL_GUILDS);
 	}
 	spacer(.Y, 40);
-	set_heading("Blocked Users");
+	set_heading(L("Blocked Users"));
 	people_list("blocked", true);
 	spacer(.Y, 40);
-	set_heading("Ignored Users");
+	set_heading(L("Ignored Users"));
 	people_list("ignored", false);
 }
 
@@ -164,13 +164,13 @@ people_list :: (id: string, blocked: bool) {
 			nb := ui.box("nm");
 			nb.semantic_size = .[ui.fill(), ui.children()];
 			{ ui.parent(nb); defer ui.pop_parent(); label(dc.user_name(s, uid, 0, "Unknown"), .Semibold, 16, T("--text-strong"), 20); }
-			if set_button(ifx blocked then "Unblock##unb" else "Unignore##unb", .Secondary, true, 32) {
+			if set_button(ifx blocked then L("Unblock##unb") else L("Unignore##unb"), .Secondary, true, 32) {
 				if blocked rel_change(uid, .Remove, "User Settings");
 				else if net_action() dc.ignore_user(app.client, uid, false, "User Settings");
 			}
 		}
 	}
-	if !n set_para("none", ifx blocked then "You haven't blocked anyone." else "You haven't ignored anyone.", .Normal, 14, 18, T("--text-muted"));
+	if !n set_para("none", ifx blocked then L("You haven't blocked anyone.") else L("You haven't ignored anyone."), .Normal, 14, 18, T("--text-muted"));
 }
 #scope_export
 
@@ -186,13 +186,13 @@ activity_page :: () {
 		on := !set || v != 0;
 		if set_toggle_row(id, text, help, on) proto_put(cat, num, dc.pb_field_bool_value(num, !on));
 	}
-	set_heading("Activity Status");
-	bool_row(s, "showgame", "Share your detected activities with others", "Show the game or app you're using on your profile and in member lists.", 11, 3);
+	set_heading(L("Activity Status"));
+	bool_row(s, "showgame", L("Share your detected activities with others"), L("Show the game or app you're using on your profile and in member lists."), 11, 3);
 	spacer(.Y, 40);
-	set_heading("Activity Joining");
-	bool_row(s, "joinfriends", "Allow friends to join your game", "Friends can ask to join or join the game you're playing.", 8, 1);
+	set_heading(L("Activity Joining"));
+	bool_row(s, "joinfriends", L("Allow friends to join your game"), L("Friends can ask to join or join the game you're playing."), 8, 1);
 	set_divider();
-	bool_row(s, "joinvoice", "Allow voice channel participants to join your game", "People in a voice channel with you can join the game you're playing.", 8, 2);
+	bool_row(s, "joinvoice", L("Allow voice channel participants to join your game"), L("People in a voice channel with you can join the game you're playing."), 8, 2);
 }
 
 // The server header menu's Privacy Settings: DMs and message requests from that server's members
@@ -204,7 +204,7 @@ guild_privacy_modal :: () {
 	s := store();
 	g := dc.guild_get(s, guild_privacy);
 	W :: 440;
-	if !g || !adm_modal_begin("gprivacy", W, "Privacy Settings", g.name) {
+	if !g || !adm_modal_begin("gprivacy", W, L("Privacy Settings"), g.name) {
 		guild_privacy = 0;
 		return;
 	}
@@ -238,7 +238,7 @@ guild_privacy_modal :: () {
 	btns.semantic_size = .[ui.pct(1), ui.px(40)];
 	{ ui.parent(btns); defer ui.pop_parent();
 		filler(.X);
-		if wide_button("done", "Done", .Primary) guild_privacy = 0;
+		if wide_button("done", L("Done"), .Primary) guild_privacy = 0;
 		spacer(.X, 25);
 	}
 	spacer(.Y, 24);
@@ -312,7 +312,7 @@ us_ready :: (req: US_Req) -> bool {
 	_, ok := us_reply(req);
 	if ok return true;
 	r := *us.replies[req];
-	set_para("loading", ifx us.loading[req] || !r.arena then "Loading..." else us_result_error(r), .Normal, 14, 18, T("--text-muted"));
+	set_para("loading", ifx us.loading[req] || !r.arena then L("Loading...") else us_result_error(r), .Normal, 14, 18, T("--text-muted"));
 	return false;
 }
 
@@ -363,8 +363,8 @@ devices_page :: () {
 	if !set_page_begin("devicespage") return;
 	defer set_page_end();
 	s := store();
-	set_heading("Logged-in Devices");
-	set_para("devhelp", "These are all the devices that are currently logged-in with your Discord account. Log out of devices that you don't recognize.", .Normal, 14, 18, T("--text-muted"));
+	set_heading(L("Logged-in Devices"));
+	set_para("devhelp", L("These are all the devices that are currently logged-in with your Discord account. Log out of devices that you don't recognize."), .Normal, 14, 18, T("--text-muted"));
 	spacer(.Y, 24);
 	if !us_ready(.Sessions) return;
 	body := us_reply(.Sessions);
@@ -379,13 +379,13 @@ devices_page :: () {
 	}
 	quick_sort(others, (a: Dev, b: Dev) -> s64 { return b.used - a.used; });
 	if cur >= 0 {
-		label("Current Device", .Semibold, 16, T("--text-muted"), 20);
+		label(L("Current Device"), .Semibold, 16, T("--text-muted"), 20);
 		spacer(.Y, 16);
 		device_row(list[cur], cur, true);
 		spacer(.Y, 24);
 	}
 	if others.count || !dc.account.mfa_enabled {
-		label("Other Devices", .Semibold, 16, T("--text-muted"), 20);
+		label(L("Other Devices"), .Semibold, 16, T("--text-muted"), 20);
 		spacer(.Y, 16);
 		for others device_row(list[it.i], it.i, false);
 		if !dc.account.mfa_enabled {
@@ -398,8 +398,8 @@ devices_page :: () {
 			col.semantic_size = .[ui.fill(), ui.children()];
 			col.layout_axis = .Y;
 			ui.parent(col); defer ui.pop_parent();
-			label("Some older devices may not be shown here", .Semibold, 16, T("--text-muted"), 20);
-			label("To log them out, please change your password", .Normal, 14, T("--text-muted"), 18);
+			label(L("Some older devices may not be shown here"), .Semibold, 16, T("--text-muted"), 20);
+			label(L("To log them out, please change your password"), .Normal, 14, T("--text-muted"), 18);
 		}
 		spacer(.Y, 24);
 	}
@@ -413,12 +413,12 @@ devices_page :: () {
 		col.semantic_size = .[ui.fill(), ui.children()];
 		col.layout_axis = .Y;
 		{ ui.parent(col); defer ui.pop_parent();
-			label("Log out of all known devices", .Medium, 16, T("--text-strong"), 20);
+			label(L("Log out of all known devices"), .Medium, 16, T("--text-strong"), 20);
 			spacer(.Y, 4);
-			set_para("allhelp", "You'll have to log back in on all logged out devices.", .Normal, 14, 18, T("--text-muted"));
+			set_para("allhelp", L("You'll have to log back in on all logged out devices."), .Normal, 14, 18, T("--text-muted"));
 		}
 		spacer(.X, 16);
-		if set_button("Log Out All Known Devices##all", .Danger, !us.busy, 32) {
+		if set_button(L("Log Out All Known Devices##all"), .Danger, !us.busy, 32) {
 			hashes: [..]string;
 			hashes.allocator = temp;
 			for others array_add(*hashes, dc.json_quote(dc.fstr(dc.vmap(list[it.i]), "id_hash")));
@@ -491,25 +491,25 @@ spoilers_always :: () -> bool {
 chat_page :: () {
 	if !set_page_begin("chatpage") return;
 	defer set_page_end();
-	set_heading("Display Images, Videos and Lolcats");
+	set_heading(L("Display Images, Videos and Lolcats"));
 	toggle :: (id: string, field: u32, title: string) {
 		on := chat_pref(field);
 		if set_toggle_row(id, title, "", on) proto_put(6, field, dc.pb_field_bool_value(field, !on));
 		set_divider();
 	}
-	toggle("embeds", 12, "Show embeds and preview website links pasted into chat");
-	toggle("reactions", 13, "Show emoji reactions on messages");
-	if set_toggle_row("ytdlp", "Play YouTube videos in fastcord with yt-dlp", "Uses the yt-dlp you installed to play YouTube links in the chat instead of opening your browser. It connects to YouTube from your computer.", youtube_ytdlp == YT_ON)
+	toggle("embeds", 12, L("Show embeds and preview website links pasted into chat"));
+	toggle("reactions", 13, L("Show emoji reactions on messages"));
+	if set_toggle_row("ytdlp", L("Play YouTube videos in fastcord with yt-dlp"), L("Uses the yt-dlp you installed to play YouTube links in the chat instead of opening your browser. It connects to YouTube from your computer."), youtube_ytdlp == YT_ON)
 		youtube_ytdlp = ifx youtube_ytdlp == YT_ON then YT_OFF else YT_ON;
 	set_divider();
 	spacer(.Y, 24);
-	set_heading("Spoiler Content");
+	set_heading(L("Spoiler Content"));
 	SPOILERS :: string.["On click", "On servers I moderate", "Always"];
 	SPOILER_V :: string.["ON_CLICK", "IF_MODERATOR", "ALWAYS"];
 	f, ok := dc.settings_bytes(store(), 6, 4, 1);
 	cur := 0;
 	if ok for SPOILER_V if it == cast(string) f cur = it_index;
-	label("Show spoiler content", .Medium, 16, T("--text-strong"), 20);
+	label(L("Show spoiler content"), .Medium, 16, T("--text-strong"), 20);
 	spacer(.Y, 8);
 	pick := select_field("spoilers", SPOILERS, cur);
 	if pick >= 0 && pick != cur proto_put(6, 4, dc.pb_field_string_value(4, SPOILER_V[pick]));
@@ -522,19 +522,19 @@ data_privacy_page :: () {
 	if !set_page_begin("datapage") return;
 	defer set_page_end();
 	s := store();
-	set_heading("How Discord Uses My Data");
+	set_heading(L("How Discord Uses My Data"));
 	if us_ready(.Consent) {
 		on := dc.fbool(dc.fmap(dc.vmap(us_reply(.Consent)), "usage_statistics"), "consented");
-		if set_toggle_row("usage", "Use data to improve Discord", "Allow Discord to use and process my information to understand and improve Discord's services.", on, us.busy) {
+		if set_toggle_row("usage", L("Use data to improve Discord"), L("Allow Discord to use and process my information to understand and improve Discord's services."), on, us.busy) {
 			us_action(.Consent, "POST", "/users/@me/consent", ifx on then "{\"grant\":[],\"revoke\":[\"usage_statistics\"]}" else "{\"grant\":[\"usage_statistics\"],\"revoke\":[]}");
 		}
 	}
 	us_error_line();
 	spacer(.Y, 40);
-	set_heading("Profile Privacy");
-	set_para("pphelp", "Control who can see your profile info, like your bio and connected accounts.", .Normal, 14, 18, T("--text-muted"));
+	set_heading(L("Profile Privacy"));
+	set_para("pphelp", L("Control who can see your profile info, like your bio and connected accounts."), .Normal, 14, 18, T("--text-muted"));
 	spacer(.Y, 12);
-	label("Share my full profile with", .Medium, 16, T("--text-strong"), 20);
+	label(L("Share my full profile with"), .Medium, 16, T("--text-strong"), 20);
 	spacer(.Y, 8);
 	VIS :: string.["Friends & All Servers", "Friends & Small Servers Only", "Friends Only"];
 	VIS_V :: u64.[3, 2, 1]; // ProfileVisibility: FRIENDS_AND_ALL_GUILDS, FRIENDS_AND_SMALL_GUILDS, FRIENDS_ONLY
@@ -548,18 +548,18 @@ data_privacy_page :: () {
 	set_para("vishelp", HELP[cur], .Normal, 14, 18, T("--text-muted"));
 	spacer(.Y, 40);
 	// Request all of my Data: the last request's state (null: none), then POST starts one
-	set_heading("Request all of my Data");
-	set_para("harvesthelp", "Get a copy of your data. It can take up to 30 days to prepare, and a download link is emailed to you when it's ready.", .Normal, 14, 18, T("--text-muted"));
+	set_heading(L("Request all of my Data"));
+	set_para("harvesthelp", L("Get a copy of your data. It can take up to 30 days to prepare, and a download link is emailed to you when it's ready."), .Normal, 14, 18, T("--text-muted"));
 	spacer(.Y, 12);
 	if !us_ready(.Harvest) return;
 	h := dc.vmap(us_reply(.Harvest));
 	created := dc.iso_to_ms(dc.fstr(h, "created_at"));
 	pending := created && !dc.fstr(h, "completed_at");
 	if created {
-		set_para("harveststate", tprint(ifx pending then "Your request from % is being prepared." else "Your last request was on %.", short_date(created)), .Normal, 14, 18, T("--text-default"));
+		set_para("harveststate", tprint(ifx pending then L("Your request from % is being prepared.") else L("Your last request was on %."), short_date(created)), .Normal, 14, 18, T("--text-default"));
 		spacer(.Y, 12);
 	}
-	if set_button(ifx us.harvest_confirm then "Confirm Request##harvest" else "Request Data##harvest", ifx us.harvest_confirm then .Danger else .Primary, !us.busy && !pending, 32) {
+	if set_button(ifx us.harvest_confirm then L("Confirm Request##harvest") else L("Request Data##harvest"), ifx us.harvest_confirm then .Danger else .Primary, !us.busy && !pending, 32) {
 		if us.harvest_confirm us_action(.Harvest, "POST", "/users/@me/harvest", "{}");
 		us.harvest_confirm = !us.harvest_confirm;
 	}
@@ -589,8 +589,8 @@ connected_apps_page :: () {
 	us_enter("Connected Apps", .Connections, .Tokens);
 	if !set_page_begin("connpage") return;
 	defer set_page_end();
-	set_heading("Connections");
-	set_para("connhelp", "Connect these accounts and unlock special Discord integrations. The sign-in opens in your browser.", .Normal, 14, 18, T("--text-muted"));
+	set_heading(L("Connections"));
+	set_para("connhelp", L("Connect these accounts and unlock special Discord integrations. The sign-in opens in your browser."), .Normal, 14, 18, T("--text-muted"));
 	spacer(.Y, 12);
 	PER_ROW :: 5;
 	for line: 0..(CONNECT_PLATFORMS.count - 1) / PER_ROW {
@@ -613,7 +613,7 @@ connected_apps_page :: () {
 	if us_ready(.Connections) {
 		body := us_reply(.Connections);
 		list := dc.vlist(body);
-		if !list.count set_para("noconn", "You haven't connected any accounts yet.", .Normal, 14, 18, T("--text-muted"));
+		if !list.count set_para("noconn", L("You haven't connected any accounts yet."), .Normal, 14, 18, T("--text-muted"));
 		for list {
 			m := dc.vmap(it);
 			if dc.fbool(m, "revoked") continue;
@@ -637,11 +637,11 @@ connected_apps_page :: () {
 						label(dc.fstr(m, "name"), .Semibold, 16, T("--text-strong"), 20);
 						label(platform_name(kind), .Normal, 12, T("--text-muted"), 16);
 					}
-					if set_button("Remove##rm", .Link, !us.busy, 32) us_action(.Connections, "DELETE", tprint("/users/@me/connections/%/%", kind, id));
+					if set_button(L("Remove##rm"), .Link, !us.busy, 32) us_action(.Connections, "DELETE", tprint("/users/@me/connections/%/%", kind, id));
 				}
 				spacer(.Y, 8);
 				shown := dc.fint(m, "visibility") == 1;
-				if set_toggle_row("vis", "Display on profile", "", shown, us.busy) {
+				if set_toggle_row("vis", L("Display on profile"), "", shown, us.busy) {
 					us_action(.Connections, "PATCH", tprint("/users/@me/connections/%/%", kind, id), tprint("{\"visibility\":%}", ifx shown then 0 else 1));
 				}
 				inset_end(16, 12);
@@ -650,10 +650,10 @@ connected_apps_page :: () {
 		}
 	}
 	spacer(.Y, 40);
-	set_heading("Authorized Apps");
+	set_heading(L("Authorized Apps"));
 	if !us_ready(.Tokens) return;
 	apps := dc.vlist(us_reply(.Tokens));
-	if !apps.count set_para("noapps", "You haven't authorized any apps.", .Normal, 14, 18, T("--text-muted"));
+	if !apps.count set_para("noapps", L("You haven't authorized any apps."), .Normal, 14, 18, T("--text-muted"));
 	for apps {
 		m := dc.vmap(it);
 		a := dc.fmap(m, "application");
@@ -671,7 +671,7 @@ connected_apps_page :: () {
 			{ ui.parent(r); defer ui.pop_parent();
 				label(dc.fstr(a, "name"), .Semibold, 16, T("--text-strong"), 20);
 				filler(.X);
-				if set_button("Deauthorize##deauth", .Danger, !us.busy, 32) us_action(.Tokens, "DELETE", tprint("/oauth2/tokens/%", dc.fstr(m, "id")));
+				if set_button(L("Deauthorize##deauth"), .Danger, !us.busy, 32) us_action(.Tokens, "DELETE", tprint("/oauth2/tokens/%", dc.fstr(m, "id")));
 			}
 			desc := dc.fstr(a, "description");
 			if desc {
@@ -683,7 +683,7 @@ connected_apps_page :: () {
 			for dc.flist(m, "scopes") array_add(*scopes, dc.vstr(it));
 			if scopes.count {
 				spacer(.Y, 8);
-				set_para("scopes", tprint("Permissions: %", join(..scopes, separator = ", ",, temp)), .Normal, 12, 16, T("--text-muted"));
+				set_para("scopes", tprint(L("Permissions: %"), join(..scopes, separator = ", ",, temp)), .Normal, 12, 16, T("--text-muted"));
 			}
 			inset_end(16, 12);
 		}

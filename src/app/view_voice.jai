@@ -44,7 +44,7 @@ voice_client_gone :: (c: *dc.Client) {
 voice_join_channel :: (gid: dc.Snowflake, cid: dc.Snowflake) {
 	if app.voice_channel == cid && vc.client == app.client { return; }
 	if voice_channel_full(cid) {
-		toast_show("This voice channel is full.", false);
+		toast_show(L("This voice channel is full."), false);
 		return;
 	}
 	if !net_action() { return; }
@@ -306,7 +306,7 @@ voice_panel :: () {
 		r.semantic_size = .[ui.pct(1), ui.px(REJOIN_H)];
 		{ ui.parent(r); defer ui.pop_parent();
 			spacer(.X, 14);
-			label("Disconnected", .Semibold, 14, T("--text-muted"), 18);
+			label(L("Disconnected"), .Semibold, 14, T("--text-muted"), 18);
 			filler(.X);
 			b := row("rejoinbtn", .Clickable | .Draw_Background | .Hot_Animation);
 			b.semantic_size = .[ui.children(), ui.px(32)];
@@ -316,7 +316,7 @@ voice_panel :: () {
 			if ui.signal(b).clicked voice_rejoin();
 			{ ui.parent(b); defer ui.pop_parent();
 				spacer(.X, 14);
-				label("Rejoin", .Semibold, 14, .{1, 1, 1, 1}, 18);
+				label(L("Rejoin"), .Semibold, 14, .{1, 1, 1, 1}, 18);
 				spacer(.X, 14);
 			}
 			spacer(.X, 8);
@@ -386,7 +386,7 @@ voice_panel :: () {
 				} else if ch {
 					where_ = dm_name(ch);
 				}
-				t := ifx plain then label("Not end-to-end encrypted", .Normal, 12, T("--text-feedback-warning"), 14) else label(where_, .Normal, 12, T("--text-muted"), 14);
+				t := ifx plain then label(L("Not end-to-end encrypted"), .Normal, 12, T("--text-feedback-warning"), 14) else label(where_, .Normal, 12, T("--text-muted"), 14);
 				t.flags |= .Clip | .Clickable; // the channel's name goes to the call
 				tsig := ui.signal(t);
 				if tsig.hovering t.style.text_color = T("--text-default");
@@ -422,7 +422,7 @@ voice_panel :: () {
 			spacer(.X, 6);
 			icon("i", "waveform", 20, ifx vs.noise then T("--text-feedback-positive") else T("--interactive-icon-default"));
 		}
-		if nsig.hovering tooltip_below(ifx vs.noise then "Noise Suppression: On" else "Noise Suppression: Off", nb.rect, above = true);
+		if nsig.hovering tooltip_below(ifx vs.noise then L("Noise Suppression: On") else L("Noise Suppression: Off"), nb.rect, above = true);
 		if nsig.clicked vs.noise = !vs.noise;
 		b := ui.box("disconnect", .Clickable | .Draw_Background | .Hot_Animation);
 		b.semantic_size = .[ui.px(32), ui.px(32)];
@@ -444,9 +444,9 @@ voice_panel :: () {
 	{ ui.parent(br); defer ui.pop_parent();
 		spacer(.X, 8);
 		if video.SUPPORTED {
-			if voice_panel_button("video", "video", "Video", camera_on(), can_video) camera_toggle();
+			if voice_panel_button("video", "video", L("Video"), camera_on(), can_video) camera_toggle();
 			spacer(.X, 8);
-			if voice_panel_button("screen", "screen-stream", "Screen", screen_sharing(), can_video) {
+			if voice_panel_button("screen", "screen-stream", L("Screen"), screen_sharing(), can_video) {
 				if !screen_sharing() video.screen_targets_refresh();
 				vid.picker_open = true; // while streaming: its settings and Stop Streaming
 			}
@@ -507,7 +507,7 @@ voice_info_popout :: () {
 	spacer(.Y, 12);
 	hdr := row("hdr");
 	hdr.semantic_size = .[ui.pct(1), ui.px(22)];
-	{ ui.parent(hdr); defer ui.pop_parent(); spacer(.X, 16); label("Connection Info", .Semibold, 16, T("--text-strong"), 20); }
+	{ ui.parent(hdr); defer ui.pop_parent(); spacer(.X, 16); label(L("Connection Info"), .Semibold, 16, T("--text-strong"), 20); }
 	spacer(.Y, 8);
 	host: string;
 	if call_client() {
@@ -515,27 +515,27 @@ voice_info_popout :: () {
 		if ok host = info.endpoint;
 	}
 	if find_index_from_left(host, #char ":") > 0 host.count = find_index_from_left(host, #char ":");
-	line("Server", ifx host then host else "Waiting for a server");
+	line(L("Server"), ifx host then host else L("Waiting for a server"));
 	if !vc.conn {
-		line("State", "Connecting");
+		line(L("State"), L("Connecting"));
 	} else {
 		st := voice.get_stats(vc.conn);
 		ping := ifx st.rtt_ms > 0 then st.rtt_ms else st.ws_ping_ms;
-		line("State", tprint("%", voice.state(vc.conn)));
-		line("Ping", ifx ping > 0 then tprint("% ms", ping) else "Measuring");
-		line("Packets sent", tprint("%", st.packets_sent));
-		line("Packets received", tprint("%", st.packets_received));
+		line(L("State"), tprint("%", voice.state(vc.conn)));
+		line(L("Ping"), ifx ping > 0 then tprint("% ms", ping) else L("Measuring"));
+		line(L("Packets sent"), tprint("%", st.packets_sent));
+		line(L("Packets received"), tprint("%", st.packets_received));
 		j := st.jitter;
 		heard := j.received + j.lost;
-		line("Packet loss", ifx heard then tprint("%\%", formatFloat(100.0 * j.lost / heard, trailing_width = 1)) else "0%");
-		line("Jitter", tprint("% ms", formatFloat(j.jitter_ms, trailing_width = 1)));
+		line(L("Packet loss"), ifx heard then tprint("%\%", formatFloat(100.0 * j.lost / heard, trailing_width = 1)) else "0%");
+		line(L("Jitter"), tprint("% ms", formatFloat(j.jitter_ms, trailing_width = 1)));
 		e := voice.e2ee_status(vc.conn,, temp);
-		line("End-to-end encryption", ifx e.active then tprint("DAVE v%, % members", e.protocol_version, e.members) else "Off");
+		line(L("End-to-end encryption"), ifx e.active then tprint(L("DAVE v%, % members"), e.protocol_version, e.members) else L("Off"));
 		if e.active && e.privacy_code {
 			spacer(.Y, 6);
 			r := row("pc");
 			r.semantic_size = .[ui.pct(1), ui.px(18)];
-			{ ui.parent(r); defer ui.pop_parent(); spacer(.X, 16); label("PRIVACY CODE", .Semibold, 12, T("--text-muted"), 16); }
+			{ ui.parent(r); defer ui.pop_parent(); spacer(.X, 16); label(L("PRIVACY CODE"), .Semibold, 12, T("--text-muted"), 16); }
 			// grouped in fives, as the official client shows it
 			sb: String_Builder;
 			sb.allocator = temp;
@@ -611,7 +611,7 @@ incoming_call_popout :: () {
 		name := ifx ch.kind == .DM then dc.user_name(store(), caller, 0, "Unknown") else dm_name(ch);
 		label(ellipsize(name, .Semibold, 20, W - 32), .Semibold, 20, T("--text-strong"), 24);
 		spacer(.Y, 2);
-		label("Incoming Call...", .Normal, 16, T("--text-default"), 20);
+		label(L("Incoming Call..."), .Normal, 16, T("--text-default"), 20);
 		spacer(.Y, 24);
 		btns := row("btns");
 		btns.semantic_size = .[ui.children(), ui.px(50)];
@@ -633,8 +633,8 @@ incoming_call_popout :: () {
 				}
 				return clicked;
 			}
-			if btn("Decline##decline", "x-large", T("--status-danger")) { dc.call_decline(app.client, cid); }
-			if btn("Join Call##join", "phone-call", T("--status-positive")) { call_join_incoming(cid); }
+			if btn(L("Decline##decline"), "x-large", T("--status-danger")) { dc.call_decline(app.client, cid); }
+			if btn(L("Join Call##join"), "phone-call", T("--status-positive")) { call_join_incoming(cid); }
 		}
 	}
 }

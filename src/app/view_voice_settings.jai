@@ -241,10 +241,10 @@ voice_settings_page :: () {
 						c.semantic_size = .[ui.px(320), ui.children()];
 						c.layout_axis = .Y;
 						{ ui.parent(c); defer ui.pop_parent();
-							section_title(ifx input then "INPUT DEVICE" else "OUTPUT DEVICE");
+							section_title(ifx input then L("INPUT DEVICE") else L("OUTPUT DEVICE"));
 							device_dropdown(ifx input then 1 else 2, input, 320);
 							spacer(.Y, 20);
-							section_title(ifx input then "INPUT VOLUME" else "OUTPUT VOLUME");
+							section_title(ifx input then L("INPUT VOLUME") else L("OUTPUT VOLUME"));
 							if input {
 								slider("invol", *vs.input_volume, 0, 400, 320, percent(vs.input_volume));
 							} else {
@@ -255,21 +255,21 @@ voice_settings_page :: () {
 					}
 				}
 				spacer(.Y, 32);
-				section_title("INPUT MODE");
+				section_title(L("INPUT MODE"));
 				mode_radio();
 				if vs.ptt_mode {
 					spacer(.Y, 16);
 					keybind_row();
 				}
 				spacer(.Y, 32);
-				section_title("INPUT SENSITIVITY");
-				toggle_row("autosens", "Automatically determine input sensitivity", "", *vs.auto_sens);
+				section_title(L("INPUT SENSITIVITY"));
+				toggle_row("autosens", L("Automatically determine input sensitivity"), "", *vs.auto_sens);
 				spacer(.Y, 12);
 				meter_bar();
 				if !voice_conn() {
 					// MIC TEST: Let's Check plays the processed mic back
 					spacer(.Y, 12);
-					if set_button(ifx vs.mic_test then "Stop Testing##mictest" else "Let's Check##mictest", ifx vs.mic_test then .Danger else .Primary, true, 32) {
+					if set_button(ifx vs.mic_test then L("Stop Testing##mictest") else L("Let's Check##mictest"), ifx vs.mic_test then .Danger else .Primary, true, 32) {
 						if vs.mic_test mic_test_stop(); else vs.mic_test = true;
 					}
 				}
@@ -278,24 +278,24 @@ voice_settings_page :: () {
 					slider("thresh", *vs.threshold_db, -100, 0, 660, tprint("%dB", formatFloat(vs.threshold_db, trailing_width = 0, zero_removal = .NO)));
 				}
 				spacer(.Y, 32);
-				section_title("VOICE PROCESSING");
-				toggle_row("echo", "Echo Cancellation", "", *vs.echo);
+				section_title(L("VOICE PROCESSING"));
+				toggle_row("echo", L("Echo Cancellation"), "", *vs.echo);
 				spacer(.Y, 8);
-				toggle_row("noise", "Noise Suppression", "Suppress background noise from your mic.", *vs.noise);
+				toggle_row("noise", L("Noise Suppression"), L("Suppress background noise from your mic."), *vs.noise);
 				spacer(.Y, 8);
-				toggle_row("agc", "Automatic Gain Control", "", *vs.agc);
+				toggle_row("agc", L("Automatic Gain Control"), "", *vs.agc);
 				spacer(.Y, 32);
-				section_title("SOUNDBOARD VOLUME");
+				section_title(L("SOUNDBOARD VOLUME"));
 				slider("sbvol", *vs.soundboard_volume, 0, 100, 660, percent(vs.soundboard_volume));
 				spacer(.Y, 16);
-				toggle_row("sbmic", "Play Soundboard Through My Mic", "Your sounds go out with your voice, mixed into your microphone, instead of as soundboard sounds.", *vs.soundboard_mic);
+				toggle_row("sbmic", L("Play Soundboard Through My Mic"), L("Your sounds go out with your voice, mixed into your microphone, instead of as soundboard sounds."), *vs.soundboard_mic);
 				if video.SUPPORTED {
 					spacer(.Y, 32);
 					camera_test_section();
 				}
 				spacer(.Y, 32);
 				// Reset Voice Settings, with a second click to confirm
-				if set_button(ifx vs.reset_armed then "Click Again to Reset##vreset" else "Reset Voice Settings##vreset", .Danger, true, 32) {
+				if set_button(ifx vs.reset_armed then L("Click Again to Reset##vreset") else L("Reset Voice Settings##vreset"), .Danger, true, 32) {
 					if vs.reset_armed voice_settings_reset();
 					else vs.reset_armed = true;
 				}
@@ -348,7 +348,7 @@ voice_user_menu :: () {
 	perms := ifx v.guild_id then dc.channel_permissions(st, v.channel_id) else 0;
 	{ ui.parent(menu); defer ui.pop_parent();
 		spacer(.Y, 8);
-		if menu_item("profile", "Profile").clicked {
+		if menu_item("profile", L("Profile")).clicked {
 			vs.menu_user = 0;
 			open_profile(uid, .{p.x, p.y, p.x + W, p.y + 1});
 			return;
@@ -359,7 +359,7 @@ voice_user_menu :: () {
 			hdr.semantic_size = .[ui.pct(1), ui.px(24)];
 			{ ui.parent(hdr); defer ui.pop_parent();
 				spacer(.X, 16);
-				label("User Volume", .Medium, 14, T("--interactive-text-default"), 18);
+				label(L("User Volume"), .Medium, 14, T("--interactive-text-default"), 18);
 			}
 			sr := row("sl");
 			sr.semantic_size = .[ui.pct(1), ui.px(32)];
@@ -370,33 +370,33 @@ voice_user_menu :: () {
 				if slider("uvol", *vol, 0, 400, W - 32, percent(vol)) table_set(*vs.user_volume, uid, vol);
 			}
 			_, m := table_find(*vs.user_muted, uid);
-			if menu_item("mute", "Mute", ifx m then .Check_On else .Check_Off).clicked table_set(*vs.user_muted, uid, !m);
+			if menu_item("mute", L("Mute"), ifx m then .Check_On else .Check_Off).clicked table_set(*vs.user_muted, uid, !m);
 		}
 		// a moderator's tools, each with its permission (PATCH /guilds/{id}/members/{user})
 		can_mute := dc.has_permission(perms, dc.PERM_MUTE_MEMBERS);
 		can_deafen := dc.has_permission(perms, dc.PERM_DEAFEN_MEMBERS);
 		can_move := dc.has_permission(perms, dc.PERM_MOVE_MEMBERS);
 		if can_mute || can_deafen || can_move menu_sep("s1");
-		if can_mute && menu_item("smute", "Server Mute", ifx v.mute then .Check_On else .Check_Off, danger = true).clicked && net_action()
+		if can_mute && menu_item("smute", L("Server Mute"), ifx v.mute then .Check_On else .Check_Off, danger = true).clicked && net_action()
 			dc.set_member_voice(app.client, v.guild_id, uid, tprint("{\"mute\":%}", !v.mute));
-		if can_deafen && menu_item("sdeaf", "Server Deafen", ifx v.deaf then .Check_On else .Check_Off, danger = true).clicked && net_action()
+		if can_deafen && menu_item("sdeaf", L("Server Deafen"), ifx v.deaf then .Check_On else .Check_Off, danger = true).clicked && net_action()
 			dc.set_member_voice(app.client, v.guild_id, uid, tprint("{\"deaf\":%}", !v.deaf));
 		ch := dc.channel_get(st, v.channel_id);
 		if ch && ch.kind == .Guild_Stage_Voice && stage_moderator(v.channel_id) {
 			// a stage's audience is invited to speak; a speaker goes back to the audience
-			if menu_item("stage", ifx v.suppress then "Invite to Speak" else "Move to Audience").clicked {
+			if menu_item("stage", ifx v.suppress then L("Invite to Speak") else L("Move to Audience")).clicked {
 				vs.menu_user = 0;
 				if net_action() dc.stage_set_suppress(app.client, v.guild_id, v.channel_id, uid, !v.suppress);
 				return;
 			}
 		}
 		if can_move {
-			if menu_item("disconnect", "Disconnect", danger = true).clicked {
+			if menu_item("disconnect", L("Disconnect"), danger = true).clicked {
 				vs.menu_user = 0;
 				if net_action() dc.set_member_voice(app.client, v.guild_id, uid, "{\"channel_id\":null}");
 				return;
 			}
-			if menu_item("move", "Move To", .Chevron, open = vs.menu_move).clicked vs.menu_move = !vs.menu_move;
+			if menu_item("move", L("Move To"), .Chevron, open = vs.menu_move).clicked vs.menu_move = !vs.menu_move;
 			if vs.menu_move for cid: dc.guild_channels_sorted(st, v.guild_id) {
 				ch := dc.channel_get(st, cid);
 				if !ch || (ch.kind != .Guild_Voice && ch.kind != .Guild_Stage_Voice) || cid == v.channel_id continue;
@@ -499,7 +499,7 @@ camera_test_section :: () {
 	device_dropdown(3, false, 660);
 	spacer(.Y, 16);
 	if video.blur_supported() {
-		toggle_row("blur", "Blur Background", "Blur what's behind you on camera. Only your camera is changed.", *vs.camera_blur);
+		toggle_row("blur", L("Blur Background"), L("Blur what's behind you on camera. Only your camera is changed."), *vs.camera_blur);
 		spacer(.Y, 16);
 	}
 	section_title("PREVIEW");
@@ -528,7 +528,7 @@ camera_test_section :: () {
 		if ui.signal(b).clicked camera_test_toggle();
 		{ ui.parent(b); defer ui.pop_parent();
 			spacer(.X, 16);
-			label(ifx on then "Stop Video" else "Test Video", .Semibold, 14, .{1, 1, 1, 1}, 18);
+			label(ifx on then L("Stop Video") else L("Test Video"), .Semibold, 14, .{1, 1, 1, 1}, 18);
 			spacer(.X, 16);
 		}
 		spacer(.Y, ifx on then 16.0 else 0);
@@ -670,7 +670,7 @@ mode_radio :: () {
 				}
 			}
 			spacer(.X, 12);
-			label(ifx ptt then "Push to Talk" else "Voice Activity", .Medium, 16, T("--text-strong"), 20);
+			label(ifx ptt then L("Push to Talk") else L("Voice Activity"), .Medium, 16, T("--text-strong"), 20);
 		}
 		spacer(.Y, 8);
 	}
@@ -689,7 +689,7 @@ keybind_row :: () {
 			i := ptt_keybind(add = true); // Push to Talk mode has one, as in the client
 			if i >= 0 shortcut_field(i, 320);
 			spacer(.Y, 6);
-			label(ifx kb.global == .On then "A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button. Works in every app." else "A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button.", .Normal, 12, T("--text-muted"), 16).flags |= .Wrap_Text;
+			label(ifx kb.global == .On then L("A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button. Works in every app.") else L("A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button."), .Normal, 12, T("--text-muted"), 16).flags |= .Wrap_Text;
 			global_input_notice();
 		}
 		spacer(.X, 20);
@@ -697,7 +697,7 @@ keybind_row :: () {
 		d.semantic_size = .[ui.px(320), ui.children()];
 		d.layout_axis = .Y;
 		{ ui.parent(d); defer ui.pop_parent();
-			section_title("PUSH TO TALK RELEASE DELAY");
+			section_title(L("PUSH TO TALK RELEASE DELAY"));
 			spacer(.Y, 8);
 			slider("pttdelay", *vs.ptt_delay_ms, 0, 2000, 320, tprint("%ms", formatFloat(vs.ptt_delay_ms, trailing_width = 0, zero_removal = .NO)));
 		}

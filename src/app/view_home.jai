@@ -3,7 +3,7 @@ home_sidebar :: () {
 	search.semantic_size = .[ui.pct(1), ui.px(HEADER_H - 1)];
 	{ ui.parent(search); defer ui.pop_parent();
 		spacer(.X, 8);
-		btn := ui.box("Find or start a conversation##btn", .Clickable | .Draw_Background | .Draw_Border | .Draw_Text);
+		btn := ui.box(L("Find or start a conversation##btn"), .Clickable | .Draw_Background | .Draw_Border | .Draw_Text);
 		btn.semantic_size = .[ui.fill(), ui.px(32)];
 		btn.style.bg = T("--background-mod-subtle");
 		btn.style.border_color = T("--border-muted");
@@ -35,13 +35,13 @@ home_sidebar :: () {
 		g0, c0 := app.view.guild, app.view.channel;
 		s := store();
 		spacer(.Y, 8);
-		if dm_nav_item("Friends", app.view.channel == 0 && !app.view.requests, pending_count()).clicked {
+		if dm_nav_item(L("Friends"), app.view.channel == 0 && !app.view.requests, pending_count()).clicked {
 			friends_tab_telemetry("friends_list_clicked");
 			app.view.requests = false;
 			select_channel(0, 0);
 		}
 		reqs := dc.private_channels_sorted(s, requests = true).count;
-		if reqs && dm_nav_item("Message Requests", app.view.channel == 0 && app.view.requests, message_request_count(), "inbox").clicked {
+		if reqs && dm_nav_item(L("Message Requests"), app.view.channel == 0 && app.view.requests, message_request_count(), "inbox").clicked {
 			select_channel(0, 0);
 			app.view.requests = true;
 		}
@@ -61,7 +61,7 @@ home_sidebar :: () {
 		header.cross_align = .Start;
 		{ ui.parent(header); defer ui.pop_parent();
 			spacer(.X, 17);
-			label("Direct Messages", .Medium, 14, T("--channels-default"), 18);
+			label(L("Direct Messages"), .Medium, 14, T("--channels-default"), 18);
 			filler(.X);
 			dm_create_button(); // view_group_dm.jai: "Select Friends" popout
 			spacer(.X, 16);
@@ -186,7 +186,7 @@ dm_row :: (ch: *dc.Channel) {
 				label(dm_name(ch), ifx unread then .Semibold else .Medium, 16, color, 20);
 				if ch.kind == .Group_DM {
 					n := ch.recipient_ids.count + 1;
-					label(tprint("% Member%", n, ifx n == 1 then "" else "s"), .Medium, 12, T("--text-muted"), 16);
+					label(tprint(L("% Member%"), n, ifx n == 1 then "" else "s"), .Medium, 12, T("--text-muted"), 16);
 				} else if ch.recipient_ids.count > 0 {
 					custom := user_custom_status(ch.recipient_ids[0]);
 					if custom label(ellipsize(custom, .Medium, 12, item.rect.x1 - item.rect.x0 - 90), .Medium, 12, T("--text-muted"), 16);
@@ -252,7 +252,7 @@ friends_page :: () {
 		spacer(.X, 22);
 		icon("ficon", "friends", 20, T("--channel-icon"));
 		spacer(.X, 6);
-		label("Friends", .Semibold, 16, T("--text-strong"), 20);
+		label(L("Friends"), .Semibold, 16, T("--text-strong"), 20);
 		spacer(.X, 12);
 		dot := ui.box("dot", .Draw_Background);
 		dot.semantic_size = .[ui.px(4), ui.px(4)];
@@ -293,7 +293,7 @@ friends_page :: () {
 		filler(.X);
 		ng := icon("newgroup", "chat-plus", 20, T("--icon-muted"), .Clickable); // New Group DM: the Create DM popout
 		ngs := ui.signal(ng);
-		if ngs.hovering { set_icon(ng, "chat-plus", T("--interactive-icon-hover")); tooltip_below("New Group DM", ng.rect); }
+		if ngs.hovering { set_icon(ng, "chat-plus", T("--interactive-icon-hover")); tooltip_below(L("New Group DM"), ng.rect); }
 		if ngs.clicked group_dm_popout_open(ng.rect, 0);
 		spacer(.X, 22);
 	}
@@ -374,7 +374,7 @@ friends_page :: () {
 				spacer(.X, 11);
 				icon("mag", "magnifying-glass", 16, T("--icon-strong"));
 				spacer(.X, 12);
-				res := text_field("field", *app.view.friends_search, "Search", app.ui.focus == search.key && !modal_open(), 16, 20, 9, T("--input-placeholder-text-default"));
+				res := text_field("field", *app.view.friends_search, L("Search"), app.ui.focus == search.key && !modal_open(), 16, 20, 9, T("--input-placeholder-text-default"));
 				if res == .Escape { ui.editor_set_text(*app.view.friends_search, ""); }
 				spacer(.X, 12);
 			}
@@ -406,7 +406,7 @@ friends_page :: () {
 					if received spacer(.Y, 16);
 					sh := row("senthdr");
 					sh.semantic_size = .[ui.pct(1), ui.px(18)];
-					{ ui.parent(sh); defer ui.pop_parent(); spacer(.X, FRIENDS_PAD_L); label(tprint("Sent — %", ids.count - received), .Medium, 14, T("--text-default"), 18); }
+					{ ui.parent(sh); defer ui.pop_parent(); spacer(.X, FRIENDS_PAD_L); label(tprint(L("Sent — %"), ids.count - received), .Medium, 14, T("--text-default"), 18); }
 					spacer(.Y, 16);
 				}
 				ui.id_scope(cast(u64)(uid)); defer ui.pop_seed();
@@ -546,7 +546,7 @@ friend_row :: (uid: dc.Snowflake, kind: dc.Relationship_Type) {
 				if more.clicked { open_user_menu(uid, .{more.box.rect.x0, more.box.rect.y1 + 4}); }
 			} else if kind == .Blocked {
 				ub := round_icon_button("unblock", "x-small", T("--status-danger"));
-				if ub.hovering tooltip_below("Unblock", ub.box.rect);
+				if ub.hovering tooltip_below(L("Unblock"), ub.box.rect);
 				if ub.clicked rel_change(uid, .Remove);
 			} else {
 				if round_icon_button("deny", "x-small", T("--status-danger")).clicked rel_change(uid, .Remove);
@@ -582,7 +582,7 @@ requests_page :: () {
 		spacer(.X, 22);
 		icon("ricon", "inbox", 20, T("--channel-icon"));
 		spacer(.X, 6);
-		label("Message Requests", .Semibold, 16, T("--text-strong"), 20);
+		label(L("Message Requests"), .Semibold, 16, T("--text-strong"), 20);
 		spacer(.X, 12);
 		for name, i: string.["Requests", "Spam"] {
 			sel := app.view.requests_spam == (i == 1);
@@ -641,18 +641,18 @@ requests_page :: () {
 			col.semantic_size = .[ui.fill(), ui.children()];
 			{ ui.parent(col); defer ui.pop_parent();
 				label(dm_name(ch), .Semibold, 16, T("--text-strong"), 20);
-				label(ifx ch.spam then "Flagged as spam" else "Wants to message you", .Medium, 14, T("--text-muted"), 18);
+				label(ifx ch.spam then L("Flagged as spam") else L("Wants to message you"), .Medium, 14, T("--text-muted"), 18);
 			}
 			acc := round_icon_button("accept", "checkmark-large", T("--status-positive"));
-			if acc.hovering tooltip_below("Accept", acc.box.rect);
+			if acc.hovering tooltip_below(L("Accept"), acc.box.rect);
 			if acc.clicked {
 				if net_action() dc.message_request_answer(app.client, cid, true);
 				else ch.msg_request, ch.spam = false, false; // offline (fixture) runs
 			}
 			spacer(.X, 10);
 			ign := round_icon_button("ignore", "x-small", T("--status-danger"));
-			if ign.hovering tooltip_below("Ignore", ign.box.rect);
-			if ign.clicked undo_push("Message request ignored", (u: *Undo) { if u.client dc.message_request_answer(u.client, u.a, false); }, a = cid, hides = true);
+			if ign.hovering tooltip_below(L("Ignore"), ign.box.rect);
+			if ign.clicked undo_push(L("Message request ignored"), (u: *Undo) { if u.client dc.message_request_answer(u.client, u.a, false); }, a = cid, hides = true);
 			spacer(.X, 10);
 		}
 		spacer(.X, 26);
@@ -663,7 +663,7 @@ requests_page :: () {
 		e.semantic_size = .[ui.pct(1), ui.px(24)];
 		ui.parent(e); defer ui.pop_parent();
 		filler(.X);
-		label(ifx app.view.requests_spam then "No spam. Nice." else "No message requests.", .Normal, 16, T("--text-muted"), 20);
+		label(ifx app.view.requests_spam then L("No spam. Nice.") else L("No message requests."), .Normal, 16, T("--text-muted"), 20);
 		filler(.X);
 	}
 }
@@ -683,7 +683,7 @@ active_now_column :: () {
 		h.semantic_size = .[ui.pct(1), ui.px(24)];
 		{ ui.parent(h); defer ui.pop_parent();
 			spacer(.X, 16);
-			label("Active Now", .Semibold, 20, T("--text-strong"), 24);
+			label(L("Active Now"), .Semibold, 20, T("--text-strong"), 24);
 		}
 		spacer(.Y, 9);
 		s := store();
@@ -733,7 +733,7 @@ active_now_column :: () {
 			card.style.radius = all4(8);
 			{ ui.parent(card); defer ui.pop_parent();
 				spacer(.Y, 16);
-				t := ui.box("It's quiet for now...##t", .Draw_Text);
+				t := ui.box(L("It's quiet for now...##t"), .Draw_Text);
 				t.semantic_size = .[ui.pct(1), ui.text_size()];
 				t.style.font = F(.Semibold);
 				t.style.font_size = 16;
@@ -741,7 +741,7 @@ active_now_column :: () {
 				t.style.text_color = T("--text-strong");
 				t.style.text_align = .Center;
 				spacer(.Y, 2);
-				b := ui.box("When a friend starts an activity—like playing a game or hanging out on voice—we'll show it here!##b", .Draw_Text | .Wrap_Text);
+				b := ui.box(L("When a friend starts an activity—like playing a game or hanging out on voice—we'll show it here!##b"), .Draw_Text | .Wrap_Text);
 				b.semantic_size = .[ui.pct(1), ui.text_size()];
 				b.style.font = F(.Normal);
 				b.style.font_size = 14;
@@ -827,14 +827,14 @@ add_friend_view :: () {
 		r.semantic_size = .[ui.pct(1), ui.px(24)];
 		{ ui.parent(r); defer ui.pop_parent();
 			spacer(.X, 30);
-			label("Add Friend", .Semibold, 20, T("--text-strong"), 24);
+			label(L("Add Friend"), .Semibold, 20, T("--text-strong"), 24);
 		}
 		spacer(.Y, 8);
 		r2 := row("sub");
 		r2.semantic_size = .[ui.pct(1), ui.px(20)];
 		{ ui.parent(r2); defer ui.pop_parent();
 			spacer(.X, 30);
-			label("You can add friends with their Discord username.", .Normal, 16, T("--text-default"), 20);
+			label(L("You can add friends with their Discord username."), .Normal, 16, T("--text-default"), 20);
 		}
 		spacer(.Y, 16);
 		r3 := row("inputrow");
@@ -853,11 +853,11 @@ add_friend_view :: () {
 			if ui.signal(box).pressed { app.ui.focus = box.key; }
 			{ ui.parent(box); defer ui.pop_parent();
 				spacer(.X, 16);
-				res := text_field("field", *app.view.add_friend, "You can add friends with their Discord username.", app.ui.focus == box.key && !modal_open());
+				res := text_field("field", *app.view.add_friend, L("You can add friends with their Discord username."), app.ui.focus == box.key && !modal_open());
 				name := trim(ui.editor_text(*app.view.add_friend));
 				if res == .Changed && sent != .Pending req_clear(ADD_FRIEND_REQ); // editing drops the last result
 				spacer(.X, 12);
-				btn := ui.box("Send Friend Request##send", .Clickable | .Draw_Background | .Draw_Text | .Hot_Animation);
+				btn := ui.box(L("Send Friend Request##send"), .Clickable | .Draw_Background | .Draw_Text | .Hot_Animation);
 				btn.semantic_size = .[ui.text_size(16), ui.px(32)];
 				btn.style.radius = all4(8);
 				btn.style.font = F(.Medium);
@@ -889,7 +889,7 @@ add_friend_view :: () {
 				spacer(.X, 30);
 				if sent == .Failed {
 					code, captcha := req_error(ADD_FRIEND_REQ);
-					label(ifx captcha then CAPTCHA_TEXT else ifx code == 50096 then "You cannot friend yourself" else "Hm, didn’t work. Double check that the username is correct.", .Normal, 14, T("--text-feedback-critical"), 18);
+					label(ifx captcha then CAPTCHA_TEXT else ifx code == 50096 then L("You cannot friend yourself") else L("Hm, didn’t work. Double check that the username is correct."), .Normal, 14, T("--text-feedback-critical"), 18);
 				} else {
 					t := ui.box("ok");
 					t.semantic_size = .[ui.text_size(0, 0), ui.px(18)];
@@ -1154,7 +1154,7 @@ dm_profile_panel :: (uid: dc.Snowflake) {
 				line("user", ifx u.pronouns then tprint("%  •  %", u.username, u.pronouns) else u.username, .Normal, 14, 18, T("--text-strong"));
 				spacer(.Y, 20);
 				if u.bio {
-					line("about_h", "About Me", .Semibold, 12, 16, T("--text-strong"));
+					line("about_h", L("About Me"), .Semibold, 12, 16, T("--text-strong"));
 					spacer(.Y, 6);
 					ar := row("about");
 					ar.semantic_size = .[ui.pct(1), ui.children()];
@@ -1170,14 +1170,14 @@ dm_profile_panel :: (uid: dc.Snowflake) {
 					}
 					spacer(.Y, 16);
 				}
-				line("since_h", "Member Since", .Semibold, 12, 16, T("--text-strong"));
+				line("since_h", L("Member Since"), .Semibold, 12, 16, T("--text-strong"));
 				spacer(.Y, 6);
 				created := local_ms(dc.snowflake_time_ms(uid));
 				t := to_calendar(APOLLO_TIME_FOR_JAN_1_1970 + milliseconds_to_apollo(created), .UTC);
 				line("since", date_medium(t), .Normal, 14, 18, T("--text-default"));
 				spacer(.Y, 16);
 				if !on_hosted() { // a hosted server keeps no notes
-					line("note_h", "Note (only visible to you)", .Semibold, 12, 16, T("--text-strong"));
+					line("note_h", L("Note (only visible to you)"), .Semibold, 12, 16, T("--text-strong"));
 					spacer(.Y, 4);
 					note_field(uid, DMP_PAD - 4, *dmp_note, *dmp_note_focused);
 				}
@@ -1204,7 +1204,7 @@ dm_profile_panel :: (uid: dc.Snowflake) {
 				br.semantic_size = .[ui.pct(1), ui.px(40)];
 				{ ui.parent(br); defer ui.pop_parent();
 					spacer(.X, DMP_PAD);
-					b := ui.box("View Full Profile##vfp", .Clickable | .Draw_Background | .Draw_Text | .Hot_Animation);
+					b := ui.box(L("View Full Profile##vfp"), .Clickable | .Draw_Background | .Draw_Text | .Hot_Animation);
 					b.semantic_size = .[ui.fill(), ui.px(40)];
 					b.style.radius = all4(8);
 					b.style.bg = T("--background-mod-subtle");
@@ -1301,20 +1301,20 @@ dm_welcome :: (ch: *dc.Channel) -> *ui.Box {
 			}
 			if !on_hosted() if rel == { // a hosted server has no friends or blocks
 			case .Friend;
-				if btn("Remove Friend", false) rel_change(uid, .Remove, "DM Header");
-				if btn("Block", false) rel_change(uid, .Block, "DM Header");
+				if btn(L("Remove Friend"), false) rel_change(uid, .Remove, "DM Header");
+				if btn(L("Block"), false) rel_change(uid, .Block, "DM Header");
 			case .Blocked;
-				if btn("Unblock", false) rel_change(uid, .Remove, "DM Header");
+				if btn(L("Unblock"), false) rel_change(uid, .Remove, "DM Header");
 			case .Outgoing_Request;
-				btn("Friend Request Sent", false);
-				if btn("Block", false) rel_change(uid, .Block, "DM Header");
+				btn(L("Friend Request Sent"), false);
+				if btn(L("Block"), false) rel_change(uid, .Block, "DM Header");
 			case .Incoming_Request;
-				if btn("Accept", true, uid) && req_begin(rel_req("Accept", uid)) { dc.accept_friend_request(app.client, uid); req_end(); }
-				if btn("Ignore", false) rel_change(uid, .Remove);
-				if btn("Block", false) rel_change(uid, .Block, "DM Header");
+				if btn(L("Accept"), true, uid) && req_begin(rel_req("Accept", uid)) { dc.accept_friend_request(app.client, uid); req_end(); }
+				if btn(L("Ignore"), false) rel_change(uid, .Remove);
+				if btn(L("Block"), false) rel_change(uid, .Block, "DM Header");
 			case .None; #through; case .Implicit;
-				if btn("Add Friend", true, uid) && req_begin(rel_req("Add Friend", uid)) { dc.add_relationship(app.client, uid, "DM Header"); req_end(); }
-				if btn("Block", false) rel_change(uid, .Block, "DM Header");
+				if btn(L("Add Friend"), true, uid) && req_begin(rel_req("Add Friend", uid)) { dc.add_relationship(app.client, uid, "DM Header"); req_end(); }
+				if btn(L("Block"), false) rel_change(uid, .Block, "DM Header");
 			}
 		}
 	}
@@ -1422,14 +1422,14 @@ channel_welcome :: (ch: *dc.Channel) {
 		h.semantic_size = .[ui.pct(1), ui.px(40)];
 		{ ui.parent(h); defer ui.pop_parent();
 			spacer(.X, 16);
-			label(tprint("Welcome to #%!", ch.name), .Bold, 32, T("--text-strong"), 40);
+			label(tprint(L("Welcome to #%!"), ch.name), .Bold, 32, T("--text-strong"), 40);
 		}
 		spacer(.Y, 8);
 		t := row("t");
 		t.semantic_size = .[ui.pct(1), ui.px(20)];
 		{ ui.parent(t); defer ui.pop_parent();
 			spacer(.X, 16);
-			label(tprint("This is the start of the #% channel.", ch.name), .Normal, 16, T("--text-muted"), 20);
+			label(tprint(L("This is the start of the #% channel."), ch.name), .Normal, 16, T("--text-muted"), 20);
 		}
 		if (my_guild_permissions(ch.guild_id) & PERM_MANAGE_CHANNELS) != 0 {
 			spacer(.Y, 8);
@@ -1443,7 +1443,7 @@ channel_welcome :: (ch: *dc.Channel) {
 				{ ui.parent(b); defer ui.pop_parent();
 					icon("i", "pencil", 16, T("--text-link"));
 					spacer(.X, 4);
-					label("Edit Channel", .Medium, 14, T("--text-link"), 18);
+					label(L("Edit Channel"), .Medium, 14, T("--text-link"), 18);
 				}
 			}
 		}

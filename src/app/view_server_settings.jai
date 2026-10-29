@@ -142,16 +142,16 @@ server_settings_receive :: (r: *dc.Feature_Result) {
 			ui.editor_set_text(*ss.tag, "");
 			ui.editor_set_text(*ss.words, "");
 			ss_set(*ss.sticker_file, "");
-		} else if r.status == -1 ss_error("Stickers must be PNG, APNG, GIF or Lottie JSON files.");
-		else if r.status == -2 ss_error("That file is too large. Stickers must be under 512 KB.");
+		} else if r.status == -1 ss_error(L("Stickers must be PNG, APNG, GIF or Lottie JSON files."));
+		else if r.status == -2 ss_error(L("That file is too large. Stickers must be under 512 KB."));
 		else ss_error(settings_result_error(r));
 		return;
 	}
 	if r.op == .Guild_Edit {
 		ss.icon_busy = false;
 		if r.ok return; // GUILD_UPDATE shows it
-		if r.status == -1 ss_error("That file couldn't be read. Server icons must be PNG, JPEG, GIF or WEBP images.");
-		else if r.status == -2 ss_error("That image is too large. Server icons must be under 512 KB.");
+		if r.status == -1 ss_error(L("That file couldn't be read. Server icons must be PNG, JPEG, GIF or WEBP images."));
+		else if r.status == -2 ss_error(L("That image is too large. Server icons must be under 512 KB."));
 		else ss_error(settings_result_error(r));
 		return;
 	}
@@ -307,11 +307,11 @@ server_settings_layer :: () {
 			ui.signal(bar);
 			{ ui.parent(bar); defer ui.pop_parent();
 				spacer(.X, 16);
-				label("Careful — you have unsaved changes!", .Medium, 16, T("--text-strong"), 20);
+				label(L("Careful — you have unsaved changes!"), .Medium, 16, T("--text-strong"), 20);
 				filler(.X);
-				if set_button("Reset##reset", .Link, !ss.busy, 32) reset = true;
+				if set_button(L("Reset##reset"), .Link, !ss.busy, 32) reset = true;
 				spacer(.X, 8);
-				if set_button(ifx ss.busy then "Saving...##save" else "Save Changes##save", .Positive, !ss.busy, 32) save = true;
+				if set_button(ifx ss.busy then L("Saving...##save") else L("Save Changes##save"), .Positive, !ss.busy, 32) save = true;
 				spacer(.X, 12);
 			}
 		}
@@ -762,8 +762,8 @@ page_body :: (g: *dc.Guild, s: Server_Section, w: float32) -> bool {
 		onboarding_page(g);
 	case .Insights;
 		// the client's page is a link out too: Insights lives on the developer site, opened in the browser
-		page_subtitle("Server Insights is hosted on a separate website so that it's easier to share links and browse cross platform.");
-		if set_button("Open Server Insights##insights", .Primary) open_url(tprint("https://discord.com/developers/servers/%", g.id));
+		page_subtitle(L("Server Insights is hosted on a separate website so that it's easier to share links and browse cross platform."));
+		if set_button(L("Open Server Insights##insights"), .Primary) open_url(tprint("https://discord.com/developers/servers/%", g.id));
 	case .Soundboard;
 		sound_settings_page(g, w); // view_server_soundboard.jai
 	case .Chan_Overview;
@@ -876,7 +876,7 @@ form_save :: (g: *dc.Guild) {
 		if !r return;
 		f := profile_form(r);
 		if f.name.count < 2 || f.name.count > 100 {
-			ss_error("Server name must be between 2 and 100 characters.");
+			ss_error(L("Server name must be between 2 and 100 characters."));
 			return;
 		}
 		ss.busy = true;
@@ -907,7 +907,7 @@ form_save :: (g: *dc.Guild) {
 	case .Integrations; #through;
 	case .Chan_Integrations;
 		name := trim(ui.editor_text(*ss.hook_name));
-		if !name { ss_error("A webhook needs a name."); return; }
+		if !name { ss_error(L("A webhook needs a name.")); return; }
 		ss_action(g, .Webhooks, "PATCH", tprint("/webhooks/%", ss.hook_id), tprint("{\"name\":%,\"channel_id\":\"%\"}", dc.json_quote(name), ss.hook_channel));
 	}
 }
@@ -1142,7 +1142,7 @@ copy_field :: (id: string, value: string) {
 	spacer(.X, 12);
 	label(value, .Normal, 16, T("--text-default"), 20);
 	filler(.X);
-	if set_button(tprint("Copy##%", id), .Primary, h = 32) clipboard_set(value);
+	if set_button(tprint(L("Copy##%"), id), .Primary, h = 32) clipboard_set(value);
 	spacer(.X, 4);
 }
 
@@ -1152,28 +1152,28 @@ BRAND_COLORS :: string.["#ff1c90", "#e81d1e", "#e86e1d", "#e8c02f", "#71368a", "
 BRAND_NAMES :: string.["Soul", "Volcano", "Marsh", "Thunder", "Rising", "Zephyr", "Cascade", "Earth", "Boulder"];
 
 profile_page :: (g: *dc.Guild, w: float32) -> bool {
-	page_subtitle("Customize how your server appears in invite links and, if enabled, in Server Discovery and Announcement Channel messages");
+	page_subtitle(L("Customize how your server appears in invite links and, if enabled, in Server Discovery and Announcement Channel messages"));
 	r := reply(.Profile);
 	if !r {
 		if ss.loading[Req.Profile] {
-			label("Loading...", .Normal, 16, T("--text-muted"), 20);
+			label(L("Loading..."), .Normal, 16, T("--text-muted"), 20);
 			return false;
 		}
-		label("Something went wrong", .Semibold, 16, T("--text-strong"), 20);
+		label(L("Something went wrong"), .Semibold, 16, T("--text-strong"), 20);
 		spacer(.Y, 4);
-		set_para("loadfail", "We couldn't load the profile for this server.", .Normal, 14, 18, T("--text-default"));
+		set_para("loadfail", L("We couldn't load the profile for this server."), .Normal, 14, 18, T("--text-default"));
 		spacer(.Y, 12);
-		if set_button("Retry##retry", .Primary) load(g, .Profile, tprint("/guilds/%/profile", g.id));
+		if set_button(L("Retry##retry"), .Primary) load(g, .Profile, tprint("/guilds/%/profile", g.id));
 		return false;
 	}
 	save := false;
-	field_title("Name");
+	field_title(L("Name"));
 	res := set_input("name", *ss.name, g.name, max_runes = 100);
 	if res == .Submit save = true;
 	if res == .Escape ss.field_escape = true;
 	spacer(.Y, 24);
-	field_title("Icon");
-	set_para("iconhelp", "We recommend an image of at least 512x512.", .Normal, 14, 18, T("--text-muted"));
+	field_title(L("Icon"));
+	set_para("iconhelp", L("We recommend an image of at least 512x512."), .Normal, 14, 18, T("--text-muted"));
 	spacer(.Y, 12);
 	ir := row("iconrow");
 	ir.semantic_size = .[ui.pct(1), ui.px(80)];
@@ -1192,7 +1192,7 @@ profile_page :: (g: *dc.Guild, w: float32) -> bool {
 			ic.text = "";
 		}
 		spacer(.X, 16);
-		if set_button(ifx ss.icon_busy then "Uploading...##upload" else "Change Server Icon##upload", .Primary, !ss.icon_busy && !ss.busy) {
+		if set_button(ifx ss.icon_busy then L("Uploading...##upload") else L("Change Server Icon##upload"), .Primary, !ss.icon_busy && !ss.busy) {
 			paths := pick_files();
 			if paths.count && net_action() {
 				ss.icon_busy = true;
@@ -1201,14 +1201,14 @@ profile_page :: (g: *dc.Guild, w: float32) -> bool {
 			}
 		}
 		spacer(.X, 8);
-		if g.icon && set_button("Remove Icon##removeicon", .Link, !ss.icon_busy && !ss.busy) && net_action() {
+		if g.icon && set_button(L("Remove Icon##removeicon"), .Link, !ss.icon_busy && !ss.busy) && net_action() {
 			ss.icon_busy = true;
 			ss_error("");
 			dc.edit_guild_icon(app.client, g.id, "");
 		}
 	}
 	spacer(.Y, 24);
-	field_title("Banner");
+	field_title(L("Banner"));
 	br := row("banner");
 	br.semantic_size = .[ui.pct(1), ui.px(44)];
 	br.style.child_gap = 8;
@@ -1227,7 +1227,7 @@ profile_page :: (g: *dc.Guild, w: float32) -> bool {
 		}
 	}
 	spacer(.Y, 24);
-	section_heading("traits", "Traits", "Add up to 5 traits to show off your server's interests and personality.");
+	section_heading("traits", L("Traits"), "Add up to 5 traits to show off your server's interests and personality.");
 	tr := row("traits");
 	tr.semantic_size = .[ui.pct(1), ui.children()];
 	tr.style.child_gap = 8;
@@ -1237,14 +1237,14 @@ profile_page :: (g: *dc.Guild, w: float32) -> bool {
 			c.semantic_size = .[ui.fill(), ui.children()];
 			c.layout_axis = .Y;
 			ui.parent(c); defer ui.pop_parent();
-			if set_input("in", it, tprint("Trait %", it_index + 1), max_runes = 24) == .Escape ss.field_escape = true;
+			if set_input("in", it, tprint(L("Trait %"), it_index + 1), max_runes = 24) == .Escape ss.field_escape = true;
 		}
 	}
 	spacer(.Y, 24);
-	section_heading("desc", "Description", "How did your server get started? Why should people join?");
-	if set_input("desc", *ss.desc, "Tell the world a bit about this server.", multiline = true, max_runes = 300, min_h = 100) == .Escape ss.field_escape = true;
+	section_heading("desc", L("Description"), "How did your server get started? Why should people join?");
+	if set_input("desc", *ss.desc, L("Tell the world a bit about this server."), multiline = true, max_runes = 300, min_h = 100) == .Escape ss.field_escape = true;
 	spacer(.Y, 24);
-	if set_toggle_row("private", "Private Profile", "When enabled, only server members can view profile content. Non-members won't be able to see this content unless they have an invite.", ss.private) ss.private = !ss.private;
+	if set_toggle_row("private", L("Private Profile"), L("When enabled, only server members can view profile content. Non-members won't be able to see this content unless they have an invite."), ss.private) ss.private = !ss.private;
 	return save;
 }
 
@@ -1264,14 +1264,14 @@ AFK_TIMEOUTS :: int.[60, 300, 900, 1800, 3600];
 AFK_LABELS :: string.["1 minute", "5 minutes", "15 minutes", "30 minutes", "1 hour"];
 
 engagement_page :: (g: *dc.Guild) {
-	page_subtitle("Manage settings that help keep your server active.");
-	section_heading("sys", "System Messages", "Configure system event messages sent to your server.");
-	field_title("System Messages Channel");
-	names, ids := channel_options(g, "No System Messages", false);
+	page_subtitle(L("Manage settings that help keep your server active."));
+	section_heading("sys", L("System Messages"), "Configure system event messages sent to your server.");
+	field_title(L("System Messages Channel"));
+	names, ids := channel_options(g, L("No System Messages"), false);
 	pick := select_field("syschan", names, index_of(ids, ss.eng.system_channel_id));
 	if pick >= 0 ss.eng.system_channel_id = ids[pick];
 	spacer(.Y, 8);
-	set_para("syshelp", "This is the channel we send system event messages to.", .Normal, 12, 16, T("--text-muted"));
+	set_para("syshelp", L("This is the channel we send system event messages to."), .Normal, 12, 16, T("--text-muted"));
 	spacer(.Y, 16);
 	Flag :: struct { bit: int; text: string; }
 	// Boost messages (SUPPRESS_PREMIUM_SUBSCRIPTIONS) stay as they are: no boost surfaces (AGENTS.md).
@@ -1286,38 +1286,38 @@ engagement_page :: (g: *dc.Guild) {
 		spacer(.Y, 12);
 	}
 	set_divider();
-	section_heading("notif", "Default Notification Settings", "This will determine whether members who have not explicitly set their notification settings receive a notification for every message sent in this server or not.");
-	if radio_row("notif0", "All Messages", ss.eng.default_message_notifications == 0) ss.eng.default_message_notifications = 0;
-	if radio_row("notif1", "Only @mentions", ss.eng.default_message_notifications == 1) ss.eng.default_message_notifications = 1;
+	section_heading("notif", L("Default Notification Settings"), "This will determine whether members who have not explicitly set their notification settings receive a notification for every message sent in this server or not.");
+	if radio_row("notif0", L("All Messages"), ss.eng.default_message_notifications == 0) ss.eng.default_message_notifications = 0;
+	if radio_row("notif1", L("Only @mentions"), ss.eng.default_message_notifications == 1) ss.eng.default_message_notifications = 1;
 	if !on_hosted() { // hosted servers have no voice channels yet
 		set_divider();
-		field_title("Inactive Channel");
-		vn, vids := channel_options(g, "No Inactive Channel", true);
+		field_title(L("Inactive Channel"));
+		vn, vids := channel_options(g, L("No Inactive Channel"), true);
 		pick = select_field("afkchan", vn, index_of(vids, ss.eng.afk_channel_id));
 		if pick >= 0 ss.eng.afk_channel_id = vids[pick];
 		spacer(.Y, 16);
-		field_title("Inactive Timeout");
+		field_title(L("Inactive Timeout"));
 		cur := 1;
 		for AFK_TIMEOUTS if it == ss.eng.afk_timeout cur = it_index;
 		pick = select_field("afktime", AFK_LABELS, cur);
 		if pick >= 0 ss.eng.afk_timeout = AFK_TIMEOUTS[pick];
 		spacer(.Y, 8);
-		set_para("afkhelp", "Automatically move members to this channel and mute them when they have been idle for longer than the inactive timeout. This does not affect browsers.", .Normal, 12, 16, T("--text-muted"));
+		set_para("afkhelp", L("Automatically move members to this channel and mute them when they have been idle for longer than the inactive timeout. This does not affect browsers."), .Normal, 12, 16, T("--text-muted"));
 	}
 	if reply(.Widget) && !on_hosted() {
 		set_divider();
-		section_heading("widget", "Server Widget", "Embed an HTML widget on your website to display your online members, voice channels, and invite link.");
-		if set_toggle_row("widgeton", "Enable Server Widget", "By enabling the widget, your server profile will be visible to others outside of your server members. You can control Profile privacy in Server Settings > Profile.", ss.widget_on) ss.widget_on = !ss.widget_on;
+		section_heading("widget", L("Server Widget"), "Embed an HTML widget on your website to display your online members, voice channels, and invite link.");
+		if set_toggle_row("widgeton", L("Enable Server Widget"), L("By enabling the widget, your server profile will be visible to others outside of your server members. You can control Profile privacy in Server Settings > Profile."), ss.widget_on) ss.widget_on = !ss.widget_on;
 		spacer(.Y, 16);
-		field_title("Invite Channel");
-		wn, wids := channel_options(g, "No Invite", false);
+		field_title(L("Invite Channel"));
+		wn, wids := channel_options(g, L("No Invite"), false);
 		pick = select_field("widgetchan", wn, index_of(wids, ss.widget_channel));
 		if pick >= 0 ss.widget_channel = wids[pick];
 		spacer(.Y, 16);
-		field_title("Server ID");
+		field_title(L("Server ID"));
 		copy_field("serverid", tprint("%", g.id));
 		spacer(.Y, 16);
-		field_title("JSON API");
+		field_title(L("JSON API"));
 		copy_field("jsonapi", tprint("https://discord.com/api/guilds/%/widget.json", g.id));
 	}
 }
@@ -1420,7 +1420,7 @@ ss_empty :: (text: string) {
 
 loading_or :: (req: Req, failed: string) -> bool {
 	if reply(req) return true;
-	label(ifx ss.loading[req] then "Loading..." else failed, .Normal, 14, T("--text-muted"), 18);
+	label(ifx ss.loading[req] then L("Loading...") else failed, .Normal, 14, T("--text-muted"), 18);
 	return false;
 }
 
@@ -1444,7 +1444,7 @@ members_search :: (g: *dc.Guild) {
 }
 
 members_page :: (g: *dc.Guild) {
-	res := set_input("search", *ss.search, "Search by username or id");
+	res := set_input("search", *ss.search, L("Search by username or id"));
 	if res == .Changed {
 		ss.search_at = wall_ms();
 		array_reset(*ss.cursors);
@@ -1459,14 +1459,14 @@ members_page :: (g: *dc.Guild) {
 		}
 	}
 	spacer(.Y, 16);
-	if !loading_or(.Members, "Couldn't load the members.") return;
+	if !loading_or(.Members, L("Couldn't load the members.")) return;
 	m := dc.vmap(reply(.Members).body);
 	label(tprint("% members", dc.fint(m, "total_result_count")), .Semibold, 14, T("--text-default"), 18);
 	spacer(.Y, 8);
 	W :: float32.[4, 2, 2, 1];
 	table_header("mhead", .["NAME", "MEMBER SINCE", "JOINED DISCORD", "ROLES"], W);
 	list := dc.flist(m, "members");
-	if !list.count ss_empty("No members found");
+	if !list.count ss_empty(L("No members found"));
 	last := ifx list.count == MEMBERS_PAGE then dc.fmap(dc.vmap(list[list.count - 1]), "member") else .[];
 	defer pager(g, dc.fsnow(dc.fmap(last, "user"), "id"), members_search, dc.iso_to_ms(dc.fstr(last, "joined_at")));
 	for list {
@@ -1504,12 +1504,12 @@ member_menu :: (g: *dc.Guild) {
 	pick := "";
 	if dc.can_moderate(store(), g.id, uid, dc.PERM_MODERATE_MEMBERS) {
 		if ss.menu_timed_out {
-			if menu_item("untimeout", "Remove Timeout").clicked pick = "untimeout";
-		} else if menu_item("timeout", tprint("Timeout %", name), danger = true).clicked pick = "timeout";
+			if menu_item("untimeout", L("Remove Timeout")).clicked pick = "untimeout";
+		} else if menu_item("timeout", tprint(L("Timeout %"), name), danger = true).clicked pick = "timeout";
 	}
-	if dc.can_moderate(store(), g.id, uid, dc.PERM_KICK_MEMBERS) && menu_item("kick", tprint("Kick %", name), danger = true).clicked pick = "kick";
-	if dc.can_moderate(store(), g.id, uid, dc.PERM_BAN_MEMBERS) && menu_item("ban", tprint("Ban %", name), danger = true).clicked pick = "ban";
-	if g.owner_id == store().me && menu_item("transfer", "Transfer Ownership", danger = true).clicked pick = "transfer";
+	if dc.can_moderate(store(), g.id, uid, dc.PERM_KICK_MEMBERS) && menu_item("kick", tprint(L("Kick %"), name), danger = true).clicked pick = "kick";
+	if dc.can_moderate(store(), g.id, uid, dc.PERM_BAN_MEMBERS) && menu_item("ban", tprint(L("Ban %"), name), danger = true).clicked pick = "ban";
+	if g.owner_id == store().me && menu_item("transfer", L("Transfer Ownership"), danger = true).clicked pick = "transfer";
 	spacer(.Y, 8);
 	if pick == "" return;
 	ss.menu_user = 0;
@@ -1532,21 +1532,21 @@ member_menu :: (g: *dc.Guild) {
 
 invites_page :: (g: *dc.Guild) {
 	paused := dc.iso_to_ms(g.invites_disabled_until) > wall_ms() || dc.guild_has_feature(g, "INVITES_DISABLED");
-	if !loading_or(.Invites, "Couldn't load the invites.") return;
+	if !loading_or(.Invites, L("Couldn't load the invites.")) return;
 	list := dc.vlist(reply(.Invites).body);
 	hr := row("ihead");
 	hr.semantic_size = .[ui.pct(1), ui.px(40)];
 	{ ui.parent(hr); defer ui.pop_parent();
-		label(ifx list.count then "ACTIVE INVITE LINKS" else "NO ACTIVE INVITE LINKS", .Bold, 12, T("--text-muted"), 16);
+		label(ifx list.count then L("ACTIVE INVITE LINKS") else L("NO ACTIVE INVITE LINKS"), .Bold, 12, T("--text-muted"), 16);
 		filler(.X);
 		if ss.channel {} // Channel Settings lists the channel's invites; pausing is the server's
 		else if paused {
-			if set_button("Enable Invites##resume", .Primary, !ss.busy) ss_action(g, .COUNT, "PUT", tprint("/guilds/%/incident-actions", g.id), "{\"invites_disabled_until\":null,\"dms_disabled_until\":null,\"lockdown_duration_hours\":null}");
-		} else if set_button("Pause Invites##pause", .Danger, !ss.busy) ss_confirm_open(.Pause_Invites, 0, "");
+			if set_button(L("Enable Invites##resume"), .Primary, !ss.busy) ss_action(g, .COUNT, "PUT", tprint("/guilds/%/incident-actions", g.id), "{\"invites_disabled_until\":null,\"dms_disabled_until\":null,\"lockdown_duration_hours\":null}");
+		} else if set_button(L("Pause Invites##pause"), .Danger, !ss.busy) ss_confirm_open(.Pause_Invites, 0, "");
 	}
 	if paused && !ss.channel {
 		spacer(.Y, 8);
-		set_para("pausednote", "Invites are paused: nobody can join with an invite link until they're enabled again.", .Normal, 14, 18, T("--text-feedback-warning"));
+		set_para("pausednote", L("Invites are paused: nobody can join with an invite link until they're enabled again."), .Normal, 14, 18, T("--text-feedback-warning"));
 	}
 	spacer(.Y, 12);
 	W :: float32.[3, 2, 1, 2];
@@ -1592,13 +1592,13 @@ duration_left :: (ms: s64) -> string {
 // ---- Bans ----
 
 bans_page :: (g: *dc.Guild) {
-	if set_input("bsearch", *ss.search, "Search Bans by User ID or Username") == .Escape ss.field_escape = true;
+	if set_input("bsearch", *ss.search, L("Search Bans by User ID or Username")) == .Escape ss.field_escape = true;
 	spacer(.Y, 16);
-	if !loading_or(.Bans, "Couldn't load the bans.") return;
+	if !loading_or(.Bans, L("Couldn't load the bans.")) return;
 	list := dc.vlist(reply(.Bans).body);
 	defer pager(g, ifx list.count == BANS_PAGE then dc.fsnow(dc.fmap(dc.vmap(list[list.count - 1]), "user"), "id") else 0, bans_load);
 	q := to_lower_copy(trim(ui.editor_text(*ss.search)),, temp);
-	label(tprint("% Bans", list.count), .Semibold, 14, T("--text-default"), 18);
+	label(tprint(L("% Bans"), list.count), .Semibold, 14, T("--text-default"), 18);
 	spacer(.Y, 8);
 	shown := 0;
 	table_units(.[3, 4]);
@@ -1614,11 +1614,11 @@ bans_page :: (g: *dc.Guild) {
 		defer ui.pop_parent();
 		{ c := table_cell(0, 3); ui.parent(c); defer ui.pop_parent(); user_cell(u); }
 		reason := dc.fstr(b, "reason");
-		{ c := table_cell(1, 4); ui.parent(c); defer ui.pop_parent(); label(ifx reason then reason else "No reason given", .Normal, 14, T("--text-muted"), 18); }
+		{ c := table_cell(1, 4); ui.parent(c); defer ui.pop_parent(); label(ifx reason then reason else L("No reason given"), .Normal, 14, T("--text-muted"), 18); }
 		spacer(.X, 36);
 		if sig.clicked ss_confirm_open(.Revoke_Ban, uid, dc.fstr(u, "username"));
 	}
-	if !shown ss_empty(ifx list.count then "No bans match your search" else "No bans");
+	if !shown ss_empty(ifx list.count then L("No bans match your search") else L("No bans"));
 }
 
 BANS_PAGE :: 1000;
@@ -1641,14 +1641,14 @@ pager :: (g: *dc.Guild, next: dc.Snowflake, reload: (*dc.Guild), next_joined: s6
 	r.semantic_size = .[ui.pct(1), ui.px(38)];
 	r.style.child_gap = 8;
 	ui.parent(r); defer ui.pop_parent();
-	label(tprint("Page %", ss.cursors.count + 1), .Medium, 14, T("--text-muted"), 18);
+	label(tprint(L("Page %"), ss.cursors.count + 1), .Medium, 14, T("--text-muted"), 18);
 	filler(.X);
-	if set_button("Previous##prev", .Secondary, ss.cursors.count > 0) {
+	if set_button(L("Previous##prev"), .Secondary, ss.cursors.count > 0) {
 		pop(*ss.cursors);
 		if ss.cursor_joined.count pop(*ss.cursor_joined);
 		reload(g);
 	}
-	if set_button("Next##next", .Secondary, next != 0) {
+	if set_button(L("Next##next"), .Secondary, next != 0) {
 		array_add(*ss.cursors, next);
 		if next_joined array_add(*ss.cursor_joined, next_joined);
 		reload(g);
@@ -1658,8 +1658,8 @@ pager :: (g: *dc.Guild, next: dc.Snowflake, reload: (*dc.Guild), next_joined: s6
 // ---- Emoji ----
 
 emoji_page :: (g: *dc.Guild) {
-	page_subtitle("Add up to 50 custom emoji that anyone can use in this server. Animated GIF emoji may be used by members with Discord Nitro. Emoji names must be at least 2 characters long and can only contain alphanumeric characters and underscores. Emoji must be under 256 KB in size.");
-	if set_button(ifx emoji_upload_busy() then "Uploading...##upload" else "Upload Emoji##upload", .Primary, !emoji_upload_busy()) emoji_upload_pick(g.id);
+	page_subtitle(L("Add up to 50 custom emoji that anyone can use in this server. Animated GIF emoji may be used by members with Discord Nitro. Emoji names must be at least 2 characters long and can only contain alphanumeric characters and underscores. Emoji must be under 256 KB in size."));
+	if set_button(ifx emoji_upload_busy() then L("Uploading...##upload") else L("Upload Emoji##upload"), .Primary, !emoji_upload_busy()) emoji_upload_pick(g.id);
 	spacer(.Y, 20);
 	uploaders: Table(dc.Snowflake, etf.Map);
 	uploaders.allocator = temp;
@@ -1668,7 +1668,7 @@ emoji_page :: (g: *dc.Guild) {
 	for animated: bool.[false, true] {
 		n := 0;
 		for g.emojis if it.animated == animated n += 1;
-		label(tprint("% EMOJI — % SLOTS AVAILABLE", ifx animated then "ANIMATED" else "STATIC", max(0, 50 - n)), .Bold, 12, T("--text-muted"), 16);
+		label(tprint(L("% EMOJI — % SLOTS AVAILABLE"), ifx animated then "ANIMATED" else "STATIC", max(0, 50 - n)), .Bold, 12, T("--text-muted"), 16);
 		spacer(.Y, 8);
 		W :: float32.[1, 3, 3];
 		if n table_header(tprint("ehead%", animated), .["IMAGE", "NAME", "UPLOADED BY"], W);
@@ -1781,7 +1781,7 @@ audit_page :: (g: *dc.Guild) {
 		c1.semantic_size = .[ui.fill(), ui.children()];
 		c1.layout_axis = .Y;
 		{ ui.parent(c1); defer ui.pop_parent();
-			field_title("Filter by User");
+			field_title(L("Filter by User"));
 			pick := select_field("audituser", users, index_of(uids, ss.audit_user));
 			if pick >= 0 { ss.audit_user = uids[pick]; array_reset(*ss.cursors); audit_load(g); }
 		}
@@ -1789,7 +1789,7 @@ audit_page :: (g: *dc.Guild) {
 		c2.semantic_size = .[ui.fill(), ui.children()];
 		c2.layout_axis = .Y;
 		{ ui.parent(c2); defer ui.pop_parent();
-			field_title("Filter by Action");
+			field_title(L("Filter by Action"));
 			acts: [..]string;
 			acts.allocator = temp;
 			for AUDIT_ACTIONS array_add(*acts, it.name);
@@ -1798,9 +1798,9 @@ audit_page :: (g: *dc.Guild) {
 		}
 	}
 	spacer(.Y, 20);
-	if !loading_or(.Audit, "Couldn't load the audit log.") return;
+	if !loading_or(.Audit, L("Couldn't load the audit log.")) return;
 	list := dc.flist(dc.vmap(r.body), "audit_log_entries");
-	if !list.count ss_empty("No logs yet");
+	if !list.count ss_empty(L("No logs yet"));
 	defer pager(g, ifx list.count == AUDIT_PAGE then dc.fsnow(dc.vmap(list[list.count - 1]), "id") else 0, audit_load);
 	for list {
 		e := dc.vmap(it);
@@ -1848,7 +1848,7 @@ audit_page :: (g: *dc.Guild) {
 			lr.semantic_size = .[ui.pct(1), ui.children()];
 			ui.parent(lr); defer ui.pop_parent();
 			spacer(.X, 54);
-			set_para("t", tprint("Reason: %", reason), .Normal, 13, 18, T("--text-muted"));
+			set_para("t", tprint(L("Reason: %"), reason), .Normal, 13, 18, T("--text-muted"));
 			spacer(.X, 12);
 		}
 		spacer(.Y, 10);
@@ -1928,7 +1928,7 @@ ss_confirm_modal :: (g: *dc.Guild) {
 			set_para("text", body, .Normal, 16, 20, T("--text-default"));
 			if ss.confirm == .Timeout || ss.confirm == .Pause_Invites {
 				spacer(.Y, 16);
-				field_title("Duration");
+				field_title(L("Duration"));
 				pick: int;
 				if ss.confirm == .Timeout {
 					opts: [..]string;
@@ -1940,19 +1940,19 @@ ss_confirm_modal :: (g: *dc.Guild) {
 			}
 			if ss.confirm == .Timeout {
 				spacer(.Y, 16);
-				field_title("Reason");
+				field_title(L("Reason"));
 				if set_input("reason", *ss.reason, "", max_runes = 512) == .Escape ss.confirm = .None;
 			}
 			if ss.confirm == .Delete_Server {
 				spacer(.Y, 16);
-				field_title("Enter server name");
+				field_title(L("Enter server name"));
 				res := set_input("sname", *ss.reason, "", max_runes = 100, autofocus = true);
 				if res == .Escape ss.confirm = .None;
 				if res == .Submit go = true;
 			}
 			if ss.confirm == .Transfer {
 				spacer(.Y, 16);
-				if set_toggle_row("ack", tprint("I acknowledge that by transferring ownership of this server to %, it officially belongs to them.", t), "", ss.confirm_ack) ss.confirm_ack = !ss.confirm_ack;
+				if set_toggle_row("ack", tprint(L("I acknowledge that by transferring ownership of this server to %, it officially belongs to them."), t), "", ss.confirm_ack) ss.confirm_ack = !ss.confirm_ack;
 			}
 			if ss.error {
 				spacer(.Y, 12);
@@ -1970,7 +1970,7 @@ ss_confirm_modal :: (g: *dc.Guild) {
 	btns.style.child_gap = 8;
 	{ ui.parent(btns); defer ui.pop_parent();
 		spacer(.X, 25 - 8);
-		if wide_button("cancel", "Cancel", .Secondary) ss.confirm = .None;
+		if wide_button("cancel", L("Cancel"), .Secondary) ss.confirm = .None;
 		if wide_button("go", button, ifx danger then Adm_Button.Danger else .Primary, ok) go = true;
 		spacer(.X, 25 - 8);
 	}
@@ -2144,7 +2144,7 @@ roles_save :: (g: *dc.Guild) {
 	if !r || !role_dirty(g) || (r.permissions == ss.role_perms && r.id == g.id) return;
 	name := trim(ui.editor_text(*ss.role_name));
 	if r.id != g.id && !name {
-		ss_error("A role needs a name.");
+		ss_error(L("A role needs a name."));
 		return;
 	}
 	body := tprint("{\"name\":%,\"permissions\":\"%\",\"color\":%,\"colors\":{\"primary_color\":%,\"secondary_color\":null,\"tertiary_color\":null},\"hoist\":%,\"mentionable\":%,\"unicode_emoji\":%}",
@@ -2164,7 +2164,7 @@ roles_page :: (g: *dc.Guild) {
 	}
 	r := role_of(g, ss.role_id);
 	if r { role_edit(g, r); return; }
-	page_subtitle("Use roles to group your server members and assign permissions.");
+	page_subtitle(L("Use roles to group your server members and assign permissions."));
 	ev := role_of(g, g.id);
 	if ev {
 		d := row("default", .Clickable | .Draw_Background | .Hot_Animation);
@@ -2182,8 +2182,8 @@ roles_page :: (g: *dc.Guild) {
 		col.semantic_size = .[ui.fill(), ui.children()];
 		col.layout_axis = .Y;
 		{ ui.parent(col); defer ui.pop_parent();
-			label("Default Permissions", .Semibold, 16, T("--text-strong"), 20);
-			label("@everyone · applies to all server members", .Normal, 14, T("--text-muted"), 18);
+			label(L("Default Permissions"), .Semibold, 16, T("--text-strong"), 20);
+			label(L("@everyone · applies to all server members"), .Normal, 14, T("--text-muted"), 18);
 		}
 		icon("chev", "chevron-small-right", 20, T("--interactive-icon-default"));
 		spacer(.X, 12);
@@ -2192,9 +2192,9 @@ roles_page :: (g: *dc.Guild) {
 	hr := row("rhead");
 	hr.semantic_size = .[ui.pct(1), ui.px(40)];
 	{ ui.parent(hr); defer ui.pop_parent();
-		set_para("rnote", "Members use the colour of the highest role they have on this list. Drag roles, or use the arrows, to reorder them.", .Normal, 14, 18, T("--text-muted"));
+		set_para("rnote", L("Members use the colour of the highest role they have on this list. Drag roles, or use the arrows, to reorder them."), .Normal, 14, 18, T("--text-muted"));
 		spacer(.X, 16);
-		if set_button("Create Role##create", .Primary, !ss.busy && !role_dirty(g)) && net_action() {
+		if set_button(L("Create Role##create"), .Primary, !ss.busy && !role_dirty(g)) && net_action() {
 			ss.busy = true;
 			ss.after = .COUNT;
 			dc.guild_settings_call(app.client, g.id, xx Req.Create_Role, "POST", tprint("/guilds/%/roles", g.id), "{\"name\":\"new role\",\"color\":0,\"colors\":{\"primary_color\":0,\"secondary_color\":null,\"tertiary_color\":null},\"permissions\":\"0\"}");
@@ -2318,9 +2318,9 @@ role_edit :: (g: *dc.Guild, r: *dc.Role) {
 	hr := row("title");
 	hr.semantic_size = .[ui.pct(1), ui.px(28)];
 	{ ui.parent(hr); defer ui.pop_parent();
-		label(tprint("EDIT ROLE — %", ifx everyone then "@everyone" else r.name), .Bold, 14, T("--text-strong"), 18);
+		label(tprint(L("EDIT ROLE — %"), ifx everyone then "@everyone" else r.name), .Bold, 14, T("--text-strong"), 18);
 		filler(.X);
-		if !everyone && editable && set_button("Delete Role##delrole", .Danger, !ss.busy, 32) ss_confirm_open(.Delete_Role, r.id, r.name);
+		if !everyone && editable && set_button(L("Delete Role##delrole"), .Danger, !ss.busy, 32) ss_confirm_open(.Delete_Role, r.id, r.name);
 	}
 	spacer(.Y, 12);
 	tabs := row("tabs");
@@ -2347,16 +2347,16 @@ role_edit :: (g: *dc.Guild, r: *dc.Role) {
 	}
 	set_divider();
 	if !editable {
-		set_para("locked", ifx r.managed then "This role is managed by an integration and can't be edited here." else "You can only edit roles below your highest role.", .Normal, 14, 18, T("--text-feedback-warning"));
+		set_para("locked", ifx r.managed then L("This role is managed by an integration and can't be edited here.") else L("You can only edit roles below your highest role."), .Normal, 14, 18, T("--text-feedback-warning"));
 		spacer(.Y, 16);
 	}
 	if ss.role_tab == {
 	case 0;
-		field_title("Role name");
+		field_title(L("Role name"));
 		if set_input("rname", *ss.role_name, "", max_runes = 100) == .Escape ss.field_escape = true;
 		spacer(.Y, 24);
-		field_title("Role Color");
-		set_para("chelp", "Members use the colour of the highest role they have on the roles list.", .Normal, 14, 18, T("--text-muted"));
+		field_title(L("Role Color"));
+		set_para("chelp", L("Members use the colour of the highest role they have on the roles list."), .Normal, 14, 18, T("--text-muted"));
 		spacer(.Y, 12);
 		grid := row("colors");
 		grid.semantic_size = .[ui.pct(1), ui.children()];
@@ -2395,7 +2395,7 @@ role_edit :: (g: *dc.Guild, r: *dc.Role) {
 		if dc.guild_has_feature(g, "ROLE_ICONS") {
 			// a boosted server's role icon, saved at once (an image; a unicode emoji icon shows but isn't picked here)
 			set_divider();
-			field_title("Role Icon");
+			field_title(L("Role Icon"));
 			ir := row("icon");
 			ir.semantic_size = .[ui.pct(1), ui.px(64)];
 			ir.style.child_gap = 12;
@@ -2408,7 +2408,7 @@ role_edit :: (g: *dc.Guild, r: *dc.Role) {
 			ib.style.text_align = .Center;
 			if r.icon && r.icon.count <= 64 set_remote_image(ib, tprint("https://cdn.discordapp.com/role-icons/%/%.webp?size=64&quality=lossless", r.id, r.icon));
 			else ib.text = r.unicode_emoji;
-			if set_button("Choose Image##ricon", .Secondary, editable && !ss.busy) {
+			if set_button(L("Choose Image##ricon"), .Secondary, editable && !ss.busy) {
 				paths := pick_files();
 				if paths.count && net_action() {
 					ss.busy, ss.after = true, Req.COUNT;
@@ -2416,19 +2416,19 @@ role_edit :: (g: *dc.Guild, r: *dc.Role) {
 					dc.guild_settings_call(app.client, g.id, xx Req.Action, "PATCH", tprint("/guilds/%/roles/%", g.id, r.id), "icon", file = paths[0]);
 				}
 			}
-			if (r.icon || r.unicode_emoji) && set_button("Remove Icon##rnoicon", .Link, editable && !ss.busy)
+			if (r.icon || r.unicode_emoji) && set_button(L("Remove Icon##rnoicon"), .Link, editable && !ss.busy)
 				ss_action(g, .COUNT, "PATCH", tprint("/guilds/%/roles/%", g.id, r.id), "{\"icon\":null,\"unicode_emoji\":null}");
 		}
 		set_divider();
-		if set_toggle_row("hoist", "Display role members separately from online members", "", ss.role_hoist, !editable) ss.role_hoist = !ss.role_hoist;
+		if set_toggle_row("hoist", L("Display role members separately from online members"), "", ss.role_hoist, !editable) ss.role_hoist = !ss.role_hoist;
 		set_divider();
-		if set_toggle_row("mention", "Allow anyone to @mention this role", "Note: Members with the \"Mention @everyone, @here, and All Roles\" permission will always be able to ping this role.", ss.role_mentionable, !editable) ss.role_mentionable = !ss.role_mentionable;
+		if set_toggle_row("mention", L("Allow anyone to @mention this role"), L("Note: Members with the \"Mention @everyone, @here, and All Roles\" permission will always be able to ping this role."), ss.role_mentionable, !editable) ss.role_mentionable = !ss.role_mentionable;
 	case 1;
 		cr := row("clear");
 		cr.semantic_size = .[ui.pct(1), ui.px(32)];
 		{ ui.parent(cr); defer ui.pop_parent();
 			filler(.X);
-			if set_button("Clear permissions##clear", .Link, editable && ss.role_perms != 0, 32) ss.role_perms = 0;
+			if set_button(L("Clear permissions##clear"), .Link, editable && ss.role_perms != 0, 32) ss.role_perms = 0;
 		}
 		mine := dc.guild_permissions(store(), g.id);
 		for sec: PERM_SECTIONS {
@@ -2451,7 +2451,7 @@ role_edit :: (g: *dc.Guild, r: *dc.Role) {
 rgb :: (c: u32) -> ui.Color { return .{((c >> 16) & 0xFF) / 255.0, ((c >> 8) & 0xFF) / 255.0, (c & 0xFF) / 255.0, 1}; }
 
 role_members_tab :: (g: *dc.Guild, r: *dc.Role, editable: bool) {
-	res := set_input("addsearch", *ss.search, "Search members to add (press Enter)");
+	res := set_input("addsearch", *ss.search, L("Search members to add (press Enter)"));
 	if res == .Escape ss.field_escape = true;
 	if res == .Submit && trim(ui.editor_text(*ss.search)) {
 		ss.loading[Req.Members] = false;
@@ -2482,9 +2482,9 @@ role_members_tab :: (g: *dc.Guild, r: *dc.Role, editable: bool) {
 		set_divider();
 	}
 	spacer(.Y, 12);
-	if !loading_or(.Role_Members, "Couldn't load the role's members.") return;
+	if !loading_or(.Role_Members, L("Couldn't load the role's members.")) return;
 	list := dc.flist(dc.vmap(reply(.Role_Members).body), "members");
-	if !list.count ss_empty("No members have this role yet.");
+	if !list.count ss_empty(L("No members have this role yet."));
 	table_units(.[1]);
 	for list {
 		mm := dc.fmap(dc.vmap(it), "member");
@@ -2555,20 +2555,20 @@ AUTOMOD_MENTION_SPAM :: 5;
 
 safety_page :: (g: *dc.Guild) {
 	community := dc.guild_has_feature(g, "COMMUNITY");
-	section_heading("verif", "Verification Level", "Members of the server must meet the following criteria before they can send messages in text channels or initiate a direct message conversation. If a member has an assigned role this does not apply.");
+	section_heading("verif", L("Verification Level"), "Members of the server must meet the following criteria before they can send messages in text channels or initiate a direct message conversation. If a member has an assigned role this does not apply.");
 	for VERIFICATION {
-		if radio_choice(tprint("v%", it_index), it.name, ifx community && it_index == 0 then "This option is not available for Community Servers." else it.desc, g.verification_level == it_index, !ss.busy && !(community && it_index == 0))
+		if radio_choice(tprint("v%", it_index), it.name, ifx community && it_index == 0 then L("This option is not available for Community Servers.") else it.desc, g.verification_level == it_index, !ss.busy && !(community && it_index == 0))
 			ss_action(g, .COUNT, "PATCH", tprint("/guilds/%", g.id), tprint("{\"verification_level\":%}", it_index));
 	}
 	set_divider();
-	section_heading("explicit", "Explicit image filter", "Automatically scan and delete messages sent in this server that contain explicit media.");
+	section_heading("explicit", L("Explicit image filter"), "Automatically scan and delete messages sent in this server that contain explicit media.");
 	for EXPLICIT {
-		if radio_choice(tprint("x%", it.value), it.name, ifx community && it.value != 2 then "This option is not available for Community Servers." else it.desc, g.explicit_content_filter == it.value, !ss.busy && !(community && it.value != 2))
+		if radio_choice(tprint("x%", it.value), it.name, ifx community && it.value != 2 then L("This option is not available for Community Servers.") else it.desc, g.explicit_content_filter == it.value, !ss.busy && !(community && it.value != 2))
 			ss_action(g, .COUNT, "PATCH", tprint("/guilds/%", g.id), tprint("{\"explicit_content_filter\":%}", it.value));
 	}
 	if g.owner_id == store().me {
 		set_divider();
-		if set_toggle_row("mfa", "Require 2FA for moderator actions", "Moderators must have two-factor authentication enabled to ban, kick, or timeout members and delete messages.", g.mfa_level == 1, ss.busy)
+		if set_toggle_row("mfa", L("Require 2FA for moderator actions"), L("Moderators must have two-factor authentication enabled to ban, kick, or timeout members and delete messages."), g.mfa_level == 1, ss.busy)
 			ss_action(g, .COUNT, "POST", tprint("/guilds/%/mfa", g.id), tprint("{\"level\":%}", ifx g.mfa_level == 1 then 0 else 1));
 	}
 	set_divider();
@@ -2576,8 +2576,8 @@ safety_page :: (g: *dc.Guild) {
 }
 
 automod_section :: (g: *dc.Guild) {
-	section_heading("automod", "AutoMod", "Set up AutoMod to automatically filter messages in this server with the rules below. Members with Manage Server or Administrator are exempt.");
-	if !loading_or(.Automod, "Couldn't load the AutoMod rules.") return;
+	section_heading("automod", L("AutoMod"), "Set up AutoMod to automatically filter messages in this server with the rules below. Members with Manage Server or Administrator are exempt.");
+	if !loading_or(.Automod, L("Couldn't load the AutoMod rules.")) return;
 	rules := dc.vlist(reply(.Automod).body);
 	has: [7]bool;
 	for rules {
@@ -2637,11 +2637,11 @@ automod_section :: (g: *dc.Guild) {
 	}
 	spacer(.Y, 8);
 	if !has[AUTOMOD_KEYWORD] {
-		field_title("Block Custom Words");
-		if set_input("words", *ss.words, "Words to block, separated by commas", multiline = true, max_runes = 6000, min_h = 60) == .Escape ss.field_escape = true;
+		field_title(L("Block Custom Words"));
+		if set_input("words", *ss.words, L("Words to block, separated by commas"), multiline = true, max_runes = 6000, min_h = 60) == .Escape ss.field_escape = true;
 		spacer(.Y, 8);
 		words := split_words(ui.editor_text(*ss.words));
-		if set_button("Create Rule##kw", .Primary, words.count > 0 && !ss.busy) {
+		if set_button(L("Create Rule##kw"), .Primary, words.count > 0 && !ss.busy) {
 			list: [..]string;
 			list.allocator = temp;
 			for words array_add(*list, dc.json_quote(it));
@@ -2654,9 +2654,9 @@ automod_section :: (g: *dc.Guild) {
 	br.semantic_size = .[ui.pct(1), ui.px(38)];
 	br.style.child_gap = 8;
 	ui.parent(br); defer ui.pop_parent();
-	if !has[AUTOMOD_MENTION_SPAM] && set_button("Block Mention Spam##ms", .Secondary, !ss.busy)
+	if !has[AUTOMOD_MENTION_SPAM] && set_button(L("Block Mention Spam##ms"), .Secondary, !ss.busy)
 		ss_action(g, .Automod, "POST", tprint("/guilds/%/auto-moderation/rules", g.id), automod_new_body(g, "Block Mention Spam", AUTOMOD_MENTION_SPAM, "{\"mention_total_limit\":20,\"mention_raid_protection_enabled\":true}"));
-	if !has[AUTOMOD_SPAM] && set_button("Block Suspected Spam Content##sp", .Secondary, !ss.busy)
+	if !has[AUTOMOD_SPAM] && set_button(L("Block Suspected Spam Content##sp"), .Secondary, !ss.busy)
 		ss_action(g, .Automod, "POST", tprint("/guilds/%/auto-moderation/rules", g.id), automod_new_body(g, "Block Suspected Spam Content", AUTOMOD_SPAM, "{}"));
 	ui.pop_parent();
 	spacer(.Y, 8);
@@ -2664,9 +2664,9 @@ automod_section :: (g: *dc.Guild) {
 	br.semantic_size = .[ui.pct(1), ui.px(38)];
 	br.style.child_gap = 8;
 	ui.push_parent(br);
-	if !has[AUTOMOD_PRESET] && set_button("Block Commonly Flagged Words##pr", .Secondary, !ss.busy)
+	if !has[AUTOMOD_PRESET] && set_button(L("Block Commonly Flagged Words##pr"), .Secondary, !ss.busy)
 		ss_action(g, .Automod, "POST", tprint("/guilds/%/auto-moderation/rules", g.id), automod_new_body(g, "Block Commonly Flagged Words", AUTOMOD_PRESET, "{\"presets\":[1,2,3],\"allow_list\":[]}"));
-	if !has[AUTOMOD_PROFILE] && set_button("Block Words in Member Profile Names##pn", .Secondary, !ss.busy)
+	if !has[AUTOMOD_PROFILE] && set_button(L("Block Words in Member Profile Names##pn"), .Secondary, !ss.busy)
 		ss_action(g, .Automod, "POST", tprint("/guilds/%/auto-moderation/rules", g.id), tprint("{\"name\":\"Block Words in Member Profile Names\",\"guild_id\":\"%\",\"event_type\":2,\"trigger_type\":6,\"trigger_metadata\":{\"keyword_filter\":[\"*nitro*\"],\"regex_patterns\":[],\"allow_list\":[]},\"actions\":[{\"type\":4,\"metadata\":{}}],\"enabled\":true,\"exempt_channels\":[],\"exempt_roles\":[]}", g.id));
 }
 
@@ -2779,13 +2779,13 @@ rule_save :: (g: *dc.Guild) {
 	r := rule_of_id(ss.rule_id);
 	if !r.count return;
 	d := *ss.rule;
-	if (d.trigger == AUTOMOD_KEYWORD || d.trigger == AUTOMOD_PROFILE) && !split_words(ui.editor_text(*ss.words)).count && ss.rule_regex == "[]" { ss_error("Add at least one word to block."); return; }
+	if (d.trigger == AUTOMOD_KEYWORD || d.trigger == AUTOMOD_PROFILE) && !split_words(ui.editor_text(*ss.words)).count && ss.rule_regex == "[]" { ss_error(L("Add at least one word to block.")); return; }
 	if d.trigger == AUTOMOD_MENTION_SPAM {
 		n, ok := string_to_int(trim(ui.editor_text(*ss.rule_limit)));
-		if !ok || n < 1 || n > 50 { ss_error("The mention limit is between 1 and 50."); return; }
+		if !ok || n < 1 || n > 50 { ss_error(L("The mention limit is between 1 and 50.")); return; }
 	}
-	if d.trigger != AUTOMOD_PROFILE && !d.block && !d.alert && !d.timeout { ss_error("Pick at least one response."); return; }
-	if d.alert && !d.alert_channel { ss_error("Pick a channel for the alerts."); return; }
+	if d.trigger != AUTOMOD_PROFILE && !d.block && !d.alert && !d.timeout { ss_error(L("Pick at least one response.")); return; }
+	if d.alert && !d.alert_channel { ss_error(L("Pick a channel for the alerts.")); return; }
 	ss_action(g, .Automod, "PATCH", tprint("/guilds/%/auto-moderation/rules/%", g.id, ss.rule_id), rule_body(r));
 }
 
@@ -2800,8 +2800,8 @@ rule_editor :: (g: *dc.Guild, r: etf.Map) {
 	col.layout_axis = .Y;
 	{ ui.parent(col); defer ui.pop_parent();
 		if d.trigger == AUTOMOD_KEYWORD || d.trigger == AUTOMOD_PROFILE {
-			field_title(ifx d.trigger == AUTOMOD_PROFILE then "Blocked words in names" else "Blocked words");
-			if set_input("words", *ss.words, "Words to block, separated by commas (* matches anything)", multiline = true, max_runes = 6000, min_h = 60) == .Escape ss.field_escape = true;
+			field_title(ifx d.trigger == AUTOMOD_PROFILE then L("Blocked words in names") else L("Blocked words"));
+			if set_input("words", *ss.words, L("Words to block, separated by commas (* matches anything)"), multiline = true, max_runes = 6000, min_h = 60) == .Escape ss.field_escape = true;
 			spacer(.Y, 12);
 		}
 		if d.trigger == AUTOMOD_PRESET {
@@ -2809,31 +2809,31 @@ rule_editor :: (g: *dc.Guild, r: etf.Map) {
 			spacer(.Y, 12);
 		}
 		if d.trigger == AUTOMOD_KEYWORD || d.trigger == AUTOMOD_PROFILE || d.trigger == AUTOMOD_PRESET {
-			field_title("Allowed words");
-			if set_input("allow", *ss.rule_allow, "Words that are never blocked, separated by commas", multiline = true, max_runes = 6000, min_h = 40) == .Escape ss.field_escape = true;
+			field_title(L("Allowed words"));
+			if set_input("allow", *ss.rule_allow, L("Words that are never blocked, separated by commas"), multiline = true, max_runes = 6000, min_h = 40) == .Escape ss.field_escape = true;
 			spacer(.Y, 12);
 		}
 		if d.trigger == AUTOMOD_MENTION_SPAM {
-			field_title("Mention limit");
+			field_title(L("Mention limit"));
 			if set_input("limit", *ss.rule_limit, "20", max_runes = 2) == .Escape ss.field_escape = true;
 			spacer(.Y, 8);
-			if set_toggle_row("raid", "Mention raid protection", "Detects a burst of mention spam across the server and locks it down.", d.raid) d.raid = !d.raid;
+			if set_toggle_row("raid", L("Mention raid protection"), L("Detects a burst of mention spam across the server and locks it down."), d.raid) d.raid = !d.raid;
 			spacer(.Y, 12);
 		}
-		field_title("Responses");
-		if d.trigger == AUTOMOD_PROFILE set_para("blocknote", "Members with a matching name can't talk or interact until they change it.", .Normal, 14, 18, T("--text-muted"));
-		else if set_toggle_row("block", "Block message", "", d.block) d.block = !d.block;
+		field_title(L("Responses"));
+		if d.trigger == AUTOMOD_PROFILE set_para("blocknote", L("Members with a matching name can't talk or interact until they change it."), .Normal, 14, 18, T("--text-muted"));
+		else if set_toggle_row("block", L("Block message"), "", d.block) d.block = !d.block;
 		spacer(.Y, 10);
-		if set_toggle_row("alert", "Send an alert", "", d.alert) d.alert = !d.alert;
+		if set_toggle_row("alert", L("Send an alert"), "", d.alert) d.alert = !d.alert;
 		spacer(.Y, 10);
 		if d.alert {
-			names, cids := channel_options(g, "Pick a channel", false);
+			names, cids := channel_options(g, L("Pick a channel"), false);
 			pick := select_field("alertch", names, index_of(cids, d.alert_channel));
 			if pick >= 0 d.alert_channel = cids[pick];
 			spacer(.Y, 8);
 		}
 		if d.trigger == AUTOMOD_KEYWORD || d.trigger == AUTOMOD_MENTION_SPAM {
-			if set_toggle_row("timeout", "Timeout member", "", d.timeout) d.timeout = !d.timeout;
+			if set_toggle_row("timeout", L("Timeout member"), "", d.timeout) d.timeout = !d.timeout;
 			spacer(.Y, 10);
 			if d.timeout {
 				opts := NewArray(TIMEOUTS.count, string,, temp);
@@ -2845,7 +2845,7 @@ rule_editor :: (g: *dc.Guild, r: etf.Map) {
 			}
 		}
 		spacer(.Y, 12);
-		field_title("Exemptions");
+		field_title(L("Exemptions"));
 		chips := row("ex");
 		chips.semantic_size = .[ui.pct(1), ui.children()];
 		chips.style.child_gap = 6;
@@ -2872,7 +2872,7 @@ rule_editor :: (g: *dc.Guild, r: etf.Map) {
 			w.semantic_size = .[ui.fill(), ui.children()];
 			{ ui.parent(w); defer ui.pop_parent(); pick := select_field("exrole", rnames, 0); if pick > 0 && d.exempt_roles.count < 20 array_add(*d.exempt_roles, rids[pick]); }
 			if d.trigger != AUTOMOD_PROFILE {
-				names, cids := channel_options(g, "Exempt a channel", false);
+				names, cids := channel_options(g, L("Exempt a channel"), false);
 				w = ui.box("cw");
 				w.semantic_size = .[ui.fill(), ui.children()];
 				{ ui.parent(w); defer ui.pop_parent(); pick := select_field("exch", names, 0); if pick > 0 && !array_find(d.exempt_channels, cids[pick]) && d.exempt_channels.count < 50 array_add(*d.exempt_channels, cids[pick]); }
@@ -2975,22 +2975,22 @@ hook_open :: (h: etf.Map) {
 }
 
 integrations_page :: (g: *dc.Guild) {
-	if !ss.channel page_subtitle("Customize your server with integrations. Manage webhooks, followed channels and apps.");
-	if !loading_or(.Webhooks, "Couldn't load the webhooks.") return;
+	if !ss.channel page_subtitle(L("Customize your server with integrations. Manage webhooks, followed channels and apps."));
+	if !loading_or(.Webhooks, L("Couldn't load the webhooks.")) return;
 	hooks := dc.vlist(reply(.Webhooks).body);
 	hr := row("whead");
 	hr.semantic_size = .[ui.pct(1), ui.px(40)];
 	{ ui.parent(hr); defer ui.pop_parent();
 		n := 0;
 		for hooks if dc.fint(dc.vmap(it), "type") == 1 n += 1;
-		label(tprint("Webhooks (%)", n), .Semibold, 16, T("--text-strong"), 20);
+		label(tprint(L("Webhooks (%)"), n), .Semibold, 16, T("--text-strong"), 20);
 		filler(.X);
 		names, ids := channel_options(g, "", false);
 		target := ifx ss.channel then ss.channel else ifx g.system_channel_id then g.system_channel_id else ifx ids.count > 1 then ids[1] else 0;
-		if target && set_button("New Webhook##new", .Primary, !ss.busy && !hook_dirty())
+		if target && set_button(L("New Webhook##new"), .Primary, !ss.busy && !hook_dirty())
 			ss_action(g, .Webhooks, "POST", tprint("/channels/%/webhooks", target), tprint("{\"name\":%}", dc.json_quote(WEBHOOK_NAMES[random_get() % 2])));
 	}
-	set_para("whelp", "Webhooks are a simple way to post messages from other apps and websites into this server.", .Normal, 14, 18, T("--text-muted"));
+	set_para("whelp", L("Webhooks are a simple way to post messages from other apps and websites into this server."), .Normal, 14, 18, T("--text-muted"));
 	spacer(.Y, 12);
 	for hooks {
 		h := dc.vmap(it);
@@ -3021,7 +3021,7 @@ integrations_page :: (g: *dc.Guild) {
 			{ ui.parent(col); defer ui.pop_parent();
 				label(dc.fstr(h, "name"), .Semibold, 16, T("--text-strong"), 20);
 				u := dc.fmap(h, "user");
-				label(tprint("Created on % by %", snowflake_date(id), ifx u.count then user_display(u) else "someone"), .Normal, 12, T("--text-muted"), 16);
+				label(tprint(L("Created on % by %"), snowflake_date(id), ifx u.count then user_display(u) else "someone"), .Normal, 12, T("--text-muted"), 16);
 			}
 			icon("chev", ifx open then "chevron-small-up" else "chevron-small-down", 20, T("--interactive-icon-default"));
 			spacer(.X, 16);
@@ -3041,7 +3041,7 @@ integrations_page :: (g: *dc.Guild) {
 				{ ui.parent(ar); defer ui.pop_parent();
 					hook_avatar(h, 80);
 					// saved at once, as the client's avatar upload is
-					if set_button("Change Avatar##hav", .Secondary, !ss.busy) {
+					if set_button(L("Change Avatar##hav"), .Secondary, !ss.busy) {
 						paths := pick_files();
 						if paths.count && net_action() {
 							ss.busy, ss.after = true, Req.Webhooks;
@@ -3049,13 +3049,13 @@ integrations_page :: (g: *dc.Guild) {
 							dc.guild_settings_call(app.client, g.id, xx Req.Action, "PATCH", tprint("/webhooks/%", id), "avatar", file = paths[0]);
 						}
 					}
-					if dc.fstr(h, "avatar") && set_button("Remove##hrm", .Link, !ss.busy) ss_action(g, .Webhooks, "PATCH", tprint("/webhooks/%", id), "{\"avatar\":null}");
+					if dc.fstr(h, "avatar") && set_button(L("Remove##hrm"), .Link, !ss.busy) ss_action(g, .Webhooks, "PATCH", tprint("/webhooks/%", id), "{\"avatar\":null}");
 				}
 				spacer(.Y, 16);
-				field_title("Name");
+				field_title(L("Name"));
 				if set_input("hname", *ss.hook_name, "", max_runes = 80) == .Escape ss.field_escape = true;
 				spacer(.Y, 16);
-				field_title("Channel");
+				field_title(L("Channel"));
 				names, ids := channel_options(g, "", false);
 				pick := select_field("hchan", array_view(names, 1, names.count - 1), max(0, index_of(ids, ss.hook_channel) - 1));
 				if pick >= 0 ss.hook_channel = ids[pick + 1];
@@ -3063,7 +3063,7 @@ integrations_page :: (g: *dc.Guild) {
 				curl := webhook_curl(h);
 				if curl {
 					// tools outside fastcord reach a hosted webhook pinned to the server's key (its certificate is self-signed)
-					field_title("Post from a script");
+					field_title(L("Post from a script"));
 					set_para("curl", curl, .Normal, 13, 17, T("--text-default"));
 					spacer(.Y, 16);
 				}
@@ -3071,10 +3071,10 @@ integrations_page :: (g: *dc.Guild) {
 				br.semantic_size = .[ui.pct(1), ui.px(38)];
 				br.style.child_gap = 8;
 				{ ui.parent(br); defer ui.pop_parent();
-					if set_button("Copy Webhook URL##copy", .Secondary) clipboard_set(webhook_url(h));
-					if curl && set_button("Copy curl Command##copycurl", .Secondary) clipboard_set(curl);
+					if set_button(L("Copy Webhook URL##copy"), .Secondary) clipboard_set(webhook_url(h));
+					if curl && set_button(L("Copy curl Command##copycurl"), .Secondary) clipboard_set(curl);
 					filler(.X);
-					if set_button("Delete Webhook##del", .Danger, !ss.busy) ss_confirm_open(.Delete_Webhook, id, dc.fstr(h, "name"));
+					if set_button(L("Delete Webhook##del"), .Danger, !ss.busy) ss_confirm_open(.Delete_Webhook, id, dc.fstr(h, "name"));
 				}
 				spacer(.Y, 16);
 			}
@@ -3086,7 +3086,7 @@ integrations_page :: (g: *dc.Guild) {
 	for hooks if dc.fint(dc.vmap(it), "type") == 2 followed += 1;
 	if followed {
 		set_divider();
-		label(tprint("Channels Followed (%)", followed), .Semibold, 16, T("--text-strong"), 20);
+		label(tprint(L("Channels Followed (%)"), followed), .Semibold, 16, T("--text-strong"), 20);
 		spacer(.Y, 12);
 		table_units(.[1]);
 		for hooks {
@@ -3108,7 +3108,7 @@ integrations_page :: (g: *dc.Guild) {
 	}
 	if on_hosted() || ss.channel return;
 	set_divider();
-	label("Bots and Apps", .Semibold, 16, T("--text-strong"), 20);
+	label(L("Bots and Apps"), .Semibold, 16, T("--text-strong"), 20);
 	spacer(.Y, 12);
 	r := reply(.Integrations);
 	n := 0;
@@ -3124,28 +3124,28 @@ integrations_page :: (g: *dc.Guild) {
 		ui.parent(rr); defer ui.pop_parent();
 		label(dc.fstr(app_m, "name"), .Medium, 14, T("--text-strong"), 18);
 		filler(.X);
-		label(tprint("Added %", ss_date(dc.iso_to_ms(dc.fstr(it_m, "synced_at")))), .Normal, 12, T("--text-muted"), 16);
+		label(tprint(L("Added %"), ss_date(dc.iso_to_ms(dc.fstr(it_m, "synced_at")))), .Normal, 12, T("--text-muted"), 16);
 	}
-	if !n set_para("noapps", "No apps have been added to this server.", .Normal, 14, 18, T("--text-muted"));
+	if !n set_para("noapps", L("No apps have been added to this server."), .Normal, 14, 18, T("--text-muted"));
 	spacer(.Y, 16);
-	if set_button("App Directory##appdir", .Secondary) open_url("https://discord.com/discovery/applications");
+	if set_button(L("App Directory##appdir"), .Secondary) open_url("https://discord.com/discovery/applications");
 }
 
 // ---- Server Template ----
 
 templates_page :: (g: *dc.Guild) {
-	page_subtitle("Templates are an easy way to share your server setup and help anyone create a server instantly. When someone uses your server template link, they create a new server pre-filled with the same channels, roles, permissions, and settings as yours. Messages, members and your server's icon aren't copied.");
-	if !loading_or(.Templates, "Couldn't load the template.") return;
+	page_subtitle(L("Templates are an easy way to share your server setup and help anyone create a server instantly. When someone uses your server template link, they create a new server pre-filled with the same channels, roles, permissions, and settings as yours. Messages, members and your server's icon aren't copied."));
+	if !loading_or(.Templates, L("Couldn't load the template.")) return;
 	list := dc.vlist(reply(.Templates).body);
 	if !list.count {
-		field_title("Template Title");
-		if set_input("ttitle", *ss.hook_name, "Who is this server for? E.g. School Club, Artists' Community", max_runes = 100) == .Escape ss.field_escape = true;
+		field_title(L("Template Title"));
+		if set_input("ttitle", *ss.hook_name, L("Who is this server for? E.g. School Club, Artists' Community"), max_runes = 100) == .Escape ss.field_escape = true;
 		spacer(.Y, 16);
-		field_title("Template Description");
-		if set_input("tdesc", *ss.words, "What can people do in this server?", multiline = true, max_runes = 120, min_h = 80) == .Escape ss.field_escape = true;
+		field_title(L("Template Description"));
+		if set_input("tdesc", *ss.words, L("What can people do in this server?"), multiline = true, max_runes = 120, min_h = 80) == .Escape ss.field_escape = true;
 		spacer(.Y, 16);
 		name := trim(ui.editor_text(*ss.hook_name));
-		if set_button("Generate Template##gen", .Primary, name.count >= 2 && !ss.busy)
+		if set_button(L("Generate Template##gen"), .Primary, name.count >= 2 && !ss.busy)
 			ss_action(g, .Templates, "POST", tprint("/guilds/%/templates", g.id), tprint("{\"name\":%,\"description\":%}", dc.json_quote(name), dc.json_quote(trim(ui.editor_text(*ss.words)))));
 		return;
 	}
@@ -3154,21 +3154,21 @@ templates_page :: (g: *dc.Guild) {
 	field_title(dc.fstr(t, "name"));
 	desc := dc.fstr(t, "description");
 	if desc { set_para("tdesc", desc, .Normal, 14, 18, T("--text-default")); spacer(.Y, 8); }
-	field_title("Template Link");
+	field_title(L("Template Link"));
 	copy_field("tlink", tprint("https://discord.new/%", code));
 	spacer(.Y, 8);
-	set_para("tsync", tprint("Last sync: %", ss_date(dc.iso_to_ms(dc.fstr(t, "updated_at")))), .Normal, 12, 16, T("--text-muted"));
+	set_para("tsync", tprint(L("Last sync: %"), ss_date(dc.iso_to_ms(dc.fstr(t, "updated_at")))), .Normal, 12, 16, T("--text-muted"));
 	if dc.fbool(t, "is_dirty") {
 		spacer(.Y, 8);
-		set_para("tdirty", "This template has unsynced changes.", .Normal, 14, 18, T("--text-feedback-warning"));
+		set_para("tdirty", L("This template has unsynced changes."), .Normal, 14, 18, T("--text-feedback-warning"));
 	}
 	spacer(.Y, 16);
 	br := row("tbtns");
 	br.semantic_size = .[ui.pct(1), ui.px(38)];
 	br.style.child_gap = 8;
 	ui.parent(br); defer ui.pop_parent();
-	if set_button("Sync Template##sync", .Primary, dc.fbool(t, "is_dirty") && !ss.busy) ss_action(g, .Templates, "PUT", tprint("/guilds/%/templates/%", g.id, code));
-	if set_button("Delete Template##deltpl", .Danger, !ss.busy) ss_confirm_open(.Delete_Template, 0, code);
+	if set_button(L("Sync Template##sync"), .Primary, dc.fbool(t, "is_dirty") && !ss.busy) ss_action(g, .Templates, "PUT", tprint("/guilds/%/templates/%", g.id, code));
+	if set_button(L("Delete Template##deltpl"), .Danger, !ss.busy) ss_confirm_open(.Delete_Template, 0, code);
 }
 
 // ---- Community ----
@@ -3219,60 +3219,60 @@ channel_or_create :: (id: dc.Snowflake) -> string { return ifx id then tprint("\
 
 community_page :: (g: *dc.Guild) {
 	if !dc.guild_has_feature(g, "COMMUNITY") {
-		page_subtitle("Are you building a Community? Convert to a Community Server to access additional administrative tools that can help you moderate, run, and grow your server.");
-		section_heading("csafety", "Safety checks", "To protect your members, Community servers need these, and enabling sets them:");
-		set_para("c1", "• Members must have a verified email on their Discord account.", .Normal, 14, 18, T("--text-default"));
-		set_para("c2", "• Media from all members is scanned by the explicit image filter.", .Normal, 14, 18, T("--text-default"));
+		page_subtitle(L("Are you building a Community? Convert to a Community Server to access additional administrative tools that can help you moderate, run, and grow your server."));
+		section_heading("csafety", L("Safety checks"), "To protect your members, Community servers need these, and enabling sets them:");
+		set_para("c1", L("• Members must have a verified email on their Discord account."), .Normal, 14, 18, T("--text-default"));
+		set_para("c2", L("• Media from all members is scanned by the explicit image filter."), .Normal, 14, 18, T("--text-default"));
 		set_divider();
 		community_channels(g, true);
 		set_divider();
-		section_heading("cfinish", "Finishing touches", "Default notifications become Only @mentions.");
-		if set_toggle_row("agree", "I agree and understand", "Community servers follow Discord's Community Guidelines.", ss.comm.agree) ss.comm.agree = !ss.comm.agree;
+		section_heading("cfinish", L("Finishing touches"), "Default notifications become Only @mentions.");
+		if set_toggle_row("agree", L("I agree and understand"), L("Community servers follow Discord's Community Guidelines."), ss.comm.agree) ss.comm.agree = !ss.comm.agree;
 		spacer(.Y, 16);
-		if set_button("Enable Community##enable", .Primary, ss.comm.agree && !ss.busy) {
+		if set_button(L("Enable Community##enable"), .Primary, ss.comm.agree && !ss.busy) {
 			body := tprint("{\"features\":%,\"verification_level\":%,\"default_message_notifications\":1,\"explicit_content_filter\":2,\"rules_channel_id\":%,\"public_updates_channel_id\":%}",
 				features_json(g, add = "COMMUNITY"), max(1, g.verification_level), channel_or_create(ss.comm.rules), channel_or_create(ss.comm.updates));
 			ss_action(g, .COUNT, "PATCH", tprint("/guilds/%", g.id), body);
 		}
 		return;
 	}
-	page_subtitle("Community servers have more tools to help you moderate and grow your server.");
+	page_subtitle(L("Community servers have more tools to help you moderate and grow your server."));
 	community_channels(g, false);
 	spacer(.Y, 24);
-	field_title("Server Primary Language");
+	field_title(L("Server Primary Language"));
 	names: [..]string;
 	names.allocator = temp;
 	for LOCALES array_add(*names, it[1]);
 	pick := select_field("locale", names, ss.comm.locale);
 	if pick >= 0 ss.comm.locale = pick;
 	spacer(.Y, 8);
-	set_para("lhelp", "Discord will prioritize this server in search to users who speak the selected language.", .Normal, 12, 16, T("--text-muted"));
+	set_para("lhelp", L("Discord will prioritize this server in search to users who speak the selected language."), .Normal, 12, 16, T("--text-muted"));
 	set_divider();
-	section_heading("cdisable", "Disable Community", "Turns this back into a regular server. Community-only features stop working.");
-	if set_button("Disable Community##disable", .Danger, !ss.busy && !community_dirty(g)) ss_action(g, .COUNT, "PATCH", tprint("/guilds/%", g.id), tprint("{\"features\":%}", features_json(g, drop = "COMMUNITY")));
+	section_heading("cdisable", L("Disable Community"), "Turns this back into a regular server. Community-only features stop working.");
+	if set_button(L("Disable Community##disable"), .Danger, !ss.busy && !community_dirty(g)) ss_action(g, .COUNT, "PATCH", tprint("/guilds/%", g.id), tprint("{\"features\":%}", features_json(g, drop = "COMMUNITY")));
 }
 
 community_channels :: (g: *dc.Guild, enabling: bool) {
-	names, ids := channel_options(g, ifx enabling then "Create one for me" else "None", false);
+	names, ids := channel_options(g, ifx enabling then L("Create one for me") else L("None"), false);
 	if enabling ids[0] = 1;
-	field_title("Rules or Guidelines Channel");
+	field_title(L("Rules or Guidelines Channel"));
 	pick := select_field("crules", names, index_of(ids, ss.comm.rules));
 	if pick >= 0 ss.comm.rules = ids[pick];
 	spacer(.Y, 8);
-	set_para("rhelp", "This is where you'll show members your server rules or guidelines.", .Normal, 12, 16, T("--text-muted"));
+	set_para("rhelp", L("This is where you'll show members your server rules or guidelines."), .Normal, 12, 16, T("--text-muted"));
 	spacer(.Y, 16);
-	field_title("Community Updates Channel");
+	field_title(L("Community Updates Channel"));
 	pick = select_field("cupdates", names, index_of(ids, ss.comm.updates));
 	if pick >= 0 ss.comm.updates = ids[pick];
 	spacer(.Y, 8);
-	set_para("uhelp", "This is where Discord sends updates for moderators and admins of Community servers.", .Normal, 12, 16, T("--text-muted"));
+	set_para("uhelp", L("This is where Discord sends updates for moderators and admins of Community servers."), .Normal, 12, 16, T("--text-muted"));
 	if enabling return;
 	spacer(.Y, 16);
-	field_title("Safety Notifications Channel");
+	field_title(L("Safety Notifications Channel"));
 	pick = select_field("csafety", names, index_of(ids, ss.comm.safety));
 	if pick >= 0 ss.comm.safety = ids[pick];
 	spacer(.Y, 8);
-	set_para("shelp", "Anyone with access to this text channel will be able to see the notifications.", .Normal, 12, 16, T("--text-muted"));
+	set_para("shelp", L("Anyone with access to this text channel will be able to see the notifications."), .Normal, 12, 16, T("--text-muted"));
 }
 
 // Community Overview's save: saveGuild's keys in its order.
@@ -3321,26 +3321,26 @@ reviews_applications :: (g: *dc.Guild) -> bool {
 }
 
 access_page :: (g: *dc.Guild) {
-	page_subtitle("Keep your server private, or open it up for more people to join.");
-	section_heading("join", "How can people join your server?", "");
+	page_subtitle(L("Keep your server private, or open it up for more people to join."));
+	section_heading("join", L("How can people join your server?"), "");
 	// the server's access type as the client reads it from its features; switching it is the official client's
 	public := dc.guild_has_feature(g, "COMMUNITY") && dc.guild_has_feature(g, "DISCOVERABLE");
 	apply := !public && dc.guild_has_feature(g, "MEMBER_VERIFICATION_MANUAL_APPROVAL") && dc.guild_has_feature(g, "MEMBER_VERIFICATION_GATE_ENABLED");
-	radio_choice("invite", "Invite Only", "People can join your server directly with an invite", !public && !apply, false);
-	radio_choice("apply", "Apply to Join", "People must submit an application and be approved to join", apply, false);
-	radio_choice("disc", "Discoverable", ifx dc.guild_has_feature(g, "COMMUNITY") then "Anyone can join your server directly through Server Discovery" else "Enable Community to access Server Discovery", public, false);
+	radio_choice("invite", L("Invite Only"), L("People can join your server directly with an invite"), !public && !apply, false);
+	radio_choice("apply", L("Apply to Join"), L("People must submit an application and be approved to join"), apply, false);
+	radio_choice("disc", L("Discoverable"), ifx dc.guild_has_feature(g, "COMMUNITY") then L("Anyone can join your server directly through Server Discovery") else L("Enable Community to access Server Discovery"), public, false);
 	set_divider();
-	if !loading_or(.Verification, "Couldn't load the server rules.") return;
+	if !loading_or(.Verification, L("Couldn't load the server rules.")) return;
 	if reviews_applications(g) applications_section(g);
-	if set_toggle_row("require", "Require members to agree to the server rules", "New members must read and agree to these before they can talk.", ss.require_rules) ss.require_rules = !ss.require_rules;
+	if set_toggle_row("require", L("Require members to agree to the server rules"), L("New members must read and agree to these before they can talk."), ss.require_rules) ss.require_rules = !ss.require_rules;
 	spacer(.Y, 16);
-	field_title("Server Rules");
-	if set_input("rules", *ss.words, "One rule per line, for example: Be respectful", multiline = true, max_runes = 4000, min_h = 120) == .Escape ss.field_escape = true;
+	field_title(L("Server Rules"));
+	if set_input("rules", *ss.words, L("One rule per line, for example: Be respectful"), multiline = true, max_runes = 4000, min_h = 120) == .Escape ss.field_escape = true;
 }
 
 access_save :: (g: *dc.Guild) {
 	rules := access_rules();
-	if ss.require_rules && !rules.count { ss_error("You need to add one or more rules."); return; }
+	if ss.require_rules && !rules.count { ss_error(L("You need to add one or more rules.")); return; }
 	parts: [..]string;
 	parts.allocator = temp;
 	if rules.count {
@@ -3364,20 +3364,20 @@ access_save :: (g: *dc.Guild) {
 // Apply to Join: the questions (read-only here) and the applications waiting, each approved or rejected
 // with PATCH /guilds/{id}/requests/{request} {action} (the client's updateGuildJoinRequest).
 applications_section :: (g: *dc.Guild) {
-	section_heading("apps", "Applications", "People who applied to join, waiting for a moderator.");
+	section_heading("apps", L("Applications"), "People who applied to join, waiting for a moderator.");
 	v := reply(.Verification);
 	if v for dc.flist(dc.vmap(v.body), "form_fields") {
 		f := dc.vmap(it);
 		if dc.fstr(f, "field_type") == "TERMS" continue;
 		ui.id_scope(cast(u64) it_index + 1);
 		defer ui.pop_seed();
-		set_para("q", tprint("Q: %", dc.fstr(f, "label")), .Medium, 14, 18, T("--text-default"));
+		set_para("q", tprint(L("Q: %"), dc.fstr(f, "label")), .Medium, 14, 18, T("--text-default"));
 		spacer(.Y, 4);
 	}
 	spacer(.Y, 8);
-	if !loading_or(.Applications, "Couldn't load the applications.") { set_divider(); return; }
+	if !loading_or(.Applications, L("Couldn't load the applications.")) { set_divider(); return; }
 	list := dc.flist(dc.vmap(reply(.Applications).body), "guild_join_requests");
-	if !list.count ss_empty("No applications waiting");
+	if !list.count ss_empty(L("No applications waiting"));
 	for list {
 		req := dc.vmap(it);
 		id := dc.fsnow(req, "id");
@@ -3426,8 +3426,8 @@ applications_section :: (g: *dc.Guild) {
 			br.style.child_gap = 8;
 			{ ui.parent(br); defer ui.pop_parent();
 				path := tprint("/guilds/%/requests/%", g.id, id);
-				if set_button("Approve##ok", .Positive, !ss.busy && id != 0, 32) ss_action(g, .Applications, "PATCH", path, "{\"action\":\"APPROVED\"}");
-				if set_button("Reject##no", .Danger, !ss.busy && id != 0, 32) ss_action(g, .Applications, "PATCH", path, "{\"action\":\"REJECTED\"}");
+				if set_button(L("Approve##ok"), .Positive, !ss.busy && id != 0, 32) ss_action(g, .Applications, "PATCH", path, "{\"action\":\"APPROVED\"}");
+				if set_button(L("Reject##no"), .Danger, !ss.busy && id != 0, 32) ss_action(g, .Applications, "PATCH", path, "{\"action\":\"REJECTED\"}");
 			}
 			spacer(.Y, 12);
 		}
@@ -3445,75 +3445,75 @@ tag_dirty :: () -> bool {
 }
 
 tag_page :: (g: *dc.Guild) {
-	page_subtitle("Members can wear your server's tag next to their name across Discord.");
-	if !loading_or(.Profile, "Couldn't load the server's tag.") return;
-	field_title("Tag");
-	if set_input("tag", *ss.tag, "2 to 4 letters or numbers", max_runes = 4) == .Escape ss.field_escape = true;
+	page_subtitle(L("Members can wear your server's tag next to their name across Discord."));
+	if !loading_or(.Profile, L("Couldn't load the server's tag.")) return;
+	field_title(L("Tag"));
+	if set_input("tag", *ss.tag, L("2 to 4 letters or numbers"), max_runes = 4) == .Escape ss.field_escape = true;
 	spacer(.Y, 8);
-	set_para("taghelp", "The badge chosen in the official client stays as it is.", .Normal, 12, 16, T("--text-muted"));
+	set_para("taghelp", L("The badge chosen in the official client stays as it is."), .Normal, 12, 16, T("--text-muted"));
 }
 
 vanity_block :: (g: *dc.Guild) {
 	if !dc.guild_has_feature(g, "VANITY_URL") return;
 	set_divider();
-	section_heading("vanity", "Custom Invite Link", "Choose a link people can use to join, discord.gg/<code>.");
+	section_heading("vanity", L("Custom Invite Link"), "Choose a link people can use to join, discord.gg/<code>.");
 	r := reply(.Vanity);
 	if r {
 		uses := dc.fint(dc.vmap(r.body), "uses");
-		if uses { set_para("vuses", tprint("Used % times.", uses), .Normal, 12, 16, T("--text-muted")); spacer(.Y, 8); }
+		if uses { set_para("vuses", tprint(L("Used % times."), uses), .Normal, 12, 16, T("--text-muted")); spacer(.Y, 8); }
 	}
 	vr := row("vrow");
 	vr.semantic_size = .[ui.pct(1), ui.children()];
 	vr.style.child_gap = 8;
 	ui.parent(vr); defer ui.pop_parent();
-	label("discord.gg/", .Medium, 16, T("--text-default"), 20);
+	label(L("discord.gg/"), .Medium, 16, T("--text-default"), 20);
 	c := ui.box("in");
 	c.semantic_size = .[ui.fill(), ui.children()];
 	c.layout_axis = .Y;
 	{ ui.parent(c); defer ui.pop_parent(); if set_input("vcode", *ss.tag, "", max_runes = 25) == .Escape ss.field_escape = true; }
 	code := trim(ui.editor_text(*ss.tag));
 	saved := ifx r then dc.fstr(dc.vmap(r.body), "code") else g.vanity_url_code;
-	if set_button("Save##vsave", .Primary, code != saved && !ss.busy) ss_action(g, .Vanity, "PATCH", tprint("/guilds/%/vanity-url", g.id), tprint("{\"code\":%}", ifx code then dc.json_quote(code) else "null"));
+	if set_button(L("Save##vsave"), .Primary, code != saved && !ss.busy) ss_action(g, .Vanity, "PATCH", tprint("/guilds/%/vanity-url", g.id), tprint("{\"code\":%}", ifx code then dc.json_quote(code) else "null"));
 }
 
 // ---- Stickers ----
 
 stickers_page :: (g: *dc.Guild) {
-	page_subtitle("Stickers can be used by anyone in this server. Upload a PNG, APNG, GIF or Lottie JSON file of up to 512 KB; it shows at 320x320.");
-	section_heading("upload", "Upload Sticker", "");
-	field_title("Name");
-	if set_input("sname", *ss.hook_name, "Name your sticker", max_runes = 30) == .Escape ss.field_escape = true;
+	page_subtitle(L("Stickers can be used by anyone in this server. Upload a PNG, APNG, GIF or Lottie JSON file of up to 512 KB; it shows at 320x320."));
+	section_heading("upload", L("Upload Sticker"), "");
+	field_title(L("Name"));
+	if set_input("sname", *ss.hook_name, L("Name your sticker"), max_runes = 30) == .Escape ss.field_escape = true;
 	spacer(.Y, 12);
-	field_title("Related Emoji");
-	if set_input("stags", *ss.tag, "An emoji name, like smile", max_runes = 200) == .Escape ss.field_escape = true;
+	field_title(L("Related Emoji"));
+	if set_input("stags", *ss.tag, L("An emoji name, like smile"), max_runes = 200) == .Escape ss.field_escape = true;
 	spacer(.Y, 12);
-	field_title("Description");
-	if set_input("sdesc", *ss.words, "Describe your sticker", max_runes = 100) == .Escape ss.field_escape = true;
+	field_title(L("Description"));
+	if set_input("sdesc", *ss.words, L("Describe your sticker"), max_runes = 100) == .Escape ss.field_escape = true;
 	spacer(.Y, 12);
 	fr := row("file");
 	fr.semantic_size = .[ui.pct(1), ui.px(38)];
 	fr.style.child_gap = 12;
 	{ ui.parent(fr); defer ui.pop_parent();
-		if set_button("Browse##browse", .Secondary, !ss.busy) {
+		if set_button(L("Browse##browse"), .Secondary, !ss.busy) {
 			paths := pick_files();
 			if paths.count ss_set(*ss.sticker_file, paths[0]);
 		}
 		f := ss.sticker_file;
 		slash := find_index_of_any_from_right(f, "/\\");
-		label(ifx f then advance(f, slash + 1) else "No file chosen", .Normal, 14, T("--text-muted"), 18);
+		label(ifx f then advance(f, slash + 1) else L("No file chosen"), .Normal, 14, T("--text-muted"), 18);
 	}
 	spacer(.Y, 12);
 	one_line :: (s: string) -> string { return trim(replace(s, "\n", " ",, temp)); }
 	name, tags := one_line(ui.editor_text(*ss.hook_name)), one_line(ui.editor_text(*ss.tag));
-	if set_button(ifx ss.busy then "Uploading...##up" else "Upload##up", .Primary, name.count >= 2 && tags.count > 0 && ss.sticker_file != "" && !ss.busy) && net_action() {
+	if set_button(ifx ss.busy then L("Uploading...##up") else L("Upload##up"), .Primary, name.count >= 2 && tags.count > 0 && ss.sticker_file != "" && !ss.busy) && net_action() {
 		ss.busy = true;
 		ss_error("");
 		dc.upload_sticker(app.client, g.id, ss.sticker_file, name, tags, one_line(ui.editor_text(*ss.words)));
 	}
 	set_divider();
-	label(tprint("% STICKERS — % SLOTS AVAILABLE", g.stickers.count, max(0, 5 - g.stickers.count)), .Bold, 12, T("--text-muted"), 16);
+	label(tprint(L("% STICKERS — % SLOTS AVAILABLE"), g.stickers.count, max(0, 5 - g.stickers.count)), .Bold, 12, T("--text-muted"), 16);
 	spacer(.Y, 12);
-	if !g.stickers.count { ss_empty("No stickers yet"); return; }
+	if !g.stickers.count { ss_empty(L("No stickers yet")); return; }
 	table_units(.[1, 3, 4]);
 	for s: g.stickers {
 		ui.id_scope(cast(u64) s.id);
@@ -3691,14 +3691,14 @@ ob_new_id :: () -> string {
 }
 
 onboarding_page :: (g: *dc.Guild) {
-	page_subtitle("Give new members a quick way to find the channels and roles that matter to them.");
-	if !loading_or(.Onboarding, "Couldn't load onboarding.") return;
+	page_subtitle(L("Give new members a quick way to find the channels and roles that matter to them."));
+	if !loading_or(.Onboarding, L("Couldn't load onboarding.")) return;
 	m := dc.vmap(reply(.Onboarding).body);
 	on := dc.fbool(m, "enabled");
-	if set_toggle_row("obon", "Enable Onboarding", "New members pick channels and roles from your questions when they join.", on, ss.busy)
+	if set_toggle_row("obon", L("Enable Onboarding"), L("New members pick channels and roles from your questions when they join."), on, ss.busy)
 		ss_action(g, .Onboarding, "PUT", tprint("/guilds/%/onboarding", g.id), tprint("{\"enabled\":%}", !on));
 	set_divider();
-	section_heading("obdefault", "Default Channels", "Everyone who joins sees these channels, whatever they answer.");
+	section_heading("obdefault", L("Default Channels"), "Everyone who joins sees these channels, whatever they answer.");
 	for g.channels {
 		ch := dc.channel_get(store(), it);
 		if !ch || (ch.kind != .Guild_Text && ch.kind != .Guild_Announcement && ch.kind != .Guild_Forum && ch.kind != .Guild_Voice) continue;
@@ -3727,8 +3727,8 @@ onboarding_page :: (g: *dc.Guild) {
 		label(ifx ch.kind == .Guild_Voice then ch.name else tprint("#%", ch.name), .Medium, 15, T("--text-strong"), 20);
 	}
 	set_divider();
-	section_heading("obq", "Questions", "Ask new members what they're here for; each answer gives them channels and roles.");
-	if !ss.ob_prompts.count set_para("noq", "No questions yet.", .Normal, 14, 18, T("--text-muted"));
+	section_heading("obq", L("Questions"), "Ask new members what they're here for; each answer gives them channels and roles.");
+	if !ss.ob_prompts.count set_para("noq", L("No questions yet."), .Normal, 14, 18, T("--text-muted"));
 	gone := -1;
 	for * p, pi: ss.ob_prompts {
 		ui.id_scope(cast(u64) pi + 1);
@@ -3745,7 +3745,7 @@ onboarding_page :: (g: *dc.Guild) {
 		ss.ob_open = 0;
 	}
 	spacer(.Y, 8);
-	if ss.ob_prompts.count < MAX_PROMPTS && set_button("Add a Question##addq", .Secondary) {
+	if ss.ob_prompts.count < MAX_PROMPTS && set_button(L("Add a Question##addq"), .Secondary) {
 		p := array_add(*ss.ob_prompts);
 		p.id = ob_new_id();
 		p.in_onboarding = true;
@@ -3773,7 +3773,7 @@ prompt_card :: (g: *dc.Guild, p: *Ob_Prompt, pi: int) -> bool {
 		col.layout_axis = .Y;
 		{ ui.parent(col); defer ui.pop_parent();
 			title := trim(ui.editor_text(*p.title));
-			label(ifx title then title else "Untitled question", .Semibold, 15, T("--text-strong"), 20);
+			label(ifx title then title else L("Untitled question"), .Semibold, 15, T("--text-strong"), 20);
 			label(tprint("% answer%%", p.options.count, ifx p.options.count == 1 then "" else "s", ifx p.required then " · required" else ""), .Normal, 13, T("--text-muted"), 16);
 		}
 		icon("chev", ifx open then "chevron-small-up" else "chevron-small-down", 20, T("--interactive-icon-default"));
@@ -3790,12 +3790,12 @@ prompt_card :: (g: *dc.Guild, p: *Ob_Prompt, pi: int) -> bool {
 	col.semantic_size = .[ui.fill(), ui.children()];
 	col.layout_axis = .Y;
 	{ ui.parent(col); defer ui.pop_parent();
-		field_title("Question");
-		if set_input("qtitle", *p.title, "What brings you here?", max_runes = 100) == .Escape ss.field_escape = true;
+		field_title(L("Question"));
+		if set_input("qtitle", *p.title, L("What brings you here?"), max_runes = 100) == .Escape ss.field_escape = true;
 		spacer(.Y, 8);
-		if set_toggle_row("multi", "Members can pick more than one answer", "", !p.single) p.single = !p.single;
+		if set_toggle_row("multi", L("Members can pick more than one answer"), "", !p.single) p.single = !p.single;
 		spacer(.Y, 12);
-		if set_toggle_row("req", "Required", "Members must answer this question to join.", p.required) p.required = !p.required;
+		if set_toggle_row("req", L("Required"), L("Members must answer this question to join."), p.required) p.required = !p.required;
 		spacer(.Y, 8);
 		removed := -1;
 		for * o, oi: p.options {
@@ -3812,12 +3812,12 @@ prompt_card :: (g: *dc.Guild, p: *Ob_Prompt, pi: int) -> bool {
 		br := row("btns");
 		br.semantic_size = .[ui.pct(1), ui.px(38)];
 		{ ui.parent(br); defer ui.pop_parent();
-			if p.options.count < MAX_PROMPT_OPTIONS && set_button("Add Answer##adda", .Secondary) {
+			if p.options.count < MAX_PROMPT_OPTIONS && set_button(L("Add Answer##adda"), .Secondary) {
 				o := array_add(*p.options);
 				o.id = ob_new_id();
 			}
 			filler(.X);
-			if set_button("Delete Question##delq", .Danger) gone = true;
+			if set_button(L("Delete Question##delq"), .Danger) gone = true;
 		}
 		spacer(.Y, 16);
 	}
@@ -3844,9 +3844,9 @@ option_editor :: (g: *dc.Guild, o: *Ob_Option) -> bool {
 	drop := false;
 	{ ui.parent(col); defer ui.pop_parent();
 		spacer(.Y, 12);
-		if set_input("atitle", *o.title, "Answer", max_runes = 50) == .Escape ss.field_escape = true;
+		if set_input("atitle", *o.title, L("Answer"), max_runes = 50) == .Escape ss.field_escape = true;
 		spacer(.Y, 8);
-		if set_input("adesc", *o.desc, "Description (optional)", max_runes = 100) == .Escape ss.field_escape = true;
+		if set_input("adesc", *o.desc, L("Description (optional)"), max_runes = 100) == .Escape ss.field_escape = true;
 		spacer(.Y, 8);
 		chips := row("chips");
 		chips.semantic_size = .[ui.pct(1), ui.children()];
@@ -3898,7 +3898,7 @@ option_editor :: (g: *dc.Guild, o: *Ob_Option) -> bool {
 		spacer(.Y, 4);
 		rr := row("rm");
 		rr.semantic_size = .[ui.pct(1), ui.px(32)];
-		{ ui.parent(rr); defer ui.pop_parent(); filler(.X); if set_button("Remove Answer##rma", .Link, true, 28) drop = true; }
+		{ ui.parent(rr); defer ui.pop_parent(); filler(.X); if set_button(L("Remove Answer##rma"), .Link, true, 28) drop = true; }
 		spacer(.Y, 8);
 	}
 	spacer(.X, 12);
@@ -3922,8 +3922,8 @@ chip :: (id: string, text: string) -> bool {
 // Save Changes: each changed part as its own PUT, as the client sends them ({default_channel_ids}, {prompts}).
 onboarding_save :: (g: *dc.Guild) {
 	for p: ss.ob_prompts {
-		if !trim(ui.editor_text(*p.title)) || !p.options.count { ss_error("Every question needs a title and at least one answer."); return; }
-		for p.options if !trim(ui.editor_text(*it.title)) { ss_error("Every answer needs a title."); return; }
+		if !trim(ui.editor_text(*p.title)) || !p.options.count { ss_error(L("Every question needs a title and at least one answer.")); return; }
+		for p.options if !trim(ui.editor_text(*it.title)) { ss_error(L("Every answer needs a title.")); return; }
 	}
 	ss_error("");
 	if channels_dirty() {
@@ -3944,7 +3944,7 @@ ownership_prompt :: () {
 	g := dc.guild_get(store(), app.view.guild);
 	if !g || g.pending_owner_id != store().me || ss.declined == g.id || modal_open() return;
 	owner := dc.user_get(store(), g.owner_id);
-	if !adm_modal_begin("ownerprompt", 440, "Accept Server Ownership") {
+	if !adm_modal_begin("ownerprompt", 440, L("Accept Server Ownership")) {
 		ss.declined = g.id;
 		return;
 	}
@@ -3953,7 +3953,7 @@ ownership_prompt :: () {
 	r.semantic_size = .[ui.pct(1), ui.children()];
 	{ ui.parent(r); defer ui.pop_parent();
 		spacer(.X, 25);
-		set_para("t", tprint("% wants to make you the owner of %. You'll be able to manage everything about it, and they'll stay a member.", ifx owner then dc.display_name(owner) else "The owner", g.name), .Normal, 16, 20, T("--text-default"));
+		set_para("t", tprint(L("% wants to make you the owner of %. You'll be able to manage everything about it, and they'll stay a member."), ifx owner then dc.display_name(owner) else "The owner", g.name), .Normal, 16, 20, T("--text-default"));
 		spacer(.X, 25);
 	}
 	spacer(.Y, 24);
@@ -3964,8 +3964,8 @@ ownership_prompt :: () {
 	signing := osign.thread != null;
 	{ ui.parent(btns); defer ui.pop_parent();
 		spacer(.X, 25 - 8);
-		if wide_button("decline", "Decline", .Secondary, !signing) answer = "DELETE";
-		if wide_button("accept", ifx signing then "Accepting..." else "Accept", .Primary, !signing && g.owner_offer != "") answer = "PUT";
+		if wide_button("decline", L("Decline"), .Secondary, !signing) answer = "DELETE";
+		if wide_button("accept", ifx signing then L("Accepting...") else L("Accept"), .Primary, !signing && g.owner_offer != "") answer = "PUT";
 		spacer(.X, 25 - 8);
 	}
 	spacer(.Y, 24);
@@ -4173,7 +4173,7 @@ chan_overview_page :: (g: *dc.Guild) -> bool {
 	ch := dc.channel_get(store(), ss.channel);
 	if !ch return false;
 	save := false;
-	field_title(ifx ch.kind == .Guild_Category then "Category Name" else ifx dc.is_thread(ch) then "Thread Name" else "Channel Name");
+	field_title(ifx ch.kind == .Guild_Category then L("Category Name") else ifx dc.is_thread(ch) then L("Thread Name") else L("Channel Name"));
 	res := set_input("name", *ss.name, ch.name, max_runes = 100);
 	if res == .Changed && chan_texty(ch.kind) && !dc.is_thread(ch) { // threads keep their names as typed
 		cur := ui.editor_text(*ss.name);
@@ -4184,12 +4184,12 @@ chan_overview_page :: (g: *dc.Guild) -> bool {
 	if res == .Escape ss.field_escape = true;
 	if has_topic(ch) {
 		spacer(.Y, 24);
-		field_title(ifx ch.kind == .Guild_Forum || ch.kind == .Guild_Media then "Post Guidelines" else "Channel Topic");
+		field_title(ifx ch.kind == .Guild_Forum || ch.kind == .Guild_Media then L("Post Guidelines") else L("Channel Topic"));
 		tw := ui.box("topicwrap");
 		tw.semantic_size = .[ui.pct(1), ui.children()];
 		tw.layout_axis = .Y;
 		ui.parent(tw); defer ui.pop_parent();
-		if set_input("topic", *ss.desc, "Let everyone know how to use this channel!", multiline = true, max_runes = TOPIC_MAX, min_h = 170) == .Escape ss.field_escape = true;
+		if set_input("topic", *ss.desc, L("Let everyone know how to use this channel!"), multiline = true, max_runes = TOPIC_MAX, min_h = 170) == .Escape ss.field_escape = true;
 		left, t := TOPIC_MAX, ui.editor_text(*ss.desc);
 		while t.count { utf8_next_character(*t); left -= 1; } // the client counts characters
 		cnt := label(tprint("%", left), .Semibold, 14, T("--text-strong"), 18);
@@ -4198,7 +4198,7 @@ chan_overview_page :: (g: *dc.Guild) -> bool {
 	}
 	if has_slowmode(ch) {
 		spacer(.Y, 24);
-		field_title("Slowmode");
+		field_title(L("Slowmode"));
 		labels := NewArray(SLOWMODE_SECS.count, string,, temp);
 		cur := 0;
 		for SLOWMODE_SECS {
@@ -4208,61 +4208,61 @@ chan_overview_page :: (g: *dc.Guild) -> bool {
 		pick := select_field("slowmode", labels, cur);
 		if pick >= 0 ss.chan.rate_limit_per_user = SLOWMODE_SECS[pick];
 		spacer(.Y, 8);
-		set_para("slowhelp", "Members will be restricted to sending one message and creating one thread per this interval, unless they have the Bypass Slowmode permission.", .Normal, 12, 16, T("--text-default"));
+		set_para("slowhelp", L("Members will be restricted to sending one message and creating one thread per this interval, unless they have the Bypass Slowmode permission."), .Normal, 12, 16, T("--text-default"));
 	}
 	if ch.kind == .Guild_Text || ch.kind == .Guild_Announcement || is_forum(ch) || dc.is_thread(ch) {
 		spacer(.Y, 24);
-		field_title("Hide After Inactivity");
+		field_title(L("Hide After Inactivity"));
 		cur := 2; // Discord's default, 3 days
 		for ARCHIVE_MINUTES if it == ss.chan.default_auto_archive_duration cur = it_index;
 		pick := select_field("archive", ARCHIVE_LABELS, cur);
 		if pick >= 0 ss.chan.default_auto_archive_duration = ARCHIVE_MINUTES[pick];
 		spacer(.Y, 8);
-		set_para("archivehelp", ifx dc.is_thread(ch) then "The thread stops showing in the channel list after being inactive for this long." else "New threads will stop showing in the channel list after being inactive for the specified duration.", .Normal, 12, 16, T("--text-default"));
+		set_para("archivehelp", ifx dc.is_thread(ch) then L("The thread stops showing in the channel list after being inactive for this long.") else L("New threads will stop showing in the channel list after being inactive for the specified duration."), .Normal, 12, 16, T("--text-default"));
 	}
 	if is_forum(ch) forum_fields(ch);
 	if (ch.kind == .Guild_Text || ch.kind == .Guild_Announcement) && !on_hosted() && (dc.guild_has_feature(g, "NEWS") || dc.guild_has_feature(g, "COMMUNITY")) {
 		set_divider();
 		news := ss.chan.kind == .Guild_Announcement;
-		if set_toggle_row("news", "Announcement Channel", "Post messages that reach servers outside your own. Members can follow this channel, so the posts you publish here appear in their servers.", news)
+		if set_toggle_row("news", L("Announcement Channel"), L("Post messages that reach servers outside your own. Members can follow this channel, so the posts you publish here appear in their servers."), news)
 			ss.chan.kind = ifx news then .Guild_Text else .Guild_Announcement;
 	}
 	if dc.is_thread(ch) return save;
 	if ch.kind != .Guild_Category && ch.kind != .Guild_Stage_Voice && (chan_texty(ch.kind) || !on_hosted()) {
 		set_divider();
-		if set_toggle_row("nsfw", "Age-Restricted Channel", "Users will need to confirm they are of over the legal age to view in the content in this channel.\nAge-restricted channels are exempt from the explicit content filter.", ss.chan.nsfw)
+		if set_toggle_row("nsfw", L("Age-Restricted Channel"), L("Users will need to confirm they are of over the legal age to view in the content in this channel.\nAge-restricted channels are exempt from the explicit content filter."), ss.chan.nsfw)
 			ss.chan.nsfw = !ss.chan.nsfw;
 	}
 	if !chan_voice(ch.kind) return save;
 	set_divider();
-	field_title("Bitrate");
+	field_title(L("Bitrate"));
 	kbps := cast(float32) ss.chan.bitrate / 1000;
 	if slider("bitrate", *kbps, 8, cast(float32) max_bitrate(g) / 1000, ss.form_w, tprint("%kbps", cast(int)(kbps + 0.5))) ss.chan.bitrate = cast(int)(kbps + 0.5) * 1000;
 	spacer(.Y, 4);
 	label(tprint("%kbps", ss.chan.bitrate / 1000), .Medium, 14, T("--text-default"), 18);
 	if ss.chan.bitrate > 64000 {
 		spacer(.Y, 8);
-		set_para("bithelp", "ALL THE BITS! Going above 64 kbps may adversely affect people on poor connections.", .Normal, 14, 18, T("--text-feedback-warning"));
+		set_para("bithelp", L("ALL THE BITS! Going above 64 kbps may adversely affect people on poor connections."), .Normal, 14, 18, T("--text-feedback-warning"));
 	}
 	if !on_hosted() {
 		set_divider();
-		field_title("Video Quality");
+		field_title(L("Video Quality"));
 		hd := ss.chan.video_quality_mode == 2;
-		if radio_row("vq_auto", "Auto", !hd) ss.chan.video_quality_mode = 1;
+		if radio_row("vq_auto", L("Auto"), !hd) ss.chan.video_quality_mode = 1;
 		if radio_row("vq_720", "720p", hd) ss.chan.video_quality_mode = 2;
-		set_para("vqhelp", "Sets camera video quality for all channel participants. Choose Auto for optimal performance.", .Normal, 14, 18, T("--text-muted"));
+		set_para("vqhelp", L("Sets camera video quality for all channel participants. Choose Auto for optimal performance."), .Normal, 14, 18, T("--text-muted"));
 	}
 	set_divider();
-	field_title("User Limit");
+	field_title(L("User Limit"));
 	n := cast(float32) ss.chan.user_limit;
 	if slider("limit", *n, 0, 99, ss.form_w) ss.chan.user_limit = cast(int)(n + 0.5);
 	spacer(.Y, 4);
-	label(ifx ss.chan.user_limit then tprint("% users", ss.chan.user_limit) else "No limit", .Medium, 14, T("--text-default"), 18);
+	label(ifx ss.chan.user_limit then tprint("% users", ss.chan.user_limit) else L("No limit"), .Medium, 14, T("--text-default"), 18);
 	spacer(.Y, 8);
-	set_para("limithelp", "Limits the number of users that can connect to this voice channel. Users with the Move Members permission ignore this limit and can move other users into the channel.", .Normal, 14, 18, T("--text-muted"));
+	set_para("limithelp", L("Limits the number of users that can connect to this voice channel. Users with the Move Members permission ignore this limit and can move other users into the channel."), .Normal, 14, 18, T("--text-muted"));
 	if on_hosted() return save;
 	set_divider();
-	field_title("Region Override");
+	field_title(L("Region Override"));
 	names, ids: [..]string;
 	names.allocator, ids.allocator = temp, temp;
 	array_add(*names, "Automatic");
@@ -4284,7 +4284,7 @@ chan_overview_page :: (g: *dc.Guild) -> bool {
 		ss.chan.rtc_region = ss.chan_region;
 	}
 	spacer(.Y, 8);
-	set_para("regionhelp", "Everyone in this channel connects to the selected region. Automatic picks the best one for whoever starts the call.", .Normal, 14, 18, T("--text-muted"));
+	set_para("regionhelp", L("Everyone in this channel connects to the selected region. Automatic picks the best one for whoever starts the call."), .Normal, 14, 18, T("--text-muted"));
 	return save;
 }
 
@@ -4292,7 +4292,7 @@ chan_overview_page :: (g: *dc.Guild) -> bool {
 forum_fields :: (ch: *dc.Channel) {
 	REQUIRE_TAG :: 1 << 4;
 	set_divider();
-	section_heading("tags", "Tags", "Tags let members organize their posts. Members pick them when they post; moderated tags only moderators can apply.");
+	section_heading("tags", L("Tags"), "Tags let members organize their posts. Members pick them when they post; moderated tags only moderators can apply.");
 	gone := -1;
 	for * ss.chan_tags {
 		ui.id_scope(cast(u64) it_index + 1);
@@ -4306,7 +4306,7 @@ forum_fields :: (ch: *dc.Channel) {
 		label(it.name, .Medium, 15, T("--text-strong"), 20);
 		if it.moderated { spacer(.X, 8); icon("lock", "lock", 14, T("--text-muted")); }
 		filler(.X);
-		if set_button(ifx it.moderated then "Anyone can use##mod" else "Moderators only##mod", .Link, true, 28) it.moderated = !it.moderated;
+		if set_button(ifx it.moderated then L("Anyone can use##mod") else L("Moderators only##mod"), .Link, true, 28) it.moderated = !it.moderated;
 		if row_icon_button("x", "x-small", danger = true) gone = it_index;
 		spacer(.X, 6);
 	}
@@ -4323,28 +4323,28 @@ forum_fields :: (ch: *dc.Channel) {
 		w := ui.box("in");
 		w.semantic_size = .[ui.fill(), ui.children()];
 		res: ui.Edit_Result;
-		{ ui.parent(w); defer ui.pop_parent(); res = set_input("tagname", *ss.tag, "New tag", max_runes = 20); }
+		{ ui.parent(w); defer ui.pop_parent(); res = set_input("tagname", *ss.tag, L("New tag"), max_runes = 20); }
 		if res == .Escape ss.field_escape = true;
 		name := trim(ui.editor_text(*ss.tag));
-		if (set_button("Add Tag##addtag", .Secondary, name != "" && ss.chan_tags.count < MAX_FORUM_TAGS) || (res == .Submit && name)) && ss.chan_tags.count < MAX_FORUM_TAGS {
+		if (set_button(L("Add Tag##addtag"), .Secondary, name != "" && ss.chan_tags.count < MAX_FORUM_TAGS) || (res == .Submit && name)) && ss.chan_tags.count < MAX_FORUM_TAGS {
 			array_add(*ss.chan_tags, .{name = copy_string(name)});
 			ui.editor_set_text(*ss.tag, "");
 		}
 	}
 	spacer(.Y, 12);
-	if set_toggle_row("reqtag", "Require people to select tags when posting", "", (ss.chan.flags & REQUIRE_TAG) != 0) ss.chan.flags ^= REQUIRE_TAG;
+	if set_toggle_row("reqtag", L("Require people to select tags when posting"), "", (ss.chan.flags & REQUIRE_TAG) != 0) ss.chan.flags ^= REQUIRE_TAG;
 	if ch.kind == .Guild_Forum {
 		set_divider();
-		field_title("Default Layout");
+		field_title(L("Default Layout"));
 		gallery := ss.chan.default_forum_layout == 2;
-		if radio_row("list", "List view", !gallery) ss.chan.default_forum_layout = 1;
-		if radio_row("gallery", "Gallery view", gallery) ss.chan.default_forum_layout = 2;
+		if radio_row("list", L("List view"), !gallery) ss.chan.default_forum_layout = 1;
+		if radio_row("gallery", L("Gallery view"), gallery) ss.chan.default_forum_layout = 2;
 	}
 	set_divider();
-	field_title("Default Sort Order");
+	field_title(L("Default Sort Order"));
 	by_date := ss.chan.default_sort_order == 1;
-	if radio_row("recent", "Recently Active", !by_date) ss.chan.default_sort_order = 0;
-	if radio_row("created", "Creation Date", by_date) ss.chan.default_sort_order = 1;
+	if radio_row("recent", L("Recently Active"), !by_date) ss.chan.default_sort_order = 0;
+	if radio_row("created", L("Creation Date"), by_date) ss.chan.default_sort_order = 1;
 }
 
 // ---- Channel Settings: Permissions ----
@@ -4505,7 +4505,7 @@ chan_permissions_page :: (g: *dc.Guild) {
 			ui.set_spans(t, spans);
 			if !synced {
 				spacer(.X, 12);
-				if set_button("Sync Now##sync", .Primary, !ss.busy && !ows_dirty(), 32) {
+				if set_button(L("Sync Now##sync"), .Primary, !ss.busy && !ows_dirty(), 32) {
 					list: [..]string;
 					list.allocator = temp;
 					for cat.overwrites array_add(*list, ow_body(it));
@@ -4522,14 +4522,14 @@ chan_permissions_page :: (g: *dc.Guild) {
 	help := ifx is_cat then "By making a category private, only select members and roles will be able to view this category. Linked channels in this category will automatically match to this setting."
 		else ifx chan_voice(ch.kind) then "By making a channel private, only select members and roles will have access to view or connect to this channel."
 		else "By making a channel private, only select members and roles will be able to view this channel.";
-	if set_toggle_row("private", ifx is_cat then "Private Category" else "Private Channel", help, private) {
+	if set_toggle_row("private", ifx is_cat then L("Private Category") else L("Private Channel"), help, private) {
 		o := ow_draft(g.id, 0);
 		o.allow &= ~access;
 		if private o.deny &= ~access;
 		else o.deny |= access;
 	}
 	set_divider();
-	label("Advanced permissions", .Semibold, 16, T("--text-strong"), 20);
+	label(L("Advanced permissions"), .Semibold, 16, T("--text-strong"), 20);
 	spacer(.Y, 16);
 	if !ow_find(ss.ows, ss.ow_id) ss.ow_id = g.id;
 	cols := row("adv");
@@ -4543,7 +4543,7 @@ chan_permissions_page :: (g: *dc.Guild) {
 		hr := row("thead");
 		hr.semantic_size = .[ui.pct(1), ui.px(28)];
 		{ ui.parent(hr); defer ui.pop_parent();
-			label("ROLES/MEMBERS", .Bold, 12, T("--text-muted"), 16);
+			label(L("ROLES/MEMBERS"), .Bold, 12, T("--text-muted"), 16);
 			filler(.X);
 			if row_icon_button("add", "plus-small") ss.ow_adding = !ss.ow_adding;
 		}
@@ -4586,7 +4586,7 @@ chan_permissions_page :: (g: *dc.Guild) {
 	{ ui.parent(th); defer ui.pop_parent();
 		label(ow_name(g, shown), .Semibold, 16, T("--text-strong"), 20);
 		filler(.X);
-		if shown.id != g.id && set_button("Remove##rmow", .Link, true, 28) {
+		if shown.id != g.id && set_button(L("Remove##rmow"), .Link, true, 28) {
 			for ss.ows if it.id == shown.id { array_ordered_remove_by_index(*ss.ows, it_index); break; }
 			ss.ow_id = g.id;
 		}
@@ -4638,7 +4638,7 @@ chan_permissions_page :: (g: *dc.Guild) {
 // Add members or roles: the roles not listed yet, filtered by the search, then the members it finds
 // (Enter searches, as Manage Members does).
 ow_add_list :: (g: *dc.Guild) {
-	res := set_input("owsearch", *ss.search, "Add members or roles");
+	res := set_input("owsearch", *ss.search, L("Add members or roles"));
 	if res == .Escape ss.ow_adding = false;
 	q := to_lower_copy(trim(ui.editor_text(*ss.search)),, temp);
 	if res == .Submit && q { ss.loading[Req.Members] = false; members_search(g); }

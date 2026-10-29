@@ -99,7 +99,7 @@ emoji_autocomplete :: (ch: *dc.Channel, ed: *ui.Editor, focused: bool) {
 		head.semantic_size = .[ui.pct(1), ui.px(AC_HEADER_H)];
 		{ ui.parent(head); defer ui.pop_parent();
 			spacer(.X, 16);
-			label("EMOJI MATCHING", .Semibold, 12, T("--text-muted"), 16);
+			label(L("EMOJI MATCHING"), .Semibold, 12, T("--text-muted"), 16);
 			spacer(.X, 4);
 			label(tprint(":%", q), .Semibold, 12, T("--text-strong"), 16);
 		}

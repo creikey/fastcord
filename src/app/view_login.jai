@@ -82,7 +82,7 @@ login_events :: () {
 			set_str(*lg.login_error, ev.login_error);
 			set_str(*lg.password_error, ev.password_error);
 			if ev.captcha {
-				set_str(*lg.message, "Discord asked for a captcha, which fastcord can't show. Log in with the QR code instead.");
+				set_str(*lg.message, L("Discord asked for a captcha, which fastcord can't show. Log in with the QR code instead."));
 			} else {
 				set_str(*lg.message, ev.message);
 			}
@@ -292,10 +292,10 @@ login_form_box :: () {
 }
 
 login_form :: () {
-	if accts.adding && accounts.count && link(tprint("← Back to %##back", account_name(accounts[max(accts.active, 0)]))) account_add_cancel();
-	centered("title", "Welcome back!", .Semibold, 24, 30, T("--text-strong"), 416);
+	if accts.adding && accounts.count && link(tprint(L("← Back to %##back"), account_name(accounts[max(accts.active, 0)]))) account_add_cancel();
+	centered("title", L("Welcome back!"), .Semibold, 24, 30, T("--text-strong"), 416);
 	spacer(.Y, 8);
-	centered("sub", "We're so excited to see you again!", .Normal, 16, 20, T("--text-muted"), 416);
+	centered("sub", L("We're so excited to see you again!"), .Normal, 16, 20, T("--text-muted"), 416);
 	spacer(.Y, 20);
 
 	text := ui.editor_text(*lg.login_ed);
@@ -305,30 +305,30 @@ login_form :: () {
 		if cc == "" { cc = "US"; }
 		prefix = tprint("% %", cc, dc.auth_dialing_code(cc));
 	}
-	field_label("login_label", "EMAIL OR PHONE NUMBER", lg.login_error);
+	field_label("login_label", L("EMAIL OR PHONE NUMBER"), lg.login_error);
 	r1, k1 := login_input("email", *lg.login_ed, false, lg.login_error != "", autofocus = true, prefix = prefix);
 	spacer(.Y, 20);
 	field_label("password_label", "PASSWORD", lg.password_error);
 	r2, k2 := login_input("password", *lg.password_ed, true, lg.password_error != "");
 	lg.field_keys = .[k1, k2];
 	spacer(.Y, 4);
-	if link("Forgot your password?") { login_forgot(); }
+	if link(L("Forgot your password?")) { login_forgot(); }
 	spacer(.Y, 20);
 	if lg.message != "" {
 		set_para("msg", lg.message, .Normal, 14, 18, T("--text-feedback-critical"));
 		spacer(.Y, 8);
 	}
-	if big_button("Log In##login", busy = lg.busy) || r1 == .Submit || r2 == .Submit { login_submit(); }
+	if big_button(L("Log In##login"), busy = lg.busy) || r1 == .Submit || r2 == .Submit { login_submit(); }
 	spacer(.Y, 8);
 	need := row("need");
 	need.semantic_size = .[ui.pct(1), ui.px(20)];
 	{ ui.parent(need); defer ui.pop_parent();
-		label("Need an account?", .Normal, 14, T("--text-muted"), 18);
+		label(L("Need an account?"), .Normal, 14, T("--text-muted"), 18);
 		spacer(.X, 4);
-		if link("Register") { open_url("https://discord.com/register"); }
+		if link(L("Register")) { open_url("https://discord.com/register"); }
 	}
 	spacer(.Y, 12);
-	if link("Log in with a token", 12, T("--text-muted")) {
+	if link(L("Log in with a token"), 12, T("--text-muted")) {
 		lg.mode = .Token;
 		app.ui.focus = 0;
 	}
@@ -376,16 +376,16 @@ login_notice_modal :: () {
 	{ ui.parent(d); defer ui.pop_parent();
 		inset_begin(24, 24);
 		if lg.notice == .Instructions_Sent {
-			centered("t", "Instructions Sent", .Semibold, 24, 30, T("--text-strong"), 392);
+			centered("t", L("Instructions Sent"), .Semibold, 24, 30, T("--text-strong"), 392);
 			spacer(.Y, 8);
-			centered("s", tprint("We sent instructions to change your password to %, please check both your inbox and spam folder.", lg.notice_login), .Normal, 16, 20, T("--text-muted"), 392);
+			centered("s", tprint(L("We sent instructions to change your password to %, please check both your inbox and spam folder."), lg.notice_login), .Normal, 16, 20, T("--text-muted"), 392);
 		} else {
-			centered("t", "Check your email for a login link", .Semibold, 24, 30, T("--text-strong"), 392);
+			centered("t", L("Check your email for a login link"), .Semibold, 24, 30, T("--text-strong"), 392);
 			spacer(.Y, 8);
-			centered("s", "Tap the link in your email to sign in instantly — no password needed.", .Normal, 16, 20, T("--text-muted"), 392);
+			centered("s", L("Tap the link in your email to sign in instantly — no password needed."), .Normal, 16, 20, T("--text-muted"), 392);
 		}
 		spacer(.Y, 20);
-		if big_button("Okay##ok") { lg.notice = .None; }
+		if big_button(L("Okay##ok")) { lg.notice = .None; }
 		inset_end(24, 24);
 	}
 	for * e: app.ui.events {
@@ -410,9 +410,9 @@ login_qr_panel :: () {
 	case .Initializing; #through; case .Pending_Remote_Init;
 		qr_box(ifx v.step == .Pending_Remote_Init then v.fingerprint else "");
 		spacer(.Y, 32);
-		centered("qrt", "Log in with QR Code", .Semibold, 24, 30, T("--text-strong"), 240);
+		centered("qrt", L("Log in with QR Code"), .Semibold, 24, 30, T("--text-strong"), 240);
 		spacer(.Y, 8);
-		centered("qrs", "Scan this with the Discord mobile app to log in instantly.", .Normal, 16, 20, T("--text-muted"), 240);
+		centered("qrs", L("Scan this with the Discord mobile app to log in instantly."), .Normal, 16, 20, T("--text-muted"), 240);
 	case .Pending_Ticket;
 		av := ui.box("av", .Draw_Background);
 		av.semantic_size = .[ui.px(120), ui.px(120)];
@@ -423,18 +423,18 @@ login_qr_panel :: () {
 			if !app.sweep { set_remote_image(av, url); }
 		}
 		spacer(.Y, 16);
-		centered("qrt", "Check your phone!", .Semibold, 24, 30, T("--text-strong"), 240);
+		centered("qrt", L("Check your phone!"), .Semibold, 24, 30, T("--text-strong"), 240);
 		spacer(.Y, 8);
 		tag := v.username;
 		if v.discriminator != "" && v.discriminator != "0" { tag = tprint("%#%", v.username, v.discriminator); }
-		centered("qrs", tprint("Logging in as %", tag), .Normal, 16, 20, T("--text-default"), 240);
+		centered("qrs", tprint(L("Logging in as %"), tag), .Normal, 16, 20, T("--text-default"), 240);
 		spacer(.Y, 16);
-		if link("Not me, start over") {
+		if link(L("Not me, start over")) {
 			if lg.fake_ra_on { lg.fake_ra.step = .Initializing; } else if net_action() { dc.remote_auth_cancel(app.client); }
 		}
 	case .Pending_Login; #through; case .Finish;
 		spacer(.Y, 60);
-		centered("qrs", "Logging in…", .Medium, 16, 20, T("--text-muted"), 240);
+		centered("qrs", L("Logging in…"), .Medium, 16, 20, T("--text-muted"), 240);
 		spacer(.Y, 60);
 	}
 }
@@ -553,7 +553,7 @@ login_mfa_box :: () {
 			hc.semantic_size = .[ui.fill(), ui.children()];
 			hc.layout_axis = .Y;
 			{ ui.parent(hc); defer ui.pop_parent();
-				set_para("t", "Multi-Factor Authentication", .Semibold, 24, 30, T("--text-strong"));
+				set_para("t", L("Multi-Factor Authentication"), .Semibold, 24, 30, T("--text-strong"));
 				sub := "";
 				if lg.slide == {
 				case .Select;
@@ -640,31 +640,31 @@ login_mfa_slide_body :: () {
 		}
 		return;
 	case .Unsupported;
-		set_para("u", "This account needs a passkey or security key, which fastcord can't use. Log in with the QR code instead.", .Normal, 16, 20, T("--text-default"));
+		set_para("u", L("This account needs a passkey or security key, which fastcord can't use. Log in with the QR code instead."), .Normal, 16, 20, T("--text-default"));
 		spacer(.Y, 20);
 		if (lg.methods & ~dc.Mfa_Method.Webauthn) != 0 {
-			if set_button("Verify with something else##else", .Secondary) { login_mfa_slide(.Select); }
+			if set_button(L("Verify with something else##else"), .Secondary) { login_mfa_slide(.Select); }
 			spacer(.Y, 8);
 		}
-		if big_button("Go back##back") { login_mfa_close(); }
+		if big_button(L("Go back##back")) { login_mfa_close(); }
 		return;
 	case .Backup_Warn;
-		set_para("w1", "Backup codes can only be used one time each and are for emergency access to your account!", .Normal, 16, 20, T("--text-default"));
+		set_para("w1", L("Backup codes can only be used one time each and are for emergency access to your account!"), .Normal, 16, 20, T("--text-default"));
 		spacer(.Y, 8);
 		left := 10 - cast(int)(app.ui.time - lg.backup_t0);
 		if left > 0 {
-			set_para("w2", tprint("If you do not have access to any other methods, the button below will activate in % seconds.", left), .Normal, 16, 20, T("--text-default"));
+			set_para("w2", tprint(L("If you do not have access to any other methods, the button below will activate in % seconds."), left), .Normal, 16, 20, T("--text-default"));
 			request_wake(platform.time_now() + 0.25);
 		} else {
-			set_para("w2", "If you do not have access to any other methods, use the other button below to proceed.", .Normal, 16, 20, T("--text-default"));
+			set_para("w2", L("If you do not have access to any other methods, use the other button below to proceed."), .Normal, 16, 20, T("--text-default"));
 		}
 		spacer(.Y, 20);
 		mfa_buttons(false, false);
-		if big_button("I'm sure, use a backup code##sure", enabled = left <= 0) { login_mfa_slide(.Backup); }
+		if big_button(L("I'm sure, use a backup code##sure"), enabled = left <= 0) { login_mfa_slide(.Backup); }
 		return;
 	case .Totp; #through; case .Sms;
 		need = 6;
-		field_label("cl", "Enter Discord Auth Code", lg.mfa_error, false);
+		field_label("cl", L("Enter Discord Auth Code"), lg.mfa_error, false);
 		r := row("coderow");
 		r.semantic_size = .[ui.pct(1), ui.px(40)];
 		{ ui.parent(r); defer ui.pop_parent();
@@ -672,7 +672,7 @@ login_mfa_slide_body :: () {
 			submit = res == .Submit;
 			if lg.slide == .Sms {
 				spacer(.X, 8);
-				if set_button("Resend SMS?##resend", .Secondary, !lg.sms_sending, 40) {
+				if set_button(L("Resend SMS?##resend"), .Secondary, !lg.sms_sending, 40) {
 					lg.sms_sending = true;
 					if net_action() { dc.auth_mfa_sms_send(app.client); }
 				}
@@ -680,7 +680,7 @@ login_mfa_slide_body :: () {
 		}
 	case .Backup;
 		need = 8;
-		field_label("cl", "Enter Discord Backup Code", lg.mfa_error, false);
+		field_label("cl", L("Enter Discord Backup Code"), lg.mfa_error, false);
 		res, _ := login_input("code", *lg.code_ed, false, lg.mfa_error != "", autofocus = true, placeholder = "8-digit backup code");
 		submit = res == .Submit;
 	}
@@ -702,9 +702,9 @@ mfa_buttons :: (confirm: bool, enabled: bool) -> bool {
 	r := row("btns");
 	r.semantic_size = .[ui.pct(1), ui.px(40)];
 	{ ui.parent(r); defer ui.pop_parent();
-		if others && set_button("Verify with something else##else", .Secondary, true, 40) { login_mfa_slide(.Select); }
+		if others && set_button(L("Verify with something else##else"), .Secondary, true, 40) { login_mfa_slide(.Select); }
 		filler(.X);
-		if confirm { confirmed = set_button("Confirm##confirm", .Primary, enabled && !lg.mfa_busy, 40); }
+		if confirm { confirmed = set_button(L("Confirm##confirm"), .Primary, enabled && !lg.mfa_busy, 40); }
 	}
 	spacer(.Y, 8);
 	return confirmed;
@@ -760,14 +760,14 @@ step :: (n: string, text: string) {
 }
 
 login_card_body :: () {
-	if link("← Back to login##back") {
+	if link(L("← Back to login##back")) {
 		lg.mode = .Form;
 		app.ui.focus = 0;
 	}
 	spacer(.Y, 12);
-	para("title", "Log in with a token", .Bold, 24, 30, T("--text-strong"));
+	para("title", L("Log in with a token"), .Bold, 24, 30, T("--text-strong"));
 	spacer(.Y, 8);
-	para("sub", "Copy your account's token once from Discord in a web browser.", .Normal, 16, 22, T("--text-muted"));
+	para("sub", L("Copy your account's token once from Discord in a web browser."), .Normal, 16, 22, T("--text-muted"));
 	spacer(.Y, 20);
 
 	#if OS == .MACOS {
@@ -775,12 +775,12 @@ login_card_body :: () {
 	} else {
 		devtools := "Open the developer tools (Ctrl+Shift+I) and choose the Network tab.";
 	}
-	step("1", "Log in to Discord in your web browser.");
+	step("1", L("Log in to Discord in your web browser."));
 	step("2", devtools);
-	step("3", "Click any channel, then pick a request whose name starts with \"messages\" or \"science\".");
-	step("4", "Under Request Headers, copy the value of \"authorization\" and paste it below.");
+	step("3", L("Click any channel, then pick a request whose name starts with \"messages\" or \"science\"."));
+	step("4", L("Under Request Headers, copy the value of \"authorization\" and paste it below."));
 
-	open := ui.box("Open discord.com##open", .Clickable | .Draw_Text | .Hot_Animation);
+	open := ui.box(L("Open discord.com##open"), .Clickable | .Draw_Text | .Hot_Animation);
 	open.semantic_size = .[ui.text_size(0), ui.px(24)];
 	open.style.font = F(.Medium);
 	open.style.font_size = 14;
@@ -801,7 +801,7 @@ login_card_body :: () {
 	if ui.signal(box).pressed { app.ui.focus = box.key; }
 	{ ui.parent(box); defer ui.pop_parent();
 		spacer(.X, 14);
-		res := text_field("field", *app.view.token_input, "Paste your token", app.ui.focus == box.key, 15, 20, 14);
+		res := text_field("field", *app.view.token_input, L("Paste your token"), app.ui.focus == box.key, 15, 20, 14);
 		submitted = res == .Submit;
 		spacer(.X, 14);
 	}
@@ -815,13 +815,13 @@ login_card_body :: () {
 			label(app.login_error, .Medium, 14, T("--text-feedback-critical"), 18);
 		}
 		filler(.X);
-		if (set_button("Log in##login", .Primary, token != "", 40) || submitted) && token != "" { login_with_token(token); }
+		if (set_button(L("Log in##login"), .Primary, token != "", 40) || submitted) && token != "" { login_with_token(token); }
 	}
 	spacer(.Y, 20);
 
-	para("warn1", "Treat the token like a password: anyone who has it controls your account. fastcord keeps it only on this computer.", .Normal, 13, 18, T("--text-muted"));
+	para("warn1", L("Treat the token like a password: anyone who has it controls your account. fastcord keeps it only on this computer."), .Normal, 13, 18, T("--text-muted"));
 	spacer(.Y, 6);
-	para("warn2", "Discord's terms don't allow third-party clients, so using one can get an account flagged.", .Normal, 13, 18, T("--text-muted"));
+	para("warn2", L("Discord's terms don't allow third-party clients, so using one can get an account flagged."), .Normal, 13, 18, T("--text-muted"));
 }
 #scope_export
 
@@ -843,7 +843,7 @@ login_check_auth :: () {
 	accts.adding = accounts.count > 0; // the login page offers going back to the next saved account
 	login_reset();
 	app.needs_login = true;
-	set_str(*lg.message, "Discord didn't accept the saved login. Log in again.");
+	set_str(*lg.message, L("Discord didn't accept the saved login. Log in again."));
 	connect();
 }
 
@@ -868,11 +868,11 @@ login_test_state :: (state: string) -> bool {
 	if state == {
 	case "error";
 		lg.mode = .Form;
-		set_str(*lg.login_error, "Login or password is invalid.");
-		set_str(*lg.password_error, "Login or password is invalid.");
+		set_str(*lg.login_error, L("Login or password is invalid."));
+		set_str(*lg.password_error, L("Login or password is invalid."));
 	case "captcha";
 		lg.mode = .Form;
-		set_str(*lg.message, "Discord asked for a captcha, which fastcord can't show. Log in with the QR code instead.");
+		set_str(*lg.message, L("Discord asked for a captcha, which fastcord can't show. Log in with the QR code instead."));
 	case "mfa";
 		login_mfa_begin(.Totp | .Backup);
 	case "mfa_backup";
@@ -894,7 +894,7 @@ login_test_state :: (state: string) -> bool {
 		lg.mode = .Token;
 	case "forgot_sent";
 		lg.notice = .Instructions_Sent;
-		set_str(*lg.notice_login, "dingus@example.com");
+		set_str(*lg.notice_login, L("dingus@example.com"));
 	case;
 		return false;
 	}

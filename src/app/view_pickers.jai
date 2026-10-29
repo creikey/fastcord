@@ -528,7 +528,7 @@ picker_header :: (r: ui.Rect) {
 				if can_upload_emoji(gid) {
 					spacer(.X, PK_HEADER_GAP);
 					busy := emoji_upload_busy();
-					add := ui.box(ifx busy then "Uploading...##addemoji" else "Add Emoji##addemoji", .Clickable | .Draw_Background | .Draw_Text | .Hot_Animation);
+					add := ui.box(ifx busy then L("Uploading...##addemoji") else L("Add Emoji##addemoji"), .Clickable | .Draw_Background | .Draw_Text | .Hot_Animation);
 					add.semantic_size = .[ui.text_size(PK_ADD_EMOJI_PAD_X), ui.px(PK_SEARCH_H)];
 					add.style.radius = all4(PK_SEARCH_RADIUS);
 					add.style.font = F(.Medium);

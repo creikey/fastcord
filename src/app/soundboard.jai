@@ -101,7 +101,7 @@ soundboard_overlay :: () {
 			spacer(.X, 10);
 			icon("mag", "magnifying-glass", 16, T("--icon-default"));
 			spacer(.X, 8);
-			text_field("f", *sb.search, "Search sounds", app.ui.focus == box.key, 14, 18, 7);
+			text_field("f", *sb.search, L("Search sounds"), app.ui.focus == box.key, 14, 18, 7);
 			spacer(.X, 10);
 		}
 		spacer(.X, 12);
@@ -146,7 +146,7 @@ soundboard_overlay :: () {
 		r.semantic_size = .[ui.pct(1), ui.px(64)];
 		ui.parent(r); defer ui.pop_parent();
 		filler(.X);
-		label(ifx query then "No sounds found" else "Loading sounds…", .Medium, 14, T("--text-muted"), 18);
+		label(ifx query then L("No sounds found") else L("Loading sounds…"), .Medium, 14, T("--text-muted"), 18);
 		filler(.X);
 	}
 	spacer(.Y, 12);

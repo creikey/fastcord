@@ -224,7 +224,7 @@ account_switch_group :: () {
 		g.style.radius = all4(8);
 		{ ui.parent(g); defer ui.pop_parent();
 			spacer(.Y, 4);
-			sw := menu_item("switchacct", "Switch Accounts", .Chevron, open = accts.menu_open, lead = "user-circle");
+			sw := menu_item("switchacct", L("Switch Accounts"), .Chevron, open = accts.menu_open, lead = "user-circle");
 			if sw.hovering || sw.clicked {
 				accts.menu_open = true;
 				accts.menu_y = sw.box.rect.y0;
@@ -251,7 +251,7 @@ accounts_menu :: (card: *ui.Box) {
 			if account_row(tprint("acct%", it_index), it, it_index == accts.active).clicked account_switch(it_index, "User Profile", "multi_account_menu");
 		}
 		menu_sep("s1");
-		if menu_item("manageacct", "Manage Accounts").clicked {
+		if menu_item("manageacct", L("Manage Accounts")).clicked {
 			accts.menu_open = false;
 			accts.manage_open = true;
 			app.profile_user = 0;
@@ -305,9 +305,9 @@ manage_accounts_modal :: () {
 	ui.signal(d);
 	{ ui.parent(d); defer ui.pop_parent();
 		spacer(.Y, PAD);
-		label("Manage Accounts", .Semibold, 20, T("--text-strong"), 24);
+		label(L("Manage Accounts"), .Semibold, 20, T("--text-strong"), 24);
 		spacer(.Y, 8);
-		label("Switch between accounts on this device.", .Normal, 14, T("--text-default"), 18);
+		label(L("Switch between accounts on this device."), .Normal, 14, T("--text-default"), 18);
 		spacer(.Y, 16);
 		log_out := -1;
 		switch_to := -1;
@@ -325,10 +325,10 @@ manage_accounts_modal :: () {
 				label(account_name(it), .Semibold, 16, T("--text-strong"), 20);
 				if it.username label(it.username, .Normal, 14, T("--text-muted"), 18);
 			}
-			if it_index == accts.active label("Active", .Medium, 14, T("--text-feedback-positive"), 18);
-			else if set_button(tprint("Log In##in%", it_index), .Primary, true, 32) switch_to = it_index;
+			if it_index == accts.active label(L("Active"), .Medium, 14, T("--text-feedback-positive"), 18);
+			else if set_button(tprint(L("Log In##in%"), it_index), .Primary, true, 32) switch_to = it_index;
 			spacer(.X, 8);
-			if set_button(tprint("Log Out##out%", it_index), .Secondary, true, 32) log_out = it_index;
+			if set_button(tprint(L("Log Out##out%"), it_index), .Secondary, true, 32) log_out = it_index;
 			spacer(.X, PAD);
 		}
 		spacer(.Y, 16);
@@ -338,13 +338,13 @@ manage_accounts_modal :: () {
 		{ ui.parent(br); defer ui.pop_parent();
 			spacer(.X, PAD);
 			filler(.X);
-			if set_button("Add an Account##add", .Primary, !full, 40) account_add();
+			if set_button(L("Add an Account##add"), .Primary, !full, 40) account_add();
 			filler(.X);
 			spacer(.X, PAD);
 		}
 		if full {
 			spacer(.Y, 8);
-			label("You can add up to 5 accounts.", .Normal, 12, T("--text-muted"), 16);
+			label(L("You can add up to 5 accounts."), .Normal, 12, T("--text-muted"), 16);
 		}
 		spacer(.Y, PAD);
 		if switch_to >= 0 account_switch(switch_to, "Manage Accounts Modal", "multi_accounts_list");

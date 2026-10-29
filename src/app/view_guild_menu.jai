@@ -113,13 +113,13 @@ group_dm_menu_open :: (cid: dc.Snowflake, at: ui.Vec2) { gm.gdm_menu, gm.gdm_pos
 leave_guild_now :: (gid: dc.Snowflake) {
 	g := dc.guild_get(store(), gid);
 	if !g || undo_hides(gid) return;
-	undo_push(tprint("Left %", g.name), (u: *Undo) { if u.client dc.leave_guild(u.client, u.a); }, a = gid, hides = true);
+	undo_push(tprint(L("Left %"), g.name), (u: *Undo) { if u.client dc.leave_guild(u.client, u.a); }, a = gid, hides = true);
 	if app.view.guild == gid go_home();
 }
 
 close_private_now :: (ch: *dc.Channel) {
 	if undo_hides(ch.id) return;
-	undo_push(ifx ch.kind == .Group_DM then tprint("Left %", dm_name(ch)) else "DM closed", (u: *Undo) { if u.client dc.close_private_channel(u.client, u.a); }, a = ch.id, hides = true);
+	undo_push(ifx ch.kind == .Group_DM then tprint(L("Left %"), dm_name(ch)) else L("DM closed"), (u: *Undo) { if u.client dc.close_private_channel(u.client, u.a); }, a = ch.id, hides = true);
 	if app.view.channel == ch.id select_channel(0, 0);
 }
 
@@ -479,49 +479,49 @@ guild_menu :: () {
 	menu := menu_panel("gmenu", pos, W);
 	{ ui.parent(menu); defer ui.pop_parent();
 		spacer(.Y, 8);
-		if menu_item("invite", "Invite to Server", lead = "user-plus", h = GM_HDR_ROW_H).clicked {
+		if menu_item("invite", L("Invite to Server"), lead = "user-plus", h = GM_HDR_ROW_H).clicked {
 			invite_open(gid, 0, dc.INVITE_LOC_HEADER);
 			close = true;
 		}
-		if can_open_server_settings(gid) && menu_item("serversettings", "Server Settings", lead = "pencil", h = GM_HDR_ROW_H).clicked {
+		if can_open_server_settings(gid) && menu_item("serversettings", L("Server Settings"), lead = "pencil", h = GM_HDR_ROW_H).clicked {
 			server_settings_open(gid);
 			close = true;
 		}
 		if can_manage_channels(gid) {
-			if menu_item("createchan", "Create Channel", lead = "circle-plus", h = GM_HDR_ROW_H).clicked {
+			if menu_item("createchan", L("Create Channel"), lead = "circle-plus", h = GM_HDR_ROW_H).clicked {
 				create_channel_open(gid, 0);
 				close = true;
 			}
-			if menu_item("createcat", "Create Category", lead = "folder", h = GM_HDR_ROW_H).clicked {
+			if menu_item("createcat", L("Create Category"), lead = "folder", h = GM_HDR_ROW_H).clicked {
 				create_category_open(gid);
 				close = true;
 			}
 		}
-		if dc.can_create_events(s, gid) && menu_item("createevent", "Create Event", lead = "calendar", h = GM_HDR_ROW_H).clicked {
+		if dc.can_create_events(s, gid) && menu_item("createevent", L("Create Event"), lead = "calendar", h = GM_HDR_ROW_H).clicked {
 			create_event_open(gid);
 			close = true;
 		}
 		menu_sep("s1");
-		if menu_item("notify", "Notification Settings", lead = "bell", h = GM_HDR_ROW_H).clicked {
+		if menu_item("notify", L("Notification Settings"), lead = "bell", h = GM_HDR_ROW_H).clicked {
 			gm.nm_guild = gid;
 			close = true;
 		}
-		if !on_hosted() && menu_item("privacy", "Privacy Settings", lead = "lock", h = GM_HDR_ROW_H).clicked {
+		if !on_hosted() && menu_item("privacy", L("Privacy Settings"), lead = "lock", h = GM_HDR_ROW_H).clicked {
 			guild_privacy = gid; // view_settings_user.jai
 			close = true;
 		}
-		if !on_hosted() && menu_item("serverprofile", "Edit Per-server Profile", lead = "pencil", h = GM_HDR_ROW_H).clicked {
+		if !on_hosted() && menu_item("serverprofile", L("Edit Per-server Profile"), lead = "pencil", h = GM_HDR_ROW_H).clicked {
 			per_server_profile_open(gid); // view_settings_account.jai
 			close = true;
 		}
 		menu_sep("s2");
 		hide := hide_muted(gid);
-		if menu_item("hidemuted", "Hide Muted Channels", ifx hide then .Check_On else .Check_Off, lead = "eye-slash", h = GM_HDR_ROW_H).clicked {
+		if menu_item("hidemuted", L("Hide Muted Channels"), ifx hide then .Check_On else .Check_Off, lead = "eye-slash", h = GM_HDR_ROW_H).clicked {
 			hide_muted_toggle(gid);
 		}
 		if g.owner_id != s.me {
 			menu_sep("s3");
-			if menu_item("leave", "Leave Server", lead = "door-exit", danger = true, h = GM_HDR_ROW_H).clicked {
+			if menu_item("leave", L("Leave Server"), lead = "door-exit", danger = true, h = GM_HDR_ROW_H).clicked {
 				leave_guild_now(gid);
 				close = true;
 			}
@@ -561,13 +561,13 @@ guild_context_menu :: () {
 	sig: ui.Signal;
 	{ ui.parent(menu); defer ui.pop_parent();
 		spacer(.Y, 8);
-		sig = menu_item("read", "Mark As Read", disabled = !guild_has_unread(gid));
+		sig = menu_item("read", L("Mark As Read"), disabled = !guild_has_unread(gid));
 		if sig.clicked {
 			mark_guild_read(gid);
 			close = true;
 		} else if sig.hovering hover_any = true;
 		menu_sep("s1");
-		sig = menu_item("invite", "Invite to Server");
+		sig = menu_item("invite", L("Invite to Server"));
 		if sig.clicked {
 			// not captured from the rail menu: the header menu's location is the closest known one
 			invite_open(gid, 0, dc.INVITE_LOC_HEADER);
@@ -576,29 +576,29 @@ guild_context_menu :: () {
 		menu_sep("s2");
 		if muted {
 			end: s64 = ifx gs != null then gs.mute_end_ms else 0;
-			sig = menu_item("mute", "Unmute Server", sub = muted_until(end));
+			sig = menu_item("mute", L("Unmute Server"), sub = muted_until(end));
 			if sig.clicked {
 				unmute_now(gid);
 				close = true;
 			} else if sig.hovering hover_any = true;
 		} else {
-			item := menu_item("mute", "Mute Server", .Chevron, open = gm.ctx_sub == .Mute);
+			item := menu_item("mute", L("Mute Server"), .Chevron, open = gm.ctx_sub == .Mute);
 			if item.hovering hover_sub = .Mute;
 			if item.clicked gm.ctx_sub = .Mute;
 			if item.hovering || item.clicked gm.ctx_sub_y = item.box.rect.y0;
 		}
-		nt := menu_item("notify", "Notification Settings", .Chevron, sub = NOTIFY_NAMES[clamp(level, 0, 2)], open = gm.ctx_sub == .Notify);
+		nt := menu_item("notify", L("Notification Settings"), .Chevron, sub = NOTIFY_NAMES[clamp(level, 0, 2)], open = gm.ctx_sub == .Notify);
 		if nt.hovering hover_sub = .Notify;
 		if nt.clicked gm.ctx_sub = .Notify;
 		if nt.hovering || nt.clicked gm.ctx_sub_y = nt.box.rect.y0;
 		hide := hide_muted(gid);
-		sig = menu_item("hidemuted", "Hide Muted Channels", ifx hide then .Check_On else .Check_Off);
+		sig = menu_item("hidemuted", L("Hide Muted Channels"), ifx hide then .Check_On else .Check_Off);
 		if sig.clicked {
 			hide_muted_toggle(gid);
 		} else if sig.hovering hover_any = true;
 		if can_manage_channels(gid) {
 			menu_sep("s3");
-			sig = menu_item("createchan", "Create Channel");
+			sig = menu_item("createchan", L("Create Channel"));
 			if sig.clicked {
 				create_channel_open(gid, 0);
 				close = true;
@@ -606,7 +606,7 @@ guild_context_menu :: () {
 		}
 		if g.owner_id != s.me {
 			menu_sep("s4");
-			sig = menu_item("leave", "Leave Server", danger = true);
+			sig = menu_item("leave", L("Leave Server"), danger = true);
 			if sig.clicked {
 				leave_guild_now(gid);
 				close = true;
@@ -614,7 +614,7 @@ guild_context_menu :: () {
 		}
 		if s.settings.developer_mode {
 			menu_sep("s5");
-			sig = menu_item("copyid", "Copy Server ID", .Icon, "id");
+			sig = menu_item("copyid", L("Copy Server ID"), .Icon, "id");
 			if sig.clicked {
 				clipboard_set(tprint("%", cast(u64) gid));
 				close = true;
@@ -645,11 +645,11 @@ guild_context_menu :: () {
 			}
 			menu_sep("ns");
 			sup := gs != null && gs.suppress_everyone;
-			if menu_item("suppress", "Suppress @everyone and @here", ifx sup then .Check_On else .Check_Off).clicked {
+			if menu_item("suppress", L("Suppress @everyone and @here"), ifx sup then .Check_On else .Check_Off).clicked {
 				if net_action() dc.set_guild_suppress_everyone(app.client, gid, !sup);
 			}
 			supr := gs != null && gs.suppress_roles;
-			if menu_item("suppressroles", "Suppress All Role @mentions", ifx supr then .Check_On else .Check_Off).clicked {
+			if menu_item("suppressroles", L("Suppress All Role @mentions"), ifx supr then .Check_On else .Check_Off).clicked {
 				if net_action() dc.set_guild_suppress_roles(app.client, gid, !supr);
 			}
 			spacer(.Y, 8);
@@ -716,7 +716,7 @@ notify_modal :: () {
 		spacer(.Y, 24);
 		{ ui.parent(padded("t")); defer ui.pop_parent();
 			spacer(.X, PAD);
-			label("Notification Settings", .Semibold, 20, T("--text-strong"), 24);
+			label(L("Notification Settings"), .Semibold, 20, T("--text-strong"), 24);
 		}
 		spacer(.Y, 24);
 		hline("h0");
@@ -737,7 +737,7 @@ notify_modal :: () {
 			c := ui.box("c");
 			c.semantic_size = .[ui.fill(), ui.children()];
 			{ ui.parent(c); defer ui.pop_parent();
-				if set_toggle_row("mutetoggle", ellipsize(tprint("Mute %", g.name), .Medium, 16, W - 2 * PAD - 60), "Muting a server prevents unread indicators and notifications from appearing unless you are mentioned.", muted) {
+				if set_toggle_row("mutetoggle", ellipsize(tprint("Mute %", g.name), .Medium, 16, W - 2 * PAD - 60), L("Muting a server prevents unread indicators and notifications from appearing unless you are mentioned."), muted) {
 					if net_action() dc.set_guild_muted(app.client, gid, !muted, now_ms = now);
 				}
 			}
@@ -748,7 +748,7 @@ notify_modal :: () {
 		spacer(.Y, 24);
 		{ ui.parent(padded("lvlhdr")); defer ui.pop_parent();
 			spacer(.X, PAD);
-			label("Server Notification Settings", .Semibold, 16, T("--text-strong"), 20);
+			label(L("Server Notification Settings"), .Semibold, 16, T("--text-strong"), 20);
 		}
 		spacer(.Y, 12);
 		for name, i: NOTIFY_NAMES {
@@ -789,18 +789,18 @@ notify_modal :: () {
 			c.semantic_size = .[ui.fill(), ui.children()];
 			c.layout_axis = .Y;
 			{ ui.parent(c); defer ui.pop_parent();
-				if set_toggle_row("supall", "Suppress @everyone and @here", "", sup) && net_action() dc.set_guild_suppress_everyone(app.client, gid, !sup);
+				if set_toggle_row("supall", L("Suppress @everyone and @here"), "", sup) && net_action() dc.set_guild_suppress_everyone(app.client, gid, !sup);
 				spacer(.Y, 16);
-				if set_toggle_row("suproles", "Suppress All Role @mentions", "", supr) && net_action() dc.set_guild_suppress_roles(app.client, gid, !supr);
+				if set_toggle_row("suproles", L("Suppress All Role @mentions"), "", supr) && net_action() dc.set_guild_suppress_roles(app.client, gid, !supr);
 				spacer(.Y, 16);
 				suph := gs != null && gs.notify_highlights == dc.HIGHLIGHTS_DISABLED;
-				if set_toggle_row("suphl", "Suppress Highlights", "Highlights provide occasional updates when your friends are chatting in busy servers, and more.", suph) && net_action() dc.set_guild_highlights(app.client, gid, suph);
+				if set_toggle_row("suphl", L("Suppress Highlights"), L("Highlights provide occasional updates when your friends are chatting in busy servers, and more."), suph) && net_action() dc.set_guild_highlights(app.client, gid, suph);
 				spacer(.Y, 16);
 				mev := gs != null && gs.mute_scheduled_events;
-				if set_toggle_row("muteev", "Mute New Events", "", mev) && net_action() dc.set_guild_mute_events(app.client, gid, !mev);
+				if set_toggle_row("muteev", L("Mute New Events"), "", mev) && net_action() dc.set_guild_mute_events(app.client, gid, !mev);
 				spacer(.Y, 16);
 				push := gs == null || gs.mobile_push;
-				if set_toggle_row("push", "Mobile Push Notifications", "", push) && net_action() dc.set_guild_mobile_push(app.client, gid, !push);
+				if set_toggle_row("push", L("Mobile Push Notifications"), "", push) && net_action() dc.set_guild_mobile_push(app.client, gid, !push);
 			}
 			spacer(.X, PAD);
 		}
@@ -813,7 +813,7 @@ notify_modal :: () {
 		spacer(.Y, 24);
 		{ ui.parent(padded("done")); defer ui.pop_parent();
 			spacer(.X, PAD);
-			done := ui.box("Done##done", .Clickable | .Draw_Background | .Draw_Text | .Hot_Animation);
+			done := ui.box(L("Done##done"), .Clickable | .Draw_Background | .Draw_Text | .Hot_Animation);
 			done.semantic_size = .[ui.fill(), ui.px(40)];
 			done.style.radius = all4(8);
 			done.style.font = F(.Medium);
@@ -837,12 +837,12 @@ notify_overrides :: (gid: dc.Snowflake, W: float32, PAD: float32) {
 	gs := dc.guild_settings_get(s, gid);
 	{ r := row("ohdr"); r.semantic_size = .[ui.pct(1), ui.children()]; ui.parent(r); defer ui.pop_parent();
 		spacer(.X, PAD);
-		label("Channel Notification Overrides", .Semibold, 16, T("--text-strong"), 20);
+		label(L("Channel Notification Overrides"), .Semibold, 16, T("--text-strong"), 20);
 	}
 	spacer(.Y, 8);
 	{ r := row("odesc"); r.semantic_size = .[ui.pct(1), ui.children()]; ui.parent(r); defer ui.pop_parent();
 		spacer(.X, PAD);
-		label("Add a channel to override its default notification settings", .Normal, 14, T("--text-muted"), 18);
+		label(L("Add a channel to override its default notification settings"), .Normal, 14, T("--text-muted"), 18);
 	}
 	spacer(.Y, 8);
 	// the picker: a field that opens a list of channels and categories without an override
@@ -859,7 +859,7 @@ notify_overrides :: (gid: dc.Snowflake, W: float32, PAD: float32) {
 		f.style.radius = all4(8);
 		{ ui.parent(f); defer ui.pop_parent();
 			spacer(.X, 12);
-			label("Select a channel or category…", .Normal, 14, T("--text-muted"), 18);
+			label(L("Select a channel or category…"), .Normal, 14, T("--text-muted"), 18);
 			filler(.X);
 			icon("chev", "chevron-small-down", 18, T("--interactive-icon-default"));
 			spacer(.X, 8);
@@ -913,7 +913,7 @@ notify_overrides :: (gid: dc.Snowflake, W: float32, PAD: float32) {
 			spacer(.Y, 12);
 			{ r := row("ocols"); r.semantic_size = .[ui.pct(1), ui.children()]; ui.parent(r); defer ui.pop_parent();
 				spacer(.X, PAD);
-				label("CHANNEL OR CATEGORY", .Bold, 12, T("--text-muted"), 16);
+				label(L("CHANNEL OR CATEGORY"), .Bold, 12, T("--text-muted"), 16);
 				filler(.X);
 				for string.["ALL", "@MENTIONS", "NOTHING", "MUTE"] {
 					c := ui.box(tprint("%##c%", it, it_index), .Draw_Text);
@@ -976,7 +976,7 @@ notify_overrides :: (gid: dc.Snowflake, W: float32, PAD: float32) {
 		x.semantic_size = .[ui.px(24), ui.px(24)];
 		xs := ui.signal(x);
 		set_icon(x, "x-small", ifx xs.hovering then T("--interactive-icon-hover") else T("--interactive-icon-default"));
-		if xs.hovering tooltip_below(tprint("Remove notification override for %", ch.name), x.rect);
+		if xs.hovering tooltip_below(tprint(L("Remove notification override for %"), ch.name), x.rect);
 		if xs.clicked && net_action() {
 			if muted dc.set_channel_muted(app.client, gid, o.channel_id, false, now_ms = now);
 			if o.message_notifications != dc.NOTIFY_INHERIT dc.set_channel_notify_level(app.client, gid, o.channel_id, dc.NOTIFY_INHERIT);
@@ -996,7 +996,7 @@ unmute_now :: (gid: dc.Snowflake, cid: dc.Snowflake = 0) {
 	o := ifx cid then dc.ensure_override(gs, cid) else null;
 	end := ifx o then o.mute_end_ms else gs.mute_end_ms;
 	local_mute(s, gid, cid, false, end);
-	undo_push(ifx cid then "Channel unmuted" else "Server unmuted", (u: *Undo) {
+	undo_push(ifx cid then L("Channel unmuted") else L("Server unmuted"), (u: *Undo) {
 		if !u.client return;
 		local_mute(*u.client.store, u.a, u.b, true, u.n);
 		if u.b dc.set_channel_muted(u.client, u.a, u.b, false); else dc.set_guild_muted(u.client, u.a, false);
@@ -1028,7 +1028,7 @@ mark_read_now :: (c: *dc.Client, ids: []dc.Snowflake, source := "Guild List", ac
 		rs.channel_id, rs.last_message_id, rs.mention_count = it.channel_id, ifx ch then ch.last_message_id else it.last_message_id, 0;
 	}
 	s.changed += 1;
-	u := undo_push("Marked as read", (u: *Undo) {
+	u := undo_push(L("Marked as read"), (u: *Undo) {
 		ids := read_restore(u);
 		if !u.client return;
 		if u.n < 0 { dc.ack_channels(u.client, ids, u.s); return; }
@@ -1061,7 +1061,7 @@ read_restore :: (u: *Undo) -> []dc.Snowflake {
 notify_level_now :: (gid: dc.Snowflake, cid: dc.Snowflake, level: int) {
 	s := store();
 	old := local_level(s, gid, cid, level);
-	undo_push("Notification settings changed", (u: *Undo) {
+	undo_push(L("Notification settings changed"), (u: *Undo) {
 		if !u.client return;
 		local_level(*u.client.store, u.a, u.b, u.n);
 		if u.b dc.set_channel_notify_level(u.client, u.a, u.b, xx u.c); else dc.set_guild_notify_level(u.client, u.a, xx u.c);
@@ -1111,18 +1111,18 @@ group_dm_menu :: () {
 	{ ui.parent(menu); defer ui.pop_parent();
 		spacer(.Y, 8);
 		unread := dc.channel_unread(s, ch.id);
-		if menu_item("read", "Mark As Read", disabled = !unread).clicked {
+		if menu_item("read", L("Mark As Read"), disabled = !unread).clicked {
 			mark_read_now(app.client, .[ch.id], ack_loc = 0);
 			close = true;
 		}
 		menu_sep("s1");
-		if menu_item("leave", "Leave Group", danger = true).clicked {
+		if menu_item("leave", L("Leave Group"), danger = true).clicked {
 			close_private_now(ch);
 			close = true;
 		}
 		if s.settings.developer_mode {
 			menu_sep("s2");
-			if menu_item("copyid", "Copy Channel ID", .Icon, "id").clicked {
+			if menu_item("copyid", L("Copy Channel ID"), .Icon, "id").clicked {
 				clipboard_set(tprint("%", cast(u64) ch.id));
 				close = true;
 			}
@@ -1199,7 +1199,7 @@ invite_modal :: () {
 		lr.semantic_size = .[ui.pct(1), ui.px(18)];
 		{ ui.parent(lr); defer ui.pop_parent();
 			spacer(.X, PAD);
-			label("Send a server invite link to a friend", .Semibold, 14, T("--text-default"), 18);
+			label(L("Send a server invite link to a friend"), .Semibold, 14, T("--text-default"), 18);
 		}
 		spacer(.Y, 8);
 		fr := row("fieldrow");
@@ -1228,7 +1228,7 @@ invite_modal :: () {
 				{ ui.parent(tw); defer ui.pop_parent(); label(text, .Normal, 16, color, 20); }
 				flags := ui.Box_Flags.Clickable | .Draw_Background | .Draw_Text | .Hot_Animation;
 				if url == "" flags |= .Disabled;
-				cb := ui.box(ifx gm.inv_copied then "Copied##copy" else "Copy##copy", flags);
+				cb := ui.box(ifx gm.inv_copied then L("Copied##copy") else L("Copy##copy"), flags);
 				cb.semantic_size = .[ui.px(75), ui.px(32)];
 				cb.style.radius = all4(8);
 				cb.style.font = F(.Medium);
@@ -1254,7 +1254,7 @@ invite_modal :: () {
 			spacer(.X, PAD);
 			label(invite_expiry_text(gm.inv_settings), .Normal, 12, T("--text-muted"), 16);
 			spacer(.X, 4);
-			ed := label("Edit invite link.", .Medium, 12, T("--text-link"), 16);
+			ed := label(L("Edit invite link."), .Medium, 12, T("--text-link"), 16);
 			ed.flags |= .Clickable;
 			ed.hover_cursor = .Pointer;
 			if ui.signal(ed).clicked && gm.inv_channel {
@@ -1300,9 +1300,9 @@ invite_edit_form :: (W: float32, PAD: float32) {
 		spacer(.X, PAD);
 		return current;
 	}
-	gm.inv_age = field("inv_age", "EXPIRE AFTER", INV_AGE_NAMES, gm.inv_age, PAD);
+	gm.inv_age = field("inv_age", L("EXPIRE AFTER"), INV_AGE_NAMES, gm.inv_age, PAD);
 	spacer(.Y, 16);
-	gm.inv_uses = field("inv_uses", "MAX NUMBER OF USES", INV_USE_NAMES, gm.inv_uses, PAD);
+	gm.inv_uses = field("inv_uses", L("MAX NUMBER OF USES"), INV_USE_NAMES, gm.inv_uses, PAD);
 	spacer(.Y, 16);
 	tr := row("inv_temp");
 	tr.semantic_size = .[ui.pct(1), ui.children()];
@@ -1313,7 +1313,7 @@ invite_edit_form :: (W: float32, PAD: float32) {
 		tc.semantic_size = .[ui.fill(), ui.children()];
 		tc.layout_axis = .Y;
 		{ ui.parent(tc); defer ui.pop_parent();
-			if set_toggle_row("inv_temp_sw", "Grant temporary membership", "Temporary members are automatically kicked when they disconnect unless a role has been assigned", gm.inv_temp) gm.inv_temp = !gm.inv_temp;
+			if set_toggle_row("inv_temp_sw", L("Grant temporary membership"), L("Temporary members are automatically kicked when they disconnect unless a role has been assigned"), gm.inv_temp) gm.inv_temp = !gm.inv_temp;
 		}
 		spacer(.X, PAD);
 	}
@@ -1322,9 +1322,9 @@ invite_edit_form :: (W: float32, PAD: float32) {
 	br.semantic_size = .[ui.pct(1), ui.px(38)];
 	ui.parent(br); defer ui.pop_parent();
 	filler(.X);
-	if adm_button("inv_cancel", "Cancel", .Secondary) { gm.inv_edit = false; select_close(); }
+	if adm_button("inv_cancel", L("Cancel"), .Secondary) { gm.inv_edit = false; select_close(); }
 	spacer(.X, 8);
-	if adm_button("inv_gen", "Generate a New Link", .Primary) {
+	if adm_button("inv_gen", L("Generate a New Link"), .Primary) {
 		gm.inv_settings = .{max_age = INV_AGES[gm.inv_age], max_uses = INV_USES[gm.inv_uses], temporary = gm.inv_temp};
 		gm.inv_edit = false;
 		select_close();
@@ -1374,13 +1374,13 @@ bell_popout :: () {
 		if muted {
 			o := dc.channel_override_get(s, gid, cid);
 			end := ifx o then o.mute_end_ms else 0;
-			sig = menu_item("mute", "Unmute Channel", sub = muted_until(end));
+			sig = menu_item("mute", L("Unmute Channel"), sub = muted_until(end));
 			if sig.clicked {
 				unmute_now(gid, cid);
 				close = true;
 			} else if sig.hovering hover_any = true;
 		} else {
-			item := menu_item("mute", "Mute Channel", .Chevron, open = gm.bell_sub == .Mute);
+			item := menu_item("mute", L("Mute Channel"), .Chevron, open = gm.bell_sub == .Mute);
 			if item.hovering hover_mute = true;
 			if item.clicked gm.bell_sub = .Mute;
 			if item.hovering || item.clicked gm.bell_sub_y = item.box.rect.y0;
@@ -1443,7 +1443,7 @@ thread_menu :: () {
 		spacer(.Y, 8);
 		sig: ui.Signal;
 		if dc.channel_unread(s, th.id) {
-			sig = menu_item("read", "Mark As Read");
+			sig = menu_item("read", L("Mark As Read"));
 			if sig.clicked {
 				mark_read_now(app.client, .[th.id], ack_loc = 0);
 				close = true;
@@ -1453,43 +1453,43 @@ thread_menu :: () {
 		if joined {
 			// muting and notifications are a thread member's settings
 			if thread_muted(th.id) {
-				sig = menu_item("mute", "Unmute Thread", sub = muted_until(tm.mute_end_ms));
+				sig = menu_item("mute", L("Unmute Thread"), sub = muted_until(tm.mute_end_ms));
 				if sig.clicked {
 					if net_action() dc.thread_set_muted(app.client, th.id, false);
 					close = true;
 				} else if sig.hovering hover_any = true;
 			} else {
-				item := menu_item("mute", "Mute Thread", .Chevron, open = gm.thread_sub == .Mute);
+				item := menu_item("mute", L("Mute Thread"), .Chevron, open = gm.thread_sub == .Mute);
 				if item.hovering hover_sub = .Mute;
 				if item.clicked gm.thread_sub = .Mute;
 				if item.hovering || item.clicked gm.thread_sub_y = item.box.rect.y0;
 			}
-			nt := menu_item("notify", "Notification Settings", .Chevron, sub = NOTIFY_NAMES[clamp(level, 0, 2)], open = gm.thread_sub == .Notify);
+			nt := menu_item("notify", L("Notification Settings"), .Chevron, sub = NOTIFY_NAMES[clamp(level, 0, 2)], open = gm.thread_sub == .Notify);
 			if nt.hovering hover_sub = .Notify;
 			if nt.clicked gm.thread_sub = .Notify;
 			if nt.hovering || nt.clicked gm.thread_sub_y = nt.box.rect.y0;
 			menu_sep("s2");
 		}
-		sig = menu_item("join", ifx joined then "Leave Thread" else "Join Thread", danger = joined);
+		sig = menu_item("join", ifx joined then L("Leave Thread") else L("Join Thread"), danger = joined);
 		if sig.clicked {
 			if net_action() dc.thread_join(app.client, th.id, !joined);
 			close = true;
 		} else if sig.hovering hover_any = true;
 		menu_sep("s3");
 		if can_edit_thread(th) {
-			sig = menu_item("edit", "Edit Thread");
+			sig = menu_item("edit", L("Edit Thread"));
 			if sig.clicked {
 				channel_settings_open(th); // view_server_settings.jai: an Overview and Delete Thread
 				close = true;
 			} else if sig.hovering hover_any = true;
 		}
-		sig = menu_item("link", "Copy Link", .Icon, "link");
+		sig = menu_item("link", L("Copy Link"), .Icon, "link");
 		if sig.clicked {
 			clipboard_set(channel_link(th.guild_id, th.id));
 			close = true;
 		} else if sig.hovering hover_any = true;
 		if s.settings.developer_mode {
-			sig = menu_item("copyid", "Copy Channel ID", .Icon, "id");
+			sig = menu_item("copyid", L("Copy Channel ID"), .Icon, "id");
 			if sig.clicked {
 				clipboard_set(tprint("%", cast(u64) th.id));
 				close = true;
@@ -1497,7 +1497,7 @@ thread_menu :: () {
 		}
 		if can_delete_thread(th) {
 			menu_sep("s4");
-			sig = menu_item("delete", "Delete Thread", .Icon, "trash", danger = true);
+			sig = menu_item("delete", L("Delete Thread"), .Icon, "trash", danger = true);
 			if sig.clicked {
 				channel_delete_open(th);
 				close = true;
@@ -1567,7 +1567,7 @@ channel_menu :: () {
 	}
 	{ ui.parent(menu); defer ui.pop_parent();
 		spacer(.Y, 8);
-		sig = menu_item("read", "Mark As Read", disabled = !unread);
+		sig = menu_item("read", L("Mark As Read"), disabled = !unread);
 		if sig.clicked {
 			mark_read_now(app.client, ids, ack_loc = 0);
 			close = true;
@@ -1575,12 +1575,12 @@ channel_menu :: () {
 		menu_sep("s1");
 		if cat {
 			collapsed := dc.category_collapsed(s, gid, ch.id);
-			sig = menu_item("collapse", "Collapse Category", ifx collapsed then .Check_On else .Check_Off);
+			sig = menu_item("collapse", L("Collapse Category"), ifx collapsed then .Check_On else .Check_Off);
 			if sig.clicked {
 				category_set_collapsed(gid, ch.id, !collapsed);
 				close = true;
 			} else if sig.hovering hover_any = true;
-			sig = menu_item("collapseall", "Collapse All Categories");
+			sig = menu_item("collapseall", L("Collapse All Categories"));
 			if sig.clicked {
 				for dc.guild_channels_sorted(s, gid) {
 					c := dc.channel_get(s, it);
@@ -1589,12 +1589,12 @@ channel_menu :: () {
 				close = true;
 			} else if sig.hovering hover_any = true;
 		} else {
-			sig = menu_item("invite", "Invite People");
+			sig = menu_item("invite", L("Invite People"));
 			if sig.clicked {
 				invite_open(gid, ch.id, dc.INVITE_LOC_CHANNELS);
 				close = true;
 			} else if sig.hovering hover_any = true;
-			sig = menu_item("link", "Copy Link");
+			sig = menu_item("link", L("Copy Link"));
 			if sig.clicked {
 				clipboard_set(channel_link(gid, ch.id));
 				close = true;
@@ -1603,37 +1603,37 @@ channel_menu :: () {
 		menu_sep("s2");
 		if dc.channel_is_muted(s, gid, ch.id, now) {
 			o := dc.channel_override_get(s, gid, ch.id);
-			sig = menu_item("mute", tprint("Unmute %", what), sub = muted_until(ifx o then o.mute_end_ms else 0));
+			sig = menu_item("mute", tprint(L("Unmute %"), what), sub = muted_until(ifx o then o.mute_end_ms else 0));
 			if sig.clicked {
 				unmute_now(gid, ch.id);
 				close = true;
 			} else if sig.hovering hover_any = true;
 		} else {
-			item := menu_item("mute", tprint("Mute %", what), .Chevron, open = gm.chan_sub == .Mute);
+			item := menu_item("mute", tprint(L("Mute %"), what), .Chevron, open = gm.chan_sub == .Mute);
 			if item.hovering hover_sub = .Mute;
 			if item.clicked gm.chan_sub = .Mute;
 			if item.hovering || item.clicked gm.chan_sub_y = item.box.rect.y0;
 		}
 		shown := ifx level == dc.NOTIFY_INHERIT then def else level;
-		nt := menu_item("notify", "Notification Settings", .Chevron, sub = NOTIFY_NAMES[clamp(shown, 0, 2)], open = gm.chan_sub == .Notify);
+		nt := menu_item("notify", L("Notification Settings"), .Chevron, sub = NOTIFY_NAMES[clamp(shown, 0, 2)], open = gm.chan_sub == .Notify);
 		if nt.hovering hover_sub = .Notify;
 		if nt.clicked gm.chan_sub = .Notify;
 		if nt.hovering || nt.clicked gm.chan_sub_y = nt.box.rect.y0;
 		if can_manage_channel(ch) {
 			menu_sep("s3");
-			sig = menu_item("edit", tprint("Edit %", what));
+			sig = menu_item("edit", tprint(L("Edit %"), what));
 			if sig.clicked {
 				channel_settings_open(ch);
 				close = true;
 			} else if sig.hovering hover_any = true;
 			if cat {
-				sig = menu_item("create", "Create Channel");
+				sig = menu_item("create", L("Create Channel"));
 				if sig.clicked {
 					create_channel_open(gid, ch.id);
 					close = true;
 				} else if sig.hovering hover_any = true;
 			}
-			sig = menu_item("delete", tprint("Delete %", what), danger = true);
+			sig = menu_item("delete", tprint(L("Delete %"), what), danger = true);
 			if sig.clicked {
 				channel_delete_open(ch);
 				close = true;
@@ -1641,7 +1641,7 @@ channel_menu :: () {
 		}
 		if s.settings.developer_mode {
 			menu_sep("s4");
-			sig = menu_item("copyid", tprint("Copy % ID", what), .Icon, "id");
+			sig = menu_item("copyid", tprint(L("Copy % ID"), what), .Icon, "id");
 			if sig.clicked {
 				clipboard_set(tprint("%", cast(u64) ch.id));
 				close = true;

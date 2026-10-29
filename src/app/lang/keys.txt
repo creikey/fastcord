@@ -1,29 +1,1130 @@
+% '%' from Server
+% Bans
+% EMOJI — % SLOTS AVAILABLE
+% Member%
+% Messages
+% Online
+% STICKERS — % SLOTS AVAILABLE
+% accepted encryption.
+% blocked message —|% blocked messages —
 % day ago|% days ago
+% hasn't accepted encryption yet.
 % hour ago|% hours ago
+% ignored message —|% ignored messages —
 % minute ago|% minutes ago
 % month ago|% months ago
+% new message% since %
+% of %
+% of % slots used
+% reacted with %
+% turned on encryption.
+% wants to encrypt this DM with a new key. Compare safety numbers after accepting.
+% wants to encrypt this DM.
+% wants to make you the owner of %. You'll be able to manage everything about it, and they'll stay a member.
 % year ago|% years ago
+%'s encryption key changed. Compare safety numbers before trusting new messages.##text
 %1, %2 at %3
+1 Message
+2 to 4 letters or numbers
+3:00 PM
+@ OFF##at
+@ ON##at
+@everyone · applies to all server members
+A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button.
+A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button. Works in every app.
+A role needs a name.
+A webhook needs a name.
+ACTIVE INVITE LINKS
+ALL THE BITS! Going above 64 kbps may adversely affect people on poor connections.
 AM
+AUDIENCE — %
+AUTHENTICATOR APP
+About Me
+Accept
+Accept Invite
+Accept Server Ownership
+Accept##staccept
+Accepting...
+Account Removal
+Active
+Active Now
+Activity Joining
+Activity Status
+Add Answer##adda
+Add Emoji##addemoji
+Add Friend
+Add Friend Nickname
+Add Tag##addtag
+Add a Keybind##kbadd
+Add a Question##addq
+Add a channel to override its default notification settings
+Add a description
+Add a location, link, or something.
+Add an Account##add
+Add an optional message...
+Add another answer
+Add at least one word to block.
+Add members or roles
+Add this channel's updates to your server!
+Add to Favorites
+Add up to 50 custom emoji that anyone can use in this server. Animated GIF emoji may be used by members with Discord Nitro. Emoji names must be at least 2 characters long and can only contain alphanumeric characters and underscores. Emoji must be under 256 KB in size.
+Add your pronouns
+Added %
+Advanced permissions
+Age-Restricted Channel
+All Messages
+All set. Now share your event!
+Allow DMs from other members in servers
+Allow Discord to use and process my information to understand and improve Discord's services.
+Allow Friend Requests from...
+Allow Multiple Answers
+Allow anyone to @mention this role
+Allow friends to join your game
+Allow message requests from server members you may not know
+Allow voice channel participants to join your game
+Allowed words
+An emoji name, like smile
+An error occurred, please try again.
+An error occurred. Please try again.
+Announcement Channel
+Answer
+Answers
+Anyone can join your server directly through Server Discovery
+Anyone can use##mod
+Anyone with access to this text channel will be able to see the notifications.
+App Directory##appdir
+Applications
+Apply to Join
+Approve##ok
+Archived Threads
+Are you building a Community? Convert to a Community Server to access additional administrative tools that can help you moderate, run, and grow your server.
+Are you sure you want to logout?
+Attachment removed
+Authorized Apps
+Auto
+AutoMod
+Automatic Gain Control
+Automatically determine input sensitivity
+Automatically enable Streamer Mode if OBS or XSplit are running
+Automatically filter suspected spam messages
+Automatically move members to this channel and mute them when they have been idle for longer than the inactive timeout. This does not affect browsers.
+Automatically open fastcord when your computer starts up
+Avatar
+BACKUP CODES
+Back##back
+Backup codes can only be used one time each and are for emergency access to your account!
+Ban %
+Banner
+Banner Color
+Bitrate
+Block
+Block Commonly Flagged Words##pr
+Block Custom Words
+Block Mention Spam##ms
+Block Suspected Spam Content##sp
+Block Words in Member Profile Names##pn
+Block message
+Blocked Users
+Blocked message
+Blocked words
+Blocked words in names
+Blur Background
+Blur what's behind you on camera. Only your camera is changed.
+Bots and Apps
+Browse##browse
+Browse##sbbrowse
+By creating a server, you agree to Discord's Community Guidelines.
+By enabling the widget, your server profile will be visible to others outside of your server members. You can control Profile privacy in Server Settings > Profile.
+CHANNEL OR CATEGORY
+CONFIRM NEW PASSWORD
+CURRENT PASSWORD
+Cancel
+Cancel Event
+Cancel##c
+Cancel##cancel
+Cancel##modcancel
+Cancel##sbcancel
+Cancel##sbmcancel
+Careful — you have unsaved changes!
+Category Name
+Change %##change
+Change Avatar##hav
+Change Nickname
+Change Password##chpw
+Change Server Icon##upload
+Channel
+Channel Name
+Channel Notification Overrides
+Channel Topic
+Channel Type
+Channel unmuted
+Channels Followed (%)
+Check your email for a login link
+Check your phone!
+Checking the file…
+Choose Image##ricon
+Choose a server
+Choose the language you want Discord to display.
+Choose what happens to images and videos Discord detects as explicit.
+Clear Custom Status
+Clear after
+Clear permissions##clear
+Clear##histclear
+Click Again to Reset##vreset
+Click any channel, then pick a request whose name starts with "messages" or "science".
+Click to add a note
+Collapse
+Collapse All Categories
+Collapse Category
+Commands
+Commands matching /%
+Community Updates Channel
+Community servers follow Discord's Community Guidelines.
+Community servers have more tools to help you moderate and grow your server.
+Compare
+Compare these with %, in person or on a call. If they match, no one can read this DM in between.##note
+Confirm
+Confirm Request##harvest
+Confirm##confirm
+Confirming...
+Connect these accounts and unlock special Discord integrations. The sign-in opens in your browser.
+Connecting
+Connecting...
+Connection Info
+Connection lost. Messages may be out of date.
+Connections
+Content Filters
+Continue##nsfwyes
+Control who can see your profile info, like your bio and connected accounts.
+Copied##copy
+Copy
+Copy %
+Copy % ID
+Copy Channel ID
+Copy Event Link
+Copy Image
+Copy Link
+Copy Server ID
+Copy Webhook URL##copy
+Copy curl Command##copycurl
+Copy your account's token once from Discord in a web browser.
+Copy##%
+Copy##copy
+Couldn't accept encryption.
+Couldn't cancel the event.
+Couldn't change avatar
+Couldn't delete the channel: %
+Couldn't encrypt the message.
+Couldn't join %: %
+Couldn't load onboarding.
+Couldn't load the AutoMod rules.
+Couldn't load the applications.
+Couldn't load the audit log.
+Couldn't load the bans.
+Couldn't load the invites.
+Couldn't load the members.
+Couldn't load the role's members.
+Couldn't load the server rules.
+Couldn't load the server's tag.
+Couldn't load the template.
+Couldn't load the webhooks.
+Couldn't move the channel
+Couldn't play it here, so it opened in your browser.
+Couldn't reach %: %% Retrying.
+Couldn't reach Discord. Try again.
+Couldn't save the file.
+Couldn't save the image.
+Couldn't turn on encryption.
+Couldn't upload emoji
+Create
+Create Category
+Create Channel
+Create DM
+Create Event
+Create Event##next
+Create My Own
+Create Poll
+Create Role##create
+Create Rule##kw
+Create Thread
+Create Your Server
+Create a poll
+Create one for me
+Create##create
+Created on % by %
+Creating...
+Creating...##next
+Creating…##create
+Creation Date
+Current Device
+Custom Invite Link
+Customize Your Server
+Customize how your server appears in invite links and, if enabled, in Server Discovery and Announcement Channel messages
+Customize your server with integrations. Manage webhooks, followed channels and apps.
+Cut
+DAVE v%, % members
+DEFAULT KEYBINDS
+DM closed
+Date
+Deauthorize##deauth
+Decline
+Decline##decline
+Decline##stdecline
+Default Channels
+Default Layout
+Default Notification Settings
+Default Permissions
+Default Sort Order
+Default Themes
+Delete
+Delete %
+Delete Account##delete
+Delete Message History
+Delete Question##delq
+Delete Role##delrole
+Delete Template##deltpl
+Delete Thread
+Delete Webhook##del
+Delete##sbdel
+Describe your sticker
+Description
+Description (alt text)
+Description (optional)
+Detects a burst of mention spam across the server and locks it down.
+Developer
+Developer Mode
+Developer Mode exposes context menu items helpful for people writing apps using the Discord API.
+Direct Message (DM) Permissions
+Direct Messages
+Disable
+Disable Account##disable
+Disable All Notification Sounds
+Disable Community
+Disable Community##disable
+Disable all notifications
+Disable all sound effects
+Disabling your account means you can recover it at any time after taking this action.
+Disconnect
+Disconnected
+Discord asked for a captcha, which fastcord can't show. Log in with the QR code instead.
+Discord can filter out some messages that contain spam. These messages go to your Spam inbox.
+Discord didn't accept the saved login. Log in again.
+Discord failed to unpin that message for some reason. Sorry about that.
+Discord will prioritize this server in search to users who speak the selected language.
+Discord's terms don't allow third-party clients, so using one can get an account flagged.
+Discoverable
+Dismiss
+Dismiss message
+Display Images, Videos and Lolcats
+Display Name
+Display name
+Display on profile
+Display role members separately from online members
+Done
+Done##done
+Done##save
+Download
+Duration
+EDIT ROLE — %
+EMAIL OR PHONE NUMBER
+EMOJI MATCHING
+ENTER THE 6-DIGIT CODE
+EXPIRE AFTER
+Ease the chat and lists toward where you scroll. Off, they jump there at once (always, when your device asks for reduced motion).
+Echo Cancellation
+Edit %
+Edit Channel
+Edit Friend Nickname
+Edit Per-server Profile
+Edit Profile
+Edit Profiles
+Edit Sound
+Edit Thread
+Edit User Profile##editprofile
+Edit invite link.
+Edit##edit
+Email
+Enable Authenticator App##entotp
+Enable Community to access Server Discovery
+Enable Community##enable
+Enable Desktop Notifications
+Enable Invites##resume
+Enable Onboarding
+Enable Reduced Motion
+Enable Server Widget
+Enable Streamer Mode
+Enable Unread Message Badge
+Encrypt this DM
+Encrypted message
+Encrypted messages are limited to % bytes for now.
+End Date
+End Event
+End Time
+End-to-end encrypted
+End-to-end encryption
+Enter Discord Auth Code
+Enter Discord Backup Code
+Enter a location
+Enter a message to start the conversation!
+Enter an invite below to join an existing server
+Enter server name
+Error
 Est. %
+Event Topic
+Event cancelled
+Event is over
+Every answer needs a title.
+Every question needs a title and at least one answer.
+Everyone
+Everyone in this channel connects to the selected region. Automatic picks the best one for whoever starts the call.
+Exempt a channel
+Exemptions
+Expand (% lines)
+Expand (% of % lines)
+Explicit image filter
+FRAME RATE
+Failed to follow the channel, please try again.
+Fastcord couldn't be installed.
+Favorites
+File
+File saved.
+Filename
+Files can't be sent encrypted yet.
+Fill out the details of your event.
+Filter by Action
+Filter by User
+Find or start a conversation##btn
+Finding the video%
+Finish
+Finishing touches
+Flagged as spam
+Folder Color
+Folder Name
+Folder Settings
+Folder removed
+Follow
+Followed!
+Forgot your password?
+Forward
+Forward To
+Forwarded
+Friend Nickname
+Friend Request Permissions
+Friend Request Sent
+Friends
+Friends can ask to join or join the game you're playing.
+Friends come online
+Friends of friends
+GIFs can't be sent encrypted yet.
+Gallery view
+General
+Generate Template##gen
+Generate a New Link
+Get a copy of your data. It can take up to 30 days to prepare, and a download link is emailed to you when it's ready.
+Give new members a quick way to find the channels and roles that matter to them.
+Give your new server a personality with a name. You can always change it later.
+Go Back
+Go To Channel
+Go back
+Go back##back
+Go forward
+Go to Server
+Grant temporary membership
+Hang out with voice, video, screenshare, and Go Live.
+Happening Now
+Have an invite already?
+Help
+Here's a preview of your event.
+Hide After Inactivity
+Hide Chat
+Hide Fastcord window from screen capture
+Hide Muted Channels
+Hide invite links to my Discord servers
+Hide my personal information, such as email, connected accounts, and notes
+Hide##reveal
+Hides Fastcord windows from most screen capture software.
+Highlights provide occasional updates when your friends are chatting in busy servers, and more.
+History
+Hitting X makes fastcord minimize to the system tray instead of closing.
+Hm, didn’t work. Double check that the username is correct.
+How Discord Uses My Data
+How can people join your server?
+I acknowledge that by transferring ownership of this server to %, it officially belongs to them.
+I agree and understand
+I'm new here, say hi!
+I'm sure, use a backup code##sure
+INPUT DEVICE
+INPUT MODE
+INPUT SENSITIVITY
+INPUT VOLUME
+INVITE LINK
+INVITES SHOULD LOOK LIKE
+Icon
+If Streamer Mode is enabled...
+If you do not have access to any other methods, the button below will activate in % seconds.
+If you do not have access to any other methods, use the other button below to proceed.
+Ignore
+Ignored Users
+Ignored message
+Image saved.
+Inactive Channel
+Inactive Timeout
+Inbox
+Incoming Call...
+Insert Timestamp
+Install Fastcord to open it from the Start menu.
+Installing…
+Instructions Sent
+Interested
+Invalid date or time
+Invite Channel
+Invite Invalid
+Invite Only
+Invite People
+Invite to Server
+Invite to Speak
+Invites are paused: nobody can join with an invite link until they're enabled again.
+It's quiet for now...##t
+JSON API
 January|February|March|April|May|June|July|August|September|October|November|December
 Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec
+Jitter
+Join
+Join Call
+Join Call##join
+Join Server
+Join Server##joinsrv
+Join Thread
+Join Voice
+Join a Server
+Join a Server##join
+Joined Threads
+Joining…
+Joining…##joinsrv
+Jump
+Jump To Present
+Keep Current Permissions
+Keep these somewhere safe. Each code signs you in once if you lose your authenticator app; they are shown only now.
+Keep your server private, or open it up for more people to join.
+Keybinds
+Keybinds work in every app, also while fastcord is in the background.
+Keyboard Shortcuts
+Kick %
+Language
+Last sync: %
+Leave Group
+Leave Server
+Leave Thread
+Leaving Discord
+Left %
+Let everyone know how to use this channel!
+Let's Check##mictest
+Limits the number of users that can connect to this voice channel. Users with the Move Members permission ignore this limit and can move other users into the channel.
+List view
+Live Now
+Loading sounds…
+Loading...
+Log In##in%
+Log In##login
+Log Out
+Log Out All Known Devices##all
+Log Out##confirm
+Log Out##out%
+Log in to Discord in your web browser.
+Log in with QR Code
+Log in with a token
+Log in##login
+Log out of all known devices
+Logged-in Devices
+Logging in as %
+Logging in…
+Login or password is invalid.
+Looking for screens…
+Lotus Mode
+MAX NUMBER OF USES
+Make a selection
+Manage Accounts
+Manage settings that help keep your server active.
+Mark All as Read
+Mark As Read
+Mark Folder As Read
+Mark as Verified
+Mark as spoiler
+Marked as read
+Match your device's light or dark mode.
+Measuring
+Member Since
+Members can pick more than one answer
+Members can wear your server's tag next to their name across Discord.
+Members must answer this question to join.
+Members use the colour of the highest role they have on the roles list.
+Members use the colour of the highest role they have on this list. Drag roles, or use the arrows, to reorder them.
+Members will be restricted to sending one message and creating one thread per this interval, unless they have the Bypass Slowmode permission.
+Members with a matching name can't talk or interact until they change it.
+Members — %
+Mention %
+Mention limit
+Mention raid protection
+Mention removed
+Message
+Message @%##msgbtn
+Message Requests
+Message deleted
+Message failed to send.
+Message link copied: paste it into Discord's report form
+Message request ignored
+Message unpinned
+Messages Failed To Load
+Messages from people you may not know go to Message Requests instead of your DMs.
+Minimize to Tray
+Mobile Push Notifications
+Moderators must have two-factor authentication enabled to ban, kick, or timeout members and delete messages.
+Moderators only##mod
+Motion
+Move To
+Move to Audience
+Multi-Factor Authentication
+Mute
+Mute %
+Mute Channel
+Mute New Events
+Mute Server
+Mute Thread
 Muted until %1, %2
+Muting a server prevents unread indicators and notifications from appearing unless you are mentioned.
+My Account
+NEW PASSWORD
+NO ACTIVE INVITE LINKS
+Name
+Name your sound
+Name your sticker
+Need an account?
+Nevermind##nsfwno
+New Category
+New Group DM
+New Post
+New Thread
+New Webhook##new
+New members must read and agree to these before they can talk.
+New members pick channels and roles from your questions when they join.
+New tag
+New threads will stop showing in the channel list after being inactive for the specified duration.
+Next##next
+Nickname
+Nicknames are visible to everyone on this server. Do not change them unless you are enforcing a naming system or clearing a bad nickname.##warntext
+No GIFs found
+No Inactive Channel
+No Invite
+No System Messages
+No applications waiting
+No apps have been added to this server.
+No bans
+No bans match your search
+No emoji found
+No favorites yet
+No file chosen
+No limit
+No logs yet
+No members found
+No members have this role yet.
+No message requests.
+No one is speaking yet
+No one's here yet
+No posts match
+No posts yet
+No questions yet.
+No reason given
+No results
+No results found
+No sounds found
+No sounds yet.
+No spam. Nice.
+No stickers found
+No stickers yet
+Nobody has mentioned you recently.
+Noise Suppression
+Noise Suppression: Off
+Noise Suppression: On
+None
+Not connected to % yet.
+Not encrypted
+Not encrypted: Discord can read this message
+Not end-to-end encrypted
+Not me, start over
+Note
+Note (only visible to you)
+Note: Members with the "Mention @everyone, @here, and All Roles" permission will always be able to ping this role.
+Notification Settings
+Notification settings changed
+Notifications
+Notify me when...
+OUTPUT DEVICE
+OUTPUT VOLUME
+Off
+Okay
+Okay##ok
+One rule per line, for example: Be respectful
+Ongoing call
+Online
+Only @mentions
+Only servers and channels you have webhook permissions in are shown.
+Only you can see the nickname you give %.
+Only you can see this · 
+Oops!
+Open %
+Open Chat
+Open Logs Folder
+Open Server Insights##insights
+Open Settings##giperm
+Open discord.com##open
+Open in Browser##ob
+Open in YouTube##ytno
+Original message was deleted
+Other Active Threads
+Other Devices
 PM
+PRIVACY CODE
+PUSH TO TALK RELEASE DELAY
+Packet loss
+Packets received
+Packets sent
+Page %
+Password
+Password and Authentication
+Passwords do not match!
+Paste
+Paste an emoji (optional)
+Paste your token
+Pause Invites##pause
+Pending
+People can join your server directly with an invite
+People in a voice channel with you can join the game you're playing.
+People must submit an application and be approved to join
+Permissions: %
+Phone Number
+Pick a channel
+Pick a channel for the alerts.
+Pick at least one response.
+Ping
+Pinned Messages
+Play Here##ytyes
+Play Soundboard Through My Mic
+Play YouTube videos in fastcord with yt-dlp
+Please enter a valid invite link or invite code.
+Post
+Post Guidelines
+Post from a script
+Post messages that reach servers outside your own. Members can follow this channel, so the posts you publish here appear in their servers.
+Post title
+Posting...
+Previous##prev
+Privacy Settings
+Private Category
+Private Channel
+Private Profile
+Profile
+Profile Banner
+Profile Privacy
+Profiles
+Pronouns
+Protect your Discord account with an extra layer of security. Once configured, you'll be required to enter your password and complete one additional step in order to sign in.
+Protip:
+Push to Talk
+Q: %
+Question
+Questions
+ROLES/MEMBERS
+Reason
+Reason for %
+Reason: %
+Recently Active
+Reconnect
+Record Keybind
+Reduce the saturation of colors within the application, for those with color sensitivities.
+Reduces the amount of animation and motion effects. On whenever your device asks for reduced motion.
+Region Override
+Register
+Reject##no
+Rejoin
+Related Emoji
+Remove %##remove
+Remove Answer##rma
+Remove Authenticator App##rmtotp
+Remove Friend
+Remove Icon##removeicon
+Remove Icon##rnoicon
+Remove Reaction
+Remove Server
+Remove Timeout
+Remove Vote
+Remove all embeds
+Remove from Favorites
+Remove notification override for %
+Remove##hrm
+Remove##rm
+Remove##rmow
+Removing…##rmtotp
+Repeated encrypted message
+Replies can't be sent encrypted yet.
+Replying to
+Request Data##harvest
+Request all of my Data
+Require 2FA for moderator actions
+Require members to agree to the server rules
+Require people to select tags when posting
+Required
+Resend SMS?##resend
+Reset Friend Nickname##reset
+Reset Voice Settings##vreset
+Reset##psreset
+Reset##reset
+Resolving Invite
+Responses
+Retry
+Retry Now
+Retry##retry
+Return to call
+Reveal##reveal
+Ring
+Ringing…
+Role Color
+Role Colors
+Role Icon
+Role name
+Rules or Guidelines Channel
+SELECT A CHANNEL
+SELECT A SERVER
+SERVER NAME
+SOUNDBOARD VOLUME
+Safety Notifications Channel
+Safety Number
+Safety checks
+Same as Device Theme
+Saturation
+Save Changes##pssave
+Save Changes##save
+Save Image
+Save##modsave
+Save##save
+Save##vsave
+Saving...##save
+Saving…
+Saving…##save
+Scan this with the Discord mobile app to log in instantly.
+Schedule an event for any planned activity in your server.
+Screen
+Screen sharing isn't supported on this platform yet.
+Search
+Search Bans by User ID or Username
+Search by username or id
+Search members to add (press Enter)
+Search or create a post...
+Search sounds
+Select Friends
+Select a Language
+Select a channel
+Select a channel or category…
+Select one answer
+Select one or more answers
+Select where you want these updates to go. You can remove this at any time in Server Settings > Integrations > Channels Followed.
+Select where you want to share this message.
+Send
+Send Friend Request##send
+Send New Key
+Send a server invite link to a friend
+Send an alert
+Sent — %
+Server
+Server Avatar
+Server Deafen
+Server Deafened
+Server ID
+Server Insights is hosted on a separate website so that it's easier to share links and browse cross platform.
+Server Mute
+Server Muted
+Server Nickname
+Server Notification Settings
+Server Primary Language
+Server Rules
+Server Settings
+Server Widget
+Server members
+Server members can only send you friend requests from servers where you also allow Direct Messages.
+Server name must be between 2 and 100 characters.
+Server unmuted
+Set Custom Status
+Set a custom status
+Sets camera video quality for all channel participants. Choose Auto for optimal performance.
+Setting up encryption: % needs to open fastcord once.
+Share
+Share Event
+Share Your Screen
+Share my full profile with
+Share your detected activities with others
+Show Chat
+Show a system notification for messages that would notify you (DMs, mentions, servers set to all messages).
+Show embeds and preview website links pasted into chat
+Show emoji reactions on messages
+Show message
+Show messages
+Show spoiler content
+Show the game or app you're using on your profile and in member lists.
+Shows a red badge on the app icon when you have unread mentions.
+Silence every sound and notification and hide all badges and unread marks, so fastcord never asks for your attention.
+Slowmode
+Slowmode is enabled. Members can send one message every % %%.
+Smooth Scrolling
+So no one gets lost on where to go.
+Some older devices may not be shown here
+Something went wrong
+Something went wrong. Try again.
+Somewhere Else
+Sort: Date Posted
+Sort: Recent Activity
+Sound Name
+Sound names must be between 2 and 32 characters.
+Sounds
+Sounds must be 5.2 seconds or shorter.
+Sounds must be under 512 KB.
+Space between message groups
+Spam Filters
+Spoiler Content
+Start Date
+Start Event
+Start Minimized
+Start Time
+State
+Stickers can be used by anyone in this server. Upload a PNG, APNG, GIF or Lottie JSON file of up to 512 KB; it shows at 320x320.
+Stickers can't be sent encrypted yet.
+Stickers must be PNG, APNG, GIF or Lottie JSON files.
+Stop Recording
+Stop Streaming
+Stop Testing##mictest
+Stop Video
+Stop Watching
+Stream Settings
+Streamer Mode
+Streamer Mode Enabled##smbadge
+Streamer Mode hides your personal info so others watching your stream can't see it.
+Streamer Mode is enabled. Usernames have been truncated.
 Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday
 Sun|Mon|Tue|Wed|Thu|Fri|Sat
+Support has arrived!
+Suppress @everyone and @here
+Suppress All Role @mentions
+Suppress Highlights
+Suppress Notifications
+Suppress background noise from your mic.
+Switch Accounts
+Switch between accounts on this device.
+Sync Now##sync
+Sync Permissions
+Sync Template##sync
+Sync permissions?
+System Messages
+System Messages Channel
+System icon for new server members.
+THREAD NAME
+Tag
+Tags
+Tags (pick at least one)
+Tap the link in your email to sign in instantly — no password needed.
+Tell people a little more about your event. Markdown, new lines, and links are supported.
+Tell the world a bit about this server.
+Template Description
+Template Link
+Template Title
+Templates are an easy way to share your server setup and help anyone create a server instantly. When someone uses your server template link, they create a new server pre-filled with the same channels, roles, permissions, and settings as yours. Messages, members and your server's icon aren't copied.
+Temporary members are automatically kicked when they disconnect unless a role has been assigned
+Test Video
+Text channel, external link, or in-person location.
+That channel isn't on this server anymore.
+That file couldn't be read as an MP3 or OGG sound.
+That file couldn't be read. Avatars must be PNG, JPEG, GIF or WEBP images.
+That file couldn't be read. Server icons must be PNG, JPEG, GIF or WEBP images.
+That file is too large. Stickers must be under 512 KB.
+That image is too large. Avatars must be under %.
+That image is too large. Server icons must be under 512 KB.
+The Pin Is Stuck!
+The badge chosen in the official client stays as it is.
+The invite is invalid or has expired.
+The mention limit is between 1 and 50.
+The most important updates from this channel will now show up directly in your server. Enjoy!
+The related emoji must be one emoji.
+The results were tied
+The selected channel has too many webhooks. Please remove a webhook or select another channel.
+The start time must be in the future.
+The thread stops showing in the channel list after being inactive for this long.
+Theme
+There are no upcoming events.
+There was no winner
+These are all the devices that are currently logged-in with your Discord account. Log out of devices that you don't recognize.
+This account needs a passkey or security key, which fastcord can't use. Log in with the QR code instead.
+This channel doesn't have any pinned messages... yet.
+This device can't open this message.
+This device's encryption keys couldn't be unlocked, so earlier encrypted DMs can't be opened here.
+This event will auto start when it's time.
+This interaction failed
+This invite may be expired, or you might not have permission to join.
+This is the channel we send system event messages to.
+This is the start of the #% channel.
+This is where Discord sends updates for moderators and admins of Community servers.
+This is where you'll show members your server rules or guidelines.
+This link is taking you to the following website
+This option is not available for Community Servers.
+This role is managed by an integration and can't be edited here.
+This server has no voice channels.
+This setting is applied when you join a new server. It does not apply retroactively to your existing servers.
+This template has unsynced changes.
+This voice channel is full.
+Thread Name
+Threads
+Time
+Time format
+Timeout %
+Timeout member
+Times show as %.
+To log them out, please change your password
 Today at %
 Tomorrow at %
+Trait %
+Traits
+Transfer Ownership
+Treat the token like a password: anyone who has it controls your account. fastcord keeps it only on this computer.
+Trending GIFs
+Trust % links from now on
+Try Again
+Try searching for something else
+Try searching for...
+Turn off encryption
+Two-factor authentication is enabled on this account.
+Type your answer
+UPLOADED BY
+Uh oh, you don't have webhook permissions in any server you're in. Ask your server admin to give you the permission or ask them to come follow themselves!
+Uh-oh. Looks like you've been banned.
+Unblock
+Unblock##unb
+Under Request Headers, copy the value of "authorization" and paste it below.
+Undo##u
+Unignore##unb
+Unmute %
+Unmute Channel
+Unmute Server
+Unmute Thread
 Until %
 Until %1 at %2
 Until tomorrow at %
+Untitled question
+Unverify
+Update %
+Upload Emoji##upload
+Upload Sound##sbupload
+Upload Sticker
+Upload a File
+Upload a Sound
+Upload custom sound reactions that anyone in this server can use. MP3 or OGG files, up to 512 KB and 5.2 seconds.
+Upload to %
+Upload##up
+Uploading...##addemoji
+Uploading...##up
+Uploading...##upload
+Use data to improve Discord
+Use roles to group your server members and assign permissions.
+Used % times.
+User Limit
+User Volume
+Username
+Users will need to confirm they are of over the legal age to view in the content in this channel.\nAge-restricted channels are exempt from the explicit content filter.
+Uses the yt-dlp you installed to play YouTube links in the chat instead of opening your browser. It connects to YouTube from your computer.
+VOICE PROCESSING
+Verification Level
+Verified
+Verify with something else
+Verify with something else##else
+Video
+Video Quality
+View Details
+View Full Profile##vfp
+View Poll
+Visit Site
+Visual Density
+Voice Activity
+Voice Channel
+Volume
+Vote
+Waiting for a server
+Wants to message you
+Watch Stream
+Wave to say hi!
+We appreciate the enthusiasm, but...
+We couldn't load the profile for this server.
+We recommend an image of at least 512x512.
+We sent instructions to change your password to %, please check both your inbox and spam folder.
+We're so excited to see you again!
+Webhooks (%)
+Webhooks are a simple way to post messages from other apps and websites into this server.
+Welcome back!
+Welcome to #%!
+What brings you here?
+What can people do in this server?
+What question do you want to ask?
+What's cookin'?
+What's your event about?
+What's your event?
+When a friend starts an activity—like playing a game or hanging out on voice—we'll show it here!##b
+When enabled, only server members can view profile content. Non-members won't be able to see this content unless they have an invite.
+Where is your event?
+Where would you like to go?
+Who is this server for? E.g. School Club, Artists' Community
+Winning answer · %1%2
+Words that are never blocked, separated by commas
+Words to block, separated by commas
+Words to block, separated by commas (* matches anything)
 Yesterday at %
+You aren't in that server. Ask a member for an invite.
+You can add comments before uploading.\nHold shift to upload directly.
+You can add friends with their Discord username.
+You can add up to 5 accounts.
+You can only edit roles below your highest role.
+You can use markdown and links if you'd like.
+You cannot friend yourself
+You can’t react and super react with the same emoji. There’s a lot of emoji to choose from, so maybe try another one.
+You don't have any friends to add!
+You haven't authorized any apps.
+You haven't blocked anyone.
+You haven't connected any accounts yet.
+You haven't ignored anyone.
+You need to add one or more rules.
+You sent an invite to a self-hosted server
+You'll have to log back in on all logged out devices.
+You're Viewing Older Messages
+You're all caught up!
+You're doing that too fast. Try again in a moment.
+You're not in any servers yet.
+You've been invited to a self-hosted server
+You've been invited to join
+You've been invited to speak
+Your invite link expires in 7 days.
+Your last request was on %.
+Your message is too long (% / %).
+Your reaction was not added because there are too many reactions on this message.
+Your request from % is being prepared.
+Your server is where you and your friends hang out. Make yours and start talking.
+Your sounds go out with your voice, mixed into your microphone, instead of as soundboard sounds.
+Zoom level
+a command
 a day ago
 a few seconds ago
 a minute ago
 a month ago
 a year ago
 an hour ago
+dingus@example.com
+discord.gg/
+fastcord %
+fastcord quit unexpectedly last time. The report is in the logs folder (Settings, under Log Out).
+fastcord starts in the background and stays out of your way.
+from %
 in % day|in % days
 in % hour|in % hours
 in % minute|in % minutes
@@ -35,3 +1136,7 @@ in a minute
 in a month
 in a year
 in an hour
+• Media from all members is scanned by the explicit image filter.
+• Members must have a verified email on their Discord account.
+← Back to %##back
+← Back to login##back

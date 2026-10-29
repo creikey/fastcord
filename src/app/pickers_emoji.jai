@@ -668,9 +668,9 @@ emoji_grid :: (secs: []Em_Section, cols: int, view: ui.Rect) {
 		msg.cross_align = .Center;
 		ui.parent(msg); defer ui.pop_parent();
 		spacer(.Y, vh / 2 - 40);
-		label("No emoji found", .Semibold, 16, T("--text-strong"), 20);
+		label(L("No emoji found"), .Semibold, 16, T("--text-strong"), 20);
 		spacer(.Y, 4);
-		label("Try searching for something else", .Normal, 14, T("--text-muted"), 18);
+		label(L("Try searching for something else"), .Normal, 14, T("--text-muted"), 18);
 	}
 	pk_scrollbar(*ev.scroll);
 }
@@ -767,7 +767,7 @@ emoji_inspector :: (secs: []Em_Section) {
 	{ ui.parent(col); defer ui.pop_parent();
 		n := label(tprint(":%:", emoji_display_name(item)), .Semibold, 16, T("--text-strong"), 20);
 		n.flags |= .Clip;
-		if item.uni < 0 label(tprint("from %", ifx g then g.name else ""), .Normal, 12, T("--interactive-text-default"), 16);
+		if item.uni < 0 label(tprint(L("from %"), ifx g then g.name else ""), .Normal, 12, T("--interactive-text-default"), 16);
 	}
 	if item.uni < 0 {
 		if g {

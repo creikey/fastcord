@@ -216,7 +216,7 @@ attachments_view :: (m: *dc.Message, max_w: float32 = 400) {
 					dl := file_download_find(a.url);
 					if dl {
 						app.ui.animating = true; // the count moves on the worker
-						label(tprint("% of %", human_size(dl.progress.done), human_size(a.size)), .Normal, 12, T("--text-muted"), 16);
+						label(tprint(L("% of %"), human_size(dl.progress.done), human_size(a.size)), .Normal, 12, T("--text-muted"), 16);
 						spacer(.Y, 3);
 						bar :=ui.box("bar", .Draw_Background);
 						bar.semantic_size = .[ui.fill(), ui.px(4)];
@@ -247,7 +247,7 @@ download_icon :: (size: float32 = 24) -> clicked: bool {
 		ic := icon("i", "download", size, T(ifx sig.hovering then "--interactive-icon-hover" else "--interactive-icon-default"), .Floating_X | .Floating_Y);
 		ic.fixed_pos = .{4, 4};
 	}
-	if sig.hovering tooltip_below("Download", dl.rect);
+	if sig.hovering tooltip_below(L("Download"), dl.rect);
 	return sig.clicked;
 }
 
@@ -292,7 +292,7 @@ text_attachment :: (a: *dc.Attachment, i: int, max_w: float32) -> bool {
 			name.hover_cursor = .Pointer;
 			spacer(.X, 8);
 			dl := file_download_find(a.url);
-			label(ifx dl then tprint("% of %", human_size(dl.progress.done), human_size(a.size)) else human_size(a.size), .Normal, 12, T("--text-muted"), 16);
+			label(ifx dl then tprint(L("% of %"), human_size(dl.progress.done), human_size(a.size)) else human_size(a.size), .Normal, 12, T("--text-muted"), 16);
 			if dl app.ui.animating = true;
 			gap := ui.box("gap");
 			gap.semantic_size = .[ui.fill(), ui.px(1)];
@@ -317,7 +317,7 @@ text_attachment :: (a: *dc.Attachment, i: int, max_w: float32) -> bool {
 			color := T(ifx sig.hovering then "--interactive-icon-hover" else "--interactive-icon-default");
 			icon("chev", ifx open then "chevron-small-up" else "chevron-small-down", 16, color);
 			spacer(.X, 4);
-			label(ifx open then "Collapse" else ifx lines > TEXT_LINES_OPEN then tprint("Expand (% of % lines)", TEXT_LINES_OPEN, lines) else tprint("Expand (% lines)", lines), .Medium, 13, color, 16);
+			label(ifx open then L("Collapse") else ifx lines > TEXT_LINES_OPEN then tprint(L("Expand (% of % lines)"), TEXT_LINES_OPEN, lines) else tprint(L("Expand (% lines)"), lines), .Medium, 13, color, 16);
 			if sig.clicked {
 				if open array_unordered_remove_by_value(*text_open, a.id);
 				else array_add(*text_open, a.id);
@@ -680,7 +680,7 @@ audio_attachment :: (a: *dc.Attachment) {
 				name.hover_cursor = .Pointer;
 				spacer(.X, 6);
 				dl := file_download_find(a.url);
-				label(ifx dl then tprint("% of %", human_size(dl.progress.done), human_size(a.size)) else human_size(a.size), .Normal, 12, T("--text-muted"), 16);
+				label(ifx dl then tprint(L("% of %"), human_size(dl.progress.done), human_size(a.size)) else human_size(a.size), .Normal, 12, T("--text-muted"), 16);
 				if dl app.ui.animating = true;
 				filler(.X);
 				if download_icon(16) || ui.signal(name).clicked file_download(a);
@@ -869,7 +869,7 @@ embeds_view :: (m: *dc.Message, max_w: float32 = 400) {
 					yt := ifx is_youtube(e.url) then youtube_find(e.url) else null;
 					if yt && atomic_load(*yt.state) == .Failed && !yt.failed_seen {
 						yt.failed_seen = true;
-						toast_show("Couldn't play it here, so it opened in your browser.", false);
+						toast_show(L("Couldn't play it here, so it opened in your browser."), false);
 						open_url(e.url);
 					}
 					th := media_box("poster", e.thumbnail_url, "", w * sc, h * sc);
@@ -893,7 +893,7 @@ embeds_view :: (m: *dc.Message, max_w: float32 = 400) {
 						app.ui.animating = true;
 						ui.parent(l); defer ui.pop_parent();
 						spacer(.X, 8);
-						label(tprint("Finding the video%", string.["", ".", "..", "..."][cast(int) (app.ui.time * 3) % 4]), .Medium, 12, .{1, 1, 1, 1}, 16);
+						label(tprint(L("Finding the video%"), string.["", ".", "..", "..."][cast(int) (app.ui.time * 3) % 4]), .Medium, 12, .{1, 1, 1, 1}, 16);
 						spacer(.X, 8);
 					}
 					sig := ui.signal(th);
@@ -913,9 +913,9 @@ embeds_view :: (m: *dc.Message, max_w: float32 = 400) {
 						br := row("ytbtns");
 						br.semantic_size = .[ui.children(), ui.px(32)];
 						ui.parent(br); defer ui.pop_parent();
-						if set_button("Play Here##ytyes", .Primary, true, 32) { youtube_ytdlp = YT_ON; yt_ask = 0; youtube_play(e.url); }
+						if set_button(L("Play Here##ytyes"), .Primary, true, 32) { youtube_ytdlp = YT_ON; yt_ask = 0; youtube_play(e.url); }
 						spacer(.X, 8);
-						if set_button("Open in YouTube##ytno", .Secondary, true, 32) { youtube_ytdlp = YT_OFF; yt_ask = 0; open_url(e.url); }
+						if set_button(L("Open in YouTube##ytno"), .Secondary, true, 32) { youtube_ytdlp = YT_OFF; yt_ask = 0; open_url(e.url); }
 					}
 				} else if images.count == 1 {
 					spacer(.Y, 16);
@@ -1192,7 +1192,7 @@ image_viewer :: () {
 		if isig.clicked && !viewer_moved zoom_to(ifx viewer_zoom > 1 then 1.0 else 2.0, app.ui.mouse);
 		if isig.right_clicked media_menu_open(viewer_link, ifx viewer_video then "" else viewer_url);
 		// the client's link under the image
-		ob := ui.box("Open in Browser##ob", .Clickable | .Draw_Text | .Floating_X | .Floating_Y);
+		ob := ui.box(L("Open in Browser##ob"), .Clickable | .Draw_Text | .Floating_X | .Floating_Y);
 		ob.semantic_size = .[ui.text_size(0), ui.px(20)];
 		ob.fixed_pos = .{(app.ui.window.x - w * sc) / 2, (app.ui.window.y + h * sc) / 2 + 8};
 		ob.style.font = F(.Medium);
@@ -1257,7 +1257,7 @@ media_action_receive :: (r: *dc.Media_Result) -> bool {
 		decode_submit(.{kind = ifx r.tag == MEDIA_TAG_COPY then Decode_Kind.Copy_Image else .Save_Image, url = copy_string(r.url), data = r.data, path = save_path_take(r.url)});
 		r.data = .[];
 	} else if r.tag == MEDIA_TAG_SAVE {
-		toast_show("Couldn't save the image.", false);
+		toast_show(L("Couldn't save the image."), false);
 	}
 	return true;
 }
@@ -1283,7 +1283,7 @@ file_download :: (a: *dc.Attachment) {
 	dest := platform.save_file_dialog(ifx a.filename then a.filename else download_name(a.url));
 	if !dest return;
 	c := ifx app.client then media_client(a.url);
-	if !c { toast_show("File saved.", true); free(dest); return; } // offline runs write nothing
+	if !c { toast_show(L("File saved."), true); free(dest); return; } // offline runs write nothing
 	d := array_add(*file_downloads);
 	d.* = .{url = copy_string(a.url), path = dest, size = a.size, progress = New(dc.Media_Progress)};
 	dc.fetch_media(c, .{url = a.url, visible = true, tag = MEDIA_TAG_FILE, save_to = dest, progress = d.progress});
@@ -1294,7 +1294,7 @@ file_download_receive :: (r: *dc.Media_Result) -> bool {
 	d := file_download_find(r.url);
 	if !d return true;
 	ok := r.status == 200 && (d.size <= 0 || d.progress.done == d.size);
-	toast_show(ifx ok then "File saved." else "Couldn't save the file.", ok);
+	toast_show(ifx ok then L("File saved.") else L("Couldn't save the file."), ok);
 	if !ok file_delete(d.path);
 	free(d.url);
 	free(d.path);
@@ -1364,20 +1364,20 @@ media_menu :: () {
 	menu := menu_panel("mmenu", pos, W);
 	{ ui.parent(menu); defer ui.pop_parent();
 		spacer(.Y, 8);
-		if can_copy && menu_item("copy-image", "Copy Image", lead = "image").clicked {
+		if can_copy && menu_item("copy-image", L("Copy Image"), lead = "image").clicked {
 			media_action(MEDIA_TAG_COPY, mm.image);
 			close = true;
 		}
-		if can_save && menu_item("save-image", "Save Image", lead = "image").clicked {
+		if can_save && menu_item("save-image", L("Save Image"), lead = "image").clicked {
 			media_action(MEDIA_TAG_SAVE, mm.image);
 			close = true;
 		}
 		if can_copy || can_save menu_sep("s1");
-		if menu_item("copy-native-link", tprint("Copy %", what), lead = "link").clicked {
+		if menu_item("copy-native-link", tprint(L("Copy %"), what), lead = "link").clicked {
 			clipboard_set(mm.link);
 			close = true;
 		}
-		if menu_item("open-native-link", tprint("Open %", what), .Icon, "link-external-small", lead = "window-launch").clicked {
+		if menu_item("open-native-link", tprint(L("Open %"), what), .Icon, "link-external-small", lead = "window-launch").clicked {
 			open_url(mm.link);
 			close = true;
 		}

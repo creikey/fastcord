@@ -73,7 +73,7 @@ pins_popout :: () {
 		spacer(.X, 16);
 		icon("pin", "pin", 20, T("--interactive-icon-default"));
 		spacer(.X, 8);
-		label("Pinned Messages", .Semibold, 16, T("--text-strong"), 20);
+		label(L("Pinned Messages"), .Semibold, 16, T("--text-strong"), 20);
 	}
 	line := ui.box("hl", .Draw_Background);
 	line.semantic_size = .[ui.pct(1), ui.px(1)];
@@ -89,7 +89,7 @@ pins_popout :: () {
 			r.semantic_size = .[ui.pct(1), ui.px(80)];
 			ui.parent(r); defer ui.pop_parent();
 			filler(.X);
-			label(ifx pins.loading then "Loading..." else "This channel doesn't have any pinned messages... yet.", .Medium, 14, T("--text-muted"), 18);
+			label(ifx pins.loading then L("Loading...") else L("This channel doesn't have any pinned messages... yet."), .Medium, 14, T("--text-muted"), 18);
 			filler(.X);
 		}
 		for * pins.items {
@@ -161,7 +161,7 @@ loose_message_card :: (m: *dc.Message, terms: []string, show_jump: bool) -> bool
 					if ui.signal(jb).clicked jump = true;
 					ui.parent(jb); defer ui.pop_parent();
 					spacer(.X, 8);
-					label("Jump", .Medium, 12, T("--text-default"), 22);
+					label(L("Jump"), .Medium, 12, T("--text-default"), 22);
 					spacer(.X, 8);
 				}
 				spacer(.X, 12);

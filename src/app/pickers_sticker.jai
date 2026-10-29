@@ -378,7 +378,7 @@ sticker_grid :: (secs: []St_Section, cols: int, cell: float32, view: ui.Rect) {
 		msg.cross_align = .Center;
 		ui.parent(msg); defer ui.pop_parent();
 		spacer(.Y, vh / 2 - 30);
-		label(ifx secs.count == 0 then "No stickers yet" else "No stickers found", .Semibold, 16, T("--text-strong"), 20);
+		label(ifx secs.count == 0 then L("No stickers yet") else L("No stickers found"), .Semibold, 16, T("--text-strong"), 20);
 	}
 	pk_scrollbar(*sv.scroll);
 }
@@ -406,7 +406,7 @@ sticker_inspector :: (secs: []St_Section) {
 	g := dc.guild_get(store(), item.guild);
 	if g from = g.name;
 	for sv.packs if it.id == item.pack from = it.name;
-	if from != "" label(tprint("from %", from), .Normal, 12, T("--interactive-text-default"), 16);
+	if from != "" label(tprint(L("from %"), from), .Normal, 12, T("--interactive-text-default"), 16);
 }
 
 #scope_export
@@ -418,7 +418,7 @@ sticker_select :: (item: Pk_Sticker, keep_open: bool) {
 	if item.locked return;
 	frec_use(*frecency.sticker, tprint("%", item.id));
 	if encrypting(dc.channel_get(store(), pk.channel)) {
-		toast_show("Stickers can't be sent encrypted yet.", false);
+		toast_show(L("Stickers can't be sent encrypted yet."), false);
 	} else if app.client != null {
 		ids := NewArray(1, dc.Snowflake,, temp);
 		ids[0] = item.id;

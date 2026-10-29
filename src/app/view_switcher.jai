@@ -200,7 +200,7 @@ quick_switcher :: () {
 			field.style.radius = all4(4);
 			{ ui.parent(field); defer ui.pop_parent();
 				spacer(.X, 12);
-				res := text_field("q", *sw.editor, "Where would you like to go?", true, 24, 30);
+				res := text_field("q", *sw.editor, L("Where would you like to go?"), true, 24, 30);
 				if res == .Submit && items.count > 0 { switcher_activate(items, sw.sel); }
 				if res == .Changed { sw.sel = 0; }
 				spacer(.X, 12);

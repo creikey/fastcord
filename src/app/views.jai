@@ -344,7 +344,7 @@ title_bar :: () {
 					spacer(.X, 3);
 					icon("i", ifx fwd then "arrow-large-right" else "arrow-large-left", 18, c);
 				}
-				if sig.hovering { tooltip_below(ifx fwd then "Go forward" else "Go back", nb.rect); }
+				if sig.hovering { tooltip_below(ifx fwd then L("Go forward") else L("Go back"), nb.rect); }
 				if sig.clicked { history_step(fwd); }
 			}
 		}
@@ -779,9 +779,9 @@ chat_header :: (ch: *dc.Channel) {
 			if sig.clicked && name == "bell" && !dc.is_thread(ch) { bell_popout_toggle(ch.id, b.rect); }
 			if sig.clicked && name == "group" { app.view.hide_members = !app.view.hide_members; }
 			if sig.clicked && name == "user-circle" { app.view.hide_dm_profile = !app.view.hide_dm_profile; }
-			if name == "lock" && sig.hovering tooltip_below(ifx encrypted then "Turn off encryption" else "Encrypt this DM", b.rect);
+			if name == "lock" && sig.hovering tooltip_below(ifx encrypted then L("Turn off encryption") else L("Encrypt this DM"), b.rect);
 			if sig.clicked && name == "lock" { encrypted_toggle(ch); }
-			if name == "chat" && sig.hovering tooltip_below(ifx app.view.voice_chat then "Hide Chat" else "Show Chat", b.rect);
+			if name == "chat" && sig.hovering tooltip_below(ifx app.view.voice_chat then L("Hide Chat") else L("Show Chat"), b.rect);
 			if sig.clicked && name == "chat" { voice_chat_open(ch, !app.view.voice_chat); }
 			if name == "pin" header_pin_rect = b.rect;
 			if name == "thread" header_thread_rect = b.rect;
@@ -1056,7 +1056,7 @@ channel_row :: (ch: *dc.Channel, gid: dc.Snowflake) {
 					chat.semantic_size = .[ui.px(16), ui.px(16)];
 					cs := ui.signal(chat);
 					set_icon(chat, "chat", ifx cs.hovering then T("--interactive-icon-active") else T("--interactive-icon-hover"));
-					if cs.hovering tooltip_below("Open Chat", chat.rect);
+					if cs.hovering tooltip_below(L("Open Chat"), chat.rect);
 					if cs.clicked voice_chat_open(ch, true);
 					spacer(.X, 4);
 				}
@@ -1233,7 +1233,7 @@ user_panel :: () {
 				server := (name == "microphone" && smute) || (name == "headphones" && sdeaf);
 				muted := server || (name == "microphone" && (app.self_mute || app.self_deaf)) || (name == "headphones" && app.self_deaf);
 				if muted { ic = tprint("%-slash", name); }
-				if server && sig.hovering tooltip_below(ifx name == "microphone" then "Server Muted" else "Server Deafened", b.rect, above = true);
+				if server && sig.hovering tooltip_below(ifx name == "microphone" then L("Server Muted") else L("Server Deafened"), b.rect, above = true);
 				{ ui.parent(b); defer ui.pop_parent();
 					spacer(.X, 6);
 					color := ifx muted then T("--status-danger") else (ifx sig.hovering then T("--interactive-icon-hover") else T("--interactive-icon-default"));
@@ -1491,7 +1491,7 @@ shortcuts_modal :: () {
 	tr.semantic_size = .[ui.pct(1), ui.px(24)];
 	{ ui.parent(tr); defer ui.pop_parent();
 		spacer(.X, PAD);
-		label("Keyboard Shortcuts", .Semibold, 20, T("--text-strong"), 24);
+		label(L("Keyboard Shortcuts"), .Semibold, 20, T("--text-strong"), 24);
 	}
 	spacer(.Y, 16);
 	sc := ui.box("list", .Scroll_Y | .Clip);
