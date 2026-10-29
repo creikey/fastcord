@@ -64,6 +64,9 @@ init :: () -> bool {
 init_null :: () {
 	if st.initialized return;
 	st.ctx = context; // for the device callbacks, which run on CoreAudio's threads
+	// The caller's stack trace lives on its stack, which is gone once that thread exits: a callback that
+	// followed it (debug info, on every call) would read freed memory.
+	st.ctx.stack_trace = null;
 	st.master_bits = f32_bits(1);
 	for * st.slots ring_init(*it.ring, SAMPLE_RATE * CHANNELS * SOURCE_SECONDS);
 	ring_init(*st.capture, SAMPLE_RATE * CAPTURE_SECONDS);

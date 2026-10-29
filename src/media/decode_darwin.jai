@@ -72,7 +72,7 @@ video_decoder_create :: (t: *Track, first_packet: []u8 = .[]) -> *Video_Decoder,
 	defer CFRelease(ext);
 
 	vd := New(Video_Decoder);
-	vd.ctx = context;
+	set_callback_context(*vd.ctx);
 	st := CMVideoFormatDescriptionCreate(null, codec, cast(s32) t.width, cast(s32) t.height, ext, *vd.format);
 	if st != 0 {
 		last_video_error = st;
@@ -109,7 +109,7 @@ video_decoder_create_from_params :: (codec: Codec, params: [][]u8) -> *Video_Dec
 	sizes := NewArray(params.count, u64,, temp);
 	for params { ptrs[it_index] = it.data; sizes[it_index] = xx it.count; }
 	vd := New(Video_Decoder);
-	vd.ctx = context;
+	set_callback_context(*vd.ctx);
 	st: OSStatus;
 	if codec == .H264 st = CMVideoFormatDescriptionCreateFromH264ParameterSets(null, xx params.count, ptrs.data, sizes.data, 4, *vd.format);
 	else st = CMVideoFormatDescriptionCreateFromHEVCParameterSets(null, xx params.count, ptrs.data, sizes.data, 4, null, *vd.format);
@@ -123,7 +123,7 @@ video_decoder_create_from_params :: (codec: Codec, params: [][]u8) -> *Video_Dec
 // Decode one access unit (synchronously). Output frames land in vd.out.
 video_decode :: (vd: *Video_Decoder, data: []u8, pts: float64, dts: float64, dur: float64) -> bool {
 	if !data.count return true;
-	vd.ctx = context;
+	set_callback_context(*vd.ctx);
 	bb: CFRef;
 	size := cast(u64) data.count;
 	if CMBlockBufferCreateWithMemoryBlock(null, data.data, size, kCFAllocatorNull, null, 0, size, 0, *bb) != 0 return false;
@@ -138,7 +138,7 @@ video_decode :: (vd: *Video_Decoder, data: []u8, pts: float64, dts: float64, dur
 }
 
 video_decoder_flush :: (vd: *Video_Decoder) {
-	vd.ctx = context;
+	set_callback_context(*vd.ctx);
 	VTDecompressionSessionWaitForAsynchronousFrames(vd.session);
 }
 
@@ -152,7 +152,7 @@ video_decoder_take :: (vd: *Video_Decoder, out: *[..]Video_Frame) {
 
 video_decoder_destroy :: (vd: *Video_Decoder) {
 	if !vd return;
-	vd.ctx = context;
+	set_callback_context(*vd.ctx);
 	VTDecompressionSessionWaitForAsynchronousFrames(vd.session);
 	VTDecompressionSessionInvalidate(vd.session);
 	CFRelease(vd.session);
@@ -417,6 +417,13 @@ vpcc_from_keyframe :: (frame: []u8) -> []u8 {
 	out[8] = 1;
 	out[9] = 1;
 	return out;
+}
+
+// The context vt_callback runs under, on VideoToolbox's threads: without the creator's stack trace, which
+// lives on a stack that may be gone by then.
+set_callback_context :: (ctx: *#Context) {
+	ctx.* = context;
+	ctx.stack_trace = null;
 }
 
 vt_callback :: (ref: *void, frame_ref: *void, status: OSStatus, flags: u32, image: CFRef, pts: CMTime, dur: CMTime) #c_call {

@@ -55,6 +55,7 @@ device_init :: () -> bool {
 	CoInitializeEx(null, COINIT_MULTITHREADED);
 	if CoCreateInstance(*CLSID_MMDeviceEnumerator, null, CLSCTX_ALL, *IID_IMMDeviceEnumerator, *wa.enumerator) < 0 return false;
 	notify_ctx = context;
+	notify_ctx.stack_trace = null; // on the caller's stack (st.ctx)
 	com(wa.enumerator, 6, #type (*void, *void) -> HRESULT #c_call)(wa.enumerator, *notify_client); // RegisterEndpointNotificationCallback
 	return open_stream(*wa.out, false);
 }
