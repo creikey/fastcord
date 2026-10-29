@@ -154,7 +154,8 @@ build_sections :: (ignore_query := false) -> []St_Section {
 	c := dc.channel_get(s, pk.channel);
 	if c here = c.guild_id;
 	u := dc.user_get(s, s.me);
-	nitro := u != null && u.premium_type > 0;
+	// other servers' stickers: Nitro, and Use External Stickers in a server channel
+	nitro := u != null && u.premium_type > 0 && (!here || dc.has_permission(dc.channel_permissions(s, c.id), dc.PERM_USE_EXTERNAL_STICKERS));
 	all: Table(dc.Snowflake, Pk_Sticker);
 	all.allocator = temp;
 	guilds: [..]dc.Snowflake;

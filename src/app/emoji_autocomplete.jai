@@ -54,7 +54,7 @@ emoji_autocomplete :: (ch: *dc.Channel, ed: *ui.Editor, focused: bool) {
 		eac.sel = 0;
 	}
 	if eac.dismissed == q return;
-	all := emoji_search(q, ch.guild_id, premium(), false);
+	all := emoji_search(q, ch.guild_id, emoji_reach(ch.id), false);
 	n := 0;
 	while n < all.count && !all[n].locked n += 1;
 	locked := all.count - n;

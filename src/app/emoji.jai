@@ -264,10 +264,10 @@ emoji_for_name :: (name: string, channel: dc.Snowflake) -> string {
 	if idx >= 0 return emoji_db.emojis[idx].surr;
 	ch := dc.channel_get(store(), channel);
 	here := ifx ch then ch.guild_id else 0;
-	nitro := premium();
+	reach := emoji_reach(channel);
 	for gid: emoji_guilds(here) {
 		g := dc.guild_get(store(), gid);
-		if g for g.emojis if it.name == name && !custom_locked(it, here, nitro) return custom_emoji_markup(it.name, it.id, it.animated);
+		if g for g.emojis if it.name == name && !custom_locked(it, here, reach) return custom_emoji_markup(it.name, it.id, it.animated);
 	}
 	return "";
 }

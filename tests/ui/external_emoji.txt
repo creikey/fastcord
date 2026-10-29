@@ -1,0 +1,12 @@
+# With Nitro, in a channel whose server denies Use External Emojis, another server's emoji is locked in the
+# picker (the lock, in the shot); the ":" autocomplete takes the same search.
+dispatch USER_UPDATE {"id":"1546819257420087346","username":"dingus","premium_type":2}
+dispatch GUILD_UPDATE {"id":"1546820558300258304","owner_id":"1000000000020971521"}
+dispatch GUILD_ROLE_UPDATE {"guild_id":"1546820558300258304","role":{"id":"1546820558300258304","name":"@everyone","permissions":"2248473465572929","position":0}}
+dispatch GUILD_CREATE {"id":"1600000000000000001","name":"Other","channels":[],"roles":[],"emojis":[{"id":"1600000000000000002","name":"parrotdance","animated":false,"available":true}]}
+wait 5
+click 980 683
+wait 20
+type parrotdance
+wait 5
+shot build/ui-external_emoji-picker.png

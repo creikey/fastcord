@@ -104,7 +104,7 @@ emoji_picker_query_changed :: () {
 // underscores removed) is a substring of a name with underscores removed; then
 // getSearchResultsOrder: score 1 + 4*exact + 2*word match + 1*prefix, times
 // max(1, frecency/100), descending, ties by name. Unlocked before locked.
-emoji_search :: (q: string, here: dc.Snowflake, nitro: bool, reaction: bool) -> []Pk_Emoji {
+emoji_search :: (q: string, here: dc.Snowflake, reach: Emoji_Reach, reaction: bool) -> []Pk_Emoji {
 	Hit :: struct {
 		e: Pk_Emoji;
 		score: float64;
@@ -146,7 +146,7 @@ emoji_search :: (q: string, here: dc.Snowflake, nitro: bool, reaction: bool) -> 
 		if g == null continue;
 		for e: g.emojis {
 			if !matches(e.name, needle) continue;
-			item := custom_item(e, here, nitro);
+			item := custom_item(e, here, reach);
 			list := ifx item.locked then *locked else *unlocked;
 			array_add(list, .{item, score_of(e.name, ql, frec_score_of(fm, frec_key(item))), list.count});
 		}
@@ -290,24 +290,35 @@ premium :: () -> bool {
 	return u != null && u.premium_type > 0;
 }
 
+// Which custom emoji the channel takes: without Nitro only its server's static ones; with Nitro its
+// server's, and every server's when the channel allows Use External Emojis (always outside servers).
+Emoji_Reach :: enum u8 { Here_Static; Here; Anywhere; }
+
+emoji_reach :: (channel: dc.Snowflake) -> Emoji_Reach {
+	if !premium() return .Here_Static;
+	ch := dc.channel_get(store(), channel);
+	if ch && ch.guild_id && !dc.has_permission(dc.channel_permissions(store(), ch.id), dc.PERM_USE_EXTERNAL_EMOJIS) return .Here;
+	return .Anywhere;
+}
+
 current_guild :: () -> dc.Snowflake {
 	c := dc.channel_get(store(), pk.channel);
 	return ifx c then c.guild_id else 0;
 }
 
-// Custom emoji usable here? Without Nitro: only this guild's, and not animated.
-custom_locked :: (e: dc.Emoji, here: dc.Snowflake, nitro: bool) -> bool {
+// Custom emoji usable here?
+custom_locked :: (e: dc.Emoji, here: dc.Snowflake, reach: Emoji_Reach) -> bool {
 	if !e.available return true;
-	if nitro return false;
-	return e.guild_id != here || e.animated;
+	if reach == .Anywhere return false;
+	return e.guild_id != here || (reach == .Here_Static && e.animated);
 }
 
 uni_item :: (idx: int) -> Pk_Emoji {
 	return .{uni = cast(s32) idx, name = emoji_db.emojis[idx].names[0]};
 }
 
-custom_item :: (e: dc.Emoji, here: dc.Snowflake, nitro: bool) -> Pk_Emoji {
-	return .{uni = -1, id = e.id, name = e.name, animated = e.animated, guild = e.guild_id, locked = custom_locked(e, here, nitro)};
+custom_item :: (e: dc.Emoji, here: dc.Snowflake, reach: Emoji_Reach) -> Pk_Emoji {
+	return .{uni = -1, id = e.id, name = e.name, animated = e.animated, guild = e.guild_id, locked = custom_locked(e, here, reach)};
 }
 
 frec_key :: (e: Pk_Emoji) -> string {
@@ -367,12 +378,12 @@ build_sections :: (ignore_query := false) -> []Em_Section {
 	emoji_db_load();
 	s := store();
 	here := current_guild();
-	nitro := premium();
+	reach := emoji_reach(pk.channel);
 	secs: [..]Em_Section;
 	secs.allocator = temp;
 	q := ifx ignore_query then "" else pk_query(.Emoji);
 	if q != "" {
-		array_add(*secs, .{kind = .Search, key = 1, items = emoji_search(q, here, nitro, pk.mode == .Reaction)});
+		array_add(*secs, .{kind = .Search, key = 1, items = emoji_search(q, here, reach, pk.mode == .Reaction)});
 		return secs;
 	}
 	by_id: Table(dc.Snowflake, dc.Emoji);
@@ -381,11 +392,11 @@ build_sections :: (ignore_query := false) -> []Em_Section {
 		g := dc.guild_get(s, gid);
 		if g for g.emojis table_set(*by_id, it.id, it);
 	}
-	key_item :: (key: string, by_id: *Table(dc.Snowflake, dc.Emoji), here: dc.Snowflake, nitro: bool) -> Pk_Emoji, bool {
+	key_item :: (key: string, by_id: *Table(dc.Snowflake, dc.Emoji), here: dc.Snowflake, reach: Emoji_Reach) -> Pk_Emoji, bool {
 		id, custom := custom_id(key);
 		if custom {
 			e := table_find_pointer(by_id, id);
-			if e return custom_item(e.*, here, nitro), true;
+			if e return custom_item(e.*, here, reach), true;
 			return .{}, false;
 		}
 		found, i := table_find(*emoji_db.by_name, key);
@@ -397,7 +408,7 @@ build_sections :: (ignore_query := false) -> []Em_Section {
 		items: [..]Pk_Emoji;
 		items.allocator = temp;
 		for frecency.favorite_emojis {
-			item, ok := key_item(it, *by_id, here, nitro);
+			item, ok := key_item(it, *by_id, here, reach);
 			if ok array_add(*items, item);
 		}
 		if items.count > 0 array_add(*secs, .{kind = .Favorites, key = 2, title = "Favorites", icon = "star", items = items});
@@ -413,7 +424,7 @@ build_sections :: (ignore_query := false) -> []Em_Section {
 		for pass: 0..1 for k: ifx pass == 0 then top else defaults {
 			// defaults only seed an empty history (the reference shows just the 3 real entries)
 			if pass == 1 && (items.count >= EM_FREQUENT_MAX || frec_had(reaction)) break;
-			item, ok := key_item(k, *by_id, here, nitro);
+			item, ok := key_item(k, *by_id, here, reach);
 			if ok && !table_contains(*seen, k) {
 				array_add(*items, item);
 				table_set(*seen, k, true);
@@ -425,7 +436,7 @@ build_sections :: (ignore_query := false) -> []Em_Section {
 		g := dc.guild_get(s, gid);
 		if g == null || g.emojis.count == 0 continue;
 		items := NewArray(g.emojis.count, Pk_Emoji,, temp);
-		for g.emojis items[it_index] = custom_item(it, here, nitro);
+		for g.emojis items[it_index] = custom_item(it, here, reach);
 		array_add(*secs, .{kind = .Guild, key = gid, title = g.name, guild = gid, items = items});
 	}
 	for c, ci: emoji_db.cats {

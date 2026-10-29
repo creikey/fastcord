@@ -23,6 +23,8 @@ PERM_MANAGE_MESSAGES :: (cast(u64) 1) << 13;
 PERM_ATTACH_FILES :: (cast(u64) 1) << 15;
 PERM_READ_MESSAGE_HISTORY :: (cast(u64) 1) << 16;
 PERM_MENTION_EVERYONE :: (cast(u64) 1) << 17;
+PERM_USE_EXTERNAL_EMOJIS :: (cast(u64) 1) << 18;
+PERM_USE_EXTERNAL_STICKERS :: (cast(u64) 1) << 37;
 PERM_CONNECT :: (cast(u64) 1) << 20;
 PERM_CHANGE_NICKNAME :: (cast(u64) 1) << 26;
 PERM_MANAGE_NICKNAMES :: (cast(u64) 1) << 27;
