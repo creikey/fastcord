@@ -2816,6 +2816,7 @@ parity_login_submit :: (t: *T) {
 	expect(t, evs.count == 1 && evs[0].kind == .Logged_In && evs[0].token == "<token>");
 	// what the gateway does on its own when it connects (the sink never does)
 	gateway_send(c.gw, .Identify, identify_value(c.gw));
+	analytics_identify(c, false);
 	analytics_gateway_connected(c, 0, "wss://gateway.discord.gg", false, false, 160, 160);
 	replay_dispatches(*run, "login_submit", "READY");
 	replay_dispatches(*run, "login_submit", "READY_SUPPLEMENTAL");
@@ -2832,6 +2833,55 @@ parity_login_submit :: (t: *T) {
 		// not modelled: the Friends activity feed's game profiles
 		"science:game_profile_entry_point_available"
 	]);
+}
+
+// session_start_client: GatewaySocket._doIdentify tracks it after every IDENTIFY the app sends,
+// never after fast-connect.js's (is_fast_connect true) or a RESUME. Every start in these
+// captures agrees: launches whose socket opened after the app took it over (typing ... the
+// first send_dm), the re-IDENTIFY after open_dm's INVALID_SESSION, the login in account_edits.
+session_start_identify :: (t: *T) {
+	for sa: string.["typing a", "add_reaction a", "open_profile_popout a", "open_image_attachment a", "send_dm b", "send_dm a", "open_dm a", "account_edits a", "cold_start a", "send_message a"] {
+		scenario, acct := slice(sa, 0, sa.count - 2), slice(sa, sa.count - 1, 1);
+		r: Replay;
+		if !replay_load(*r, scenario, acct) { expectf(t, false, "no fixture %", scenario); continue; }
+		app, starts := 0, 0;
+		for e: r.events {
+			k := fstr(e, "k");
+			if k == "ws_send" && fnum(e, "op") == 2 {
+				fc := vget(fmap(fmap(e, "d"), "properties"), "is_fast_connect");
+				if !(fc.kind == .Bool && fc.b) app += 1;
+			}
+			if k != "req" || !r_is_science(fstr(e, "url")) continue;
+			bv, _ := r_body_value(vget(e, "body"));
+			for ev: flist(vmap(bv), "events") if fstr(vmap(ev), "type") == "session_start_client" starts += 1;
+		}
+		expectf(t, starts == app, "%: % app IDENTIFYs, % session_start_client", sa, app, starts);
+	}
+
+	run: Replay_Run;
+	if !replay_begin(*run, t, "typing", 0, 0) { return; }
+	c := run.c;
+	queued :: (c: *Client) -> string {
+		a := *c.analytics;
+		locks.lock(*a.mu);
+		defer locks.unlock(*a.mu);
+		s: [..]string;
+		s.allocator = temp;
+		for a.queue for type: string.["session_start_client", "gateway_connected"] {
+			if begins_with(it, tprint("{\"type\":\"%\"", type)) array_add(*s, type);
+		}
+		return join(..s, " ",, temp);
+	}
+	url :: "wss://gateway.discord.gg";
+	analytics_gateway_connected(c, 0, url, true, false, 160, 160); // after a RESUME
+	expect_value(t, queued(c), "gateway_connected");
+	analytics_identify(c, false); // on open, before HELLO: waits for the socket's gateway_connected
+	expect_value(t, queued(c), "gateway_connected");
+	analytics_gateway_connected(c, 0, url, true, false, 160, 160);
+	expect_value(t, queued(c), "gateway_connected session_start_client gateway_connected");
+	analytics_identify(c, true); // after INVALID_SESSION: at once
+	expect_value(t, queued(c), "gateway_connected session_start_client gateway_connected session_start_client");
+	replay_end(*run);
 }
 
 // ---- username change (fixture account_edits: a passive recording on the home route) ----

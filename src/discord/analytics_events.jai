@@ -2395,10 +2395,21 @@ analytics_launch_identify :: (c: *Client) {
 }
 
 // analytics_login: a login's response carried the token. The heartbeat scheduler
-// starts with the session, and session_start_client goes out just before the
-// session's gateway_connected (fixtures account_edits/login_submit).
+// starts with the session (fixtures account_edits/login_submit).
 analytics_login :: (c: *Client) {
 	analytics_client_heartbeat(c);
+}
+
+// analytics_identify: GatewaySocket._doIdentify tracks session_start_client after
+// every IDENTIFY the app sends: a login, a launch whose socket opened after the app
+// took it over, a session the gateway invalidated. fast-connect.js's IDENTIFY and
+// RESUME track nothing. Sent before HELLO it lands just before that socket's
+// gateway_connected (fixtures typing, account_edits); after HELLO, at once (open_dm).
+analytics_identify :: (c: *Client, after_hello: bool) {
+	if after_hello {
+		analytics_track(c, "session_start_client", "");
+		return;
+	}
 	locks.lock(*c.analytics.mu);
 	c.analytics.session_start = true;
 	locks.unlock(*c.analytics.mu);
