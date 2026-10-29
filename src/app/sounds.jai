@@ -11,6 +11,8 @@
 //   user_join when our voice connection starts, disconnect when it ends;
 //   user_join/user_leave for others entering/leaving our voice channel;
 //   ptt_start/ptt_stop on push-to-talk press/release (not while muted);
+//   call_ringing looped while a call rings us; call_calling looped while our DM call rings others and no
+//   one else has joined (IncomingCalls, the ring manager);
 //   message1 for messages that would notify (DMs, mentions, guilds set to
 //   all messages), except our own and the focused selected channel.
 
@@ -31,6 +33,10 @@ sound_asset :: (name: string) -> string, bool {
 	case "user_leave"; return "7b9a183742515fc2", true;
 	case "user_moved"; return "4003230e4086b680", true;
 	case "reconnect"; return "7dfc49b36dea3a6c", true;
+	case "call_calling"; return "5146737af413d88e", true;
+	case "call_ringing"; return "c2a7111bb44b8da0", true;
+	case "halloween_call_calling"; return "ef24e229a3413c8a", true;
+	case "halloween_call_ringing"; return "7a287e2f88531f25", true;
 	case "halloween_message1"; return "c269de500ca3cb7b", true;
 	case "halloween_deafen"; return "514663b657bc4c7d", true;
 	case "halloween_undeafen"; return "4dfa756a71484219", true;
@@ -154,6 +160,7 @@ sounds_frame :: () {
 		snd.prev_channel = app.voice_channel;
 	}
 	voice_members();
+	ring_sounds();
 	message_sounds();
 	soundboard_frame();
 }
@@ -250,6 +257,7 @@ Playing :: struct {
 	source: audio.Source;
 	pcm: []float32;
 	pos: int; // samples written
+	loop: string; // a looped sound's name (ring_sounds), else ""
 }
 
 snd: struct {
@@ -278,7 +286,8 @@ pack_name :: (name: string) -> string {
 	case "halloween";
 		if name == {
 		case "message1"; #through; case "deafen"; #through; case "undeafen"; #through; case "mute"; #through;
-		case "unmute"; #through; case "disconnect"; #through; case "user_join"; #through; case "user_leave";
+		case "unmute"; #through; case "disconnect"; #through; case "user_join"; #through; case "user_leave"; #through;
+		case "call_calling"; #through; case "call_ringing";
 			return tprint("halloween_%", name);
 		}
 	case "retro";   if name == "message1" return "bit_message1";
@@ -308,12 +317,51 @@ feed :: () {
 	for < i: 0..snd.playing.count - 1 {
 		p := *snd.playing[i];
 		if p.pos < p.pcm.count p.pos += audio.source_write(p.source, array_view(p.pcm, p.pos)) * 2;
+		if p.loop && p.pos >= p.pcm.count p.pos = 0;
 		if p.pos >= p.pcm.count && audio.source_queued_frames(p.source) == 0 {
 			audio.source_destroy(p.source);
 			array_ordered_remove_by_index(*snd.playing, i);
 			continue;
 		}
 		request_wake(platform.time_now() + 0.05);
+	}
+}
+
+// ring_sounds: the incoming ringtone while a call rings us, the outgoing one while our DM call rings
+// others with no one else in it yet.
+ring_sounds :: () {
+	incoming := dc.incoming_call(app.client) != 0;
+	outgoing := false;
+	call := ifx app.voice_channel then dc.call_get(app.client, app.voice_channel) else null;
+	if call && call.ringing.count {
+		n := 0;
+		for v: store().voice_states if v.channel_id == app.voice_channel n += 1;
+		outgoing = n < 2;
+	}
+	for name: string.["call_ringing", "call_calling"] {
+		want := ifx name == "call_ringing" then incoming else outgoing;
+		if sound_disabled(name) want = false;
+		at := -1;
+		for snd.playing if it.loop == name at = it_index;
+		if !want && at >= 0 {
+			audio.source_destroy(snd.playing[at].source);
+			array_ordered_remove_by_index(*snd.playing, at);
+		}
+		if !want || at >= 0 || platform.is_headless() continue;
+		hash, ok := sound_asset(pack_name(name));
+		if !ok continue;
+		url := tprint("https://discord.com/assets/%.mp3", hash);
+		found := table_find_pointer(*snd.sounds, url);
+		if !found {
+			// load it; it starts on a later frame once ready
+			table_set(*snd.sounds, copy_string(url), New(Sound));
+			c := media_client(url);
+			if c dc.fetch_media(c, dc.Media_Request.{url = url, kind = .Audio, tag = SOUND_TAG});
+		} else if found.*.state == .Ready {
+			n := snd.playing.count;
+			start(found.*, SOUND_VOLUME, null);
+			if snd.playing.count > n peek_pointer(snd.playing).loop = name;
+		}
 	}
 }
 

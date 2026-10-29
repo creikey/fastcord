@@ -375,7 +375,6 @@
 - [ ] Video: frames go out as one unpaced burst on the same UDP socket as the mic (`send_video`, no pacer or audio priority); on a slow uplink a keyframe can delay or drop voice packets.
 - [ ] Notifications: a channel can only be muted from the open channel's header bell.
 - [ ] Friends: the "New Group DM" header icon isn't clickable; Active Now is always the empty card.
-- [ ] Calls: no incoming or outgoing ringtone; Decline only hides the popup locally, so other devices keep ringing.
 - [ ] Attachments: downloading a file reuses the Save Image path (`media_save` in `view_media.jai`): the whole file is held in memory and sent with image request headers, with no progress, and a name without an extension gets `format=png` appended. Stream big files to disk as a document download instead.
 - [ ] Chat: welcome messages aren't shown properly.
 - [ ] Composer: no formatting toolbar over a selection (bold, italic, strikethrough, code, spoiler, quote).
@@ -782,3 +781,4 @@
 - [x] Scrolling: a middle click in any vertical scroll area (the message list included) drops an anchor marker; moving the mouse above or below it scrolls that way, faster the farther, and any click or Escape ends it (`ui.autoscroll_step`, `autoscroll_marker`; `tests/ui/autoscroll.txt`).
 - [x] Chat: age-restricted channels (and their threads) show an "Age-Restricted Channel" gate until you continue, remembered per server in settings.json, and with only Nevermind when the account's `nsfw_allowed` is false (`nsfw_gate`, `tests/ui/rail/nsfw_gate.txt`; the rail fixture gained #after-dark).
 - [x] Media: a video's fullscreen takes the whole screen through the OS's fullscreen (macOS `toggleFullScreen:`, Windows covering the monitor and restoring the placement, Linux `_NET_WM_STATE_FULLSCREEN`), unless the window already was fullscreen; leaving either way leaves both (`platform.set_fullscreen`, `media_overlays`). Built on all three; not clicked through on a desktop.
+- [x] Calls: the incoming ringtone (call_ringing) loops while a call rings us and the outgoing one (call_calling) while our DM call rings others with no one else in it; Decline posts `/call/stop-ringing` `{}` so other devices stop ringing too (`ring_sounds`, `dc.call_decline`).

@@ -4,8 +4,7 @@
 //   POST /channels/{id}/call/ring {"recipients":null}
 // followed by GET /activities/shelf twice. CALL_UPDATE carries who is ringing;
 // the callee joins with the same op 4. CALL_DELETE ends it.
-// Declining a ring was not captured, so a decline here only dismisses the
-// ring locally (no request is sent).
+// Declining a ring was not captured: it follows the bundle's stopRinging (call_decline).
 
 Call :: struct {
 	channel_id: Snowflake;
@@ -88,10 +87,18 @@ incoming_call :: (c: *Client) -> Snowflake {
 	return 0;
 }
 
-// call_decline: dismiss the ring locally (declining was not captured).
+// call_decline: the incoming call's Decline. CallActionCreators.stopRinging(channel) posts
+// /channels/{id}/call/stop-ringing {recipients: undefined}, "{}" on the wire, which stops our ring on every
+// device (CALL_UPDATE); the ring is also dismissed here at once.
 call_decline :: (c: *Client, channel_id: Snowflake) {
 	call := call_get(c, channel_id);
 	if call call.dismissed = true;
+	j := job_new(.Api, .None);
+	j.method = "POST";
+	j.path = job_str(j, channel_path(channel_id, "/call/stop-ringing"));
+	j.body = cast([]u8) "{}";
+	j.content_type = "application/json";
+	job_submit(c, j);
 }
 
 // dm_call_start: the DM header's "Start Voice Call". op 4 into the DM; the ring
