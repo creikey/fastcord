@@ -77,6 +77,7 @@ stream_sink := true;
 add_video_options :: (o: *voice.Options, stream: bool) {
 	o.video = on_remote_frame;
 	o.no_hevc_decode = !media.video_codec_supported(.HEVC);
+	o.hevc_encode = video.encoder_supported(.H265);
 	o.callback_data = ifx stream then *stream_sink else *cam_sink;
 }
 

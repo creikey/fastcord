@@ -50,9 +50,12 @@ SPEAKING_PRIORITY :: 4;
 // has no H.265 at all (src/media decodes H.264 only). codecs_json also drops H.265 decoding where this
 // machine has no decoder for it (Windows without the Store's HEVC Video Extensions): offered anyway, the
 // server could pick H.265 for the call and every camera would stay black.
-codecs_json :: (no_hevc_decode: bool) -> string {
-    if !no_hevc_decode return CODECS_JSON;
-    s := replace(CODECS_JSON, "\"rtx_payload_type\":104,\"encode\":true,\"decode\":true", "\"rtx_payload_type\":104,\"encode\":true,\"decode\":false",, temp);
+// hevc_encode: Windows has a GPU H.265 encoder, so it offers to send H.265 as the other desktop clients do.
+codecs_json :: (no_hevc_decode: bool, hevc_encode := false) -> string {
+    s := CODECS_JSON;
+    if OS == .WINDOWS && hevc_encode s = replace(s, "\"rtx_payload_type\":104,\"encode\":false", "\"rtx_payload_type\":104,\"encode\":true",, temp);
+    if !no_hevc_decode return s;
+    s = replace(s, "\"rtx_payload_type\":104,\"encode\":true,\"decode\":true", "\"rtx_payload_type\":104,\"encode\":true,\"decode\":false",, temp);
     return replace(s, "\"rtx_payload_type\":104,\"encode\":false,\"decode\":true", "\"rtx_payload_type\":104,\"encode\":false,\"decode\":false",, temp);
 }
 
@@ -115,8 +118,8 @@ msg_video :: (audio_ssrc: u32, video_ssrc: u32, rtx_ssrc: u32, on: bool, width: 
 // msg_codecs: op 14 from the client, the codec list again with the codecs our encoder can't do (a bit per
 // Video_Codec) marked encode:false. The official client sends it when its encoder fails; the server answers
 // with op 14 and a new video_codec.
-msg_codecs :: (cant_encode: u8, no_hevc_decode := false) -> string {
-    codecs := codecs_json(no_hevc_decode);
+msg_codecs :: (cant_encode: u8, no_hevc_decode := false, hevc_encode := false) -> string {
+    codecs := codecs_json(no_hevc_decode, hevc_encode);
     for VIDEO_PT if it && cant_encode & (1 << it_index) {
         codecs = replace(codecs, tprint("\"rtx_payload_type\":%,\"encode\":true", it + 1), tprint("\"rtx_payload_type\":%,\"encode\":false", it + 1),, temp);
     }
@@ -128,12 +131,12 @@ msg_resume :: (token: string, session_id: string, server_id: u64, channel_id: u6
         ",\"server_id\":", snowflake(server_id), ",\"channel_id\":", snowflake(channel_id), ",\"seq_ack\":", seq_ack, "}}");
 }
 
-msg_select_protocol :: (address: string, port: int, mode: Mode, rtc_connection_id: string, experiments: []string, no_hevc_decode := false) -> string {
+msg_select_protocol :: (address: string, port: int, mode: Mode, rtc_connection_id: string, experiments: []string, no_hevc_decode := false, hevc_encode := false) -> string {
     b: String_Builder;
     b.allocator = temp;
     append(*b, json_msg("{\"op\":1,\"d\":{\"protocol\":\"udp\",\"data\":{\"address\":", Str.{address}, ",\"port\":", port,
         ",\"mode\":", Str.{mode_name(mode)}, "},\"address\":", Str.{address}, ",\"port\":", port, ",\"mode\":", Str.{mode_name(mode)},
-        ",\"codecs\":", codecs_json(no_hevc_decode), ",\"rtc_connection_id\":", Str.{rtc_connection_id}, ",\"experiments\":["));
+        ",\"codecs\":", codecs_json(no_hevc_decode, hevc_encode), ",\"rtc_connection_id\":", Str.{rtc_connection_id}, ",\"experiments\":["));
     for experiments {
         if it_index append(*b, ",");
         json_str(*b, it);

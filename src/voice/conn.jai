@@ -65,6 +65,7 @@ Options :: struct {
     video: (data: *void, user_id: u64, codec: Video_Codec, au: []u8, keyframe: bool);
     callback_data: *void;
     no_hevc_decode: bool;     // offer H.265 as not decodable: this machine has no decoder for it
+    hevc_encode: bool;        // Windows: offer to send H.265 (a GPU encoder exists)
     vad_manual: bool;         // manual threshold instead of auto
     vad_threshold_db: float32; // manual threshold (0 = -60 dB default)
 }
@@ -913,7 +914,7 @@ on_ready :: (c: *Conn, d: etf.Value) {
         c.tl.udp_port = port;
     }
     note(c, *c.tl.select_sent);
-    send_text(c, msg_select_protocol(c.external_ip, c.external_port, c.mode, c.rtc_connection_id, c.experiments, c.opts.no_hevc_decode));
+    send_text(c, msg_select_protocol(c.external_ip, c.external_port, c.mode, c.rtc_connection_id, c.experiments, c.opts.no_hevc_decode, c.opts.hevc_encode));
 }
 
 udp_setup :: (c: *Conn, ip: string, port: int) -> bool {
@@ -1085,7 +1086,7 @@ timer_thread_proc :: (t: *Thread) -> s64 {
             }
             if c.codecs_due && c.ws_open {
                 c.codecs_due = false;
-                codecs = msg_codecs(c.cant_encode, c.opts.no_hevc_decode);
+                codecs = msg_codecs(c.cant_encode, c.opts.no_hevc_decode, c.opts.hevc_encode);
             }
         }
         if msg send_text(c, msg);

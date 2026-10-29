@@ -180,13 +180,16 @@ visible_size :: (t: *void) -> w: int, h: int, frame_h: int {
 }
 
 // The first synchronous MFT in category that takes in_subtype and produces out_subtype (either may be null).
-transform_find :: (category: *GUID, in_subtype: *GUID, out_subtype: *GUID, audio := false) -> *void {
+// hardware: the GPU's (asynchronous) MFTs instead of the software ones; an async MFT must be unlocked
+// (MF_TRANSFORM_ASYNC_UNLOCK) and driven by its events (mft_event).
+transform_find :: (category: *GUID, in_subtype: *GUID, out_subtype: *GUID, audio := false, hardware := false) -> *void {
 	major := ifx audio then MFMediaType_Audio else MFMediaType_Video;
 	inp := MFT_REGISTER_TYPE_INFO.{major, ifx in_subtype then in_subtype.* else .{}};
 	out := MFT_REGISTER_TYPE_INFO.{major, ifx out_subtype then out_subtype.* else .{}};
 	acts: **void;
 	n: u32;
-	if MFTEnumEx(category, MFT_ENUM_FLAG_SYNCMFT | MFT_ENUM_FLAG_LOCALMFT | MFT_ENUM_FLAG_SORTANDFILTER,
+	flags := ifx hardware then MFT_ENUM_FLAG_HARDWARE | MFT_ENUM_FLAG_SORTANDFILTER else MFT_ENUM_FLAG_SYNCMFT | MFT_ENUM_FLAG_LOCALMFT | MFT_ENUM_FLAG_SORTANDFILTER;
+	if MFTEnumEx(category, xx flags,
 		ifx in_subtype then *inp else null, ifx out_subtype then *out else null, *acts, *n) < 0 return null;
 	mft: *void;
 	for 0..cast(int) n - 1 {
@@ -227,6 +230,19 @@ mft_output_current_type :: (m: *void) -> *void {
 }
 mft_message :: (m: *void, msg: u32, param: u64 = 0) -> HRESULT { return com(m, 23, #type (*void, u32, u64) -> HRESULT #c_call)(m, msg, param); }
 mft_input :: (m: *void, sample: *void) -> HRESULT { return com(m, 24, #type (*void, u32, *void, u32) -> HRESULT #c_call)(m, 0, sample, 0); }
+
+// An async MFT's next event without waiting (IMFMediaEventGenerator::GetEvent, MF_EVENT_FLAG_NO_WAIT): its
+// MediaEventType (METransformNeedInput, METransformHaveOutput...), or 0 when none is waiting.
+mft_event :: (gen: *void) -> u32 {
+	ev: *void;
+	if com(gen, 3, #type (*void, u32, **void) -> HRESULT #c_call)(gen, 1, *ev) < 0 || !ev return 0;
+	defer release(ev);
+	t: u32;
+	com(ev, 33, #type (*void, *u32) -> HRESULT #c_call)(ev, *t); // IMFMediaEvent::GetType
+	return t;
+}
+METransformNeedInput :: 601;
+METransformHaveOutput :: 602;
 
 // One output sample (the caller releases it), or the HRESULT: MF_E_TRANSFORM_NEED_MORE_INPUT when empty.
 mft_output :: (m: *void, info: MFT_OUTPUT_STREAM_INFO) -> *void, HRESULT {
@@ -293,6 +309,7 @@ MFT_REGISTER_TYPE_INFO :: struct { major: GUID; sub: GUID; }
 MFT_ENUM_FLAG_SYNCMFT :: 0x1;
 MFT_ENUM_FLAG_LOCALMFT :: 0x8;
 MFT_ENUM_FLAG_SORTANDFILTER :: 0x40;
+MFT_ENUM_FLAG_HARDWARE :: 0x4;
 
 MF_SOURCE_READER_FIRST_VIDEO_STREAM :: 0xFFFF_FFFC;
 MF_SOURCE_READERF_ERROR :: 0x1;
@@ -330,6 +347,8 @@ MF_MT_AVG_BITRATE := GUID.{0x20332624, 0xfb0d, 0x4d9e, .[0xbd, 0x0d, 0xcb, 0xf6,
 MF_MT_DEFAULT_STRIDE := GUID.{0x644b4e48, 0x1e02, 0x4516, .[0xb0, 0xeb, 0xc0, 0x1c, 0xa9, 0xd4, 0x9a, 0xc6]};
 MF_MT_MPEG2_PROFILE := GUID.{0xad76a80b, 0x2d5c, 0x4e0b, .[0xb3, 0x75, 0x64, 0xe5, 0x20, 0x13, 0x70, 0x36]};
 MF_MT_MPEG_SEQUENCE_HEADER := GUID.{0x3c036de7, 0x3ad0, 0x4c9e, .[0x92, 0x16, 0xee, 0x6d, 0x6a, 0xc2, 0x1c, 0xb3]};
+MF_TRANSFORM_ASYNC_UNLOCK := GUID.{0xe5666d6b, 0x3422, 0x4eb6, .[0xa4, 0x21, 0xda, 0x7d, 0xb1, 0xf8, 0xe2, 0x07]};
+IID_IMFMediaEventGenerator := GUID.{0x2cd0bd52, 0xbcd5, 0x4b89, .[0xb6, 0x2c, 0xea, 0xdc, 0x0c, 0x03, 0x1e, 0x7d]};
 MF_LOW_LATENCY := GUID.{0x9c27891a, 0xed7a, 0x40e1, .[0x88, 0xe8, 0xb2, 0x27, 0x27, 0xa0, 0x24, 0xee]}; // = CODECAPI_AVLowLatencyMode
 MFSampleExtension_CleanPoint := GUID.{0x9cdf01d8, 0xa0f0, 0x43ba, .[0xb0, 0x77, 0xea, 0xa0, 0x6c, 0xbd, 0x72, 0x8a]};
 MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE := GUID.{0xc60ac5fe, 0x252a, 0x478f, .[0xa0, 0xef, 0xbc, 0x8f, 0xa5, 0xf7, 0xca, 0xd3]};
