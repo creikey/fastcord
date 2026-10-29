@@ -106,6 +106,13 @@ open_profile :: (uid: dc.Snowflake, anchor: ui.Rect, source := Profile_Source.Ot
 	dc.fetch_profile(app.client, uid, app.view.guild);
 }
 
+// user_banner_url: in a server, the member's per-server banner replaces theirs ("" for none).
+user_banner_url :: (uid: dc.Snowflake, guild: dc.Snowflake, hash_: string) -> string {
+	mem := ifx guild then dc.member_get(store(), guild, uid) else null;
+	if mem && mem.banner && dc.is_hash(mem.banner) return dc.guild_member_banner_url(guild, uid, mem.banner);
+	return ifx hash_ && dc.is_hash(hash_) then dc.banner_url(uid, hash_, 600) else "";
+}
+
 // Profile popout: banner, avatar with status, names, and a message box like the official one.
 profile_popout :: () {
 	s := store();
@@ -156,7 +163,7 @@ profile_popout :: () {
 		banner.semantic_size = .[ui.pct(1), ui.px(105)];
 		banner.style.radius = .[8, 8, 0, 0];
 		banner.style.bg = profile_banner_color(uid);
-		if u.banner != "" { set_remote_image(banner, dc.banner_url(uid, u.banner, 600)); }
+		set_remote_image(banner, user_banner_url(uid, app.view.guild, u.banner));
 		if !hook { ui.parent(banner); defer ui.pop_parent();
 			// "..." on the banner's top-right (official: 28px dark circle, 12px in)
 			more := ui.box("more", .Clickable | .Draw_Background | .Floating_X | .Floating_Y);
@@ -183,7 +190,7 @@ profile_popout :: () {
 			ring.style.radius = all4(46);
 			ring.style.bg = p.style.bg;
 			{ ui.parent(ring); defer ui.pop_parent();
-				av := ifx hook then avatar_box("av", uid, 80) else avatar_with_status("av", uid, 80, p.style.bg);
+				av := ifx hook then avatar_box("av", uid, 80) else avatar_with_status("av", uid, 80, p.style.bg, animate = true);
 				av.flags |= .Floating_X | .Floating_Y;
 				av.fixed_pos = .{6, 6};
 				if !hook profile_full_avatar_hook(av, uid); // click: full profile modal
@@ -215,6 +222,23 @@ profile_popout :: () {
 				pron := ifx mem && mem.pronouns then mem.pronouns else u.pronouns; // the server's profile first
 				if pron != "" {
 					label(tprint(" • %", pron), .Normal, 14, T("--text-default"), 18);
+				}
+			}
+			if !hook && u.badge_icons {
+				// the profile's badges under the names, each with its description on hover
+				spacer(.Y, 8);
+				br := row("badgepad");
+				br.semantic_size = .[ui.pct(1), ui.px(22)];
+				ui.parent(br); defer ui.pop_parent();
+				spacer(.X, 14);
+				for line, i: split(u.badge_icons, "\n",, temp) {
+					tab := find_index_from_left(line, #char "\t");
+					if tab < 0 continue;
+					b := ui.box(tprint("badge%", i));
+					b.semantic_size = .[ui.px(22), ui.px(22)];
+					set_remote_image(b, tprint("%/badge-icons/%.png", dc.CDN, slice(line, 0, tab)));
+					if ui.mouse_over(b) tooltip_below(slice(line, tab + 1, line.count - tab - 1), b.rect);
+					spacer(.X, 2);
 				}
 			}
 			custom := ifx hook then "" else user_custom_status(uid);

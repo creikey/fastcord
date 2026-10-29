@@ -124,6 +124,7 @@ free_user :: (s: *Store, u: *User) {
 	free_str(u.bio, a);
 	free_str(u.pronouns, a);
 	free_str(u.badges, a);
+	free_str(u.badge_icons, a);
 }
 
 free_channel :: (s: *Store, c: *Channel) {
@@ -171,6 +172,9 @@ free_guild :: (s: *Store, g: *Guild) {
 free_member :: (s: *Store, m: *Member) {
 	free_str(m.nick, s.allocator);
 	free_str(m.avatar, s.allocator);
+	free_str(m.bio, s.allocator);
+	free_str(m.pronouns, s.allocator);
+	free_str(m.banner, s.allocator);
 	free_str(m.joined_at, s.allocator);
 	array_free(m.roles);
 }
@@ -475,6 +479,7 @@ parse_member_with_id :: (s: *Store, guild_id: Snowflake, uid: Snowflake, m: etf.
 	}
 	if vhas(m, "nick") set_str(s, *member.nick, fstr(m, "nick"));
 	if vhas(m, "avatar") set_str(s, *member.avatar, fstr(m, "avatar"));
+	if vhas(m, "banner") set_str(s, *member.banner, fstr(m, "banner"));
 	if vhas(m, "joined_at") set_str(s, *member.joined_at, fstr(m, "joined_at"));
 	if vhas(m, "flags") member.flags = cast(u64) fint(m, "flags");
 	if vhas(m, "communication_disabled_until") member.timeout_until_ms = iso_to_ms(fstr(m, "communication_disabled_until"));

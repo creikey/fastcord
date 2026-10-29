@@ -841,6 +841,13 @@ script_command :: (path: string, f: []string, t: *float64, depth := 0) {
 		r := dc.Expr_Result.{op = .Profile_Modal, ok = true, status = 200, body = body, tag = uid};
 		profile_full_receive(*r);
 		return;
+	case "popout_reply";
+		// popout_reply <json>: the popout's GET /users/{id}/profile reply, into the store
+		body, err := etf.from_json(join(..array_view(f, 1), separator = " ",, temp),, temp);
+		if f.count < 2 || err != .None script_fail(path, "popout_reply: bad JSON");
+		dc.profile_apply(store(), dc.vmap(body));
+		store().changed += 1;
+		return;
 	case "sent_emoji";
 		// sent_emoji <text>: count the emoji in a sent message's text (track_sent_emoji)
 		track_sent_emoji(unquote(join_args(f)));

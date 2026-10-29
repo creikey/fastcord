@@ -376,8 +376,13 @@ default_avatar_url :: (user_id: Snowflake, discriminator: string, allocator := t
 	return sprint("%/embed/avatars/%.png", CDN, idx,, allocator);
 }
 
-guild_member_avatar_url :: (guild_id: Snowflake, user_id: Snowflake, hash_: string, size := 80, allocator := temp) -> string {
-	return sprint("%/guilds/%/users/%/avatars/%.webp?size=%", CDN, guild_id, user_id, hash_, size,, allocator);
+guild_member_avatar_url :: (guild_id: Snowflake, user_id: Snowflake, hash_: string, size := 80, animate := false, allocator := temp) -> string {
+	anim := animate && begins_with(hash_, "a_");
+	return sprint("%/guilds/%/users/%/avatars/%.webp?size=%%", CDN, guild_id, user_id, hash_, size, ifx anim then "&animated=true" else "",, allocator);
+}
+
+guild_member_banner_url :: (guild_id: Snowflake, user_id: Snowflake, hash_: string, size := 600, allocator := temp) -> string {
+	return sprint("%/guilds/%/users/%/banners/%.webp?size=%", CDN, guild_id, user_id, hash_, size,, allocator);
 }
 
 guild_icon_url :: (guild_id: Snowflake, icon_hash: string, size := 96, animate := false, allocator := temp) -> string {

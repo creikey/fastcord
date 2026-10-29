@@ -82,6 +82,7 @@ User :: struct {
 	// guild member) and the badge ids (a JSON array, "" = no profile yet)
 	profile_props, guild_profile_props: u16;
 	badges: string;
+	badge_icons: string; // the shown badges (no promotion ones) as "icon\tdescription\n" lines, for the popout
 }
 
 display_name :: (u: *User) -> string { return ifx u.global_name then u.global_name else u.username; }
@@ -193,6 +194,7 @@ Member :: struct {
 	avatar: string; // the per-server avatar's hash ("" = theirs)
 	bio: string; // the per-server profile's About Me and pronouns ("" = theirs; GET /users/{id}/profile?guild_id=)
 	pronouns: string;
+	banner: string; // the per-server banner's hash ("" = theirs)
 	roles: [..]Snowflake;
 	joined_at: string;
 	flags: u64; // GuildMemberFlags: 1 DID_REJOIN

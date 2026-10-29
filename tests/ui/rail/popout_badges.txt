@@ -1,0 +1,7 @@
+# The profile popout lists the profile's badges under the names (no Nitro, Boost or Quest ones),
+# from its own profile fetch.
+wait 30
+popout_reply {"user":{"id":"1000000000000000001","username":"robin"},"user_profile":{"bio":"","pronouns":""},"badges":[{"id":"hypesquad_house_1","description":"HypeSquad Bravery","icon":"8a88d63823d8a71cd5e390baa45efa02"},{"id":"active_developer","description":"Active Developer","icon":"6bdc42827a38498929a4920da12695d9"},{"id":"premium","description":"Subscriber since Jan 1, 2020","icon":"2ba85e8026a8614b640c2837bcdfe21b"}]}
+click 476 129
+wait 20
+shot build/ui-rail_popout_badges.png

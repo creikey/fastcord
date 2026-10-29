@@ -1660,7 +1660,7 @@ message_row :: (m: *dc.Message, grouped: bool, new_day: bool, show_new: bool) ->
 				// (a message type with no body) must not let it hang below the row
 				gutter.semantic_size[ui.Axis.Y] = ui.px(2 + MSG_AVATAR);
 				{ ui.parent(gutter); defer ui.pop_parent();
-					av := avatar_box("avatar", m.author_id, MSG_AVATAR);
+					av := avatar_box("avatar", m.author_id, MSG_AVATAR, animate = hovered);
 					av.flags |= .Floating_X | .Floating_Y;
 					av.fixed_pos = .{16, 2};
 				}

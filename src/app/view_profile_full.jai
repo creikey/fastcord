@@ -135,8 +135,7 @@ profile_full_receive :: (r: *dc.Expr_Result) {
 		for dc.flist(m, "badges") {
 			b := dc.vmap(it);
 			id, ic := dc.fstr(b, "id"), dc.fstr(b, "icon");
-			// Nitro, Boost and Quest badges are Discord's promotion: not shown (AGENTS.md)
-			if begins_with(id, "premium") || begins_with(id, "guild_booster") || begins_with(id, "quest") || !ic || !dc.is_hash(ic) || p.badges.count >= 32 continue;
+			if !dc.badge_shown(id, ic) || p.badges.count >= 32 continue;
 			array_add(*p.badges, .[copy_string(ic), copy_string(dc.fstr(b, "description"))]);
 		}
 		for dc.flist(m, "connected_accounts") {
@@ -186,9 +185,7 @@ profile_full_overlay :: () {
 		pf.user = 0;
 		return;
 	}
-	banner_url := "";
-	banner_hash := ifx prof.banner != "" then prof.banner else u.banner;
-	if banner_hash != "" { banner_url = dc.banner_url(uid, banner_hash, 600); }
+	banner_url := user_banner_url(uid, pf.guild, ifx prof.banner != "" then prof.banner else u.banner);
 	banner_h: float32 = ifx banner_url != "" then cast(float32) PF_BANNER_H else cast(float32) PF_BANNER_H_PLAIN;
 	body_h := min(screen.y - 80 - banner_h - 140 - PF_TAB_H, PF_BODY_MIN_H);
 	total_h := banner_h + 140 + PF_TAB_H + body_h;
@@ -220,7 +217,7 @@ profile_full_overlay :: () {
 			ring.style.radius = all4(rs_ / 2);
 			ring.style.bg = m.style.bg;
 			{ ui.parent(ring); defer ui.pop_parent();
-				av := avatar_with_status("av", uid, PF_AVATAR, m.style.bg);
+				av := avatar_with_status("av", uid, PF_AVATAR, m.style.bg, animate = true);
 				av.flags |= .Floating_X | .Floating_Y;
 				av.fixed_pos = .{PF_AVATAR_RING, PF_AVATAR_RING};
 			}

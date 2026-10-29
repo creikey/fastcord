@@ -164,7 +164,7 @@ attachment_image_url :: (a: *dc.Attachment, w: int, h: int) -> string {
 	return dc.media_proxy_url(a.proxy_url, pw, ph);
 }
 
-avatar_url_for :: (uid: dc.Snowflake, size: float32) -> string {
+avatar_url_for :: (uid: dc.Snowflake, size: float32, animate := false) -> string {
 	u := dc.user_get(store(), uid);
 	px := cast(int)(size * max(gfx.scale(), 1));
 	// the client requests sizes in its fixed set
@@ -178,10 +178,10 @@ avatar_url_for :: (uid: dc.Snowflake, size: float32) -> string {
 	for hosted if it.client && it.client == app.client hosted_server = true;
 	// in a server, a member's per-server avatar replaces theirs (the open server is the avatar's context)
 	mem := ifx app.view.guild && !hosted_server then dc.member_get(store(), app.view.guild, uid) else null;
-	if mem && mem.avatar && dc.is_hash(mem.avatar) return dc.guild_member_avatar_url(app.view.guild, uid, mem.avatar, sz);
+	if mem && mem.avatar && dc.is_hash(mem.avatar) return dc.guild_member_avatar_url(app.view.guild, uid, mem.avatar, sz, animate);
 	if u.avatar == "" return dc.default_avatar_url(uid, u.discriminator);
 	for hosted if it.client && it.client == app.client return tprint("https://%/avatars/%/%.png?size=%", it.inv.id_hex, uid, u.avatar, sz);
-	return dc.avatar_url(uid, u.avatar, sz);
+	return dc.avatar_url(uid, u.avatar, sz, animate);
 }
 
 // Background colors of Discord's default avatars, picked by (id >> 22) % 6 for pomelo users or
@@ -198,14 +198,15 @@ default_avatar_index :: (uid: dc.Snowflake) -> int {
 	return cast(int)(((cast(u64)(uid)) >> 22) % 6);
 }
 
-avatar_box :: (id: string, uid: dc.Snowflake, size: float32) -> *ui.Box {
+// animate: an animated avatar plays (the client's popouts, and a chat row while hovered)
+avatar_box :: (id: string, uid: dc.Snowflake, size: float32, animate := false) -> *ui.Box {
 	b := ui.box(id, .Draw_Background);
 	b.semantic_size = .[ui.px(size), ui.px(size)];
 	b.style.radius = all4(size / 2);
 	b.style.bg = T("--background-mod-normal");
 	u := dc.user_get(store(), uid);
 	d := New(Avatar_Draw,, temp);
-	d.url = avatar_url_for(uid, size);
+	d.url = avatar_url_for(uid, size, animate);
 	d.default = -1;
 	if u == null || u.avatar == "" {
 		d.default = default_avatar_index(uid);
@@ -241,8 +242,8 @@ url_avatar_box :: (id: string, url: string, default: int, size: float32) -> *ui.
 }
 
 // Avatar with the status dot cut out of the bottom-right, ringed in the surface color.
-avatar_with_status :: (id: string, uid: dc.Snowflake, size: float32, surface: ui.Color) -> *ui.Box {
-	b := avatar_box(id, uid, size);
+avatar_with_status :: (id: string, uid: dc.Snowflake, size: float32, surface: ui.Color, animate := false) -> *ui.Box {
+	b := avatar_box(id, uid, size, animate);
 	dot := ifx size >= 80 then cast(float32)(16) else (ifx size >= 40 then cast(float32)(12) else cast(float32)(10)); // 80px profile avatars: 16px dot
 	ring := ifx size >= 40 then cast(float32)(4) else cast(float32)(3);
 	st := user_status(uid);

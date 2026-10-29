@@ -999,6 +999,48 @@ ignore_friend_request :: (c: *Client, user_id: Snowflake) { remove_relationship(
 
 // ---- profiles ----
 
+// badge_shown: a profile badge fastcord draws. Nitro, Boost and Quest badges are Discord's promotion
+// (AGENTS.md), and the icon must be a plain hash, since it goes in a CDN path.
+badge_shown :: (id: string, icon: string) -> bool {
+	return !begins_with(id, "premium") && !begins_with(id, "guild_booster") && !begins_with(id, "quest") && icon && is_hash(icon);
+}
+
+// profile_apply: a GET /users/{id}/profile reply into the store (the popout's fetch).
+profile_apply :: (s: *Store, m: etf.Map) {
+	uid := parse_user_into(s, fmap(m, "user"));
+	prof := fmap(m, "user_profile");
+	if prof.count && uid {
+		u := find_or_add(*s.users, uid);
+		if vhas(prof, "bio") { free_str(u.bio, s.allocator); u.bio = clone_str(fstr(prof, "bio"), s.allocator); }
+		if vhas(prof, "pronouns") { free_str(u.pronouns, s.allocator); u.pronouns = clone_str(fstr(prof, "pronouns"), s.allocator); }
+		profile_props_apply(s, u, m);
+		sb: String_Builder;
+		sb.allocator = temp;
+		for flist(m, "badges") {
+			if it_index >= 32 break;
+			b := vmap(it);
+			if badge_shown(fstr(b, "id"), fstr(b, "icon")) print_to_builder(*sb, "%\t%\n", fstr(b, "icon"), replace(fstr(b, "description"), "\n", " ",, temp));
+		}
+		set_str(s, *u.badge_icons, builder_to_string(*sb,, temp));
+		// the server's own profile of the user (guild_id asked): its avatar, About Me, pronouns
+		gmp := fmap(m, "guild_member_profile");
+		gid := fsnow(gmp, "guild_id");
+		if gid {
+			gm := fmap(m, "guild_member");
+			if gm parse_member_with_id(s, gid, uid, gm);
+			mem := member_get(s, gid, uid);
+			if mem {
+				set_str(s, *mem.bio, fstr(gmp, "bio"));
+				set_str(s, *mem.pronouns, fstr(gmp, "pronouns"));
+				set_str(s, *mem.banner, fstr(gmp, "banner"));
+			}
+		}
+		if vhas(m, "mutual_guilds") u.mutual_guilds = flist(m, "mutual_guilds").count;
+		if vhas(m, "mutual_friends") u.mutual_friends = flist(m, "mutual_friends").count;
+		else if vhas(m, "mutual_friends_count") u.mutual_friends = fint(m, "mutual_friends_count");
+	}
+}
+
 // fetch_profile: GET /users/{id}/profile?type=popout&with_mutual_guilds=true&with_mutual_friends=true&with_mutual_friends_count=false[&guild_id=]
 fetch_profile :: (c: *Client, user_id: Snowflake, guild_id: Snowflake = 0, tag: u64 = 0) {
 	q: Query;

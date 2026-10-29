@@ -682,30 +682,7 @@ client_apply_rest :: (c: *Client, e: *Event) {
 			}
 		case .Fetch_Profile;
 			if r.ok {
-				m := vmap(e.data);
-				uid := parse_user_into(s, fmap(m, "user"));
-				prof := fmap(m, "user_profile");
-				if prof.count && uid {
-					u := find_or_add(*s.users, uid);
-					if vhas(prof, "bio") { free_str(u.bio, s.allocator); u.bio = clone_str(fstr(prof, "bio"), s.allocator); }
-					if vhas(prof, "pronouns") { free_str(u.pronouns, s.allocator); u.pronouns = clone_str(fstr(prof, "pronouns"), s.allocator); }
-					profile_props_apply(s, u, m);
-					// the server's own profile of the user (guild_id asked): its avatar, About Me, pronouns
-					gmp := fmap(m, "guild_member_profile");
-					gid := fsnow(gmp, "guild_id");
-					if gid {
-						gm := fmap(m, "guild_member");
-						if gm parse_member_with_id(s, gid, uid, gm);
-						mem := member_get(s, gid, uid);
-						if mem {
-							set_str(s, *mem.bio, fstr(gmp, "bio"));
-							set_str(s, *mem.pronouns, fstr(gmp, "pronouns"));
-						}
-					}
-					if vhas(m, "mutual_guilds") u.mutual_guilds = flist(m, "mutual_guilds").count;
-					if vhas(m, "mutual_friends") u.mutual_friends = flist(m, "mutual_friends").count;
-					else if vhas(m, "mutual_friends_count") u.mutual_friends = fint(m, "mutual_friends_count");
-				}
+				profile_apply(s, vmap(e.data));
 				analytics_on_profile(c, r.user_id);
 			}
 		case .Settings;
