@@ -425,6 +425,11 @@ decode_run :: (j: Decode_Job, players: *[..]*lottie.Player) -> Decoded {
 	case .Fetch;
 		if !j.data d.data = array_copy(data);
 	case .Copy_Image;
+		#if OS == .LINUX {
+			// X11 programs take image/png: other formats are re-encoded (uncompressed).
+			img, err := imagefmt.decode_first_frame(data, temp, max_pixels = 16 << 20);
+			if err == .None && img.format != .PNG data = gfx.encode_png(img.frames[0].pixels, img.width, img.height, temp);
+		}
 		if data platform.clipboard_set_image(data);
 	case .Save_Image;
 		// Offline (fixture) runs read the bytes from FASTCORD_MEDIA_DIR and never write to the real Downloads.

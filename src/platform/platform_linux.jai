@@ -294,13 +294,23 @@ os_clipboard_get :: (allocator: Allocator) -> string {
     return "";
 }
 
-os_clipboard_set_image :: (data: []u8) {} // TODO: own CLIPBOARD with image/png
+// A PNG (the app re-encodes other formats): we own CLIPBOARD and serve it as image/png. No INCR, so an
+// image over the server's request size (usually 16 MiB with BIG-REQUESTS) doesn't reach the other program.
+os_clipboard_set_image :: (png: []u8) {
+    {
+        locks.guard(*xs.own_lock);
+        own_reset();
+        xs.own_png = array_copy(png);
+    }
+    X.SetSelectionOwner(xs.d, xs.a.CLIPBOARD, xs.win, 0 /*CurrentTime*/);
+    X.Flush(xs.d);
+}
 
 // We own CLIPBOARD and answer SelectionRequest from the event pump.
 os_clipboard_set :: (str: string) {
     {
         locks.guard(*xs.own_lock);
-        free(xs.own_text.data);
+        own_reset();
         xs.own_text = copy_string(str);
     }
     X.SetSelectionOwner(xs.d, xs.a.CLIPBOARD, xs.win, 0 /*CurrentTime*/);
@@ -312,7 +322,10 @@ os_clipboard_kind :: () -> Clipboard_Kind {
     locks.guard(*xs.read_lock);
     if !xs.clip_d return .None;
     owner := X.GetSelectionOwner(xs.clip_d, xs.a.CLIPBOARD);
-    if owner == xs.win return .Text;
+    if owner == xs.win {
+        locks.guard(*xs.own_lock);
+        return ifx xs.own_png then .Image else .Text;
+    }
     if !owner return .None;
     b, ok := read_selection(xs.a.TARGETS, temp);
     if !ok return .None;
@@ -327,7 +340,10 @@ os_clipboard_kind :: () -> Clipboard_Kind {
 // image/png, which GTK, Qt and browsers all offer for a copied bitmap.
 os_clipboard_image :: (allocator: Allocator) -> []u8, bool {
     locks.guard(*xs.read_lock);
-    if !foreign_owner() return .[], false;
+    if !foreign_owner() {
+        locks.guard(*xs.own_lock);
+        return array_copy(xs.own_png,, allocator), xs.own_png.count > 0;
+    }
     b, ok := read_selection(xs.a.png, allocator);
     if ok && b.count return b, true;
     array_free(b);
@@ -635,6 +651,7 @@ xs: struct {
     clip_win: Window;
     own_lock: locks.Mutex;
     own_text: string;       // what we serve while we own CLIPBOARD
+    own_png: []u8;          // or this image (heap)
 
     prefs_lock: locks.Mutex;
     prefs: Prefs;
@@ -790,8 +807,7 @@ handle :: (ev: *XEvent) {
         case SelectionClear;
             if ev.xselectionclear.selection != xs.a.CLIPBOARD return;
             locks.guard(*xs.own_lock);
-            free(xs.own_text.data);
-            xs.own_text = "";
+            own_reset();
         case SelectionNotify;
             dnd_data(*ev.xselection);
     }
@@ -951,18 +967,29 @@ make_cursor :: (c: Cursor) -> u64 {
 
 // ---- Clipboard
 
+own_reset :: () { // own_lock held
+    free(xs.own_text.data);
+    array_free(xs.own_png);
+    xs.own_text, xs.own_png = "", .[];
+}
+
 answer_selection :: (r: *XSelectionRequestEvent) {
     a := *xs.a;
     reply: XEvent;
     reply.xselection = .{type = SelectionNotify, requestor = r.requestor, selection = r.selection, target = r.target, time = r.time};
     prop := ifx r.property then r.property else r.target; // obsolete clients pass None
     if r.selection == a.CLIPBOARD {
+        locks.guard(*xs.own_lock);
         if r.target == a.TARGETS {
-            targets := Atom.[a.TARGETS, a.UTF8_STRING, a.text_plain, a.TEXT];
-            X.ChangeProperty(xs.d, r.requestor, prop, XA_ATOM, 32, 0, xx targets.data, targets.count);
+            text := Atom.[a.TARGETS, a.UTF8_STRING, a.text_plain, a.TEXT];
+            png := Atom.[a.TARGETS, a.png];
+            targets := ifx xs.own_png then array_view(png, 0) else array_view(text, 0);
+            X.ChangeProperty(xs.d, r.requestor, prop, XA_ATOM, 32, 0, xx targets.data, xx targets.count);
             reply.xselection.property = prop;
-        } else if r.target == a.UTF8_STRING || r.target == a.text_plain || r.target == a.TEXT {
-            locks.guard(*xs.own_lock);
+        } else if r.target == a.png && xs.own_png {
+            X.ChangeProperty(xs.d, r.requestor, prop, a.png, 8, 0, xs.own_png.data, xx xs.own_png.count);
+            reply.xselection.property = prop;
+        } else if (r.target == a.UTF8_STRING || r.target == a.text_plain || r.target == a.TEXT) && !xs.own_png {
             X.ChangeProperty(xs.d, r.requestor, prop, ifx r.target == a.TEXT then a.UTF8_STRING else r.target, 8, 0, xs.own_text.data, xx xs.own_text.count);
             reply.xselection.property = prop;
         }
