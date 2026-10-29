@@ -376,6 +376,11 @@ banner_url :: (id: Snowflake, banner_hash: string, size := 600, allocator := tem
 	return sprint("%/banners/%/%.webp?size=%", CDN, id, banner_hash, size,, allocator);
 }
 
+// clan_badge_url: a server tag's badge (getGuildTagBadgeUrl: /clan-badges/<guild>/<badge>.png).
+clan_badge_url :: (guild_id: Snowflake, badge: string, size := 16, allocator := temp) -> string {
+	return sprint("%/clan-badges/%/%.png?size=%", CDN, guild_id, badge, size,, allocator);
+}
+
 custom_emoji_url :: (emoji_id: Snowflake, animated: bool, size := 48, allocator := temp) -> string {
 	return sprint("%/emojis/%.webp?size=%%", CDN, emoji_id, size, ifx animated then "&animated=true" else "",, allocator);
 }

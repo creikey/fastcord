@@ -71,6 +71,10 @@ User :: struct {
 	bot: bool;
 	flags: u64;
 	premium_type: int;
+	// primary_guild, while identity_enabled: the server tag shown after the name ("" for none)
+	tag: string;
+	tag_badge: string; // the badge's hash, under clan-badges/<tag_guild>/
+	tag_guild: Snowflake;
 	// from GET /users/{id}/profile (with_mutual_guilds / with_mutual_friends)
 	mutual_guilds: int; // -1 until a profile with mutual guilds arrived
 	mutual_friends: int; // -1 until known

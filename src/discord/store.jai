@@ -250,7 +250,24 @@ parse_user_into :: (s: *Store, m: etf.Map) -> Snowflake {
 	if vhas(m, "public_flags") u.flags = cast(u64) fint(m, "public_flags");
 	if vhas(m, "flags") u.flags = cast(u64) fint(m, "flags");
 	if vhas(m, "premium_type") u.premium_type = fint(m, "premium_type");
+	if vhas(m, "primary_guild") {
+		// the server tag: at most 4 characters in Discord's own rule; anything odd shows nothing
+		pg := fmap(m, "primary_guild");
+		on := fbool(pg, "identity_enabled");
+		tag, badge := fstr(pg, "tag"), fstr(pg, "badge");
+		if !on || tag.count > 16 || !is_hash(badge) tag, badge = "", "";
+		set_str(s, *u.tag, tag);
+		set_str(s, *u.tag_badge, badge);
+		u.tag_guild = ifx tag then fsnow(pg, "identity_guild_id") else 0;
+	}
 	return id;
+}
+
+// is_hash: "" or a CDN asset hash (hex, an optional a_ prefix), safe to put in a URL.
+is_hash :: (h: string) -> bool {
+	if h.count > 64 return false;
+	for cast([]u8) h if !is_alnum(it) && it != #char "_" return false;
+	return true;
 }
 
 // parse_channel_into creates or updates a channel (guild_id may be implied by the container).

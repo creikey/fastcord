@@ -101,6 +101,26 @@ app_tag :: () {
 	spacer(.X, 4);
 }
 
+// A user's server tag after their name (primary_guild): the guild's badge and its tag on a soft pill.
+server_tag :: (u: *dc.User) {
+	if u == null || u.tag == "" return;
+	spacer(.X, 4);
+	pill := row("servertag", .Draw_Background);
+	pill.semantic_size = .[ui.children(), ui.px(18)];
+	pill.style.bg = T("--background-mod-normal");
+	pill.style.radius = all4(4);
+	ui.parent(pill); defer ui.pop_parent();
+	spacer(.X, 4);
+	if u.tag_badge && u.tag_guild {
+		b := ui.box("badge");
+		b.semantic_size = .[ui.px(12), ui.px(12)];
+		set_remote_image(b, dc.clan_badge_url(u.tag_guild, u.tag_badge));
+		spacer(.X, 3);
+	}
+	label(u.tag, .Semibold, 12, T("--text-default"), 18);
+	spacer(.X, 4);
+}
+
 sized :: (id: string, w: float32, h: float32, flags: ui.Box_Flags = 0) -> *ui.Box {
 	b := ui.box(id, flags);
 	b.semantic_size = .[ui.px(w), ui.px(h)];

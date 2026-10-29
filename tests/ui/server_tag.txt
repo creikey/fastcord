@@ -1,0 +1,11 @@
+# Server tags (primary_guild): Robin's tag shows after his name in chat and in his profile popout; a
+# tag whose identity isn't enabled shows nothing.
+wait 5
+dispatch USER_UPDATE {"id":"1000000000020971521","username":"robin","global_name":"Robin","primary_guild":{"identity_guild_id":"1546820558950371400","identity_enabled":true,"tag":"FAST","badge":"0123456789abcdef"}}
+dispatch USER_UPDATE {"id":"1546819257420087346","username":"dingus","global_name":"Dingus Battle","primary_guild":{"identity_guild_id":"1546820558950371400","identity_enabled":false,"tag":"NOPE","badge":"0123456789abcdef"}}
+wait 10
+expect_visible "FAST"
+expect_not_visible "NOPE"
+click_text "Robin"
+wait 20
+shot build/ui-server_tag_popout.png

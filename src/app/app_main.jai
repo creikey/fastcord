@@ -808,6 +808,12 @@ script_command :: (path: string, f: []string, t: *float64, depth := 0) {
 		}
 		if att.notice != want script_fail(path, "expect_notice: want %, got %", want, att.notice);
 		return;
+	case "dispatch";
+		// dispatch <EVENT> <json>: a gateway dispatch applied to the store, as if it had arrived
+		body, err := etf.from_json(join(..array_view(f, 2), separator = " ",, temp),, temp);
+		if f.count < 3 || err != .None || !dc.store_apply_dispatch(store(), f[1], body, dc.now_ms()) script_fail(path, "dispatch: bad event or JSON");
+		store().changed += 1;
+		return;
 	case "mfa_challenge";
 		mfa_script_challenge(); // view_settings_account.jai
 	case "settings_reply";

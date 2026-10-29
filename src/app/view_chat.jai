@@ -1756,6 +1756,7 @@ message_header :: (m: *dc.Message) {
 		if nsig.clicked open_profile(m.author_id, n.rect, .Message_Author, m.id, m.webhook_name);
 		if nsig.right_clicked && !m.webhook_name open_user_menu(m.author_id, app.ui.mouse);
 		u := dc.user_get(store(), m.author_id);
+		if !m.webhook_name server_tag(u);
 		if u && u.bot app_tag();
 		new_member_badge(m);
 		spacer(.X, 8);

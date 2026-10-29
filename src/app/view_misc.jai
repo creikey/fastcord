@@ -200,6 +200,7 @@ profile_popout :: () {
 				n.flags |= .Selectable_Text;
 				n.sel_order = 1;
 				if hook app_tag();
+				else server_tag(u);
 			}
 			if !hook {
 				pad2 := row("userpad");

@@ -792,7 +792,7 @@ member_row :: (gid: dc.Snowflake, uid: dc.Snowflake, owner := false) {
 			col.semantic_size = .[ui.fill(), ui.children()];
 			col.layout_axis = .Y;
 			ui.parent(col); defer ui.pop_parent();
-			w := item.rect.x1 - item.rect.x0 - 60 - (ifx owner then 18 else 0) - (ifx bot then 34 else 0);
+			w := item.rect.x1 - item.rect.x0 - 60 - (ifx owner then 18 else 0) - (ifx bot then 34 else 0) - (ifx u && u.tag then 56 else 0);
 			nr := row("nr");
 			nr.semantic_size = .[ui.pct(1), ui.px(20)];
 			{ ui.parent(nr); defer ui.pop_parent();
@@ -801,6 +801,7 @@ member_row :: (gid: dc.Snowflake, uid: dc.Snowflake, owner := false) {
 					spacer(.X, 4);
 					icon("crown", "crown", 14, T("--text-feedback-warning"));
 				}
+				server_tag(u);
 				if bot app_tag();
 			}
 			if custom label(ellipsize(custom, .Medium, 12, w), .Medium, 12, T("--text-muted"), 16);
