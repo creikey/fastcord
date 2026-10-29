@@ -490,7 +490,7 @@
 - [ ] Member list: only the first 100 rows load; it subscribes `[0, 99]` once and never asks for more ranges while scrolling (`view_home.jai`).
 - [ ] Media: videos (attachments, embeds) download whole before the first frame; stream them with range requests so long clips start at once (`view_media.jai` `blob_get`).
 - [ ] Sounds: soundpacks work and are saved but have no picker; "User Moved" has a toggle but never plays; the "reconnect" sound is unused.
-- [ ] Media: the audio player has no seek bar or volume; the video player lacks download.
+- [ ] Media: the video player lacks download.
 - [ ] Servers: no rules screen, onboarding, Server Guide or Browse Channels / Channels & Roles.
 - [ ] Voice: op 4's `preferred_regions` keep the latency probe's geographic order; the official client ranks the regions with a UDP latency test (`rankRtcRegions`) and sends that order, so ours can differ (`actions.jai` `voice_self_value`).
 - [ ] Frecency writes (settings-proto/2), the rest: emoji are tracked when inserted from the picker or autocomplete, not when the message is sent (`EMOJI_TRACK_USAGE` after a send, every emoji in it), and reactions only from the picker (the official client tracks every reaction you add); application commands (7), applications (9) and played sounds (11) are never written; the app keeps a second frecency table (`pickers_data.jai`, `expressions.txt`) instead of reading the library's.
@@ -786,3 +786,4 @@
 - [x] Attachments: two or more image attachments draw as the client's mosaic (rows of 2 and 3, a lone top tile for 7 and 10, 3 as one large beside two), each tile cropped to fill and opening the viewer on them all (`attachment_mosaic`, `tests/ui/attachment_mosaic.txt`).
 - [x] Call view: in-call emoji: VOICE_CHANNEL_EFFECT_SEND with an emoji floats it up over the sender's tile, and the controls' emoji button opens a bar of eight to send (`POST /voice-channel-effects`, BASIC animation); hosted servers carry them too (`call_effect_show`, `effect_bar`, `dc.send_voice_effect`; `tests/ui/call/effects.txt`, `serve_soundboard`).
 - [x] Linux: presence goes idle from the XScreenSaver extension's idle time (libXss, opened at run time like libX11), as Chromium's X11 idle query does, and the input method's candidate window follows the caret (XIM `spotLocation`, which ibus and fcitx read with XIMPreeditNothing) (`procinfo_linux.jai` `system_idle_ms`, `platform_linux.jai` `os_wait`). Type-checked only; on Wayland desktops XWayland may not count input to Wayland windows.
+- [x] Media: audio file cards have a seek bar and the shared media volume (slider on hover, speaker mutes) beside their time (`audio_attachment`, `tests/ui/audio_player.txt`).

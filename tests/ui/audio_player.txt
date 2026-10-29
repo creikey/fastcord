@@ -1,0 +1,6 @@
+# Runs on audio_player.jsonl. An audio file's card shows its time, a seek bar and the media volume:
+# hovering the time row shows the volume slider, and its speaker mutes.
+wait 20
+move 700 597
+wait 5
+shot build/ui-audio_player.png

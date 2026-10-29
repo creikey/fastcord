@@ -463,7 +463,25 @@ audio_attachment :: (a: *dc.Attachment) {
 		col.semantic_size = .[ui.fill(), ui.children()];
 		{ ui.parent(col); defer ui.pop_parent();
 			label(a.filename, .Medium, 14, T("--text-link"), 18);
+			// time, the seek bar once loaded, and the shared media volume (as on videos)
+			tr := row("time");
+			tr.semantic_size = .[ui.pct(1), ui.px(18)];
+			ui.parent(tr); defer ui.pop_parent();
 			label(tprint("% / %", fmt_clock(pos), fmt_clock(dur)), .Normal, 12, T("--text-muted"), 16);
+			spacer(.X, 8);
+			seek := slider("seek", ifx dur > 0 then cast(float32) (pos / dur) else 0, ui.fill());
+			if seek >= 0 && playing && ip.player && dur > 0 media.player_seek(ip.player, cast(float64) seek * dur);
+			spacer(.X, 8);
+			if ui.contains(tr.rect, app.ui.mouse) {
+				v := slider("vs", ifx video_muted then 0 else video_volume / 4, ui.px(64));
+				if v >= 0 video_volume_set(v * 4, v == 0);
+				spacer(.X, 4);
+			}
+			mb := ui.box("mute", .Clickable);
+			mb.semantic_size = .[ui.px(18), ui.px(18)];
+			msig := ui.signal(mb);
+			set_icon(mb, ifx video_muted || video_volume == 0 then "speaker-slash" else "voice-normal", ifx msig.hovering then T("--interactive-icon-hover") else T("--interactive-icon-default"));
+			if msig.clicked video_volume_set(ifx video_volume == 0 then 1 else video_volume, !video_muted);
 		}
 		spacer(.X, 12);
 	}
