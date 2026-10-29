@@ -319,7 +319,6 @@
 - [ ] Voice: push to talk works only while the window is focused, can't use mouse buttons and can't record combos.
 - [ ] No lost typing: closing a dialog keeps what was typed until it's submitted. Covers Create Event, New Thread, Create Channel, the Group DM picker, Modify Attachment, account edit and friend nickname; restore it on reopen. Profile and Channel Settings "Reset" become undoable.
 - [ ] Chat: the new-member sprout ("I'm new here, say hi!") is clickable but does nothing (`view_chat.jai` `new_member_badge`). Copy the official click behaviour from the bundle (search `useIsNewMember`); the join notice's "Wave to say hi!" button is missing too.
-- [ ] Notifications: role pings get no red badge live (only user and @everyone mentions are counted; `CLIENT_RULES.md` notes it), and their desktop notification shows the raw `<@&id>` (`notify.jai`).
 - [ ] Embeds: the author's icon and link, the footer's icon and the provider's link aren't modelled (`model.jai` `Embed`).
 - [ ] Voice: Voice & Video lacks a mic test, attenuation, QoS and Reset Voice Settings; the mic and headphone chevrons open the page instead of a quick device menu.
 - [ ] Check: returning to a channel you left scrolled up reopens it scrolled up (`go_to` resets only `opened`); the auto-ack needs the bottom, so the channel stays unread. Confirm, then match the official client.
@@ -759,3 +758,4 @@
 - [x] Composer: "#" opens a channel autocomplete like "@", "#name" is sent as `<#id>` on send and edit, and the edit box shows `<#id>` as "#name" (`channel_items`, `channel_by_name`; `tests/ui/channel_autocomplete.txt`, `tests/ui/forward/edit_readable.txt`).
 - [x] Markdown: role mentions draw as "@Role" in the role's colour on a tint of it, "@deleted-role" when unknown (`tests/ui/forward/command_mentions.txt`).
 - [x] Bug (Windows): a GPU driver update or reset no longer freezes the window. When Present or ResizeBuffers reports the device removed, gfx makes a new device, swap chain and shaders (`recover_device`), remakes every live texture at its size, rebuilds the glyph atlas, and bumps `device_generation`, on which the app drops its images, icons and emoji so they load and draw again (`textures_lost`). `tests/ui/media/gpu_reset.txt` runs the recovery headless; the shots after it match the ones before on Windows and macOS.
+- [x] Notifications: a ping of one of your roles raises the channel's live mention badge, and its desktop notification shows "@Role" instead of the raw `<@&id>` (`actions.jai` MESSAGE_CREATE, `notify.jai` `notification_body`).

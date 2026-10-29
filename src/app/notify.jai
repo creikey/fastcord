@@ -72,7 +72,7 @@ notify_message :: (s: *dc.Store, m: *dc.New_Message) {
 	ns.notified += 1;
 }
 
-// Content as plain text with <@id>/<#id> resolved, or a stand-in for media-only messages.
+// Content as plain text with <@id>/<@&id>/<#id> resolved, or a stand-in for media-only messages.
 notification_body :: (s: *dc.Store, m: *dc.New_Message) -> string {
 	if encrypted_packet(m.channel_id, m.content) return "Encrypted message"; // Not opened yet when it arrives.
 	if m.content == "" {
@@ -100,6 +100,12 @@ notification_body :: (s: *dc.Store, m: *dc.New_Message) -> string {
 		if begins_with(tag, "@!") || begins_with(tag, "@") && !begins_with(tag, "@&") {
 			id := dc.parse_snowflake(trim_left(tag, "@!"));
 			print_to_builder(*sb, "@%", name_in(id, m.channel_id, "unknown-user"));
+		} else if begins_with(tag, "@&") {
+			id := dc.parse_snowflake(advance(tag, 2));
+			name := "deleted-role";
+			g := dc.guild_get(s, m.guild_id);
+			if g for g.roles if it.id == id name = it.name;
+			print_to_builder(*sb, "@%", name);
 		} else if begins_with(tag, "#") {
 			cc := dc.channel_get(s, dc.parse_snowflake(advance(tag, 1)));
 			print_to_builder(*sb, "#%", ifx cc then cc.name else "unknown");

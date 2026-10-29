@@ -1062,10 +1062,12 @@ client_after_dispatch :: (c: *Client, name: string, data: V) {
 			return;
 		}
 		// otherwise a message that would notify us raises the mention count (every message
-		// in a private channel; in a guild @me / @everyone; role mentions not modelled)
+		// in a private channel; in a guild @me / @everyone / one of my roles)
 		ch := channel_get(*c.store, cid);
 		mentions_me := fbool(d, "mention_everyone");
 		for flist(d, "mentions") if fsnow(vmap(it), "id") == c.store.me mentions_me = true;
+		mine := ifx gid then my_guild_roles(gid);
+		for flist(d, "mention_roles") if array_find(mine, vsnow(it)) mentions_me = true;
 		if !(ch && ch.guild_id == 0) && !mentions_me return;
 		rs := find_or_add(*c.store.read_states, cid);
 		rs.channel_id = cid;
