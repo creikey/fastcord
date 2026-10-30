@@ -1,0 +1,10 @@
+# Hovering a server on the rail lists its voice channels with people in them and their avatars.
+wait 5
+dispatch VOICE_STATE_UPDATE {"guild_id":"1546820558300258304","channel_id":"1546820558950371411","user_id":"1000000000000000001","session_id":"a","self_mute":false,"self_deaf":false,"mute":false,"deaf":false,"member":{"user":{"id":"1000000000000000001","username":"robin"},"roles":[]}}
+dispatch VOICE_STATE_UPDATE {"guild_id":"1546820558300258304","channel_id":"1546820558950371411","user_id":"1000000000000000002","session_id":"b","self_mute":false,"self_deaf":false,"mute":false,"deaf":false,"member":{"user":{"id":"1000000000000000002","username":"sam"},"roles":[]}}
+wait 5
+move 36 109
+wait 10
+expect_visible "Dingus Battle"
+expect_visible "General"
+shot build/ui-rail_voice_tooltip.png
