@@ -202,6 +202,7 @@ map_events :: (evs: []platform.Event) -> []ui.Input_Event {
 		case .Scroll;
 			ev.kind = .Scroll;
 			ev.delta = e.delta;
+			ev.precise = e.precise;
 		case .Key_Down;
 			ev.kind = .Key_Down;
 			ev.key = map_key(e.key);

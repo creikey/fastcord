@@ -302,13 +302,14 @@ pk_scroll_update :: (s: *Pk_Scroll, view: ui.Rect, content_h: float32) {
 	if pk_contains(view, app.ui.mouse) {
 		for * e: app.ui.events {
 			if e.kind != .Scroll || e.consumed continue;
-			s.target -= e.delta.y;
+			ui.scroll_input(*s.y, *s.target, -e.delta.y, e.precise);
 			e.consumed = true;
 		}
 	}
 	max_y := max(0.0, content_h - s.view_h);
 	s.target = clamp(s.target, 0, max_y);
-	ui.animate(*s.y, s.target, 40);
+	if app.ui.instant_scroll s.y = s.target;
+	else ui.animate(*s.y, s.target, 40);
 	s.y = clamp(s.y, 0, max_y);
 }
 

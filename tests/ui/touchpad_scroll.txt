@@ -1,0 +1,14 @@
+# Precise touchpad input follows the finger immediately, not an animated 53-point wheel step.
+wait 5
+move 700 400
+scroll 0 0.25
+expect_chat_scroll 0.25 0.25
+# Legacy wheel input still eases when Smooth Scrolling is enabled.
+scroll 0 53 wheel
+expect_chat_scroll animated
+# A touchpad gesture interrupts the old wheel remainder at the visible position.
+scroll 0 0.125
+expect_chat_scroll direct
+# Exact current/target equality is also covered for ordinary boxes and picker grids by linux_scroll.jai.
+wait 20
+shot build/ui-touchpad_scroll.png
