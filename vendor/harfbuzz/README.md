@@ -5,9 +5,9 @@ CoreText and DirectWrite, so `build.jai` builds this only for Linux (the `.linux
 files, unmodified: the `src/` files the one-unit build (`src/harfbuzz.cc`) includes on Linux (found with
 `zig c++ -M` for x86_64-linux-gnu), plus `COPYING`.
 
-- Upstream: https://github.com/harfbuzz/harfbuzz 11.5.1
-- Source: https://github.com/harfbuzz/harfbuzz/releases/download/11.5.1/harfbuzz-11.5.1.tar.xz
-- sha256 of the tarball: 972a60a8d274d49e70361da6920c3a73dfb0fb4387f6c6811906a47ba634d8a1
+- Upstream: https://github.com/harfbuzz/harfbuzz 15.0.0
+- Source: https://github.com/harfbuzz/harfbuzz/releases/download/15.0.0/harfbuzz-15.0.0.tar.xz
+- sha256 of the tarball: 968536e9abd782f07f7954044c0c4020199fcdd39b41d221ec42d2a3be4a44df
 - Licence: the "Old MIT" licence (`COPYING`).
 
 Built without FreeType, ICU or GLib: the backend gives HarfBuzz each font's tables through

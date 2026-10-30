@@ -62,7 +62,7 @@ Load_SBit_Png( FT_GlyphSlot slot, FT_Int x_offset, FT_Int y_offset, FT_Int pix_b
     if (!work || !rgba) goto Exit;
     error = FT_Err_Invalid_File_Format;
     if (fc_image_next_frame(state, &fi) || fc_image_decode_frame(state, rgba, len, (size_t)info.width * 4, work, info.work_len, 1)) goto Exit;
-    if (populate_map_and_metrics && (error = ft_glyphslot_alloc_bitmap(slot, (FT_ULong)map->rows * (FT_ULong)map->pitch))) goto Exit;
+    if (populate_map_and_metrics && (error = ft_glyphslot_alloc_bitmap(slot))) goto Exit;
     for (uint32_t y = 0; y < info.height; y++) {
         const uint8_t *s = rgba + (size_t)y * info.width * 4;
         uint8_t *d = map->buffer + (size_t)(y_offset + y) * map->pitch + x_offset * 4;
