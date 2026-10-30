@@ -483,10 +483,18 @@ remote_video :: (t: *Table(u64, *Remote_Video), uid: u64) -> *Remote_Video {
 // Soundshare: the shared screen's sound (video.Audio_Proc, on the capture's queue) waits here for our
 // stream's voice connection, which takes a 20 ms stereo frame per tick (voice.Options.capture). At most
 // SHARE_MAX samples (interleaved) wait: past that the oldest go, so a stalled connection never builds up delay.
+// The capture hands sound over in its own chunks on its own clock (PipeWire's quantum, often 1024 frames), so
+// a tick often finds less than a frame; a frame cut short and padded with zeros crackles. Only whole frames
+// go out, after a cushion has built up; running dry within 5 s of that (jitter, not a pause in the sound)
+// grows the cushion, up to SHARE_CUSHION_MAX.
 SHARE_MAX :: 48000 / 5 * 2;
+SHARE_FRAME :: 960 * 2;
+SHARE_CUSHION_MAX :: 6 * SHARE_FRAME;
 share: struct {
 	mu: locks.Mutex;
 	buf: [..]float32;
+	cushion := 2 * SHARE_FRAME; // samples to have beyond a frame before sending (again)
+	flowing: int; // frames sent since the cushion was last built (0: building)
 	got: int; // samples so far, and their loudest, for the live test's log
 	peak: float32;
 };
@@ -494,6 +502,7 @@ share: struct {
 share_reset :: () {
 	locks.guard(*share.mu);
 	share.buf.count = 0;
+	share.cushion, share.flowing = 2 * SHARE_FRAME, 0;
 }
 
 on_share_audio :: (user: *void, pcm: []float32) {
@@ -510,7 +519,14 @@ on_share_audio :: (user: *void, pcm: []float32) {
 
 share_pull :: (data: *void, out: []float32) -> int {
 	locks.guard(*share.mu);
-	n := min(out.count, share.buf.count);
+	if !share.flowing && share.buf.count < out.count + share.cushion return 0;
+	if share.buf.count < out.count {
+		if share.flowing < 250 share.cushion = min(share.cushion + SHARE_FRAME, SHARE_CUSHION_MAX);
+		share.flowing = 0;
+		return 0;
+	}
+	share.flowing += 1;
+	n := out.count;
 	memcpy(out.data, share.buf.data, n * size_of(float32));
 	for n..share.buf.count - 1 share.buf[it - n] = share.buf[it];
 	share.buf.count -= n;

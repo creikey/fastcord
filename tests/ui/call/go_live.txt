@@ -11,6 +11,9 @@ expect_visible "30 FPS"
 expect_visible "480p"
 expect_visible "60 FPS"
 expect_visible "SOUND"
+# Off had the same box key as On ("##sound"), so it could never be picked; look at the shot
+click_text "Off"
+wait 5
 expect_visible "1080p"
 shot build/ui-call_go_live_picker.png
 # hovering a setting the official client wouldn't offer: its tooltip lies over the rows and list below it

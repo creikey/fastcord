@@ -397,8 +397,8 @@ go_live_quality :: () {
 				if chip(tprint(L("%1 FPS##f%2"), f, f), vid.go_fps == f, go_live_official(vid.go_height, f)) go_live_set(vid.go_height, f, vid.go_sound);
 			}
 		} else {
-			if chip(L("On##sound"), vid.go_sound) go_live_set(vid.go_height, vid.go_fps, true);
-			if chip(L("Off##sound"), !vid.go_sound) go_live_set(vid.go_height, vid.go_fps, false);
+			if chip(L("On##sound_on"), vid.go_sound) go_live_set(vid.go_height, vid.go_fps, true);
+			if chip(L("Off##sound_off"), !vid.go_sound) go_live_set(vid.go_height, vid.go_fps, false);
 		}
 	}
 }

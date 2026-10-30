@@ -257,7 +257,7 @@ VIDEO_EVENTS := Pw_Stream_Events.{version = 2, state_changed = on_video_state, p
 // into a ring.
 
 MIX :: 48000 / 4;
-LAG :: 1920; // frames an app that stopped delivering may hold the mix back
+LAG :: 4096; // frames an app that stopped delivering may hold the mix back (above PipeWire's usual max quantum, 2048)
 
 on_global :: (data: *void, id: u32, permissions: u32, type: *u8, version: u32, props: *Spa_Dict) #c_call {
 	s := cast(*Screen) data;
@@ -326,10 +326,13 @@ on_audio_process :: (data: *void) #c_call {
 			f.*[1] += pcm[2 * i + 1];
 		}
 		a.pos += n;
-		// out up to where every app that plays has reached, but never more than LAG behind the furthest
-		lo, hi := a.pos, a.pos;
-		for s.apps if it.pos > s.out_pos { lo = min(lo, it.pos); hi = max(hi, it.pos); }
-		mix_emit(s, max(lo, hi - LAG));
+		// out up to where every app still delivering has reached: the furthest, and those within LAG of it.
+		// Each app's stream runs once a cycle, so one that hasn't yet this cycle is behind, not stopped.
+		hi := a.pos;
+		for s.apps hi = max(hi, it.pos);
+		lo := hi;
+		for s.apps if it.pos >= hi - LAG lo = min(lo, it.pos);
+		mix_emit(s, lo);
 	}
 }
 
