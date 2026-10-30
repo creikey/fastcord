@@ -10,7 +10,7 @@
 #
 #   python3 -I tools/site_video.py fastcord <s>...   (live run, needs build/fastcord-dev)
 #   python3 -I tools/site_video.py build <s>...      (scrub, encode the videos, write parity_video.json)
-#   python3 -I tools/site_video.py hero              (site/screenshot.jpg from the threads fixture, offline;
+#   python3 -I tools/site_video.py hero              (site/screenshot.jpg from a made-up server built on the threads fixture, offline;
 #                                                     then `jai build.jai - og` for the link preview)
 import json, os, re, subprocess, sys, tempfile
 
@@ -171,10 +171,186 @@ def build(names):
     print(f'-> {dst} ({os.path.getsize(dst)} bytes)')
 
 
+# ---- the site hero: a made-up server built on the threads fixture's READY, all names and images synthetic ----
+
+def png_bytes(w, h, px):
+    """px(x, y) -> (r, g, b) floats 0..255; returns an RGB PNG."""
+    import struct, zlib
+    rows = bytearray()
+    for y in range(h):
+        rows.append(0)
+        for x in range(w): rows += bytes(max(0, min(255, int(c))) for c in px(x, y))
+    def chunk(k, d): return struct.pack('>I', len(d)) + k + d + struct.pack('>I', zlib.crc32(k + d) & 0xffffffff)
+    return b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('>IIBBBBB', w, h, 8, 2, 0, 0, 0)) + chunk(b'IDAT', zlib.compress(bytes(rows), 6)) + chunk(b'IEND', b'')
+
+
+def mix(a, b, t): return [a[i] + (b[i] - a[i]) * t for i in range(3)]
+
+
+def avatar_png(c0, c1):
+    """A soft two-colour gradient with a lighter blob, like the abstract avatars people pick."""
+    import math
+    def px(x, y):
+        c = mix(c0, c1, (x + y) / 254)
+        g = max(0.0, 1 - math.hypot(x - 44, y - 40) / 70)
+        return mix(c, (255, 255, 255), g * g * 0.45)
+    return png_bytes(128, 128, px)
+
+
+def landscape_png(w, h, sky0, sky1, sun, layers):
+    """Sky gradient, a sun with a glow, and mountain ridges in layers."""
+    import math
+    ridges = [[(h * base) + sum(h * a * math.sin(x / w * f + p) for a, f, p in waves) for x in range(w)] for base, waves, _ in layers]
+    def px(x, y):
+        t = y / h
+        c = mix(sky0, sky1, t)
+        d = math.hypot(x - w * 0.68, y - h * 0.42) / h
+        c = mix(c, sun, max(0.0, 1 - d / 0.09)) if d < 0.09 else mix(c, sun, max(0.0, 0.35 - d) * 0.9)
+        for i, (_, _, col) in enumerate(layers):
+            if y >= ridges[i][x]: c = mix(col, sky1, max(0.0, 0.25 - (y - ridges[i][x]) / h) * 0.6)
+        return c
+    return png_bytes(w, h, px)
+
+
+def hero_fixture(d):
+    import random
+    G, ME, GEN = 1546820558300258304, 1546819257420087346, 1546820603343016006
+    VOICE, CAT_T, CAT_V = 1546820558950371411, 1546820558950371408, 1546820558950371409
+    EPOCH, NOW = 1420070400000, 1793034000000
+    lines = [json.loads(l) for l in open(os.path.join(ROOT, 'tests', 'ui', 'chat_threads.jsonl'), encoding='utf-8')]
+    ready, supp = lines[0]['etf']['d'], lines[1]['etf']['d']
+    media = os.path.join(d, 'media')
+    os.makedirs(media, exist_ok=True)
+    def put(name, data):
+        with open(os.path.join(media, name), 'wb') as f: f.write(data)
+    seq = [0]
+    def sf(ms):
+        seq[0] += 1
+        return ((ms - EPOCH) << 22) | seq[0]
+    # users: (id, username, name, colours, status, activity)
+    people = [
+        (ME, 'sam', 'Sam', ((90, 110, 240), (170, 90, 230)), 'online', None),
+        (1000000000020971521, 'maya', 'Maya', ((240, 120, 80), (240, 190, 70)), 'online', {'type': 0, 'name': 'Celeste'}),
+        (1000000000020971522, 'theo', 'Theo', ((40, 170, 150), (60, 120, 220)), 'idle', None),
+        (1000000000020971523, 'ines', 'Ines', ((220, 80, 140), (250, 160, 120)), 'dnd', {'type': 4, 'name': 'Custom Status', 'state': 'heads down until 6', 'emoji': {'name': '\U0001f3a7'}}),
+        (1000000000020971524, 'kai', 'Kai', ((70, 80, 110), (120, 200, 200)), 'online', None),
+        (1000000000020971525, 'noor', 'Noor', ((150, 200, 90), (40, 140, 110)), 'offline', None),
+        (1000000000020971526, 'jules', 'Jules', ((200, 160, 250), (100, 110, 220)), 'offline', None),
+    ]
+    MOD = 1546822593921679420
+    users = {}
+    for uid, un, gn, (c0, c1), *_ in people:
+        h = '%032x' % (uid % (1 << 64))
+        put(h + '.webp', avatar_png(c0, c1)); put(h + '.png', avatar_png(c0, c1))
+        users[uid] = {'id': uid, 'username': un, 'global_name': gn, 'avatar': h, 'discriminator': '0', 'bot': False}
+    mods = {ME, 1000000000020971521}
+
+    g = ready['guilds'][0]
+    g['properties']['name'] = 'Night Owls'
+    ghash = 'a1b2c3d4e5f60718293a4b5c6d7e8f90'
+    g['properties']['icon'] = ghash
+    put(ghash + '.webp', avatar_png((30, 40, 90), (90, 70, 200))); put(ghash + '.png', avatar_png((30, 40, 90), (90, 70, 200)))
+    g['member_count'] = len(people)
+    for r in g['roles']:
+        if r['id'] == MOD: r.update(name='Mods', color=0x3DB8A6, colors={'primary_color': 0x3DB8A6, 'secondary_color': None, 'tertiary_color': None})
+    chans = []
+    for c in g['channels']:
+        if c['id'] == GEN: c.update(name='general', topic='Hang out, share things, plan the weekend')
+        if c['id'] == VOICE: c.update(name='Lounge', icon_emoji=None)
+        chans.append(c)
+    extra = [(1546820603343016011, 'announcements', 0, CAT_T, 0), (1546820603343016012, 'photos', 0, CAT_T, 2),
+             (1546820603343016013, 'games', 0, CAT_T, 3), (1546820603343016014, 'music', 0, CAT_T, 4),
+             (1546820603343016015, 'Movie night', 2, CAT_V, 1)]
+    for cid, name, typ, parent, pos in extra:
+        chans.append({'id': cid, 'name': name, 'type': typ, 'parent_id': parent, 'position': pos, 'flags': 0, 'nsfw': False,
+                      'permission_overwrites': [], 'last_message_id': sf(NOW - 60000) if name in ('photos', 'games') else None})
+    g['channels'] = chans
+    ready['users'] = [u for uid, u in users.items() if uid != ME]
+    ready['user'].update(global_name='Sam', username='sam', avatar=users[ME]['avatar'])
+    member = lambda uid: {'user_id': uid, 'roles': [MOD] if uid in mods else [], 'nick': None, 'avatar': None, 'deaf': False, 'mute': False,
+                          'flags': 0, 'pending': False, 'joined_at': '2026-09-08T09:53:38+00:00', 'premium_since': None, 'communication_disabled_until': None}
+    ready['merged_members'] = [[member(ME)]]
+    supp['merged_members'] = [[member(uid) for uid, *_ in people if uid != ME]]
+    supp['merged_presences'] = {'friends': [], 'guilds': [[{'user_id': uid, 'status': st, 'activities': [a] if a else [], 'client_status': {'desktop': st}}
+                                                           for uid, _, _, _, st, a in people if uid != ME and st != 'offline']]}
+    supp['guilds'][0]['voice_states'] = [
+        {'user_id': uid, 'channel_id': VOICE, 'session_id': 's%d' % i, 'self_mute': i == 1, 'self_deaf': False, 'self_video': False,
+         'self_stream': i == 0, 'mute': False, 'deaf': False, 'suppress': False, 'request_to_speak_timestamp': None}
+        for i, uid in enumerate((1000000000020971522, 1000000000020971524))]
+    rs = ready['read_state']['entries']
+    rs[0]['last_message_id'] = 0
+    out = [lines[0], lines[1]]
+    def ev(t, dd): out.append({'rt': 0, 'dir': 'recv', 'etf': {'op': 0, 't': t, 's': 100 + len(out), 'd': dd}})
+
+    def msg(uid, ms, content='', cid=GEN, **k):
+        m = {'id': sf(ms), 'channel_id': cid, 'guild_id': G, 'author': users[uid], 'content': content, 'timestamp': '', 'edited_timestamp': None,
+             'type': 0, 'attachments': [], 'embeds': [], 'mentions': [], 'mention_everyone': False, 'flags': 0, 'tts': False, 'pinned': False}
+        m.update(k)
+        ev('MESSAGE_CREATE', m)
+        return m
+    def react(*rs): return [{'emoji': {'id': None, 'name': e}, 'count': n, 'me': me, 'burst_count': 0, 'me_burst': False} for e, n, me in rs]
+    MAYA, THEO, INES, KAI = (p[0] for p in people[1:5])
+    t = NOW - 41 * 60000
+    first = msg(THEO, t, 'anyone up for the ridge trail on saturday? leaving around 8')
+    msg(KAI, t + 4 * 60000, 'the route: https://trails.example/ridge-loop')
+    put('loop.png', landscape_png(320, 180, (120, 170, 200), (220, 230, 210), (255, 250, 220),
+                                  [(0.55, [(0.06, 4, 0.5), (0.02, 15, 2.0)], (90, 130, 110)), (0.72, [(0.04, 7, 1.5)], (50, 90, 80))]))
+    out[-1]['etf']['d']['embeds'] = [{'type': 'article', 'url': 'https://trails.example/ridge-loop', 'title': 'Ridge Loop via North Saddle',
+                                       'description': '11.2 km \u00b7 640 m gain \u00b7 views the whole way',
+                                       'color': 0x3DB8A6, 'provider': {'name': 'Trail Notes'},
+                                       'thumbnail': {'url': 'https://trails.example/loop.png', 'proxy_url': 'https://images-ext-1.discordapp.net/external/x/https/trails.example/loop.png', 'width': 320, 'height': 180, 'flags': 0}}]
+    me_msg = msg(ME, t + 9 * 60000, "<@%d> I'm in. I'll bring snacks, carpool from my place at 7:30?" % THEO,
+                 mentions=[users[THEO]], message_reference={'message_id': first['id'], 'channel_id': GEN, 'guild_id': G},
+                 referenced_message=first, reactions=react(('\U0001f44d', 3, False), ('\U0001f697', 2, True)))
+    th = me_msg['id']
+    ev('THREAD_CREATE', {'id': th, 'guild_id': G, 'parent_id': GEN, 'type': 11, 'name': 'carpool + gear', 'owner_id': ME, 'message_count': 0, 'member_count': 4,
+                         'thread_metadata': {'archived': False, 'locked': False, 'auto_archive_duration': 1440, 'archive_timestamp': '2026-10-25T00:00:00+00:00', 'create_timestamp': '2026-10-25T00:20:00+00:00'},
+                         'member': {'id': th, 'user_id': ME, 'flags': 1, 'join_timestamp': '2026-10-25T00:21:00+00:00'}, 'last_message_id': None})
+    for i, (uid, text) in enumerate(((THEO, 'I can drive the second car'), (MAYA, 'packing the stove, who wants cocoa at the top?'), (INES, 'me \U0001f64b'))):
+        msg(uid, t + (11 + i) * 60000, text, cid=th)
+    put('ridge.png', landscape_png(640, 360, (60, 70, 140), (250, 170, 120), (255, 236, 190),
+                                   [(0.52, [(0.05, 7, 0.3), (0.025, 19, 1.1)], (110, 90, 150)), (0.64, [(0.04, 5, 2.0), (0.02, 23, 0.4)], (70, 60, 110)),
+                                    (0.78, [(0.03, 9, 4.0), (0.015, 31, 0.9)], (35, 32, 64))]))
+    aid = sf(t + 20 * 60000 + 500)
+    last = msg(MAYA, t + 20 * 60000 + 1000, 'took this from the top last time \U0001f304', attachments=[{'id': aid, 'filename': 'ridge.png', 'size': 412000, 'content_type': 'image/png', 'width': 640, 'height': 360,
+                                       'url': f'https://cdn.discordapp.com/attachments/{GEN}/{aid}/ridge.png', 'proxy_url': f'https://media.discordapp.net/attachments/{GEN}/{aid}/ridge.png'}],
+        reactions=react(('\U0001f60d', 4, True), ('\U0001f525', 2, False), ('⛰️', 1, False)))
+    rs[0]['last_message_id'] = last['id']
+    # the member list as Discord sends it for the channel: hoisted Mods, then Online and Offline
+    groups = [(MOD, sorted(mods)), ('online', [p[0] for p in people if p[0] not in mods and p[4] != 'offline']), ('offline', [p[0] for p in people if p[4] == 'offline'])]
+    items = []
+    for gid, ids in groups:
+        items.append({'group': {'id': gid, 'count': len(ids)}})
+        for uid in ids:
+            p = next(p for p in people if p[0] == uid)
+            m = member(uid); del m['user_id']
+            items.append({'member': dict(m, user=users[uid], presence={'user': {'id': uid}, 'status': p[4], 'activities': [p[5]] if p[5] else [], 'client_status': {'desktop': p[4]} if p[4] != 'offline' else {}})})
+    ev('GUILD_MEMBER_LIST_UPDATE', {'guild_id': G, 'id': 'everyone', 'member_count': len(people), 'online_count': len(people) - 2,
+                                    'groups': [{'id': gid, 'count': len(ids)} for gid, ids in groups], 'ops': [{'op': 'SYNC', 'range': [0, 99], 'items': items}]})
+    # a few more servers on the rail
+    for i, (name, c0, c1) in enumerate((('Pixel Garden', (240, 150, 60), (230, 80, 120)), ('Synth Club', (60, 200, 220), (80, 90, 230)),
+                                        ('Book Nook', (120, 190, 110), (230, 210, 100)), ('Climbing', (200, 90, 90), (120, 60, 160)))):
+        gid, h = 1600000000000000001 + i * 10, 'b%031x' % i
+        put(h + '.webp', avatar_png(c0, c1)); put(h + '.png', avatar_png(c0, c1))
+        ev('GUILD_CREATE', {'id': gid, 'name': name, 'icon': h, 'owner_id': MAYA, 'joined_at': '2026-01-01T00:00:00+00:00', 'emojis': [], 'stickers': [], 'features': [], 'member_count': 3,
+                            'roles': [{'id': gid, 'name': '@everyone', 'permissions': '311489317953', 'position': 0, 'color': 0, 'hoist': False, 'managed': False, 'mentionable': False}],
+                            'channels': [{'id': gid + 1, 'type': 0, 'name': 'general', 'position': 0, 'parent_id': None, 'permission_overwrites': [], 'last_message_id': None}]})
+    for l in lines[22:24]: out.append(l)  # the two scheduled events
+    out[-2]['etf']['d'].update(name='Saturday ridge hike', channel_id=VOICE, creator_id=MAYA, user_count=5)
+    out[-1]['etf']['d'].update(name='Movie night', creator_id=INES, description='Vote on the film in #general.', entity_metadata={'location': 'Theo\'s place'}, user_count=6)
+    path = os.path.join(d, 'hero.jsonl')
+    with open(path, 'w', encoding='utf-8') as f:
+        for o in out: f.write(json.dumps(o, ensure_ascii=False) + '\n')
+    with open(os.path.join(d, 'hero.txt'), 'w') as f: f.write('wait 5\nmove 1240 700\nwait 30\n')
+    return path, GEN, NOW
+
+
 def hero():
-    png = os.path.join(SEC, 'video', 'hero.png')
-    run(os.path.join(ROOT, 'build', 'fastcord-dev'), f'-shot:{png}', '-dpi:2', f'-fixture:{ROOT}/tests/ui/chat_threads.jsonl',
-        '-channel:1546820603343016006', f'-script:{ROOT}/tests/video/hero.txt', cwd=ROOT)
+    d = os.path.join(ROOT, 'build', 'site_hero')
+    fixture, chan, now = hero_fixture(d)
+    png = os.path.join(d, 'hero.png')
+    run(os.path.join(ROOT, 'build', 'fastcord-dev'), f'-shot:{png}', '-dpi:2', '-size:1280x840', f'-fixture:{fixture}', f'-channel:{chan}', f'-now:{now // 1000}',
+        f'-script:{d}/hero.txt', cwd=ROOT, env=dict(os.environ, FASTCORD_MEDIA_DIR=os.path.join(d, 'media')))
     run('sips', '-s', 'format', 'jpeg', '-s', 'formatOptions', '85', png, '--out', os.path.join(ROOT, 'site', 'screenshot.jpg'), stdout=subprocess.DEVNULL)
 
 
