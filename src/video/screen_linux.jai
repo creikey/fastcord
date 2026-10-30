@@ -1,7 +1,7 @@
 // Go Live on Linux. xdg-desktop-portal's ScreenCast (over libdbus) lets the desktop's own dialog pick the
 // screen or window and hands over a PipeWire node; libpipewire streams it as 32-bit RGB, converted to NV12
 // here. Soundshare captures every other app's playback through PipeWire (fastcord's own is left out),
-// mixed to mono 48 kHz. Both libraries are opened with dlopen when sharing starts, so fastcord runs
+// mixed to stereo 48 kHz. Both libraries are opened with dlopen when sharing starts, so fastcord runs
 // without them.
 
 screen_supported :: () -> bool { return true; }
@@ -178,7 +178,7 @@ App_Audio :: struct {
 	node: u32;
 	stream: *void;
 	hook: Spa_Hook;
-	pos: s64; // the next sample's absolute position in the mix
+	pos: s64; // the next frame's absolute position in the mix
 }
 
 on_video_state :: (data: *void, old: s32, state: s32, error: *u8) #c_call {
