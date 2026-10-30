@@ -275,6 +275,13 @@ session (32 scenarios, about 35 minutes) got no 429s. Retries honour
 response, as HTTPUtils releases them (`rate_limit_queue`). A 429 in a session is a bug in our traffic,
 not something to wait out.
 
+### Session of 2026-10-29
+
+32 scenarios, no 429s, against the fixtures re-recorded on 0.0.420. Its totals (1015 all / 564 core) aren't comparable
+with the table below: the test account's saved Alt-Svc had expired, so every request went over h2 against the
+fixtures' h3, and Discord's live `client_build_number` had moved past the fixtures'. Request shapes, which the
+site's chart compares, were in step for 87% of requests and 64% of telemetry.
+
 ### Last full session (2026-10-27, Jai build)
 
 32 scenarios in 14 minutes, no 429s. Totals: 438 all / 189 core (the last Odin session: 404 / 196).
