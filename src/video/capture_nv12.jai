@@ -3,7 +3,7 @@
 
 Capture :: struct {
 	on_frame: Frame_Proc;
-	on_audio: Audio_Proc; // Linux screens: soundshare
+	on_audio: Audio_Proc; // screens: soundshare (Windows: on audio's thread, under mu)
 	user: *void;
 	thread: Thread;
 	mu: locks.Mutex; // held around on_frame, so capture_stop knows no callback runs after it returns
@@ -15,6 +15,8 @@ Capture :: struct {
 	device: string; // camera_start's device id, heap ("" = the first real camera)
 	got_frame: bool; // atomic
 	started: Apollo_Time;
+	audio: Thread; // Windows soundshare
+	audio_on: bool;
 }
 
 // A synthetic source for live tests (FASTCORD_VIDEO_TEST): eight colour bars scrolling left and a white
@@ -85,8 +87,9 @@ reap :: () {
 	i := 0;
 	while i < stopped.count {
 		c := stopped[i];
-		if thread_is_done(*c.thread) {
+		if thread_is_done(*c.thread) && (!c.audio_on || thread_is_done(*c.audio)) {
 			thread_deinit(*c.thread);
+			if c.audio_on thread_deinit(*c.audio);
 			free(c.device);
 			free(c);
 			array_unordered_remove_by_index(*stopped, i);

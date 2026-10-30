@@ -1,7 +1,8 @@
 // Video for calls and Go Live: camera and screen capture (NV12), a realtime H.264/H.265 encoder that
 // emits Annex B, and a software VP8 encoder (encode_vp8.jai, every platform). macOS (AVFoundation,
-// ScreenCaptureKit, VideoToolbox), Windows (Media Foundation, DXGI desktop duplication; H.264 only) and
-// Linux (V4L2 cameras, the ScreenCast portal and PipeWire, openh264; H.264 only).
+// ScreenCaptureKit, VideoToolbox), Windows (Media Foundation, DXGI desktop duplication,
+// Windows.Graphics.Capture, WASAPI loopback; H.264 only) and Linux (V4L2 cameras, the ScreenCast portal
+// and PipeWire, openh264; H.264 only).
 
 // A captured frame, valid only during the call: macOS a CVPixelBuffer ('420v' or '420f'), Windows an
 // yuv.Nv12. Called on the capture's queue or thread with a temp that is reset after each call.
@@ -23,7 +24,7 @@ Video_Codec :: enum u8 { H264; H265; }
 SCREEN_STOPPED :: "Screen sharing stopped.";
 
 SUPPORTED :: OS == .MACOS || OS == .WINDOWS || OS == .LINUX; // capture and encoding exist on this platform
-SOUNDSHARE :: OS == .MACOS || OS == .LINUX; // screen_start can capture the shared screen's sound (macOS 13+; Linux: every other app's)
+SOUNDSHARE :: OS == .MACOS || OS == .WINDOWS || OS == .LINUX; // screen_start can capture the shared screen's sound (macOS 13+; Windows 10 2004+; Linux: every other app's)
 
 // A camera for the picker. id: AVCaptureDevice's uniqueID, the Media Foundation symbolic link, or the
 // /dev/video path; camera_start takes it ("" = the default camera).
@@ -66,10 +67,10 @@ cams: struct {
 
 Screen_Target :: struct {
 	is_window: bool;
-	id: u32; // CGDirectDisplayID or CGWindowID; Windows: DXGI adapter << 8 | output; Linux: 1, the portal picks
+	id: u32; // CGDirectDisplayID or CGWindowID; Windows: DXGI adapter << 8 | output, or the HWND; Linux: 1, the portal picks
 	name: string;
 	width, height: int; // points; 0 where only the stream knows (Linux)
-	x, y: int; // Windows: the screen's place on the desktop
+	x, y: int; // Windows: the place on the desktop
 }
 
 // A target's thumbnail, THUMB_W wide: RGBA, premultiplied, in allocator; empty until it's taken (macOS:

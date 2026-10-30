@@ -334,7 +334,8 @@ video_shutdown :: () {
 
 // FASTCORD_VIDEO_TEST=camera,stream,watch,vp8 (live tests): a synthetic pattern instead of the
 // camera / screen, turned on as soon as the call connects; "watch" watches the first stream
-// in the channel; "vp8" moves the call to VP8 (video_test_frame). Video stats go to stderr every 2 s.
+// in the channel; "vp8" moves the call to VP8 (video_test_frame). "screen" or "window=<title part>" (last)
+// streams the first real screen or matching window instead, with its sound. Video stats go to stderr every 2 s.
 video_test :: (what: string) -> bool {
 	v := env_var("FASTCORD_VIDEO_TEST");
 	return ifx what then contains(v, what) else v != "";
@@ -394,6 +395,18 @@ video_test_frame :: () {
 		vt_started_stream = true;
 		go_live_start(.{name = "test pattern", width = 1280, height = 720});
 	}
+	if (video_test("screen") || video_test("window=")) && !vt_started_stream {
+		vt_started_stream = true;
+		v := env_var("FASTCORD_VIDEO_TEST");
+		_, _, title := split_from_left(v, "window=");
+		video.screen_targets_refresh();
+		targets := video.screen_targets();
+		for targets if it.is_window == (title != "") && (!title || contains(it.name, title)) {
+			print("[video-test] sharing % (%x%)\n", it.name, it.width, it.height, to_standard_error = true);
+			go_live_start(it);
+			break;
+		}
+	}
 	now := wall_ms();
 	if video_test("watch") && !vid.watches.count {
 		for vs, uid: call_store().voice_states if vs.channel_id == app.voice_channel && vs.self_stream && uid != call_store().me { watch_stream(uid); break; }
@@ -409,6 +422,7 @@ video_test_frame :: () {
 	}
 	report("voice", conn);
 	report("own-stream", vid.own_conn);
+	if vid.own_conn { locks.guard(*share.mu); print("[video-test] soundshare samples=% peak=%\n", share.got, share.peak, to_standard_error = true); }
 	for vid.watches report("watch", it.conn);
 	locks.guard(*vid.mu);
 	for rv, uid: vid.cams if rv.img.y print("[video-test] showing camera of % (%x%)\n", uid, rv.img.size[0], rv.img.size[1], to_standard_error = true);
@@ -475,6 +489,8 @@ SHARE_MAX :: 48000 / 5 * 2;
 share: struct {
 	mu: locks.Mutex;
 	buf: [..]float32;
+	got: int; // samples so far, and their loudest, for the live test's log
+	peak: float32;
 };
 
 share_reset :: () {
@@ -484,6 +500,8 @@ share_reset :: () {
 
 on_share_audio :: (user: *void, pcm: []float32) {
 	locks.guard(*share.mu);
+	share.got += pcm.count;
+	for pcm share.peak = max(share.peak, abs(it));
 	array_add(*share.buf, ..pcm);
 	if share.buf.count > SHARE_MAX {
 		drop := share.buf.count - SHARE_MAX;  // even: whole frames go
