@@ -1396,6 +1396,57 @@ stream_preview :: (c: *Client, key: string) -> string {
 	return url;
 }
 
+// stream_preview_upload: our stream's thumbnail, a data:image/jpeg;base64 URL, as the desktop client's
+// ApplicationStreamPreviewUploadManager posts it: {"thumbnail": <url>} to /streams/{key}/preview, sent by
+// the desktop host's Node (DiscordNative.http.makeChunkedRequest) rather than Chrome. Its outcome is
+// stream_preview_result's. Not on a self-hosted server.
+stream_preview_upload :: (c: *Client, key: string, thumbnail: string) {
+	if c.cfg.hosted.host return;
+	atomic_store(*c.preview_upload_status, 0);
+	j := job_new(.Web, .None);
+	j.node = true;
+	j.method = "POST";
+	j.host = API_HOST;
+	j.path = job_str(j, tprint("/api/v9/streams/%/preview", key)); // our own key: guild:<g>:<c>:<u>, not encoded
+	j.body = cast([]u8) job_str(j, tprint("{\"thumbnail\":\"%\"}", thumbnail));
+	job_submit(c, j);
+}
+
+// stream_preview_result: the last upload's status (0 while it's on its way or none was sent, -1 when it
+// never got an answer). Any thread.
+stream_preview_result :: (c: *Client) -> int { return atomic_load(*c.preview_upload_status); }
+
+node_request :: (token: string, host: string, path: string, body: []u8) -> http.Request {
+	return .{method = "POST", scheme = "https", authority = host, path = path, body = body,
+		headers = array_copy(http.Header.[.{"authorization", token}, .{"Content-Type", "application/json"},
+			.{"Content-Length", tprint("%", body.count)}, .{"Host", host}, .{"Connection", "keep-alive"}],, temp)};
+}
+
+// node_post (worker): j as makeChunkedRequest sends it with Node's https.request: a new connection
+// (Node's TLS, no ALPN), the headers the host sets (authorization, Content-Type, Content-Length) then Node's
+// (Host, Connection: keep-alive), and the JSON body in 400-byte writes 50 ms apart (maxBps 8000, chunkInterval
+// 50), the first with the head.
+node_post :: (c: *Client, j: *Job) {
+	req := node_request(c.token, j.host, j.path, j.body);
+	status := -1;
+	if c.transport.override.round_trip {
+		resp, err := c.transport.override.round_trip(c.transport.override.data, j.host, req);
+		if err == .None status = resp.status;
+		http.response_destroy(*resp);
+	} else {
+		stream, _, ok := dial_tls_stream(j.host, .[], node = true);
+		if ok {
+			conn: http.H1_Conn;
+			http.h1_init(*conn, stream, .{max_body = 1 << 16});
+			resp, err := http.h1_round_trip_paced(*conn, req, 400, 50);
+			if err == .None status = resp.status;
+			http.response_destroy(*resp);
+			http.h1_destroy(*conn);
+		}
+	}
+	atomic_store(*c.preview_upload_status, status);
+}
+
 // stream_server_info: the voice connection for a stream once STREAM_CREATE and
 // STREAM_SERVER_UPDATE arrived; version changes per STREAM_SERVER_UPDATE.
 stream_server_info :: (c: *Client, key: string) -> Voice_Server_Info, u64, bool {

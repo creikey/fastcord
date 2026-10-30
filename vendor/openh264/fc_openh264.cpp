@@ -140,6 +140,17 @@ int fc_h264_enc_encode(void *ev, const uint8_t *nv12, int64_t ts_ms, int force_k
 	return 0;
 }
 
+// fc_h264_enc_set_bitrate changes the target (and 1.5x peak) bitrate between frames, as WebRTC's
+// H264EncoderImpl::SetRates does.
+void fc_h264_enc_set_bitrate(void *ev, int bitrate) {
+	Fc_H264_Enc *f = (Fc_H264_Enc *)ev;
+	SBitrateInfo max = {SPATIAL_LAYER_ALL, bitrate * 3 / 2};
+	f->e->SetOption(ENCODER_OPTION_MAX_BITRATE, &max);
+	SBitrateInfo target = {SPATIAL_LAYER_ALL, bitrate};
+	f->e->SetOption(ENCODER_OPTION_BITRATE, &target);
+	f->e->SetOption(ENCODER_OPTION_MAX_BITRATE, &max); // again: a peak below the old target is refused
+}
+
 void fc_h264_enc_destroy(void *ev) {
 	Fc_H264_Enc *f = (Fc_H264_Enc *)ev;
 	if (!f) return;

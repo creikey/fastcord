@@ -38,9 +38,15 @@ Sender :: struct {
 	conn: *voice.Conn;
 	capture: *video.Capture;
 	enc: *video.Encoder;
+	vp8: *video.Vp8_Encoder; // instead of enc in VP8 calls
 	codec: voice.Video_Codec;
 	fps, bitrate: int;
 	start: Apollo_Time;
+	// what the encoder runs at, adapted to the bandwidth estimate (send_shape; the capture's queue)
+	enc_w, enc_h, enc_rate: int;
+	step: int;          // camera: the index in LADDER
+	step_ms: s64;       // when it last changed
+	next_frame: Apollo_Time; // Go Live under its bitrate: frames before this are dropped
 	pending: media.Video_Frame; // preview (under mu)
 	img: media.Video_Image;     // UI thread
 }
@@ -64,6 +70,11 @@ Video_App :: struct {
 	go_sound := true; // share the screen's or window's sound (where video.SOUNDSHARE)
 	// the streams we watch, each on a voice connection of its own, in the order they were opened
 	watches: [..]Watch;
+	// our stream's preview (preview_tick)
+	thumb_due_ms: s64;  // when to take the next one (0: not scheduled)
+	thumb_want: bool;   // the capture's next frame becomes thumb (atomic)
+	thumb: string;      // a data:image/jpeg URL waiting to be uploaded (heap, under mu)
+	thumb_posting: bool; // an upload is on its way
 }
 
 vid: Video_App;
@@ -129,6 +140,7 @@ go_live_stop :: () {
 	voice_release(vid.own_conn);
 	vid.own_conn = null;
 	vid.own_version = 0;
+	preview_reset();
 	free(vid.own_key);
 	vid.own_key = "";
 }
@@ -197,9 +209,7 @@ camera_switch :: () {
 	if platform.is_headless() return; // the test pattern stays
 	for s: (*Sender).[*vid.camera, *vid.preview] if s.capture {
 		video.capture_stop(s.capture);
-		video.encoder_destroy(s.enc);
-		s.enc = null;
-		s.codec = .None;
+		encoder_stop(s);
 		s.capture = video.camera_start(on_capture_frame, s, CAMERA_W, CAMERA_H, CAMERA_FPS, vs.camera);
 	}
 }
@@ -249,11 +259,14 @@ video_frame :: () {
 					if video_test("stream") s.capture = video.pattern_start(on_capture_frame, s, vid.own_target.width, vid.own_target.height, vid.go_fps);
 					else s.capture = video.screen_start(vid.own_target, on_capture_frame, s, vid.go_fps, h, ifx vid.go_sound then on_share_audio);
 					voice.set_video(vid.own_conn, true, w, h, vid.go_fps, go_live_bitrate(w, h));
+					preview_reset();
+					vid.thumb_due_ms = dc.now_ms() + PREVIEW_FIRST_MS;
 				} else if st == .Disconnected {
 					go_live_stop();
 				}
 			}
 		}
+		if screen_sharing() preview_tick();
 		for < vid.watches {
 			if !it.key continue;
 			vs := table_find_pointer(*call_store().voice_states, it.user);
@@ -292,7 +305,11 @@ video_frame :: () {
 		send_voice_state();
 		toast_show(err, false);
 	}
-	if video.capture_error(vid.screen.capture) go_live_stop(); // stopped from outside (the macOS menu bar)
+	err = video.capture_error(vid.screen.capture);
+	if err {
+		go_live_stop(); // stopped from outside (the macOS menu bar, the Linux desktop), or failed
+		if err != video.SCREEN_STOPPED toast_show(err, false);
+	}
 	if vid.preview.capture {
 		err = video.capture_error(vid.preview.capture);
 		if err toast_show(err, false);
@@ -315,9 +332,9 @@ video_shutdown :: () {
 	deinit(*vid.streams);
 }
 
-// FASTCORD_VIDEO_TEST=camera,stream,watch (live tests): a synthetic pattern instead of the
+// FASTCORD_VIDEO_TEST=camera,stream,watch,vp8 (live tests): a synthetic pattern instead of the
 // camera / screen, turned on as soon as the call connects; "watch" watches the first stream
-// in the channel. Video stats go to stderr every 2 s.
+// in the channel; "vp8" moves the call to VP8 (video_test_frame). Video stats go to stderr every 2 s.
 video_test :: (what: string) -> bool {
 	v := env_var("FASTCORD_VIDEO_TEST");
 	return ifx what then contains(v, what) else v != "";
@@ -369,6 +386,9 @@ vt_started_camera, vt_started_stream: bool;
 video_test_frame :: () {
 	conn := vc_conn();
 	if !conn || voice.state(conn) != .Connected return;
+	// "vp8": op 14 marks H.264 and H.265 unencodable, so the server moves the call to VP8
+	vc := voice.video_codec(conn);
+	if video_test("vp8") && (vc == .H264 || vc == .H265) voice.cannot_encode(conn, vc);
 	if video_test("camera") && !vt_started_camera { vt_started_camera = true; camera_toggle(); }
 	if video_test("stream") && !vt_started_stream {
 		vt_started_stream = true;
@@ -409,6 +429,7 @@ stream_connect :: (info: dc.Voice_Server_Info, own := false) -> *voice.Conn {
 	if own {
 		share_reset();
 		o.capture = share_pull;
+		o.capture_stereo = true;
 	}
 	o.hosted = hosted_voice(call_client());
 	return voice.voice_connect(voice.Voice_Server_Info.{
@@ -427,6 +448,7 @@ stream_connect :: (info: dc.Voice_Server_Info, own := false) -> *voice.Conn {
 // The encoded size for a screen target: its aspect, at most the chosen height (go_height), even sides.
 screen_size :: (t: video.Screen_Target) -> int, int {
 	w, h := max(t.width, 2), max(t.height, 2);
+	if !t.height { h = ifx vid.go_height then vid.go_height else 2160; w = h * 16 / 9; } // Linux: the portal's pick, capped
 	if vid.go_height && h > vid.go_height { w = w * vid.go_height / h; h = vid.go_height; }
 	return w & ~1, h & ~1;
 }
@@ -447,9 +469,9 @@ remote_video :: (t: *Table(u64, *Remote_Video), uid: u64) -> *Remote_Video {
 }
 
 // Soundshare: the shared screen's sound (video.Audio_Proc, on the capture's queue) waits here for our
-// stream's voice connection, which takes a 20 ms frame per tick (voice.Options.capture). At most
-// SHARE_MAX samples wait: past that the oldest go, so a stalled connection never builds up delay.
-SHARE_MAX :: 48000 / 5;
+// stream's voice connection, which takes a 20 ms stereo frame per tick (voice.Options.capture). At most
+// SHARE_MAX samples (interleaved) wait: past that the oldest go, so a stalled connection never builds up delay.
+SHARE_MAX :: 48000 / 5 * 2;
 share: struct {
 	mu: locks.Mutex;
 	buf: [..]float32;
@@ -464,7 +486,7 @@ on_share_audio :: (user: *void, pcm: []float32) {
 	locks.guard(*share.mu);
 	array_add(*share.buf, ..pcm);
 	if share.buf.count > SHARE_MAX {
-		drop := share.buf.count - SHARE_MAX;
+		drop := share.buf.count - SHARE_MAX;  // even: whole frames go
 		memcpy(share.buf.data, share.buf.data + drop, SHARE_MAX * size_of(float32));
 		share.buf.count = SHARE_MAX;
 	}
@@ -599,16 +621,15 @@ sender_init :: (s: *Sender, conn: *voice.Conn, fps: int, bitrate: int) {
 	s.conn = conn;
 	s.fps, s.bitrate = fps, bitrate;
 	s.start = current_time_monotonic();
+	s.step, s.step_ms = 0, 0;
 }
 
 // sender_stop: capture first (no more frames), then the encoder (flushes its output), UI thread.
 sender_stop :: (s: *Sender) {
 	video.capture_stop(s.capture);
 	s.capture = null;
-	video.encoder_destroy(s.enc);
-	s.enc = null;
+	encoder_stop(s);
 	s.conn = null;
-	s.codec = .None;
 	locks.guard(*s.mu);
 	media.video_frame_release(*s.pending);
 	image_free(*s.img);
@@ -631,26 +652,143 @@ on_capture_frame :: (user: *void, camera_frame: *void, width: int, height: int) 
 		s.pending = media.video_frame_from_pixbuf(pixbuf);
 	}
 	platform.request_frame();
+	if s == *vid.screen && atomic_swap(*vid.thumb_want, false) preview_take(pixbuf);
 	if !s.conn return; // the camera test
 	codec := voice.video_codec(s.conn);
 	if codec == .None return; // not negotiated yet
 	// The server picks one codec for the whole call, also one we can't encode (H.265 on Windows and Linux,
-	// VP8, AV1). Ask it for another (op 14), and send H.264 until it answers: receivers pick the decoder by
+	// AV1). Ask it for another (op 14), and send H.264 until it answers: receivers pick the decoder by
 	// payload type, and every client decodes H.264.
-	if codec != .H264 && !(codec == .H265 && video.encoder_supported(.H265)) {
+	if codec != .H264 && codec != .VP8 && !(codec == .H265 && video.encoder_supported(.H265)) {
 		voice.cannot_encode(s.conn, codec);
 		codec = .H264;
 	}
-	if s.enc && s.codec != codec { video.encoder_destroy(s.enc); s.enc = null; }
+	estimate, want := voice.video_send_target(s.conn);
+	w, h, fps, rate := send_shape(s, width, height, estimate, want);
+	if fps < s.fps {
+		now := current_time_monotonic();
+		if to_nanoseconds(now - s.next_frame) < 0 return;
+		s.next_frame = now + milliseconds_to_apollo(1000 / fps - 500 / s.fps);
+	}
+	if s.codec != codec || s.enc_w != w || s.enc_h != h encoder_stop(s);
+	pts := cast,no_check(u32) (to_nanoseconds(current_time_monotonic() - s.start) * 9 / 100_000);
+	if codec == .VP8 {
+		if !s.vp8 {
+			s.vp8 = video.vp8_encoder_create(w, h, s.fps, rate, s == *vid.screen, on_encoded, s);
+			if !s.vp8 return;
+			s.codec, s.enc_w, s.enc_h, s.enc_rate = codec, w, h, rate;
+		} else if abs(rate - s.enc_rate) * 20 > s.enc_rate {
+			video.vp8_encoder_set_bitrate(s.vp8, rate);
+			s.enc_rate = rate;
+		}
+		video.vp8_encoder_encode(s.vp8, pixbuf, pts, voice.take_keyframe_request(s.conn));
+		return;
+	}
 	if !s.enc {
 		vcodec := ifx codec == .H265 then video.Video_Codec.H265 else .H264;
 		if !video.encoder_supported(vcodec) return;
 		s.codec = codec;
-		s.enc = video.encoder_create(vcodec, width & ~1, height & ~1, s.fps, s.bitrate, on_encoded, s);
+		s.enc = video.encoder_create(vcodec, w, h, s.fps, rate, on_encoded, s);
 		if !s.enc return;
+		s.enc_w, s.enc_h, s.enc_rate = w, h, rate;
+	} else if abs(rate - s.enc_rate) * 20 > s.enc_rate {
+		video.encoder_set_bitrate(s.enc, rate);
+		s.enc_rate = rate;
 	}
-	pts := cast,no_check(u32) (to_nanoseconds(current_time_monotonic() - s.start) * 9 / 100_000);
 	video.encoder_encode(s.enc, pixbuf, pts, voice.take_keyframe_request(s.conn));
+}
+
+// The camera's sizes: the client's resolution ladder for its 1280x720 budget (want values 100, 90 .. 20),
+// as heights with each one's share of the bitrate (per mille).
+LADDER :: ([2]int).[.[720, 1000], .[504, 490], .[378, 276], .[360, 250], .[288, 160], .[234, 106], .[216, 90], .[180, 63], .[144, 40]];
+
+// send_shape: the size, frame rate and bitrate to encode at, from the bandwidth estimate and the viewers'
+// want (op 15). The camera's want caps its ladder step; it steps down while the estimate is under 40% of
+// its step's bitrate and back up from 50% of the next one, at most every 2 s (a new size is a new encoder
+// and a keyframe). Go Live keeps its size and drops frames under half its bitrate, as WebRTC's screenshare
+// degradation keeps resolution.
+send_shape :: (s: *Sender, width: int, height: int, estimate: int, want: int) -> w: int, h: int, fps: int, bitrate: int {
+	if s == *vid.screen return width & ~1, height & ~1, clamp(s.fps * estimate * 2 / max(s.bitrate, 1), 5, s.fps), min(estimate, s.bitrate);
+	step_rate :: (s: *Sender, i: int) -> int { return max(s.bitrate * LADDER[i][1] / 1000, voice.BWE_MIN); }
+	cap := clamp((109 - want) / 10, 0, LADDER.count - 1);
+	now := to_milliseconds(current_time_monotonic());
+	i := max(s.step, cap);
+	if now - s.step_ms >= 2000 {
+		if i < LADDER.count - 1 && estimate < step_rate(s, i) * 2 / 5 i += 1;
+		else if i > cap && estimate >= step_rate(s, i - 1) / 2 i -= 1;
+	}
+	if i != s.step { s.step, s.step_ms = i, now; }
+	w, h := width, height;
+	if h > LADDER[i][0] { w = w * LADDER[i][0] / h; h = LADDER[i][0]; }
+	return w & ~1, h & ~1, s.fps, min(estimate, step_rate(s, i));
+}
+
+encoder_stop :: (s: *Sender) {
+	video.encoder_destroy(s.enc);
+	video.vp8_encoder_destroy(s.vp8);
+	s.enc, s.vp8 = null, null;
+	s.codec = .None;
+}
+
+// Our stream's preview, as the client's ApplicationStreamPreviewUploadManager makes it: 500 ms after the
+// stream's video starts, its next frame scaled to fit 512 x 288, a JPEG data URL (canvas toDataURL), posted
+// (dc.stream_preview_upload); again 5 minutes after one went through, 1 minute after one that failed.
+PREVIEW_FIRST_MS :: 500;
+PREVIEW_EVERY_MS :: 5 * 60_000;
+PREVIEW_RETRY_MS :: 60_000;
+
+preview_reset :: () {
+	vid.thumb_due_ms = 0;
+	vid.thumb_posting = false;
+	atomic_store(*vid.thumb_want, false);
+	locks.guard(*vid.mu);
+	free(vid.thumb);
+	vid.thumb = "";
+}
+
+// preview_tick (UI thread): asks the capture for a frame when one is due, uploads what it made, and
+// schedules the next once the upload is answered.
+preview_tick :: () {
+	now := dc.now_ms();
+	if vid.thumb_due_ms && now >= vid.thumb_due_ms {
+		vid.thumb_due_ms = now + PREVIEW_RETRY_MS; // unless a picture comes and goes out
+		atomic_store(*vid.thumb_want, true);
+	}
+	thumb: string;
+	{
+		locks.guard(*vid.mu);
+		thumb, vid.thumb = vid.thumb, "";
+	}
+	if thumb {
+		dc.stream_preview_upload(call_client(), vid.own_key, thumb);
+		free(thumb);
+		vid.thumb_posting = true;
+		vid.thumb_due_ms = 0;
+	}
+	if vid.thumb_posting {
+		st := dc.stream_preview_result(call_client());
+		if st == 0 return;
+		vid.thumb_posting = false;
+		vid.thumb_due_ms = now + ifx st >= 200 && st < 300 then PREVIEW_EVERY_MS else PREVIEW_RETRY_MS;
+	}
+}
+
+// preview_take (capture thread): the frame as the preview's JPEG data URL, for preview_tick; nothing when
+// it fails (preview_tick asks again in a minute).
+preview_take :: (pixbuf: *void) {
+	f := media.video_frame_from_pixbuf(pixbuf);
+	defer media.video_frame_release(*f);
+	if f.width < 2 || f.height < 2 return;
+	scale := min(512.0 / f.width, 288.0 / f.height);
+	w, h := max(cast(int) (f.width * scale), 1), max(cast(int) (f.height * scale), 1);
+	rgb := media.video_frame_rgb(*f, w, h);
+	if !rgb return;
+	jpeg := imagefmt.encode_jpeg(rgb, w, h,, temp);
+	if !jpeg return;
+	url := join("data:image/jpeg;base64,", base64_encode(cast(string) jpeg,, temp));
+	locks.guard(*vid.mu);
+	free(vid.thumb);
+	vid.thumb = url;
 }
 
 // on_encoded: video.Encoded_Proc, on the encoder's thread. The sender's

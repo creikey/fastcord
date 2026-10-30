@@ -1,7 +1,7 @@
 // dial_tls_stream: TCP + Chrome TLS to host:443 with the given ALPN list.
 // tls.stream forwards shutdown to the socket, so h2_close / the gateway can
 // wake a reader blocked inside TLS.
-dial_tls_stream :: (host: string, alpn: []string) -> netio.Stream, string, bool {
+dial_tls_stream :: (host: string, alpn: []string, node := false) -> netio.Stream, string, bool {
 	under: netio.Stream;
 	p := proxy_config();
 	if p.kind != .None {
@@ -13,7 +13,7 @@ dial_tls_stream :: (host: string, alpn: []string) -> netio.Stream, string, bool 
 		if derr != .None return .{}, "", false;
 		under = netio.tcp_stream(tcp);
 	}
-	sess, terr := tls.connect(under, .{alpn = alpn, server_name = host});
+	sess, terr := tls.connect(under, .{alpn = alpn, server_name = host, node = node});
 	if terr != .None {
 		netio.close(under);
 		return .{}, "", false;

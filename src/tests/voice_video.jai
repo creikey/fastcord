@@ -1,9 +1,12 @@
 // Video frames through the voice path without a network: libdave clear ranges, DAVE frame encryption,
-// RTP packetization and reassembly (a lost packet NACKed and retransmitted, one given up), for H.264 and H.265.
+// RTP packetization and reassembly (a lost packet NACKed and retransmitted, one given up), for H.264 and H.265;
+// and VP8 from end to end: video's encoder, DAVE, RFC 7741 packets, reassembly and libvpx's decoder.
 //   jai build.jai - run src/tests/voice_video.jai && build/voice_video
 #import "Basic";
 voice :: #import "voice";
 dave :: #import "voice_dave";
+video :: #import "video";
+media :: #import "media";
 
 main :: () {
     ok := true;
@@ -93,6 +96,7 @@ main :: () {
         }
         ok &= check(rx.need_key && done, "% lost frame given up, the next ones out", codec);
     }
+    ok &= vp8_round_trip();
     // a 3-byte start code input is normalized
     au := u8.[0, 0, 1, 0x67, 1, 2, 0, 0, 0, 1, 0x68, 3, 0, 0, 1, 0x65, 9, 9, 9];
     f, nals := voice.with_long_start_codes(au);
@@ -125,4 +129,83 @@ fake_au :: (codec: voice.Video_Codec) -> []u8 {
         nal(*b, .[0x26, 0x01], 5000); // IDR_W_RADL
     }
     return b;
+}
+
+// VP8: moving NV12 frames through video's encoder (a keyframe asked for halfway, a new bitrate, a larger
+// capture scaled down), then each as send_video sends
+// it: DAVE with libdave's VP8 clear range, RFC 7741 packets with a picture_id, reassembled and decrypted,
+// and decoded by libvpx at the encoder's size.
+vp8_round_trip :: () -> bool {
+    W :: 320;
+    H :: 240;
+    ok := true;
+    frames: [..][]u8;
+    keys: [..]bool;
+    Out :: struct { frames: *[..][]u8; keys: *[..]bool; }
+    o := Out.{*frames, *keys};
+    enc := video.vp8_encoder_create(W, H, 30, 600_000, false, (user: *void, f: []u8, key: bool, pts: u32) {
+        o := cast(*Out) user;
+        array_add(o.frames, array_copy(f));
+        array_add(o.keys, key);
+    }, *o);
+    ok &= check(enc != null, "VP8 encoder");
+    if !enc return false;
+    pic := NewArray(4 * W * H * 3 / 2, u8);
+    for t: 0..9 {
+        // from frame 5 on, the capture is twice the encoder's size (a bandwidth step down) and gets scaled
+        sw, sh := ifx t < 5 then W else 2 * W, ifx t < 5 then H else 2 * H;
+        for y: 0..sh - 1 for x: 0..sw - 1 pic[y * sw + x] = cast(u8) (16 + (x + y + t * 8) % 200);
+        for i: sw * sh..sw * sh * 3 / 2 - 1 pic[i] = cast(u8) (ifx i & 1 then 100 + t else 160);
+        video.vp8_encode_nv12(enc, pic.data, pic.data + sw * sh, sw, sw, sw, sh, cast(u32) (t * 3000), t == 5);
+        if t == 2 video.vp8_encoder_set_bitrate(enc, 300_000);
+    }
+    video.vp8_encoder_destroy(enc);
+    ok &= check(frames.count >= 8 && keys[0] && voice.is_keyframe(.VP8, frames[0]), "VP8 frames % (first a keyframe)", frames.count);
+    ok &= check(keys.count > 5 && keys[5] && !keys[1], "VP8 keyframe on request");
+
+    key: [16]u8;
+    for * key it.* = xx (it_index * 5 + 1);
+    dec := media.sw_decoder_create(.VP8);
+    rx: voice.Video_Rx;
+    seq: u16 = 65500;
+    decoded := 0;
+    for frame, fi: frames {
+        ranges := voice.dave_clear_ranges(.VP8, frame, .[]);
+        want := ifx keys[fi] then 10 else 1;
+        ok &= check(ranges.count == 1 && ranges[0].offset == 0 && ranges[0].size == want, "VP8 frame % clear range %", fi, ranges);
+        e := NewArray(frame.count + 256, u8,, temp);
+        fl := dave.encrypt_frame(key, cast(u32) (0x01000010 + fi), frame, ranges, e);
+        ok &= check(fl > frame.count && memcmp(e.data, frame.data, want) == 0, "VP8 frame % encrypts, clear bytes kept", fi);
+        Got :: struct { payloads: [..][]u8; lasts: [..]bool; }
+        got: Got;
+        voice.packetize(.VP8, array_view(e, 0, fl), .[], (p: []u8, last: bool, data: *void) {
+            g := cast(*Got) data;
+            array_add(*g.payloads, array_copy(p,, temp));
+            array_add(*g.lasts, last);
+        }, *got, cast(u16) (0x7ffe + fi) & 0x7fff);
+        pid := cast(u16) (0x7ffe + fi) & 0x7fff;
+        for p: got.payloads {
+            first := it_index == 0;
+            ok &= check(p.count <= voice.MAX_VIDEO_PAYLOAD && p[0] == (ifx first then cast(u8) 0x90 else 0x80) && p[1] == 0x80 && p[2] == 0x80 | cast(u8) (pid >> 8) && p[3] == cast(u8) pid, "VP8 frame % packet % descriptor", fi, it_index);
+        }
+        out: []u8;
+        done: bool;
+        for got.payloads { out, done = voice.rx_video_packet(*rx, .VP8, seq, cast(u32) (fi * 3000), got.lasts[it_index], it); seq += 1; }
+        ok &= check(done && out.count == fl && memcmp(out.data, e.data, fl) == 0, "VP8 frame % reassembled from % packets", fi, got.payloads.count);
+        p, is_frame := dave.parse_protocol_frame(out);
+        plain := NewArray(p.interleaved.count, u8,, temp);
+        n, dok := dave.decrypt_frame(key, *p, plain);
+        ok &= check(is_frame && dok && n == frame.count && memcmp(plain.data, frame.data, n) == 0, "VP8 frame % decrypts", fi);
+        pics: [..]media.Video_Frame;
+        pics.allocator = temp;
+        ok &= check(media.sw_decode(dec, array_view(plain, 0, n), *pics), "VP8 frame % decodes", fi);
+        for * pics {
+            ok &= check(it.width == W && it.height == H, "VP8 picture %x%", it.width, it.height);
+            media.video_frame_release(it);
+            decoded += 1;
+        }
+    }
+    media.sw_decoder_destroy(dec);
+    ok &= check(decoded == frames.count, "VP8 pictures % of %", decoded, frames.count);
+    return ok;
 }

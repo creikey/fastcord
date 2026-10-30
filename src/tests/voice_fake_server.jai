@@ -2,7 +2,7 @@
 // gateway on 127.0.0.1 (plain TCP via Options.dial), UDP media on loopback, and a second DAVE member
 // "B" that the server welcomes into our client's group. Verifies the handshake order, IP discovery,
 // SELECT_PROTOCOL, heartbeats with seq_ack, the DAVE MLS flow, E2EE media both ways and the close
-// code; then a resume after the server drops the connection.
+// code; then a resume after the server drops the connection, and the bandwidth estimate over a slow link.
 //   jai build.jai - run jai/tests/voice_fake_server.jai && build/voice_fake_server
 #import "Basic";
 #import "Math";
@@ -672,9 +672,175 @@ test_fake_voice_resume :: () {
     expect(f.resume_msg == "{\"op\":7,\"d\":{\"token\":\"TK\",\"session_id\":\"SS\",\"server_id\":\"5\",\"channel_id\":\"7\",\"seq_ack\":3}}", "resume: %", f.resume_msg);
 }
 
+// ---------------------------------------------------------------------------
+// Test 3: bandwidth estimation. The server's UDP side is a LINK_BPS link with LINK_QUEUE_MS of queue that
+// drops what overflows, and sends a receiver report with our video's fraction lost every 500 ms; a fake
+// encoder sends what video_send_target asks. The estimate falls from 2.5 Mb/s to the link's rate and holds
+// near it; then a 300 kb/s REMB caps it. op 15's want for our SSRC reaches video_send_target.
+
+Bwe_Fake :: struct {
+    listen, udp: s32;
+    udp_port: int;
+    stop: bool;
+    remb: int;  // atomic; > 0: each report carries this REMB
+    failure: string;
+}
+
+LINK_BPS :: 600_000;
+LINK_QUEUE_MS :: 60;
+KEY7 :: "[7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7]";
+
+bwe_gw :: (t: *Thread) -> s64 {
+    f := cast(*Bwe_Fake) t.data;
+    s, _, ok := upgrade(f.listen);
+    if !ok { f.failure = "upgrade"; return 0; }
+    defer close(s.sock);
+    next_text(*s);  // identify
+    send_text(*s, "{\"op\":8,\"d\":{\"v\":8,\"heartbeat_interval\":5000}}");
+    send_text(*s, tprint("{\"op\":2,\"d\":{\"streams\":[{\"type\":\"video\",\"ssrc\":%,\"rtx_ssrc\":%,\"rid\":\"100\",\"quality\":100,\"active\":false}],\"ssrc\":77,\"port\":%,\"modes\":[\"aead_xchacha20_poly1305_rtpsize\"],\"ip\":\"127.0.0.1\",\"experiments\":[]}}", FAKE_VIDEO_A, FAKE_VIDEO_A + 1, f.udp_port));
+    while true {
+        m, mok := next_text(*s);
+        if !mok { f.failure = "no select"; return 0; }
+        if begins_with(m, "{\"op\":1,") break;
+    }
+    send_text(*s, tprint("{\"op\":4,\"d\":{\"video_codec\":\"H264\",\"secret_key\":%,\"mode\":\"aead_xchacha20_poly1305_rtpsize\",\"dave_protocol_version\":0,\"audio_codec\":\"opus\"}}", KEY7));
+    send_text(*s, tprint("{\"op\":15,\"d\":{\"%\":60,\"any\":100}}", FAKE_VIDEO_A));
+    while true {  // answer heartbeats until the client closes
+        op, p, ok := read_frame(*s);
+        if !ok || op == 8 break;
+        if op != 1 continue;
+        v := json(cast(string) p);
+        if voice.jint(voice.jget(v, "op")) == 3 send_text(*s, tprint("{\"op\":6,\"d\":{\"t\":%}}", voice.jint(voice.jget(voice.jget(v, "d"), "t"))));
+    }
+    return 0;
+}
+
+bwe_udp :: (t: *Thread) -> s64 {
+    f := cast(*Bwe_Fake) t.data;
+    key: [32]u8;
+    for * key it.* = 7;
+    tx: voice.Transport_Crypto;
+    voice.transport_init(*tx, .Xchacha20_Poly1305_Rtpsize, key);
+    defer voice.transport_reset(*tx);
+    buf: [2048]u8;
+    ep: sockaddr_in;
+    have_ep, have_seq: bool;
+    nonce: u32;
+    max_seq: u16;
+    ext_max, ext_reported: u32;
+    received, total_received, total_lost: int;
+    busy_until: float64;  // when the link has sent what it holds, in seconds
+    start := current_time_monotonic();
+    next_rr := 0.5;
+    while !atomic_load(*f.stop) {
+        from: sockaddr_in;
+        flen: socklen_t = size_of(sockaddr_in);
+        n := recvfrom(f.udp, buf.data, buf.count, 0, cast(*sockaddr) *from, *flen);
+        now := to_float64_seconds(current_time_monotonic() - start);
+        if n == voice.DISCOVERY_LEN && voice.get_u16(buf) == 1 {
+            resp: [voice.DISCOVERY_LEN]u8;
+            voice.build_discovery_response(resp, voice.get_u32(buf, 4), "127.0.0.1", port_of(from));
+            sendto(f.udp, resp.data, resp.count, 0, cast(*sockaddr) *from, flen);
+            ep, have_ep = from, true;
+        } else if n > 0 && !voice.is_rtcp(array_view(buf, 0, n)) {
+            h, hok := voice.parse_rtp_header(array_view(buf, 0, n));
+            if hok && h.ssrc == FAKE_VIDEO_A {
+                busy_until = max(busy_until, now);
+                if busy_until - now <= LINK_QUEUE_MS / 1000.0 {
+                    busy_until += n * 8.0 / LINK_BPS;
+                    received += 1;
+                }
+                if !have_seq { max_seq, ext_max, ext_reported, have_seq = h.seq, 1, 0, true; }
+                d := cast,no_check(s16) (h.seq - max_seq);
+                if d > 0 { max_seq = h.seq; ext_max += cast(u32) d; }
+            }
+        }
+        if have_ep && have_seq && now >= next_rr {
+            next_rr += 0.5;
+            expected := cast(int) (ext_max - ext_reported);
+            lost := max(expected - received, 0);
+            total_lost += lost;
+            total_received += received;
+            blk := voice.Report_Block.{ssrc = FAKE_VIDEO_A, fraction_lost = cast(u8) ifx expected then min(lost * 256 / expected, 255) else 0, cum_lost = xx total_lost, ext_max_seq = ext_max};
+            ext_reported, received = ext_max, 0;
+            pkt: [64]u8;
+            pl := voice.build_report(pkt, 1, false, 0, 0, 0, 0, .[blk]);
+            remb := atomic_load(*f.remb);
+            if remb {
+                r := array_view(pkt, pl, 24);
+                r[0], r[1] = 0x8f, 206;  // V=2, FMT=15
+                voice.put_u16(r, 5, 2);
+                voice.put_u32(r, 1, 4);
+                voice.put_u32(r, 0, 8);
+                memcpy(r.data + 12, "REMB".data, 4);
+                exp := 0;
+                while remb >> exp >= 1 << 18 exp += 1;
+                voice.put_u32(r, (1 << 24) | cast(u32) (exp << 18) | cast(u32) (remb >> exp), 16);
+                voice.put_u32(r, FAKE_VIDEO_A, 20);
+                pl += 24;
+            }
+            sealed: [128]u8;
+            sl := voice.transport_seal(*tx, array_view(pkt, 0, pl), 8, nonce, sealed);
+            nonce += 1;
+            sendto(f.udp, sealed.data, xx sl, 0, cast(*sockaddr) *ep, size_of(sockaddr_in));
+        }
+    }
+    return 0;
+}
+
+test_fake_voice_bwe :: () {
+    f := New(Bwe_Fake);
+    port: int;
+    f.listen, port = loopback_socket(.STREAM, .TCP);
+    f.udp, f.udp_port = loopback_socket(.DGRAM, .UDP, timeout_us = 2_000);
+    voice.set_codec(voice.stub_codec());
+    threads := run_threads(f, bwe_gw, bwe_udp);
+    // a stage channel, which may go without DAVE: the frames pass through
+    c := voice.voice_connect(.{endpoint = tprint("127.0.0.1:%", port), token = "TK", guild_or_channel_id = 5, user_id = 6, session_id = "SS", channel_id = 7, stage = true},
+        .{dial = plain_dial, no_audio_devices = true});
+    expect(voice.wait_state(c, .Connected, 3000), "connected");
+    voice.set_video(c, true, 1280, 720, 30, 2_500_000);
+    trace: String_Builder;
+    start := current_time_monotonic();
+    held, held_n, want: int;
+    frame := 0;
+    while true {
+        ms := to_milliseconds(current_time_monotonic() - start);
+        if ms >= 14_000 break;
+        if ms >= 11_000 atomic_store(*f.remb, 300_000);
+        rate, w := voice.video_send_target(c);
+        want = w;
+        if ms >= 6_000 && ms < 11_000 { held += rate; held_n += 1; }
+        if frame % 15 == 0 print_to_builder(*trace, " %", rate / 1000);
+        // a frame of what the encoder was asked for: an IDR every 2 s, P frames otherwise
+        au := NewArray(max(rate / 8 / 30, 100), u8,, temp);
+        au[3], au[4] = 1, ifx frame % 60 == 0 then cast(u8) 0x65 else 0x41;
+        for 5..au.count - 1 au[it] = cast(u8) (it * 7 + 1);
+        voice.send_video(c, .H264, au, cast(u32) (frame * 3000));
+        frame += 1;
+        reset_temporary_storage();
+        sleep_milliseconds(33);
+    }
+    final, _ := voice.video_send_target(c);
+    st := voice.state(c);
+    print("bandwidth estimate (kb/s, every 0.5 s) over a % kb/s link, REMB 300 kb/s from 11 s:%\n", LINK_BPS / 1000, builder_to_string(*trace,, temp));
+    voice.voice_disconnect(c);
+    atomic_store(*f.stop, true);
+    join_threads(threads);
+    close(f.listen);
+    close(f.udp);
+    expect(f.failure == "", "server: %", f.failure);
+    avg := held / max(held_n, 1);
+    expect(avg >= LINK_BPS / 2 && avg <= LINK_BPS * 6 / 5, "estimate holds near the link's % kb/s: % kb/s from 6 s to 11 s", LINK_BPS / 1000, avg / 1000);
+    expect(final <= 300_000, "a 300 kb/s REMB caps the estimate: % kb/s", final / 1000);
+    expect(want == 60, "op 15 want for our SSRC: %", want);
+    expect(st == .Connected, "still connected: %", st);
+}
+
 main :: () {
     test_fake_voice_server();
     test_fake_voice_resume();
+    test_fake_voice_bwe();
     if failures exit(1);
     print("voice fake server tests ok\n");
 }

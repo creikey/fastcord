@@ -24,6 +24,7 @@ opus :: #import "opus";
 	#load "decode_none.jai";
 }
 #load "decode_sw.jai";
+#load "thumbnail.jai";
 #load "demux.jai";
 #load "mkv.jai";
 #load "mp4.jai";

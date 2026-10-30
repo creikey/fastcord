@@ -262,10 +262,15 @@ sps_with_vui :: (nal: []u8) -> []u8, bool {
 // dave_clear_ranges: libdave's codec_utils for frames whose NAL units all
 // carry 4-byte start codes. Start codes stay clear; in H.264 slices the NAL
 // header and the slice header's start, in H.265 VCL units the 2-byte header;
-// every other NAL unit entirely. Adjacent ranges merge. In temp.
+// every other NAL unit entirely. Adjacent ranges merge. VP8 (no NAL units):
+// the first 10 bytes of a keyframe, 1 of any other frame. In temp.
 dave_clear_ranges :: (codec: Video_Codec, au: []u8, nals: []Nal) -> []DAVE.Range {
     out: [..]DAVE.Range;
     out.allocator = temp;
+    if codec == .VP8 {
+        if au.count array_add(*out, .{0, min(au.count, ifx is_keyframe(.VP8, au) then 10 else 1)});
+        return out;
+    }
     add :: (off: int, size: int) #expand {
         if size <= 0 return;
         if out.count && peek(out).offset + peek(out).size == off peek_pointer(out).size += size;
@@ -305,10 +310,28 @@ with_long_start_codes :: (au: []u8) -> []u8, []Nal {
 // Packetizer: one RTP payload per call to emit, in order; the last one ends the frame.
 // frame is the (DAVE-encrypted) access unit; nals are the NAL units of the
 // plain frame, whose positions DAVE keeps (the supplemental data rides at the
-// end of the last unit).
+// end of the last unit). VP8 ignores nals: RFC 7741's payload descriptor as
+// WebRTC writes it with one stream (X, S on the first packet, partition 0, I
+// with the 15-bit picture_id), then the frame in pieces.
 
-packetize :: (codec: Video_Codec, frame: []u8, nals: []Nal, emit: (payload: []u8, last: bool, data: *void), data: *void) {
+packetize :: (codec: Video_Codec, frame: []u8, nals: []Nal, emit: (payload: []u8, last: bool, data: *void), data: *void, picture_id: u16 = 0) {
     buf: [MAX_VIDEO_PAYLOAD + 3]u8;
+    if codec == .VP8 {
+        body := frame;
+        first := true;
+        while body.count {
+            n := min(body.count, MAX_VIDEO_PAYLOAD - 4);
+            buf[0] = 0x80 | (ifx first then cast(u8) 0x10 else 0);
+            buf[1] = 0x80;
+            buf[2] = 0x80 | cast(u8) ((picture_id >> 8) & 0x7f);
+            buf[3] = cast(u8) (picture_id & 0xff);
+            memcpy(buf.data + 4, body.data, n);
+            body = array_view(body, n);
+            emit(array_view(buf, 0, 4 + n), body.count == 0, data);
+            first = false;
+        }
+        return;
+    }
     for nals {
         end := ifx it_index == nals.count - 1 then frame.count else it.end;
         nal := array_view(frame, it.start, end - it.start);
@@ -668,4 +691,58 @@ keyframe_requested :: (b: []u8, ssrc: u32) -> bool {
         i += n;
     }
     return false;
+}
+
+// remb_bitrate: the estimate (bits/s) in a compound RTCP packet's REMB (206/15 with "REMB", the SFU's
+// receive-side estimate for everything we send it), or -1 when it has none.
+remb_bitrate :: (b: []u8) -> int {
+    i := 0;
+    while i + 4 <= b.count {
+        n := (cast(int) get_u16(b, i + 2) + 1) * 4;
+        if b[i + 1] == RTCP_PSFB && (b[i] & 0x1f) == 15 && n >= 20 && i + 20 <= b.count && memcmp(b.data + i + 12, "REMB".data, 4) == 0 {
+            exp := b[i + 17] >> 2;
+            mantissa := ((cast(int) b[i + 17] & 3) << 16) | ((cast(int) b[i + 18]) << 8) | b[i + 19];
+            return ifx exp > 32 then 1 << 40 else mantissa << exp;
+        }
+        i += n;
+    }
+    return -1;
+}
+
+// Our video's bandwidth estimate: WebRTC's loss-based controller (SendSideBandwidthEstimation) over the
+// SFU's receiver reports, capped by its REMB. Up 8% a second while under 2% is lost, down by half the loss
+// above 10% (at most once per 300 ms + RTT), between BWE_MIN and the stream's bitrate.
+Bwe :: struct {
+    target: int;  // bits/s
+    max: int;     // the stream's bitrate (set_video)
+    remb: int;    // 0: none yet
+    last_ms, last_cut_ms: s64;
+}
+
+BWE_MIN :: 150_000;  // the client's videoBitrateFloor
+
+bwe_reset :: (b: *Bwe, max: int) { b.* = .{target = max, max = max}; }
+
+// bwe_on_loss: a receiver report's fraction lost (of 256) for our stream.
+bwe_on_loss :: (b: *Bwe, fraction: u8, now_ms: s64, rtt_ms: int) {
+    loss := fraction / 256.0;
+    dt := ifx b.last_ms then clamp(now_ms - b.last_ms, 0, 2000) else 0;
+    b.last_ms = now_ms;
+    if loss < 0.02 {
+        b.target += cast(int) (b.target * 0.08 * dt / 1000) + 1000 * dt / 1000;
+    } else if loss > 0.1 && now_ms - b.last_cut_ms >= 300 + rtt_ms {
+        b.target = cast(int) (b.target * (1 - loss / 2));
+        b.last_cut_ms = now_ms;
+    }
+    bwe_clamp(b);
+}
+
+bwe_on_remb :: (b: *Bwe, bitrate: int) {
+    b.remb = max(bitrate, 1);
+    bwe_clamp(b);
+}
+
+bwe_clamp :: (b: *Bwe) {
+    hi := ifx b.remb then min(b.max, b.remb) else b.max;
+    b.target = clamp(b.target, min(BWE_MIN, hi), hi);
 }

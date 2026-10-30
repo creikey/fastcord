@@ -156,12 +156,12 @@ screen_start :: (target: Screen_Target, on_frame: Frame_Proc, user: *void, fps :
 	msg(Void, config, "setPixelFormat:", fourcc("420v"));
 	msg(Void, config, "setShowsCursor:", true);
 	msg(Void, config, "setQueueDepth:", cast(s64) 5);
-	// the shared screen's or window's sound, mono 48 kHz, without ours (the call's voices)
+	// the shared screen's or window's sound, stereo 48 kHz, without ours (the call's voices)
 	share_audio := on_audio && msg(bool, config, "respondsToSelector:", sel("setCapturesAudio:"));
 	if share_audio {
 		msg(Void, config, "setCapturesAudio:", true);
 		msg(Void, config, "setSampleRate:", cast(s64) 48000);
-		msg(Void, config, "setChannelCount:", cast(s64) 1);
+		msg(Void, config, "setChannelCount:", cast(s64) 2);
 		msg(Void, config, "setExcludesCurrentProcessAudio:", true);
 	}
 
@@ -180,7 +180,7 @@ screen_start :: (target: Screen_Target, on_frame: Frame_Proc, user: *void, fps :
 }
 
 // Why the capture ended on its own ("" while it runs).
-capture_error :: (c: *Capture) -> string { return ifx c && atomic_load(*c.ended) then "Screen sharing stopped." else ""; }
+capture_error :: (c: *Capture) -> string { return ifx c && atomic_load(*c.ended) then SCREEN_STOPPED else ""; }
 
 capture_stop :: (c: *Capture) {
 	if !c return;
@@ -316,29 +316,46 @@ screen_frame :: (self: Id, cmd: *void, stream: Id, sample: CFRef, type: s64) #c_
 	deliver(self, sample);
 }
 
-// Soundshare: ScreenCaptureKit's float PCM, as configured (mono, 48 kHz), handed on.
+// Soundshare: ScreenCaptureKit's float PCM, as configured (48 kHz; stereo, one buffer per channel), handed
+// on interleaved; a mono buffer goes to both channels.
 screen_audio :: (self: Id, sample: CFRef) #c_call {
 	c := (cast(**Capture) object_getIndexedIvars(self)).*;
 	if !c.on_audio return;
 	asbd := CMAudioFormatDescriptionGetStreamBasicDescription(CMSampleBufferGetFormatDescription(sample));
-	if !asbd || asbd.mChannelsPerFrame != 1 || asbd.mBitsPerChannel != 32 || !(asbd.mFormatFlags & 1) || asbd.mSampleRate != 48000 return; // float
-	bb := CMSampleBufferGetDataBuffer(sample);
-	if !bb return;
-	n := cast(int) CMBlockBufferGetDataLength(bb) / 4;
+	if !asbd || asbd.mBitsPerChannel != 32 || !(asbd.mFormatFlags & 1) || asbd.mSampleRate != 48000 return; // float
+	ch := asbd.mChannelsPerFrame;
+	if ch != 1 && ch != 2 return;
+	n := CMSampleBufferGetNumSamples(sample);
 	if n <= 0 || n > 48000 return;
+	list: struct { count: u32; bufs: [2]Audio_Buffer; };
+	bb: CFRef;
+	if CMSampleBufferGetAudioBufferListWithRetainedBlockBuffer(sample, null, xx *list, size_of(type_of(list)), null, null, 0, *bb) != 0 return;
+	defer CFRelease(bb);
+	// planar: one mono buffer per channel; else one buffer of interleaved frames
+	planar := list.count == ch && ch == 2;
+	for 0..list.count - 1 {
+		want := ifx planar then 1 else ch;
+		if list.count > 2 || list.bufs[it].channels != want || list.bufs[it].bytes < n * want * 4 || !list.bufs[it].data return;
+	}
 	push_context c.ctx {
-		pcm := NewArray(n, float32,, temp);
-		if CMBlockBufferCopyDataBytes(bb, 0, cast(u64) n * 4, pcm.data) == 0 c.on_audio(c.user, pcm);
+		pcm := NewArray(n * 2, float32,, temp);
+		l := cast(*float32) list.bufs[0].data;
+		if planar {
+			r := cast(*float32) list.bufs[1].data;
+			for i: 0..n - 1 { pcm[2 * i] = l[i]; pcm[2 * i + 1] = r[i]; }
+		} else if ch == 2 memcpy(pcm.data, l, n * 2 * size_of(float32));
+		else for i: 0..n - 1 { pcm[2 * i] = l[i]; pcm[2 * i + 1] = l[i]; }
+		c.on_audio(c.user, pcm);
 		reset_temporary_storage();
 	}
 }
 
+Audio_Buffer :: struct { channels, bytes: u32; data: *void; }
+CMSampleBufferGetNumSamples :: (sb: CFRef) -> s64 #foreign CoreMedia;
+CMSampleBufferGetAudioBufferListWithRetainedBlockBuffer :: (sb: CFRef, size_needed: *u64, list: *void, size: u64, a1: CFRef, a2: CFRef, flags: u32, block: *CFRef) -> OSStatus #foreign CoreMedia;
 Asbd :: struct { mSampleRate: float64; mFormatID, mFormatFlags, mBytesPerPacket, mFramesPerPacket, mBytesPerFrame, mChannelsPerFrame, mBitsPerChannel, mReserved: u32; }
 CMAudioFormatDescriptionGetStreamBasicDescription :: (fmt: CFRef) -> *Asbd #foreign CoreMedia;
 CMSampleBufferGetFormatDescription :: (sb: CFRef) -> CFRef #foreign CoreMedia;
-CMSampleBufferGetDataBuffer :: (sb: CFRef) -> CFRef #foreign CoreMedia;
-CMBlockBufferGetDataLength :: (bb: CFRef) -> u64 #foreign CoreMedia;
-CMBlockBufferCopyDataBytes :: (bb: CFRef, offset: u64, n: u64, dst: *void) -> OSStatus #foreign CoreMedia;
 
 // SCStreamDelegate's stream:didStopWithError:, when the system ends the stream rather than capture_stop.
 stream_ended :: (self: Id, cmd: *void, stream: Id, err: Id) #c_call {

@@ -60,6 +60,7 @@ Options :: struct {
     hosted: Hosted;           // host "" = Discord
     no_audio_devices: bool;   // don't touch the audio module (tests / headless)
     capture: (data: *void, out: []float32) -> int;          // mono 48 kHz pull instead of the mic (tests, headless; a Go Live stream's soundshare)
+    capture_stereo: bool;     // capture gives interleaved stereo, sent as stereo Opus (soundshare)
     playback: (data: *void, user_id: u64, pcm: []float32);  // stereo interleaved, 960 frames
     // a received video frame (Annex B, decrypted), on the UDP thread; the data is valid during the call
     video: (data: *void, user_id: u64, codec: Video_Codec, au: []u8, keyframe: bool);
@@ -180,13 +181,14 @@ Conn :: struct {
 
     codec: Codec;
     encoder: *void;
+    channels: int = 1;   // sent audio: 2 for a stereo capture (soundshare)
     vad: Vad;
     seq: u16;
     ts: u32;
     packets_sent: u32;
     octets_sent: u32;
     last_sent_ts: u32;
-    preroll: [VAD_DEFAULT_LEADING][SAMPLES_PER_FRAME]float32;
+    preroll: [VAD_DEFAULT_LEADING][SAMPLES_PER_FRAME * 2]float32;  // channels interleaved
     preroll_n: int;
     silence_left: int;
     next_rtcp_ms: s64;
@@ -230,7 +232,10 @@ Conn :: struct {
     cant_encode: u8;       // a bit per Video_Codec the server picked but we can't encode
     codecs_due: bool;      // op 14 due (timer thread)
     video_w, video_h, video_fps, video_bitrate: int;
+    bwe: Bwe;              // the bandwidth estimate for our stream, from RTCP (UDP thread)
+    sink_want := 100;      // op 15: what viewers want of our stream (0..100)
     video_seq: u16;
+    vp8_picture_id: u16;   // RFC 7741's, one per frame (15 bits)
     video_packets, video_octets, video_last_ts: u32;
     keyframe_wanted: bool;            // atomic: a PLI/FIR for our stream arrived
     // the pacer: video RTP packets queue here and leave at PACE_FACTOR x the bitrate (pacer_thread_proc),
@@ -287,7 +292,8 @@ voice_connect :: (info: Voice_Server_Info, opts := Options.{}) -> *Conn {
     if opts.hosted.host c.host, c.port = c.opts.hosted.host, opts.hosted.port;
     c.rtc_connection_id = uuid4();
     c.codec = get_codec();
-    c.encoder = c.codec.encoder_create();
+    if opts.capture && opts.capture_stereo c.channels = 2;
+    c.encoder = c.codec.encoder_create(c.channels);
     if opts.vad_manual {
         c.vad.auto_threshold = false;
         if opts.vad_threshold_db != 0 c.vad.threshold_db = opts.vad_threshold_db;
@@ -864,7 +870,13 @@ handle_json :: (c: *Conn, text: string) {
       case OP_SESSION_UPDATE;
         vcn := jstr(jget(d, "video_codec"));
         if vcn c.video_codec = video_codec_from_name(vcn);
-      // OP_MEDIA_SINK_WANTS, OP_VOICE_BACKEND_VERSION, OP_FLAGS, OP_PLATFORM, OP_SFU_UPDATE: informational
+      case OP_MEDIA_SINK_WANTS;
+        // what viewers want of our stream, as the client's getLocalWant: our SSRC's value, else "any", else 100
+        locks.guard(*c.vmu);
+        w := jint(jget(d, tprint("%", c.video_ssrc)));
+        if w <= 0 w = jint(jget(d, "any"));
+        c.sink_want = ifx w > 0 then min(w, 100) else 100;
+      // OP_VOICE_BACKEND_VERSION, OP_FLAGS, OP_PLATFORM, OP_SFU_UPDATE: informational
     }
 }
 
@@ -1270,6 +1282,11 @@ on_rtcp :: (c: *Conn, b: []u8, now: s64) {
         locks.guard(*c.vmu);
         if c.video_on && keyframe_requested(b, c.video_ssrc) atomic_store(*c.keyframe_wanted, true);
         if c.video_on && c.rtx_ssrc && c.rtx_hist for nacked_seqs(b, c.video_ssrc) retransmit(c, it);
+        remb := remb_bitrate(b);
+        if c.video_on && remb >= 0 {
+            bwe_on_remb(*c.bwe, remb);
+            dbg(c, "rtcp REMB % kb/s: target % kb/s", remb / 1000, c.bwe.target / 1000);
+        }
     }
     rep, ok := parse_report(b);
     if !ok {
@@ -1279,6 +1296,13 @@ on_rtcp :: (c: *Conn, b: []u8, now: s64) {
     dbg(c, "rtcp % ssrc=% blocks=%", ifx rep.is_sr then "SR" else "RR", rep.ssrc, rep.n_blocks);
     blocks := array_view(rep.blocks, 0, rep.n_blocks);
     for blocks dbg(c, "  block ssrc=% lost=% frac=% maxseq=% jitter=%", it.ssrc, it.cum_lost, it.fraction_lost, it.ext_max_seq, it.jitter);
+    {
+        locks.guard(*c.vmu);
+        for blocks if c.video_on && it.ssrc == c.video_ssrc {
+            bwe_on_loss(*c.bwe, it.fraction_lost, now, c.stats.rtt_ms);
+            dbg(c, "  video target % kb/s", c.bwe.target / 1000);
+        }
+    }
     locks.guard(*c.mu);
     if rep.is_sr {
         found, u := table_find(*c.users, rep.ssrc);
@@ -1318,7 +1342,8 @@ audio_thread_proc :: (t: *Thread) -> s64 {
             pthread_setschedparam(pthread_self(), policy, *param);
         }
     }
-    pcm: [SAMPLES_PER_FRAME]float32;
+    buf: [SAMPLES_PER_FRAME * 2]float32;
+    pcm := array_view(buf, 0, SAMPLES_PER_FRAME * c.channels);
     out: [SAMPLES_PER_FRAME * 2]float32;
     next := current_time_monotonic();
     while !stopped(c) {
@@ -1412,7 +1437,7 @@ tx_tick :: (c: *Conn, pcm: []float32) {
     gain := ifx share then 1.0 else c.input_gain;
     echo, denoise, agc := c.echo_on && c.capture_on, c.denoise_on, c.agc_on && c.capture_on;
     locks.unlock(*c.mu);
-    if !share mic_process(*c.proc, pcm, echo, denoise, agc);
+    if !share mic_process(*c.proc, pcm, echo, denoise, agc);  // mono
     if gain != 1 {
         for * pcm it.* *= gain;
         audio.limit(*c.input_limiter, pcm, 1);
@@ -1420,7 +1445,7 @@ tx_tick :: (c: *Conn, pcm: []float32) {
     mixing := false;
     {
         locks.guard(*c.mu);
-        if c.mix_pos < c.mix.count {
+        if c.mix_pos < c.mix.count && c.channels == 1 {
             n := min(pcm.count, c.mix.count - c.mix_pos);
             for 0..n-1 pcm[it] = clamp(pcm[it] + c.mix[c.mix_pos + it], -1, 1);
             c.mix_pos += n;
@@ -1451,7 +1476,8 @@ tx_tick :: (c: *Conn, pcm: []float32) {
             // leading frames (pre-roll), with their original timestamps
             for i: 0..c.preroll_n-1 {
                 pts := frame_ts - cast(u32) ((c.preroll_n - i) * SAMPLES_PER_FRAME);
-                send_audio(c, c.preroll[i], pts, frame_level_db(c.preroll[i]), true);
+                frame := array_view(c.preroll[i], 0, pcm.count);
+                send_audio(c, frame, pts, frame_level_db(frame), true);
             }
         }
         c.preroll_n = 0;
@@ -1604,6 +1630,7 @@ send_rtcp_packet :: (c: *Conn, pkt: []u8) {
 // Bitrate in bits per second.
 set_video :: (c: *Conn, on: bool, width := 1280, height := 720, fps := 30, bitrate := 2_500_000) {
     locks.guard(*c.vmu);
+    if on && (!c.video_on || bitrate != c.video_bitrate) bwe_reset(*c.bwe, bitrate);
     c.video_on = on;
     c.video_w, c.video_h, c.video_fps, c.video_bitrate = width, height, fps, bitrate;
     c.video_announce = true;
@@ -1622,18 +1649,30 @@ cannot_encode :: (c: *Conn, codec: Video_Codec) {
 // video_codec: what SESSION_DESCRIPTION negotiated for this call (.None before it).
 video_codec :: (c: *Conn) -> Video_Codec { return c.video_codec; }
 
+// video_send_target: what our video should be encoded at now: the bandwidth estimate (bits/s), and what
+// its viewers want of it (op 15; 100 = full quality, less = a smaller resolution).
+video_send_target :: (c: *Conn) -> bitrate: int, want: int {
+    locks.guard(*c.vmu);
+    return c.bwe.target, c.sink_want;
+}
+
 // take_keyframe_request: true once after the SFU asked for a keyframe (PLI / FIR), or after a reconnect.
 take_keyframe_request :: (c: *Conn) -> bool { return atomic_swap(*c.keyframe_wanted, false); }
 
-// send_video sends one encoded frame (Annex B, as the encoder wrote it) in
-// the negotiated codec: DAVE with libdave's clear ranges, then RTP at 90 kHz.
+// send_video sends one encoded frame (Annex B, as the encoder wrote it; VP8's
+// frame) in the negotiated codec: DAVE with libdave's clear ranges, then RTP at 90 kHz.
 // Safe from any one thread at a time (the encoder's).
 send_video :: (c: *Conn, codec: Video_Codec, au: []u8, ts_90k: u32) {
-    if codec != .H264 && codec != .H265 return;
+    if codec != .H264 && codec != .H265 && codec != .VP8 return;
     locks.guard(*c.vmu);
     if !c.video_on || !c.video_ssrc || !c.udp_open return;
-    frame, nals := with_long_start_codes(ifx codec == .H264 then h264_add_vui(au) else au);
-    if !nals.count return;
+    frame := au;
+    nals: []Nal;
+    if codec == .VP8 { if !au.count return; }
+    else {
+        frame, nals = with_long_start_codes(ifx codec == .H264 then h264_add_vui(au) else au);
+        if !nals.count return;
+    }
     // FASTCORD_VOICE_DEBUG: each keyframe's NAL units (type:size) and its parameter sets in hex
     if c.debug && nals.count > 1 {
         sb: String_Builder;
@@ -1672,7 +1711,8 @@ send_video :: (c: *Conn, codec: Video_Codec, au: []u8, ts_90k: u32) {
         c.video_seq += 1;
         c.video_packets += 1;
         c.video_octets += xx payload.count;
-    }, *pk);
+    }, *pk, c.vp8_picture_id);
+    c.vp8_picture_id = (c.vp8_picture_id + 1) & 0x7fff;
     c.video_last_ts = ts_90k;
     locks.guard(*c.mu);
     c.stats.video_frames_sent += 1;
@@ -1735,7 +1775,7 @@ pacer_thread_proc :: (t: *Thread) -> s64 {
             continue;
         }
         now := current_time_monotonic();
-        rate := max(c.video_bitrate * PACE_FACTOR / 8, c.paced_bytes * 1000.0 / PACE_QUEUE_MS); // bytes/s
+        rate := max(c.bwe.target * PACE_FACTOR / 8, c.paced_bytes * 1000.0 / PACE_QUEUE_MS); // bytes/s
         budget = min(budget + rate * to_nanoseconds(now - last) / 1_000_000_000.0, rate * PACE_BURST_MS / 1000 + MAX_VIDEO_PAYLOAD);
         last = now;
         n := 0;

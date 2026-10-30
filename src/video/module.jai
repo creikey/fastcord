@@ -1,6 +1,7 @@
-// Video for calls and Go Live: camera and screen capture (NV12) and a realtime H.264/H.265 encoder that
-// emits Annex B. macOS (AVFoundation, ScreenCaptureKit, VideoToolbox), Windows (Media Foundation, DXGI
-// desktop duplication; H.264 only) and Linux (V4L2 cameras, openh264; H.264 only, no screen capture yet).
+// Video for calls and Go Live: camera and screen capture (NV12), a realtime H.264/H.265 encoder that
+// emits Annex B, and a software VP8 encoder (encode_vp8.jai, every platform). macOS (AVFoundation,
+// ScreenCaptureKit, VideoToolbox), Windows (Media Foundation, DXGI desktop duplication; H.264 only) and
+// Linux (V4L2 cameras, the ScreenCast portal and PipeWire, openh264; H.264 only).
 
 // A captured frame, valid only during the call: macOS a CVPixelBuffer ('420v' or '420f'), Windows an
 // yuv.Nv12. Called on the capture's queue or thread with a temp that is reset after each call.
@@ -11,13 +12,18 @@ Frame_Proc :: #type (user: *void, pixbuf: *void, width: int, height: int);
 // encoder_encode, on its caller's) with a temp that thread resets.
 Encoded_Proc :: #type (user: *void, annexb: []u8, keyframe: bool, pts_90k: u32);
 
-// A screen capture's sound (soundshare), mono 48 kHz float, on the capture's queue with a temp reset after.
+// A screen capture's sound (soundshare), stereo interleaved 48 kHz float, on the capture's queue with a temp
+// reset after.
 Audio_Proc :: #type (user: *void, pcm: []float32);
 
 Video_Codec :: enum u8 { H264; H265; }
 
+// capture_error when a screen capture ended from outside (the macOS menu bar, the Linux desktop's Stop):
+// no reason to show.
+SCREEN_STOPPED :: "Screen sharing stopped.";
+
 SUPPORTED :: OS == .MACOS || OS == .WINDOWS || OS == .LINUX; // capture and encoding exist on this platform
-SOUNDSHARE :: OS == .MACOS; // screen_start can capture the shared screen's sound (macOS 13+)
+SOUNDSHARE :: OS == .MACOS || OS == .LINUX; // screen_start can capture the shared screen's sound (macOS 13+; Linux: every other app's)
 
 // A camera for the picker. id: AVCaptureDevice's uniqueID, the Media Foundation symbolic link, or the
 // /dev/video path; camera_start takes it ("" = the default camera).
@@ -60,9 +66,9 @@ cams: struct {
 
 Screen_Target :: struct {
 	is_window: bool;
-	id: u32; // CGDirectDisplayID or CGWindowID; Windows: DXGI adapter << 8 | output
+	id: u32; // CGDirectDisplayID or CGWindowID; Windows: DXGI adapter << 8 | output; Linux: 1, the portal picks
 	name: string;
-	width, height: int; // points
+	width, height: int; // points; 0 where only the stream knows (Linux)
 	x, y: int; // Windows: the screen's place on the desktop
 }
 
@@ -105,13 +111,16 @@ thumb_add :: (is_window: bool, id: u32, rgba: []u8, w: int, h: int) {
 } else #if OS == .LINUX {
 	#load "capture_nv12.jai";
 	#load "capture_linux.jai";
+	#load "screen_linux.jai";
 	#load "encode_linux.jai";
 }
+#load "encode_vp8.jai";
 
 #scope_module
 
 #import "Basic";
 #import "String";
+#import "File";
 #import "Thread";
 #import "Atomics";
 locks :: #import "locks";

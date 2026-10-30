@@ -10,6 +10,8 @@ video :: #import "video";
 media :: #import "media";
 voice :: #import "voice";
 yuv :: #import "yuv";
+gfx :: #import "gfx";
+imagefmt :: #import "imagefmt";
 
 failures := 0;
 expect :: (ok: bool, what: string, args: ..Any) {
@@ -20,12 +22,38 @@ expect :: (ok: bool, what: string, args: ..Any) {
 
 main :: () {
 	args := get_command_line_arguments();
+	thumbnail();
 	for a: array_view(args, 1, args.count - 1) {
 		if a == "camera" camera();
 		else decode_file(a);
 	}
 	print(ifx failures then "FAILED\n" else "ok\n");
 	exit(xx ifx failures then 1 else 0);
+}
+
+// thumbnail: our stream's preview picture (video_call.jai preview_take): a 1280x720 NV12 frame, left half
+// red and right half blue, scaled to 512x288 and JPEG-encoded, decodes back to the same colours
+// (build/preview_test.jpg to look at).
+thumbnail :: () {
+	W, H :: 1280, 720;
+	f := yuv.nv12_create(W, H);
+	defer yuv.nv12_release(f);
+	for y: 0..H - 1 for x: 0..W - 1 f.data[y * W + x] = xx ifx x < W / 2 then 63 else 32; // BT.709 limited red / blue
+	for y: 0..H / 2 - 1 for x: 0..W / 2 - 1 {
+		uv := f.data.data + W * H + y * W + x * 2;
+		uv[0], uv[1] = xx ifx x < W / 4 then 102 else 240, xx ifx x < W / 4 then 240 else 118;
+	}
+	rgb := media.nv12_to_rgb(f.data.data, W, f.data.data + W * H, W, W, H, .BT709, 512, 288);
+	jpeg := imagefmt.encode_jpeg(rgb, 512, 288);
+	expect(jpeg.count > 600 && jpeg[0] == 0xFF && jpeg[1] == 0xD8, "a JPEG: % bytes", jpeg.count);
+	write_entire_file("build/preview_test.jpg", jpeg.data, jpeg.count);
+	img, err := imagefmt.decode(jpeg);
+	expect(err == .None && img.width == 512 && img.height == 288, "it decodes at 512x288: % %x%", err, img.width, img.height);
+	if err != .None || img.width != 512 || img.height != 288 return;
+	px :: (x: int, y: int) -> [3]int #expand { p := `img.frames[0].pixels.data + (y * 512 + x) * 4; return .[p[0], p[1], p[2]]; }
+	l, r := px(100, 144), px(400, 144);
+	expect(l[0] > 220 && l[1] < 40 && l[2] < 40, "left is red: %", l);
+	expect(r[2] > 220 && r[0] < 40 && r[1] < 40, "right is blue: %", r);
 }
 
 decode_file :: (path: string) {

@@ -4022,6 +4022,18 @@ app_document_build :: (t: *T) {
 	array_free(rec.wire);
 }
 
+// stream_preview_wire: our stream's preview upload as Node's http writes it for the desktop host's
+// makeChunkedRequest (headers as set, then Node's Host and Connection; the JSON body).
+stream_preview_wire :: (t: *T) {
+	b: String_Builder;
+	b.allocator = temp;
+	body := "{\"thumbnail\":\"data:image/jpeg;base64,/9j/\"}";
+	req := node_request("<token>", API_HOST, "/api/v9/streams/guild:1:2:3/preview", cast([]u8) body);
+	expect(t, http.h1_serialize_request(*b, req) == .None, "serializes");
+	expect(t, builder_to_string(*b,, temp) == tprint("POST /api/v9/streams/guild:1:2:3/preview HTTP/1.1\r\nauthorization: <token>\r\nContent-Type: application/json\r\nContent-Length: %\r\nHost: discord.com\r\nConnection: keep-alive\r\n\r\n%", body.count, body), "Node's request head, then the body");
+	expect(t, tls.client_hello(.{server_name = API_HOST, node = true}).count > 0, "Node's TLS context builds");
+}
+
 // updater_wire: the native updater's manifest request, byte for byte as hyper wrote it (macOS 0.0.419 and
 // Windows 1.0.9266 against a local NEW_UPDATE_ENDPOINT), and the package it fetches for a newer host.
 updater_wire :: (t: *T) {

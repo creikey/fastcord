@@ -6,5 +6,5 @@
 /* in the file PATENTS.  All contributing project authors may */
 /* be found in the AUTHORS file in the root of the source tree. */
 #include "vpx/vpx_codec.h"
-static const char* const cfg = "--target=generic-gnu --disable-vp9 --disable-vp8-encoder --enable-vp8-decoder --disable-examples --disable-tools --disable-docs --disable-unit-tests --disable-multithread --disable-webm-io --disable-libyuv --disable-postproc --disable-runtime-cpu-detect";
+static const char* const cfg = "--target=generic-gnu --disable-vp9 --enable-vp8-encoder --enable-vp8-decoder --disable-multithread --disable-postproc --disable-runtime-cpu-detect --disable-examples --disable-tools --disable-docs --disable-unit-tests --disable-webm-io --disable-libyuv";
 const char *vpx_codec_build_config(void) {return cfg;}
