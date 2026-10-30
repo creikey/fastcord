@@ -36,6 +36,7 @@ Span :: struct {
 	object: Vec2;
 	id: u64; // app-defined (link index, mention id) for hit testing
 	user: *void;
+	hang: bool; // an object starting a line: its width indents the line's wrapped rows (quote bar)
 }
 
 // Shape and wrap text. wrap_width < 0 means no wrapping (only hard newlines).
@@ -402,33 +403,38 @@ wrap_layout :: (tl: *Text_Layout, wrap_width: float32) {
 	line_start_g := 0;
 	line_start_b := 0;
 	last_break_g := -1; // glyph index after which we can break
+	hang := hang_at(tl, 0);
+	indent: float32; // of the current row: hang once a hard line has wrapped
 	i := 0;
 	while i < g.count {
 		gl := g[i];
 		c := ifx gl.cluster_start < text.count then text[gl.cluster_start] else 0;
 		if c == #char "\n" {
-			array_add(*lines, make_line(tl, line_start_g, i, line_start_b, gl.cluster_start));
+			array_add(*lines, make_line(tl, line_start_g, i, line_start_b, gl.cluster_start, indent));
 			line_start_g = i + 1;
 			line_start_b = gl.cluster_end;
 			last_break_g = -1;
+			hang = hang_at(tl, i + 1);
+			indent = 0;
 			i += 1;
 			continue;
 		}
-		if wrap_width >= 0 && i > line_start_g && gl.x + gl.advance - g[line_start_g].x > wrap_width && !is_space_byte(c) {
+		if wrap_width >= 0 && i > line_start_g && indent + gl.x + gl.advance - g[line_start_g].x > wrap_width && !is_space_byte(c) {
 			brk := ifx last_break_g >= 0 then last_break_g + 1 else i;
 			end_b := g[brk].cluster_start;
 			// trailing spaces stay on the line but don't count toward width
-			array_add(*lines, make_line(tl, line_start_g, brk, line_start_b, end_b));
+			array_add(*lines, make_line(tl, line_start_g, brk, line_start_b, end_b, indent));
 			line_start_g = brk;
 			line_start_b = end_b;
 			last_break_g = -1;
+			indent = hang;
 			i = brk;
 			continue;
 		}
 		if is_space_byte(c) last_break_g = i;
 		i += 1;
 	}
-	array_add(*lines, make_line(tl, line_start_g, g.count, line_start_b, text.count));
+	array_add(*lines, make_line(tl, line_start_g, g.count, line_start_b, text.count, indent));
 	tl.lines = lines;
 	for * l, li: tl.lines {
 		l.y = li * tl.line_h;
@@ -437,10 +443,17 @@ wrap_layout :: (tl: *Text_Layout, wrap_width: float32) {
 	tl.height = tl.lines.count * tl.line_h;
 }
 
-make_line :: (tl: *Text_Layout, g0: int, g1: int, b0: int, b1: int) -> Text_Line {
+// Width of the hanging object starting the line at glyph gi, or 0.
+hang_at :: (tl: *Text_Layout, gi: int) -> float32 {
+	if gi >= tl.run.glyphs.count || !tl.spans return 0;
+	sp := tl.spans[tl.run.glyphs[gi].span];
+	return ifx sp.hang then sp.object.x else 0;
+}
+
+make_line :: (tl: *Text_Layout, g0: int, g1: int, b0: int, b1: int, indent: float32) -> Text_Line {
 	g := tl.run.glyphs;
 	l := Text_Line.{start = b0, end = b1, glyph_start = g0, glyph_end = g1};
-	if g0 < g.count l.x_shift = g[g0].x;
+	if g0 < g.count l.x_shift = g[g0].x - indent;
 	// width excludes trailing whitespace
 	last := g1 - 1;
 	while last >= g0 && g[last].cluster_start < tl.text.count && is_space_byte(tl.text[g[last].cluster_start]) last -= 1;

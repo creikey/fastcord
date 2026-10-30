@@ -236,7 +236,7 @@ map_cursor :: (c: ui.Cursor) -> platform.Cursor {
 draw_inline_object: (sp: ui.Span, r: ui.Rect, opacity: float32);
 
 render_rich :: (tl: *ui.Text_Layout, origin: ui.Vec2, box_color: ui.Color) {
-	for l: tl.lines {
+	for l, li: tl.lines {
 		gi := l.glyph_start;
 		while gi < l.glyph_end {
 			si := tl.run.glyphs[gi].span;
@@ -250,6 +250,12 @@ render_rich :: (tl: *ui.Text_Layout, origin: ui.Vec2, box_color: ui.Color) {
 			if sp.object != .{} {
 				oy := y + (tl.line_h - sp.object.y) / 2;
 				r := ui.Rect.{x, oy, x + sp.object.x, oy + sp.object.y};
+				if sp.hang {
+					// down the line's wrapped rows too (each starts where the one before ended)
+					k := li + 1;
+					while k < tl.lines.count && tl.lines[k].start == tl.lines[k - 1].end k += 1;
+					r.y1 += (k - 1 - li) * tl.line_h;
+				}
 				if draw_inline_object != null draw_inline_object(sp, r, box_color.w);
 				continue;
 			}

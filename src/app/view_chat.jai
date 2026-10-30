@@ -426,6 +426,7 @@ composer_spans :: (text: string) -> []ui.Span {
 			q.text = slice(line, 0, n);
 			q.object = .{16, MSG_LINE_H};
 			q.id = QUOTE_BAR_SPAN_FLAG;
+			q.hang = true;
 			array_add(*spans, q);
 			line = slice(line, n, line.count - n);
 		}
