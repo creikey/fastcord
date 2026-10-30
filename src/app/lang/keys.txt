@@ -987,6 +987,7 @@ Insert Timestamp
 Install
 Install Fastcord to open it from the Start menu.
 Installing…
+Instead, bind keys in your desktop's settings to run a keybind's command, shown under its action: %1 --keybind:TOGGLE_DEAFEN. Push to Talk and Push to Mute take :down on press and :up on release.
 Instructions Sent
 Insults and Slurs
 Integrations

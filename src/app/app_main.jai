@@ -122,6 +122,7 @@ Options :: struct {
 	uninstall: bool; // --uninstall: Apps & Features' Uninstall (Windows)
 	replace: string; // --replace:<pid>:<path>: the first launch of an install, from the copy at path
 	captcha_test: string; // -captcha-test:<sitekey>: the captcha's web view, end to end (captcha.jai)
+	keybind: string; // --keybind:<ACTION>[:down|:up]: run a keybind's action in the running fastcord (keybind_message)
 }
 
 parse_options :: () -> Options {
@@ -192,6 +193,8 @@ parse_options :: () -> Options {
 			o.replace = v;
 		} else if flag("-captcha-test:") {
 			o.captcha_test = v;
+		} else if flag("--keybind:") {
+			o.keybind = v;
 		} else if begins_with_nocase(a, "fc://") || begins_with_nocase(a, "discord:") {
 			o.url = a;
 		} else {
@@ -257,6 +260,14 @@ main :: () {
 		serve.stop(s);
 		serve.finish_delete(opt.serve);
 		if !opt.service say("The owner deleted the server. Its file is in % for 30 days.\n", serve.trash_dir(opt.serve));
+		exit(0);
+	}
+	if opt.keybind {
+		// a desktop's own shortcut runs this where fastcord can't see keys pressed elsewhere (Wayland)
+		serve_console();
+		_, _, ok := keybind_message(opt.keybind);
+		if !ok fail("unknown keybind %: one of %, PUSH_TO_TALK and PUSH_TO_MUTE taking :down and :up", opt.keybind, join(..array_view(KEYBIND_NAMES, 3), separator = ", ",, temp));
+		if platform.instance_claim(app_state_dir(), tprint("%1%2", KEYBIND_MESSAGE, opt.keybind)) fail("fastcord isn't running");
 		exit(0);
 	}
 	headless := opt.shot != "" || bench.on;
@@ -465,6 +476,7 @@ frame :: () {
 			platform.window_show();
 			notify_clicked(e.text);
 		case .Open_Url;
+			if begins_with(e.text, KEYBIND_MESSAGE) { keybind_external(advance(e.text, KEYBIND_MESSAGE.count)); continue; }
 			platform.window_show();
 			if e.text != "" {
 				free(app.launch_url);
@@ -815,6 +827,14 @@ script_command :: (path: string, f: []string, t: *float64, depth := 0) {
 	case "expect_images_at_most";
 		// expect_images_at_most <n>: images held (loaded or failed, textures and all)
 		if images.count > cast(int) num(f[1]) script_fail(path, "expect_images_at_most failed: % held", images.count);
+		return;
+	case "launch";
+		// launch <message>: what a later launch hands the running fastcord (a URL, or --keybind's message)
+		platform.inject_event(.{kind = .Open_Url, text = unquote(join_args(f))});
+	case "expect_flag";
+		// expect_flag deaf|mute|ptt on|off
+		on := ifx f[1] == "deaf" then app.self_deaf else ifx f[1] == "mute" then app.self_mute else vs.ptt_held;
+		if on != (f[2] == "on") script_fail(path, "expect_flag failed: % is %", f[1], ifx on then "on" else "off");
 		return;
 	case "open_url";
 		// open_url <url>: what a click on a link to <url> does

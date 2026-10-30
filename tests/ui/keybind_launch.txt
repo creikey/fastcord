@@ -1,0 +1,21 @@
+# fastcord --keybind:<ACTION> from a desktop's own shortcut (Wayland has no global keys): a later launch
+# hands the running fastcord the action, as if its keybind were pressed. Push to Talk holds from :down to :up.
+wait 5
+launch "fastcord-keybind:TOGGLE_DEAFEN"
+wait 3
+expect_flag deaf on
+launch "fastcord-keybind:TOGGLE_DEAFEN:up"
+wait 3
+expect_flag deaf on
+launch "fastcord-keybind:TOGGLE_DEAFEN:down"
+wait 3
+expect_flag deaf off
+launch "fastcord-keybind:PUSH_TO_TALK:down"
+wait 3
+expect_flag ptt on
+launch "fastcord-keybind:PUSH_TO_TALK:up"
+wait 3
+expect_flag ptt off
+launch "fastcord-keybind:NOT_AN_ACTION"
+wait 3
+expect_flag deaf off

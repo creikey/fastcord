@@ -24,6 +24,8 @@ kb: struct {
 	recording := -1; // the entry the next press sets
 	pending_mod: platform.Key; // recording: a modifier is down, alone so far
 	global: platform.Global_Input;
+	external: [cast(int) Keybind_Action.Push_To_Mute + 1]bool;
+	exe: string; // the Keybinds page's commands name this binary // held by a --keybind launch (keybind_external)
 };
 
 keybinds_reset_for_test :: () { array_reset(*kb.list); kb = .{}; }
@@ -113,10 +115,48 @@ keybinds_frame :: () {
 			keybind_run(it.action);
 		}
 	}
-	vs.ptt_held, vs.ptm_held = false, false;
+	vs.ptt_held, vs.ptm_held = kb.external[cast(int) Keybind_Action.Push_To_Talk], kb.external[cast(int) Keybind_Action.Push_To_Mute];
 	for kb.list if it.held {
 		if it.action == .Push_To_Talk vs.ptt_held = true;
 		if it.action == .Push_To_Mute vs.ptm_held = true;
+	}
+}
+
+// What a launch with --keybind:<ACTION>[:down|:up] sends the running fastcord: KEYBIND_MESSAGE and the
+// option's text. Push to Talk and Push to Mute are held from :down to :up (alone, they toggle); the rest
+// run on :down, or alone. For desktops that keep keys pressed elsewhere from apps, whose own shortcuts can
+// run it (Hyprland's bind and bindr).
+KEYBIND_MESSAGE :: "fastcord-keybind:";
+
+exe_path :: () -> string {
+	if !kb.exe kb.exe = copy_string(System.get_path_of_running_executable());
+	return kb.exe;
+}
+System :: #import "System";
+
+Keybind_Phase :: enum u8 { Press; Down; Up; }
+
+keybind_message :: (text: string) -> Keybind_Action, Keybind_Phase, ok: bool {
+	_, name, phase := split_from_left(text, #char ":");
+	a: Keybind_Action;
+	for KEYBIND_NAMES if it_index > 0 && it == name a = xx it_index;
+	if a == .Unassigned return a, .Press, false;
+	if phase == {
+	case ""; return a, .Press, true;
+	case "down"; return a, .Down, true;
+	case "up"; return a, .Up, true;
+	}
+	return a, .Press, false;
+}
+
+keybind_external :: (text: string) {
+	a, phase, ok := keybind_message(text);
+	if !ok return;
+	if a == .Push_To_Talk || a == .Push_To_Mute {
+		held := *kb.external[cast(int) a];
+		held.* = ifx phase == .Press then !held.* else phase == .Down;
+	} else if phase != .Up {
+		keybind_run(a);
 	}
 }
 
@@ -174,7 +214,7 @@ keybinds_page :: () {
 		}
 	}
 	spacer(.Y, 12);
-	set_para("kbhelp", L("Keybinds work in every app, also while fastcord is in the background."), .Normal, 14, 18, T("--text-muted"));
+	if kb.global != .No_Permission && kb.global != .Unavailable set_para("kbhelp", L("Keybinds work in every app, also while fastcord is in the background."), .Normal, 14, 18, T("--text-muted"));
 	global_input_notice();
 	spacer(.Y, 20);
 	drop_i := -1;
@@ -204,6 +244,10 @@ keybinds_page :: () {
 						for KEYBIND_LABELS labels[it_index] = tr(it);
 						pick := select_field(ACTION_IDS[i], labels, xx k.action);
 						if pick >= 0 { k.action = xx pick; k.held = false; }
+						if kb.global == .Unavailable && k.action != .Unassigned {
+							spacer(.Y, 6);
+							label(tprint("--keybind:%", KEYBIND_NAMES[k.action]), .Normal, 12, T("--text-muted"), 16);
+						}
 					}
 					spacer(.Y, 16);
 				}
@@ -280,6 +324,10 @@ global_input_notice :: () {
 		set_para("p", ifx kb.global == .No_Permission
 			then L("Keybinds only work while fastcord is focused. To use them in other apps, allow fastcord under Input Monitoring in System Settings, then restart fastcord.")
 			else L("Keybinds only work while fastcord is focused: this desktop doesn't let apps see keys pressed in other windows."), .Normal, 14, 18, T("--text-default"));
+		if kb.global == .Unavailable {
+			spacer(.Y, 6);
+			set_para("cmd", tprint(L("Instead, bind keys in your desktop's settings to run a keybind's command, shown under its action: %1 --keybind:TOGGLE_DEAFEN. Push to Talk and Push to Mute take :down on press and :up on release."), exe_path()), .Normal, 14, 18, T("--text-muted"));
+		}
 		spacer(.Y, 10);
 	}
 	if kb.global == .No_Permission {
