@@ -1314,10 +1314,12 @@ draw_rect :: (r: Rect, c: Color, radii := float32.[0, 0, 0, 0], border: float32 
 	array_add(*context.ui.draw, .{kind = .Rect, rect = r, colors = .[c, c, c, c], radii = radii, border = border, softness = softness});
 }
 
-emit_draw :: (b: *Box, in_overlay_pass: bool, depth := 0) {
+// An overlay is drawn only by the overlay pass, as its root: one inside another (a tooltip in a dialog) comes
+// after the whole outer one, so the outer one's later boxes never paint over it.
+emit_draw :: (b: *Box, in_overlay_pass: bool, depth := 0, root := true) {
 	assert(depth < MAX_BOX_DEPTH);
 	s := context.ui;
-	if (b.flags & .Overlay) && !in_overlay_pass return;
+	if (b.flags & .Overlay) && !(in_overlay_pass && root) return;
 	st := *b.style;
 	alpha := b.opacity;
 	if (b.flags & .Draw_Shadow) && st.shadow_color.w > 0 {
@@ -1360,7 +1362,7 @@ emit_draw :: (b: *Box, in_overlay_pass: bool, depth := 0) {
 	}
 	clip := (b.flags & .Clip) != 0;
 	if clip array_add(*s.draw, .{kind = .Clip_Push, rect = b.rect});
-	for c: each_child(b) emit_draw(c, in_overlay_pass, depth + 1);
+	for c: each_child(b) emit_draw(c, in_overlay_pass, depth + 1, false);
 	if clip array_add(*s.draw, .{kind = .Clip_Pop});
 }
 
@@ -1368,7 +1370,7 @@ emit_overlays :: (b: *Box, depth := 0) {
 	assert(depth < MAX_BOX_DEPTH);
 	for c: each_child(b) {
 		if c.flags & .Overlay emit_draw(c, true, depth + 1);
-		else emit_overlays(c, depth + 1);
+		emit_overlays(c, depth + 1);
 	}
 }
 
