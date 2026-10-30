@@ -13,6 +13,11 @@ expect_visible "60 FPS"
 expect_visible "SOUND"
 expect_visible "1080p"
 shot build/ui-call_go_live_picker.png
+# hovering a setting the official client wouldn't offer: its tooltip lies over the rows and list below it
+move_text "1080p"
+wait 5
+expect_visible "Needs Nitro in the official client; Discord may lower it"
+shot build/ui-call_go_live_tooltip.png
 click 140 400
 wait 5
 watching 181531813351522304
