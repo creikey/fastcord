@@ -169,8 +169,8 @@ Screen :: struct {
 	own_clients: [..]u32; // our own PipeWire clients, whose playback is left out
 	self_tag: string; // "[fastcord]", how ALSA's PipeWire and Pulse plugins name our playback
 	apps: [..]*App_Audio;
-	mix: [MIX]float32; // ring, indexed by absolute sample % MIX
-	out_pos: s64; // samples handed to on_audio
+	mix: [MIX][2]float32; // ring of stereo frames, indexed by absolute frame % MIX
+	out_pos: s64; // frames handed to on_audio
 }
 
 App_Audio :: struct {
@@ -253,11 +253,11 @@ on_video_process :: (data: *void) #c_call {
 
 VIDEO_EVENTS := Pw_Stream_Events.{version = 2, state_changed = on_video_state, param_changed = on_video_param, process = on_video_process};
 
-// ---- Soundshare: one capture stream per app that plays (a Stream/Output/Audio node), downmixed and summed
+// ---- Soundshare: one capture stream per app that plays (a Stream/Output/Audio node), its stereo frames summed
 // into a ring.
 
 MIX :: 48000 / 4;
-LAG :: 1920; // samples an app that stopped delivering may hold the mix back
+LAG :: 1920; // frames an app that stopped delivering may hold the mix back
 
 on_global :: (data: *void, id: u32, permissions: u32, type: *u8, version: u32, props: *Spa_Dict) #c_call {
 	s := cast(*Screen) data;
@@ -320,7 +320,11 @@ on_audio_process :: (data: *void) #c_call {
 		if n > MIX / 2 n = MIX / 2;
 		if a.pos < s.out_pos a.pos = s.out_pos;
 		if a.pos + n - s.out_pos > MIX mix_emit(s, a.pos + n - MIX);
-		for i: 0..n - 1 s.mix[(a.pos + i) % MIX] += (pcm[2 * i] + pcm[2 * i + 1]) * 0.5;
+		for i: 0..n - 1 {
+			f := *s.mix[(a.pos + i) % MIX];
+			f.*[0] += pcm[2 * i];
+			f.*[1] += pcm[2 * i + 1];
+		}
 		a.pos += n;
 		// out up to where every app that plays has reached, but never more than LAG behind the furthest
 		lo, hi := a.pos, a.pos;
@@ -334,11 +338,12 @@ AUDIO_EVENTS := Pw_Stream_Events.{version = 2, process = on_audio_process};
 mix_emit :: (s: *Screen, upto: s64) {
 	n := upto - s.out_pos;
 	if n <= 0 return;
-	out := NewArray(n, float32,, temp);
+	out := NewArray(n * 2, float32,, temp); // interleaved stereo
 	for i: 0..n - 1 {
 		k := (s.out_pos + i) % MIX;
-		out[i] = clamp(s.mix[k], -1, 1);
-		s.mix[k] = 0;
+		out[2 * i] = clamp(s.mix[k][0], -1, 1);
+		out[2 * i + 1] = clamp(s.mix[k][1], -1, 1);
+		s.mix[k] = .[0, 0];
 	}
 	s.out_pos = upto;
 	c := s.c;

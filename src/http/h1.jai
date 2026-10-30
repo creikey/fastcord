@@ -48,6 +48,36 @@ h1_round_trip :: (c: *H1_Conn, req: Request, sink_in := Body_Sink.{}) -> Respons
 	return resp, err;
 }
 
+// h1_round_trip_paced is h1_round_trip with the body written chunk bytes at a time, interval_ms apart, the
+// first in the same write as the head: Node's http writes as the desktop host's makeChunkedRequest makes
+// them (each req.write, then a timer).
+h1_round_trip_paced :: (c: *H1_Conn, req: Request, chunk: int, interval_ms: int) -> Response, Error {
+	assert(chunk > 0);
+	if !c.reusable return .{}, .Closed;
+	head := req;
+	head.body = .[];
+	b: String_Builder;
+	b.allocator = temp;
+	err := h1_serialize_request(*b, head);
+	first := min(chunk, req.body.count);
+	append(*b, req.body.data, first);
+	if err == .None err = map_net_error(netio.write(c.s, cast([]u8) builder_to_string(*b,, temp)));
+	at := first;
+	while err == .None && at < req.body.count {
+		sleep_milliseconds(xx interval_ms);
+		n := min(chunk, req.body.count - at);
+		err = map_net_error(netio.write(c.s, array_view(req.body, at, n)));
+		at += n;
+	}
+	if err != .None {
+		c.reusable = false;
+		return .{}, err;
+	}
+	resp, keep, rerr := h1_read_response(*c.r, req.method, c.limits,, c.allocator);
+	c.reusable = keep && rerr == .None;
+	return resp, rerr;
+}
+
 // The server side, for self-hosted servers: h1_init on the accepted stream, then h1_read_request and
 // h1_write_response in turn. Requests carry a Content-Length body or none (no chunked uploads).
 h1_read_request :: (c: *H1_Conn) -> Request, Error {

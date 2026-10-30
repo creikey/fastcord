@@ -201,6 +201,7 @@ Client :: struct {
 	invite_codes: Table(Snowflake, string);
 	invite_previews: Table(string, Invite_Preview); // invite links in messages (invite_preview_key -> resolved guild)
 	stream_previews: Table(string, Stream_Preview); // Go Live stream key -> its preview (stream_preview; under invite_mu)
+	preview_upload_status: int; // our stream's last preview upload (stream_preview_result; atomic)
 	pending_join_guild: Snowflake;
 	pending_join_channel: Snowflake;
 	soundboard_loaded: bool; // the soundboard sounds were fetched this session (first RTC_CONNECTED)

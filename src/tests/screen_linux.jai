@@ -32,8 +32,8 @@ main :: () {
 		old := atomic_swap(*last, f);
 		yuv.nv12_release(old);
 	}, null, 30, ifx args.count > 2 && args[2] == "small" then 100 else 1080, (user: *void, pcm: []float32) {
-		samples += pcm.count;
-		for pcm energy += it * it;
+		samples += pcm.count / 2; // stereo frames
+		for pcm energy += it * it / 2;
 	});
 	for 1..seconds * 10 {
 		if tone { // 0.5 amplitude at 1 kHz, kept 200 ms ahead

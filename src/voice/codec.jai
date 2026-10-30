@@ -3,18 +3,19 @@
 // 0xF8 0xFF 0xFE and decodes to silence, for protocol tests).
 //
 // Contract (all at 48 kHz, 20 ms = 960 samples per channel):
-//   encode(enc, pcm_mono[960], out) -> bytes written (0 = drop frame)
+//   encode(enc, pcm[960 * channels], out) -> bytes written (0 = drop frame); stereo is interleaved
 //   decode(dec, packet, fec, out_stereo[1920]) -> samples per channel
 //     packet empty:  packet loss concealment
 //     fec == true:   decode the in-band FEC (LBRR) of `packet` for the frame BEFORE it
 // The encoder should be configured like the official client: Opus
 // application VOIP, in-band FEC on, DTX per op-1 fmtp ("usedtx"), 64 kbit/s
-// default voice bitrate (channel bitrate may override), mono input.
+// default voice bitrate (channel bitrate may override), mono input; a Go Live stream's
+// soundshare is stereo (the client's getCodecOptions sets channels 2 for the STREAM context).
 
 MAX_OPUS_PACKET :: 1275;
 
 Codec :: struct {
-    encoder_create: () -> *void;
+    encoder_create: (channels: int) -> *void;
     encoder_destroy: (enc: *void);
     encode: (enc: *void, pcm: []float32, out: []u8) -> int;
     set_bitrate: (enc: *void, bits_per_second: int);
@@ -43,7 +44,7 @@ OPUS_SILENCE_FRAME :: u8.[0xF8, 0xFF, 0xFE];
 
 stub_codec :: () -> Codec {
     return .{
-        encoder_create = () -> *void { return null; },
+        encoder_create = (channels: int) -> *void { return null; },
         encoder_destroy = (enc: *void) {},
         encode = (enc: *void, pcm: []float32, out: []u8) -> int {
             memcpy(out.data, OPUS_SILENCE_FRAME.data, 3);
@@ -59,13 +60,13 @@ stub_codec :: () -> Codec {
     };
 }
 
-// opus_codec adapts libopus to the Codec interface: mono VOIP encoder at
+// opus_codec adapts libopus to the Codec interface: VOIP encoder (mono, or stereo for soundshare) at
 // 64 kbit/s (the client's default voice bitrate), stereo decoder (mono packets
 // are upmixed). It is the default codec.
 opus_codec :: () -> Codec {
     return .{
-        encoder_create = () -> *void {
-            e, err := opus.encoder_create(48000, 1, .VOIP);
+        encoder_create = (channels: int) -> *void {
+            e, err := opus.encoder_create(48000, xx channels, .VOIP);
             if err != .None return null;
             opus.encoder_set_bitrate(e, 64000);
             opus.encoder_set_inband_fec(e, true);

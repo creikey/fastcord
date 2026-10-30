@@ -60,6 +60,7 @@ Options :: struct {
     hosted: Hosted;           // host "" = Discord
     no_audio_devices: bool;   // don't touch the audio module (tests / headless)
     capture: (data: *void, out: []float32) -> int;          // mono 48 kHz pull instead of the mic (tests, headless; a Go Live stream's soundshare)
+    capture_stereo: bool;     // capture gives interleaved stereo, sent as stereo Opus (soundshare)
     playback: (data: *void, user_id: u64, pcm: []float32);  // stereo interleaved, 960 frames
     // a received video frame (Annex B, decrypted), on the UDP thread; the data is valid during the call
     video: (data: *void, user_id: u64, codec: Video_Codec, au: []u8, keyframe: bool);
@@ -180,13 +181,14 @@ Conn :: struct {
 
     codec: Codec;
     encoder: *void;
+    channels: int = 1;   // sent audio: 2 for a stereo capture (soundshare)
     vad: Vad;
     seq: u16;
     ts: u32;
     packets_sent: u32;
     octets_sent: u32;
     last_sent_ts: u32;
-    preroll: [VAD_DEFAULT_LEADING][SAMPLES_PER_FRAME]float32;
+    preroll: [VAD_DEFAULT_LEADING][SAMPLES_PER_FRAME * 2]float32;  // channels interleaved
     preroll_n: int;
     silence_left: int;
     next_rtcp_ms: s64;
@@ -289,7 +291,8 @@ voice_connect :: (info: Voice_Server_Info, opts := Options.{}) -> *Conn {
     if opts.hosted.host c.host, c.port = c.opts.hosted.host, opts.hosted.port;
     c.rtc_connection_id = uuid4();
     c.codec = get_codec();
-    c.encoder = c.codec.encoder_create();
+    if opts.capture && opts.capture_stereo c.channels = 2;
+    c.encoder = c.codec.encoder_create(c.channels);
     if opts.vad_manual {
         c.vad.auto_threshold = false;
         if opts.vad_threshold_db != 0 c.vad.threshold_db = opts.vad_threshold_db;
@@ -1338,7 +1341,8 @@ audio_thread_proc :: (t: *Thread) -> s64 {
             pthread_setschedparam(pthread_self(), policy, *param);
         }
     }
-    pcm: [SAMPLES_PER_FRAME]float32;
+    buf: [SAMPLES_PER_FRAME * 2]float32;
+    pcm := array_view(buf, 0, SAMPLES_PER_FRAME * c.channels);
     out: [SAMPLES_PER_FRAME * 2]float32;
     next := current_time_monotonic();
     while !stopped(c) {
@@ -1432,7 +1436,7 @@ tx_tick :: (c: *Conn, pcm: []float32) {
     gain := ifx share then 1.0 else c.input_gain;
     echo, denoise, agc := c.echo_on && c.capture_on, c.denoise_on, c.agc_on && c.capture_on;
     locks.unlock(*c.mu);
-    if !share mic_process(*c.proc, pcm, echo, denoise, agc);
+    if !share mic_process(*c.proc, pcm, echo, denoise, agc);  // mono
     if gain != 1 {
         for * pcm it.* *= gain;
         audio.limit(*c.input_limiter, pcm, 1);
@@ -1440,7 +1444,7 @@ tx_tick :: (c: *Conn, pcm: []float32) {
     mixing := false;
     {
         locks.guard(*c.mu);
-        if c.mix_pos < c.mix.count {
+        if c.mix_pos < c.mix.count && c.channels == 1 {
             n := min(pcm.count, c.mix.count - c.mix_pos);
             for 0..n-1 pcm[it] = clamp(pcm[it] + c.mix[c.mix_pos + it], -1, 1);
             c.mix_pos += n;
@@ -1471,7 +1475,8 @@ tx_tick :: (c: *Conn, pcm: []float32) {
             // leading frames (pre-roll), with their original timestamps
             for i: 0..c.preroll_n-1 {
                 pts := frame_ts - cast(u32) ((c.preroll_n - i) * SAMPLES_PER_FRAME);
-                send_audio(c, c.preroll[i], pts, frame_level_db(c.preroll[i]), true);
+                frame := array_view(c.preroll[i], 0, pcm.count);
+                send_audio(c, frame, pts, frame_level_db(frame), true);
             }
         }
         c.preroll_n = 0;
