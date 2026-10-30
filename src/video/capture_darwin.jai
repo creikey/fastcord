@@ -180,7 +180,7 @@ screen_start :: (target: Screen_Target, on_frame: Frame_Proc, user: *void, fps :
 }
 
 // Why the capture ended on its own ("" while it runs).
-capture_error :: (c: *Capture) -> string { return ifx c && atomic_load(*c.ended) then "Screen sharing stopped." else ""; }
+capture_error :: (c: *Capture) -> string { return ifx c && atomic_load(*c.ended) then SCREEN_STOPPED else ""; }
 
 capture_stop :: (c: *Capture) {
 	if !c return;

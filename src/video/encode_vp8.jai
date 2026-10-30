@@ -17,8 +17,8 @@ vp8_encoder_create :: (width: int, height: int, fps: int, bitrate: int, screen: 
 	return e;
 }
 
-// pixbuf: a captured frame (Frame_Proc) at least the encoder's size; it is cropped to it, smaller ones dropped.
-// The output is one VP8 frame, not Annex B.
+// pixbuf: a captured frame (Frame_Proc), scaled to the encoder's size. The output is one VP8 frame, not
+// Annex B.
 vp8_encoder_encode :: (e: *Vp8_Encoder, pixbuf: *void, pts_90k: u32, force_keyframe := false) {
 	#if OS == .MACOS {
 		CVPixelBufferLockBaseAddress(pixbuf, 1); // read-only
@@ -37,13 +37,16 @@ vp8_encoder_encode :: (e: *Vp8_Encoder, pixbuf: *void, pts_90k: u32, force_keyfr
 
 // vp8_encode_nv12: the same from an NV12 picture's planes (y, uv with row pitches ys, uvs).
 vp8_encode_nv12 :: (e: *Vp8_Encoder, y: *u8, uv: *u8, ys: int, uvs: int, w: int, h: int, pts_90k: u32, force_keyframe := false) {
-	if w < e.width || h < e.height || !y || !uv return;
+	if !y || !uv return;
 	out: *u8;
 	n: u64;
 	key: s32;
-	if fc_vp8_enc_encode(e.enc, y, uv, xx ys, xx uvs, pts_90k, xx force_keyframe, *out, *n, *key) != 0 || !n return;
+	if fc_vp8_enc_encode(e.enc, y, uv, xx ys, xx uvs, xx (w & ~1), xx (h & ~1), pts_90k, xx force_keyframe, *out, *n, *key) != 0 || !n return;
 	e.on_output(e.user, .{xx n, out}, key != 0, pts_90k);
 }
+
+// vp8_encoder_set_bitrate changes the target bitrate between frames (the bandwidth estimate moved).
+vp8_encoder_set_bitrate :: (e: *Vp8_Encoder, bitrate: int) { fc_vp8_enc_set_bitrate(e.enc, xx bitrate); }
 
 vp8_encoder_destroy :: (e: *Vp8_Encoder) {
 	if !e return;
@@ -54,7 +57,8 @@ vp8_encoder_destroy :: (e: *Vp8_Encoder) {
 #scope_file
 
 fc_vp8_enc_create :: (w: s32, h: s32, fps: s32, bitrate: s32, screen: s32) -> *void #foreign fc_vendor_vp8;
-fc_vp8_enc_encode :: (e: *void, y: *u8, uv: *u8, ys: s32, uvs: s32, pts_90k: u32, force_key: s32, out: **u8, n: *u64, key: *s32) -> s32 #foreign fc_vendor_vp8;
+fc_vp8_enc_encode :: (e: *void, y: *u8, uv: *u8, ys: s32, uvs: s32, w: s32, h: s32, pts_90k: u32, force_key: s32, out: **u8, n: *u64, key: *s32) -> s32 #foreign fc_vendor_vp8;
+fc_vp8_enc_set_bitrate :: (e: *void, bitrate: s32) #foreign fc_vendor_vp8;
 fc_vp8_enc_destroy :: (e: *void) #foreign fc_vendor_vp8;
 fc_vendor_vp8 :: #library,no_dll "../../build/fc_vendor";
 

@@ -14,94 +14,128 @@
 <meta property="og:image" content="https://creikey.com/fastcord/og.jpg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="Fastcord: chat, native.">
+<meta property="og:image:alt" content="Fastcord: a native Discord client, showing a server with messages, a thread, voice and the member list.">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Fastcord — a native client for Discord">
 <meta name="twitter:description" content="A fast, tiny client for Discord. No browser inside.">
 <meta name="twitter:image" content="https://creikey.com/fastcord/og.jpg">
-<meta name="theme-color" content="#5865f2">
+<meta name="theme-color" content="#fafafb" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e0e11" media="(prefers-color-scheme: dark)">
+<meta name="color-scheme" content="light dark">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <style>
+  /* Every colour is a token: light by default, dark under prefers-color-scheme. */
   :root {
-    --bg: #0f0f12;
-    --panel: #18181d;
-    --line: #26262d;
-    --text: #efeff1;
-    --muted: #9a9ba3;
-    --brand: #5865f2;
-    --brand-hi: #6d78ff;
-    --ok: #3d9e60;
+    color-scheme: light dark;
+    --bg: #fafafb; --panel: #ffffff; --sunk: #f2f2f5; --line: #e3e3e9; --text: #1f1f25; --muted: #5f606b;
+    --brand: #4f5bd5;      /* button fill: white text stays above 5:1 */
+    --brand-hover: #434ec2;
+    --on-brand: #ffffff;
+    --accent: #4350c8;     /* links, highlights, REST dots */
+    --gw: #a8650a;         /* gateway messages */
+    --tel: #0e7f72;        /* telemetry events */
+    --ok: #237a43; --bad: #c0392b;
+    --glow: rgba(79, 91, 213, .16);
+    --shadow: 0 24px 60px rgba(30, 30, 60, .18);
+    --video: #000;
   }
-  @media (prefers-color-scheme: light) {
-    :root:not([data-theme="dark"]) {
-      --bg: #fbfbfb; --panel: #ffffff; --line: #e6e6ea; --text: #2e2e34; --muted: #6c6d76;
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0e0e11; --panel: #17171c; --sunk: #111115; --line: #27272f; --text: #efeff2; --muted: #9c9da7;
+      --accent: #8a93ff;
+      --gw: #e8a33d; --tel: #3db8a6;
+      --ok: #4cc27a; --bad: #ef7d7d;
+      --glow: rgba(88, 101, 242, .28);
+      --shadow: 0 30px 80px rgba(0, 0, 0, .55);
     }
   }
   * { box-sizing: border-box; }
-  html { -webkit-text-size-adjust: 100%; }
+  html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
   body {
-    margin: 0; background: var(--bg); color: var(--text);
-    font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    margin: 0; background: var(--bg); color: var(--text); overflow-x: hidden;
+    font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   }
+  a { color: var(--accent); }
   .wrap { max-width: 1080px; margin: 0 auto; padding: 0 16px; }
-  header { display: flex; align-items: center; gap: 12px; padding: 24px 0; }
-  header img { width: 36px; height: 36px; }
+  header { display: flex; align-items: center; gap: 10px; padding: 20px 0; }
+  header img { width: 32px; height: 32px; }
   header b { font-size: 18px; letter-spacing: -0.01em; }
-  header a { margin-left: auto; color: var(--muted); text-decoration: none; font-size: 14px; }
-  header a:hover { color: var(--text); }
-  .hero { text-align: center; padding: 48px 0 32px; }
-  h1 { font-size: clamp(36px, 7vw, 64px); line-height: 1.05; margin: 0 0 16px; letter-spacing: -0.03em; }
-  h1 span { color: var(--brand-hi); }
-  .lede { color: var(--muted); font-size: clamp(17px, 2.4vw, 20px); max-width: 620px; margin: 0 auto 32px; }
-  .downloads { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+  header nav { margin-left: auto; display: flex; gap: 20px; }
+  header nav a { color: var(--muted); text-decoration: none; font-size: 14px; }
+  header nav a:hover { color: var(--text); }
+  @media (max-width: 640px) { header nav a:not(:last-child) { display: none; } }
+
+  .hero { text-align: center; padding: 56px 0 0; position: relative; }
+  .hero::before { content: ""; position: absolute; z-index: -1; left: 0; right: 0; top: -80px; height: 620px;
+    background: radial-gradient(closest-side, var(--glow), transparent); pointer-events: none; }
+  h1 { font-size: clamp(40px, 8vw, 72px); line-height: 1.02; margin: 0 0 18px; letter-spacing: -0.035em; }
+  h1 span { color: var(--accent); }
+  .lede { color: var(--muted); font-size: clamp(17px, 2.4vw, 21px); max-width: 560px; margin: 0 auto 30px; }
+  .downloads { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
   .btn {
-    display: inline-flex; align-items: center; gap: 10px; padding: 14px 22px; border-radius: 12px;
+    display: inline-flex; align-items: center; gap: 8px; padding: 13px 20px; border-radius: 12px;
     font-weight: 600; text-decoration: none; border: 1px solid var(--line); color: var(--text); background: var(--panel);
-    transition: transform .12s ease, background .12s ease;
+    transition: transform .12s ease, background .12s ease, border-color .12s ease;
   }
-  .btn.primary { background: var(--brand); border-color: transparent; color: #fff; }
-  .btn.primary:hover { background: var(--brand-hi); transform: translateY(-1px); }
-  .btn small { font-weight: 500; opacity: .8; }
-  .version { color: var(--muted); font-size: 13px; margin-top: 14px; min-height: 20px; }
-  .shot { margin: 40px auto 0; border-radius: 14px; overflow: hidden; border: 1px solid var(--line);
-    box-shadow: 0 30px 80px rgba(0,0,0,.45); }
+  .btn:hover { border-color: var(--muted); transform: translateY(-1px); }
+  .btn.primary { background: var(--brand); border-color: transparent; color: var(--on-brand); }
+  .btn.primary:hover { background: var(--brand-hover); }
+  .btn small { font-weight: 500; opacity: .85; }
+  .btn[hidden] { display: none; }
+  .version { color: var(--muted); font-size: 13px; margin-top: 12px; min-height: 20px; }
+  .shot { margin: 36px auto 0; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); box-shadow: var(--shadow); background: var(--video); }
   .shot img { display: block; width: 100%; height: auto; }
-  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; padding: 64px 0 24px; }
+
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; margin: 56px 0 0; background: var(--line);
+    border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+  .card { background: var(--panel); padding: 18px 20px; }
+  .card h3 { margin: 0 0 2px; font-size: 16px; }
+  .card p { margin: 0; color: var(--muted); font-size: 14.5px; }
   @media (max-width: 860px) { .grid { grid-template-columns: repeat(2, 1fr); } }
   @media (max-width: 520px) { .grid { grid-template-columns: 1fr; } }
-  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 20px; }
-  .card h3 { margin: 0 0 6px; font-size: 17px; }
-  .card p { margin: 0; color: var(--muted); font-size: 15px; }
-  .card a { color: var(--brand-hi); }
-  .parity { padding: 40px 0 24px; }
-  .parity .sub, .e2e .sub { color: var(--muted); text-align: center; max-width: 640px; margin: 0 auto 24px; }
-  .stats { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-bottom: 20px; }
+
+  section.block { padding: 72px 0 0; }
+  .eyebrow { display: block; text-align: center; color: var(--accent); font-size: 13px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 6px; }
+  h2 { font-size: clamp(28px, 4.6vw, 42px); line-height: 1.1; letter-spacing: -0.025em; margin: 0 0 10px; text-align: center; }
+  .sub { color: var(--muted); text-align: center; max-width: 620px; margin: 0 auto 24px; }
+  .fine { color: var(--muted); font-size: 13.5px; max-width: 700px; margin: 16px auto 0; text-align: center; }
+  .answer { font-size: clamp(18px, 2.6vw, 21px); text-align: center; margin: 0 auto 26px; max-width: 560px; }
+  .why, .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .why div, .steps div { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+  .why { text-align: center; }
+  .why b { display: block; font-size: 22px; letter-spacing: -0.015em; color: var(--ok); font-variant-numeric: tabular-nums; }
+  .why span, .steps span { color: var(--muted); font-size: 14px; }
+  .steps div > b { display: block; margin-bottom: 4px; }
+  .steps span b { color: var(--text); font-weight: 600; }
+  .subhead { font-size: clamp(21px, 3.2vw, 26px); letter-spacing: -0.02em; margin: 48px 0 6px; text-align: center; }
+
+  .stats { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-bottom: 18px; }
   .stat { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 18px; min-width: 150px; text-align: center; }
   .stat b { display: block; font-size: 26px; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
   .stat span { color: var(--muted); font-size: 13px; }
   .chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-bottom: 14px; }
-  .chip { font: inherit; font-size: 13px; padding: 5px 10px; border-radius: 999px; border: 1px solid var(--line);
+  .chip { font: inherit; font-size: 13px; padding: 5px 11px; border-radius: 999px; border: 1px solid var(--line);
     background: var(--panel); color: var(--muted); cursor: pointer; }
-  .chip[aria-pressed="true"] { color: var(--text); border-color: var(--brand); }
+  .chip:hover { color: var(--text); }
+  .chip[aria-pressed="true"] { color: var(--text); border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
   .chip i { display: inline-block; width: 26px; height: 4px; border-radius: 2px; margin-left: 6px; vertical-align: middle;
     background: linear-gradient(90deg, var(--ok) var(--m), var(--line) var(--m)); }
   .lanes { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 12px 12px 4px; }
   .lanes svg { display: block; width: 100%; height: auto; }
   .lanes text { fill: var(--muted); font-size: 11px; }
-  .legend { display: flex; flex-wrap: wrap; gap: 16px; justify-content: center; color: var(--muted); font-size: 13px; padding: 10px 0 0; }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 16px; justify-content: center; color: var(--muted); font-size: 13px; padding: 10px 0 0; }
   .legend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
   .tip { min-height: 22px; text-align: center; color: var(--muted); font-size: 13px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     padding: 6px 0 12px; overflow-wrap: anywhere; }
-  .fine { color: var(--muted); font-size: 13px; max-width: 720px; margin: 14px auto 0; text-align: center; }
-  .duel { padding: 40px 0 8px; }
-  .duel .sub { color: var(--muted); text-align: center; max-width: 680px; margin: 0 auto 20px; }
+
   .stage { display: grid; grid-template-columns: 1fr minmax(300px, 1.05fr) 1fr; gap: 14px; align-items: start;
     width: min(1360px, calc(100vw - 32px)); position: relative; left: 50%; transform: translateX(-50%); }
   .vid { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
   .vid h3 { margin: 0; padding: 10px 14px; font-size: 14px; display: flex; gap: 8px; align-items: center; }
   .vid h3 i { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
-  .vid.fc h3 i { background: var(--brand-hi); }
-  .vid video { display: block; width: 100%; aspect-ratio: 16 / 9; background: #000; }
+  .vid.fc h3 i { background: var(--accent); }
+  .vid video { display: block; width: 100%; aspect-ratio: 16 / 9; background: var(--video); cursor: zoom-in; }
+  .stage.big .vid video { cursor: zoom-out; }
   .vbar { position: relative; height: 26px; border-top: 1px solid var(--line); }
   .vbar b { position: absolute; top: 7px; width: 3px; height: 12px; border-radius: 2px; transform: translateX(-1px); }
   .vbar u { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--text); opacity: .7; text-decoration: none; }
@@ -109,15 +143,16 @@
     height: var(--wire-h, 420px); min-height: 300px; }
   .whead { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--line); font-size: 13px; }
   .whead .srv { font-weight: 600; display: flex; align-items: center; gap: 6px; }
-  .whead .srv::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 3px rgba(61,158,96,.25); }
+  .whead .srv::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--ok);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 25%, transparent); }
   .clock { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--muted); font-variant-numeric: tabular-nums; }
   .wbtn { font: inherit; font-size: 12px; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--muted); cursor: pointer; }
   .wbtn:hover { color: var(--text); }
   .rows { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 6px 8px 10px; scroll-behavior: smooth; }
   .row { display: grid; grid-template-columns: 1fr 22px 1fr; gap: 6px; align-items: center; margin: 5px 0; cursor: pointer; }
   .pkt { font: 11px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace; padding: 5px 7px; border-radius: 7px; border: 1px solid var(--line);
-    background: var(--bg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-height: 26px; }
-  .pkt.k0 { border-left: 3px solid var(--brand-hi); } .pkt.k1 { border-left: 3px solid #e8a33d; } .pkt.k2 { border-left: 3px solid #3db8a6; }
+    background: var(--sunk); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-height: 26px; }
+  .pkt.k0 { border-left: 3px solid var(--accent); } .pkt.k1 { border-left: 3px solid var(--gw); } .pkt.k2 { border-left: 3px solid var(--tel); }
   .pkt.none { border-style: dashed; background: transparent; color: var(--muted); text-align: center; }
   .pkt small { color: var(--muted); }
   .row .eq { text-align: center; font-size: 13px; color: var(--ok); font-weight: 700; }
@@ -126,53 +161,35 @@
   @keyframes inl { from { transform: translateX(-60%); opacity: 0; } }
   @keyframes inr { from { transform: translateX(60%); opacity: 0; } }
   @keyframes pop { from { transform: scale(.2); opacity: 0; } }
-  .row.sel .pkt { border-color: var(--brand); }
+  .row.sel .pkt { border-color: var(--accent); }
   .detail { border-top: 1px solid var(--line); padding: 10px 12px; font-size: 12px; max-height: 45%; overflow-y: auto; }
   .detail h4 { margin: 0 0 6px; font: 600 12px ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
   .cmp { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 10px; font: 11px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; }
   .cmp div { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .cmp .h { color: var(--muted); font-family: inherit; }
-  .cmp .x { color: #e06c6c; }
+  .cmp .x { color: var(--bad); }
   .verdict { margin: 0 0 8px; color: var(--ok); }
   .verdict.ne { color: var(--muted); }
-  .vid video { cursor: zoom-in; }
-  .stage.big .vid video { cursor: zoom-out; }
   @media (max-width: 1100px) { .stage { grid-template-columns: 1fr 1fr; } .wire { grid-column: 1 / -1; order: 3; } }
   @media (min-width: 1101px) { .stage.big { grid-template-columns: 1fr 1fr; } .stage.big .wire { grid-column: 1 / -1; order: 3; } }
   @media (max-width: 640px) {
     .stage { gap: 8px; }
     .vid h3 { padding: 7px 9px; font-size: 12px; }
     .vid h3 .long { display: none; }
-  }
-  @media (prefers-reduced-motion: reduce) { .row .l, .row .r, .row .eq { animation: none; } }
-  .ban { text-align: center; padding: 72px 0 8px; }
-  .ban h2 { font-size: clamp(30px, 5vw, 44px); letter-spacing: -0.02em; margin: 0 0 10px; }
-  .answer { font-size: clamp(18px, 2.6vw, 22px); margin: 0 auto 28px; max-width: 560px; }
-  .why, .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-  .why div, .steps div { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
-  .why b { display: block; font-size: 20px; letter-spacing: -0.01em; }
-  .why span, .steps span { color: var(--muted); font-size: 14px; }
-  .steps { text-align: left; }
-  .steps div > b { display: block; margin-bottom: 4px; }
-  .steps span b { color: var(--text); font-weight: 600; }
-  .subhead { font-size: clamp(22px, 3.4vw, 28px); letter-spacing: -0.02em; margin: 0 0 6px; text-align: center; }
-  .first { padding: 40px 0 48px; }
-  .e2e, .host { padding: 40px 0 8px; }
-  .host .sub { color: var(--muted); text-align: center; max-width: 680px; margin: 0 auto 24px; }
-  .host .downloads { margin-top: 20px; }
-  .btn[hidden] { display: none; }
-  @media (max-width: 640px) {
+    section.block { padding-top: 56px; }
+    .hero .downloads { flex-direction: column; align-items: stretch; max-width: 340px; margin: 0 auto; }
+    .hero .btn { justify-content: center; }
     .why, .steps { grid-template-columns: 1fr; gap: 8px; }
     .why div { display: flex; align-items: baseline; gap: 10px; padding: 12px 14px; text-align: left; }
-    .why b { font-size: 17px; white-space: nowrap; }
-    .ban { padding-top: 48px; }
+    .why b { font-size: 18px; white-space: nowrap; }
     .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     .stat { min-width: 0; padding: 10px; }
     .stat b { font-size: 22px; }
     .chips { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; padding-bottom: 6px; scrollbar-width: none; }
     .chip { flex: none; }
   }
-  footer { border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; padding: 24px 0 40px; text-align: center; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .row .l, .row .r, .row .eq { animation: none; } .btn { transition: none; } }
+  footer { border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; padding: 24px 0 40px; margin-top: 72px; text-align: center; }
   footer a { color: var(--muted); }
 </style>
 </head>
@@ -181,89 +198,97 @@
   <header>
     <img src="icon.svg" alt="">
     <b>Fastcord</b>
-    <a href="https://github.com/creikey/fastcord">GitHub</a>
+    <nav>
+      <a href="#ban">Ban risk</a>
+      <a href="#encryption">Encryption</a>
+      <a href="#self-hosting">Self-hosting</a>
+      <a href="https://github.com/creikey/fastcord">GitHub</a>
+    </nav>
   </header>
 
   <section class="hero">
     <h1>Chat, <span>native</span>.</h1>
-    <p class="lede">A fast Discord client with no browser inside.</p>
+    <p class="lede">A fast, tiny Discord client with no browser inside.</p>
     <div class="downloads">
       <a class="btn primary" id="dl-mac" href="https://github.com/creikey/fastcord/releases/latest/download/fastcord-macos.zip">macOS <small>Apple silicon &amp; Intel</small></a>
       <a class="btn" id="dl-win" href="https://github.com/creikey/fastcord/releases/latest/download/fastcord-windows.zip">Windows <small>10 &amp; 11, x64</small></a>
       <a class="btn" id="dl-linux" href="https://github.com/creikey/fastcord/releases/latest/download/fastcord-linux-x86_64.tar.gz">Linux <small>x86_64, any distro</small></a>
     </div>
     <div class="version" id="version"></div>
-    <div class="shot"><img src="screenshot.jpg" width="2560" height="1440" alt="Fastcord showing a server channel with messages"></div>
+    <div class="shot"><img src="screenshot.jpg" width="2560" height="1680" alt="Fastcord showing a server channel with a link preview, a reply with a thread, a photo with reactions, a voice channel and the member list"></div>
   </section>
 
   <section class="grid">
-    <div class="card"><h3>Instant</h3><p>GPU-rendered. Every input lands on the next frame.</p></div>
-    <div class="card"><h3>Light on battery</h3><p>Idle means zero frames and zero wakeups.</p></div>
-    <div class="card"><h3>Small</h3><p>One app, under 25 MB to download. No Chromium, no Node.</p></div>
-    <div class="card"><h3>Familiar</h3><p>The servers, DMs and layout you already know.</p></div>
-    <div class="card"><h3>Voice</h3><p>Voice with Discord's end-to-end encryption.</p></div>
-    <div class="card"><h3>Well-behaved</h3><p>Talks to Discord like the official app. <a href="#ban">See below.</a></p></div>
+    <div class="card"><h3>Instant</h3><p>GPU-rendered. Input lands on the next frame.</p></div>
+    <div class="card"><h3>Idle is idle</h3><p>Zero frames and zero wakeups when nothing changes.</p></div>
+    <div class="card"><h3>Small</h3><p>Under 25 MB. No Chromium, no Node.</p></div>
+    <div class="card"><h3>Familiar</h3><p>The servers, DMs and layout you know.</p></div>
+    <div class="card"><h3>Voice</h3><p>With Discord's end-to-end encryption.</p></div>
+    <div class="card"><h3>Well-behaved</h3><p>Talks to Discord like the official app. <a href="#ban">Details</a></p></div>
   </section>
 
-  <section class="ban" id="ban">
+  <section class="block" id="ban">
+    <span class="eyebrow">Ban risk</span>
     <h2>Will I get banned?</h2>
-    <p class="answer">We don't know yet. Proceed with caution, but it's unlikely.</p>
+    <p class="answer">We don't know yet. It's unlikely, but proceed with caution.</p>
     <div class="why">
       <div><b id="why-pairs">Same requests</b><span>as the official app, field for field</span></div>
       <div><b>Same handshakes</b><span>Chrome's TLS, HTTP/2 and QUIC</span></div>
       <div><b id="why-rl">0 rate limits</b><span>across every live test</span></div>
     </div>
-    <p class="fine">It sends the official app's telemetry too, with one exception: it never reports seeing or engaging with ads and quests. Every other known difference is listed in <a href="https://github.com/creikey/fastcord/blob/main/traffic/PARITY.md#remaining-differences-and-why">PARITY.md</a>.</p>
-  </section>
+    <p class="fine">It sends the official app's telemetry too, except reports of seeing or engaging with ads and quests. Every other known difference is in <a href="https://github.com/creikey/fastcord/blob/main/traffic/PARITY.md#remaining-differences-and-why">PARITY.md</a>.</p>
 
-  <section class="duel" id="side-by-side">
-    <h3 class="subhead">Same clicks, same packets</h3>
-    <p class="sub">The same action in both apps, and every packet each one sent, replayed at 1/10 speed.</p>
-    <div class="chips" id="dchips" role="group" aria-label="Interaction"></div>
-    <div class="stage">
-      <div class="vid"><h3><i></i>Official<span class="long">&nbsp;Discord app</span></h3><video id="vo" muted playsinline loop preload="metadata"></video><div class="vbar" id="bo"></div></div>
-      <div class="wire" id="wire">
-        <div class="whead"><span class="clock">Official</span><span class="srv">discord.com</span><span class="clock">Fastcord</span></div>
-        <div class="whead"><span class="clock" id="wclock">+0.000 s</span><span class="clock">1/10 speed</span><button class="wbtn" id="wreplay">Replay</button></div>
-        <div class="rows" id="wrows"></div>
-        <div class="detail" id="wdetail" hidden></div>
+    <div id="side-by-side">
+      <h3 class="subhead">Same clicks, same packets</h3>
+      <p class="sub">One action in both apps, and every packet each sent, replayed at 1/10 speed.</p>
+      <div class="chips" id="dchips" role="group" aria-label="Interaction"></div>
+      <div class="stage">
+        <div class="vid"><h3><i></i>Official<span class="long">&nbsp;Discord app</span></h3><video id="vo" muted playsinline loop preload="metadata"></video><div class="vbar" id="bo"></div></div>
+        <div class="wire" id="wire">
+          <div class="whead"><span class="clock">Official</span><span class="srv">discord.com</span><span class="clock">Fastcord</span></div>
+          <div class="whead"><span class="clock" id="wclock">+0.000 s</span><span class="clock">1/10 speed</span><button class="wbtn" id="wreplay">Replay</button></div>
+          <div class="rows" id="wrows"></div>
+          <div class="detail" id="wdetail" hidden></div>
+        </div>
+        <div class="vid fc"><h3><i></i>Fastcord</h3><video id="vf" muted playsinline loop preload="metadata"></video><div class="vbar" id="bf"></div></div>
       </div>
-      <div class="vid fc"><h3><i></i>Fastcord</h3><video id="vf" muted playsinline loop preload="metadata"></video><div class="vbar" id="bf"></div></div>
+      <p class="fine">Tap a row to compare headers and fields. Only shapes are shown, never values.</p>
     </div>
-    <p class="fine">Tap a row to compare headers and fields. Only shapes are shown, never values.</p>
+
+    <div id="traffic">
+      <h3 class="subhead">Every scenario</h3>
+      <p class="sub" id="psub">From a live session on October 28, 2026.</p>
+      <div class="stats" id="pstats"></div>
+      <div class="chips" id="pchips" role="group" aria-label="Scenario"></div>
+      <div class="lanes"><svg id="plane" viewBox="0 0 1000 150" role="img" aria-label="Request timeline of both clients"></svg>
+        <div class="tip" id="ptip">Hover a dot to see the request.</div></div>
+      <div class="legend"><span><i style="background:var(--accent)"></i>REST request</span><span><i style="background:var(--gw)"></i>Gateway message</span><span><i style="background:var(--tel)"></i>Telemetry event</span><span><i style="border:1.5px solid var(--accent)"></i>Sent earlier in the session</span><span><i style="border:1.5px solid var(--muted)"></i>Only in one client</span></div>
+    </div>
   </section>
 
-  <section class="parity" id="traffic">
-    <h3 class="subhead">Every scenario</h3>
-    <p class="sub" id="psub">From a live session on October 28, 2026.</p>
-    <div class="stats" id="pstats"></div>
-    <div class="chips" id="pchips" role="group" aria-label="Scenario"></div>
-    <div class="lanes"><svg id="plane" viewBox="0 0 1000 150" role="img" aria-label="Request timeline of both clients"></svg>
-      <div class="tip" id="ptip">Hover a dot to see the request.</div></div>
-    <div class="legend"><span><i style="background:var(--brand-hi)"></i>REST request</span><span><i style="background:#e8a33d"></i>Gateway message</span><span><i style="background:#3db8a6"></i>Telemetry event</span><span><i style="border:1.5px solid var(--brand-hi)"></i>Sent earlier in the session</span><span><i style="border:1.5px solid var(--muted)"></i>Only in one client</span></div>
-  </section>
-
-  <section class="e2e" id="encryption">
-    <h3 class="subhead">Encrypted DMs</h3>
-    <p class="sub">For private conversations we recommend <a href="https://signal.org">Signal</a>. When both people use Fastcord, a DM can also be end-to-end encrypted with Signal's published protocols, so Discord relays it but can't read it.</p>
+  <section class="block" id="encryption">
+    <span class="eyebrow">Privacy</span>
+    <h2>Encrypted DMs</h2>
+    <p class="sub">For private conversations, use <a href="https://signal.org">Signal</a>. When both people use Fastcord, a DM can also be end-to-end encrypted with Signal's published protocols: Discord relays it but can't read it.</p>
     <div class="steps">
       <div><b>PQXDH</b><span>Signal's post-quantum key agreement, with X25519 and ML-KEM-768.</span></div>
       <div><b>Double Ratchet</b><span>A new key for every message, with ChaCha20-Poly1305.</span></div>
       <div><b>Safety numbers</b><span>Compare 60 digits to confirm who you're talking to.</span></div>
     </div>
-    <p class="fine">For one-on-one and group DMs: text, files, replies, edits, deletes and reactions. Discord still sees who you message and when, and roughly how large each message and file is. Prekeys are signed with SLH-DSA. The Triple Ratchet comes next.</p>
-    <p class="fine">In progress: federated routing between self-hosted servers, so no central service is needed.</p>
+    <p class="fine">One-on-one and group DMs: text, files, replies, edits, deletes and reactions. Discord still sees who you message and when, and roughly how large each message and file is. Prekeys are signed with SLH-DSA. The Triple Ratchet comes next; federated routing between self-hosted servers is in progress.</p>
   </section>
-  <section class="host" id="self-hosting">
-    <h3 class="subhead">Self-hosting</h3>
-    <p class="sub">Fastcord can also run a server of its own: one file on your machine, with text and voice channels, threads, files, emoji, events, roles and moderation. It speaks no Discord and needs no account; members join with their Fastcord key instead of a password.</p>
+
+  <section class="block" id="self-hosting">
+    <span class="eyebrow">No Discord needed</span>
+    <h2>Self-hosting</h2>
+    <p class="sub">Fastcord can run its own server: one file on your machine, with text and voice channels, threads, files, emoji, events, roles and moderation. No Discord, no account; members join with their Fastcord key.</p>
     <div class="steps">
       <div><b>Start it</b><span>Run the app with <b>-serve:myserver.db</b>: <b>./fastcord</b> on Linux, <b>Fastcord.app/Contents/MacOS/Fastcord</b> on macOS, <b>Fastcord.exe</b> on Windows. It makes the file on first run and prints an invite.</span></div>
-      <div><b>Open the port</b><span>It listens on TCP <b>4433</b> (<b>-port:N</b> for another). Allow it when Windows Firewall asks, and forward it on your router for friends outside your network.</span></div>
-      <div><b>Share the invite</b><span>The <b>fc://</b> link goes in <b>Add a Server → Join a Server</b>. Put your public address in place of <b>localhost</b>. To own it, start it with <b>-owner:&lt;key&gt;</b> (<b>fastcord -key</b> prints yours), or join first with the one-use owner invite.</span></div>
+      <div><b>Open the port</b><span>TCP <b>4433</b> (<b>-port:N</b> for another). Allow it when Windows Firewall asks, and forward it on your router for friends outside your network.</span></div>
+      <div><b>Share the invite</b><span>The <b>fc://</b> link goes in <b>Add a Server → Join a Server</b>, with your public address in place of <b>localhost</b>. To own it, start it with <b>-owner:&lt;key&gt;</b> (<b>fastcord -key</b> prints yours), or join first with the one-use owner invite.</span></div>
     </div>
-    <p class="fine">Voice uses UDP on the same port. The owner manages it from Server Settings in the app, including storage, files, limits and backups. It keeps daily backups, and <b>-install</b> keeps it running as a service. To stop it, press Ctrl-C; to update, download the new release and start it again on the same file. Whoever runs a server can read its channels, but not its encrypted DMs.</p>
-    <div class="downloads">
+    <p class="fine">Voice uses UDP on the same port. The owner manages storage, files, limits and backups from Server Settings. It keeps daily backups, and <b>-install</b> runs it as a service. Ctrl-C stops it; to update, start the new release on the same file. Whoever runs a server can read its channels, but not its encrypted DMs.</p>
+    <div class="downloads" style="margin-top:20px">
       <a class="btn" href="https://github.com/creikey/fastcord/releases/latest/download/fastcord-macos.zip">macOS</a>
       <a class="btn" href="https://github.com/creikey/fastcord/releases/latest/download/fastcord-windows.zip">Windows</a>
       <a class="btn" href="https://github.com/creikey/fastcord/releases/latest/download/fastcord-linux-x86_64.tar.gz">Linux</a>
@@ -271,11 +296,12 @@
     </div>
   </section>
 
-  <section class="first">
-    <h3 class="subhead">First launch</h3>
+  <section class="block">
+    <h2>First launch</h2>
+    <p class="sub">Each system warns once.</p>
     <div class="steps">
-      <div><b>macOS</b><span>Blocked once: <b>System Settings → Privacy &amp; Security → Open Anyway</b>.</span></div>
-      <div><b>Windows</b><span>SmartScreen warns once: <b>More info → Run anyway</b>.</span></div>
+      <div><b>macOS</b><span><b>System Settings → Privacy &amp; Security → Open Anyway</b>.</span></div>
+      <div><b>Windows</b><span>SmartScreen: <b>More info → Run anyway</b>.</span></div>
       <div><b>Linux</b><span>Run <b>./fastcord</b>, or <b>./install.sh</b> for the app menu.</span></div>
     </div>
   </section>
@@ -290,7 +316,7 @@
 <script>
   // Side by side (parity_video.json and site/video/, from tools/site_video.py).
   fetch("parity_video.json").then(r => r.json()).then(d => {
-    const KC = ["var(--brand-hi)", "#e8a33d", "#3db8a6"], SLOW = 10;
+    const KC = ["var(--accent)", "var(--gw)", "var(--tel)"], SLOW = 10;
     const $ = id => document.getElementById(id);
     const vo = $("vo"), vf = $("vf"), rows = $("wrows"), det = $("wdetail"), clock = $("wclock");
     const esc = t => t.replace(/[&<>]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;"})[c]);
@@ -381,7 +407,7 @@
 </script>
 <script>
   // Request timelines of the official client and Fastcord (parity.json, from tools/parity_viz.py).
-  const KIND = ["var(--brand-hi)", "#e8a33d", "#3db8a6"], NS = "http://www.w3.org/2000/svg";
+  const KIND = ["var(--accent)", "var(--gw)", "var(--tel)"], NS = "http://www.w3.org/2000/svg";
   const el = (n, a) => { const e = document.createElementNS(NS, n); for (const k in a) e.setAttribute(k, a[k]); return e; };
   fetch("parity.json").then(r => r.json()).then(d => {
     const sc = d.scenarios, tok = d.tokens;

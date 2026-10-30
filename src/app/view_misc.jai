@@ -683,6 +683,7 @@ settings_modal :: () {
 			content.semantic_size = .[ui.fill(), ui.pct(1)];
 			content.layout_axis = .Y;
 			content.style.bg = T("--background-base-low");
+			content.style.radius = .[0, 11, 0, 11]; // inside the modal's 1px border and 12 radius
 			{ ui.parent(content); defer ui.pop_parent();
 				t := row("t");
 				t.semantic_size = .[ui.pct(1), ui.px(SET_TITLE_H)];

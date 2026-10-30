@@ -3,11 +3,12 @@
 
 Capture :: struct {
 	on_frame: Frame_Proc;
+	on_audio: Audio_Proc; // Linux screens: soundshare
 	user: *void;
 	thread: Thread;
 	mu: locks.Mutex; // held around on_frame, so capture_stop knows no callback runs after it returns
 	quit: bool; // atomic
-	width, height, fps: int; // camera: requested; screen: output
+	width, height, fps: int; // camera: requested; screen: output (Linux: width 0 and the cap on height until the stream starts)
 	target: Screen_Target;
 	error: string; // set by the thread before it gives up; a literal
 	camera: bool;
@@ -57,7 +58,7 @@ capture_error :: (c: *Capture) -> string {
 	// Some cameras (an idle NDI source) open fine, then block in ReadSample forever.
 	if c.camera && !atomic_load(*c.got_frame) && current_time_monotonic() - c.started > seconds_to_apollo(8) return "The camera isn't sending any video.";
 	if !thread_is_done(*c.thread) return "";
-	return ifx c.error then c.error else "The camera stopped.";
+	return ifx c.error then c.error else ifx c.camera then "The camera stopped." else SCREEN_STOPPED;
 }
 
 // Waits at most for a frame callback already running. The thread itself can stay blocked for long (a

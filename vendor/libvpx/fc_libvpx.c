@@ -52,7 +52,8 @@ void fc_vp8_destroy(void *p) {
 // partition, keyframes only on request (and every kf_max_dist frames).
 typedef struct {
 	vpx_codec_ctx_t ctx;
-	vpx_image_t img; // I420, the NV12 input deinterleaved
+	vpx_codec_enc_cfg_t cfg;
+	vpx_image_t img; // I420, the NV12 input deinterleaved and scaled
 	int fps;
 	int64_t pts_hi; // pts_90k wraps every 13 h; libvpx needs increasing timestamps
 	uint32_t last_pts;
@@ -85,6 +86,7 @@ void *fc_vp8_enc_create(int w, int h, int fps, int bitrate, int screen) {
 	c.kf_mode = VPX_KF_AUTO;
 	c.kf_max_dist = 3000;
 	if (vpx_codec_enc_init(&e->ctx, vpx_codec_vp8_cx(), &c, 0) != VPX_CODEC_OK) { free(e); return NULL; }
+	e->cfg = c;
 	vpx_codec_control(&e->ctx, VP8E_SET_CPUUSED, -12);
 	vpx_codec_control(&e->ctx, VP8E_SET_NOISE_SENSITIVITY, 0);
 	vpx_codec_control(&e->ctx, VP8E_SET_STATIC_THRESHOLD, 1);
@@ -96,22 +98,45 @@ void *fc_vp8_enc_create(int w, int h, int fps, int bitrate, int screen) {
 	return e;
 }
 
-// One NV12 picture of the encoder's size (ys, uvs: row pitches). 0 with the frame in out (valid until the next
-// call; n 0 when rate control dropped it), -1 on error.
-int fc_vp8_enc_encode(void *p, const uint8_t *y, const uint8_t *uv, int ys, int uvs, uint32_t pts_90k, int force_key, const uint8_t **out, size_t *n, int *key) {
+// One plane of dw x dh from sw x sh (step 2: one of NV12's interleaved chroma planes), each pixel the average
+// of the source pixels it covers.
+static void scale_plane(const uint8_t *s, int ss, int sw, int sh, int step, uint8_t *d, int ds, int dw, int dh) {
+	if (sw == dw && sh == dh) {
+		for (int r = 0; r < dh; r++) {
+			const uint8_t *row = s + (size_t)r * ss;
+			uint8_t *o = d + (size_t)r * ds;
+			for (int i = 0; i < dw; i++) o[i] = row[i * step];
+		}
+		return;
+	}
+	for (int r = 0; r < dh; r++) {
+		int y0 = (int)((int64_t)r * sh / dh), y1 = (int)((int64_t)(r + 1) * sh / dh);
+		if (y1 <= y0) y1 = y0 + 1;
+		uint8_t *o = d + (size_t)r * ds;
+		for (int i = 0; i < dw; i++) {
+			int x0 = (int)((int64_t)i * sw / dw), x1 = (int)((int64_t)(i + 1) * sw / dw);
+			if (x1 <= x0) x1 = x0 + 1;
+			unsigned sum = 0, n = (unsigned)((y1 - y0) * (x1 - x0));
+			for (int y = y0; y < y1; y++) {
+				const uint8_t *row = s + (size_t)y * ss;
+				for (int x = x0; x < x1; x++) sum += row[x * step];
+			}
+			o[i] = (uint8_t)((sum + n / 2) / n);
+		}
+	}
+}
+
+// One NV12 picture of w x h (ys, uvs: row pitches), scaled to the encoder's size. 0 with the frame in out
+// (valid until the next call; n 0 when rate control dropped it), -1 on error.
+int fc_vp8_enc_encode(void *p, const uint8_t *y, const uint8_t *uv, int ys, int uvs, int w, int h, uint32_t pts_90k, int force_key, const uint8_t **out, size_t *n, int *key) {
 	Fc_Vp8_Enc *e = p;
 	vpx_image_t *im = &e->img;
 	*out = NULL; *n = 0; *key = 0;
-	for (unsigned r = 0; r < im->d_h; r++) {
-		const uint8_t *s = y + (size_t)r * ys;
-		uint8_t *d = im->planes[0] + (size_t)r * im->stride[0];
-		for (unsigned i = 0; i < im->d_w; i++) d[i] = s[i];
-	}
-	for (unsigned r = 0; r < (im->d_h + 1) / 2; r++) {
-		const uint8_t *s = uv + (size_t)r * uvs;
-		uint8_t *u = im->planes[1] + (size_t)r * im->stride[1], *v = im->planes[2] + (size_t)r * im->stride[2];
-		for (unsigned i = 0; i < (im->d_w + 1) / 2; i++) { u[i] = s[2 * i]; v[i] = s[2 * i + 1]; }
-	}
+	if (w < 2 || h < 2 || w > 8192 || h > 8192) return -1;
+	int dw = (int)im->d_w, dh = (int)im->d_h;
+	scale_plane(y, ys, w, h, 1, im->planes[0], im->stride[0], dw, dh);
+	scale_plane(uv, uvs, w / 2, h / 2, 2, im->planes[1], im->stride[1], (dw + 1) / 2, (dh + 1) / 2);
+	scale_plane(uv + 1, uvs, w / 2, h / 2, 2, im->planes[2], im->stride[2], (dw + 1) / 2, (dh + 1) / 2);
 	if (pts_90k < e->last_pts && e->last_pts - pts_90k > 0x80000000u) e->pts_hi += 0x100000000ll;
 	e->last_pts = pts_90k;
 	vpx_enc_frame_flags_t f = force_key ? VPX_EFLAG_FORCE_KF : 0;
@@ -125,6 +150,12 @@ int fc_vp8_enc_encode(void *p, const uint8_t *y, const uint8_t *uv, int ys, int 
 		*key = (pkt->data.frame.flags & VPX_FRAME_IS_KEY) != 0;
 	}
 	return 0;
+}
+
+void fc_vp8_enc_set_bitrate(void *p, int bitrate) {
+	Fc_Vp8_Enc *e = p;
+	e->cfg.rc_target_bitrate = (unsigned)(bitrate / 1000);
+	vpx_codec_enc_config_set(&e->ctx, &e->cfg);
 }
 
 void fc_vp8_enc_destroy(void *p) {

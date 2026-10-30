@@ -43,16 +43,22 @@ encoder_create :: (codec: Video_Codec, width: int, height: int, fps: int, bitrat
 	}
 	set_int(kVTCompressionPropertyKey_MaxKeyFrameInterval, fps * 2);
 	set_int(kVTCompressionPropertyKey_ExpectedFrameRate, fps);
-	set_int(kVTCompressionPropertyKey_AverageBitRate, bitrate);
+	encoder_set_bitrate(e, bitrate);
+	VTCompressionSessionPrepareToEncodeFrames(e.session);
+	return e;
+}
+
+// encoder_set_bitrate changes the average bitrate between frames (the bandwidth estimate moved).
+encoder_set_bitrate :: (e: *Encoder, bitrate: int) {
+	n := cf_s32(cast(s32) bitrate);
+	VTSessionSetProperty(e.session, kVTCompressionPropertyKey_AverageBitRate, n);
 	// Bytes per second, as [bytes, seconds]: caps bursts at 1.5x the average.
 	limit := cf_s32(cast(s32) (bitrate * 3 / 16));
 	one := cf_s32(1);
 	vals := CFRef.[limit, one];
 	limits := CFArrayCreate(null, vals.data, 2, *kCFTypeArrayCallBacks);
-	set(kVTCompressionPropertyKey_DataRateLimits, limits);
-	CFRelease(limits); CFRelease(limit); CFRelease(one);
-	VTCompressionSessionPrepareToEncodeFrames(e.session);
-	return e;
+	VTSessionSetProperty(e.session, kVTCompressionPropertyKey_DataRateLimits, limits);
+	CFRelease(limits); CFRelease(limit); CFRelease(one); CFRelease(n);
 }
 
 encoder_encode :: (e: *Encoder, pixbuf: *void, pts_90k: u32, force_keyframe := false) {

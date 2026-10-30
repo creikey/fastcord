@@ -1,6 +1,0 @@
-# Site hero (site/screenshot.jpg): the threads fixture with the member list hidden. tools/site_video.py hero
-wait 5
-click 1000 57
-wait 10
-move 220 520
-wait 30

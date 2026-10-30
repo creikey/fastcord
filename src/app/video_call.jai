@@ -42,6 +42,11 @@ Sender :: struct {
 	codec: voice.Video_Codec;
 	fps, bitrate: int;
 	start: Apollo_Time;
+	// what the encoder runs at, adapted to the bandwidth estimate (send_shape; the capture's queue)
+	enc_w, enc_h, enc_rate: int;
+	step: int;          // camera: the index in LADDER
+	step_ms: s64;       // when it last changed
+	next_frame: Apollo_Time; // Go Live under its bitrate: frames before this are dropped
 	pending: media.Video_Frame; // preview (under mu)
 	img: media.Video_Image;     // UI thread
 }
@@ -291,7 +296,11 @@ video_frame :: () {
 		send_voice_state();
 		toast_show(err, false);
 	}
-	if video.capture_error(vid.screen.capture) go_live_stop(); // stopped from outside (the macOS menu bar)
+	err = video.capture_error(vid.screen.capture);
+	if err {
+		go_live_stop(); // stopped from outside (the macOS menu bar, the Linux desktop), or failed
+		if err != video.SCREEN_STOPPED toast_show(err, false);
+	}
 	if vid.preview.capture {
 		err = video.capture_error(vid.preview.capture);
 		if err toast_show(err, false);
@@ -429,6 +438,7 @@ stream_connect :: (info: dc.Voice_Server_Info, own := false) -> *voice.Conn {
 // The encoded size for a screen target: its aspect, at most the chosen height (go_height), even sides.
 screen_size :: (t: video.Screen_Target) -> int, int {
 	w, h := max(t.width, 2), max(t.height, 2);
+	if !t.height { h = ifx vid.go_height then vid.go_height else 2160; w = h * 16 / 9; } // Linux: the portal's pick, capped
 	if vid.go_height && h > vid.go_height { w = w * vid.go_height / h; h = vid.go_height; }
 	return w & ~1, h & ~1;
 }
@@ -601,6 +611,7 @@ sender_init :: (s: *Sender, conn: *voice.Conn, fps: int, bitrate: int) {
 	s.conn = conn;
 	s.fps, s.bitrate = fps, bitrate;
 	s.start = current_time_monotonic();
+	s.step, s.step_ms = 0, 0;
 }
 
 // sender_stop: capture first (no more frames), then the encoder (flushes its output), UI thread.
@@ -641,13 +652,23 @@ on_capture_frame :: (user: *void, camera_frame: *void, width: int, height: int) 
 		voice.cannot_encode(s.conn, codec);
 		codec = .H264;
 	}
-	if s.codec != codec encoder_stop(s);
+	estimate, want := voice.video_send_target(s.conn);
+	w, h, fps, rate := send_shape(s, width, height, estimate, want);
+	if fps < s.fps {
+		now := current_time_monotonic();
+		if to_nanoseconds(now - s.next_frame) < 0 return;
+		s.next_frame = now + milliseconds_to_apollo(1000 / fps - 500 / s.fps);
+	}
+	if s.codec != codec || s.enc_w != w || s.enc_h != h encoder_stop(s);
 	pts := cast,no_check(u32) (to_nanoseconds(current_time_monotonic() - s.start) * 9 / 100_000);
 	if codec == .VP8 {
 		if !s.vp8 {
-			s.codec = codec;
-			s.vp8 = video.vp8_encoder_create(width & ~1, height & ~1, s.fps, s.bitrate, s == *vid.screen, on_encoded, s);
+			s.vp8 = video.vp8_encoder_create(w, h, s.fps, rate, s == *vid.screen, on_encoded, s);
 			if !s.vp8 return;
+			s.codec, s.enc_w, s.enc_h, s.enc_rate = codec, w, h, rate;
+		} else if abs(rate - s.enc_rate) * 20 > s.enc_rate {
+			video.vp8_encoder_set_bitrate(s.vp8, rate);
+			s.enc_rate = rate;
 		}
 		video.vp8_encoder_encode(s.vp8, pixbuf, pts, voice.take_keyframe_request(s.conn));
 		return;
@@ -656,10 +677,39 @@ on_capture_frame :: (user: *void, camera_frame: *void, width: int, height: int) 
 		vcodec := ifx codec == .H265 then video.Video_Codec.H265 else .H264;
 		if !video.encoder_supported(vcodec) return;
 		s.codec = codec;
-		s.enc = video.encoder_create(vcodec, width & ~1, height & ~1, s.fps, s.bitrate, on_encoded, s);
+		s.enc = video.encoder_create(vcodec, w, h, s.fps, rate, on_encoded, s);
 		if !s.enc return;
+		s.enc_w, s.enc_h, s.enc_rate = w, h, rate;
+	} else if abs(rate - s.enc_rate) * 20 > s.enc_rate {
+		video.encoder_set_bitrate(s.enc, rate);
+		s.enc_rate = rate;
 	}
 	video.encoder_encode(s.enc, pixbuf, pts, voice.take_keyframe_request(s.conn));
+}
+
+// The camera's sizes: the client's resolution ladder for its 1280x720 budget (want values 100, 90 .. 20),
+// as heights with each one's share of the bitrate (per mille).
+LADDER :: ([2]int).[.[720, 1000], .[504, 490], .[378, 276], .[360, 250], .[288, 160], .[234, 106], .[216, 90], .[180, 63], .[144, 40]];
+
+// send_shape: the size, frame rate and bitrate to encode at, from the bandwidth estimate and the viewers'
+// want (op 15). The camera's want caps its ladder step; it steps down while the estimate is under 40% of
+// its step's bitrate and back up from 50% of the next one, at most every 2 s (a new size is a new encoder
+// and a keyframe). Go Live keeps its size and drops frames under half its bitrate, as WebRTC's screenshare
+// degradation keeps resolution.
+send_shape :: (s: *Sender, width: int, height: int, estimate: int, want: int) -> w: int, h: int, fps: int, bitrate: int {
+	if s == *vid.screen return width & ~1, height & ~1, clamp(s.fps * estimate * 2 / max(s.bitrate, 1), 5, s.fps), min(estimate, s.bitrate);
+	step_rate :: (s: *Sender, i: int) -> int { return max(s.bitrate * LADDER[i][1] / 1000, voice.BWE_MIN); }
+	cap := clamp((109 - want) / 10, 0, LADDER.count - 1);
+	now := to_milliseconds(current_time_monotonic());
+	i := max(s.step, cap);
+	if now - s.step_ms >= 2000 {
+		if i < LADDER.count - 1 && estimate < step_rate(s, i) * 2 / 5 i += 1;
+		else if i > cap && estimate >= step_rate(s, i - 1) / 2 i -= 1;
+	}
+	if i != s.step { s.step, s.step_ms = i, now; }
+	w, h := width, height;
+	if h > LADDER[i][0] { w = w * LADDER[i][0] / h; h = LADDER[i][0]; }
+	return w & ~1, h & ~1, s.fps, min(estimate, step_rate(s, i));
 }
 
 encoder_stop :: (s: *Sender) {

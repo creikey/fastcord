@@ -131,7 +131,8 @@ fake_au :: (codec: voice.Video_Codec) -> []u8 {
     return b;
 }
 
-// VP8: moving NV12 frames through video's encoder (a keyframe asked for halfway), then each as send_video sends
+// VP8: moving NV12 frames through video's encoder (a keyframe asked for halfway, a new bitrate, a larger
+// capture scaled down), then each as send_video sends
 // it: DAVE with libdave's VP8 clear range, RFC 7741 packets with a picture_id, reassembled and decrypted,
 // and decoded by libvpx at the encoder's size.
 vp8_round_trip :: () -> bool {
@@ -149,11 +150,14 @@ vp8_round_trip :: () -> bool {
     }, *o);
     ok &= check(enc != null, "VP8 encoder");
     if !enc return false;
-    pic := NewArray(W * H * 3 / 2, u8);
+    pic := NewArray(4 * W * H * 3 / 2, u8);
     for t: 0..9 {
-        for y: 0..H - 1 for x: 0..W - 1 pic[y * W + x] = cast(u8) (16 + (x + y + t * 8) % 200);
-        for i: W * H..pic.count - 1 pic[i] = cast(u8) (ifx i & 1 then 100 + t else 160);
-        video.vp8_encode_nv12(enc, pic.data, pic.data + W * H, W, W, W, H, cast(u32) (t * 3000), t == 5);
+        // from frame 5 on, the capture is twice the encoder's size (a bandwidth step down) and gets scaled
+        sw, sh := ifx t < 5 then W else 2 * W, ifx t < 5 then H else 2 * H;
+        for y: 0..sh - 1 for x: 0..sw - 1 pic[y * sw + x] = cast(u8) (16 + (x + y + t * 8) % 200);
+        for i: sw * sh..sw * sh * 3 / 2 - 1 pic[i] = cast(u8) (ifx i & 1 then 100 + t else 160);
+        video.vp8_encode_nv12(enc, pic.data, pic.data + sw * sh, sw, sw, sw, sh, cast(u32) (t * 3000), t == 5);
+        if t == 2 video.vp8_encoder_set_bitrate(enc, 300_000);
     }
     video.vp8_encoder_destroy(enc);
     ok &= check(frames.count >= 8 && keys[0] && voice.is_keyframe(.VP8, frames[0]), "VP8 frames % (first a keyframe)", frames.count);

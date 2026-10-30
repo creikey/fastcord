@@ -1,5 +1,5 @@
 // Camera capture through V4L2: the first /dev/video* that captures, in NV12, YUYV or MJPEG (decoded by Wuffs),
-// converted to NV12 on the capture's thread. No screen capture yet (it needs the PipeWire portal).
+// converted to NV12 on the capture's thread. Screens are in screen_linux.jai.
 
 // Opening devices can take a while, so this only knows what the last camera_start found: until then,
 // assume there is one.
@@ -11,11 +11,6 @@ camera_start :: (on_frame: Frame_Proc, user: *void, width := 1280, height := 720
 	start(c, camera_thread);
 	return c;
 }
-
-screen_supported :: () -> bool { return false; }
-screen_targets_refresh :: () {}
-screen_targets :: () -> []Screen_Target, ready: bool { return .[], true; }
-screen_start :: (target: Screen_Target, on_frame: Frame_Proc, user: *void, fps := 30, max_height := 1080, on_audio: Audio_Proc = null) -> *Capture { return null; }
 
 #scope_file
 
@@ -185,7 +180,7 @@ Jpeg :: struct {
 	fixed: [..]u8;
 }
 
-// MJPEG -> RGBA (Wuffs) -> NV12 with the matrix the receiving side assumes (BT.709 from 720 lines up).
+// MJPEG -> RGBA (Wuffs) -> NV12.
 from_jpeg :: (j: *Jpeg, mjpeg: []u8, width: int, height: int) -> *yuv.Nv12 {
 	data := with_huffman_tables(j, mjpeg);
 	if !j.state.count j.state = NewArray(cast(int) fc_image_state_size(FC_JPEG), u8);
@@ -197,24 +192,7 @@ from_jpeg :: (j: *Jpeg, mjpeg: []u8, width: int, height: int) -> *yuv.Nv12 {
 	fi: [64]u8; // fc_frame_info
 	if fc_image_next_frame(j.state.data, fi.data) != 0 return null;
 	if fc_image_decode_frame(j.state.data, j.rgba.data, xx j.rgba.count, xx (width * 4), j.work.data, xx j.work.count, 1) != 0 return null;
-	f := yuv.nv12_create(width, height);
-	w, h := f.width, f.height;
-	hd := h >= 720;
-	uv := f.data.data + w * h;
-	for y: 0..h - 1 {
-		src := j.rgba.data + y * width * 4;
-		dst := f.data.data + y * w;
-		for x: 0..w - 1 {
-			r, g, b := cast(s32) src[4 * x], cast(s32) src[4 * x + 1], cast(s32) src[4 * x + 2];
-			dst[x] = cast,trunc(u8) (ifx hd then ((47 * r + 157 * g + 16 * b + 128) >> 8) + 16 else ((66 * r + 129 * g + 25 * b + 128) >> 8) + 16);
-			if (x | y) & 1 continue;
-			cb := ifx hd then ((-26 * r - 86 * g + 112 * b + 128) >> 8) + 128 else ((-38 * r - 74 * g + 112 * b + 128) >> 8) + 128;
-			cr := ifx hd then ((112 * r - 102 * g - 10 * b + 128) >> 8) + 128 else ((112 * r - 94 * g - 18 * b + 128) >> 8) + 128;
-			uv[(y / 2) * w + x] = cast,trunc(u8) cb;
-			uv[(y / 2) * w + x + 1] = cast,trunc(u8) cr;
-		}
-	}
-	return f;
+	return nv12_from_rgb(j.rgba.data, width, height, width * 4, 4, 0, 1, 2, width, height);
 }
 
 // Many UVC cameras leave the Huffman tables out of MJPEG frames and rely on the defaults (ITU T.81 K.3):

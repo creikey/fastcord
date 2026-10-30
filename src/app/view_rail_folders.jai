@@ -329,7 +329,6 @@ rail_hosted_guild :: (gid: dc.Snowflake, active: bool, hi: int) {
 	if sig.box == null { return; }
 	slot := ui.top_parent().last;
 	{ ui.parent(slot); defer ui.pop_parent(); mention_badge(guild_mentions(gid), 0); }
-	if sig.hovering && !rs.hosted_active { tooltip_right(g.name); }
 	if sig.clicked && !rs.hosted_active { select_guild(gid); }
 	if sig.right_clicked { guild_context_open(gid, app.ui.mouse); }
 	if sig.pressed {
