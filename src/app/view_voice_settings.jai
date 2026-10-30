@@ -184,9 +184,15 @@ voice_settings_reset :: () {
 	vs.user_volume, vs.user_muted = keep_vol, keep_mute;
 }
 
+// The page's column follows the window like the other settings pages (at most 660); the paired
+// columns (devices, shortcut and delay) stack when side by side they'd be under 260 each.
+voice_w :: () -> float32 { return min(660.0, set_content_w()); }
+voice_stacked :: () -> bool { return voice_w() < 540; }
+voice_half :: () -> float32 { return ifx voice_stacked() then voice_w() else (voice_w() - 20) / 2; }
+
 toggle_row :: (id: string, text: string, help: string, value: *bool) -> bool {
 	r := row(id, .Clickable);
-	r.semantic_size = .[ui.px(660), ui.px(ifx help != "" then 52.0 else 32.0)];
+	r.semantic_size = .[ui.px(voice_w()), ui.px(ifx help != "" then 52.0 else 32.0)];
 	sig := ui.signal(r);
 	{ ui.parent(r); defer ui.pop_parent();
 		col := ui.box("col");
@@ -229,29 +235,30 @@ voice_settings_page :: () {
 		{ ui.parent(body); defer ui.pop_parent();
 			spacer(.X, 40);
 			col := ui.box("vcol");
-			col.semantic_size = .[ui.px(660), ui.children()];
+			col.semantic_size = .[ui.px(voice_w()), ui.children()];
 			col.layout_axis = .Y;
 			{ ui.parent(col); defer ui.pop_parent();
 				devices := row("devices");
 				devices.semantic_size = .[ui.pct(1), ui.children()];
 				devices.cross_align = .Start;
+				if voice_stacked() devices.layout_axis = .Y;
 				{ ui.parent(devices); defer ui.pop_parent();
 					for input: (bool.[true, false]) {
 						c := ui.box(ifx input then "inputcol" else "outputcol");
-						c.semantic_size = .[ui.px(320), ui.children()];
+						c.semantic_size = .[ui.px(voice_half()), ui.children()];
 						c.layout_axis = .Y;
 						{ ui.parent(c); defer ui.pop_parent();
 							section_title(ifx input then L("INPUT DEVICE") else L("OUTPUT DEVICE"));
-							device_dropdown(ifx input then 1 else 2, input, 320);
+							device_dropdown(ifx input then 1 else 2, input, voice_half());
 							spacer(.Y, 20);
 							section_title(ifx input then L("INPUT VOLUME") else L("OUTPUT VOLUME"));
 							if input {
-								slider("invol", *vs.input_volume, 0, 400, 320, percent(vs.input_volume));
+								slider("invol", *vs.input_volume, 0, 400, voice_half(), percent(vs.input_volume));
 							} else {
-								slider("outvol", *vs.output_volume, 0, 400, 320, percent(vs.output_volume));
+								slider("outvol", *vs.output_volume, 0, 400, voice_half(), percent(vs.output_volume));
 							}
 						}
-						if input spacer(.X, 20);
+						if input spacer(ifx voice_stacked() then .Y else .X, 20);
 					}
 				}
 				spacer(.Y, 32);
@@ -275,7 +282,7 @@ voice_settings_page :: () {
 				}
 				if !vs.auto_sens {
 					spacer(.Y, 8);
-					slider("thresh", *vs.threshold_db, -100, 0, 660, tprint("%dB", formatFloat(vs.threshold_db, trailing_width = 0, zero_removal = .NO)));
+					slider("thresh", *vs.threshold_db, -100, 0, voice_w(), tprint("%dB", formatFloat(vs.threshold_db, trailing_width = 0, zero_removal = .NO)));
 				}
 				spacer(.Y, 32);
 				section_title(L("VOICE PROCESSING"));
@@ -286,7 +293,7 @@ voice_settings_page :: () {
 				toggle_row("agc", L("Automatic Gain Control"), "", *vs.agc);
 				spacer(.Y, 32);
 				section_title(L("SOUNDBOARD VOLUME"));
-				slider("sbvol", *vs.soundboard_volume, 0, 100, 660, percent(vs.soundboard_volume));
+				slider("sbvol", *vs.soundboard_volume, 0, 100, voice_w(), percent(vs.soundboard_volume));
 				spacer(.Y, 16);
 				toggle_row("sbmic", L("Play Soundboard Through My Mic"), L("Your sounds go out with your voice, mixed into your microphone, instead of as soundboard sounds."), *vs.soundboard_mic);
 				if video.SUPPORTED {
@@ -496,7 +503,7 @@ vs_init :: () {
 
 camera_test_section :: () {
 	section_title("CAMERA");
-	device_dropdown(3, false, 660);
+	device_dropdown(3, false, voice_w());
 	spacer(.Y, 16);
 	if video.blur_supported() {
 		toggle_row("blur", L("Blur Background"), L("Blur what's behind you on camera. Only your camera is changed."), *vs.camera_blur);
@@ -505,7 +512,7 @@ camera_test_section :: () {
 	section_title("PREVIEW");
 	img := camera_test_image();
 	pv := ui.box("campreview", .Draw_Background);
-	pv.semantic_size = .[ui.px(660), ui.px(660 * 9 / 16)];
+	pv.semantic_size = .[ui.px(voice_w()), ui.px(voice_w() * 9 / 16)];
 	pv.style.radius = all4(8);
 	pv.style.bg = T("--background-base-lowest");
 	pv.layout_axis = .Y;
@@ -648,7 +655,7 @@ tok_has :: (name: string) -> bool { return table_contains(*app.theme.tokens, nam
 mode_radio :: () {
 	for ptt: (bool.[false, true]) {
 		r := row(ifx ptt then "mode_ptt" else "mode_va", .Clickable | .Draw_Background | .Hot_Animation);
-		r.semantic_size = .[ui.px(660), ui.px(44)];
+		r.semantic_size = .[ui.px(voice_w()), ui.px(44)];
 		r.style.radius = all4(4);
 		r.style.bg = ifx vs.ptt_mode == ptt then T("--background-mod-normal") else .{};
 		r.style.bg_hot = T("--background-mod-subtle");
@@ -678,28 +685,29 @@ mode_radio :: () {
 
 keybind_row :: () {
 	r := row("ptt");
-	r.semantic_size = .[ui.px(660), ui.children()];
+	r.semantic_size = .[ui.px(voice_w()), ui.children()];
 	r.cross_align = .Start;
+	if voice_stacked() r.layout_axis = .Y;
 	{ ui.parent(r); defer ui.pop_parent();
 		c := ui.box("kb");
-		c.semantic_size = .[ui.px(320), ui.children()];
+		c.semantic_size = .[ui.px(voice_half()), ui.children()];
 		c.layout_axis = .Y;
 		{ ui.parent(c); defer ui.pop_parent();
 			section_title("SHORTCUT");
 			i := ptt_keybind(add = true); // Push to Talk mode has one, as in the client
-			if i >= 0 shortcut_field(i, 320);
+			if i >= 0 shortcut_field(i, voice_half());
 			spacer(.Y, 6);
 			label(ifx kb.global == .On then L("A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button. Works in every app.") else L("A key with Ctrl, Alt, Shift or Cmd, a modifier alone, or a middle or side mouse button."), .Normal, 12, T("--text-muted"), 16).flags |= .Wrap_Text;
 			global_input_notice();
 		}
-		spacer(.X, 20);
+		spacer(ifx voice_stacked() then .Y else .X, 20);
 		d := ui.box("delay");
-		d.semantic_size = .[ui.px(320), ui.children()];
+		d.semantic_size = .[ui.px(voice_half()), ui.children()];
 		d.layout_axis = .Y;
 		{ ui.parent(d); defer ui.pop_parent();
 			section_title(L("PUSH TO TALK RELEASE DELAY"));
 			spacer(.Y, 8);
-			slider("pttdelay", *vs.ptt_delay_ms, 0, 2000, 320, tprint("%ms", formatFloat(vs.ptt_delay_ms, trailing_width = 0, zero_removal = .NO)));
+			slider("pttdelay", *vs.ptt_delay_ms, 0, 2000, voice_half(), tprint("%ms", formatFloat(vs.ptt_delay_ms, trailing_width = 0, zero_removal = .NO)));
 		}
 	}
 }
@@ -707,7 +715,7 @@ keybind_row :: () {
 // meter_bar: live mic level against the sensitivity threshold (green when the
 // gate is open, like the client's input sensitivity meter).
 meter_bar :: () {
-	W :: cast(float32)(660);
+	W := voice_w();
 	bar := ui.box("meter", .Draw_Background);
 	bar.semantic_size = .[ui.px(W), ui.px(8)];
 	bar.style.bg = T("--background-mod-strong");
