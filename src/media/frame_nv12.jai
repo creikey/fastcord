@@ -32,6 +32,13 @@ video_frame_release :: (f: *Video_Frame) {
 	f.pixbuf = null;
 }
 
+// video_frame_rgb: the frame scaled to w x h as RGB8 rows in temp (nv12_to_rgb).
+video_frame_rgb :: (f: *Video_Frame, w: int, h: int) -> []u8 {
+	n := cast(*yuv.Nv12) f.pixbuf;
+	if !n || n.width < 2 || n.height < 2 return .[];
+	return nv12_to_rgb(n.data.data, n.width, n.data.data + n.width * n.height, n.width, n.width, n.height, f.yuv, w, h);
+}
+
 // Upload the frame's Y and CbCr planes as gfx textures (a copy; the frame stays the caller's).
 // Destroy them with gfx.texture_destroy.
 video_frame_textures :: (f: *Video_Frame) -> gfx.Texture, gfx.Texture, bool {

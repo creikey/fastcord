@@ -199,11 +199,22 @@ CVPixelBufferCreate :: (alloc: CFRef, w: u64, h: u64, fmt: u32, attrs: CFRef, ou
 CVPixelBufferLockBaseAddress :: (pb: CFRef, flags: u64) -> s32 #foreign CoreVideo;
 CVPixelBufferUnlockBaseAddress :: (pb: CFRef, flags: u64) -> s32 #foreign CoreVideo;
 CVPixelBufferGetBaseAddressOfPlane :: (pb: CFRef, plane: u64) -> *void #foreign CoreVideo;
+CVPixelBufferGetPlaneCount :: (pb: CFRef) -> u64 #foreign CoreVideo;
 CVPixelBufferGetBytesPerRowOfPlane :: (pb: CFRef, plane: u64) -> u64 #foreign CoreVideo;
 
 video_frame_release :: (f: *Video_Frame) {
 	if f.pixbuf CFRelease(f.pixbuf);
 	f.pixbuf = null;
+}
+
+// video_frame_rgb: the frame scaled to w x h as RGB8 rows in temp (nv12_to_rgb), empty when not NV12.
+video_frame_rgb :: (f: *Video_Frame, w: int, h: int) -> []u8 {
+	pb := f.pixbuf;
+	if !pb || CVPixelBufferGetPlaneCount(pb) != 2 || f.width < 2 || f.height < 2 return .[];
+	CVPixelBufferLockBaseAddress(pb, 1); // read-only
+	defer CVPixelBufferUnlockBaseAddress(pb, 1);
+	return nv12_to_rgb(CVPixelBufferGetBaseAddressOfPlane(pb, 0), xx CVPixelBufferGetBytesPerRowOfPlane(pb, 0),
+		CVPixelBufferGetBaseAddressOfPlane(pb, 1), xx CVPixelBufferGetBytesPerRowOfPlane(pb, 1), f.width, f.height, f.yuv, w, h);
 }
 
 // Wrap the frame's Y and CbCr planes as gfx textures (no copy). Destroy them

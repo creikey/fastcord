@@ -53,6 +53,7 @@ Job :: struct {
 	preflight_only: bool; // send only the CORS preflight (the request is a later job)
 	document: bool; // the window's navigation to /app (startup.jai schedule_app_load)
 	host_manifest: bool; // the native updater's checks, hourly (updater.jai)
+	node: bool; // sent by the desktop host's Node, not Chrome (stream_preview_upload)
 	hosts_table: bool; // the hosts table: each host version's Electron and Chrome (schedule_app_load)
 	on_body: (c: *Client, body: V); // worker-side follow-up on a 2xx JSON body (body in temp)
 	on_done: (c: *Client, j: *Job, status: int); // worker-side, after any response (status 0: network failure)
@@ -449,6 +450,10 @@ run_web :: (c: *Client, j: *Job) {
 	}
 	if j.host_manifest {
 		updater_run(c, j);
+		return;
+	}
+	if j.node {
+		node_post(c, j);
 		return;
 	}
 	if j.hosts_table {

@@ -70,6 +70,11 @@ Video_App :: struct {
 	go_sound := true; // share the screen's or window's sound (where video.SOUNDSHARE)
 	// the streams we watch, each on a voice connection of its own, in the order they were opened
 	watches: [..]Watch;
+	// our stream's preview (preview_tick)
+	thumb_due_ms: s64;  // when to take the next one (0: not scheduled)
+	thumb_want: bool;   // the capture's next frame becomes thumb (atomic)
+	thumb: string;      // a data:image/jpeg URL waiting to be uploaded (heap, under mu)
+	thumb_posting: bool; // an upload is on its way
 }
 
 vid: Video_App;
@@ -135,6 +140,7 @@ go_live_stop :: () {
 	voice_release(vid.own_conn);
 	vid.own_conn = null;
 	vid.own_version = 0;
+	preview_reset();
 	free(vid.own_key);
 	vid.own_key = "";
 }
@@ -253,11 +259,14 @@ video_frame :: () {
 					if video_test("stream") s.capture = video.pattern_start(on_capture_frame, s, vid.own_target.width, vid.own_target.height, vid.go_fps);
 					else s.capture = video.screen_start(vid.own_target, on_capture_frame, s, vid.go_fps, h, ifx vid.go_sound then on_share_audio);
 					voice.set_video(vid.own_conn, true, w, h, vid.go_fps, go_live_bitrate(w, h));
+					preview_reset();
+					vid.thumb_due_ms = dc.now_ms() + PREVIEW_FIRST_MS;
 				} else if st == .Disconnected {
 					go_live_stop();
 				}
 			}
 		}
+		if screen_sharing() preview_tick();
 		for < vid.watches {
 			if !it.key continue;
 			vs := table_find_pointer(*call_store().voice_states, it.user);
@@ -420,6 +429,7 @@ stream_connect :: (info: dc.Voice_Server_Info, own := false) -> *voice.Conn {
 	if own {
 		share_reset();
 		o.capture = share_pull;
+		o.capture_stereo = true;
 	}
 	o.hosted = hosted_voice(call_client());
 	return voice.voice_connect(voice.Voice_Server_Info.{
@@ -459,9 +469,9 @@ remote_video :: (t: *Table(u64, *Remote_Video), uid: u64) -> *Remote_Video {
 }
 
 // Soundshare: the shared screen's sound (video.Audio_Proc, on the capture's queue) waits here for our
-// stream's voice connection, which takes a 20 ms frame per tick (voice.Options.capture). At most
-// SHARE_MAX samples wait: past that the oldest go, so a stalled connection never builds up delay.
-SHARE_MAX :: 48000 / 5;
+// stream's voice connection, which takes a 20 ms stereo frame per tick (voice.Options.capture). At most
+// SHARE_MAX samples (interleaved) wait: past that the oldest go, so a stalled connection never builds up delay.
+SHARE_MAX :: 48000 / 5 * 2;
 share: struct {
 	mu: locks.Mutex;
 	buf: [..]float32;
@@ -476,7 +486,7 @@ on_share_audio :: (user: *void, pcm: []float32) {
 	locks.guard(*share.mu);
 	array_add(*share.buf, ..pcm);
 	if share.buf.count > SHARE_MAX {
-		drop := share.buf.count - SHARE_MAX;
+		drop := share.buf.count - SHARE_MAX;  // even: whole frames go
 		memcpy(share.buf.data, share.buf.data + drop, SHARE_MAX * size_of(float32));
 		share.buf.count = SHARE_MAX;
 	}
@@ -642,6 +652,7 @@ on_capture_frame :: (user: *void, camera_frame: *void, width: int, height: int) 
 		s.pending = media.video_frame_from_pixbuf(pixbuf);
 	}
 	platform.request_frame();
+	if s == *vid.screen && atomic_swap(*vid.thumb_want, false) preview_take(pixbuf);
 	if !s.conn return; // the camera test
 	codec := voice.video_codec(s.conn);
 	if codec == .None return; // not negotiated yet
@@ -717,6 +728,67 @@ encoder_stop :: (s: *Sender) {
 	video.vp8_encoder_destroy(s.vp8);
 	s.enc, s.vp8 = null, null;
 	s.codec = .None;
+}
+
+// Our stream's preview, as the client's ApplicationStreamPreviewUploadManager makes it: 500 ms after the
+// stream's video starts, its next frame scaled to fit 512 x 288, a JPEG data URL (canvas toDataURL), posted
+// (dc.stream_preview_upload); again 5 minutes after one went through, 1 minute after one that failed.
+PREVIEW_FIRST_MS :: 500;
+PREVIEW_EVERY_MS :: 5 * 60_000;
+PREVIEW_RETRY_MS :: 60_000;
+
+preview_reset :: () {
+	vid.thumb_due_ms = 0;
+	vid.thumb_posting = false;
+	atomic_store(*vid.thumb_want, false);
+	locks.guard(*vid.mu);
+	free(vid.thumb);
+	vid.thumb = "";
+}
+
+// preview_tick (UI thread): asks the capture for a frame when one is due, uploads what it made, and
+// schedules the next once the upload is answered.
+preview_tick :: () {
+	now := dc.now_ms();
+	if vid.thumb_due_ms && now >= vid.thumb_due_ms {
+		vid.thumb_due_ms = now + PREVIEW_RETRY_MS; // unless a picture comes and goes out
+		atomic_store(*vid.thumb_want, true);
+	}
+	thumb: string;
+	{
+		locks.guard(*vid.mu);
+		thumb, vid.thumb = vid.thumb, "";
+	}
+	if thumb {
+		dc.stream_preview_upload(call_client(), vid.own_key, thumb);
+		free(thumb);
+		vid.thumb_posting = true;
+		vid.thumb_due_ms = 0;
+	}
+	if vid.thumb_posting {
+		st := dc.stream_preview_result(call_client());
+		if st == 0 return;
+		vid.thumb_posting = false;
+		vid.thumb_due_ms = now + ifx st >= 200 && st < 300 then PREVIEW_EVERY_MS else PREVIEW_RETRY_MS;
+	}
+}
+
+// preview_take (capture thread): the frame as the preview's JPEG data URL, for preview_tick; nothing when
+// it fails (preview_tick asks again in a minute).
+preview_take :: (pixbuf: *void) {
+	f := media.video_frame_from_pixbuf(pixbuf);
+	defer media.video_frame_release(*f);
+	if f.width < 2 || f.height < 2 return;
+	scale := min(512.0 / f.width, 288.0 / f.height);
+	w, h := max(cast(int) (f.width * scale), 1), max(cast(int) (f.height * scale), 1);
+	rgb := media.video_frame_rgb(*f, w, h);
+	if !rgb return;
+	jpeg := imagefmt.encode_jpeg(rgb, w, h,, temp);
+	if !jpeg return;
+	url := join("data:image/jpeg;base64,", base64_encode(cast(string) jpeg,, temp));
+	locks.guard(*vid.mu);
+	free(vid.thumb);
+	vid.thumb = url;
 }
 
 // on_encoded: video.Encoded_Proc, on the encoder's thread. The sender's

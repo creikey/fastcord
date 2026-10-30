@@ -152,21 +152,34 @@ main :: () {
 	check(!voice.video_user_ids(b.conn,, temp).count, "turning the camera off reaches the member");
 
 	// Go Live: the owner streams on a second connection, which the app opens once STREAM_SERVER_UPDATE is in;
-	// the member watches it on one of theirs. Frames reach the watcher, not the call.
+	// the member watches it on one of theirs. Frames reach the watcher, not the call, and the stream's sound
+	// (soundshare) is stereo: a tone on the left only stays on the left.
 	key := discord.stream_key(guild, channel, a.cl.store.me);
-	stream_conn :: (m: *Member, frames: *s64) -> *voice.Conn #expand {
+	Stream_End :: struct { frames: s64; phase: float64; left_only: s64; }
+	stream_conn :: (m: *Member, end: *Stream_End) -> *voice.Conn #expand {
 		info, _, got := discord.stream_server_info(m.cl, `key);
 		for 1..500 { if got break; pump(); info, _, got = discord.stream_server_info(m.cl, `key); }
 		`check(got, "STREAM_CREATE and STREAM_SERVER_UPDATE");
 		if !got return null;
 		return voice.voice_connect(.{endpoint = info.endpoint, token = info.token, guild_or_channel_id = xx info.guild_or_channel_id,
 			user_id = xx info.user_id, session_id = info.session_id, channel_id = xx info.channel_id, stream = true}, .{
-			no_audio_devices = true, callback_data = frames,
+			no_audio_devices = true, callback_data = end,
 			hosted = .{host = `hosted.host, port = `hosted.port, server_id = `hosted.server_id, pin = `hosted.pin},
-			video = (data: *void, user_id: u64, codec: voice.Video_Codec, au: []u8, keyframe: bool) { if keyframe atomic_add(cast(*s64) data, 1); }});
+			capture = ifx m == *`a then (data: *void, out: []float32) -> int {
+				e := cast(*Stream_End) data;
+				for i: 0..out.count / 2 - 1 { out[2 * i] = cast(float32) (0.2 * sin(e.phase)); out[2 * i + 1] = 0; e.phase += 2 * PI * 440 / 48000; }
+				return out.count;
+			},
+			capture_stereo = m == *`a,
+			playback = (data: *void, user_id: u64, pcm: []float32) {
+				l, r: float32;
+				for i: 0..pcm.count / 2 - 1 { l += pcm[2 * i] * pcm[2 * i]; r += pcm[2 * i + 1] * pcm[2 * i + 1]; }
+				if l > 1 && r < l / 100 atomic_add(*(cast(*Stream_End) data).left_only, 1);
+			},
+			video = (data: *void, user_id: u64, codec: voice.Video_Codec, au: []u8, keyframe: bool) { if keyframe atomic_add(*(cast(*Stream_End) data).frames, 1); }});
 	}
 	discord.stream_create(a.cl, guild, channel);
-	sent, watched: s64;
+	sent, watched: Stream_End;
 	own := stream_conn(*a, *sent);
 	streaming :: () -> bool #expand { vs := table_find_pointer(*`b.cl.store.voice_states, `a.cl.store.me); return vs && vs.self_stream; }
 	for 1..300 { if streaming() break; pump(); }
@@ -178,12 +191,13 @@ main :: () {
 		voice.set_video(own, true);
 		camera := atomic_load(*b.frames);
 		for 1..500 {
-			if atomic_load(*watched) >= 5 break;
+			if atomic_load(*watched.frames) >= 5 && atomic_load(*watched.left_only) > 25 break;
 			voice.send_video(own, .H264, frame, ts);
 			ts += 3000;
 			pump();
 		}
-		check(atomic_load(*watched) >= 5 && atomic_load(*b.frames) == camera, tprint("the watcher gets the stream, apart from the call: % %", watched, b.frames - camera));
+		check(atomic_load(*watched.frames) >= 5 && atomic_load(*b.frames) == camera, tprint("the watcher gets the stream, apart from the call: % %", watched.frames, b.frames - camera));
+		check(atomic_load(*watched.left_only) > 25, tprint("the stream's sound arrives in stereo: % left-only frames", watched.left_only));
 		// The watcher stops: their stream connection is closed, and the stream goes on.
 		discord.stream_delete(b.cl, key);
 		for 1..500 { if voice.state(watch) == .Disconnected || voice.state(watch) == .Resuming break; pump(); }
