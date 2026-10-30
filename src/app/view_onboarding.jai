@@ -1,7 +1,8 @@
 // A server's own pages, drawn in place of the chat (the client's static routes, traffic/CLIENT_RULES.md
 // "Member onboarding"):
-// - Onboarding: on opening a GUILD_ONBOARDING server you haven't finished it in (member flag
-//   COMPLETED_ONBOARDING), GET /guilds/{id}/onboarding, then its in_onboarding questions one at a time; Finish
+// - Onboarding: on opening a GUILD_ONBOARDING server you joined since onboarding began (2023-04-26) and
+//   started but haven't finished it in (member flags STARTED_ONBOARDING, not COMPLETED_ONBOARDING),
+//   GET /guilds/{id}/onboarding, then its in_onboarding questions one at a time; Finish
 //   POSTs the answers to /guilds/{id}/onboarding-responses, which hands out their roles and channels, and lands
 //   in the first default channel.
 // - Channels & Roles: every question, each answer changed at once with PUT .../onboarding-responses.
@@ -13,7 +14,8 @@
 
 Server_Page :: enum u8 { None; Onboarding; Customize; Browse; Guide; }
 
-MEMBER_COMPLETED_ONBOARDING :: 2; // GuildMemberFlags
+MEMBER_COMPLETED_ONBOARDING :: 2; MEMBER_STARTED_ONBOARDING :: 8; // GuildMemberFlags
+ONBOARDING_SINCE_MS :: 1682488800000; // members who joined before this never get onboarding
 ONB_GET :: 0; ONB_GUIDE :: 1; ONB_ACTIONS :: 2; ONB_RESPONSES :: 3; ONB_ACTION_DONE :: 4; // Feature_Op.Onboarding tags
 ONB_MAX_PROMPTS :: 50; ONB_MAX_OPTIONS :: 50; ONB_MAX_JSON :: 1 << 20;
 
@@ -35,8 +37,10 @@ onboarding_check :: (gid: dc.Snowflake) {
 	s := store();
 	g := dc.guild_get(s, gid);
 	if !g || !array_find(g.features, "GUILD_ONBOARDING") || array_find(onb.asked, gid) return;
+	// as the client: only a member who joined since onboarding began and started it (Discord sets
+	// STARTED_ONBOARDING on join); finishing it posts the server's welcome message for you
 	m := dc.member_get(s, gid, s.me);
-	if m && (m.flags & MEMBER_COMPLETED_ONBOARDING) return;
+	if !m || dc.iso_to_ms(m.joined_at) < ONBOARDING_SINCE_MS || (m.flags & (MEMBER_STARTED_ONBOARDING | MEMBER_COMPLETED_ONBOARDING)) != MEMBER_STARTED_ONBOARDING return;
 	array_add(*onb.asked, gid);
 	onb_load(gid);
 	onb.auto = true;

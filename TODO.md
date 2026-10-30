@@ -936,3 +936,4 @@
 - [x] Go Live: the stream picker has a Sound On / Off choice, so a stream can go out without the shared screen's sound (`go_sound`; `tests/ui/call/go_live.txt`).
 - [x] Rail: hovering a server lists its voice channels with people in them, each with up to 8 avatars and "+N" (`guild_tooltip`, `tests/ui/rail/rail_voice_tooltip.txt`).
 - [x] Bug: Server Settings' circled close X sat 2 px up and left of centre; Settings' content pane squared off the modal's right corners.
+- [x] Servers: onboarding only for members the client shows it to (joined since 2023-04-26, STARTED_ONBOARDING set, not completed); fastcord showed it to long-time members, and finishing it posted a "Good to see you" welcome for them (`view_onboarding.jai` `onboarding_check`, `tests/ui/onboarding_old_member.txt`).
