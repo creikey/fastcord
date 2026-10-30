@@ -259,6 +259,9 @@ screen_picker :: () {
 		return;
 	}
 	for section: 0..1 {
+		any := false;
+		for targets if it.is_window == (section == 1) any = true;
+		if !any continue; // Linux: the portal's own dialog picks screens and windows, from one tile
 		label_row := row(tprint("sec%", section));
 		label_row.semantic_size = .[ui.pct(1), ui.px(32)];
 		{ ui.parent(label_row); defer ui.pop_parent();
@@ -325,7 +328,7 @@ screen_picker :: () {
 				spacer(.X, 8);
 				label(ellipsize(t.name, .Medium, 14, TW - 4), .Medium, 14, T("--text-default"), 20);
 			}
-			if sig.hovering tooltip_below(tprint("% (%×%)", t.name, t.width, t.height), b.rect);
+			if sig.hovering tooltip_below(ifx t.width then tprint("% (%×%)", t.name, t.width, t.height) else t.name, b.rect);
 			if sig.clicked {
 				vid.picker_open = false;
 				go_live_start(t);

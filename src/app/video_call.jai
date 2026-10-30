@@ -292,7 +292,11 @@ video_frame :: () {
 		send_voice_state();
 		toast_show(err, false);
 	}
-	if video.capture_error(vid.screen.capture) go_live_stop(); // stopped from outside (the macOS menu bar)
+	err = video.capture_error(vid.screen.capture);
+	if err {
+		go_live_stop(); // stopped from outside (the macOS menu bar, the Linux desktop), or failed
+		if err != video.SCREEN_STOPPED toast_show(err, false);
+	}
 	if vid.preview.capture {
 		err = video.capture_error(vid.preview.capture);
 		if err toast_show(err, false);
@@ -427,6 +431,7 @@ stream_connect :: (info: dc.Voice_Server_Info, own := false) -> *voice.Conn {
 // The encoded size for a screen target: its aspect, at most the chosen height (go_height), even sides.
 screen_size :: (t: video.Screen_Target) -> int, int {
 	w, h := max(t.width, 2), max(t.height, 2);
+	if !t.height { h = ifx vid.go_height then vid.go_height else 2160; w = h * 16 / 9; } // Linux: the portal's pick, capped
 	if vid.go_height && h > vid.go_height { w = w * vid.go_height / h; h = vid.go_height; }
 	return w & ~1, h & ~1;
 }
