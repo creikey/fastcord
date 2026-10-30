@@ -140,7 +140,7 @@ def encode(frames, t0, dur, out):
             f.write(f"file '{p}'\nduration {max(nxt - max(t, 0), 1) / 1000:.3f}\n")
         f.write(f"file '{fs[-1][1]}'\n")
     run('ffmpeg', '-y', '-loglevel', 'error', '-f', 'concat', '-safe', '0', '-i', f.name, '-vf',
-        f'scale={W}:-2:flags=lanczos,fps=30', '-c:v', 'libx264', '-preset', 'slow', '-crf', '30', '-pix_fmt', 'yuv420p',
+        f'scale={W}:-2:flags=lanczos:out_range=tv,fps=30,format=yuv420p', '-c:v', 'libx264', '-preset', 'slow', '-crf', '30', '-pix_fmt', 'yuv420p',
         '-movflags', '+faststart', '-an', out)
     os.remove(f.name)
 
