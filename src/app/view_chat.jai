@@ -963,6 +963,7 @@ text_field :: (id: string, ed: *ui.Editor, placeholder: string, focused: bool, f
 	f.style.text_color = T("--text-default");
 	if text == "" {
 		f.text = placeholder;
+		if f.rect.x1 > f.rect.x0 f.text = ellipsize(placeholder, .Normal, font_size, f.rect.x1 - f.rect.x0); // one line, like the client's
 		f.style.text_color = ifx placeholder_color.w > 0 then placeholder_color else T("--text-muted");
 	}
 	result := ui.Edit_Result.None;
@@ -1165,12 +1166,18 @@ day_of :: (id: dc.Snowflake) -> s64 {
 	return local_ms(dc.snowflake_time_ms(id)) / 86_400_000;
 }
 
+chat_media_w: float32 = 400; // the widest image or embed a message shows, set by message_list
+
 message_list :: (channel_id: dc.Snowflake, cs: *Chat_State) {
 	s := store();
 	chat_toolbar_prev = chat_toolbar;
 	chat_toolbar = .{};
 	list := ui.box("messages", .Clip | .Scroll_Y);
 	list.semantic_size = .[ui.pct(1), ui.fill()];
+	// media fits the list (the call's chat panel is narrower than an embed); the right side keeps
+	// room for the remove-embeds X, an embed card adding 16 on each side
+	lw := list.rect.x1 - list.rect.x0;
+	chat_media_w = ifx lw > 0 then clamp(lw - MSG_GUTTER - 32 - 32, 120, 400) else 400;
 	// Scrolling is managed here (anchored to the bottom), not by ui's scroll offset.
 	list.flags &= ~ui.Box_Flag.Scroll_Y;
 	msgs := dc.messages_get(s, channel_id);
@@ -1705,7 +1712,7 @@ message_row :: (m: *dc.Message, grouped: bool, new_day: bool, show_new: bool) ->
 					if m.sticker_ids message_stickers_view(m);
 				}
 				thread_summary_pill(m);
-				if m.attachments && !m.forwarded attachments_view(m);
+				if m.attachments && !m.forwarded attachments_view(m, chat_media_w);
 				if m.pending upload_progress_view(m);
 				if m.failed failed_send_note(m);
 				if m.embeds && !m.forwarded && !(m.flags & 4) && chat_pref(12) { // Chat > Show embeds
@@ -1717,7 +1724,7 @@ message_row :: (m: *dc.Message, grouped: bool, new_day: bool, show_new: bool) ->
 					ec := ui.box("ecol");
 					ec.semantic_size = .[ui.children(), ui.children()];
 					ec.layout_axis = .Y;
-					{ ui.parent(ec); defer ui.pop_parent(); embeds_view(m); }
+					{ ui.parent(ec); defer ui.pop_parent(); embeds_view(m, chat_media_w); }
 					if app.chat_hover == m.id && !m.pending && can_manage_message(m) {
 						spacer(.X, 4);
 						x := ui.box("rmembeds", .Clickable);
@@ -1978,6 +1985,9 @@ message_header :: (m: *dc.Message, with_time := true) {
 	h := row("header");
 	h.semantic_size = .[ui.pct(1), ui.px(chat_px(MSG_LINE_H))];
 	h.cross_align = .End;
+	// a long name gives way to the timestamp instead of running under it
+	hw := h.rect.x1 - h.rect.x0;
+	if hw > 0 name = ellipsize(name, .Medium, chat_px(16), max(hw - ifx with_time then 150.0 else 40.0, 60));
 	{ ui.parent(h); defer ui.pop_parent();
 		n := label(name, .Medium, chat_px(16), author_color(m), chat_px(MSG_LINE_H));
 		n.flags |= .Clickable | .Selectable_Text;
@@ -2531,8 +2541,8 @@ forward_block :: (m: *dc.Message) {
 	}
 	message_body(m);
 	if m.sticker_ids message_stickers_view(m);
-	if m.attachments attachments_view(m);
-	if m.embeds embeds_view(m);
+	if m.attachments attachments_view(m, chat_media_w - 16);
+	if m.embeds embeds_view(m, chat_media_w - 16);
 	if m.forward_author_id {
 		at := dc.iso_to_ms(m.forward_timestamp);
 		spacer(.Y, 2);

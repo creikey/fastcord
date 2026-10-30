@@ -687,7 +687,9 @@ page :: () {
 			if app.view.voice_chat {
 				// text in voice: the channel's chat beside the call
 				col := ui.box("voicechat", .Draw_Background | .Draw_Border | .Clip);
-				col.semantic_size = .[ui.px(clamp(app.ui.window.x * 0.3, 320, 480)), ui.pct(1)];
+				// the call keeps room for its compact controls; the chat stays wide enough to read
+				page_w := app.ui.window.x - RAIL_W - app.view.sidebar_w;
+				col.semantic_size = .[ui.px(clamp(page_w - 340, 320, 480)), ui.pct(1)];
 				col.layout_axis = .Y;
 				col.style.bg = T("--background-base-lower");
 				col.style.border_color = T("--border-subtle");

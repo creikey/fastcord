@@ -624,6 +624,11 @@ call_controls :: (cid: dc.Snowflake) {
 	bar := row("controls");
 	bar.semantic_size = .[ui.pct(1), ui.px(CALL_BAR_H)];
 	ui.parent(bar); defer ui.pop_parent();
+	// narrow (the chat beside the call): smaller buttons, closer, and fullscreen joins the row
+	bw := bar.rect.x1 - bar.rect.x0;
+	compact := bw > 0 && bw < 560;
+	control_w = ifx compact then 44.0 else 56.0;
+	gap := ifx compact then 4.0 else 8.0;
 	filler(.X);
 	if app.voice_channel != cid {
 		jb := row("join", .Clickable | .Draw_Background | .Hot_Animation);
@@ -644,31 +649,31 @@ call_controls :: (cid: dc.Snowflake) {
 		filler(.X);
 		return;
 	}
-	spacer(.X, 72); // balances the fullscreen button on the right
+	if !compact spacer(.X, 72); // balances the fullscreen button on the right
 	can_video := voice_conn() != null && voice.state(voice_conn()) == .Connected;
 	smute, sdeaf := server_muted();
 	mic_off := app.self_mute || app.self_deaf || smute || sdeaf;
 	if control("mic", ifx mic_off then "microphone-slash" else "microphone", mic_off, false, true) toggle_self_mute();
 	stage_controls(cid);
-	spacer(.X, 8);
+	spacer(.X, gap);
 	// video.camera_supported asks AVFoundation, which TCC may kill us for: only on click
 	if control("camera", "video", false, camera_on(), can_video && video.SUPPORTED) camera_toggle();
-	spacer(.X, 8);
+	spacer(.X, gap);
 	if control("screen", "screen-stream", false, screen_sharing(), can_video && video.SUPPORTED) {
 		if !screen_sharing() video.screen_targets_refresh();
 		vid.picker_open = true; // while streaming: its settings and Stop Streaming
 	}
-	spacer(.X, 8);
+	spacer(.X, gap);
 	sbc := control("soundboard", "music", false, sb.open, soundboard_available());
 	if sbc soundboard_toggle(control_rect);
-	spacer(.X, 8);
+	spacer(.X, gap);
 	if control("effects", "reaction", false, effect_bar_open, can_video) effect_bar_open = !effect_bar_open;
 	if effect_bar_open && can_video effect_bar(control_rect);
-	spacer(.X, 8);
+	spacer(.X, gap);
 	if control("leave", "phone-hang-up", true, false, true) voice_hang_up();
-	filler(.X);
+	if compact spacer(.X, gap); else filler(.X);
 	if control("full", "fullscreen", false, app.view.call_full, true) app.view.call_full = !app.view.call_full; // Escape also leaves
-	spacer(.X, 16);
+	if compact filler(.X); else spacer(.X, 16);
 }
 
 // effect_bar: a row of emoji above the effects button; a click floats one over our tile for the call.
@@ -786,9 +791,10 @@ stage_invite_banner :: (ch: *dc.Channel) {
 
 // A 56x48 control: red when danger (muted / disconnect), white when on.
 control_rect: ui.Rect; // the last control()'s, for a popout it opens
+control_w: float32 = 56; // set per frame by call_controls
 control :: (id: string, ic: string, danger: bool, on: bool, enabled: bool) -> bool {
 	b := ui.box(id, .Clickable | .Draw_Background | .Hot_Animation);
-	b.semantic_size = .[ui.px(56), ui.px(48)];
+	b.semantic_size = .[ui.px(control_w), ui.px(48)];
 	control_rect = b.rect;
 	b.style.radius = all4(12);
 	bg := T("--background-surface-highest");

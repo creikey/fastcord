@@ -11,7 +11,7 @@ expect_visible "ranked grind, come watch"
 shot build/ui-call_voice_chat.png
 in_voice 1546820558950371412
 wait 5
-click 852 680
+click 731 680
 wait 5
 expect_not_visible "Events"
 shot build/ui-call_voice_full.png
