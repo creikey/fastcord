@@ -61,6 +61,7 @@ Video_App :: struct {
 	picker_test: bool; // the `screen_picker` script command: made-up targets, never the real screens
 	go_height := 720; // Go Live settings: 480, 720, 1080, 1440, or 0 for the source's own height
 	go_fps := 30;     // 15, 30 or 60
+	go_sound := true; // share the screen's or window's sound (where video.SOUNDSHARE)
 	// the streams we watch, each on a voice connection of its own, in the order they were opened
 	watches: [..]Watch;
 }
@@ -246,7 +247,7 @@ video_frame :: () {
 					w, h := screen_size(vid.own_target);
 					sender_init(s, vid.own_conn, vid.go_fps, go_live_bitrate(w, h));
 					if video_test("stream") s.capture = video.pattern_start(on_capture_frame, s, vid.own_target.width, vid.own_target.height, vid.go_fps);
-					else s.capture = video.screen_start(vid.own_target, on_capture_frame, s, vid.go_fps, h, on_share_audio);
+					else s.capture = video.screen_start(vid.own_target, on_capture_frame, s, vid.go_fps, h, ifx vid.go_sound then on_share_audio);
 					voice.set_video(vid.own_conn, true, w, h, vid.go_fps, go_live_bitrate(w, h));
 				} else if st == .Disconnected {
 					go_live_stop();
@@ -344,10 +345,10 @@ go_live_allowed :: (height: int, fps: int) -> bool {
 
 // go_live_set: new settings (a frame rate the resolution doesn't allow drops to 30); a running stream restarts
 // its capture and encoder with them.
-go_live_set :: (height: int, fps: int) {
+go_live_set :: (height: int, fps: int, sound: bool) {
 	if !go_live_allowed(height, fps) fps = 30;
-	if vid.go_height == height && vid.go_fps == fps return;
-	vid.go_height, vid.go_fps = height, fps;
+	if vid.go_height == height && vid.go_fps == fps && vid.go_sound == sound return;
+	vid.go_height, vid.go_fps, vid.go_sound = height, fps, sound;
 	if screen_sharing() && vid.screen.capture sender_stop(*vid.screen); // video_frame starts it again
 }
 

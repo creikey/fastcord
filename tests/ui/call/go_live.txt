@@ -1,5 +1,5 @@
 # Go Live: the screen picker has the stream's resolution and frame rate (480p, 720p and 15 / 30 FPS without
-# Nitro, nothing offered beyond). Watching a stream puts LIVE in the call header.
+# Nitro, nothing offered beyond) and whether it shares the sound. Watching a stream puts LIVE in the call header.
 wait 5
 in_voice 1546820558950371411
 click_text "General"
@@ -10,6 +10,7 @@ expect_visible "RESOLUTION"
 expect_visible "30 FPS"
 expect_visible "480p"
 expect_not_visible "60 FPS"
+expect_visible "SOUND"
 expect_not_visible "1080p"
 shot build/ui-call_go_live_picker.png
 click 140 400

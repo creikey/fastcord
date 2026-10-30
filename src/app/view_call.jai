@@ -357,7 +357,8 @@ pick_thumb :: (t: video.Screen_Target) -> gfx.Texture {
 	return tex;
 }
 
-// go_live_quality: the stream's resolution and frame rate, as chips, each only where allowed (go_live_allowed).
+// go_live_quality: the stream's resolution and frame rate, as chips, each only where allowed (go_live_allowed),
+// and whether it shares the sound.
 go_live_quality :: () {
 	chip :: (text: string, on: bool) -> bool {
 		b := ui.box(text, .Clickable | .Draw_Background | .Draw_Border | .Hot_Animation | .Draw_Text);
@@ -373,24 +374,28 @@ go_live_quality :: () {
 		b.style.text_align = .Center;
 		return ui.signal(b).clicked;
 	}
-	for section: 0..1 {
-		r := row(ifx section == 0 then "res" else "fps");
+	for section: 0..2 {
+		if section == 2 && !video.SOUNDSHARE break;
+		r := row(ifx section == 0 then "res" else ifx section == 1 then "fps" else "sound");
 		r.semantic_size = .[ui.pct(1), ui.px(38)];
 		r.style.child_gap = 8;
 		ui.parent(r); defer ui.pop_parent();
 		spacer(.X, 12);
-		l := label(ifx section == 0 then "RESOLUTION" else L("FRAME RATE"), .Semibold, 12, T("--text-muted"), 16);
+		l := label(ifx section == 0 then "RESOLUTION" else ifx section == 1 then L("FRAME RATE") else L("SOUND"), .Semibold, 12, T("--text-muted"), 16);
 		l.semantic_size[ui.Axis.X] = ui.px(96);
 		if section == 0 {
 			for h: int.[480, 720, 1080, 1440, 0] {
 				if !go_live_allowed(h, 15) continue;
-				if chip(ifx h then tprint("%p##h%", h, h) else L("Source##h0"), vid.go_height == h) go_live_set(h, vid.go_fps);
+				if chip(ifx h then tprint("%p##h%", h, h) else L("Source##h0"), vid.go_height == h) go_live_set(h, vid.go_fps, vid.go_sound);
 			}
-		} else {
+		} else if section == 1 {
 			for f: int.[15, 30, 60] {
 				if !go_live_allowed(vid.go_height, f) continue;
-				if chip(tprint(L("%1 FPS##f%2"), f, f), vid.go_fps == f) go_live_set(vid.go_height, f);
+				if chip(tprint(L("%1 FPS##f%2"), f, f), vid.go_fps == f) go_live_set(vid.go_height, f, vid.go_sound);
 			}
+		} else {
+			if chip(L("On##sound"), vid.go_sound) go_live_set(vid.go_height, vid.go_fps, true);
+			if chip(L("Off##sound"), !vid.go_sound) go_live_set(vid.go_height, vid.go_fps, false);
 		}
 	}
 }

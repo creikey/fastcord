@@ -1304,6 +1304,7 @@ OUTPUT DEVICE
 OUTPUT VOLUME
 Objects
 Off
+Off##sound
 Offline
 Oh yeah. Pin it
 Okay
@@ -1311,6 +1312,7 @@ Okay##ok
 Oldest
 On click
 On servers I moderate
+On##sound
 Onboarding
 One rule per line, for example: Be respectful
 Ongoing call
@@ -1544,6 +1546,7 @@ SELECT A CHANNEL
 SELECT A SERVER
 SERVER NAME
 SIZE
+SOUND
 SOUNDBOARD VOLUME
 START FROM A TEMPLATE
 STATIC EMOJI — % SLOTS AVAILABLE
