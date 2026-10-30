@@ -1,5 +1,5 @@
-// Video for calls and Go Live: camera and screen capture (NV12) and a realtime H.264/H.265 encoder that
-// emits Annex B. macOS (AVFoundation, ScreenCaptureKit, VideoToolbox), Windows (Media Foundation, DXGI
+// Video for calls and Go Live: camera and screen capture (NV12), a realtime H.264/H.265 encoder that
+// emits Annex B, and a software VP8 encoder (encode_vp8.jai, every platform). macOS (AVFoundation, ScreenCaptureKit, VideoToolbox), Windows (Media Foundation, DXGI
 // desktop duplication; H.264 only) and Linux (V4L2 cameras, openh264; H.264 only, no screen capture yet).
 
 // A captured frame, valid only during the call: macOS a CVPixelBuffer ('420v' or '420f'), Windows an
@@ -107,6 +107,7 @@ thumb_add :: (is_window: bool, id: u32, rgba: []u8, w: int, h: int) {
 	#load "capture_linux.jai";
 	#load "encode_linux.jai";
 }
+#load "encode_vp8.jai";
 
 #scope_module
 

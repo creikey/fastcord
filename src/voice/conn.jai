@@ -231,6 +231,7 @@ Conn :: struct {
     codecs_due: bool;      // op 14 due (timer thread)
     video_w, video_h, video_fps, video_bitrate: int;
     video_seq: u16;
+    vp8_picture_id: u16;   // RFC 7741's, one per frame (15 bits)
     video_packets, video_octets, video_last_ts: u32;
     keyframe_wanted: bool;            // atomic: a PLI/FIR for our stream arrived
     // the pacer: video RTP packets queue here and leave at PACE_FACTOR x the bitrate (pacer_thread_proc),
@@ -1625,15 +1626,20 @@ video_codec :: (c: *Conn) -> Video_Codec { return c.video_codec; }
 // take_keyframe_request: true once after the SFU asked for a keyframe (PLI / FIR), or after a reconnect.
 take_keyframe_request :: (c: *Conn) -> bool { return atomic_swap(*c.keyframe_wanted, false); }
 
-// send_video sends one encoded frame (Annex B, as the encoder wrote it) in
-// the negotiated codec: DAVE with libdave's clear ranges, then RTP at 90 kHz.
+// send_video sends one encoded frame (Annex B, as the encoder wrote it; VP8's
+// frame) in the negotiated codec: DAVE with libdave's clear ranges, then RTP at 90 kHz.
 // Safe from any one thread at a time (the encoder's).
 send_video :: (c: *Conn, codec: Video_Codec, au: []u8, ts_90k: u32) {
-    if codec != .H264 && codec != .H265 return;
+    if codec != .H264 && codec != .H265 && codec != .VP8 return;
     locks.guard(*c.vmu);
     if !c.video_on || !c.video_ssrc || !c.udp_open return;
-    frame, nals := with_long_start_codes(ifx codec == .H264 then h264_add_vui(au) else au);
-    if !nals.count return;
+    frame := au;
+    nals: []Nal;
+    if codec == .VP8 { if !au.count return; }
+    else {
+        frame, nals = with_long_start_codes(ifx codec == .H264 then h264_add_vui(au) else au);
+        if !nals.count return;
+    }
     // FASTCORD_VOICE_DEBUG: each keyframe's NAL units (type:size) and its parameter sets in hex
     if c.debug && nals.count > 1 {
         sb: String_Builder;
@@ -1672,7 +1678,8 @@ send_video :: (c: *Conn, codec: Video_Codec, au: []u8, ts_90k: u32) {
         c.video_seq += 1;
         c.video_packets += 1;
         c.video_octets += xx payload.count;
-    }, *pk);
+    }, *pk, c.vp8_picture_id);
+    c.vp8_picture_id = (c.vp8_picture_id + 1) & 0x7fff;
     c.video_last_ts = ts_90k;
     locks.guard(*c.mu);
     c.stats.video_frames_sent += 1;

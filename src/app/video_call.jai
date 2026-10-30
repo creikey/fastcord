@@ -38,6 +38,7 @@ Sender :: struct {
 	conn: *voice.Conn;
 	capture: *video.Capture;
 	enc: *video.Encoder;
+	vp8: *video.Vp8_Encoder; // instead of enc in VP8 calls
 	codec: voice.Video_Codec;
 	fps, bitrate: int;
 	start: Apollo_Time;
@@ -197,9 +198,7 @@ camera_switch :: () {
 	if platform.is_headless() return; // the test pattern stays
 	for s: (*Sender).[*vid.camera, *vid.preview] if s.capture {
 		video.capture_stop(s.capture);
-		video.encoder_destroy(s.enc);
-		s.enc = null;
-		s.codec = .None;
+		encoder_stop(s);
 		s.capture = video.camera_start(on_capture_frame, s, CAMERA_W, CAMERA_H, CAMERA_FPS, vs.camera);
 	}
 }
@@ -315,9 +314,9 @@ video_shutdown :: () {
 	deinit(*vid.streams);
 }
 
-// FASTCORD_VIDEO_TEST=camera,stream,watch (live tests): a synthetic pattern instead of the
+// FASTCORD_VIDEO_TEST=camera,stream,watch,vp8 (live tests): a synthetic pattern instead of the
 // camera / screen, turned on as soon as the call connects; "watch" watches the first stream
-// in the channel. Video stats go to stderr every 2 s.
+// in the channel; "vp8" moves the call to VP8 (video_test_frame). Video stats go to stderr every 2 s.
 video_test :: (what: string) -> bool {
 	v := env_var("FASTCORD_VIDEO_TEST");
 	return ifx what then contains(v, what) else v != "";
@@ -369,6 +368,9 @@ vt_started_camera, vt_started_stream: bool;
 video_test_frame :: () {
 	conn := vc_conn();
 	if !conn || voice.state(conn) != .Connected return;
+	// "vp8": op 14 marks H.264 and H.265 unencodable, so the server moves the call to VP8
+	vc := voice.video_codec(conn);
+	if video_test("vp8") && (vc == .H264 || vc == .H265) voice.cannot_encode(conn, vc);
 	if video_test("camera") && !vt_started_camera { vt_started_camera = true; camera_toggle(); }
 	if video_test("stream") && !vt_started_stream {
 		vt_started_stream = true;
@@ -605,10 +607,8 @@ sender_init :: (s: *Sender, conn: *voice.Conn, fps: int, bitrate: int) {
 sender_stop :: (s: *Sender) {
 	video.capture_stop(s.capture);
 	s.capture = null;
-	video.encoder_destroy(s.enc);
-	s.enc = null;
+	encoder_stop(s);
 	s.conn = null;
-	s.codec = .None;
 	locks.guard(*s.mu);
 	media.video_frame_release(*s.pending);
 	image_free(*s.img);
@@ -635,13 +635,23 @@ on_capture_frame :: (user: *void, camera_frame: *void, width: int, height: int) 
 	codec := voice.video_codec(s.conn);
 	if codec == .None return; // not negotiated yet
 	// The server picks one codec for the whole call, also one we can't encode (H.265 on Windows and Linux,
-	// VP8, AV1). Ask it for another (op 14), and send H.264 until it answers: receivers pick the decoder by
+	// AV1). Ask it for another (op 14), and send H.264 until it answers: receivers pick the decoder by
 	// payload type, and every client decodes H.264.
-	if codec != .H264 && !(codec == .H265 && video.encoder_supported(.H265)) {
+	if codec != .H264 && codec != .VP8 && !(codec == .H265 && video.encoder_supported(.H265)) {
 		voice.cannot_encode(s.conn, codec);
 		codec = .H264;
 	}
-	if s.enc && s.codec != codec { video.encoder_destroy(s.enc); s.enc = null; }
+	if s.codec != codec encoder_stop(s);
+	pts := cast,no_check(u32) (to_nanoseconds(current_time_monotonic() - s.start) * 9 / 100_000);
+	if codec == .VP8 {
+		if !s.vp8 {
+			s.codec = codec;
+			s.vp8 = video.vp8_encoder_create(width & ~1, height & ~1, s.fps, s.bitrate, s == *vid.screen, on_encoded, s);
+			if !s.vp8 return;
+		}
+		video.vp8_encoder_encode(s.vp8, pixbuf, pts, voice.take_keyframe_request(s.conn));
+		return;
+	}
 	if !s.enc {
 		vcodec := ifx codec == .H265 then video.Video_Codec.H265 else .H264;
 		if !video.encoder_supported(vcodec) return;
@@ -649,8 +659,14 @@ on_capture_frame :: (user: *void, camera_frame: *void, width: int, height: int) 
 		s.enc = video.encoder_create(vcodec, width & ~1, height & ~1, s.fps, s.bitrate, on_encoded, s);
 		if !s.enc return;
 	}
-	pts := cast,no_check(u32) (to_nanoseconds(current_time_monotonic() - s.start) * 9 / 100_000);
 	video.encoder_encode(s.enc, pixbuf, pts, voice.take_keyframe_request(s.conn));
+}
+
+encoder_stop :: (s: *Sender) {
+	video.encoder_destroy(s.enc);
+	video.vp8_encoder_destroy(s.vp8);
+	s.enc, s.vp8 = null, null;
+	s.codec = .None;
 }
 
 // on_encoded: video.Encoded_Proc, on the encoder's thread. The sender's
