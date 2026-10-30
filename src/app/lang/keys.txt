@@ -1305,7 +1305,7 @@ OUTPUT DEVICE
 OUTPUT VOLUME
 Objects
 Off
-Off##sound
+Off##sound_off
 Offline
 Oh yeah. Pin it
 Okay
@@ -1313,7 +1313,7 @@ Okay##ok
 Oldest
 On click
 On servers I moderate
-On##sound
+On##sound_on
 Onboarding
 One rule per line, for example: Be respectful
 Ongoing call

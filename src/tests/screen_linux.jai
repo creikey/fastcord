@@ -1,5 +1,6 @@
 // Go Live capture on Linux, end to end: the ScreenCast portal (or a stand-in, tools/fake_screencast_portal.py),
-// PipeWire's video and soundshare. Writes the last frame to build/screen_linux.ppm. "self" also plays a
+// PipeWire's video and soundshare. Writes the last frame to build/screen_linux.ppm and the sound to
+// build/screen_linux.wav. "self" also plays a
 // louder tone through fastcord's own output, which soundshare must leave out; "small" caps the height at 100.
 // jai build.jai - run src/tests/screen_linux.jai linux, then on Linux: build/screen_linux [seconds] [self|small]
 #import "Basic";
@@ -11,6 +12,7 @@ yuv :: #import "yuv";
 audio :: #import "audio";
 
 frames, samples: s64;
+pcm_all: [..]float32; // on PipeWire's thread until capture_stop
 size: [2]int;
 energy: float64;
 last: *yuv.Nv12;
@@ -33,6 +35,7 @@ main :: () {
 		yuv.nv12_release(old);
 	}, null, 30, ifx args.count > 2 && args[2] == "small" then 100 else 1080, (user: *void, pcm: []float32) {
 		samples += pcm.count / 2; // stereo frames
+		array_add(*pcm_all, ..pcm);
 		for pcm energy += it * it / 2;
 	});
 	for 1..seconds * 10 {
@@ -47,6 +50,7 @@ main :: () {
 		if err { print("capture ended: %\n", err); break; }
 	}
 	video.capture_stop(c);
+	write_wav("build/screen_linux.wav", pcm_all);
 	print("frames % (% fps) at %x%; soundshare % samples (% s), rms %\n", frames, frames / seconds, size[0], size[1], samples, samples / 48000.0, sqrt(energy / max(samples, 1)));
 	f := atomic_swap(*last, null);
 	if f {
@@ -71,3 +75,16 @@ main :: () {
 	}
 	exit(cast(s32) ifx frames > 0 then 0 else 1);
 }
+
+// 48 kHz stereo float WAV.
+write_wav :: (path: string, pcm: []float32) {
+	b: String_Builder;
+	bytes := cast(u32) (pcm.count * 4);
+	append(*b, "RIFF"); put_u32(*b, 36 + bytes); append(*b, "WAVEfmt ");
+	put_u32(*b, 16); put_u16(*b, 3); put_u16(*b, 2); put_u32(*b, 48000); put_u32(*b, 48000 * 8); put_u16(*b, 8); put_u16(*b, 32);
+	append(*b, "data"); put_u32(*b, bytes);
+	append(*b, cast(*u8) pcm.data, pcm.count * 4);
+	write_entire_file(path, builder_to_string(*b));
+}
+put_u32 :: (b: *String_Builder, v: u32) { x := v; append(b, cast(*u8) *x, 4); }
+put_u16 :: (b: *String_Builder, v: u16) { x := v; append(b, cast(*u8) *x, 2); }
