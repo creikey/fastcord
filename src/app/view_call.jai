@@ -198,7 +198,7 @@ screen_picker :: () {
 	scrim.semantic_size = .[ui.px(app.ui.window.x), ui.px(app.ui.window.y)];
 	scrim.style.bg = .{0, 0, 0, 0.7};
 	if ui.signal(scrim).clicked vid.picker_open = false;
-	W :: cast(float32) 440;
+	W :: cast(float32) 480;
 	H := min(cast(float32) 520, app.ui.window.y - 80);
 	m := ui.box("screen_picker", .Draw_Background | .Draw_Border | .Floating_X | .Floating_Y | .Overlay | .Clickable | .Clip);
 	m.semantic_size = .[ui.px(W), ui.px(H)];
@@ -360,12 +360,12 @@ pick_thumb :: (t: video.Screen_Target) -> gfx.Texture {
 	return tex;
 }
 
-// go_live_quality: the stream's resolution and frame rate, as chips, each only where allowed (go_live_allowed),
-// and whether it shares the sound.
+// go_live_quality: the stream's resolution and frame rate, as chips, those the official client wouldn't offer
+// here in the warning colour (go_live_official), and whether it shares the sound.
 go_live_quality :: () {
-	chip :: (text: string, on: bool) -> bool {
+	chip :: (text: string, on: bool, official := true) -> bool {
 		b := ui.box(text, .Clickable | .Draw_Background | .Draw_Border | .Hot_Animation | .Draw_Text);
-		b.semantic_size = .[ui.px(ui.layout_text(F(.Semibold), 14, text, -1).width + 24), ui.px(30)];
+		b.semantic_size = .[ui.px(ui.layout_text(F(.Semibold), 14, ui.display_part(text), -1).width + 24), ui.px(30)];
 		b.style.radius = all4(15);
 		b.style.border = 1;
 		b.style.border_color = ifx on then T("--background-brand") else T("--border-subtle");
@@ -373,9 +373,11 @@ go_live_quality :: () {
 		b.style.bg_hot = T("--background-mod-subtle");
 		b.style.font = F(.Semibold);
 		b.style.font_size = 14;
-		b.style.text_color = ifx on then T("--text-strong") else T("--text-default");
+		b.style.text_color = ifx !official then T("--text-feedback-warning") else ifx on then T("--text-strong") else T("--text-default");
 		b.style.text_align = .Center;
-		return ui.signal(b).clicked;
+		sig := ui.signal(b);
+		if sig.hovering && !official tooltip_below(L("Needs Nitro in the official client; Discord may lower it"), b.rect);
+		return sig.clicked;
 	}
 	for section: 0..2 {
 		if section == 2 && !video.SOUNDSHARE break;
@@ -388,13 +390,11 @@ go_live_quality :: () {
 		l.semantic_size[ui.Axis.X] = ui.px(96);
 		if section == 0 {
 			for h: int.[480, 720, 1080, 1440, 0] {
-				if !go_live_allowed(h, 15) continue;
-				if chip(ifx h then tprint("%p##h%", h, h) else L("Source##h0"), vid.go_height == h) go_live_set(h, vid.go_fps, vid.go_sound);
+				if chip(ifx h then tprint("%p##h%", h, h) else L("Source##h0"), vid.go_height == h, go_live_official(h, 15)) go_live_set(h, vid.go_fps, vid.go_sound);
 			}
 		} else if section == 1 {
 			for f: int.[15, 30, 60] {
-				if !go_live_allowed(vid.go_height, f) continue;
-				if chip(tprint(L("%1 FPS##f%2"), f, f), vid.go_fps == f) go_live_set(vid.go_height, f, vid.go_sound);
+				if chip(tprint(L("%1 FPS##f%2"), f, f), vid.go_fps == f, go_live_official(vid.go_height, f)) go_live_set(vid.go_height, f, vid.go_sound);
 			}
 		} else {
 			if chip(L("On##sound"), vid.go_sound) go_live_set(vid.go_height, vid.go_fps, true);

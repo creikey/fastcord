@@ -147,11 +147,18 @@ camera :: () {
 	expect(cap != null, "camera_start");
 	for 1..50 { sleep_milliseconds(100); if atomic_load(*c.frames) >= 60 break; }
 	video.capture_stop(cap);
-	sleep_milliseconds(200);
 	secs := to_float64_seconds(current_time_monotonic() - c.start);
 	print("camera: % frames at %x% (% fps, opening included), % encoded packets, % ms per encode, camera_supported=%\n",
 		c.frames, c.w, c.h, formatFloat(c.frames / secs, trailing_width = 1), c.packets, formatFloat(c.encode_ms / max(c.frames, 1), trailing_width = 1), video.camera_supported());
 	expect(c.frames >= 30, "camera delivered % frames", c.frames);
 	expect(c.packets >= c.frames - 3, "encoded % of % camera frames", c.packets, c.frames);
+	// on again at once, as a quick off and on does: the old capture still holds the device for a moment
+	before := atomic_load(*c.frames);
+	cap = video.camera_start((user: *void, pixbuf: *void, width: int, height: int) { atomic_add(*(cast(*Cam) user).frames, 1); }, *c);
+	for 1..50 { sleep_milliseconds(100); if atomic_load(*c.frames) >= before + 10 || video.capture_error(cap) break; }
+	err := video.capture_error(cap);
+	expect(!err && atomic_load(*c.frames) >= before + 10, "camera restarted at once: % frames, error \"%\"", atomic_load(*c.frames) - before, err);
+	video.capture_stop(cap);
+	sleep_milliseconds(200);
 	video.encoder_destroy(c.enc);
 }

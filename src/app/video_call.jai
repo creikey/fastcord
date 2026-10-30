@@ -341,11 +341,11 @@ video_test :: (what: string) -> bool {
 	return ifx what then contains(v, what) else v != "";
 }
 
-// go_live_allowed: whether a resolution (0: Source) and frame rate may be streamed in this call, as the
-// client's ApplicationStreamSettingRequirements: up to 720p30 for anyone; 480p60 and 720p60 with Nitro or a
-// server at boost level 1; 1080p and 1440p with Nitro or level 2; Source with full Nitro only. Settings that
-// aren't allowed are hidden, never offered. A hosted server allows them all.
-go_live_allowed :: (height: int, fps: int) -> bool {
+// go_live_official: whether the official client would offer a resolution (0: Source) and frame rate in this
+// call, as its ApplicationStreamSettingRequirements: up to 720p30 for anyone; 480p60 and 720p60 with Nitro or
+// a server at boost level 1; 1080p and 1440p with Nitro or level 2; Source with full Nitro only. fastcord
+// offers them all and marks the rest, since Discord may limit them. A hosted server allows them all.
+go_live_official :: (height: int, fps: int) -> bool {
 	cl := call_client();
 	if cl && cl.cfg.hosted.host != "" return true;
 	u := ifx cl then dc.user_get(*cl.store, cl.store.me);
@@ -361,10 +361,8 @@ go_live_allowed :: (height: int, fps: int) -> bool {
 	return true;
 }
 
-// go_live_set: new settings (a frame rate the resolution doesn't allow drops to 30); a running stream restarts
-// its capture and encoder with them.
+// go_live_set: new settings; a running stream restarts its capture and encoder with them.
 go_live_set :: (height: int, fps: int, sound: bool) {
-	if !go_live_allowed(height, fps) fps = 30;
 	if vid.go_height == height && vid.go_fps == fps && vid.go_sound == sound return;
 	vid.go_height, vid.go_fps, vid.go_sound = height, fps, sound;
 	if screen_sharing() && vid.screen.capture sender_stop(*vid.screen); // video_frame starts it again

@@ -1219,6 +1219,7 @@ Nature
 Navigate Back
 Navigate Forward
 Need an account?
+Needs Nitro in the official client; Discord may lower it
 Network
 Never
 Nevermind##nsfwno

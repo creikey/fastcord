@@ -47,50 +47,70 @@ fourcc :: (s: string) -> u32 { return (cast(u32) s[0]) | ((cast(u32) s[1]) << 8)
 
 camera_thread :: (t: *Thread) -> s64 {
 	c := cast(*Capture) t.data;
+	// A camera stopped a moment ago (turned off and on, switched, or the settings' test handing it to the
+	// call) is still held by its old thread, and V4L2 refuses a second stream with EBUSY: retry a while.
+	until := current_time_monotonic() + seconds_to_apollo(3);
+	while capture_camera(c) && !atomic_load(*c.quit) {
+		if current_time_monotonic() > until { log_error("camera: still busy after 3 s"); break; }
+		sleep_milliseconds(100);
+	}
+	return 0;
+}
+
+// Streams one camera until quit or a failure, which sets c.error. Returns whether the device was busy
+// before it streamed (worth retrying).
+capture_camera :: (c: *Capture) -> busy: bool {
 	fd, mode := open_camera(c);
-	if fd < 0 return 0;
+	if fd < 0 return false;
 	defer close(fd);
 
 	f: v4l2_format;
 	f.type = BUF_TYPE_VIDEO_CAPTURE;
 	f.pix = .{width = xx mode.w, height = xx mode.h, pixelformat = mode.fourcc, field = 1}; // V4L2_FIELD_NONE
-	if xioctl(fd, VIDIOC_S_FMT, *f) < 0 return 0;
+	if xioctl(fd, VIDIOC_S_FMT, *f) < 0 return v4l2_fail(c, "VIDIOC_S_FMT");
 	w, h, bpl, fmt := cast(int) f.pix.width, cast(int) f.pix.height, cast(int) f.pix.bytesperline, f.pix.pixelformat;
-	if fmt != FOURCC_NV12 && fmt != FOURCC_YUYV && fmt != FOURCC_MJPG return 0;
+	if fmt != FOURCC_NV12 && fmt != FOURCC_YUYV && fmt != FOURCC_MJPG { c.error = "The camera's video format isn't supported."; return false; }
 	parm: v4l2_streamparm;
 	parm.type = BUF_TYPE_VIDEO_CAPTURE;
 	parm.timeperframe = .{1, xx max(mode.fps, 1)};
 	xioctl(fd, VIDIOC_S_PARM, *parm); // a camera without frame rate control keeps its own
 
 	req := v4l2_requestbuffers.{count = 4, type = BUF_TYPE_VIDEO_CAPTURE, memory = MEMORY_MMAP};
-	if xioctl(fd, VIDIOC_REQBUFS, *req) < 0 || req.count < 2 return 0;
+	if xioctl(fd, VIDIOC_REQBUFS, *req) < 0 return v4l2_fail(c, "VIDIOC_REQBUFS");
+	if req.count < 2 { c.error = "Couldn't start the camera."; return false; }
 	maps: [8][]u8;
 	n := min(cast(int) req.count, maps.count);
 	defer for maps if it.data munmap(it.data, xx it.count);
 	for i: 0..n - 1 {
 		b := v4l2_buffer.{index = xx i, type = BUF_TYPE_VIDEO_CAPTURE, memory = MEMORY_MMAP};
-		if xioctl(fd, VIDIOC_QUERYBUF, *b) < 0 return 0;
+		if xioctl(fd, VIDIOC_QUERYBUF, *b) < 0 return v4l2_fail(c, "VIDIOC_QUERYBUF");
 		p := mmap(null, b.length, PROT_READ | PROT_WRITE, MAP_SHARED, fd, b.offset);
-		if p == MAP_FAILED return 0;
+		if p == MAP_FAILED return v4l2_fail(c, "mmap");
 		maps[i] = .{b.length, p};
-		if xioctl(fd, VIDIOC_QBUF, *b) < 0 return 0;
+		if xioctl(fd, VIDIOC_QBUF, *b) < 0 return v4l2_fail(c, "VIDIOC_QBUF");
 	}
 	type: s32 = BUF_TYPE_VIDEO_CAPTURE;
-	if xioctl(fd, VIDIOC_STREAMON, *type) < 0 return 0;
+	if xioctl(fd, VIDIOC_STREAMON, *type) < 0 return v4l2_fail(c, "VIDIOC_STREAMON");
 	defer xioctl(fd, VIDIOC_STREAMOFF, *type);
+	c.error = "";
 
 	jpeg: Jpeg;
 	defer { free(jpeg.state.data); free(jpeg.work.data); free(jpeg.rgba.data); array_free(jpeg.fixed); }
+	io_errors := 0; // EIO is a lost buffer (a USB hiccup), not the end; many in a row are
 	while !atomic_load(*c.quit) {
 		pfd := pollfd.{fd = fd, events = POLLIN};
 		r := poll(*pfd, 1, 100);
-		if r < 0 && errno() != EINTR break;
+		if r < 0 && errno() != EINTR { v4l2_fail(c, "poll"); break; }
 		if r <= 0 continue;
 		b := v4l2_buffer.{type = BUF_TYPE_VIDEO_CAPTURE, memory = MEMORY_MMAP};
 		if xioctl(fd, VIDIOC_DQBUF, *b) < 0 {
-			if errno() == EAGAIN continue;
+			e := errno();
+			if e == EAGAIN continue;
+			if e == EIO && io_errors < 30 { io_errors += 1; sleep_milliseconds(10); continue; }
+			v4l2_fail(c, "VIDIOC_DQBUF");
 			break;
 		}
+		io_errors = 0;
 		data := array_view(maps[b.index], 0, min(cast(int) b.bytesused, maps[b.index].count));
 		frame: *yuv.Nv12;
 		if !(b.flags & BUF_FLAG_ERROR) {
@@ -101,18 +121,26 @@ camera_thread :: (t: *Thread) -> s64 {
 		xioctl(fd, VIDIOC_QBUF, *b);
 		if frame { emit(c, frame); yuv.nv12_release(frame); }
 	}
-	return 0;
+	return false;
+}
+
+// Logs a V4L2 call's failure and says why in c.error. Returns whether the device was busy.
+v4l2_fail :: (c: *Capture, what: string) -> busy: bool {
+	e := errno();
+	if e != EBUSY log_error("camera: % failed (errno %)", what, e);
+	c.error = ifx e == EBUSY then "The camera is in use by another app." else ifx e == ENODEV then "The camera was unplugged." else "The camera stopped.";
+	return e == EBUSY;
 }
 
 // The first capture device, and its mode: at least the frame rate, then the closest height, then 16:9,
 // then the cheapest format to convert. Updates camera_count.
 open_camera :: (c: *Capture) -> s32, Mode {
-	found := 0;
+	found, denied := 0, false;
 	for i: -1..63 { // the chosen camera first, then the rest
 		path := ifx i < 0 then c.device else tprint("/dev/video%", i);
 		if !path || (i >= 0 && path == c.device) continue;
 		fd := open(temp_c_string(path), O_RDWR | O_NONBLOCK | O_CLOEXEC);
-		if fd < 0 continue;
+		if fd < 0 { if errno() == EACCES denied = true; continue; }
 		cap: v4l2_capability;
 		caps := ifx xioctl(fd, VIDIOC_QUERYCAP, *cap) >= 0 then (ifx cap.capabilities & CAP_DEVICE_CAPS then cap.device_caps else cap.capabilities) else 0;
 		if !(caps & CAP_VIDEO_CAPTURE) || !(caps & CAP_STREAMING) { close(fd); continue; }
@@ -148,6 +176,7 @@ open_camera :: (c: *Capture) -> s32, Mode {
 		close(fd);
 	}
 	atomic_store(*camera_count, cast(s32) found);
+	c.error = ifx found then "The camera's video format isn't supported." else ifx denied then "fastcord isn't allowed to use the camera (add yourself to the video group)." else "No camera found.";
 	return -1, .{};
 }
 
