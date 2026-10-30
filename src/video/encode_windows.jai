@@ -116,9 +116,20 @@ encoder_open :: (hardware: bool, hevc: bool, width: int, height: int, fps: int, 
 	return e;
 }
 
-// pixbuf: an yuv.Nv12 of the encoder's size; others are dropped.
+// encoder_set_bitrate changes the mean bitrate between frames (the bandwidth estimate moved): CBR's
+// CODECAPI_AVEncCommonMeanBitRate, which encoders take while streaming.
+encoder_set_bitrate :: (e: *Encoder, bitrate: int) {
+	e.bitrate = bitrate;
+	if !e.api return;
+	com := mf.com_enter();
+	defer mf.com_leave(com);
+	mf.codec_set_u32(e.api, *mf.CODECAPI_AVEncCommonMeanBitRate, xx bitrate);
+}
+
+// pixbuf: an yuv.Nv12, scaled to the encoder's size.
 encoder_encode :: (e: *Encoder, pixbuf: *void, pts_90k: u32, force_keyframe := false) {
-	f := cast(*yuv.Nv12) pixbuf;
+	f := yuv.nv12_scaled(cast(*yuv.Nv12) pixbuf, e.width, e.height);
+	defer yuv.nv12_release(f);
 	if f.width != e.width || f.height != e.height return;
 	com := mf.com_enter();
 	defer mf.com_leave(com);

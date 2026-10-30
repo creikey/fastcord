@@ -28,7 +28,7 @@ on_output :: (user: *void, annexb: []u8, keyframe: bool, pts_90k: u32) {
 	array_add(*r.packets, .{array_copy(annexb), keyframe, pts_90k});
 }
 
-make_frame :: (w: int, h: int, t: int) -> CFRef {
+make_frame :: (w: int, h: int, t: int, noise := false) -> CFRef {
 	empty := dict(.[], .[]);
 	attrs := dict(.[kCVPixelBufferIOSurfacePropertiesKey], .[empty]);
 	pb: CFRef;
@@ -42,6 +42,7 @@ make_frame :: (w: int, h: int, t: int) -> CFRef {
 		ph := cast(int) CVPixelBufferGetHeightOfPlane(pb, cast(u64) plane);
 		pw := cast(int) CVPixelBufferGetWidthOfPlane(pb, cast(u64) plane) * (plane + 1);
 		for y: 0..ph-1 for x: 0..pw-1 base[y * stride + x] = cast,trunc(u8) ifx plane == 0 then 16 + (x + y + t * 4) % 220 else 128 + (x / 2 + t) % 32;
+		if noise for y: 0..ph-1 for x: 0..pw-1 base[y * stride + x] ^= cast,trunc(u8) (((x * 73856093) ^ (y * 19349663) ^ (t * 83492791)) >> 7) & 0x07;
 	}
 	CVPixelBufferUnlockBaseAddress(pb, 0);
 	return pb;
@@ -154,9 +155,31 @@ run :: (codec: video.Video_Codec) {
 	expect(d.count == p.count && d.bad_size == 0 && d.errors == 0, "decoded % of % at %x%", d.count, p.count, W, H);
 }
 
+// rate_change: a noisy picture at 2 Mb/s, then encoder_set_bitrate(300 kb/s): the later frames are smaller.
+rate_change :: (codec: video.Video_Codec) {
+	r := New(Run);
+	e := video.encoder_create(codec, W, H, 30, 2_000_000, on_output, r);
+	if !e return;
+	for t: 0..119 {
+		if t == 60 video.encoder_set_bitrate(e, 300_000);
+		pb := make_frame(W, H, t, noise = true);
+		video.encoder_encode(e, pb, cast(u32) (t * 3000));
+		CFRelease(pb);
+	}
+	video.encoder_destroy(e);
+	before, after: int;
+	for r.packets if !it.keyframe {
+		if it.pts >= 30 * 3000 && it.pts < 60 * 3000 before += it.data.count;
+		if it.pts >= 90 * 3000 after += it.data.count;
+	}
+	print("% bits/s at 2 Mb/s, % bits/s after setting 300 kb/s\n", before * 8, after * 8);
+	expect(after * 3 < before, "a lower bitrate takes effect: % then % bytes", before, after);
+}
+
 main :: () {
 	expect(video.encoder_supported(.H264), "H.264 encoder supported");
 	run(.H264);
+	rate_change(.H264);
 	if video.encoder_supported(.H265) run(.H265);
 	else print("H.265 encoder not available; skipped\n");
 	print(ifx failures then "FAIL (% failures)\n" else "PASS\n", failures);

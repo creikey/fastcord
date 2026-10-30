@@ -230,6 +230,8 @@ Conn :: struct {
     cant_encode: u8;       // a bit per Video_Codec the server picked but we can't encode
     codecs_due: bool;      // op 14 due (timer thread)
     video_w, video_h, video_fps, video_bitrate: int;
+    bwe: Bwe;              // the bandwidth estimate for our stream, from RTCP (UDP thread)
+    sink_want := 100;      // op 15: what viewers want of our stream (0..100)
     video_seq: u16;
     video_packets, video_octets, video_last_ts: u32;
     keyframe_wanted: bool;            // atomic: a PLI/FIR for our stream arrived
@@ -864,7 +866,13 @@ handle_json :: (c: *Conn, text: string) {
       case OP_SESSION_UPDATE;
         vcn := jstr(jget(d, "video_codec"));
         if vcn c.video_codec = video_codec_from_name(vcn);
-      // OP_MEDIA_SINK_WANTS, OP_VOICE_BACKEND_VERSION, OP_FLAGS, OP_PLATFORM, OP_SFU_UPDATE: informational
+      case OP_MEDIA_SINK_WANTS;
+        // what viewers want of our stream, as the client's getLocalWant: our SSRC's value, else "any", else 100
+        locks.guard(*c.vmu);
+        w := jint(jget(d, tprint("%", c.video_ssrc)));
+        if w <= 0 w = jint(jget(d, "any"));
+        c.sink_want = ifx w > 0 then min(w, 100) else 100;
+      // OP_VOICE_BACKEND_VERSION, OP_FLAGS, OP_PLATFORM, OP_SFU_UPDATE: informational
     }
 }
 
@@ -1270,6 +1278,11 @@ on_rtcp :: (c: *Conn, b: []u8, now: s64) {
         locks.guard(*c.vmu);
         if c.video_on && keyframe_requested(b, c.video_ssrc) atomic_store(*c.keyframe_wanted, true);
         if c.video_on && c.rtx_ssrc && c.rtx_hist for nacked_seqs(b, c.video_ssrc) retransmit(c, it);
+        remb := remb_bitrate(b);
+        if c.video_on && remb >= 0 {
+            bwe_on_remb(*c.bwe, remb);
+            dbg(c, "rtcp REMB % kb/s: target % kb/s", remb / 1000, c.bwe.target / 1000);
+        }
     }
     rep, ok := parse_report(b);
     if !ok {
@@ -1279,6 +1292,13 @@ on_rtcp :: (c: *Conn, b: []u8, now: s64) {
     dbg(c, "rtcp % ssrc=% blocks=%", ifx rep.is_sr then "SR" else "RR", rep.ssrc, rep.n_blocks);
     blocks := array_view(rep.blocks, 0, rep.n_blocks);
     for blocks dbg(c, "  block ssrc=% lost=% frac=% maxseq=% jitter=%", it.ssrc, it.cum_lost, it.fraction_lost, it.ext_max_seq, it.jitter);
+    {
+        locks.guard(*c.vmu);
+        for blocks if c.video_on && it.ssrc == c.video_ssrc {
+            bwe_on_loss(*c.bwe, it.fraction_lost, now, c.stats.rtt_ms);
+            dbg(c, "  video target % kb/s", c.bwe.target / 1000);
+        }
+    }
     locks.guard(*c.mu);
     if rep.is_sr {
         found, u := table_find(*c.users, rep.ssrc);
@@ -1604,6 +1624,7 @@ send_rtcp_packet :: (c: *Conn, pkt: []u8) {
 // Bitrate in bits per second.
 set_video :: (c: *Conn, on: bool, width := 1280, height := 720, fps := 30, bitrate := 2_500_000) {
     locks.guard(*c.vmu);
+    if on && (!c.video_on || bitrate != c.video_bitrate) bwe_reset(*c.bwe, bitrate);
     c.video_on = on;
     c.video_w, c.video_h, c.video_fps, c.video_bitrate = width, height, fps, bitrate;
     c.video_announce = true;
@@ -1621,6 +1642,13 @@ cannot_encode :: (c: *Conn, codec: Video_Codec) {
 
 // video_codec: what SESSION_DESCRIPTION negotiated for this call (.None before it).
 video_codec :: (c: *Conn) -> Video_Codec { return c.video_codec; }
+
+// video_send_target: what our video should be encoded at now: the bandwidth estimate (bits/s), and what
+// its viewers want of it (op 15; 100 = full quality, less = a smaller resolution).
+video_send_target :: (c: *Conn) -> bitrate: int, want: int {
+    locks.guard(*c.vmu);
+    return c.bwe.target, c.sink_want;
+}
 
 // take_keyframe_request: true once after the SFU asked for a keyframe (PLI / FIR), or after a reconnect.
 take_keyframe_request :: (c: *Conn) -> bool { return atomic_swap(*c.keyframe_wanted, false); }
@@ -1735,7 +1763,7 @@ pacer_thread_proc :: (t: *Thread) -> s64 {
             continue;
         }
         now := current_time_monotonic();
-        rate := max(c.video_bitrate * PACE_FACTOR / 8, c.paced_bytes * 1000.0 / PACE_QUEUE_MS); // bytes/s
+        rate := max(c.bwe.target * PACE_FACTOR / 8, c.paced_bytes * 1000.0 / PACE_QUEUE_MS); // bytes/s
         budget = min(budget + rate * to_nanoseconds(now - last) / 1_000_000_000.0, rate * PACE_BURST_MS / 1000 + MAX_VIDEO_PAYLOAD);
         last = now;
         n := 0;

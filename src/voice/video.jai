@@ -669,3 +669,57 @@ keyframe_requested :: (b: []u8, ssrc: u32) -> bool {
     }
     return false;
 }
+
+// remb_bitrate: the estimate (bits/s) in a compound RTCP packet's REMB (206/15 with "REMB", the SFU's
+// receive-side estimate for everything we send it), or -1 when it has none.
+remb_bitrate :: (b: []u8) -> int {
+    i := 0;
+    while i + 4 <= b.count {
+        n := (cast(int) get_u16(b, i + 2) + 1) * 4;
+        if b[i + 1] == RTCP_PSFB && (b[i] & 0x1f) == 15 && n >= 20 && i + 20 <= b.count && memcmp(b.data + i + 12, "REMB".data, 4) == 0 {
+            exp := b[i + 17] >> 2;
+            mantissa := ((cast(int) b[i + 17] & 3) << 16) | ((cast(int) b[i + 18]) << 8) | b[i + 19];
+            return ifx exp > 32 then 1 << 40 else mantissa << exp;
+        }
+        i += n;
+    }
+    return -1;
+}
+
+// Our video's bandwidth estimate: WebRTC's loss-based controller (SendSideBandwidthEstimation) over the
+// SFU's receiver reports, capped by its REMB. Up 8% a second while under 2% is lost, down by half the loss
+// above 10% (at most once per 300 ms + RTT), between BWE_MIN and the stream's bitrate.
+Bwe :: struct {
+    target: int;  // bits/s
+    max: int;     // the stream's bitrate (set_video)
+    remb: int;    // 0: none yet
+    last_ms, last_cut_ms: s64;
+}
+
+BWE_MIN :: 150_000;  // the client's videoBitrateFloor
+
+bwe_reset :: (b: *Bwe, max: int) { b.* = .{target = max, max = max}; }
+
+// bwe_on_loss: a receiver report's fraction lost (of 256) for our stream.
+bwe_on_loss :: (b: *Bwe, fraction: u8, now_ms: s64, rtt_ms: int) {
+    loss := fraction / 256.0;
+    dt := ifx b.last_ms then clamp(now_ms - b.last_ms, 0, 2000) else 0;
+    b.last_ms = now_ms;
+    if loss < 0.02 {
+        b.target += cast(int) (b.target * 0.08 * dt / 1000) + 1000 * dt / 1000;
+    } else if loss > 0.1 && now_ms - b.last_cut_ms >= 300 + rtt_ms {
+        b.target = cast(int) (b.target * (1 - loss / 2));
+        b.last_cut_ms = now_ms;
+    }
+    bwe_clamp(b);
+}
+
+bwe_on_remb :: (b: *Bwe, bitrate: int) {
+    b.remb = max(bitrate, 1);
+    bwe_clamp(b);
+}
+
+bwe_clamp :: (b: *Bwe) {
+    hi := ifx b.remb then min(b.max, b.remb) else b.max;
+    b.target = clamp(b.target, min(BWE_MIN, hi), hi);
+}
