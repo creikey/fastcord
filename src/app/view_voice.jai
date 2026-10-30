@@ -377,7 +377,7 @@ voice_panel :: () {
 			col := ui.box("text");
 			col.semantic_size = .[ui.fill(), ui.children()];
 			{ ui.parent(col); defer ui.pop_parent();
-				label(status, .Semibold, 14, color, 18);
+				label(ellipsize_in(status, .Semibold, 14, col), .Semibold, 14, color, 18);
 				where_ := L("Voice");
 				ch := dc.channel_get(s, app.voice_channel);
 				if ch && ch.guild_id != 0 {
@@ -386,7 +386,7 @@ voice_panel :: () {
 				} else if ch {
 					where_ = dm_name(ch);
 				}
-				t := ifx plain then label(L("Not end-to-end encrypted"), .Normal, 12, T("--text-feedback-warning"), 14) else label(where_, .Normal, 12, T("--text-muted"), 14);
+				t := ifx plain then label(ellipsize_in(L("Not end-to-end encrypted"), .Normal, 12, col), .Normal, 12, T("--text-feedback-warning"), 14) else label(ellipsize_in(where_, .Normal, 12, col), .Normal, 12, T("--text-muted"), 14);
 				t.flags |= .Clip | .Clickable; // the channel's name goes to the call
 				tsig := ui.signal(t);
 				if tsig.hovering t.style.text_color = T("--text-default");

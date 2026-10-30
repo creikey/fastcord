@@ -164,6 +164,12 @@ ellipsize :: (text: string, font: Font_Id, size: float32, max_w: float32) -> str
 	return join(trim_right(kept), "…",, temp);
 }
 
+// ellipsize to box b's width from last frame (the text as is on its first frame), for a line in a fill() column.
+ellipsize_in :: (text: string, font: Font_Id, size: float32, b: *ui.Box) -> string {
+	w := b.rect.x1 - b.rect.x0;
+	return ifx w > 0 then ellipsize(text, font, size, w) else text;
+}
+
 label :: (text: string, font: Font_Id, size: float32, color: ui.Color, line_h: float32 = 0) -> *ui.Box {
 	st := ui.st();
 	saved := st.*;
@@ -1218,13 +1224,13 @@ user_panel :: () {
 				names := ui.box("names");
 				names.semantic_size = .[ui.fill(), ui.children()];
 				{ ui.parent(names); defer ui.pop_parent();
-					label(dc.display_name(u), .Medium, 14, T("--text-strong"), 18);
+					label(ellipsize_in(dc.display_name(u), .Medium, 14, names), .Medium, 14, T("--text-strong"), 18);
 					status := ifx s.settings.status == .Invisible then L("Invisible") else status_text(user_status(s.me));
 					// a timed status ends in the client's tick: wake for it
 					if s.settings.status_expires_ms request_wake(app.ui.time + cast(float64) max(0, s.settings.status_expires_ms - wall_ms()) / 1000 + 0.05);
 					custom := custom_status_line();
 					if custom != "" { status = custom; }
-					label(status, .Normal, 12, T("--text-muted"), 14);
+					label(ellipsize_in(status, .Normal, 12, names), .Normal, 12, T("--text-muted"), 14);
 				}
 			}
 			for name: (string.["microphone", "headphones", "settings"]) {
