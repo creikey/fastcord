@@ -357,7 +357,7 @@ pick_thumb :: (t: video.Screen_Target) -> gfx.Texture {
 	return tex;
 }
 
-// go_live_quality: the stream's resolution and frame rate, as chips. Above 720p30 only for who may (go_live_premium).
+// go_live_quality: the stream's resolution and frame rate, as chips, each only where allowed (go_live_allowed).
 go_live_quality :: () {
 	chip :: (text: string, on: bool) -> bool {
 		b := ui.box(text, .Clickable | .Draw_Background | .Draw_Border | .Hot_Animation | .Draw_Text);
@@ -373,7 +373,6 @@ go_live_quality :: () {
 		b.style.text_align = .Center;
 		return ui.signal(b).clicked;
 	}
-	all := go_live_premium();
 	for section: 0..1 {
 		r := row(ifx section == 0 then "res" else "fps");
 		r.semantic_size = .[ui.pct(1), ui.px(38)];
@@ -383,13 +382,13 @@ go_live_quality :: () {
 		l := label(ifx section == 0 then "RESOLUTION" else L("FRAME RATE"), .Semibold, 12, T("--text-muted"), 16);
 		l.semantic_size[ui.Axis.X] = ui.px(96);
 		if section == 0 {
-			for h: int.[720, 1080, 0] {
-				if h != 720 && !all continue;
+			for h: int.[480, 720, 1080, 1440, 0] {
+				if !go_live_allowed(h, 15) continue;
 				if chip(ifx h then tprint("%p##h%", h, h) else L("Source##h0"), vid.go_height == h) go_live_set(h, vid.go_fps);
 			}
 		} else {
 			for f: int.[15, 30, 60] {
-				if f == 60 && !all continue;
+				if !go_live_allowed(vid.go_height, f) continue;
 				if chip(tprint(L("%1 FPS##f%2"), f, f), vid.go_fps == f) go_live_set(vid.go_height, f);
 			}
 		}
