@@ -583,7 +583,7 @@ rail_item :: (id: string, selected: bool, text: string, icon_name: string, guild
 		}
 		if sig.hovering && guild_id != 0 {
 			g := dc.guild_get(store(), guild_id);
-			if g != null { tooltip_right(g.name); }
+			if g != null { guild_tooltip(g); }
 		}
 	}
 	return sig;
@@ -1367,6 +1367,65 @@ tooltip_right :: (text: string) {
 		label(text, .Semibold, 16, T("--text-strong"), 20);
 		spacer(.X, 12);
 	}
+}
+
+// The rail's server tooltip: the name, then each voice channel with people in it and their avatars.
+guild_tooltip :: (g: *dc.Guild) {
+	s := store();
+	MAX_AVATARS :: 8;
+	tip := ui.box("tooltip", .Draw_Background | .Draw_Shadow | .Floating_X | .Floating_Y | .Overlay);
+	tip.semantic_size = .[ui.children(), ui.children()];
+	tip.layout_axis = .Y;
+	tip.fixed_pos = .{16 + GUILD_ICON + 12, (GUILD_ICON - 36) / 2};
+	tip.style.bg = T("--background-surface-highest");
+	tip.style.radius = all4(8);
+	tip.style.shadow_color = .{0, 0, 0, 0.3};
+	tip.style.shadow_blur = 8;
+	tip.style.shadow_offset = .{0, 4};
+	ui.parent(tip); defer ui.pop_parent();
+	nr := row("name");
+	nr.semantic_size = .[ui.children(), ui.px(36)];
+	{ ui.parent(nr); defer ui.pop_parent();
+		spacer(.X, 12);
+		label(g.name, .Semibold, 16, T("--text-strong"), 20);
+		spacer(.X, 12);
+	}
+	any := false;
+	for cid: g.channels {
+		ch := dc.channel_get(s, cid);
+		if !ch || !(ch.kind == .Guild_Voice || ch.kind == .Guild_Stage_Voice) continue;
+		ids: [..]dc.Snowflake;
+		ids.allocator = temp;
+		for v, uid: s.voice_states if v.channel_id == cid array_add(*ids, uid);
+		if !ids.count continue;
+		any = true;
+		ui.id_scope(cast(u64)(cid)); defer ui.pop_seed();
+		cr := row("ch");
+		cr.semantic_size = .[ui.children(), ui.px(20)];
+		{ ui.parent(cr); defer ui.pop_parent();
+			spacer(.X, 12);
+			icon("ic", channel_icon_name(ch), 16, T("--text-muted"));
+			spacer(.X, 4);
+			label(ellipsize(ch.name, .Medium, 14, 220), .Medium, 14, T("--text-muted"), 18);
+			spacer(.X, 12);
+		}
+		spacer(.Y, 4);
+		ar := row("avs");
+		ar.semantic_size = .[ui.children(), ui.px(24)];
+		ar.style.child_gap = 4;
+		{ ui.parent(ar); defer ui.pop_parent();
+			spacer(.X, 8); // with the gap: 12 in
+			for ids {
+				if it_index == MAX_AVATARS break;
+				ui.id_scope(cast(u64)(it)); defer ui.pop_seed();
+				avatar_box("av", it, 24);
+			}
+			if ids.count > MAX_AVATARS label(tprint("+%", ids.count - MAX_AVATARS), .Semibold, 12, T("--text-muted"), 16);
+			spacer(.X, 8);
+		}
+		spacer(.Y, 8);
+	}
+	if any spacer(.Y, 4);
 }
 
 // A voice channel's row joins it and opens its call view (the join already loads

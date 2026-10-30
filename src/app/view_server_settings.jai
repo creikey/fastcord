@@ -983,7 +983,7 @@ esc_button :: () -> bool {
 	{ ui.parent(xb); defer ui.pop_parent();
 		i := icon("x", "x-large", 18, ifx xs.hovering then T("--interactive-icon-hover") else T("--interactive-icon-default"));
 		i.flags |= .Floating_X | .Floating_Y;
-		i.fixed_pos = .{7, 7};
+		i.fixed_pos = .{9, 9}; // centred: floating children aren't inset by the border
 	}
 	spacer(.Y, 8);
 	er := row("esc");

@@ -934,3 +934,5 @@
 - [x] Bug: a long `> ` quote in the composer wrapped its continuation rows to the left edge with the bar on the first row only; the bar is now a hanging object (`ui.Span.hang`), so wrapped rows indent under the text and the bar runs down all of them, as in sent messages (`tests/ui/composer_codeblock.txt`).
 - [x] Go Live: the stream picker has the official resolutions and limits: 480p, 720p, 1080p, 1440p and Source at 15 / 30 / 60 FPS, each shown when Nitro or the server's boost level allows it (level 1: 720p60, level 2: 1080p and 1440p), as the client's requirements table; a hosted server offers all (`go_live_allowed`; `tests/ui/call/go_live.txt`).
 - [x] Go Live: the stream picker has a Sound On / Off choice, so a stream can go out without the shared screen's sound (`go_sound`; `tests/ui/call/go_live.txt`).
+- [x] Rail: hovering a server lists its voice channels with people in them, each with up to 8 avatars and "+N" (`guild_tooltip`, `tests/ui/rail/rail_voice_tooltip.txt`).
+- [x] Bug: Server Settings' circled close X sat 2 px up and left of centre; Settings' content pane squared off the modal's right corners.
