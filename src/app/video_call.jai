@@ -59,8 +59,9 @@ Video_App :: struct {
 	own_target: video.Screen_Target;
 	picker_open: bool;
 	picker_test: bool; // the `screen_picker` script command: made-up targets, never the real screens
-	go_height := 720; // Go Live settings: 720, 1080, or 0 for the source's own height
+	go_height := 720; // Go Live settings: 480, 720, 1080, 1440, or 0 for the source's own height
 	go_fps := 30;     // 15, 30 or 60
+	go_sound := true; // share the screen's or window's sound (where video.SOUNDSHARE)
 	// the streams we watch, each on a voice connection of its own, in the order they were opened
 	watches: [..]Watch;
 }
@@ -246,7 +247,7 @@ video_frame :: () {
 					w, h := screen_size(vid.own_target);
 					sender_init(s, vid.own_conn, vid.go_fps, go_live_bitrate(w, h));
 					if video_test("stream") s.capture = video.pattern_start(on_capture_frame, s, vid.own_target.width, vid.own_target.height, vid.go_fps);
-					else s.capture = video.screen_start(vid.own_target, on_capture_frame, s, vid.go_fps, h, on_share_audio);
+					else s.capture = video.screen_start(vid.own_target, on_capture_frame, s, vid.go_fps, h, ifx vid.go_sound then on_share_audio);
 					voice.set_video(vid.own_conn, true, w, h, vid.go_fps, go_live_bitrate(w, h));
 				} else if st == .Disconnected {
 					go_live_stop();
@@ -322,20 +323,32 @@ video_test :: (what: string) -> bool {
 	return ifx what then contains(v, what) else v != "";
 }
 
-// go_live_premium: the settings above 720p30 are Nitro's on Discord (shown only to who has it, never
-// offered); a hosted server allows them all.
-go_live_premium :: () -> bool {
+// go_live_allowed: whether a resolution (0: Source) and frame rate may be streamed in this call, as the
+// client's ApplicationStreamSettingRequirements: up to 720p30 for anyone; 480p60 and 720p60 with Nitro or a
+// server at boost level 1; 1080p and 1440p with Nitro or level 2; Source with full Nitro only. Settings that
+// aren't allowed are hidden, never offered. A hosted server allows them all.
+go_live_allowed :: (height: int, fps: int) -> bool {
 	cl := call_client();
-	if !cl return false;
-	if cl.cfg.hosted.host != "" return true;
-	u := dc.user_get(*cl.store, cl.store.me);
-	return u && u.premium_type != 0;
+	if cl && cl.cfg.hosted.host != "" return true;
+	u := ifx cl then dc.user_get(*cl.store, cl.store.me);
+	premium := ifx u then u.premium_type else 0;
+	high := premium == 2;               // Nitro: streamHighQuality
+	mid := premium == 1 || premium == 2; // Nitro and Nitro Classic: streamMidQuality; Basic (3) neither
+	ch := dc.channel_get(call_store(), app.voice_channel);
+	g := ifx ch && ch.guild_id then dc.guild_get(call_store(), ch.guild_id);
+	boost := ifx g then g.premium_tier else 0;
+	if height == 0 return high;
+	if height >= 1080 return mid || boost >= 2;
+	if fps >= 60 return mid || boost >= 1;
+	return true;
 }
 
-// go_live_set: new settings; a running stream restarts its capture and encoder with them.
-go_live_set :: (height: int, fps: int) {
-	if vid.go_height == height && vid.go_fps == fps return;
-	vid.go_height, vid.go_fps = height, fps;
+// go_live_set: new settings (a frame rate the resolution doesn't allow drops to 30); a running stream restarts
+// its capture and encoder with them.
+go_live_set :: (height: int, fps: int, sound: bool) {
+	if !go_live_allowed(height, fps) fps = 30;
+	if vid.go_height == height && vid.go_fps == fps && vid.go_sound == sound return;
+	vid.go_height, vid.go_fps, vid.go_sound = height, fps, sound;
 	if screen_sharing() && vid.screen.capture sender_stop(*vid.screen); // video_frame starts it again
 }
 

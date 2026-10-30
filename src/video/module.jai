@@ -17,6 +17,7 @@ Audio_Proc :: #type (user: *void, pcm: []float32);
 Video_Codec :: enum u8 { H264; H265; }
 
 SUPPORTED :: OS == .MACOS || OS == .WINDOWS || OS == .LINUX; // capture and encoding exist on this platform
+SOUNDSHARE :: OS == .MACOS; // screen_start can capture the shared screen's sound (macOS 13+)
 
 // A camera for the picker. id: AVCaptureDevice's uniqueID, the Media Foundation symbolic link, or the
 // /dev/video path; camera_start takes it ("" = the default camera).

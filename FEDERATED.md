@@ -517,6 +517,7 @@ The DHT should help clients locate:
 - Immutable history fragments.
 - Historical checkpoint proofs.
 - Replicas and federation servers.
+- Users' prekey bundles, signed by their roots, so a session can start while its owner is offline (TODO.md Federation 8).
 
 ### 8.1 Fundamental separation
 
