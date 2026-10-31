@@ -94,6 +94,8 @@ Network so invites carry it.
 The whole server is the one file. It backs itself up daily to /var/lib/fastcord/server-backups (the last
 7, each checked; -backups:<dir> in ExecStart for another disk), and the owner can back up and restore
 from Server Settings. To update, replace the binary and restart the service.
+Behind a TCP proxy, every member looks like one address and shares its limits. If the proxy sends PROXY
+protocol v2 on every connection, add -proxy-protocol to ExecStart. Never set it on a port clients reach directly.
 """
 
 def main():

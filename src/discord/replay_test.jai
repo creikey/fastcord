@@ -4458,7 +4458,7 @@ quic_h3_control_stream :: (t: *T) {
 	recs.allocator = temp;
 	i := 0;
 	while i + 3 <= b.count {
-		n := (cast(int) b[i + 1] << 8) | b[i + 2];
+		n := ((cast(int) b[i + 1]) << 8) | b[i + 2];
 		array_add(*recs, .{b[i], array_view(b, i + 3, n)});
 		i += 3 + n;
 	}

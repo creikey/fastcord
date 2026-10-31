@@ -37,7 +37,7 @@ main :: () {
 		// corrupted frames (bytes of mdat flipped, a different stride each pass): decoded or refused, never a crash
 		at := find_index_from_left(text, "mdat") - 4;
 		if at < 0 continue;
-		end := min(at + ((cast(int) data[at] << 24) | (cast(int) data[at + 1] << 16) | (cast(int) data[at + 2] << 8) | data[at + 3]), data.count);
+		end := min(at + (((cast(int) data[at]) << 24) | ((cast(int) data[at + 1]) << 16) | ((cast(int) data[at + 2]) << 8) | data[at + 3]), data.count);
 		for stride: int.[7, 61, 509] {
 			for i: at + 8..end - 1 if i % stride == 0 data[i] ^= 0x5A;
 			free(media.decode_sound(data).data);

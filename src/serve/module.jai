@@ -55,6 +55,7 @@ Server :: struct {
 	unfurl_jobs: [..]Unfurl_Job;
 	unfurl_stop: bool;
 	unfurl_thread: *Thread;
+	proxy_protocol: bool; // -proxy-protocol: a proxy in front says who each connection is (proxy_header_read).
 	unfurl_any_address: bool; // Tests only: let link previews fetch from this machine.
 	// Tests only: with record_misses set, the requests answered with a bare 404 (no route for them), under
 	// misses_mu, a leaf lock.
@@ -673,6 +674,73 @@ spawn :: (data: $D, proc: (D)) -> *Thread {
 	return t;
 }
 
+// address_full: one address may hold MAX_CONNS_PER_ADDRESS, counting an IPv6 /64 as one address, since a
+// home gets a whole /64 to pick from. The caller holds s.mu.
+address_full :: (s: *Server, peer: [16]u8) -> bool {
+	prefix := ifx memcmp(peer.data, IPV4_MAPPED.data, IPV4_MAPPED.count) == 0 then 16 else 8;
+	same := 0;
+	for s.conns if memcmp(it.tcp.peer.data, peer.data, prefix) == 0 same += 1;
+	return same >= MAX_CONNS_PER_ADDRESS;
+}
+
+PROXY_SIGNATURE :: u8.[0x0D, 0x0A, 0x0D, 0x0A, 0x00, 0x0D, 0x0A, 0x51, 0x55, 0x49, 0x54, 0x0A];
+PROXY_HEADER_BYTES :: 16;
+PROXY_MAX_EXTRA :: 512; // Addresses plus the proxy's optional extras, which are skipped.
+
+// proxy_header_extra checks a PROXY protocol v2 header's fixed part and returns how many bytes follow it.
+// Only a proxied TCP connection over IPv4 or IPv6 passes: what the proxy in front of a server sends.
+proxy_header_extra :: (head: []u8) -> int, bool {
+	if head.count != PROXY_HEADER_BYTES || memcmp(head.data, PROXY_SIGNATURE.data, PROXY_SIGNATURE.count) != 0 return 0, false;
+	if head[12] != 0x21 || (head[13] != 0x11 && head[13] != 0x21) return 0, false;
+	extra := ((cast(int) head[14]) << 8) | head[15];
+	if extra < (ifx head[13] == 0x11 then 12 else 36) || extra > PROXY_MAX_EXTRA return 0, false;
+	return extra, true;
+}
+
+// proxy_header_peer takes the client's address from what follows the fixed part, IPv4 as ::ffff:a.b.c.d.
+proxy_header_peer :: (family: u8, extra: []u8) -> [16]u8 {
+	peer: [16]u8;
+	if family == 0x11 {
+		memcpy(peer.data, IPV4_MAPPED.data, IPV4_MAPPED.count);
+		memcpy(peer.data + 12, extra.data, 4);
+	} else memcpy(peer.data, extra.data, 16);
+	return peer;
+}
+
+// read_exact stops at the header's last byte, since the TLS handshake follows on the same stream.
+read_exact :: (st: netio.Stream, dst: []u8) -> bool {
+	got := 0;
+	while got < dst.count {
+		rest: []u8;
+		rest.data, rest.count = dst.data + got, dst.count - got;
+		n, err := netio.read(st, rest);
+		if err != .None || n <= 0 return false;
+		got += n;
+	}
+	return true;
+}
+
+// proxy_header_read replaces c's peer with the client's real address, so the limits by address count
+// clients and not the proxy. The flag must be set only behind a proxy that sends this header on every
+// connection: a client reaching the port directly could otherwise claim any address. accept_loop's login
+// deadline also covers a connection that stalls here.
+proxy_header_read :: (c: *Conn) -> bool {
+	head: [PROXY_HEADER_BYTES]u8;
+	if !read_exact(c.s, head) return false;
+	count, ok := proxy_header_extra(head);
+	if !ok return false;
+	buf: [PROXY_MAX_EXTRA]u8;
+	extra: []u8;
+	extra.data, extra.count = buf.data, count;
+	if !read_exact(c.s, extra) return false;
+	peer := proxy_header_peer(head[13], extra);
+	s := c.server;
+	locks.guard(*s.mu);
+	if address_full(s, peer) return false;
+	c.tcp.peer = peer;
+	return true;
+}
+
 accept_loop :: (s: *Server) {
 	// Finished connections are reaped here, so a long-running server holds only live ones.
 	// A connection that hasn't logged in within LOGIN_DEADLINE_S is cut off, so idle or trickling sockets
@@ -706,13 +774,8 @@ accept_loop :: (s: *Server) {
 		backoff = 0;
 		locks.lock(*s.mu);
 		reap(s);
-		// One address may hold MAX_CONNS_PER_ADDRESS, counting an IPv6 /64 as one address, since a home
-		// gets a whole /64 to pick from.
-		mapped := memcmp(tcp.peer.data, IPV4_MAPPED.data, IPV4_MAPPED.count) == 0;
-		prefix := ifx mapped then 16 else 8;
-		same := 0;
-		for s.conns if memcmp(it.tcp.peer.data, tcp.peer.data, prefix) == 0 same += 1;
-		if same >= MAX_CONNS_PER_ADDRESS || s.conns.count >= MAX_CONNS {
+		// Behind a proxy, every peer here is the proxy: serve_conn counts the real address instead.
+		if (!s.proxy_protocol && address_full(s, tcp.peer)) || s.conns.count >= MAX_CONNS {
 			locks.unlock(*s.mu);
 			netio.close(netio.tcp_stream(tcp));
 			continue;
@@ -733,6 +796,7 @@ serve_conn :: (c: *Conn) {
 	// Closed now, not at the next accept's reap: a client's next request on a connection given up on
 	// (a read timing out) would otherwise get no reply and no close until its own timeout.
 	defer netio.shutdown(netio.tcp_stream(c.tcp));
+	if c.server.proxy_protocol && !proxy_header_read(c) return;
 	session, _, _ := tls.accept(c.s, c.server.ctx, none_ok = true);
 	if !session return;
 	c.s = tls.stream(session);
@@ -1561,7 +1625,7 @@ snow :: (id: s64) -> etf.Value { return etf.vstring(tprint("%", id)); }
 // Discord's unique @username does.
 member_handle :: (root: []u8) -> [8]u8 {
 	h := crypto.blake3_derive("fastcord 2026-10-29 serve member handle", root);
-	bits := (cast(u64) h[0] << 32) | (cast(u64) h[1] << 24) | (cast(u64) h[2] << 16) | (cast(u64) h[3] << 8) | h[4];
+	bits := ((cast(u64) h[0]) << 32) | ((cast(u64) h[1]) << 24) | ((cast(u64) h[2]) << 16) | ((cast(u64) h[3]) << 8) | h[4];
 	out: [8]u8;
 	for 0..7 out[it] = "abcdefghijklmnopqrstuvwxyz234567"[(bits >> (35 - 5 * it)) & 31];
 	return out;

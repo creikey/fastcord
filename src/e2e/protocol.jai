@@ -666,7 +666,7 @@ put :: (p: *Packet, b: []u8) {
 put_u32 :: (p: *Packet, v: u32) { put(p, .[xx (v & 0xFF), xx ((v >> 8) & 0xFF), xx ((v >> 16) & 0xFF), xx (v >> 24)]); }
 
 get_u32 :: (b: []u8, at: int) -> u32 {
-	return cast(u32) b[at] | (cast(u32) b[at + 1] << 8) | (cast(u32) b[at + 2] << 16) | (cast(u32) b[at + 3] << 24);
+	return cast(u32) b[at] | ((cast(u32) b[at + 1]) << 8) | ((cast(u32) b[at + 2]) << 16) | ((cast(u32) b[at + 3]) << 24);
 }
 
 // take copies the next 32 bytes; callers have already checked the length.

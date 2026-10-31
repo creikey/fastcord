@@ -112,6 +112,7 @@ Options :: struct {
 	serve: string; // run a self-hosted server from this file instead of the app
 	port: int;
 	backups: string;      // -backups:<dir>: where the server keeps its rolling backups (host.jai)
+	proxy_protocol: bool; // -proxy-protocol: the server sits behind a proxy that sends PROXY protocol v2.
 	owner: string;        // -owner:<key>: the server's owner, by their key's root (serve set_owner_key)
 	print_key: bool;      // -key: print this machine's key roots, for -owner on a server
 	install: bool;        // -serve:<file> -install: run it as a service from now on (serve install.jai)
@@ -177,6 +178,8 @@ parse_options :: () -> Options {
 			o.backups = v;
 		} else if flag("-owner:") {
 			o.owner = v;
+		} else if a == "-proxy-protocol" {
+			o.proxy_protocol = true;
 		} else if a == "-key" {
 			o.print_key = true;
 		} else if a == "-install" {
@@ -228,6 +231,7 @@ main :: () {
 		}
 		s.host.version = VERSION;
 		if opt.backups && !serve.set_backup_dir(s, opt.backups) fail("could not set the backup folder");
+		s.proxy_protocol = opt.proxy_protocol;
 		if opt.owner {
 			ok, message := serve.set_owner_key(s, opt.owner);
 			if !ok fail("could not set the owner: %", message);

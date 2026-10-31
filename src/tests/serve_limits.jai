@@ -121,6 +121,35 @@ main :: () {
 	tcp.peer = .[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xFF, 0xFF, 127, 0, 0, 1];
 	for 1..200 check(!serve.limited(*c, .Write), "loopback is never limited");
 
+	handle := serve.member_handle(cast([]u8) "root");
+	check(handle[0] != #char "a" || handle[1] != #char "a" || handle[2] != #char "a", "a handle uses all its 40 bits");
+
+	// A proxy's PROXY protocol v2 header names the client; anything else is refused before TLS.
+	head: [serve.PROXY_HEADER_BYTES]u8;
+	memcpy(head.data, serve.PROXY_SIGNATURE.data, serve.PROXY_SIGNATURE.count);
+	head[12], head[13], head[15] = 0x21, 0x11, 12;
+	extra: int;
+	extra, ok = serve.proxy_header_extra(head);
+	check(ok && extra == 12, "an IPv4 header passes");
+	peer := serve.proxy_header_peer(0x11, u8.[203, 0, 113, 9, 10, 0, 0, 1, 0, 80, 0, 81]);
+	check(peer[10] == 0xFF && peer[12] == 203 && peer[15] == 9, "its source becomes the mapped peer");
+	head[15] = 11;
+	_, ok = serve.proxy_header_extra(head);
+	check(!ok, "too short for its addresses is refused");
+	head[14], head[15] = 0xFF, 0xFF;
+	_, ok = serve.proxy_header_extra(head);
+	check(!ok, "a length past the cap is refused");
+	head[14], head[15] = 0, 36;
+	head[13] = 0x31;
+	_, ok = serve.proxy_header_extra(head);
+	check(!ok, "a Unix socket family is refused");
+	head[13], head[12] = 0x21, 0x20;
+	_, ok = serve.proxy_header_extra(head);
+	check(!ok, "a LOCAL command is refused");
+	head[12], head[0] = 0x21, 0x16;
+	_, ok = serve.proxy_header_extra(head);
+	check(!ok, "a TLS hello with no header is refused");
+
 	serve.stop(s);
 	if failed { print("serve_limits: % failed\n", failed); exit(1); }
 	print("serve_limits: ok\n");

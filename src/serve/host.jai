@@ -917,7 +917,7 @@ address_text :: (p: [16]u8) -> string {
 	if memcmp(p.data, IPV4_MAPPED.data, IPV4_MAPPED.count) == 0 return tprint("%.%.%.%", p[12], p[13], p[14], p[15]);
 	b: String_Builder;
 	b.allocator = temp;
-	for i: 0..7 print_to_builder(*b, "%1%2", ifx i then ":" else "", formatInt((cast(int) p[2 * i] << 8) | p[2 * i + 1], base = 16));
+	for i: 0..7 print_to_builder(*b, "%1%2", ifx i then ":" else "", formatInt(((cast(int) p[2 * i]) << 8) | p[2 * i + 1], base = 16));
 	return builder_to_string(*b,, temp);
 }
 

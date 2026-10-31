@@ -433,7 +433,7 @@ parse_update :: (data: []u8) -> []Update_Item, bool {
 		`r.data += n; `r.count -= n;
 		return v;
 	}
-	get_u16 :: () -> int #expand { b := bytes(2); return ifx b.count then b[0] | (cast(int) b[1] << 8) else 0; }
+	get_u16 :: () -> int #expand { b := bytes(2); return ifx b.count then b[0] | ((cast(int) b[1]) << 8) else 0; }
 	n := get_u16();
 	if !ok || n > MAX_UPDATE return .[], false;
 	items := NewArray(n, Update_Item,, temp);

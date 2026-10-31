@@ -246,7 +246,7 @@ sticker_format :: (file: string) -> int {
 	if begins_with(file, "\x89PNG\r\n\x1a\n") {
 		at := 8;
 		while at + 8 <= file.count {
-			n := (cast(int) file[at] << 24) | (cast(int) file[at + 1] << 16) | (cast(int) file[at + 2] << 8) | file[at + 3];
+			n := ((cast(int) file[at]) << 24) | ((cast(int) file[at + 1]) << 16) | ((cast(int) file[at + 2]) << 8) | file[at + 3];
 			kind := slice(file, at + 4, 4);
 			if kind == "acTL" return STICKER_APNG;
 			if kind == "IDAT" || n > file.count return STICKER_PNG;
