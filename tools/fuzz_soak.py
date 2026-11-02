@@ -23,7 +23,7 @@ def main():
     minutes = float(sys.argv[1])
     slice_s = sys.argv[2] if len(sys.argv) > 2 else "120"
     os.makedirs(OUT, exist_ok=True)
-    exe = "build/fuzz-soak.exe" if os.path.exists("build/fuzz.exe") else "build/fuzz-soak"
+    exe = os.path.abspath("build/fuzz-soak.exe" if os.path.exists("build/fuzz.exe") else "build/fuzz-soak")
     shutil.copy("build/fuzz.exe" if exe.endswith(".exe") else "build/fuzz", exe)
     shutil.copy("build/fuzz.blocks", "build/fuzz-soak.blocks")
     targets = sys.argv[3:] or subprocess.run([exe, "list"], capture_output=True, text=True).stdout.split()
