@@ -772,6 +772,8 @@ main :: () {
 		check(status == 200, tprint("mark Interested: % %", status, body));
 		status, body = rest("GET", tprint("%/%/users/counts", events, eid), "", other_token);
 		check(status == 200 && contains(body, "\"guild_scheduled_event_count\": 2"), tprint("the interested count: % %", status, body));
+		status, body = rest("GET", "/api/v9/users/@me/scheduled-events/1", "", other_token);
+		check(status == 404, "a path past my events is a 404, not a crash");
 		status, body = rest("GET", "/api/v9/users/@me/scheduled-events?guild_ids=1", "", other_token);
 		check(status == 200 && contains(body, eid), tprint("a member's own Interested marks: % %", status, body));
 		status, body = rest("GET", tprint("%/-1/users/counts", events), "", token);

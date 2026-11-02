@@ -805,6 +805,12 @@ serve_conn :: (c: *Conn) {
 	name := tls.server_name(session);
 	if name && name != id_hex(c.server) && !plain return;
 
+	conn_requests(c, session, plain);
+}
+
+#scope_export
+// conn_requests answers a connection until it ends. The fuzzer enters here with no socket and no TLS.
+conn_requests :: (c: *Conn, session: *tls.Session, plain: bool) {
 	h: http.H1_Conn;
 	http.h1_init(*h, c.s, .{max_header_bytes = 16 << 10, max_headers = 64, max_body = 1 << 20});
 	defer http.h1_destroy(*h, false);
@@ -956,6 +962,7 @@ serve_conn :: (c: *Conn) {
 		if !json_error(c, 404, 0, "404: Not Found") return;
 	}
 }
+#scope_module
 
 // Scheduled events. Create Events makes them; Manage Events, or the creator,
 
@@ -1226,6 +1233,8 @@ scheduled_events :: (c: *Conn, req: http.Request) -> bool {
 		return json_reply(c, 200, etf.vlist(list));
 
 	}
+
+	if !begins_with(path, tprint("/api/v9/guilds/%/scheduled-events", s.guild)) return json_error(c, 404, 0, "404: Not Found");
 
 	parts := split(advance(path, tprint("/api/v9/guilds/%/scheduled-events", s.guild).count), "/",, temp);
 

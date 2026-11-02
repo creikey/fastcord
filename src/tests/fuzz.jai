@@ -94,6 +94,7 @@ TARGETS :: Target.[
 	.{"dave", run_dave, "payload\0\x10\xfa\xfa", "", .Bytes},
 	.{"mls", run_mls, "\0\x01\0\x01\0\x02\0\0", "", .Bytes},
 	.{"e2e", run_e2e, "\x01\x02\x03\x04\x05\x06\x07\x08", "", .Bytes},
+	.{"serve", run_serve, "\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f\x10\x11\x12\x13\x14\x15\x16\x17", "", .Choices},
 	.{"session", run_session, "\x00\x00\x01\x05\x02\x00\x02\x01\x09\x00\x03\x00\x02\x08\x00\x01\x05\x02\x02", "", .Choices},
 	.{"fc_text", run_fc_text, "fc-AAECAwQFBgcICQ", "", .Bytes},
 	.{"authority", run_authority, "\0\0\0\0", "", .Bytes},
@@ -574,6 +575,295 @@ run_session :: (data: []u8) {
 	}
 }
 
+// ---- Serve: a hostile member's requests and gateway ops, with no socket ----
+//
+// One connection, driven through conn_requests by a stream that makes each request as the server reads
+// it, so a later request can name the IDs an earlier reply handed out. No listener runs, so neither does
+// the unfurler, the one thing here that dials out; the login is left out since it needs a TLS session.
+
+SERVE_DIR :: "build/fuzz_serve";
+SERVE_USERS :: 3; // The owner, a member, and one more to act on.
+SERVE_METHODS :: string.["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD"];
+SERVE_GATEWAY_OPS :: int.[1, 2, 3, 4, 6, 18, 19, 20, 37, 40];
+SERVE_VOICE_OPS :: int.[0, 1, 3, 5, 12, 13, 18, 19, 21, 22, 23, 24, 25, 27, 28, 29, 30, 31];
+SERVE_SOURCES :: string.["module", "dave", "dms", "expressions", "host", "polls", "roles", "settings", "soundboard", "unfurl", "voice", "webhook_formats"];
+MAX_SERVE_IDS :: 256;
+
+serve_table :: (paths: bool) -> []string {
+	out: [..]string;
+	for SERVE_SOURCES {
+		rest := read_entire_file(tprint("src/serve/%.jai", it));
+		while true {
+			at := find_index_from_left(rest, #char "\"");
+			if at < 0 break;
+			advance(*rest, at + 1);
+			close := find_index_from_left(rest, #char "\"");
+			if close < 0 break;
+			text := slice(rest, 0, close);
+			advance(*rest, close + 1);
+			if !text || text.count > 70 continue;
+			ok := true;
+			for text {
+				c := it;
+				name := (c >= #char "a" && c <= #char "z") || c == #char "_";
+				if paths ok &&= name || (c >= #char "0" && c <= #char "9") || c == #char "/" || c == #char "%" || c == #char "-" || c == #char "@";
+				else ok &&= name;
+			}
+			if !ok || (paths && text[0] != #char "/") || (!paths && text.count < 2) continue;
+			seen := false;
+			for out if it == text seen = true;
+			if !seen array_add(*out, text);
+		}
+	}
+	return out;
+}
+SERVE_PATHS :: #run serve_table(true);
+SERVE_KEYS :: #run serve_table(false);
+
+serve_file: string;
+serve_guild: s64;
+serve_tokens: [SERVE_USERS]string;
+
+Serve_Stream :: struct {
+	g: Gen;
+	guild: s64;
+	ids: [MAX_SERVE_IDS]s64;
+	id_count: int;
+	buf: [..]u8;
+	at: int;
+	ws: int; // 0: HTTP. 1: a gateway. 2: a voice gateway, which reads JSON.
+	identified: bool;
+	token: string;
+}
+
+serve_id :: (m: *Serve_Stream) -> s64 {
+	choice := pick(*m.g, m.id_count + 3);
+	if choice < m.id_count return m.ids[choice];
+	return s64.[m.guild, 0, 1 << 62][choice - m.id_count];
+}
+
+serve_value :: (m: *Serve_Stream, depth := 0) -> etf.Value {
+	g := *m.g;
+	if pick(g, ifx depth < 4 then 12 else 9) == {
+		case 0; return .{};
+		case 1; return etf.vbool(pick(g, 2) == 1);
+		case 2; return etf.vint(pick(g, 8));
+		case 3; return etf.vint(s64.[-1, 0x7fff_ffff, 1 << 53, 0x7fff_ffff_ffff_ffff][pick(g, 4)]);
+		case 4; return etf.vstring(tprint("%", serve_id(m)));
+		case 5; return etf.vint(serve_id(m));
+		case 6; return etf.vstring(pick_of(g, SERVE_KEYS));
+		case 7; return etf.vstring(string.["", " ", "a", "\xff\xfe", "http://127.0.0.1/", "../../x", "<@1>", "\0"][pick(g, 8)]);
+		case 8;
+			long := NewArray(1 << pick(g, 17), u8,, temp);
+			memset(long.data, #char "x", long.count);
+			return etf.vstring(cast(string) long);
+		case 9; #through;
+		case 10;
+			out: [..]etf.Value;
+			out.allocator = temp;
+			for 1..pick(g, 5) array_add(*out, serve_value(m, depth + 1));
+			return etf.Value.{kind = .List, list = out};
+	}
+	return serve_map(m, depth);
+}
+
+serve_map :: (m: *Serve_Stream, depth := 0) -> etf.Value {
+	b := etf.map_builder(,, temp);
+	for 1..pick(*m.g, 8) etf.map_put(*b, pick_of(*m.g, SERVE_KEYS), serve_value(m, depth + 1));
+	return etf.vmap(etf.map_done(*b));
+}
+
+serve_path :: (m: *Serve_Stream) -> string {
+	g := *m.g;
+	path := pick_of(g, SERVE_PATHS);
+	sb: String_Builder;
+	sb.allocator = temp;
+	put_id :: (at: int) #expand {
+		guild := at >= 7 && slice(path, at - 7, 7) == "guilds/";
+		print_to_builder(*sb, "%", ifx guild then m.guild else serve_id(m));
+	}
+	for 0..path.count - 1 {
+		if path[it] == #char "%" {
+			put_id(it);
+			continue;
+		}
+		if it > 0 && path[it - 1] == #char "%" && path[it] >= #char "0" && path[it] <= #char "9" continue;
+		append(*sb, path[it]);
+	}
+	// A bare prefix wants an ID and most often one of the routes' tails after it.
+	if ends_with(path, "/") {
+		put_id(path.count);
+		if pick(g, 3) {
+			tail := pick_of(g, SERVE_PATHS);
+			if find_index_from_left(tail, #char "%") < 0 append(*sb, tail);
+			if ends_with(tail, "/") || pick(g, 3) == 0 print_to_builder(*sb, "%", serve_id(m));
+		}
+	}
+	if pick(g, 3) == 0 print_to_builder(*sb, "?%=%&%=%", pick_of(g, SERVE_KEYS), serve_id(m), pick_of(g, SERVE_KEYS), pick(g, 200));
+	return builder_to_string(*sb,, temp);
+}
+
+// A masked client frame; the mask is all zeros, so the payload goes as it is.
+serve_frame :: (m: *Serve_Stream, opcode: u8, payload: []u8) {
+	array_add(*m.buf, 0x80 | opcode);
+	n := payload.count;
+	if n < 126 array_add(*m.buf, cast(u8) (0x80 | n));
+	else if n < 65536 {
+		array_add(*m.buf, 0x80 | 126, cast(u8) (n >> 8), cast(u8) (n & 255));
+	} else {
+		array_add(*m.buf, 0x80 | 127, 0, 0, 0, 0);
+		for i: 0..3 array_add(*m.buf, cast(u8) ((n >> (24 - 8 * i)) & 255));
+	}
+	for 0..3 array_add(*m.buf, 0);
+	array_add(*m.buf, ..payload);
+}
+
+serve_payload :: (m: *Serve_Stream, op: int, d: etf.Value) {
+	b := etf.map_builder(4,, temp);
+	etf.map_put(*b, "op", etf.vint(op));
+	etf.map_put(*b, "d", d);
+	v := etf.vmap(etf.map_done(*b));
+	if m.ws == 2 {
+		serve_frame(m, 1, cast([]u8) json_of(v));
+	} else {
+		bytes, err := etf.encode(v,, temp);
+		if err == .None serve_frame(m, 2, bytes);
+	}
+}
+
+// serve_next puts the next request or frame in m.buf; false when the choices are spent.
+serve_next :: (m: *Serve_Stream) -> bool {
+	m.buf.count, m.at = 0, 0;
+	g := *m.g;
+	if done(g) return false;
+	if m.ws {
+		if !m.identified && m.ws == 1 {
+			m.identified = true;
+			d := etf.map_builder(,, temp);
+			etf.map_put(*d, "token", etf.vstring(m.token));
+			serve_payload(m, 2, etf.vmap(etf.map_done(*d)));
+			return true;
+		}
+		op := ifx m.ws == 2 then SERVE_VOICE_OPS[pick(g, SERVE_VOICE_OPS.count)] else SERVE_GATEWAY_OPS[pick(g, SERVE_GATEWAY_OPS.count)];
+		serve_payload(m, op, ifx pick(g, 4) then serve_map(m) else serve_value(m));
+		return true;
+	}
+	token := serve_tokens[max(pick(g, SERVE_USERS + 2) - 2, 0)]; // Mostly the owner, whom no permission stops.
+	if pick(g, 12) == 0 {
+		m.ws = 1 + pick(g, 2);
+		m.token = token;
+		path := ifx m.ws == 2 then "/?v=9" else "/?v=9&encoding=etf";
+		array_add(*m.buf, ..cast([]u8) tprint("GET % HTTP/1.1\r\nHost: x\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Version: 13\r\n\r\n", path));
+		return true;
+	}
+	method := pick_of(g, SERVE_METHODS);
+	path := serve_path(m);
+	body := ifx method == "GET" || method == "HEAD" then "" else json_of(serve_map(m));
+	array_add(*m.buf, ..cast([]u8) tprint("% % HTTP/1.1\r\nHost: x\r\nAuthorization: %\r\nContent-Type: application/json\r\nContent-Length: %\r\n\r\n%", method, path, token, body.count, body));
+	return true;
+}
+
+serve_read :: (p: *void, dst: []u8) -> int, netio.Error {
+	m := cast(*Serve_Stream) p;
+	if m.at >= m.buf.count && !serve_next(m) return 0, .Closed;
+	n := min(dst.count, m.buf.count - m.at);
+	memcpy(dst.data, m.buf.data + m.at, n);
+	m.at += n;
+	return n, .None;
+}
+
+// While HTTP is all that's running, this is the only thread here: a gateway's writer never sees it pass m.ws.
+serve_write :: (p: *void, src: []u8) -> netio.Error {
+	m := cast(*Serve_Stream) p;
+	if m.ws return .None;
+	text := cast(string) src;
+	if begins_with(text, "HTTP/1.1 ") && text.count > 10 {
+		oracle(text[9] != #char "5", "serve: % after %", slice(text, 0, 12), cast(string) m.buf);
+		took("reply", text[9] == #char "2");
+	}
+	while true {
+		at := find_index_from_left(text, "\"id\":\"");
+		if at < 0 break;
+		advance(*text, at + 6);
+		n: s64;
+		i := 0;
+		while i < text.count && i < 19 && text[i] >= #char "0" && text[i] <= #char "9" {
+			n = n * 10 + text[i] - #char "0";
+			i += 1;
+		}
+		if !i continue;
+		seen := false;
+		for 0..m.id_count - 1 if m.ids[it] == n seen = true;
+		if !seen && m.id_count < MAX_SERVE_IDS {
+			m.ids[m.id_count] = n;
+			m.id_count += 1;
+		}
+	}
+	return .None;
+}
+
+serve_fixture :: () {
+	if serve_file return;
+	started := atomic_swap(*input_started, 0);
+	defer atomic_swap(*input_started, started);
+	push_allocator(context.default_allocator);
+	delete_directory(SERVE_DIR);
+	make_directory_if_it_does_not_exist(SERVE_DIR, recursive = true);
+	path := tprint("%/server.db", SERVE_DIR);
+	s, ok, why := serve.open(path);
+	oracle(ok, "serve: can't open: %", why);
+	serve_guild = s.guild;
+	for 0..SERVE_USERS - 1 {
+		id := it + 1000;
+		t: [32]u8;
+		t[0] = xx (it + 1);
+		root: [32]u8;
+		root[1] = xx (it + 1);
+		name := tprint("user%", it);
+		ok = sqlite.run(s.db, "INSERT INTO users(id, root, signing_pub, name, joined_name) VALUES(?, ?, ?, ?, ?4);", id, cast([]u8) root, cast([]u8) root, name);
+		h := crypto.blake3(t);
+		ok = ok && sqlite.run(s.db, "INSERT INTO sessions(token_hash, user) VALUES(?, ?);", cast([]u8) h, id);
+		oracle(ok, "serve: fixture: %", sqlite.errmsg(s.db));
+		serve_tokens[it] = serve.hex(t);
+	}
+	sqlite.run(s.db, "INSERT OR REPLACE INTO meta(k, v) VALUES('owner', '1000');");
+	serve.stop(s);
+	serve_file = read_entire_file(path);
+}
+
+run_serve :: (data: []u8) {
+	serve_fixture();
+	path := tprint("%/server.db", SERVE_DIR);
+	file_delete(tprint("%-wal", path));
+	file_delete(tprint("%-shm", path));
+	write_entire_file(path, serve_file);
+	s, ok, why := serve.open(path);
+	oracle(ok, "serve: can't open: %", why);
+
+	m := New(Serve_Stream);
+	defer { array_free(m.buf); free(m); }
+	// The connection resets temp between requests, and the input may live there.
+	m.g.b, m.guild = array_copy(data), s.guild;
+	defer array_free(m.g.b);
+	for 1000..1000 + SERVE_USERS - 1 { m.ids[m.id_count] = it; m.id_count += 1; }
+	st := sqlite.prepare(s.db, "SELECT id FROM channels;");
+	while sqlite.step(st) == .Row && m.id_count < 16 { m.ids[m.id_count] = sqlite.col_int(st, 0); m.id_count += 1; }
+	sqlite.finalize(st);
+
+	c := New(Conn_Of_Serve);
+	defer free(c);
+	tcp: netio.Tcp;
+	tcp.peer[10], tcp.peer[11], tcp.peer[12] = 0xff, 0xff, 127; // Loopback has no rate limits.
+	c.server, c.tcp, c.accepted = s, *tcp, current_time_monotonic();
+	c.s = .{data = m, read = serve_read, write = serve_write, close = (p: *void) {}};
+	atomic_swap(*c.authed, true);
+	array_add(*s.conns, c);
+	serve.conn_requests(c, null, false);
+	s.conns.count = 0;
+	serve.stop(s);
+}
+Conn_Of_Serve :: serve.Conn;
+
 // ---- The store: sequences of gateway events ----
 
 Key :: struct { name: string; kind: u8; }
@@ -972,7 +1262,8 @@ run_one :: (target: Target, input: []u8) {
 	(cast(*s64) last_map).* = n;
 	memcpy(last_map + 8, input.data, n);
 	// With the debugger on, every allocation must reach the heap it tracks: skip the fence.
-	fence := !MEM_DEBUG && hash_of(input) % FENCE_ONE_IN == 0;
+	// A gateway's writer thread would race the fence, which takes no lock.
+	fence := !MEM_DEBUG && hash_of(input) % FENCE_ONE_IN == 0 && target.name != "serve";
 	hang_limit_s = ifx fence then HANG_FENCE_S else HANG_S;
 	atomic_swap(*input_started, now_ms());
 	{
