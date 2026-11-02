@@ -1,0 +1,20 @@
+# GIFs whose loads fail as the network does (`net fail`) show the pulsing dots while they wait, and are
+# tried again once the backoff (2 s) has passed while still on screen: the GIF and the GIFV play after
+# the network is back, without scrolling away and back.
+net fail
+wait 20
+shot build/ui-media_gif_retry-failed.png
+net ok
+settle 4
+wait 30
+shot build/ui-media_gif_retry.png
+# the picker's results: the dots while the GIFs fail, the GIFs once they load
+net fail
+click 898 683
+wait 20
+click 612 338
+wait 20
+shot build/ui-media_gif_retry-picker-failed.png
+net ok
+settle 4
+wait 30

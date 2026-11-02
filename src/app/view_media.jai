@@ -48,6 +48,7 @@ blob_get :: (url: string) -> *Blob {
 	// offline: a decode worker reads FASTCORD_MEDIA_DIR
 	c := ifx app.client then media_client(url);
 	if c dc.fetch_media(c, .{url = url, kind = .Fetch, visible = true});
+	else if req_offline == .Fail { b.state = .Failed; retry_fail(*b.retry, 0); }
 	else decode_submit(.{kind = .Fetch, url = copy_string(url)});
 	return b;
 }
@@ -1150,7 +1151,7 @@ embed_image :: (id: string, e: *dc.Embed, w: float32, h: float32, cover := false
 embed_player_key :: (m: *dc.Message, i: int) -> dc.Snowflake { return (m.id + cast(u64) i) | (1 << 63); }
 
 // An image (animated ones play while drawn) or, with video, a GIFV: a muted looping video that plays only
-// while on screen, its poster image until the first frame is in.
+// while on screen, its poster image until the first frame is in. The pulsing dots show until it plays.
 media_box :: (id: string, url: string, video: string, w: float32, h: float32) -> *ui.Box {
 	b := ui.box(id, .Draw_Background | .Clickable | .Clip);
 	b.semantic_size = .[ui.px(w), ui.px(h)];
@@ -1158,6 +1159,8 @@ media_box :: (id: string, url: string, video: string, w: float32, h: float32) ->
 	b.style.bg = T("--background-mod-subtle");
 	if !video {
 		set_remote_image(b, url);
+		im := table_find_pointer(*images, url);
+		if im && retry_pending(im.state, im.retry) && !ui.offscreen(b) media_loading(b, w, h);
 		return b;
 	}
 	g := table_find_pointer(*gifvs, video);
@@ -1167,9 +1170,10 @@ media_box :: (id: string, url: string, video: string, w: float32, h: float32) ->
 	}
 	if ui.offscreen(b) return b;
 	g.seen = app.frame;
+	// asked for again each frame on screen, so a failed download is tried again
+	blob := blob_get(video);
 	if !g.player {
-		blob := table_find_pointer(*blobs, video);
-		if blob && blob.state == .Ready {
+		if blob.state == .Ready {
 			ensure_audio();
 			g.player = media.player_open(media.source_from_memory(blob.data), autoplay = true, looping = true, muted = true);
 		}
@@ -1182,6 +1186,7 @@ media_box :: (id: string, url: string, video: string, w: float32, h: float32) ->
 	}
 	if !g.img.y {
 		set_remote_image(b, url);
+		if g.player || retry_pending(blob.state, blob.retry) media_loading(b, w, h);
 	} else {
 		d := New(Gifv_Draw,, temp);
 		d.video = video;
@@ -1189,6 +1194,14 @@ media_box :: (id: string, url: string, video: string, w: float32, h: float32) ->
 		b.custom_user = d;
 	}
 	return b;
+}
+
+// The client's pulsing ellipsis in the middle of a w x h media box still loading.
+media_loading :: (b: *ui.Box, w: float32, h: float32) {
+	ui.parent(b); defer ui.pop_parent();
+	d := pulsing_dots(T("--text-muted"));
+	d.flags |= .Floating_X | .Floating_Y;
+	d.fixed_pos = .{max(0.0, (w - DOTS_W) / 2), max(0.0, (h - 6) / 2)};
 }
 
 // Start of a frame: GIFVs not drawn last frame stop, so nothing decodes offscreen and the app can sleep.

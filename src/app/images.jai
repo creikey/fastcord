@@ -6,6 +6,7 @@ Image_State :: enum u8 {
 
 // A load that failed for a reason that may pass (offline, sleep, 408, 429, 5xx) is tried again when it is
 // next viewed, 2 s after the first failure, doubling to 5 min. Another 4xx, or bytes that don't decode, is final.
+// Asking while it waits wakes a frame at the due time, so one still on screen retries with no input.
 Retry :: struct {
 	fails: u8;
 	at_ms: s64; // 0: final
@@ -17,7 +18,15 @@ retry_fail :: (r: *Retry, status: int) {
 	r.at_ms = to_milliseconds(current_time_monotonic()) + min(1000 << r.fails, 300_000);
 }
 
-retry_due :: (r: Retry) -> bool { return r.at_ms != 0 && to_milliseconds(current_time_monotonic()) >= r.at_ms; }
+retry_due :: (r: Retry) -> bool {
+	if r.at_ms == 0 return false;
+	left := r.at_ms - to_milliseconds(current_time_monotonic());
+	if left > 0 request_wake(platform.time_now() + cast(float64) left / 1000);
+	return left <= 0;
+}
+
+// Not drawable yet, but will be: loading, or failed with a retry to come.
+retry_pending :: (state: Image_State, r: Retry) -> bool { return state == .Loading || (state == .Failed && r.at_ms != 0); }
 
 Remote_Image :: struct {
 	state: Image_State;

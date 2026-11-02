@@ -388,7 +388,10 @@ gif_results :: (list: *ui.Box, view: ui.Rect, cols: int, col_w: float32) {
 			sig := ui.signal(cell);
 			cell.style.border = ifx sig.hovering then 1.0 else 0.0;
 			cell.style.border_color = T("--border-strong");
-			set_cover_image(cell, gif_render_url(it.src, it.gif_src));
+			src := gif_render_url(it.src, it.gif_src);
+			set_cover_image(cell, src);
+			im := table_find_pointer(*images, src);
+			if im && retry_pending(im.state, im.retry) media_loading(cell, col_w, p.h);
 			// the favourite star, top right on hover (always on a favourite): toggles it
 			fav := gif_favorite_index(it.url) >= 0 && !array_find(gv.unstarred, it.url);
 			star_clicked := false;
