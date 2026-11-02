@@ -181,33 +181,39 @@ gif_picker_body :: (r: ui.Rect) {
 	else gif_results(list, r, cols, col_w);
 }
 
-// What we can decode: the API's media_format rendition is webm (video); its
-// gif_src / an image src renders through the image pipeline.
+// An image to draw for a GIF, or "" when only its video can show: the API's media_format rendition is
+// webm or mp4 (video); its gif_src, an image src, or Tenor's own tinygif renders as an image.
 gif_render_url :: (src: string, gif_src: string) -> string {
-	u := ifx begins_with(src, "//") then tprint("https:%", src) else src;
+	u := gif_https(src);
+	if !gif_is_video(u) return u;
+	return ifx gif_src != "" then gif_src else tenor_image_variant(u);
+}
+
+gif_https :: (src: string) -> string { return ifx begins_with(src, "//") then tprint("https:%", src) else src; }
+
+gif_is_video :: (u: string) -> bool {
 	path := u;
 	q := find_index_from_left(path, #char "?");
 	if q >= 0 path.count = q;
-	if ends_with(path, ".webm") || ends_with(path, ".mp4") return ifx gif_src != "" then gif_src else tenor_image_variant(u);
-	return u;
+	return ends_with(path, ".webm") || ends_with(path, ".mp4");
 }
 
 // Tenor renditions differ by the last two characters of the media id
-// (…AAPo webm, …AAAC gif, …AAAM tinygif): swap a video url to tinygif.
+// (…AAPo webm, …AAAC gif, …AAAM tinygif): swap a video url to tinygif. Only a link straight to Tenor:
+// Discord's media proxy signs the path it was given, so the same swap inside one is a 4xx; and other
+// hosts (Klipy) name their renditions differently. "" for those.
 tenor_image_variant :: (u: string) -> string {
-	HOST :: "media.tenor.com/";
-	i := find_index_from_left(u, HOST);
-	if i < 0 return u;
-	i += HOST.count;
+	HOST :: "https://media.tenor.com/";
+	if !begins_with(u, HOST) return "";
 	rest := u;
-	advance(*rest, i);
+	advance(*rest, HOST.count);
 	slash := find_index_from_left(rest, #char "/");
-	if slash < 2 return u;
+	if slash < 2 return "";
 	name := rest;
 	advance(*name, slash + 1);
 	dot := find_index_from_right(name, #char ".");
 	if dot >= 0 name.count = dot;
-	return tprint("%1%2AM/%3.gif", string.{i, u.data}, string.{slash - 2, rest.data}, name);
+	return tprint("%1%2AM/%3.gif", HOST, string.{slash - 2, rest.data}, name);
 }
 
 // Image scaled to cover the box (center crop), animated images advance.
@@ -254,7 +260,11 @@ Tile :: struct {
 gif_front_page :: (list: *ui.Box, view: ui.Rect, cols: int, col_w: float32) {
 	tiles: [..]Tile;
 	tiles.allocator = temp;
-	if gv.related.count > 0 array_add(*tiles, .{L("For This Chat"), gif_render_url(gv.related[0].src, gv.related[0].gif_src), "chat", .Related});
+	if gv.related.count > 0 {
+		r := gv.related[0];
+		still := gif_render_url(r.src, r.gif_src);
+		array_add(*tiles, .{L("For This Chat"), ifx still then still else r.preview, "chat", .Related});
+	}
 	if frecency.favorite_gifs.count > 0 array_add(*tiles, .{L("Favorites"), gif_render_url(frecency.favorite_gifs[0].src, ""), "star", .Favorites});
 	if gv.trending_preview.src != "" || gv.trending_preview.gif_src != "" {
 		array_add(*tiles, .{L("Trending GIFs"), gif_render_url(gv.trending_preview.src, gv.trending_preview.gif_src), "analytics", .Trending});
@@ -400,10 +410,15 @@ gif_results :: (list: *ui.Box, view: ui.Rect, cols: int, col_w: float32) {
 			sig := ui.signal(cell);
 			cell.style.border = ifx sig.hovering then 1.0 else 0.0;
 			cell.style.border_color = T("--border-strong");
+			// no image rendition (a Klipy video, or a Tenor one through Discord's proxy): played as in chat
 			src := gif_render_url(it.src, it.gif_src);
-			set_cover_image(cell, src);
-			im := table_find_pointer(*images, src);
-			if im && retry_pending(im.state, im.retry) media_loading(cell, col_w, p.h);
+			if src {
+				set_cover_image(cell, src);
+				im := table_find_pointer(*images, src);
+				if im && retry_pending(im.state, im.retry) media_loading(cell, col_w, p.h);
+			} else if it.src {
+				gifv_paint(cell, it.preview, gif_https(it.src), col_w, p.h);
+			}
 			// the favourite star, top right on hover (always on a favourite): toggles it
 			fav := gif_favorite_index(it.url) >= 0 && !array_find(gv.unstarred, it.url);
 			star_clicked := false;
@@ -495,7 +510,7 @@ gif_related_update :: () {
 	ranked.allocator = temp;
 	for frecency.favorite_gifs array_add(*ranked, .{g = .{url = it.url, src = it.src, width = it.width, height = it.height}});
 	for list: store().messages for m: list.messages for e: m.embeds if e.kind == "gifv" {
-		array_add(*ranked, .{g = .{url = e.url, src = e.video_url, gif_src = e.thumbnail_url, width = e.video_w, height = e.video_h}, title = e.title});
+		array_add(*ranked, .{g = .{url = e.url, src = e.video_url, preview = e.thumbnail_url, width = e.video_w, height = e.video_h}, title = e.title});
 	}
 	for * r: ranked {
 		r.order = it_index;
@@ -514,7 +529,7 @@ gif_related_update :: () {
 	for ranked {
 		if it.score == 0 || it_index == GIF_RELATED_MAX break;
 		g := it.g;
-		array_add(*gv.related, .{url = copy_string(g.url,, a), src = copy_string(g.src,, a), gif_src = copy_string(g.gif_src,, a), width = g.width, height = g.height});
+		array_add(*gv.related, .{url = copy_string(g.url,, a), src = copy_string(g.src,, a), preview = copy_string(g.preview,, a), width = g.width, height = g.height});
 	}
 }
 

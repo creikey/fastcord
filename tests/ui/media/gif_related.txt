@@ -1,5 +1,6 @@
 # Run with FASTCORD_MEDIA_DIR=tests/ui/media on gif_related.jsonl (media.jsonl plus "wave at the new folks").
-# Starring the "wave" GIF gives the GIF picker a For This Chat tile when it next opens, showing it.
+# Starring the "wave" GIF (a Klipy video with a GIF rendition; the favourite keeps only the video) gives the
+# GIF picker a For This Chat tile when it next opens, which plays it.
 wait 20
 click 898 683
 wait 20

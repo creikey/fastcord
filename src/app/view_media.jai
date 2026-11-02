@@ -1179,12 +1179,18 @@ media_box :: (id: string, url: string, video: string, w: float32, h: float32) ->
 		}
 		return b;
 	}
+	gifv_paint(b, url, video, w, h);
+	return b;
+}
+
+// Box b plays video as a GIFV: its poster image (if any) and the loading dots until the first frame is in.
+gifv_paint :: (b: *ui.Box, poster: string, video: string, w: float32, h: float32) {
 	g := table_find_pointer(*gifvs, video);
 	if !g {
 		g = table_set(*gifvs, copy_string(video), .{});
 		blob_get(video);
 	}
-	if ui.offscreen(b) return b;
+	if ui.offscreen(b) return;
 	g.seen = app.frame;
 	// asked for again each frame on screen, so a failed download is tried again
 	blob := blob_get(video);
@@ -1201,7 +1207,7 @@ media_box :: (id: string, url: string, video: string, w: float32, h: float32) ->
 		app.ui.animating = true;
 	}
 	if !g.img.y {
-		set_remote_image(b, url);
+		set_remote_image(b, poster);
 		if g.player || retry_pending(blob.state, blob.retry) media_loading(b, w, h);
 	} else {
 		d := New(Gifv_Draw,, temp);
@@ -1209,7 +1215,6 @@ media_box :: (id: string, url: string, video: string, w: float32, h: float32) ->
 		b.custom_draw = gifv_draw;
 		b.custom_user = d;
 	}
-	return b;
 }
 
 // The client's pulsing ellipsis in the middle of a w x h media box still loading.
