@@ -414,6 +414,13 @@ command_used_line :: (m: *dc.Message) {
 reply_preview :: (m: *dc.Message) {
 	s := store();
 	ref := find_message(m.referenced_id);
+	// not loaded (a reply to an old message): the copy the reply carried; clicking loads the target
+	snap: dc.Message;
+	if !ref && m.reply_author {
+		snap = .{id = m.referenced_id, channel_id = m.channel_id, author_id = m.reply_author, content = m.reply_content};
+		ref = *snap;
+	}
+	files := ifx ref == *snap then m.reply_files else ref && ref.attachments.count > 0;
 	r := row("replyref", ifx ref then ui.Box_Flags.Clickable else 0);
 	r.semantic_size = .[ui.pct(1), ui.px(22)];
 	if ref {
@@ -458,7 +465,7 @@ reply_preview :: (m: *dc.Message) {
 		nb.semantic_size[ui.Axis.X] = ui.text_size();
 		spacer(.X, 4);
 		content := first_line(shown_text(ref.id, ref.channel_id, ref.content));
-		if content == "" && ref.attachments content = L("Click to see attachment");
+		if content == "" && files content = L("Click to see attachment");
 		// Last frame's row width; the avatar, name and spacers are fixed, so the rest is the content's.
 		avail := r.rect.x1 - r.rect.x0 - 16 - 4 - ui.layout_text(F(.Medium), 14, shown, -1).width - 4;
 		if r.rect.x1 > r.rect.x0 content = ellipsize(content, .Normal, 14, max(avail, 0));

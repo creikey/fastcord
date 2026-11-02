@@ -271,6 +271,11 @@ Message :: struct {
 	mention_everyone: bool;
 	pinned: bool;
 	referenced_id: Snowflake; // reply target
+	// the target as the reply carried it (referenced_message), shown while the target isn't loaded;
+	// reply_author 0: none came, or it was deleted
+	reply_author: Snowflake;
+	reply_content: string;
+	reply_files: bool;
 	command_user: Snowflake; // an app command's reply (types 20, 23): who used it, and its name
 	command_name: string;
 	sub_months: int; // ROLE_SUBSCRIPTION_PURCHASE (25): months subscribed (content holds the tier's name)

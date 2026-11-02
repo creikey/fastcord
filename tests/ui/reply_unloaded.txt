@@ -1,0 +1,6 @@
+# Runs on reply_unloaded.jsonl. A reply to a message that isn't loaded previews it from the reply's own
+# referenced_message (#20); only a null one (deleted) says so.
+wait 20
+expect_visible "an ancient message nobody has scrolled back to"
+expect_visible "Original message was deleted"
+shot build/ui-reply_unloaded.png

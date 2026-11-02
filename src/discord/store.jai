@@ -215,6 +215,7 @@ free_message :: (s: *Store, m: *Message) {
 	free_str(m.forward_timestamp, a);
 	free_str(m.nonce, a);
 	free_str(m.webhook_name, a);
+	free_str(m.reply_content, a);
 	for * m.attachments free_attachment(s, it);
 	array_free(m.attachments);
 	for * m.embeds free_embed(s, it);
@@ -655,9 +656,14 @@ parse_message_fields :: (s: *Store, msg: *Message, m: etf.Map) {
 		if !name && old name = fstr(old, "name");
 		set_str(s, *msg.command_name, slice(name, 0, min(name.count, 128)));
 	}
-	// Keep the referenced author resolvable for reply previews.
-	rau := fmap(fmap(m, "referenced_message"), "author");
-	if rau parse_user_into(s, rau);
+	// The reply target as of now, for its preview while it isn't loaded (a reply to a very old message).
+	if vhas(m, "referenced_message") && msg.referenced_id {
+		rm := fmap(m, "referenced_message"); // null: deleted
+		rau := fmap(rm, "author");
+		msg.reply_author = ifx rau then parse_user_into(s, rau) else 0;
+		set_str(s, *msg.reply_content, fstr(rm, "content"));
+		msg.reply_files = flist(rm, "attachments").count > 0;
+	}
 	gid := fsnow(m, "guild_id");
 	// The thread started from this message (its id is the message's): archived ones are known only from here.
 	th := fmap(m, "thread");
@@ -1377,6 +1383,11 @@ drop_message :: (s: *Store, cid: Snowflake, id: Snowflake) {
 	s.changed += 1;
 }
 
+// forget_reply_target: a deleted message's replies preview it as deleted, loaded or not.
+forget_reply_target :: (l: *Message_List, id: Snowflake) {
+	for * l.messages if it.referenced_id == id it.reply_author = 0;
+}
+
 remove_guild :: (s: *Store, gid: Snowflake) {
 	g := table_find_pointer(*s.guilds, gid);
 	if !g return;
@@ -1450,6 +1461,7 @@ store_apply_dispatch :: (s: *Store, name: string, data: V, now: s64) -> bool {
 		case "MESSAGE_DELETE";
 			l := table_find_pointer(*s.messages, fsnow(d, "channel_id"));
 			i := ifx l then message_index(l, fsnow(d, "id")) else -1;
+			if l forget_reply_target(l, fsnow(d, "id"));
 			if i >= 0 {
 				free_message(s, *l.messages[i]);
 				array_ordered_remove_by_index(*l.messages, i);
@@ -1457,6 +1469,7 @@ store_apply_dispatch :: (s: *Store, name: string, data: V, now: s64) -> bool {
 		case "MESSAGE_DELETE_BULK";
 			l := table_find_pointer(*s.messages, fsnow(d, "channel_id"));
 			if l for flist(d, "ids") {
+				forget_reply_target(l, vsnow(it));
 				i := message_index(l, vsnow(it));
 				if i >= 0 {
 					free_message(s, *l.messages[i]);
