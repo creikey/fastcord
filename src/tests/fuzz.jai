@@ -41,6 +41,7 @@ crypto :: #import "crypto";
 dc :: #import "discord";
 DAVE :: #import "voice_dave";
 e2e :: #import "e2e";
+sqlite :: #import "sqlite";
 etf :: #import "etf";
 fc_text :: #import "fc_text";
 http :: #import "http";
@@ -93,6 +94,7 @@ TARGETS :: Target.[
 	.{"dave", run_dave, "payload\0\x10\xfa\xfa", "", .Bytes},
 	.{"mls", run_mls, "\0\x01\0\x01\0\x02\0\0", "", .Bytes},
 	.{"e2e", run_e2e, "\x01\x02\x03\x04\x05\x06\x07\x08", "", .Bytes},
+	.{"session", run_session, "\x00\x00\x01\x05\x02\x00\x02\x01\x09\x00\x03\x00\x02\x08\x00\x01\x05\x02\x02", "", .Choices},
 	.{"fc_text", run_fc_text, "fc-AAECAwQFBgcICQ", "", .Bytes},
 	.{"authority", run_authority, "\0\0\0\0", "", .Bytes},
 	.{"altsvc", run_altsvc, "h3=\":443\"; ma=86400, h3-29=\"alt.example:8443\"; persist=1, clear", "", .Bytes},
@@ -363,6 +365,214 @@ pick :: (g: *Gen, n: int) -> int {
 	return (byte(g) << 8 | byte(g)) % n;
 }
 pick_of :: (g: *Gen, a: []string) -> string { return a[pick(g, a.count)]; }
+
+// ---- E2E sessions: two real clients, and a carrier that lies ----
+
+SESSION_DIR :: "build/fuzz_e2e";
+SESSION_CARRIER :: "mock";
+SESSION_CONV :: "conv";
+SESSION_PARTIES :: string.["alice", "bob"];
+
+session_ids: [2]e2e.Identity;
+session_files: [2]string; // Both databases with a session already open, since a Hello's signature costs milliseconds to seconds.
+
+session_path :: (who: int) -> string { return tprint("%/%.db", SESSION_DIR, SESSION_PARTIES[who]); }
+
+session_open :: (who: int) -> *e2e.Db {
+	d := New(e2e.Db);
+	d.path = copy_string(session_path(who));
+	ok := e2e.open(d);
+	oracle(ok, "session: can't open %: %", d.path, d.error);
+	return d;
+}
+
+session_close :: (d: *e2e.Db) {
+	sqlite.exec(d.sql, "PRAGMA wal_checkpoint(TRUNCATE);");
+	sqlite.close(d.sql);
+	crypto.aead_destroy(*d.seal);
+	free(d.path);
+	free(d);
+}
+
+session_ask :: (d: *e2e.Db, who: int, op: e2e.Op, packet := "", from := -1, at := "", id := SESSION_CONV, text := "", silent := false, content := e2e.Content.Text, target := "") -> *e2e.Request {
+	r := e2e.request(op, .{SESSION_CARRIER, id, SESSION_PARTIES[who], SESSION_PARTIES[1 - who], e2e.MAX_PACKET}, text, packet);
+	r.me, r.silent, r.content = session_ids[who], silent, content;
+	r.target = copy_string(target);
+	r.from = copy_string(SESSION_PARTIES[ifx from >= 0 then from else 1 - who]);
+	r.delivery = copy_string(at);
+	e2e.run_request(d, r);
+	return r;
+}
+
+session_fixture :: () {
+	if session_files[0] return;
+	started := atomic_swap(*input_started, 0);
+	defer atomic_swap(*input_started, started);
+	push_allocator(context.default_allocator);
+	delete_directory(SESSION_DIR);
+	make_directory_if_it_does_not_exist(SESSION_DIR, recursive = true);
+	session_ids[0] = e2e.identity_of(keys.generate("A"));
+	session_ids[1] = e2e.identity_of(keys.generate("B"));
+	a, b := session_open(0), session_open(1);
+	hello := session_ask(b, 1, .Hello);
+	oracle(hello.result == .Ok, "session: hello %", hello.result);
+	init := session_ask(a, 0, .Accept, hello.packet);
+	oracle(init.result == .Ok, "session: accept %", init.result);
+	opened := session_ask(b, 1, .Receive, init.packet, at = "init");
+	oracle(opened.result == .Ok, "session: init %", opened.result);
+	session_close(a);
+	session_close(b);
+	for 0..1 session_files[it] = read_entire_file(session_path(it));
+}
+
+Session_Packet :: struct {
+	packet, at, plain, word: string;
+	author: int;
+	silent, opened, echoed, spent: bool; // spent: its delivery ID was given to an attack.
+}
+
+run_session :: (data: []u8) {
+	session_fixture();
+	for 0..1 {
+		path := session_path(it);
+		file_delete(tprint("%-wal", path));
+		file_delete(tprint("%-shm", path));
+		write_entire_file(path, session_files[it]);
+	}
+	dbs := (*e2e.Db).[session_open(0), session_open(1)];
+	defer for dbs session_close(it);
+
+	sent: [..]Session_Packet;
+	sent.allocator = temp;
+	g := Gen.{b = data};
+	deliveries := 0;
+	next_at :: () -> string #expand {
+		deliveries += 1;
+		return tprint("d%", deliveries);
+	}
+	// What the carrier makes of a packet may fail any way but one: no lie opens.
+	refused :: (r: *e2e.Request, what: string) {
+		oracle(r.result != .Ok && r.result != .Hello, "session: % gave % (%)", what, r.result, r.out_text);
+		e2e.free_request(r);
+	}
+
+	for step: 0..63 {
+		if done(*g) break;
+		action := pick(*g, 11);
+		who := pick(*g, 2);
+		// Every action but a send needs a packet.
+		if action > 1 && !sent.count action = 0;
+		if action == {
+			case 0; #through;
+			case 1;
+				word := tprint("zq%q", sent.count);
+				filler := NewArray(pick(*g, 200), u8,, temp);
+				for * filler it.* = xx (#char "a" + byte(*g) % 26); // Bodies must be UTF-8.
+				text := tprint("% %", word, cast(string) filler);
+				silent := pick(*g, 4) == 0;
+				r := session_ask(dbs[who], who, .Send, text = text, silent = silent);
+				if r.result == .Ok array_add(*sent, .{packet = copy_string(r.packet,, temp), at = next_at(), plain = text, word = word, author = who, silent = silent});
+				else oracle(r.result == .Too_Long, "session: send gave %", r.result);
+				e2e.free_request(r);
+			case 2;
+				p := *sent[pick(*g, sent.count)];
+				if p.spent continue;
+				to := 1 - p.author;
+				r := session_ask(dbs[to], to, .Receive, p.packet, at = p.at);
+				oracle(r.result == .Ok && r.out_text == p.plain, "session: packet % gave % (%)", p.word, r.result, r.out_text);
+				oracle(r.silent == p.silent, "session: packet % lost its silent flag", p.word);
+				p.opened = true;
+				e2e.free_request(r);
+			case 3;
+				p := sent[pick(*g, sent.count)];
+				forged := copy_string(p.packet,, temp);
+				for 0..pick(*g, 4) {
+					i := pick(*g, forged.count);
+					forged[i] ^= xx (1 + pick(*g, 255));
+				}
+				if forged == p.packet continue;
+				to := 1 - p.author;
+				refused(session_ask(dbs[to], to, .Receive, forged, at = next_at()), "a forgery");
+			case 4;
+				p := sent[pick(*g, sent.count)];
+				cut := p.packet;
+				cut.count = pick(*g, cut.count);
+				to := 1 - p.author;
+				refused(session_ask(dbs[to], to, .Receive, cut, at = next_at()), "a cut packet");
+				grown := tprint("%\0", p.packet);
+				refused(session_ask(dbs[to], to, .Receive, grown, at = next_at()), "a grown packet");
+			case 5;
+				p := *sent[pick(*g, sent.count)];
+				if p.spent continue;
+				if p.opened {
+					to := 1 - p.author;
+					r := session_ask(dbs[to], to, .Receive, p.packet, at = next_at());
+					oracle(r.result == .Repeated, "session: replay of % gave %", p.word, r.result);
+					e2e.free_request(r);
+				} else if !p.echoed {
+					r := session_ask(dbs[p.author], p.author, .Receive, p.packet, from = p.author, at = p.at);
+					oracle(r.result == .Ok && r.out_text == p.plain, "session: echo of % gave %", p.word, r.result);
+					p.echoed = true;
+					e2e.free_request(r);
+				}
+			case 6;
+				p := sent[pick(*g, sent.count)];
+				to := 1 - p.author;
+				if p.opened || p.spent continue;
+				// The same bytes, said to come from elsewhere: the receiver itself, or another conversation.
+				if pick(*g, 2) refused(session_ask(dbs[to], to, .Receive, p.packet, from = to, at = next_at()), "a packet claimed as our own");
+				else refused(session_ask(dbs[to], to, .Receive, p.packet, at = next_at(), id = "elsewhere"), "a packet moved to another conversation");
+			case 7;
+				junk := NewArray(2 + pick(*g, 600), u8,, temp);
+				for * junk it.* = xx byte(*g);
+				junk[0] = e2e.VERSION;
+				junk[1] = xx (pick(*g, 8));
+				refused(session_ask(dbs[who], who, .Receive, cast(string) junk, at = next_at()), "a made-up packet");
+			case 8;
+				session_close(dbs[who]);
+				dbs[who] = session_open(who);
+			case 9;
+				p := sent[pick(*g, sent.count)];
+				if p.spent continue;
+				to := 1 - p.author;
+				r := session_ask(dbs[to], to, .Search, text = p.word);
+				oracle(r.hits.count == ifx p.opened then 1 else 0, "session: search for % found % (opened %)", p.word, r.hits.count, p.opened);
+				e2e.free_request(r);
+			case 10;
+				// The peer and the carrier together go after a message the victim wrote. The peer's own
+				// database believes it wrote that delivery, so its client lets the Edit or Delete out.
+				p := *sent[pick(*g, sent.count)];
+				if p.opened || p.spent continue;
+				victim, attacker := p.author, 1 - p.author;
+				if !p.echoed {
+					r := session_ask(dbs[victim], victim, .Receive, p.packet, from = victim, at = p.at);
+					oracle(r.result == .Ok, "session: echo of % gave %", p.word, r.result);
+					p.echoed = true;
+					e2e.free_request(r);
+				}
+				p.spent = true;
+				bait := session_ask(dbs[attacker], attacker, .Send, text = "bait");
+				e2e.free_request(session_ask(dbs[attacker], attacker, .Receive, bait.packet, from = attacker, at = p.at));
+				e2e.free_request(bait);
+				delete := pick(*g, 2) == 1;
+				hit := session_ask(dbs[attacker], attacker, .Send, text = ifx delete then "" else "zqtakenq", content = ifx delete then .Delete else .Edit, target = p.at);
+				oracle(hit.result == .Ok, "session: attack send gave %", hit.result);
+				at := ifx pick(*g, 2) then p.at else next_at();
+				e2e.free_request(session_ask(dbs[victim], victim, .Receive, hit.packet, at = at));
+				e2e.free_request(hit);
+				r := session_ask(dbs[victim], victim, .Search, text = p.word);
+				oracle(r.hits.count == 1, "session: the peer's % (delivered at %) took the victim's % at %", ifx delete then "Delete" else "Edit", at, p.word, p.at);
+				e2e.free_request(r);
+		}
+	}
+	// Nothing the carrier did may have cost a real message: all that's left still opens.
+	for * sent if !it.opened && !it.spent {
+		to := 1 - it.author;
+		r := session_ask(dbs[to], to, .Receive, it.packet, at = it.at);
+		oracle(r.result == .Ok && r.out_text == it.plain, "session: at the end, packet % gave %", it.word, r.result);
+		e2e.free_request(r);
+	}
+}
 
 // ---- The store: sequences of gateway events ----
 
@@ -649,6 +859,7 @@ fence_head :: (p: *void) -> *Fence_Head {
 	h := cast(*Fence_Head) (page - PAGE);
 	if h.magic != FENCE_MAGIC {
 		print("fuzz fence: free or resize of %, which this allocator never returned\n", p);
+		if context.stack_trace print_stack_trace(context.stack_trace);
 		exit(5);
 	}
 	return h;

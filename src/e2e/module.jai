@@ -324,6 +324,7 @@ valid :: (r: *Request) -> bool {
 	return true;
 }
 
+#scope_export
 run_request :: (d: *Db, r: *Request) {
 	db := d.sql;
 	if r.op != .Sent && r.op != .Outbox && !valid(r) { r.result = .Failed; return; }
@@ -369,7 +370,7 @@ run_request :: (d: *Db, r: *Request) {
 				&& (r.op == .Bundle || r.quiet || set_encrypted(db, conv, true))
 				&& sqlite.exec(db, "COMMIT;");
 			if !ok { sqlite.exec(db, "ROLLBACK;"); r.result = .Failed; return; }
-			r.packet = copy_string(xx bytes(*p),, context.default_allocator);
+			r.packet = copy_string(xx bytes(*p));
 		case .Accept;
 			hello, ok := parse_hello(xx r.packet);
 			if !ok { r.result = .Failed; return; }
@@ -383,7 +384,7 @@ run_request :: (d: *Db, r: *Request) {
 			defer crypto.zero(*s);
 			if !ok { r.result = .Failed; return; }
 			free(r.packet);
-			r.packet = copy_string(xx bytes(*p),, context.default_allocator);
+			r.packet = copy_string(xx bytes(*p));
 			if !commit_sent(d, r, conv, *s, true, hello.root, hello.id, encode_body(.{content = .Accept})) r.result = .Failed;
 		case .Send;
 			text := r.text;
@@ -437,7 +438,7 @@ run_request :: (d: *Db, r: *Request) {
 			memcpy(p.data.data + 2, s.id.data, 16);
 			p.count = MSG_PREFIX_BYTES;
 			if !encrypt(*s, pt, *p) { r.result = .Failed; return; }
-			r.packet = copy_string(xx bytes(*p),, context.default_allocator);
+			r.packet = copy_string(xx bytes(*p));
 			r.detached = is_detached(db, r, conv, p.count);
 			none: [32]u8;
 			if !commit_sent(d, r, conv, *s, false, none, none, body) r.result = .Failed;
@@ -500,7 +501,7 @@ run_request :: (d: *Db, r: *Request) {
 				r.result = .Failed;
 				return;
 			}
-			r.packet = copy_string(xx bytes(*p),, context.default_allocator);
+			r.packet = copy_string(xx bytes(*p));
 			r.out_text = copy_string(xx digest);
 		case .Unbottle;
 			packet: []u8 = xx r.packet;
@@ -537,6 +538,7 @@ run_request :: (d: *Db, r: *Request) {
 			sqlite.finalize(st);
 	}
 }
+#scope_file
 
 GIFT_WAIT_MS :: 30 * 24 * 3600 * 1000;
 
@@ -886,6 +888,8 @@ store_plaintext :: (d: *Db, hash: [32]u8, delivery: string, body: []u8, conv: []
 		defer crypto.zero(latest);
 		return reseal(d, "SELECT hash, sealed FROM plaintexts WHERE delivery = ? AND conversation = ? AND author = ? AND target IS NULL;", b.target, conv, author, latest);
 	}
+	// The carrier picks the delivery, so one that lands a peer's Edit or Delete on our message must not replace it.
+	if replaces(b.content) && query_int(db, "SELECT 1 FROM plaintexts WHERE delivery = ? AND conversation = ? AND target IS NULL AND author != ? LIMIT 1;", cast([]u8) delivery, conv, cast([]u8) author) == 1 return false;
 	if b.content == .Delete && !reseal(d, "SELECT hash, sealed FROM plaintexts WHERE target = ? AND conversation = ? AND author = ?;", delivery, conv, author, body) return false;
 	if replaces(b.content) && !sqlite.run(db, "DELETE FROM plaintexts WHERE delivery = ? AND conversation = ? AND target IS NULL;", cast([]u8) delivery, conv) return false;
 	latest: []u8;
@@ -1089,6 +1093,7 @@ loop :: (d: *Db) {
 	if d.wake d.wake();
 }
 
+#scope_export
 // open sets d.sql, or d.error. sealed: see unlock.
 open :: (d: *Db) -> ok: bool, sealed: bool {
 	// Exclusive: a second fastcord on the same <state> gets no database, rather than two processes
@@ -1115,6 +1120,7 @@ open :: (d: *Db) -> ok: bool, sealed: bool {
 	}
 	return true, false;
 }
+#scope_file
 
 migrate :: (db: *sqlite.DB, path: string) -> bool {
 	st := sqlite.prepare(db, "PRAGMA user_version;");
