@@ -528,11 +528,13 @@ Couldn't delete the channel: %	채널을 삭제할 수 없었어요: %
 Couldn't encrypt the message.	메시지를 암호화할 수 없었어요.
 Couldn't get that GIF.	해당 GIF를 가져올 수 없었어요.
 Couldn't join %: %	%1에 참가할 수 없었어요: %2
+Couldn't load full size	원본 크기를 불러오지 못했어요
 Couldn't load onboarding.	온보딩을 불러올 수 없었어요.
 Couldn't load the AutoMod rules.	AutoMod 규칙을 불러올 수 없었어요.
 Couldn't load the applications.	애플리케이션을 불러올 수 없었어요.
 Couldn't load the audit log.	감사 로그를 불러올 수 없었어요.
 Couldn't load the bans.	차단 목록을 불러올 수 없었어요.
+Couldn't load the image	이미지를 불러오지 못했어요
 Couldn't load the invites.	초대를 불러올 수 없었어요.
 Couldn't load the members.	멤버를 불러올 수 없었어요.
 Couldn't load the role's members.	역할 멤버를 불러올 수 없었어요.
@@ -983,6 +985,7 @@ Linked Roles	연결된 역할
 List view	목록 보기
 Lithuanian	리투아니아어
 Live Now	지금 라이브 중
+Loading full size	원본 크기 불러오는 중
 Loading sounds…	사운드를 불러오는 중…
 Loading...	불러오는 중...
 Loading…	불러오는 중…

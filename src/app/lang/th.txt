@@ -528,11 +528,13 @@ Couldn't delete the channel: %	ลบช่องไม่ได้: %
 Couldn't encrypt the message.	เข้ารหัสข้อความไม่ได้
 Couldn't get that GIF.	รับ GIF นั้นไม่ได้
 Couldn't join %: %	เข้าร่วม % ไม่ได้: %
+Couldn't load full size	โหลดขนาดเต็มไม่ได้
 Couldn't load onboarding.	โหลดการต้อนรับสมาชิกใหม่ไม่ได้
 Couldn't load the AutoMod rules.	โหลดกฎ AutoMod ไม่ได้
 Couldn't load the applications.	โหลดแอปพลิเคชันไม่ได้
 Couldn't load the audit log.	โหลดบันทึกการตรวจสอบไม่ได้
 Couldn't load the bans.	โหลดรายการแบนไม่ได้
+Couldn't load the image	โหลดรูปภาพไม่ได้
 Couldn't load the invites.	โหลดคำเชิญไม่ได้
 Couldn't load the members.	โหลดสมาชิกไม่ได้
 Couldn't load the role's members.	โหลดสมาชิกของบทบาทไม่ได้
@@ -983,6 +985,7 @@ Linked Roles	บทบาทที่เชื่อมโยง
 List view	มุมมองรายการ
 Lithuanian	ลิทัวเนีย
 Live Now	กำลังถ่ายทอดสด
+Loading full size	กำลังโหลดขนาดเต็ม
 Loading sounds…	กำลังโหลดเสียง…
 Loading...	กำลังโหลด...
 Loading…	กำลังโหลด…

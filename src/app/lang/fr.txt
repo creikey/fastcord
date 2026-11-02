@@ -528,11 +528,13 @@ Couldn't delete the channel: %	Impossible de supprimer le salon : %
 Couldn't encrypt the message.	Impossible de chiffrer le message.
 Couldn't get that GIF.	Impossible de récupérer ce GIF.
 Couldn't join %: %	Impossible de rejoindre %1 : %2
+Couldn't load full size	Impossible de charger la taille réelle
 Couldn't load onboarding.	Impossible de charger l'accueil.
 Couldn't load the AutoMod rules.	Impossible de charger les règles AutoMod.
 Couldn't load the applications.	Impossible de charger les applications.
 Couldn't load the audit log.	Impossible de charger les logs du serveur.
 Couldn't load the bans.	Impossible de charger les bannissements.
+Couldn't load the image	Impossible de charger l'image
 Couldn't load the invites.	Impossible de charger les invitations.
 Couldn't load the members.	Impossible de charger les membres.
 Couldn't load the role's members.	Impossible de charger les membres du rôle.
@@ -983,6 +985,7 @@ Linked Roles	Rôles liés
 List view	Vue liste
 Lithuanian	Lituanien
 Live Now	En direct
+Loading full size	Chargement en taille réelle
 Loading sounds…	Chargement des sons…
 Loading...	Chargement...
 Loading…	Chargement…

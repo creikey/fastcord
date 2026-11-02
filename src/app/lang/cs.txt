@@ -528,11 +528,13 @@ Couldn't delete the channel: %	Kanál nešlo smazat: %
 Couldn't encrypt the message.	Zprávu nešlo zašifrovat.
 Couldn't get that GIF.	Ten GIF se nepodařilo načíst.
 Couldn't join %: %	Nepodařilo se připojit k %1: %2
+Couldn't load full size	Plnou velikost se nepodařilo načíst
 Couldn't load onboarding.	Úvodní nastavení nešlo načíst.
 Couldn't load the AutoMod rules.	Pravidla AutoModu nešlo načíst.
 Couldn't load the applications.	Aplikace nešlo načíst.
 Couldn't load the audit log.	Protokol auditu nešlo načíst.
 Couldn't load the bans.	Bany nešlo načíst.
+Couldn't load the image	Obrázek se nepodařilo načíst
 Couldn't load the invites.	Pozvánky nešlo načíst.
 Couldn't load the members.	Členy nešlo načíst.
 Couldn't load the role's members.	Členy role nešlo načíst.
@@ -983,6 +985,7 @@ Linked Roles	Propojené role
 List view	Zobrazení seznamu
 Lithuanian	Litevština
 Live Now	Právě živě
+Loading full size	Načítá se plná velikost
 Loading sounds…	Načítání zvuků…
 Loading...	Načítání...
 Loading…	Načítání…

@@ -528,11 +528,13 @@ Couldn't delete the channel: %	無法刪除頻道：%
 Couldn't encrypt the message.	無法加密訊息。
 Couldn't get that GIF.	無法取得該 GIF。
 Couldn't join %: %	無法加入 %1：%2
+Couldn't load full size	無法載入原圖
 Couldn't load onboarding.	無法載入新手引導。
 Couldn't load the AutoMod rules.	無法載入 AutoMod 規則。
 Couldn't load the applications.	無法載入應用程式。
 Couldn't load the audit log.	無法載入審核日誌。
 Couldn't load the bans.	無法載入停權名單。
+Couldn't load the image	無法載入圖片
 Couldn't load the invites.	無法載入邀請。
 Couldn't load the members.	無法載入成員。
 Couldn't load the role's members.	無法載入身分組成員。
@@ -983,6 +985,7 @@ Linked Roles	連結身分組
 List view	清單檢視
 Lithuanian	立陶宛文
 Live Now	正在直播
+Loading full size	正在載入原圖
 Loading sounds…	正在載入音效…
 Loading...	載入中...
 Loading…	載入中…

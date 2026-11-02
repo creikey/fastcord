@@ -528,11 +528,13 @@ Couldn't delete the channel: %	Nie udało się usunąć kanału: %
 Couldn't encrypt the message.	Nie udało się zaszyfrować wiadomości.
 Couldn't get that GIF.	Nie udało się pobrać tego GIF-a.
 Couldn't join %: %	Nie udało się dołączyć do %: %
+Couldn't load full size	Nie udało się wczytać pełnego rozmiaru
 Couldn't load onboarding.	Nie udało się wczytać wdrażania.
 Couldn't load the AutoMod rules.	Nie udało się wczytać reguł AutoModa.
 Couldn't load the applications.	Nie udało się wczytać aplikacji.
 Couldn't load the audit log.	Nie udało się wczytać dziennika zdarzeń.
 Couldn't load the bans.	Nie udało się wczytać banów.
+Couldn't load the image	Nie udało się wczytać obrazu
 Couldn't load the invites.	Nie udało się wczytać zaproszeń.
 Couldn't load the members.	Nie udało się wczytać członków.
 Couldn't load the role's members.	Nie udało się wczytać członków roli.
@@ -983,6 +985,7 @@ Linked Roles	Połączone role
 List view	Widok listy
 Lithuanian	Litewski
 Live Now	Teraz na żywo
+Loading full size	Wczytywanie pełnego rozmiaru
 Loading sounds…	Wczytywanie dźwięków…
 Loading...	Wczytywanie...
 Loading…	Wczytywanie…

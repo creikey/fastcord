@@ -528,11 +528,13 @@ Couldn't delete the channel: %	Kanavaa ei voitu poistaa: %
 Couldn't encrypt the message.	Viestiä ei voitu salata.
 Couldn't get that GIF.	GIF-kuvaa ei saatu haettua.
 Couldn't join %: %	Palvelimelle %1 ei voitu liittyä: %2
+Couldn't load full size	Täyttä kokoa ei voitu ladata
 Couldn't load onboarding.	Perehdytystä ei voitu ladata.
 Couldn't load the AutoMod rules.	AutoMod-sääntöjä ei voitu ladata.
 Couldn't load the applications.	Sovelluksia ei voitu ladata.
 Couldn't load the audit log.	Tarkastuslokia ei voitu ladata.
 Couldn't load the bans.	Porttikieltoja ei voitu ladata.
+Couldn't load the image	Kuvaa ei voitu ladata
 Couldn't load the invites.	Kutsuja ei voitu ladata.
 Couldn't load the members.	Jäseniä ei voitu ladata.
 Couldn't load the role's members.	Roolin jäseniä ei voitu ladata.
@@ -983,6 +985,7 @@ Linked Roles	Linkitetyt roolit
 List view	Listanäkymä
 Lithuanian	Liettua
 Live Now	Livenä nyt
+Loading full size	Ladataan täyttä kokoa
 Loading sounds…	Ladataan ääniä…
 Loading...	Ladataan...
 Loading…	Ladataan…

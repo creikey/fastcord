@@ -1,0 +1,12 @@
+# Run with FASTCORD_MEDIA_DIR=tests/ui/media. While the viewer's full-size image loads (here the network
+# fails, so it waits to try again), the smaller copy from the chat shows, with a note in its corner (issue #21).
+wait 20
+net fail
+click 520 340
+wait 20
+expect_visible "Loading full size"
+shot build/ui-media_viewer_preview-loading.png
+net ok
+settle 4
+wait 30
+expect_not_visible "Loading full size"

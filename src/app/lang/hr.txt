@@ -528,11 +528,13 @@ Couldn't delete the channel: %	Brisanje kanala nije uspjelo: %
 Couldn't encrypt the message.	Šifriranje poruke nije uspjelo.
 Couldn't get that GIF.	Nije moguće dohvatiti taj GIF.
 Couldn't join %: %	Pridruživanje na %1 nije uspjelo: %2
+Couldn't load full size	Puna veličina nije se mogla učitati
 Couldn't load onboarding.	Učitavanje uvođenja nije uspjelo.
 Couldn't load the AutoMod rules.	Učitavanje pravila AutoModa nije uspjelo.
 Couldn't load the applications.	Učitavanje aplikacija nije uspjelo.
 Couldn't load the audit log.	Učitavanje zapisnika revizije nije uspjelo.
 Couldn't load the bans.	Učitavanje zabrana nije uspjelo.
+Couldn't load the image	Slika se nije mogla učitati
 Couldn't load the invites.	Učitavanje pozivnica nije uspjelo.
 Couldn't load the members.	Učitavanje članova nije uspjelo.
 Couldn't load the role's members.	Učitavanje članova uloge nije uspjelo.
@@ -983,6 +985,7 @@ Linked Roles	Povezane uloge
 List view	Prikaz popisa
 Lithuanian	Litavski
 Live Now	Sada uživo
+Loading full size	Učitava se puna veličina
 Loading sounds…	Učitavanje zvukova…
 Loading...	Učitavanje...
 Loading…	Učitavanje…

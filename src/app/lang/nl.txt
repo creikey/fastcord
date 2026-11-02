@@ -528,11 +528,13 @@ Couldn't delete the channel: %	Kan het kanaal niet verwijderen: %
 Couldn't encrypt the message.	Kan het bericht niet versleutelen.
 Couldn't get that GIF.	Kan die GIF niet ophalen.
 Couldn't join %: %	Kan niet deelnemen aan %: %
+Couldn't load full size	Kon volledige grootte niet laden
 Couldn't load onboarding.	Kan onboarding niet laden.
 Couldn't load the AutoMod rules.	Kan de AutoMod-regels niet laden.
 Couldn't load the applications.	Kan de apps niet laden.
 Couldn't load the audit log.	Kan het auditlogboek niet laden.
 Couldn't load the bans.	Kan de bans niet laden.
+Couldn't load the image	Kon de afbeelding niet laden
 Couldn't load the invites.	Kan de uitnodigingen niet laden.
 Couldn't load the members.	Kan de leden niet laden.
 Couldn't load the role's members.	Kan de leden van de rol niet laden.
@@ -983,6 +985,7 @@ Linked Roles	Gekoppelde rollen
 List view	Lijstweergave
 Lithuanian	Litouws
 Live Now	Nu live
+Loading full size	Volledige grootte laden
 Loading sounds…	Geluiden laden…
 Loading...	Laden...
 Loading…	Laden…

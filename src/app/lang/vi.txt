@@ -528,11 +528,13 @@ Couldn't delete the channel: %	Không thể xóa kênh: %
 Couldn't encrypt the message.	Không thể mã hóa tin nhắn.
 Couldn't get that GIF.	Không thể lấy GIF đó.
 Couldn't join %: %	Không thể tham gia %1: %2
+Couldn't load full size	Không thể tải kích thước đầy đủ
 Couldn't load onboarding.	Không thể tải phần giới thiệu.
 Couldn't load the AutoMod rules.	Không thể tải quy tắc AutoMod.
 Couldn't load the applications.	Không thể tải ứng dụng.
 Couldn't load the audit log.	Không thể tải nhật ký kiểm tra.
 Couldn't load the bans.	Không thể tải danh sách cấm.
+Couldn't load the image	Không thể tải hình ảnh
 Couldn't load the invites.	Không thể tải lời mời.
 Couldn't load the members.	Không thể tải thành viên.
 Couldn't load the role's members.	Không thể tải thành viên của vai trò.
@@ -983,6 +985,7 @@ Linked Roles	Vai trò liên kết
 List view	Chế độ xem danh sách
 Lithuanian	Tiếng Litva
 Live Now	Đang trực tiếp
+Loading full size	Đang tải kích thước đầy đủ
 Loading sounds…	Đang tải âm thanh…
 Loading...	Đang tải...
 Loading…	Đang tải…

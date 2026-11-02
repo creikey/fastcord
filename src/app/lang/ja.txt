@@ -525,11 +525,13 @@ Couldn't delete the channel: %	チャンネルを削除できませんでした:
 Couldn't encrypt the message.	メッセージを暗号化できませんでした。
 Couldn't get that GIF.	そのGIFを取得できませんでした。
 Couldn't join %: %	%に参加できませんでした: %
+Couldn't load full size	フルサイズを読み込めませんでした
 Couldn't load onboarding.	オンボーディングを読み込めませんでした。
 Couldn't load the AutoMod rules.	AutoModのルールを読み込めませんでした。
 Couldn't load the applications.	申請を読み込めませんでした。
 Couldn't load the audit log.	監査ログを読み込めませんでした。
 Couldn't load the bans.	BANを読み込めませんでした。
+Couldn't load the image	画像を読み込めませんでした
 Couldn't load the invites.	招待を読み込めませんでした。
 Couldn't load the members.	メンバーを読み込めませんでした。
 Couldn't load the role's members.	ロールのメンバーを読み込めませんでした。
@@ -979,6 +981,7 @@ Linked Roles	リンクされたロール
 List view	リスト表示
 Lithuanian	リトアニア語
 Live Now	ライブ配信中
+Loading full size	フルサイズを読み込み中
 Loading sounds…	サウンドを読み込み中…
 Loading...	読み込み中...
 Loading…	読み込み中…

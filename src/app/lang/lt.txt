@@ -528,11 +528,13 @@ Couldn't delete the channel: %	Nepavyko ištrinti kanalo: %
 Couldn't encrypt the message.	Nepavyko užšifruoti žinutės.
 Couldn't get that GIF.	Nepavyko gauti šio GIF.
 Couldn't join %: %	Nepavyko prisijungti prie %: %
+Couldn't load full size	Nepavyko įkelti viso dydžio
 Couldn't load onboarding.	Nepavyko įkelti pasitikimo.
 Couldn't load the AutoMod rules.	Nepavyko įkelti AutoMod taisyklių.
 Couldn't load the applications.	Nepavyko įkelti programų.
 Couldn't load the audit log.	Nepavyko įkelti audito žurnalo.
 Couldn't load the bans.	Nepavyko įkelti draudimų.
+Couldn't load the image	Nepavyko įkelti vaizdo
 Couldn't load the invites.	Nepavyko įkelti pakvietimų.
 Couldn't load the members.	Nepavyko įkelti narių.
 Couldn't load the role's members.	Nepavyko įkelti vaidmens narių.
@@ -983,6 +985,7 @@ Linked Roles	Susieti vaidmenys
 List view	Sąrašo rodinys
 Lithuanian	Lietuvių
 Live Now	Dabar tiesiogiai
+Loading full size	Įkeliamas visas dydis
 Loading sounds…	Įkeliami garsai…
 Loading...	Įkeliama...
 Loading…	Įkeliama…

@@ -528,11 +528,13 @@ Couldn't delete the channel: %	Canalul nu a putut fi șters: %
 Couldn't encrypt the message.	Mesajul nu a putut fi criptat.
 Couldn't get that GIF.	Nu am putut obține acest GIF.
 Couldn't join %: %	Nu te-ai putut alătura la %1: %2
+Couldn't load full size	Nu s-a putut încărca dimensiunea completă
 Couldn't load onboarding.	Integrarea nu a putut fi încărcată.
 Couldn't load the AutoMod rules.	Regulile AutoMod nu au putut fi încărcate.
 Couldn't load the applications.	Aplicațiile nu au putut fi încărcate.
 Couldn't load the audit log.	Jurnalul de audit nu a putut fi încărcat.
 Couldn't load the bans.	Interdicțiile nu au putut fi încărcate.
+Couldn't load the image	Imaginea nu s-a putut încărca
 Couldn't load the invites.	Invitațiile nu au putut fi încărcate.
 Couldn't load the members.	Membrii nu au putut fi încărcați.
 Couldn't load the role's members.	Membrii rolului nu au putut fi încărcați.
@@ -983,6 +985,7 @@ Linked Roles	Roluri asociate
 List view	Vizualizare listă
 Lithuanian	Lituaniană
 Live Now	Live acum
+Loading full size	Se încarcă dimensiunea completă
 Loading sounds…	Se încarcă sunetele…
 Loading...	Se încarcă...
 Loading…	Se încarcă…

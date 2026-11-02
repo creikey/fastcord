@@ -528,11 +528,13 @@ Couldn't delete the channel: %	Δεν ήταν δυνατή η διαγραφή 
 Couldn't encrypt the message.	Δεν ήταν δυνατή η κρυπτογράφηση του μηνύματος.
 Couldn't get that GIF.	Δεν ήταν δυνατή η λήψη αυτού του GIF.
 Couldn't join %: %	Δεν ήταν δυνατή η συμμετοχή στο %: %
+Couldn't load full size	Δεν ήταν δυνατή η φόρτωση σε πλήρες μέγεθος
 Couldn't load onboarding.	Δεν ήταν δυνατή η φόρτωση της υποδοχής νέων μελών.
 Couldn't load the AutoMod rules.	Δεν ήταν δυνατή η φόρτωση των κανόνων AutoMod.
 Couldn't load the applications.	Δεν ήταν δυνατή η φόρτωση των εφαρμογών.
 Couldn't load the audit log.	Δεν ήταν δυνατή η φόρτωση του αρχείου ελέγχου.
 Couldn't load the bans.	Δεν ήταν δυνατή η φόρτωση των αποκλεισμών.
+Couldn't load the image	Δεν ήταν δυνατή η φόρτωση της εικόνας
 Couldn't load the invites.	Δεν ήταν δυνατή η φόρτωση των προσκλήσεων.
 Couldn't load the members.	Δεν ήταν δυνατή η φόρτωση των μελών.
 Couldn't load the role's members.	Δεν ήταν δυνατή η φόρτωση των μελών του ρόλου.
@@ -983,6 +985,7 @@ Linked Roles	Συνδεδεμένοι ρόλοι
 List view	Προβολή λίστας
 Lithuanian	Λιθουανικά
 Live Now	Ζωντανά τώρα
+Loading full size	Φόρτωση σε πλήρες μέγεθος
 Loading sounds…	Φόρτωση ήχων…
 Loading...	Φόρτωση...
 Loading…	Φόρτωση…

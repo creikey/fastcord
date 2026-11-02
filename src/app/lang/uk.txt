@@ -528,11 +528,13 @@ Couldn't delete the channel: %	Не вдалося видалити канал: 
 Couldn't encrypt the message.	Не вдалося зашифрувати повідомлення.
 Couldn't get that GIF.	Не вдалося отримати цей GIF.
 Couldn't join %: %	Не вдалося приєднатися до %1: %2
+Couldn't load full size	Не вдалося завантажити повний розмір
 Couldn't load onboarding.	Не вдалося завантажити адаптацію.
 Couldn't load the AutoMod rules.	Не вдалося завантажити правила AutoMod.
 Couldn't load the applications.	Не вдалося завантажити застосунки.
 Couldn't load the audit log.	Не вдалося завантажити журнал аудиту.
 Couldn't load the bans.	Не вдалося завантажити бани.
+Couldn't load the image	Не вдалося завантажити зображення
 Couldn't load the invites.	Не вдалося завантажити запрошення.
 Couldn't load the members.	Не вдалося завантажити учасників.
 Couldn't load the role's members.	Не вдалося завантажити учасників ролі.
@@ -983,6 +985,7 @@ Linked Roles	Пов'язані ролі
 List view	Список
 Lithuanian	Литовська
 Live Now	Наживо
+Loading full size	Завантаження повного розміру
 Loading sounds…	Завантажуємо звуки…
 Loading...	Завантаження...
 Loading…	Завантаження…

@@ -528,11 +528,13 @@ Couldn't delete the channel: %	Не удалось удалить канал: %
 Couldn't encrypt the message.	Не удалось зашифровать сообщение.
 Couldn't get that GIF.	Не удалось получить этот GIF.
 Couldn't join %: %	Не удалось зайти на %1: %2
+Couldn't load full size	Не удалось загрузить полный размер
 Couldn't load onboarding.	Не удалось загрузить знакомство с сервером.
 Couldn't load the AutoMod rules.	Не удалось загрузить правила AutoMod.
 Couldn't load the applications.	Не удалось загрузить приложения.
 Couldn't load the audit log.	Не удалось загрузить журнал аудита.
 Couldn't load the bans.	Не удалось загрузить баны.
+Couldn't load the image	Не удалось загрузить изображение
 Couldn't load the invites.	Не удалось загрузить приглашения.
 Couldn't load the members.	Не удалось загрузить участников.
 Couldn't load the role's members.	Не удалось загрузить участников роли.
@@ -983,6 +985,7 @@ Linked Roles	Связанные роли
 List view	Список
 Lithuanian	Литовский
 Live Now	Сейчас в эфире
+Loading full size	Загрузка полного размера
 Loading sounds…	Загружаем звуки…
 Loading...	Загрузка...
 Loading…	Загрузка…

@@ -528,11 +528,13 @@ Couldn't delete the channel: %	Kunde inte radera kanalen: %
 Couldn't encrypt the message.	Kunde inte kryptera meddelandet.
 Couldn't get that GIF.	Kunde inte hämta den GIF:en.
 Couldn't join %: %	Kunde inte gå med i %: %
+Couldn't load full size	Det gick inte att läsa in full storlek
 Couldn't load onboarding.	Kunde inte läsa in introduktionen.
 Couldn't load the AutoMod rules.	Kunde inte läsa in AutoMod-reglerna.
 Couldn't load the applications.	Kunde inte läsa in apparna.
 Couldn't load the audit log.	Kunde inte läsa in granskningsloggen.
 Couldn't load the bans.	Kunde inte läsa in bannlysningarna.
+Couldn't load the image	Det gick inte att läsa in bilden
 Couldn't load the invites.	Kunde inte läsa in inbjudningarna.
 Couldn't load the members.	Kunde inte läsa in medlemmarna.
 Couldn't load the role's members.	Kunde inte läsa in rollens medlemmar.
@@ -983,6 +985,7 @@ Linked Roles	Länkade roller
 List view	Listvy
 Lithuanian	Litauiska
 Live Now	Live nu
+Loading full size	Läser in full storlek
 Loading sounds…	Läser in ljud…
 Loading...	Läser in...
 Loading…	Läser in…

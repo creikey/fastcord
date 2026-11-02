@@ -560,6 +560,7 @@ Couldn't encrypt the message.
 Couldn't get that GIF.
 Couldn't give %'s key to a bottle.
 Couldn't join %: %
+Couldn't load full size
 Couldn't load onboarding.
 Couldn't load the AutoMod rules.
 Couldn't load the applications.
@@ -568,6 +569,7 @@ Couldn't load the backups.
 Couldn't load the bans.
 Couldn't load the captcha. Check your connection, then close this window and try again.
 Couldn't load the files.
+Couldn't load the image
 Couldn't load the invites.
 Couldn't load the log.
 Couldn't load the members.
@@ -825,6 +827,7 @@ Everything the server keeps is in its one file, on the machine that runs it.
 Exempt a channel
 Exempt a role
 Exemptions
+Exit Full Screen
 Expand (% lines)
 Expand (% of % lines)
 Expired
@@ -896,6 +899,7 @@ Friends can ask to join or join the game you're playing.
 Friends come online
 Friends of friends
 From User
+Full Screen
 GIFs
 Gallery view
 General
@@ -1069,6 +1073,7 @@ Linked Roles
 List view
 Lithuanian
 Live Now
+Loading full size
 Loading sounds…
 Loading...
 Loading…
@@ -1364,6 +1369,7 @@ Passwords do not match!
 Paste
 Paste an emoji (optional)
 Paste your token
+Pause
 Pause Invites
 Pause Invites##pause
 Pending
@@ -1390,10 +1396,12 @@ Ping
 Ping: % ms
 Ping: measuring…
 Pinned Messages
+Play
 Play Here##ytyes
 Play Soundboard Through My Mic
 Play YouTube videos here with yt-dlp? It needs yt-dlp installed, and connects to YouTube from your computer. Settings > Chat can change this.
 Play YouTube videos in fastcord with yt-dlp
+Playback Speed
 Please confirm you’re not a robot.
 Please enter a valid invite link or invite code.
 Please try again later.

@@ -26,6 +26,7 @@ players: Table(dc.Snowflake, Inline_Player); // attachment id or embed_player_ke
 viewer_url: string; // image viewer overlay (the poster for a GIFV)
 viewer_video: string; // GIFV: the looping video
 viewer_link: string; // the media menu's target
+viewer_preview: string; // the smaller copy the chat drew, shown until viewer_url is in
 viewer_size: Int2;
 viewer_t: float32;
 viewer_msg: dc.Snowflake; // the message the viewer's image is from: its other images are the gallery
@@ -187,11 +188,12 @@ attachments_view :: (m: *dc.Message, max_w: float32 = 400) {
 			w := cast(float32) a.width;
 			h := cast(float32) a.height;
 			sc := min(1.0, min(max_w / w, 300 / h));
-			img := media_box(tprint("att%", i), attachment_image_url(a, cast(int) (w * sc), cast(int) (h * sc)), "", w * sc, h * sc);
+			shown := attachment_image_url(a, cast(int) (w * sc), cast(int) (h * sc));
+			img := media_box(tprint("att%", i), shown, "", w * sc, h * sc);
 			img.flags |= .Click_On_Release;
 			sig := ui.signal(img);
 			dragged := drag_out_gesture(sig, a.url, a.filename);
-			if sig.clicked && !dragged open_viewer(ifx a.proxy_url then a.proxy_url else a.url, .{a.width, a.height}, link = a.url, msg = m.id);
+			if sig.clicked && !dragged open_viewer(ifx a.proxy_url then a.proxy_url else a.url, .{a.width, a.height}, link = a.url, msg = m.id, preview = shown);
 			if sig.right_clicked && !begins_with(a.url, E2E_URL) media_menu_open(a.url, a.url);
 			if a.description {
 				ui.parent(img);
@@ -416,12 +418,13 @@ attachment_mosaic :: (m: *dc.Message, idx: []int, gw: float32) {
 	GAP :: 4;
 	tile :: (k: int, w: float32, h: float32) #expand {
 		a := *m.attachments[idx[k]];
-		img := media_box(tprint("mos%", k), attachment_image_url(a, cast(int) w, cast(int) h), "", w, h);
-		set_remote_image(img, attachment_image_url(a, cast(int) w, cast(int) h), cover = true);
+		shown := attachment_image_url(a, cast(int) w, cast(int) h);
+		img := media_box(tprint("mos%", k), shown, "", w, h);
+		set_remote_image(img, shown, cover = true);
 		img.flags |= .Click_On_Release;
 		sig := ui.signal(img);
 		dragged := drag_out_gesture(sig, a.url, a.filename);
-		if sig.clicked && !dragged open_viewer(ifx a.proxy_url then a.proxy_url else a.url, .{a.width, a.height}, link = a.url, msg = m.id);
+		if sig.clicked && !dragged open_viewer(ifx a.proxy_url then a.proxy_url else a.url, .{a.width, a.height}, link = a.url, msg = m.id, preview = shown);
 		if sig.right_clicked media_menu_open(a.url, a.url);
 	}
 	n := min(idx.count, 10);
@@ -1075,8 +1078,13 @@ embeds_view :: (m: *dc.Message, max_w: float32 = 400) {
 				spacer(.Y, 16);
 			}
 			if e.thumbnail_url != "" && e.image_url == "" && e.thumbnail_w > 0 && !video && !poster {
-				// fit in 80x80, keeping its shape (a film poster stays tall)
+				// fit in 80x80, keeping its shape (a film poster stays tall), its top level with the provider's
 				spacer(.X, 16);
+				tc := ui.box("thumbcol");
+				tc.semantic_size = .[ui.children(), ui.children()];
+				tc.layout_axis = .Y;
+				ui.parent(tc); defer ui.pop_parent();
+				spacer(.Y, 8);
 				tw, tht := cast(float32) e.thumbnail_w, cast(float32) max(e.thumbnail_h, 1);
 				tsc := min(80 / tw, 80 / tht);
 				th := media_box("thumb", e.thumbnail_url, "", tw * tsc, tht * tsc);
@@ -1160,7 +1168,15 @@ media_box :: (id: string, url: string, video: string, w: float32, h: float32) ->
 	if !video {
 		set_remote_image(b, url);
 		im := table_find_pointer(*images, url);
-		if im && retry_pending(im.state, im.retry) && !ui.offscreen(b) media_loading(b, w, h);
+		if !im || ui.offscreen(b) return b;
+		if retry_pending(im.state, im.retry) media_loading(b, w, h);
+		else if im.state == .Failed {
+			// a load that won't be tried again (a 4xx, bytes that don't decode): a broken image, not an empty box
+			ui.parent(b); defer ui.pop_parent();
+			s := max(0.0, min(24.0, min(w, h) - 8));
+			ic := icon("failed", "image", s, T("--icon-muted"), .Floating_X | .Floating_Y);
+			ic.fixed_pos = .{(w - s) / 2, (h - s) / 2};
+		}
 		return b;
 	}
 	g := table_find_pointer(*gifvs, video);
@@ -1209,13 +1225,11 @@ gifv_frame :: () {
 	for * gifvs if it.player && it.seen + 1 < app.frame && media.player_is_playing(it.player) media.player_pause(it.player);
 }
 
-open_viewer :: (url: string, size: Int2, video := "", link := "", msg: dc.Snowflake = 0) {
+open_viewer :: (url: string, size: Int2, video := "", link := "", msg: dc.Snowflake = 0, preview := "") {
 	viewer_msg = msg;
 	viewer_zoom, viewer_pan = 1, .{};
-	free(viewer_url);
-	free(viewer_video);
-	free(viewer_link);
-	viewer_url, viewer_video, viewer_link = copy_string(url), copy_string(video), copy_string(ifx link then link else url);
+	close_viewer();
+	viewer_url, viewer_video, viewer_link, viewer_preview = copy_string(url), copy_string(video), copy_string(ifx link then link else url), copy_string(preview);
 	viewer_size = size;
 	viewer_t = 0;
 }
@@ -1299,12 +1313,43 @@ image_viewer :: () {
 		zw, zh := w * sc * viewer_zoom, h * sc * viewer_zoom;
 		lim := Vector2.{max(0.0, (zw - app.ui.window.x) / 2 + 40), max(0.0, (zh - app.ui.window.y) / 2 + 40)};
 		viewer_pan = .{clamp(viewer_pan.x, -lim.x, lim.x), clamp(viewer_pan.y, -lim.y, lim.y)};
-		img := media_box("img", viewer_url, viewer_video, zw, zh);
+		// the full size still coming (or failed): the chat's smaller copy stretched, and a note in its corner
+		shown, note := viewer_url, "";
+		full := ifx !viewer_video then image_get(viewer_url);
+		if full && full.state != .Ready {
+			pv := image_get(viewer_preview);
+			if pv && pv.state == .Ready {
+				shown = viewer_preview;
+				note = ifx retry_pending(full.state, full.retry) then L("Loading full size") else L("Couldn't load full size");
+			} else if !retry_pending(full.state, full.retry) {
+				note = L("Couldn't load the image");
+			}
+		}
+		img := media_box("img", shown, viewer_video, zw, zh);
 		img.flags |= .Floating_X | .Floating_Y | .Click_On_Release;
 		img.flags &= ~ui.Box_Flags.Draw_Background;
 		img.style.radius = all4(0);
 		img.fixed_pos = c + viewer_pan - Vector2.{zw, zh} * 0.5;
 		img.opacity = viewer_t;
+		if note {
+			// in the preview's visible top-left corner (a child, so drawn over it), else under the broken
+			// image's icon (centred by its width last frame)
+			if shown != viewer_url ui.parent(img);
+			n := row("note", .Draw_Background | .Floating_X | .Floating_Y);
+			n.semantic_size = .[ui.children(), ui.px(28)];
+			n.cross_align = .Center;
+			n.fixed_pos = ifx shown != viewer_url then Vector2.{max(-img.fixed_pos.x, 0.0) + 8, max(-img.fixed_pos.y, 0.0) + 8}
+				else Vector2.{c.x + viewer_pan.x - (n.rect.x1 - n.rect.x0) / 2, c.y + viewer_pan.y + 24};
+			if shown != viewer_url ui.pop_parent();
+			n.style.bg = .{0, 0, 0, 0.6};
+			n.style.radius = all4(4);
+			n.opacity = viewer_t;
+			ui.parent(n); defer ui.pop_parent();
+			spacer(.X, 8);
+			if shown != viewer_url && retry_pending(full.state, full.retry) { pulsing_dots(.{1, 1, 1, 1}); spacer(.X, 8); }
+			label(note, .Medium, 13, .{1, 1, 1, 1}, 16);
+			spacer(.X, 8);
+		}
 		isig := ui.signal(img);
 		if isig.pressed viewer_pan0, viewer_moved = viewer_pan, false;
 		if isig.dragging && viewer_zoom > 1 {
@@ -1608,7 +1653,8 @@ close_viewer :: () {
 	free(viewer_url);
 	free(viewer_video);
 	free(viewer_link);
-	viewer_url, viewer_video, viewer_link = "", "", "";
+	free(viewer_preview);
+	viewer_url, viewer_video, viewer_link, viewer_preview = "", "", "", "";
 }
 
 // The player starts on a streamed download at once, else once the download is in.

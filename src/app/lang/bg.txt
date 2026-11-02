@@ -528,11 +528,13 @@ Couldn't delete the channel: %	Неуспешно изтриване на кан
 Couldn't encrypt the message.	Неуспешно криптиране на съобщението.
 Couldn't get that GIF.	Този GIF не можа да се зареди.
 Couldn't join %: %	Неуспешно влизане в %: %
+Couldn't load full size	Пълният размер не се зареди
 Couldn't load onboarding.	Неуспешно зареждане на въвеждането.
 Couldn't load the AutoMod rules.	Неуспешно зареждане на правилата на AutoMod.
 Couldn't load the applications.	Неуспешно зареждане на приложенията.
 Couldn't load the audit log.	Неуспешно зареждане на дневника на одита.
 Couldn't load the bans.	Неуспешно зареждане на бановете.
+Couldn't load the image	Изображението не се зареди
 Couldn't load the invites.	Неуспешно зареждане на поканите.
 Couldn't load the members.	Неуспешно зареждане на членовете.
 Couldn't load the role's members.	Неуспешно зареждане на членовете на ролята.
@@ -983,6 +985,7 @@ Linked Roles	Свързани роли
 List view	Изглед списък
 Lithuanian	Литовски
 Live Now	На живо сега
+Loading full size	Зарежда се пълният размер
 Loading sounds…	Зареждане на звуците…
 Loading...	Зареждане...
 Loading…	Зареждане…

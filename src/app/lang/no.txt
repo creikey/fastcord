@@ -528,11 +528,13 @@ Couldn't delete the channel: %	Kunne ikke slette kanalen: %
 Couldn't encrypt the message.	Kunne ikke kryptere meldingen.
 Couldn't get that GIF.	Kunne ikke hente den GIF-en.
 Couldn't join %: %	Kunne ikke bli med i %1: %2
+Couldn't load full size	Kunne ikke laste inn full størrelse
 Couldn't load onboarding.	Kunne ikke laste inn introduksjonen.
 Couldn't load the AutoMod rules.	Kunne ikke laste inn AutoMod-reglene.
 Couldn't load the applications.	Kunne ikke laste inn applikasjonene.
 Couldn't load the audit log.	Kunne ikke laste inn revisjonsloggen.
 Couldn't load the bans.	Kunne ikke laste inn utestengelsene.
+Couldn't load the image	Kunne ikke laste inn bildet
 Couldn't load the invites.	Kunne ikke laste inn invitasjonene.
 Couldn't load the members.	Kunne ikke laste inn medlemmene.
 Couldn't load the role's members.	Kunne ikke laste inn medlemmene i rollen.
@@ -983,6 +985,7 @@ Linked Roles	Tilknyttede roller
 List view	Listevisning
 Lithuanian	Litauisk
 Live Now	Live nå
+Loading full size	Laster inn full størrelse
 Loading sounds…	Laster inn lyder …
 Loading...	Laster inn...
 Loading…	Laster inn …

@@ -526,11 +526,13 @@ Couldn't delete the channel: %	चैनल डिलीट नहीं हो 
 Couldn't encrypt the message.	मैसेज एन्क्रिप्ट नहीं हो सका।
 Couldn't get that GIF.	वह GIF नहीं मिल सका।
 Couldn't join %: %	%1 से नहीं जुड़ सके: %2
+Couldn't load full size	पूरा आकार लोड नहीं हो सका
 Couldn't load onboarding.	ऑनबोर्डिंग लोड नहीं हो सकी।
 Couldn't load the AutoMod rules.	AutoMod नियम लोड नहीं हो सके।
 Couldn't load the applications.	आवेदन लोड नहीं हो सके।
 Couldn't load the audit log.	ऑडिट लॉग लोड नहीं हो सका।
 Couldn't load the bans.	बैन लोड नहीं हो सके।
+Couldn't load the image	इमेज लोड नहीं हो सकी
 Couldn't load the invites.	इनवाइट लोड नहीं हो सके।
 Couldn't load the members.	सदस्य लोड नहीं हो सके।
 Couldn't load the role's members.	रोल के सदस्य लोड नहीं हो सके।
@@ -980,6 +982,7 @@ Linked Roles	लिंक किए गए रोल
 List view	लिस्ट व्यू
 Lithuanian	लिथुआनियाई
 Live Now	अभी लाइव
+Loading full size	पूरा आकार लोड हो रहा है
 Loading sounds…	साउंड लोड हो रहे हैं…
 Loading...	लोड हो रहा है...
 Loading…	लोड हो रहा है…

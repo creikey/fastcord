@@ -1,0 +1,9 @@
+# Runs on embed_thumb_failed.jsonl, with no media served. A link card's side thumbnail that won't load sits
+# level with the provider and shows a broken image; the viewer says it couldn't load it (issue #21).
+wait 10
+settle 1
+shot build/ui-embed_thumb_failed-card.png
+click 822 556
+wait 20
+expect_visible "Couldn't load the image"
+shot build/ui-embed_thumb_failed.png

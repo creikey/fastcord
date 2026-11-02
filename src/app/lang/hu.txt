@@ -528,11 +528,13 @@ Couldn't delete the channel: %	Nem sikerült törölni a csatornát: %
 Couldn't encrypt the message.	Nem sikerült titkosítani az üzenetet.
 Couldn't get that GIF.	Nem sikerült lekérni a GIF-et.
 Couldn't join %: %	Nem sikerült csatlakozni ide: %1: %2
+Couldn't load full size	Nem sikerült betölteni a teljes méretet
 Couldn't load onboarding.	Nem sikerült betölteni a bevezetést.
 Couldn't load the AutoMod rules.	Nem sikerült betölteni az AutoMod-szabályokat.
 Couldn't load the applications.	Nem sikerült betölteni az alkalmazásokat.
 Couldn't load the audit log.	Nem sikerült betölteni a naplót.
 Couldn't load the bans.	Nem sikerült betölteni a kitiltásokat.
+Couldn't load the image	Nem sikerült betölteni a képet
 Couldn't load the invites.	Nem sikerült betölteni a meghívókat.
 Couldn't load the members.	Nem sikerült betölteni a tagokat.
 Couldn't load the role's members.	Nem sikerült betölteni a rang tagjait.
@@ -983,6 +985,7 @@ Linked Roles	Kapcsolt rangok
 List view	Listanézet
 Lithuanian	Litván
 Live Now	Most élőben
+Loading full size	Teljes méret betöltése
 Loading sounds…	Hangok betöltése…
 Loading...	Betöltés...
 Loading…	Betöltés…

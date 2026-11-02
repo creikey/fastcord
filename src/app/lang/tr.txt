@@ -528,11 +528,13 @@ Couldn't delete the channel: %	Kanal silinemedi: %
 Couldn't encrypt the message.	Mesaj şifrelenemedi.
 Couldn't get that GIF.	O GIF alınamadı.
 Couldn't join %: %	Katılınamadı (%1): %2
+Couldn't load full size	Tam boyut yüklenemedi
 Couldn't load onboarding.	Katılım ekranı yüklenemedi.
 Couldn't load the AutoMod rules.	AutoMod kuralları yüklenemedi.
 Couldn't load the applications.	Uygulamalar yüklenemedi.
 Couldn't load the audit log.	Denetim kaydı yüklenemedi.
 Couldn't load the bans.	Yasaklar yüklenemedi.
+Couldn't load the image	Görsel yüklenemedi
 Couldn't load the invites.	Davetler yüklenemedi.
 Couldn't load the members.	Üyeler yüklenemedi.
 Couldn't load the role's members.	Rolün üyeleri yüklenemedi.
@@ -983,6 +985,7 @@ Linked Roles	Bağlı Roller
 List view	Liste görünümü
 Lithuanian	Litvanca
 Live Now	Şu An Canlı
+Loading full size	Tam boyut yükleniyor
 Loading sounds…	Sesler yükleniyor…
 Loading...	Yükleniyor...
 Loading…	Yükleniyor…
