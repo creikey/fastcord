@@ -456,7 +456,7 @@ attachments_sealed :: (channel_id: dc.Snowflake, sealing: bool) -> []e2e.File, b
 		f := *out[it_index];
 		f.* = it.file;
 		f.name, f.mime, f.description, f.spoiler = it.filename, it.mime, it.description, it.spoiler;
-		if it.kind == .Video && it.poster.y f.width, f.height = it.poster.size[0], it.poster.size[1];
+		if it.kind == .Video && it.poster.y f.width, f.height = media.upright_size(it.poster);
 	}
 	return out, true, cts;
 }
@@ -920,7 +920,7 @@ thumb_draw :: (b: *ui.Box, user: *void) {
 	r := cast,force(gfx.Rect)(b.rect);
 	bw, bh := r.x1 - r.x0, r.y1 - r.y0;
 	size := d.size;
-	if d.video.y != 0 { size = .{d.video.size[0], d.video.size[1]}; }
+	if d.video.y != 0 size.x, size.y = media.upright_size(d.video);
 	if size.x <= 0 || size.y <= 0 return;
 	if d.blurred {
 		// cover the whole area, blurry
@@ -933,7 +933,7 @@ thumb_draw :: (b: *ui.Box, user: *void) {
 	x0, y0 := r.x0 + (bw - w) / 2, r.y0 + (bh - h) / 2;
 	dst := gfx.Rect.{x0, y0, x0 + w, y0 + h};
 	if d.video.y != 0 {
-		gfx.video(dst, d.video.y, d.video.cbcr, d.video.yuv, 3);
+		gfx.video(dst, d.video.y, d.video.cbcr, d.video.yuv, 3, rotation = d.video.rotation);
 		return;
 	}
 	white := gfx.Color.{1, 1, 1, b.opacity};

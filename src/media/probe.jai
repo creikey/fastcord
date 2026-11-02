@@ -28,6 +28,7 @@ probe :: (src: *Byte_Source) -> Media_Info, bool {
 		t := d.tracks[v];
 		info.has_video = true;
 		info.width, info.height, info.video_codec = t.width, t.height, t.codec;
+		if t.rotation == 90 || t.rotation == 270 info.width, info.height = t.height, t.width; // as shown
 	}
 	a := demux_track(d, .Audio);
 	if a >= 0 {

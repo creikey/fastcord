@@ -1,0 +1,25 @@
+# A phone's portrait video (320x180 frames its tkhd matrix turns 90 degrees clockwise) shows upright: as
+# a staged card's poster, in the size serve reports, and playing.
+wait 5
+serve_join
+settle 3
+click 36 157
+settle 3
+click 700 683
+stage tests/ui/attach/clip_rotated.mp4
+wait_attachments
+settle 10
+shot build/ui-hosted_video_rotated-staged.png
+key enter
+settle 5
+shot build/ui-hosted_video_rotated.png
+click 533 465
+wait 60
+move 533 400
+wait 3
+shot build/ui-hosted_video_rotated-playing.png
+click 537 596
+wait 2
+click 537 596
+wait 3
+shot build/ui-hosted_video_rotated-speed.png

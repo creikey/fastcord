@@ -169,6 +169,7 @@ parse_trak :: (d: *Demuxer, m: *Mp4, trak: []u8) {
 	tkhd, ok := find(trak, "tkhd");
 	if !ok || tkhd.count < 24 return;
 	t.id = ifx tkhd[0] == 1 then be32(tkhd, 20) else be32(tkhd, 12);
+	t.rotation = tkhd_rotation(tkhd);
 	mdia, ok2 := find(trak, "mdia");
 	if !ok2 return;
 	mdhd := find(mdia, "mdhd");
@@ -215,6 +216,19 @@ parse_trak :: (d: *Demuxer, m: *Mp4, trak: []u8) {
 		if t.duration > 0 t.duration = max(t.duration - shift, 0);
 	}
 	array_add(*d.tracks, t);
+}
+
+// The display matrix's quarter turn, clockwise: phones record sideways and set {a b; c d} (16.16) to
+// {0 1; -1 0} for 90 degrees. Anything else (flips, scaling, odd angles) shows the frame as stored.
+tkhd_rotation :: (tkhd: []u8) -> int {
+	at := ifx tkhd[0] == 1 then 52 else 40;
+	a, b := cast(s32) be32(tkhd, at), cast(s32) be32(tkhd, at + 4);
+	c, d := cast(s32) be32(tkhd, at + 12), cast(s32) be32(tkhd, at + 16);
+	ONE :: 0x10000;
+	if a == 0 && d == 0 && b == ONE && c == -ONE return 90;
+	if a == -ONE && d == -ONE && b == 0 && c == 0 return 180;
+	if a == 0 && d == 0 && b == -ONE && c == ONE return 270;
+	return 0;
 }
 
 parse_stsd :: (t: *Track, entry_box: []u8) {

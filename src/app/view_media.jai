@@ -17,6 +17,9 @@ Inline_Player :: struct {
 	voice: bool; // a voice message: plays at voice_rate
 	size: Vector2; // inline size: the fullscreen view's aspect
 	img: media.Video_Image;
+	rate: float64 = 1; // a video's speed (its bar's 1x button)
+	file: string; // a video's name to save it as, "" when it can't be (the fullscreen bar's download)
+	file_size: int;
 }
 
 players: Table(dc.Snowflake, Inline_Player); // attachment id or embed_player_key -> player
@@ -129,6 +132,7 @@ player_retry :: (key: dc.Snowflake) -> *Inline_Player {
 	media.player_destroy(ip.player);
 	free(ip.url);
 	free(ip.poster);
+	free(ip.file);
 	table_remove(*players, key);
 	return null;
 }
@@ -172,7 +176,7 @@ attachments_view :: (m: *dc.Message, max_w: float32 = 400) {
 			h := cast(float32) a.height;
 			sc := min(1.0, min(max_w / w, 300 / h));
 			// poster frame from the media proxy (?format=webp of a video returns a still)
-			video_player(a.id, a.url, attachment_image_url(a, cast(int) (w * sc), cast(int) (h * sc)), w * sc, h * sc, cast(float64) a.duration_secs, download = a);
+			video_player(a.id, a.url, attachment_image_url(a, cast(int) (w * sc), cast(int) (h * sc)), w * sc, h * sc, cast(float64) a.duration_secs, download_name = ifx a.filename then a.filename else download_name(a.url), download_size = a.size);
 			spacer(.Y, 4);
 		} else if is_audio(a) {
 			audio_attachment(a);
@@ -484,10 +488,11 @@ spoiler_cover :: (id: string, url: string, w: float32, h: float32, text := "SPOI
 }
 is_audio :: (a: *dc.Attachment) -> bool { return begins_with(a.content_type, "audio/"); }
 
-// Video attachment or embed video: poster with a play button and the control bar (play, time, seek,
-// volume, fullscreen) until clicked, then plays inline; the bar hides while it plays unhovered. key names
-// its player (an attachment id, or embed_player_key); full draws it in the fullscreen overlay.
-video_player :: (key: dc.Snowflake, url: string, poster: string, w: float32, h: float32, duration: float64 = 0, full := false, any_host := false, autostart := false, download: *dc.Attachment = null) -> *ui.Box {
+// Video attachment or embed video: poster with a play button and the control bar (the timeline above
+// play, volume, time, speed, download and fullscreen) until clicked, then plays inline; the bar hides
+// while it plays unhovered. key names its player (an attachment id, or embed_player_key); full draws it
+// in the fullscreen overlay. download_name is the name Download saves url as ("": no Download).
+video_player :: (key: dc.Snowflake, url: string, poster: string, w: float32, h: float32, duration: float64 = 0, full := false, any_host := false, autostart := false, download_name := "", download_size := 0) -> *ui.Box {
 	box := ui.box(tprint("vid%", cast(u64) key), .Draw_Background | .Clickable | .Clip);
 	box.semantic_size = .[ui.px(w), ui.px(h)];
 	box.style.radius = all4(ifx full then 0.0 else 8.0);
@@ -497,7 +502,7 @@ video_player :: (key: dc.Snowflake, url: string, poster: string, w: float32, h: 
 	start :: () #expand {
 		if `ip return;
 		blob_stream(url, .Video, any_host);
-		`ip = table_set(*players, key, .{url = copy_string(url), poster = copy_string(poster), size = .{w, h}});
+		`ip = table_set(*players, key, .{url = copy_string(url), poster = copy_string(poster), size = .{w, h}, file = copy_string(download_name), file_size = download_size});
 	}
 	if autostart start();
 	p := ifx ip then ip.player else null;
@@ -536,54 +541,98 @@ video_player :: (key: dc.Snowflake, url: string, poster: string, w: float32, h: 
 		// children take the hover, so test the box's rect
 		if playing && !ui.contains(box.rect, app.ui.mouse) return box;
 		white := ui.Color.{1, 1, 1, 1};
-		bar := row("controls", .Draw_Background | .Floating_X | .Floating_Y);
-		bar.semantic_size = .[ui.px(w), ui.px(40)];
-		bar.fixed_pos = .{0, h - 40};
+		bar := ui.box("controls", .Draw_Background | .Floating_X | .Floating_Y);
+		bar.semantic_size = .[ui.px(w), ui.px(56)];
+		bar.fixed_pos = .{0, h - 56};
 		bar.style.bg = .{0, 0, 0, 0.6};
 		ui.parent(bar); defer ui.pop_parent();
-		spacer(.X, 6);
-		if video_button("pp", ifx playing then "pause" else "play") {
+		pos := ifx p then media.player_position(p) else 0;
+		dur := ifx p then media.player_duration(p) else duration;
+		// the timeline has the bar's top to itself, so nothing beside it moves it
+		tl := row("timeline");
+		tl.semantic_size = .[ui.px(w), ui.px(20)];
+		{ ui.parent(tl); defer ui.pop_parent();
+			spacer(.X, 12);
+			seek := slider("seek", ifx dur > 0 then cast(float32) (pos / dur) else 0, ui.fill());
+			if p && seek >= 0 media.player_seek(p, cast(float64) seek * dur);
+			spacer(.X, 12);
+		}
+		// a narrow (portrait) video gets smaller buttons, drops the time and shows the volume slider only
+		// when it fits
+		bs: float32 = ifx w < 240 then 28.0 else 32.0;
+		pad: float32 = ifx w < 240 then 2.0 else 6.0;
+		fixed := 2 * pad + 4 * bs + 44;
+		show_time := w >= fixed + 94;
+		br := row("buttons");
+		br.semantic_size = .[ui.px(w), ui.px(32)];
+		ui.parent(br); defer ui.pop_parent();
+		spacer(.X, pad);
+		if video_button("pp", ifx playing then "pause" else "play", ifx playing then L("Pause") else L("Play"), bs) {
 			if p media.player_toggle(p);
 			else start();
 		}
-		pos := ifx p then media.player_position(p) else 0;
-		dur := ifx p then media.player_duration(p) else duration;
-		spacer(.X, 4);
-		label(tprint("% / %", fmt_clock(pos), ifx dur > 0 then fmt_clock(dur) else "-:--"), .Mono, 13, white, 16);
-		spacer(.X, 12);
-		seek := slider("seek", ifx dur > 0 then cast(float32) (pos / dur) else 0, ui.fill());
-		if p && seek >= 0 media.player_seek(p, cast(float64) seek * dur);
-		spacer(.X, 8);
-		// volume: the icon mutes; hovering the group shows its slider
+		// volume: the icon mutes; the slider shows when there's room, else on hover
 		vg := row("vol");
 		vg.semantic_size = .[ui.children(), ui.px(32)];
-		hover_vol := ui.contains(vg.rect, app.ui.mouse);
 		{ ui.parent(vg); defer ui.pop_parent();
-			if hover_vol {
+			if video_button("mute", ifx video_muted || video_volume == 0 then "speaker-slash" else "voice-normal", ifx video_muted then L("Unmute") else L("Mute"), bs) video_volume_set(ifx video_volume == 0 then 1 else video_volume, !video_muted);
+			if (w >= 400 || ui.contains(vg.rect, app.ui.mouse)) && w - fixed - (ifx show_time then 94 else 0) >= 72 {
 				// 0-400% (the client stops at 100%); the mixer's limiter keeps the boost from clipping
-				v := slider("vs", ifx video_muted then 0 else video_volume / 4, ui.px(96));
+				v := slider("vs", ifx video_muted then 0 else video_volume / 4, ui.px(64));
 				if v >= 0 video_volume_set(v * 4, v == 0);
-				spacer(.X, 4);
+				spacer(.X, 8);
 			}
-			if video_button("mute", ifx video_muted || video_volume == 0 then "speaker-slash" else "voice-normal") video_volume_set(ifx video_volume == 0 then 1 else video_volume, !video_muted);
 		}
-		if download && video_button("dl", "download") file_download(download); // an attachment: the file itself
-		if video_button("full", "fullscreen") {
+		spacer(.X, 4);
+		if show_time label(tprint("% / %", fmt_clock(pos), ifx dur > 0 then fmt_clock(dur) else "-:--"), .Mono, 13, white, 16);
+		filler(.X);
+		// speed: each click steps to the next, back round to 0.5x after 2x
+		rate := ifx ip then ip.rate else 1.0;
+		rb := ui.box(tprint("%x##rate", rate), .Clickable | .Draw_Text);
+		rb.semantic_size = .[ui.px(40), ui.px(32)];
+		rb.style.font = F(.Semibold);
+		rb.style.font_size = 13;
+		rb.style.text_align = .Center;
+		rsig := ui.signal(rb);
+		rb.style.text_color = .{1, 1, 1, ifx rsig.hovering then 1.0 else 0.8};
+		if rsig.hovering tooltip_below(L("Playback Speed"), rb.rect, above = true);
+		if rsig.clicked {
+			start();
+			i := 0;
+			while i < VIDEO_RATES.count && VIDEO_RATES[i] <= rate i += 1;
+			ip.rate = VIDEO_RATES[i % VIDEO_RATES.count];
+			if ip.player media.player_set_rate(ip.player, ip.rate);
+		}
+		if download_name {
+			dl := file_download_find(url);
+			if dl {
+				// the bytes so far, where the button was
+				app.ui.animating = true;
+				pct := ifx dl.size > 0 then clamp(dl.progress.done * 100 / dl.size, 0, 99) else 0;
+				db := label(tprint("%1%%", pct), .Mono, 12, white, 32);
+				db.semantic_size[0] = ui.px(bs);
+				db.style.text_align = .Center;
+			} else if video_button("dl", "download", L("Download"), bs) file_download(url, download_name, download_size);
+		}
+		if video_button("full", "fullscreen", ifx full then L("Exit Full Screen") else L("Full Screen"), bs) {
 			start();
 			fullscreen_video = ifx full then 0 else key;
 		}
-		spacer(.X, 6);
+		spacer(.X, pad);
 	}
 	return box;
 }
 
-video_button :: (id: string, name: string) -> bool {
+VIDEO_RATES :: float64.[0.5, 0.75, 1, 1.25, 1.5, 2];
+
+video_button :: (id: string, name: string, tip: string, size: float32 = 32) -> bool {
 	b := ui.box(id, .Clickable);
-	b.semantic_size = .[ui.px(32), ui.px(32)];
+	b.semantic_size = .[ui.px(size), ui.px(32)];
 	sig := ui.signal(b);
+	if sig.hovering tooltip_below(tip, b.rect, above = true);
 	ui.parent(b); defer ui.pop_parent();
 	ic := icon("i", name, 20, .{1, 1, 1, ifx sig.hovering then 1.0 else 0.8}, .Floating_X | .Floating_Y);
-	ic.fixed_pos = .{6, 6};
+	ic.fixed_pos = .{(size - 20) / 2, 6};
 	return sig.clicked;
 }
 
@@ -632,7 +681,7 @@ video_fullscreen :: () {
 	{ ui.parent(scrim); defer ui.pop_parent();
 		sc := min(app.ui.window.x / max(ip.size.x, 1), app.ui.window.y / max(ip.size.y, 1));
 		w, h := ip.size.x * sc, ip.size.y * sc;
-		v := video_player(fullscreen_video, ip.url, ip.poster, w, h, full = true);
+		v := video_player(fullscreen_video, ip.url, ip.poster, w, h, full = true, download_name = ip.file, download_size = ip.file_size);
 		v.flags |= .Floating_X | .Floating_Y;
 		v.fixed_pos = .{(app.ui.window.x - w) / 2, (app.ui.window.y - h) / 2};
 	}
@@ -910,7 +959,7 @@ embeds_view :: (m: *dc.Message, max_w: float32 = 400) {
 					w := cast(float32) ifx e.video_w > 0 then e.video_w else e.thumbnail_w;
 					h := cast(float32) ifx e.video_h > 0 then e.video_h else e.thumbnail_h;
 					sc := min(1.0, min(max_w / w, 300 / h));
-					video_player(embed_player_key(m, i), e.video_url, e.thumbnail_url, w * sc, h * sc);
+					video_player(embed_player_key(m, i), e.video_url, e.thumbnail_url, w * sc, h * sc, download_name = ifx url_ext(e.video_url) then download_name(e.video_url) else "video.mp4");
 				} else if poster && yt_ready(e.url) {
 					// played through yt-dlp (youtube.jai)
 					spacer(.Y, 16);
@@ -1337,13 +1386,16 @@ file_download_find :: (url: string) -> *File_Download {
 	return null;
 }
 
-file_download :: (a: *dc.Attachment) {
-	if file_download_find(a.url) return;
+file_download :: (a: *dc.Attachment) { file_download(a.url, ifx a.filename then a.filename else download_name(a.url), a.size); }
+
+// size is the file's (0 if unknown): a download that ends short of it is refused.
+file_download :: (url: string, name: string, size: int) {
+	if file_download_find(url) return;
 	app.ext_actions += 1;
-	dest := platform.save_file_dialog(ifx a.filename then a.filename else download_name(a.url));
+	dest := platform.save_file_dialog(name);
 	if !dest return;
-	b := table_find_pointer(*blobs, a.url);
-	if begins_with(a.url, E2E_URL) && b {
+	b := table_find_pointer(*blobs, url);
+	if begins_with(url, E2E_URL) && b {
 		// An opened encrypted file is already in memory: written on a thread, as a download would be.
 		Save :: struct { path: string; data: []u8; }
 		dc.spawn(Save.{dest, array_copy(b.data)}, (s: Save) {
@@ -1354,11 +1406,11 @@ file_download :: (a: *dc.Attachment) {
 		toast_show(L("File saved."), true);
 		return;
 	}
-	c := ifx app.client then media_client(a.url);
+	c := ifx app.client then media_client(url);
 	if !c { toast_show(L("File saved."), true); free(dest); return; } // offline runs write nothing
 	d := array_add(*file_downloads);
-	d.* = .{url = copy_string(a.url), path = dest, size = a.size, progress = New(dc.Media_Progress)};
-	dc.fetch_media(c, .{url = a.url, visible = true, tag = MEDIA_TAG_FILE, save_to = dest, progress = d.progress});
+	d.* = .{url = copy_string(url), path = dest, size = size, progress = New(dc.Media_Progress)};
+	dc.fetch_media(c, .{url = url, visible = true, tag = MEDIA_TAG_FILE, save_to = dest, progress = d.progress});
 }
 
 file_download_receive :: (r: *dc.Media_Result) -> bool {
@@ -1555,7 +1607,7 @@ player_open_ready :: (ip: *Inline_Player) {
 	src := ifx blob.stream then media.source_from_growing(blob.stream) else media.source_from_memory(blob.data);
 	ip.player = media.player_open(src, autoplay = true, muted = video_muted);
 	media.player_set_volume(ip.player, video_volume);
-	if ip.voice media.player_set_rate(ip.player, voice_rate);
+	media.player_set_rate(ip.player, ifx ip.voice then voice_rate else ip.rate);
 }
 
 voice_rate: float64 = 1; // voice messages' playback speed (the card's 1x / 1.5x / 2x), for every one
@@ -1563,7 +1615,15 @@ voice_rate: float64 = 1; // voice messages' playback speed (the card's 1x / 1.5x
 video_draw :: (b: *ui.Box, user: *void) {
 	ip := table_find_pointer(*players, cast(dc.Snowflake) cast(u64) user);
 	if !ip || ip.img.y == 0 return;
-	gfx.video(cast,force(gfx.Rect) b.rect, ip.img.y, ip.img.cbcr, ip.img.yuv, b.style.radius[0]);
+	// "contain"-fitted upright: the card's size is Discord's, which may not have turned a phone's video
+	r := cast,force(gfx.Rect) b.rect;
+	bw, bh := r.x1 - r.x0, r.y1 - r.y0;
+	iw, ih := media.upright_size(ip.img);
+	if iw <= 0 || ih <= 0 return;
+	sc := min(bw / iw, bh / ih);
+	w, h := iw * sc, ih * sc;
+	x0, y0 := r.x0 + (bw - w) / 2, r.y0 + (bh - h) / 2;
+	gfx.video(.{x0, y0, x0 + w, y0 + h}, ip.img.y, ip.img.cbcr, ip.img.yuv, b.style.radius[0], rotation = ip.img.rotation);
 }
 
 fmt_clock :: (t: float64) -> string {

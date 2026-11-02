@@ -26,6 +26,7 @@ Track :: struct {
 	// video
 	width: int;
 	height: int;
+	rotation: int; // degrees clockwise to show the decoded frame upright (0, 90, 180, 270): a phone's tkhd matrix
 	// audio
 	sample_rate: int;
 	channels: int;

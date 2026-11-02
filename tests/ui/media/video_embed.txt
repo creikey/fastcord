@@ -11,7 +11,7 @@ wait 30
 move 805 639
 wait 3
 shot build/ui-video_embed-playing.png
-click 809 639
+click 517 639
 wait 3
 click 841 639
 wait 10

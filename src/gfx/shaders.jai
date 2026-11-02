@@ -5,7 +5,7 @@
 //  - border b > 0: multiply by coverage outside the inner box (dst shrunk by b, radii - b)
 //  - colors are premultiplied, bilinear across the dst rect
 //  - tex kind 1: R8 coverage mask multiplies alpha; kind 2: RGBA premultiplied (gfx premultiplies on upload), tinted by color
-//  - tex kind 3: NV12 video: tex = Y (R8), tex2 = CbCr (RG8), params.w = Yuv_Matrix
+//  - tex kind 3: NV12 video: tex = Y (R8), tex2 = CbCr (RG8), params.w = Yuv_Matrix, + 8 when the frame is quarter-turned (src's x and y swap)
 //  - params.z = kind + 4 * slot: the texture is the draw's texs[slot]
 //  - the vertex shader clamps the quad to the instance's clip rect (no scissor)
 //  - output premultiplied; blend One, OneMinusSrcAlpha
@@ -54,9 +54,11 @@ vertex VOut vs_main(uint vid [[vertex_id]], uint iid [[instance_id]],
 	VOut o;
 	o.pos = float4(p / u.viewport * float2(2.0, -2.0) + float2(-1.0, 1.0), 0.0, 1.0);
 	o.p = p;
-	o.uv = mix(i.src.xy, i.src.zw, t);
+	bool turn = i.params.w >= 8.0; // a quarter-turned video: the texture's axes swap
+	o.uv = mix(i.src.xy, i.src.zw, turn ? t.yx : t);
 	o.local = t;
 	o.dst = i.dst; o.radii = i.radii; o.params = i.params;
+	if (turn) o.params.w -= 8.0;
 	o.c0 = i.c0; o.c1 = i.c1; o.c2 = i.c2; o.c3 = i.c3;
 	return o;
 }
@@ -202,9 +204,11 @@ VOut vs_main(uint vid : SV_VertexID, uint iid : SV_InstanceID) {
 	VOut o;
 	o.pos = float4(p / viewport * float2(2.0, -2.0) + float2(-1.0, 1.0), 0.0, 1.0);
 	o.p = p;
-	o.uv = lerp(i.src.xy, i.src.zw, t);
+	bool turn = i.params.w >= 8.0; // a quarter-turned video: the texture's axes swap
+	o.uv = lerp(i.src.xy, i.src.zw, turn ? t.yx : t);
 	o.local = t;
 	o.dst = i.dst; o.radii = i.radii; o.params = i.params;
+	if (turn) o.params.w -= 8.0;
 	o.c0 = i.c0; o.c1 = i.c1; o.c2 = i.c2; o.c3 = i.c3;
 	return o;
 }
@@ -289,9 +293,11 @@ void main() {
 	vec2 t = (p - dst.xy) / max(dst.zw - dst.xy, vec2(1e-4));
 	gl_Position = vec4(p / viewport * vec2(2.0, -2.0) + vec2(-1.0, 1.0), 0.0, 1.0);
 	v_p = p;
-	v_uv = mix(src.xy, src.zw, t);
+	bool turn = params.w >= 8.0; // a quarter-turned video: the texture's axes swap
+	v_uv = mix(src.xy, src.zw, turn ? t.yx : t);
 	v_local = t;
 	v_dst = dst; v_radii = radii; v_params = params;
+	if (turn) v_params.w -= 8.0;
 	v_c0 = c0; v_c1 = c1; v_c2 = c2; v_c3 = c3;
 }
 __END

@@ -1,6 +1,7 @@
 // Demuxer check: jai build.jai - run src/tests/demux.jai, then build/demux. Crafted files (any user's
 // attachment) must be refused or indexed without reading out of bounds, aborting or running away.
 #import "Basic";
+#import "File";
 media :: #import "media";
 
 failed := 0;
@@ -86,6 +87,13 @@ main :: () {
 	// FLAC with no STREAMINFO: its only metadata block is the last and a PADDING block
 	n, secs = run(concat(cast([]u8) "fLaC", cast([]u8) "\x81\0\0\0", cast([]u8) "\xFF\xF8\x69\x08\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"));
 	check(n == 0, "FLAC without STREAMINFO is refused");
+
+	// a phone's portrait video: 320x180 frames whose tkhd matrix turns them 90 degrees clockwise (ffmpeg
+	// -display_rotation -90), shown and reported 180x320
+	rot, rok := read_entire_file("tests/ui/attach/clip_rotated.mp4");
+	rsrc := media.source_from_memory(cast([]u8) rot);
+	info, pok := media.probe(*rsrc);
+	check(rok && pok && info.width == 180 && info.height == 320, tprint("rotated MP4 is shown upright (%x%)", info.width, info.height));
 
 	if failed { print("demux: % failed\n", failed); exit(1); }
 	print("demux: ok\n");

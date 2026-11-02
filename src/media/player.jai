@@ -34,6 +34,7 @@ Video_Image :: struct {
 	size: [2]int;
 	yuv: gfx.Yuv_Matrix;
 	pts: float64;
+	rotation: int; // degrees clockwise to show it upright (the track's); size is the frame as stored
 }
 
 Player :: struct {
@@ -67,6 +68,7 @@ Player :: struct {
 	audio_active: bool;
 	loop_offset: float64;
 	duration: float64;
+	rotation: int; // the video track's
 	stats: Player_Stats;
 
 	// ---- worker only
@@ -249,6 +251,12 @@ player_position :: (p: *Player) -> float64 {
 	return max(t, 0);
 }
 
+// The frame's size as shown: a quarter turn swaps its sides.
+upright_size :: (img: Video_Image) -> w: int, h: int {
+	if img.rotation == 90 || img.rotation == 270 return img.size[1], img.size[0];
+	return img.size[0], img.size[1];
+}
+
 player_has_video :: (p: *Player) -> bool { return p.vtrack >= 0; }
 player_has_audio :: (p: *Player) -> bool { return p.atrack >= 0; }
 
@@ -285,7 +293,7 @@ player_update :: (p: *Player) -> Video_Image, bool {
 		if ok {
 			if p.img.y gfx.texture_destroy(p.img.y);
 			if p.img.cbcr gfx.texture_destroy(p.img.cbcr);
-			p.img = .{y = y, cbcr = uv, size = .[f.width, f.height], yuv = f.yuv, pts = f.pts};
+			p.img = .{y = y, cbcr = uv, size = .[f.width, f.height], yuv = f.yuv, pts = f.pts, rotation = p.rotation};
 			changed = true;
 			p.shown_any = true;
 			p.stats.video_shown += 1;
@@ -464,6 +472,7 @@ worker_open :: (p: *Player) -> bool {
 	}
 	locks.lock(*p.mu);
 	p.duration = demux_duration(d);
+	if p.vtrack >= 0 p.rotation = d.tracks[p.vtrack].rotation;
 	p.state = .Ready;
 	p.eos_video = p.vtrack < 0;
 	p.audio_active = p.atrack >= 0 && !p.muted;

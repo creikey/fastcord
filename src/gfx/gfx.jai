@@ -31,6 +31,7 @@ Rect_Params :: struct {
     softness: float32;  // edge blur radius (points), for shadows; quad grows by this much
     tex2: Texture;      // second plane for yuv (CbCr, any size; sampled with the same normalized uv)
     yuv: Yuv_Matrix;
+    rotation: s16;      // yuv only: degrees clockwise (0, 90, 180, 270) the frame turns to fill dst
 }
 
 rect :: (dst: Rect, color: Color, radius: float32 = 0) {
@@ -51,8 +52,8 @@ image :: (dst: Rect, tex: Texture, tint := Color.{1, 1, 1, 1}, radius: float32 =
 }
 
 // Draw an NV12 frame (Y plane + CbCr plane).
-video :: (dst: Rect, y_plane: Texture, cbcr_plane: Texture, matrix_: Yuv_Matrix, radius: float32 = 0, tint := Color.{1, 1, 1, 1}) {
-    push_rect(.{dst = dst, tex = y_plane, tex2 = cbcr_plane, yuv = matrix_, colors = .[tint, tint, tint, tint], radii = .[radius, radius, radius, radius]});
+video :: (dst: Rect, y_plane: Texture, cbcr_plane: Texture, matrix_: Yuv_Matrix, radius: float32 = 0, tint := Color.{1, 1, 1, 1}, rotation := 0) {
+    push_rect(.{dst = dst, tex = y_plane, tex2 = cbcr_plane, yuv = matrix_, colors = .[tint, tint, tint, tint], radii = .[radius, radius, radius, radius], rotation = xx rotation});
 }
 
 rect_intersect :: (a: Rect, b: Rect) -> Rect {
@@ -453,6 +454,12 @@ push_rect_px :: (p: Rect_Params, d: Rect) {
         if p.yuv != .None && texture_alive(p.tex2) {
             tex_kind = 3;
             tex2 = p.tex2;
+            // dst's (u, v) samples the frame at (v, 1-u) turned 90, (1-u, 1-v) at 180, (1-v, u) at 270
+            if p.rotation == {
+            case 90;  inst.src = .[src.x0, src.y1, src.x1, src.y0];
+            case 180; inst.src = .[src.x1, src.y1, src.x0, src.y0];
+            case 270; inst.src = .[src.x1, src.y0, src.x0, src.y1];
+            }
         }
     } else if p.tex != 0 {
         g.diag.dead_tex_draws += 1;
@@ -492,7 +499,8 @@ push_rect_px :: (p: Rect_Params, d: Rect) {
         }
     }
     if tex2  b.tex2 = tex2;
-    inst.params = .[border, soft, tex_kind + 4 * cast(float32) slot, cast(float32) p.yuv];
+    turn := tex_kind == 3 && (p.rotation == 90 || p.rotation == 270);
+    inst.params = .[border, soft, tex_kind + 4 * cast(float32) slot, cast(float32) p.yuv + ifx turn then 8.0 else 0];
     array_add(*g.instances, inst);
     b.count += 1;
 }
