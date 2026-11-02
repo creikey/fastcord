@@ -197,7 +197,8 @@ which comes from hyper's and h2's sources: the Linux updater's HTTP/2 traffic it
 
 ## Releasing
 
-Releases ship only when a human asks for one, usually by asking Claude. First run
+Releases ship when a human asks for one, usually by asking Claude, or when the issue bot on the
+maintainer's machine reaches inbox zero (every open issue by creikey, or approved with "Do it", fixed). First run
 `python3 -I tools/vendor_check.py`: it lists vendored libraries with a newer upstream release or an OSV.dev
 advisory (each `vendor/<lib>/README.md` has an `- Upstream: <repo> <tag or commit>` line); update any with a
 security fix. If `src/e2e`, `src/keys` or
