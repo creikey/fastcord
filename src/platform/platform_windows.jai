@@ -129,8 +129,8 @@ notify_show :: (title: string, body: string, id: string) -> bool {
     return Shell_NotifyIconW(NIM_MODIFY, *nid) != 0;
 }
 
-// Puts a red dot on the tray icon and on the taskbar button (ITaskbarList3 overlay) while text isn't ""
-// (unread mentions).
+// Puts a red dot on the tray icon, and a red badge with the count (9+ past nine, as the official client's
+// badge icons go) on the taskbar button (ITaskbarList3 overlay), while text isn't "" (unread mentions).
 set_badge :: (text: string) {
     if s.headless || !w.small_icon return;
     if w.tray_badge_icon DestroyIcon(w.tray_badge_icon);
@@ -142,7 +142,7 @@ set_badge :: (text: string) {
         if CoCreateInstance(*CLSID_TaskbarList, null, 1 /*CLSCTX_INPROC_SERVER*/, *IID_ITaskbarList3, *w.taskbar) < 0 return;
         vt(w.taskbar, 3, #type (*void) -> win.HRESULT #c_call)(w.taskbar); // HrInit
     }
-    dot := ifx text then badge_icon(null) else null;
+    dot := ifx text then badge_icon(null, label = ifx text.count > 1 then "9+" else text) else null;
     defer if dot DestroyIcon(dot); // the taskbar keeps its own copy
     vt(w.taskbar, 18, #type (*void, win.HWND, win.HICON, *u16) -> win.HRESULT #c_call)(w.taskbar, w.hwnd, dot, ifx text then wide("Unread mentions") else null); // SetOverlayIcon
 }
@@ -789,6 +789,12 @@ LoadImageW :: (inst: win.HINSTANCE, name: *u16, type: u32, cx: s32, cy: s32, fla
 DestroyIcon :: (icon: win.HICON) -> s32 #foreign user32;
 CreateIconIndirect :: (info: *win.ICONINFO) -> win.HICON #foreign user32;
 CreateBitmap :: (w: s32, h: s32, planes: u32, bpp: u32, bits: *void) -> win.HBITMAP #foreign gdi32;
+CreateDIBSection :: (dc: win.HDC, bmi: *win.BITMAPINFO, usage: u32, bits: **void, section: *void, offset: u32) -> win.HBITMAP #foreign gdi32;
+CreateFontW :: (h: s32, w: s32, esc: s32, orient: s32, weight: s32, italic: u32, underline: u32, strike: u32, charset: u32, out_prec: u32, clip_prec: u32, quality: u32, pitch: u32, face: *u16) -> *void #foreign gdi32;
+SetTextColor :: (dc: win.HDC, color: u32) -> u32 #foreign gdi32;
+SetBkMode :: (dc: win.HDC, mode: s32) -> s32 #foreign gdi32;
+GdiFlush :: () -> s32 #foreign gdi32;
+DrawTextW :: (dc: win.HDC, text: *u16, count: s32, rect: *win.RECT, format: u32) -> s32 #foreign user32;
 CreatePopupMenu :: () -> win.HMENU #foreign user32;
 AppendMenuW :: (menu: win.HMENU, flags: u32, id: u64, text: *u16) -> s32 #foreign user32;
 TrackPopupMenu :: (menu: win.HMENU, flags: u32, x: s32, y: s32, reserved: s32, hwnd: win.HWND, rect: *win.RECT) -> s32 #foreign user32;
@@ -1043,10 +1049,11 @@ tray_menu :: () {
 }
 
 // base with a dot (red: unread mentions) in its bottom-right corner, as the official tray icon shows them;
-// with no base, the dot alone filling the icon (the taskbar overlay, the call states).
-badge_icon :: (base: win.HICON, color: u32 = 0xf23f43) -> win.HICON {
+// with no base, the dot alone filling the icon (the taskbar overlay, the call states), label in white on it.
+badge_icon :: (base: win.HICON, color: u32 = 0xf23f43, label := "") -> win.HICON {
     n := w.small_size;
     px := NewArray(n * n, u32,, temp);
+    glyphs := ifx label then text_coverage(label, n);
     if base {
         ii: win.ICONINFO;
         if win.GetIconInfo(base, *ii) == .FALSE return null;
@@ -1069,14 +1076,44 @@ badge_icon :: (base: win.HICON, color: u32 = 0xf23f43) -> win.HICON {
         cov := clamp(r - sqrt(dx * dx + dy * dy) + 0.5, 0, 1);
         if cov <= 0 continue;
         p := *px[y * n + x];
-        a := cast(float) (<<p >> 24) / 255;
+        a := cast(float) (p.* >> 24) / 255;
         oa := cov + a * (1 - cov);
-        <<p = ((cast(u32) (oa * 255 + 0.5)) << 24) | ch(<<p, 16, xx (color >> 16), a, cov, oa) | ch(<<p, 8, xx ((color >> 8) & 0xff), a, cov, oa) | ch(<<p, 0, xx (color & 0xff), a, cov, oa);
+        t := ifx glyphs then cast(float) glyphs[y * n + x] / 255 else 0; // the label, white over the dot
+        cr, cg, cb := cast(float) (color >> 16), cast(float) ((color >> 8) & 0xff), cast(float) (color & 0xff);
+        cr, cg, cb = cr + (255 - cr) * t, cg + (255 - cg) * t, cb + (255 - cb) * t;
+        p.* = ((cast(u32) (oa * 255 + 0.5)) << 24) | ch(p.*, 16, cr, a, cov, oa) | ch(p.*, 8, cg, a, cov, oa) | ch(p.*, 0, cb, a, cov, oa);
     }
     mask := NewArray((n + 15) / 16 * 2 * n, u8,, temp);
     out := win.ICONINFO.{fIcon = .TRUE, hbmColor = CreateBitmap(n, n, 1, 32, px.data), hbmMask = CreateBitmap(n, n, 1, 1, mask.data)};
     defer { win.DeleteObject(out.hbmColor); win.DeleteObject(out.hbmMask); }
     return CreateIconIndirect(*out);
+}
+
+// text in bold Segoe UI centred on an n x n square, as one coverage byte per pixel (GDI, grayscale antialiasing).
+text_coverage :: (text: string, n: s32) -> []u8 {
+    out := NewArray(n * n, u8,, temp);
+    dc := win.CreateCompatibleDC(null);
+    if !dc return out;
+    defer win.DeleteDC(dc);
+    bmi: win.BITMAPINFO;
+    bmi.bmiHeader = .{biSize = size_of(win.BITMAPINFOHEADER), biWidth = n, biHeight = -n, biPlanes = 1, biBitCount = 32};
+    bits: *u32;
+    bmp := CreateDIBSection(dc, *bmi, win.DIB_RGB_COLORS, xx *bits, null, 0);
+    if !bmp return out;
+    defer win.DeleteObject(bmp);
+    font := CreateFontW(-cast(s32) (cast(float) n * ifx text.count > 1 then 0.56 else 0.78), 0, 0, 0, 700 /*FW_BOLD*/, 0, 0, 0, 1 /*DEFAULT_CHARSET*/, 0, 0, 4 /*ANTIALIASED_QUALITY*/, 0, wide("Segoe UI"));
+    if !font return out;
+    defer win.DeleteObject(font);
+    old_bmp, old_font := win.SelectObject(dc, bmp), win.SelectObject(dc, font);
+    SetTextColor(dc, 0xffffff);
+    SetBkMode(dc, 1); // TRANSPARENT
+    r := win.RECT.{0, 0, n, n};
+    DrawTextW(dc, wide(text), -1, *r, 0x1 | 0x4 | 0x20 | 0x800); // DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX
+    GdiFlush();
+    for i: 0..n * n - 1 out[i] = xx (bits[i] & 0xff);
+    win.SelectObject(dc, old_font);
+    win.SelectObject(dc, old_bmp);
+    return out;
 }
 
 // ---- Clipboard: images and files

@@ -1,0 +1,20 @@
+# Unread bars: a mention badge scrolled out of the rail's view (here PAC's, under the user panel) puts a
+# red NEW pill on that edge, and clicking it scrolls the server into view (the unread DMs above then get
+# theirs). In a server, a channel with mentions out of view puts New Mentions over the channel list.
+resize 1000 290
+wait 10
+expect_visible "NEW"
+expect_not_visible "New Mentions"
+shot build/ui-rail_jump_pills-rail.png
+click_text "NEW"
+wait 40
+shot build/ui-rail_jump_pills-scrolled.png
+click 36 156
+wait 20
+resize 1000 240
+wait 10
+expect_visible "New Mentions"
+shot build/ui-rail_jump_pills-channels.png
+click_text "New Mentions"
+wait 40
+expect_not_visible "New Mentions"

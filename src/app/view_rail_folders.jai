@@ -136,7 +136,9 @@ rail_view :: () {
 	rail.semantic_size = .[ui.px(RAIL_W), ui.pct(1)];
 	rail.layout_axis = .Y;
 	rail.scrollbar = .None; // the official guild list scrolls without a visible bar
+	rail.bar_inset_bottom = USER_PANEL_H + voice_panel_height() + 8; // under the user panel
 	ui.signal(rail);
+	rs.jump = .{list = rail};
 	// Each connection's slots are drawn under its own client, so store() reads the right one; a click
 	// that moves the route makes that connection app.client.
 	active := app.client;
@@ -196,6 +198,7 @@ rail_view :: () {
 		if rail_item("discover", false, "", "compass", 0).clicked { discover_open(); }
 		spacer(.Y, USER_PANEL_H + 16);
 	}
+	jump_pills(*rs.jump, L("NEW"), L("NEW"));
 	rail_drag(entries);
 	rail_hosted_drag();
 	app.client = active;
@@ -250,6 +253,7 @@ Rail_State :: struct {
 	hosted_from: int;
 	hosted_targets: [..]Rail_Target;
 	hosted_prev: [..]Rail_Target;
+	jump: Jump_Pills; // the NEW pills for mention badges scrolled out of view
 }
 
 rs: Rail_State;
@@ -274,6 +278,7 @@ rail_dm :: (cid: dc.Snowflake) {
 	if ch == null { return; }
 	slot := ui.box("dmslot");
 	slot.semantic_size = .[ui.pct(1), ui.px(RAIL_SLOT)];
+	jump_mark(*rs.jump, slot, true); // only DMs with unread messages are here
 	if ui.offscreen(slot) { return; }
 	{ ui.parent(slot); defer ui.pop_parent();
 		ic := ui.box("dmicon", .Clickable | .Draw_Background | .Floating_X | .Floating_Y);
@@ -310,8 +315,10 @@ rail_guild :: (gid: dc.Snowflake, entry: int, inner: int) {
 	ui.id_scope(cast(u64)(gid)); defer ui.pop_seed();
 	sig := rail_item("guild", app.view.guild == gid, guild_initials(g.name), "", gid);
 	slot := ui.top_parent().last;
+	mentions := guild_mentions(gid);
+	if mentions > 0 jump_mark(*rs.jump, slot, true);
 	if sig.box == null { return; } // offscreen
-	{ ui.parent(slot); defer ui.pop_parent(); mention_badge(guild_mentions(gid), 0); }
+	{ ui.parent(slot); defer ui.pop_parent(); mention_badge(mentions, 0); }
 	if sig.clicked && !rs.drag_active { select_guild(gid); }
 	if sig.right_clicked && !rs.drag_active { guild_context_open(gid, app.ui.mouse); }
 	drag_source(sig, entry, inner);
@@ -326,9 +333,11 @@ rail_hosted_guild :: (gid: dc.Snowflake, active: bool, hi: int) {
 	if g == null { return; }
 	ui.id_scope(cast(u64)(gid)); defer ui.pop_seed();
 	sig := rail_item("hosted", active && app.view.guild == gid, guild_initials(g.name), "", gid);
-	if sig.box == null { return; }
 	slot := ui.top_parent().last;
-	{ ui.parent(slot); defer ui.pop_parent(); mention_badge(guild_mentions(gid), 0); }
+	mentions := guild_mentions(gid);
+	if mentions > 0 jump_mark(*rs.jump, slot, true);
+	if sig.box == null { return; }
+	{ ui.parent(slot); defer ui.pop_parent(); mention_badge(mentions, 0); }
 	if sig.clicked && !rs.hosted_active { select_guild(gid); }
 	if sig.right_clicked { guild_context_open(gid, app.ui.mouse); }
 	if sig.pressed {
@@ -393,6 +402,7 @@ rail_folder :: (e: *Rail_Entry, entry: int) {
 	group.layout_axis = .Y;
 	if ui.offscreen(group) {
 		group.semantic_size[ui.Axis.Y] = ui.px(group.rect.y1 - group.rect.y0);
+		for e.guilds if guild_mentions(it) > 0 { jump_mark(*rs.jump, group, true); break; }
 		return;
 	}
 	selected_inside := false;
@@ -462,6 +472,7 @@ rail_folder :: (e: *Rail_Entry, entry: int) {
 			pill.style.radius = .[0, 4, 0, 4];
 			if h < 0.5 { pill.flags &= ~ui.Box_Flag.Draw_Background; }
 			if !open { mention_badge(mentions, 0); }
+			if !open && mentions > 0 jump_mark(*rs.jump, slot, true);
 			if sig.hovering && !rs.drag_active { tooltip_right(ifx e.name then e.name else folder_guild_names(e.guilds)); }
 		}
 		if sig.clicked && !rs.drag_active { table_set(*rs.open, e.id, !open); }

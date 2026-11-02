@@ -644,6 +644,58 @@ unread_counts :: (s: *dc.Store, id: dc.Snowflake) -> bool {
 	return tm != null && tm.joined && !tm.archived;
 }
 
+// The official guild list's and channel list's unread bars: a pill over the top or bottom edge of a
+// scrolling list while rows marked this frame (jump_mark) are out of view there; a click scrolls to the
+// nearest. Uses last frame's rects; the list's bar_inset_bottom is covered by the user panel.
+Jump_Pills :: struct {
+	list: *ui.Box;
+	above: float32 = -1; // content y of the nearest hidden row's top, -1: none
+	below: float32 = -1; // and of the nearest hidden row's bottom under the view
+	above_mention, below_mention: bool;
+}
+
+jump_mark :: (j: *Jump_Pills, row: *ui.Box, mention: bool) {
+	r, l := row.rect, j.list.rect;
+	if r.y1 <= r.y0 || l.y1 <= l.y0 return; // not laid out yet
+	off := j.list.view_off.y - l.y0;
+	mid := (r.y0 + r.y1) / 2;
+	if mid < l.y0 {
+		j.above = max(j.above, r.y0 + off);
+		j.above_mention ||= mention;
+	} else if mid > l.y1 - j.list.bar_inset_bottom {
+		if j.below < 0 || r.y1 + off < j.below j.below = r.y1 + off;
+		j.below_mention ||= mention;
+	}
+}
+
+// Declared after the list, in its parent. unread is the text when no hidden row has mentions.
+jump_pills :: (j: *Jump_Pills, unread: string, mention: string) {
+	if notify_prefs.lotus return;
+	l, p := j.list.rect, ui.top_parent().rect;
+	view := l.y1 - l.y0 - j.list.bar_inset_bottom;
+	for below: bool.[false, true] {
+		y := ifx below then j.below else j.above;
+		if y < 0 continue;
+		m := ifx below then j.below_mention else j.above_mention;
+		text := ifx m then mention else unread;
+		w := ui.layout_text(F(.Bold), 12, text, -1).width + 20;
+		b := ui.box(ifx below then "jump_below" else "jump_above", .Clickable | .Draw_Background | .Draw_Text | .Floating_X | .Floating_Y | .Hot_Animation);
+		b.semantic_size = .[ui.px(w), ui.px(JUMP_PILL_H)];
+		b.fixed_pos = .{l.x0 - p.x0 + (l.x1 - l.x0 - w) / 2, l.y0 - p.y0 + ifx below then view - JUMP_PILL_H - 8 else 8.0};
+		b.text = text;
+		b.style.font = F(.Bold);
+		b.style.font_size = 12;
+		b.style.text_align = .Center;
+		b.style.text_color = .{1, 1, 1, 1};
+		b.style.bg = ifx m then T("--status-danger") else T("--background-brand");
+		b.style.bg_hot = with_alpha(b.style.bg, 0.85);
+		b.style.radius = all4(JUMP_PILL_H / 2);
+		if ui.signal(b).clicked j.list.view_off_target.y = ifx below then y - view + JUMP_PILL_H + 16 else y - JUMP_PILL_H - 16;
+	}
+}
+
+JUMP_PILL_H :: 24;
+
 sidebar :: () {
 	b := ui.box("sidebar", .Draw_Background | .Draw_Border | .Clip);
 	b.semantic_size = .[ui.px(app.view.sidebar_w), ui.pct(1)];
@@ -870,6 +922,7 @@ channel_sidebar :: (gid: dc.Snowflake) {
 	list.bar_inset_bottom = USER_PANEL_H + voice_panel_height() + 16; // the panel floats over the list's end
 	list.layout_axis = .Y;
 	ui.signal(list);
+	chan_jump = .{list = list};
 	{ ui.parent(list); defer ui.pop_parent();
 		spacer(.Y, 12);
 		if array_find(g.features, "GUILD_SERVER_GUIDE") && guild_action_row("guide", "flag", L("Server Guide"), onb.page == .Guide).clicked server_page_open(gid, .Guide);
@@ -913,8 +966,11 @@ channel_sidebar :: (gid: dc.Snowflake) {
 		}
 		spacer(.Y, USER_PANEL_H + voice_panel_height() + 16);
 	}
+	jump_pills(*chan_jump, L("New Unreads"), L("New Mentions"));
 	channel_drag(gid);
 }
+
+chan_jump: Jump_Pills; // the channel list's unread bars, marked by channel_row
 
 // ---- drag to reorder channels and categories (Manage Channels) ----
 
@@ -1028,6 +1084,7 @@ channel_row :: (ch: *dc.Channel, gid: dc.Snowflake) {
 	// muted channels are drawn dimmed and show no unread state (official --interactive-muted)
 	muted := dc.channel_effectively_muted(store(), gid, ch.id, wall_ms());
 	unread := dc.channel_unread(store(), ch.id) && !muted;
+	mentions := 0;
 	outer := row("chan");
 	outer.semantic_size = .[ui.pct(1), ui.px(CHANNEL_ROW_PITCH)];
 	{ ui.parent(outer); defer ui.pop_parent();
@@ -1100,7 +1157,7 @@ channel_row :: (ch: *dc.Channel, gid: dc.Snowflake) {
 					spacer(.X, 4);
 				}
 			}
-			mentions :=ifx selected || notify_prefs.lotus then 0 else channel_mentions(ch.id);
+			mentions = ifx selected || notify_prefs.lotus then 0 else channel_mentions(ch.id);
 			if mentions > 0 {
 				spacer(.X, 4);
 				text := ifx mentions > 99 then "99+" else tprint("%", mentions);
@@ -1124,6 +1181,7 @@ channel_row :: (ch: *dc.Channel, gid: dc.Snowflake) {
 		}
 		spacer(.X, 9);
 	}
+	if (unread || mentions > 0) && !selected jump_mark(*chan_jump, outer, mentions > 0);
 	if cdrag.active && cdrag.id == ch.id pk_fade(outer, 0.4);
 	if ch.kind == .Guild_Voice || ch.kind == .Guild_Stage_Voice {
 		s := store();
