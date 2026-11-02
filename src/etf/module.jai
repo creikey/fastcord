@@ -137,10 +137,13 @@ put_u32 :: (buf: *[..]u8, x: u32) { array_add(buf, cast(u8) (x >> 24), cast(u8) 
 put_bytes :: (buf: *[..]u8, s: string) { array_add(buf, ..cast([]u8) s); }
 
 put_atom :: (buf: *[..]u8, name: string) {
+    // Atoms are held as UTF-8, and the plain tags mean Latin-1 to the decoder.
+    utf8 := false;
+    for cast([]u8) name if it >= 0x80 utf8 = true;
     if name.count < 256 {
-        array_add(buf, cast(u8) Tag.Small_Atom, cast(u8) name.count);
+        array_add(buf, cast(u8) ifx utf8 then Tag.Small_Atom_Utf8 else .Small_Atom, cast(u8) name.count);
     } else {
-        put_tag(buf, .Atom);
+        put_tag(buf, ifx utf8 then Tag.Atom_Utf8 else .Atom);
         put_u16(buf, name.count);
     }
     put_bytes(buf, name);

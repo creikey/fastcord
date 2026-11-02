@@ -96,6 +96,10 @@ the Jai is written. This file lists what is easy to miss.
   servers are thin carrier adapters. Every E2E test runs over the in-memory mock carrier (lossy,
   reordering, duplicating, replaying, forging, packet size set per test); only an adapter's own
   encoding gets carrier-shaped tests.
+- Fuzzing (`jai build.jai - fuzz`, `src/tests/fuzz.jai`) never touches the network. Every bug or issue it
+  finds goes in `TODO.md`'s fuzz item, fixed or not, and its false alarms too. A crash's minimised input
+  (`tools/fuzz_min.py`) stays in `tests/fuzz/<target>/` as a regression test. Check the printed accept
+  rates: a parser near 0% is untested past its first check, however many runs it did.
 - Parsers fastcord writes for untrusted input (anything from the network, a file or another user)
   never use regular expressions. Parse with recursive descent over a lexer, preferably a table-driven
   DFA or straight-line scanning code. Each must run in time linear in its input: no backtracking and

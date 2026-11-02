@@ -1166,6 +1166,7 @@ member_list_get :: (s: *Store, guild_id: Snowflake, list_id := "everyone") -> *M
 }
 
 apply_member_list_update :: (s: *Store, d: etf.Map) {
+	MAX_MEMBER_LIST_ITEMS :: 1 << 17;
 	gid := fsnow(d, "guild_id");
 	id := fstr(d, "id");
 	ml := member_list_get(s, gid, id);
@@ -1198,14 +1199,13 @@ apply_member_list_update :: (s: *Store, d: etf.Map) {
 		// went online, so the Offline header left) drops its stale tail, which would show as a duplicate.
 		if vhas(d, "groups") {
 			rows := 0;
-			for ml.groups if it.count > 0 rows += 1 + it.count;
+			for ml.groups if it.count > 0 rows += 1 + min(it.count, MAX_MEMBER_LIST_ITEMS); // Any server's counts: unclamped, they overflow.
 			while ml.items.count > rows {
 				free_str(ml.items[ml.items.count - 1].group_id, s.allocator);
 				ml.items.count -= 1;
 			}
 		}
 	}
-	MAX_MEMBER_LIST_ITEMS :: 1 << 17;
 	for opv: flist(d, "ops") {
 		op := vmap(opv);
 		if fstr(op, "op") == {
@@ -1383,6 +1383,8 @@ remove_guild :: (s: *Store, gid: Snowflake) {
 	for cid: g.channels {
 		c := table_find_pointer(*s.channels, cid);
 		if c {
+			for * other: s.guilds if other != g array_ordered_remove_by_value(*other.channels, cid);
+			array_ordered_remove_by_value(*s.private_channels, cid);
 			free_channel(s, c);
 			table_remove(*s.channels, cid);
 		}
@@ -1403,18 +1405,20 @@ remove_guild :: (s: *Store, gid: Snowflake) {
 remove_channel :: (s: *Store, cid: Snowflake) {
 	c := table_find_pointer(*s.channels, cid);
 	if !c return;
-	g := table_find_pointer(*s.guilds, c.guild_id);
-	if g array_ordered_remove_by_value(*g.channels, cid);
+	// Every guild: an update can move a channel to another guild, and the first keeps listing it.
+	for * s.guilds array_ordered_remove_by_value(*it.channels, cid);
 	array_ordered_remove_by_value(*s.private_channels, cid);
 	free_channel(s, c);
 	table_remove(*s.channels, cid);
 	remove_messages(s, cid);
 }
 
-// array_ordered_remove_by_value drops the first x from a, keeping order.
+// array_ordered_remove_by_value drops every x from a, keeping order. A server can list an id twice, and
+// a copy left behind would name a channel that's gone.
 array_ordered_remove_by_value :: (a: *[..]Snowflake, x: Snowflake) {
-	found, i := array_find(a.*, x);
-	if found array_ordered_remove_by_index(a, i);
+	n := 0;
+	for a.* if it != x { a.*[n] = it; n += 1; }
+	a.count = n;
 }
 
 // store_apply_dispatch applies one gateway dispatch. Returns false for events it ignores.
@@ -1586,7 +1590,8 @@ store_apply_dispatch :: (s: *Store, name: string, data: V, now: s64) -> bool {
 		case "THREAD_UPDATE";
 			cid := parse_channel_into(s, d);
 			c := table_find_pointer(*s.channels, cid);
-			if c && c.guild_id {
+			if !c return true; // No usable id.
+			if c.guild_id {
 				g := table_find_pointer(*s.guilds, c.guild_id);
 				if g array_add_if_unique(*g.channels, cid);
 			} else {

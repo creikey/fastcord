@@ -1000,6 +1000,7 @@ iso_ms :: (unix_ms: s64) -> string {
 
 // milliseconds; other offsets are refused rather than guessed at.
 
+#scope_export
 parse_iso :: (text: string) -> s64, bool {
 
 	FORMAT :: "dddd-dd-ddTdd:dd:dd";
@@ -1079,6 +1080,7 @@ parse_iso :: (text: string) -> s64, bool {
 	return ((cast(s64) days * 86400 + h * 3600 + mi * 60 + sec) * 1000 + ms), true;
 
 }
+#scope_module
 
 
 

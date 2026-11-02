@@ -239,6 +239,7 @@ Url :: struct {
 	path: string;      // With the query, without the fragment; bytes past ASCII percent-encoded.
 }
 
+#scope_export
 parse_url :: (u: string) -> Url, bool {
 	r: Url;
 	rest: string;
@@ -272,6 +273,7 @@ parse_url :: (u: string) -> Url, bool {
 	r.path = builder_to_string(*sb,, temp);
 	return r, true;
 }
+#scope_module
 
 // unfurl fetches url, following up to MAX_REDIRECTS redirects, and reads the page's preview. The
 // strings are in temp.
@@ -317,6 +319,7 @@ unfurl :: (s: *Server, url: string) -> Page, bool {
 
 // scan_page reads a preview from a page's head: OpenGraph first, then Twitter cards, then <title> and
 // the description meta. One pass, each byte looked at a bounded number of times.
+#scope_export
 scan_page :: (html: string) -> Page {
 	og_title, tw_title, title, og_desc, tw_desc, desc, site, theme: string;
 	i := 0;
@@ -393,6 +396,7 @@ scan_page :: (html: string) -> Page {
 	}
 	return p;
 }
+#scope_module
 
 word_at :: (html: string, i: int, word: string) -> bool {
 	if i + word.count > html.count return false;
