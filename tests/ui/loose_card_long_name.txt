@@ -1,0 +1,11 @@
+# A long author name on a message card outside the chat (the inbox's Mentions; search and pins share the
+# card) is cut with an ellipsis before the time and the hovered Jump button, never drawn under them.
+wait 5
+click 1219 16
+wait 20
+click_text "Mentions"
+wait 20
+move 1050 195
+wait 10
+expect_visible "Jump"
+shot build/ui-loose_card_long_name.png

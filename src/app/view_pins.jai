@@ -148,9 +148,19 @@ loose_message_card :: (m: *dc.Message, terms: []string, show_jump: bool) -> bool
 			nr := row("name");
 			nr.semantic_size = .[ui.pct(1), ui.px(22)];
 			{ ui.parent(nr); defer ui.pop_parent();
-				label(author_name(m, "unknown"), .Medium, 16, author_color(m), 22);
+				// a long name is cut so it never runs under the time or the Jump button,
+				// whose room is kept even before the hover shows it
+				ts := format_timestamp(m.id);
+				name := author_name(m, "unknown");
+				nw := nr.rect.x1 - nr.rect.x0;
+				if nw > 0 {
+					rest := 8 + ui.layout_text(F(.Medium), 12, ts, -1).width + 12;
+					if show_jump rest += ui.layout_text(F(.Medium), 12, L("Jump"), -1).width + 16;
+					name = ellipsize(name, .Medium, 16, max(nw - rest, 0));
+				}
+				label(name, .Medium, 16, author_color(m), 22);
 				spacer(.X, 8);
-				label(format_timestamp(m.id), .Medium, 12, T("--text-muted"), 22);
+				label(ts, .Medium, 12, T("--text-muted"), 22);
 				filler(.X);
 				if show_jump && hovered {
 					jb := row("jump", .Clickable | .Draw_Background | .Hot_Animation);
