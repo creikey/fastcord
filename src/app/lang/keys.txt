@@ -388,6 +388,7 @@ Automatically open fastcord when your computer starts up
 Automatically scan and delete messages sent in this server that contain explicit media.
 Avatar
 BACK
+BACKGROUND
 BACKUP CODES
 BACKUPS
 Back
@@ -424,8 +425,6 @@ Blocks messages with more than % mentions.
 Blocks words from Discord's commonly flagged lists.
 Blocks words in member profile names.
 Blur
-Blur Background
-Blur what's behind you on camera. Only your camera is changed.
 Bold / italic / underline
 Bots and Apps
 Bottle It
@@ -440,6 +439,7 @@ By making a category private, only select members and roles will be able to view
 By making a channel private, only select members and roles will be able to view this channel.
 By making a channel private, only select members and roles will have access to view or connect to this channel.
 Bypass Slowmode
+CAMERA
 CHANNEL
 CHANNEL OR CATEGORY
 CONFIRM NEW PASSWORD
@@ -484,6 +484,7 @@ Checking the file…
 Chinese, China
 Chinese, Taiwan
 Choose Image##ricon
+Choose Picture
 Choose a link people can use to join, discord.gg/<code>.
 Choose a server
 Choose the language you want Discord to display.
@@ -1355,6 +1356,7 @@ Outgoing Friend Request
 Overview
 PASSWORD
 PM
+PREVIEW
 PRIVACY CODE
 PTT Activate
 PTT Deactivate
@@ -1389,6 +1391,7 @@ Pick a channel for the alerts.
 Pick as many as you like.
 Pick at least one response.
 Pick one.
+Picture
 Pin It. Pin It Good.
 Pin Message
 Pin Messages
@@ -1555,6 +1558,7 @@ Russian
 SELECT A CHANNEL
 SELECT A SERVER
 SERVER NAME
+SHORTCUT
 SIZE
 SOUND
 SOUNDBOARD VOLUME
@@ -1792,6 +1796,7 @@ That image is too large. Avatars must be under %.
 That image is too large. Banners must be under 10 MB.
 That image is too large. Server icons must be under 512 KB.
 That isn't a valid fastcord invite.
+That picture can't be opened.
 That's too long for a bottle.
 That's too long to send encrypted.
 The Pin Is Stuck!
@@ -2116,6 +2121,7 @@ Your files are too powerful
 Your full profile is visible to friends and any server you join with 200 or fewer members. Everyone else sees a limited version.
 Your full profile is visible to friends and any server you join.
 Your full profile is visible to friends. Everyone else sees a limited version.
+Your graphics card can't run background effects.
 Your invite link expires after %.
 Your invite link expires in %.
 Your invite link expires in %1, or after %2.

@@ -375,6 +375,7 @@ Automatically open fastcord when your computer starts up	Åpne fastcord automati
 Automatically scan and delete messages sent in this server that contain explicit media.	Skann og slett automatisk meldinger på denne serveren som inneholder eksplisitte medier.
 Avatar	Avatar
 BACK	TILBAKE
+BACKGROUND	BAKGRUNN
 BACKUP CODES	RESERVEKODER
 Back	Tilbake
 Back / forward	Tilbake / fremover
@@ -408,8 +409,6 @@ Blocks messages with more than % mentions.	Blokkerer meldinger med mer enn % nev
 Blocks words from Discord's commonly flagged lists.	Blokkerer ord fra Discords lister over ord som ofte flagges.
 Blocks words in member profile names.	Blokkerer ord i medlemmers profilnavn.
 Blur	Uskarphet
-Blur Background	Gjør bakgrunnen uskarp
-Blur what's behind you on camera. Only your camera is changed.	Gjør det bak deg uskarpt på kameraet. Bare kameraet ditt endres.
 Bold / italic / underline	Fet / kursiv / understreking
 Bots and Apps	Boter og apper
 Browse	Bla gjennom
@@ -422,6 +421,7 @@ By making a category private, only select members and roles will be able to view
 By making a channel private, only select members and roles will be able to view this channel.	Når en kanal gjøres privat, kan bare utvalgte medlemmer og roller se den.
 By making a channel private, only select members and roles will have access to view or connect to this channel.	Når en kanal gjøres privat, kan bare utvalgte medlemmer og roller se eller koble til den.
 Bypass Slowmode	Omgå treg modus
+CAMERA	KAMERA
 CHANNEL OR CATEGORY	KANAL ELLER KATEGORI
 CONFIRM NEW PASSWORD	BEKREFT NYTT PASSORD
 CURRENT PASSWORD	NÅVÆRENDE PASSORD
@@ -457,6 +457,7 @@ Checking the file…	Sjekker filen …
 Chinese, China	Kinesisk, Kina
 Chinese, Taiwan	Kinesisk, Taiwan
 Choose Image	Velg bilde
+Choose Picture	Velg bilde
 Choose a link people can use to join, discord.gg/<code>.	Velg en lenke folk kan bruke for å bli med, discord.gg/<code>.
 Choose a server	Velg en server
 Choose the language you want Discord to display.	Velg språket du vil at Discord skal vises på.
@@ -654,7 +655,6 @@ Disconnect	Koble fra
 Disconnect From Voice Channel	Koble fra talekanal
 Disconnected	Frakoblet
 Discord account	Discord-konto
-Discord asked for a captcha, which fastcord can't show. Log in with the QR code instead.	Discord ba om en captcha, som fastcord ikke kan vise. Logg inn med QR-koden i stedet.
 Discord asked for a captcha, which fastcord can't show. Try on discord.com.	Discord ba om en captcha, som fastcord ikke kan vise. Prøv på discord.com.
 Discord can filter out some messages that contain spam. These messages go to your Spam inbox.	Discord kan filtrere ut noen meldinger som inneholder spam. Disse meldingene havner i spam-innboksen din.
 Discord didn't accept the saved login. Log in again.	Discord godtok ikke den lagrede innloggingen. Logg inn igjen.
@@ -1242,6 +1242,7 @@ Outgoing Friend Request	Utgående venneforespørsel
 Overview	Oversikt
 PASSWORD	PASSORD
 PM	p.m.
+PREVIEW	FORHÅNDSVISNING
 PRIVACY CODE	PERSONVERNKODE
 PTT Activate	Trykk for å snakke på
 PTT Deactivate	Trykk for å snakke av
@@ -1272,6 +1273,7 @@ Phone Number	Telefonnummer
 Pick a channel	Velg en kanal
 Pick a channel for the alerts.	Velg en kanal for varslene.
 Pick at least one response.	Velg minst ett svar.
+Picture	Bilde
 Pin It. Pin It Good.	Fest den. Fest den godt.
 Pin Message	Fest melding
 Pin Messages	Fest meldinger
@@ -1416,6 +1418,7 @@ Russian	Russisk
 SELECT A CHANNEL	VELG EN KANAL
 SELECT A SERVER	VELG EN SERVER
 SERVER NAME	SERVERNAVN
+SHORTCUT	SNARVEI
 SOUNDBOARD VOLUME	LYDBRETTVOLUM
 START FROM A TEMPLATE	START MED EN MAL
 STATIC EMOJI — % SLOTS AVAILABLE	STATISKE EMOJIER — % PLASSER LEDIG
@@ -1636,6 +1639,7 @@ That image is too large. Avatars must be under %.	Bildet er for stort. Avatarer 
 That image is too large. Banners must be under 10 MB.	Bildet er for stort. Bannere må være under 10 MB.
 That image is too large. Server icons must be under 512 KB.	Bildet er for stort. Serverikoner må være under 512 KB.
 That isn't a valid fastcord invite.	Det er ikke en gyldig fastcord-invitasjon.
+That picture can't be opened.	Bildet kan ikke åpnes.
 That's too long to send encrypted.	Den er for lang til å sendes kryptert.
 The Pin Is Stuck!	Festet sitter fast!
 The badge chosen in the official client stays as it is.	Merket som er valgt i den offisielle klienten, forblir som det er.
@@ -1934,6 +1938,7 @@ Your files are too powerful	Filene dine er for kraftige
 Your full profile is visible to friends and any server you join with 200 or fewer members. Everyone else sees a limited version.	Hele profilen din er synlig for venner og alle servere du blir med på som har 200 eller færre medlemmer. Alle andre ser en begrenset versjon.
 Your full profile is visible to friends and any server you join.	Hele profilen din er synlig for venner og alle servere du blir med på.
 Your full profile is visible to friends. Everyone else sees a limited version.	Hele profilen din er synlig for venner. Alle andre ser en begrenset versjon.
+Your graphics card can't run background effects.	Skjermkortet ditt kan ikke kjøre bakgrunnseffekter.
 Your invite link expires after %.	Invitasjonslenken din utløper etter %.
 Your invite link expires in %.	Invitasjonslenken din utløper om %.
 Your invite link expires in %1, or after %2.	Invitasjonslenken din utløper om %1, eller etter %2.

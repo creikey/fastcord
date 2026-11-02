@@ -375,6 +375,7 @@ Automatically open fastcord when your computer starts up	Abrir fastcord automát
 Automatically scan and delete messages sent in this server that contain explicit media.	Analiza y elimina automáticamente los mensajes enviados en este servidor que contengan contenido multimedia explícito.
 Avatar	Avatar
 BACK	ATRÁS
+BACKGROUND	FONDO
 BACKUP CODES	CÓDIGOS DE RESPALDO
 Back	Atrás
 Back / forward	Atrás / adelante
@@ -408,8 +409,6 @@ Blocks messages with more than % mentions.	Bloquea los mensajes con más de % me
 Blocks words from Discord's commonly flagged lists.	Bloquea palabras de las listas de Discord de términos marcados con frecuencia.
 Blocks words in member profile names.	Bloquea palabras en los nombres de perfil de los miembros.
 Blur	Desenfocar
-Blur Background	Desenfocar fondo
-Blur what's behind you on camera. Only your camera is changed.	Desenfoca lo que hay detrás de ti en la cámara. Solo cambia tu cámara.
 Bold / italic / underline	Negrita / cursiva / subrayado
 Bots and Apps	Bots y apps
 Browse	Explorar
@@ -422,6 +421,7 @@ By making a category private, only select members and roles will be able to view
 By making a channel private, only select members and roles will be able to view this channel.	Si haces privado un canal, solo los miembros y roles que elijas podrán verlo.
 By making a channel private, only select members and roles will have access to view or connect to this channel.	Si haces privado un canal, solo los miembros y roles que elijas podrán verlo o conectarse a él.
 Bypass Slowmode	Ignorar modo lento
+CAMERA	CÁMARA
 CHANNEL OR CATEGORY	CANAL O CATEGORÍA
 CONFIRM NEW PASSWORD	CONFIRMAR CONTRASEÑA NUEVA
 CURRENT PASSWORD	CONTRASEÑA ACTUAL
@@ -457,6 +457,7 @@ Checking the file…	Comprobando el archivo…
 Chinese, China	Chino (China)
 Chinese, Taiwan	Chino (Taiwán)
 Choose Image	Elegir imagen
+Choose Picture	Elegir imagen
 Choose a link people can use to join, discord.gg/<code>.	Elige un enlace que la gente pueda usar para unirse, discord.gg/<código>.
 Choose a server	Elige un servidor
 Choose the language you want Discord to display.	Elige el idioma en el que quieres ver Discord.
@@ -654,7 +655,6 @@ Disconnect	Desconectar
 Disconnect From Voice Channel	Desconectar del canal de voz
 Disconnected	Desconectado
 Discord account	Cuenta de Discord
-Discord asked for a captcha, which fastcord can't show. Log in with the QR code instead.	Discord ha pedido un captcha, pero fastcord no puede mostrarlo. Inicia sesión con el código QR.
 Discord asked for a captcha, which fastcord can't show. Try on discord.com.	Discord ha pedido un captcha, pero fastcord no puede mostrarlo. Prueba en discord.com.
 Discord can filter out some messages that contain spam. These messages go to your Spam inbox.	Discord puede filtrar algunos mensajes que contengan spam. Estos mensajes van a tu bandeja de spam.
 Discord didn't accept the saved login. Log in again.	Discord no aceptó la sesión guardada. Vuelve a iniciar sesión.
@@ -1242,6 +1242,7 @@ Outgoing Friend Request	Solicitud de amistad enviada
 Overview	Resumen
 PASSWORD	CONTRASEÑA
 PM	p. m.
+PREVIEW	VISTA PREVIA
 PRIVACY CODE	CÓDIGO DE PRIVACIDAD
 PTT Activate	Activar Pulsar para hablar
 PTT Deactivate	Desactivar Pulsar para hablar
@@ -1272,6 +1273,7 @@ Phone Number	Número de teléfono
 Pick a channel	Elige un canal
 Pick a channel for the alerts.	Elige un canal para las alertas.
 Pick at least one response.	Elige al menos una respuesta.
+Picture	Imagen
 Pin It. Pin It Good.	Fíjalo. Fíjalo bien.
 Pin Message	Fijar mensaje
 Pin Messages	Fijar mensajes
@@ -1416,6 +1418,7 @@ Russian	Ruso
 SELECT A CHANNEL	SELECCIONA UN CANAL
 SELECT A SERVER	SELECCIONA UN SERVIDOR
 SERVER NAME	NOMBRE DEL SERVIDOR
+SHORTCUT	ATAJO
 SOUNDBOARD VOLUME	VOLUMEN DEL PANEL DE SONIDOS
 START FROM A TEMPLATE	EMPEZAR CON UNA PLANTILLA
 STATIC EMOJI — % SLOTS AVAILABLE	EMOJIS ESTÁTICOS — % HUECOS DISPONIBLES
@@ -1636,6 +1639,7 @@ That image is too large. Avatars must be under %.	Esa imagen es demasiado grande
 That image is too large. Banners must be under 10 MB.	Esa imagen es demasiado grande. Los banners deben pesar menos de 10 MB.
 That image is too large. Server icons must be under 512 KB.	Esa imagen es demasiado grande. Los iconos de servidor deben pesar menos de 512 KB.
 That isn't a valid fastcord invite.	Esa no es una invitación de fastcord válida.
+That picture can't be opened.	No se puede abrir esa imagen.
 That's too long to send encrypted.	Es demasiado largo para enviarlo cifrado.
 The Pin Is Stuck!	¡La chincheta se ha atascado!
 The badge chosen in the official client stays as it is.	La insignia elegida en el cliente oficial se queda como está.
@@ -1934,6 +1938,7 @@ Your files are too powerful	Tus archivos son demasiado potentes
 Your full profile is visible to friends and any server you join with 200 or fewer members. Everyone else sees a limited version.	Tu perfil completo lo ven tus amigos y los servidores de 200 miembros o menos a los que te unas. Los demás ven una versión limitada.
 Your full profile is visible to friends and any server you join.	Tu perfil completo lo ven tus amigos y cualquier servidor al que te unas.
 Your full profile is visible to friends. Everyone else sees a limited version.	Tu perfil completo lo ven tus amigos. Los demás ven una versión limitada.
+Your graphics card can't run background effects.	Tu tarjeta gráfica no puede aplicar efectos de fondo.
 Your invite link expires after %.	Tu enlace de invitación caduca tras %.
 Your invite link expires in %.	Tu enlace de invitación caduca en %.
 Your invite link expires in %1, or after %2.	Tu enlace de invitación caduca en %1 o tras %2.

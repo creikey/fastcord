@@ -74,10 +74,17 @@ capture_stop :: (c: *Capture) {
 	reap();
 }
 
-// Background blur is macOS-only (Vision, blur_darwin.jai).
-blur_supported :: () -> bool { return false; }
-blur_background :: (pixbuf: *void) -> *void { return null; }
-pixbuf_release :: (pb: *void) {}
+// background_apply: a new frame (release with pixbuf_release) of pixbuf with the background effect
+// (segment.jai), or null when it's off or can't run.
+background_apply :: (pixbuf: *void) -> *void {
+	f := cast(*yuv.Nv12) pixbuf;
+	out := yuv.nv12_create(f.width, f.height);
+	if background_frame(f.data, out.data, f.width, f.height, false) return out;
+	yuv.nv12_release(out);
+	return null;
+}
+
+pixbuf_release :: (pb: *void) { yuv.nv12_release(pb); }
 
 #scope_module
 

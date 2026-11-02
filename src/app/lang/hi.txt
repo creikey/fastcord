@@ -373,6 +373,7 @@ Automatically open fastcord when your computer starts up	कंप्यूट�
 Automatically scan and delete messages sent in this server that contain explicit media.	इस सर्वर में भेजे गए अश्लील मीडिया वाले मैसेज अपने आप स्कैन करके डिलीट करें।
 Avatar	अवतार
 BACK	वापस
+BACKGROUND	बैकग्राउंड
 BACKUP CODES	बैकअप कोड
 Back	वापस
 Back / forward	पीछे / आगे
@@ -406,8 +407,6 @@ Blocks messages with more than % mentions.	% से ज़्यादा मे
 Blocks words from Discord's commonly flagged lists.	Discord की आम तौर पर फ़्लैग होने वाली सूचियों के शब्द ब्लॉक करता है।
 Blocks words in member profile names.	सदस्य प्रोफ़ाइल नामों में शब्द ब्लॉक करता है।
 Blur	धुंधला
-Blur Background	बैकग्राउंड धुंधला करें
-Blur what's behind you on camera. Only your camera is changed.	कैमरे पर आपके पीछे का हिस्सा धुंधला करें। सिर्फ़ आपका कैमरा बदलता है।
 Bold / italic / underline	बोल्ड / इटैलिक / अंडरलाइन
 Bots and Apps	बॉट और ऐप
 Browse	ब्राउज़ करें
@@ -420,6 +419,7 @@ By making a category private, only select members and roles will be able to view
 By making a channel private, only select members and roles will be able to view this channel.	चैनल को निजी बनाने पर, सिर्फ़ चुने गए सदस्य और रोल ही इसे देख पाएँगे।
 By making a channel private, only select members and roles will have access to view or connect to this channel.	चैनल को निजी बनाने पर, सिर्फ़ चुने गए सदस्य और रोल ही इसे देख या इससे कनेक्ट कर पाएँगे।
 Bypass Slowmode	स्लोमोड बायपास करें
+CAMERA	कैमरा
 CHANNEL OR CATEGORY	चैनल या कैटेगरी
 CONFIRM NEW PASSWORD	नए पासवर्ड की पुष्टि करें
 CURRENT PASSWORD	मौजूदा पासवर्ड
@@ -455,6 +455,7 @@ Checking the file…	फ़ाइल जाँच रहे हैं…
 Chinese, China	चीनी (चीन)
 Chinese, Taiwan	चीनी (ताइवान)
 Choose Image	इमेज चुनें
+Choose Picture	तस्वीर चुनें
 Choose a link people can use to join, discord.gg/<code>.	ऐसा लिंक चुनें जिससे लोग जुड़ सकें, discord.gg/<code>।
 Choose a server	सर्वर चुनें
 Choose the language you want Discord to display.	वह भाषा चुनें जिसमें आप Discord देखना चाहते हैं।
@@ -652,7 +653,6 @@ Disconnect	डिस्कनेक्ट करें
 Disconnect From Voice Channel	वॉइस चैनल से डिस्कनेक्ट करें
 Disconnected	डिस्कनेक्ट हो गया
 Discord account	Discord अकाउंट
-Discord asked for a captcha, which fastcord can't show. Log in with the QR code instead.	Discord ने कैप्चा माँगा, जिसे fastcord नहीं दिखा सकता। इसके बजाय QR कोड से लॉग इन करें।
 Discord asked for a captcha, which fastcord can't show. Try on discord.com.	Discord ने कैप्चा माँगा, जिसे fastcord नहीं दिखा सकता। discord.com पर कोशिश करें।
 Discord can filter out some messages that contain spam. These messages go to your Spam inbox.	Discord स्पैम वाले कुछ मैसेज फ़िल्टर कर सकता है। ये मैसेज आपके स्पैम इनबॉक्स में जाते हैं।
 Discord didn't accept the saved login. Log in again.	Discord ने सेव किया गया लॉगिन स्वीकार नहीं किया। फिर से लॉग इन करें।
@@ -1239,6 +1239,7 @@ Outgoing Friend Request	भेजी गई फ़्रेंड रिक्�
 Overview	अवलोकन
 PASSWORD	पासवर्ड
 PM	अपराह्न
+PREVIEW	प्रीव्यू
 PRIVACY CODE	प्राइवेसी कोड
 PTT Activate	PTT चालू
 PTT Deactivate	PTT बंद
@@ -1269,6 +1270,7 @@ Phone Number	फ़ोन नंबर
 Pick a channel	चैनल चुनें
 Pick a channel for the alerts.	अलर्ट के लिए चैनल चुनें।
 Pick at least one response.	कम से कम एक जवाब चुनें।
+Picture	तस्वीर
 Pin It. Pin It Good.	पिन करें। अच्छे से पिन करें।
 Pin Message	मैसेज पिन करें
 Pin Messages	मैसेज पिन करें
@@ -1413,6 +1415,7 @@ Russian	रूसी
 SELECT A CHANNEL	चैनल चुनें
 SELECT A SERVER	सर्वर चुनें
 SERVER NAME	सर्वर का नाम
+SHORTCUT	शॉर्टकट
 SOUNDBOARD VOLUME	साउंडबोर्ड वॉल्यूम
 START FROM A TEMPLATE	टेम्पलेट से शुरू करें
 STATIC EMOJI — % SLOTS AVAILABLE	स्थिर इमोजी — % स्लॉट उपलब्ध
@@ -1633,6 +1636,7 @@ That image is too large. Avatars must be under %.	वह इमेज बहु�
 That image is too large. Banners must be under 10 MB.	वह इमेज बहुत बड़ी है। बैनर 10 MB से छोटे होने चाहिए।
 That image is too large. Server icons must be under 512 KB.	वह इमेज बहुत बड़ी है। सर्वर आइकन 512 KB से छोटे होने चाहिए।
 That isn't a valid fastcord invite.	यह सही fastcord इनवाइट नहीं है।
+That picture can't be opened.	वह तस्वीर नहीं खुल सकती।
 That's too long to send encrypted.	यह एन्क्रिप्ट करके भेजने के लिए बहुत लंबा है।
 The Pin Is Stuck!	पिन अटक गया!
 The badge chosen in the official client stays as it is.	ऑफ़िशियल क्लाइंट में चुना गया बैज जैसा है वैसा ही रहेगा।
@@ -1931,6 +1935,7 @@ Your files are too powerful	आपकी फ़ाइलें बहुत त�
 Your full profile is visible to friends and any server you join with 200 or fewer members. Everyone else sees a limited version.	आपकी पूरी प्रोफ़ाइल दोस्तों को और आपके जुड़े हुए 200 या कम सदस्यों वाले किसी भी सर्वर को दिखती है। बाकी सबको सीमित वर्शन दिखता है।
 Your full profile is visible to friends and any server you join.	आपकी पूरी प्रोफ़ाइल दोस्तों को और आपके जुड़े हुए किसी भी सर्वर को दिखती है।
 Your full profile is visible to friends. Everyone else sees a limited version.	आपकी पूरी प्रोफ़ाइल दोस्तों को दिखती है। बाकी सबको सीमित वर्शन दिखता है।
+Your graphics card can't run background effects.	आपका ग्राफ़िक्स कार्ड बैकग्राउंड इफ़ेक्ट नहीं चला सकता।
 Your invite link expires after %.	आपका इनवाइट लिंक % के बाद खत्म हो जाएगा।
 Your invite link expires in %.	आपका इनवाइट लिंक % में खत्म हो जाएगा।
 Your invite link expires in %1, or after %2.	आपका इनवाइट लिंक %1 में, या %2 के बाद खत्म हो जाएगा।

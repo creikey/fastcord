@@ -375,6 +375,7 @@ Automatically open fastcord when your computer starts up	Automatski otvori fastc
 Automatically scan and delete messages sent in this server that contain explicit media.	Automatski skeniraj i briši poruke poslane na ovom poslužitelju koje sadrže eksplicitne medije.
 Avatar	Avatar
 BACK	NATRAG
+BACKGROUND	POZADINA
 BACKUP CODES	REZERVNI KODOVI
 Back	Natrag
 Back / forward	Natrag / naprijed
@@ -408,8 +409,6 @@ Blocks messages with more than % mentions.	Blokira poruke s više od % spominjan
 Blocks words from Discord's commonly flagged lists.	Blokira riječi s Discordovih popisa često označenih riječi.
 Blocks words in member profile names.	Blokira riječi u imenima profila članova.
 Blur	Zamućenje
-Blur Background	Zamuti pozadinu
-Blur what's behind you on camera. Only your camera is changed.	Zamuti ono što je iza tebe na kameri. Mijenja se samo tvoja kamera.
 Bold / italic / underline	Podebljano / kurziv / podcrtano
 Bots and Apps	Botovi i aplikacije
 Browse	Pregledaj
@@ -422,6 +421,7 @@ By making a category private, only select members and roles will be able to view
 By making a channel private, only select members and roles will be able to view this channel.	Ako kanal učiniš privatnim, vidjet će ga samo odabrani članovi i uloge.
 By making a channel private, only select members and roles will have access to view or connect to this channel.	Ako kanal učiniš privatnim, samo će odabrani članovi i uloge moći vidjeti ovaj kanal ili se povezati s njim.
 Bypass Slowmode	Zaobilaženje sporog načina
+CAMERA	KAMERA
 CHANNEL OR CATEGORY	KANAL ILI KATEGORIJA
 CONFIRM NEW PASSWORD	POTVRDI NOVU LOZINKU
 CURRENT PASSWORD	TRENUTAČNA LOZINKA
@@ -457,6 +457,7 @@ Checking the file…	Provjera datoteke…
 Chinese, China	Kineski, Kina
 Chinese, Taiwan	Kineski, Tajvan
 Choose Image	Odaberi sliku
+Choose Picture	Odaberi sliku
 Choose a link people can use to join, discord.gg/<code>.	Odaberi poveznicu kojom se ljudi mogu pridružiti, discord.gg/<kôd>.
 Choose a server	Odaberi poslužitelj
 Choose the language you want Discord to display.	Odaberi jezik na kojem želiš da se Discord prikazuje.
@@ -654,7 +655,6 @@ Disconnect	Prekini vezu
 Disconnect From Voice Channel	Prekini vezu s glasovnim kanalom
 Disconnected	Veza prekinuta
 Discord account	Discord račun
-Discord asked for a captcha, which fastcord can't show. Log in with the QR code instead.	Discord je zatražio captchu, koju fastcord ne može prikazati. Umjesto toga prijavi se QR kodom.
 Discord asked for a captcha, which fastcord can't show. Try on discord.com.	Discord je zatražio captchu, koju fastcord ne može prikazati. Pokušaj na discord.com.
 Discord can filter out some messages that contain spam. These messages go to your Spam inbox.	Discord može filtrirati neke poruke koje sadrže spam. Te poruke idu u tvoj sandučić Neželjeno.
 Discord didn't accept the saved login. Log in again.	Discord nije prihvatio spremljenu prijavu. Prijavi se ponovno.
@@ -1242,6 +1242,7 @@ Outgoing Friend Request	Odlazni zahtjev za prijateljstvo
 Overview	Pregled
 PASSWORD	LOZINKA
 PM	popodne
+PREVIEW	PREGLED
 PRIVACY CODE	KÔD PRIVATNOSTI
 PTT Activate	Aktivacija PTT-a
 PTT Deactivate	Deaktivacija PTT-a
@@ -1272,6 +1273,7 @@ Phone Number	Broj telefona
 Pick a channel	Odaberi kanal
 Pick a channel for the alerts.	Odaberi kanal za upozorenja.
 Pick at least one response.	Odaberi barem jedan odgovor.
+Picture	Slika
 Pin It. Pin It Good.	Prikvači. Dobro prikvači.
 Pin Message	Prikvači poruku
 Pin Messages	Prikvačivanje poruka
@@ -1416,6 +1418,7 @@ Russian	Ruski
 SELECT A CHANNEL	ODABERI KANAL
 SELECT A SERVER	ODABERI POSLUŽITELJ
 SERVER NAME	NAZIV POSLUŽITELJA
+SHORTCUT	PREČAC
 SOUNDBOARD VOLUME	GLASNOĆA PLOČE ZVUKOVA
 START FROM A TEMPLATE	KRENI OD PREDLOŠKA
 STATIC EMOJI — % SLOTS AVAILABLE	STATIČNI EMOJIJI — SLOBODNIH MJESTA: %
@@ -1636,6 +1639,7 @@ That image is too large. Avatars must be under %.	Ta je slika prevelika. Avatari
 That image is too large. Banners must be under 10 MB.	Ta je slika prevelika. Natpisi moraju biti manji od 10 MB.
 That image is too large. Server icons must be under 512 KB.	Ta je slika prevelika. Ikone poslužitelja moraju biti manje od 512 KB.
 That isn't a valid fastcord invite.	To nije valjana fastcord pozivnica.
+That picture can't be opened.	Ta se slika ne može otvoriti.
 That's too long to send encrypted.	To je predugo za šifrirano slanje.
 The Pin Is Stuck!	Pribadača je zapela!
 The badge chosen in the official client stays as it is.	Značka odabrana u službenom klijentu ostaje kakva jest.
@@ -1934,6 +1938,7 @@ Your files are too powerful	Tvoje su datoteke prejake
 Your full profile is visible to friends and any server you join with 200 or fewer members. Everyone else sees a limited version.	Tvoj cijeli profil vidljiv je prijateljima i svakom poslužitelju s 200 ili manje članova kojem se pridružiš. Svi ostali vide ograničenu verziju.
 Your full profile is visible to friends and any server you join.	Tvoj cijeli profil vidljiv je prijateljima i svakom poslužitelju kojem se pridružiš.
 Your full profile is visible to friends. Everyone else sees a limited version.	Tvoj cijeli profil vidljiv je prijateljima. Svi ostali vide ograničenu verziju.
+Your graphics card can't run background effects.	Tvoja grafička kartica ne može pokretati efekte pozadine.
 Your invite link expires after %.	Tvoja poveznica za pozivnicu istječe nakon %.
 Your invite link expires in %.	Tvoja poveznica za pozivnicu istječe za %.
 Your invite link expires in %1, or after %2.	Tvoja poveznica za pozivnicu istječe za %1 ili nakon %2.

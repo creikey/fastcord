@@ -104,18 +104,21 @@ thumb_add :: (is_window: bool, id: u32, rgba: []u8, w: int, h: int) {
 	#load "capture_darwin.jai";
 	#load "encode_darwin.jai";
 	#load "pattern_darwin.jai";
-	#load "blur_darwin.jai";
+	#load "segment_metal_darwin.jai";
 } else #if OS == .WINDOWS {
 	#load "capture_nv12.jai";
 	#load "capture_windows.jai";
 	#load "encode_windows.jai";
+	#load "segment_d3d11_windows.jai";
 } else #if OS == .LINUX {
 	#load "capture_nv12.jai";
 	#load "capture_linux.jai";
 	#load "screen_linux.jai";
 	#load "encode_linux.jai";
+	#load "segment_gl_linux.jai";
 }
 #load "encode_vp8.jai";
+#load "segment.jai";
 
 #scope_module
 
@@ -125,6 +128,7 @@ thumb_add :: (is_window: bool, id: u32, rgba: []u8, w: int, h: int) {
 #import "Thread";
 #import "Atomics";
 locks :: #import "locks";
+imagefmt :: #import "imagefmt";
 
 #if OS != .MACOS yuv :: #import "yuv";
 
@@ -133,6 +137,7 @@ locks :: #import "locks";
 	#import "Windows_Utf8";
 	#import "d3d11";
 	#import "dxgi";
+	#import "d3d_compiler";
 	mf :: #import "mf";
 }
 

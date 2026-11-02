@@ -33,7 +33,9 @@ Persisted_Voice :: struct {
 	user_muted: Table(string, bool);
 	camera: string; // video.Camera_Device id ("" = the default camera)
 	camera_name: string; // its name, shown before the cameras are listed
-	camera_blur: bool; // Blur Background (video.blur_background)
+	camera_blur: bool; // the background blurred: written for builds before camera_background
+	camera_background: string; // "none" | "blur" | "image" (video.Background); "" before it: camera_blur
+	camera_image: string; // the picture's path for "image"
 }
 
 Persisted_Sounds :: struct {

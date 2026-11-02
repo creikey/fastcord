@@ -375,6 +375,7 @@ Automatically open fastcord when your computer starts up	Avaa fastcord automaatt
 Automatically scan and delete messages sent in this server that contain explicit media.	Tarkista ja poista automaattisesti tällä palvelimella lähetetyt viestit, jotka sisältävät rajua mediaa.
 Avatar	Profiilikuva
 BACK	TAKAISIN
+BACKGROUND	TAUSTA
 BACKUP CODES	VARAKOODIT
 Back	Takaisin
 Back / forward	Takaisin / eteenpäin
@@ -408,8 +409,6 @@ Blocks messages with more than % mentions.	Estää viestit, joissa on yli % main
 Blocks words from Discord's commonly flagged lists.	Estää Discordin usein merkittyjen sanojen listoilla olevat sanat.
 Blocks words in member profile names.	Estää sanat jäsenten profiilinimissä.
 Blur	Sumennus
-Blur Background	Sumenna tausta
-Blur what's behind you on camera. Only your camera is changed.	Sumenna taustasi kamerassa. Vain kamerakuvasi muuttuu.
 Bold / italic / underline	Lihavointi / kursivointi / alleviivaus
 Bots and Apps	Botit ja sovellukset
 Browse	Selaa
@@ -422,6 +421,7 @@ By making a category private, only select members and roles will be able to view
 By making a channel private, only select members and roles will be able to view this channel.	Kun teet kanavasta yksityisen, vain valitut jäsenet ja roolit näkevät sen.
 By making a channel private, only select members and roles will have access to view or connect to this channel.	Kun teet kanavasta yksityisen, vain valitut jäsenet ja roolit voivat nähdä sen tai liittyä siihen.
 Bypass Slowmode	Ohita hidas tila
+CAMERA	KAMERA
 CHANNEL OR CATEGORY	KANAVA TAI LUOKKA
 CONFIRM NEW PASSWORD	VAHVISTA UUSI SALASANA
 CURRENT PASSWORD	NYKYINEN SALASANA
@@ -457,6 +457,7 @@ Checking the file…	Tarkistetaan tiedostoa…
 Chinese, China	Kiina, Manner-Kiina
 Chinese, Taiwan	Kiina, Taiwan
 Choose Image	Valitse kuva
+Choose Picture	Valitse kuva
 Choose a link people can use to join, discord.gg/<code>.	Valitse linkki, jolla ihmiset voivat liittyä, discord.gg/<koodi>.
 Choose a server	Valitse palvelin
 Choose the language you want Discord to display.	Valitse kieli, jolla Discord näytetään.
@@ -654,7 +655,6 @@ Disconnect	Katkaise yhteys
 Disconnect From Voice Channel	Katkaise yhteys puhekanavaan
 Disconnected	Yhteys katkaistu
 Discord account	Discord-tili
-Discord asked for a captcha, which fastcord can't show. Log in with the QR code instead.	Discord pyysi captchaa, jota fastcord ei voi näyttää. Kirjaudu sen sijaan QR-koodilla.
 Discord asked for a captcha, which fastcord can't show. Try on discord.com.	Discord pyysi captchaa, jota fastcord ei voi näyttää. Kokeile osoitteessa discord.com.
 Discord can filter out some messages that contain spam. These messages go to your Spam inbox.	Discord voi suodattaa osan roskapostia sisältävistä viesteistä. Ne menevät roskapostikansioosi.
 Discord didn't accept the saved login. Log in again.	Discord ei hyväksynyt tallennettua kirjautumista. Kirjaudu uudelleen.
@@ -1242,6 +1242,7 @@ Outgoing Friend Request	Lähtevä kaveripyyntö
 Overview	Yleiskatsaus
 PASSWORD	SALASANA
 PM	ip.
+PREVIEW	ESIKATSELU
 PRIVACY CODE	YKSITYISYYSKOODI
 PTT Activate	Puhepainike päälle
 PTT Deactivate	Puhepainike pois
@@ -1272,6 +1273,7 @@ Phone Number	Puhelinnumero
 Pick a channel	Valitse kanava
 Pick a channel for the alerts.	Valitse kanava hälytyksille.
 Pick at least one response.	Valitse vähintään yksi vastaus.
+Picture	Kuva
 Pin It. Pin It Good.	Kiinnitä. Kiinnitä kunnolla.
 Pin Message	Kiinnitä viesti
 Pin Messages	Kiinnitä viestejä
@@ -1416,6 +1418,7 @@ Russian	Venäjä
 SELECT A CHANNEL	VALITSE KANAVA
 SELECT A SERVER	VALITSE PALVELIN
 SERVER NAME	PALVELIMEN NIMI
+SHORTCUT	PIKANÄPPÄIN
 SOUNDBOARD VOLUME	ÄÄNITAULUN ÄÄNENVOIMAKKUUS
 START FROM A TEMPLATE	ALOITA MALLISTA
 STATIC EMOJI — % SLOTS AVAILABLE	STAATTISET EMOJIT — % PAIKKAA VAPAANA
@@ -1636,6 +1639,7 @@ That image is too large. Avatars must be under %.	Kuva on liian suuri. Profiilik
 That image is too large. Banners must be under 10 MB.	Kuva on liian suuri. Bannerin on oltava alle 10 Mt.
 That image is too large. Server icons must be under 512 KB.	Kuva on liian suuri. Palvelinkuvakkeen on oltava alle 512 kt.
 That isn't a valid fastcord invite.	Tämä ei ole kelvollinen fastcord-kutsu.
+That picture can't be opened.	Kuvaa ei voi avata.
 That's too long to send encrypted.	Tämä on liian pitkä lähetettäväksi salattuna.
 The Pin Is Stuck!	Neula on jumissa!
 The badge chosen in the official client stays as it is.	Virallisessa sovelluksessa valittu merkki pysyy ennallaan.
@@ -1934,6 +1938,7 @@ Your files are too powerful	Tiedostosi ovat liian voimakkaita
 Your full profile is visible to friends and any server you join with 200 or fewer members. Everyone else sees a limited version.	Koko profiilisi näkyy kavereille ja palvelimille, joilla on enintään 200 jäsentä. Muut näkevät rajoitetun version.
 Your full profile is visible to friends and any server you join.	Koko profiilisi näkyy kavereille ja kaikille palvelimille, joille liityt.
 Your full profile is visible to friends. Everyone else sees a limited version.	Koko profiilisi näkyy kavereille. Muut näkevät rajoitetun version.
+Your graphics card can't run background effects.	Näytönohjaimesi ei pysty ajamaan taustatehosteita.
 Your invite link expires after %.	Kutsulinkin käyttöraja: %.
 Your invite link expires in %.	Kutsulinkin voimassaoloaika: %.
 Your invite link expires in %1, or after %2.	Kutsulinkin voimassaoloaika: %1 tai %2.

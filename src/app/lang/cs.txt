@@ -375,6 +375,7 @@ Automatically open fastcord when your computer starts up	Automaticky otevřít f
 Automatically scan and delete messages sent in this server that contain explicit media.	Automaticky kontrolovat a mazat zprávy na tomto serveru, které obsahují explicitní média.
 Avatar	Avatar
 BACK	ZPĚT
+BACKGROUND	POZADÍ
 BACKUP CODES	ZÁLOŽNÍ KÓDY
 Back	Zpět
 Back / forward	Zpět / vpřed
@@ -408,8 +409,6 @@ Blocks messages with more than % mentions.	Blokuje zprávy s více než % zmínk
 Blocks words from Discord's commonly flagged lists.	Blokuje slova ze seznamů Discordu s často nahlašovanými slovy.
 Blocks words in member profile names.	Blokuje slova ve jménech profilů členů.
 Blur	Rozmazat
-Blur Background	Rozmazat pozadí
-Blur what's behind you on camera. Only your camera is changed.	Rozmaže, co je na kameře za tebou. Mění se jen tvoje kamera.
 Bold / italic / underline	Tučné / kurzíva / podtržení
 Bots and Apps	Boti a aplikace
 Browse	Procházet
@@ -422,6 +421,7 @@ By making a category private, only select members and roles will be able to view
 By making a channel private, only select members and roles will be able to view this channel.	Když kanál nastavíš jako soukromý, uvidí ho jen vybraní členové a role.
 By making a channel private, only select members and roles will have access to view or connect to this channel.	Když kanál nastavíš jako soukromý, jen vybraní členové a role ho uvidí nebo se k němu připojí.
 Bypass Slowmode	Obejít pomalý režim
+CAMERA	KAMERA
 CHANNEL OR CATEGORY	KANÁL NEBO KATEGORIE
 CONFIRM NEW PASSWORD	POTVRĎ NOVÉ HESLO
 CURRENT PASSWORD	SOUČASNÉ HESLO
@@ -457,6 +457,7 @@ Checking the file…	Kontrola souboru…
 Chinese, China	Čínština (Čína)
 Chinese, Taiwan	Čínština (Tchaj-wan)
 Choose Image	Vybrat obrázek
+Choose Picture	Vybrat obrázek
 Choose a link people can use to join, discord.gg/<code>.	Vyber odkaz, přes který se lidé můžou připojit, discord.gg/<kód>.
 Choose a server	Vyber server
 Choose the language you want Discord to display.	Vyber jazyk, ve kterém se má Discord zobrazovat.
@@ -654,7 +655,6 @@ Disconnect	Odpojit
 Disconnect From Voice Channel	Odpojit z hlasového kanálu
 Disconnected	Odpojeno
 Discord account	Účet Discord
-Discord asked for a captcha, which fastcord can't show. Log in with the QR code instead.	Discord požaduje captchu, kterou fastcord neumí zobrazit. Přihlas se raději QR kódem.
 Discord asked for a captcha, which fastcord can't show. Try on discord.com.	Discord požaduje captchu, kterou fastcord neumí zobrazit. Zkus to na discord.com.
 Discord can filter out some messages that contain spam. These messages go to your Spam inbox.	Discord umí odfiltrovat některé zprávy se spamem. Takové zprávy půjdou do složky Spam.
 Discord didn't accept the saved login. Log in again.	Discord nepřijal uložené přihlášení. Přihlas se znovu.
@@ -1242,6 +1242,7 @@ Outgoing Friend Request	Odchozí žádost o přátelství
 Overview	Přehled
 PASSWORD	HESLO
 PM	odp.
+PREVIEW	NÁHLED
 PRIVACY CODE	KÓD SOUKROMÍ
 PTT Activate	Aktivace PTT
 PTT Deactivate	Deaktivace PTT
@@ -1272,6 +1273,7 @@ Phone Number	Telefonní číslo
 Pick a channel	Vyber kanál
 Pick a channel for the alerts.	Vyber kanál pro upozornění.
 Pick at least one response.	Vyber aspoň jednu odpověď.
+Picture	Obrázek
 Pin It. Pin It Good.	Připni to. Pořádně.
 Pin Message	Připnout zprávu
 Pin Messages	Připínat zprávy
@@ -1416,6 +1418,7 @@ Russian	Ruština
 SELECT A CHANNEL	VYBER KANÁL
 SELECT A SERVER	VYBER SERVER
 SERVER NAME	NÁZEV SERVERU
+SHORTCUT	ZKRATKA
 SOUNDBOARD VOLUME	HLASITOST SOUNDBOARDU
 START FROM A TEMPLATE	ZAČÍT ZE ŠABLONY
 STATIC EMOJI — % SLOTS AVAILABLE	STATICKÉ EMOJI — VOLNÁ MÍSTA: %
@@ -1636,6 +1639,7 @@ That image is too large. Avatars must be under %.	Obrázek je moc velký. Avatar
 That image is too large. Banners must be under 10 MB.	Obrázek je moc velký. Bannery musí mít méně než 10 MB.
 That image is too large. Server icons must be under 512 KB.	Obrázek je moc velký. Ikony serverů musí mít méně než 512 kB.
 That isn't a valid fastcord invite.	To není platná pozvánka fastcordu.
+That picture can't be opened.	Ten obrázek nejde otevřít.
 That's too long to send encrypted.	To je moc dlouhé na šifrované odeslání.
 The Pin Is Stuck!	Špendlík drží!
 The badge chosen in the official client stays as it is.	Odznak vybraný v oficiálním klientovi zůstane, jak je.
@@ -1934,6 +1938,7 @@ Your files are too powerful	Tvoje soubory jsou moc silné
 Your full profile is visible to friends and any server you join with 200 or fewer members. Everyone else sees a limited version.	Tvůj celý profil vidí přátelé a každý server s nejvýš 200 členy, na který se připojíš. Ostatní vidí omezenou verzi.
 Your full profile is visible to friends and any server you join.	Tvůj celý profil vidí přátelé a každý server, na který se připojíš.
 Your full profile is visible to friends. Everyone else sees a limited version.	Tvůj celý profil vidí přátelé. Ostatní vidí omezenou verzi.
+Your graphics card can't run background effects.	Tvoje grafická karta nezvládne efekty pozadí.
 Your invite link expires after %.	Tvůj odkaz s pozvánkou vyprší po %.
 Your invite link expires in %.	Tvůj odkaz s pozvánkou vyprší za %.
 Your invite link expires in %1, or after %2.	Tvůj odkaz s pozvánkou vyprší za %1 nebo po %2.

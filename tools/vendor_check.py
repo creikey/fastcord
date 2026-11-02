@@ -32,7 +32,10 @@ behind = False
 for lib in sorted(os.listdir(os.path.join(ROOT, 'vendor'))):
     readme = os.path.join(ROOT, 'vendor', lib, 'README.md')
     if not os.path.isfile(readme): continue
-    pins = re.findall(r'^- Upstream: (\S+) (\S+)$', open(readme, encoding='utf-8').read(), re.M)
+    text = open(readme, encoding='utf-8').read()
+    pins = re.findall(r'^- Upstream: (\S+) (\S+)$', text, re.M)
+    if not pins and re.search(r'^- Model: ', text, re.M):
+        print(f'{lib}: a model file, pinned by URL and sha256'); continue
     if not pins:
         print(f'{lib}: no "- Upstream:" line'); behind = True
     for repo, pin in pins:

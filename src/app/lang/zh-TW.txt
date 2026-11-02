@@ -375,6 +375,7 @@ Automatically open fastcord when your computer starts up	電腦開機時自動�
 Automatically scan and delete messages sent in this server that contain explicit media.	自動掃描並刪除此伺服器中含有露骨媒體的訊息。
 Avatar	大頭貼
 BACK	返回
+BACKGROUND	背景
 BACKUP CODES	備用碼
 Back	返回
 Back / forward	上一頁 / 下一頁
@@ -408,8 +409,6 @@ Blocks messages with more than % mentions.	封鎖提及次數超過 % 次的訊�
 Blocks words from Discord's commonly flagged lists.	封鎖 Discord 常被檢舉清單中的字詞。
 Blocks words in member profile names.	封鎖成員個人資料名稱中的字詞。
 Blur	模糊
-Blur Background	模糊背景
-Blur what's behind you on camera. Only your camera is changed.	模糊攝影機畫面中你身後的背景。只會改變你的攝影機畫面。
 Bold / italic / underline	粗體 / 斜體 / 底線
 Bots and Apps	機器人與應用程式
 Browse	瀏覽
@@ -422,6 +421,7 @@ By making a category private, only select members and roles will be able to view
 By making a channel private, only select members and roles will be able to view this channel.	將頻道設為私人後，只有選定的成員和身分組能查看此頻道。
 By making a channel private, only select members and roles will have access to view or connect to this channel.	將頻道設為私人後，只有選定的成員和身分組能查看或連線至此頻道。
 Bypass Slowmode	略過慢速模式
+CAMERA	攝影機
 CHANNEL OR CATEGORY	頻道或類別
 CONFIRM NEW PASSWORD	確認新密碼
 CURRENT PASSWORD	目前密碼
@@ -457,6 +457,7 @@ Checking the file…	正在檢查檔案…
 Chinese, China	中文（中國）
 Chinese, Taiwan	中文（台灣）
 Choose Image	選擇圖片
+Choose Picture	選擇圖片
 Choose a link people can use to join, discord.gg/<code>.	選擇一個讓大家用來加入的連結：discord.gg/<code>。
 Choose a server	選擇伺服器
 Choose the language you want Discord to display.	選擇你希望 Discord 顯示的語言。
@@ -654,7 +655,6 @@ Disconnect	中斷連線
 Disconnect From Voice Channel	中斷語音頻道連線
 Disconnected	已中斷連線
 Discord account	Discord 帳號
-Discord asked for a captcha, which fastcord can't show. Log in with the QR code instead.	Discord 要求進行人機驗證，但 fastcord 無法顯示。請改用 QR 碼登入。
 Discord asked for a captcha, which fastcord can't show. Try on discord.com.	Discord 要求進行人機驗證，但 fastcord 無法顯示。請到 discord.com 試試。
 Discord can filter out some messages that contain spam. These messages go to your Spam inbox.	Discord 可以過濾掉部分含有垃圾內容的訊息。這些訊息會被移到你的垃圾訊息收件匣。
 Discord didn't accept the saved login. Log in again.	Discord 不接受已儲存的登入資訊，請重新登入。
@@ -1242,6 +1242,7 @@ Outgoing Friend Request	送出的好友邀請
 Overview	概覽
 PASSWORD	密碼
 PM	下午
+PREVIEW	預覽
 PRIVACY CODE	隱私碼
 PTT Activate	按鍵發話啟動
 PTT Deactivate	按鍵發話停止
@@ -1272,6 +1273,7 @@ Phone Number	電話號碼
 Pick a channel	選擇頻道
 Pick a channel for the alerts.	選擇接收警示的頻道。
 Pick at least one response.	請至少選擇一個回應。
+Picture	圖片
 Pin It. Pin It Good.	釘選它，好好釘選。
 Pin Message	釘選訊息
 Pin Messages	釘選訊息
@@ -1416,6 +1418,7 @@ Russian	俄文
 SELECT A CHANNEL	選擇頻道
 SELECT A SERVER	選擇伺服器
 SERVER NAME	伺服器名稱
+SHORTCUT	快捷鍵
 SOUNDBOARD VOLUME	音效板音量
 START FROM A TEMPLATE	從範本開始
 STATIC EMOJI — % SLOTS AVAILABLE	靜態表情符號 — 剩餘 % 個空位
@@ -1636,6 +1639,7 @@ That image is too large. Avatars must be under %.	該圖片太大。大頭貼必
 That image is too large. Banners must be under 10 MB.	該圖片太大。橫幅必須小於 10 MB。
 That image is too large. Server icons must be under 512 KB.	該圖片太大。伺服器圖示必須小於 512 KB。
 That isn't a valid fastcord invite.	這不是有效的 fastcord 邀請。
+That picture can't be opened.	無法開啟該圖片。
 That's too long to send encrypted.	內容太長，無法以加密方式傳送。
 The Pin Is Stuck!	圖釘卡住了！
 The badge chosen in the official client stays as it is.	在官方用戶端選擇的徽章會維持不變。
@@ -1934,6 +1938,7 @@ Your files are too powerful	你的檔案太強大了
 Your full profile is visible to friends and any server you join with 200 or fewer members. Everyone else sees a limited version.	好友以及你加入的 200 人以下伺服器都能看到你的完整個人資料。其他人只會看到有限的版本。
 Your full profile is visible to friends and any server you join.	好友以及你加入的所有伺服器都能看到你的完整個人資料。
 Your full profile is visible to friends. Everyone else sees a limited version.	好友能看到你的完整個人資料。其他人只會看到有限的版本。
+Your graphics card can't run background effects.	你的顯示卡無法執行背景效果。
 Your invite link expires after %.	你的邀請連結將在 % 後失效。
 Your invite link expires in %.	你的邀請連結將在 % 後到期。
 Your invite link expires in %1, or after %2.	你的邀請連結將在 %1 後到期，或在 %2 後失效。

@@ -375,6 +375,7 @@ Automatically open fastcord when your computer starts up	컴퓨터를 시작할 
 Automatically scan and delete messages sent in this server that contain explicit media.	이 서버에서 보낸 메시지 중 노골적인 미디어가 포함된 메시지를 자동으로 검사하고 삭제해요.
 Avatar	아바타
 BACK	뒤로
+BACKGROUND	배경
 BACKUP CODES	백업 코드
 Back	뒤로
 Back / forward	뒤로 / 앞으로
@@ -408,8 +409,6 @@ Blocks messages with more than % mentions.	멘션이 %개를 넘는 메시지를
 Blocks words from Discord's commonly flagged lists.	Discord의 자주 신고되는 단어 목록에 있는 단어를 차단해요.
 Blocks words in member profile names.	멤버 프로필 이름의 단어를 차단해요.
 Blur	흐림
-Blur Background	배경 흐리게
-Blur what's behind you on camera. Only your camera is changed.	카메라에서 내 뒤에 있는 것을 흐리게 해요. 카메라만 바뀌어요.
 Bold / italic / underline	굵게 / 기울임 / 밑줄
 Bots and Apps	봇 및 앱
 Browse	찾아보기
@@ -422,6 +421,7 @@ By making a category private, only select members and roles will be able to view
 By making a channel private, only select members and roles will be able to view this channel.	채널을 비공개로 하면 선택한 멤버와 역할만 이 채널을 볼 수 있어요.
 By making a channel private, only select members and roles will have access to view or connect to this channel.	채널을 비공개로 하면 선택한 멤버와 역할만 이 채널을 보거나 연결할 수 있어요.
 Bypass Slowmode	슬로우 모드 무시
+CAMERA	카메라
 CHANNEL OR CATEGORY	채널 또는 카테고리
 CONFIRM NEW PASSWORD	새 비밀번호 확인
 CURRENT PASSWORD	현재 비밀번호
@@ -457,6 +457,7 @@ Checking the file…	파일 확인 중…
 Chinese, China	중국어(중국)
 Chinese, Taiwan	중국어(대만)
 Choose Image	이미지 선택
+Choose Picture	사진 선택
 Choose a link people can use to join, discord.gg/<code>.	사람들이 참가할 때 쓸 링크를 정하세요. discord.gg/<code>.
 Choose a server	서버 선택
 Choose the language you want Discord to display.	Discord에 표시할 언어를 선택하세요.
@@ -654,7 +655,6 @@ Disconnect	연결 끊기
 Disconnect From Voice Channel	음성 채널 연결 끊기
 Disconnected	연결 끊김
 Discord account	Discord 계정
-Discord asked for a captcha, which fastcord can't show. Log in with the QR code instead.	Discord가 캡차를 요청했지만 fastcord에서는 표시할 수 없어요. 대신 QR 코드로 로그인하세요.
 Discord asked for a captcha, which fastcord can't show. Try on discord.com.	Discord가 캡차를 요청했지만 fastcord에서는 표시할 수 없어요. discord.com에서 시도해 보세요.
 Discord can filter out some messages that contain spam. These messages go to your Spam inbox.	Discord가 스팸이 포함된 일부 메시지를 걸러낼 수 있어요. 이런 메시지는 스팸 보관함으로 가요.
 Discord didn't accept the saved login. Log in again.	Discord가 저장된 로그인 정보를 받아들이지 않았어요. 다시 로그인하세요.
@@ -1242,6 +1242,7 @@ Outgoing Friend Request	보낸 친구 요청
 Overview	개요
 PASSWORD	비밀번호
 PM	오후
+PREVIEW	미리 보기
 PRIVACY CODE	개인정보 보호 코드
 PTT Activate	PTT 켜짐
 PTT Deactivate	PTT 꺼짐
@@ -1272,6 +1273,7 @@ Phone Number	전화번호
 Pick a channel	채널 선택
 Pick a channel for the alerts.	알림을 받을 채널을 선택하세요.
 Pick at least one response.	응답을 하나 이상 선택하세요.
+Picture	사진
 Pin It. Pin It Good.	고정하세요. 확실하게 고정하세요.
 Pin Message	메시지 고정
 Pin Messages	메시지 고정하기
@@ -1416,6 +1418,7 @@ Russian	러시아어
 SELECT A CHANNEL	채널 선택
 SELECT A SERVER	서버 선택
 SERVER NAME	서버 이름
+SHORTCUT	단축키
 SOUNDBOARD VOLUME	사운드보드 음량
 START FROM A TEMPLATE	템플릿으로 시작하기
 STATIC EMOJI — % SLOTS AVAILABLE	일반 이모지 — %개 슬롯 사용 가능
@@ -1636,6 +1639,7 @@ That image is too large. Avatars must be under %.	이미지가 너무 커요. �
 That image is too large. Banners must be under 10 MB.	이미지가 너무 커요. 배너는 10MB 미만이어야 해요.
 That image is too large. Server icons must be under 512 KB.	이미지가 너무 커요. 서버 아이콘은 512KB 미만이어야 해요.
 That isn't a valid fastcord invite.	올바른 fastcord 초대가 아니에요.
+That picture can't be opened.	그 사진을 열 수 없어요.
 That's too long to send encrypted.	암호화해서 보내기에는 너무 길어요.
 The Pin Is Stuck!	고정되었어요!
 The badge chosen in the official client stays as it is.	공식 클라이언트에서 선택한 배지는 그대로 유지돼요.
@@ -1934,6 +1938,7 @@ Your files are too powerful	파일이 너무 강력해요
 Your full profile is visible to friends and any server you join with 200 or fewer members. Everyone else sees a limited version.	친구와, 내가 참가한 멤버 200명 이하의 서버는 전체 프로필을 볼 수 있어요. 그 외의 사람은 제한된 버전을 봐요.
 Your full profile is visible to friends and any server you join.	친구와 내가 참가한 모든 서버는 전체 프로필을 볼 수 있어요.
 Your full profile is visible to friends. Everyone else sees a limited version.	친구는 전체 프로필을 볼 수 있어요. 그 외의 사람은 제한된 버전을 봐요.
+Your graphics card can't run background effects.	그래픽 카드에서 배경 효과를 실행할 수 없어요.
 Your invite link expires after %.	초대 링크는 % 후에 만료돼요.
 Your invite link expires in %.	초대 링크는 % 후에 만료돼요.
 Your invite link expires in %1, or after %2.	초대 링크는 %1 후 또는 %2 후에 만료돼요.

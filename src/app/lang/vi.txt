@@ -375,6 +375,7 @@ Automatically open fastcord when your computer starts up	Tự động mở fastc
 Automatically scan and delete messages sent in this server that contain explicit media.	Tự động quét và xóa tin nhắn gửi trong máy chủ này có chứa nội dung phản cảm.
 Avatar	Ảnh đại diện
 BACK	QUAY LẠI
+BACKGROUND	NỀN
 BACKUP CODES	MÃ DỰ PHÒNG
 Back	Quay lại
 Back / forward	Lùi / tiến
@@ -408,8 +409,6 @@ Blocks messages with more than % mentions.	Chặn tin nhắn có hơn % lượt 
 Blocks words from Discord's commonly flagged lists.	Chặn các từ trong danh sách thường bị gắn cờ của Discord.
 Blocks words in member profile names.	Chặn từ trong tên hồ sơ thành viên.
 Blur	Làm mờ
-Blur Background	Làm mờ nền
-Blur what's behind you on camera. Only your camera is changed.	Làm mờ phía sau bạn trên camera. Chỉ camera của bạn bị thay đổi.
 Bold / italic / underline	In đậm / in nghiêng / gạch chân
 Bots and Apps	Bot và ứng dụng
 Browse	Duyệt
@@ -422,6 +421,7 @@ By making a category private, only select members and roles will be able to view
 By making a channel private, only select members and roles will be able to view this channel.	Khi đặt kênh thành riêng tư, chỉ những thành viên và vai trò được chọn mới xem được kênh này.
 By making a channel private, only select members and roles will have access to view or connect to this channel.	Khi đặt kênh thành riêng tư, chỉ những thành viên và vai trò được chọn mới có quyền xem hoặc kết nối vào kênh này.
 Bypass Slowmode	Bỏ qua chế độ chậm
+CAMERA	CAMERA
 CHANNEL OR CATEGORY	KÊNH HOẶC DANH MỤC
 CONFIRM NEW PASSWORD	XÁC NHẬN MẬT KHẨU MỚI
 CURRENT PASSWORD	MẬT KHẨU HIỆN TẠI
@@ -457,6 +457,7 @@ Checking the file…	Đang kiểm tra tệp…
 Chinese, China	Tiếng Trung, Trung Quốc
 Chinese, Taiwan	Tiếng Trung, Đài Loan
 Choose Image	Chọn ảnh
+Choose Picture	Chọn hình ảnh
 Choose a link people can use to join, discord.gg/<code>.	Chọn liên kết mọi người có thể dùng để tham gia, discord.gg/<code>.
 Choose a server	Chọn máy chủ
 Choose the language you want Discord to display.	Chọn ngôn ngữ bạn muốn Discord hiển thị.
@@ -654,7 +655,6 @@ Disconnect	Ngắt kết nối
 Disconnect From Voice Channel	Ngắt kết nối khỏi kênh thoại
 Disconnected	Đã ngắt kết nối
 Discord account	Tài khoản Discord
-Discord asked for a captcha, which fastcord can't show. Log in with the QR code instead.	Discord yêu cầu captcha mà fastcord không hiển thị được. Hãy đăng nhập bằng mã QR.
 Discord asked for a captcha, which fastcord can't show. Try on discord.com.	Discord yêu cầu captcha mà fastcord không hiển thị được. Hãy thử trên discord.com.
 Discord can filter out some messages that contain spam. These messages go to your Spam inbox.	Discord có thể lọc bớt một số tin nhắn chứa spam. Những tin nhắn này sẽ vào hộp thư Spam của bạn.
 Discord didn't accept the saved login. Log in again.	Discord không chấp nhận thông tin đăng nhập đã lưu. Hãy đăng nhập lại.
@@ -1242,6 +1242,7 @@ Outgoing Friend Request	Lời mời kết bạn đã gửi
 Overview	Tổng quan
 PASSWORD	MẬT KHẨU
 PM	CH
+PREVIEW	XEM TRƯỚC
 PRIVACY CODE	MÃ QUYỀN RIÊNG TƯ
 PTT Activate	Kích hoạt PTT
 PTT Deactivate	Tắt PTT
@@ -1272,6 +1273,7 @@ Phone Number	Số điện thoại
 Pick a channel	Chọn một kênh
 Pick a channel for the alerts.	Chọn một kênh để nhận cảnh báo.
 Pick at least one response.	Chọn ít nhất một phản hồi.
+Picture	Hình ảnh
 Pin It. Pin It Good.	Ghim nó. Ghim thật chặt.
 Pin Message	Ghim tin nhắn
 Pin Messages	Ghim tin nhắn
@@ -1416,6 +1418,7 @@ Russian	Tiếng Nga
 SELECT A CHANNEL	CHỌN MỘT KÊNH
 SELECT A SERVER	CHỌN MỘT MÁY CHỦ
 SERVER NAME	TÊN MÁY CHỦ
+SHORTCUT	PHÍM TẮT
 SOUNDBOARD VOLUME	ÂM LƯỢNG BẢNG ÂM THANH
 START FROM A TEMPLATE	BẮT ĐẦU TỪ MẪU
 STATIC EMOJI — % SLOTS AVAILABLE	EMOJI TĨNH — CÒN % Ô TRỐNG
@@ -1636,6 +1639,7 @@ That image is too large. Avatars must be under %.	Ảnh đó quá lớn. Ảnh �
 That image is too large. Banners must be under 10 MB.	Ảnh đó quá lớn. Biểu ngữ phải nhỏ hơn 10 MB.
 That image is too large. Server icons must be under 512 KB.	Ảnh đó quá lớn. Biểu tượng máy chủ phải nhỏ hơn 512 KB.
 That isn't a valid fastcord invite.	Đó không phải lời mời fastcord hợp lệ.
+That picture can't be opened.	Không thể mở hình ảnh đó.
 That's too long to send encrypted.	Quá dài để gửi dưới dạng mã hóa.
 The Pin Is Stuck!	Ghim bị kẹt rồi!
 The badge chosen in the official client stays as it is.	Huy hiệu đã chọn trong ứng dụng chính thức vẫn được giữ nguyên.
@@ -1934,6 +1938,7 @@ Your files are too powerful	Tệp của bạn quá mạnh
 Your full profile is visible to friends and any server you join with 200 or fewer members. Everyone else sees a limited version.	Bạn bè và các máy chủ có từ 200 thành viên trở xuống mà bạn tham gia sẽ thấy hồ sơ đầy đủ của bạn. Những người khác thấy phiên bản giới hạn.
 Your full profile is visible to friends and any server you join.	Bạn bè và mọi máy chủ bạn tham gia sẽ thấy hồ sơ đầy đủ của bạn.
 Your full profile is visible to friends. Everyone else sees a limited version.	Bạn bè sẽ thấy hồ sơ đầy đủ của bạn. Những người khác thấy phiên bản giới hạn.
+Your graphics card can't run background effects.	Card đồ họa của bạn không chạy được hiệu ứng nền.
 Your invite link expires after %.	Liên kết mời của bạn hết hạn sau %.
 Your invite link expires in %.	Liên kết mời của bạn hết hạn sau %.
 Your invite link expires in %1, or after %2.	Liên kết mời của bạn hết hạn sau %1, hoặc sau %2.

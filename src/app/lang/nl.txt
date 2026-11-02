@@ -375,6 +375,7 @@ Automatically open fastcord when your computer starts up	fastcord automatisch op
 Automatically scan and delete messages sent in this server that contain explicit media.	Berichten in deze server met expliciete media automatisch scannen en verwijderen.
 Avatar	Avatar
 BACK	TERUG
+BACKGROUND	ACHTERGROND
 BACKUP CODES	BACK-UPCODES
 Back	Terug
 Back / forward	Terug / vooruit
@@ -408,8 +409,6 @@ Blocks messages with more than % mentions.	Blokkeert berichten met meer dan % ve
 Blocks words from Discord's commonly flagged lists.	Blokkeert woorden van de lijsten met vaak gemarkeerde woorden van Discord.
 Blocks words in member profile names.	Blokkeert woorden in profielnamen van leden.
 Blur	Vervagen
-Blur Background	Achtergrond vervagen
-Blur what's behind you on camera. Only your camera is changed.	Vervaag wat er achter je op de camera te zien is. Alleen je camerabeeld verandert.
 Bold / italic / underline	Vet / cursief / onderstrepen
 Bots and Apps	Bots en apps
 Browse	Bladeren
@@ -422,6 +421,7 @@ By making a category private, only select members and roles will be able to view
 By making a channel private, only select members and roles will be able to view this channel.	Als je een kanaal privé maakt, kunnen alleen geselecteerde leden en rollen dit kanaal bekijken.
 By making a channel private, only select members and roles will have access to view or connect to this channel.	Als je een kanaal privé maakt, kunnen alleen geselecteerde leden en rollen dit kanaal bekijken of ermee verbinden.
 Bypass Slowmode	Langzame modus omzeilen
+CAMERA	CAMERA
 CHANNEL OR CATEGORY	KANAAL OF CATEGORIE
 CONFIRM NEW PASSWORD	NIEUW WACHTWOORD BEVESTIGEN
 CURRENT PASSWORD	HUIDIG WACHTWOORD
@@ -457,6 +457,7 @@ Checking the file…	Bestand controleren…
 Chinese, China	Chinees, China
 Chinese, Taiwan	Chinees, Taiwan
 Choose Image	Afbeelding kiezen
+Choose Picture	Afbeelding kiezen
 Choose a link people can use to join, discord.gg/<code>.	Kies een link waarmee mensen lid kunnen worden, discord.gg/<code>.
 Choose a server	Kies een server
 Choose the language you want Discord to display.	Kies de taal waarin Discord wordt weergegeven.
@@ -654,7 +655,6 @@ Disconnect	Verbreken
 Disconnect From Voice Channel	Verbinding met spraakkanaal verbreken
 Disconnected	Verbinding verbroken
 Discord account	Discord-account
-Discord asked for a captcha, which fastcord can't show. Log in with the QR code instead.	Discord vraagt om een captcha, maar die kan fastcord niet tonen. Log in plaats daarvan in met de QR-code.
 Discord asked for a captcha, which fastcord can't show. Try on discord.com.	Discord vraagt om een captcha, maar die kan fastcord niet tonen. Probeer het op discord.com.
 Discord can filter out some messages that contain spam. These messages go to your Spam inbox.	Discord kan sommige berichten met spam eruit filteren. Die berichten gaan naar je spam-inbox.
 Discord didn't accept the saved login. Log in again.	Discord heeft de opgeslagen login niet geaccepteerd. Log opnieuw in.
@@ -1242,6 +1242,7 @@ Outgoing Friend Request	Uitgaand vriendschapsverzoek
 Overview	Overzicht
 PASSWORD	WACHTWOORD
 PM	p.m.
+PREVIEW	VOORBEELD
 PRIVACY CODE	PRIVACYCODE
 PTT Activate	PTT activeren
 PTT Deactivate	PTT deactiveren
@@ -1272,6 +1273,7 @@ Phone Number	Telefoonnummer
 Pick a channel	Kies een kanaal
 Pick a channel for the alerts.	Kies een kanaal voor de waarschuwingen.
 Pick at least one response.	Kies minstens één antwoord.
+Picture	Afbeelding
 Pin It. Pin It Good.	Vastmaken. Goed vastmaken.
 Pin Message	Bericht vastmaken
 Pin Messages	Berichten vastmaken
@@ -1416,6 +1418,7 @@ Russian	Russisch
 SELECT A CHANNEL	KIES EEN KANAAL
 SELECT A SERVER	KIES EEN SERVER
 SERVER NAME	SERVERNAAM
+SHORTCUT	SNELTOETS
 SOUNDBOARD VOLUME	SOUNDBOARDVOLUME
 START FROM A TEMPLATE	BEGIN MET EEN SJABLOON
 STATIC EMOJI — % SLOTS AVAILABLE	STATISCHE EMOJI — % PLEKKEN BESCHIKBAAR
@@ -1636,6 +1639,7 @@ That image is too large. Avatars must be under %.	Die afbeelding is te groot. Av
 That image is too large. Banners must be under 10 MB.	Die afbeelding is te groot. Banners moeten kleiner zijn dan 10 MB.
 That image is too large. Server icons must be under 512 KB.	Die afbeelding is te groot. Serverpictogrammen moeten kleiner zijn dan 512 KB.
 That isn't a valid fastcord invite.	Dat is geen geldige fastcord-uitnodiging.
+That picture can't be opened.	Die afbeelding kan niet worden geopend.
 That's too long to send encrypted.	Dat is te lang om versleuteld te versturen.
 The Pin Is Stuck!	De pin zit vast!
 The badge chosen in the official client stays as it is.	De badge die in de officiële client is gekozen blijft zoals die is.
@@ -1934,6 +1938,7 @@ Your files are too powerful	Je bestanden zijn te krachtig
 Your full profile is visible to friends and any server you join with 200 or fewer members. Everyone else sees a limited version.	Je volledige profiel is zichtbaar voor vrienden en elke server met 200 of minder leden waarvan je lid wordt. Alle anderen zien een beperkte versie.
 Your full profile is visible to friends and any server you join.	Je volledige profiel is zichtbaar voor vrienden en elke server waarvan je lid wordt.
 Your full profile is visible to friends. Everyone else sees a limited version.	Je volledige profiel is zichtbaar voor vrienden. Alle anderen zien een beperkte versie.
+Your graphics card can't run background effects.	Je videokaart kan geen achtergrondeffecten uitvoeren.
 Your invite link expires after %.	Je uitnodigingslink verloopt na %.
 Your invite link expires in %.	Je uitnodigingslink verloopt over %.
 Your invite link expires in %1, or after %2.	Je uitnodigingslink verloopt over %1, of na %2.

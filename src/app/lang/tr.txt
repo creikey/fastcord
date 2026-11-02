@@ -375,6 +375,7 @@ Automatically open fastcord when your computer starts up	Bilgisayarın açıldı
 Automatically scan and delete messages sent in this server that contain explicit media.	Bu sunucuda gönderilen ve müstehcen medya içeren mesajları otomatik tara ve sil.
 Avatar	Avatar
 BACK	GERİ
+BACKGROUND	ARKA PLAN
 BACKUP CODES	YEDEK KODLAR
 Back	Geri
 Back / forward	Geri / ileri
@@ -408,8 +409,6 @@ Blocks messages with more than % mentions.	%'den fazla bahsetme içeren mesajlar
 Blocks words from Discord's commonly flagged lists.	Discord'un sık işaretlenen listelerindeki kelimeleri engeller.
 Blocks words in member profile names.	Üye profil adlarındaki kelimeleri engeller.
 Blur	Bulanıklaştır
-Blur Background	Arka Planı Bulanıklaştır
-Blur what's behind you on camera. Only your camera is changed.	Kamerada arkanda kalanları bulanıklaştır. Yalnızca kameran değişir.
 Bold / italic / underline	Kalın / italik / altı çizili
 Bots and Apps	Botlar ve Uygulamalar
 Browse	Göz At
@@ -422,6 +421,7 @@ By making a category private, only select members and roles will be able to view
 By making a channel private, only select members and roles will be able to view this channel.	Bir kanalı gizli yaptığında yalnızca seçilen üyeler ve roller bu kanalı görebilir.
 By making a channel private, only select members and roles will have access to view or connect to this channel.	Bir kanalı gizli yaptığında yalnızca seçilen üyeler ve roller bu kanalı görebilir veya ona bağlanabilir.
 Bypass Slowmode	Yavaş Modu Atla
+CAMERA	KAMERA
 CHANNEL OR CATEGORY	KANAL VEYA KATEGORİ
 CONFIRM NEW PASSWORD	YENİ ŞİFREYİ ONAYLA
 CURRENT PASSWORD	MEVCUT ŞİFRE
@@ -457,6 +457,7 @@ Checking the file…	Dosya kontrol ediliyor…
 Chinese, China	Çince, Çin
 Chinese, Taiwan	Çince, Tayvan
 Choose Image	Görsel Seç
+Choose Picture	Resim Seç
 Choose a link people can use to join, discord.gg/<code>.	İnsanların katılmak için kullanabileceği bir bağlantı seç, discord.gg/<kod>.
 Choose a server	Bir sunucu seç
 Choose the language you want Discord to display.	Discord'un görüntüleneceği dili seç.
@@ -654,7 +655,6 @@ Disconnect	Bağlantıyı Kes
 Disconnect From Voice Channel	Ses Kanalından Ayrıl
 Disconnected	Bağlantı Kesildi
 Discord account	Discord hesabı
-Discord asked for a captcha, which fastcord can't show. Log in with the QR code instead.	Discord bir captcha istedi, fastcord bunu gösteremiyor. Bunun yerine QR koduyla giriş yap.
 Discord asked for a captcha, which fastcord can't show. Try on discord.com.	Discord bir captcha istedi, fastcord bunu gösteremiyor. discord.com'da dene.
 Discord can filter out some messages that contain spam. These messages go to your Spam inbox.	Discord spam içeren bazı mesajları filtreleyebilir. Bu mesajlar Spam gelen kutuna gider.
 Discord didn't accept the saved login. Log in again.	Discord kayıtlı girişi kabul etmedi. Tekrar giriş yap.
@@ -1242,6 +1242,7 @@ Outgoing Friend Request	Giden Arkadaşlık İsteği
 Overview	Genel Bakış
 PASSWORD	ŞİFRE
 PM	ÖS
+PREVIEW	ÖNİZLEME
 PRIVACY CODE	GİZLİLİK KODU
 PTT Activate	Bas-Konuş Etkin
 PTT Deactivate	Bas-Konuş Devre Dışı
@@ -1272,6 +1273,7 @@ Phone Number	Telefon Numarası
 Pick a channel	Bir kanal seç
 Pick a channel for the alerts.	Uyarılar için bir kanal seç.
 Pick at least one response.	En az bir yanıt seç.
+Picture	Resim
 Pin It. Pin It Good.	Sabitle. İyice Sabitle.
 Pin Message	Mesajı Sabitle
 Pin Messages	Mesajları Sabitle
@@ -1416,6 +1418,7 @@ Russian	Rusça
 SELECT A CHANNEL	BİR KANAL SEÇ
 SELECT A SERVER	BİR SUNUCU SEÇ
 SERVER NAME	SUNUCU ADI
+SHORTCUT	KISAYOL
 SOUNDBOARD VOLUME	SES PANELİ SES SEVİYESİ
 START FROM A TEMPLATE	BİR ŞABLONLA BAŞLA
 STATIC EMOJI — % SLOTS AVAILABLE	SABİT EMOJİ — % BOŞ YER
@@ -1636,6 +1639,7 @@ That image is too large. Avatars must be under %.	Bu görsel çok büyük. Avata
 That image is too large. Banners must be under 10 MB.	Bu görsel çok büyük. Afişler 10 MB'tan küçük olmalı.
 That image is too large. Server icons must be under 512 KB.	Bu görsel çok büyük. Sunucu simgeleri 512 KB'tan küçük olmalı.
 That isn't a valid fastcord invite.	Bu geçerli bir fastcord daveti değil.
+That picture can't be opened.	Bu resim açılamıyor.
 That's too long to send encrypted.	Bu, şifreli gönderilemeyecek kadar uzun.
 The Pin Is Stuck!	Raptiye Takıldı!
 The badge chosen in the official client stays as it is.	Resmi istemcide seçilen rozet olduğu gibi kalır.
@@ -1934,6 +1938,7 @@ Your files are too powerful	Dosyaların çok güçlü
 Your full profile is visible to friends and any server you join with 200 or fewer members. Everyone else sees a limited version.	Tam profilin arkadaşlarına ve katıldığın 200 veya daha az üyeli sunuculara görünür. Diğer herkes sınırlı bir sürümü görür.
 Your full profile is visible to friends and any server you join.	Tam profilin arkadaşlarına ve katıldığın tüm sunuculara görünür.
 Your full profile is visible to friends. Everyone else sees a limited version.	Tam profilin arkadaşlarına görünür. Diğer herkes sınırlı bir sürümü görür.
+Your graphics card can't run background effects.	Ekran kartın arka plan efektlerini çalıştıramıyor.
 Your invite link expires after %.	Davet bağlantının süresi % sonra dolar.
 Your invite link expires in %.	Davet bağlantının süresi % içinde dolar.
 Your invite link expires in %1, or after %2.	Davet bağlantının süresi %1 içinde veya %2 sonra dolar.

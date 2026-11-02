@@ -375,6 +375,7 @@ Automatically open fastcord when your computer starts up	Автоматичес�
 Automatically scan and delete messages sent in this server that contain explicit media.	Автоматически проверять и удалять сообщения на сервере с откровенными медиа.
 Avatar	Аватар
 BACK	НАЗАД
+BACKGROUND	ФОН
 BACKUP CODES	РЕЗЕРВНЫЕ КОДЫ
 Back	Назад
 Back / forward	Назад / вперёд
@@ -408,8 +409,6 @@ Blocks messages with more than % mentions.	Блокирует сообщения
 Blocks words from Discord's commonly flagged lists.	Блокирует слова из списков часто отмечаемых в Discord слов.
 Blocks words in member profile names.	Блокирует слова в именах профилей участников.
 Blur	Размытие
-Blur Background	Размыть фон
-Blur what's behind you on camera. Only your camera is changed.	Размывает фон за вами на камере. Меняется только ваша камера.
 Bold / italic / underline	Жирный / курсив / подчёркнутый
 Bots and Apps	Боты и приложения
 Browse	Обзор
@@ -422,6 +421,7 @@ By making a category private, only select members and roles will be able to view
 By making a channel private, only select members and roles will be able to view this channel.	Приватный канал увидят только выбранные участники и роли.
 By making a channel private, only select members and roles will have access to view or connect to this channel.	Видеть приватный канал и подключаться к нему смогут только выбранные участники и роли.
 Bypass Slowmode	Обход медленного режима
+CAMERA	КАМЕРА
 CHANNEL OR CATEGORY	КАНАЛ ИЛИ КАТЕГОРИЯ
 CONFIRM NEW PASSWORD	ПОДТВЕРДИТЕ НОВЫЙ ПАРОЛЬ
 CURRENT PASSWORD	ТЕКУЩИЙ ПАРОЛЬ
@@ -457,6 +457,7 @@ Checking the file…	Проверяем файл…
 Chinese, China	Китайский (Китай)
 Chinese, Taiwan	Китайский (Тайвань)
 Choose Image	Выбрать изображение
+Choose Picture	Выбрать изображение
 Choose a link people can use to join, discord.gg/<code>.	Выберите ссылку для входа на сервер: discord.gg/<код>.
 Choose a server	Выберите сервер
 Choose the language you want Discord to display.	Выберите язык интерфейса Discord.
@@ -654,7 +655,6 @@ Disconnect	Отключиться
 Disconnect From Voice Channel	Отключиться от голосового канала
 Disconnected	Отключено
 Discord account	Учётная запись Discord
-Discord asked for a captcha, which fastcord can't show. Log in with the QR code instead.	Discord запросил капчу, которую fastcord не может показать. Войдите по QR-коду.
 Discord asked for a captcha, which fastcord can't show. Try on discord.com.	Discord запросил капчу, которую fastcord не может показать. Попробуйте на discord.com.
 Discord can filter out some messages that contain spam. These messages go to your Spam inbox.	Discord может отфильтровывать сообщения со спамом. Они попадают в папку «Спам».
 Discord didn't accept the saved login. Log in again.	Discord не принял сохранённый вход. Войдите снова.
@@ -1242,6 +1242,7 @@ Outgoing Friend Request	Исходящий запрос дружбы
 Overview	Обзор
 PASSWORD	ПАРОЛЬ
 PM	ПП
+PREVIEW	ПРЕДПРОСМОТР
 PRIVACY CODE	КОД КОНФИДЕНЦИАЛЬНОСТИ
 PTT Activate	Рация: включение
 PTT Deactivate	Рация: выключение
@@ -1272,6 +1273,7 @@ Phone Number	Номер телефона
 Pick a channel	Выберите канал
 Pick a channel for the alerts.	Выберите канал для оповещений.
 Pick at least one response.	Выберите хотя бы один ответ.
+Picture	Изображение
 Pin It. Pin It Good.	Закрепить. Намертво.
 Pin Message	Закрепить сообщение
 Pin Messages	Закреплять сообщения
@@ -1416,6 +1418,7 @@ Russian	Русский
 SELECT A CHANNEL	ВЫБЕРИТЕ КАНАЛ
 SELECT A SERVER	ВЫБЕРИТЕ СЕРВЕР
 SERVER NAME	НАЗВАНИЕ СЕРВЕРА
+SHORTCUT	СОЧЕТАНИЕ КЛАВИШ
 SOUNDBOARD VOLUME	ГРОМКОСТЬ ЗВУКОВОЙ ПАНЕЛИ
 START FROM A TEMPLATE	НАЧАТЬ С ШАБЛОНА
 STATIC EMOJI — % SLOTS AVAILABLE	СТАТИЧНЫЕ ЭМОДЗИ — СВОБОДНО МЕСТ: %
@@ -1636,6 +1639,7 @@ That image is too large. Avatars must be under %.	Изображение сли�
 That image is too large. Banners must be under 10 MB.	Изображение слишком большое. Баннер должен весить меньше 10 МБ.
 That image is too large. Server icons must be under 512 KB.	Изображение слишком большое. Иконка сервера должна весить меньше 512 КБ.
 That isn't a valid fastcord invite.	Это недействительное приглашение fastcord.
+That picture can't be opened.	Не удаётся открыть это изображение.
 That's too long to send encrypted.	Это слишком длинно для отправки в зашифрованном виде.
 The Pin Is Stuck!	Булавка застряла!
 The badge chosen in the official client stays as it is.	Значок, выбранный в официальном клиенте, остаётся прежним.
@@ -1934,6 +1938,7 @@ Your files are too powerful	Ваши файлы слишком мощные
 Your full profile is visible to friends and any server you join with 200 or fewer members. Everyone else sees a limited version.	Ваш полный профиль видят друзья и участники серверов, где не больше 200 человек. Остальные видят сокращённую версию.
 Your full profile is visible to friends and any server you join.	Ваш полный профиль видят друзья и участники всех ваших серверов.
 Your full profile is visible to friends. Everyone else sees a limited version.	Ваш полный профиль видят друзья. Остальные видят сокращённую версию.
+Your graphics card can't run background effects.	Ваша видеокарта не может применять эффекты фона.
 Your invite link expires after %.	Ссылка-приглашение истечёт после %.
 Your invite link expires in %.	Ссылка-приглашение истечёт через %.
 Your invite link expires in %1, or after %2.	Ссылка-приглашение истечёт через %1 или после %2.

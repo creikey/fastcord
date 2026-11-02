@@ -375,6 +375,7 @@ Automatically open fastcord when your computer starts up	Automatiškai atidaryti
 Automatically scan and delete messages sent in this server that contain explicit media.	Automatiškai tikrinti ir trinti šiame serveryje siunčiamas žinutes su atviro turinio medija.
 Avatar	Avataras
 BACK	ATGAL
+BACKGROUND	FONAS
 BACKUP CODES	ATSARGINIAI KODAI
 Back	Atgal
 Back / forward	Atgal / pirmyn
@@ -408,8 +409,6 @@ Blocks messages with more than % mentions.	Blokuoja žinutes, kuriose daugiau ne
 Blocks words from Discord's commonly flagged lists.	Blokuoja žodžius iš Discord dažnai žymimų žodžių sąrašų.
 Blocks words in member profile names.	Blokuoja žodžius narių profilių varduose.
 Blur	Suliejimas
-Blur Background	Sulieti foną
-Blur what's behind you on camera. Only your camera is changed.	Sulieja tai, kas už tavęs kameroje. Keičiamas tik tavo kameros vaizdas.
 Bold / italic / underline	Paryškintas / pasvirasis / pabrauktas
 Bots and Apps	Botai ir programos
 Browse	Naršyti
@@ -422,6 +421,7 @@ By making a category private, only select members and roles will be able to view
 By making a channel private, only select members and roles will be able to view this channel.	Padarius kanalą privatų, jį matys tik pasirinkti nariai ir vaidmenys.
 By making a channel private, only select members and roles will have access to view or connect to this channel.	Padarius kanalą privatų, jį matyti ar prie jo prisijungti galės tik pasirinkti nariai ir vaidmenys.
 Bypass Slowmode	Apeiti lėtąjį režimą
+CAMERA	KAMERA
 CHANNEL OR CATEGORY	KANALAS AR KATEGORIJA
 CONFIRM NEW PASSWORD	PATVIRTINK NAUJĄ SLAPTAŽODĮ
 CURRENT PASSWORD	DABARTINIS SLAPTAŽODIS
@@ -457,6 +457,7 @@ Checking the file…	Tikrinamas failas…
 Chinese, China	Kinų (Kinija)
 Chinese, Taiwan	Kinų (Taivanas)
 Choose Image	Pasirinkti vaizdą
+Choose Picture	Pasirinkti paveikslėlį
 Choose a link people can use to join, discord.gg/<code>.	Pasirink saitą, kuriuo žmonės galės prisijungti, discord.gg/<kodas>.
 Choose a server	Pasirink serverį
 Choose the language you want Discord to display.	Pasirink, kokia kalba rodyti Discord.
@@ -654,7 +655,6 @@ Disconnect	Atsijungti
 Disconnect From Voice Channel	Atsijungti nuo balso kanalo
 Disconnected	Atsijungta
 Discord account	Discord paskyra
-Discord asked for a captcha, which fastcord can't show. Log in with the QR code instead.	Discord paprašė captcha, kurios fastcord negali parodyti. Prisijunk QR kodu.
 Discord asked for a captcha, which fastcord can't show. Try on discord.com.	Discord paprašė captcha, kurios fastcord negali parodyti. Pabandyk discord.com.
 Discord can filter out some messages that contain spam. These messages go to your Spam inbox.	Discord gali atfiltruoti kai kurias šlamšto žinutes. Jos patenka į tavo šlamšto aplanką.
 Discord didn't accept the saved login. Log in again.	Discord nepriėmė išsaugoto prisijungimo. Prisijunk iš naujo.
@@ -1242,6 +1242,7 @@ Outgoing Friend Request	Išsiųsta draugystės užklausa
 Overview	Apžvalga
 PASSWORD	SLAPTAŽODIS
 PM	popiet
+PREVIEW	PERŽIŪRA
 PRIVACY CODE	PRIVATUMO KODAS
 PTT Activate	„Paspausk ir kalbėk“ įjungimas
 PTT Deactivate	„Paspausk ir kalbėk“ išjungimas
@@ -1272,6 +1273,7 @@ Phone Number	Telefono numeris
 Pick a channel	Pasirink kanalą
 Pick a channel for the alerts.	Pasirink kanalą įspėjimams.
 Pick at least one response.	Pasirink bent vieną atsakymą.
+Picture	Paveikslėlis
 Pin It. Pin It Good.	Prisek. Prisek gerai.
 Pin Message	Prisegti žinutę
 Pin Messages	Prisegti žinutes
@@ -1416,6 +1418,7 @@ Russian	Rusų
 SELECT A CHANNEL	PASIRINK KANALĄ
 SELECT A SERVER	PASIRINK SERVERĮ
 SERVER NAME	SERVERIO PAVADINIMAS
+SHORTCUT	SPARTUSIS KLAVIŠAS
 SOUNDBOARD VOLUME	GARSŲ LENTOS GARSUMAS
 START FROM A TEMPLATE	PRADĖTI NUO ŠABLONO
 STATIC EMOJI — % SLOTS AVAILABLE	STATINIAI JAUSTUKAI — LAISVŲ VIETŲ: %
@@ -1636,6 +1639,7 @@ That image is too large. Avatars must be under %.	Vaizdas per didelis. Avatarai 
 That image is too large. Banners must be under 10 MB.	Vaizdas per didelis. Reklamjuostės turi būti mažesnės nei 10 MB.
 That image is too large. Server icons must be under 512 KB.	Vaizdas per didelis. Serverio piktogramos turi būti mažesnės nei 512 KB.
 That isn't a valid fastcord invite.	Tai netinkamas fastcord pakvietimas.
+That picture can't be opened.	To paveikslėlio nepavyksta atidaryti.
 That's too long to send encrypted.	Per ilga siųsti užšifruotai.
 The Pin Is Stuck!	Smeigtukas įstrigo!
 The badge chosen in the official client stays as it is.	Oficialiame kliente pasirinktas ženklelis lieka toks pat.
@@ -1934,6 +1938,7 @@ Your files are too powerful	Tavo failai per galingi
 Your full profile is visible to friends and any server you join with 200 or fewer members. Everyone else sees a limited version.	Visą tavo profilį mato draugai ir serveriai, kuriuose yra 200 ar mažiau narių. Kiti mato ribotą versiją.
 Your full profile is visible to friends and any server you join.	Visą tavo profilį mato draugai ir visi serveriai, prie kurių prisijungi.
 Your full profile is visible to friends. Everyone else sees a limited version.	Visą tavo profilį mato draugai. Kiti mato ribotą versiją.
+Your graphics card can't run background effects.	Tavo vaizdo plokštė negali paleisti fono efektų.
 Your invite link expires after %.	Tavo pakvietimo saitas nustos galioti po %.
 Your invite link expires in %.	Tavo pakvietimo saitas nustos galioti po %.
 Your invite link expires in %1, or after %2.	Tavo pakvietimo saitas nustos galioti po %1 arba po %2.

@@ -375,6 +375,7 @@ Automatically open fastcord when your computer starts up	Αυτόματο άνο
 Automatically scan and delete messages sent in this server that contain explicit media.	Αυτόματος έλεγχος και διαγραφή μηνυμάτων σε αυτόν τον διακομιστή που περιέχουν άσεμνα πολυμέσα.
 Avatar	Avatar
 BACK	ΠΙΣΩ
+BACKGROUND	ΦΟΝΤΟ
 BACKUP CODES	ΕΦΕΔΡΙΚΟΙ ΚΩΔΙΚΟΙ
 Back	Πίσω
 Back / forward	Πίσω / εμπρός
@@ -408,8 +409,6 @@ Blocks messages with more than % mentions.	Αποκλείει μηνύματα �
 Blocks words from Discord's commonly flagged lists.	Αποκλείει λέξεις από τις λίστες του Discord με λέξεις που επισημαίνονται συχνά.
 Blocks words in member profile names.	Αποκλείει λέξεις σε ονόματα προφίλ μελών.
 Blur	Θόλωμα
-Blur Background	Θόλωμα φόντου
-Blur what's behind you on camera. Only your camera is changed.	Θόλωσε ό,τι βρίσκεται πίσω σου στην κάμερα. Αλλάζει μόνο η κάμερά σου.
 Bold / italic / underline	Έντονα / πλάγια / υπογράμμιση
 Bots and Apps	Bot και εφαρμογές
 Browse	Περιήγηση
@@ -422,6 +421,7 @@ By making a category private, only select members and roles will be able to view
 By making a channel private, only select members and roles will be able to view this channel.	Αν κάνεις ένα κανάλι ιδιωτικό, μόνο επιλεγμένα μέλη και ρόλοι θα μπορούν να το βλέπουν.
 By making a channel private, only select members and roles will have access to view or connect to this channel.	Αν κάνεις ένα κανάλι ιδιωτικό, μόνο επιλεγμένα μέλη και ρόλοι θα μπορούν να το βλέπουν ή να συνδέονται σε αυτό.
 Bypass Slowmode	Παράκαμψη αργής λειτουργίας
+CAMERA	ΚΑΜΕΡΑ
 CHANNEL OR CATEGORY	ΚΑΝΑΛΙ Ή ΚΑΤΗΓΟΡΙΑ
 CONFIRM NEW PASSWORD	ΕΠΙΒΕΒΑΙΩΣΗ ΝΕΟΥ ΚΩΔΙΚΟΥ ΠΡΟΣΒΑΣΗΣ
 CURRENT PASSWORD	ΤΡΕΧΩΝ ΚΩΔΙΚΟΣ ΠΡΟΣΒΑΣΗΣ
@@ -457,6 +457,7 @@ Checking the file…	Έλεγχος του αρχείου…
 Chinese, China	Κινεζικά, Κίνα
 Chinese, Taiwan	Κινεζικά, Ταϊβάν
 Choose Image	Επιλογή εικόνας
+Choose Picture	Επιλογή εικόνας
 Choose a link people can use to join, discord.gg/<code>.	Διάλεξε έναν σύνδεσμο που θα χρησιμοποιούν όλοι για να μπαίνουν, discord.gg/<code>.
 Choose a server	Διάλεξε διακομιστή
 Choose the language you want Discord to display.	Διάλεξε τη γλώσσα στην οποία θέλεις να εμφανίζεται το Discord.
@@ -654,7 +655,6 @@ Disconnect	Αποσύνδεση
 Disconnect From Voice Channel	Αποσύνδεση από φωνητικό κανάλι
 Disconnected	Αποσυνδέθηκε
 Discord account	Λογαριασμός Discord
-Discord asked for a captcha, which fastcord can't show. Log in with the QR code instead.	Το Discord ζήτησε captcha, που το fastcord δεν μπορεί να εμφανίσει. Συνδέσου με τον κωδικό QR.
 Discord asked for a captcha, which fastcord can't show. Try on discord.com.	Το Discord ζήτησε captcha, που το fastcord δεν μπορεί να εμφανίσει. Δοκίμασε στο discord.com.
 Discord can filter out some messages that contain spam. These messages go to your Spam inbox.	Το Discord μπορεί να φιλτράρει ορισμένα μηνύματα με spam. Αυτά τα μηνύματα πηγαίνουν στα εισερχόμενα Spam.
 Discord didn't accept the saved login. Log in again.	Το Discord δεν αποδέχτηκε την αποθηκευμένη σύνδεση. Συνδέσου ξανά.
@@ -1242,6 +1242,7 @@ Outgoing Friend Request	Εξερχόμενο αίτημα φιλίας
 Overview	Επισκόπηση
 PASSWORD	ΚΩΔΙΚΟΣ ΠΡΟΣΒΑΣΗΣ
 PM	μ.μ.
+PREVIEW	ΠΡΟΕΠΙΣΚΟΠΗΣΗ
 PRIVACY CODE	ΚΩΔΙΚΟΣ ΑΠΟΡΡΗΤΟΥ
 PTT Activate	Ενεργοποίηση PTT
 PTT Deactivate	Απενεργοποίηση PTT
@@ -1272,6 +1273,7 @@ Phone Number	Αριθμός τηλεφώνου
 Pick a channel	Διάλεξε κανάλι
 Pick a channel for the alerts.	Διάλεξε κανάλι για τις ειδοποιήσεις.
 Pick at least one response.	Διάλεξε τουλάχιστον μία απάντηση.
+Picture	Εικόνα
 Pin It. Pin It Good.	Καρφίτσωσέ το. Καρφίτσωσέ το καλά.
 Pin Message	Καρφίτσωμα μηνύματος
 Pin Messages	Καρφίτσωμα μηνυμάτων
@@ -1416,6 +1418,7 @@ Russian	Ρωσικά
 SELECT A CHANNEL	ΕΠΙΛΟΓΗ ΚΑΝΑΛΙΟΥ
 SELECT A SERVER	ΕΠΙΛΟΓΗ ΔΙΑΚΟΜΙΣΤΗ
 SERVER NAME	ΟΝΟΜΑ ΔΙΑΚΟΜΙΣΤΗ
+SHORTCUT	ΣΥΝΤΟΜΕΥΣΗ
 SOUNDBOARD VOLUME	ΕΝΤΑΣΗ SOUNDBOARD
 START FROM A TEMPLATE	ΞΕΚΙΝΑ ΑΠΟ ΠΡΟΤΥΠΟ
 STATIC EMOJI — % SLOTS AVAILABLE	ΣΤΑΤΙΚΑ EMOJI — % ΔΙΑΘΕΣΙΜΕΣ ΘΕΣΕΙΣ
@@ -1636,6 +1639,7 @@ That image is too large. Avatars must be under %.	Η εικόνα είναι π�
 That image is too large. Banners must be under 10 MB.	Η εικόνα είναι πολύ μεγάλη. Τα banner πρέπει να είναι μικρότερα από 10 MB.
 That image is too large. Server icons must be under 512 KB.	Η εικόνα είναι πολύ μεγάλη. Τα εικονίδια διακομιστή πρέπει να είναι μικρότερα από 512 KB.
 That isn't a valid fastcord invite.	Αυτή δεν είναι έγκυρη πρόσκληση fastcord.
+That picture can't be opened.	Αυτή η εικόνα δεν μπορεί να ανοίξει.
 That's too long to send encrypted.	Είναι πολύ μεγάλο για κρυπτογραφημένη αποστολή.
 The Pin Is Stuck!	Η πινέζα κόλλησε!
 The badge chosen in the official client stays as it is.	Το σήμα που επιλέχθηκε στην επίσημη εφαρμογή μένει ως έχει.
@@ -1934,6 +1938,7 @@ Your files are too powerful	Τα αρχεία σου είναι υπερβολι
 Your full profile is visible to friends and any server you join with 200 or fewer members. Everyone else sees a limited version.	Το πλήρες προφίλ σου είναι ορατό στους φίλους και σε κάθε διακομιστή με έως 200 μέλη στον οποίο μπαίνεις. Όλοι οι άλλοι βλέπουν μια περιορισμένη έκδοση.
 Your full profile is visible to friends and any server you join.	Το πλήρες προφίλ σου είναι ορατό στους φίλους και σε κάθε διακομιστή στον οποίο μπαίνεις.
 Your full profile is visible to friends. Everyone else sees a limited version.	Το πλήρες προφίλ σου είναι ορατό στους φίλους. Όλοι οι άλλοι βλέπουν μια περιορισμένη έκδοση.
+Your graphics card can't run background effects.	Η κάρτα γραφικών σου δεν μπορεί να εκτελέσει εφέ φόντου.
 Your invite link expires after %.	Ο σύνδεσμος πρόσκλησής σου λήγει μετά από %.
 Your invite link expires in %.	Ο σύνδεσμος πρόσκλησής σου λήγει σε %.
 Your invite link expires in %1, or after %2.	Ο σύνδεσμος πρόσκλησής σου λήγει σε %1 ή μετά από %2.

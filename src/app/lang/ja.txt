@@ -372,6 +372,7 @@ Automatically open fastcord when your computer starts up	コンピューター�
 Automatically scan and delete messages sent in this server that contain explicit media.	このサーバーで送信された露骨なメディアを含むメッセージを自動でスキャンして削除します。
 Avatar	アバター
 BACK	戻る
+BACKGROUND	背景
 BACKUP CODES	バックアップコード
 Back	戻る
 Back / forward	戻る / 進む
@@ -405,8 +406,6 @@ Blocks messages with more than % mentions.	メンションが%個を超えるメ
 Blocks words from Discord's commonly flagged lists.	Discordのよくフラグが付く単語リストにある単語をブロックします。
 Blocks words in member profile names.	メンバーのプロフィール名に含まれる単語をブロックします。
 Blur	ぼかし
-Blur Background	背景をぼかす
-Blur what's behind you on camera. Only your camera is changed.	カメラに映る背景をぼかします。変更されるのはあなたのカメラだけです。
 Bold / italic / underline	太字 / 斜体 / 下線
 Bots and Apps	ボットとアプリ
 Browse	参照
@@ -419,6 +418,7 @@ By making a category private, only select members and roles will be able to view
 By making a channel private, only select members and roles will be able to view this channel.	チャンネルをプライベートにすると、選択したメンバーとロールのみがこのチャンネルを閲覧できます。
 By making a channel private, only select members and roles will have access to view or connect to this channel.	チャンネルをプライベートにすると、選択したメンバーとロールのみがこのチャンネルを閲覧・接続できます。
 Bypass Slowmode	低速モードを回避
+CAMERA	カメラ
 CHANNEL OR CATEGORY	チャンネルまたはカテゴリー
 CONFIRM NEW PASSWORD	新しいパスワードを確認
 CURRENT PASSWORD	現在のパスワード
@@ -454,6 +454,7 @@ Checking the file…	ファイルを確認中…
 Chinese, China	中国語（中国）
 Chinese, Taiwan	中国語（台湾）
 Choose Image	画像を選択
+Choose Picture	画像を選択
 Choose a link people can use to join, discord.gg/<code>.	参加に使うリンクを選んでください（discord.gg/<code>）。
 Choose a server	サーバーを選択
 Choose the language you want Discord to display.	Discordの表示言語を選んでください。
@@ -651,7 +652,6 @@ Disconnect	切断
 Disconnect From Voice Channel	ボイスチャンネルから切断
 Disconnected	切断されました
 Discord account	Discordアカウント
-Discord asked for a captcha, which fastcord can't show. Log in with the QR code instead.	DiscordがCAPTCHAを要求しましたが、fastcordでは表示できません。代わりにQRコードでログインしてください。
 Discord asked for a captcha, which fastcord can't show. Try on discord.com.	DiscordがCAPTCHAを要求しましたが、fastcordでは表示できません。discord.comでお試しください。
 Discord can filter out some messages that contain spam. These messages go to your Spam inbox.	Discordはスパムを含む一部のメッセージを除外できます。除外されたメッセージはスパム受信箱に入ります。
 Discord didn't accept the saved login. Log in again.	保存されたログイン情報がDiscordに受け付けられませんでした。もう一度ログインしてください。
@@ -1238,6 +1238,7 @@ Outgoing Friend Request	送信済みのフレンドリクエスト
 Overview	概要
 PASSWORD	パスワード
 PM	午後
+PREVIEW	プレビュー
 PRIVACY CODE	プライバシーコード
 PTT Activate	PTT開始
 PTT Deactivate	PTT終了
@@ -1268,6 +1269,7 @@ Phone Number	電話番号
 Pick a channel	チャンネルを選択
 Pick a channel for the alerts.	アラートを送るチャンネルを選んでください。
 Pick at least one response.	回答を1つ以上選んでください。
+Picture	画像
 Pin It. Pin It Good.	ピン留めだ。しっかりと。
 Pin Message	メッセージをピン留め
 Pin Messages	メッセージのピン留め
@@ -1412,6 +1414,7 @@ Russian	ロシア語
 SELECT A CHANNEL	チャンネルを選択
 SELECT A SERVER	サーバーを選択
 SERVER NAME	サーバー名
+SHORTCUT	ショートカット
 SOUNDBOARD VOLUME	サウンドボードの音量
 START FROM A TEMPLATE	テンプレートから始める
 STATIC EMOJI — % SLOTS AVAILABLE	静止画絵文字 — 空き枠%個
@@ -1632,6 +1635,7 @@ That image is too large. Avatars must be under %.	画像が大きすぎます。
 That image is too large. Banners must be under 10 MB.	画像が大きすぎます。バナーは10MB未満にしてください。
 That image is too large. Server icons must be under 512 KB.	画像が大きすぎます。サーバーアイコンは512KB未満にしてください。
 That isn't a valid fastcord invite.	有効なfastcordの招待ではありません。
+That picture can't be opened.	その画像を開けません。
 That's too long to send encrypted.	長すぎるため暗号化して送信できません。
 The Pin Is Stuck!	ピンが刺さりました！
 The badge chosen in the official client stays as it is.	公式クライアントで選んだバッジはそのまま残ります。
@@ -1930,6 +1934,7 @@ Your files are too powerful	ファイルが強力すぎます
 Your full profile is visible to friends and any server you join with 200 or fewer members. Everyone else sees a limited version.	プロフィール全体は、フレンドと、参加しているメンバー200人以下のサーバーに表示されます。それ以外の人には一部のみ表示されます。
 Your full profile is visible to friends and any server you join.	プロフィール全体は、フレンドと参加しているすべてのサーバーに表示されます。
 Your full profile is visible to friends. Everyone else sees a limited version.	プロフィール全体はフレンドに表示されます。それ以外の人には一部のみ表示されます。
+Your graphics card can't run background effects.	お使いのグラフィックカードでは背景エフェクトを実行できません。
 Your invite link expires after %.	招待リンクは%で期限切れになります。
 Your invite link expires in %.	招待リンクの有効期限は%です。
 Your invite link expires in %1, or after %2.	招待リンクは%1後、または%2で期限切れになります。

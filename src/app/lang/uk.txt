@@ -375,6 +375,7 @@ Automatically open fastcord when your computer starts up	Автоматично 
 Automatically scan and delete messages sent in this server that contain explicit media.	Автоматично перевіряти й видаляти повідомлення на цьому сервері з відвертими медіа.
 Avatar	Аватар
 BACK	НАЗАД
+BACKGROUND	ТЛО
 BACKUP CODES	РЕЗЕРВНІ КОДИ
 Back	Назад
 Back / forward	Назад / вперед
@@ -408,8 +409,6 @@ Blocks messages with more than % mentions.	Блокує повідомлення
 Blocks words from Discord's commonly flagged lists.	Блокує слова зі списків Discord, які часто позначають.
 Blocks words in member profile names.	Блокує слова в іменах профілів учасників.
 Blur	Розмиття
-Blur Background	Розмити тло
-Blur what's behind you on camera. Only your camera is changed.	Розмиває те, що позаду тебе на камері. Змінюється лише твоя камера.
 Bold / italic / underline	Жирний / курсив / підкреслення
 Bots and Apps	Боти й застосунки
 Browse	Огляд
@@ -422,6 +421,7 @@ By making a category private, only select members and roles will be able to view
 By making a channel private, only select members and roles will be able to view this channel.	Якщо зробити канал приватним, його бачитимуть лише вибрані учасники та ролі.
 By making a channel private, only select members and roles will have access to view or connect to this channel.	Якщо зробити канал приватним, лише вибрані учасники та ролі зможуть бачити його чи під'єднуватися до нього.
 Bypass Slowmode	Ігнорувати повільний режим
+CAMERA	КАМЕРА
 CHANNEL OR CATEGORY	КАНАЛ АБО КАТЕГОРІЯ
 CONFIRM NEW PASSWORD	ПІДТВЕРДЬ НОВИЙ ПАРОЛЬ
 CURRENT PASSWORD	ПОТОЧНИЙ ПАРОЛЬ
@@ -457,6 +457,7 @@ Checking the file…	Перевіряємо файл…
 Chinese, China	Китайська (Китай)
 Chinese, Taiwan	Китайська (Тайвань)
 Choose Image	Вибрати зображення
+Choose Picture	Вибрати зображення
 Choose a link people can use to join, discord.gg/<code>.	Вибери посилання для приєднання: discord.gg/<code>.
 Choose a server	Вибери сервер
 Choose the language you want Discord to display.	Вибери мову інтерфейсу Discord.
@@ -654,7 +655,6 @@ Disconnect	Від'єднатися
 Disconnect From Voice Channel	Від'єднатися від голосового каналу
 Disconnected	Від'єднано
 Discord account	Обліковий запис Discord
-Discord asked for a captcha, which fastcord can't show. Log in with the QR code instead.	Discord вимагає капчу, яку fastcord не може показати. Увійди за QR-кодом.
 Discord asked for a captcha, which fastcord can't show. Try on discord.com.	Discord вимагає капчу, яку fastcord не може показати. Спробуй на discord.com.
 Discord can filter out some messages that contain spam. These messages go to your Spam inbox.	Discord може відфільтровувати деякі повідомлення зі спамом. Вони потрапляють у папку «Спам».
 Discord didn't accept the saved login. Log in again.	Discord не прийняв збережений вхід. Увійди знову.
@@ -1242,6 +1242,7 @@ Outgoing Friend Request	Вихідний запит у друзі
 Overview	Огляд
 PASSWORD	ПАРОЛЬ
 PM	пп
+PREVIEW	ПОПЕРЕДНІЙ ПЕРЕГЛЯД
 PRIVACY CODE	КОД ПРИВАТНОСТІ
 PTT Activate	Увімкнення PTT
 PTT Deactivate	Вимкнення PTT
@@ -1272,6 +1273,7 @@ Phone Number	Номер телефону
 Pick a channel	Вибери канал
 Pick a channel for the alerts.	Вибери канал для сповіщень.
 Pick at least one response.	Вибери хоча б одну відповідь.
+Picture	Зображення
 Pin It. Pin It Good.	Закріпи. Закріпи як слід.
 Pin Message	Закріпити повідомлення
 Pin Messages	Закріплювати повідомлення
@@ -1416,6 +1418,7 @@ Russian	Російська
 SELECT A CHANNEL	ВИБЕРИ КАНАЛ
 SELECT A SERVER	ВИБЕРИ СЕРВЕР
 SERVER NAME	НАЗВА СЕРВЕРА
+SHORTCUT	СПОЛУЧЕННЯ КЛАВІШ
 SOUNDBOARD VOLUME	ГУЧНІСТЬ ЗВУКОВОЇ ПАНЕЛІ
 START FROM A TEMPLATE	ПОЧАТИ З ШАБЛОНУ
 STATIC EMOJI — % SLOTS AVAILABLE	СТАТИЧНІ ЕМОДЗІ — ВІЛЬНИХ МІСЦЬ: %
@@ -1636,6 +1639,7 @@ That image is too large. Avatars must be under %.	Зображення заве�
 That image is too large. Banners must be under 10 MB.	Зображення завелике. Банери мають бути меншими за 10 МБ.
 That image is too large. Server icons must be under 512 KB.	Зображення завелике. Значки сервера мають бути меншими за 512 КБ.
 That isn't a valid fastcord invite.	Це недійсне запрошення fastcord.
+That picture can't be opened.	Не вдається відкрити це зображення.
 That's too long to send encrypted.	Це задовге, щоб надіслати зашифрованим.
 The Pin Is Stuck!	Шпилька застрягла!
 The badge chosen in the official client stays as it is.	Значок, вибраний в офіційному клієнті, залишається без змін.
@@ -1934,6 +1938,7 @@ Your files are too powerful	Твої файли надто потужні
 Your full profile is visible to friends and any server you join with 200 or fewer members. Everyone else sees a limited version.	Твій повний профіль бачать друзі та будь-який сервер до 200 учасників, до якого ти приєднаєшся. Решта бачить обмежену версію.
 Your full profile is visible to friends and any server you join.	Твій повний профіль бачать друзі та будь-який сервер, до якого ти приєднаєшся.
 Your full profile is visible to friends. Everyone else sees a limited version.	Твій повний профіль бачать друзі. Решта бачить обмежену версію.
+Your graphics card can't run background effects.	Твоя відеокарта не може запускати ефекти тла.
 Your invite link expires after %.	Посилання-запрошення діє до %.
 Your invite link expires in %.	Термін дії посилання-запрошення спливає через %.
 Your invite link expires in %1, or after %2.	Термін дії посилання-запрошення спливає через %1 або після %2.

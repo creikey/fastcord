@@ -375,6 +375,7 @@ Automatically open fastcord when your computer starts up	เปิด fastcord �
 Automatically scan and delete messages sent in this server that contain explicit media.	สแกนและลบข้อความที่ส่งในเซิร์ฟเวอร์นี้ที่มีสื่อโจ่งแจ้งโดยอัตโนมัติ
 Avatar	อวาตาร์
 BACK	กลับ
+BACKGROUND	พื้นหลัง
 BACKUP CODES	รหัสสำรอง
 Back	กลับ
 Back / forward	ย้อนกลับ / ไปข้างหน้า
@@ -408,8 +409,6 @@ Blocks messages with more than % mentions.	บล็อกข้อความ�
 Blocks words from Discord's commonly flagged lists.	บล็อกคำจากรายการคำที่ถูกรายงานบ่อยของ Discord
 Blocks words in member profile names.	บล็อกคำในชื่อโปรไฟล์ของสมาชิก
 Blur	เบลอ
-Blur Background	เบลอพื้นหลัง
-Blur what's behind you on camera. Only your camera is changed.	เบลอสิ่งที่อยู่ด้านหลังคุณในกล้อง เปลี่ยนเฉพาะกล้องของคุณเท่านั้น
 Bold / italic / underline	ตัวหนา / ตัวเอียง / ขีดเส้นใต้
 Bots and Apps	บอทและแอป
 Browse	เรียกดู
@@ -422,6 +421,7 @@ By making a category private, only select members and roles will be able to view
 By making a channel private, only select members and roles will be able to view this channel.	เมื่อตั้งช่องเป็นส่วนตัว เฉพาะสมาชิกและบทบาทที่เลือกเท่านั้นที่จะดูช่องนี้ได้
 By making a channel private, only select members and roles will have access to view or connect to this channel.	เมื่อตั้งช่องเป็นส่วนตัว เฉพาะสมาชิกและบทบาทที่เลือกเท่านั้นที่จะดูหรือเชื่อมต่อกับช่องนี้ได้
 Bypass Slowmode	ข้ามโหมดช้า
+CAMERA	กล้อง
 CHANNEL OR CATEGORY	ช่องหรือหมวดหมู่
 CONFIRM NEW PASSWORD	ยืนยันรหัสผ่านใหม่
 CURRENT PASSWORD	รหัสผ่านปัจจุบัน
@@ -457,6 +457,7 @@ Checking the file…	กำลังตรวจสอบไฟล์…
 Chinese, China	จีน (จีน)
 Chinese, Taiwan	จีน (ไต้หวัน)
 Choose Image	เลือกรูปภาพ
+Choose Picture	เลือกรูปภาพ
 Choose a link people can use to join, discord.gg/<code>.	เลือกลิงก์ที่ผู้คนใช้เข้าร่วมได้ discord.gg/<code>
 Choose a server	เลือกเซิร์ฟเวอร์
 Choose the language you want Discord to display.	เลือกภาษาที่คุณต้องการให้ Discord แสดง
@@ -654,7 +655,6 @@ Disconnect	ตัดการเชื่อมต่อ
 Disconnect From Voice Channel	ตัดการเชื่อมต่อจากช่องเสียง
 Disconnected	ตัดการเชื่อมต่อแล้ว
 Discord account	บัญชี Discord
-Discord asked for a captcha, which fastcord can't show. Log in with the QR code instead.	Discord ขอให้ทำแคปช่า ซึ่ง fastcord แสดงไม่ได้ เข้าสู่ระบบด้วยคิวอาร์โค้ดแทน
 Discord asked for a captcha, which fastcord can't show. Try on discord.com.	Discord ขอให้ทำแคปช่า ซึ่ง fastcord แสดงไม่ได้ ลองที่ discord.com
 Discord can filter out some messages that contain spam. These messages go to your Spam inbox.	Discord กรองข้อความบางส่วนที่เป็นสแปมออกได้ ข้อความเหล่านี้จะไปอยู่ในกล่องสแปมของคุณ
 Discord didn't accept the saved login. Log in again.	Discord ไม่ยอมรับการเข้าสู่ระบบที่บันทึกไว้ เข้าสู่ระบบอีกครั้ง
@@ -1242,6 +1242,7 @@ Outgoing Friend Request	คำขอเป็นเพื่อนที่ส�
 Overview	ภาพรวม
 PASSWORD	รหัสผ่าน
 PM	หลังเที่ยง
+PREVIEW	ตัวอย่าง
 PRIVACY CODE	รหัสความเป็นส่วนตัว
 PTT Activate	เปิดกดเพื่อพูด
 PTT Deactivate	ปิดกดเพื่อพูด
@@ -1272,6 +1273,7 @@ Phone Number	หมายเลขโทรศัพท์
 Pick a channel	เลือกช่อง
 Pick a channel for the alerts.	เลือกช่องสำหรับการแจ้งเตือน
 Pick at least one response.	เลือกอย่างน้อยหนึ่งคำตอบ
+Picture	รูปภาพ
 Pin It. Pin It Good.	ปักหมุดเลย ปักให้แน่น
 Pin Message	ปักหมุดข้อความ
 Pin Messages	ปักหมุดข้อความ
@@ -1416,6 +1418,7 @@ Russian	รัสเซีย
 SELECT A CHANNEL	เลือกช่อง
 SELECT A SERVER	เลือกเซิร์ฟเวอร์
 SERVER NAME	ชื่อเซิร์ฟเวอร์
+SHORTCUT	ปุ่มลัด
 SOUNDBOARD VOLUME	ระดับเสียงซาวด์บอร์ด
 START FROM A TEMPLATE	เริ่มจากเทมเพลต
 STATIC EMOJI — % SLOTS AVAILABLE	อีโมจิภาพนิ่ง — ว่าง % ช่อง
@@ -1636,6 +1639,7 @@ That image is too large. Avatars must be under %.	รูปภาพนั้น
 That image is too large. Banners must be under 10 MB.	รูปภาพนั้นใหญ่เกินไป แบนเนอร์ต้องมีขนาดไม่เกิน 10 MB
 That image is too large. Server icons must be under 512 KB.	รูปภาพนั้นใหญ่เกินไป ไอคอนเซิร์ฟเวอร์ต้องมีขนาดไม่เกิน 512 KB
 That isn't a valid fastcord invite.	นั่นไม่ใช่คำเชิญ fastcord ที่ถูกต้อง
+That picture can't be opened.	ไม่สามารถเปิดรูปภาพนั้นได้
 That's too long to send encrypted.	ยาวเกินกว่าจะส่งแบบเข้ารหัสได้
 The Pin Is Stuck!	หมุดติดแน่นแล้ว!
 The badge chosen in the official client stays as it is.	ป้ายที่เลือกไว้ในไคลเอนต์ทางการจะยังคงเดิม
@@ -1934,6 +1938,7 @@ Your files are too powerful	ไฟล์ของคุณทรงพลัง�
 Your full profile is visible to friends and any server you join with 200 or fewer members. Everyone else sees a limited version.	เพื่อนและเซิร์ฟเวอร์ที่คุณเข้าร่วมซึ่งมีสมาชิกไม่เกิน 200 คนจะเห็นโปรไฟล์เต็มของคุณ คนอื่นจะเห็นแบบจำกัด
 Your full profile is visible to friends and any server you join.	เพื่อนและทุกเซิร์ฟเวอร์ที่คุณเข้าร่วมจะเห็นโปรไฟล์เต็มของคุณ
 Your full profile is visible to friends. Everyone else sees a limited version.	เพื่อนจะเห็นโปรไฟล์เต็มของคุณ คนอื่นจะเห็นแบบจำกัด
+Your graphics card can't run background effects.	การ์ดจอของคุณใช้เอฟเฟกต์พื้นหลังไม่ได้
 Your invite link expires after %.	ลิงก์คำเชิญของคุณจะหมดอายุหลังใช้ %
 Your invite link expires in %.	ลิงก์คำเชิญของคุณจะหมดอายุใน %
 Your invite link expires in %1, or after %2.	ลิงก์คำเชิญของคุณจะหมดอายุใน %1 หรือหลังใช้ %2

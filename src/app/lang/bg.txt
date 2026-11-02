@@ -375,6 +375,7 @@ Automatically open fastcord when your computer starts up	Автоматично 
 Automatically scan and delete messages sent in this server that contain explicit media.	Автоматично сканирай и изтривай съобщенията в този сървър, които съдържат откровена медия.
 Avatar	Аватар
 BACK	НАЗАД
+BACKGROUND	ФОН
 BACKUP CODES	РЕЗЕРВНИ КОДОВЕ
 Back	Назад
 Back / forward	Назад / напред
@@ -408,8 +409,6 @@ Blocks messages with more than % mentions.	Блокира съобщения с 
 Blocks words from Discord's commonly flagged lists.	Блокира думи от списъците на Discord с често маркирани думи.
 Blocks words in member profile names.	Блокира думи в имената на профилите на членовете.
 Blur	Размазване
-Blur Background	Размазан фон
-Blur what's behind you on camera. Only your camera is changed.	Размазва това зад теб в камерата. Променя се само твоята камера.
 Bold / italic / underline	Удебелен / курсив / подчертан
 Bots and Apps	Ботове и приложения
 Browse	Разгледай
@@ -422,6 +421,7 @@ By making a category private, only select members and roles will be able to view
 By making a channel private, only select members and roles will be able to view this channel.	Ако направиш канала частен, само избрани членове и роли ще могат да го виждат.
 By making a channel private, only select members and roles will have access to view or connect to this channel.	Ако направиш канала частен, само избрани членове и роли ще могат да го виждат или да се свързват към него.
 Bypass Slowmode	Заобикаляне на бавния режим
+CAMERA	КАМЕРА
 CHANNEL OR CATEGORY	КАНАЛ ИЛИ КАТЕГОРИЯ
 CONFIRM NEW PASSWORD	ПОТВЪРДИ НОВАТА ПАРОЛА
 CURRENT PASSWORD	ТЕКУЩА ПАРОЛА
@@ -457,6 +457,7 @@ Checking the file…	Проверка на файла…
 Chinese, China	Китайски (Китай)
 Chinese, Taiwan	Китайски (Тайван)
 Choose Image	Избери изображение
+Choose Picture	Избери снимка
 Choose a link people can use to join, discord.gg/<code>.	Избери линк, с който хората да влизат, discord.gg/<код>.
 Choose a server	Избери сървър
 Choose the language you want Discord to display.	Избери езика, на който да се показва Discord.
@@ -654,7 +655,6 @@ Disconnect	Прекъсни
 Disconnect From Voice Channel	Излез от гласовия канал
 Disconnected	Връзката е прекъсната
 Discord account	Акаунт в Discord
-Discord asked for a captcha, which fastcord can't show. Log in with the QR code instead.	Discord поиска captcha, която fastcord не може да покаже. Влез с QR кода.
 Discord asked for a captcha, which fastcord can't show. Try on discord.com.	Discord поиска captcha, която fastcord не може да покаже. Опитай в discord.com.
 Discord can filter out some messages that contain spam. These messages go to your Spam inbox.	Discord може да филтрира някои съобщения със спам. Те отиват в папката ти „Спам“.
 Discord didn't accept the saved login. Log in again.	Discord не прие запазения вход. Влез отново.
@@ -1242,6 +1242,7 @@ Outgoing Friend Request	Изходяща покана за приятелств�
 Overview	Общ преглед
 PASSWORD	ПАРОЛА
 PM	сл.об.
+PREVIEW	ПРЕГЛЕД
 PRIVACY CODE	КОД ЗА ПОВЕРИТЕЛНОСТ
 PTT Activate	Активиране на PTT
 PTT Deactivate	Деактивиране на PTT
@@ -1272,6 +1273,7 @@ Phone Number	Телефонен номер
 Pick a channel	Избери канал
 Pick a channel for the alerts.	Избери канал за сигналите.
 Pick at least one response.	Избери поне един отговор.
+Picture	Снимка
 Pin It. Pin It Good.	Закачи го. Закачи го здраво.
 Pin Message	Закачи съобщението
 Pin Messages	Закачване на съобщения
@@ -1416,6 +1418,7 @@ Russian	Руски
 SELECT A CHANNEL	ИЗБЕРИ КАНАЛ
 SELECT A SERVER	ИЗБЕРИ СЪРВЪР
 SERVER NAME	ИМЕ НА СЪРВЪРА
+SHORTCUT	КЛАВИШНА КОМБИНАЦИЯ
 SOUNDBOARD VOLUME	СИЛА НА ЗВУКОВИЯ ПАНЕЛ
 START FROM A TEMPLATE	ЗАПОЧНИ ОТ ШАБЛОН
 STATIC EMOJI — % SLOTS AVAILABLE	СТАТИЧНИ ЕМОДЖИ — % СВОБОДНИ МЕСТА
@@ -1636,6 +1639,7 @@ That image is too large. Avatars must be under %.	Изображението е 
 That image is too large. Banners must be under 10 MB.	Изображението е твърде голямо. Банерите трябва да са под 10 MB.
 That image is too large. Server icons must be under 512 KB.	Изображението е твърде голямо. Иконите на сървъри трябва да са под 512 KB.
 That isn't a valid fastcord invite.	Това не е валидна покана за fastcord.
+That picture can't be opened.	Тази снимка не може да се отвори.
 That's too long to send encrypted.	Твърде дълго е за изпращане криптирано.
 The Pin Is Stuck!	Карфицата заседна!
 The badge chosen in the official client stays as it is.	Значката, избрана в официалния клиент, остава непроменена.
@@ -1934,6 +1938,7 @@ Your files are too powerful	Файловете ти са твърде мощни
 Your full profile is visible to friends and any server you join with 200 or fewer members. Everyone else sees a limited version.	Целият ти профил се вижда от приятелите и от всеки сървър с до 200 члена, в който влезеш. Всички останали виждат ограничена версия.
 Your full profile is visible to friends and any server you join.	Целият ти профил се вижда от приятелите и от всеки сървър, в който влезеш.
 Your full profile is visible to friends. Everyone else sees a limited version.	Целият ти профил се вижда от приятелите. Всички останали виждат ограничена версия.
+Your graphics card can't run background effects.	Графичната ти карта не може да изпълнява ефекти за фона.
 Your invite link expires after %.	Линкът ти за покана изтича след %.
 Your invite link expires in %.	Линкът ти за покана изтича след %.
 Your invite link expires in %1, or after %2.	Линкът ти за покана изтича след %1 или след %2.

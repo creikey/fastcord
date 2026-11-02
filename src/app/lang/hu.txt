@@ -375,6 +375,7 @@ Automatically open fastcord when your computer starts up	A fastcord automatikus 
 Automatically scan and delete messages sent in this server that contain explicit media.	A szerveren küldött, kifogásolható médiát tartalmazó üzenetek automatikus vizsgálata és törlése.
 Avatar	Profilkép
 BACK	VISSZA
+BACKGROUND	HÁTTÉR
 BACKUP CODES	TARTALÉKKÓDOK
 Back	Vissza
 Back / forward	Vissza / előre
@@ -408,8 +409,6 @@ Blocks messages with more than % mentions.	Letiltja a(z) %-nál több említést
 Blocks words from Discord's commonly flagged lists.	Letiltja a Discord gyakran jelölt szavainak listáin szereplő szavakat.
 Blocks words in member profile names.	Letiltja a szavakat a tagok profilnevében.
 Blur	Elmosás
-Blur Background	Háttér elmosása
-Blur what's behind you on camera. Only your camera is changed.	Elmossa a mögötted lévő hátteret a kamerán. Csak a kamerád képe változik.
 Bold / italic / underline	Félkövér / dőlt / aláhúzott
 Bots and Apps	Botok és alkalmazások
 Browse	Böngészés
@@ -422,6 +421,7 @@ By making a category private, only select members and roles will be able to view
 By making a channel private, only select members and roles will be able to view this channel.	Ha priváttá teszed a csatornát, csak a kiválasztott tagok és rangok láthatják.
 By making a channel private, only select members and roles will have access to view or connect to this channel.	Ha priváttá teszed a csatornát, csak a kiválasztott tagok és rangok láthatják, illetve csatlakozhatnak hozzá.
 Bypass Slowmode	Lassított mód megkerülése
+CAMERA	KAMERA
 CHANNEL OR CATEGORY	CSATORNA VAGY KATEGÓRIA
 CONFIRM NEW PASSWORD	ÚJ JELSZÓ MEGERŐSÍTÉSE
 CURRENT PASSWORD	JELENLEGI JELSZÓ
@@ -457,6 +457,7 @@ Checking the file…	Fájl ellenőrzése…
 Chinese, China	Kínai (Kína)
 Chinese, Taiwan	Kínai (Tajvan)
 Choose Image	Kép kiválasztása
+Choose Picture	Kép kiválasztása
 Choose a link people can use to join, discord.gg/<code>.	Válassz egy linket, amellyel mások csatlakozhatnak: discord.gg/<kód>.
 Choose a server	Válassz szervert
 Choose the language you want Discord to display.	Válaszd ki, milyen nyelven jelenjen meg a Discord.
@@ -654,7 +655,6 @@ Disconnect	Lecsatlakozás
 Disconnect From Voice Channel	Lecsatlakozás a hangcsatornáról
 Disconnected	Lecsatlakozva
 Discord account	Discord-fiók
-Discord asked for a captcha, which fastcord can't show. Log in with the QR code instead.	A Discord captchát kért, amit a fastcord nem tud megjeleníteni. Jelentkezz be inkább QR-kóddal.
 Discord asked for a captcha, which fastcord can't show. Try on discord.com.	A Discord captchát kért, amit a fastcord nem tud megjeleníteni. Próbáld a discord.com oldalon.
 Discord can filter out some messages that contain spam. These messages go to your Spam inbox.	A Discord kiszűrhet néhány spamet tartalmazó üzenetet. Ezek a Spam mappádba kerülnek.
 Discord didn't accept the saved login. Log in again.	A Discord nem fogadta el a mentett bejelentkezést. Jelentkezz be újra.
@@ -1242,6 +1242,7 @@ Outgoing Friend Request	Kimenő barátkérelem
 Overview	Áttekintés
 PASSWORD	JELSZÓ
 PM	du.
+PREVIEW	ELŐNÉZET
 PRIVACY CODE	ADATVÉDELMI KÓD
 PTT Activate	PTT bekapcsolása
 PTT Deactivate	PTT kikapcsolása
@@ -1272,6 +1273,7 @@ Phone Number	Telefonszám
 Pick a channel	Válassz csatornát
 Pick a channel for the alerts.	Válassz csatornát a riasztásokhoz.
 Pick at least one response.	Válassz legalább egy választ.
+Picture	Kép
 Pin It. Pin It Good.	Tűzd ki. De rendesen.
 Pin Message	Üzenet kitűzése
 Pin Messages	Üzenetek kitűzése
@@ -1416,6 +1418,7 @@ Russian	Orosz
 SELECT A CHANNEL	VÁLASSZ CSATORNÁT
 SELECT A SERVER	VÁLASSZ SZERVERT
 SERVER NAME	SZERVER NEVE
+SHORTCUT	BILLENTYŰPARANCS
 SOUNDBOARD VOLUME	HANGTÁBLA HANGEREJE
 START FROM A TEMPLATE	KEZDÉS SABLONBÓL
 STATIC EMOJI — % SLOTS AVAILABLE	STATIKUS EMODZSIK — % SZABAD HELY
@@ -1636,6 +1639,7 @@ That image is too large. Avatars must be under %.	Ez a kép túl nagy. A profilk
 That image is too large. Banners must be under 10 MB.	Ez a kép túl nagy. A borítóképek mérete 10 MB alatt kell legyen.
 That image is too large. Server icons must be under 512 KB.	Ez a kép túl nagy. A szerverikonok mérete 512 KB alatt kell legyen.
 That isn't a valid fastcord invite.	Ez nem érvényes fastcord-meghívó.
+That picture can't be opened.	Ez a kép nem nyitható meg.
 That's too long to send encrypted.	Ez túl hosszú ahhoz, hogy titkosítva elküldjük.
 The Pin Is Stuck!	Beragadt a kitűző!
 The badge chosen in the official client stays as it is.	A hivatalos kliensben választott jelvény változatlan marad.
@@ -1934,6 +1938,7 @@ Your files are too powerful	A fájljaid túl erősek
 Your full profile is visible to friends and any server you join with 200 or fewer members. Everyone else sees a limited version.	A teljes profilodat a barátaid és minden olyan, legfeljebb 200 tagú szerver látja, amelyhez csatlakozol. Mindenki más egy korlátozott változatot lát.
 Your full profile is visible to friends and any server you join.	A teljes profilodat a barátaid és minden szerver látja, amelyhez csatlakozol.
 Your full profile is visible to friends. Everyone else sees a limited version.	A teljes profilodat a barátaid látják. Mindenki más egy korlátozott változatot lát.
+Your graphics card can't run background effects.	A videokártyád nem tudja futtatni a háttéreffekteket.
 Your invite link expires after %.	A meghívólinked lejár ennyi után: %.
 Your invite link expires in %.	A meghívólinked lejár ennyi idő múlva: %.
 Your invite link expires in %1, or after %2.	A meghívólinked lejár ennyi idő múlva: %1, vagy ennyi után: %2.

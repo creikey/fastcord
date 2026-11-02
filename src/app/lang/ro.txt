@@ -375,6 +375,7 @@ Automatically open fastcord when your computer starts up	Deschide automat fastco
 Automatically scan and delete messages sent in this server that contain explicit media.	Scanează și șterge automat mesajele trimise pe acest server care conțin media explicit.
 Avatar	Avatar
 BACK	ÎNAPOI
+BACKGROUND	FUNDAL
 BACKUP CODES	CODURI DE REZERVĂ
 Back	Înapoi
 Back / forward	Înapoi / înainte
@@ -408,8 +409,6 @@ Blocks messages with more than % mentions.	Blochează mesajele cu peste % menți
 Blocks words from Discord's commonly flagged lists.	Blochează cuvintele din listele Discord de cuvinte semnalate frecvent.
 Blocks words in member profile names.	Blochează cuvinte în numele de profil ale membrilor.
 Blur	Estompare
-Blur Background	Estompează fundalul
-Blur what's behind you on camera. Only your camera is changed.	Estompează ce e în spatele tău pe cameră. Se schimbă doar camera ta.
 Bold / italic / underline	Aldin / cursiv / subliniat
 Bots and Apps	Boți și aplicații
 Browse	Răsfoiește
@@ -422,6 +421,7 @@ By making a category private, only select members and roles will be able to view
 By making a channel private, only select members and roles will be able to view this channel.	Dacă faci canalul privat, doar membrii și rolurile alese îl vor putea vedea.
 By making a channel private, only select members and roles will have access to view or connect to this channel.	Dacă faci canalul privat, doar membrii și rolurile alese îl vor putea vedea sau se vor putea conecta la el.
 Bypass Slowmode	Ocolește modul lent
+CAMERA	CAMERĂ
 CHANNEL OR CATEGORY	CANAL SAU CATEGORIE
 CONFIRM NEW PASSWORD	CONFIRMĂ PAROLA NOUĂ
 CURRENT PASSWORD	PAROLA ACTUALĂ
@@ -457,6 +457,7 @@ Checking the file…	Se verifică fișierul…
 Chinese, China	Chineză, China
 Chinese, Taiwan	Chineză, Taiwan
 Choose Image	Alege imaginea
+Choose Picture	Alege o imagine
 Choose a link people can use to join, discord.gg/<code>.	Alege un link cu care se pot alătura oamenii, discord.gg/<cod>.
 Choose a server	Alege un server
 Choose the language you want Discord to display.	Alege limba în care vrei să fie afișat Discord.
@@ -654,7 +655,6 @@ Disconnect	Deconectează
 Disconnect From Voice Channel	Deconectează-te de la canalul vocal
 Disconnected	Deconectat
 Discord account	Cont Discord
-Discord asked for a captcha, which fastcord can't show. Log in with the QR code instead.	Discord a cerut un captcha, pe care fastcord nu-l poate afișa. Conectează-te cu codul QR.
 Discord asked for a captcha, which fastcord can't show. Try on discord.com.	Discord a cerut un captcha, pe care fastcord nu-l poate afișa. Încearcă pe discord.com.
 Discord can filter out some messages that contain spam. These messages go to your Spam inbox.	Discord poate filtra unele mesaje care conțin spam. Acestea ajung în căsuța ta Spam.
 Discord didn't accept the saved login. Log in again.	Discord nu a acceptat conectarea salvată. Conectează-te din nou.
@@ -1242,6 +1242,7 @@ Outgoing Friend Request	Cerere de prietenie trimisă
 Overview	Prezentare generală
 PASSWORD	PAROLĂ
 PM	p.m.
+PREVIEW	PREVIZUALIZARE
 PRIVACY CODE	COD DE CONFIDENȚIALITATE
 PTT Activate	Activare PTT
 PTT Deactivate	Dezactivare PTT
@@ -1272,6 +1273,7 @@ Phone Number	Număr de telefon
 Pick a channel	Alege un canal
 Pick a channel for the alerts.	Alege un canal pentru alerte.
 Pick at least one response.	Alege cel puțin un răspuns.
+Picture	Imagine
 Pin It. Pin It Good.	Fixează-l. Fixează-l bine.
 Pin Message	Fixează mesajul
 Pin Messages	Fixează mesaje
@@ -1416,6 +1418,7 @@ Russian	Rusă
 SELECT A CHANNEL	ALEGE UN CANAL
 SELECT A SERVER	ALEGE UN SERVER
 SERVER NAME	NUMELE SERVERULUI
+SHORTCUT	SCURTĂTURĂ
 SOUNDBOARD VOLUME	VOLUM SOUNDBOARD
 START FROM A TEMPLATE	PORNEȘTE DE LA UN ȘABLON
 STATIC EMOJI — % SLOTS AVAILABLE	EMOJI STATICE — % LOCURI DISPONIBILE
@@ -1636,6 +1639,7 @@ That image is too large. Avatars must be under %.	Imaginea e prea mare. Avatarel
 That image is too large. Banners must be under 10 MB.	Imaginea e prea mare. Bannerele trebuie să aibă sub 10 MB.
 That image is too large. Server icons must be under 512 KB.	Imaginea e prea mare. Pictogramele serverelor trebuie să aibă sub 512 KB.
 That isn't a valid fastcord invite.	Aceasta nu e o invitație fastcord validă.
+That picture can't be opened.	Imaginea nu poate fi deschisă.
 That's too long to send encrypted.	E prea lung ca să fie trimis criptat.
 The Pin Is Stuck!	Pinul s-a blocat!
 The badge chosen in the official client stays as it is.	Insigna aleasă în clientul oficial rămâne neschimbată.
@@ -1934,6 +1938,7 @@ Your files are too powerful	Fișierele tale sunt prea puternice
 Your full profile is visible to friends and any server you join with 200 or fewer members. Everyone else sees a limited version.	Profilul tău complet e vizibil pentru prieteni și pe orice server cu cel mult 200 de membri la care te alături. Restul văd o versiune limitată.
 Your full profile is visible to friends and any server you join.	Profilul tău complet e vizibil pentru prieteni și pe orice server la care te alături.
 Your full profile is visible to friends. Everyone else sees a limited version.	Profilul tău complet e vizibil pentru prieteni. Restul văd o versiune limitată.
+Your graphics card can't run background effects.	Placa ta video nu poate rula efecte de fundal.
 Your invite link expires after %.	Linkul tău de invitație expiră după %.
 Your invite link expires in %.	Linkul tău de invitație expiră în %.
 Your invite link expires in %1, or after %2.	Linkul tău de invitație expiră în %1 sau după %2.

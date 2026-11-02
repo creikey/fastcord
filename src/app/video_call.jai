@@ -673,9 +673,9 @@ sender_stop :: (s: *Sender) {
 on_capture_frame :: (user: *void, camera_frame: *void, width: int, height: int) {
 	s := cast(*Sender) user;
 	pixbuf := camera_frame;
-	if vs.camera_blur && s != *vid.screen {
-		blurred := video.blur_background(camera_frame);
-		if blurred pixbuf = blurred;
+	if vs.camera_bg != .None && s != *vid.screen {
+		out := video.background_apply(camera_frame);
+		if out pixbuf = out;
 	}
 	defer if pixbuf != camera_frame video.pixbuf_release(pixbuf);
 	{

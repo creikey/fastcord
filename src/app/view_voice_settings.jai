@@ -18,7 +18,8 @@ Voice_Settings :: struct {
 	user_volume: Table(dc.Snowflake, float32); // 0..400 %
 	user_muted: Table(dc.Snowflake, bool);
 	camera, camera_name: string; // heap: the chosen camera ("" = default)
-	camera_blur: bool; // our camera's background blurred (macOS: Vision)
+	camera_bg: video.Background; // our camera's background effect (video.background_set)
+	camera_image: string; // heap: its picture's path
 	// UI state
 	open_dropdown: int; // 0 none, 1 input, 2 output, 3 camera
 	meter_owner: bool; // the meter started the capture
@@ -64,7 +65,9 @@ voice_settings_restore :: (p: *Persisted_Voice) {
 	vs.ptt_mode = p.mode == "PUSH_TO_TALK";
 	vs.ptt_delay_ms = clamp(cast(float32) p.ptt_delay_ms, 0, 2000);
 	vs.camera, vs.camera_name = copy_string(p.camera), copy_string(p.camera_name);
-	vs.camera_blur = p.camera_blur;
+	vs.camera_bg = ifx p.camera_background == "image" && p.camera_image then .Image else ifx p.camera_background == "blur" || (p.camera_background == "" && p.camera_blur) then .Blur else .None;
+	vs.camera_image = copy_string(p.camera_image);
+	video.background_set(vs.camera_bg, vs.camera_image);
 	id := device_by_uid(true, p.input_device);
 	if id != 0 audio.select_device(true, id);
 	id = device_by_uid(false, p.output_device);
@@ -84,7 +87,9 @@ voice_settings_snapshot :: (p: *Persisted_Voice) {
 	p.input_device = device_uid(true);
 	p.output_device = device_uid(false);
 	p.camera, p.camera_name = vs.camera, vs.camera_name;
-	p.camera_blur = vs.camera_blur;
+	p.camera_blur = vs.camera_bg == .Blur; // what builds before the picture read
+	p.camera_background = ifx vs.camera_bg == .Image then "image" else ifx vs.camera_bg == .Blur then "blur" else "none";
+	p.camera_image = vs.camera_image;
 	p.input_volume = vs.input_volume;
 	p.output_volume = vs.output_volume;
 	p.auto_sens = vs.auto_sens;
@@ -179,6 +184,7 @@ voice_settings_reset :: () {
 	keep_vol, keep_mute := vs.user_volume, vs.user_muted;
 	vs.user_volume, vs.user_muted = .{}, .{};
 	vs_reset_for_test();
+	video.background_set(.None, "");
 	deinit(*vs.user_volume);
 	deinit(*vs.user_muted);
 	vs.user_volume, vs.user_muted = keep_vol, keep_mute;
@@ -502,14 +508,13 @@ vs_init :: () {
 // Widgets
 
 camera_test_section :: () {
-	section_title("CAMERA");
+	section_title(L("CAMERA"));
 	device_dropdown(3, false, voice_w());
 	spacer(.Y, 16);
-	if video.blur_supported() {
-		toggle_row("blur", L("Blur Background"), L("Blur what's behind you on camera. Only your camera is changed."), *vs.camera_blur);
-		spacer(.Y, 16);
-	}
-	section_title("PREVIEW");
+	section_title(L("BACKGROUND"));
+	background_choice();
+	spacer(.Y, 8);
+	section_title(L("PREVIEW"));
 	img := camera_test_image();
 	pv := ui.box("campreview", .Draw_Background);
 	pv.semantic_size = .[ui.px(voice_w()), ui.px(voice_w() * 9 / 16)];
@@ -653,34 +658,81 @@ default_name :: (devs: []audio.Device_Info) -> string {
 
 tok_has :: (name: string) -> bool { return table_contains(*app.theme.tokens, name); }
 mode_radio :: () {
-	for ptt: (bool.[false, true]) {
-		r := row(ifx ptt then "mode_ptt" else "mode_va", .Clickable | .Draw_Background | .Hot_Animation);
-		r.semantic_size = .[ui.px(voice_w()), ui.px(44)];
-		r.style.radius = all4(4);
-		r.style.bg = ifx vs.ptt_mode == ptt then T("--background-mod-normal") else .{};
-		r.style.bg_hot = T("--background-mod-subtle");
-		if ui.signal(r).clicked vs.ptt_mode = ptt;
+	if voice_radio("mode_va", L("Voice Activity"), !vs.ptt_mode) vs.ptt_mode = false;
+	if voice_radio("mode_ptt", L("Push to Talk"), vs.ptt_mode) vs.ptt_mode = true;
+}
+
+// The camera's background: none, blurred, or a picture (chosen when picked, or with Choose Picture).
+background_choice :: () {
+	pick :: () -> bool {
+		app.ext_actions += 1;
+		files := platform.open_file_dialog(false,, temp);
+		if !files.count return false;
+		free(vs.camera_image);
+		vs.camera_image = copy_string(files[0]);
+		return true;
+	}
+	was := vs.camera_bg;
+	if voice_radio("bg_none", L("None"), vs.camera_bg == .None) vs.camera_bg = .None;
+	if voice_radio("bg_blur", L("Blur"), vs.camera_bg == .Blur) vs.camera_bg = .Blur;
+	if voice_radio("bg_image", L("Picture"), vs.camera_bg == .Image) && (vs.camera_image || pick()) vs.camera_bg = .Image;
+	if vs.camera_bg == .Image {
+		r := row("bg_file");
+		r.semantic_size = .[ui.px(voice_w()), ui.children()];
 		{ ui.parent(r); defer ui.pop_parent();
-			spacer(.X, 12);
-			dot := ui.box("dot", .Draw_Border);
-			dot.semantic_size = .[ui.px(20), ui.px(20)];
-			dot.style.radius = all4(10);
-			dot.style.border = 2;
-			dot.style.border_color = ifx vs.ptt_mode == ptt then T("--background-brand") else T("--interactive-icon-default");
-			if vs.ptt_mode == ptt {
-				{ ui.parent(dot); defer ui.pop_parent();
-					in_ := ui.box("in", .Draw_Background | .Floating_X | .Floating_Y);
-					in_.semantic_size = .[ui.px(10), ui.px(10)];
-					in_.fixed_pos = .{5, 5};
-					in_.style.radius = all4(5);
-					in_.style.bg = T("--background-brand");
-				}
+			spacer(.X, 44);
+			b := row("bg_pick", .Clickable | .Draw_Background | .Hot_Animation);
+			b.semantic_size = .[ui.children(), ui.px(32)];
+			b.style.radius = all4(8);
+			b.style.bg = T("--background-mod-strong");
+			b.style.bg_hot = T("--background-mod-normal");
+			if ui.signal(b).clicked && pick() was = .None; // a new picture: set it again
+			{ ui.parent(b); defer ui.pop_parent();
+				spacer(.X, 12);
+				label(L("Choose Picture"), .Medium, 14, T("--text-strong"), 18);
+				spacer(.X, 12);
 			}
 			spacer(.X, 12);
-			label(ifx ptt then L("Push to Talk") else L("Voice Activity"), .Medium, 16, T("--text-strong"), 20);
+			label(path_filename(vs.camera_image), .Normal, 14, T("--text-muted"), 18);
 		}
 		spacer(.Y, 8);
 	}
+	if vs.camera_bg != was video.background_set(vs.camera_bg, vs.camera_image);
+	err := video.background_error();
+	if err != .None {
+		label(ifx err == .Gpu then L("Your graphics card can't run background effects.") else L("That picture can't be opened."), .Normal, 14, T("--text-feedback-critical"), 18);
+		spacer(.Y, 8);
+	}
+}
+
+// A radio row of the page's width; true when clicked.
+voice_radio :: (id: string, text: string, on: bool) -> bool {
+	r := row(id, .Clickable | .Draw_Background | .Hot_Animation);
+	r.semantic_size = .[ui.px(voice_w()), ui.px(44)];
+	r.style.radius = all4(4);
+	r.style.bg = ifx on then T("--background-mod-normal") else .{};
+	r.style.bg_hot = T("--background-mod-subtle");
+	clicked := ui.signal(r).clicked;
+	{ ui.parent(r); defer ui.pop_parent();
+		spacer(.X, 12);
+		dot := ui.box("dot", .Draw_Border);
+		dot.semantic_size = .[ui.px(20), ui.px(20)];
+		dot.style.radius = all4(10);
+		dot.style.border = 2;
+		dot.style.border_color = ifx on then T("--background-brand") else T("--interactive-icon-default");
+		if on {
+			ui.parent(dot); defer ui.pop_parent();
+			in_ := ui.box("in", .Draw_Background | .Floating_X | .Floating_Y);
+			in_.semantic_size = .[ui.px(10), ui.px(10)];
+			in_.fixed_pos = .{5, 5};
+			in_.style.radius = all4(5);
+			in_.style.bg = T("--background-brand");
+		}
+		spacer(.X, 12);
+		label(text, .Medium, 16, T("--text-strong"), 20);
+	}
+	spacer(.Y, 8);
+	return clicked;
 }
 
 keybind_row :: () {
@@ -693,7 +745,7 @@ keybind_row :: () {
 		c.semantic_size = .[ui.px(voice_half()), ui.children()];
 		c.layout_axis = .Y;
 		{ ui.parent(c); defer ui.pop_parent();
-			section_title("SHORTCUT");
+			section_title(L("SHORTCUT"));
 			i := ptt_keybind(add = true); // Push to Talk mode has one, as in the client
 			if i >= 0 shortcut_field(i, voice_half());
 			spacer(.Y, 6);

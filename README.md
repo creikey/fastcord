@@ -30,7 +30,7 @@ webview (but for Discord's captcha, below). Metal on macOS, Direct3D 11 on Windo
 | `src/http` | HTTP/1.1, HTTP/2, HTTP/3, WebSocket over vendored picohttpparser, nghttp2, nghttp3, wslay. |
 | `src/discord` | Unofficial Discord library: REST, gateway, telemetry, voice, state store. |
 | `src/voice*`, `src/opus`, `src/audio` | Voice: RTP, DAVE/MLS end-to-end encryption, Opus, CoreAudio / WASAPI / ALSA. |
-| `src/video` | Camera and screen capture and the H.264/H.265 encoder for calls and Go Live (macOS: AVFoundation, ScreenCaptureKit, VideoToolbox; Windows: Media Foundation, DXGI; Linux: V4L2 cameras and openh264, no screen capture yet). |
+| `src/video` | Camera and screen capture and the H.264/H.265 encoder for calls and Go Live (macOS: AVFoundation, ScreenCaptureKit, VideoToolbox; Windows: Media Foundation, DXGI; Linux: V4L2 cameras and openh264, no screen capture yet), and the camera's background blur or picture: MediaPipe's selfie segmenter as one compute kernel on Direct3D 11, OpenGL 4.3 or Metal (`segment.jai`). |
 | `src/platform`, `src/gfx` | Window, input, display link, clipboard; the renderers (Metal, D3D11, OpenGL) and text (CoreText, DirectWrite, FreeType + HarfBuzz). `webview*.jai`: the window Discord's captcha opens in, the system's web view (WKWebView, WebView2, WebKitGTK) loaded only then. |
 | `src/ui` | Immediate-mode UI core: keyed boxes, layout, animation, text editing. |
 | `src/app` | The client itself. |

@@ -375,6 +375,7 @@ Automatically open fastcord when your computer starts up	开机时自动打开 f
 Automatically scan and delete messages sent in this server that contain explicit media.	自动扫描并删除此服务器中包含露骨媒体的消息。
 Avatar	头像
 BACK	返回
+BACKGROUND	背景
 BACKUP CODES	备用码
 Back	返回
 Back / forward	后退 / 前进
@@ -408,8 +409,6 @@ Blocks messages with more than % mentions.	拦截提及超过 % 次的消息。
 Blocks words from Discord's commonly flagged lists.	屏蔽 Discord 常见标记列表中的词。
 Blocks words in member profile names.	屏蔽成员个人资料名称中的词。
 Blur	模糊
-Blur Background	模糊背景
-Blur what's behind you on camera. Only your camera is changed.	模糊你在摄像头中的背景。只会更改你的摄像头画面。
 Bold / italic / underline	粗体 / 斜体 / 下划线
 Bots and Apps	机器人和应用
 Browse	浏览
@@ -422,6 +421,7 @@ By making a category private, only select members and roles will be able to view
 By making a channel private, only select members and roles will be able to view this channel.	将频道设为私密后，只有选定的成员和身份组能查看此频道。
 By making a channel private, only select members and roles will have access to view or connect to this channel.	将频道设为私密后，只有选定的成员和身份组能查看或连接此频道。
 Bypass Slowmode	无视慢速模式
+CAMERA	摄像头
 CHANNEL OR CATEGORY	频道或类别
 CONFIRM NEW PASSWORD	确认新密码
 CURRENT PASSWORD	当前密码
@@ -457,6 +457,7 @@ Checking the file…	正在检查文件…
 Chinese, China	中文（中国）
 Chinese, Taiwan	中文（台湾）
 Choose Image	选择图片
+Choose Picture	选择图片
 Choose a link people can use to join, discord.gg/<code>.	选择一个供人加入的链接，discord.gg/<code>。
 Choose a server	选择服务器
 Choose the language you want Discord to display.	选择你希望 Discord 显示的语言。
@@ -654,7 +655,6 @@ Disconnect	断开连接
 Disconnect From Voice Channel	断开语音频道连接
 Disconnected	已断开连接
 Discord account	Discord 账号
-Discord asked for a captcha, which fastcord can't show. Log in with the QR code instead.	Discord 要求验证码，但 fastcord 无法显示。请改用二维码登录。
 Discord asked for a captcha, which fastcord can't show. Try on discord.com.	Discord 要求验证码，但 fastcord 无法显示。请在 discord.com 上尝试。
 Discord can filter out some messages that contain spam. These messages go to your Spam inbox.	Discord 可以过滤掉部分包含垃圾内容的消息。这些消息会进入你的垃圾邮件收件箱。
 Discord didn't accept the saved login. Log in again.	Discord 不接受已保存的登录信息。请重新登录。
@@ -1242,6 +1242,7 @@ Outgoing Friend Request	发出的好友请求
 Overview	概览
 PASSWORD	密码
 PM	下午
+PREVIEW	预览
 PRIVACY CODE	隐私码
 PTT Activate	按键说话启动
 PTT Deactivate	按键说话停止
@@ -1272,6 +1273,7 @@ Phone Number	手机号
 Pick a channel	选择频道
 Pick a channel for the alerts.	为警报选择一个频道。
 Pick at least one response.	请至少选择一个回答。
+Picture	图片
 Pin It. Pin It Good.	置顶它。好好置顶。
 Pin Message	置顶消息
 Pin Messages	置顶消息
@@ -1416,6 +1418,7 @@ Russian	俄语
 SELECT A CHANNEL	选择频道
 SELECT A SERVER	选择服务器
 SERVER NAME	服务器名称
+SHORTCUT	快捷键
 SOUNDBOARD VOLUME	音效板音量
 START FROM A TEMPLATE	从模板开始
 STATIC EMOJI — % SLOTS AVAILABLE	静态表情符号 — 剩余 % 个位置
@@ -1636,6 +1639,7 @@ That image is too large. Avatars must be under %.	该图片太大。头像须小
 That image is too large. Banners must be under 10 MB.	该图片太大。横幅须小于 10 MB。
 That image is too large. Server icons must be under 512 KB.	该图片太大。服务器图标须小于 512 KB。
 That isn't a valid fastcord invite.	这不是有效的 fastcord 邀请。
+That picture can't be opened.	无法打开该图片。
 That's too long to send encrypted.	内容太长，无法加密发送。
 The Pin Is Stuck!	置顶卡住了！
 The badge chosen in the official client stays as it is.	在官方客户端中选择的徽章保持不变。
@@ -1934,6 +1938,7 @@ Your files are too powerful	你的文件太强大了
 Your full profile is visible to friends and any server you join with 200 or fewer members. Everyone else sees a limited version.	你的完整个人资料对好友以及你加入的 200 人及以下的服务器可见。其他人只能看到有限的版本。
 Your full profile is visible to friends and any server you join.	你的完整个人资料对好友以及你加入的任何服务器可见。
 Your full profile is visible to friends. Everyone else sees a limited version.	你的完整个人资料对好友可见。其他人只能看到有限的版本。
+Your graphics card can't run background effects.	你的显卡无法运行背景效果。
 Your invite link expires after %.	你的邀请链接将在 % 后过期。
 Your invite link expires in %.	你的邀请链接将在 % 后过期。
 Your invite link expires in %1, or after %2.	你的邀请链接将在 %1 后过期，或用满 %2 后过期。
