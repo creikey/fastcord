@@ -4,7 +4,8 @@ go_home
 wait 5
 click_text "Add Friend"
 wait 5
-click_text "You can add friends with their Discord username."
+# the field itself: its placeholder repeats the line above it, which click_text would hit
+click 500 196
 wait 2
 type robin
 wait 2

@@ -1463,8 +1463,15 @@ channel_welcome :: (ch: *dc.Channel) {
 
 friends_tab_telemetry :: (event: string) {
 	if app.client == null { return; }
-	tabs := dc.Friends_List_Tab.[.Online, .All, .Pending, .Add_Friend];
-	dc.analytics_friends_list(app.client, event, tabs[app.view.friends_tab]);
+	tab: dc.Friends_List_Tab;
+	if #complete app.view.friends_tab == {
+	case .Online; tab = .Online;
+	case .All; tab = .All;
+	case .Pending; tab = .Pending;
+	case .Add_Friend; tab = .Add_Friend;
+	case .Blocked; return; // the current client has no Blocked tab to report
+	}
+	dc.analytics_friends_list(app.client, event, tab);
 }
 
 relationship :: (uid: dc.Snowflake) -> dc.Relationship_Type {

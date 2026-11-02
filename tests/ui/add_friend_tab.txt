@@ -1,0 +1,12 @@
+# Regression (#13): with a client connected, clicking the Add Friend tab crashed. Its tab telemetry
+# indexed a list of the client's four tabs by fastcord's five (Blocked included).
+wait 5
+serve_join
+settle 3
+click 36 157
+settle 3
+go_home
+settle 2
+click_text "Add Friend"
+settle 2
+expect_visible "Send Friend Request"

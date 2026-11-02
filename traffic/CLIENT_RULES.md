@@ -374,7 +374,7 @@ call's `retries` (the bundle's value for that call: search the endpoint) and, fo
 | Unread setting reported as 1 (all messages) for every guild / channel | guess | `resolveGuildUnreadSetting` | same, `analytics_channel_opened` |
 | `notification_action {action:"ACK"}` for each desktop notification still shown when its channel's `MESSAGE_ACK` arrives, or (0.0.420) when the channel is opened, before its `channel_opened` | inferred | fixtures `inbox` (inbox_unreads_mark_read), `mark_as_read` (open_unread_channel) | `analytics_events.jai` `analytics_notifications_acked`; `actions.jai` `select_channel` |
 | User context menu: `application_command_cache_fetch {miss,size}` twice ~40 ms after every open (as the message menu) | inferred | fixture `friend_nickname` | `src/discord/friend_nickname.jai` |
-| Friends tab click: `friends_list_clicked` then `friends_list_viewed` (the view is throttled per tab) | code + inferred | `FRIENDS_LIST_VIEWED` effect; fixture `friend_add_context_menu` | `src/app/view_home.jai` |
+| Friends tab click: `friends_list_clicked` then `friends_list_viewed` (the view is throttled per tab); the Blocked tab, which the current client lacks, sends neither | code + inferred | `FRIENDS_LIST_VIEWED` effect; fixture `friend_add_context_menu` | `src/app/view_home.jai` |
 | `dm_list_viewed` on the Friends page counts every DM list row as visible (the official counts the virtualized rows on screen) | guess | `DM_LIST_VIEWED` | `src/discord/invites.jai` `friends_page_viewed` |
 | DM call shelf loads: `network_action_embedded_activities_fetch_shelf` with `guild_id: ""` for the first load (and the callee's), `null` for the second | inferred | fixture `dm_call` | `src/discord/calls.jai` |
 
