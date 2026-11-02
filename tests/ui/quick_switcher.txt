@@ -1,9 +1,22 @@
 # Cmd+K opens the switcher; typing filters; Enter jumps to the channel.
+# Official ranking for "gen": prefixes (#general, #general-chat) 7, the voice General one lower (6),
+# a name containing it (#off-general) 5.
+dispatch CHANNEL_CREATE {"id":"1546820603343016101","type":0,"guild_id":"1546820558300258304","parent_id":"1546820558950371408","name":"general","position":2}
+dispatch CHANNEL_CREATE {"id":"1546820603343016102","type":0,"guild_id":"1546820558300258304","parent_id":"1546820558950371408","name":"off-general","position":3}
+dispatch CHANNEL_CREATE {"id":"1546820603343016103","type":0,"guild_id":"1546820558300258304","parent_id":"1546820558950371408","name":"general-chat","position":4}
 wait 3
 key k cmd
 wait 5
 type gen
 wait 10
 shot build/ui-switcher.png
+# words out of order, one in the channel's name and one in its server's
+key backspace
+key backspace
+key backspace
+type battle dingus
+wait 10
+expect_visible "Dingus Battle"
+shot build/ui-switcher-words.png
 key enter
 wait 5

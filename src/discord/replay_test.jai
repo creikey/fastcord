@@ -2151,7 +2151,7 @@ parity_quick_switcher_open :: (t: *T) {
 	replay_settle(*run, 300);
 	// the app: Enter on the first result, the DM with B (empty query)
 	dm := channel_get(*run.c.store, R_DM);
-	analytics_quickswitcher_closed(run.c, R_GUILD, R_TEXT, "", 0, .[.{kind = .User, id = ifx dm && dm.recipient_ids then dm.recipient_ids[0] else 1, score = 3}], 0);
+	analytics_quickswitcher_closed(run.c, R_GUILD, R_TEXT, "", 0, .[.{kind = .User, id = ifx dm && dm.recipient_ids then dm.recipient_ids[0] else 1}], 0);
 	select_channel(run.c, 0, R_DM, 10); // the DM list mounts with its Shop entry
 	replay_settle(*run, 300);
 	// opening the DM is select_channel (parity_open_dm), with the DM list's view

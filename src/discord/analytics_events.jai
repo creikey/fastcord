@@ -1986,18 +1986,14 @@ Qs_Result :: struct {
 	kind: Qs_Kind;
 	id: Snowflake; // the DM's user, the channel or the guild
 	guild_id: Snowflake;
-	score: float64; // fastcord's own match score, mapped below
+	score: float64; // the official search's score (src/app/view_switcher.jai switcher_items)
 }
 
 // analytics_quickswitcher_closed: quickswitcher_closed, then
 // quickswitcher_result_selected when a result was chosen (selected >= 0).
-// The official search scores are synthesized: each type's empty-query score
-// from the fixtures (USER 12000-15099, TEXT_CHANNEL 20000) raised by our own
-// match score; result counts are reported only for a typed query, as officially.
+// Result counts are reported only for a typed query, as officially.
 analytics_quickswitcher_closed :: (c: *Client, guild_id: Snowflake, channel_id: Snowflake, query: string, max_query: int, results: []Qs_Result, selected := -1) {
 	TYPES :: string.["USER", "GROUP_DM", "TEXT_CHANNEL", "VOICE_CHANNEL", "GUILD"];
-	BASE :: float64.[12000, 12000, 20000, 20000, 10000];
-	score :: (r: Qs_Result) -> float64 #expand { return BASE[r.kind] + 1000 * r.score; }
 	digits := 0;
 	for cast([]u8) query if is_digit(it) digits += 1;
 	w := aw_begin();
@@ -2016,7 +2012,7 @@ analytics_quickswitcher_closed :: (c: *Client, guild_id: Snowflake, channel_id: 
 	json_kstr(*w, "query", query);
 	top := ifx results then results[0] else .{kind = .User};
 	json_kstr(*w, "top_result_type", TYPES[top.kind]);
-	aw_kf64(*w, "top_result_score", ifx results then score(top) else 0);
+	aw_kf64(*w, "top_result_score", top.score);
 	counts: [5]int;
 	if query for results counts[it.kind] += 1;
 	json_kint(*w, "num_results_total", ifx query then results.count else 0);
@@ -2036,7 +2032,7 @@ analytics_quickswitcher_closed :: (c: *Client, guild_id: Snowflake, channel_id: 
 	r := results[selected];
 	s := aw_begin();
 	json_kstr(*s, "selected_type", TYPES[r.kind]);
-	aw_kf64(*s, "selected_score", score(r));
+	aw_kf64(*s, "selected_score", r.score);
 	json_kint(*s, "selected_index", selected);
 	if r.kind == {
 		case .User;  json_ksnow(*s, "selected_user_id", r.id);
