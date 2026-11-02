@@ -1,16 +1,19 @@
-// Texture holding the icon's coverage at size_pt (rasterized at device pixels).
-icon_texture :: (name: string, size_pt: float32) -> gfx.Texture {
-	px := cast(int) floor(size_pt * max(gfx.scale(), 1) + 0.5); // sizes are positive: Odin's math.round
-	p := table_find_pointer(*icon_cache, .{name, px});
+// Texture holding the icon's coverage at w_pt x h_pt (rasterized at device pixels, view box fit with meet):
+// a square texture stretched over a tall box squashed the tall status-mobile phone.
+icon_texture :: (name: string, w_pt: float32, h_pt: float32) -> gfx.Texture {
+	s := max(gfx.scale(), 1);
+	w, h := cast(int) floor(w_pt * s + 0.5), cast(int) floor(h_pt * s + 0.5); // sizes are positive: Odin's math.round
+	key := w | (h << 32); // both sides in the cache's one px
+	p := table_find_pointer(*icon_cache, .{name, key});
 	if p return p.*;
 	tex: gfx.Texture;
 	for ICON_NAMES if it == name {
 		ic, ok := vector.parse_svg(ICON_DATA[it_index], temp);
-		if ok tex = gfx.texture_create(px, px, .R8, vector.rasterize(*ic, px, px, temp));
+		if ok tex = gfx.texture_create(w, h, .R8, vector.rasterize(*ic, w, h, temp));
 		break;
 	}
 	if tex == 0 log_error("icon \"%\" is missing or failed to parse (assets/icons)", name);
-	table_set(*icon_cache, .{copy_string(name), px}, tex);
+	table_set(*icon_cache, .{copy_string(name), key}, tex);
 	return tex;
 }
 
@@ -69,7 +72,7 @@ Icon_Draw :: struct {
 
 icon_draw :: (b: *ui.Box, user: *void) {
 	d := cast(*Icon_Draw) user;
-	tex := icon_texture(d.name, b.rect.x1 - b.rect.x0);
+	tex := icon_texture(d.name, b.rect.x1 - b.rect.x0, b.rect.y1 - b.rect.y0);
 	if tex == 0 return;
 	c := cast(gfx.Color) d.color;
 	c.w *= b.opacity;
