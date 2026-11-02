@@ -583,7 +583,7 @@ rail_item :: (id: string, selected: bool, text: string, icon_name: string, guild
 			{ ui.parent(ic); defer ui.pop_parent();
 				spacer(.X, 8);
 				g := T("--interactive-icon-default");
-				if id == "home" || sig.hovering { g = T("--text-overlay-light"); }
+				if (id == "home" && selected) || sig.hovering { g = T("--text-overlay-light"); } // white only on the brand fill
 				icon("glyph", icon_name, 24, g);
 			}
 		}
