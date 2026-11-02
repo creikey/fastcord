@@ -1,0 +1,8 @@
+# Narrowing the window asks the media proxy for the video poster at its new size. Until that size loads (here
+# it never does) the size already shown is drawn stretched, not an empty box (#25).
+wait 20
+shot build/ui-media_image_resize-before.png
+net fail
+resize 700 720
+wait 10
+shot build/ui-media_image_resize.png

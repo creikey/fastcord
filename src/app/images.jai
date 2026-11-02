@@ -47,6 +47,34 @@ Remote_Image :: struct {
 // official client's <img> loads and hit its HTTP cache.
 images: Table(string, Remote_Image);
 
+// url without its query -> the size of it drawn last. Resizing a pane asks the media proxy for new
+// dimensions every frame; until a size loads the last one is drawn stretched, as a browser keeps an
+// <img>'s old src on screen until the new one decodes. The key is a slice of the value's allocation.
+images_shown: Table(string, string);
+
+url_sans_query :: (url: string) -> string {
+	q := find_index_from_left(url, #char "?");
+	return ifx q < 0 then url else slice(url, 0, q);
+}
+
+image_shown_set :: (url: string) {
+	found, last := table_find(*images_shown, url_sans_query(url));
+	if found && last == url return;
+	if found { table_remove(*images_shown, url_sans_query(url)); free(last); }
+	v := copy_string(url);
+	table_set(*images_shown, url_sans_query(v), v);
+}
+
+// The ready image drawn in place of url while url loads, or null.
+image_stand_in :: (url: string) -> *Remote_Image {
+	found, last := table_find(*images_shown, url_sans_query(url));
+	if !found || last == url return null;
+	im := table_find_pointer(*images, last);
+	if !im || im.state != .Ready return null;
+	im.last_use = app.frame;
+	return im;
+}
+
 image_get :: (url: string, visible := true) -> *Remote_Image {
 	if url == "" return null;
 	im := table_find_pointer(*images, url);
@@ -121,6 +149,8 @@ textures_lost :: () {
 		free(url);
 	}
 	table_reset(*images);
+	for images_shown free(it);
+	table_reset(*images_shown);
 	icon_textures_lost();
 	twemoji_textures_lost();
 	app.ui.animating = true;
@@ -147,6 +177,8 @@ images_sweep :: () {
 	for url: old {
 		image_free(table_find_pointer(*images, url));
 		table_remove(*images, url);
+		found, last := table_find(*images_shown, url_sans_query(url));
+		if found && last == url { table_remove(*images_shown, url_sans_query(url)); free(last); }
 		free(url);
 	}
 }
@@ -602,6 +634,11 @@ image_draw :: (b: *ui.Box, user: *void) {
 	d := cast(*Image_Draw)(user);
 	im := image_get(d.url);
 	tex := image_texture(im);
+	if tex image_shown_set(d.url);
+	else {
+		stand_in := image_stand_in(d.url);
+		if stand_in { im = stand_in; tex = image_texture(im); }
+	}
 	if d.blur && tex {
 		if !im.blur_tex && im.blur im.blur_tex = gfx.texture_create(im.blur_size.x, im.blur_size.y, .RGBA8, im.blur, premultiplied_alpha = true);
 		tex = im.blur_tex;

@@ -1169,7 +1169,7 @@ media_box :: (id: string, url: string, video: string, w: float32, h: float32) ->
 		set_remote_image(b, url);
 		im := table_find_pointer(*images, url);
 		if !im || ui.offscreen(b) return b;
-		if retry_pending(im.state, im.retry) media_loading(b, w, h);
+		if retry_pending(im.state, im.retry) { if !image_stand_in(url) media_loading(b, w, h); }
 		else if im.state == .Failed {
 			// a load that won't be tried again (a 4xx, bytes that don't decode): a broken image, not an empty box
 			ui.parent(b); defer ui.pop_parent();
