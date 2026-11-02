@@ -1237,9 +1237,73 @@ plain_proc :: (mode: Allocator_Mode, size: s64, old_size: s64, old_memory: *void
 	return a.proc(mode, size, old_size, old_memory, a.data);
 }
 
+// ---- Coverage ----
+//
+// build.jai's cover() makes every block of src/ bump context.fuzz_cov, on any thread that inherits this
+// context. An input that hits a block, or hits it a new order of magnitude of times, joins the corpus:
+// that is what lets runs build on each other instead of each starting over from the seeds.
+
+#add_context fuzz_cov: *u8;
+
+CORPUS_DIR :: "build/fuzz_corpus";
+MAX_CORPUS :: 1 << 16;
+
+cov_blocks: int;
+cov_map: *u8;
+cov_seen: *u8;
+COV_BUCKET :: #run () -> [256]u8 {
+	out: [256]u8;
+	for 1..255 {
+		out[it] = xx ifx it == 1 then 1 else ifx it == 2 then 2 else ifx it == 3 then 4
+			else ifx it < 8 then 8 else ifx it < 16 then 16 else ifx it < 32 then 32 else ifx it < 128 then 64 else 128;
+	}
+	return out;
+}();
+
+cov_init :: () {
+	path := tprint("%.blocks", path_strip_extension(get_path_of_running_executable())); // A soak runs a copy.
+	text, ok := read_entire_file(path);
+	if !ok { print("fuzz: no %\n", path); exit(2); }
+	for cast([]u8) text if it == #char "\n" cov_blocks += 1;
+	free(text);
+	cov_map = alloc(cov_blocks + 8);
+	cov_seen = alloc(cov_blocks + 8);
+	memset(cov_map, 0, cov_blocks + 8);
+	memset(cov_seen, 0, cov_blocks + 8);
+	context.fuzz_cov = cov_map;
+}
+
+// cov_new takes what the last input hit into cov_seen; true when any of it is new.
+cov_new :: () -> bool #no_abc {
+	found := false;
+	for i: 0..cov_blocks - 1 {
+		hit := cov_map[i];
+		if !hit continue;
+		bit := COV_BUCKET[hit];
+		if bit & ~cov_seen[i] {
+			cov_seen[i] |= bit;
+			found = true;
+		}
+	}
+	return found;
+}
+
+cov_reached :: () -> int {
+	n := 0;
+	for i: 0..cov_blocks - 1 if cov_seen[i] n += 1;
+	return n;
+}
+
+// tools/fuzz_report.py reads these to show what no target reaches.
+cov_save :: (target: string) {
+	make_directory_if_it_does_not_exist("build/fuzz_cov", recursive = true);
+	write_entire_file(tprint("build/fuzz_cov/%.bin", target), cov_seen, cov_blocks);
+}
+
 // ---- Running ----
 
 MAX_INPUT :: 32 << 20;
+MAX_GROWN :: 64 << 10; // What mutation may grow an input to.
 
 input_started: s64; // Milliseconds, 0 between inputs. The watchdog thread reads it.
 hang_limit_s := HANG_S;
@@ -1275,6 +1339,7 @@ run_one :: (target: Target, input: []u8) {
 	// A gateway's writer thread would race the fence, which takes no lock.
 	fence := !MEM_DEBUG && hash_of(input) % FENCE_ONE_IN == 0 && target.name != "serve";
 	hang_limit_s = ifx fence then HANG_FENCE_S else HANG_S;
+	memset(cov_map, 0, cov_blocks);
 	atomic_swap(*input_started, now_ms());
 	{
 		push_allocator(ifx fence then Allocator.{fence_proc, null} else .{plain_proc, null});
@@ -1384,8 +1449,15 @@ mutate_json :: (src: []u8) -> []u8, bool {
 	return cast([]u8) json_of(root), true;
 }
 
+// pick_seed favours what coverage found last: that's where the unexplored code is.
+pick_seed :: (seeds: [][]u8) -> []u8 {
+	n := cast(u64) seeds.count;
+	if random_get() % 2 return seeds[seeds.count - 1 - cast(int) (random_get() % min(n, 32))];
+	return seeds[random_get() % n];
+}
+
 mutate :: (seeds: [][]u8) -> []u8 {
-	src := seeds[random_get() % cast(u64) seeds.count];
+	src := pick_seed(seeds);
 	out: [..]u8;
 	out.allocator = temp;
 	array_add(*out, ..src);
@@ -1393,7 +1465,10 @@ mutate :: (seeds: [][]u8) -> []u8 {
 	for 0..cast(int) (random_get() % 4) {
 		if !out.count { array_add(*out, xx random_get()); continue; }
 		at := cast(int) (random_get() % cast(u64) out.count);
-		if random_get() % 6 == {
+		if random_get() % 7 == {
+		case 6; // A sequence goes on past its end with another's, so runs grow deeper than either.
+			other := pick_seed(seeds);
+			if out.count + other.count <= MAX_GROWN array_add(*out, ..other);
 		case 0; out[at] ^= cast(u8) (1 << (random_get() % 8));
 		case 1; out[at] = INTERESTING[random_get() % INTERESTING.count];
 		case 2; out[at] = xx random_get();
@@ -1409,7 +1484,7 @@ mutate :: (seeds: [][]u8) -> []u8 {
 			other := seeds[random_get() % cast(u64) seeds.count];
 			if !other.count continue;
 			from := cast(int) (random_get() % cast(u64) other.count);
-			array_add(*out, ..array_view(other, from, min(64, other.count - from)));
+			array_add(*out, ..array_view(other, from, min(256, other.count - from)));
 		}
 	}
 	return out;
@@ -1431,6 +1506,7 @@ main :: () {
 	if ti < 0 { print("fuzz: unknown target %\n", name); exit(2); }
 	target := TARGETS[ti];
 	make_directory_if_it_does_not_exist("build/fuzz_inputs", recursive = true);
+	cov_init();
 	last_path = sprint("build/fuzz_inputs/%.last", target.name);
 	last_map = map_file(last_path, MAX_INPUT + 8);
 	if !last_map { print("fuzz: can't map %\n", last_path); exit(2); }
@@ -1453,9 +1529,22 @@ main :: () {
 		if !ok continue;
 		reset_temporary_storage();
 		run_one(target, cast([]u8) data);
+		cov_new();
 		array_add(*seeds, cast([]u8) data);
 	}
 	replayed := seeds.count;
+	// What earlier runs found; they stop at nothing here, since a bad entry would have stopped them.
+	corpus_dir := sprint("%/%", CORPUS_DIR, target.name);
+	make_directory_if_it_does_not_exist(corpus_dir, recursive = true);
+	for file_list(corpus_dir) {
+		data, ok := read_entire_file(it);
+		if !ok continue;
+		reset_temporary_storage();
+		run_one(target, cast([]u8) data);
+		if cov_new() array_add(*seeds, cast([]u8) data);
+		else free(data);
+	}
+	corpus := seeds.count - replayed;
 	for split(target.fixtures, " ") {
 		if !it continue;
 		data, ok := read_entire_file(it);
@@ -1478,10 +1567,15 @@ main :: () {
 		} else input = mutate(seeds);
 		run_one(target, input);
 		runs += 1;
-		if runs % 64 == 0 && seeds.count < 256 array_add(*seeds, array_copy(input)); // Keep exploring from mutants.
+		if cov_new() && seeds.count < MAX_CORPUS {
+			kept := array_copy(input);
+			array_add(*seeds, kept);
+			write_entire_file(tprint("%/%.bin", corpus_dir, formatInt(hash_of(kept), base = 16)), kept.data, kept.count);
+		}
 	}
+	cov_save(target.name);
 	#if MEM_DEBUG report_memory_leaks();
-	print("fuzz %: % files replayed, % runs, no failure\n", target.name, replayed, runs);
+	print("fuzz %: % files replayed, % runs, no failure; % blocks reached of %, corpus % -> %\n", target.name, replayed, runs, cov_reached(), cov_blocks, corpus, seeds.count - replayed);
 	for i: 0..hit_count - 1 print("  % took % of % (% in 1000)\n", hits[i].name, hits[i].ok, hits[i].all, hits[i].ok * 1000 / hits[i].all);
 	exit(0); // The watchdog never returns.
 }

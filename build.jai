@@ -33,7 +33,7 @@ build :: () {
         case "run";    ok = compile(path_strip_extension(path_filename(args[1])), file = args[1]);
         case "fuzz";
             mem := args.count > 1 && args[1] == "mem";
-            ok = compile(ifx mem then "fuzz-mem" else "fuzz", tprint("MEM_DEBUG :: %; #load \"src/tests/fuzz.jai\";", mem), .OPTIMIZED) && fuzz(args, mem);
+            ok = compile(ifx mem then "fuzz-mem" else "fuzz", tprint("MEM_DEBUG :: %; #load \"src/tests/fuzz.jai\";", mem), .OPTIMIZED, coverage = true) && fuzz(args, mem);
         case "test";
             // the offline traffic-parity tests; extra arguments pick tests by name
             ok = compile("test-discord-jai", file = "src/tests/discord.jai", optimization = .OPTIMIZED);
@@ -148,8 +148,61 @@ fuzz :: (args_in: []string, mem: bool) -> bool {
 
 built :: (name: string) -> string { #if OS == .WINDOWS return join("build\\", name, ".exe",, temp); else return tprint("build/%", name); }
 
+// cover counts every block of fastcord's own procedures into context.fuzz_cov (src/tests/fuzz.jai), and
+// lists each block's place in build/<name>.blocks, a line per index. Procedures with no context are left out.
+cover_next := 0;
+cover_lines: String_Builder;
+cover :: (m: *Message_Typechecked) {
+    for * tc: m.procedure_bodies {
+        body := tc.expression;
+        if body.body_flags & .ALREADY_MODIFIED continue;
+        h := body.header;
+        if !h || !body.enclosing_load continue;
+        if h.procedure_flags & (h.procedure_flags.POLYMORPHIC | .COMPILER_GENERATED | .COMPILE_TIME_ONLY | .QUICK | .TYPE_ONLY | .MACRO) continue;
+        if (cast(*Type_Info_Procedure) h.type).procedure_flags & .HAS_NO_CONTEXT continue;
+        path := body.enclosing_load.fully_pathed_filename;
+        at := find_index_from_left(path, "/src/");
+        if at < 0 continue;
+        file := replace(slice(path, at + 1, path.count - at - 1), "tests/../", "",, temp); // A test's #load of app code.
+        if begins_with(file, "src/tests/") continue;
+        count := 0;
+        add :: (block: *Code_Block) #expand {
+            // A macro's body is its own file's, and an ifx arm is an expression: neither takes a statement.
+            if !block || block.block_type != .IMPERATIVE || (block.enclosing_load && block.enclosing_load != body.enclosing_load) return;
+            if block.statements.count && block.statements[0].kind == .DIRECTIVE_INSERT return;
+            literal := make_string_literal(sprint("if context.fuzz_cov context.fuzz_cov[%] += 1;", cover_next));
+            insert := New(Code_Directive_Insert);
+            insert.kind = .DIRECTIVE_INSERT;
+            insert.expression = literal;
+            insert.location = block.location;
+            statements := NewArray(block.statements.count + 1, *Code_Node);
+            statements[0] = insert;
+            memcpy(statements.data + 1, block.statements.data, block.statements.count * size_of(*Code_Node));
+            block.statements = statements;
+            print_to_builder(*cover_lines, "%:% %\n", file, block.l0, h.name);
+            cover_next += 1;
+            `count += 1;
+        }
+        // `if x return;` has a block too, which the flat list leaves out.
+        for tc.subexpressions {
+            if it.kind == {
+                case .BLOCK; add(cast(*Code_Block) it);
+                case .CASE;  add((cast(*Code_Case) it).then_block);
+                case .WHILE; add((cast(*Code_While) it).block);
+                case .FOR;   add((cast(*Code_For) it).block);
+                case .IF;
+                    c := cast(*Code_If) it;
+                    if c.if_flags & (.IS_IFX | .IS_STATIC | .IS_SWITCH_STATEMENT) continue;
+                    add(c.then_block);
+                    add(c.else_block);
+            }
+        }
+        if count compiler_modify_procedure(m.workspace, body);
+    }
+}
+
 // compile builds one program into build/<name>: the root is a file or a build string.
-compile :: (name: string, source := "", optimization := Optimization_Type.DEBUG, file := "", cpu := CPU, gui := false) -> bool {
+compile :: (name: string, source := "", optimization := Optimization_Type.DEBUG, file := "", cpu := CPU, gui := false, coverage := false) -> bool {
     w := compiler_create_workspace(name);
     o := get_build_options(w);
     import_path: [..]string;
@@ -184,6 +237,7 @@ compile :: (name: string, source := "", optimization := Optimization_Type.DEBUG,
         m := compiler_wait_for_message();
         if m.kind == .ERROR ok = false;
         if m.kind == .COMPLETE break;
+        if coverage && m.kind == .TYPECHECKED cover(cast(*Message_Typechecked) m);
         if m.kind == .PHASE {
             p := cast(*Message_Phase) m;
             if p.phase == .READY_FOR_CUSTOM_LINK_COMMAND {
@@ -193,6 +247,7 @@ compile :: (name: string, source := "", optimization := Optimization_Type.DEBUG,
         }
     }
     compiler_end_intercept(w);
+    if coverage write_entire_file(tprint("build/%.blocks", name), builder_to_string(*cover_lines));
     // Every Windows build of the app gets the icon; the window loads it from the exe as resource 2. Right
     // after the link the exe can still be held open (EndUpdateResource fails with error 110), so retry.
     #if OS == .WINDOWS if ok && !LINUX && begins_with(source, "app :: #import \"app\"") {
