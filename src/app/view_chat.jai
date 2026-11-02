@@ -2869,6 +2869,9 @@ typing_line :: (channel_id: dc.Snowflake) {
 	ch := dc.channel_get(s, channel_id);
 	slow := ifx ch then slowmode_secs(ch) else 0;
 	if !names && !slow return;
+	// filled, so text scrolling under it doesn't show through
+	t.flags |= .Draw_Background;
+	t.style.bg = T("--background-base-lower");
 	ui.parent(t); defer ui.pop_parent();
 	spacer(.X, 16);
 	if names {

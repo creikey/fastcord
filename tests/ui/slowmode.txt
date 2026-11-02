@@ -4,3 +4,7 @@ wait 5
 expect_visible "Slowmode is enabled"
 move_text "Slowmode is enabled"
 wait 2
+# scrolled up, a message runs under the typing row, which hides it rather than drawing over it (#30)
+move 500 300
+scroll 0 240
+wait 60
