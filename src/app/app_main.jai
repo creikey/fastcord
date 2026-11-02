@@ -1202,9 +1202,15 @@ script_command :: (path: string, f: []string, t: *float64, depth := 0) {
 		}
 		return;
 	case "fake_update";
-		// fake_update <tag>: the Update pill shows, with notes, without the network
+		// fake_update <tag> [long]: the Update pill shows, with notes (long: 40 more lines), without the network
 		upd.latest = copy_string(f[1]);
 		upd.notes = "## Chat\n- Replies show the message they answer\n\n## Voice\n- Noise suppression stays on after a reconnect";
+		if f.count > 2 && f[2] == "long" {
+			sb: String_Builder;
+			append(*sb, upd.notes);
+			for 1..40 print_to_builder(*sb, "\n- Change %", it);
+			upd.notes = builder_to_string(*sb);
+		}
 		upd.available = true;
 	case "gpu_reset"; // as after a driver update: a new GPU device, every texture empty
 		gfx.simulate_device_loss();

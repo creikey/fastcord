@@ -1,0 +1,15 @@
+# Long release notes under the Update pill stay open when the mouse moves onto them, and scroll.
+fake_update v9.9.9 long
+wait 3
+move_text "Update v9.9.9"
+wait 3
+expect_visible "• Change 1"
+expect_not_visible "• Change 40"
+move_text "• Change 1"
+wait 3
+expect_visible "• Change 1"
+scroll 0 -4000
+wait 30
+expect_visible "• Change 40"
+expect_not_visible "• Change 1"
+shot build/ui-update_notes_scroll.png

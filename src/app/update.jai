@@ -11,6 +11,7 @@ Update_State :: struct {
 	available: bool;
 	t: float32;
 	menu: bool; // the right-click menu is open
+	notes_open: bool; // the notes card: opened by hovering the pill, kept while the mouse is over either
 	menu_pos: ui.Vec2;
 }
 
@@ -106,7 +107,7 @@ fetch_latest_tag :: (repo: string) -> tag: string, notes: string, ok: bool {
 	t, ok := etf.map_get(v.map, "tag_name");
 	if !ok || t.kind != .String || t.s.count > 64 return "", "", false;
 	b, bok := etf.map_get(v.map, "body");
-	notes := ifx bok && b.kind == .String then slice(b.s, 0, min(b.s.count, 4096)) else "";
+	notes := ifx bok && b.kind == .String then slice(b.s, 0, min(b.s.count, 16384)) else "";
 	return copy_string(t.s), copy_string(notes), true;
 }
 
@@ -146,7 +147,9 @@ update_button :: () {
 		label(tprint(L("Update %"), latest), .Semibold, 12, .{1, 1, 1, 1}, 16);
 		spacer(.X, 10);
 	}
-	if sig.hovering && notes && !upd.menu update_notes(notes, b.rect);
+	if sig.hovering upd.notes_open = true;
+	if upd.notes_open && notes && !upd.menu upd.notes_open = update_notes(notes, b.rect) || sig.hovering;
+	else upd.notes_open = false;
 	if sig.clicked open_url(UPDATE_PAGE);
 	if sig.right_clicked { upd.menu = true; upd.menu_pos = .{b.rect.x1, b.rect.y1 + 8}; }
 	spacer(.X, 8);
@@ -185,14 +188,23 @@ update_menu :: () {
 
 #scope_file
 
-// The release body under the pill: "## Area" headings and "- change" lines, at most 14 of them (the
-// compare link and anything past that left out).
-update_notes :: (notes: string, r: ui.Rect) {
+// The release body under the pill: "## Area" headings and "- change" lines (the compare link left out),
+// scrolling once taller than the window allows. Returns whether the mouse is over it, the gap above
+// included, so it stays open while the mouse moves down from the pill to scroll.
+update_notes :: (notes: string, r: ui.Rect) -> bool {
 	W :: 360;
-	card := ui.box("update_notes", .Draw_Background | .Draw_Border | .Draw_Shadow | .Floating_X | .Floating_Y | .Overlay);
-	card.semantic_size = .[ui.px(W), ui.children()];
+	GAP :: 8;
+	hover := ui.box("update_notes_hover", .Floating_X | .Floating_Y | .Overlay);
+	hover.semantic_size = .[ui.px(W), ui.children()];
 	p := ui.top_parent();
-	card.fixed_pos = .{clamp(r.x1 - W, 8, app.ui.window.x - W - 8) - p.rect.x0, r.y1 + 8 - p.rect.y0};
+	hover.fixed_pos = .{clamp(r.x1 - W, 8, app.ui.window.x - W - 8) - p.rect.x0, r.y1 - p.rect.y0};
+	hover.layout_axis = .Y;
+	over := ui.mouse_over(hover);
+	ui.parent(hover); defer ui.pop_parent();
+	spacer(.Y, GAP);
+	card := ui.box("update_notes", .Draw_Background | .Draw_Border | .Draw_Shadow | .Scroll_Y | .Clip);
+	// last frame's content height, up to what fits above the window's bottom edge
+	card.semantic_size = .[ui.pct(1), ui.px(min(card.content_size.y, max(app.ui.window.y - r.y1 - GAP - 8, 80)))];
 	card.layout_axis = .Y;
 	card.style.bg = T("--background-surface-highest");
 	card.style.border_color = T("--border-subtle");
@@ -201,13 +213,13 @@ update_notes :: (notes: string, r: ui.Rect) {
 	card.style.shadow_color = .{0, 0, 0, 0.3};
 	card.style.shadow_blur = 12;
 	ui.parent(card); defer ui.pop_parent();
+	ui.signal(card);
 	spacer(.Y, 8);
 	n := 0;
 	for line: split(notes, "\n",, temp) {
 		l := trim(line);
 		if !l || begins_with(l, "All changes:") continue;
 		n += 1;
-		if n > 14 break;
 		heading := begins_with(l, "#");
 		text := ifx heading then trim(trim_left(l, "#")) else ifx begins_with(l, "- ") then join("• ", advance(l, 2),, temp) else l;
 		rw := row(tprint("n%", n));
@@ -225,6 +237,7 @@ update_notes :: (notes: string, r: ui.Rect) {
 		spacer(.Y, cast(float32) ifx heading then 2 else 4);
 	}
 	spacer(.Y, 4);
+	return over;
 }
 
 update_loop :: (_: *void) {
