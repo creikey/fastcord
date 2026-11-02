@@ -10,6 +10,7 @@ def sf(ms, n): return ((ms - EPOCH) << 22) | n
 def ev(t, d, seq=900): return {'rt': 0, 'dir': 'recv', 'etf': {'op': 0, 't': t, 's': seq, 'd': d}}
 users = [{'id': 1000000000000000101 + k, 'username': n, 'global_name': None, 'avatar': None, 'discriminator': '0'}
          for k, n in enumerate(['creikey', 'stranger', 'chatty', 'grump'])]
+users[2]['global_name'] = 'Chatty McLongname The Third Of Many'  # wider than a DM row (long_name.txt)
 # 1800..01: friend, one message; ..02: stranger, no messages; ..03: friend, three messages;
 # ..04: blocked (relationship type 2), three older messages
 for k, (u, rel, n) in enumerate([(users[0], 1, 1), (users[1], 0, 0), (users[2], 1, 3), (users[3], 2, 3)]):

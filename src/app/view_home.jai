@@ -180,10 +180,18 @@ dm_row :: (ch: *dc.Channel) {
 				group_dm_icon("gicon", ch, 32);
 			}
 			spacer(.X, 12);
+			mentions := channel_mentions(ch.id);
+			badge := mentions > 0 && !selected && !ui.mouse_over(item) && !notify_prefs.lotus;
+			show_x := selected || ui.mouse_over(item); // not sig.hovering: that ends while the X itself is hovered
+			badge_text := ifx mentions > 99 then "99+" else tprint("%", mentions);
+			badge_w := max(16.0, cast(float32) badge_text.count * 7 + 8);
+			// a long name ends in "…" short of the X or the mention badge (issue #29)
+			name_w := item.rect.x1 - item.rect.x0 - 52 - ifx show_x then 26.0 else ifx badge then badge_w + 10 else 8.0;
 			col := ui.box("col");
 			col.semantic_size = .[ui.fill(), ui.children()];
 			{ ui.parent(col); defer ui.pop_parent();
-				label(dm_name(ch), ifx unread then .Semibold else .Medium, 16, color, 20);
+				font := ifx unread then Font_Id.Semibold else .Medium;
+				label(ifx name_w > 0 then ellipsize(dm_name(ch), font, 16, name_w) else dm_name(ch), font, 16, color, 20);
 				if ch.kind == .Group_DM {
 					n := ch.recipient_ids.count + 1;
 					label(tprint(Lp("% Member", "% Members", n), n), .Medium, 12, T("--text-muted"), 16);
@@ -192,11 +200,9 @@ dm_row :: (ch: *dc.Channel) {
 					if custom label(ellipsize(custom, .Medium, 12, item.rect.x1 - item.rect.x0 - 90), .Medium, 12, T("--text-muted"), 16);
 				}
 			}
-			mentions := channel_mentions(ch.id);
-			if mentions > 0 && !selected && !ui.mouse_over(item) && !notify_prefs.lotus {
-				text := ifx mentions > 99 then "99+" else tprint("%", mentions);
-				b := ui.box(tprint("%##count", text), .Draw_Background | .Draw_Text);
-				b.semantic_size = .[ui.px(max(16.0, cast(float32) text.count * 7 + 8)), ui.px(16)];
+			if badge {
+				b := ui.box(tprint("%##count", badge_text), .Draw_Background | .Draw_Text);
+				b.semantic_size = .[ui.px(badge_w), ui.px(16)];
 				b.style.bg = T("--status-danger");
 				b.style.radius = all4(8);
 				b.style.font = F(.Bold);
@@ -205,7 +211,7 @@ dm_row :: (ch: *dc.Channel) {
 				b.style.text_align = .Center;
 				spacer(.X, 6);
 			}
-			if selected || ui.mouse_over(item) { // not sig.hovering: that ends while the X itself is hovered
+			if show_x {
 				// close DM or leave the group: DELETE /channels/{id}, behind Undo
 				x := ui.box("close", .Clickable);
 				x.semantic_size = .[ui.px(16), ui.px(16)];
@@ -515,7 +521,7 @@ friend_row :: (uid: dc.Snowflake, kind: dc.Relationship_Type) {
 				nr := row("nr");
 				nr.semantic_size = .[ui.pct(1), ui.px(20)];
 				{ ui.parent(nr); defer ui.pop_parent();
-					label(dc.user_name(s, uid, 0, L("Unknown")), .Semibold, 16, T("--text-strong"), 20);
+					label(ellipsize_in(dc.user_name(s, uid, 0, L("Unknown")), .Semibold, 16, col), .Semibold, 16, T("--text-strong"), 20);
 					if sig.hovering && u != null {
 						spacer(.X, 4);
 						label(u.username, .Medium, 14, T("--text-muted"), 18);
@@ -532,7 +538,7 @@ friend_row :: (uid: dc.Snowflake, kind: dc.Relationship_Type) {
 				case .Blocked;
 					sub = L("Blocked");
 				}
-				label(sub, .Medium, 14, T("--text-muted"), 18);
+				label(ellipsize_in(sub, .Medium, 14, col), .Medium, 14, T("--text-muted"), 18);
 			}
 			if kind == .Incoming_Request {
 				if round_icon_button("accept", "checkmark-large", T("--status-positive"), rel_req("Accept", uid)).clicked && req_begin(rel_req("Accept", uid)) { dc.accept_friend_request(app.client, uid); req_end(); }
@@ -640,7 +646,7 @@ requests_page :: () {
 			col := ui.box("col");
 			col.semantic_size = .[ui.fill(), ui.children()];
 			{ ui.parent(col); defer ui.pop_parent();
-				label(dm_name(ch), .Semibold, 16, T("--text-strong"), 20);
+				label(ellipsize_in(dm_name(ch), .Semibold, 16, col), .Semibold, 16, T("--text-strong"), 20);
 				label(ifx ch.spam then L("Flagged as spam") else L("Wants to message you"), .Medium, 14, T("--text-muted"), 18);
 			}
 			acc := round_icon_button("accept", "checkmark-large", T("--status-positive"));
@@ -713,7 +719,7 @@ active_now_column :: () {
 				col := ui.box("col");
 				col.semantic_size = .[ui.fill(), ui.children()];
 				{ ui.parent(col); defer ui.pop_parent();
-					label(dc.user_name(s, uid, 0, L("Unknown")), .Semibold, 16, T("--text-strong"), 20);
+					label(ellipsize_in(dc.user_name(s, uid, 0, L("Unknown")), .Semibold, 16, col), .Semibold, 16, T("--text-strong"), 20);
 					label(user_game(uid), .Normal, 14, T("--text-muted"), 18);
 				}
 				act := rich_activity(uid); // the activity's art on the right, as the client's card has

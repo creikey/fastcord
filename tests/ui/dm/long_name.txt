@@ -1,0 +1,6 @@
+# Regression (#29): a DM whose name is wider than its sidebar row ends in "…" short of the close X
+# (shown on the selected row), instead of running under it.
+open 1800000000000000003
+wait 30
+expect_in_window "hello 2"
+shot build/ui-dm_long_name.png
