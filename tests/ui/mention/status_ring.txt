@@ -1,0 +1,7 @@
+# The @ popup's selected row: the status dot's ring is opaque, so the avatar doesn't show through it.
+wait 5
+click 700 683
+type @di
+wait 5
+expect_visible "Members matching @di"
+shot build/ui-mention-status-ring.png

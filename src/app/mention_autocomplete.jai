@@ -263,7 +263,10 @@ mention_autocomplete :: (ch: *dc.Channel, ed: *ui.Editor, focused: bool) {
 				{ ui.parent(bg); defer ui.pop_parent();
 					spacer(.X, 8);
 					if item.kind == .User {
-						avatar_with_status("av", item.id, 24, ifx i == mac.sel then T("--background-mod-normal") else T("--background-surface-higher"));
+						// the selected tint is translucent: flatten it onto the popup so the ring hides the avatar
+						surface := T("--background-surface-higher");
+						if i == mac.sel { m := T("--background-mod-normal"); a := m.w; m.w = 1; surface = ui.lerp_color(surface, m, a); }
+						avatar_with_status("av", item.id, 24, surface);
 						spacer(.X, 12);
 					} else if item.kind == .Channel {
 						icon("ic", channel_icon_name(dc.channel_get(store(), item.id)), 20, T("--channel-icon"));
