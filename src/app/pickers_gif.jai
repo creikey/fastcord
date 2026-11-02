@@ -3,6 +3,7 @@
 // Mirrors GIFPickerSearchResults / GIFPickerCategories in the client bundle:
 // desiredItemWidth 200, maxColumns 6, itemGutter 12, category tiles 110 high,
 // 250 ms search debounce, suggestions once within 1180 px of the end.
+// fastcord-only: a "For This Chat" tile first, when favourite or posted GIFs share words with the chat.
 
 GIF_PAD_X :: 12; // grid inset (official tiles at 12px from the picker edge and the header line)
 GIF_GUTTER :: 12;
@@ -14,6 +15,9 @@ GIF_TILE_RADIUS :: 5;
 GIF_DEBOUNCE_S :: 0.25;
 GIF_SUGGEST_WITHIN :: 1180;
 GIF_FOOTER_H :: 120;
+GIF_RELATED_MESSAGES :: 30; // the newest messages whose words pick the related GIFs
+GIF_RELATED_MAX :: 30;
+GIF_WORDS_MAX :: 32; // words read from one message or GIF
 
 Gif_Item :: struct {
 	id: string;
@@ -37,6 +41,7 @@ Gif_Result_Kind :: enum u8 {
 	Category;
 	Trending;
 	Favorites;
+	Related; // For This Chat
 }
 
 Gif_View :: struct {
@@ -54,11 +59,14 @@ Gif_View :: struct {
 	suggested_for: string;
 	scroll: Pk_Scroll;
 	unstarred: [..]string; // Favorites view: stars emptied there (owned urls); they go when the view is left
+	related_pool: Flat_Pool;
+	related: [..]Gif_Item; // For This Chat, best first; made again each time the GIF tab shows
 }
 
 gv: Gif_View;
 
 gif_picker_on_show :: () {
+	gif_related_update();
 	if gv.requested return;
 	gv.requested = true;
 	if expr_client() dc.gifs_trending(expr_client());
@@ -151,8 +159,8 @@ gif_header_back :: () {
 
 // Title instead of the search bar for Trending / Favorites (renderHeaderContent).
 gif_header_title :: () -> bool {
-	if gv.kind != .Trending && gv.kind != .Favorites return false;
-	label(ifx gv.kind == .Trending then L("Trending GIFs") else L("Favorites"), .Semibold, 16, T("--text-strong"), 20);
+	if gv.kind != .Trending && gv.kind != .Favorites && gv.kind != .Related return false;
+	label(ifx gv.kind == .Trending then L("Trending GIFs") else ifx gv.kind == .Related then L("For This Chat") else L("Favorites"), .Semibold, 16, T("--text-strong"), 20);
 	filler(.X);
 	return true;
 }
@@ -226,7 +234,7 @@ reset_results :: (kind: Gif_Result_Kind) {
 	gv.result_query = "";
 	gv.kind = kind;
 	gv.scroll = .{};
-	gv.loading = kind != .None && kind != .Favorites;
+	gv.loading = kind != .None && kind != .Favorites && kind != .Related;
 }
 
 fire_search :: () {
@@ -246,6 +254,7 @@ Tile :: struct {
 gif_front_page :: (list: *ui.Box, view: ui.Rect, cols: int, col_w: float32) {
 	tiles: [..]Tile;
 	tiles.allocator = temp;
+	if gv.related.count > 0 array_add(*tiles, .{L("For This Chat"), gif_render_url(gv.related[0].src, gv.related[0].gif_src), "chat", .Related});
 	if frecency.favorite_gifs.count > 0 array_add(*tiles, .{L("Favorites"), gif_render_url(frecency.favorite_gifs[0].src, ""), "star", .Favorites});
 	if gv.trending_preview.src != "" || gv.trending_preview.gif_src != "" {
 		array_add(*tiles, .{L("Trending GIFs"), gif_render_url(gv.trending_preview.src, gv.trending_preview.gif_src), "analytics", .Trending});
@@ -319,8 +328,9 @@ gif_open_tile :: (t: Tile) {
 		reset_results(.Trending);
 		if expr_client() != null dc.gifs_trending_gifs(expr_client());
 		else pickers_offline(.Gif_Trending_Gifs, "trending-gifs");
-	case .Favorites;
-		reset_results(.Favorites);
+	case .Favorites; #through;
+	case .Related;
+		reset_results(t.kind);
 	}
 }
 
@@ -329,6 +339,8 @@ gif_results :: (list: *ui.Box, view: ui.Rect, cols: int, col_w: float32) {
 	if gv.kind == .Favorites {
 		items = NewArray(frecency.favorite_gifs.count, Gif_Item,, temp);
 		for frecency.favorite_gifs items[it_index] = .{url = it.url, src = it.src, width = it.width, height = it.height};
+	} else if gv.kind == .Related {
+		items = gv.related;
 	}
 	// masonry: each item goes to the shortest column
 	Placed :: struct {
@@ -447,6 +459,99 @@ gif_results :: (list: *ui.Box, view: ui.Rect, cols: int, col_w: float32) {
 			}
 		}
 		pk_scrollbar(*gv.scroll);
+	}
+}
+
+// For This Chat: favourite GIFs, and GIFs posted in any loaded conversation, ranked by the words they
+// share with the newest messages here (a word counts more the newer its message). Words come from a
+// GIF's link (tenor.com/view/cat-dance-gif-1, klipy.com/gifs/cat-dance) and a posted one's title. GIFs
+// already among those messages are left out. Local only: nothing is sent.
+gif_related_update :: () {
+	fini(*gv.related_pool);
+	Initialize(*gv.related);
+	gv.related.allocator = dc.pool_allocator(*gv.related_pool);
+	if pk.channel == 0 return;
+	context_words: Table(string, float32);
+	context_words.allocator = temp;
+	seen: Table(string, bool); // urls already ranked, or posted among the newest messages
+	seen.allocator = temp;
+	words: [..]string;
+	words.allocator = temp;
+	msgs := dc.messages_get(store(), pk.channel);
+	n := 0;
+	for < msgs {
+		if n == GIF_RELATED_MESSAGES break;
+		weight := 1 / (1 + 0.15 * cast(float32) n);
+		n += 1;
+		for e: it.embeds if e.kind == "gifv" table_set(*seen, e.url, true);
+		words.count = 0;
+		gif_words(*words, it.content);
+		for words if !table_find_pointer(*context_words, it) table_set(*context_words, it, weight);
+	}
+	if !context_words.count return;
+
+	Ranked :: struct { g: Gif_Item; title: string; score: float32; order: int; }
+	ranked: [..]Ranked;
+	ranked.allocator = temp;
+	for frecency.favorite_gifs array_add(*ranked, .{g = .{url = it.url, src = it.src, width = it.width, height = it.height}});
+	for list: store().messages for m: list.messages for e: m.embeds if e.kind == "gifv" {
+		array_add(*ranked, .{g = .{url = e.url, src = e.video_url, gif_src = e.thumbnail_url, width = e.video_w, height = e.video_h}, title = e.title});
+	}
+	for * r: ranked {
+		r.order = it_index;
+		if r.g.url == "" || table_find_pointer(*seen, r.g.url) continue;
+		table_set(*seen, r.g.url, true);
+		words.count = 0;
+		gif_words(*words, gif_slug(r.g.url));
+		gif_words(*words, r.title);
+		for words { w := table_find_pointer(*context_words, it); if w r.score += w.*; }
+	}
+	quick_sort(ranked, (a: Ranked, b: Ranked) -> int {
+		if a.score != b.score return ifx a.score > b.score then -1 else 1;
+		return a.order - b.order; // favourites first, in their order
+	});
+	a := dc.pool_allocator(*gv.related_pool);
+	for ranked {
+		if it.score == 0 || it_index == GIF_RELATED_MAX break;
+		g := it.g;
+		array_add(*gv.related, .{url = copy_string(g.url,, a), src = copy_string(g.src,, a), gif_src = copy_string(g.gif_src,, a), width = g.width, height = g.height});
+	}
+}
+
+#scope_file
+
+// A GIF link's last path segment, where its words are: "cat-dance-gif-123" of tenor.com/view/cat-dance-gif-123?x.
+gif_slug :: (url: string) -> string {
+	s := url;
+	q := find_index_from_left(s, #char "?");
+	if q >= 0 s.count = q;
+	while s && s[s.count - 1] == #char "/" s.count -= 1;
+	i := find_index_from_right(s, #char "/");
+	if i >= 0 advance(*s, i + 1);
+	return s;
+}
+
+// Adds s's words for matching (in temp, unique): ASCII lowercased, other bytes kept as they are, a
+// plural's last s dropped; links, numbers, words under 3 bytes and common ones skipped. One pass.
+gif_words :: (out: *[..]string, s: string) {
+	word_byte :: (c: u8) -> bool { return (c >= #char "a" && c <= #char "z") || (c >= #char "A" && c <= #char "Z") || (c >= #char "0" && c <= #char "9") || c >= 0x80; }
+	STOP :: string.["the", "and", "for", "you", "that", "thi", "with", "have", "are", "not", "but", "what", "just", "like", "can", "all", "get", "got", "out", "now", "one", "how", "why", "who", "when", "where", "there", "their", "they", "them", "then", "than", "your", "yeah", "yep", "from", "about", "would", "could", "should", "will", "been", "were", "also", "some", "any", "too", "really", "very", "dont", "don", "didn", "doesn", "isn", "was", "had", "him", "her", "she", "his", "our", "its", "here", "into", "more", "much", "only", "well", "even", "did", "doe", "yes", "okay", "gif", "gifv", "tenor", "klipy", "www", "com"];
+	i := 0;
+	while i < s.count && out.count < GIF_WORDS_MAX {
+		if !word_byte(s[i]) { i += 1; continue; }
+		start := i;
+		while i < s.count && word_byte(s[i]) i += 1;
+		w := string.{i - start, s.data + start};
+		if begins_with(w, "http") && i + 2 < s.count && s[i] == #char ":" && s[i + 1] == #char "/" {
+			while i < s.count && s[i] > #char " " i += 1; // a link (a sent GIF's, say) isn't words
+			continue;
+		}
+		w = to_lower_copy(w,, temp);
+		if w.count > 3 && w[w.count - 1] == #char "s" w.count -= 1;
+		if w.count < 3 || array_find(STOP, w) continue;
+		digits := true;
+		for w if it < #char "0" || it > #char "9" { digits = false; break; }
+		if !digits array_add_if_unique(out, w);
 	}
 }
 

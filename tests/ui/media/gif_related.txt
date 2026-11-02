@@ -1,0 +1,23 @@
+# Run with FASTCORD_MEDIA_DIR=tests/ui/media on gif_related.jsonl (media.jsonl plus "wave at the new folks").
+# Starring the "wave" GIF gives the GIF picker a For This Chat tile when it next opens, showing it.
+wait 20
+click 898 683
+wait 20
+expect_not_visible "For This Chat"
+click 612 338
+wait 20
+move 600 330
+wait 5
+click 709 289
+wait 5
+click 516 238
+wait 5
+click 898 683
+wait 5
+click 898 683
+wait 20
+expect_visible "For This Chat"
+shot build/ui-media_gif_related_front.png
+click_text "For This Chat"
+wait 10
+shot build/ui-media_gif_related.png

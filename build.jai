@@ -364,8 +364,10 @@ ui_scripts :: () -> bool {
     // emoji scripts: the emoji fixture, with the Twemoji svgs they show served offline
     for file_list("tests/ui/emoji") if ends_with(it, ".txt")
         add(*jobs, tprint("emoji_%", path_strip_extension(path_filename(it))), "tests/ui/chat_emoji.jsonl", it, "FASTCORD_MEDIA_DIR=tests/ui/emoji/media");
-    for file_list("tests/ui/media") if ends_with(it, ".txt")  // GIFs, GIFV embeds and their menus, media served offline
-        add(*jobs, tprint("media_%", path_strip_extension(path_filename(it))), "tests/ui/media/media.jsonl", it, "FASTCORD_MEDIA_DIR=tests/ui/media");
+    for file_list("tests/ui/media") if ends_with(it, ".txt") {  // GIFs, GIFV embeds and their menus, media served offline
+        own := tprint("%.jsonl", path_strip_extension(it));
+        add(*jobs, tprint("media_%", path_strip_extension(path_filename(it))), ifx file_exists(own) then own else "tests/ui/media/media.jsonl", it, "FASTCORD_MEDIA_DIR=tests/ui/media");
+    }
     for file_list("tests/ui/code") if ends_with(it, ".txt")  // ``` blocks in the highlighted languages
         add(*jobs, tprint("code_%", path_strip_extension(path_filename(it))), "tests/ui/code/code.jsonl", it);
     for file_list("tests/ui/call") if ends_with(it, ".txt")  // the call view (voice states in the General voice channel)
