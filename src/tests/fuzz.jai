@@ -1054,7 +1054,7 @@ SCALE_SVG :: string.["<g>", "<", "<a b=\"", "&", "<!--", "<path d=\"M", "1 ", "<
 SCALE_ALTSVC :: string.["h3=\":1\",", "\"", ",", ";", "a=", "\\"];
 SCALE_PAGE :: string.["<", "<meta ", "<meta a=\"", "<title>", "&", "&amp;", "<!--", "<meta property=", "'", "\""];
 
-scale_one :: (name: string, pattern: string, f: (text: string)) -> bool {
+scale_one :: (name: string, pattern: string, f: (text: string), quiet := false) -> bool {
 	time_of :: (f: (text: string), pattern: string, n: int) -> float64 {
 		sb: String_Builder;
 		for 1..n / pattern.count append(*sb, pattern);
@@ -1073,12 +1073,22 @@ scale_one :: (name: string, pattern: string, f: (text: string)) -> bool {
 	b := time_of(f, pattern, 64 << 10);
 	// Linear is 4x. Under a millisecond at the larger size is noise.
 	if b < 0.001 || b < a * 8 return true;
-	print("fuzz scale: % on repeated \"%\": % ms at 16 KiB, % ms at 64 KiB\n", name, pattern, a * 1000, b * 1000);
+	if !quiet print("fuzz scale: % on repeated \"%\": % ms at 16 KiB, % ms at 64 KiB\n", name, pattern, a * 1000, b * 1000);
 	return false;
 }
 
+scale_sink: int;
+
 run_scale :: () -> bool {
 	ok := true;
+	// A check that has never failed proves nothing: this scan from every 8th byte must be caught.
+	quadratic :: (t: string) {
+		for i: 0..t.count / 8 - 1 for j: i * 8..t.count - 1 scale_sink += t[j];
+	}
+	if scale_one("self-test", "ab", quadratic, quiet = true) {
+		print("fuzz scale: a quadratic scan passed, so the check is broken\n");
+		ok = false;
+	}
 	for SCALE_MD if !scale_one("markdown", it, (t: string) { md_parse(t); md_inline(t); }) ok = false;
 	for SCALE_JSON if !scale_one("json", it, (t: string) { etf.from_json(t,, temp); }) ok = false;
 	for SCALE_SVG if !scale_one("svg", it, (t: string) { vector.parse_svg(t, temp); }) ok = false;
