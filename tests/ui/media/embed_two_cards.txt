@@ -1,0 +1,16 @@
+# Runs on embed_two_cards.jsonl: a message with two link cards (issue #33). Selecting text in the second
+# card selects only it, and the second card's side thumbnail opens the image viewer like the first's.
+wait 10
+settle 1
+down 465 591
+move 555 591
+up 555 591
+shot build/ui-embed_two_cards-select.png
+expect_selection "A gradual guide"
+move 822 552
+wait 2
+expect_cursor Pointer
+click 822 552
+wait 20
+shot build/ui-embed_two_cards.png
+expect_visible "Open in Browser"

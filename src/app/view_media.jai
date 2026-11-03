@@ -839,18 +839,20 @@ voice_waveform :: (wave: string, frac: float32, ip: *Inline_Player, dur: float64
 embeds_view :: (m: *dc.Message, max_w: float32 = 400) {
 	if m.flags & 4 return; // SUPPRESS_EMBEDS
 	for * e, i: m.embeds {
+		// the message's id scope is shared: without one per embed, a second card's boxes collide and go dead
+		ui.id_scope(cast(u64) i); defer ui.pop_seed();
 		// a free emoji link's image already shows inline, as the emoji (markdown.jai free_emoji_link)
 		_, _, free := free_emoji_link(e.url);
 		if free && e.kind == "image" && contains(m.content, tprint("](%", e.url)) continue;
 		redact := media_redaction(m, e.flags);
-		if redact == .Block { blocked_media_note(tprint("eblocked%", i)); continue; }
+		if redact == .Block { blocked_media_note("eblocked"); continue; }
 		ekey := cast(u64) m.id + cast(u64) i + 1; // revealed_spoilers' key for this embed
 		if redact == .Blur && !table_find_pointer(*revealed_spoilers, ekey) {
 			url := ifx e.thumbnail_url != "" then e.thumbnail_url else e.image_url;
 			w := cast(float32) max(max(e.thumbnail_w, e.image_w), 160);
 			h := cast(float32) max(max(e.thumbnail_h, e.image_h), 90);
 			sc := min(1.0, min(max_w / w, 300 / h));
-			if spoiler_cover(tprint("eblur%", i), url, w * sc, h * sc, "Sensitive") table_set(*revealed_spoilers, ekey, true);
+			if spoiler_cover("eblur", url, w * sc, h * sc, "Sensitive") table_set(*revealed_spoilers, ekey, true);
 			spacer(.Y, 4);
 			continue;
 		}
@@ -862,7 +864,7 @@ embeds_view :: (m: *dc.Message, max_w: float32 = 400) {
 			if url == "" || w <= 0 || h <= 0 continue;
 			sc := min(1.0, min(max_w / w, 300 / h));
 			video := ifx e.kind == "gifv" then e.video_url else "";
-			img := media_box(tprint("emedia%", i), url, video, w * sc, h * sc);
+			img := media_box("emedia", url, video, w * sc, h * sc);
 			sig := ui.signal(img);
 			if sig.clicked open_viewer(url, .{cast(int) w, cast(int) h}, video, e.url, m.id);
 			// the client's image items need an <img>: a GIFV video gets the link items only
@@ -885,7 +887,7 @@ embeds_view :: (m: *dc.Message, max_w: float32 = 400) {
 		video := is_discord_media(e.video_url) && (e.video_w > 0 || e.thumbnail_w > 0);
 		// any other video embed (YouTube's iframe url): its thumbnail large, opening the link
 		poster := !video && e.kind == "video" && e.thumbnail_url != "" && e.thumbnail_w > 0;
-		card := row(tprint("embed%", i), .Draw_Background);
+		card := row("embed", .Draw_Background);
 		card.semantic_size = .[ui.px(min(432.0, max_w + 32)), ui.children()];
 		card.cross_align = .Start;
 		card.style.bg = T("--embed-background");
@@ -916,7 +918,8 @@ embeds_view :: (m: *dc.Message, max_w: float32 = 400) {
 					t := ui.box("title", .Wrap_Text | .Selectable_Text);
 					t.semantic_size = .[ui.pct(1), ui.text_size()];
 					t.style.line_height = 22;
-					t.sel_order = cast(u64) m.id * 8 + 6;
+					t.sel_order = cast(u64) m.id * 8 + 7;
+					t.sel_sub = cast(u32) (i << 16); // each embed its own selection slots, in reading order
 					// a linked title: the hand and an underline on hover, a click follows it
 					over := e.url != "" && ui.mouse_over(t) && ui.span_at(t.prev_layout, app.ui.mouse) >= 0 && !ui.overlay_at(app.ui.mouse);
 					ui.set_spans(t, ui.Span.[.{text = e.title, font = F(.Semibold), size = 16, color = ifx e.url != "" then T("--text-link") else T("--text-strong"), underline = over}]);
@@ -927,7 +930,7 @@ embeds_view :: (m: *dc.Message, max_w: float32 = 400) {
 				}
 				if e.description != "" {
 					spacer(.Y, 8);
-					embed_markdown("d", e.description, m, 0);
+					embed_markdown("d", e.description, m, (i << 16) + 1);
 				}
 				fi := 0;
 				if e.fields.count spacer(.Y, 8);
@@ -951,7 +954,7 @@ embeds_view :: (m: *dc.Message, max_w: float32 = 400) {
 							name.style.line_height = 18;
 							ui.set_spans(name, ui.Span.[.{text = f.name, font = F(.Semibold), size = 14, color = T("--text-strong")}]);
 							spacer(.Y, 2);
-							embed_markdown("v", f.value, m, (fi + k + 1) * 1000);
+							embed_markdown("v", f.value, m, (i << 16) + (fi + k + 1) * 1000);
 						}
 					}
 					spacer(.Y, 8);
