@@ -86,7 +86,7 @@ notification_clicked :: (self: Id, cmd: SEL, center: Id, response: Id, done: *Bl
     id := msg(Id, msg(Id, msg(Id, response, "notification"), "request"), "identifier");
     push_event(.{kind = .Notification_Click, text = to_jai_string(id, temp), time = time_now()});
     request_frame();
-    if done (cast(#type (b: *Block) #c_call) done.invoke)(done); // the completion handler must run
+    if done { (cast(#type (b: *Block) #c_call) done.invoke)(done); } // the completion handler must run
 }
 
 // A block literal (clang's Block ABI). BLOCK_IS_GLOBAL makes Block_copy and Block_release no-ops.
