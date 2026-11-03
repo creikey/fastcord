@@ -104,7 +104,7 @@ main :: () {
 	discord.fetch_forum_posts(b, forum_id, posts);
 	first := "";
 	for 1..300 {
-		for discord.feature_take_for(b) if it.op == .Forum_Posts && it.ok discord.apply_forum_threads(b, it.body);
+		for discord.feature_take_for(b) if it.op == .Forum_Posts && it.ok discord.apply_forum_threads(*b.store, it.body);
 		tm := discord.thread_meta(*b.store, post_id);
 		if tm && tm.first_content { first = tm.first_content; break; }
 		pump();

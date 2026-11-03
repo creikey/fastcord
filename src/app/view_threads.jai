@@ -118,7 +118,7 @@ forum_view :: (ch: *dc.Channel) {
 	s := store();
 	st := find_or_add(*forums, ch.id);
 	if app.client != null && !st.requested_archived {
-		st.requested_archived = true;
+		st.requested_archived, st.loading = true, true;
 		dc.fetch_archived_forum_threads(app.client, ch.id, 0);
 	}
 	all := dc.forum_threads(s, ch.id);
@@ -158,7 +158,7 @@ forum_view :: (ch: *dc.Channel) {
 	list := ui.box("forum", .Scroll_Y | .Clip);
 	list.semantic_size = .[ui.fill(), ui.pct(1)];
 	list.layout_axis = .Y;
-	ui.signal(list);
+	sig := ui.signal(list);
 	{ ui.parent(list); defer ui.pop_parent();
 		spacer(.Y, 16);
 		hdr := row("forumhdr");
@@ -237,7 +237,7 @@ forum_view :: (ch: *dc.Channel) {
 			spacer(.X, 24 - 6);
 		}
 		spacer(.Y, 12);
-		if !posts.count {
+		if !posts.count && !st.loading {
 			r := row("empty");
 			r.semantic_size = .[ui.pct(1), ui.px(40)];
 			{ ui.parent(r); defer ui.pop_parent();
@@ -276,8 +276,36 @@ forum_view :: (ch: *dc.Channel) {
 			forum_card(ch, th, tags);
 			ui.pop_seed();
 		}
+		if st.loading {
+			r := row("loading");
+			r.semantic_size = .[ui.pct(1), ui.px(40)];
+			{ ui.parent(r); defer ui.pop_parent();
+				filler(.X);
+				label(L("Loading..."), .Medium, 14, T("--text-muted"), 18);
+				filler(.X);
+			}
+		}
 		spacer(.Y, 24);
 	}
+	// the next 25 archived posts near the end, like the threads browser
+	if st.has_more && !st.loading && app.client != null && sig.hovering
+		&& list.content_size.y > 0 && list.view_off.y + (list.rect.y1 - list.rect.y0) > list.content_size.y - 400 {
+		st.loading = true;
+		dc.fetch_archived_forum_threads(app.client, ch.id, st.offset);
+	}
+}
+
+// A page of a forum's archived posts: the cards, and where the next page starts.
+forum_threads_receive :: (r: *dc.Feature_Result) {
+	app.ui.animating = true;
+	st := table_find_pointer(*forums, r.channel_id);
+	if st st.loading = false;
+	if !r.ok return;
+	dc.apply_forum_threads(store(), r.body);
+	if !st return;
+	body := dc.vmap(r.body);
+	st.offset += dc.flist(body, "threads").count;
+	st.has_more = dc.fbool(body, "has_more");
 }
 
 // The new post's reply: open it, and clear the form.
@@ -304,6 +332,8 @@ forum_post_created :: (r: *dc.Feature_Result) {
 
 Forum_State :: struct {
 	requested_archived: bool;
+	loading, has_more: bool; // archived posts: a page asked for, more after the last
+	offset: int; // archived posts loaded
 	requested_posts: Table(dc.Snowflake, bool);
 	query: ui.Editor; // the search box, also the new post's title
 	filter: [..]dc.Snowflake; // tags shown (any of them); none: all
@@ -507,19 +537,25 @@ forum_card :: (forum: *dc.Channel, th: *dc.Channel, tags: []dc.Forum_Tag) {
 				}
 				spacer(.Y, 6);
 			}
-			label(th.name, .Semibold, 16, T("--text-strong"), 20);
+			title := ui.box("title", .Wrap_Text);
+			title.semantic_size = .[ui.pct(1), ui.text_size()];
+			ui.set_spans(title, ui.Span.[.{text = th.name, font = F(.Semibold), size = 16, color = T("--text-strong")}]);
 			spacer(.Y, 4);
 			if tm != null && tm.first_content != "" {
-				pr := row("preview");
+				pr := row("preview", .Clip);
 				pr.semantic_size = .[ui.pct(1), ui.px(18)];
 				{ ui.parent(pr); defer ui.pop_parent();
+					// cut to what the card has left after the name, by last frame's width
+					w := pr.rect.x1 - pr.rect.x0;
 					name := name_in(tm.first_author, th.id, "");
 					if name != "" {
-						label(tprint("%:", name), .Medium, 14, T("--text-default"), 18);
+						name = tprint("%:", name);
+						label(name, .Medium, 14, T("--text-default"), 18);
 						spacer(.X, 4);
+						w -= ui.layout_text(F(.Medium), 14, name, -1).width + 4;
 					}
-					t := label(ellipsize(first_line(tm.first_content), .Normal, 14, 600), .Normal, 14, T("--text-muted"), 18);
-					t.flags |= .Clip;
+					text := first_line(tm.first_content);
+					label(ifx w > 0 then ellipsize(text, .Normal, 14, w) else text, .Normal, 14, T("--text-muted"), 18);
 				}
 				spacer(.Y, 6);
 			}
@@ -601,9 +637,11 @@ features_receive_of :: (c: *dc.Client) {
 // feature_route hands a finished feature request to the view that sent it.
 feature_route :: (r: *dc.Feature_Result) {
 	if r.op == {
-	case .Forum_Posts; #through; case .Thread_Search;
-		if r.ok dc.apply_forum_threads(app.client, r.body);
+	case .Forum_Posts;
+		if r.ok dc.apply_forum_threads(store(), r.body);
 		app.ui.animating = true;
+	case .Thread_Search;
+		forum_threads_receive(r);
 	case .Pins;
 		pins_receive(r);
 	case .Pins_Ack; #through; case .Mark_Unread;

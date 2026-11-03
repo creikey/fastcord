@@ -78,7 +78,7 @@ threads_browser_receive :: (r: *dc.Feature_Result) {
 	if r.channel_id != tb.channel return;
 	tb.loading = false;
 	if !r.ok return;
-	dc.apply_forum_threads(app.client, r.body);
+	dc.apply_forum_threads(store(), r.body);
 	body := dc.vmap(r.body);
 	tb.offset += dc.flist(body, "threads").count;
 	tb.has_more = dc.fbool(body, "has_more");

@@ -448,8 +448,7 @@ forum_threads :: (s: *Store, forum_id: Snowflake, allocator := temp) -> []Snowfl
 }
 
 // Applies forum post bodies (post-data / threads/search) to the side tables and Store.
-apply_forum_threads :: (c: *Client, body: V) {
-	s := *c.store;
+apply_forum_threads :: (s: *Store, body: V) {
 	m := vmap(body);
 	me := s.me;
 	// threads/search: {threads:[...], members:[...], first_messages:[...]}
@@ -468,13 +467,13 @@ apply_forum_threads :: (c: *Client, body: V) {
 		if fsnow(mm, "user_id") == me note_joined(*s.extras, fsnow(mm, "id"));
 	}
 	locks.unlock(*s.extras_mu);
-	note_first :: (c: *Client, msg: etf.Map) {
+	note_first :: (s: *Store, msg: etf.Map) {
 		if !msg return;
 		au := fmap(msg, "author");
-		author := ifx au then parse_user_into(*c.store, au) else 0;
-		locks.lock(*c.store.extras_mu);
-		defer locks.unlock(*c.store.extras_mu);
-		tm := table_find_pointer(*c.store.extras.threads, fsnow(msg, "channel_id"));
+		author := ifx au then parse_user_into(s, au) else 0;
+		locks.lock(*s.extras_mu);
+		defer locks.unlock(*s.extras_mu);
+		tm := table_find_pointer(*s.extras.threads, fsnow(msg, "channel_id"));
 		if !tm return;
 		if au tm.first_author = author;
 		push_allocator(context.default_allocator); // the side table's
@@ -482,9 +481,9 @@ apply_forum_threads :: (c: *Client, body: V) {
 		tm.first_content = copy_string(fstr(msg, "content"));
 		note_first_media(tm, msg);
 	}
-	for flist(m, "first_messages") note_first(c, vmap(it));
+	for flist(m, "first_messages") note_first(s, vmap(it));
 	// post-data: {threads: {"<id>": {first_message: {...}, owner: {...}}}}
-	for fmap(m, "threads") note_first(c, fmap(vmap(it.value), "first_message"));
+	for fmap(m, "threads") note_first(s, fmap(vmap(it.value), "first_message"));
 }
 
 // Parses a REST message object without inserting it into the channel's list

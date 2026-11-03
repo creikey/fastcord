@@ -1,0 +1,10 @@
+# A forum's cards: an archived post from threads/search with a long title wraps inside its card, and its
+# long first message is cut with "…" before the card's edge, after the author's name.
+wait 5
+click 148 158
+wait 5
+expect_visible "Scrolling stutters on long channels"
+feature_reply Thread_Search 0 200 {"threads":[{"id":"1564186000000000063","guild_id":"1546820558300258304","parent_id":"1546820603343016100","type":11,"name":"What I'm stuck on. Does the past not exist, or is it remembering the present in a different way, and how would anyone tell?","owner_id":"1000000000020971521","applied_tags":[],"message_count":2,"member_count":1,"thread_metadata":{"archived":true,"locked":false,"auto_archive_duration":1440,"archive_timestamp":"2026-10-26T00:00:00+00:00"},"last_message_id":null}],"members":[],"first_messages":[{"id":"1564186000000000063","channel_id":"1564186000000000063","author":{"id":"1000000000020971521","username":"robin","global_name":"Robin","avatar":null,"discriminator":"0"},"content":"So from reading your messages what I've come to is this. Something happens in our senses, ie now. We remember that it happened, and the remembering is also happening now, so where is the past at all?","type":0,"attachments":[],"embeds":[]}],"has_more":true}
+wait 5
+expect_visible "Robin:"
+shot build/ui-forum_cards.png
