@@ -1120,12 +1120,34 @@ channel_row :: (ch: *dc.Channel, gid: dc.Snowflake) {
 			spacer(.X, 8);
 			icon("ic", channel_icon_name(ch), 20, ifx selected || sig.hovering || muted then color else T("--channel-icon"));
 			spacer(.X, 8);
-			label(ch.name, ifx unread || selected then .Semibold else .Medium, 16, color, 20);
+			buttons := selected || sig.hovering || ui.mouse_over(item);
+			limit_text: string;
+			if !buttons && ch.kind == .Guild_Voice && ch.user_limit > 0 {
+				n := 0;
+				for v: store().voice_states if v.channel_id == ch.id n += 1;
+				limit_text = tprint("%/%", formatInt(n, minimum_digits = 2), formatInt(ch.user_limit, minimum_digits = 2));
+			}
+			mentions = ifx selected || notify_prefs.lotus then 0 else channel_mentions(ch.id);
+			badge_text := ifx mentions > 99 then "99+" else tprint("%", mentions);
+			badge_w := max(16.0, cast(float32)(badge_text.count) * 7 + 8);
+			// a long name ends in "…" short of the buttons, the N/limit or the mention badge (issue #31)
+			trail := 12.0; // the 8px right edge and a 4px gap
+			if buttons {
+				trail += 16;
+				if vocal trail += 20;
+				if can_manage_channel(ch) trail += 20;
+			} else if limit_text {
+				trail += ui.layout_text(F(.Medium), 12, limit_text, -1).width + 8;
+			}
+			if mentions > 0 trail += 4 + badge_w;
+			name_w := item.rect.x1 - item.rect.x0 - 36 - trail;
+			font := ifx unread || selected then Font_Id.Semibold else .Medium;
+			label(ifx name_w > 0 then ellipsize(ch.name, font, 16, name_w) else ch.name, font, 16, color, 20);
 			filler(.X);
-			if selected || sig.hovering || ui.mouse_over(item) {
+			if buttons {
 				// invite / settings, shown on the selected or hovered row (in place of a voice channel's N/limit);
 				// a voice channel's chat opens without joining
-				if ch.kind == .Guild_Voice || ch.kind == .Guild_Stage_Voice {
+				if vocal {
 					chat := ui.box("openchat", .Clickable);
 					chat.semantic_size = .[ui.px(16), ui.px(16)];
 					cs := ui.signal(chat);
@@ -1143,26 +1165,22 @@ channel_row :: (ch: *dc.Channel, gid: dc.Snowflake) {
 					set_icon(cog, "settings", ifx cs.hovering then T("--interactive-icon-active") else T("--interactive-icon-hover"));
 					if cs.clicked { channel_settings_open(ch); }
 				}
-			} else if ch.kind == .Guild_Voice && ch.user_limit > 0 {
+			} else if limit_text {
 				// N/limit, in place of the hover buttons
-				n := 0;
-				for v: store().voice_states if v.channel_id == ch.id n += 1;
 				lim := row("limit", .Draw_Background);
 				lim.semantic_size = .[ui.children(), ui.px(16)];
 				lim.style.bg = T("--background-mod-normal");
 				lim.style.radius = all4(4);
 				{ ui.parent(lim); defer ui.pop_parent();
 					spacer(.X, 4);
-					label(tprint("%/%", formatInt(n, minimum_digits = 2), formatInt(ch.user_limit, minimum_digits = 2)), .Medium, 12, T("--channels-default"), 16);
+					label(limit_text, .Medium, 12, T("--channels-default"), 16);
 					spacer(.X, 4);
 				}
 			}
-			mentions = ifx selected || notify_prefs.lotus then 0 else channel_mentions(ch.id);
 			if mentions > 0 {
 				spacer(.X, 4);
-				text := ifx mentions > 99 then "99+" else tprint("%", mentions);
-				b := ui.box(tprint("%##chanbadge", text), .Draw_Background | .Draw_Text);
-				b.semantic_size = .[ui.px(max(16.0, cast(float32)(text.count) * 7 + 8)), ui.px(16)];
+				b := ui.box(tprint("%##chanbadge", badge_text), .Draw_Background | .Draw_Text);
+				b.semantic_size = .[ui.px(badge_w), ui.px(16)];
 				b.style.bg = T("--status-danger");
 				b.style.radius = all4(8);
 				b.style.font = F(.Bold);

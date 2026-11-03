@@ -1,0 +1,5 @@
+# Regression (#31): a channel name wider than its sidebar row ends in "…" short of the invite and
+# settings buttons on the selected row, instead of running under them.
+wait 30
+expect_visible "Heading one"
+shot build/ui-channel_long_name.png
