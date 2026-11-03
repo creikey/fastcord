@@ -1,18 +1,23 @@
-# Clicking the Date field focuses it (its text used to swallow the press), and a typed date and time
-# give that moment with the offset in force on that date.
+# The calendar: the arrow shows the next month, a day is clicked and the arrow keys move it, the wheel
+# turns the hour, and the date and time give that moment with the offset in force on that date.
 wait 5
 click 860 684
 wait 10
-click 538 263
+click 570 153
 wait 3
-key a cmd
-type 2026-11-05
+expect_visible "November 2026"
+click 458 219
 wait 3
-click 740 263
+key right
 wait 3
-key a cmd
-type 4pm
-wait 5
-click 473 317
+move 364 519
+scroll 0 120 wheel
+scroll 0 120 wheel
+scroll 0 120 wheel
+scroll 0 120 wheel
+wait 3
+click 700 197
+wait 3
+key enter
 wait 10
 expect_input "<t:1793894400:t>"

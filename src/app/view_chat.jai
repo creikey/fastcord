@@ -3094,7 +3094,7 @@ composer :: (ch: *dc.Channel, cs: *Chat_State) {
 			{ ui.parent(clk); defer ui.pop_parent();
 				csig := ui.signal(clk);
 				if csig.clicked timestamp_gen_open(ch.id);
-				if csig.hovering tooltip_below(L("Insert Timestamp"), clk.rect);
+				if csig.hovering tooltip_below(L("Insert Timestamp"), clk.rect, above = true); // below would sit off the window, only its shadow showing
 				spacer(.Y, (COMPOSER_H - 24) / 2);
 				icon("i", "clock", 24, ifx csig.hovering then T("--interactive-icon-hover") else T("--interactive-icon-default"));
 			}

@@ -1,12 +1,16 @@
-# The composer's clock button opens the timestamp generator: type a time, pick a style, and its
-# <t:> markup lands in the composer.
+# The composer's clock button opens the timestamp generator: set the time with the hour spinner,
+# pick a style, and Insert puts its <t:> markup in the composer.
 wait 5
 click 860 684
 wait 10
-key a cmd
-type 4pm
+click 364 484
+click 364 484
+click 364 484
+click 364 484
 wait 5
 expect_visible "in 4 hours"
-click 600 534
+click 700 437
+wait 3
+click 899 608
 wait 10
 expect_input "<t:1793030400:R>"
