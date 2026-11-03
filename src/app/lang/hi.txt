@@ -1671,6 +1671,7 @@ This invite may be expired, or you might not have permission to join.	यह इ
 This is the beginning of your direct message history with %.	यह % के साथ आपकी डायरेक्ट मैसेज हिस्ट्री की शुरुआत है।
 This is the channel we send system event messages to.	यह वह चैनल है जिसमें हम सिस्टम इवेंट मैसेज भेजते हैं।
 This is the start of the #% channel.	यह #% चैनल की शुरुआत है।
+This is the start of the % channel.	यह % चैनल की शुरुआत है।
 This is where Discord sends updates for moderators and admins of Community servers.	यहाँ Discord कम्युनिटी सर्वर के मॉडरेटर और एडमिन के लिए अपडेट भेजता है।
 This is where you'll show members your server rules or guidelines.	यहाँ आप सदस्यों को अपने सर्वर के नियम या दिशानिर्देश दिखाएँगे।
 This link is taking you to the following website	यह लिंक आपको इस वेबसाइट पर ले जा रहा है

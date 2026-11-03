@@ -1674,6 +1674,7 @@ This invite may be expired, or you might not have permission to join.	Lehet, hog
 This is the beginning of your direct message history with %.	Itt kezdődnek a közvetlen üzeneteid vele: %.
 This is the channel we send system event messages to.	Ebbe a csatornába küldjük a rendszereseményüzeneteket.
 This is the start of the #% channel.	Itt kezdődik a(z) #% csatorna.
+This is the start of the % channel.	Itt kezdődik a(z) % csatorna.
 This is where Discord sends updates for moderators and admins of Community servers.	Ide küldi a Discord a frissítéseket a közösségi szerverek moderátorainak és adminjainak.
 This is where you'll show members your server rules or guidelines.	Itt mutatod meg a tagoknak a szerver szabályait vagy irányelveit.
 This link is taking you to the following website	Ez a link a következő weboldalra visz

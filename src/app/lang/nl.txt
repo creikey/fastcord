@@ -1674,6 +1674,7 @@ This invite may be expired, or you might not have permission to join.	Deze uitno
 This is the beginning of your direct message history with %.	Dit is het begin van je privéberichtgeschiedenis met %.
 This is the channel we send system event messages to.	Naar dit kanaal sturen we systeemberichten.
 This is the start of the #% channel.	Dit is het begin van het kanaal #%.
+This is the start of the % channel.	Dit is het begin van het kanaal %.
 This is where Discord sends updates for moderators and admins of Community servers.	Hier stuurt Discord updates voor moderators en beheerders van communityservers.
 This is where you'll show members your server rules or guidelines.	Hier laat je leden je serverregels of richtlijnen zien.
 This link is taking you to the following website	Deze link brengt je naar de volgende website

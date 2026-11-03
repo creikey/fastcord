@@ -1674,6 +1674,7 @@ This invite may be expired, or you might not have permission to join.	Tato pozv�
 This is the beginning of your direct message history with %.	Tady začíná tvoje historie soukromých zpráv s uživatelem %.
 This is the channel we send system event messages to.	Do tohoto kanálu posíláme systémové zprávy o událostech.
 This is the start of the #% channel.	Tady začíná kanál #%.
+This is the start of the % channel.	Tady začíná kanál %.
 This is where Discord sends updates for moderators and admins of Community servers.	Sem Discord posílá novinky pro moderátory a správce komunitních serverů.
 This is where you'll show members your server rules or guidelines.	Tady členům ukážeš pravidla serveru.
 This link is taking you to the following website	Tento odkaz tě přesměruje na následující web

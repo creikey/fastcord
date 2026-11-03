@@ -1,0 +1,12 @@
+# A voice channel's empty text chat starts with the welcome header, its name without a "#" there and
+# in the composer.
+# The header's chat button (999 57) opens the chat beside the call view.
+wait 5
+open 1546820558950371411
+wait 10
+click 999 57
+wait 10
+expect_visible "Welcome to General!"
+expect_visible "This is the start of the General channel."
+expect_visible "Message General"
+shot

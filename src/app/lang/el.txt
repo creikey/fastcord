@@ -1674,6 +1674,7 @@ This invite may be expired, or you might not have permission to join.	Αυτή �
 This is the beginning of your direct message history with %.	Αυτή είναι η αρχή του ιστορικού άμεσων μηνυμάτων σου με τον χρήστη %.
 This is the channel we send system event messages to.	Σε αυτό το κανάλι στέλνουμε τα μηνύματα συμβάντων συστήματος.
 This is the start of the #% channel.	Αυτή είναι η αρχή του καναλιού #%.
+This is the start of the % channel.	Αυτή είναι η αρχή του καναλιού %.
 This is where Discord sends updates for moderators and admins of Community servers.	Εδώ στέλνει το Discord ενημερώσεις για επόπτες και διαχειριστές διακομιστών κοινότητας.
 This is where you'll show members your server rules or guidelines.	Εδώ θα δείχνεις στα μέλη τους κανόνες ή τις οδηγίες του διακομιστή σου.
 This link is taking you to the following website	Αυτός ο σύνδεσμος σε οδηγεί στον παρακάτω ιστότοπο

@@ -1674,6 +1674,7 @@ This invite may be expired, or you might not have permission to join.	Invitația
 This is the beginning of your direct message history with %.	Acesta e începutul istoricului mesajelor directe cu %.
 This is the channel we send system event messages to.	Acesta e canalul în care trimitem mesajele de sistem.
 This is the start of the #% channel.	Acesta e începutul canalului #%.
+This is the start of the % channel.	Acesta e începutul canalului %.
 This is where Discord sends updates for moderators and admins of Community servers.	Aici trimite Discord noutăți pentru moderatorii și administratorii serverelor de comunitate.
 This is where you'll show members your server rules or guidelines.	Aici le vei arăta membrilor regulile sau îndrumările serverului.
 This link is taking you to the following website	Acest link te duce la următorul site

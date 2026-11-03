@@ -1674,6 +1674,7 @@ This invite may be expired, or you might not have permission to join.	Тази �
 This is the beginning of your direct message history with %.	Това е началото на историята на личните ти съобщения с %.
 This is the channel we send system event messages to.	Това е каналът, в който пращаме системните съобщения за събития.
 This is the start of the #% channel.	Това е началото на канала #%.
+This is the start of the % channel.	Това е началото на канала %.
 This is where Discord sends updates for moderators and admins of Community servers.	Тук Discord изпраща новини за модераторите и администраторите на общностни сървъри.
 This is where you'll show members your server rules or guidelines.	Тук ще показваш на членовете правилата или насоките на сървъра.
 This link is taking you to the following website	Този линк те отвежда към следния сайт

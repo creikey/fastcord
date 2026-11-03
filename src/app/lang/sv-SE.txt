@@ -1674,6 +1674,7 @@ This invite may be expired, or you might not have permission to join.	Inbjudan k
 This is the beginning of your direct message history with %.	Det här är början på din direktmeddelandehistorik med %.
 This is the channel we send system event messages to.	Det här är kanalen vi skickar systemmeddelanden till.
 This is the start of the #% channel.	Det här är början på kanalen #%.
+This is the start of the % channel.	Det här är början på kanalen %.
 This is where Discord sends updates for moderators and admins of Community servers.	Hit skickar Discord uppdateringar till moderatorer och administratörer på communityservrar.
 This is where you'll show members your server rules or guidelines.	Här visar du medlemmarna serverns regler eller riktlinjer.
 This link is taking you to the following website	Länken tar dig till följande webbplats

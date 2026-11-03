@@ -1674,6 +1674,7 @@ This invite may be expired, or you might not have permission to join.	Denne invi
 This is the beginning of your direct message history with %.	Dette er starten på direktemeldingshistorikken din med %.
 This is the channel we send system event messages to.	Dette er kanalen vi sender systemmeldinger til.
 This is the start of the #% channel.	Dette er starten på kanalen #%.
+This is the start of the % channel.	Dette er starten på kanalen %.
 This is where Discord sends updates for moderators and admins of Community servers.	Det er her Discord sender oppdateringer til moderatorer og administratorer av fellesskapsservere.
 This is where you'll show members your server rules or guidelines.	Det er her du viser medlemmene serverreglene eller retningslinjene dine.
 This link is taking you to the following website	Denne lenken tar deg til følgende nettsted

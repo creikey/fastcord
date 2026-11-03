@@ -1674,6 +1674,7 @@ This invite may be expired, or you might not have permission to join.	Возмо
 This is the beginning of your direct message history with %.	Это начало вашей личной переписки с %.
 This is the channel we send system event messages to.	В этот канал отправляются системные сообщения о событиях.
 This is the start of the #% channel.	Это начало канала #%.
+This is the start of the % channel.	Это начало канала %.
 This is where Discord sends updates for moderators and admins of Community servers.	Сюда Discord отправляет новости для модераторов и администраторов серверов сообществ.
 This is where you'll show members your server rules or guidelines.	Здесь вы покажете участникам правила сервера.
 This link is taking you to the following website	Эта ссылка ведёт на следующий сайт

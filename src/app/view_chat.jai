@@ -1231,7 +1231,7 @@ message_list :: (channel_id: dc.Snowflake, cs: *Chat_State) {
 	BOTTOM_PAD :: 8 + TYPING_H; // the typing line overlays the list's bottom, as in the client
 	total: float32 = TOP_PAD + BOTTOM_PAD;
 	// the start of a 1:1 DM's history carries the welcome header (avatar, names, friend actions);
-	// a guild text channel's carries "Welcome to #channel!"
+	// a guild text channel's carries "Welcome to #channel!", a voice channel's chat "Welcome to channel!"
 	// What the network has given so far: the first page still loading shows
 	// placeholder messages, a failed page the client's "Messages Failed To Load"
 	// bar, older history still to come placeholders above the oldest message.
@@ -1251,7 +1251,7 @@ message_list :: (channel_id: dc.Snowflake, cs: *Chat_State) {
 			if welcome_ch.recipient_ids.count == 1 welcome_h = DMW_H;
 		case .Group_DM;
 			welcome_h = GDW_H;
-		case .Guild_Text; #through; case .Guild_Announcement;
+		case .Guild_Text; #through; case .Guild_Announcement; #through; case .Guild_Voice; #through; case .Guild_Stage_Voice;
 			welcome_h = channel_welcome_height(welcome_ch);
 		}
 		if welcome_h == 0 welcome_ch = null;
@@ -3000,6 +3000,7 @@ composer :: (ch: *dc.Channel, cs: *Chat_State) {
 			ui.signal(sc);
 			placeholder := ifx ch.kind == .DM then tprint(L("Message @%"), dm_name(ch)) else tprint(L("Message #%"), ch.name);
 			if ch.kind == .Group_DM placeholder = tprint(L("Message %"), dm_name(ch));
+			if ch.kind == .Guild_Voice || ch.kind == .Guild_Stage_Voice placeholder = tprint(L("Message %"), ch.name); // no "#", as in the client
 			if encrypting(ch) placeholder = tprint(L("Message @% (encrypted)"), dm_name(ch));
 			else if encrypted_dm(ch) && encrypted_channel(ch.id).has_session placeholder = tprint(L("Message @% (not encrypted)"), dm_name(ch));
 			// An edit whose message left this channel (switched away, deleted) would hold the composer forever.

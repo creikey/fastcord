@@ -1373,7 +1373,8 @@ group_dm_icon :: (id: string, ch: *dc.Channel, size: float32) -> *ui.Box {
 
 // Top of a guild text channel's history: a 68px circle with the channel icon,
 // "Welcome to #name!" and "This is the start of the #name channel." (+ the
-// topic), and "Edit Channel" for members who can manage channels.
+// topic), and "Edit Channel" for members who can manage channels. A voice or stage channel's chat
+// has a chat bubble and no "#", as in the client.
 CHW_ICON :: 68;
 PERM_MANAGE_CHANNELS :: (cast(u64)(1)) << 4;
 
@@ -1413,6 +1414,7 @@ channel_welcome_height :: (ch: *dc.Channel) -> float32 {
 }
 
 channel_welcome :: (ch: *dc.Channel) {
+	voice := ch.kind == .Guild_Voice || ch.kind == .Guild_Stage_Voice;
 	w := ui.box("chwelcome");
 	w.semantic_size = .[ui.pct(1), ui.px(channel_welcome_height(ch))];
 	w.layout_axis = .Y;
@@ -1427,7 +1429,7 @@ channel_welcome :: (ch: *dc.Channel) {
 			c.style.radius = all4(CHW_ICON / 2);
 			c.style.bg = T("--background-mod-normal");
 			{ ui.parent(c); defer ui.pop_parent();
-				ic := icon("i", channel_icon_name(ch), 42, T("--text-strong"));
+				ic := icon("i", ifx voice then "chat" else channel_icon_name(ch), 42, T("--text-strong"));
 				ic.flags |= .Floating_X | .Floating_Y;
 				ic.fixed_pos = .{(CHW_ICON - 42) / 2, (CHW_ICON - 42) / 2};
 			}
@@ -1437,14 +1439,14 @@ channel_welcome :: (ch: *dc.Channel) {
 		h.semantic_size = .[ui.pct(1), ui.px(40)];
 		{ ui.parent(h); defer ui.pop_parent();
 			spacer(.X, 16);
-			label(tprint(L("Welcome to #%!"), ch.name), .Bold, 32, T("--text-strong"), 40);
+			label(tprint(ifx voice then L("Welcome to %!") else L("Welcome to #%!"), ch.name), .Bold, 32, T("--text-strong"), 40);
 		}
 		spacer(.Y, 8);
 		t := row("t");
 		t.semantic_size = .[ui.pct(1), ui.px(20)];
 		{ ui.parent(t); defer ui.pop_parent();
 			spacer(.X, 16);
-			label(tprint(L("This is the start of the #% channel."), ch.name), .Normal, 16, T("--text-muted"), 20);
+			label(tprint(ifx voice then L("This is the start of the % channel.") else L("This is the start of the #% channel."), ch.name), .Normal, 16, T("--text-muted"), 20);
 		}
 		if (my_guild_permissions(ch.guild_id) & PERM_MANAGE_CHANNELS) != 0 {
 			spacer(.Y, 8);

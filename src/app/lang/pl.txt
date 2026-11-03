@@ -1674,6 +1674,7 @@ This invite may be expired, or you might not have permission to join.	To zaprosz
 This is the beginning of your direct message history with %.	To początek historii twoich wiadomości prywatnych z użytkownikiem %.
 This is the channel we send system event messages to.	Na ten kanał wysyłamy wiadomości o zdarzeniach systemowych.
 This is the start of the #% channel.	To początek kanału #%.
+This is the start of the % channel.	To początek kanału %.
 This is where Discord sends updates for moderators and admins of Community servers.	Tutaj Discord wysyła aktualizacje dla moderatorów i administratorów serwerów społeczności.
 This is where you'll show members your server rules or guidelines.	Tutaj pokażesz członkom zasady lub wytyczne serwera.
 This link is taking you to the following website	Ten link prowadzi do następującej strony

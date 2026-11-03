@@ -1674,6 +1674,7 @@ This invite may be expired, or you might not have permission to join.	Bu davetin
 This is the beginning of your direct message history with %.	% ile direkt mesaj geçmişinin başlangıcı.
 This is the channel we send system event messages to.	Sistem etkinliği mesajlarını gönderdiğimiz kanal budur.
 This is the start of the #% channel.	#% kanalının başlangıcı.
+This is the start of the % channel.	% kanalının başlangıcı.
 This is where Discord sends updates for moderators and admins of Community servers.	Discord, Topluluk sunucularının moderatörleri ve yöneticileri için güncellemeleri buraya gönderir.
 This is where you'll show members your server rules or guidelines.	Üyelere sunucu kurallarını veya yönergelerini burada göstereceksin.
 This link is taking you to the following website	Bu bağlantı seni şu web sitesine götürüyor

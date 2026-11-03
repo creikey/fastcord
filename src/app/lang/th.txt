@@ -1674,6 +1674,7 @@ This invite may be expired, or you might not have permission to join.	คำเ�
 This is the beginning of your direct message history with %.	นี่คือจุดเริ่มต้นของประวัติข้อความส่วนตัวระหว่างคุณกับ %
 This is the channel we send system event messages to.	นี่คือช่องที่เราส่งข้อความเหตุการณ์ของระบบไป
 This is the start of the #% channel.	นี่คือจุดเริ่มต้นของช่อง #%
+This is the start of the % channel.	นี่คือจุดเริ่มต้นของช่อง %
 This is where Discord sends updates for moderators and admins of Community servers.	นี่คือที่ที่ Discord ส่งอัปเดตสำหรับผู้ดูแลและแอดมินของเซิร์ฟเวอร์ชุมชน
 This is where you'll show members your server rules or guidelines.	นี่คือที่ที่คุณจะแสดงกฎหรือแนวทางของเซิร์ฟเวอร์ให้สมาชิกเห็น
 This link is taking you to the following website	ลิงก์นี้จะพาคุณไปยังเว็บไซต์ต่อไปนี้

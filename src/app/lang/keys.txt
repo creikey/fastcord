@@ -1233,8 +1233,10 @@ Never
 Nevermind##nsfwno
 New Category
 New Group DM
+New Mentions
 New Post
 New Thread
+New Unreads
 New Webhook##new
 New members must read and agree to these before they can talk.
 New members pick channels and roles from your questions when they join.
@@ -1837,6 +1839,7 @@ This invite may be expired, or you might not have permission to join.
 This is the beginning of your direct message history with %.
 This is the channel we send system event messages to.
 This is the start of the #% channel.
+This is the start of the % channel.
 This is where Discord sends updates for moderators and admins of Community servers.
 This is where you'll show members your server rules or guidelines.
 This link is taking you to the following website

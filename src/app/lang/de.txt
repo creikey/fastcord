@@ -1674,6 +1674,7 @@ This invite may be expired, or you might not have permission to join.	Diese Einl
 This is the beginning of your direct message history with %.	Das ist der Anfang deines Direktnachrichtenverlaufs mit %.
 This is the channel we send system event messages to.	An diesen Kanal senden wir Systemnachrichten.
 This is the start of the #% channel.	Das ist der Anfang des Kanals #%.
+This is the start of the % channel.	Das ist der Anfang des Kanals %.
 This is where Discord sends updates for moderators and admins of Community servers.	Hierhin sendet Discord Neuigkeiten für Moderatoren und Admins von Community-Servern.
 This is where you'll show members your server rules or guidelines.	Hier zeigst du Mitgliedern deine Serverregeln oder Richtlinien.
 This link is taking you to the following website	Dieser Link führt dich zu folgender Website

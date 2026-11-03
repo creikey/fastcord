@@ -1674,6 +1674,7 @@ This invite may be expired, or you might not have permission to join.	Lời mờ
 This is the beginning of your direct message history with %.	Đây là khởi đầu lịch sử tin nhắn trực tiếp của bạn với %.
 This is the channel we send system event messages to.	Đây là kênh chúng tôi gửi tin nhắn sự kiện hệ thống đến.
 This is the start of the #% channel.	Đây là khởi đầu của kênh #%.
+This is the start of the % channel.	Đây là khởi đầu của kênh %.
 This is where Discord sends updates for moderators and admins of Community servers.	Đây là nơi Discord gửi cập nhật cho người kiểm duyệt và quản trị viên của máy chủ cộng đồng.
 This is where you'll show members your server rules or guidelines.	Đây là nơi bạn trình bày nội quy hoặc hướng dẫn máy chủ cho thành viên.
 This link is taking you to the following website	Liên kết này sẽ đưa bạn đến trang web sau
