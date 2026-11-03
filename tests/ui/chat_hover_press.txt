@@ -1,0 +1,7 @@
+# Pressing on a message keeps its hover background and hover bar (#34): the final PNG is taken
+# with the button still down. Window 1280x720 @1x, chat fixture.
+wait 5
+move 480 475
+wait 0.2
+down 480 475
+wait 0.3

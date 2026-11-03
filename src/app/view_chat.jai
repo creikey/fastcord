@@ -1616,7 +1616,6 @@ message_row :: (m: *dc.Message, grouped: bool, new_day: bool, show_new: bool) ->
 		mp := app.ui.mouse;
 		over_tb := tb.msg != 0 && mp.x >= tb.rect.x0 && mp.x < tb.rect.x1 && mp.y >= tb.rect.y0 && mp.y < tb.rect.y1;
 		hovered := ifx over_tb then tb.msg == m.id else ui.mouse_over(li);
-		hovered = hovered && !app.ui.selection.dragging;
 		if hovered app.chat_hover = m.id;
 		if (hovered || ma.menu_msg == m.id) && !editing li.style.bg = T("--message-background-hover");
 		highlighted := ma.replying == m.id || jump_highlighted(m.id);
