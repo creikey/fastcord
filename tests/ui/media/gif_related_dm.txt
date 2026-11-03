@@ -1,0 +1,26 @@
+# Run with FASTCORD_MEDIA_DIR=tests/ui/media on gif_related_dm.jsonl (gif_related.jsonl plus a DM).
+# For This Chat reads an encrypted DM's opened text, not its packet: with the "wave" GIF starred, a DM
+# whose newest message opens as "wave hello" gets the tile.
+wait 20
+click 898 683
+wait 20
+click 612 338
+wait 20
+move 600 330
+wait 5
+click 709 289
+wait 5
+click 516 238
+wait 5
+click 898 683
+wait 5
+open 1800000000000000001
+wait 10
+encrypted
+incoming fc-AwMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+opened wave hello
+wait 10
+click 843 683
+wait 20
+expect_visible "For This Chat"
+shot build/ui-media_gif_related_dm.png

@@ -499,8 +499,10 @@ gif_related_update :: () {
 		weight := 1 / (1 + 0.15 * cast(float32) n);
 		n += 1;
 		for e: it.embeds if e.kind == "gifv" table_set(*seen, e.url, true);
+		text := ifx is_bottle(it.content) then "" else it.content;
+		if encrypted_packet(it.channel_id, text) { sh := opened_shown(it.id); text = ifx sh then sh.text else ""; } // its words once opened
 		words.count = 0;
-		gif_words(*words, it.content);
+		gif_words(*words, text);
 		for words if !table_find_pointer(*context_words, it) table_set(*context_words, it, weight);
 	}
 	if !context_words.count return;

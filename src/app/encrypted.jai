@@ -503,9 +503,15 @@ encrypted_edit :: (channel_id: dc.Snowflake, id: dc.Snowflake, text: string, del
 shown_text :: (id: dc.Snowflake, channel_id: dc.Snowflake, content: string) -> string {
 	if is_bottle(content) return shown_bottle(id);
 	if !encrypted_packet(channel_id, content) return content;
-	sh := table_find_pointer(*ee.shown, id);
-	if sh && !sh.pending && sh.result == .Ok && is_text(sh.content) return ifx sh.text || !sh.files then sh.text else L("Sent a file");
+	sh := opened_shown(id);
+	if sh return ifx sh.text || !sh.files then sh.text else L("Sent a file");
 	return L("Encrypted message");
+}
+
+// opened_shown: an encrypted message once it has opened as a message (text, files), else null.
+opened_shown :: (id: dc.Snowflake) -> *Shown {
+	sh := table_find_pointer(*ee.shown, id);
+	return ifx sh && !sh.pending && sh.result == .Ok && is_text(sh.content) then sh else null;
 }
 
 // encrypted_dm: a DM that can be encrypted: a 1:1 DM, or a group DM (E2E 8, on Discord).

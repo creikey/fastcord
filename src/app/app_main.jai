@@ -813,6 +813,13 @@ script_command :: (path: string, f: []string, t: *float64, depth := 0) {
 		e := find_or_add(*ee.channels, app.view.channel);
 		e.loaded, e.encrypted, e.has_session = true, true, true;
 		return;
+	case "opened";
+		// opened <text>: the open DM's newest message opened as an encrypted message saying <text>
+		msgs := dc.messages_get(store(), app.view.channel);
+		if !msgs return;
+		sh := find_or_add(*ee.shown, msgs[msgs.count - 1].id);
+		sh.result, sh.content, sh.text = e2e.Result.Ok, e2e.Content.Text, copy_string(join_args(f));
+		return;
 	case "pick";
 		// pick gif <url> | pick sticker <id>: choose one in the open picker, as a click on it does
 		if f[1] == "gif" gif_select(.{id = "1", url = f[2]}, false);
