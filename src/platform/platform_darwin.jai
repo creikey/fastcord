@@ -35,6 +35,14 @@ system_a11y :: () -> System_A11y {
     return a;
 }
 
+// A file panel's modal loop. The app's frame that opened it is still on the stack, so vsync ticks wait
+// for it to return instead of rendering from inside it (on_tick).
+run_modal :: (panel: Id) -> NSInteger {
+    m.in_dialog = true;
+    defer m.in_dialog = false;
+    return msg(NSInteger, panel, "runModal");
+}
+
 // Modal "save file" panel offering name (NSSavePanel asks before replacing). The path, or "" if cancelled.
 save_file_dialog :: (name: string, allocator := context.allocator) -> string {
     if s.headless return copy_string(name,, allocator);
@@ -42,7 +50,7 @@ save_file_dialog :: (name: string, allocator := context.allocator) -> string {
     msg(Void, panel, "setNameFieldStringValue:", nsstr(name));
     dl := msg(Id, cls("NSURL"), "fileURLWithPath:", nsstr(tprint("%/Downloads", to_string(posix.getenv("HOME")))));
     msg(Void, panel, "setDirectoryURL:", dl);
-    if msg(NSInteger, panel, "runModal") != 1 return ""; // NSModalResponseOK
+    if run_modal(panel) != 1 return ""; // NSModalResponseOK
     return to_jai_string(msg(Id, msg(Id, panel, "URL"), "path"), allocator);
 }
 
@@ -103,7 +111,7 @@ open_file_dialog :: (allow_multiple := true, allocator := context.allocator) -> 
     msg(Void, panel, "setCanChooseFiles:", true);
     msg(Void, panel, "setCanChooseDirectories:", false);
     msg(Void, panel, "setAllowsMultipleSelection:", allow_multiple);
-    if msg(NSInteger, panel, "runModal") != 1 return .[]; // NSModalResponseOK
+    if run_modal(panel) != 1 return .[]; // NSModalResponseOK
     urls := msg(Id, panel, "URLs");
     out := NewArray(cast(int) msg(NSUInteger, urls, "count"), string,, allocator);
     for * out {
@@ -518,6 +526,7 @@ m: struct {
     link_paused: bool;
     tick_pending: bool;
     in_next_event: bool;        // inside nextEventMatchingMask (not inside a nested modal loop)
+    in_dialog: bool;            // inside a file panel's runModal, which the app's frame called
     wake_posted: bool;          // atomic
     marked: string;             // IME marked text (heap)
     cursor_hidden: bool;
@@ -619,7 +628,7 @@ on_tick :: () {
         set_link_paused(true);
         return;
     }
-    if m.in_next_event {
+    if m.in_next_event || m.in_dialog {
         m.tick_pending = true;
         return;
     }
