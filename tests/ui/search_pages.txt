@@ -1,0 +1,23 @@
+# Search results page through with Back, page numbers and Next at the bottom, like the client.
+wait 5
+click 1150 57
+wait 3
+type hello
+key enter
+wait 5
+feature_reply Search 1 200 {"total_results":260,"messages":[[{"id":"1565000000000000101","channel_id":"1546820603343016006","author":{"id":"1546819257420087346","username":"someone"},"content":"hello from page one","timestamp":"2026-10-01T12:00:00+00:00","type":0}]]}
+wait 5
+expect_visible "260 Results"
+expect_visible "Next"
+click_text "3"
+wait 5
+feature_reply Search 2 200 {"total_results":260,"messages":[[{"id":"1565000000000000102","channel_id":"1546820603343016006","author":{"id":"1546819257420087346","username":"someone"},"content":"hello from page three","timestamp":"2026-09-01T12:00:00+00:00","type":0}]]}
+wait 5
+expect_visible "hello from page three"
+never_visible 1 "hello from page one"
+shot build/ui-search_pages.png
+click_text "Back"
+wait 5
+feature_reply Search 3 200 {"total_results":260,"messages":[[{"id":"1565000000000000103","channel_id":"1546820603343016006","author":{"id":"1546819257420087346","username":"someone"},"content":"hello from page two","timestamp":"2026-09-15T12:00:00+00:00","type":0}]]}
+wait 5
+expect_visible "hello from page two"

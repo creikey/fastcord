@@ -20,11 +20,13 @@ Search_State :: struct {
 	query: string;
 	terms: [..]string; // lowercase content words for highlighting
 	total: int;
+	decrypted: int; // of total, the encrypted DM's own matches (first page only, so not paged)
 	results: [..]Result;
 	pool: Flat_Pool; // results, terms, query and the request's lists
 	seq: u64;
 	box_rect: ui.Rect;
 	offset: int;
+	to_top: bool; // a new page scrolls the results back up
 	sq: dc.Search_Query;
 	sort: dc.Search_Sort; // the results' sort, kept for later searches this session
 }
@@ -375,11 +377,8 @@ search_panel :: () {
 				b.hover_cursor = .Pointer;
 				if bs.clicked && !sel {
 					search.sort = cast(dc.Search_Sort) k;
-					search.sq.sort, search.sq.offset, search.offset = search.sort, 0, 0;
-					search.seq += 1;
-					search.loading = app.client != null;
-					ch := dc.channel_get(s, app.view.channel);
-					if app.client != null && ch dc.search_messages(app.client, ch.guild_id, ch.id, search.sq, search.seq);
+					search.sq.sort = search.sort;
+					search_page(0);
 				}
 			}
 			spacer(.X, 8);
@@ -393,6 +392,7 @@ search_panel :: () {
 		list.semantic_size = .[ui.pct(1), ui.fill()];
 		list.layout_axis = .Y;
 		ui.signal(list);
+		if search.to_top { list.view_off, list.view_off_target, search.to_top = .{}, .{}, false; }
 		{ ui.parent(list); defer ui.pop_parent();
 			if !search.loading && search.results.count == 0 {
 				r := row("none");
@@ -426,6 +426,7 @@ search_panel :: () {
 					}
 				}
 			}
+			search_pager();
 			spacer(.Y, 8);
 		}
 	}
@@ -443,6 +444,73 @@ search_state_for_test :: () -> string {return tprint("% % % %", search.active, s
 #scope_file
 
 sugg_rect: ui.Rect;
+
+SEARCH_PAGE :: 25;
+SEARCH_MAX_OFFSET :: 5000; // Discord answers no deeper page
+
+// search_page asks for the page of the current search starting at offset.
+search_page :: (offset: int) {
+	ch := dc.channel_get(store(), app.view.channel);
+	if ch == null return;
+	array_reset(*search.results);
+	search.sq.offset, search.offset, search.total, search.decrypted, search.to_top = offset, offset, 0, 0, true;
+	search.seq += 1;
+	search.loading = app.client != null;
+	if app.client != null dc.search_messages(app.client, ch.guild_id, ch.id, search.sq, search.seq);
+}
+
+// search_pager: the client's Back / page numbers / Next under the results: the first and last page, the
+// current page's two neighbours each side, and "..." for each gap.
+search_pager :: () {
+	pages := min((search.total - search.decrypted + SEARCH_PAGE - 1) / SEARCH_PAGE, SEARCH_MAX_OFFSET / SEARCH_PAGE + 1);
+	if pages <= 1 return;
+	cur := search.offset / SEARCH_PAGE + 1;
+	spacer(.Y, 8);
+	r := row("pager");
+	r.semantic_size = .[ui.pct(1), ui.px(32)];
+	r.style.child_gap = 4;
+	ui.parent(r); defer ui.pop_parent();
+	filler(.X);
+	step :: (key: string, text: string, ic: string, enabled: bool, left: bool) -> bool {
+		b := row(key, .Clickable | .Draw_Background | .Hot_Animation);
+		b.semantic_size = .[ui.children(), ui.px(32)];
+		b.style.radius = all4(4);
+		b.style.bg_hot = ifx enabled then T("--background-mod-subtle") else ui.Color.{};
+		if enabled b.hover_cursor = .Pointer;
+		color := ifx enabled then T("--interactive-text-default") else with_alpha(T("--interactive-text-default"), 0.4);
+		clicked := ui.signal(b).clicked && enabled;
+		ui.parent(b); defer ui.pop_parent();
+		spacer(.X, 6);
+		if left icon("ic", ic, 16, color);
+		label(text, .Medium, 14, color, 18);
+		if !left icon("ic", ic, 16, color);
+		spacer(.X, 6);
+		return clicked;
+	}
+	go := 0;
+	if step("back", L("Back"), "chevron-small-left", cur > 1, true) go = cur - 1;
+	shown := 0;
+	for p: 1..pages {
+		if p != 1 && p != pages && abs(p - cur) > 2 continue;
+		if p > shown + 1 label(tprint("...##gap%", p), .Medium, 14, T("--text-muted"), 18);
+		shown = p;
+		sel := p == cur;
+		b := ui.box(tprint("%##page%", p, p), .Clickable | .Draw_Background | .Draw_Text | .Hot_Animation);
+		b.semantic_size = .[ui.text_size(ifx p < 10 then 12.0 else 6.0), ui.px(32)];
+		b.style.radius = all4(4);
+		b.style.font = F(.Medium);
+		b.style.font_size = 14;
+		b.style.text_align = .Center;
+		b.style.bg = ifx sel then T("--background-brand") else ui.Color.{};
+		b.style.bg_hot = ifx sel then b.style.bg else T("--background-mod-subtle");
+		b.style.text_color = ifx sel then ui.Color.{1, 1, 1, 1} else T("--interactive-text-default");
+		b.hover_cursor = .Pointer;
+		if ui.signal(b).clicked && !sel go = p;
+	}
+	if step("next", L("Next"), "chevron-small-right", cur < pages, false) go = cur + 1;
+	filler(.X);
+	if go search_page((go - 1) * SEARCH_PAGE);
+}
 
 in_suggestions :: (p: ui.Vec2) -> bool {return rect_has(sugg_rect, p);}
 
@@ -464,8 +532,7 @@ search_run :: (ch: *dc.Channel, text: string) {
 	search.query = copy_string(text,, a);
 	search.active = true;
 	search.focused = false;
-	search.total = 0;
-	search.offset = 0;
+	search.total, search.decrypted, search.offset = 0, 0, 0;
 	search.scope = ifx ch.guild_id != 0 then ch.guild_id else ch.id;
 	authors, mentions, chans: [..]dc.Snowflake;
 	has, content: [..]string;
@@ -563,6 +630,7 @@ search_add_decrypted :: (r: *e2e.Request) {
 		array_add(*search.results, .{msg = m});
 	}
 	search.total += r.hits.count;
+	search.decrypted += r.hits.count;
 	sort_results();
 	app.ui.animating = true;
 }
