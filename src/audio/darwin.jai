@@ -142,14 +142,15 @@ device_capture_stop :: () {
 	if mac.in_unit close_input_unit();
 }
 
-// device_rate_changed (update(), device_mu held): the input's rate changed, or the devices did. A chosen
-// device that went away (unplugged) falls back to the system default, as the official client does.
+// device_rate_changed (update(), device_mu held): the input's rate changed, or the devices or defaults did.
+// A chosen device that went away (unplugged) falls back to the system default, as the official client
+// does. AUHAL stays on the device it opened, so following the default means reopening when it moves.
 device_rate_changed :: () {
 	gone := false;
 	if sel_input && !dev_prop_u32(sel_input, "livn", "glob") { sel_input = 0; gone = true; }
 	if sel_output && !dev_prop_u32(sel_output, "livn", "glob") { sel_output = 0; gone = true; }
 	if gone apply_selection_locked();
-	else if mac.in_unit && device_rate(mac.rate_dev) != mac.in_rate reopen_input();
+	else if mac.in_unit && (device_rate(mac.rate_dev) != mac.in_rate || (!sel_input && default_device(true) != mac.rate_dev)) reopen_input();
 }
 
 #scope_file
