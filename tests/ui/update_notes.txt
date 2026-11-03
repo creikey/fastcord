@@ -1,4 +1,5 @@
-# The Update pill (fake_update) shows the release's notes on hover.
+# The Update pill (fake_update) shows the release's notes on hover, and their text can be selected and
+# copied (#39).
 fake_update v9.9.9
 wait 3
 expect_not_visible "Replies show the message they answer"
@@ -6,4 +7,11 @@ move_text "Update v9.9.9"
 wait 3
 expect_visible "Chat"
 expect_visible "• Replies show the message they answer"
+down 783 53
+move 900 70
+move 1100 73
+up 1100 73
+key c cmd
+expect_selection "Chat\n• Replies show the message they answer"
+expect_clipboard "Chat\n• Replies show the message they answer"
 shot build/ui-update_notes.png

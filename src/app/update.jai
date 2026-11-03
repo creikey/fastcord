@@ -189,8 +189,9 @@ update_menu :: () {
 #scope_file
 
 // The release body under the pill: "## Area" headings and "- change" lines (the compare link left out),
-// scrolling once taller than the window allows. Returns whether the mouse is over it, the gap above
-// included, so it stays open while the mouse moves down from the pill to scroll.
+// scrolling once taller than the window allows, its text selectable. Returns whether the mouse is over
+// it, the gap above included, so it stays open while the mouse moves down from the pill to scroll, or
+// while a selection is dragged out of it.
 update_notes :: (notes: string, r: ui.Rect) -> bool {
 	W :: 360;
 	GAP :: 8;
@@ -199,7 +200,7 @@ update_notes :: (notes: string, r: ui.Rect) -> bool {
 	p := ui.top_parent();
 	hover.fixed_pos = .{clamp(r.x1 - W, 8, app.ui.window.x - W - 8) - p.rect.x0, r.y1 - p.rect.y0};
 	hover.layout_axis = .Y;
-	over := ui.mouse_over(hover);
+	over := ui.mouse_over(hover) || app.ui.selection.dragging;
 	ui.parent(hover); defer ui.pop_parent();
 	spacer(.Y, GAP);
 	card := ui.box("update_notes", .Draw_Background | .Draw_Border | .Draw_Shadow | .Scroll_Y | .Clip);
@@ -226,7 +227,7 @@ update_notes :: (notes: string, r: ui.Rect) -> bool {
 		rw.semantic_size = .[ui.pct(1), ui.children()];
 		{ ui.parent(rw); defer ui.pop_parent();
 			spacer(.X, 12);
-			t := ui.box(tprint("%##t", text), .Draw_Text | .Wrap_Text);
+			t := ui.box(tprint("%##t", text), .Draw_Text | .Selectable_Text | .Wrap_Text);
 			t.semantic_size = .[ui.fill(), ui.text_size()];
 			t.style.font = F(ifx heading then .Semibold else .Normal);
 			t.style.font_size = 14;

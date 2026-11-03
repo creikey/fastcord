@@ -1214,8 +1214,11 @@ message_list :: (channel_id: dc.Snowflake, cs: *Chat_State) {
 		}
 	}
 
-	// dragging a text selection past the list edges scrolls, faster the further out
-	if app.ui.selection.dragging && list.rect.y1 > list.rect.y0 {
+	// dragging a text selection past the list edges scrolls, faster the further out; not one begun in a
+	// popup over the chat, such as the Update pill's notes (a box last seen earlier has stale parents)
+	anchor := ui.box_lookup(app.ui.selection.anchor.box);
+	in_popup := anchor && anchor.last_frame_touched + 1 >= app.ui.frame && ui.in_overlay(anchor);
+	if app.ui.selection.dragging && !in_popup && list.rect.y1 > list.rect.y0 {
 		my := app.ui.mouse.y;
 		if my < list.rect.y0 + 24 {
 			cs.scroll_target += ((list.rect.y0 + 24 - my) * 0.5 + 2) * app.ui.dt * 60;
