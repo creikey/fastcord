@@ -676,8 +676,10 @@ video_volume_set :: (v: float32, muted: bool) {
 	}
 }
 
-// The fullscreen player: the window black, the video fit to it; Escape or its button leaves.
+// The fullscreen player: the window black, the video fit to it; Escape (media_overlays) or its button
+// leaves. Drawn last of the overlays, so it covers the popouts its video can come from (pins, inbox, search).
 video_fullscreen :: () {
+	if !fullscreen_video return;
 	ip := table_find_pointer(*players, fullscreen_video);
 	if !ip {
 		fullscreen_video = 0;
@@ -694,7 +696,6 @@ video_fullscreen :: () {
 		v.flags |= .Floating_X | .Floating_Y;
 		v.fixed_pos = .{(app.ui.window.x - w) / 2, (app.ui.window.y - h) / 2};
 	}
-	for * app.ui.events if it.kind == .Key_Down && it.key == .Escape { fullscreen_video = 0; it.consumed = true; }
 }
 
 ensure_audio :: () {
@@ -1267,7 +1268,8 @@ media_overlays :: () {
 	} else if video_os_full && !platform.is_fullscreen() && app.ui.time - video_os_full_t > 2 {
 		fullscreen_video, video_os_full = 0, false; // the user left the OS's fullscreen (macOS animates in first)
 	}
-	if fullscreen_video video_fullscreen();
+	// Escape here, before the popouts under the video take it; video_fullscreen draws it at the end
+	if fullscreen_video for * app.ui.events if it.kind == .Key_Down && it.key == .Escape { fullscreen_video = 0; it.consumed = true; }
 	if viewer_url != "" image_viewer();
 	if mm.open media_menu();
 }

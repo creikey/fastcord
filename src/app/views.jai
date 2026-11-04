@@ -1812,6 +1812,7 @@ overlays :: () {
 	leaving_modal(); // view_chat.jai: a masked link to an untrusted host
 	undo_toast(); // undo.jai: a held destructive action
 	req_toast(); // requests.jai: a failed request, on top
+	video_fullscreen(); // view_media.jai: a fullscreen video covers everything, its popout too
 	// Escape that no layer took (the composer hands it on): the keybind is global, so it acts on the
 	// open channel wherever the focus is
 	ch := dc.channel_get(store(), app.view.channel);

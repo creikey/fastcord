@@ -1,0 +1,17 @@
+# A video played fullscreen from the Pinned Messages popout covers the popout (issue #46).
+# The fixture (video_pinned_fullscreen.jsonl) is video_attachment.jsonl.
+wait 20
+click 960 57
+wait 3
+feature_reply Pins 0 200 {"has_more":false,"items":[{"pinned_at":"2026-10-26T00:40:00+00:00","message":{"id":"1564180112998400001","channel_id":"1546820603343016006","author":{"id":"1546819257420087346","username":"dingus","global_name":"Dingus Battle","avatar":null,"discriminator":"0"},"content":"a pinned clip","timestamp":"2026-10-26T00:33:00+00:00","edited_timestamp":null,"type":0,"attachments":[{"id":"1564180112998400002","filename":"clip.mp4","size":6253,"content_type":"video/mp4","width":320,"height":180,"duration_secs":2.0,"url":"https://cdn.discordapp.com/attachments/1546820603343016006/1564180112998400002/clip.mp4?ex=6ae09da0&is=6adf4c20&hm=00&","proxy_url":"https://media.discordapp.net/attachments/1546820603343016006/1564180112998400002/clip.mp4?ex=6ae09da0&is=6adf4c20&hm=00&"}],"embeds":[],"mentions":[],"mention_everyone":false,"flags":0,"tts":false,"pinned":true}}]}
+wait 5
+expect_visible "a pinned clip"
+shot build/ui-video_pinned_fullscreen-0.png
+click 929 346
+wait 5
+shot build/ui-video_pinned_fullscreen-1.png
+# Escape leaves the fullscreen video first; the popout stays open under it
+key escape
+wait 3
+expect_visible "a pinned clip"
+shot build/ui-video_pinned_fullscreen-2.png
