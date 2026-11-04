@@ -358,9 +358,9 @@ mentions_convert :: (text: string, ch: *dc.Channel) -> string {
 	return builder_to_string(*b,, temp);
 }
 
-// The inverse for the edit box: <@id>, <@&id> and <:name:id> as "@username", "@Role" and
-// ":name:", outside code (temp). Each stays raw unless mentions_convert or
-// emoji_convert_shortcodes would turn it back into the same markup, so a save never changes it.
+// The inverse for the edit box: <#id>, <@id> and <@&id> as "#channel", "@username" and "@Role",
+// outside code (temp). Each stays raw unless mentions_convert would turn it back into the same
+// markup, so a save never changes it. Custom emoji stay as markup, drawn as the emoji.
 mentions_readable :: (text: string, ch: *dc.Channel) -> string {
 	if find_index_from_left(text, #char "<") < 0 return text;
 	b: String_Builder;
@@ -398,10 +398,6 @@ mentions_readable :: (text: string, ch: *dc.Channel) -> string {
 				u := ifx ok then dc.user_get(store(), id);
 				if u readable = tprint("@%", u.username);
 				if !at_word_start || mentions_convert(readable, ch) != tprint("<@%>", id) readable = "";
-			} else if begins_with(inner, ":") || begins_with(inner, "a:") {
-				parts := split(inner, ":",, temp);
-				if parts.count == 3 readable = tprint(":%:", parts[1]);
-				if emoji_convert_shortcodes(readable, ch.id) != token readable = "";
 			}
 			if readable {
 				append(*b, readable);

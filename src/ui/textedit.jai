@@ -113,15 +113,15 @@ editor_event :: (e: *Editor, ev: Input_Event, tl: *Text_Layout, clip_get: () -> 
 	if ev.key == {
 		case .Left;
 			if cmd                           move(e, line_start_of(tl, s, e.caret), shift);
-			else if alt                      move(e, prev_word(s, e.caret), shift);
+			else if alt                      move(e, past_object(tl, s, prev_word(s, e.caret), e.caret), shift);
 			else if editor_has_sel(e) && !shift move(e, a, false);
-			else                             move(e, prev_grapheme(s, e.caret), shift);
+			else                             move(e, past_object(tl, s, prev_grapheme(s, e.caret), e.caret), shift);
 			return .Moved;
 		case .Right;
 			if cmd                           move(e, line_end_of(tl, s, e.caret), shift);
-			else if alt                      move(e, next_word(s, e.caret), shift);
+			else if alt                      move(e, past_object(tl, s, next_word(s, e.caret), e.caret), shift);
 			else if editor_has_sel(e) && !shift move(e, b, false);
-			else                             move(e, next_grapheme(s, e.caret), shift);
+			else                             move(e, past_object(tl, s, next_grapheme(s, e.caret), e.caret), shift);
 			return .Moved;
 		case .Up;
 			if cmd move(e, 0, shift); else move(e, vertical(e, tl, -1), shift, true);
@@ -141,14 +141,14 @@ editor_event :: (e: *Editor, ev: Input_Event, tl: *Text_Layout, clip_get: () -> 
 			// of a cluster only for some scripts).
 			if editor_has_sel(e) delete_to(e, e.caret);
 			else if cmd          delete_to(e, line_start_of(tl, s, e.caret));
-			else if alt          delete_to(e, prev_word(s, e.caret));
-			else                 delete_to(e, prev_grapheme(s, e.caret));
+			else if alt          delete_to(e, past_object(tl, s, prev_word(s, e.caret), e.caret));
+			else                 delete_to(e, past_object(tl, s, prev_grapheme(s, e.caret), e.caret));
 			return .Changed;
 		case .Delete;
 			if editor_has_sel(e) delete_to(e, e.caret);
 			else if cmd          delete_to(e, line_end_of(tl, s, e.caret));
-			else if alt          delete_to(e, next_word(s, e.caret));
-			else                 delete_to(e, next_grapheme(s, e.caret));
+			else if alt          delete_to(e, past_object(tl, s, next_word(s, e.caret), e.caret));
+			else                 delete_to(e, past_object(tl, s, next_grapheme(s, e.caret), e.caret));
 			return .Changed;
 		case .Enter;
 			if !shift || !multiline return .Submit;
@@ -321,6 +321,16 @@ vertical :: (e: *Editor, tl: *Text_Layout, dir: int) -> int {
 	if nl < 0 return 0;
 	if nl >= tl.lines.count return s.count;
 	return hit_test_line(tl, nl, e.pref_x);
+}
+
+// An inline object (a custom emoji drawn over its markup) is one character: a step from `from` that
+// ends inside one goes past it. tl is used only while it still lays out s.
+past_object :: (tl: *Text_Layout, s: string, pos: int, from: int) -> int {
+	if !tl || !tl.spans.count || tl.text != s return pos;
+	for tl.run.glyphs if it.cluster_start < pos && pos < it.cluster_end && tl.spans[it.span].object != Vec2.{} {
+		return ifx pos < from then it.cluster_start else it.cluster_end;
+	}
+	return pos;
 }
 
 move :: (e: *Editor, target: int, extend: bool, keep_pref_x := false) {

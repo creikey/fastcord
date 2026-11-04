@@ -1,7 +1,7 @@
 # Emoji autocomplete: ":dog" lists matches above the composer, arrows move,
 # Enter inserts "<emoji> " (Down: the second match, :guide_dog:); a typed
 # closing colon converts ":fire:"; Tab picks the guild's custom :fastdog:,
-# which the composer shows as its image and keeps as <:name:id> markup.
+# which the composer shows as its image and keeps as <:name:id> markup (one character to the caret).
 wait 5
 click 700 683
 type hi :dog
@@ -20,3 +20,10 @@ shot build/ui-emoji-composer.png
 key a cmd
 key c cmd
 expect_clipboard "hi 🦮 🔥 <:fastdog:1546820603343016300> "
+# the emoji is one character to the caret: Backspace after it takes the whole markup
+key right
+key backspace
+key backspace
+key a cmd
+key c cmd
+expect_clipboard "hi 🦮 🔥 "

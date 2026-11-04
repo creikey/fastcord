@@ -255,7 +255,7 @@ rgb_u32 :: (c: u32) -> ui.Color {
 }
 
 // Mentions, links, emoji and inline styles become rich-text spans. raw (the composer) keeps
-// every token's source text, styles only, and appends to `into`.
+// every token's source text, styles only (custom emoji drawn over their markup), and appends to `into`.
 tokens_to_spans :: (toks: []Token, base: Font_Id, size: float32, m: *dc.Message, raw := false, into: *[..]ui.Span = null) -> []ui.Span {
 	s := store();
 	own: [..]ui.Span;
@@ -287,6 +287,7 @@ tokens_to_spans :: (toks: []Token, base: Font_Id, size: float32, m: *dc.Message,
 		}
 		if raw && tk.kind != .Text {
 			if tk.kind == .Link sp.color = T("--text-link");
+			if tk.kind == .Custom_Emoji { sp.object = emoji_object(22, size); sp.user = cast(*void) tk.id; } // drawn over its markup
 			array_add(spans, sp);
 			continue;
 		}
