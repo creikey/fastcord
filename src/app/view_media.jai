@@ -181,7 +181,7 @@ attachments_view :: (m: *dc.Message, max_w: float32 = 400) {
 			video_player(a.id, a.url, attachment_image_url(a, cast(int) (w * sc), cast(int) (h * sc)), w * sc, h * sc, cast(float64) a.duration_secs, download_name = ifx a.filename then a.filename else download_name(a.url), download_size = a.size);
 			spacer(.Y, 4);
 		} else if is_audio(a) {
-			audio_attachment(a);
+			audio_attachment(a, min(400.0, max_w));
 			spacer(.Y, 4);
 		} else if a.width > 0 && a.height > 0 {
 			// images scale to fit 400x300 like the client
@@ -707,9 +707,10 @@ ensure_audio :: () {
 }
 
 // Audio attachment (and voice messages): file card with play button and progress.
-audio_attachment :: (a: *dc.Attachment) {
+// w narrows it to a pin or search card; the name is cut so it never runs under its size.
+audio_attachment :: (a: *dc.Attachment, w: float32) {
 	card := row(tprint("aud%", cast(u64) a.id), .Draw_Background | .Draw_Border);
-	card.semantic_size = .[ui.px(400), ui.px(56)];
+	card.semantic_size = .[ui.px(w), ui.px(56)];
 	card.style.bg = T("--background-surface-high");
 	card.style.border_color = T("--border-subtle");
 	card.style.border = 1;
@@ -718,6 +719,8 @@ audio_attachment :: (a: *dc.Attachment) {
 	playing := ip != null;
 	if playing player_open_ready(ip);
 	{ ui.parent(card); defer ui.pop_parent();
+		// a message card's boxes share one seed: its own "col" and "name" would take these keys
+		ui.id_scope(cast(u64) a.id); defer ui.pop_seed();
 		spacer(.X, 12);
 		pb := ui.box("play", .Clickable | .Draw_Background | .Hot_Animation);
 		pb.semantic_size = .[ui.px(32), ui.px(32)];
@@ -750,7 +753,8 @@ audio_attachment :: (a: *dc.Attachment) {
 		}
 		wave, ok := base64_decode(a.waveform,, temp);
 		if ok && wave.count {
-			voice_waveform(wave, ifx dur > 0 then cast(float32) (pos / dur) else 0, ip, dur);
+			// the bars fit what the play button, time and speed leave
+			voice_waveform(wave, ifx dur > 0 then cast(float32) (pos / dur) else 0, ip, dur, clamp(cast(int) (w - 154) / 5, 16, 48));
 			spacer(.X, 12);
 			label(fmt_clock(ifx playing then max(dur - pos, 0) / voice_rate else dur), .Mono, 12, T("--text-muted"), 16);
 			spacer(.X, 8);
@@ -778,12 +782,16 @@ audio_attachment :: (a: *dc.Attachment) {
 			nr := row("name");
 			nr.semantic_size = .[ui.pct(1), ui.px(20)];
 			{ ui.parent(nr); defer ui.pop_parent();
-				name := label(a.filename, .Medium, 14, T("--text-link"), 18);
+				dl := file_download_find(a.url);
+				size := ifx dl then tprint(L("% of %"), human_size(dl.progress.done), human_size(a.size)) else human_size(a.size);
+				shown := a.filename;
+				nw := nr.rect.x1 - nr.rect.x0;
+				if nw > 0 shown = ellipsize(shown, .Medium, 14, max(nw - 6 - ui.layout_text(F(.Normal), 12, size, -1).width - 24, 0));
+				name := label(shown, .Medium, 14, T("--text-link"), 18);
 				name.flags |= .Clickable;
 				name.hover_cursor = .Pointer;
 				spacer(.X, 6);
-				dl := file_download_find(a.url);
-				label(ifx dl then tprint(L("% of %"), human_size(dl.progress.done), human_size(a.size)) else human_size(a.size), .Normal, 12, T("--text-muted"), 16);
+				label(size, .Normal, 12, T("--text-muted"), 16);
 				if dl app.ui.animating = true;
 				filler(.X);
 				if download_icon(16) || ui.signal(name).clicked file_download(a);
@@ -814,21 +822,20 @@ audio_attachment :: (a: *dc.Attachment) {
 
 // A voice message's amplitudes (0-255) as rounded bars, the played part in the brand colour; pressing
 // or dragging seeks once the clip is loaded.
-voice_waveform :: (wave: string, frac: float32, ip: *Inline_Player, dur: float64) {
-	BARS :: 48;
+voice_waveform :: (wave: string, frac: float32, ip: *Inline_Player, dur: float64, bars: int) {
 	PITCH :: 5.0;
 	w := ui.box("wave", .Clickable);
-	w.semantic_size = .[ui.px(BARS * PITCH), ui.px(32)];
+	w.semantic_size = .[ui.px(bars * PITCH), ui.px(32)];
 	w.hover_cursor = .Pointer;
 	sig := ui.signal(w);
 	if (sig.pressed || sig.dragging) && ip && ip.player && dur > 0 {
-		f := clamp((app.ui.mouse.x - w.rect.x0) / (BARS * PITCH), 0, 1);
+		f := clamp((app.ui.mouse.x - w.rect.x0) / (bars * PITCH), 0, 1);
 		media.player_seek(ip.player, cast(float64) f * dur);
 	}
 	ui.parent(w); defer ui.pop_parent();
-	for i: 0..BARS - 1 {
-		lo := i * wave.count / BARS;
-		hi := max((i + 1) * wave.count / BARS, lo + 1);
+	for i: 0..bars - 1 {
+		lo := i * wave.count / bars;
+		hi := max((i + 1) * wave.count / bars, lo + 1);
 		peak: u8;
 		for j: lo..hi - 1 peak = max(peak, wave[j]);
 		h := max(4.0, 28.0 * peak / 255.0);
@@ -836,7 +843,7 @@ voice_waveform :: (wave: string, frac: float32, ip: *Inline_Player, dur: float64
 		b.semantic_size = .[ui.px(3), ui.px(h)];
 		b.fixed_pos = .{i * PITCH, (32 - h) / 2};
 		b.style.radius = all4(1.5);
-		b.style.bg = ifx (i + 0.5) / BARS <= frac then T("--background-brand") else T("--icon-muted");
+		b.style.bg = ifx (i + 0.5) / bars <= frac then T("--background-brand") else T("--icon-muted");
 	}
 }
 
