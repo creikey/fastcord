@@ -141,6 +141,7 @@ loose_message_card :: (m: *dc.Message, terms: []string, show_jump: bool) -> bool
 			spacer(.X, 12);
 			avatar_box("av", m.author_id, 40);
 			spacer(.X, 12);
+			defer spacer(.X, 12); // text and media stop short of the card's right edge, as on its left
 			col := ui.box("col");
 			col.semantic_size = .[ui.fill(), ui.children()];
 			col.layout_axis = .Y;
@@ -154,7 +155,7 @@ loose_message_card :: (m: *dc.Message, terms: []string, show_jump: bool) -> bool
 				name := author_name(m, "unknown");
 				nw := nr.rect.x1 - nr.rect.x0;
 				if nw > 0 {
-					rest := 8 + ui.layout_text(F(.Medium), 12, ts, -1).width + 12;
+					rest := 8 + ui.layout_text(F(.Medium), 12, ts, -1).width;
 					if show_jump rest += ui.layout_text(F(.Medium), 12, L("Jump"), -1).width + 16;
 					name = ellipsize(name, .Medium, 16, max(nw - rest, 0));
 				}
@@ -174,11 +175,10 @@ loose_message_card :: (m: *dc.Message, terms: []string, show_jump: bool) -> bool
 					label(L("Jump"), .Medium, 12, T("--text-default"), 22);
 					spacer(.X, 8);
 				}
-				spacer(.X, 12);
 			}
 			card_body(m, terms);
 			// media as in the chat, narrowed to the card (its width from the last layout)
-			mw := ifx col.rect.x1 > col.rect.x0 then min(400.0, col.rect.x1 - col.rect.x0 - 12) else 300.0;
+			mw := ifx col.rect.x1 > col.rect.x0 then min(400.0, col.rect.x1 - col.rect.x0) else 300.0;
 			if m.sticker_ids message_stickers_view(m);
 			v := encrypted_view(m); // an encrypted message's opened files, not its ciphertext
 			if v.attachments attachments_view(v, mw);
