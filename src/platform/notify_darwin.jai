@@ -96,6 +96,10 @@ block_descriptor := Block_Descriptor.{0, size_of(Block)};
 BLOCK_IS_GLOBAL :: 1 << 28;
 reply_block: Block; // void(^)(BOOL granted, NSError *error)
 
+// Linked for its classes alone: nothing else loads UserNotifications, and without it cls("UNUserNotificationCenter")
+// is null, so no banner shows and permission is never asked, which keeps the Dock badge hidden.
+user_notifications :: #library,system,link_always "UserNotifications";
+
 libsystem :: #system_library "libSystem";
 _NSConcreteGlobalBlock :: () #foreign libsystem;
 _dispatch_main_q: u8 #elsewhere libsystem; // dispatch_get_main_queue()
