@@ -66,10 +66,12 @@ open_file_dialog :: (allow_multiple := true, allocator := context.allocator) -> 
 }
 
 // "Save file" dialog by zenity or kdialog, offering name in ~/Downloads. The path, or "" if cancelled or
-// neither is installed. Blocks like the other platforms' modal panels.
+// neither is installed (save_dialog_missing). Blocks like the other platforms' modal panels.
 // drag_out: no drag source on Linux yet (it needs an XDND source with XdndDirectSave or text/uri-list).
 Drag_Write :: #type (url: string, path: string) -> bool;
 drag_out :: (url: string, name: string, write: Drag_Write) -> bool { return false; }
+
+save_dialog_missing :: () -> bool { return !s.headless && !in_path("zenity") && !in_path("kdialog"); }
 
 save_file_dialog :: (name: string, allocator := context.allocator) -> string {
     if s.headless return copy_string(name,, allocator);

@@ -43,6 +43,8 @@ run_modal :: (panel: Id) -> NSInteger {
     return msg(NSInteger, panel, "runModal");
 }
 
+save_dialog_missing :: () -> bool { return false; }
+
 // Modal "save file" panel offering name (NSSavePanel asks before replacing). The path, or "" if cancelled.
 save_file_dialog :: (name: string, allocator := context.allocator) -> string {
     if s.headless return copy_string(name,, allocator);

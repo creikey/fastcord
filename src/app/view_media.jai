@@ -214,7 +214,8 @@ attachments_view :: (m: *dc.Message, max_w: float32 = 400) {
 		} else if !text_attachment(a, i, max_w) {
 			f := row(tprint("file%", i), .Draw_Background | .Draw_Border | .Clickable);
 			f.semantic_size = .[ui.px(min(432.0, max_w + 32)), ui.px(72)];
-			drag_out_gesture(ui.signal(f), a.url, a.filename);
+			fsig := ui.signal(f);
+			drag_out_gesture(fsig, a.url, a.filename);
 			f.style.bg = T("--background-surface-high");
 			f.style.border_color = T("--border-subtle");
 			f.style.border = 1;
@@ -230,7 +231,9 @@ attachments_view :: (m: *dc.Message, max_w: float32 = 400) {
 					name := label(a.filename, .Normal, 16, T("--text-link"), 20);
 					name.flags |= .Clickable;
 					name.hover_cursor = .Pointer;
-					download = ui.signal(name).clicked;
+					nsig := ui.signal(name);
+					download = nsig.clicked;
+					if (fsig.right_clicked || nsig.right_clicked) && !begins_with(a.url, E2E_URL) media_menu_open(a.url, "");
 					dl := file_download_find(a.url);
 					if dl {
 						app.ui.animating = true; // the count moves on the worker
@@ -314,7 +317,9 @@ text_attachment :: (a: *dc.Attachment, i: int, max_w: float32) -> bool {
 			if dl app.ui.animating = true;
 			gap := ui.box("gap");
 			gap.semantic_size = .[ui.fill(), ui.px(1)];
-			if download_icon(20) || ui.signal(name).clicked file_download(a);
+			nsig := ui.signal(name);
+			if nsig.right_clicked && !begins_with(a.url, E2E_URL) media_menu_open(a.url, "");
+			if download_icon(20) || nsig.clicked file_download(a);
 			spacer(.X, 6);
 		}
 		code := ui.box("code", .Draw_Text | .Selectable_Text | .Wrap_Text);
@@ -1454,9 +1459,15 @@ file_download_find :: (url: string) -> *File_Download {
 
 file_download :: (a: *dc.Attachment) { file_download(a.url, ifx a.filename then a.filename else download_name(a.url), a.size); }
 
-// size is the file's (0 if unknown): a download that ends short of it is refused.
+// size is the file's (0 if unknown): a download that ends short of it is refused. With no Save dialog
+// (Linux without zenity or kdialog) the browser downloads it instead.
 file_download :: (url: string, name: string, size: int) {
 	if file_download_find(url) return;
+	if platform.save_dialog_missing() {
+		if begins_with(url, E2E_URL) toast_show(L("Couldn't save the file."), false);
+		else open_url(url);
+		return;
+	}
 	app.ext_actions += 1;
 	dest := platform.save_file_dialog(name);
 	if !dest return;
@@ -1600,6 +1611,7 @@ media_action :: (tag: u64, u: string) {
 	url := builder_to_string(*sb,, temp);
 	if tag == MEDIA_TAG_SAVE {
 		// Asked first, as the client's Save dialog: nothing downloads when it's cancelled.
+		if platform.save_dialog_missing() { open_url(url); return; }
 		app.ext_actions += 1;
 		dest := platform.save_file_dialog(download_name(path));
 		if !dest return;

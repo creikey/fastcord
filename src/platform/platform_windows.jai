@@ -82,6 +82,8 @@ open_file_dialog :: (allow_multiple := true, allocator := context.allocator) -> 
 Drag_Write :: #type (url: string, path: string) -> bool;
 drag_out :: (url: string, name: string, write: Drag_Write) -> bool { return false; }
 
+save_dialog_missing :: () -> bool { return false; }
+
 save_file_dialog :: (name: string, allocator := context.allocator) -> string {
     if s.headless return copy_string(name,, allocator);
     CLSID_FileSaveDialog := win.GUID.{0xC0B4E2F3, 0xBA21, 0x4773, .[0x8D, 0xBA, 0x33, 0x5E, 0xC9, 0x46, 0xEB, 0x8B]};
