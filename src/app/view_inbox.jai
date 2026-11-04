@@ -46,6 +46,7 @@ Inbox_State :: struct {
 	requested: bool; // first mentions page asked for
 	sources: [..]Mention_Source;
 	items: [..]Mention; // in pool
+	laid_out: int; // mentions in the list's last layout
 	pool: Flat_Pool;
 }
 
@@ -111,7 +112,7 @@ inbox_receive :: (r: *dc.Feature_Result) {
 		if r.tag == dc.MENTIONS_DUP_TAG { return; }
 		src := mention_source(app.client);
 		src.loading = false;
-		if !r.ok { return; }
+		if !r.ok { src.has_more = false; return; } // or scrolled to the end it is asked for every frame
 		// a reply to an older page after a reset (first page = tag 0) is dropped
 		if r.tag != 0 && cast(u64) src.oldest != r.tag { return; }
 		alloc := dc.pool_allocator(*inbox.pool);
@@ -562,7 +563,7 @@ mentions_list :: () {
 	list := ui.box("mentions", .Scroll_Y | .Clip);
 	list.semantic_size = .[ui.pct(1), ui.fill()];
 	list.layout_axis = .Y;
-	sig := ui.signal(list);
+	ui.signal(list);
 	keep := app.client;
 	{ ui.parent(list); defer ui.pop_parent();
 		spacer(.Y, 8);
@@ -625,8 +626,8 @@ mentions_list :: () {
 		}
 		spacer(.Y, 8);
 	}
-	// load more near the end
-	if !mentions_loading() && inbox.items.count > 0 && sig.hovering {
+	// load more near the end, once laid out with every mention (as the pins popout)
+	if !mentions_loading() && inbox.items.count > 0 && inbox.laid_out == inbox.items.count {
 		if list.content_size.y > 0 && list.view_off.y + (list.rect.y1 - list.rect.y0) > list.content_size.y - 200 {
 			for * inbox.sources if it.has_more && it.client {
 				it.loading = true;
@@ -634,6 +635,7 @@ mentions_list :: () {
 			}
 		}
 	}
+	inbox.laid_out = inbox.items.count;
 }
 
 

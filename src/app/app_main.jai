@@ -847,6 +847,10 @@ script_command :: (path: string, f: []string, t: *float64, depth := 0) {
 		on := ifx f[1] == "deaf" then app.self_deaf else ifx f[1] == "mute" then app.self_mute else vs.ptt_held;
 		if on != (f[2] == "on") script_fail(path, "expect_flag failed: % is %", f[1], ifx on then "on" else "off");
 		return;
+	case "expect_pins";
+		// expect_pins <count> loading|idle more|end: the pins popout's pins, a page asked for, more to page in
+		if pins_paging_for_test() != tprint("% % %", f[1], f[2], f[3]) script_fail(path, "expect_pins: got %", pins_paging_for_test());
+		return;
 	case "open_url";
 		// open_url <url>: what a click on a link to <url> does
 		open_url(f[1]);

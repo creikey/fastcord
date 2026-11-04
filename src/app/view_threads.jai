@@ -158,7 +158,7 @@ forum_view :: (ch: *dc.Channel) {
 	list := ui.box("forum", .Scroll_Y | .Clip);
 	list.semantic_size = .[ui.fill(), ui.pct(1)];
 	list.layout_axis = .Y;
-	sig := ui.signal(list);
+	ui.signal(list);
 	{ ui.parent(list); defer ui.pop_parent();
 		spacer(.Y, 16);
 		hdr := row("forumhdr");
@@ -288,11 +288,12 @@ forum_view :: (ch: *dc.Channel) {
 		spacer(.Y, 24);
 	}
 	// the next 25 archived posts near the end, like the threads browser
-	if st.has_more && !st.loading && app.client != null && sig.hovering
+	if st.has_more && !st.loading && app.client != null && st.laid_out == st.offset
 		&& list.content_size.y > 0 && list.view_off.y + (list.rect.y1 - list.rect.y0) > list.content_size.y - 400 {
 		st.loading = true;
 		dc.fetch_archived_forum_threads(app.client, ch.id, st.offset);
 	}
+	st.laid_out = st.offset;
 }
 
 // A page of a forum's archived posts: the cards, and where the next page starts.
@@ -300,7 +301,7 @@ forum_threads_receive :: (r: *dc.Feature_Result) {
 	app.ui.animating = true;
 	st := table_find_pointer(*forums, r.channel_id);
 	if st st.loading = false;
-	if !r.ok return;
+	if !r.ok { if st st.has_more = false; return; } // or scrolled to the end it is asked for every frame
 	dc.apply_forum_threads(store(), r.body);
 	if !st return;
 	body := dc.vmap(r.body);
@@ -334,6 +335,7 @@ Forum_State :: struct {
 	requested_archived: bool;
 	loading, has_more: bool; // archived posts: a page asked for, more after the last
 	offset: int; // archived posts loaded
+	laid_out: int; // offset at the list's last layout
 	requested_posts: Table(dc.Snowflake, bool);
 	query: ui.Editor; // the search box, also the new post's title
 	filter: [..]dc.Snowflake; // tags shown (any of them); none: all

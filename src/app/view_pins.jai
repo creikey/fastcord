@@ -18,7 +18,7 @@ pins_toggle :: (channel_id: dc.Snowflake, anchor: ui.Rect) {
 pins_receive :: (r: *dc.Feature_Result) {
 	if r.channel_id != pins.channel return;
 	pins.loading = false;
-	if !r.ok return;
+	if !r.ok { pins.has_more = false; return; } // or scrolled to the end it is asked for every frame
 	alloc := dc.pool_allocator(*pins.pool);
 	pins.items.allocator = alloc;
 	body := dc.vmap(r.body);
@@ -81,7 +81,7 @@ pins_popout :: () {
 	list := ui.box("list", .Scroll_Y | .Clip);
 	list.semantic_size = .[ui.pct(1), ui.fill()];
 	list.layout_axis = .Y;
-	sig := ui.signal(list);
+	ui.signal(list);
 	{ ui.parent(list); defer ui.pop_parent();
 		spacer(.Y, 8);
 		if !pins.items {
@@ -99,12 +99,14 @@ pins_popout :: () {
 		}
 		spacer(.Y, 8);
 	}
-	// load more near the end
-	if pins.has_more && !pins.loading && app.client && pins.items && sig.hovering
+	// load more near the end, once the list was laid out with every pin (the frame a page comes in still
+	// has the shorter list's size)
+	if pins.has_more && !pins.loading && app.client && pins.items && pins.laid_out == pins.items.count
 		&& list.content_size.y > 0 && list.view_off.y + (list.rect.y1 - list.rect.y0) > list.content_size.y - 200 {
 		pins.loading = true;
 		dc.fetch_pins(app.client, pins.channel, peek(pins.items).pinned_at);
 	}
+	pins.laid_out = pins.items.count;
 }
 
 // A message outside the channel list (pins, search results): avatar, name,
@@ -238,6 +240,7 @@ pins_reset_for_test :: () {
 }
 
 pins_state_for_test :: () -> string { return tprint("% %", pins.open, pins.channel); }
+pins_paging_for_test :: () -> string { return tprint("% % %", pins.items.count, ifx pins.loading then "loading" else "idle", ifx pins.has_more then "more" else "end"); }
 
 #scope_file
 
@@ -252,6 +255,7 @@ pins: struct {
 	anchor: ui.Rect;
 	loading: bool;
 	has_more: bool;
+	laid_out: int; // pins in the list's last layout
 	epoch: int;
 	items: [..]Pin;
 	pool: Flat_Pool; // items and their messages

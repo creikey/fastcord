@@ -77,7 +77,7 @@ threads_browser_receive :: (r: *dc.Feature_Result) {
 	}
 	if r.channel_id != tb.channel return;
 	tb.loading = false;
-	if !r.ok return;
+	if !r.ok { tb.has_more = false; return; } // or scrolled to the end it is asked for every frame
 	dc.apply_forum_threads(store(), r.body);
 	body := dc.vmap(r.body);
 	tb.offset += dc.flist(body, "threads").count;
@@ -189,7 +189,7 @@ threads_browser_popout :: () {
 	list := ui.box("list", .Scroll_Y | .Clip);
 	list.semantic_size = .[ui.pct(1), ui.fill()];
 	list.layout_axis = .Y;
-	sig := ui.signal(list);
+	ui.signal(list);
 	{ ui.parent(list); defer ui.pop_parent();
 		spacer(.Y, 8);
 		empty := ifx tb.tab == .Active then joined.count + active.count == 0 else older.count == 0;
@@ -211,12 +211,13 @@ threads_browser_popout :: () {
 		}
 		spacer(.Y, 8);
 	}
-	// more archived threads near the end
-	if tb.tab == .Archived && tb.has_more && !tb.loading && app.client != null && sig.hovering
+	// more archived threads near the end, once laid out with every page (as the pins popout)
+	if tb.tab == .Archived && tb.has_more && !tb.loading && app.client != null && tb.laid_out == tb.offset
 		&& list.content_size.y > 0 && list.view_off.y + (list.rect.y1 - list.rect.y0) > list.content_size.y - 200 {
 		tb.loading = true;
 		dc.fetch_channel_threads(app.client, tb.channel, tb.offset);
 	}
+	tb.laid_out = tb.offset;
 }
 
 threads_browser_reset_for_test :: () {
@@ -244,6 +245,7 @@ Threads_Browser :: struct {
 	loading: bool;
 	has_more: bool;
 	offset: int;
+	laid_out: int; // offset at the list's last layout
 	tab: TB_Tab;
 	// Create form
 	creating: bool;
