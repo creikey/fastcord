@@ -34,3 +34,4 @@ opus :: #import "opus";
 #load "simple_formats.jai";
 #load "source.jai";
 #load "sound.jai";
+#load "stretch.jai";

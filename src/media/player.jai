@@ -15,11 +15,16 @@
 // sample position minus output latency — otherwise the wall clock. Video frames
 // are presented when their pts <= clock (frame-accurate, B-frame reordered).
 //
-// Rate (player_set_rate): audio is resampled linearly by the rate before it is queued, so it plays
-// faster and higher, like a tape (voice messages' 1.5x / 2x); each segment keeps the rate its samples
+// Rate (player_set_rate): audio is time-stretched by the rate before it is queued (stretch.jai), so it
+// plays faster at the same pitch (voice messages' 1.5x / 2x); each segment keeps the rate its samples
 // were made at, so the clock stays exact.
+//
+// Video that falls behind the clock (the window was hidden, or decoding can't keep up) skips ahead
+// to it: the decoder jumps to the keyframe before the clock and the frames before it are never shown,
+// rather than flipping through every late one.
 
 MAX_FRAMES :: 5;
+CATCH_UP_LAG :: 0.3; // seconds the shown frame may end before the clock
 AUDIO_AHEAD :: 0.3; // seconds queued in the mixer ring
 
 Player_State :: enum u8 {
@@ -60,6 +65,7 @@ Player :: struct {
 	starved: bool; // worker waiting for bytes that haven't downloaded yet (buffering)
 	seek_ready: bool; // the frame covering the seek target (or a poster) has been decoded
 	since_seek: int; // frames decoded since the last seek
+	catch_up: float64; // the clock video fell behind at (0: on time)
 	frames: [..]Video_Frame; // decoded, sorted by pts (global time)
 	eos_video: bool;
 	eos_audio: bool;
@@ -76,8 +82,8 @@ Player :: struct {
 	discard_v: float64;
 	discard_a: float64;
 	pcm: [..]float32;
-	rs_buf: [..]float32; // resampled audio (rate != 1)
-	rs_pos: float64; // the next output frame's input position, from the start of the next chunk
+	stretch: Stretch; // rate != 1
+	rs_buf: [..]float32; // stretched audio
 	pkt: [..]u8;
 	vframes_tmp: [..]Video_Frame;
 
@@ -131,6 +137,7 @@ player_destroy :: (p: *Player) {
 	array_free(p.vframes_tmp);
 	array_free(p.pcm);
 	array_free(p.rs_buf);
+	array_free(p.stretch.input);
 	array_free(p.pkt);
 	video_decoder_destroy(p.vdec);
 	audio_decoder_destroy(p.adec);
@@ -182,6 +189,7 @@ player_seek :: (p: *Player, t: float64) {
 	for * p.frames video_frame_release(it);
 	p.frames.count = 0;
 	p.seek_ready = false;
+	p.catch_up = 0;
 	p.anchor_media = p.seek_to;
 	p.anchor_wall = now_s();
 	if p.state == .Ended p.state = .Ready;
@@ -285,6 +293,10 @@ player_update :: (p: *Player) -> Video_Image, bool {
 		pick = it_index;
 	}
 	if !p.seek_ready pick = -1;
+	if pick >= 0 && p.playing && !p.eos_video {
+		f := p.frames[pick];
+		if clock > f.pts + max(f.dur, 0) + CATCH_UP_LAG p.catch_up = clock;
+	}
 	else if pick < 0 && !p.shown_any && p.frames.count > 0 pick = 0; // poster frame
 	consumed := false;
 	if pick >= 0 {
@@ -398,8 +410,11 @@ worker :: (th: *Thread) -> s64 {
 		seek := p.seek_req;
 		target := p.seek_to;
 		p.seek_req = false;
+		catch_up := p.catch_up;
+		p.catch_up = 0;
 		locks.unlock(*p.mu);
 		if seek worker_seek(p, target);
+		else if catch_up > 0 worker_catch_up(p, catch_up);
 
 		// Keep the index growing (streaming sources).
 		scan_blocked := false;
@@ -530,7 +545,7 @@ worker_seek :: (p: *Player, target: float64) {
 		p.anext = demux_find_keyframe(t, track_ticks(t, max(target - 0.1, 0)));
 		audio_decoder_reset(p.adec);
 		p.pcm.count = 0;
-		p.rs_pos = 0;
+		stretch_reset(*p.stretch);
 		p.discard_a = target;
 		audio.source_flush(p.asrc);
 		locks.lock(*p.mu);
@@ -539,6 +554,23 @@ worker_seek :: (p: *Player, target: float64) {
 	} else if p.atrack >= 0 {
 		audio.source_flush(p.asrc);
 	}
+}
+
+// Video is behind the clock t: skip to the keyframe before it if that's ahead of the decoder, and drop
+// every frame before t.
+worker_catch_up :: (p: *Player, t: float64) {
+	if p.vtrack < 0 || !p.vdec return;
+	tr := *p.demux.tracks[p.vtrack];
+	at := t - p.loop_offset;
+	k := demux_find_keyframe(tr, track_ticks(tr, at));
+	if k > p.vnext {
+		video_decoder_flush(p.vdec);
+		p.vframes_tmp.count = 0;
+		video_decoder_take(p.vdec, *p.vframes_tmp);
+		for * p.vframes_tmp video_frame_release(it);
+		p.vnext = k;
+	}
+	p.discard_v = max(p.discard_v, at);
 }
 
 // One unit of work; false if nothing needed doing.
@@ -687,17 +719,8 @@ audio_step :: (p: *Player) -> bool {
 		remove_range(*p.pcm, start, start + min(drop, p.pcm.count - start));
 	}
 	if rate != 1 && p.pcm.count > start {
-		n := (p.pcm.count - start) / 2;
 		p.rs_buf.count = 0;
-		pos := p.rs_pos;
-		while pos < cast(float64) n {
-			i := cast(int) pos;
-			f := cast(float32) (pos - i);
-			j := min(i + 1, n - 1);
-			for c: 0..1 array_add(*p.rs_buf, p.pcm[start + 2 * i + c] * (1 - f) + p.pcm[start + 2 * j + c] * f);
-			pos += rate;
-		}
-		p.rs_pos = pos - n;
+		stretch(*p.stretch, array_view(p.pcm, start, p.pcm.count - start), rate, *p.rs_buf);
 		p.pcm.count = start;
 		array_add(*p.pcm, ..p.rs_buf);
 	}
