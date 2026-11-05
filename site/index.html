@@ -113,11 +113,11 @@
   .shot { padding: 10px; }
   .shot img { display: block; width: 100%; height: auto; border-radius: 10px; }
 
-  .facts { display: grid; grid-template-columns: repeat(3, 1fr); padding: 0; }
+  .facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 0; }
   .facts > div { padding: 26px 28px; }
   .facts > div + div { border-left: 1px solid var(--line); }
   .facts p { color: var(--muted); margin: 0; font-size: 15px; }
-  .num { display: block; font-size: 32px; line-height: 1.1; font-weight: 650; letter-spacing: -0.035em; color: var(--accent); margin: 0 0 8px; white-space: nowrap; }
+  .num { display: block; font-size: 28px; line-height: 1.1; font-weight: 650; letter-spacing: -0.035em; color: var(--accent); margin: 0 0 8px; text-wrap: balance; }
   .tall { grid-row: span 2; }
   .mini h2 { font-size: 19px; }
   .mini p { font-size: 15px; }
@@ -141,6 +141,9 @@
   .steps span b, .fine b { display: inline; color: var(--text); font-weight: 600; margin: 0; }
   .fine { color: var(--muted); font-size: 13.5px; margin: 16px 0 0; }
   .p .downloads { margin-top: 20px; }
+  .warn { margin-top: 20px; padding: 16px 20px; border-radius: 12px; font-size: 17px; color: var(--text);
+    background: color-mix(in srgb, var(--bad) 12%, transparent); border: 1px solid color-mix(in srgb, var(--bad) 45%, transparent); }
+  .warn b { color: var(--bad); font-size: 19px; margin-right: 4px; }
 
   .ban { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
   .answer { font-size: 18px; color: var(--text) !important; margin: 0 0 10px !important; }
@@ -314,15 +317,15 @@
     <div class="p s6 shot"><img src="screenshot.jpg" width="2560" height="1680" alt="Fastcord showing a server channel with a link preview, a reply with a thread, a photo with reactions, a voice channel and the member list"></div>
 
     <div class="p s6 facts">
-      <div><b class="num">Next frame</b><p>Input reaches the screen on the next frame. No browser in between.</p></div>
-      <div><b class="num">0 frames</b><p>Nothing drawn and no wakeups while idle. Your fans stay off.</p></div>
-      <div><b class="num">&lt; 25 MB</b><p>No Chromium, no Node. Still the layout you know.</p></div>
+      <div><b class="num">No lag, ever</b><p>Benchmarked to hit up to 240 fps, with frame-perfect responsiveness.</p></div>
+      <div><b class="num">No RAM? No problem</b><p>Uses 2 to 3 times less memory than Electron, and the download is only 25 MB.</p></div>
+      <div><b class="num">Sips battery</b><p>Only redraws while something is changing or animating.</p></div>
     </div>
 
     <section class="p s4 tall">
       <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 7.5h.01M7 16.5h.01"/></svg></div>
       <h2>A private server on a computer you own.</h2>
-      <p>One file, one port, no Discord and no account. Members join with their Fastcord key.</p>
+      <p>Private because none of its traffic goes through Discord's servers. One file, one port, no account: members join with their Fastcord key. Whoever hosts it can read its channels and moderate them.</p>
       <ul class="tags"><li>Text</li><li>Voice</li><li>Video</li><li>Go Live</li><li>Threads</li><li>Files</li><li>Emoji</li><li>Events</li><li>Roles</li><li>Moderation</li></ul>
       <div class="term"><span>$</span> fastcord -serve:friends.db<br>Invite: <span>fc://localhost:4433/…</span></div>
       <a class="more" href="#self-hosting">How to host one →</a>
@@ -333,7 +336,7 @@
       <a class="more" href="#encryption">How it works →</a>
     </div>
     <div class="p s2 mini">
-      <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M8 10v4M8 10h2M13 10v4M16 10v4M16 10h2M16 12h1.5"/></svg></div>
+      <div class="icon"><svg viewBox="0 0 24 24"><text x="12" y="16.2" text-anchor="middle" font-size="11.5" font-weight="800" font-family="system-ui, sans-serif" letter-spacing="-.3" fill="currentColor">GIF</text></svg></div>
       <h2>GIFs for this chat</h2><p>The picker leads with GIFs that fit the conversation, matched on your device.</p>
     </div>
     <div class="p s6 mini h">
@@ -405,6 +408,7 @@
         <div><b>Share the invite</b><span>The <b>fc://</b> link goes in <b>Add a Server → Join a Server</b>, with your public address in place of <b>localhost</b>. To own it, start it with <b>-owner:&lt;key&gt;</b> (<b>fastcord -key</b> prints yours), or join first with the one-use owner invite.</span></div>
       </div>
       <p class="fine">Voice and video use UDP on the same port. The owner manages storage, files, limits and backups from Server Settings. It keeps daily backups, and <b>-install</b> runs it as a service. Ctrl-C stops it; to update, start the new release on the same file. Whoever runs a server can read its channels, but not its encrypted DMs.</p>
+      <div class="warn"><b>⚠ Not audited yet.</b> The server hasn't had a security audit, so it may have vulnerabilities. One is coming soon.</div>
       <div class="downloads">
         <a class="btn" href="https://github.com/creikey/fastcord/releases/latest/download/fastcord-macos.zip">macOS</a>
         <a class="btn" href="https://github.com/creikey/fastcord/releases/latest/download/fastcord-windows.zip">Windows</a>
