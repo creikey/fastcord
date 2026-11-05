@@ -474,12 +474,14 @@ collect_selectables :: (b: *Box, depth := 0) {
 // Text position nearest the mouse among visible selectables. Rows are found
 // by vertical extent first, like a browser. .Exact: only a box under p; .Region: the nearest box
 // whose clip region (e.g. the message list) holds p, so a press beside or between texts starts a
-// selection there; .Any: the nearest box anywhere (while dragging).
+// selection there; .Any: the nearest box anywhere (while dragging). Only boxes on one layer count,
+// overlay (a popout) or not, so text behind a popout is never picked through it.
 Pos_Mode :: enum u8 { Exact; Region; Any; }
-selectable_pos_at :: (p: Vec2, mode: Pos_Mode) -> Text_Pos, bool {
+selectable_pos_at :: (p: Vec2, mode: Pos_Mode, overlay: bool) -> Text_Pos, bool {
 	best: *Box;
 	best_d := FLOAT32_MAX;
 	for b: context.ui.selectables {
+		if in_overlay(b) != overlay continue;
 		r := visible_rect(b);
 		if r.x1 <= r.x0 || r.y1 <= r.y0 continue;
 		if contains(b.rect, p) {
@@ -520,8 +522,9 @@ update_selection :: () {
 		if e.kind != .Mouse_Down || e.button != .Left continue;
 		// what is under the press itself (hot is for the mouse after all of this frame's events)
 		on_control := hit_test_prev(e.pos) != 0;
-		pos, ok := selectable_pos_at(e.pos, .Exact);
-		if !ok && !on_control pos, ok = selectable_pos_at(e.pos, .Region);
+		ov := overlay_at(e.pos);
+		pos, ok := selectable_pos_at(e.pos, .Exact, ov);
+		if !ok && !on_control pos, ok = selectable_pos_at(e.pos, .Region, ov);
 		if !ok {
 			if !on_control selection_clear();
 			continue;
@@ -549,7 +552,8 @@ update_selection :: () {
 	}
 	// every frame, not only on mouse moves: autoscroll moves the text under a still mouse
 	if sel.dragging {
-		pos, ok := selectable_pos_at(s.mouse, .Any);
+		anchor := box_lookup(sel.anchor.box);
+		pos, ok := selectable_pos_at(s.mouse, .Any, anchor && in_overlay(anchor));
 		if ok {
 			b := box_lookup(pos.box);
 			if b && sel.gran != .Char {
@@ -562,8 +566,17 @@ update_selection :: () {
 		}
 	}
 	if sel.dragging s.cursor = .IBeam;
-	for b: s.selectables if b.key == s.hot || (s.hot == 0 && mouse_over(b)) s.cursor = .IBeam;
+	// a hot overlay card (clickable only to block what's behind it) still shows its text's I-beam
+	card := box_lookup(s.hot);
+	if card && !(card.flags & .Overlay) card = null;
+	for b: s.selectables if b.key == s.hot || ((s.hot == 0 || (card && inside(b, card))) && mouse_over(b)) s.cursor = .IBeam;
 	if s.span_cursor != .Default && !sel.dragging s.cursor = s.span_cursor;
+}
+
+inside :: (b: *Box, outer: *Box) -> bool {
+	x := b.parent;
+	while x && x != outer x = x.parent;
+	return x != null;
 }
 
 draw_selection_highlight :: (b: *Box, tl: *Text_Layout) {

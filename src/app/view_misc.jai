@@ -292,7 +292,7 @@ profile_popout :: () {
 	p.style.shadow_color = .{0, 0, 0, 0.35};
 	p.style.shadow_blur = 16;
 	p.style.shadow_offset = .{0, 8};
-	ui.signal(p); // swallow clicks inside
+	// Clickable only to be hot over the scrim: no signal, so a press inside starts a text selection
 	{ ui.parent(p); defer ui.pop_parent();
 		banner := ui.box("banner", .Draw_Background);
 		banner.semantic_size = .[ui.pct(1), ui.px(105)];
@@ -403,7 +403,7 @@ profile_popout :: () {
 				bio.style.padding = .{16, 0};
 				bio.style.line_height = 18;
 				bio.style.text_color = T("--text-default");
-				bio.sel_order = 3;
+				bio.sel_order = 4;
 				blocks := md_parse(about);
 				if blocks.count > 0 { ui.set_spans(bio, tokens_to_spans(blocks[0].tokens, .Normal, 14, null)); }
 			}

@@ -1,0 +1,15 @@
+# A message's avatar opens the profile popout like its name, and the popout's text selects
+# (a press inside it used to be swallowed, and text behind it was picked instead).
+wait 10
+click 410 456
+wait 20
+expect_visible "Message @Robin"
+down 456 600
+move 520 622
+up 520 622
+wait 2
+expect_selection "Robin\nrobin"
+expect_visible "Message @Robin"
+dclick 470 622
+wait 2
+expect_selection "robin"

@@ -1683,8 +1683,11 @@ message_row :: (m: *dc.Message, grouped: bool, new_day: bool, show_new: bool) ->
 				gutter.semantic_size[ui.Axis.Y] = ui.px(2 + MSG_AVATAR);
 				{ ui.parent(gutter); defer ui.pop_parent();
 					av := avatar_box("avatar", m.author_id, MSG_AVATAR, animate = hovered);
-					av.flags |= .Floating_X | .Floating_Y;
+					av.flags |= .Floating_X | .Floating_Y | .Clickable;
 					av.fixed_pos = .{16, 2};
+					asig := ui.signal(av); // like the name: profile, and the user menu on right-click
+					if asig.clicked open_profile(m.author_id, av.rect, .Message_Author, m.id, m.webhook_name);
+					if asig.right_clicked && !m.webhook_name open_user_menu(m.author_id, app.ui.mouse);
 				}
 			} else if hovered || (compact && !grouped) || e2e_mark(m) != .None {
 				gutter.layout_axis = .X;
