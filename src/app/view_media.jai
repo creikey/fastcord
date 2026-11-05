@@ -152,6 +152,9 @@ attachments_view :: (m: *dc.Message, max_w: float32 = 400) {
 	}
 	for * a, i: m.attachments {
 		if grid.count >= 2 && mosaic_image(a) continue;
+		// the message's id scope is shared: without one per attachment, a second video's controls or file
+		// card's boxes collide and aren't drawn. Its id, not i, which embeds_view's scopes use.
+		ui.id_scope(cast(u64) a.id); defer ui.pop_seed();
 		redact := media_redaction(m, a.flags);
 		if redact == .Block {
 			blocked_media_note(tprint("blocked%", i));

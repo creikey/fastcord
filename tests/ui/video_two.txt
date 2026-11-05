@@ -1,0 +1,11 @@
+# Two videos and two files in one message: each video has its own control bar and each file its card
+# (issue #55: the second video drew an empty bar).
+# The fixture (video_two.jsonl) is video_attachment.jsonl with a second clip.mp4 and two text files.
+wait 20
+expect_visible "two clips"
+expect_visible "notes2.txt"
+shot build/ui-video_two.png
+# the second video's Download (offline: a "File saved." toast)
+click 712 443
+wait 3
+expect_visible "File saved."
