@@ -451,7 +451,7 @@ rail_folder :: (e: *Rail_Entry, entry: int) {
 						m.style.font_size = 6;
 						m.style.text_align = .Center;
 						m.style.text_color = T("--text-default");
-						if g.icon != "" { set_remote_image(m, guild_icon_url(gid, g.icon, 32)); } else { m.text = guild_initials(g.name); }
+						if g.icon != "" { set_remote_image(m, guild_icon_url(gid, g.icon, 32)); m.flags &= ~ui.Box_Flag.Draw_Background; } else { m.text = guild_initials(g.name); }
 						m.opacity = 1 - t;
 					}
 				}

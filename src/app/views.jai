@@ -574,6 +574,7 @@ rail_item :: (id: string, selected: bool, text: string, icon_name: string, guild
 			if g != null && g.icon != "" {
 				set_remote_image(ic, guild_icon_url(guild_id, g.icon, 96));
 				ic.text = "";
+				ic.flags &= ~ui.Box_Flag.Draw_Background; // a transparent icon shows the rail through, never the fill
 			}
 		}
 		ic.style.text_color = T("--text-default");

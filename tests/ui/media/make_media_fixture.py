@@ -123,3 +123,16 @@ def png(w, h):
     return b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('>IIBBBBB', w, h, 8, 6, 0, 0, 0)) + chunk(b'IDAT', zlib.compress(rows)) + chunk(b'IEND', b'')
 open(os.path.join(here, 'poster.webp'), 'wb').write(png(64, 36))
 shutil.copyfile(os.path.join(here, '..', 'attach', 'clip.mp4'), os.path.join(here, 'clip.mp4'))
+
+# guild_icon.jsonl: the server's icon is round.webp, a disc on transparent corners (a PNG), as many
+# servers upload; the rail shows it on the rail's own colour, never on the selected server's fill
+ready = json.loads(head[0])
+ready['etf']['d']['guilds'][0]['properties']['icon'] = 'round'
+with open(os.path.join(here, 'guild_icon.jsonl'), 'w', encoding='utf-8', newline='\n') as f:
+    f.writelines([json.dumps(ready, ensure_ascii=False) + '\n', head[1]])
+def disc(n):
+    r = n / 2
+    rows = b''.join(b'\x00' + b''.join(bytes((200, 120, 60, 255 if (x + .5 - r) ** 2 + (y + .5 - r) ** 2 <= r * r else 0)) for x in range(n)) for y in range(n))
+    def chunk(k, d): return struct.pack('>I', len(d)) + k + d + struct.pack('>I', zlib.crc32(k + d) & 0xffffffff)
+    return b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('>IIBBBBB', n, n, 8, 6, 0, 0, 0)) + chunk(b'IDAT', zlib.compress(rows)) + chunk(b'IEND', b'')
+open(os.path.join(here, 'round.webp'), 'wb').write(disc(96))

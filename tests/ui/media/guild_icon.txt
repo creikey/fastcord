@@ -1,0 +1,5 @@
+# A server icon with transparent corners (guild_icon.jsonl's round.webp) shows the rail through them, selected and
+# hovered alike: no brand fill behind it, as in the official client.
+wait 20
+move 36 92
+wait 20
