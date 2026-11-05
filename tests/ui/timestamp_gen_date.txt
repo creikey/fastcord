@@ -1,11 +1,17 @@
-# The calendar: the arrow shows the next month, a day is clicked and the arrow keys move it, the wheel
+# The calendar: the arrows show the next month and step the year, a day is clicked and the arrow keys move it, the wheel
 # turns the hour, and the date and time give that moment with the offset in force on that date.
 wait 5
 click 860 684
 wait 10
-click 570 153
+click 460 153
 wait 3
-expect_visible "November 2026"
+expect_visible "November"
+click 572 153
+wait 3
+expect_visible "2027"
+click 498 153
+wait 3
+expect_visible "2026"
 click 458 219
 wait 3
 key right

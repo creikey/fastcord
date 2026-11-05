@@ -190,15 +190,21 @@ timestamp_gen_modal :: () {
 		left.layout_axis = .Y;
 		{ ui.parent(left); defer ui.pop_parent();
 			y, m0 := tsg.month / 12, tsg.month % 12;
+			// the month and the year each step with their arrows, the year also with the wheel over it
 			hdr := row("month");
 			hdr.semantic_size = .[ui.pct(1), ui.px(32)];
 			{ ui.parent(hdr); defer ui.pop_parent();
-				spacer(.X, 8);
-				label(tprint("% %", month_name(m0), y), .Semibold, 16, T("--text-strong"), 20);
+				if icon_button("prev", "chevron-small-left", 24, 28) tsg.month -= 1;
+				centred(tprint("%##m", month_name(m0)), 92, 28, .Semibold, 16, T("--text-strong"));
+				if icon_button("next", "chevron-small-right", 24, 28) tsg.month += 1;
 				filler(.X);
-				if icon_button("prev", "chevron-small-left", 28, 28) tsg.month -= 1;
-				spacer(.X, 4);
-				if icon_button("next", "chevron-small-right", 28, 28) tsg.month += 1;
+				yr := row("year");
+				yr.semantic_size = .[ui.children(), ui.px(28)];
+				ui.parent(yr); defer ui.pop_parent();
+				tsg.month += wheel(yr) * 12;
+				if icon_button("prevy", "chevron-small-left", 24, 28) tsg.month -= 12;
+				centred(tprint("%##y", y), 48, 28, .Semibold, 16, T("--text-strong"));
+				if icon_button("nexty", "chevron-small-right", 24, 28) tsg.month += 12;
 			}
 			spacer(.Y, 8);
 			wk := row("weekdays");
@@ -246,6 +252,7 @@ timestamp_gen_modal :: () {
 				now.semantic_size = .[ui.text_size(10), ui.px(28)];
 				now.style.font = F(.Medium);
 				now.style.font_size = 14;
+				now.style.text_align = .Center;
 				now.style.text_color = T("--text-link");
 				now.style.radius = all4(6);
 				now.style.bg_hot = T("--background-mod-normal");
@@ -258,7 +265,7 @@ timestamp_gen_modal :: () {
 			}
 			spacer(.Y, 8);
 			// Up and down arrows over a value, wrapping within n; the wheel turns it too.
-			spinner :: (id: string, v: *int, n: int, twelve := false) {
+			spinner :: (id: string, v: *int, n: int) -> *ui.Box {
 				col := ui.box(id);
 				col.semantic_size = .[ui.px(64), ui.children()];
 				col.layout_axis = .Y;
@@ -273,35 +280,26 @@ timestamp_gen_modal :: () {
 				b.style.radius = all4(8);
 				if icon_button("down", "chevron-small-down", 64, 24) step -= 1;
 				v.* = ((v.* + step) % n + n) % n;
-				b.text = ifx twelve then tprint("%", ifx v.* then v.* else 12) else tprint("%", formatInt(v.*, minimum_digits = 2));
+				return b;
 			}
 			tm := row("time");
 			tm.semantic_size = .[ui.pct(1), ui.children()];
 			{ ui.parent(tm); defer ui.pop_parent();
 				twelve := !use_24h();
-				pm := hour >= 12;
+				pm := hour / 12;
 				h := ifx twelve then hour % 12 else hour;
-				spinner("hour", *h, ifx twelve then 12 else 24, twelve);
+				hb := spinner("hour", *h, ifx twelve then 12 else 24);
+				hb.text = ifx twelve then tprint("%", ifx h then h else 12) else tprint("%", formatInt(h, minimum_digits = 2));
 				centred(tprint("%##colon", i18n_fmt().tsep), 16, 44, .Semibold, 22, T("--text-strong"));
-				spinner("minute", *minute, 60);
+				mb := spinner("minute", *minute, 60);
+				mb.text = tprint("%", formatInt(minute, minimum_digits = 2));
 				hour = h;
-				if twelve && pm hour += 12;
 				if twelve {
-					spacer(.X, 16);
-					ap := ui.box("ampm", .Draw_Background);
-					ap.semantic_size = .[ui.px(56), ui.px(76)];
-					ap.layout_axis = .Y;
-					ap.style.bg = T("--background-mod-subtle");
-					ap.style.radius = all4(8);
-					ui.parent(ap); defer ui.pop_parent();
-					for half: 0..1 {
-						on := (half == 1) == pm;
-						b := centred(ifx half then L("PM##pm") else L("AM##am"), 56, 38, .Semibold, 14, ifx on then ui.Color.{1, 1, 1, 1} else T("--text-muted"), .Clickable | .Draw_Background | .Hot_Animation);
-						b.style.radius = all4(8);
-						if on b.style.bg = T("--background-brand");
-						b.style.bg_hot = ifx on then T("--background-brand") else T("--background-mod-normal");
-						if ui.signal(b).clicked hour = hour % 12 + half * 12;
-					}
+					spacer(.X, 12);
+					ab := spinner("ampm", *pm, 2);
+					ab.style.font_size = 18;
+					ab.text = ifx pm then L("PM") else L("AM");
+					hour += pm * 12;
 				}
 			}
 		}
