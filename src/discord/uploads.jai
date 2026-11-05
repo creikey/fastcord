@@ -29,6 +29,8 @@ Draft_Upload :: struct {
 	sent: s64; // bytes acknowledged (0 until the PUT completes: the PUT is one body)
 	upload_filename: string;
 	removed: bool; // removed from the draft while uploading: clean up when it lands
+	data: []u8; // the staged bytes, kept until the upload is done so a failed one can go again
+	attempts: int; // uploads started again after failing (run_draft_send)
 	start_ms: float64;
 	get_url_ms: float64;
 	upload_ms: float64;
@@ -72,6 +74,7 @@ draft_free :: (u: *Draft_Upload) {
 	free(u.mime);
 	free(u.origin);
 	free(u.upload_filename);
+	free(u.data.data);
 	free(u);
 }
 
@@ -90,6 +93,7 @@ upload_draft :: (c: *Client, channel_id: Snowflake, filename: string, mime: stri
 		u.filename = copy_string(filename);
 		u.mime = copy_string(mime);
 		u.origin = copy_string(origin);
+		u.data = array_copy(data);
 	}
 	u.channel_id = channel_id;
 	u.size = data.count;
@@ -100,17 +104,21 @@ upload_draft :: (c: *Client, channel_id: Snowflake, filename: string, mime: stri
 	u.handle = d.seq;
 	array_add(*d.list, u);
 	locks.unlock(*d.mu);
+	draft_submit(c, u);
+	return u.handle;
+}
 
+// draft_submit queues the upload of u, which reads u.data: only its worker frees that while it is Uploading.
+draft_submit :: (c: *Client, u: *Draft_Upload) {
 	j := job_new(.Upload, .Upload);
 	{
 		push_allocator(job_alloc(j));
 		j.files = NewArray(1, Upload_File);
-		j.files[0] = .{copy_string(filename), copy_string(mime), array_copy(data)};
+		j.files[0] = .{copy_string(u.filename), copy_string(u.mime), u.data};
 	}
-	j.result = Rest_Result.{op = .Upload, channel_id = channel_id, tag = u.handle};
+	j.result = Rest_Result.{op = .Upload, channel_id = u.channel_id, tag = u.handle};
 	j.draft = u.handle;
 	job_submit(c, j);
-	return u.handle;
 }
 
 // upload_draft_status: where a draft's upload is (any thread).
@@ -150,10 +158,15 @@ upload_draft_remove :: (c: *Client, handle: u64) {
 }
 
 // upload_draft_release forgets a draft that was sent with a message (its file now belongs to the message).
+// One still uploading never made it into a message: its worker cleans it up as a removed one when it lands.
 upload_draft_release :: (c: *Client, handle: u64) {
 	d := drafts_of(c);
 	locks.lock(*d.mu);
 	u, i := draft_find(d, handle);
+	if u && u.state == .Uploading {
+		u.removed = true;
+		u = null;
+	}
 	if u array_ordered_remove_by_index(*d.list, i);
 	locks.unlock(*d.mu);
 	if u draft_free(u);
@@ -196,7 +209,7 @@ run_draft_upload :: (c: *Client, j: *Job) {
 	// While it is Uploading only this worker writes u, and the UI thread only flags it removed.
 	locks.lock(*d.mu);
 	u := draft_find(d, j.draft);
-	if u analytics_upload_started(c, u);
+	if u && !u.attempts analytics_upload_started(c, u); // a retry is the same upload to the client
 	locks.unlock(*d.mu);
 	if !u return;
 	// the client's WebP "mezzanine" conversion, before asking for the upload URL
@@ -216,6 +229,8 @@ run_draft_upload :: (c: *Client, j: *Job) {
 		u.upload_filename = copy_string(name,, context.default_allocator);
 		u.state = .Done;
 		u.sent = u.size;
+		array_free(u.data,, context.default_allocator);
+		u.data = .[];
 	} else {
 		u.state = .Failed;
 	}
@@ -234,28 +249,40 @@ run_draft_upload :: (c: *Client, j: *Job) {
 	client_push_event(c, Event.{kind = .Rest, result = Rest_Result.{op = .None, tag = j.draft, ok = ok}});
 }
 
-// Worker: the message POST of a send with drafts; waits (requeues) while any is uploading.
+// Worker: the message POST of a send with drafts; waits (requeues) while any is uploading. A draft whose
+// upload failed (a refused slot, a dropped connection) goes again, up to DRAFT_RETRIES times, before the
+// send fails: sent straight after staging, it would otherwise fail at once.
+DRAFT_RETRIES :: 2;
+
 run_draft_send :: (c: *Client, j: *Job) -> bool {
 	d := drafts_of(c);
 	atts := j.drafts;
 	uploaded := NewArray(atts.count, string,, temp);
 	mimes := NewArray(atts.count, string,, temp);
-	failed := false;
+	failed, waiting := false, false;
+	again: [..]*Draft_Upload;
+	again.allocator = temp;
 	locks.lock(*d.mu);
 	for a: atts {
 		u := draft_find(d, a.handle);
+		if u && u.state == .Failed && u.data && u.attempts < DRAFT_RETRIES {
+			u.state, u.sent = Draft_State.Uploading, 0;
+			u.attempts += 1;
+			array_add(*again, u);
+		}
 		if !u || u.state == .Failed {
 			failed = true;
 			continue;
 		}
-		if u.state == .Uploading {
-			locks.unlock(*d.mu);
-			return true;
-		}
+		if u.state == .Uploading waiting = true;
+		if waiting continue;
 		uploaded[it_index] = copy_string(u.upload_filename,, temp);
 		mimes[it_index] = copy_string(u.mime,, temp);
 	}
 	locks.unlock(*d.mu);
+	// outside d.mu, as job_submit takes the job lock; each is Uploading again, so only its worker frees it
+	for again draft_submit(c, it);
+	if waiting return true;
 	if failed {
 		for atts upload_draft_release(c, it.handle);
 		client_push_event(c, Event.{kind = .Rest, result = Rest_Result.{op = .Send_Message, channel_id = j.result.channel_id, nonce = j.result.nonce, ok = false}});
@@ -291,7 +318,8 @@ upload_one :: (c: *Client, channel_id: Snowflake, f: Upload_File, sent: *s64 = n
 	json_obj_end(*w);
 	json_arr_end(*w);
 	json_obj_end(*w);
-	r := api_call(c, "POST", tprint("/channels/%/attachments", channel_id), w.buf, "application/json", "", .[], 0, 0);
+	// retried like a message send (a network error, a 5xx, a 429): one refusal no longer fails the file
+	r := api_call(c, "POST", tprint("/channels/%/attachments", channel_id), w.buf, "application/json", "", .[], 3, 3);
 	url_ms := now_ms_f() - t0;
 	defer if r.arena {
 		fini(r.arena);

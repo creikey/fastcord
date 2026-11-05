@@ -62,6 +62,7 @@ Initials and control stream (old fixtures in git history: `src/quic/testdata/chr
 | PNGs Chrome colour-manages on decode (gAMA / cHRM / non-sRGB ICC that still names sRGB, 16-bit) may give the canvas other pixels than Wuffs' decode, so those WebPs can differ | known gap | — | — |
 | Upload size limit 10 / 50 / 500 MB by plan, or 50 / 100 MB by boost tier 2 / 3, whichever is larger; 10 files per message | guess | search `maxFileSize`, `MAX_UPLOAD_COUNT` | `src/app` attachments |
 | Drag-and-drop `origin` = `"drag_and_drop"` | guess | search `file_picker` in the upload analytics | attachments |
+| The upload slot request (`POST /channels/{c}/attachments`) is retried like a message send (3 retries on a network error or 5xx, 3 after a 429), and the PUT's CORS preflight with the PUT; a staged file whose upload still failed is uploaded again (twice at most, no second `attachment_upload_started`) when its message is sent, rather than failing the send at once | guess (the client's retries of the slot request are unread) | `uploadFileWithResumption`, `CloudUpload` | `uploads.jai` `upload_one`, `run_draft_send`; `rest.jai` `upload_put` |
 
 ## Streamer Mode
 
@@ -307,7 +308,7 @@ call's `retries` (the bundle's value for that call: search the endpoint) and, fo
 | Message send failure: 4xx with code SLOWMODE_RATE_LIMITED sets the slowmode cooldown from body `retry_after`; automod / explicit-content codes have their own dispatches; a 429 shows no Clyde error | code | `Failed to send message`, `SLOWMODE_SET_COOLDOWN` | not modelled |
 | HTTP/2 connection window: every DATA byte read counts, padding and DATA for a stream already closed or reset included (given back at once); one WINDOW_UPDATE once more than half of 15 MiB is unacked or 5 s after the last | code (Chromium source) | `net/spdy/spdy_session.cc` `OnStreamFrameData` ("By the time data comes in"), `IncreaseRecvWindowSize` | `src/http/h2.jai` `give_back` |
 | HTTP/2 PING: a preface PING when nothing was read for 10 s; if still unanswered once nothing has been read for 10 s (`kHungIntervalSeconds`), GOAWAY last stream 0, PROTOCOL_ERROR, debug "Failed ping.", and the connection closes | code (Chromium source) | `spdy_session.cc` `CheckPingStatus`, `DoDrainSession`, `MapNetErrorToGoAwayStatus` | `h2.jai` `drive_until`, `failed_ping` |
-| Attachment PUT (CloudUpload, desktop): up to 12 attempts, 1 h timeout, `Backoff()` between them, only for retryable errors; from the 2nd attempt a `Content-Range: bytes */*` status check (308 + `Range` gives the resume offset) and a fresh upload URL when stale | code | `uploadFileWithResumption`, `getResumePosition` | known gap: `upload_put` tries 3 times, no resume check |
+| Attachment PUT (CloudUpload, desktop): up to 12 attempts, 1 h timeout, `Backoff()` between them, only for retryable errors; from the 2nd attempt a `Content-Range: bytes */*` status check (308 + `Range` gives the resume offset) and a fresh upload URL when stale | code | `uploadFileWithResumption`, `getResumePosition` | known gap: `upload_put` tries 3 times (the preflight too), no resume check |
 
 ## Analytics (`/science`)
 

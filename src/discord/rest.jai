@@ -579,14 +579,23 @@ upload_put :: (c: *Client, url: string, data: []u8, sent: *s64 = null) -> bool {
 	host, path, ok := split_url(url);
 	if !ok return false;
 	pre := http.Request.{method = "OPTIONS", scheme = "https", authority = host, path = path, headers = preflight_headers(c.id.platform, "PUT", "content-type", false)};
-	presp, perr := transport_round_trip(*c.transport, host, pre);
-	pstatus := presp.status;
-	http.response_destroy(*presp);
-	if perr != .None || pstatus >= 300 return false;
 	put := http.Request.{method = "PUT", scheme = "https", authority = host, path = path, headers = upload_put_headers(c.id.platform, data.count), body = data, sent = sent};
 	backoff := backoff_make(500, 5000);
+	preflighted := false;
 	for attempt: 0..2 {
 		if sent atomic_store(sent, 0);
+		if !preflighted {
+			// the preflight is retried with the PUT: a dropped connection there failed the whole file
+			presp, perr := transport_round_trip(*c.transport, host, pre);
+			pstatus := presp.status;
+			http.response_destroy(*presp);
+			if perr != .None || pstatus >= 500 {
+				if attempt < 2 sleep_milliseconds(xx backoff_fail(*backoff));
+				continue;
+			}
+			if pstatus >= 300 return false;
+			preflighted = true;
+		}
 		resp, err := transport_round_trip(*c.transport, host, put);
 		status := resp.status;
 		http.response_destroy(*resp);

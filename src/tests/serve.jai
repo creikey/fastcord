@@ -432,6 +432,40 @@ main :: () {
 		for 1..300 { if !stored()[0].pinned break; pump(); }
 		check(!stored()[0].pinned, "unpin");
 
+		// Send before a staged file has finished uploading: the message waits for it, then goes with it.
+		{
+			big := NewArray(4 << 20, u8,, temp);
+			for * big it.* = cast(u8) it_index;
+			h := discord.upload_draft(cl, cid, "big.bin", "application/octet-stream", big);
+			st := discord.upload_draft_status(cl, h);
+			check(st == .Uploading, "the file is still uploading when the message is sent");
+			discord.send_message(cl, cid, "with a file", .{attachments = .[.{handle = h, filename = "big.bin"}]});
+			for 1..1000 { if stored().count == 3 && !stored()[2].pending break; pump(); }
+			m := ifx stored().count == 3 then *stored()[2] else null;
+			check(m && !m.pending && !m.failed && m.content == "with a file" && m.attachments.count == 1, tprint("a send during the upload waits for it: % % %", stored().count, ifx m then m.failed else false, ifx m then m.attachments.count else -1));
+			if m {
+				discord.delete_message(cl, cid, m.id);
+				for 1..300 { if stored().count == 2 break; pump(); }
+			}
+			// One whose upload failed (here its slot was refused) goes again when sent, instead of failing the send at once.
+			h = discord.upload_draft(cl, 1, "small.bin", "application/octet-stream", .[1, 2, 3]);
+			for 1..300 { if discord.upload_draft_status(cl, h) == .Failed break; pump(); }
+			check(discord.upload_draft_status(cl, h) == .Failed, "an upload into an unknown channel fails");
+			d := discord.drafts_of(cl);
+			locks.lock(*d.mu);
+			u := discord.draft_find(d, h);
+			if u u.channel_id = cid;
+			locks.unlock(*d.mu);
+			discord.send_message(cl, cid, "after a failed upload", .{attachments = .[.{handle = h, filename = "small.bin"}]});
+			for 1..1000 { if stored().count == 3 && !stored()[2].pending break; pump(); }
+			m = ifx stored().count == 3 then *stored()[2] else null;
+			check(m && !m.failed && m.attachments.count == 1, tprint("a failed upload goes again when its message is sent: % %", stored().count, ifx m then m.failed else false));
+			if m {
+				discord.delete_message(cl, cid, m.id);
+				for 1..300 { if stored().count == 2 break; pump(); }
+			}
+		}
+
 		// A read mark survives a new session: the next READY carries it.
 		discord.ack_message(cl, cid, hello, immediate = true);
 		for 1..100 pump();
