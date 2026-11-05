@@ -10,6 +10,8 @@ expect_visible "Set a custom status"
 type shipping fastcord
 click_text "Today"
 wait 5
+shot build/shots/cs_clear_after.png
+wait 5
 click_text "1 hour"
 wait 5
 expect_visible "1 hour"

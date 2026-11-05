@@ -91,7 +91,6 @@ custom_status_modal :: () {
 	d.layout_axis = .Y;
 	ui.signal(d);
 	ui.push_parent(d);
-	defer ui.pop_parent();
 	padded :: (id: string, h: float32) -> *ui.Box {
 		r := row(id);
 		r.semantic_size = .[ui.pct(1), ui.px(h)];
@@ -179,7 +178,8 @@ custom_status_modal :: () {
 		if modal_button(L("Save##save"), 96, T("--background-brand"), with_alpha(T("--background-brand"), 0.85), .{1, 1, 1, 1}) save = true;
 		spacer(.X, PAD - 8);
 	}
-	if select_is_open() dropdown_list(); // the Clear after list, over the modal
+	ui.pop_parent();
+	if select_is_open() dropdown_list(); // the Clear after list, over the modal; outside it, as a floating box's fixed_pos is relative to its parent
 	if save && cstatus.open {
 		set_my_custom_status(trim(ui.editor_text(*cstatus.ed)), cstatus.clear_after, cstatus.emoji_name, cstatus.emoji_id);
 		cstatus.open = false;
