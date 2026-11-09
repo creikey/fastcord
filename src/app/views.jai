@@ -1221,6 +1221,7 @@ channel_row :: (ch: *dc.Channel, gid: dc.Snowflake) {
 				vsig := ui.signal(vr);
 				if vsig.right_clicked open_voice_user_menu(uid, app.ui.mouse);
 				if vsig.clicked open_profile(uid, vr.rect);
+				if vsig.hovering && vs.self_stream && uid != s.me stream_preview_card(uid, ch.guild_id, vr.rect);
 				{ ui.parent(vr); defer ui.pop_parent();
 					spacer(.X, 44);
 					voice_avatar("av", uid, 24, T("--background-base-lower"));

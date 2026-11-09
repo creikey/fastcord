@@ -613,10 +613,10 @@ intersect :: (a: Rect, b: Rect) -> Rect {
 // Clip rect a box is visible within, from last frame's layout.
 visible_rect :: (b: *Box) -> Rect {
 	r := b.rect;
-	p := b.parent;
-	while p {
-		if p.flags & .Clip r = intersect(r, p.rect);
-		p = p.parent;
+	x := b;
+	while x.parent && !(x.flags & .Overlay) { // an overlay is drawn without its ancestors' clips (emit_draw)
+		x = x.parent;
+		if x.flags & .Clip r = intersect(r, x.rect);
 	}
 	return r;
 }

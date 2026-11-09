@@ -429,6 +429,61 @@ tile_video_draw :: (b: *ui.Box, user: *void) {
 	gfx.video(.{x0, y0, x0 + w, y0 + h}, d.img.y, d.img.cbcr, d.img.yuv, 0, white);
 }
 
+// stream_preview_url: the last preview of uid's Go Live stream, keyed from their voice state, so a call
+// we only look at (not joined) shows it too; "" while it loads or when they aren't streaming.
+stream_preview_url :: (uid: dc.Snowflake) -> string {
+	vs := table_find_pointer(*store().voice_states, uid);
+	if !vs || !vs.self_stream || !app.client || uid == store().me return "";
+	return dc.stream_preview(app.client, dc.stream_key(vs.guild_id, vs.channel_id, uid));
+}
+
+// stream_preview_card: hovering a streamer in the channel list shows their stream's preview beside the
+// row (r), as the official client's popout does; the row's click still opens their profile.
+stream_preview_card :: (uid: dc.Snowflake, gid: dc.Snowflake, r: ui.Rect) {
+	W :: cast(float32) 256;
+	H :: W * 9 / 16;
+	card := ui.box("streamcard###stream_preview_card", .Draw_Background | .Draw_Shadow | .Floating_X | .Floating_Y | .Overlay | .Clip);
+	card.semantic_size = .[ui.px(W), ui.children()];
+	card.layout_axis = .Y;
+	p := ui.top_parent();
+	h := card.rect.y1 - card.rect.y0; // last frame's
+	y := clamp((r.y0 + r.y1) / 2 - h / 2, 8, max(8.0, app.ui.window.y - 8 - h));
+	card.fixed_pos = .{min(r.x1 + 8, app.ui.window.x - 8 - W) - p.rect.x0, y - p.rect.y0};
+	card.style.bg = T("--background-surface-highest");
+	card.style.radius = all4(8);
+	card.style.shadow_color = .{0, 0, 0, 0.3};
+	card.style.shadow_blur = 8;
+	card.style.shadow_offset = .{0, 4};
+	ui.parent(card); defer ui.pop_parent();
+	img := ui.box("img", .Draw_Background);
+	img.semantic_size = .[ui.px(W), ui.px(H)];
+	img.style.bg = T("--background-base-lowest");
+	img.layout_axis = .Y;
+	img.cross_align = .Center;
+	url := stream_preview_url(uid);
+	if url set_remote_image(img, url, cover = true);
+	else {
+		ui.parent(img); defer ui.pop_parent();
+		spacer(.Y, H / 2 - 9);
+		label(L("No preview yet"), .Medium, 14, T("--text-muted"), 18);
+	}
+	nr := row("name");
+	nr.semantic_size = .[ui.pct(1), ui.px(36)];
+	ui.parent(nr); defer ui.pop_parent();
+	spacer(.X, 12);
+	live := row("live", .Draw_Background);
+	live.semantic_size = .[ui.children(), ui.px(16)];
+	live.style.bg = T("--status-danger");
+	live.style.radius = all4(8);
+	{ ui.parent(live); defer ui.pop_parent();
+		spacer(.X, 6);
+		label(L("LIVE"), .Bold, 11, .{1, 1, 1, 1}, 14);
+		spacer(.X, 6);
+	}
+	spacer(.X, 8);
+	label(ellipsize(dc.user_name(store(), uid, gid, L("unknown")), .Semibold, 14, W - 90), .Semibold, 14, T("--text-strong"), 18);
+}
+
 #scope_file
 
 cv: struct {
@@ -481,10 +536,9 @@ call_tile :: (t: Call_Tile, x: float32, y: float32, w: float32, h: float32) {
 		b.custom_user = d;
 	}
 	preview := "";
-	if !img.y && t.stream && !watching && call_client() {
+	if !img.y && t.stream && !watching {
 		// a stream we don't watch shows its streamer's last preview, dimmed under Watch Stream
-		ch := dc.channel_get(s, app.voice_channel);
-		preview = dc.stream_preview(call_client(), dc.stream_key(ifx ch then ch.guild_id else 0, app.voice_channel, t.user));
+		preview = stream_preview_url(t.user);
 		set_remote_image(b, preview, cover = true);
 	}
 	if t.absent { absent_tile(b, t.user, h); return; }

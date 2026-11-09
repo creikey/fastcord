@@ -1,0 +1,10 @@
+# Hovering a streamer in the channel list shows their stream's preview beside the row (offline: "No preview
+# yet"); moving away hides it. A click on the row opens their profile (participant_menu.txt).
+wait 5
+move 200 369
+wait 5
+expect_visible "No preview yet"
+shot build/ui-call_stream_preview_hover.png
+move 900 300
+wait 5
+expect_not_visible "No preview yet"
