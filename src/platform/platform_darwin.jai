@@ -174,7 +174,7 @@ set_fullscreen :: (on: bool) {
 }
 is_fullscreen :: () -> bool { return m.window && (msg(NSUInteger, m.window, "styleMask") & (1 << 14)) != 0; }
 
-// The occlusion state's visible bit: off while the window is hidden (closed to the Dock), minimized, on
+// The occlusion state's visible bit: off while the window is minimized, on
 // another Space or wholly covered by other windows.
 os_window_visible :: () -> bool {
     NSWindowOcclusionStateVisible :: 1 << 1;
@@ -1130,10 +1130,11 @@ push_quit :: () {
     push_event(.{kind = .Quit, time = time_now()});
 }
 
-// Closing hides the window and fastcord keeps running, as the official client does on macOS; the Dock icon
-// brings it back (app_reopen) and Cmd+Q quits.
+// Closing quits, like Cmd+Q: macOS has no tray to hide to, and a window hidden to the Dock looked like a
+// close that failed. The app exits its own loop, which closes the window.
 win_should_close :: (self: Id, cmd: SEL, sender: Id) -> bool #c_call {
-    msg(Void, self, "orderOut:", cast(Id) null);
+    c := s.ctx; push_context,defer_pop c;
+    push_quit();
     return false;
 }
 

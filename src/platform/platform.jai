@@ -199,7 +199,7 @@ wait_events :: (timeout_seconds: float64) {
 // Events gathered by the last wait_events. Strings inside are valid until the next wait_events.
 events :: () -> []Event { return s.current; }
 
-// False while none of the window can be seen: hidden to the tray or Dock, minimized, or covered (macOS
+// False while none of the window can be seen: hidden to the tray, minimized, or covered (macOS
 // occlusion, X11 unmapped or fully obscured). The app then builds and draws nothing; the network, audio
 // and notifications go on. A change back wakes the loop.
 window_visible :: () -> bool { return ifx s.headless then !s.headless_hidden else os_window_visible(); }
