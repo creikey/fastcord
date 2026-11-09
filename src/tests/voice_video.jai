@@ -7,6 +7,8 @@ voice :: #import "voice";
 dave :: #import "voice_dave";
 video :: #import "video";
 media :: #import "media";
+etf :: #import "etf";
+#import "Hash_Table";
 
 main :: () {
     ok := true;
@@ -101,6 +103,26 @@ main :: () {
     au := u8.[0, 0, 1, 0x67, 1, 2, 0, 0, 0, 1, 0x68, 3, 0, 0, 1, 0x65, 9, 9, 9];
     f, nals := voice.with_long_start_codes(au);
     ok &= check(nals.count == 3 && f.count == au.count + 2 && f[0] == 0 && f[3] == 1 && f[4] == 0x67, "start codes normalized");
+    // a simulcast sender's op 12, the low layer first: one layer is watched (by quality in a call, the first
+    // on a stream connection) and op 15 asks for only that one
+    OP12 :: "{\"user_id\":\"7\",\"audio_ssrc\":10,\"streams\":[{\"ssrc\":30,\"rtx_ssrc\":31,\"quality\":50,\"active\":true},{\"ssrc\":20,\"rtx_ssrc\":21,\"quality\":100,\"active\":true}]}";
+    for stream: bool.[false, true] {
+        c: voice.Conn;
+        c.info.stream = stream;
+        c.state = .Connected;
+        c.opts.view_pixels = 1280 * 720;
+        wants := voice.on_remote_video(*c, 7, etf.from_json(OP12,, temp));
+        want := ifx stream then "{\"op\":15,\"d\":{\"30\":100,\"pixelCounts\":{\"30\":921600}}}" else "{\"op\":15,\"d\":{\"20\":100,\"30\":0,\"any\":100}}";
+        watched := ifx stream then cast(u32) 30 else 20;
+        ok &= check(wants == want && c.video_rx.count == 1 && table_find_pointer(*c.video_rx, watched) != null, "simulcast (stream %): watches %, op 15 %", stream, watched, wants);
+        if stream continue;
+        // back to one layer: op 15 drops the skipped one, then goes no more while nothing is skipped
+        ONE :: "{\"user_id\":\"7\",\"audio_ssrc\":10,\"streams\":[{\"ssrc\":20,\"rtx_ssrc\":21,\"quality\":100,\"active\":true}]}";
+        again := voice.on_remote_video(*c, 7, etf.from_json(ONE,, temp));
+        ok &= check(again == "{\"op\":15,\"d\":{\"any\":100}}" && c.video_off.count == 0, "one layer again: op 15 %", again);
+        again = voice.on_remote_video(*c, 7, etf.from_json(ONE,, temp));
+        ok &= check(again == "", "an unchanged op 12 sends no op 15: %", again);
+    }
     print(ifx ok then "PASS\n" else "FAIL\n");
     if !ok exit(1);
 }

@@ -69,6 +69,7 @@ Options :: struct {
     hevc_encode: bool;        // Windows: offer to send H.265 (a GPU encoder exists)
     vad_manual: bool;         // manual threshold instead of auto
     vad_threshold_db: float32; // manual threshold (0 = -60 dB default)
+    view_pixels: int;         // a stream connection: the watched stream's view size, for op 15's pixelCounts
 }
 
 Stats :: struct {
@@ -225,6 +226,7 @@ Conn :: struct {
     video_codec: Video_Codec;
     video_rx: Table(u32, *Video_Rx);  // remote video SSRC -> reassembly (under mu)
     video_rtx: Table(u32, u32);       // a remote stream's RTX SSRC -> its video SSRC (under mu)
+    video_off: Table(u32, u64);       // a simulcast layer we don't watch -> its user (under mu)
     video_users: Table(u64, bool);    // users whose op 12 has an active stream (under mu)
     vmu: locks.Mutex;                 // the send side below (encoder thread vs. RTCP)
     video_on: bool;
@@ -335,6 +337,7 @@ voice_disconnect :: (c: *Conn) {
     for c.video_rx { rx_reset(it); free(it); }
     deinit(*c.video_rx);
     deinit(*c.video_rtx);
+    deinit(*c.video_off);
     deinit(*c.video_users);
     deinit(*c.user_ssrc);
     deinit(*c.settings);
@@ -838,7 +841,10 @@ handle_json :: (c: *Conn, text: string) {
         uid := jsnow(jget(d, "user_id"));
         ssrc := cast,no_check(u32) jint(jget(d, "audio_ssrc"), 0);
         if uid && ssrc map_user(c, uid, ssrc);
-        if uid on_remote_video(c, uid, d);
+        if uid {
+            wants := on_remote_video(c, uid, d);
+            if wants send_text(c, wants);
+        }
       case OP_CLIENTS_CONNECT;
         ids: [..]u64;
         ids.allocator = temp;
@@ -1014,7 +1020,12 @@ on_session_description :: (c: *Conn, d: etf.Value) {
     c.video_codec = video_codec_from_name(jstr(jget(d, "video_codec")));
     c.resumable = true;
     set_state(c, .Connected);
-    send_text(c, MSG_MEDIA_SINK_WANTS_ANY);
+    wants: string;
+    {
+        locks.guard(*c.mu);
+        wants = msg_sink_wants(c);
+    }
+    if wants send_text(c, wants);
     {
         locks.guard(*c.vmu);
         if c.video_on {  // resumed / reconnected while sending
@@ -1818,6 +1829,65 @@ video_user_ids :: (c: *Conn) -> []u64 {
     return out;
 }
 
+// on_remote_video: op 12 from the server maps a user's video SSRCs (0 / inactive = stopped), and returns
+// the op 15 to send now ("" for none). A simulcast sender (the official client's Go Live above 720p) lists
+// a layer per quality. We watch one, as the client does, since two layers fed to one decoder show nothing:
+// on a stream connection the first active one (GoLiveQualityManager), else quality 100 (the client's pick
+// for the focused user), the others asked for at 0. In a call op 15 goes again only when the skipped
+// layers may have changed, as the client sends it only when its wants do.
+on_remote_video :: (c: *Conn, uid: u64, d: etf.Value) -> string {
+    locks.guard(*c.mu);
+    layered := false;
+    for c.video_off if it == uid { layered = true; break; }
+    drop_video_rx(c, uid);
+    pick, pick_rtx, pick_q := 0, 0, -1;
+    streams := jarr(jget(d, "streams"));
+    for streams {
+        ssrc, q := jint(jget(it, "ssrc"), 0), jint(jget(it, "quality"), 100);
+        if jint(jget(it, "active"), 1) == 0 || ssrc <= 0 || ssrc > 0xffff_ffff continue;
+        better := ifx c.info.stream then pick_q < 0 else q > pick_q;
+        if pick || !better layered = true;
+        if !better { table_set(*c.video_off, cast(u32) ssrc, uid); continue; }
+        if pick table_set(*c.video_off, cast(u32) pick, uid);
+        pick, pick_rtx, pick_q = ssrc, jint(jget(it, "rtx_ssrc"), 0), q;
+    }
+    if !streams.count pick, pick_rtx = jint(jget(d, "video_ssrc"), 0), jint(jget(d, "rtx_ssrc"), 0);
+    if pick > 0 && pick <= 0xffff_ffff {
+        rx := New(Video_Rx);
+        rx.ssrc = cast(u32) pick;
+        rx.user_id = uid;
+        table_set(*c.video_rx, rx.ssrc, rx);
+        if pick_rtx > 0 && pick_rtx <= 0xffff_ffff table_set(*c.video_rtx, cast(u32) pick_rtx, rx.ssrc);
+    }
+    table_set(*c.video_users, uid, pick > 0);
+    if c.state != .Connected || (!c.info.stream && !layered) return "";
+    return msg_sink_wants(c);
+}
+
+// msg_sink_wants: op 15 for what we watch (under mu; "" for none). On a stream connection, the streamer's
+// SSRC at 100 with our view's pixel count (GoLiveQualityManager.requestStream, no "any"); else "any" at 100
+// and, for a simulcast sender, its layers at 100 and 0 (JSON.stringify puts the SSRC keys first, ascending).
+msg_sink_wants :: (c: *Conn) -> string {
+    b: String_Builder;
+    b.allocator = temp;
+    append(*b, "{\"op\":15,\"d\":{");
+    if c.info.stream {
+        for c.video_rx {
+            print_to_builder(*b, "\"%\":100,\"pixelCounts\":{\"%\":%}}}", it.ssrc, it.ssrc, max(c.opts.view_pixels, 0));
+            return builder_to_string(*b,, temp);
+        }
+        return "";
+    }
+    keys: [..]u32;
+    keys.allocator = temp;
+    for v, k: c.video_off array_add(*keys, k);
+    for c.video_rx for v: c.video_off if v == it.user_id { array_add(*keys, it.ssrc); break; }
+    quick_sort(keys, (a: u32, b: u32) -> s64 { return cast(s64) a - cast(s64) b; });
+    for keys print_to_builder(*b, "\"%\":%,", it, ifx table_find_pointer(*c.video_off, it) then 0 else 100);
+    append(*b, "\"any\":100}}");
+    return builder_to_string(*b,, temp);
+}
+
 // request_keyframe asks for a keyframe of user's video (e.g. after their decoder
 // failed): frames wait for one, and the UDP thread sends the PLI.
 request_keyframe :: (c: *Conn, user_id: u64) {
@@ -1830,28 +1900,6 @@ request_keyframe :: (c: *Conn, user_id: u64) {
 EXT_ID_PLAYOUT_DELAY :: 5;
 PLI_INTERVAL_MS :: 500;
 
-MSG_MEDIA_SINK_WANTS_ANY :: "{\"op\":15,\"d\":{\"any\":100}}";
-
-// on_remote_video: op 12 from the server maps a user's video SSRCs (0 / inactive = stopped).
-on_remote_video :: (c: *Conn, uid: u64, d: etf.Value) {
-    locks.guard(*c.mu);
-    drop_video_rx(c, uid);
-    active := false;
-    add :: (ssrc: s64, rtx: s64) #expand {
-        if ssrc <= 0 return;
-        rx := New(Video_Rx);
-        rx.ssrc = cast,no_check(u32) ssrc;
-        rx.user_id = uid;
-        table_set(*c.video_rx, rx.ssrc, rx);
-        if rtx > 0 table_set(*c.video_rtx, cast,no_check(u32) rtx, rx.ssrc);
-        active = true;
-    }
-    streams := jarr(jget(d, "streams"));
-    for streams if jint(jget(it, "active"), 1) != 0 add(jint(jget(it, "ssrc"), 0), jint(jget(it, "rtx_ssrc"), 0));
-    if !streams.count add(jint(jget(d, "video_ssrc"), 0), jint(jget(d, "rtx_ssrc"), 0));
-    table_set(*c.video_users, uid, active);
-}
-
 drop_video_rx :: (c: *Conn, uid: u64) {
     gone: [..]u32;
     gone.allocator = temp;
@@ -1861,6 +1909,10 @@ drop_video_rx :: (c: *Conn, uid: u64) {
     rtx.allocator = temp;
     for v, k: c.video_rtx if array_find(gone, v) array_add(*rtx, k);
     for rtx table_remove(*c.video_rtx, it);
+    off: [..]u32;
+    off.allocator = temp;
+    for v, k: c.video_off if v == uid array_add(*off, k);
+    for off table_remove(*c.video_off, it);
 }
 
 on_video_packet :: (c: *Conn, h: Rtp_Header, codec: Video_Codec, payload: []u8, n: s64, now: s64) {

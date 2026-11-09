@@ -438,6 +438,8 @@ send_voice_state :: () {
 stream_connect :: (info: dc.Voice_Server_Info, own := false) -> *voice.Conn {
 	o := voice.Options.{no_audio_devices = voice_headless() || !voice_audio_ready()};
 	add_video_options(*o, true);
+	view := platform.window_size(); // the stream fills the call view; the client sends its video element's size
+	o.view_pixels = cast(int) (view.x * view.y);
 	if own {
 		share_reset();
 		o.capture = share_pull;
