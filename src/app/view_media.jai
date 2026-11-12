@@ -328,9 +328,9 @@ text_attachment :: (a: *dc.Attachment, i: int, max_w: float32) -> bool {
 				if doc_tab("tabp", L("Pretty"), pretty) && !pretty array_unordered_remove_by_value(*md_raw, a.id);
 				if doc_tab("tabr", L("Raw"), !pretty) && pretty array_add(*md_raw, a.id);
 				spacer(.X, 6);
-				if doc_icon("fullbtn", "fullscreen", 20) {
-					md_full = .{id = a.id, url = copy_string(a.url), name = copy_string(a.filename), ext = ext};
-				}
+			}
+			if doc_icon("fullbtn", "fullscreen", 20) {
+				md_full = .{id = a.id, url = copy_string(a.url), name = copy_string(a.filename), ext = ext};
 			}
 			nsig := ui.signal(name);
 			if nsig.right_clicked && !begins_with(a.url, E2E_URL) media_menu_open(a.url, "");
@@ -415,15 +415,18 @@ md_full_modal :: () {
 	if blob.state != .Ready || adm_escape() { if blob.state != .Loading md_full_close(); return; }
 	text := cast(string) blob.data;
 	text.count = min(text.count, TEXT_PREVIEW_MAX);
-	pretty := !array_find(md_raw, md_full.id);
+	is_md := md_full.ext == "md" || md_full.ext == "markdown";
+	pretty := is_md && !array_find(md_raw, md_full.id);
 	if !adm_modal_begin("mdfull", w, md_full.name, "", h) { md_full_close(); return; }
 	defer adm_modal_end();
-	tabs := row("tabs");
-	tabs.semantic_size = .[ui.pct(1), ui.px(28)];
-	{ ui.parent(tabs); defer ui.pop_parent();
-		spacer(.X, 25);
-		if doc_tab("tabp", L("Pretty"), pretty) && !pretty array_unordered_remove_by_value(*md_raw, md_full.id);
-		if doc_tab("tabr", L("Raw"), !pretty) && pretty array_add(*md_raw, md_full.id);
+	if is_md {
+		tabs := row("tabs");
+		tabs.semantic_size = .[ui.pct(1), ui.px(28)];
+		{ ui.parent(tabs); defer ui.pop_parent();
+			spacer(.X, 25);
+			if doc_tab("tabp", L("Pretty"), pretty) && !pretty array_unordered_remove_by_value(*md_raw, md_full.id);
+			if doc_tab("tabr", L("Raw"), !pretty) && pretty array_add(*md_raw, md_full.id);
+		}
 	}
 	spacer(.Y, 8);
 	body := ui.box("body", .Scroll_Y | .Clip);
