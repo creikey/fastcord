@@ -55,7 +55,7 @@ open_file_dialog :: (allow_multiple := true, allocator := context.allocator) -> 
         array_add(*args, "kdialog", "--getopenfilename");
         if allow_multiple array_add(*args, "--multiple", "--separate-output");
     } else {
-        return .[];
+        return portal_open_file(allow_multiple, allocator);
     }
     r, out := run_command(..args, capture_and_return_output = true,, temp);
     paths: [..]string;
@@ -63,6 +63,107 @@ open_file_dialog :: (allow_multiple := true, allocator := context.allocator) -> 
     if r.exit_code != 0 return paths;
     for split(out, "\n",, temp) if begins_with(it, "/") array_add(*paths, copy_string(it,, allocator));
     return paths;
+}
+
+// Without zenity or kdialog: the xdg-desktop-portal FileChooser (GNOME, KDE, Manjaro and the rest ship one),
+// on a connection of its own so the bus thread is never involved. Blocks until the user answers.
+portal_open_file :: (allow_multiple: bool, allocator: Allocator) -> []string {
+    paths: [..]string;
+    paths.allocator = allocator;
+    if !bus_start() return paths;
+    err: DBus_Error;
+    D.error_init(*err);
+    conn := D.bus_get_private(0 /*DBUS_BUS_SESSION*/, *err);
+    if !conn { D.error_free(*err); return paths; }
+    defer { D.connection_close(conn); D.connection_unref(conn); }
+    D.connection_set_exit_on_disconnect(conn, 0);
+    D.error_init(*err);
+    D.bus_add_match(conn, "type='signal',interface='org.freedesktop.portal.Request',member='Response'", *err);
+    D.error_free(*err);
+
+    m := D.message_new_method_call("org.freedesktop.portal.Desktop", "/org/freedesktop/portal/desktop", "org.freedesktop.portal.FileChooser", "OpenFile");
+    if !m return paths;
+    it, arr, entry, v: DBus_Iter;
+    D.message_iter_init_append(m, *it);
+    empty := "".data;
+    title := "Upload a file".data;
+    D.message_iter_append_basic(*it, #char "s", *empty);
+    D.message_iter_append_basic(*it, #char "s", *title);
+    D.message_iter_open_container(*it, #char "a", "{sv}", *arr);
+    D.message_iter_open_container(*arr, #char "e", null, *entry);
+    key := "multiple".data;
+    multi: u32 = xx allow_multiple;
+    D.message_iter_append_basic(*entry, #char "s", *key);
+    D.message_iter_open_container(*entry, #char "v", "b", *v);
+    D.message_iter_append_basic(*v, #char "b", *multi);
+    D.message_iter_close_container(*entry, *v);
+    D.message_iter_close_container(*arr, *entry);
+    D.message_iter_close_container(*it, *arr);
+    D.error_init(*err);
+    reply := D.connection_send_with_reply_and_block(conn, m, 5000, *err);
+    D.message_unref(m);
+    D.error_free(*err);
+    if !reply return paths;
+    D.message_unref(reply);
+
+    while true {
+        if !D.connection_read_write(conn, 200) break;
+        msg := D.connection_pop_message(conn);
+        if !msg continue;
+        defer D.message_unref(msg);
+        if !D.message_is_signal(msg, "org.freedesktop.portal.Request", "Response") continue;
+        top: DBus_Iter;
+        if !D.message_iter_init(msg, *top) break;
+        code: u32 = 1;
+        D.message_iter_get_basic(*top, *code);
+        if code != 0 || !D.message_iter_next(*top) break;
+        dict: DBus_Iter;
+        D.message_iter_recurse(*top, *dict);
+        while D.message_iter_get_arg_type(*dict) == #char "e" {
+            ent: DBus_Iter;
+            D.message_iter_recurse(*dict, *ent);
+            k: *u8;
+            D.message_iter_get_basic(*ent, *k);
+            if to_string(k) == "uris" && D.message_iter_next(*ent) {
+                var, list: DBus_Iter;
+                D.message_iter_recurse(*ent, *var);
+                D.message_iter_recurse(*var, *list);
+                while D.message_iter_get_arg_type(*list) == #char "s" {
+                    u: *u8;
+                    D.message_iter_get_basic(*list, *u);
+                    uri := to_string(u);
+                    if begins_with(uri, "file://") {
+                        path := slice(uri, 7, uri.count - 7);
+                        b: String_Builder;
+                        b.allocator = temp;
+                        i := 0;
+                        while i < path.count {
+                            c := path[i];
+                            if c == #char "%" && i + 2 < path.count {
+                                hi := hex_digit(path[i + 1]);
+                                lo := hex_digit(path[i + 2]);
+                                if hi >= 0 && lo >= 0 { append(*b, cast(u8) (hi * 16 + lo)); i += 3; continue; }
+                            }
+                            append(*b, c);
+                            i += 1;
+                        }
+                        array_add(*paths, copy_string(builder_to_string(*b,, temp),, allocator));
+                    }
+                    if !D.message_iter_next(*list) break;
+                }
+            }
+            if !D.message_iter_next(*dict) break;
+        }
+        break;
+    }
+    return paths;
+}
+
+hex_digit :: (c: u8) -> s32 {
+    if c >= #char "0" && c <= #char "9" return c - #char "0";
+    if c >= #char "a" && c <= #char "f" return c - #char "a" + 10;
+    if c >= #char "A" && c <= #char "F" return c - #char "A" + 10;
+    return -1;
 }
 
 // "Save file" dialog by zenity or kdialog, offering name in ~/Downloads. The path, or "" if cancelled or
@@ -1751,6 +1852,8 @@ D: struct {
     connection_send: (c: *void, m: *void, serial: *u32) -> u32 #c_call;
     connection_send_with_reply_and_block: (c: *void, m: *void, timeout_ms: s32, e: *DBus_Error) -> *void #c_call;
     connection_flush: (c: *void) #c_call;
+    connection_close: (c: *void) #c_call;
+    connection_unref: (c: *void) #c_call;
     message_new_method_call: (dest: *u8, path: *u8, iface: *u8, method: *u8) -> *void #c_call;
     message_new_signal: (path: *u8, iface: *u8, name: *u8) -> *void #c_call;
     message_unref: (m: *void) #c_call;
