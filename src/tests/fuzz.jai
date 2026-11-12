@@ -95,6 +95,7 @@ TARGETS :: Target.[
 	.{"dave", run_dave, "payload\0\x10\xfa\xfa", "", .Bytes},
 	.{"mls", run_mls, "\0\x01\0\x01\0\x02\0\0", "", .Bytes},
 	.{"e2e", run_e2e, "\x01\x02\x03\x04\x05\x06\x07\x08", "", .Bytes},
+	.{"ui", run_ui, "\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f\x10\x11\x12\x13\x14\x15\x16\x17", "", .Choices},
 	.{"serve", run_serve, "\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f\x10\x11\x12\x13\x14\x15\x16\x17", "", .Choices},
 	.{"session", run_session, "\x00\x00\x01\x05\x02\x00\x02\x01\x09\x00\x03\x00\x02\x08\x00\x01\x05\x02\x02", "", .Choices},
 	.{"fc_text", run_fc_text, "fc-AAECAwQFBgcICQ", "", .Bytes},
@@ -927,8 +928,11 @@ ODD_IDS :: string.["0", "-1", "18446744073709551615", "18446744073709551616", "a
 TEXTS :: string.["", "a", "x y", "<@1>", "\xff\xfe", "\xf0\x9f\x98\x80", "https://cdn.discordapp.com/attachments/1/2/a.png", "AAAA", "2026-11-02T00:00:00.000000+00:00", "a_b", "#", "\0"];
 INTS :: s64.[0, 1, 2, 3, 4, 6, 10, 46, 255, 65536, -1, 0x7FFF_FFFF, 0x8000_0000, 0x7FFF_FFFF_FFFF_FFFF, -0x7FFF_FFFF_FFFF_FFFF];
 
+gen_real_ids: []string; // `ui`: the fixture's, so that events land on what's on screen.
+
 gen_id :: (g: *Gen) -> etf.Value {
 	r := pick(g, 16);
+	if gen_real_ids.count && r < 12 return etf.vstring(pick_of(g, gen_real_ids));
 	if r == 15 return etf.vstring(pick_of(g, ODD_IDS));
 	if r == 14 return etf.vint(pick(g, 6) + 1);
 	return etf.vstring(IDS[r % IDS.count]);
@@ -1024,6 +1028,71 @@ run_store :: (data: []u8) {
 		check_store(*s);
 	}
 	dc.store_destroy(*s);
+}
+
+// ---- The UI: a hostile store on screen, and a user clicking through it ----
+
+#if UI_TARGET fapp :: #import "app";
+
+ui_fixtures: [..]string;
+
+run_ui :: (data: []u8) {
+	#if UI_TARGET {
+		if !ui_fixtures.count {
+			started := atomic_swap(*input_started, 0);
+			defer atomic_swap(*input_started, started);
+			push_allocator(context.default_allocator);
+			netio.no_network = true;
+			fapp.fuzz_ui_start("build/fuzz_ui_state");
+			for file_list("tests/ui") if ends_with(it, ".jsonl") array_add(*ui_fixtures, read_entire_file(it));
+		}
+		// Frames reset temp, and the input may live there.
+		input := array_copy(data);
+		defer array_free(input);
+		g := Gen.{b = input};
+		ids := fapp.fuzz_ui_reset(ui_fixtures[pick(*g, ui_fixtures.count)]);
+		kept := NewArray(ids.count, string);
+		defer { for kept free(it); array_free(kept); }
+		for ids kept[it_index] = copy_string(it);
+		gen_real_ids = kept;
+		fapp.fuzz_ui_open(pick(*g, 256));
+		fapp.fuzz_ui_frame();
+		now: s64 = 1700000000;
+		n := 0;
+		while !done(*g) && n < 48 {
+			n += 1;
+			now += 1;
+			r := pick(*g, 16);
+			if r < 7 {
+				name := EVENTS[pick(*g, EVENTS.count)];
+				event := gen_map(*g, 3);
+				if replaying print("% %\n", name, json_of(event));
+				fapp.fuzz_ui_event(name, event, now);
+				fapp.fuzz_ui_frame();
+			} else {
+				x, y := pick(*g, 64) * 20, pick(*g, 36) * 20;
+				line: string;
+				if r == {
+					case 7; #through;
+					case 8; #through;
+					case 9; line = tprint("click % %", x, y);
+					case 10; line = tprint("rclick % %", x, y);
+					case 11; line = tprint("move % %", x, y);
+					case 12; line = tprint("scroll 0 %", pick(*g, 4000) - 2000);
+					case 13; line = "go_home";
+					case 14; fapp.fuzz_ui_open(pick(*g, 256));
+					case 15; line = "resize 800 600";
+				}
+				if replaying print("%\n", line);
+				if line fapp.fuzz_ui_command(line);
+				fapp.fuzz_ui_frame();
+			}
+			check_store(fapp.fuzz_ui_store());
+		}
+	} else {
+		print("fuzz: `ui` needs its own binary: jai build.jai - fuzz ui\n");
+		exit(2);
+	}
 }
 
 // ---- Markdown: combinations of its syntax ----
@@ -1338,8 +1407,8 @@ run_one :: (target: Target, input: []u8) {
 	memcpy(last_map + 8, input.data, n);
 	// With the debugger on, every allocation must reach the heap it tracks: skip the fence.
 	// A gateway's writer thread would race the fence, which takes no lock.
-	fence := !MEM_DEBUG && hash_of(input) % FENCE_ONE_IN == 0 && target.name != "serve";
-	hang_limit_s = ifx fence then HANG_FENCE_S else HANG_S;
+	fence := !MEM_DEBUG && hash_of(input) % FENCE_ONE_IN == 0 && target.name != "serve" && target.name != "ui";
+	hang_limit_s = ifx fence || target.name == "ui" then HANG_FENCE_S else HANG_S;
 	memset(cov_map, 0, cov_blocks);
 	atomic_swap(*input_started, now_ms());
 	{
@@ -1500,7 +1569,8 @@ fresh :: () -> []u8 {
 main :: () {
 	args := get_command_line_arguments();
 	name := ifx args.count > 1 then args[1] else "";
-	if name == "list" { for TARGETS print("%\n", it.name); return; }
+	netio.no_network = true;
+	if name == "list" { for TARGETS if it.name != "ui" print("%\n", it.name); return; }
 	if name == "scale" { if !run_scale() exit(6); return; }
 	ti := -1;
 	for TARGETS if it.name == name ti = it_index;

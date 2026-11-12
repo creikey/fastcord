@@ -58,6 +58,8 @@ sweep_run :: (opt: Options) -> int {
 	return ifx bad > 0 then 1 else 0;
 }
 
+sweep_reset_state :: () { app_reset_state(); }
+
 #scope_file
 
 Sweep_Screen :: struct {

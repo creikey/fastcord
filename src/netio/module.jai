@@ -49,10 +49,13 @@ Tcp :: struct {
 	peer: [16]u8; // An accepted connection's address, IPv4 as ::ffff:a.b.c.d.
 }
 
+no_network: bool; // The fuzzer's: whatever a hostile input names, nothing dials out.
+
 // dial_tcp resolves host and connects to its first IPv4 address, else its first IPv6 one. public_only
 // skips every address that isn't on the public internet (is_public_address), for a server fetching a URL
 // someone else chose; the check is on the address it then connects to, so DNS can't swap it after.
 dial_tcp :: (host: string, port: int, public_only := false, loc := #caller_location) -> *Tcp, Error {
+	if no_network return null, .Dial;
 	locks.may_block("TCP dial", loc);
 	#if OS == .WINDOWS socket_init(); // WSAStartup: reference counted, cheap next to a dial
 	hints: addrinfo;

@@ -1148,6 +1148,7 @@ Udp_Addr :: struct {
 
 // udp_resolve returns host's first IPv4 address, else its first IPv6 one, with port.
 udp_resolve :: (host: string, port: int) -> Udp_Addr, bool {
+    if netio.no_network return .{}, false;
     #if OS == .WINDOWS socket_init(); // WSAStartup: reference counted
     hints: addrinfo;
     hints.ai_family = AF_UNSPEC;

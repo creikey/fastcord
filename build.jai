@@ -33,7 +33,8 @@ build :: () {
         case "run";    ok = compile(path_strip_extension(path_filename(args[1])), file = args[1]);
         case "fuzz";
             mem := args.count > 1 && args[1] == "mem";
-            ok = compile(ifx mem then "fuzz-mem" else "fuzz", tprint("MEM_DEBUG :: %; #load \"src/tests/fuzz.jai\";", mem), .OPTIMIZED, coverage = true) && fuzz(args, mem);
+            ui := args.count > 1 && args[1] == "ui"; // Links the whole app, so it has a binary of its own.
+            ok = compile(ifx mem then "fuzz-mem" else ifx ui then "fuzz-ui" else "fuzz", tprint("MEM_DEBUG :: %; UI_TARGET :: %; #load \"src/tests/fuzz.jai\";", mem, ui), .OPTIMIZED, coverage = true) && fuzz(args, mem);
         case "test";
             // the offline traffic-parity tests; extra arguments pick tests by name
             ok = compile("test-discord-jai", file = "src/tests/discord.jai", optimization = .OPTIMIZED);
@@ -79,6 +80,7 @@ usage: jai build.jai - <target>
   run <file.jai>              build any program file
   fuzz <target> [seconds]     fuzz one target, `all` of them, or 0 seconds to replay; a failure is saved in tests/fuzz/<target>/
   fuzz mem <target> [seconds] the same with Basic's Memory_Debugger: double frees with stacks, leaks, poisoned temp
+  fuzz ui [seconds]           the whole app headless and offline: hostile events on real fixtures, input on every view
   fuzz scale                  each text parser on repeated openers at two sizes; fails on superlinear time
   release <vX.Y.Z>            dist/: the Mac app on macOS, Windows + Linux on Windows (CI publishes them)
   og                          site/og.jpg (link preview) from tools/og/card.html
@@ -116,7 +118,7 @@ VENDOR_LIB :: () -> string {
 fuzz :: (args_in: []string, mem: bool) -> bool {
     args := args_in;
     if mem args = array_view(args, 1);
-    exe := built(ifx mem then "fuzz-mem" else "fuzz");
+    exe := built(ifx mem then "fuzz-mem" else ifx args.count > 1 && args[1] == "ui" then "fuzz-ui" else "fuzz");
     if args.count < 2 { log_error("usage: fuzz [mem] <target>|all|scale [seconds]"); return false; }
     if args[1] == "scale" || args[1] == "list" return run_command(exe, args[1]).exit_code == 0;
     one :: (exe: string, target: string, seconds: string) -> bool {

@@ -6,6 +6,7 @@
 #import "Atomics";
 http :: #import "http";
 locks :: #import "locks";
+netio :: #import "netio";
 tls :: #import "tls";
 lib :: #library,no_dll "../../build/fc_vendor";
 #load "quic.jai";
