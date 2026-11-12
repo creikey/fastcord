@@ -64,6 +64,7 @@ voice :: #import "voice";
 #load "icons.jai";
 #load "images.jai";
 #load "markdown.jai";
+#load "md_doc.jai";
 #load "moderation.jai";
 #load "custom_status.jai";
 #load "notify.jai";

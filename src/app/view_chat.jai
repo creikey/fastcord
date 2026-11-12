@@ -1083,7 +1083,7 @@ channel_escape :: (ch: *dc.Channel) {
 }
 
 modal_open :: () -> bool {
-	return sw.open || leaving.url != "" || attachments_modal_open() || ma.confirming != 0 || app.settings_open || viewer_url != "" || invite_modal_open() || invite_accept_open() || add_server_is_open() || events_modal_open() || guild_admin_modal_open() || server_settings_is_open() || fnick.user != 0 || modr.user != 0 || tsg.channel != 0 || cstatus.open || folder_modal_open() || shortcuts_open || view_reactions.msg != 0 || npoll.channel != 0;
+	return sw.open || leaving.url != "" || attachments_modal_open() || ma.confirming != 0 || app.settings_open || viewer_url != "" || invite_modal_open() || invite_accept_open() || add_server_is_open() || events_modal_open() || guild_admin_modal_open() || server_settings_is_open() || fnick.user != 0 || modr.user != 0 || tsg.channel != 0 || cstatus.open || folder_modal_open() || shortcuts_open || view_reactions.msg != 0 || npoll.channel != 0 || md_full.id != 0;
 }
 
 // The hover toolbar drawn this pass, and the one from the pass before (rows test the
@@ -2339,6 +2339,7 @@ md_cache: Table(u64, Md_Cached);
 md_swept: u64;
 MD_KEEP_FRAMES :: 600;
 
+#scope_export
 md_cached :: (text: string) -> []Md_Block {
 	h := fnv1a_hash(text.data, text.count);
 	e := table_find_pointer(*md_cache, h);
@@ -2356,6 +2357,8 @@ md_cached :: (text: string) -> []Md_Block {
 	table_set(*md_cache, h, entry);
 	return entry.blocks;
 }
+
+#scope_file
 
 md_copy :: (blocks: []Md_Block) -> []Md_Block {
 	out := array_copy(blocks);

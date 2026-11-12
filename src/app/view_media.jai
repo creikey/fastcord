@@ -299,8 +299,12 @@ text_attachment :: (a: *dc.Attachment, i: int, max_w: float32) -> bool {
 	}
 	if text[text.count - 1] != #char "\n" lines += 1;
 	if shown && shown[shown.count - 1] == #char "\n" shown.count -= 1;
+	// a markdown file has two tabs, Pretty (the default) and Raw
+	is_md := ext == "md" || ext == "markdown";
+	pretty := is_md && !array_find(md_raw, a.id);
+	card_w := min(ifx pretty then 640.0 else 432.0, max_w + 32);
 	card := ui.box(tprint("text%", i), .Draw_Background | .Draw_Border);
-	card.semantic_size = .[ui.px(min(432.0, max_w + 32)), ui.children()];
+	card.semantic_size = .[ui.px(card_w), ui.children()];
 	card.layout_axis = .Y;
 	card.style.bg = T("--background-base-lowest");
 	card.style.border_color = T("--border-subtle");
@@ -320,19 +324,42 @@ text_attachment :: (a: *dc.Attachment, i: int, max_w: float32) -> bool {
 			if dl app.ui.animating = true;
 			gap := ui.box("gap");
 			gap.semantic_size = .[ui.fill(), ui.px(1)];
+			if is_md {
+				if doc_tab("tabp", L("Pretty"), pretty) && !pretty array_unordered_remove_by_value(*md_raw, a.id);
+				if doc_tab("tabr", L("Raw"), !pretty) && pretty array_add(*md_raw, a.id);
+				spacer(.X, 6);
+				if doc_icon("fullbtn", "fullscreen", 20) {
+					md_full = .{id = a.id, url = copy_string(a.url), name = copy_string(a.filename), ext = ext};
+				}
+			}
 			nsig := ui.signal(name);
 			if nsig.right_clicked && !begins_with(a.url, E2E_URL) media_menu_open(a.url, "");
 			if download_icon(20) || nsig.clicked file_download(a);
 			spacer(.X, 6);
 		}
-		code := ui.box("code", .Draw_Text | .Selectable_Text | .Wrap_Text);
-		ui.set_spans(code, code_spans(shown, ext, F(.Mono), 13));
-		code.semantic_size = .[ui.pct(1), ui.text_size()];
-		code.style.font = F(.Mono);
-		code.style.font_size = 13;
-		code.style.line_height = 18;
-		code.style.padding = .{12, 4};
-		code.style.text_color = T("--text-code");
+		if pretty {
+			pad := row("docpad");
+			pad.semantic_size = .[ui.pct(1), ui.children()];
+			pad.cross_align = .Start;
+			ui.parent(pad); defer ui.pop_parent();
+			spacer(.X, 12);
+			doc := ui.box("doc");
+			doc.semantic_size = .[ui.px(card_w - 24), ui.children()];
+			doc.layout_axis = .Y;
+			ui.parent(doc); defer ui.pop_parent();
+			spacer(.Y, 8);
+			doc_view(tprint("doc%", i), shown, card_w - 24);
+			spacer(.Y, 4);
+		} else {
+			code := ui.box("code", .Draw_Text | .Selectable_Text | .Wrap_Text);
+			ui.set_spans(code, code_spans(shown, ext, F(.Mono), 13));
+			code.semantic_size = .[ui.pct(1), ui.text_size()];
+			code.style.font = F(.Mono);
+			code.style.font_size = 13;
+			code.style.line_height = 18;
+			code.style.padding = .{12, 4};
+			code.style.text_color = T("--text-code");
+		}
 		if lines > TEXT_LINES {
 			more := row("more", .Clickable);
 			more.semantic_size = .[ui.pct(1), ui.px(32)];
@@ -355,6 +382,94 @@ text_attachment :: (a: *dc.Attachment, i: int, max_w: float32) -> bool {
 }
 
 text_open: [..]dc.Snowflake; // text previews expanded, by attachment id
+md_raw: [..]dc.Snowflake; // markdown files showing their Raw tab, by attachment id
+
+// The markdown file open in its large modal (the card's fullscreen button); id 0 = none.
+Md_Full :: struct { id: dc.Snowflake; url: string; name: string; ext: string; }
+md_full: Md_Full;
+
+doc_icon :: (id: string, name: string, size: float32) -> bool {
+	b := ui.box(id, .Clickable);
+	b.semantic_size = .[ui.px(size + 8), ui.px(size + 8)];
+	b.hover_cursor = .Pointer;
+	sig := ui.signal(b);
+	{ ui.parent(b); defer ui.pop_parent();
+		ic := icon("i", name, size, T(ifx sig.hovering then "--interactive-icon-hover" else "--interactive-icon-default"), .Floating_X | .Floating_Y);
+		ic.fixed_pos = .{4, 4};
+	}
+	if sig.hovering tooltip_below(L("Full Screen"), b.rect);
+	return sig.clicked;
+}
+
+md_full_close :: () {
+	free(md_full.url);
+	free(md_full.name);
+	md_full = .{};
+}
+
+// A modal over most of the window: the file's Pretty or Raw tab (shared with the card) at a comfortable width.
+md_full_modal :: () {
+	w := min(app.ui.window.x - 64, 1100.0);
+	h := app.ui.window.y - 64;
+	blob := blob_get(md_full.url);
+	if blob.state != .Ready || adm_escape() { if blob.state != .Loading md_full_close(); return; }
+	text := cast(string) blob.data;
+	text.count = min(text.count, TEXT_PREVIEW_MAX);
+	pretty := !array_find(md_raw, md_full.id);
+	if !adm_modal_begin("mdfull", w, md_full.name, "", h) { md_full_close(); return; }
+	defer adm_modal_end();
+	tabs := row("tabs");
+	tabs.semantic_size = .[ui.pct(1), ui.px(28)];
+	{ ui.parent(tabs); defer ui.pop_parent();
+		spacer(.X, 25);
+		if doc_tab("tabp", L("Pretty"), pretty) && !pretty array_unordered_remove_by_value(*md_raw, md_full.id);
+		if doc_tab("tabr", L("Raw"), !pretty) && pretty array_add(*md_raw, md_full.id);
+	}
+	spacer(.Y, 8);
+	body := ui.box("body", .Scroll_Y | .Clip);
+	body.semantic_size = .[ui.pct(1), ui.px(h - 100)];
+	body.layout_axis = .Y;
+	ui.signal(body);
+	{ ui.parent(body); defer ui.pop_parent();
+		pad := row("pad");
+		pad.semantic_size = .[ui.pct(1), ui.children()];
+		pad.cross_align = .Start;
+		ui.parent(pad); defer ui.pop_parent();
+		spacer(.X, 25);
+		col := ui.box("col");
+		col.semantic_size = .[ui.px(w - 50), ui.children()];
+		col.layout_axis = .Y;
+		ui.parent(col); defer ui.pop_parent();
+		if pretty {
+			doc_view("full", text, w - 50);
+		} else {
+			code := ui.box("code", .Draw_Text | .Selectable_Text | .Wrap_Text);
+			ui.set_spans(code, code_spans(text, md_full.ext, F(.Mono), 13));
+			code.semantic_size = .[ui.pct(1), ui.text_size()];
+			code.style.font = F(.Mono);
+			code.style.font_size = 13;
+			code.style.line_height = 18;
+			code.style.text_color = T("--text-code");
+		}
+		spacer(.Y, 20);
+	}
+}
+
+// A tab of a markdown file's card: true when clicked.
+doc_tab :: (id: string, text: string, active: bool) -> bool {
+	tab := row(id, .Clickable | .Draw_Background);
+	tab.semantic_size = .[ui.children(), ui.px(24)];
+	tab.cross_align = .Center;
+	tab.hover_cursor = .Pointer;
+	sig := ui.signal(tab);
+	tab.style.radius = all4(4);
+	tab.style.bg = ifx active then T("--background-mod-strong") else ifx sig.hovering then T("--background-mod-subtle") else ui.Color.{};
+	ui.parent(tab); defer ui.pop_parent();
+	spacer(.X, 8);
+	label(text, .Medium, 12, T(ifx active || sig.hovering then "--text-default" else "--text-muted"), 16);
+	spacer(.X, 8);
+	return sig.clicked;
+}
 
 // Dragging an image or file out of the window hands over the file (platform.drag_out; macOS so far): its
 // bytes are fetched only where it's dropped, by drag_write. True once the press became such a drag, so
@@ -1274,6 +1389,7 @@ media_overlays :: () {
 	// Escape here, before the popouts under the video take it; video_fullscreen draws it at the end
 	if fullscreen_video for * app.ui.events if it.kind == .Key_Down && it.key == .Escape { fullscreen_video = 0; it.consumed = true; }
 	if viewer_url != "" image_viewer();
+	if md_full.id != 0 md_full_modal();
 	if mm.open media_menu();
 }
 
