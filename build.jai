@@ -25,7 +25,7 @@ build :: () {
     ok := true;
     if target == {
         case "c";      return;
-        case "app";    ok = compile("fastcord", APP, .VERY_OPTIMIZED);
+        case "app";    ok = compile("fastcord", APP, .VERY_OPTIMIZED, gui = true);
         case "dev";    ok = compile("fastcord-dev", APP, .OPTIMIZED);
         case "debug";  ok = compile("fastcord-debug", APP, .DEBUG);
         case "tool";   ok = compile(args[1], tprint("t :: #import \"tool_%\"; main :: () { t.main(); }", args[1]));  // a tool is a module with a main
