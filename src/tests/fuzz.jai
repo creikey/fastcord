@@ -1036,6 +1036,9 @@ run_store :: (data: []u8) {
 
 ui_fixtures: [..]string;
 
+UI_KEYS :: string.["a", "k", "escape", "enter", "tab", "up", "down", "backspace", "shift", "ctrl", "alt", "f23", "keypad_7", "print_screen", "insert", "menu", "pause"];
+UI_MODS :: string.["", "ctrl", "shift", "alt", "cmd", "ctrl shift"];
+
 run_ui :: (data: []u8) {
 	#if UI_TARGET {
 		if !ui_fixtures.count {
@@ -1062,7 +1065,7 @@ run_ui :: (data: []u8) {
 		while !done(*g) && n < 48 {
 			n += 1;
 			now += 1;
-			r := pick(*g, 16);
+			r := pick(*g, 17);
 			if r < 7 {
 				name := EVENTS[pick(*g, EVENTS.count)];
 				event := gen_map(*g, 3);
@@ -1082,6 +1085,7 @@ run_ui :: (data: []u8) {
 					case 13; line = "go_home";
 					case 14; fapp.fuzz_ui_open(pick(*g, 256));
 					case 15; line = "resize 800 600";
+					case 16; line = tprint("key % %", pick_of(*g, UI_KEYS), pick_of(*g, UI_MODS));
 				}
 				if replaying print("%\n", line);
 				if line fapp.fuzz_ui_command(line);

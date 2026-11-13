@@ -1,0 +1,19 @@
+# Settings > Keybinds records keys beyond the main block: F13-F24, the keypad, Insert, Print Screen.
+wait 5
+click 338 683
+wait 20
+click_text "Keybinds"
+wait 10
+click_text "Add a Keybind"
+wait 5
+click_text "Record Keybind"
+wait 3
+key f23
+wait 5
+expect_visible "F23"
+click_text "Record Keybind"
+wait 3
+key keypad_7 ctrl
+wait 5
+expect_visible "Ctrl+Keypad_7"
+shot build/ui-keybind_keys.png

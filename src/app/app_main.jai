@@ -629,6 +629,7 @@ key_by_name :: (name: string) -> platform.Key {
 		return .N0;
 	}
 	if name.count == 1 && name[0] >= #char "a" && name[0] <= #char "z" return cast(platform.Key) (cast(int) platform.Key.A + name[0] - #char "a");
+	for enum_names(platform.Key) if equal_nocase(it, name) return cast(platform.Key) enum_values_as_s64(platform.Key)[it_index]; // f23, keypad_7
 	return .None;
 }
 

@@ -9,6 +9,10 @@ Key :: enum u8 {
     Minus; Equals; Left_Bracket; Right_Bracket; Backslash; Semicolon; Apostrophe;
     Comma; Period; Slash; Grave;
     Keypad_Enter;
+    Insert; Pause; Scroll_Lock; Print_Screen; Num_Lock; Menu;
+    F13; F14; F15; F16; F17; F18; F19; F20; F21; F22; F23; F24;
+    Keypad_0; Keypad_1; Keypad_2; Keypad_3; Keypad_4; Keypad_5; Keypad_6; Keypad_7; Keypad_8; Keypad_9;
+    Keypad_Multiply; Keypad_Add; Keypad_Subtract; Keypad_Decimal; Keypad_Divide;
 }
 
 Mod :: enum_flags u8 { Shift; Ctrl; Alt; Cmd; }
@@ -338,7 +342,7 @@ set_tray_call :: (c: Tray_Call) {
 
 // Global input: key and mouse button presses anywhere on the desktop, also while another app has focus,
 // for global push to talk and keybinds. Listen-only: it never injects, blocks or changes input (Windows
-// low-level hooks, a listen-only macOS event tap, X11 XInput2 raw events), each on its own thread. Call it
+// Raw Input, a listen-only macOS event tap, X11 XInput2 raw events), each on its own thread. Call it
 // every frame with whether it is wanted; it starts or stops only when that changes. macOS needs the Input
 // Monitoring permission (No_Permission until granted: request_global_input_permission). Headless: Off.
 Global_Input :: enum u8 { Off; On; No_Permission; Unavailable; }

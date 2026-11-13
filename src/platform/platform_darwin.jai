@@ -702,6 +702,10 @@ KEYCODES :: #run -> [128]Key {
     t[0x6D] = .F10; t[0x6F] = .F12; t[0x73] = .Home; t[0x74] = .Page_Up; t[0x75] = .Delete; t[0x76] = .F4;
     t[0x77] = .End; t[0x78] = .F2; t[0x79] = .Page_Down; t[0x7A] = .F1; t[0x7B] = .Left; t[0x7C] = .Right;
     t[0x7D] = .Down; t[0x7E] = .Up;
+    t[0x69] = .F13; t[0x6B] = .F14; t[0x71] = .F15; t[0x6A] = .F16; t[0x40] = .F17; t[0x4F] = .F18; t[0x50] = .F19;
+    t[0x5A] = .F20; t[0x72] = .Insert; t[0x41] = .Keypad_Decimal; t[0x43] = .Keypad_Multiply; t[0x45] = .Keypad_Add;
+    t[0x4B] = .Keypad_Divide; t[0x4E] = .Keypad_Subtract; t[0x5B] = .Keypad_8; t[0x5C] = .Keypad_9;
+    for 0..7 t[0x52 + it] = cast(Key) (cast(int) Key.Keypad_0 + it);
     return t;
 }
 

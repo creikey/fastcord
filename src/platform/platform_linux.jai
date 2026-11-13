@@ -1395,7 +1395,20 @@ map_keysym :: (sym: u64) -> Key {
         case #char "."; return .Period;
         case #char "/"; return .Slash;
         case #char "`"; return .Grave;
+        case 0xff63; return .Insert;
+        case 0xff13; return .Pause;
+        case 0xff14; return .Scroll_Lock;
+        case 0xff61; return .Print_Screen;
+        case 0xff7f; return .Num_Lock;
+        case 0xff67; return .Menu;
+        case 0xffaa; return .Keypad_Multiply;
+        case 0xffab; return .Keypad_Add;
+        case 0xffad; return .Keypad_Subtract;
+        case 0xffae; return .Keypad_Decimal;
+        case 0xffaf; return .Keypad_Divide;
     }
+    if sym >= 0xffca && sym <= 0xffd5 return cast(Key) (cast(int) Key.F13 + cast(int) (sym - 0xffca));
+    if sym >= 0xffb0 && sym <= 0xffb9 return cast(Key) (cast(int) Key.Keypad_0 + cast(int) (sym - 0xffb0));
     return .None;
 }
 

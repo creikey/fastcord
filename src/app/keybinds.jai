@@ -88,13 +88,13 @@ ptt_keybind :: (add := false) -> int {
 // keybinds_frame: global input on while any keybind can act, then this frame's presses: recording, or
 // running actions. Global events cover the focused window too, so window events count only without them.
 keybinds_frame :: () {
-	want := false;
+	if kb.recording >= kb.list.count kb.recording = -1;
+	want := kb.recording >= 0; // records keys the window never sees, like Print Screen
 	for kb.list if bound(it.sc) && (it.action != .Push_To_Talk || vs.ptt_mode) want = true;
 	kb.global = platform.set_global_input(want);
 	global := kb.global == .On;
-	if kb.recording >= kb.list.count kb.recording = -1;
 	for e: platform.events() {
-		if kb.recording >= 0 { record(e); continue; }
+		if kb.recording >= 0 { record(e, global); continue; }
 		down: bool;
 		if e.kind == {
 		case .Key_Down; #through; case .Mouse_Down; if global || e.is_repeat continue; down = true;
@@ -164,9 +164,18 @@ keybind_external :: (text: string) {
 
 // Recording: a key sets the shortcut with the modifiers held; a modifier pressed and let go alone sets
 // itself; a middle or side button sets itself; Escape stops.
-record :: (e: platform.Event) {
+record :: (e: platform.Event, global: bool) {
 	sc := *kb.list[kb.recording].sc;
-	if e.kind == {
+	kind := e.kind;
+	if global {
+		if kind == {
+		case .Key_Down; #through; case .Key_Up; #through; case .Mouse_Down; return; // its global copy records it
+		case .Global_Key_Down; kind = .Key_Down;
+		case .Global_Key_Up; kind = .Key_Up;
+		case .Global_Mouse_Down; kind = .Mouse_Down;
+		}
+	}
+	if kind == {
 	case .Key_Down;
 		if e.key == .None || e.is_repeat return;
 		if e.key == .Shift || e.key == .Ctrl || e.key == .Alt || e.key == .Cmd { kb.pending_mod = e.key; return; }

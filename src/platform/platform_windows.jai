@@ -457,50 +457,81 @@ quit_on_signals :: () {
     }, 1);
 }
 
-// Global input: WH_KEYBOARD_LL and WH_MOUSE_LL hooks on a thread of their own, which only pumps messages,
-// so the hooks answer at once whatever the UI thread is doing (Windows drops a hook that is slow).
+// Global input: Raw Input (RIDEV_INPUTSINK) into a message-only window on a thread of its own.
+// Low-level hooks (WH_KEYBOARD_LL) were dropped on purpose: Windows calls a hook synchronously before
+// the input reaches any app, so while fastcord is paused in a debugger every key and mouse move on the
+// desktop waits out the hook's timeout. WM_INPUT is only posted to us, so a stalled fastcord stalls nothing.
 os_global_input :: (on: bool) -> Global_Input {
     if !on {
-        if !w.hook_on return .Off;
-        while !atomic_load(*w.hook_tid) && !thread_is_done(*w.hook_thread, 0) win.Sleep(1);
-        PostThreadMessageW(atomic_load(*w.hook_tid), win.WM_QUIT, 0, 0);
-        thread_is_done(*w.hook_thread, -1);
-        thread_deinit(*w.hook_thread);
-        w.hook_on, w.hook_tid = false, 0;
+        if !w.input_on return .Off;
+        while !atomic_load(*w.input_tid) && !thread_is_done(*w.input_thread, 0) win.Sleep(1);
+        PostThreadMessageW(atomic_load(*w.input_tid), win.WM_QUIT, 0, 0);
+        thread_is_done(*w.input_thread, -1);
+        thread_deinit(*w.input_thread);
+        w.input_on, w.input_tid = false, 0;
         return .Off;
     }
-    thread_init(*w.hook_thread, (t: *Thread) -> s64 {
-        LL :: (code: s32, wp: win.WPARAM, lp: win.LPARAM) -> win.LRESULT #c_call {
-            push_context w.hook_ctx {
-            if code == 0 && wp >= win.WM_KEYDOWN && wp <= win.WM_SYSKEYUP {
-                k := cast(*KBDLLHOOKSTRUCT) lp;
-                global_event(map_vk(k.vkCode, (cast(win.LPARAM) (k.flags & 1)) << 24), .Left, wp == win.WM_KEYDOWN || wp == win.WM_SYSKEYDOWN);
-            } else if code == 0 && (wp == win.WM_MBUTTONDOWN || wp == win.WM_MBUTTONUP || wp == win.WM_XBUTTONDOWN || wp == win.WM_XBUTTONUP) {
-                m := cast(*MSLLHOOKSTRUCT) lp;
-                b := ifx wp <= win.WM_MBUTTONUP then Mouse_Button.Middle else ifx (m.mouseData >> 16) == 1 then Mouse_Button.X1 else .X2;
-                global_event(.None, b, wp == win.WM_MBUTTONDOWN || wp == win.WM_XBUTTONDOWN);
-            }
-            }
-            return CallNextHookEx(null, code, wp, lp);
-        }
-        w.hook_ctx = context;
-        kb := SetWindowsHookExW(13 /*WH_KEYBOARD_LL*/, xx LL, w.instance, 0);
-        mouse := SetWindowsHookExW(14 /*WH_MOUSE_LL*/, xx LL, w.instance, 0);
+    thread_init(*w.input_thread, (t: *Thread) -> s64 {
+        hwnd := win.CreateWindowExW(0, wide("Message"), null, 0, 0, 0, 0, 0, HWND_MESSAGE, null, w.instance, null);
+        devices := RAWINPUTDEVICE.[.{1, 6, RIDEV_INPUTSINK, hwnd}, .{1, 2, RIDEV_INPUTSINK, hwnd}]; // keyboard, mouse
+        if hwnd RegisterRawInputDevices(devices.data, devices.count, size_of(RAWINPUTDEVICE));
         m: win.MSG;
         win.PeekMessageW(*m, null, 0, 0, 0); // makes the queue PostThreadMessage needs
-        atomic_store(*w.hook_tid, win.GetCurrentThreadId());
-        while GetMessageW(*m, null, 0, 0) > 0 {}
-        if kb UnhookWindowsHookEx(kb);
-        if mouse UnhookWindowsHookEx(mouse);
+        atomic_store(*w.input_tid, win.GetCurrentThreadId());
+        while GetMessageW(*m, null, 0, 0) > 0 {
+            if m.message == WM_INPUT raw_input(cast(*void) m.lParam);
+            win.DispatchMessageW(*m); // DefWindowProc frees the input
+        }
+        for * devices it.* = .{it.usUsagePage, it.usUsage, RIDEV_REMOVE, null};
+        if hwnd { RegisterRawInputDevices(devices.data, devices.count, size_of(RAWINPUTDEVICE)); win.DestroyWindow(hwnd); }
         return 0;
     });
-    thread_start(*w.hook_thread);
-    w.hook_on = true;
+    thread_start(*w.input_thread);
+    w.input_on = true;
     return .On;
 }
 
-KBDLLHOOKSTRUCT :: struct { vkCode, scanCode, flags, time: u32; dwExtraInfo: u64; }
-MSLLHOOKSTRUCT :: struct { pt: win.POINT; mouseData, flags, time: u32; dwExtraInfo: u64; }
+raw_input :: (handle: *void) {
+    raw: RAWINPUT = ---;
+    size: u32 = size_of(RAWINPUT);
+    if GetRawInputData(handle, RID_INPUT, *raw, *size, size_of(RAWINPUTHEADER)) == 0xffff_ffff return;
+    if raw.header.dwType == 1 /*RIM_TYPEKEYBOARD*/ {
+        k := raw.keyboard;
+        if k.VKey == 0xff return; // the fake half of an escaped sequence
+        key := map_vk(k.VKey, cast(win.LPARAM) ((k.Flags >> 1) & 1) << 24 /*RI_KEY_E0*/);
+        down := !(k.Flags & 1); // RI_KEY_BREAK
+        if down && key != .Shift && key != .Ctrl && key != .Alt && key != .Cmd {
+            // A modifier let go in an elevated window or on the secure desktop (Ctrl+Alt+Del) sends us no
+            // key-up, and would stick onto every later shortcut; drop those Windows says are up.
+            held :: (vk: s32) -> bool { return win.GetAsyncKeyState(vk) < 0; }
+            if s.global_down[Key.Shift] && !held(win.VK_SHIFT) global_event(.Shift, .Left, false);
+            if s.global_down[Key.Ctrl] && !held(win.VK_CONTROL) global_event(.Ctrl, .Left, false);
+            if s.global_down[Key.Alt] && !held(win.VK_MENU) global_event(.Alt, .Left, false);
+            if s.global_down[Key.Cmd] && !held(win.VK_LWIN) && !held(win.VK_RWIN) global_event(.Cmd, .Left, false);
+        }
+        global_event(key, .Left, down);
+    } else if raw.header.dwType == 0 /*RIM_TYPEMOUSE*/ {
+        f := raw.mouse.usButtonFlags;
+        for b: Mouse_Button.[.Middle, .X1, .X2] {
+            down: u16 = xx ifx b == .Middle then 0x10 else ifx b == .X1 then 0x40 else 0x100; // up is the next bit
+            if f & down global_event(.None, b, true);
+            if f & (down << 1) global_event(.None, b, false);
+        }
+    }
+}
+
+RAWINPUTDEVICE :: struct { usUsagePage, usUsage: u16; dwFlags: u32; hwndTarget: win.HWND; }
+RAWINPUTHEADER :: struct { dwType, dwSize: u32; hDevice: *void; wParam: win.WPARAM; }
+RAWKEYBOARD :: struct { MakeCode, Flags, Reserved, VKey: u16; Message, ExtraInformation: u32; }
+RAWMOUSE :: struct { usFlags, pad, usButtonFlags, usButtonData: u16; ulRawButtons: u32; lLastX, lLastY: s32; ulExtraInformation: u32; }
+RAWINPUT :: struct { header: RAWINPUTHEADER; union { keyboard: RAWKEYBOARD; mouse: RAWMOUSE; } }
+RegisterRawInputDevices :: (devices: *RAWINPUTDEVICE, count: u32, size: u32) -> s32 #foreign user32;
+GetRawInputData :: (handle: *void, command: u32, data: *void, size: *u32, header_size: u32) -> u32 #foreign user32;
+RIDEV_REMOVE :: 0x1;
+RIDEV_INPUTSINK :: 0x100;
+RID_INPUT :: 0x1000_0003;
+WM_INPUT :: 0xff;
+HWND_MESSAGE :: cast(win.HWND) -3;
 GetMessageW :: (msg: *win.MSG, hwnd: win.HWND, min: u32, max: u32) -> s32 #foreign user32;
 PostThreadMessageW :: (tid: u32, msg: u32, wp: win.WPARAM, lp: win.LPARAM) -> s32 #foreign user32;
 
@@ -953,10 +984,9 @@ w: struct {
     small_icon: win.HICON;
     tray_badge_icon: win.HICON; // small_icon with the unread dot, while there are mentions
     tray_call_icon: win.HICON; // the call state's circle, while in a call (set_tray_call)
-    hook_thread: Thread; // global input (os_global_input)
-    hook_on: bool;
-    hook_tid: u32;
-    hook_ctx: #Context;
+    input_thread: Thread; // global input (os_global_input)
+    input_on: bool;
+    input_tid: u32;
 };
 
 // A zero-terminated UTF-16 copy in temp.
@@ -1352,7 +1382,20 @@ map_vk :: (vk: win.WPARAM, lp: win.LPARAM) -> Key {
         case win.VK_OEM_PERIOD; return .Period;
         case win.VK_OEM_2;      return .Slash;
         case win.VK_OEM_3;      return .Grave;
+        case win.VK_INSERT;     return .Insert;
+        case win.VK_PAUSE;      return .Pause;
+        case win.VK_SCROLL;     return .Scroll_Lock;
+        case win.VK_SNAPSHOT;   return .Print_Screen;
+        case win.VK_NUMLOCK;    return .Num_Lock;
+        case win.VK_APPS;       return .Menu;
+        case win.VK_MULTIPLY;   return .Keypad_Multiply;
+        case win.VK_ADD;        return .Keypad_Add;
+        case win.VK_SUBTRACT;   return .Keypad_Subtract;
+        case win.VK_DECIMAL;    return .Keypad_Decimal;
+        case win.VK_DIVIDE;     return .Keypad_Divide;
     }
+    if vk >= win.VK_F13 && vk <= win.VK_F24 return cast(Key) (cast(int) Key.F13 + cast(int) (vk - win.VK_F13));
+    if vk >= win.VK_NUMPAD0 && vk <= win.VK_NUMPAD9 return cast(Key) (cast(int) Key.Keypad_0 + cast(int) (vk - win.VK_NUMPAD0));
     return .None;
 }
 
