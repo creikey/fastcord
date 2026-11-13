@@ -466,6 +466,7 @@ Session_Info :: struct {
 Go_Live_Stream :: struct {
 	key: string;
 	rtc_server_id: Snowflake; // the stream's own voice server_id
+	rtc_channel_id: Snowflake; // its RTC channel, not the parent voice channel
 	endpoint: string;
 	token: string;
 	paused: bool;

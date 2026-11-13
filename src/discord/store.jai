@@ -1666,6 +1666,7 @@ store_apply_dispatch :: (s: *Store, name: string, data: V, now: s64) -> bool {
 		case "STREAM_UPDATE";
 			st := stream_find_or_add(s, fstr(d, "stream_key"));
 			if vhas(d, "rtc_server_id") st.rtc_server_id = fsnow(d, "rtc_server_id");
+			if vhas(d, "rtc_channel_id") st.rtc_channel_id = fsnow(d, "rtc_channel_id");
 			st.paused = fbool(d, "paused");
 		case "STREAM_SERVER_UPDATE";
 			st := stream_find_or_add(s, fstr(d, "stream_key"));

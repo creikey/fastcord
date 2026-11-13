@@ -305,7 +305,11 @@ voice_connect :: (info: Voice_Server_Info, opts := Options.{}) -> *Conn {
     crypto.random_bytes(rb);
     c.seq = get_u16(rb);
     c.ts = get_u32(rb, 2);
-    DAVE.session_init(*c.dave, info.user_id, info.channel_id, info.stage || opts.hosted.host != "");
+    // Discord streams use their media-session ID for MLS, not either RTC/parent channel ID.
+    // Older hosted servers still key their stream MLS groups by the parent channel.
+    group_id := info.channel_id;
+    if info.stream && !opts.hosted.host && info.guild_or_channel_id > 0 group_id = info.guild_or_channel_id - 1;
+    DAVE.session_init(*c.dave, info.user_id, group_id, info.stage || opts.hosted.host != "");
     c.state = .Connecting;
     c.tl.created = now_ms();
     env := getenv("FASTCORD_VOICE_DEBUG");
@@ -799,6 +803,8 @@ handle_json :: (c: *Conn, text: string) {
     s := jint(jget(v, "seq"), 0);
     if s != 0 c.last_seq = s;  // `r && (lastRecvSeqNum = r)`
     d := jget(v, "d");
+    if c.info.stream && getenv("FASTCORD_VIDEO_TEST") && op != OP_HEARTBEAT_ACK
+        print("[stream-diagnostic] op=% streams=% dave_version=%\n", op, jarr(jget(d, "streams")).count, jint(jget(d, "dave_protocol_version")), to_standard_error = true);
     if op == {
       case OP_HELLO;
         c.server_version = jint(jget(d, "v"), 3);
@@ -902,6 +908,8 @@ handle_binary :: (c: *Conn, b: []u8) {
     op := b[2];
     p := array_view(b, 3, b.count - 3);
     dbg(c, "<~ binary op % (% bytes)", op, p.count);
+    if c.info.stream && getenv("FASTCORD_VIDEO_TEST")
+        print("[stream-diagnostic] binary_op=% bytes=%\n", op, p.count, to_standard_error = true);
     if op == {
       case DAVE.OP_MLS_EXTERNAL_SENDER; DAVE.on_external_sender(*c.dave, p);
       case DAVE.OP_MLS_PROPOSALS;       DAVE.on_proposals(*c.dave, p);
@@ -1025,6 +1033,8 @@ on_session_description :: (c: *Conn, d: etf.Value) {
         locks.guard(*c.mu);
         wants = msg_sink_wants(c);
     }
+    if c.info.stream && getenv("FASTCORD_VIDEO_TEST")
+        print("[stream-diagnostic] subscribed=%\n", wants != "", to_standard_error = true);
     if wants send_text(c, wants);
     {
         locks.guard(*c.vmu);
@@ -1861,6 +1871,8 @@ on_remote_video :: (c: *Conn, uid: u64, d: etf.Value) -> string {
         if pick_rtx > 0 && pick_rtx <= 0xffff_ffff table_set(*c.video_rtx, cast(u32) pick_rtx, rx.ssrc);
     }
     table_set(*c.video_users, uid, pick > 0);
+    if c.info.stream && getenv("FASTCORD_VIDEO_TEST")
+        print("[stream-diagnostic] mapped=% streams=% pick=% quality=%\n", c.video_rx.count, streams.count, pick, pick_q, to_standard_error = true);
     if c.state != .Connected || (!c.info.stream && !layered) return "";
     return msg_sink_wants(c);
 }

@@ -1456,7 +1456,7 @@ stream_server_info :: (c: *Client, key: string) -> Voice_Server_Info, u64, bool 
 	for s.streams {
 		if it.key != key || !it.token || !it.endpoint || !it.rtc_server_id continue;
 		return .{endpoint = it.endpoint, token = it.token, guild_or_channel_id = it.rtc_server_id, user_id = s.me,
-			session_id = vs.session_id, channel_id = vs.channel_id}, it.version, true;
+			session_id = vs.session_id, channel_id = ifx it.rtc_channel_id then it.rtc_channel_id else vs.channel_id}, it.version, true;
 	}
 	return .{}, 0, false;
 }

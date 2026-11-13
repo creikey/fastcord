@@ -8,6 +8,7 @@ dave :: #import "voice_dave";
 video :: #import "video";
 media :: #import "media";
 etf :: #import "etf";
+netio :: #import "netio";
 #import "Hash_Table";
 
 main :: () {
@@ -122,6 +123,16 @@ main :: () {
         ok &= check(again == "{\"op\":15,\"d\":{\"any\":100}}" && c.video_off.count == 0, "one layer again: op 15 %", again);
         again = voice.on_remote_video(*c, 7, etf.from_json(ONE,, temp));
         ok &= check(again == "", "an unchanged op 12 sends no op 15: %", again);
+    }
+    // The stream RTC channel and its MLS group are distinct. No socket is opened by this dial stub.
+    for hosted: bool.[false, true] for stream: bool.[false, true] {
+        info := voice.Voice_Server_Info.{endpoint = "voice.example", user_id = 7, guild_or_channel_id = 100, channel_id = 101, stream = stream};
+        opts := voice.Options.{no_audio_devices = true, dial = (host: string, port: int) -> netio.Stream, bool { return .{}, false; }};
+        if hosted opts.hosted.host = "voice.example";
+        c := voice.voice_connect(info, opts);
+        want := dave.be_bytes(cast(u64) (ifx stream && !hosted then 99 else 101));
+        ok &= check(memcmp(c.dave.group_id.data, want.data, want.count) == 0, "MLS group id (stream %, hosted %)", stream, hosted);
+        voice.voice_disconnect(c);
     }
     print(ifx ok then "PASS\n" else "FAIL\n");
     if !ok exit(1);

@@ -4604,6 +4604,40 @@ member_list_rules :: (t: *T) {
 	expect_value(t, member_list_id(*s, priv), tprint("%", murmur3_32("allow:99,deny:10")));
 }
 
+// Go Live has an RTC channel of its own; neither gateway event order nor a partial update may lose it.
+stream_rtc_channel :: (t: *T) {
+	for server_first: bool.[false, true] {
+		c: Client;
+		store_init(*c.store, temp);
+		c.store.me = 7;
+		d :: (c: *Client, name: string, json: string) {
+			v, _ := etf.from_json(json,, temp);
+			store_apply_dispatch(*c.store, name, v, 0);
+		}
+		d(*c, "VOICE_STATE_UPDATE", "{\"guild_id\":\"10\",\"channel_id\":\"12\",\"user_id\":\"7\",\"session_id\":\"call-session\"}");
+		KEY :: "guild:10:12:8";
+		CREATE :: "{\"stream_key\":\"guild:10:12:8\",\"rtc_server_id\":\"100\",\"rtc_channel_id\":\"101\"}";
+		SERVER :: "{\"stream_key\":\"guild:10:12:8\",\"endpoint\":\"voice.example\",\"token\":\"test-only\"}";
+		if server_first d(*c, "STREAM_SERVER_UPDATE", SERVER);
+		else d(*c, "STREAM_CREATE", CREATE);
+		_, _, ready := stream_server_info(*c, KEY);
+		expect(t, !ready, "both stream gateway events are needed");
+		if server_first d(*c, "STREAM_CREATE", CREATE);
+		else d(*c, "STREAM_SERVER_UPDATE", SERVER);
+		d(*c, "STREAM_UPDATE", "{\"stream_key\":\"guild:10:12:8\",\"paused\":false}");
+		info, version, ok := stream_server_info(*c, KEY);
+		expect(t, ok && version == 1, "stream server info is ready in either event order");
+		expect_value(t, info.guild_or_channel_id, 100);
+		expect_value(t, info.channel_id, 101);
+		expect_value(t, info.session_id, "call-session");
+		// Older hosted servers omit rtc_channel_id and still use the parent voice channel.
+		d(*c, "STREAM_CREATE", "{\"stream_key\":\"guild:10:12:9\",\"rtc_server_id\":\"200\"}");
+		d(*c, "STREAM_SERVER_UPDATE", "{\"stream_key\":\"guild:10:12:9\",\"endpoint\":\"voice.example\",\"token\":\"test-only\"}");
+		info, _, ok = stream_server_info(*c, "guild:10:12:9");
+		expect(t, ok && info.channel_id == 12, "legacy stream channel fallback");
+	}
+}
+
 // PASSIVE_UPDATE_V2 (an unsubscribed server's channels, voice states, members) and MESSAGE_REACTION_ADD_MANY.
 passive_update_dispatches :: (t: *T) {
 	s: Store;
