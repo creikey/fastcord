@@ -16,3 +16,8 @@ wait 2
 shot build/ui-rail_folders-drag.png
 up 36 245
 wait 30
+# the drop re-decodes the store's folders: the folder keeps its name (#61)
+move 36 350
+wait 10
+expect_visible "Code"
+shot build/ui-rail_folders-after.png

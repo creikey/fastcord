@@ -39,7 +39,8 @@ rail_entries :: () -> [..]Rail_Entry {
 		if !undo_hides(gid) array_add(*out, .{guilds = temp_list(gid)}); // left, behind Undo
 	}
 	for f: s.settings.guild_folders {
-		e := Rail_Entry.{id = f.id, name = f.name, color = f.color, has_color = f.has_color};
+		// the name is copied: rail_save's set_guild_folders re-decodes the store's folders, freeing f.name
+		e := Rail_Entry.{id = f.id, name = copy_string(f.name,, temp), color = f.color, has_color = f.has_color};
 		e.guilds.allocator = temp;
 		for f.guild_ids { if table_contains(*s.guilds, it) && !undo_hides(it) { array_add(*e.guilds, it); } }
 		if e.guilds.count == 0 { continue; }
