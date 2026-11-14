@@ -7,10 +7,10 @@
 // STREAM_CREATE + STREAM_SERVER_UPDATE give a voice server for the stream; a
 // second voice.Conn (info.stream) carries it. op 19 STREAM_DELETE ends either.
 
-CAMERA_W :: 1280;
-CAMERA_H :: 720;
-CAMERA_FPS :: 30;
-CAMERA_BITRATE :: 2_500_000;
+CAMERA_BITRATE :: 2_500_000; // at 720p30; other qualities scale it (camera_quality)
+// Voice & Video's Video Quality choices beside Default (720p 30 FPS, what the official client sends), as
+// height and frame rate. Above 720p30 is fastcord's own; receivers take any size the stream announces.
+CAMERA_QUALITIES :: ([2]int).[.[1080, 30], .[720, 60], .[480, 30], .[360, 30], .[360, 15]];
 SCREEN_BITRATE :: 4_000_000; // at 720p30; other settings scale it (go_live_bitrate)
 
 // A remote video: entries are never freed while the app runs, since a closing
@@ -102,12 +102,8 @@ camera_toggle :: () {
 		if vc_conn() == null || (!video_test("camera") && !video.camera_supported()) return;
 		sender_stop(*vid.preview); // one capture per camera: a second open takes it from the first
 		dc.analytics_permissions_requested(call_client(), "video");
-		s := *vid.camera;
-		sender_init(s, vc_conn(), CAMERA_FPS, CAMERA_BITRATE);
-		if video_test("camera") s.capture = video.pattern_start(on_capture_frame, s, CAMERA_W, CAMERA_H, CAMERA_FPS);
-		else s.capture = video.camera_start(on_capture_frame, s, CAMERA_W, CAMERA_H, CAMERA_FPS, vs.camera);
-		if !s.capture return;
-		voice.set_video(s.conn, true, CAMERA_W, CAMERA_H, CAMERA_FPS, CAMERA_BITRATE);
+		camera_open(*vid.camera, vc_conn(), true);
+		if !camera_on() return;
 	}
 	send_voice_state();
 }
@@ -197,20 +193,34 @@ camera_test_toggle :: () {
 	if vid.preview.capture { sender_stop(*vid.preview); return; }
 	headless := platform.is_headless();
 	if camera_on() || (!headless && !video.camera_supported()) return;
-	s := *vid.preview;
-	sender_init(s, null, CAMERA_FPS, 0);
-	if headless s.capture = video.pattern_start(on_capture_frame, s, CAMERA_W, CAMERA_H, CAMERA_FPS);
-	else s.capture = video.camera_start(on_capture_frame, s, CAMERA_W, CAMERA_H, CAMERA_FPS, vs.camera);
+	camera_open(*vid.preview, null, false);
 }
 
-// camera_switch: another camera was picked; the call's camera and the test move to it. The encoder is
-// remade at the new camera's size by the next frame.
-camera_switch :: () {
-	if platform.is_headless() return; // the test pattern stays
+// camera_quality: the chosen camera size, frame rate and bitrate (2.5 Mbit/s at 720p30, in proportion to
+// pixels and frames).
+camera_quality :: () -> w: int, h: int, fps: int, bitrate: int {
+	h := ifx vs.camera_height then vs.camera_height else 720;
+	fps := ifx vs.camera_fps then vs.camera_fps else 30;
+	return (h * 16 / 9) & ~1, h, fps, CAMERA_BITRATE * h * h / (720 * 720) * fps / 30;
+}
+
+// camera_open: starts s's capture at the chosen quality (the test pattern in headless runs and live
+// tests); announce tells the call its size and bitrate (op 12).
+camera_open :: (s: *Sender, conn: *voice.Conn, announce: bool) {
+	w, h, fps, rate := camera_quality();
+	sender_init(s, conn, fps, ifx conn then rate else 0);
+	if platform.is_headless() || video_test("camera") s.capture = video.pattern_start(on_capture_frame, s, w, h, fps);
+	else s.capture = video.camera_start(on_capture_frame, s, w, h, fps, vs.camera);
+	if s.capture && conn && announce voice.set_video(conn, true, w, h, fps, rate);
+}
+
+// camera_restart: another camera or quality was picked; the call's camera and the test reopen with it,
+// and the encoder is remade at the new size by the next frame. announce: the quality changed.
+camera_restart :: (announce: bool) {
 	for s: (*Sender).[*vid.camera, *vid.preview] if s.capture {
 		video.capture_stop(s.capture);
 		encoder_stop(s);
-		s.capture = video.camera_start(on_capture_frame, s, CAMERA_W, CAMERA_H, CAMERA_FPS, vs.camera);
+		camera_open(s, s.conn, announce);
 	}
 }
 
@@ -732,7 +742,7 @@ on_capture_frame :: (user: *void, camera_frame: *void, width: int, height: int) 
 	video.encoder_encode(s.enc, pixbuf, pts, voice.take_keyframe_request(s.conn));
 }
 
-// The camera's sizes: the client's resolution ladder for its 1280x720 budget (want values 100, 90 .. 20),
+// The camera's sizes: the client's resolution ladder for its 1280x720 budget (scaled to the chosen quality) (want values 100, 90 .. 20),
 // as heights with each one's share of the bitrate (per mille).
 LADDER :: ([2]int).[.[720, 1000], .[504, 490], .[378, 276], .[360, 250], .[288, 160], .[234, 106], .[216, 90], .[180, 63], .[144, 40]];
 
@@ -753,7 +763,9 @@ send_shape :: (s: *Sender, width: int, height: int, estimate: int, want: int) ->
 	}
 	if i != s.step { s.step, s.step_ms = i, now; }
 	w, h := width, height;
-	if h > LADDER[i][0] { w = w * LADDER[i][0] / h; h = LADDER[i][0]; }
+	_, top := camera_quality();
+	lh := LADDER[i][0] * top / 720;
+	if h > lh { w = w * lh / h; h = lh; }
 	return w & ~1, h & ~1, s.fps, min(estimate, step_rate(s, i));
 }
 

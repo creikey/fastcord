@@ -20,8 +20,9 @@ Voice_Settings :: struct {
 	camera, camera_name: string; // heap: the chosen camera ("" = default)
 	camera_bg: video.Background; // our camera's background effect (video.background_set)
 	camera_image: string; // heap: its picture's path
+	camera_height, camera_fps: int; // Video Quality (camera_quality): 0 = Default
 	// UI state
-	open_dropdown: int; // 0 none, 1 input, 2 output, 3 camera
+	open_dropdown: int; // 0 none, 1 input, 2 output, 3 camera, 4 video quality
 	meter_owner: bool; // the meter started the capture
 	meter_vad: voice.Vad;
 	meter_db: float32;
@@ -67,6 +68,7 @@ voice_settings_restore :: (p: *Persisted_Voice) {
 	vs.camera, vs.camera_name = copy_string(p.camera), copy_string(p.camera_name);
 	vs.camera_bg = ifx p.camera_background == "image" && p.camera_image then .Image else ifx p.camera_background == "blur" || (p.camera_background == "" && p.camera_blur) then .Blur else .None;
 	vs.camera_image = copy_string(p.camera_image);
+	for CAMERA_QUALITIES if it[0] == p.camera_height && it[1] == p.camera_fps vs.camera_height, vs.camera_fps = it[0], it[1];
 	video.background_set(vs.camera_bg, vs.camera_image);
 	id := device_by_uid(true, p.input_device);
 	if id != 0 audio.select_device(true, id);
@@ -90,6 +92,7 @@ voice_settings_snapshot :: (p: *Persisted_Voice) {
 	p.camera_blur = vs.camera_bg == .Blur; // what builds before the picture read
 	p.camera_background = ifx vs.camera_bg == .Image then "image" else ifx vs.camera_bg == .Blur then "blur" else "none";
 	p.camera_image = vs.camera_image;
+	p.camera_height, p.camera_fps = vs.camera_height, vs.camera_fps;
 	p.input_volume = vs.input_volume;
 	p.output_volume = vs.output_volume;
 	p.auto_sens = vs.auto_sens;
@@ -511,6 +514,9 @@ camera_test_section :: () {
 	section_title(L("CAMERA"));
 	device_dropdown(3, false, voice_w());
 	spacer(.Y, 16);
+	section_title(L("VIDEO QUALITY"));
+	device_dropdown(4, false, voice_w());
+	spacer(.Y, 16);
 	section_title(L("BACKGROUND"));
 	background_choice();
 	spacer(.Y, 8);
@@ -558,8 +564,8 @@ device_dropdown :: (which: int, input: bool, w: float32) {
 	sel := dd_selected(which, devs);
 	current := ifx which == 3 && vs.camera then vs.camera_name else L("Default");
 	for d: devs { if sel != 0 && d.id == sel { current = d.name; } }
-	hint := ifx current == L("Default") then default_name(devs) else "";
-	box := row(ifx which == 3 then "camdev" else ifx input then "indev" else "outdev", .Clickable | .Draw_Background | .Draw_Border);
+	hint := ifx current == L("Default") then default_name(which, devs) else "";
+	box := row(ifx which == 4 then "camquality" else ifx which == 3 then "camdev" else ifx input then "indev" else "outdev", .Clickable | .Draw_Background | .Draw_Border);
 	box.semantic_size = .[ui.px(w), ui.px(40)];
 	box.style.bg = T("--background-base-lowest");
 	if tok_has("--input-background") box.style.bg = T("--input-background");
@@ -589,8 +595,13 @@ device_dropdown :: (which: int, input: bool, w: float32) {
 
 // popup list under the dropdown (overlay, like the client's select menu)
 // The dropdowns' entries: audio devices (1 input, 2 output), or the cameras (3) as ids 1..n with the
-// camera's id as uid.
+// camera's id as uid, or the camera's qualities (4) as ids 1..n.
 dd_devices :: (which: int) -> []audio.Device_Info {
+	if which == 4 {
+		out := NewArray(CAMERA_QUALITIES.count, audio.Device_Info,, temp);
+		for CAMERA_QUALITIES out[it_index] = .{id = cast(u32) it_index + 1, name = quality_name(it[0], it[1])};
+		return out;
+	}
 	if which != 3 return vs_list_devices(which == 1);
 	cams, _ := video.cameras();
 	if platform.is_headless() { cams = NewArray(1, video.Camera_Device,, temp); cams[0] = .{"test", "Test Camera"}; }
@@ -600,21 +611,35 @@ dd_devices :: (which: int) -> []audio.Device_Info {
 }
 
 dd_selected :: (which: int, devs: []audio.Device_Info) -> u32 {
+	if which == 4 {
+		for CAMERA_QUALITIES if it[0] == vs.camera_height && it[1] == vs.camera_fps return cast(u32) it_index + 1;
+		return 0;
+	}
 	if which != 3 return audio.selected_device(which == 1);
 	for devs if it.uid == vs.camera return it.id;
 	return 0;
 }
 
 dd_select :: (which: int, d: audio.Device_Info) {
+	if which == 4 {
+		q: [2]int;
+		if d.id q = CAMERA_QUALITIES[d.id - 1];
+		if vs.camera_height == q[0] && vs.camera_fps == q[1] return;
+		vs.camera_height, vs.camera_fps = q[0], q[1];
+		camera_restart(true);
+		return;
+	}
 	if which != 3 { audio.select_device(which == 1, d.id); return; }
 	free(vs.camera);
 	free(vs.camera_name);
 	vs.camera, vs.camera_name = copy_string(d.uid), copy_string(d.name);
-	camera_switch();
+	if !platform.is_headless() camera_restart(false); // the test pattern stays
 }
 
+quality_name :: (height: int, fps: int) -> string { return tprint(L("%1p %2 FPS"), height, fps); }
+
 device_list :: (which: int, devs: []audio.Device_Info, sel: u32, w: float32, at: ui.Vec2) {
-	list := ui.box(ifx which == 3 then "camlist" else ifx which == 1 then "inlist" else "outlist", .Draw_Background | .Draw_Border | .Draw_Shadow | .Floating_X | .Floating_Y | .Overlay | .Clickable);
+	list := ui.box(ifx which == 4 then "camqlist" else ifx which == 3 then "camlist" else ifx which == 1 then "inlist" else "outlist", .Draw_Background | .Draw_Border | .Draw_Shadow | .Floating_X | .Floating_Y | .Overlay | .Clickable);
 	list.semantic_size = .[ui.px(w), ui.children()];
 	list.fixed_pos = at;
 	list.layout_axis = .Y;
@@ -645,13 +670,19 @@ device_list :: (which: int, devs: []audio.Device_Info, sel: u32, w: float32, at:
 				vs.open_dropdown = 0;
 			}
 		}
-		opt(which, .{name = L("Default")}, sel == 0, default_name(devs));
-		for d: devs { { ui.id_scope(cast(u64)(d.id) + 1); defer ui.pop_seed(); opt(which, d, d.id == sel); } }
+		opt(which, .{name = L("Default")}, sel == 0, default_name(which, devs));
+		for d: devs {
+			ui.id_scope(cast(u64)(d.id) + 1); defer ui.pop_seed();
+			// qualities above the official client's 720p30
+			beyond := which == 4 && (CAMERA_QUALITIES[d.id - 1][0] > 720 || CAMERA_QUALITIES[d.id - 1][1] > 30);
+			opt(which, d, d.id == sel, ifx beyond then L("More than the official client sends") else "");
+		}
 	}
 }
 
-// default_name: the device "Default" resolves to right now, as a hint next to it.
-default_name :: (devs: []audio.Device_Info) -> string {
+// default_name: the device (or camera quality) "Default" resolves to right now, as a hint next to it.
+default_name :: (which: int, devs: []audio.Device_Info) -> string {
+	if which == 4 return quality_name(720, 30);
 	for devs if it.is_default && it.id != 0 return it.name;
 	return "";
 }

@@ -1,4 +1,5 @@
 # Settings > Voice & Video: the Camera dropdown lists the cameras (headless: one test camera) and keeps the
+# pick; Video Quality lists the qualities beside Default (720p 30 FPS) and reopens the running test at the
 # pick; Test Video shows the camera (headless: the test pattern) and Stop Video ends it.
 wait 5
 click 338 683
@@ -11,8 +12,17 @@ wait 10
 click_text "Test Video"
 settle 0.3
 expect_visible "Stop Video"
-# the Camera dropdown sits above Blur Background, just past the top edge
-scroll 0 60
+# the Camera and Video Quality dropdowns sit above Background, past the top edge
+scroll 0 160
+wait 10
+# Video Quality first: its "Default" is drawn after the camera's
+click_text "720p 30 FPS"
+wait 3
+expect_visible "More than the official client sends"
+click_text "480p 30 FPS"
+wait 3
+expect_visible "480p 30 FPS"
+scroll 0 80
 wait 10
 click_text "Default"
 wait 3

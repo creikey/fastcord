@@ -124,6 +124,7 @@
 %1, %2 at %3
 %1, %2, and %3 are typing...
 %1: %2
+%1p %2 FPS
 %: a number
 %: a whole number
 %: enter a whole number.
@@ -1191,6 +1192,7 @@ Moderators must have two-factor authentication enabled to ban, kick, or timeout 
 Moderators only##mod
 Modern, beautiful, and easy on your eyes.
 Modify Attachment
+More than the official client sends
 Motion
 Move Members
 Move To
@@ -1997,6 +1999,7 @@ Username is available. Nice!
 Username is unavailable. Try adding numbers, letters, underscores _ , or periods.
 Users will need to confirm they are of over the legal age to view in the content in this channel.\nAge-restricted channels are exempt from the explicit content filter.
 Uses the yt-dlp you installed to play YouTube links in the chat instead of opening your browser. It connects to YouTube from your computer.
+VIDEO QUALITY
 VOICE PROCESSING
 Verification Level
 Verified

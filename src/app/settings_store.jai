@@ -36,6 +36,7 @@ Persisted_Voice :: struct {
 	camera_blur: bool; // the background blurred: written for builds before camera_background
 	camera_background: string; // "none" | "blur" | "image" (video.Background); "" before it: camera_blur
 	camera_image: string; // the picture's path for "image"
+	camera_height, camera_fps: int; // Video Quality: one of CAMERA_QUALITIES, 0 = Default (720p 30 FPS)
 }
 
 Persisted_Sounds :: struct {
