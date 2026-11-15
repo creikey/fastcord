@@ -108,6 +108,8 @@ TARGETS :: Target.[
 	.{"url", run_url, "https://user@example.com:8443/a/b?c=d#e", "", .Bytes},
 	.{"stt_text", run_stt_text, " And so, my fellow Americans [BLANK_AUDIO] (music)\tcaf\xC3\xA9 \xF0\x9F\x98\x80", "", .Bytes},
 	.{"stt", run_stt, "\x05\x01\x00\x03\x02\x01\x01\x01\x04\x02\x02\x00\x00\x00\x00\x03\x01", "", .Choices},
+	.{"scrypt", run_scrypt, "\x01\x0a\x01\x03\x01\x01\x08password\x04NaCl\x40", "", .Choices},
+	.{"hpke", run_hpke, "\x00\x07fc test\x06item 7\x01\x20the item key, 32 bytes long ....\x00", "", .Choices},
 	.{"page", run_page, "<html><head><title>a &amp; b</title><meta property=\"og:title\" content='x'><meta name=description content=\"d\"></head>", "", .Bytes},
 ];
 
@@ -394,6 +396,178 @@ run_stt :: (data: []u8) {
 		oracle(!it.text, "stt: text with no model loaded");
 		oracle(it.not_recordable || it.dropped_ms > 0, "stt: an empty line");
 	}
+}
+
+// ---- The vault's primitives: scrypt and X-Wing HPKE ----
+
+// scrypt's parameters come from a file the vault reads, so every shape is tried. A shape the wrapper
+// should refuse must be refused, one it should take must work (the wrapper's memory sum against
+// BoringSSL's own), and the result must match an independent ROMix below, at every output length.
+run_scrypt :: (data: []u8) {
+	g := Gen.{b = data};
+	n := ifx pick(*g, 4) then 1 << pick(*g, ifx pick(*g, 2) then 12 else 33) else pick(*g, 70000);
+	r := ifx pick(*g, 4) then 1 + pick(*g, 8) else pick(*g, 70);
+	p := ifx pick(*g, 4) then 1 + pick(*g, 3) else pick(*g, 70);
+	password := gen_bytes(*g, pick(*g, 80));
+	salt := gen_bytes(*g, pick(*g, 40));
+	out := NewArray(pick(*g, 200), u8,, temp);
+	valid := n >= 2 && n <= 1 << 30 && !(n & (n - 1)) && r >= 1 && r <= 64 && p >= 1 && p <= 64 && !(r < 4 && n >= 1 << (16 * r)) && 128 * r * (n + p + 2) <= crypto.SCRYPT_MAX_MEM;
+	if !took("valid", valid) {
+		oracle(!crypto.scrypt(password, salt, n, r, p, out), "scrypt: took n=% r=% p=%", n, r, p);
+		return;
+	}
+	if n * r * p > 1 << 18 return;  // Too slow to run per input.
+	oracle(crypto.scrypt(password, salt, n, r, p, out), "scrypt: refused n=% r=% p=%", n, r, p);
+	if !took("differential", n * r * p <= 1 << 13) return;
+	want := NewArray(out.count, u8,, temp);
+	scrypt_reference(password, salt, n, r, p, want);
+	oracle(crypto.constant_time_equal(out, want), "scrypt: differs from the reference at n=% r=% p=% len=%", n, r, p, out.count);
+	if out.count {
+		short := NewArray(pick(*g, out.count), u8,, temp);
+		oracle(crypto.scrypt(password, salt, n, r, p, short) && crypto.constant_time_equal(short, array_view(out, 0, short.count)), "scrypt: a shorter output isn't a prefix");
+	}
+}
+
+hpke_keys: [2]struct { priv: [crypto.XWING_PRIVATE_BYTES]u8; pub: [crypto.XWING_PUBLIC_BYTES]u8; };
+hpke_ready: bool;
+
+// Every message seals and opens back, two seals of one message differ (a fresh encapsulation each), and
+// whatever an attacker can change makes open fail: any bit, the length, the key, info, ad, or a splice of
+// two messages' parts. Keys and garbage from the input never open anything and never crash.
+run_hpke :: (data: []u8) {
+	if !hpke_ready for * hpke_keys it.priv, it.pub = crypto.xwing_generate();
+	hpke_ready = true;
+	g := Gen.{b = data};
+	while !done(*g) {
+		k := pick(*g, 2);
+		info := cast(string) gen_bytes(*g, pick(*g, 40));
+		ad := gen_bytes(*g, pick(*g, 64));
+		plain := gen_bytes(*g, ifx pick(*g, 8) then pick(*g, 300) else pick(*g, 70000));
+		sealed := crypto.hpke_seal(hpke_keys[k].pub, info, ad, plain,, temp);
+		oracle(sealed.count == plain.count + crypto.HPKE_OVERHEAD, "hpke: sealed % bytes into %", plain.count, sealed.count);
+		opened, ok := crypto.hpke_open(hpke_keys[k].priv, info, ad, sealed,, temp);
+		oracle(ok && crypto.constant_time_equal(opened, plain), "hpke: round trip of % bytes", plain.count);
+		attack := pick(*g, 10);
+		bad := array_copy(sealed,, temp);
+		bad_info, bad_ad, bad_priv := info, ad, hpke_keys[k].priv;
+		if attack == {
+			case 0;
+				i := pick(*g, bad.count);
+				bad[i] ^= cast(u8) (1 << pick(*g, 8));
+			case 1;
+				bad.count = pick(*g, bad.count);
+			case 2;
+				bad = cast([]u8) join(cast(string) bad, cast(string) gen_bytes(*g, 1 + pick(*g, 40)),, temp);
+			case 3;
+				bad_priv = hpke_keys[1 - k].priv;
+			case 4;
+				memcpy(bad_priv.data, gen_bytes(*g, crypto.XWING_PRIVATE_BYTES).data, crypto.XWING_PRIVATE_BYTES);
+				if crypto.constant_time_equal(bad_priv, hpke_keys[k].priv) continue;
+			case 5;
+				bad_info = join(info, cast(string) gen_bytes(*g, 1 + pick(*g, 8)),, temp);
+				if info.count && pick(*g, 2) bad_info = slice(info, 0, pick(*g, info.count));
+			case 6;
+				bad_ad = cast([]u8) join(cast(string) ad, cast(string) gen_bytes(*g, 1 + pick(*g, 8)),, temp);
+				if ad.count && pick(*g, 2) bad_ad = array_view(ad, 0, pick(*g, ad.count));
+			case 7;
+				// The same message sealed again: its encapsulation must differ, and won't open the first ciphertext.
+				again := crypto.hpke_seal(hpke_keys[k].pub, info, ad, plain,, temp);
+				oracle(!crypto.constant_time_equal(array_view(again, 0, 1120), array_view(sealed, 0, 1120)), "hpke: two seals share an encapsulation");
+				memcpy(bad.data, again.data, 1120);
+			case 8;
+				// The public key with a bit changed (random bytes are never a valid ML-KEM key), or one of
+				// the wrong length: refused, or sealed to a key that the original's private key can't open.
+				pub: []u8;
+				if pick(*g, 4) {
+					pub = array_copy(hpke_keys[k].pub,, temp);
+					pub[pick(*g, pub.count)] ^= cast(u8) (1 << pick(*g, 8));
+				} else {
+					pub = gen_bytes(*g, pick(*g, 2000));
+				}
+				s := crypto.hpke_seal(pub, info, ad, plain,, temp);
+				if pub.count != crypto.XWING_PUBLIC_BYTES oracle(!s.count, "hpke: sealed to a % byte key", pub.count);
+				else took("changed key seals", s.count > 0);
+				if !s.count continue;
+				bad = s;
+			case 9;
+				bad = gen_bytes(*g, pick(*g, 3000));
+		}
+		_, ok = crypto.hpke_open(bad_priv, bad_info, bad_ad, bad,, temp);
+		oracle(!ok, "hpke: attack % opened", attack);
+	}
+}
+
+gen_bytes :: (g: *Gen, n: int) -> []u8 {
+	b := NewArray(n, u8, false,, temp);
+	for * b it.* = xx byte(g);
+	return b;
+}
+
+// The pure-Jai scrypt DAVE used before BoringSSL's: its ROMix and Salsa20/8 are independent of
+// BoringSSL's, so run_scrypt diffs against it. PBKDF2 is BoringSSL's in both.
+scrypt_reference :: (password: []u8, salt: []u8, n: int, r: int, p: int, dst: []u8) {
+	rotl :: inline (a: u32, k: u32) -> u32 { return (a << k) | (a >> (32 - k)); }
+	quarter :: inline (x: *[16]u32, a: int, b: int, c: int, d: int) {
+		x.*[b] ^= rotl(x.*[a] + x.*[d], 7);
+		x.*[c] ^= rotl(x.*[b] + x.*[a], 9);
+		x.*[d] ^= rotl(x.*[c] + x.*[b], 13);
+		x.*[a] ^= rotl(x.*[d] + x.*[c], 18);
+	}
+	salsa20_8 :: (b: *[16]u32) {
+		x := b.*;
+		for 1..4 {
+			quarter(*x, 0, 4, 8, 12);
+			quarter(*x, 5, 9, 13, 1);
+			quarter(*x, 10, 14, 2, 6);
+			quarter(*x, 15, 3, 7, 11);
+			quarter(*x, 0, 1, 2, 3);
+			quarter(*x, 5, 6, 7, 4);
+			quarter(*x, 10, 11, 8, 9);
+			quarter(*x, 15, 12, 13, 14);
+		}
+		for i: 0..15 b.*[i] += x[i];
+	}
+	// block_mix: b, y hold 32*r words; even blocks go to the first half of y, odd to the second.
+	block_mix :: (b: []u32, y: []u32, r: int) {
+		x: [16]u32;
+		memcpy(x.data, b.data + (2 * r - 1) * 16, 64);
+		for i: 0..2 * r - 1 {
+			for j: 0..15 x[j] ^= b[i * 16 + j];
+			salsa20_8(*x);
+			dst := ifx i % 2 == 0 then (i / 2) * 16 else (r + i / 2) * 16;
+			memcpy(y.data + dst, x.data, 64);
+		}
+	}
+
+	blen := 128 * r;
+	b := NewArray(p * blen, u8,, temp);
+	crypto.pbkdf2_sha256(password, salt, 1, b);
+	words := 32 * r;
+	v := NewArray(n * words, u32, false,, temp);
+	x := NewArray(words, u32, false,, temp);
+	y := NewArray(words, u32, false,, temp);
+	for k: 0..p-1 {
+		blk := array_view(b, k * blen, blen);
+		for i: 0..words-1 x[i] = (cast(u32) blk[4*i]) | ((cast(u32) blk[4*i+1]) << 8) | ((cast(u32) blk[4*i+2]) << 16) | ((cast(u32) blk[4*i+3]) << 24);
+		for i: 0..n-1 {
+			memcpy(v.data + i * words, x.data, words * 4);
+			block_mix(x, y, r);
+			x, y = y, x;
+		}
+		for 1..n {
+			j := (cast(int) x[(2 * r - 1) * 16]) & (n - 1);
+			for t: 0..words-1 x[t] ^= v[j * words + t];
+			block_mix(x, y, r);
+			x, y = y, x;
+		}
+		for i: 0..words-1 {
+			blk[4*i]   = cast(u8) x[i];
+			blk[4*i+1] = cast(u8) (x[i] >> 8);
+			blk[4*i+2] = cast(u8) (x[i] >> 16);
+			blk[4*i+3] = cast(u8) (x[i] >> 24);
+		}
+	}
+	crypto.pbkdf2_sha256(password, b, 1, dst);
 }
 
 // ---- Generators: the input is a stream of choices ----

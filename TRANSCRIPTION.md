@@ -116,9 +116,9 @@ Transcripts are encrypted to a **public key**, and only its **private key** is b
   Those are on screen anyway. It gets no past call: their keys are gone and the private key isn't
   loaded.
 
-This is the shape of `age` and of HPKE (RFC 9180). Both of its parts are already compiled into the
-vendored BoringSSL, though not yet bound to Jai: `EVP_HPKE_*` with the **X-Wing** KEM (X25519 plus
-ML-KEM-768, so a quantum computer later doesn't open today's files), and `EVP_PBE_scrypt`.
+This is the shape of `age` and of HPKE (RFC 9180). Both parts come from the vendored BoringSSL,
+bound in `src/crypto`: `hpke_seal` / `hpke_open` with the **X-Wing** KEM (X25519 plus ML-KEM-768, so
+a quantum computer later doesn't open today's files), and `scrypt`.
 
 ### Keys
 
@@ -217,13 +217,15 @@ fixture (README).
 - **The clipboard** and **"Open Transcripts Folder"**: the folder link goes away; Copy stays the
   user's choice.
 
-### Bindings to add
+### Bindings (done, C1)
 
-- In `fc_boringssl.c`: `fc_scrypt` (over `EVP_PBE_scrypt`), and `fc_hpke_seal` / `fc_hpke_open`,
-  single-shot base mode with X-Wing, HKDF-SHA256 and ChaCha20-Poly1305.
-- In `src/crypto`: `scrypt`, `hpke_xwing_generate`, `hpke_seal`, `hpke_open`.
-- `src/voice_dave/codes.jai` has a pure-Jai scrypt for DAVE fingerprints. Switch it to the BoringSSL
-  one, and keep a test that checks both give the same output.
+- `fc_boringssl.c`: `fc_scrypt` (over `EVP_PBE_scrypt`), `fc_xwing_generate`, and `fc_hpke_seal` /
+  `fc_hpke_open`, single-shot base mode with X-Wing, HKDF-SHA256 and ChaCha20-Poly1305.
+- `src/crypto`: `scrypt` (refuses shapes past 1 GiB, since the vault's parameters come from disk),
+  `xwing_generate`, `hpke_seal`, `hpke_open`.
+- Tests: RFC 7914's vectors and DAVE's shape in `src/tests/keys.jai`, with HPKE's round trip and
+  tamper cases. DAVE's fingerprints now use `crypto.scrypt`; its old pure-Jai scrypt lives on as the
+  fuzzer's reference (`scrypt_reference`), which the `scrypt` target diffs against.
 
 ## Consent (the real risk)
 
@@ -242,7 +244,8 @@ fixture (README).
 ## Order of work (2026-11-15)
 
 Done: the benchmark, the vendored engine, the tap, segmenter and worker, op 18 consent, settings, the
-pane, the stt test and fuzz targets.
+pane, the stt test and fuzz targets. C1. Half of A2: a call with one person talking works; several
+people are still to try. A1 waits until a Mac is at hand, and Linux is batched with it.
 
 Each step names what it needs. Steps in different lanes can run at the same time; within a lane, go
 in order. One lane, the critical path, decides when the feature is finished: **A1 → C1 → C2 → C3 → D2**.

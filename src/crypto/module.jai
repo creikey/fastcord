@@ -35,6 +35,51 @@ pbkdf2_sha256 :: (password: []u8, salt: []u8, iterations: u32, out: []u8) -> boo
     return fc_pbkdf2_sha256(password.data, xx password.count, salt.data, xx salt.count, iterations, out.data, xx out.count) == 1;
 }
 
+// scrypt (RFC 7914). It needs about 128 * r * n bytes, so it is false past SCRYPT_MAX_MEM, or for an n that
+// isn't a power of two: parameters may come from a file. Slow by design: never on the UI thread.
+SCRYPT_MAX_MEM :: 1 << 30;
+scrypt :: (password: []u8, salt: []u8, n: int, r: int, p: int, out: []u8) -> bool {
+    if n < 2 || n > 1 << 30 || n & (n - 1) || r < 1 || r > 64 || p < 1 || p > 64 || (r < 4 && n >= 1 << (16 * r)) return false;
+    mem := 128 * r * (n + p + 2);
+    if mem > SCRYPT_MAX_MEM return false;
+    return fc_scrypt(password.data, xx password.count, salt.data, xx salt.count, xx n, xx r, xx p, xx (mem + (1 << 16)), out.data, xx out.count) == 1;
+}
+
+// HPKE (RFC 9180) base mode, single shot, with X-Wing (X25519 plus ML-KEM-768, so it holds against a
+// quantum computer), HKDF-SHA256 and ChaCha20-Poly1305. A sealed message is the encapsulation, the
+// ciphertext and the tag: HPKE_OVERHEAD bytes longer than the plaintext.
+XWING_PUBLIC_BYTES :: 1216;
+XWING_PRIVATE_BYTES :: 32;
+HPKE_OVERHEAD :: 1120 + 16;
+xwing_generate :: () -> priv: [XWING_PRIVATE_BYTES]u8, pub: [XWING_PUBLIC_BYTES]u8 {
+    priv: [XWING_PRIVATE_BYTES]u8;
+    pub: [XWING_PUBLIC_BYTES]u8;
+    ok := fc_xwing_generate(priv.data, pub.data);
+    assert(ok == 1);
+    return priv, pub;
+}
+// hpke_seal encrypts plain to pub, in context.allocator. info names the purpose; ad is bound to the message
+// but not encrypted. Empty for a public key that isn't a valid X-Wing key.
+hpke_seal :: (pub: []u8, info: string, ad: []u8, plain: []u8) -> []u8 {
+    if pub.count != XWING_PUBLIC_BYTES return .[];
+    out := NewArray(plain.count + HPKE_OVERHEAD, u8, false);
+    if fc_hpke_seal(pub.data, xx pub.count, info.data, xx info.count, ad.data, xx ad.count, plain.data, xx plain.count, out.data) != 1 {
+        array_free(out);
+        return .[];
+    }
+    return out;
+}
+// hpke_open decrypts in context.allocator. False for a wrong key, info or ad, or any changed byte.
+hpke_open :: (priv: [XWING_PRIVATE_BYTES]u8, info: string, ad: []u8, sealed: []u8) -> []u8, bool {
+    if sealed.count < HPKE_OVERHEAD return .[], false;
+    out := NewArray(sealed.count - HPKE_OVERHEAD, u8, false);
+    if fc_hpke_open(priv.data, info.data, xx info.count, ad.data, xx ad.count, sealed.data, xx sealed.count, out.data) != 1 {
+        array_free(out);
+        return .[], false;
+    }
+    return out, true;
+}
+
 // AEAD with 16-byte tags kept apart from the ciphertext. AES-GCM picks 128 or 256 from the key size.
 Aead_Kind :: enum s32 { AES_GCM :: 0; XCHACHA20_POLY1305 :: 1; CHACHA20_POLY1305 :: 2; }
 Aead :: struct { ctx: [72]u64; }  // BoringSSL's EVP_AEAD_CTX (576 bytes, 8-aligned)
@@ -218,6 +263,10 @@ fc_hmac_sha256 :: (key: *u8, klen: u64, msg: *u8, mlen: u64, out: *u8) #foreign 
 fc_hkdf_extract :: (salt: *u8, slen: u64, ikm: *u8, ilen: u64, out: *u8) -> s32 #foreign bssl;
 fc_hkdf_expand :: (prk: *u8, plen: u64, info: *u8, ilen: u64, out: *u8, olen: u64) -> s32 #foreign bssl;
 fc_pbkdf2_sha256 :: (pass: *u8, plen: u64, salt: *u8, slen: u64, iters: u32, out: *u8, olen: u64) -> s32 #foreign bssl;
+fc_scrypt :: (pass: *u8, plen: u64, salt: *u8, slen: u64, n: u64, r: u64, p: u64, max_mem: u64, out: *u8, olen: u64) -> s32 #foreign bssl;
+fc_xwing_generate :: (priv: *u8, pub: *u8) -> s32 #foreign bssl;
+fc_hpke_seal :: (pub: *u8, pub_len: u64, info: *u8, ilen: u64, ad: *u8, adlen: u64, in: *u8, inlen: u64, out: *u8) -> s32 #foreign bssl;
+fc_hpke_open :: (priv: *u8, info: *u8, ilen: u64, ad: *u8, adlen: u64, in: *u8, inlen: u64, out: *u8) -> s32 #foreign bssl;
 fc_aead_size :: () -> u64 #foreign bssl;
 fc_aead_init :: (ctx: *void, kind: s32, key: *u8, klen: u64) -> s32 #foreign bssl;
 fc_aead_reset :: (ctx: *void) #foreign bssl;

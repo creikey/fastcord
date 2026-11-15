@@ -56,76 +56,7 @@ pairwise_fingerprint :: (local_user: u64, local_key: []u8, remote_user: u64, rem
 	b := mk(remote_key, remote_user);
 	if compare(b, a) < 0 a, b = b, a;
 	out: [64]u8;
-	scrypt(cast([]u8) join(a, b,, temp), FINGERPRINT_SALT, 16384, 8, 2, out);
+	ok := crypto.scrypt(cast([]u8) join(a, b,, temp), FINGERPRINT_SALT, 16384, 8, 2, out);
+	assert(ok);
 	return out;
-}
-
-// ---------------------------------------------------------------------------
-// scrypt (RFC 7914)
-
-scrypt :: (password: []u8, salt: []u8, n: int, r: int, p: int, dst: []u8) {
-	rotl :: inline (a: u32, k: u32) -> u32 { return (a << k) | (a >> (32 - k)); }
-	quarter :: inline (x: *[16]u32, a: int, b: int, c: int, d: int) {
-		x.*[b] ^= rotl(x.*[a] + x.*[d], 7);
-		x.*[c] ^= rotl(x.*[b] + x.*[a], 9);
-		x.*[d] ^= rotl(x.*[c] + x.*[b], 13);
-		x.*[a] ^= rotl(x.*[d] + x.*[c], 18);
-	}
-	salsa20_8 :: (b: *[16]u32) {
-		x := b.*;
-		for 1..4 {
-			quarter(*x, 0, 4, 8, 12);
-			quarter(*x, 5, 9, 13, 1);
-			quarter(*x, 10, 14, 2, 6);
-			quarter(*x, 15, 3, 7, 11);
-			quarter(*x, 0, 1, 2, 3);
-			quarter(*x, 5, 6, 7, 4);
-			quarter(*x, 10, 11, 8, 9);
-			quarter(*x, 15, 12, 13, 14);
-		}
-		for i: 0..15 b.*[i] += x[i];
-	}
-	// block_mix: b, y hold 32*r words; even blocks go to the first half of y, odd to the second.
-	block_mix :: (b: []u32, y: []u32, r: int) {
-		x: [16]u32;
-		memcpy(x.data, b.data + (2 * r - 1) * 16, 64);
-		for i: 0..2 * r - 1 {
-			for j: 0..15 x[j] ^= b[i * 16 + j];
-			salsa20_8(*x);
-			dst := ifx i % 2 == 0 then (i / 2) * 16 else (r + i / 2) * 16;
-			memcpy(y.data + dst, x.data, 64);
-		}
-	}
-
-	blen := 128 * r;
-	b := NewArray(p * blen, u8,, temp);
-	crypto.pbkdf2_sha256(password, salt, 1, b);
-	words := 32 * r;
-	v := NewArray(n * words, u32, false);
-	defer array_free(v);
-	x := NewArray(words, u32, false,, temp);
-	y := NewArray(words, u32, false,, temp);
-	for k: 0..p-1 {
-		blk := array_view(b, k * blen, blen);
-		for i: 0..words-1 x[i] = (cast(u32) blk[4*i]) | ((cast(u32) blk[4*i+1]) << 8) | ((cast(u32) blk[4*i+2]) << 16) | ((cast(u32) blk[4*i+3]) << 24);
-		for i: 0..n-1 {
-			memcpy(v.data + i * words, x.data, words * 4);
-			block_mix(x, y, r);
-			x, y = y, x;
-		}
-		for 1..n {
-			j := (cast(int) x[(2 * r - 1) * 16]) & (n - 1);
-			for t: 0..words-1 x[t] ^= v[j * words + t];
-			block_mix(x, y, r);
-			x, y = y, x;
-		}
-		for i: 0..words-1 {
-			blk[4*i]   = cast(u8) x[i];
-			blk[4*i+1] = cast(u8) (x[i] >> 8);
-			blk[4*i+2] = cast(u8) (x[i] >> 16);
-			blk[4*i+3] = cast(u8) (x[i] >> 24);
-		}
-	}
-	crypto.pbkdf2_sha256(password, b, 1, dst);
-	crypto.zero(b);
 }

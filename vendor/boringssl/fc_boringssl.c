@@ -1,5 +1,5 @@
 // fastcord's call-and-return wrappers over BoringSSL's crypto for the Jai side: hashes, HMAC/HKDF/PBKDF2,
-// AEADs with a detached tag, AES-CTR, and P-256 ECDH/ECDSA on raw byte strings. Built by build.jai into
+// scrypt, AEADs with a detached tag, AES-CTR, P-256 ECDH/ECDSA, ML-KEM and X-Wing HPKE on raw byte strings. Built by build.jai into
 // build/fc_boringssl.o; bound in jai/fc_crypto.
 #include <openssl/aead.h>
 #include <openssl/aes.h>
@@ -11,6 +11,7 @@
 #include <openssl/evp.h>
 #include <openssl/hkdf.h>
 #include <openssl/hmac.h>
+#include <openssl/hpke.h>
 #include <openssl/bytestring.h>
 #include <openssl/md5.h>
 #include <openssl/mem.h>
@@ -20,6 +21,7 @@
 #include <openssl/sha.h>
 #include <openssl/ssl.h>
 #include <openssl/x509.h>
+#include <openssl/xwing.h>
 #include <string.h>
 
 void fc_rand_bytes(uint8_t *p, size_t n) { RAND_bytes(p, n); }
@@ -182,6 +184,55 @@ int fc_mlkem768_decap(const uint8_t seed[MLKEM_SEED_BYTES], const uint8_t ct[MLK
     if (!MLKEM768_private_key_from_seed(&priv, seed, MLKEM_SEED_BYTES)) return 0;
     int ok = MLKEM768_decap(ss, ct, MLKEM768_CIPHERTEXT_BYTES, &priv);
     OPENSSL_cleanse(&priv, sizeof priv);
+    return ok;
+}
+
+// scrypt (RFC 7914). The caller bounds n, r and p; max_mem is the most it may allocate.
+int fc_scrypt(const uint8_t *pass, size_t plen, const uint8_t *salt, size_t slen, uint64_t n, uint64_t r, uint64_t p, size_t max_mem, uint8_t *out, size_t olen) {
+    return EVP_PBE_scrypt((const char *)pass, plen, salt, slen, n, r, p, max_mem, out, olen);
+}
+
+// HPKE (RFC 9180) base mode, single shot, with X-Wing (X25519 + ML-KEM-768), HKDF-SHA256 and
+// ChaCha20-Poly1305. A sealed message is the 1120-byte encapsulation, then the ciphertext, then the 16-byte tag.
+int fc_xwing_generate(uint8_t priv[XWING_PRIVATE_KEY_BYTES], uint8_t pub[XWING_PUBLIC_KEY_BYTES]) {
+    EVP_HPKE_KEY k;
+    EVP_HPKE_KEY_zero(&k);
+    size_t pl = 0, sl = 0;
+    int ok = EVP_HPKE_KEY_generate(&k, EVP_hpke_xwing()) && EVP_HPKE_KEY_public_key(&k, pub, &pl, XWING_PUBLIC_KEY_BYTES) &&
+             EVP_HPKE_KEY_private_key(&k, priv, &sl, XWING_PRIVATE_KEY_BYTES) && pl == XWING_PUBLIC_KEY_BYTES && sl == XWING_PRIVATE_KEY_BYTES;
+    EVP_HPKE_KEY_cleanup(&k);
+    OPENSSL_cleanse(&k, sizeof k);
+    return ok;
+}
+
+// out must hold XWING_CIPHERTEXT_BYTES + inlen + 16.
+int fc_hpke_seal(const uint8_t *pub, size_t pub_len, const uint8_t *info, size_t ilen, const uint8_t *ad, size_t adlen, const uint8_t *in, size_t inlen, uint8_t *out) {
+    EVP_HPKE_CTX c;
+    EVP_HPKE_CTX_zero(&c);
+    size_t el = 0, ol = 0;
+    int ok = EVP_HPKE_CTX_setup_sender(&c, out, &el, XWING_CIPHERTEXT_BYTES, EVP_hpke_xwing(), EVP_hpke_hkdf_sha256(), EVP_hpke_chacha20_poly1305(),
+                                       pub, pub_len, info, ilen) && el == XWING_CIPHERTEXT_BYTES &&
+             EVP_HPKE_CTX_seal(&c, out + el, &ol, inlen + 16, in, inlen, ad, adlen) && ol == inlen + 16;
+    EVP_HPKE_CTX_cleanup(&c);
+    OPENSSL_cleanse(&c, sizeof c);
+    return ok;
+}
+
+// out must hold inlen - XWING_CIPHERTEXT_BYTES - 16. False for a wrong key, info, ad, or any changed byte.
+int fc_hpke_open(const uint8_t priv[XWING_PRIVATE_KEY_BYTES], const uint8_t *info, size_t ilen, const uint8_t *ad, size_t adlen, const uint8_t *in, size_t inlen, uint8_t *out) {
+    if (inlen < XWING_CIPHERTEXT_BYTES + 16) return 0;
+    EVP_HPKE_KEY k;
+    EVP_HPKE_KEY_zero(&k);
+    EVP_HPKE_CTX c;
+    EVP_HPKE_CTX_zero(&c);
+    size_t want = inlen - XWING_CIPHERTEXT_BYTES - 16, ol = 0;
+    int ok = EVP_HPKE_KEY_init(&k, EVP_hpke_xwing(), priv, XWING_PRIVATE_KEY_BYTES) &&
+             EVP_HPKE_CTX_setup_recipient(&c, &k, EVP_hpke_hkdf_sha256(), EVP_hpke_chacha20_poly1305(), in, XWING_CIPHERTEXT_BYTES, info, ilen) &&
+             EVP_HPKE_CTX_open(&c, out, &ol, want, in + XWING_CIPHERTEXT_BYTES, inlen - XWING_CIPHERTEXT_BYTES, ad, adlen) && ol == want;
+    EVP_HPKE_CTX_cleanup(&c);
+    EVP_HPKE_KEY_cleanup(&k);
+    OPENSSL_cleanse(&c, sizeof c);
+    OPENSSL_cleanse(&k, sizeof k);
     return ok;
 }
 
