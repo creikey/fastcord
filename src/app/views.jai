@@ -253,7 +253,8 @@ history_step :: (forward: bool, trigger := "nav_button") {
 	}
 }
 
-// The middle-click autoscroll anchor (ui core): a round marker with up and down chevrons.
+// The middle-click autoscroll anchor (ui core): a round marker, as Chrome draws it, with a center dot
+// between an up and a down chevron.
 autoscroll_marker :: () {
 	at, on := ui.autoscroll_anchor();
 	if !on return;
@@ -261,13 +262,18 @@ autoscroll_marker :: () {
 	m.semantic_size = .[ui.px(28), ui.px(28)];
 	m.fixed_pos = at - .{14, 14};
 	m.layout_axis = .Y;
+	m.cross_align = .Center;
 	m.style.bg = T("--background-surface-high");
 	m.style.border = 1;
 	m.style.border_color = T("--border-strong");
 	m.style.radius = all4(14);
 	ui.parent(m); defer ui.pop_parent();
-	icon("up", "chevron-small-up", 14, T("--interactive-icon-default"));
-	icon("down", "chevron-small-down", 14, T("--interactive-icon-default"));
+	icon("up", "chevron-small-up", 12, T("--interactive-icon-default"));
+	dot := ui.box("dot", .Draw_Background);
+	dot.semantic_size = .[ui.px(4), ui.px(4)];
+	dot.style.radius = all4(2);
+	dot.style.bg = T("--interactive-icon-default");
+	icon("down", "chevron-small-down", 12, T("--interactive-icon-default"));
 }
 
 build_ui :: () {
