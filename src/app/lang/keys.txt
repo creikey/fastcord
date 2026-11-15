@@ -172,7 +172,6 @@
 3 days
 30 days
 30 minutes
-3:00 PM
 4 hours
 5 Minutes
 5 minutes
@@ -647,7 +646,6 @@ DEVICES
 DM closed
 Danish
 Data & Privacy
-Date
 Deafen
 Deafen Members
 Deauthorize##deauth
@@ -881,6 +879,7 @@ For a club or community
 For me and my friends
 Forever
 Forgot your password?
+Format
 Forum
 Forward
 Forward To
@@ -991,6 +990,7 @@ Incoming Call...
 Incoming Friend Request
 Indonesian
 Insert Timestamp
+Insert##insert
 Install
 Install Fastcord to open it from the Start menu.
 Installing…
@@ -1000,7 +1000,6 @@ Insults and Slurs
 Integrations
 Interested
 Invalid Invite
-Invalid date or time
 Invisible
 Invite
 Invite Channel
@@ -1314,6 +1313,7 @@ Notify everyone online who has permission to view this channel.
 Notify everyone who has permission to view this channel.
 Notify me when...
 Notify users with this role who have permission to view this channel.
+Now##now
 OUTPUT DEVICE
 OUTPUT VOLUME
 Objects
@@ -1426,6 +1426,7 @@ Post messages that reach servers outside your own. Members can follow this chann
 Post title
 Posting...
 Press a shortcut…
+Pretty
 Previous / next channel
 Previous / next channel with mentions
 Previous / next server
@@ -1466,6 +1467,7 @@ ROLES
 ROLES — %
 ROLES/MEMBERS
 RTC Connecting
+Raw
 Read Message History
 Read and agree to the server rules
 Reason
@@ -1676,12 +1678,14 @@ Share Your Screen
 Share my full profile with
 Share your detected activities with others
 Show
+Show Avatars
 Show Chat
 Show a system notification for messages that would notify you (DMs, mentions, servers set to all messages).
 Show embeds and preview website links pasted into chat
 Show emoji reactions on messages
 Show message
 Show messages
+Show profile pictures beside messages, replies and commands, in Cozy and Compact.
 Show role colors in names
 Show role colors next to names
 Show spoiler content

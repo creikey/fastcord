@@ -1,0 +1,22 @@
+# Appearance > Show Avatars (settings.json, fastcord's own): off hides the avatars beside messages and on
+# reply lines, in Cozy (whose avatar column then goes) and (the client's "Show avatars in Compact mode") Compact.
+wait 5
+click 338 683
+wait 20
+click_text "Appearance"
+wait 20
+click_text "Show Avatars"
+wait 10
+shot build/ui-chat_avatars_hidden_settings.png
+key escape
+wait 20
+shot build/ui-chat_avatars_hidden_cozy.png
+click 338 683
+wait 20
+click_text "Appearance"
+wait 20
+click_text "Compact"
+wait 10
+key escape
+wait 20
+shot build/ui-chat_avatars_hidden_compact.png

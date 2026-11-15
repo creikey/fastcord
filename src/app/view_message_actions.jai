@@ -385,22 +385,32 @@ edit_box :: (m: *dc.Message) {
 // The referenced message preview above a reply: curved spine, small avatar, name, one line of content.
 // An app command's reply: the reply spine, then "<avatar> name used /command" (a context-menu
 // command without the slash), as the client's interaction header.
+// The spine over a reply or command line: only the top and left edges of a rounded box (clipped), from the
+// avatar's centre to the line's text. With avatars hidden it starts at the name below, and the line moves over.
+reply_spine :: () {
+	bare := chat_avatars_hidden;
+	if bare spacer(.X, 24);
+	w := ifx bare then 17.0 else 33;
+	clip := ui.box("spineclip", .Clip | .Floating_X | .Floating_Y);
+	clip.semantic_size = .[ui.px(w), ui.px(12)];
+	clip.fixed_pos = .{ifx bare then 4.0 else -MSG_GUTTER + 36, 8};
+	ui.parent(clip); defer ui.pop_parent();
+	spine := ui.box("spine", .Draw_Border | .Floating_X | .Floating_Y);
+	spine.semantic_size = .[ui.px(w + 8), ui.px(12 + 8)];
+	spine.style.border = 2;
+	spine.style.border_color = T("--border-strong");
+	spine.style.radius = .[6, 0, 0, 0];
+}
+
 command_used_line :: (m: *dc.Message) {
 	r := row("cmdused");
 	r.semantic_size = .[ui.pct(1), ui.px(22)];
 	ui.parent(r); defer ui.pop_parent();
-	clip := ui.box("spineclip", .Clip | .Floating_X | .Floating_Y);
-	clip.semantic_size = .[ui.px(33), ui.px(12)];
-	clip.fixed_pos = .{-MSG_GUTTER + 36, 8};
-	{ ui.parent(clip); defer ui.pop_parent();
-		spine := ui.box("spine", .Draw_Border | .Floating_X | .Floating_Y);
-		spine.semantic_size = .[ui.px(33 + 8), ui.px(12 + 8)];
-		spine.style.border = 2;
-		spine.style.border_color = T("--border-strong");
-		spine.style.radius = .[6, 0, 0, 0];
+	reply_spine();
+	if !chat_avatars_hidden {
+		avatar_box("av", m.command_user, 16);
+		spacer(.X, 4);
 	}
-	avatar_box("av", m.command_user, 16);
-	spacer(.X, 4);
 	n := label(name_in(m.command_user, m.channel_id), .Medium, 14, T("--text-muted"), 18);
 	n.flags |= .Clickable;
 	if ui.signal(n).clicked open_profile(m.command_user, n.rect);
@@ -428,17 +438,7 @@ reply_preview :: (m: *dc.Message) {
 		if ui.signal(r).clicked jump_to_message(ref.channel_id, ref.id);
 	}
 	{ ui.parent(r); defer ui.pop_parent();
-		// the spine: only the top and left edges of a rounded box (clipped)
-		clip := ui.box("spineclip", .Clip | .Floating_X | .Floating_Y);
-		clip.semantic_size = .[ui.px(33), ui.px(12)];
-		clip.fixed_pos = .{-MSG_GUTTER + 36, 8};
-		{ ui.parent(clip); defer ui.pop_parent();
-			spine := ui.box("spine", .Draw_Border | .Floating_X | .Floating_Y);
-			spine.semantic_size = .[ui.px(33 + 8), ui.px(12 + 8)];
-			spine.style.border = 2;
-			spine.style.border_color = T("--border-strong");
-			spine.style.radius = .[6, 0, 0, 0];
-		}
+		reply_spine();
 		if ref == null {
 			label(L("Original message was deleted"), .Normal, 14, T("--text-muted"), 18);
 			return;
@@ -448,8 +448,10 @@ reply_preview :: (m: *dc.Message) {
 			label(ifx hide == "blocked" then L("Blocked message") else L("Ignored message"), .Normal, 14, T("--text-muted"), 18);
 			return;
 		}
-		avatar_box("av", ref.author_id, 16);
-		spacer(.X, 4);
+		if !chat_avatars_hidden {
+			avatar_box("av", ref.author_id, 16);
+			spacer(.X, 4);
+		}
 		name := author_name(ref);
 		// "@" only when the reply pinged the author; role color, else muted
 		pinged := false;

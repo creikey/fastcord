@@ -1,5 +1,5 @@
 # Appearance > Message Display > Compact (synced, text_and_images.message_display_compact) and Chat Font
-# Scaling (settings.json): no avatars, "time name text" on each group's first line, the time in the gutter,
+# Scaling (settings.json): "time avatar name text" on each group's first line, the time in the gutter,
 # and the chat text at 20px after dragging the slider to its 20px mark.
 wait 5
 click 338 683
@@ -11,10 +11,10 @@ wait 10
 move 760 400
 scroll 0 -300
 wait 30
-down 651 379
-move 760 379
-move 884 379
-up 884 379
+down 651 444
+move 760 444
+move 884 444
+up 884 444
 wait 10
 shot build/ui-message_display_settings.png
 key escape

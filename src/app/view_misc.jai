@@ -933,6 +933,10 @@ appearance_page :: () {
 			compact := message_compact();
 			if radio_choice("cozy", L("Cozy"), L("Modern, beautiful, and easy on your eyes."), !compact) || radio_choice("compact", L("Compact"), L("Fit more messages on screen at one time. #IRC"), compact)
 				proto_put(6, 17, dc.pb_field_bool_value(17, !compact));
+			spacer(.Y, 24);
+			if set_toggle_row("avatars", L("Show Avatars"), L("Show profile pictures beside messages, replies and commands, in Cozy and Compact."), !chat_avatars_hidden) {
+				chat_avatars_hidden = !chat_avatars_hidden;
+			}
 			spacer(.Y, 32);
 			label(L("Chat Font Scaling"), .Semibold, 16, T("--text-default"), 20);
 			spacer(.Y, 16);

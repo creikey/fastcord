@@ -121,7 +121,7 @@ poll_result_card :: (m: *dc.Message) {
 	r := row("pollres");
 	r.semantic_size = .[ui.pct(1), ui.children()];
 	ui.parent(r); defer ui.pop_parent();
-	spacer(.X, MSG_GUTTER);
+	spacer(.X, notice_gutter());
 	card := row("card", .Draw_Background | .Draw_Border);
 	card.semantic_size = .[ui.px(POLL_W), ui.px(64)];
 	card.style.bg = T("--embed-background");

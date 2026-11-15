@@ -58,6 +58,7 @@ Persisted :: struct {
 	theme: string;
 	theme_follow_os: bool; // Appearance > "Same as Device Theme"
 	smooth_scroll_off: bool; // Appearance > "Smooth Scrolling" (fastcord's own), off
+	avatars_hidden: bool; // Appearance > "Show Avatars" (fastcord's own; covers the client's Compact-only one), off
 	start_minimized: bool; // System > Start Minimized (Windows)
 	tray_close_off: bool; // System > Minimize to Tray, off
 	install_declined: bool; // Not Now on the Windows install bar (update.jai)
@@ -107,6 +108,7 @@ app_theme_pending_set: bool;
 notify_prefs: Persisted_Notify;
 theme_follow_os: bool;
 smooth_scroll_off: bool;
+chat_avatars_hidden: bool;
 start_minimized, tray_close_off: bool;
 system_reduce_motion: bool; // polled by settings_frame; implies no smooth scrolling
 
@@ -317,6 +319,7 @@ apply_persisted :: (p: *Persisted) {
 	if ok app_theme_pending, app_theme_pending_set = t, true;
 	theme_follow_os = p.theme_follow_os;
 	smooth_scroll_off = p.smooth_scroll_off;
+	chat_avatars_hidden = p.avatars_hidden;
 	start_minimized, tray_close_off = p.start_minimized, p.tray_close_off;
 	platform.set_close_to_tray(!tray_close_off);
 	install_declined = p.install_declined;
@@ -367,6 +370,7 @@ snapshot :: () -> string {
 	p.theme = tprint("%", app.theme.name);
 	p.theme_follow_os = theme_follow_os;
 	p.smooth_scroll_off = smooth_scroll_off;
+	p.avatars_hidden = chat_avatars_hidden;
 	p.start_minimized, p.tray_close_off = start_minimized, tray_close_off;
 	p.install_declined = install_declined;
 	p.update_hidden_until_ms = update_hidden_until_ms;

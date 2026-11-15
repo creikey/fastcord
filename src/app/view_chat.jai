@@ -1,5 +1,11 @@
 // Cozy message layout, measured from the official client.
 MSG_GUTTER :: 72; // content x offset
+// Cozy with Appearance > Show Avatars off drops the avatar column to the list's 16 px margin; Compact
+// keeps its gutter for the time.
+cozy_bare :: () -> bool { return chat_avatars_hidden && !message_compact(); }
+msg_gutter :: () -> float32 { return ifx cozy_bare() then 16.0 else MSG_GUTTER; }
+// A notice's text (and the card or button under it) starts after its icon, which leads at the text's x when bare.
+notice_gutter :: () -> float32 { return ifx cozy_bare() then 16.0 + 24 else MSG_GUTTER; }
 MSG_AVATAR :: 40;
 MSG_GROUP_GAP :: 17; // space above the first message of a group (by default: group_gap())
 // Accessibility > Space between message groups; Compact's default is 0 (the client's default per display)
@@ -1178,7 +1184,7 @@ message_list :: (channel_id: dc.Snowflake, cs: *Chat_State) {
 	// media fits the list (the call's chat panel is narrower than an embed); the right side keeps
 	// room for the remove-embeds X, an embed card adding 16 on each side
 	lw := list.rect.x1 - list.rect.x0;
-	chat_media_w = ifx lw > 0 then clamp(lw - MSG_GUTTER - 32 - 32, 120, 400) else 400;
+	chat_media_w = ifx lw > 0 then clamp(lw - msg_gutter() - 32 - 32, 120, 400) else 400;
 	// Scrolling is managed here (anchored to the bottom), not by ui's scroll offset.
 	list.flags &= ~ui.Box_Flag.Scroll_Y;
 	msgs := dc.messages_get(s, channel_id);
@@ -1651,7 +1657,7 @@ message_row :: (m: *dc.Message, grouped: bool, new_day: bool, show_new: bool) ->
 			rr := row("cmdrow");
 			rr.semantic_size = .[ui.pct(1), ui.px(22)];
 			{ ui.parent(rr); defer ui.pop_parent();
-				spacer(.X, MSG_GUTTER);
+				spacer(.X, msg_gutter());
 				command_used_line(m);
 			}
 		}
@@ -1659,7 +1665,7 @@ message_row :: (m: *dc.Message, grouped: bool, new_day: bool, show_new: bool) ->
 			rr := row("replyrow");
 			rr.semantic_size = .[ui.pct(1), ui.px(22)];
 			{ ui.parent(rr); defer ui.pop_parent();
-				spacer(.X, MSG_GUTTER);
+				spacer(.X, msg_gutter());
 				reply_preview(m);
 			}
 		}
@@ -1676,12 +1682,13 @@ message_row :: (m: *dc.Message, grouped: bool, new_day: bool, show_new: bool) ->
 		{ ui.parent(body); defer ui.pop_parent();
 			compact := message_compact();
 			gutter := ui.box("gutter");
-			gutter.semantic_size = .[ui.px(MSG_GUTTER), ui.px(chat_px(MSG_LINE_H))];
+			gutter.semantic_size = .[ui.px(msg_gutter()), ui.px(chat_px(MSG_LINE_H))];
 			if !grouped && !compact {
 				// the avatar floats, so the gutter holds its height: a header-only row
 				// (a message type with no body) must not let it hang below the row
-				gutter.semantic_size[ui.Axis.Y] = ui.px(2 + MSG_AVATAR);
-				{ ui.parent(gutter); defer ui.pop_parent();
+				if !chat_avatars_hidden {
+					gutter.semantic_size[ui.Axis.Y] = ui.px(2 + MSG_AVATAR);
+					ui.parent(gutter); defer ui.pop_parent();
 					av := avatar_box("avatar", m.author_id, MSG_AVATAR, animate = hovered);
 					av.flags |= .Floating_X | .Floating_Y | .Clickable;
 					av.fixed_pos = .{16, 2};
@@ -1689,18 +1696,18 @@ message_row :: (m: *dc.Message, grouped: bool, new_day: bool, show_new: bool) ->
 					if asig.clicked open_profile(m.author_id, av.rect, .Message_Author, m.id, m.webhook_name);
 					if asig.right_clicked && !m.webhook_name open_user_menu(m.author_id, app.ui.mouse);
 				}
-			} else if hovered || (compact && !grouped) || e2e_mark(m) != .None {
+			} else if (hovered && !cozy_bare()) || (compact && !grouped) || e2e_mark(m) != .None {
 				gutter.layout_axis = .X;
 				gutter.cross_align = .Center;
 				{ ui.parent(gutter); defer ui.pop_parent();
 					filler(.X);
-					if hovered || (compact && !grouped) {
+					if (hovered && !cozy_bare()) || (compact && !grouped) { // bare Cozy has no room: the header's time has it
 						gt := label(format_timestamp(m.id, true), .Medium, chat_px(11), T("--text-muted"), chat_px(MSG_LINE_H));
 						if ui.mouse_over(gt) tooltip_below(full_timestamp(dc.snowflake_time_ms(m.id)), gt.rect);
 						spacer(.X, 8);
 					} else {
 						e2e_mark_icon(e2e_mark(m), 14); // the mark stays on follow-ups
-						spacer(.X, 12);
+						spacer(.X, ifx cozy_bare() then 1.0 else 12);
 					}
 				}
 			}
@@ -1710,7 +1717,12 @@ message_row :: (m: *dc.Message, grouped: bool, new_day: bool, show_new: bool) ->
 			{ ui.parent(content); defer ui.pop_parent();
 				// compact: the name leads the first paragraph; else (a code block first, no text, editing) its own line
 				name_inline := compact && !grouped && !editing && compact_name_inline(m);
-				if !grouped && !name_inline message_header(m, with_time = !compact);
+				if name_inline && !chat_avatars_hidden { // over the room the first paragraph leaves for it
+					av := compact_avatar(m, hovered);
+					av.flags |= .Floating_X | .Floating_Y;
+					av.fixed_pos = .{0, (chat_px(MSG_LINE_H) - chat_px(COMPACT_AVATAR)) / 2};
+				}
+				if !grouped && !name_inline message_header(m, with_time = !compact, animate = hovered);
 				if m.forwarded {
 					forward_block(m);
 				} else {
@@ -1775,7 +1787,7 @@ system_notice :: (m: *dc.Message) {
 	r.cross_align = .Start;
 	{ ui.parent(r); defer ui.pop_parent();
 		g := ui.box("gutter");
-		g.semantic_size = .[ui.px(MSG_GUTTER), ui.px(CALL_ROW_H)];
+		g.semantic_size = .[ui.px(notice_gutter()), ui.px(CALL_ROW_H)];
 		pin := m.kind == MSG_PIN;
 		friend := m.kind == MSG_FRIEND_ACCEPTED;
 		ic_name, ic_color := "phone", T("--icon-feedback-positive");
@@ -1801,7 +1813,7 @@ system_notice :: (m: *dc.Message) {
 		{ ui.parent(g); defer ui.pop_parent();
 			ic := icon("ic", ic_name, 16, ic_color);
 			ic.flags |= .Floating_X | .Floating_Y;
-			ic.fixed_pos = .{28, (CALL_ROW_H - 16) / 2};
+			ic.fixed_pos = .{ifx cozy_bare() then 16.0 else 28, (CALL_ROW_H - 16) / 2};
 		}
 		spans: [..]ui.Span;
 		spans.allocator = temp;
@@ -1986,15 +1998,22 @@ automod_channel :: (m: *dc.Message) -> dc.Snowflake {
 	return ifx ok then v else 0;
 }
 
-message_header :: (m: *dc.Message, with_time := true) {
+// with_time false is Compact's header: the small avatar leads it instead (the time is in the gutter).
+message_header :: (m: *dc.Message, with_time := true, animate := false) {
 	name := author_name(m);
 	h := row("header");
 	h.semantic_size = .[ui.pct(1), ui.px(chat_px(MSG_LINE_H))];
 	h.cross_align = .End;
 	// a long name gives way to the timestamp instead of running under it
 	hw := h.rect.x1 - h.rect.x0;
-	if hw > 0 name = ellipsize(name, .Medium, chat_px(16), max(hw - ifx with_time then 150.0 else 40.0, 60));
+	if hw > 0 name = ellipsize(name, .Medium, chat_px(16), max(hw - ifx with_time then 150.0 else 40.0 + compact_avatar_w(), 60));
 	{ ui.parent(h); defer ui.pop_parent();
+		if !with_time && !chat_avatars_hidden {
+			av := compact_avatar(m, animate);
+			av.flags |= .Floating_Y; // centred on the line, which the row aligns by its bottom
+			av.fixed_pos.y = (chat_px(MSG_LINE_H) - chat_px(COMPACT_AVATAR)) / 2;
+			spacer(.X, compact_avatar_w() - chat_px(COMPACT_AVATAR));
+		}
 		n := label(name, .Medium, chat_px(16), author_color(m), chat_px(MSG_LINE_H));
 		n.flags |= .Clickable | .Selectable_Text;
 		n.sel_order = m.id * 8;
@@ -2263,7 +2282,7 @@ wave_button :: (m: *dc.Message) {
 	r := row("waverow");
 	r.semantic_size = .[ui.pct(1), ui.px(40)];
 	ui.parent(r); defer ui.pop_parent();
-	spacer(.X, MSG_GUTTER);
+	spacer(.X, notice_gutter());
 	b := row("wave", .Clickable | .Draw_Background | .Hot_Animation);
 	b.semantic_size = .[ui.children(), ui.px(36)];
 	b.style.radius = all4(8);
@@ -2391,6 +2410,22 @@ compact_name_inline :: (m: *dc.Message) -> bool {
 
 NAME_SPAN : u64 : 0xffff_ffff_ffff_ffe0; // compact's name span at the start of the first paragraph
 
+// Compact's avatar before the name, like the client's "Show avatars in Compact mode" (on by default;
+// Appearance > Show Avatars hides it with Cozy's).
+COMPACT_AVATAR :: 16;
+compact_avatar_w :: () -> float32 { return ifx chat_avatars_hidden then 0.0 else chat_px(COMPACT_AVATAR) + 4; } // with its gap to the name
+
+// Opens the profile like the name, and the user menu on right-click.
+compact_avatar :: (m: *dc.Message, animate: bool) -> *ui.Box {
+	av := avatar_box("cavatar", m.author_id, chat_px(COMPACT_AVATAR), animate);
+	av.flags |= .Clickable;
+	av.hover_cursor = .Pointer;
+	sig := ui.signal(av);
+	if sig.clicked open_profile(m.author_id, av.rect, .Message_Author, m.id, m.webhook_name);
+	if sig.right_clicked && !m.webhook_name open_user_menu(m.author_id, app.ui.mouse);
+	return av;
+}
+
 message_body :: (m: *dc.Message, terms: []string = .[], decrypted := false, name_inline := false) {
 	if m.content == "" return;
 	if !decrypted {
@@ -2482,10 +2517,13 @@ message_body :: (m: *dc.Message, terms: []string = .[], decrypted := false, name
 					b.style.line_height = chat_px(56);
 				}
 				if name_inline && bi == 0 {
-					named := NewArray(spans.count + 2, ui.Span,, temp);
-					named[0] = .{text = author_name(m), font = F(.Medium), size = size, color = author_color(m), id = NAME_SPAN};
-					named[1] = .{text = " ", font = F(.Normal), size = size, id = NAME_SPAN + 1};
-					memcpy(named.data + 2, spans.data, spans.count * size_of(ui.Span));
+					// an empty object first keeps the room the avatar box floats over
+					av := cast(int) !chat_avatars_hidden;
+					named := NewArray(spans.count + 2 + av, ui.Span,, temp);
+					if av named[0] = .{object = .{compact_avatar_w(), chat_px(COMPACT_AVATAR)}};
+					named[av] = .{text = author_name(m), font = F(.Medium), size = size, color = author_color(m), id = NAME_SPAN};
+					named[av + 1] = .{text = " ", font = F(.Normal), size = size, id = NAME_SPAN + 1};
+					memcpy(named.data + 2 + av, spans.data, spans.count * size_of(ui.Span));
 					spans = named;
 				}
 				if bi == blocks.count - 1 && m.edited_timestamp {
