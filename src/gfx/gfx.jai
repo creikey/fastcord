@@ -236,8 +236,8 @@ current_clip :: () -> Rect {
 }
 
 // Pixel snapping rules:
-//  - Hard-edged rects (softness 0): every edge is rounded to the nearest device
-//    pixel, and a non-empty rect is never thinner than 1px. Fills therefore have
+//  - Hard-edged rects (softness 0): the origin and the size are each rounded to
+//    whole device pixels (snap_rect), and a non-empty rect is never thinner than 1px. Fills therefore have
 //    no AA fringe, and 1px lines stay 1px.
 //  - Borders are rounded to whole device pixels (min 1px) so strokes are crisp.
 //  - Corner radii and softness stay fractional (they're AA'd analytically).
@@ -422,9 +422,12 @@ add_texture :: (slot: Tex_Slot) -> Texture {
     return cast(Texture) (g.textures.count - 1);
 }
 
+// The origin and the size are rounded, not each edge: a rect W points wide is round(W * scale)
+// pixels wherever it lands, so a moving caret or thumb never changes width.
 snap_rect :: (r: Rect) -> Rect {
     sc := g.scale;
-    return .{round(r.x0 * sc), round(r.y0 * sc), round(r.x1 * sc), round(r.y1 * sc)};
+    x0, y0 := round(r.x0 * sc), round(r.y0 * sc);
+    return .{x0, y0, x0 + round((r.x1 - r.x0) * sc), y0 + round((r.y1 - r.y0) * sc)};
 }
 
 premul :: inline (c: Color) -> [4]float32 {

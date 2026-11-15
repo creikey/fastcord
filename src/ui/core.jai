@@ -462,7 +462,7 @@ begin :: (window: Vec2, dt: float32, time: float64, events: []Input_Event, pixel
 	root := box_make_key(1, 0);
 	root.semantic_size = .[px(window.x), px(window.y)];
 	root.layout_axis = .Y;
-	root.rect = .{0, 0, window.x, window.y};
+	root.rect = .{0, 0, snap_px(window.x), snap_px(window.y)};
 	s.root = root;
 	array_add(*s.parents, root);
 }
@@ -1273,25 +1273,30 @@ layout_solve :: (b: *Box, axis: Axis, depth := 0) {
 	if axis == .Y && b.semantic_size[Axis.Y].kind == .Children_Sum b.fixed_size.y = children_extent(b, .Y);
 }
 
+// Boxes sit on the device pixel grid: every position and size is snapped (snap_px), and siblings
+// advance by their snapped sizes, so a box W points wide is round(W * scale) pixels wherever it is
+// and neighbours meet with no gap or overlap. Sizes stay exact in fixed_size (text wraps by them).
 layout_position :: (b: *Box, depth := 0) {
 	assert(depth < MAX_BOX_DEPTH);
 	cursor: float32;
 	content: Vec2;
+	gap := snap_px(b.style.child_gap);
 	for c: each_child(b) {
 		for axis: AXES {
 			pos := *c.rel_pos.component[axis];
+			free := snap_px(b.fixed_size.component[axis]) - snap_px(c.fixed_size.component[axis]);
 			if is_floating(c, axis) {
-				pos.* = c.fixed_pos.component[axis];
-				if axis == .Y && (c.flags & .Anchor_End_Y) pos.* = b.fixed_size.y - c.fixed_size.y - c.fixed_pos.y;
+				pos.* = snap_px(c.fixed_pos.component[axis]);
+				if axis == .Y && (c.flags & .Anchor_End_Y) pos.* = free - pos.*;
 			} else if axis == b.layout_axis {
 				pos.* = cursor;
 			} else if b.cross_align == {
 				case .Start;  pos.* = 0;
-				case .Center; pos.* = (b.fixed_size.component[axis] - c.fixed_size.component[axis]) / 2;
-				case .End;    pos.* = b.fixed_size.component[axis] - c.fixed_size.component[axis];
+				case .Center; pos.* = snap_px(free / 2);
+				case .End;    pos.* = free;
 			}
 		}
-		if !is_floating(c, b.layout_axis) cursor += c.fixed_size.component[b.layout_axis] + b.style.child_gap;
+		if !is_floating(c, b.layout_axis) cursor += snap_px(c.fixed_size.component[b.layout_axis]) + gap;
 		content.x = max(content.x, c.rel_pos.x + c.fixed_size.x);
 		content.y = max(content.y, c.rel_pos.y + c.fixed_size.y);
 	}
@@ -1313,7 +1318,7 @@ layout_position :: (b: *Box, depth := 0) {
 	for c: each_child(b) {
 		p := origin + c.rel_pos;
 		if c.flags & .Pinned p += off;
-		c.rect = .{p.x, p.y, p.x + c.fixed_size.x, p.y + c.fixed_size.y};
+		c.rect = .{p.x, p.y, p.x + snap_px(c.fixed_size.x), p.y + snap_px(c.fixed_size.y)};
 		update_anims(c);
 		layout_position(c, depth + 1);
 	}

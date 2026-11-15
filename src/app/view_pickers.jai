@@ -282,7 +282,7 @@ search_caret_draw :: (b: *ui.Box, user: *void) {
 	phase := app.ui.time - app.caret_reset_t;
 	request_wake(app.caret_reset_t + (cast(float64) cast(int) (phase * 2) + 1) * 0.5);
 	if app.sweep || phase < 0.5 || cast(int) (phase * 2) % 2 == 0 {
-		gfx.rect(.{o.x + x, o.y + 2, o.x + x + 1.5, o.y + tl.line_h - 2}, cast(gfx.Color) with_alpha(T("--text-default"), b.opacity));
+		gfx.rect(.{o.x + x, o.y + 2, o.x + x + 1, o.y + tl.line_h - 2}, cast(gfx.Color) with_alpha(T("--text-default"), b.opacity));
 	}
 	platform.set_ime_rect(o.x + x, o.y, 1, tl.line_h);
 }

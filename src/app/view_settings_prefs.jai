@@ -534,5 +534,5 @@ password_caret :: (b: *ui.Box, user: *void) {
 	x := b.rect.x0 + b.style.padding.x;
 	if n > 0 && b.text_layout != null { x += b.text_layout.width; }
 	y := b.rect.y0 + b.style.padding.y;
-	gfx.rect(.{x, y + 2, x + 1.5, y + 18}, cast(gfx.Color)(T("--text-default")));
+	gfx.rect(.{x, y + 2, x + 1, y + 18}, cast(gfx.Color)(T("--text-default")));
 }

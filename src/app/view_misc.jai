@@ -37,7 +37,7 @@ field_draw :: (b: *ui.Box, user: *void) {
 	phase := app.ui.time - app.caret_reset_t;
 	request_wake(app.caret_reset_t + (cast(float64)(cast(int)(phase * 2)) + 1) * 0.5);
 	if app.sweep || phase < 0.5 || cast(int)(phase * 2) % 2 == 0 {
-		gfx.rect(.{origin.x + x, y + 2, origin.x + x + 1.5, y + tl.line_h - 2}, cast(gfx.Color)(T("--text-default")));
+		gfx.rect(.{origin.x + x, y + 2, origin.x + x + 1, y + tl.line_h - 2}, cast(gfx.Color)(T("--text-default")));
 	}
 	platform.set_ime_rect(origin.x + x, y, 1, tl.line_h);
 }

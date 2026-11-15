@@ -772,6 +772,16 @@ script_command :: (path: string, f: []string, t: *float64, depth := 0) {
 		if b == null script_fail(path, "expect_top_y: no box \"%\"", want);
 		if abs(b.rect.y0 - num(f[1])) > 0.01 script_fail(path, "expect_top_y \"%\" failed: top % wanted %", want, b.rect.y0, num(f[1]));
 		return;
+	case "expect_px_aligned";
+		// expect_px_aligned <text>: the topmost box with that text has every edge on a device pixel
+		want := unquote(join_args(f));
+		b := find_text_box(want);
+		if b == null script_fail(path, "expect_px_aligned: no box \"%\"", want);
+		sc := gfx.scale();
+		for v: float32.[b.rect.x0, b.rect.y0, b.rect.x1, b.rect.y1] {
+			if abs(v * sc - floor(v * sc + 0.5)) > 0.01 script_fail(path, "expect_px_aligned \"%\" failed: rect % at scale %", want, b.rect, sc);
+		}
+		return;
 	case "expect_focus_input"; #through; case "expect_no_focus_input";
 		has := app.focused_editor != null;
 		if has != (f[0] == "expect_focus_input") script_fail(path, "% failed", f[0]);
