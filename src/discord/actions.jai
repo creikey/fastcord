@@ -1930,7 +1930,10 @@ open_account_popout :: (c: *Client, tokens: []string = .[]) {
 // (MultiAccountActionCreators.validateMultiAccountTokens, retries 3): GET /users/@me with that
 // token, its fetch spelling the header "authorization" in lowercase. tokens: the saved accounts in
 // order, the client's own included; none means only the client's. The bodies aren't applied.
-users_me_refresh :: (c: *Client, delay_ms: s64, tokens: []string) {
+// The saved tokens are Discord's: a self-hosted server never gets them, only its own.
+users_me_refresh :: (c: *Client, delay_ms: s64, saved: []string) {
+	tokens := saved;
+	if c.cfg.hosted.host tokens = .[];
 	for 0..max(tokens.count, 1)-1 {
 		j := job_new(.Api, .None);
 		j.method = "GET";

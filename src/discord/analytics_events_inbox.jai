@@ -114,7 +114,7 @@ track_thread_creation_started :: (c: *Client, channel_id: Snowflake, location: s
 // trigger: "nav_button" (title bar arrows), "keybind" or "native" (mouse buttons, via the desktop host)
 track_back_forward :: (c: *Client, forward: bool, trigger: string) {
 	if trigger == "keybind" {
-		MAC :: OS == .MACOS;
+		MAC := c.id.platform.os == "Mac OS X"; // the reported OS, so a macOS fixture replays anywhere
 		analytics_keyboard_shortcut(c, ifx forward then "NAVIGATE_FORWARD" else "NAVIGATE_BACK", ifx forward then (ifx MAC then "mod+]" else "alt+right") else (ifx MAC then "mod+[" else "alt+left"));
 	}
 	w := aw_begin();

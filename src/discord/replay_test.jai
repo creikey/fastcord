@@ -3404,6 +3404,48 @@ parity_logout :: (t: *T) {
 	replay_check(*run, "logout");
 }
 
+// The account popout, then Switch Accounts > Manage Accounts 2.2 s later: the popout's first-open
+// loads and token check, then the modal's own token check and its impression.
+parity_account_popout :: (t: *T) {
+	run: Replay_Run;
+	if !replay_begin(*run, t, "account_edits", 0, 0) { return; }
+	identity_set_app_state(*run.c.id, .Focused);
+	replay_mark(*run);
+	open_account_popout(run.c);
+	replay_pump(*run, 2170);
+	users_me_refresh(run.c, 0, .[]);
+	analytics_multi_account_landing(run.c);
+	replay_settle(*run, 600);
+	replay_check(*run, "open_account_popout");
+}
+
+// The account popout's token check on a self-hosted server's client: the saved Discord tokens stay home.
+hosted_token_check :: (t: *T) {
+	Rec :: struct { mu: locks.Mutex; auth: [..]string; }
+	rec: Rec;
+	rt :: (data: *void, host: string, req: http.Request) -> http.Response, http.Error {
+		r := cast(*Rec) data;
+		locks.lock(*r.mu);
+		for req.headers if equal_nocase(it.name, "authorization") array_add(*r.auth, copy_string(it.value));
+		locks.unlock(*r.mu);
+		resp := http.make_response(.Http1_1,, context.default_allocator);
+		resp.status = 200;
+		append_string(*resp.body, "{}");
+		return resp, .None;
+	}
+	c := client_create(.{token = "hosted-token", state_dir = "build/test_hosted_token_state", disable_gateway = true, hosted = .{host = "127.0.0.1", port = 1, server_id = "x"}});
+	c.transport.override = .{*rec, rt};
+	client_start(c);
+	users_me_refresh(c, 0, .["discord-a", "discord-b"]);
+	start := mono_ms();
+	while mono_ms() - start < 1000 && rec.auth.count < 1 { client_poll(c); sleep_milliseconds(5); }
+	client_poll(c);
+	client_destroy(c);
+	expect_value(t, join(..rec.auth, ","), "hosted-token");
+	for rec.auth free(it);
+	array_free(rec.auth);
+}
+
 // Log In with email and password on the login page after that logout:
 // POST /auth/login, then the gateway (IDENTIFY without fast connect), READY
 // and the login burst (auth.odin LOGIN_BURST).

@@ -255,7 +255,10 @@ accounts_menu :: (card: *ui.Box) {
 			accts.menu_open = false;
 			accts.manage_open = true;
 			app.profile_user = 0;
-			if app.discord dc.analytics_multi_account_landing(app.discord);
+			if app.discord {
+				dc.users_me_refresh(app.discord, 0, account_tokens()); // the modal checks the tokens again (fixture account_edits)
+				dc.analytics_multi_account_landing(app.discord);
+			}
 		}
 		spacer(.Y, 8);
 	}

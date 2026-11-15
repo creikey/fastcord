@@ -98,6 +98,8 @@ in parallel): they use the heap allocator and are torn down with the last client
   friend_request_accept
 - `parity_dm_call`: start_call (ring after CALL_CREATE), B's b_join_from_ring,
   a_hang_up
+- `parity_account_popout` (account_edits): open_account_popout, the popout's first-open loads and
+  token check, then Manage Accounts' own token check and impression
 - `parity_logout`, `parity_login_submit` (account_edits; the fixture has no READY
   before them, so the login window's READY of the same account stands in):
   logout (POST /auth/logout, the logged-out loads, fingerprint, login page),
@@ -484,7 +486,7 @@ settings tabs other than Overview.
 | Telemetry | Not sent: quest hovers; the quest bar's viewability impressions (`quest_content_loaded` / `_viewed` / `_view_time`, sent by 0.0.420 launches) | No faked engagement with sponsored content (AGENTS.md; `analytics_never`, `R_SCI_NEVER`). |
 | Telemetry | Not sent: `voice_invite_suggestions_entrypoint_closed`, `impression_voice_invite_suggestions_popover` | Pointer interactions with the voice invite suggestions (closing it, hovering the voice area), whose entry point impression is sent. |
 | Shop art | `collectibles-shop` CDN images are not compared (`R_IGNORE`) | The Edit Profiles previews are random picks (one per empty field; `editor_previews` checks the URLs and their order against open_profiles with the capture's picks; the fixture has no categories body); the Shop entry's hover art needs a hover, and the editor's next previews a hovered field; users' avatar decorations (`<sku>/static`) are not drawn (TODO.md). |
-| Telemetry | Not sent: legacy experiment triggers (`experiment_guild_triggered*`, `experiment_user_triggered`), `session_start_client`, the web-vitals INP `app_web_perf_startup_metrics`, `/metrics/v2` | Not modelled yet (allow-listed where a window has them). |
+| Telemetry | Not sent: the web-vitals INP `app_web_perf_startup_metrics`, `/metrics/v2` | The renderer's own page metrics; fastcord has no web page (allow-listed where a window has them). The legacy experiment triggers and `session_start_client` are sent now. |
 | Telemetry | Electron memory, JS heap, crash reporter, web-bundle sizes and script costs, the media engine's versions, internal timings and audio statistics | Synthesized from the fixtures (traffic/CLIENT_RULES.md "Analytics"). |
 | Telemetry | Settings modal `impression_modal_root_legacy` (variant `renderModalSpinner`) | The settings chunk's lazy-load spinner; allow-listed in parity_settings_open / parity_open_account_settings. |
 | Telemetry | Discover: no `global_discovery_*`, no GlobalDiscoverySidebar exposure | fastcord's compass opens the web page, not the in-app discovery entry point (allow-listed in parity_discover). |
@@ -517,4 +519,4 @@ settings tabs other than Overview.
 | DM calls | `settings-proto/2` | The session's lazy load. The tests report what the app reports of src/voice (not run offline): `client_rtc_state` and the connection's steps (`r_voice_connect`). |
 | DM calls | Declining a ring, caller hang-up before answer | Not recorded. Decline dismisses the ring locally and sends nothing. |
 | Streamer Mode | Username truncation ("c…") in DM list / invite suggestions | UI only; not implemented yet. |
-| Account (`account_edits`) | `open_account_popout`, `logout`, `login_submit` windows not tested | The multi-account switcher is not built; real login and Log Out are implemented on their own branch. The username windows are tested. |
+| Account (`account_edits`) | — | Every window is tested: `parity_account_popout` (the popout, then Manage Accounts' own token check), `parity_logout`, `parity_login_submit` and the username windows. |
