@@ -320,6 +320,49 @@
   - Done: "/" lists the built-ins (`/shrug`, `/tableflip`, `/unflip`, `/me`, `/spoiler`, run by the client, on hosted servers too) and the apps' commands from the application command index (loaded the first time "/" is typed); options are typed as `name:value` with a hint above the composer, checked by type, and the command goes out as an interaction (`slash_commands.jai`, `discord/commands.jai`, `tests/ui/slash_commands.txt`).
   - Text-to-speech: a message sent with `tts: true` is never read aloud, and nothing sends one (`actions.jai` always sends `tts: false`; `model.jai` drops the flag). The official client speaks TTS messages that arrive in the channel you're viewing (Accessibility > Text-to-Speech, on by default, with a speed slider), and its Notifications setting can speak every new message in all channels or the selected one. Use the OS's speech engine (SAPI on Windows, AVSpeechSynthesizer on macOS, speech-dispatcher on Linux) on a thread.
 - [ ] Voice (fastcord-only): automatic transcription of calls, every participant, labelled by speaker, made on this machine so no call audio or text leaves it. Notes in `TRANSCRIPTION.md`. First version built: whisper.cpp 1.9.5 (`vendor/whisper`), `src/stt`, `src/app/transcribe.jai` (Settings > Voice & Video > Call Transcription, a Transcript pane and button in the call, one markdown file per call in `<data>/transcripts`), op 18 consent kept per peer (`conn.jai`). Tests: `src/tests/stt.jai`, fuzz `stt` and `stt_text`. Left: try it in a real call with several people talking; confirm op 18's bits in the bundle and send our own flags as the client does; macOS and Linux builds of the vendored files; a hosted server's peers have no consent flag, so they are never transcribed unless Transcribe Everyone is on.
+- [ ] Voice: transcripts are plain markdown files any program can read, and so can Spotlight, Windows Search, backup and sync tools and AI agents. Encrypt them at rest. Design in `TRANSCRIPTION.md` "Encryption at rest".
+  - The approach is write-only encryption. Each call gets a random key, sealed with HPKE (X-Wing: X25519 plus ML-KEM-768) to a vault public key, and each line is sealed under that call key as a row in `fastcord.db`.
+  - The vault's private key is sealed under scrypt of a password, so recording never asks for it and only reading does.
+  - The password is the MVP, deliberately simple: set once when Transcribe Calls is first turned on, kept in memory until Lock or quit, with no recovery ("Start over" makes a new vault and keeps the old). The item "Keys: one user secret" replaces it later by rewrapping the same vault key.
+  - Steps:
+    - Bind `EVP_PBE_scrypt` and single-shot HPKE (X-Wing, HKDF-SHA256, ChaCha20-Poly1305) in `fc_boringssl.c` and `src/crypto`.
+    - Add the `vault`, `vault_items` and `vault_records` tables to `MIGRATIONS`, with a new E2E release fixture.
+    - Make the worker append sealed records through a database job, not files.
+    - Password dialogs (reuse `password_field`).
+    - Export through `platform.save_file_dialog`.
+    - A user-started import of the `.md` files that earlier builds wrote, deleting each only after reading it back.
+    - No transcript text in logs or crash reports; lock the keys into RAM.
+  - Tests: a round trip, a wrong password, swapped, cut and forged records, a missing "end", rewrapping on a password change, and a fuzz target over the record parser.
+- [ ] Transcripts: a basic reader with simple search. Deliberately low effort: list the calls (date, channel, length, who spoke), open one to read, Export, Copy, Delete and Lock, plus one search box over every call. It opens after the vault unlocks (previous item), decrypts into memory only, and keeps no index on disk.
+  - Search, first: words, not meaning. Every query word as a substring, after Unicode case and accent folding; hits highlighted (`view_pins.jai` `highlight_spans`), newest first.
+  - Search, second: meaning. A small sentence-embedding model (all-MiniLM-L6-v2, about 25 MB at 8 bits, English; or multilingual-e5-small, about 120 MB) on the ggml we already vendor. The worker embeds each line as it seals it, and the vector goes inside the sealed record, since vectors can be turned back into text. A query is embedded and ranked by cosine similarity in memory.
+  - Generalise what exists rather than adding a sixth matcher. Fastcord has no semantic or neural search today; its search is all words, split across:
+    - the quick switcher's `fuzzy_score` / `qs_match` (also used by forward and bottles)
+    - `emoji_search`'s scorer
+    - the GIF picker's `gif_words` plus `gif_related_update`, word overlap weighted by recency, the closest thing to relevance ranking
+    - E2E's unseal-and-scan search (`e2e/module.jai`)
+    - the self-hosted server's FTS5 index
+    - the settings, mention, sticker and member substring filters
+    - All of it is ASCII-only, so it misses "É" for "é". Make one text module: a normaliser with Unicode folding, a tokenizer (from `gif_words`), scorers, and a highlighter. Move the switcher, emoji, GIF, E2E and transcript search onto it.
+  - On the model side, move `transcribe.jai`'s model download (pinned URL, size and sha256 check, progress) and `stt`'s CPU check and worker into a shared "local models" piece that speech-to-text and embeddings both use.
+  - ggml has every op a BERT encoder needs but no BERT graph or WordPiece tokenizer. Either vendor llama.cpp's embedding path, pinned to the same ggml as whisper.cpp, or write the small graph by hand; decide by size and how well each fits.
+- [ ] Keys: one user secret, designed thoroughly. Fastcord has no secret only the user knows: `fastcord.db`'s key and the key files are wrapped by DPAPI (which any program running as the user can call), and on macOS and Linux not wrapped at all. Transcripts' MVP password (above) is the first secret; design the real one before a second feature needs one.
+  - It must tie into what exists and is planned:
+    - the identity's recovery key, to be exported and taken off disk (Keys item)
+    - the passphrase-encrypted key export through scrypt (Keys item)
+    - device sync by QR or encrypted export, which carries `fastcord.db`
+    - the plain-text token (Security item)
+    - the macOS Keychain and Linux libsecret, still to write
+    - `FEDERATED.md` §13 (recovery authority separate from everyday keys) and §26 (durable keys, password managers, passkeys)
+  - Questions to settle:
+    - A random-key seed phrase (24 words, 256 bits, no stretching needed) versus a passphrase (stretched with scrypt or Argon2), or both.
+    - Whether the seed derives the identity's keys (SLH-DSA and X25519 keys come from seeds, so a seed phrase could restore an identity on any device), or only wraps random keys.
+    - One key hierarchy (a root KEK wrapping per-purpose keys: the vault, `db_key`, the token, the key-file backups), with the OS keystore as an optional "remember on this device" cache.
+    - Whether any of it is required at startup, or only on use as transcripts do.
+    - Passkey PRF and password managers as unlockers.
+    - Recovery: a printed recovery code, server-admin recovery (§26.3).
+    - Moving the MVP vault over by rewrapping it on first unlock.
+  - Don't promise recovery the cryptography can't deliver (`FEDERATED.md` §13.6).
 - [ ] Voice: the connection info has no per-member E2EE verification codes (`voice.verification_code`, slow: scrypt, so off the UI thread). Done: clicking the panel opens connection info (server, ping, packets, loss, jitter, DAVE and the privacy code), the channel name goes to the call, and a Noise Suppression quick toggle.
 - [ ] Video (Linux): encoding is software only (openh264), so a 1080p60 Go Live costs a core or more, and the screen's pixels are converted to NV12 on the CPU too (`screen_linux.jai` `nv12_from_rgb`). VA-API would take both off the CPU; DMA-BUF frames from the portal (offered with modifiers) would also skip the copy.
 - [ ] Video (Linux): Go Live's sound is every other app's playback, even when sharing one window, since the ScreenCast portal doesn't say whose window it is (`screen_linux.jai` `on_global`). Sharing a game window also streams your music. Match the window to its app (its PID where the portal backend gives one, else the app's name) and capture only that app's PipeWire nodes.

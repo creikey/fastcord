@@ -5,7 +5,7 @@ made on this machine. No call audio or text goes to any company's servers.
 
 Status (2026-11-13): first version built. whisper.cpp 1.9.5 vendored (`vendor/whisper`), `src/stt`
 (segmenter and worker), `src/app/transcribe.jai` (settings, model download, pane, file). Not yet tried
-in a real call.
+in a real call. Transcripts are still plain files; encryption at rest is designed below, not built.
 
 ## What was built
 
@@ -30,9 +30,9 @@ in a real call.
   clips) are kept per user; only peers with bit 2 are transcribed unless "Transcribe Everyone" is on.
   Others show once as "not transcribed". We still send no op 18 of our own: its format for our side
   isn't confirmed. Hosted servers send no op 18, so their peers count as not consenting.
-- **Storage:** one markdown file per call in `<data>/transcripts`, named by date and channel, written
-  by the worker. Chosen over `fastcord.db` because a transcript is a document the user reads and
-  shares, like a download, not app state.
+- **Storage today:** one plain markdown file per call in `<data>/transcripts`, named by date and
+  channel, written by the worker. Any program can read these files, and so can Spotlight, Windows
+  Search, backup and sync tools. To be replaced by the encrypted store in "Encryption at rest" below.
 
 ## What fastcord already gives us
 
@@ -81,10 +81,149 @@ Sources: [whisper.cpp](https://github.com/ggml-org/whisper.cpp),
 - **Threads:** the voice thread only copies samples into a per-speaker ring buffer (no lock, no
   allocation). One worker resamples 48 kHz to 16 kHz mono and runs the model. If it falls behind, it
   drops or delays utterances; it never stalls audio. The UI only reads finished lines.
-- **Storage:** transcripts go in `fastcord.db` (an added table), not a new file. Export as text or
-  markdown.
+- **Storage:** transcripts go in `fastcord.db` (added tables), not a new file, encrypted as described
+  in "Encryption at rest". Plain text reaches the disk only through Export.
 - **Vendoring:** the library goes in `vendor/<lib>/` unmodified, with `fc_<lib>.c` and a README, as
   for codecs.
+
+## Encryption at rest (design, 2026-11-15)
+
+Requirement: a transcript's plain text exists only in fastcord's memory. On disk it is ciphertext that
+another program can't read without the user's help, and plain text reaches the disk only when the user
+exports it through fastcord.
+
+### What fastcord has today, and why it isn't enough
+
+- `fastcord.db` seals its secret columns per row with XChaCha20-Poly1305 under a random `db_key`
+  (`src/e2e/module.jai` `seal`). `db_key` sits in the database's `meta` table, wrapped by
+  `keys.wrap_secret`.
+- `wrap_secret` is DPAPI on Windows, with no extra entropy. Any program running as the same user can
+  call `CryptUnprotectData` and get the key back. That is how infostealers read Chrome's cookies, and
+  why Chrome added App-Bound Encryption. On macOS and Linux, `wrap_secret` passes bytes through
+  unchanged (`src/keys/module.jai` "@Todo: Keychain/libsecret"), so the key lies beside the data.
+- So the OS keystore stops disk indexers, sync and backup tools, other OS users and a stolen powered-off
+  disk (Windows only). It doesn't stop a program running as you. Nothing in fastcord holds a secret
+  that only the user knows: no passphrase, PIN or seed phrase exists. Meeting the requirement takes
+  one, so this design adds the smallest possible one.
+
+### The idea: write-only encryption
+
+Transcripts are encrypted to a **public key**, and only its **private key** is behind the password.
+- Recording never needs the password. The worker encrypts each line as it comes, whether the vault is
+  locked or not. No prompt appears at startup or when joining a call.
+- Reading past transcripts needs the password: the browser, search and export.
+- A program that reads fastcord's memory while the vault is locked gets only the current call's lines.
+  Those are on screen anyway. It gets no past call: their keys are gone and the private key isn't
+  loaded.
+
+This is the shape of `age` and of HPKE (RFC 9180). Both of its parts are already compiled into the
+vendored BoringSSL, though not yet bound to Jai: `EVP_HPKE_*` with the **X-Wing** KEM (X25519 plus
+ML-KEM-768, so a quantum computer later doesn't open today's files), and `EVP_PBE_scrypt`.
+
+### Keys
+
+| Key | What it is | Where it lives |
+|---|---|---|
+| Password | Chosen by the user, at least 8 characters, "a few words" suggested | Nowhere. Typed to unlock. |
+| KEK (key-encryption key) | `scrypt(password, salt, N=2^17, r=8, p=1)`, 32 bytes, 128 MiB and about 0.3-0.5 s, on a thread | RAM, only while unlocking |
+| Vault keypair | X-Wing: 32-byte private seed, 1216-byte public key | Public key in `fastcord.db`, in the clear. Private seed sealed by the KEK. In RAM only while unlocked. |
+| Item key | Random 32 bytes, one per call | Sealed to the vault's public key in the call's row. In RAM only during the call, then `crypto.zero`. |
+
+Changing the password reseals one 32-byte seed. Transcripts are never re-encrypted.
+
+When the later user-secret system arrives (the TODO item "Keys: one user secret"), it replaces only
+the password-and-scrypt step. It wraps the same vault seed under its own key hierarchy, so existing
+transcripts need nothing.
+
+### Format (in `fastcord.db`, added by `MIGRATIONS`)
+
+- `vault`: one row per vault.
+  - `id`, `created_ms`, `version` = 1
+  - `pub` (X-Wing public key)
+  - `salt` (16 bytes) and the scrypt parameters
+  - `sealed_seed`: XChaCha20-Poly1305 under the KEK, with nonce, ciphertext and tag stored as `seal`
+    stores them. AD (the authenticated, unencrypted extra data) is `"fc-vault-v1 seed" || id || pub`.
+  - A wrong password fails the tag check, so no separate "check" value is needed.
+  - Rows are never deleted: "start over" adds a new vault and keeps the old one.
+- `vault_items`: one row per call.
+  - `id`, `vault`, `kind` (1 = transcript), `created_ms`
+  - `enc`: the HPKE encapsulation, 1120 bytes.
+  - `head`: HPKE base mode, X-Wing / HKDF-SHA256 / ChaCha20-Poly1305, with info `"fc-vault-v1 item"`
+    and AD `id || kind`. It seals the item key plus the call's details: channel and server name,
+    participants, model.
+- `vault_records`: one row per line, keyed `(item, seq)`.
+  - XChaCha20-Poly1305 under the item key, with a random 24-byte nonce and AD
+    `"fc-vault-v1 rec" || item || seq`.
+  - The plaintext is the line: time, user ID and name, then the text, or the "not transcribed" or
+    "fell behind" note.
+  - The call's last record has kind "end". A transcript without one says it ended unexpectedly
+    (fastcord quit or crashed mid-call).
+
+Left in the clear: how many calls there are, when each started, and its number and size of lines. That
+is the same as `fastcord.db`'s E2E tables leave. Channel names, participants and text are all inside.
+
+**Why `fastcord.db` and not files:**
+- AGENTS.md wants the fewest files.
+- `fastcord.db` already has write durability (WAL, `synchronous=FULL`), add-only migrations with
+  backups, `secure_delete=ON` (deleted rows are zeroed), and a job thread that app code already uses
+  (`#as e2e.Job`).
+- The planned device sync carries `fastcord.db`, so transcripts would move with it.
+
+The vault tables don't use `db_key`, so the weak outer wrap doesn't matter to them. The tables name
+nothing about Discord, so `src/e2e`'s carrier rule still holds. Changing `src/e2e` needs a new release
+fixture (README).
+
+### Flows
+
+- **First enable:** turning on Transcribe Calls asks for a password twice, with one line of warning:
+  "If you forget it, these transcripts can't be read. Nobody can recover it." It makes the vault on a
+  thread.
+- **Calls:** the worker makes the item key and `head` at the first line, appends a sealed record per
+  line through a database job, and writes "end" at hang-up, then zeroes the item key. The pane shows
+  the live call from memory, as now.
+- **Unlock:** the transcript browser asks for the password. scrypt runs on a thread and opens the
+  seed. The seed stays in memory until Lock or quit, locked into RAM (`VirtualLock` / `mlock`) and
+  zeroed afterwards. Decrypted transcripts are freed and zeroed when the browser closes.
+- **Export:** "Export…" on a call writes today's markdown format through `platform.save_file_dialog`
+  to wherever the user picks. "Copy" puts it on the clipboard. These are the only ways plain text
+  leaves memory.
+- **Forgotten password:** "Start over" makes a new vault. The old one's transcripts stay, unopened, and
+  open again if the old password turns up. Nothing is deleted.
+- **Delete:** a call's rows are deleted only at the user's request, and `secure_delete` zeroes them.
+- **Plain files from earlier builds:** if `<data>/transcripts/*.md` exist when the vault is made, offer
+  "Encrypt N earlier transcripts". It imports each file as one item, reads it back to check, and only
+  then deletes the `.md`. It never runs unasked.
+
+### Threats
+
+| Who | Result |
+|---|---|
+| Disk indexers (Spotlight, Windows Search), backup and sync tools, AI agents and scripts that read files | Stopped: ciphertext only |
+| Another OS user, a stolen or imaged disk, a copied backup | Stopped, down to the password's strength against offline guessing through scrypt |
+| A program running as you while fastcord is closed or locked | Stopped for past calls; same password-strength caveat |
+| A program running as you while unlocked, or a keylogger | Not stopped. It can read memory or the typed password, and nothing short of OS isolation stops it. |
+| A future quantum computer reading copied files | Stopped by X-Wing's ML-KEM half |
+| Someone editing the database | AEAD with AD catches forged, swapped or reordered records, and `seq` gaps or a missing "end" show cut ones. Deleting a whole call goes unnoticed. |
+
+### Leaks to close in the same change
+
+- **Logs:** no transcript text in logs, hang reports or crash reports (`watchdog.jai`, `crash.jai`).
+  fastcord writes no memory dumps today. Keep it that way.
+- **Memory:** lock the seed and item keys into RAM. Transcript text itself can still reach the page
+  file, the hibernation file or an OS crash dump, as for every app. Accepted, and documented here.
+- **Search:** no index on disk. After unlock, everything is decrypted into memory and searched there:
+  a thousand hours is about 60 MB of text, and a linear scan of that is fast. A semantic search's
+  vectors are sealed inside each record, since vectors can be inverted back into text.
+- **The clipboard** and **"Open Transcripts Folder"**: the folder link goes away; Copy stays the
+  user's choice.
+
+### Bindings to add
+
+- In `fc_boringssl.c`: `fc_scrypt` (over `EVP_PBE_scrypt`), and `fc_hpke_seal` / `fc_hpke_open`,
+  single-shot base mode with X-Wing, HKDF-SHA256 and ChaCha20-Poly1305.
+- In `src/crypto`: `scrypt`, `hpke_xwing_generate`, `hpke_seal`, `hpke_open`.
+- `src/voice_dave/codes.jai` has a pure-Jai scrypt for DAVE fingerprints. Switch it to the BoringSSL
+  one, and keep a test that checks both give the same output.
 
 ## Consent (the real risk)
 
