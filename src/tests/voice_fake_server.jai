@@ -1,16 +1,22 @@
-// src/voice/fake_server_test.odin for the Jai voice module. A local fake voice server: WebSocket
-// gateway on 127.0.0.1 (plain TCP via Options.dial), UDP media on loopback, and a second DAVE member
-// "B" that the server welcomes into our client's group. Verifies the handshake order, IP discovery,
-// SELECT_PROTOCOL, heartbeats with seq_ack, the DAVE MLS flow, E2EE media both ways and the close
-// code; then a resume after the server drops the connection, and the bandwidth estimate over a slow link.
-//   jai build.jai - run jai/tests/voice_fake_server.jai && build/voice_fake_server
+// A local fake voice server: WebSocket gateway on 127.0.0.1 (plain TCP via Options.dial), UDP media on
+// loopback, and a second DAVE member "B" that the server welcomes into our client's group. Verifies the
+// handshake order, IP discovery, SELECT_PROTOCOL, heartbeats with seq_ack, the DAVE MLS flow, E2EE media
+// both ways and the close code; then a resume after the server drops the connection, and the bandwidth
+// estimate over a slow link.
+//   jai build.jai - run src/tests/voice_fake_server.jai, then build/voice_fake_server
 #import "Basic";
 #import "Math";
 #import "String";
 #import "Thread";
 #import "Atomics";
 #import "Socket";
-#import "POSIX";
+#if OS == .WINDOWS {
+    msvcprt :: #library,system,no_dll,link_always "msvcprt";
+    close_socket :: (s: Socket) { closesocket(s); }
+} else {
+    #import "POSIX";
+    close_socket :: (s: Socket) { close(s); }
+}
 voice :: #import "voice";
 dave :: #import "voice_dave";
 mls :: #import "voice_mls";
@@ -31,10 +37,10 @@ FAKE_VIDEO_B :: cast(u32) 9002;
 // Sockets and WebSocket frames, server side
 
 // loopback_socket binds a socket to 127.0.0.1 on an ephemeral port.
-loopback_socket :: (type: SOCK, proto: IPPROTO, timeout_us := 0) -> s32, int {
+loopback_socket :: (type: SOCK, proto: IPPROTO, timeout_us := 0) -> Socket, int {
     s := socket(AF_INET, type, proto);
     a: sockaddr_in;
-    a.sin_len = size_of(sockaddr_in);
+    #if OS == .MACOS a.sin_len = size_of(sockaddr_in);
     a.sin_family = AF_INET;
     (cast(*[4]u8) *a.sin_addr).* = .[127, 0, 0, 1];
     len: socklen_t = size_of(sockaddr_in);
@@ -42,9 +48,14 @@ loopback_socket :: (type: SOCK, proto: IPPROTO, timeout_us := 0) -> s32, int {
     getsockname(s, cast(*sockaddr) *a, *len);
     if type == .STREAM listen(s, 4);
     if timeout_us {
-        tv: timeval;
-        tv.tv_usec = xx timeout_us;
-        setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, *tv, size_of(timeval));
+        #if OS == .WINDOWS {
+            ms: u32 = xx max(timeout_us / 1000, 1);  // Winsock takes whole milliseconds, not a timeval.
+            setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, cast(*u8) *ms, size_of(u32));
+        } else {
+            tv: timeval;
+            tv.tv_usec = xx timeout_us;
+            setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, *tv, size_of(timeval));
+        }
     }
     return s, port_of(a);
 }
@@ -56,14 +67,14 @@ port_of :: (a: sockaddr_in) -> u16 {
 }
 
 Srv :: struct {
-    sock: s32;
+    sock: Socket;
     buf: [..]u8;
 }
 
 fill :: (s: *Srv, n: int) -> bool {
     tmp: [4096]u8;
     while s.buf.count < n {
-        got := recv(s.sock, tmp.data, tmp.count, 0);
+        got := recv(s.sock, tmp.data, xx tmp.count, 0);
         if got <= 0 return false;
         array_add(*s.buf, ..array_view(tmp, 0, got));
     }
@@ -118,7 +129,7 @@ send_binary :: (s: *Srv, seq: u16, op: u8, payload: []u8) {
 }
 
 // upgrade accepts one connection and answers its WebSocket upgrade; returns the request head.
-upgrade :: (listen: s32) -> Srv, head: string, ok: bool {
+upgrade :: (listen: Socket) -> Srv, head: string, ok: bool {
     s := Srv.{sock = accept(listen, null, null)};
     while !contains(cast(string) s.buf, "\r\n\r\n") if !fill(*s, s.buf.count + 1) return s, "", false;
     end := find_index_from_left(cast(string) s.buf, "\r\n\r\n");
@@ -141,9 +152,9 @@ etf :: #import "etf";
 // Test 1: the full call
 
 Fake :: struct {
-    listen: s32;
+    listen: Socket;
     tcp_port: int;
-    udp: s32;
+    udp: Socket;
     udp_port: int;
     key: [32]u8;
     ext_priv: [mls.NSK]u8;
@@ -220,7 +231,7 @@ gw_thread :: (t: *Thread) -> s64 {
     f := cast(*Fake) t.data;
     s, head, ok := upgrade(f.listen);
     if !ok { fail(f, "upgrade read"); return 0; }
-    defer close(s.sock);
+    defer close_socket(s.sock);
     lines := split(head, "\r\n");
     f.request_line = lines[0];
     names: [..]string;
@@ -318,7 +329,7 @@ udp_thread :: (t: *Thread) -> s64 {
     while !atomic_load(*f.stop) {
         from: sockaddr_in;
         flen: socklen_t = size_of(sockaddr_in);
-        n := recvfrom(f.udp, buf.data, buf.count, 0, cast(*sockaddr) *from, *flen);
+        n := recvfrom(f.udp, buf.data, xx buf.count, 0, cast(*sockaddr) *from, *flen);
         if n > 0 {
             pkt := array_view(buf, 0, n);
             h, hok := voice.parse_rtp_header(pkt);
@@ -334,7 +345,7 @@ udp_thread :: (t: *Thread) -> s64 {
             if discovery {
                 resp: [voice.DISCOVERY_LEN]u8;
                 voice.build_discovery_response(resp, voice.get_u32(pkt, 4), "127.0.0.1", port_of(from));
-                sendto(f.udp, resp.data, resp.count, 0, cast(*sockaddr) *from, flen);
+                sendto(f.udp, resp.data, xx resp.count, 0, cast(*sockaddr) *from, flen);
                 locks.guard(*f.mu);
                 f.client_ep = from;
                 f.have_client = true;
@@ -555,8 +566,8 @@ test_fake_voice_server :: () {
     sleep_milliseconds(100);
     atomic_store(*f.stop, true);
     join_threads(threads);
-    close(f.listen);
-    close(f.udp);
+    close_socket(f.listen);
+    close_socket(f.udp);
 
     expect(f.failure == "", "server failure: %", f.failure);
     expect(f.request_line == "GET /?v=9 HTTP/1.1", "request line %", f.request_line);
@@ -583,7 +594,7 @@ test_fake_voice_server :: () {
 // closes with 4006 (session no longer valid), which ends the connection without a retry.
 
 Resume_Fake :: struct {
-    listen, udp: s32;
+    listen, udp: Socket;
     udp_port: int;
     stop: bool;
     resume_msg: string;
@@ -615,11 +626,11 @@ resume_gw :: (t: *Thread) -> s64 {
     send_text(*s, "{\"op\":4,\"d\":{\"secret_key\":[7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7],\"mode\":\"aead_xchacha20_poly1305_rtpsize\",\"dave_protocol_version\":1,\"audio_codec\":\"opus\"},\"seq\":3}");
     sleep_milliseconds(200);
     send_frame(*s, 8, u8.[0x0f, 0xae]);  // close 4014
-    close(s.sock);
+    close_socket(s.sock);
 
     s2, _, ok2 := upgrade(f.listen);
     if !ok2 { f.failure = "upgrade 2"; return 0; }
-    defer close(s2.sock);
+    defer close_socket(s2.sock);
     m, mok := next_text(*s2);
     if mok f.resume_msg = copy_string(m);
     send_text(*s2, "{\"op\":9,\"d\":null}");
@@ -638,11 +649,11 @@ resume_udp :: (t: *Thread) -> s64 {
     while !atomic_load(*f.stop) {
         from: sockaddr_in;
         len: socklen_t = size_of(sockaddr_in);
-        n := recvfrom(f.udp, buf.data, buf.count, 0, cast(*sockaddr) *from, *len);
+        n := recvfrom(f.udp, buf.data, xx buf.count, 0, cast(*sockaddr) *from, *len);
         if n != voice.DISCOVERY_LEN continue;
         resp: [voice.DISCOVERY_LEN]u8;
         voice.build_discovery_response(resp, voice.get_u32(buf, 4), "127.0.0.1", port_of(from));
-        sendto(f.udp, resp.data, resp.count, 0, cast(*sockaddr) *from, len);
+        sendto(f.udp, resp.data, xx resp.count, 0, cast(*sockaddr) *from, len);
     }
     return 0;
 }
@@ -666,8 +677,8 @@ test_fake_voice_resume :: () {
     voice.voice_disconnect(c);
     atomic_store(*f.stop, true);
     join_threads(threads);
-    close(f.listen);
-    close(f.udp);
+    close_socket(f.listen);
+    close_socket(f.udp);
     expect(f.failure == "", "server: %", f.failure);
     expect(f.resume_msg == "{\"op\":7,\"d\":{\"token\":\"TK\",\"session_id\":\"SS\",\"server_id\":\"5\",\"channel_id\":\"7\",\"seq_ack\":3}}", "resume: %", f.resume_msg);
 }
@@ -679,7 +690,7 @@ test_fake_voice_resume :: () {
 // near it; then a 300 kb/s REMB caps it. op 15's want for our SSRC reaches video_send_target.
 
 Bwe_Fake :: struct {
-    listen, udp: s32;
+    listen, udp: Socket;
     udp_port: int;
     stop: bool;
     remb: int;  // atomic; > 0: each report carries this REMB
@@ -694,7 +705,7 @@ bwe_gw :: (t: *Thread) -> s64 {
     f := cast(*Bwe_Fake) t.data;
     s, _, ok := upgrade(f.listen);
     if !ok { f.failure = "upgrade"; return 0; }
-    defer close(s.sock);
+    defer close_socket(s.sock);
     next_text(*s);  // identify
     send_text(*s, "{\"op\":8,\"d\":{\"v\":8,\"heartbeat_interval\":5000}}");
     send_text(*s, tprint("{\"op\":2,\"d\":{\"streams\":[{\"type\":\"video\",\"ssrc\":%,\"rtx_ssrc\":%,\"rid\":\"100\",\"quality\":100,\"active\":false}],\"ssrc\":77,\"port\":%,\"modes\":[\"aead_xchacha20_poly1305_rtpsize\"],\"ip\":\"127.0.0.1\",\"experiments\":[]}}", FAKE_VIDEO_A, FAKE_VIDEO_A + 1, f.udp_port));
@@ -735,12 +746,12 @@ bwe_udp :: (t: *Thread) -> s64 {
     while !atomic_load(*f.stop) {
         from: sockaddr_in;
         flen: socklen_t = size_of(sockaddr_in);
-        n := recvfrom(f.udp, buf.data, buf.count, 0, cast(*sockaddr) *from, *flen);
+        n := recvfrom(f.udp, buf.data, xx buf.count, 0, cast(*sockaddr) *from, *flen);
         now := to_float64_seconds(current_time_monotonic() - start);
         if n == voice.DISCOVERY_LEN && voice.get_u16(buf) == 1 {
             resp: [voice.DISCOVERY_LEN]u8;
             voice.build_discovery_response(resp, voice.get_u32(buf, 4), "127.0.0.1", port_of(from));
-            sendto(f.udp, resp.data, resp.count, 0, cast(*sockaddr) *from, flen);
+            sendto(f.udp, resp.data, xx resp.count, 0, cast(*sockaddr) *from, flen);
             ep, have_ep = from, true;
         } else if n > 0 && !voice.is_rtcp(array_view(buf, 0, n)) {
             h, hok := voice.parse_rtp_header(array_view(buf, 0, n));
@@ -827,8 +838,8 @@ test_fake_voice_bwe :: () {
     voice.voice_disconnect(c);
     atomic_store(*f.stop, true);
     join_threads(threads);
-    close(f.listen);
-    close(f.udp);
+    close_socket(f.listen);
+    close_socket(f.udp);
     expect(f.failure == "", "server: %", f.failure);
     avg := held / max(held_n, 1);
     expect(avg >= LINK_BPS / 2 && avg <= LINK_BPS * 6 / 5, "estimate holds near the link's % kb/s: % kb/s from 6 s to 11 s", LINK_BPS / 1000, avg / 1000);
@@ -838,6 +849,7 @@ test_fake_voice_bwe :: () {
 }
 
 main :: () {
+    socket_init();
     test_fake_voice_server();
     test_fake_voice_resume();
     test_fake_voice_bwe();
