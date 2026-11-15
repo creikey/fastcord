@@ -529,15 +529,24 @@ guild_order :: () -> []dc.Snowflake {
 	return out;
 }
 
-// The first byte of each space-separated word, at most 5.
+// The first character of each space-separated word, at most 5. An emoji (with its joiners and modifiers)
+// is one character.
 guild_initials :: (name: string) -> string {
-	out := talloc_string(5);
+	out := talloc_string(name.count); // never longer than the name
 	out.count = 0;
-	for i: 0..name.count-1 {
-		if is_space(name[i]) || (i > 0 && !is_space(name[i-1])) { continue; }
-		out.data[out.count] = name[i];
-		out.count += 1;
-		if out.count >= 5 { break; }
+	chars := 0;
+	i := 0;
+	while i < name.count && chars < 5 {
+		if is_space(name[i]) { i += 1; continue; }
+		c := name[i];
+		w := ifx c >= 0xF0 then 4 else ifx c >= 0xE0 then 3 else ifx c >= 0xC0 then 2 else 1;
+		seg, is_emoji := emoji_next(name, i);
+		if is_emoji && seg.start == i { w = seg.end - i; }
+		w = min(w, name.count - i);
+		memcpy(out.data + out.count, name.data + i, w);
+		out.count += w;
+		chars += 1;
+		while i < name.count && !is_space(name[i]) { i += 1; }
 	}
 	return out;
 }
@@ -556,7 +565,7 @@ rail_item :: (id: string, selected: bool, text: string, icon_name: string, guild
 		ic.style.radius = all4(12);
 		ic.style.text_align = .Center;
 		ic.style.font = F(.Medium);
-		ic.style.font_size = guild_acronym_size(text.count);
+		ic.style.font_size = guild_acronym_size(text);
 		ic.text = text;
 		sig = ui.signal(ic);
 		unread := guild_id != 0 && guild_unread_shown(guild_id);
@@ -606,7 +615,9 @@ rail_item :: (id: string, selected: bool, text: string, icon_name: string, guild
 }
 
 // Acronym font size on a guild icon without an image (official: "DB" 18px, "DBst" 16px).
-guild_acronym_size :: (n: int) -> float32 {
+guild_acronym_size :: (text: string) -> float32 {
+	n := 0;
+	for 0..text.count-1 { if (text[it] & 0xC0) != 0x80 { n += 1; } } // code points, not bytes
 	if n <= 2 {
 		return 18;
 	} else if n <= 4 {

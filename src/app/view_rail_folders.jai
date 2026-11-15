@@ -546,7 +546,7 @@ rail_drag :: (entries: [..]Rail_Entry) {
 			if g != null {
 				if g.icon != "" { set_remote_image(ghost, guild_icon_url(gid, g.icon, 96)); } else { ghost.text = guild_initials(g.name); }
 				ghost.style.font = F(.Medium);
-				ghost.style.font_size = guild_acronym_size(ghost.text.count);
+				ghost.style.font_size = guild_acronym_size(ghost.text);
 				ghost.style.text_align = .Center;
 				ghost.style.text_color = T("--text-default");
 			} else {
