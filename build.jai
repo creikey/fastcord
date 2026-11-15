@@ -761,7 +761,15 @@ build_c_target :: () -> bool {
         text := read_entire_file(list);
         extra := cflags(path_strip_extension(list));
         for line: split(text, "\n") {
-            f := patched(trim(line));
+            // A line may start with a tag: "x86 " or "arm " builds the file only for that CPU, and "simd "
+            // builds it for every CPU, with x86-64-v3 (AVX2, FMA, F16C, BMI2) on x86. Code built that way
+            // is only reached after its library's own CPU check (ggml's, behind fc_stt_cpu_ok).
+            f := trim(line);
+            tag := "";
+            for string.["x86 ", "arm ", "simd "] if begins_with(f, it) { tag = trim(it); f = trim(advance(f, it.count)); }
+            arm := MAC_ARCH == "arm64";
+            if (tag == "x86" && arm) || (tag == "arm" && !arm) continue;
+            f = patched(f);
             if !f continue;
             a: [..]string;
             // assembly guards itself by OS and CPU, so every file is built and the others come out empty
@@ -776,6 +784,12 @@ build_c_target :: () -> bool {
             if MSVC() && ends_with(f, ".S") continue;
             cc(*a, !ends_with(f, ".c") && !ends_with(f, ".S"));
             array_add(*a, ..extra);
+            if (tag == "x86" || tag == "simd") && !arm {
+                // cl's /arch:AVX2 also allows FMA, F16C and BMI2, and ggml defines their macros for it.
+                if MSVC() array_add(*a, "/arch:AVX2");
+                else array_add(*a, "-mavx2", "-mfma", "-mf16c", "-mbmi2");
+                array_add(*a, "-DGGML_AVX", "-DGGML_AVX2", "-DGGML_FMA", "-DGGML_F16C", "-DGGML_BMI2", "-DGGML_SSE42");
+            }
             // per-file SIMD (libwebp and WebRTC pick them at run time; WebRTC's x86 files don't guard themselves).
             // cl has the SSE4.1 intrinsics without a flag.
             if MSVC() {

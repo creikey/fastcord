@@ -720,6 +720,7 @@ voice_options :: (cl: *dc.Client) -> voice.Options {
 	o := voice.Options.{no_audio_devices = vc.headless || !vc.audio_ready};
 	o.hosted = hosted_voice(cl);
 	add_video_options(*o, false);
+	o.listen = transcribe_listen;
 	if o.no_audio_devices && env_var("FASTCORD_VOICE_TEST_TONE") == "1" {
 		o.capture = (_: *void, out: []float32) -> int {
 			for * out {

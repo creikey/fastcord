@@ -62,6 +62,10 @@ Options :: struct {
     capture: (data: *void, out: []float32) -> int;          // mono 48 kHz pull instead of the mic (tests, headless; a Go Live stream's soundshare)
     capture_stereo: bool;     // capture gives interleaved stereo, sent as stereo Opus (soundshare)
     playback: (data: *void, user_id: u64, pcm: []float32);  // stereo interleaved, 960 frames
+    // Each speaker's audio as decoded, before volume, local mute and deafen, and ours as sent; on the voice
+    // thread with the connection's lock held, so it only copies. recordable: op 18 said that user allows
+    // voice recording (always true for us).
+    listen: (data: *void, user_id: u64, pcm: []float32, channels: int, recordable: bool);
     // a received video frame (Annex B, decrypted), on the UDP thread; the data is valid during the call
     video: (data: *void, user_id: u64, codec: Video_Codec, au: []u8, keyframe: bool);
     callback_data: *void;
@@ -176,6 +180,7 @@ Conn :: struct {
     users: Table(u32, *Remote_User);
     user_ssrc: Table(u64, u32);
     settings: Table(u64, User_Settings);
+    voice_flags: Table(u64, u32);  // op 18 per user (under mu)
     self_mute: bool;
     self_deaf: bool;
     self_speaking: bool;
@@ -344,6 +349,7 @@ voice_disconnect :: (c: *Conn) {
     deinit(*c.video_off);
     deinit(*c.video_users);
     deinit(*c.user_ssrc);
+    deinit(*c.voice_flags);
     deinit(*c.settings);
     for c.experiments free(it);
     array_free(c.experiments);
@@ -862,6 +868,7 @@ handle_json :: (c: *Conn, text: string) {
         locks.guard(*c.mu);
         drop_video_rx(c, uid);
         table_remove(*c.video_users, uid);
+        table_remove(*c.voice_flags, uid);
         found, ssrc := table_remove(*c.user_ssrc, uid);
         if found {
             had, u := table_remove(*c.users, ssrc);
@@ -888,7 +895,16 @@ handle_json :: (c: *Conn, text: string) {
         w := jint(jget(d, tprint("%", c.video_ssrc)));
         if w <= 0 w = jint(jget(d, "any"));
         c.sink_want = ifx w > 0 then min(w, 100) else 100;
-      // OP_VOICE_BACKEND_VERSION, OP_FLAGS, OP_PLATFORM, OP_SFU_UPDATE: informational
+      case OP_FLAGS;
+        // {"user_id","flags"} per peer, also sent at connect for those already in; erroneously sent on
+        // stream connections, where it means nothing.
+        uid := jsnow(jget(d, "user_id"));
+        flags := jint(jget(d, "flags"), 0);
+        if uid && !c.info.stream && flags >= 0 && flags <= 0xFFFF_FFFF {
+            locks.guard(*c.mu);
+            table_set(*c.voice_flags, uid, cast(u32) flags);
+        }
+      // OP_VOICE_BACKEND_VERSION, OP_PLATFORM, OP_SFU_UPDATE: informational
     }
 }
 
@@ -1539,6 +1555,10 @@ send_audio :: (c: *Conn, pcm: []float32, ts: u32, db: float32, voice: bool) {
     opus: [MAX_OPUS_PACKET]u8;
     n := c.codec.encode(c.encoder, pcm, opus);
     if n > 0 send_opus(c, array_view(opus, 0, n), ts, audio_level_byte(db), voice);
+    if n > 0 && c.opts.listen {
+        locks.guard(*c.mu);
+        c.opts.listen(c.opts.callback_data, c.info.user_id, pcm, c.channels, true);
+    }
 }
 
 send_opus :: (c: *Conn, opus: []u8, ts: u32, level: u8, voice: bool) {
@@ -1574,6 +1594,10 @@ rx_tick :: (c: *Conn, out: []float32) {
         kind, data := jb_pop(*u.jb);
         if kind == .None continue;
         n := c.codec.decode(u.decoder, data, kind == .Fec, out);  // .Plc: data is empty
+        if n > 0 && kind != .Plc && c.opts.listen {
+            has, flags := table_find(*c.voice_flags, u.user_id);
+            c.opts.listen(c.opts.callback_data, u.user_id, array_view(out, 0, n * 2), 2, has && (flags & VOICE_FLAG_ALLOW_RECORDING) != 0);
+        }
         if n <= 0 || c.self_deaf continue;
         found, st := table_find(*c.settings, u.user_id);
         if !found st = .{};

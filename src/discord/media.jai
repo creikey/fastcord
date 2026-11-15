@@ -319,7 +319,7 @@ run_stream :: (c: *Client, j: *Job) {
 	f: File;
 	opened := false;
 	if m.save_to f, opened = file_open(m.save_to, for_writing = true, log_errors = false);
-	if (opened || !m.save_to) && ok && (media_host_ok(c, host) || (m.any_host && m.stream.take)) {
+	if (opened || !m.save_to) && ok && (media_host_ok(c, host) || (m.any_host && (m.stream.take || m.save_to))) {
 		Writer :: struct { f: *File; p: *Media_Progress; out: http.Body_Sink; ok := true; }
 		w := Writer.{f = *f, p = m.progress, out = m.stream};
 		take :: (data: *void, piece: []u8) -> bool {
@@ -329,19 +329,41 @@ run_stream :: (c: *Client, j: *Job) {
 			if w.p atomic_add(*w.p.done, piece.count);
 			return w.ok;
 		}
-		now := now_ms();
-		cookie := cookie_header(*c.jar, host, path, true, now);
-		req := http.Request.{method = "GET", scheme = "https", authority = host, path = path, sink = .{*w, take}};
-		if m.save_to req.headers = document_headers(c.id.platform, cookie);
-		else {
-			site := site_for_host(host);
-			ref := ifx m.referer then m.referer else ifx site == .Same_Origin then client_route_referer(c) else #run join(API_ORIGIN, "/");
-			req.headers = media_headers(c.id.platform, m.kind, site, m.visible, ref, cookie, "", "", range_from = m.range_from);
+		// A file download follows redirects as Chrome's download manager does (a model's host sends its
+		// CDN), up to 5, https only, and only to hosts the download may reach.
+		for hop: 0..5 {
+			now := now_ms();
+			cookie := cookie_header(*c.jar, host, path, true, now);
+			req := http.Request.{method = "GET", scheme = "https", authority = host, path = path, sink = .{*w, take}};
+			if m.save_to req.headers = document_headers(c.id.platform, cookie);
+			else {
+				site := site_for_host(host);
+				ref := ifx m.referer then m.referer else ifx site == .Same_Origin then client_route_referer(c) else #run join(API_ORIGIN, "/");
+				req.headers = media_headers(c.id.platform, m.kind, site, m.visible, ref, cookie, "", "", range_from = m.range_from);
+			}
+			resp, err := transport_round_trip(*c.transport, host, req);
+			loc, has_loc := http.header_get(resp.headers, "location");
+			redirect := m.save_to && err == .None && has_loc && hop < 5
+				&& (resp.status == 301 || resp.status == 302 || resp.status == 303 || resp.status == 307 || resp.status == 308);
+			if redirect {
+				h2, p2, ok2 := split_url(loc);
+				redirect = ok2 && h2.count > 0 && (m.any_host || media_host_ok(c, h2));
+				if redirect {
+					host, path = copy_string(h2,, temp), copy_string(p2,, temp);
+					// whatever the redirect's own body wrote goes
+					file_close(*f);
+					f, opened = file_open(m.save_to, for_writing = true, log_errors = false);
+					if w.p atomic_store(*w.p.done, 0);
+					w.ok = opened;
+				}
+			}
+			if !redirect {
+				if err == .None && resp.body take(*w, resp.body); // an encoded body, or a transport that doesn't sink
+				if err == .None && w.ok status = ifx resp.status == 206 then 200 else resp.status;
+			}
+			http.response_destroy(*resp);
+			if !redirect || !opened break;
 		}
-		resp, err := transport_round_trip(*c.transport, host, req);
-		if err == .None && resp.body take(*w, resp.body); // an encoded body, or a transport that doesn't sink
-		if err == .None && w.ok status = ifx resp.status == 206 then 200 else resp.status;
-		http.response_destroy(*resp);
 	}
 	if opened {
 		file_close(*f);

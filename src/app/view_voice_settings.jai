@@ -305,6 +305,8 @@ voice_settings_page :: () {
 				slider("sbvol", *vs.soundboard_volume, 0, 100, voice_w(), percent(vs.soundboard_volume));
 				spacer(.Y, 16);
 				toggle_row("sbmic", L("Play Soundboard Through My Mic"), L("Your sounds go out with your voice, mixed into your microphone, instead of as soundboard sounds."), *vs.soundboard_mic);
+				spacer(.Y, 32);
+				transcribe_settings();
 				if video.SUPPORTED {
 					spacer(.Y, 32);
 					camera_test_section();
@@ -822,3 +824,49 @@ meter_bar :: () {
 }
 
 percent :: (v: float32) -> string { return tprint("%\%", formatFloat(v, trailing_width = 0, zero_removal = .NO)); }
+
+transcribe_settings :: () {
+	section_title(L("CALL TRANSCRIPTION"));
+	if !stt.supported() {
+		label(L("This computer's processor can't run the speech model (it needs AVX2)."), .Normal, 14, T("--text-muted"), 18);
+		return;
+	}
+	toggle_row("tron", L("Transcribe Calls"), L("Speech becomes text on this computer. Nothing is sent anywhere."), *transcript.on);
+	spacer(.Y, 8);
+	toggle_row("trall", L("Transcribe Everyone"), L("Also people who turned off Allow my voice to be recorded."), *transcript.everyone);
+	if transcript.active stt.configure_everyone(transcript.everyone);
+	spacer(.Y, 16);
+	label(L("Model"), .Medium, 14, T("--text-default"), 18);
+	spacer(.Y, 8);
+	for * STT_MODELS {
+		if voice_radio(tprint("trm_%", it.id), it.name, transcript.model == it.id) && transcript.model != it.id {
+			free(transcript.model);
+			transcript.model = copy_string(it.id);
+		}
+		spacer(.Y, 4);
+	}
+	spacer(.Y, 8);
+	m := stt_model();
+	if transcript.dl {
+		label(tprint(L("Downloading… % of % MB"), atomic_load(*transcript.dl.done) / 1_000_000, m.size / 1_000_000), .Normal, 14, T("--text-muted"), 18);
+	} else if transcript.verify || transcript.check {
+		label(L("Checking the model…"), .Normal, 14, T("--text-muted"), 18);
+	} else if !transcript.present {
+		if transcript.dl_failed label(L("The download failed."), .Normal, 14, T("--text-feedback-critical"), 18);
+		if set_button(tprint(L("Download Model (% MB)##trdl"), m.size / 1_000_000), .Primary, app.client != null, 32) stt_download_start();
+	} else {
+		label(L("Model downloaded."), .Normal, 14, T("--text-muted"), 18);
+	}
+	spacer(.Y, 8);
+	l := label(L("Open Transcripts Folder"), .Normal, 14, T("--text-link"), 18);
+	l.flags |= .Clickable;
+	l.hover_cursor = .Pointer;
+	if ui.signal(l).clicked {
+		app.ext_actions += 1;
+		if !platform.is_headless() {
+			dir := app_data_dir("transcripts");
+			make_directory_if_it_does_not_exist(dir, recursive = true);
+			platform.open_path(dir);
+		}
+	}
+}

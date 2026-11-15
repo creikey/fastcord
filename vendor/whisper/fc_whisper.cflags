@@ -1,0 +1,1 @@
+-Ivendor/whisper/include -Ivendor/whisper/ggml/include -Ivendor/whisper/ggml/src -Ivendor/whisper/ggml/src/ggml-cpu -Ivendor/whisper/fc_shim -include vendor/whisper/fc_shim/fc_config.h -DGGML_USE_CPU -DGGML_USE_LLAMAFILE -DGGML_SCHED_MAX_COPIES=4 -DNDEBUG -D_USE_MATH_DEFINES -fexceptions -Wno-deprecated-declarations

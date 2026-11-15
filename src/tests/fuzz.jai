@@ -55,6 +55,7 @@ mls :: #import "voice_mls";
 netio :: #import "netio";
 protobuf :: #import "protobuf";
 serve :: #import "serve";
+stt :: #import "stt";
 vector :: #import "vector";
 voice :: #import "voice";
 #load "../app/markdown.jai";
@@ -105,7 +106,9 @@ TARGETS :: Target.[
 	.{"http_request", run_http_request, "POST /a?b=c HTTP/1.1\r\nHost: x\r\nContent-Length: 2\r\n\r\n{}", "", .Bytes},
 	.{"ws", run_ws, "\x81\x05hello\x82\x7e\0\x02ab\x88\x02\x03\xe8", "", .Bytes},
 	.{"url", run_url, "https://user@example.com:8443/a/b?c=d#e", "", .Bytes},
-	.{"page", run_page, "<html><head><title>a &amp; b</title><meta property=\"og:title\" content='x'><meta name=description content=\"d\"></head>", "", .Bytes},
+	.{"stt_text", run_stt_text, " And so, my fellow Americans [BLANK_AUDIO] (music)\tcaf\xC3\xA9 \xF0\x9F\x98\x80", "", .Bytes},
+	.{"stt", run_stt, "\x05\x01\x00\x03\x02\x01\x01\x01\x04\x02\x02\x00\x00\x00\x00\x03\x01", "", .Choices},
+	.{"page", run_page,"<html><head><title>a &amp; b</title><meta property=\"og:title\" content='x'><meta name=description content=\"d\"></head>", "", .Bytes},
 ];
 
 oracle :: (ok: bool, what: string, args: ..Any) {
@@ -347,6 +350,50 @@ run_url :: (data: []u8) {
 	took("iso", ok);
 	_, ok = serve.parse_invite(text);
 	took("invite", ok);
+}
+
+// A model's text, as clean_text leaves it: idempotent (so valid UTF-8, since a bad byte would be replaced
+// again), no control bytes, no leading, trailing or doubled spaces.
+run_stt_text :: (data: []u8) {
+	out := stt.clean_text(cast(string) data);
+	took("clean", out.count > 0);
+	oracle(stt.clean_text(out) == out, "stt: clean_text isn't idempotent on \"%\"", out);
+	for i: 0..out.count-1 {
+		c := out[i];
+		oracle(c >= 0x20 && c != 0x7F, "stt: control byte % left", c);
+		oracle(c != #char " " || (i > 0 && i < out.count - 1 && out[i - 1] != #char " "), "stt: stray space in \"%\"", out);
+	}
+}
+
+// Speakers' frames into the segmenter: loud, quiet, silent and odd lengths, odd channel counts, more
+// speakers than it keeps, recording on and off, and stopping and starting. No model is loaded, so the
+// worker only cuts and drops; the backlog must stay under its cap and every line be one it can make.
+run_stt :: (data: []u8) {
+	g := Gen.{b = data};
+	stt.configure("", .Whisper, true, pick(*g, 2) == 0);
+	stt.set_active(true);
+	frame: [5760 * 2]float32;
+	while !done(*g) {
+		k := pick(*g, 16);
+		if k == 0 { stt.set_active(pick(*g, 2) == 0); continue; }
+		if k == 1 { stt.configure_everyone(pick(*g, 2) == 0); continue; }
+		channels := pick(*g, 4);
+		n := ifx pick(*g, 4) then 960 else pick(*g, 5761);
+		level := float32.[0, 0.0001, 0.01, 0.5, 1][pick(*g, 5)];
+		for i: 0..n * max(channels, 1) - 1 frame[i] = ifx i & 1 then level else -level;
+		took("frame", channels == 1 || channels == 2);
+		stt.feed(cast(u64) pick(*g, 80), array_view(frame, 0, n * max(channels, 1)), channels, pick(*g, 3) != 0);
+		_, backlog := stt.status();
+		oracle(backlog >= 0 && backlog <= stt.MAX_BACKLOG_MS + stt.MAX_UTTERANCE_MS, "stt: backlog % ms", backlog);
+	}
+	stt.set_active(false);
+	lines: [..]stt.Line;
+	lines.allocator = temp;
+	stt.take(*lines);
+	for lines {
+		oracle(!it.text, "stt: text with no model loaded");
+		oracle(it.not_recordable || it.dropped_ms > 0, "stt: an empty line");
+	}
 }
 
 // ---- Generators: the input is a stream of choices ----

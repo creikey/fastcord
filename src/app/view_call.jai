@@ -64,13 +64,17 @@ call_view :: (cid: dc.Snowflake) {
 	root.layout_axis = .Y;
 	root.style.bg = .{0, 0, 0, 1};
 	{ ui.parent(root); defer ui.pop_parent();
+		pane := transcript.on && transcript.active && transcript.pane_open && cid == app.voice_channel;
+		body := row("body");
+		body.semantic_size = .[ui.pct(1), ui.fill()];
+		ui.parent(body);
 		area := ui.box("grid");
-		area.semantic_size = .[ui.pct(1), ui.fill()];
+		area.semantic_size = .[ui.fill(), ui.pct(1)];
 		// the area's size from the last pass (the window's, before the first layout)
 		aw := area.rect.x1 - area.rect.x0;
 		ah := area.rect.y1 - area.rect.y0;
 		if aw <= 0 || ah <= 0 {
-			aw = app.ui.window.x - RAIL_W - app.view.sidebar_w;
+			aw = app.ui.window.x - RAIL_W - app.view.sidebar_w - ifx pane then TRANSCRIPT_PANE_W else 0;
 			ah = app.ui.window.y - HEADER_H - CALL_BAR_H;
 		}
 		{ ui.parent(area); defer ui.pop_parent();
@@ -86,6 +90,8 @@ call_view :: (cid: dc.Snowflake) {
 				place_tiles(tiles, aw, ah);
 			}
 		}
+		if pane transcript_pane();
+		ui.pop_parent();
 		if stage {
 			stage_invite_banner(ch);
 			if audience.count stage_audience(audience);
@@ -724,6 +730,10 @@ call_controls :: (cid: dc.Snowflake) {
 	if control("effects", "reaction", false, effect_bar_open, can_video) effect_bar_open = !effect_bar_open;
 	if effect_bar_open && can_video effect_bar(control_rect);
 	spacer(.X, gap);
+	if transcript.on && transcript.active {
+		if control("transcript", "paper", false, transcript.pane_open, true) transcript.pane_open = !transcript.pane_open;
+		spacer(.X, gap);
+	}
 	if control("leave", "phone-hang-up", true, false, true) voice_hang_up();
 	if compact spacer(.X, gap); else filler(.X);
 	if control("full", "fullscreen", false, app.view.call_full, true) app.view.call_full = !app.view.call_full; // Escape also leaves

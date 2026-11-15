@@ -1,0 +1,33 @@
+vendor/whisper/ggml/src/ggml.c
+vendor/whisper/ggml/src/ggml-alloc.c
+vendor/whisper/ggml/src/ggml-quants.c
+vendor/whisper/ggml/src/ggml.cpp
+vendor/whisper/ggml/src/ggml-backend.cpp
+vendor/whisper/ggml/src/ggml-backend-reg.cpp
+vendor/whisper/ggml/src/ggml-backend-meta.cpp
+vendor/whisper/ggml/src/ggml-backend-dl.cpp
+vendor/whisper/ggml/src/ggml-opt.cpp
+vendor/whisper/ggml/src/ggml-threading.cpp
+vendor/whisper/ggml/src/gguf.cpp
+vendor/whisper/src/whisper.cpp
+vendor/whisper/src/parakeet.cpp
+vendor/whisper/src/aneforge/whisper-aneforge.cpp
+simd vendor/whisper/ggml/src/ggml-cpu/ggml-cpu.c
+simd vendor/whisper/ggml/src/ggml-cpu/quants.c
+simd vendor/whisper/ggml/src/ggml-cpu/ggml-cpu.cpp
+simd vendor/whisper/ggml/src/ggml-cpu/repack.cpp
+simd vendor/whisper/ggml/src/ggml-cpu/hbm.cpp
+simd vendor/whisper/ggml/src/ggml-cpu/traits.cpp
+simd vendor/whisper/ggml/src/ggml-cpu/amx/amx.cpp
+simd vendor/whisper/ggml/src/ggml-cpu/amx/mmq.cpp
+simd vendor/whisper/ggml/src/ggml-cpu/tiled/tiled.cpp
+simd vendor/whisper/ggml/src/ggml-cpu/tiled/tiled-kernel.cpp
+simd vendor/whisper/ggml/src/ggml-cpu/binary-ops.cpp
+simd vendor/whisper/ggml/src/ggml-cpu/unary-ops.cpp
+simd vendor/whisper/ggml/src/ggml-cpu/vec.cpp
+simd vendor/whisper/ggml/src/ggml-cpu/ops.cpp
+simd vendor/whisper/ggml/src/ggml-cpu/llamafile/sgemm.cpp
+x86 vendor/whisper/ggml/src/ggml-cpu/arch/x86/quants.c
+x86 vendor/whisper/ggml/src/ggml-cpu/arch/x86/repack.cpp
+arm vendor/whisper/ggml/src/ggml-cpu/arch/arm/quants.c
+arm vendor/whisper/ggml/src/ggml-cpu/arch/arm/repack.cpp

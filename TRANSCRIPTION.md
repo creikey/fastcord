@@ -3,7 +3,36 @@
 Goal: a running, saved transcript of a voice call, labelled by speaker, covering every participant,
 made on this machine. No call audio or text goes to any company's servers.
 
-Status: research only (2026-11-13). Nothing built.
+Status (2026-11-13): first version built. whisper.cpp 1.9.5 vendored (`vendor/whisper`), `src/stt`
+(segmenter and worker), `src/app/transcribe.jai` (settings, model download, pane, file). Not yet tried
+in a real call.
+
+## What was built
+
+- **Engine:** whisper.cpp 1.9.5 with its Parakeet runner, CPU only, x86-64-v3 kernels behind a CPUID
+  check. Two models offered, downloaded on first use from Hugging Face and checked by size and sha256:
+  Whisper base.en q5_1 (60 MB, English) and Parakeet TDT 0.6B v3 q8_0 (669 MB, 25 European languages).
+- **Benchmark** (this laptop, 4 threads, the 11 s JFK clip, best of 3; all four transcribed it right):
+
+  | Model | Size | Time | Real-time factor |
+  |---|---|---|---|
+  | Whisper base.en q5_1 | 60 MB | 0.99 s | 0.09 |
+  | Whisper small.en q5_1 | 190 MB | 3.7 s | 0.34 |
+  | Whisper large-v3-turbo q5_0 | 574 MB | 16 s | 1.46 |
+  | Parakeet TDT 0.6B v3 q8_0 | 669 MB | 1.06 s | 0.10 |
+
+  Whisper pads every chunk to 30 s, so its cost per utterance is fixed: turbo can't keep up with one
+  speaker, and was dropped. Parakeet's cost follows the audio's length.
+- **Segmenter:** each speaker's 48 kHz frames go through a 48-tap low-pass to 16 kHz mono, and are cut
+  into utterances at 700 ms of quiet, a 400 ms gap in frames, or 28 s. Under 300 ms of speech is
+  dropped. Past 10 minutes of queued audio, new utterances are dropped and the pane says how much.
+- **Consent:** op 18's flags (docs.discord.food: 1 clips, 2 allow voice recording, 4 any-viewer
+  clips) are kept per user; only peers with bit 2 are transcribed unless "Transcribe Everyone" is on.
+  Others show once as "not transcribed". We still send no op 18 of our own: its format for our side
+  isn't confirmed. Hosted servers send no op 18, so their peers count as not consenting.
+- **Storage:** one markdown file per call in `<data>/transcripts`, named by date and channel, written
+  by the worker. Chosen over `fastcord.db` because a transcript is a document the user reads and
+  shares, like a download, not app state.
 
 ## What fastcord already gives us
 

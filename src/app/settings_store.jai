@@ -37,6 +37,9 @@ Persisted_Voice :: struct {
 	camera_background: string; // "none" | "blur" | "image" (video.Background); "" before it: camera_blur
 	camera_image: string; // the picture's path for "image"
 	camera_height, camera_fps: int; // Video Quality: one of CAMERA_QUALITIES, 0 = Default (720p 30 FPS)
+	transcribe: bool; // fastcord-only: transcribe calls on this computer (transcribe.jai)
+	transcribe_everyone: bool;
+	transcribe_model: string; // STT_MODELS id
 }
 
 Persisted_Sounds :: struct {
@@ -333,6 +336,7 @@ apply_persisted :: (p: *Persisted) {
 	chat_font_px = ifx array_find(CHAT_FONT_SIZES, p.chat_font) then p.chat_font else 16;
 	notify_prefs = p.notify;
 	voice_settings_restore(*p.voice);
+	transcribe_restore(*p.voice);
 	keybinds_restore(p.keybinds, p.voice.ptt_key);
 	sounds_restore(*p.sounds);
 	streamer_settings = p.streamer;
@@ -382,6 +386,7 @@ snapshot :: () -> string {
 	p.chat_font = chat_font_px;
 	p.notify = notify_prefs;
 	voice_settings_snapshot(*p.voice);
+	transcribe_snapshot(*p.voice);
 	sounds_snapshot(*p.sounds);
 	na: [..]string;
 	for _, id: app.view.nsfw_agreed array_add(*na, tprint("%", cast(u64) id));

@@ -449,6 +449,7 @@ frame :: () {
 		accounts_frame();
 	}
 	voice_settings_frame(voice_conn(), voice_headless(), voice_audio_ready()); // also offline: push to talk, the meter
+	transcribe_frame();
 	video_frame();
 	req_frame();
 	undo_frame();
