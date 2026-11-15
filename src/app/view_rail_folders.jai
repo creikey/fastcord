@@ -358,9 +358,10 @@ rail_hosted_drag :: () {
 	d := app.ui.mouse - rs.drag_from;
 	if !rs.hosted_active && sqrt(d.x * d.x + d.y * d.y) > DRAG_THRESHOLD rs.hosted_active = true;
 	if rs.hosted_active {
+		origin_y := drag_origin_y();
 		ghost := ui.box("hosted_ghost###hosted_ghost", .Draw_Background | .Floating_X | .Floating_Y | .Overlay);
 		ghost.semantic_size = .[ui.px(GUILD_ICON), ui.px(GUILD_ICON)];
-		ghost.fixed_pos = .{RAIL_ICON_X, app.ui.mouse.y - GUILD_ICON / 2};
+		ghost.fixed_pos = .{RAIL_ICON_X, app.ui.mouse.y - GUILD_ICON / 2 - origin_y};
 		ghost.style.radius = all4(FOLDER_RADIUS);
 		ghost.style.bg = T("--background-mod-normal");
 		ghost.opacity = 0.8;
@@ -374,7 +375,7 @@ rail_hosted_drag :: () {
 		if to >= 0 {
 			ind := ui.box("hosted_drop###hosted_drop", .Draw_Background | .Floating_X | .Floating_Y | .Overlay);
 			ind.semantic_size = .[ui.px(GUILD_ICON), ui.px(4)];
-			ind.fixed_pos = .{RAIL_ICON_X, line_y - 2};
+			ind.fixed_pos = .{RAIL_ICON_X, line_y - 2 - origin_y};
 			ind.style.bg = T("--status-positive");
 			ind.style.radius = all4(2);
 		}
@@ -497,6 +498,9 @@ rail_folder :: (e: *Rail_Entry, entry: int) {
 
 // ---- drag to reorder ----
 
+// Floating boxes place relative to their parent, but the mouse and target rects are window coordinates.
+drag_origin_y :: () -> float32 { return ui.top_parent().rect.y0; }
+
 drag_source :: (sig: ui.Signal, entry: int, inner: int) {
 	if sig.pressed {
 		rs.drag_entry = entry;
@@ -531,11 +535,12 @@ rail_drag :: (entries: [..]Rail_Entry) {
 	d := app.ui.mouse - rs.drag_from;
 	if !rs.drag_active && sqrt(d.x * d.x + d.y * d.y) > DRAG_THRESHOLD { rs.drag_active = true; }
 	if rs.drag_active {
+		origin_y := drag_origin_y();
 		tg, kind := drop_at(app.ui.mouse);
 		// dragged icon follows the mouse
 		ghost := ui.box("rail_ghost###rail_ghost", .Draw_Background | .Draw_Text | .Floating_X | .Floating_Y | .Overlay);
 		ghost.semantic_size = .[ui.px(GUILD_ICON), ui.px(GUILD_ICON)];
-		ghost.fixed_pos = .{RAIL_ICON_X, app.ui.mouse.y - GUILD_ICON / 2};
+		ghost.fixed_pos = .{RAIL_ICON_X, app.ui.mouse.y - GUILD_ICON / 2 - origin_y};
 		ghost.style.radius = all4(FOLDER_RADIUS);
 		ghost.style.bg = T("--background-mod-normal");
 		ghost.opacity = 0.8;
@@ -561,12 +566,12 @@ rail_drag :: (entries: [..]Rail_Entry) {
 			case .Before; #through; case .After;
 				y := ifx kind == .Before then r.y0 - 4 else r.y1 - 4;
 				ind.semantic_size = .[ui.px(GUILD_ICON), ui.px(4)];
-				ind.fixed_pos = .{RAIL_ICON_X, y - 2};
+				ind.fixed_pos = .{RAIL_ICON_X, y - 2 - origin_y};
 				ind.style.bg = T("--status-positive");
 				ind.style.radius = all4(2);
 			case .Combine;
 				ind.semantic_size = .[ui.px(GUILD_ICON + 4), ui.px(GUILD_ICON + 4)];
-				ind.fixed_pos = .{RAIL_ICON_X - 2, r.y0 - 2};
+				ind.fixed_pos = .{RAIL_ICON_X - 2, r.y0 - 2 - origin_y};
 				ind.style.border = 2;
 				ind.style.border_color = T("--status-positive");
 				ind.style.radius = all4(FOLDER_RADIUS + 2);

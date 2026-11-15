@@ -1,0 +1,11 @@
+# Rail (run with -fixture:tests/ui/rail.jsonl): the drag ghost sits on the mouse and the drop line
+# between DB and PAC (it drew a title bar too low once, so the line named another gap than the drop used).
+wait 5
+down 36 350
+move 36 330
+move 36 260
+move 36 245
+wait 2
+expect_center_y 245 NO
+up 36 245
+wait 30

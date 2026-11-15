@@ -3103,6 +3103,25 @@ settings_whole_category :: (t: *T) {
 	set_guild_folders(c, .[.{id = 4, name = "f", guild_ids = ids}]);
 	d = check(t, c, 14, "guild folders");
 	expect(t, c.store.settings.guild_folders.count == 1 && c.store.settings.guild_folders[0].name == "f", "folders applied locally");
+	mk :: (g: u64) -> Guild_Folder { f: Guild_Folder; f.guild_ids.allocator = temp; array_add(*f.guild_ids, g); return f; }
+	set_guild_folders(c, .[mk(1), mk(2), mk(3)]);
+	set_guild_folders(c, .[mk(2), mk(1), mk(3)]);
+	d = check(t, c, 14, "guild folders reordered");
+	got: [..]u64;
+	got.allocator = temp;
+	for c.store.settings.guild_folders for it.guild_ids array_add(*got, it);
+	expect(t, got.count == 3 && got[0] == 2 && got[1] == 1 && got[2] == 3, "reorder applied locally");
+	r := protobuf.Reader.{buf = protobuf.find(d, 14).bytes};
+	n := 0;
+	while true {
+		fld, more := protobuf.next(*r);
+		if !more break;
+		if fld.num != 1 continue;
+		ids := protobuf.packed_fixed64(protobuf.find(fld.bytes, 1).bytes,, temp);
+		expect(t, ids.count == 1 && ids[0] == (u64.[2, 1, 3])[n], "reorder: PATCH folder order");
+		n += 1;
+	}
+	expect(t, n == 3, "reorder: PATCH carries 3 folders");
 }
 
 // A failed settings-proto PATCH (offline, 5xx) is sent again later, its edit kept over a READY

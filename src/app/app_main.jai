@@ -756,6 +756,14 @@ script_command :: (path: string, f: []string, t: *float64, depth := 0) {
 			script_fail(path, "expect_in_window \"%\" failed: rect % visible % window %", want, r, v, w);
 		}
 		return;
+	case "expect_center_y";
+		// expect_center_y <y> <text>: the topmost box with that text's vertical center is within 2 px of y (a drag ghost sits on the mouse)
+		want := unquote(join_args(array_view(f, 1)));
+		b := find_text_box(want);
+		if b == null script_fail(path, "expect_center_y: no box \"%\"", want);
+		c := (b.rect.y0 + b.rect.y1) / 2;
+		if abs(c - num(f[1])) > 2 script_fail(path, "expect_center_y \"%\" failed: center % wanted %", want, c, num(f[1]));
+		return;
 	case "expect_focus_input"; #through; case "expect_no_focus_input";
 		has := app.focused_editor != null;
 		if has != (f[0] == "expect_focus_input") script_fail(path, "% failed", f[0]);
