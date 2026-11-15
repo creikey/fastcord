@@ -618,7 +618,7 @@ os_frame_wait :: () {
         w.frame_ready = false;
         return;
     }
-    if !w.frame_wait || IsIconic(w.hwnd) return;
+    if !w.frame_wait || !os_window_visible() return;
     win.WaitForSingleObject(w.frame_wait, 100);
 }
 
@@ -639,7 +639,10 @@ os_wait :: (timeout: float64) {
         handle: *void;
         n: u32;
         if animating {
-            if w.frame_wait {
+            // The waitable is signalled only by a Present, and a hidden or minimized window presents nothing
+            // (the frame stops before drawing), so waiting on it there would never return: the frame timer
+            // runs those frames instead, and with them the event that shows the window again.
+            if w.frame_wait && os_window_visible() {
                 handle = w.frame_wait;
                 n = 1;
             } else {
