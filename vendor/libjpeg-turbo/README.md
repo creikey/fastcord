@@ -9,10 +9,10 @@ the official client makes the thumbnail. Upstream files, unmodified: the compres
 coding, TurboJPEG API, tools or build files: decoding stays with Wuffs, and a 512 x 288 thumbnail every five
 minutes needs no SIMD (the C code's output is the same).
 
-- Upstream: https://github.com/libjpeg-turbo/libjpeg-turbo 3.2.0
-- Source: https://github.com/libjpeg-turbo/libjpeg-turbo/releases/download/3.2.0/libjpeg-turbo-3.2.0.tar.gz
-- sha256 of the tarball: 6f30092cef9fb839779646608f4ee14ae3cbac989c47fa05e841b0841f09878e
-  (the same as Homebrew's `jpeg-turbo` 3.2.0 formula)
+- Upstream: https://github.com/libjpeg-turbo/libjpeg-turbo 3.2.1
+- Source: https://github.com/libjpeg-turbo/libjpeg-turbo/releases/download/3.2.1/libjpeg-turbo-3.2.1.tar.gz
+- sha256 of the tarball: c27ad72a68da151177929aa969ae773a2da5ac2af9ce946079314fdac8cece7f
+  (the same as Homebrew's `jpeg-turbo` 3.2.1 formula)
 - Licence: IJG and BSD-3-Clause (`LICENSE.md`, `README.ijg`).
 
 fastcord's files:
