@@ -839,7 +839,7 @@ transcribe_settings :: () {
 	label(L("Model"), .Medium, 14, T("--text-default"), 18);
 	spacer(.Y, 8);
 	for * STT_MODELS {
-		if voice_radio(tprint("trm_%", it.id), it.name, transcript.model == it.id) && transcript.model != it.id {
+		if voice_radio(tprint("trm_%", it.id), it.name, stt_model().id == it.id) && stt_model().id != it.id {
 			free(transcript.model);
 			transcript.model = copy_string(it.id);
 		}
@@ -848,12 +848,12 @@ transcribe_settings :: () {
 	spacer(.Y, 8);
 	m := stt_model();
 	if transcript.dl {
-		label(tprint(L("Downloading… % of % MB"), atomic_load(*transcript.dl.done) / 1_000_000, m.size / 1_000_000), .Normal, 14, T("--text-muted"), 18);
+		label(tprint(L("Downloading… % of % MB"), atomic_load(*transcript.dl.done) / 1_000_000, (m.size + 500_000) / 1_000_000), .Normal, 14, T("--text-muted"), 18);
 	} else if transcript.verify || transcript.check {
 		label(L("Checking the model…"), .Normal, 14, T("--text-muted"), 18);
 	} else if !transcript.present {
 		if transcript.dl_failed label(L("The download failed."), .Normal, 14, T("--text-feedback-critical"), 18);
-		if set_button(tprint(L("Download Model (% MB)##trdl"), m.size / 1_000_000), .Primary, app.client != null, 32) stt_download_start();
+		if set_button(tprint(L("Download Model (% MB)##trdl"), (m.size + 500_000) / 1_000_000),.Primary, app.client != null, 32) stt_download_start();
 	} else {
 		label(L("Model downloaded."), .Normal, 14, T("--text-muted"), 18);
 	}

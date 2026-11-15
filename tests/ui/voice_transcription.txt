@@ -1,0 +1,16 @@
+# Settings > Voice & Video: Call Transcription at the end, off by default, with the model choice and its download.
+wait 5
+click 338 683
+wait 20
+click_text "Voice & Video"
+wait 20
+move 700 400
+scroll 0 -3000
+wait 10
+scroll 0 700
+wait 10
+expect_visible "Transcribe Calls"
+expect_visible "Transcribe Everyone"
+expect_visible "Open Transcripts Folder"
+expect_visible "Download Model (60 MB)"
+shot build/ui-voice_transcription.png

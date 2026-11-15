@@ -99,7 +99,7 @@ transcribe_frame :: () {
 	}
 	if transcript.dl || transcript.verify || transcript.check request_wake(platform.time_now() + 0.25);
 
-	want := transcript.on && transcript.present && stt.supported() && app.voice_channel != 0 && voice_conn() != null && !voice_headless_quiet();
+	want := transcript.on && transcript.present && stt.supported() && app.voice_channel != 0 && !voice_headless_quiet();
 	if want && (!transcript.active || transcript.channel != app.voice_channel) transcript_begin(m);
 	else if !want && transcript.active transcript_end();
 

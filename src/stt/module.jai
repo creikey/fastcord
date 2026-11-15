@@ -377,6 +377,7 @@ set_state :: (s: State) {
 }
 
 lib :: #library,no_dll "../../build/fc_vendor";
+#if OS == .WINDOWS advapi32 :: #system_library,link_always "advapi32";  // ggml's CPU backend reads the registry
 fc_stt_cpu_ok :: () -> s32 #foreign lib;
 fc_stt_load :: (path: *u8, kind: Model_Kind) -> *void #foreign lib;
 fc_stt_run :: (ctx: *void, kind: Model_Kind, pcm: *float32, n: s32, threads: s32, lang: *u8, out: *u8, cap: s32) -> s32 #foreign lib;

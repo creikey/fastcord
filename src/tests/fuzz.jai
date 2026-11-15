@@ -108,7 +108,7 @@ TARGETS :: Target.[
 	.{"url", run_url, "https://user@example.com:8443/a/b?c=d#e", "", .Bytes},
 	.{"stt_text", run_stt_text, " And so, my fellow Americans [BLANK_AUDIO] (music)\tcaf\xC3\xA9 \xF0\x9F\x98\x80", "", .Bytes},
 	.{"stt", run_stt, "\x05\x01\x00\x03\x02\x01\x01\x01\x04\x02\x02\x00\x00\x00\x00\x03\x01", "", .Choices},
-	.{"page", run_page,"<html><head><title>a &amp; b</title><meta property=\"og:title\" content='x'><meta name=description content=\"d\"></head>", "", .Bytes},
+	.{"page", run_page, "<html><head><title>a &amp; b</title><meta property=\"og:title\" content='x'><meta name=description content=\"d\"></head>", "", .Bytes},
 ];
 
 oracle :: (ok: bool, what: string, args: ..Any) {
@@ -372,7 +372,7 @@ run_stt :: (data: []u8) {
 	g := Gen.{b = data};
 	stt.configure("", .Whisper, true, pick(*g, 2) == 0);
 	stt.set_active(true);
-	frame: [5760 * 2]float32;
+	frame: [5760 * 3]float32;
 	while !done(*g) {
 		k := pick(*g, 16);
 		if k == 0 { stt.set_active(pick(*g, 2) == 0); continue; }
