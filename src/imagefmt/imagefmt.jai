@@ -73,6 +73,39 @@ image_destroy :: (img: *Image, allocator := context.allocator) {
 	img.* = .{};
 }
 
+// Box-filter downscale to fit max_side (no upscale). Returns RGBA.
+downscale :: (px: []u8, w: int, h: int, max_side: int, allocator := context.allocator) -> []u8, int, int {
+	sc := min(cast(float64) 1, cast(float64) max_side / cast(float64) max(w, h));
+	ow := max(1, cast(int) (cast(float64) w * sc + 0.5));
+	oh := max(1, cast(int) (cast(float64) h * sc + 0.5));
+	out := NewArray(ow * oh * 4, u8,, allocator);
+	for y: 0..oh-1 {
+		y0 := y * h / oh;
+		y1 := max(y0 + 1, (y + 1) * h / oh);
+		for x: 0..ow-1 {
+			x0 := x * w / ow;
+			x1 := max(x0 + 1, (x + 1) * w / ow);
+			// at most 4x4 samples per output pixel
+			sy := max(1, (y1 - y0) / 4);
+			sx := max(1, (x1 - x0) / 4);
+			acc: [4]int;
+			n := 0;
+			iy := y0;
+			while iy < y1 {
+				ix := x0;
+				while ix < x1 {
+					for c: 0..3 acc[c] += px[(iy * w + ix) * 4 + c];
+					n += 1;
+					ix += sx;
+				}
+				iy += sy;
+			}
+			for c: 0..3 out[(y * ow + x) * 4 + c] = cast(u8) (acc[c] / n);
+		}
+	}
+	return out, ow, oh;
+}
+
 #scope_module
 
 Decode_Ctx :: struct {

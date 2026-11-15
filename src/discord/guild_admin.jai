@@ -897,9 +897,36 @@ image_mime :: (path: string) -> string {
 	return "";
 }
 
+// fit_image (feature worker thread): an avatar, banner, icon or cover over max_bytes, made to fit instead of
+// refused: its first frame scaled down by quarters until it encodes under max_bytes, as JPEG when opaque
+// and lossless WebP when not (the only encoders imagefmt has). An animated image comes out still.
+// ("", "") when it won't decode or still won't fit at 64 pixels.
+fit_image :: (data: string, max_bytes: int) -> mime: string, data: string {
+	img, err := imagefmt.decode_first_frame(cast([]u8) data, temp);
+	if err != .None return "", "";
+	px := img.frames[0].pixels;
+	opaque := true;
+	for i: 0..px.count / 4 - 1 if px[i * 4 + 3] < 255 { opaque = false; break; }
+	side := min(max(img.width, img.height), 4096);
+	while side >= 64 {
+		small, w, h := imagefmt.downscale(px, img.width, img.height, side,, temp);
+		out: []u8;
+		if opaque {
+			rgb := NewArray(w * h * 3, u8, false,, temp);
+			for i: 0..w * h - 1 memcpy(rgb.data + i * 3, small.data + i * 4, 3);
+			out = imagefmt.encode_jpeg(rgb, w, h,, temp);
+		} else {
+			out = imagefmt.encode_webp_lossless(small, w, h,, temp);
+		}
+		if out && out.count <= max_bytes return ifx opaque then "image/jpeg" else "image/webp", cast(string) out;
+		side = side * 3 / 4;
+	}
+	return "", "";
+}
+
 // file_job_body (feature worker thread): reads the image at path and builds
 // {"image":"data:<mime>;base64,..","name":<name>} plus X-Discord-Original-MD5, all in temp.
-// status: 0 ok, -1 unreadable / not an image, -2 over EMOJI_MAX_BYTES.
+// status: 0 ok, -1 unreadable / not an image, -2 too large (an emoji over EMOJI_MAX_BYTES, an image fit_image can't shrink).
 file_job_body :: (path: string, name: string, op: Feature_Op, hosted: bool) -> string, []http.Header, int {
 	if op == .Sticker_Upload {
 		b, h, st := sticker_job_body(path, name); // server_settings.jai
@@ -920,11 +947,13 @@ file_job_body :: (path: string, name: string, op: Feature_Op, hosted: bool) -> s
 	if !ok || !data return "", .[], -1;
 	if op == .Event_Create || op == .Event_Edit {
 		// the event's body (name) takes "image" before its closing brace
-		if data.count > image_max_bytes(hosted) return "", .[], -2;
+		if data.count > image_max_bytes(hosted) mime, data = fit_image(data, image_max_bytes(hosted));
+		if !data return "", .[], -2;
 		return tprint("%,\"image\":\"data:%;base64,%\"}", slice(name, 0, name.count - 1), mime, base64_encode(data,, temp)), .[], 0;
 	}
 	if op == .Guild_Edit || op == .Avatar_Edit || op == .Banner_Edit || op == .Guild_Settings {
-		if data.count > image_max_bytes(hosted) return "", .[], -2;
+		if data.count > image_max_bytes(hosted) mime, data = fit_image(data, image_max_bytes(hosted));
+		if !data return "", .[], -2;
 		w: Json;
 		json_init(*w);
 		json_obj(*w);

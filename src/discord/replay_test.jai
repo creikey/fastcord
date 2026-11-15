@@ -1020,6 +1020,41 @@ file_atomic_replace :: (t: *T) {
 	expect(t, !File_Utilities.file_exists(tprint("%.tmp", path)), "no .tmp left behind");
 }
 
+// An avatar over the server's limit is scaled down to fit rather than refused (#65): an opaque one as JPEG,
+// one with transparency as WebP, each still a decodable image under the limit.
+avatar_fit_to_limit :: (t: *T) {
+	noise :: (w: int, h: int, alpha: bool) -> []u8 {
+		px := NewArray(w * h * 4, u8,, temp);
+		seed: u32 = 1;
+		for * px { seed = seed * 1664525 + 1013904223; it.* = cast(u8) (seed >> 24); }
+		if !alpha for i: 0..w * h - 1 px[i * 4 + 3] = 255;
+		return px;
+	}
+	dir := "build/test_avatar_fit";
+	make_directory_if_it_does_not_exist(dir, recursive = true);
+	rgb := NewArray(1600 * 1600 * 3, u8,, temp);
+	px := noise(1600, 1600, false);
+	for i: 0..1600 * 1600 - 1 memcpy(rgb.data + i * 3, px.data + i * 4, 3);
+	files := string.[
+		tprint("%/opaque.jpg", dir), cast(string) imagefmt.encode_jpeg(rgb, 1600, 1600, 100,, temp),
+		tprint("%/clear.webp", dir), cast(string) imagefmt.encode_webp_lossless(noise(700, 700, true), 700, 700,, temp),
+	];
+	for i: 0..files.count / 2 - 1 {
+		path, data := files[i * 2], files[i * 2 + 1];
+		expectf(t, data.count > HOSTED_ICON_MAX_BYTES, "% starts over the limit (% bytes)", path, data.count);
+		write_entire_file(path, data);
+		body, _, status := file_job_body(path, "", .Avatar_Edit, true);
+		mime := ifx i == 0 then "image/jpeg" else "image/webp";
+		prefix := tprint("{\"avatar\":\"data:%;base64,", mime);
+		expectf(t, status == 0 && begins_with(body, prefix), "% is fitted as %: % %", path, mime, status, slice(body, 0, 40));
+		if status != 0 continue;
+		b64 := slice(body, prefix.count, body.count - prefix.count - 2);
+		fitted := base64_decode(b64,, temp);
+		img, err := imagefmt.decode(cast([]u8) fitted, temp);
+		expectf(t, fitted.count <= HOSTED_ICON_MAX_BYTES && err == .None && img.width == img.height && img.width >= 256, "% fits: % bytes, % x %", path, fitted.count, img.width, img.height);
+	}
+}
+
 // Dragging channels and categories in the sidebar: the PATCH /guilds/{id}/channels body (channel_move_body).
 channel_move :: (t: *T) {
 	s: Store;

@@ -507,7 +507,7 @@ decode_run :: (j: Decode_Job, players: *[..]*lottie.Player) -> Decoded {
 				d.durations[it_index] = it.duration_ms;
 			}
 			array_free(img.frames);
-			d.blur, d.blur_size.x, d.blur_size.y = downscale(d.frames[0], d.size.x, d.size.y, 12);
+			d.blur, d.blur_size.x, d.blur_size.y = imagefmt.downscale(d.frames[0], d.size.x, d.size.y, 12);
 		}
 	case .Lottie_Load;
 		d.anim = lottie.load(data);
