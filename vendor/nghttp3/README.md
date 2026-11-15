@@ -32,6 +32,9 @@ hand-written HTTP/3 client and QPACK decoder.
   - A request's PRIORITY_UPDATE waits in the request's own queue and goes to the control stream just before
     its HEADERS (QUICHE writes it from `SetPriority`, right before `WriteHeaders`), instead of every queued
     PRIORITY_UPDATE going ahead of every request.
+- `0002-msvc-generic-schar.patch`: under MSVC's cl, the `_Generic` min and max macros list no `signed char`
+  (`NGHTTP3_GENERIC_SCHAR`), since cl takes it for `char` and rejects both; cl's `char` is signed, so it takes
+  the same branch. It changes nothing under clang.
 
 To update: download the new release tarball, copy the same files, regenerate `fc_nghttp3.sources`
 (`lib/*.c` plus `lib/sfparse/sfparse.c`, sorted), record the version and sha256 here, re-make the patch against

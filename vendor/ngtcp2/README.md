@@ -45,6 +45,9 @@ the requests go again on 1-RTT. `fc_h3_preview` is for `quic_h3_control_stream` 
   no 1-RTT packet number is skipped (ngtcp2 skips some at random against optimistic ACKs; Chrome doesn't).
   A space's numbers then have gaps where other spaces sent, so near the handshake's end loss detection's
   packet threshold can count a packet lost early, costing at most a spurious retransmission.
+- `0003-msvc-generic-schar.patch`: under MSVC's cl, the `_Generic` min, max and format macros list no `signed
+  char` (`NGTCP2_GENERIC_SCHAR`), since cl takes it for `char` and rejects both; cl's `char` is signed, so it
+  takes the same branch. It changes nothing under clang.
 
 To update: download the new release tarball, copy the same files, regenerate `fc_ngtcp2.sources`
 (`lib/*.c` plus the two crypto files, sorted), record the version and sha256 here, re-make each patch against the

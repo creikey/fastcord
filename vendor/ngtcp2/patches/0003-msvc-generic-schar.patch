@@ -6,12 +6,12 @@ diff -ru ngtcp2.orig/lib/ngtcp2_fmt.h ngtcp2/lib/ngtcp2_fmt.h
  /* hex formats integral |T| in unsigned hexadecimal notation.  It
     drops the leading zeros. */
 +/*
-+ * fastcord: MSVC before VS 2022 treats char and signed char as one
-+ * type in _Generic and rejects listing both.  Its char is signed, so
++ * fastcord: MSVC's cl (still in VS 2022 17.9) takes char and signed char
++ * for one type in _Generic and rejects listing both.  Its char is signed, so
 + * drop the signed char association there.
 + */
 +#ifndef NGTCP2_GENERIC_SCHAR
-+#  if defined(_MSC_VER) && _MSC_VER < 1930
++#  if defined(_MSC_VER) && !defined(__clang__)
 +#    define NGTCP2_GENERIC_SCHAR(F)
 +#  else
 +#    define NGTCP2_GENERIC_SCHAR(F) signed char: F,
@@ -55,12 +55,12 @@ diff -ru ngtcp2.orig/lib/ngtcp2_macro.h ngtcp2/lib/ngtcp2_macro.h
  #define ngtcp2_strlen_lit(S) (sizeof(S) - 1)
  
 +/*
-+ * fastcord: MSVC before VS 2022 treats char and signed char as one
-+ * type in _Generic and rejects listing both.  Its char is signed, so
++ * fastcord: MSVC's cl (still in VS 2022 17.9) takes char and signed char
++ * for one type in _Generic and rejects listing both.  Its char is signed, so
 + * drop the signed char association there.
 + */
 +#ifndef NGTCP2_GENERIC_SCHAR
-+#  if defined(_MSC_VER) && _MSC_VER < 1930
++#  if defined(_MSC_VER) && !defined(__clang__)
 +#    define NGTCP2_GENERIC_SCHAR(F)
 +#  else
 +#    define NGTCP2_GENERIC_SCHAR(F) signed char: F,
