@@ -239,12 +239,38 @@ fixture (README).
   "not transcribed". Whether to also tell the call (a chat line, a status) is the user's call: it is
   outward-facing and the official client sends nothing like it.
 
-## Steps
+## Order of work (2026-11-15)
 
-1. Benchmark: run whisper.cpp (base, small, large-v3-turbo quantized) and Moonshine streaming on a
-   recorded multi-speaker call on this laptop. Measure real-time factor (seconds of compute per
-   second of audio) with 1 and 4 people talking, and the word error rate.
-2. Confirm op 18's flags from the bundle; parse peers' flags and send our own as the client does.
-3. Tap plus ring buffers plus worker, behind a setting (off by default), with a headless test that
-   plays known speech through the fake voice server and checks the text.
-4. Call view: a live transcript pane; the saved transcript per call in `fastcord.db`; export.
+Done: the benchmark, the vendored engine, the tap, segmenter and worker, op 18 consent, settings, the
+pane, the stt test and fuzz targets.
+
+Each step names what it needs. Steps in different lanes can run at the same time; within a lane, go
+in order. One lane, the critical path, decides when the feature is finished: **A1 → C1 → C2 → C3 → D2**.
+
+| Step | What | Needs | Why here |
+|---|---|---|---|
+| **A1** | macOS and Linux builds of `vendor/whisper` (clang `-arch arm64`/`x86_64`, the Linux cross build) | none | A release builds all three platforms. Until this passes, any release may fail. Highest risk, smallest job. |
+| **A2** | A real call with several people talking, run by a human: line quality, cut points, op 18 consent, CPU use | none | Agents may not join voice (AGENTS.md live runs). It checks that the feature is worth securing and searching. Findings may change the segmenter, not the steps below. |
+| **B1** | Stop plain files now: write nothing to disk until C2, with the pane only | none | A one-line stopgap so no more plain transcripts pile up. Skip it if C2 is days away. |
+| **C1** | Bind `EVP_PBE_scrypt` and single-shot HPKE (X-Wing) in `fc_boringssl.c` / `src/crypto`, with known-answer tests; move DAVE's pure-Jai scrypt onto it | none | Pure crypto with no UI, so it is testable on its own. Everything secret builds on it. |
+| **C2** | The vault: tables in `MIGRATIONS` plus a release fixture, sealed records written by the worker through a database job, "end" records | C1 | The format is frozen once users have data, so give the record plaintext tagged fields now: a later embedding vector (F2) then adds a field, not a version. |
+| **C3** | Password set and unlock dialogs, Lock, keys locked into RAM, "Start over" | C2 | It works by itself: transcripts are encrypted and readable again, with no reader yet. |
+| **C4** | User-started import of the old `.md` files | C3 | Ends the plain-file era for anyone who used a build before C2. |
+| **E1** | One text module: Unicode case and accent folding, tokenizer (from `gif_words`), scorers, highlighter. Move the switcher, emoji, GIF and E2E search onto it. | none | Independent of encryption. It fixes the "É" versus "é" misses for every search now, and D2 needs it. |
+| **D1** | Transcript reader: list, open, Export (`save_file_dialog`), Copy, Delete | C3 | Read-only first. It needs only the unlocked vault. |
+| **D2** | Word search in the reader | D1, E1 | The first search users get. |
+| **F1** | A shared "local models" piece: pinned download, size and sha256 check, CPU check, worker, taken out of `transcribe.jai` and `stt` | A1 | It is refactoring alone, best done once the engine builds everywhere, and before a second model arrives. |
+| **F2** | A sentence-embedding model on ggml (llama.cpp's embedding path or a small BERT graph); the worker seals a vector into each record | F1, C2 | Lines written before F2 have no vector, so embed them once, on first unlock. |
+| **F3** | Meaning search in the reader: embed the query, rank by cosine similarity in memory, alongside word search | F2, D2 | The "semantic" goal. It comes last because it costs the most and rests on everything else. |
+| **G1** | Design the one user secret (the TODO item "Keys: one user secret") | none | Only a design doc, so it can start any time. It has to be settled before a second feature wants a secret, e.g. the token or key backups. |
+| **G2** | Build G1. The vault moves over by resealing its key on first unlock. | G1, C3 | It replaces the MVP password, and transcripts are never re-encrypted. |
+
+Lanes:
+- Engine: **A1 → F1 → F2 → F3**.
+- Secrecy: **C1 → C2 → C3 → C4**, then **G2** once **G1** is designed.
+- Search: **E1** now, then **D1 → D2**, which wait for C3.
+- A2 and B1 stand alone.
+
+Don't skip ahead:
+- No reader before C3: it would only show plain files that C2 replaces.
+- No embeddings before C2: vectors stored outside the vault would leak the text.
