@@ -21,24 +21,24 @@ sidebar_thread_rows :: (ch: *dc.Channel, gid: dc.Snowflake) {
 		muted := dc.channel_effectively_muted(s, gid, tid, wall_ms()); // its own mute or its channel's
 		unread := dc.channel_unread(s, tid) && !muted;
 		outer := row("thread");
-		outer.semantic_size = .[ui.pct(1), ui.px(CHANNEL_ROW_PITCH)];
+		outer.semantic_size = .[ui.pct(1), ui.px(channel_row_pitch())];
 		{ ui.parent(outer); defer ui.pop_parent();
 			spacer(.X, 8);
 			// the spine: a vertical line from the parent row, curving into this row
 			spine := ui.box("spine");
-			spine.semantic_size = .[ui.px(28), ui.px(CHANNEL_ROW_PITCH)];
+			spine.semantic_size = .[ui.px(28), ui.px(channel_row_pitch())];
 			{ ui.parent(spine); defer ui.pop_parent();
 				v := ui.box("v", .Draw_Background | .Floating_X | .Floating_Y);
-				v.semantic_size = .[ui.px(1.5), ui.px(cast(float32) (ifx i == ids.count - 1 then CHANNEL_ROW_PITCH / 2 else CHANNEL_ROW_PITCH))];
+				v.semantic_size = .[ui.px(1.5), ui.px(ifx i == ids.count - 1 then channel_row_pitch() / 2 else channel_row_pitch())];
 				v.fixed_pos = .{16, -2};
 				v.style.bg = T("--border-strong");
 				h := ui.box("h", .Draw_Background | .Floating_X | .Floating_Y);
 				h.semantic_size = .[ui.px(10), ui.px(1.5)];
-				h.fixed_pos = .{16, CHANNEL_ROW_PITCH / 2 - 1};
+				h.fixed_pos = .{16, channel_row_pitch() / 2 - 1};
 				h.style.bg = T("--border-strong");
 			}
 			item := row("item", .Clickable | .Draw_Background | .Hot_Animation);
-			item.semantic_size = .[ui.fill(), ui.px(CHANNEL_ROW_H)];
+			item.semantic_size = .[ui.fill(), ui.px(channel_row_h())];
 			item.style.radius = all4(8);
 			item.style.bg = ifx selected then T("--background-mod-normal") else .{};
 			item.style.bg_hot = ifx selected then item.style.bg else T("--background-mod-subtle");

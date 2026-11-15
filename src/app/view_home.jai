@@ -71,7 +71,7 @@ home_sidebar :: () {
 			for i: 0..9 {
 				ui.id_scope(cast(u64) i); defer ui.pop_seed();
 				r := row("skel");
-				r.semantic_size = .[ui.pct(1), ui.px(DM_ROW_PITCH)];
+				r.semantic_size = .[ui.pct(1), ui.px(dm_row_pitch())];
 				ui.parent(r); defer ui.pop_parent();
 				spacer(.X, 18);
 				skel("av", 32, 32, true);
@@ -80,12 +80,12 @@ home_sidebar :: () {
 			}
 		}
 		dms := ifx on_hosted() then .[] else undo_filter(dc.private_channels_sorted(s)); // with no Discord login, only hosted sections
-		w := ui.list_window(list, DM_ROW_PITCH, dms.count);
+		w := ui.list_window(list, dm_row_pitch(), dms.count);
 		for cid: array_view(dms, w.first, w.last - w.first) {
 			// A missing channel still takes its row, keeping the window's arithmetic exact.
 			ch := dc.channel_get(s, cid);
 			if ch == null {
-				spacer(.Y, DM_ROW_PITCH);
+				spacer(.Y, dm_row_pitch());
 				continue;
 			}
 			{ ui.id_scope(cast(u64)(cid)); defer ui.pop_seed(); dm_row(ch); }
@@ -118,21 +118,21 @@ home_sidebar :: () {
 
 // Home sidebar geometry (official: nav rows 38px on a 40px pitch at x=81,
 // "Direct Messages" heading at y=276, DM rows 42px on a 44px pitch).
-DM_NAV_H :: 38;
-DM_NAV_PITCH :: 40;
 DM_SEP_GAP :: 13;
 DM_HEADER_H :: 24;
-DM_ROW_H :: 42;
-DM_ROW_PITCH :: 44;
+// The nav and DM rows step with Appearance > UI Density like channel rows (views.jai density_step).
+dm_nav_h :: () -> float32 { return 38 + 4 * density_step(); }
+dm_row_h :: () -> float32 { return 42 + 4 * density_step(); }
+dm_row_pitch :: () -> float32 { return dm_row_h() + 2; }
 
 dm_nav_item :: (name: string, selected: bool, badge := 0, icon_name := "friends") -> ui.Signal {
 	outer := row(name);
-	outer.semantic_size = .[ui.pct(1), ui.px(DM_NAV_PITCH)];
+	outer.semantic_size = .[ui.pct(1), ui.px(dm_nav_h() + 2)];
 	sig: ui.Signal;
 	{ ui.parent(outer); defer ui.pop_parent();
 		spacer(.X, 9);
 		item := row("item", .Clickable | .Draw_Background | .Hot_Animation);
-		item.semantic_size = .[ui.fill(), ui.px(DM_NAV_H)];
+		item.semantic_size = .[ui.fill(), ui.px(dm_nav_h())];
 		item.style.radius = all4(8);
 		item.style.bg = ifx selected then T("--background-mod-normal") else .{};
 		item.style.bg_hot = ifx selected then item.style.bg else T("--background-mod-subtle");
@@ -157,11 +157,11 @@ dm_nav_item :: (name: string, selected: bool, badge := 0, icon_name := "friends"
 dm_row :: (ch: *dc.Channel) {
 	selected := app.view.channel == ch.id;
 	outer := row("dm");
-	outer.semantic_size = .[ui.pct(1), ui.px(DM_ROW_PITCH)];
+	outer.semantic_size = .[ui.pct(1), ui.px(dm_row_pitch())];
 	{ ui.parent(outer); defer ui.pop_parent();
 		spacer(.X, 9);
 		item := row("item", .Clickable | .Draw_Background | .Hot_Animation);
-		item.semantic_size = .[ui.fill(), ui.px(DM_ROW_H)];
+		item.semantic_size = .[ui.fill(), ui.px(dm_row_h())];
 		item.style.radius = all4(8);
 		item.style.bg = ifx selected then T("--background-mod-normal") else .{};
 		item.style.bg_hot = ifx selected then item.style.bg else T("--background-mod-subtle");
@@ -947,7 +947,8 @@ members_column :: (id: string) -> *ui.Box {
 	}
 }
 
-MEMBER_ROW_PITCH :: 44;
+// A member row is 42 on a 44 pitch at Default and a group header 40 + 4; both step with UI Density.
+member_row_pitch :: () -> float32 { return 44 + 4 * density_step(); }
 
 member_list :: (ch: *dc.Channel) {
 	s := store();
@@ -955,13 +956,13 @@ member_list :: (ch: *dc.Channel) {
 	// the channel's own list (a private channel has its own; serve keeps one), following the scroll
 	ml := dc.member_list_get(s, ch.guild_id, ifx on_hosted() then "everyone" else dc.member_list_id(s, ch));
 	if app.client != null {
-		dc.subscribe_member_list(app.client, ch.guild_id, ch.id, dc.member_list_ranges(list.view_off_target.y, list.rect.y1 - list.rect.y0, MEMBER_ROW_PITCH));
+		dc.subscribe_member_list(app.client, ch.guild_id, ch.id, dc.member_list_ranges(list.view_off_target.y, list.rect.y1 - list.rect.y0, member_row_pitch()));
 	}
 	{ ui.parent(list); defer ui.pop_parent();
 		spacer(.Y, 8);
 		skel_row :: (i: int) {
 			r := row("skel");
-			r.semantic_size = .[ui.pct(1), ui.px(MEMBER_ROW_PITCH)];
+			r.semantic_size = .[ui.pct(1), ui.px(member_row_pitch())];
 			ui.parent(r); defer ui.pop_parent();
 			spacer(.X, 16);
 			skel("av", 32, 32, true);
@@ -973,7 +974,7 @@ member_list :: (ch: *dc.Channel) {
 			for i: 0..11 { ui.id_scope(cast(u64) i); defer ui.pop_seed(); skel_row(i); }
 		}
 		// groups and members are one pitch apart (a header is 40 + 4), so only the visible rows are declared
-		w := ui.list_window(list, MEMBER_ROW_PITCH, ifx ml then ml.items.count else 0);
+		w := ui.list_window(list, member_row_pitch(), ifx ml then ml.items.count else 0);
 		if ml for item, j: array_view(ml.items, w.first, w.last - w.first) {
 			i := w.first + j;
 			{ ui.id_scope(cast(u64)(i)); defer ui.pop_seed();
@@ -981,7 +982,7 @@ member_list :: (ch: *dc.Channel) {
 					skel_row(i); // a range not synced yet (or invalidated)
 				} else if item.is_group {
 					gr := row("group");
-					gr.semantic_size = .[ui.pct(1), ui.px(40)];
+					gr.semantic_size = .[ui.pct(1), ui.px(member_row_pitch() - 4)];
 					gr.cross_align = .End;
 					{ ui.parent(gr); defer ui.pop_parent();
 						spacer(.X, 16);
@@ -1015,11 +1016,11 @@ member_list :: (ch: *dc.Channel) {
 member_row :: (gid: dc.Snowflake, uid: dc.Snowflake, owner := false) {
 	s := store();
 	outer := row("m");
-	outer.semantic_size = .[ui.pct(1), ui.px(MEMBER_ROW_PITCH)];
+	outer.semantic_size = .[ui.pct(1), ui.px(member_row_pitch())];
 	{ ui.parent(outer); defer ui.pop_parent();
 		spacer(.X, 8);
 		item := row("item", .Clickable | .Draw_Background | .Hot_Animation);
-		item.semantic_size = .[ui.fill(), ui.px(42)];
+		item.semantic_size = .[ui.fill(), ui.px(member_row_pitch() - 2)];
 		item.style.radius = all4(8);
 		item.style.bg_hot = T("--background-mod-subtle");
 		sig := ui.signal(item);

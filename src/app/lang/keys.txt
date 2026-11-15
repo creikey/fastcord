@@ -254,6 +254,7 @@ Add up to 50 custom emoji that anyone can use in this server. Animated GIF emoji
 Add your pronouns
 Added %
 Adjust the size of the interface. You can also change this with % +/-.
+Adjust the space between server, channel and member lists.
 Administrator
 Advanced Permissions
 Advanced permissions
@@ -1720,6 +1721,7 @@ Sounds must be 5.2 seconds or shorter.
 Sounds must be under 512 KB.
 Source##h0
 Space between message groups
+Spacious
 Spam
 Spam Filters
 Spanish
@@ -1917,6 +1919,7 @@ Two-factor authentication is enabled on this account.
 Type the name of a member
 Type the username of a friend
 Type your answer
+UI Density
 UPLOADED BY
 UPLOADER
 USES

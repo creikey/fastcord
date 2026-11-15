@@ -9,11 +9,19 @@ SIDEBAR_W :: 303; // default width, includes the 1px left border
 SIDEBAR_MIN_W :: 264 - RAIL_W;
 SIDEBAR_MAX_W :: 432 - RAIL_W;
 HEADER_H :: 49;
-CHANNEL_ROW_H :: 32;
-CHANNEL_ROW_PITCH :: 34;
-CATEGORY_GAP :: 16;
 CATEGORY_ROW_H :: 24;
 GUILD_ICON :: 40;
+// Appearance > UI Density (kept on the device), measured from the official client: from Default, Compact
+// and Spacious step channel rows (32 on a 34 pitch) by 4 px and rail slots (48) by 2; Compact halves the
+// gap above a category. DM and member rows step like channel rows (a guess).
+ui_density: int; // 0 Default, 1 Compact, 2 Spacious (settings.json)
+density_step :: () -> float32 { return ifx ui_density == 1 then -1.0 else ifx ui_density == 2 then 1.0 else 0; }
+channel_row_h :: () -> float32 { return 32 + 4 * density_step(); }
+channel_row_pitch :: () -> float32 { return channel_row_h() + 2; }
+category_gap :: () -> float32 { return ifx ui_density == 1 then 8.0 else 16; }
+rail_slot :: () -> float32 { return GUILD_ICON + 8 + 2 * density_step(); }
+// The settings pages' vertical gaps (spacer) scale with it too: a quarter tighter or looser.
+density_gaps :: () { spacer_scale_y = 1 + 0.25 * density_step(); }
 USER_PANEL_H :: 58;
 MEMBER_LIST_W :: 264; // default width (--custom-member-list-width), plus the 1px left border
 MEMBER_LIST_MIN_W :: 224; // guesses: the official member list is not resizable
@@ -137,9 +145,11 @@ row :: (id: string, flags: ui.Box_Flags = 0) -> *ui.Box {
 	return b;
 }
 
+// Settings pages set it for UI Density (density_gaps), so their vertical gaps tighten or open up.
+spacer_scale_y: float32 = 1;
 spacer :: (axis: ui.Axis, v: float32) {
 	b := ui.box("");
-	b.semantic_size[axis] = ui.px(v);
+	b.semantic_size[axis] = ui.px(ifx axis == .Y && spacer_scale_y != 1 then floor(v * spacer_scale_y + 0.5) else v);
 	b.semantic_size[ifx axis == .X then ui.Axis.Y else .X] = ui.px(0);
 }
 
@@ -554,7 +564,7 @@ guild_initials :: (name: string) -> string {
 // One 72x48 rail slot: unread/selection pill on the left edge and a 40x40 squircle.
 rail_item :: (id: string, selected: bool, text: string, icon_name: string, guild_id: dc.Snowflake) -> ui.Signal {
 	slot := ui.box(id);
-	slot.semantic_size = .[ui.pct(1), ui.px(GUILD_ICON + 8)];
+	slot.semantic_size = .[ui.pct(1), ui.px(rail_slot())];
 	sig: ui.Signal;
 	if ui.offscreen(slot) { return sig; } // box nil: the caller skips its own additions too
 	{ ui.parent(slot); defer ui.pop_parent();
@@ -952,7 +962,7 @@ channel_sidebar :: (gid: dc.Snowflake) {
 			if guild_action_row("customize", "user-check", L("Channels & Roles"), onb.page == .Customize).clicked server_page_open(gid, .Customize);
 			if guild_action_row("browse", "menu", L("Browse Channels"), onb.page == .Browse).clicked server_page_open(gid, .Browse);
 		}
-		spacer(.Y, 11);
+		spacer(.Y, ifx ui_density == 1 then 8.0 else ifx ui_density == 2 then 17.0 else 11); // measured per density
 		sep := row("sep");
 		sep.semantic_size = .[ui.pct(1), ui.px(1)];
 		{ ui.parent(sep); defer ui.pop_parent();
@@ -1043,11 +1053,11 @@ channel_drag :: (gid: dc.Snowflake) {
 guild_action_row :: (id: string, icon_name: string, text: string, selected := false) -> ui.Signal {
 	sig: ui.Signal;
 	outer := row(id);
-	outer.semantic_size = .[ui.pct(1), ui.px(CHANNEL_ROW_PITCH)];
+	outer.semantic_size = .[ui.pct(1), ui.px(channel_row_pitch())];
 	{ ui.parent(outer); defer ui.pop_parent();
 		spacer(.X, 8);
 		item := row("item", .Clickable | .Draw_Background | .Hot_Animation);
-		item.semantic_size = .[ui.fill(), ui.px(CHANNEL_ROW_H)];
+		item.semantic_size = .[ui.fill(), ui.px(channel_row_h())];
 		item.style.radius = all4(8);
 		item.style.bg_hot = T("--background-mod-subtle");
 		if selected item.style.bg = T("--background-mod-normal");
@@ -1071,7 +1081,7 @@ category_set_collapsed :: (gid: dc.Snowflake, cid: dc.Snowflake, collapsed: bool
 
 // Category: 16px gap, then a 24px row (14px medium name, chevron, "create channel" plus).
 category_row :: (ch: *dc.Channel) {
-	spacer(.Y, CATEGORY_GAP);
+	spacer(.Y, category_gap());
 	r := row("cat", .Clickable);
 	r.semantic_size = .[ui.pct(1), ui.px(CATEGORY_ROW_H)];
 	if can_manage_channels(ch.guild_id) r.flags |= .Click_On_Release; // a press may start a drag, not a collapse
@@ -1107,11 +1117,11 @@ channel_row :: (ch: *dc.Channel, gid: dc.Snowflake) {
 	unread := dc.channel_unread(store(), ch.id) && !muted;
 	mentions := 0;
 	outer := row("chan");
-	outer.semantic_size = .[ui.pct(1), ui.px(CHANNEL_ROW_PITCH)];
+	outer.semantic_size = .[ui.pct(1), ui.px(channel_row_pitch())];
 	{ ui.parent(outer); defer ui.pop_parent();
 		spacer(.X, 8);
 		item := row("item", .Clickable | .Draw_Background | .Hot_Animation);
-		item.semantic_size = .[ui.fill(), ui.px(CHANNEL_ROW_H)];
+		item.semantic_size = .[ui.fill(), ui.px(channel_row_h())];
 		item.style.radius = all4(8);
 		item.style.bg = ifx selected then T("--background-mod-normal") else .{};
 		item.style.bg_hot = ifx selected then item.style.bg else T("--background-mod-subtle");

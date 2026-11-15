@@ -59,6 +59,7 @@ Persisted :: struct {
 	theme_follow_os: bool; // Appearance > "Same as Device Theme"
 	smooth_scroll_off: bool; // Appearance > "Smooth Scrolling" (fastcord's own), off
 	avatars_hidden: bool; // Appearance > "Show Avatars" (fastcord's own; covers the client's Compact-only one), off
+	ui_density: int; // Appearance > UI Density: 0 Default, 1 Compact, 2 Spacious (views.jai)
 	start_minimized: bool; // System > Start Minimized (Windows)
 	tray_close_off: bool; // System > Minimize to Tray, off
 	install_declined: bool; // Not Now on the Windows install bar (update.jai)
@@ -320,6 +321,7 @@ apply_persisted :: (p: *Persisted) {
 	theme_follow_os = p.theme_follow_os;
 	smooth_scroll_off = p.smooth_scroll_off;
 	chat_avatars_hidden = p.avatars_hidden;
+	ui_density = clamp(p.ui_density, 0, 2);
 	start_minimized, tray_close_off = p.start_minimized, p.tray_close_off;
 	platform.set_close_to_tray(!tray_close_off);
 	install_declined = p.install_declined;
@@ -371,6 +373,7 @@ snapshot :: () -> string {
 	p.theme_follow_os = theme_follow_os;
 	p.smooth_scroll_off = smooth_scroll_off;
 	p.avatars_hidden = chat_avatars_hidden;
+	p.ui_density = ui_density;
 	p.start_minimized, p.tray_close_off = start_minimized, tray_close_off;
 	p.install_declined = install_declined;
 	p.update_hidden_until_ms = update_hidden_until_ms;

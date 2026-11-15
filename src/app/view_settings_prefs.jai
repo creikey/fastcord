@@ -87,11 +87,11 @@ settings_nav_logout :: () {
 	}
 	spacer(.Y, 8);
 	outer := row(L("Log Out"));
-	outer.semantic_size = .[ui.pct(1), ui.px(37)];
+	outer.semantic_size = .[ui.pct(1), ui.px(set_nav_row_h() + 4)];
 	{ ui.parent(outer); defer ui.pop_parent();
 		spacer(.X, 16);
 		r := row("item", .Clickable | .Draw_Background | .Hot_Animation);
-		r.semantic_size = .[ui.fill(), ui.px(33)];
+		r.semantic_size = .[ui.fill(), ui.px(set_nav_row_h())];
 		r.style.radius = all4(8);
 		r.style.bg_hot = T("--background-mod-subtle");
 		if ui.signal(r).clicked { account_logout_ask(); }

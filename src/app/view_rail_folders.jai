@@ -2,7 +2,6 @@
 // guild folders (settings.guild_folders), mention badges, unread pills,
 // drag-to-reorder persisted through dc.set_guild_folders (settings-proto 1).
 
-RAIL_SLOT :: GUILD_ICON + 8; // 48px pitch
 RAIL_ICON_X :: 16;
 FOLDER_MINI :: 16; // 2x2 mini guild icons in a closed folder
 FOLDER_MINI_PAD :: 3;
@@ -168,7 +167,7 @@ rail_view :: () {
 			app.client = main;
 		}
 		sep := ui.box("sep");
-		sep.semantic_size = .[ui.pct(1), ui.px(9)];
+		sep.semantic_size = .[ui.pct(1), ui.px(9 + 2 * density_step())]; // the line midway between the icons
 		{ ui.parent(sep); defer ui.pop_parent();
 			line := ui.box("line", .Draw_Background | .Floating_X | .Floating_Y);
 			line.semantic_size = .[ui.px(32), ui.px(1)];
@@ -278,7 +277,7 @@ rail_dm :: (cid: dc.Snowflake) {
 	ch := dc.channel_get(s, cid);
 	if ch == null { return; }
 	slot := ui.box("dmslot");
-	slot.semantic_size = .[ui.pct(1), ui.px(RAIL_SLOT)];
+	slot.semantic_size = .[ui.pct(1), ui.px(rail_slot())];
 	jump_mark(*rs.jump, slot, true); // only DMs with unread messages are here
 	if ui.offscreen(slot) { return; }
 	{ ui.parent(slot); defer ui.pop_parent();
@@ -420,13 +419,13 @@ rail_folder :: (e: *Rail_Entry, entry: int) {
 		// expanded background behind header + guilds
 		if t > 0.01 {
 			bg := ui.box("folderbg", .Draw_Background | .Floating_X | .Floating_Y);
-			bg.semantic_size = .[ui.px(FOLDER_BG_W), ui.px(RAIL_SLOT - 8 + cast(float32)(e.guilds.count) * RAIL_SLOT * t)];
+			bg.semantic_size = .[ui.px(FOLDER_BG_W), ui.px(rail_slot() - 8 + cast(float32)(e.guilds.count) * rail_slot() * t)];
 			bg.fixed_pos = .{(RAIL_W - FOLDER_BG_W) / 2, -4};
 			bg.style.radius = all4(FOLDER_BG_RADIUS);
 			bg.style.bg = with_alpha(T("--background-mod-subtle"), t);
 		}
 		slot := ui.box("fslot");
-		slot.semantic_size = .[ui.pct(1), ui.px(RAIL_SLOT)];
+		slot.semantic_size = .[ui.pct(1), ui.px(rail_slot())];
 		sig: ui.Signal;
 		{ ui.parent(slot); defer ui.pop_parent();
 			pill := ui.box("pill", .Draw_Background | .Floating_X | .Floating_Y);
@@ -487,7 +486,7 @@ rail_folder :: (e: *Rail_Entry, entry: int) {
 		array_add(*rs.targets, .{slot.rect, entry, -1});
 		if t > 0.01 {
 			list := ui.box("fguilds", .Clip);
-			list.semantic_size = .[ui.pct(1), ui.px(cast(float32)(e.guilds.count) * RAIL_SLOT * t)];
+			list.semantic_size = .[ui.pct(1), ui.px(cast(float32)(e.guilds.count) * rail_slot() * t)];
 			list.layout_axis = .Y;
 			{ ui.parent(list); defer ui.pop_parent();
 				for gid, i: e.guilds { rail_guild(gid, entry, i); }

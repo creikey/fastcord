@@ -584,6 +584,8 @@ SET_INSET :: 40;
 SET_NAV_W :: 252;
 set_nav_need: float32;
 SET_TITLE_H :: 48;
+// A nav row (33 on a 37 pitch at Default) steps with Appearance > UI Density like the channel list's.
+set_nav_row_h :: () -> float32 { return 33 + 4 * density_step(); }
 SET_CONTENT_MAX_W :: 696;
 SET_SWATCH :: 48;
 SET_SWATCH_PITCH :: 56;
@@ -652,11 +654,11 @@ settings_modal :: () {
 					if !settings_nav_match(it.name) && !(it.name == "Appearance" && settings_nav_match("Streamer Mode")) { continue; }
 					sel := it.name == settings_page;
 					outer := row(it.name);
-					outer.semantic_size = .[ui.pct(1), ui.px(37)];
+					outer.semantic_size = .[ui.pct(1), ui.px(set_nav_row_h() + 4)];
 					{ ui.parent(outer); defer ui.pop_parent();
 						spacer(.X, 16);
 						r := row("item", .Clickable | .Draw_Background | .Hot_Animation);
-						r.semantic_size = .[ui.fill(), ui.px(33)];
+						r.semantic_size = .[ui.fill(), ui.px(set_nav_row_h())];
 						r.style.radius = all4(8);
 						r.style.bg = ifx sel then T("--background-mod-normal") else .{};
 						r.style.bg_hot = ifx sel then r.style.bg else T("--background-mod-subtle");
@@ -701,6 +703,7 @@ settings_modal :: () {
 				tl := ui.box("tline", .Draw_Background);
 				tl.semantic_size = .[ui.pct(1), ui.px(1)];
 				tl.style.bg = T("--border-muted");
+				density_gaps(); defer spacer_scale_y = 1; // the pages' gaps follow UI Density
 				if settings_page == "Voice & Video" {
 					voice_settings_page();
 				} else if settings_page == "Appearance" {
@@ -824,7 +827,7 @@ settings_reset_for_test :: () {set_tr = .{};}
 appearance_subnav :: () {
 	for sub: (string.["Theme", "Message Display", "Streamer Mode"]) {
 		r := row(tprint("sub_%", sub), .Clickable | .Hot_Animation);
-		r.semantic_size = .[ui.pct(1), ui.px(33)];
+		r.semantic_size = .[ui.pct(1), ui.px(set_nav_row_h())];
 		sig := ui.signal(r);
 		{ ui.parent(r); defer ui.pop_parent();
 			spacer(.X, 28);
@@ -957,6 +960,22 @@ appearance_page :: () {
 					mk.flags |= .Floating_X;
 					mk.fixed_pos.x = w * (it - lo) / (hi - lo) - 12;
 				}
+			}
+			spacer(.Y, 32);
+			label(L("UI Density"), .Semibold, 16, T("--text-default"), 20);
+			spacer(.Y, 4);
+			set_para("densdesc", L("Adjust the space between server, channel and member lists."), .Normal, 14, 18, T("--text-muted"));
+			spacer(.Y, 8);
+			for d: int.[1, 0, 2] {
+				name := ifx d == 1 then L("Compact") else ifx d == 0 then L("Default") else L("Spacious");
+				r := row(tprint("density%", d), .Clickable);
+				r.semantic_size = .[ui.children(), ui.px(36 + 4 * density_step())];
+				r.hover_cursor = .Pointer;
+				if ui.signal(r).clicked ui_density = d;
+				ui.parent(r); defer ui.pop_parent();
+				radio_dot(ui_density == d);
+				spacer(.X, 12);
+				label(name, .Medium, 16, T("--text-strong"), 20);
 			}
 			spacer(.Y, 48);
 			if set_toggle_row("smooth", L("Smooth Scrolling"), L("Ease the chat and lists toward where you scroll. Off, they jump there at once (always, when your device asks for reduced motion)."), !smooth_scroll_off) {

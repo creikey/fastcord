@@ -273,6 +273,7 @@ server_settings_layer :: () {
 		ui.signal(content);
 		form_w := clamp(app.ui.window.x - side_w - 40 - 140, 300, 740);
 		{ ui.parent(content); defer ui.pop_parent();
+			density_gaps(); defer spacer_scale_y = 1; // the form's gaps follow UI Density
 			spacer(.Y, 60);
 			body := row("body");
 			body.semantic_size = .[ui.pct(1), ui.children()];
@@ -948,7 +949,7 @@ nav_divider :: (s: Server_Section) {
 nav_item :: (s: Server_Section, g: *dc.Guild) -> bool {
 	sel := s == ss.section;
 	r := row(tprint("nav_%", s), .Clickable | .Draw_Background | .Hot_Animation);
-	r.semantic_size = .[ui.pct(1), ui.px(32)];
+	r.semantic_size = .[ui.pct(1), ui.px(32 + 4 * density_step())]; // steps with UI Density like the channel list
 	r.style.radius = all4(6);
 	r.style.bg = ifx sel then T("--background-mod-normal") else .{};
 	r.style.bg_hot = ifx sel then r.style.bg else T("--background-mod-subtle");
