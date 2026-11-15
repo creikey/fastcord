@@ -324,6 +324,7 @@ State :: struct {
 	order: [..]*Box; // declaration order, for event routing and drawing
 	draw: [..]Draw_Cmd;
 	window: Vec2;
+	pixel_scale: float32; // device pixels per point, for snap_px (0: unknown, no snapping)
 
 	// interaction
 	mouse: Vec2;
@@ -392,8 +393,9 @@ shutdown :: (s: *State) {
 }
 
 // Begin a frame. events are borrowed for the frame.
-begin :: (window: Vec2, dt: float32, time: float64, events: []Input_Event) {
+begin :: (window: Vec2, dt: float32, time: float64, events: []Input_Event, pixel_scale: float32 = 0) {
 	s := context.ui;
+	s.pixel_scale = pixel_scale;
 	s.mouse_prev = s.mouse;
 	s.wake_at = 0;
 	s.events.count = 0;
@@ -718,6 +720,15 @@ scroll_input :: (off: *float32, target: *float32, delta: float32, precise: bool)
 	if precise target.* = off.*;
 	target.* += delta;
 	if precise off.* = target.*;
+}
+
+// v rounded to a whole device pixel. Scroll offsets are applied through this: the renderer rounds
+// each edge and glyph run on its own, so content moved by a fraction of a pixel rounds apart and
+// its parts jitter against each other by a pixel. The offset itself (and its animation) stays exact.
+snap_px :: (v: float32) -> float32 {
+	sc := context.ui.pixel_scale;
+	if sc <= 0 return v;
+	return floor(v * sc + 0.5) / sc;
 }
 
 // Frame-rate independent exponential approach. rate is ~1/seconds to settle.
@@ -1297,10 +1308,11 @@ layout_position :: (b: *Box, depth := 0) {
 		}
 	}
 
-	origin := Vec2.{b.rect.x0, b.rect.y0} - b.view_off;
+	off := Vec2.{snap_px(b.view_off.x), snap_px(b.view_off.y)};
+	origin := Vec2.{b.rect.x0, b.rect.y0} - off;
 	for c: each_child(b) {
 		p := origin + c.rel_pos;
-		if c.flags & .Pinned p += b.view_off;
+		if c.flags & .Pinned p += off;
 		c.rect = .{p.x, p.y, p.x + c.fixed_size.x, p.y + c.fixed_size.y};
 		update_anims(c);
 		layout_position(c, depth + 1);

@@ -1,0 +1,14 @@
+# Scrolling by a fraction of a pixel moves the content by whole pixels only: the renderer rounds
+# every edge and glyph run on its own, so a fractional offset made a row's parts jitter by a pixel.
+wait 5
+expect_top_y 398 "subtext line"
+move 700 400
+scroll 0 0.4
+wait 2
+expect_top_y 398 "subtext line"
+scroll 0 0.4
+wait 2
+expect_top_y 399 "subtext line"
+scroll 0 6.5
+wait 2
+expect_top_y 405 "subtext line"

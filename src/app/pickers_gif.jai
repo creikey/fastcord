@@ -273,7 +273,7 @@ gif_front_page :: (list: *ui.Box, view: ui.Rect, cols: int, col_w: float32) {
 	rows := (tiles.count + cols - 1) / cols;
 	content_h := cast(float32) rows * (GIF_TILE_H + GIF_GUTTER) + GIF_GUTTER;
 	pk_scroll_update(*gv.scroll, view, content_h);
-	top := gv.scroll.y;
+	top := ui.snap_px(gv.scroll.y);
 	vh := view.y1 - view.y0;
 	{ ui.parent(list); defer ui.pop_parent();
 		if tiles.count == 0 {
@@ -371,7 +371,7 @@ gif_results :: (list: *ui.Box, view: ui.Rect, cols: int, col_w: float32) {
 	footer := gv.kind == .Search || gv.kind == .Category;
 	if footer content_h += GIF_FOOTER_H;
 	pk_scroll_update(*gv.scroll, view, content_h);
-	top := gv.scroll.y;
+	top := ui.snap_px(gv.scroll.y);
 	vh := view.y1 - view.y0;
 	// suggestions when near the end (handleScroll)
 	if footer && expr_client() != null && items.count > 0 && content_h - top <= GIF_SUGGEST_WITHIN && gv.suggested_for != gv.result_query {

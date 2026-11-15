@@ -1339,7 +1339,7 @@ message_list :: (channel_id: dc.Snowflake, cs: *Chat_State) {
 		lw := list.rect.x1 - list.rect.x0;
 		if lw > MSG_SCROLL_GUTTER col.semantic_size[ui.Axis.X] = ui.px(lw - MSG_SCROLL_GUTTER);
 		col.layout_axis = .Y;
-		col.fixed_pos = .{0, BOTTOM_PAD + below - cs.scroll_from_bottom};
+		col.fixed_pos = .{0, BOTTOM_PAD + below - ui.snap_px(cs.scroll_from_bottom)};
 		{ ui.parent(col); defer ui.pop_parent();
 			if i0 == 0 {
 				if older {

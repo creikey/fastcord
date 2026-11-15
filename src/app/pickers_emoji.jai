@@ -603,7 +603,7 @@ emoji_grid :: (secs: []Em_Section, cols: int, view: ui.Rect) {
 	vh := view.y1 - view.y0;
 	list := ui.box("emoji_grid", .Clip);
 	list.semantic_size = .[ui.pct(1), ui.px(vh)];
-	top := ev.scroll.y;
+	top := ui.snap_px(ev.scroll.y);
 	moved := app.ui.mouse != ev.last_mouse;
 	ev.last_mouse = app.ui.mouse;
 	if moved ev.keyboard = false;

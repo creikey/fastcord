@@ -130,7 +130,7 @@ group_dm_overlay :: () {
 				}
 			}
 			for uid, i: shown {
-				y := cast(float32) i * (GDM_ROW_H + 2) - gdm.scroll.y;
+				y := cast(float32) i * (GDM_ROW_H + 2) - ui.snap_px(gdm.scroll.y);
 				if y + GDM_ROW_H < 0 || y > list_h continue;
 				{ ui.id_scope(cast(u64)(uid)); defer ui.pop_seed(); gdm_friend_row(uid, y, others); }
 			}

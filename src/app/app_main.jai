@@ -524,7 +524,7 @@ frame :: () {
 	}
 	app.built_frames += 1;
 	bench_pass_begin();
-	ui.begin(platform.window_size(), dt, now, evs);
+	ui.begin(platform.window_size(), dt, now, evs, gfx.scale());
 	build_ui();
 	ui.end();
 	bench_pass_end();
@@ -545,7 +545,7 @@ frame :: () {
 	// instead of on the next event.
 	app.focused_editor = null;
 	bench_pass_begin();
-	ui.begin(platform.window_size(), 0, now, .[]);
+	ui.begin(platform.window_size(), 0, now, .[], gfx.scale());
 	build_ui();
 	cmds := ui.end();
 	bench_pass_end();
@@ -763,6 +763,13 @@ script_command :: (path: string, f: []string, t: *float64, depth := 0) {
 		if b == null script_fail(path, "expect_center_y: no box \"%\"", want);
 		c := (b.rect.y0 + b.rect.y1) / 2;
 		if abs(c - num(f[1])) > 2 script_fail(path, "expect_center_y \"%\" failed: center % wanted %", want, c, num(f[1]));
+		return;
+	case "expect_top_y";
+		// expect_top_y <y> <text>: the topmost box with that text starts at y exactly (sub-pixel checks)
+		want := unquote(join_args(array_view(f, 1)));
+		b := find_text_box(want);
+		if b == null script_fail(path, "expect_top_y: no box \"%\"", want);
+		if abs(b.rect.y0 - num(f[1])) > 0.01 script_fail(path, "expect_top_y \"%\" failed: top % wanted %", want, b.rect.y0, num(f[1]));
 		return;
 	case "expect_focus_input"; #through; case "expect_no_focus_input";
 		has := app.focused_editor != null;

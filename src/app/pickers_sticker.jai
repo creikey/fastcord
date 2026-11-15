@@ -329,7 +329,7 @@ sticker_grid :: (secs: []St_Section, cols: int, cell: float32, view: ui.Rect) {
 	vh := view.y1 - view.y0;
 	list := ui.box("st_grid", .Clip);
 	list.semantic_size = .[ui.pct(1), ui.px(vh)];
-	top := sv.scroll.y;
+	top := ui.snap_px(sv.scroll.y);
 	ui.parent(list); defer ui.pop_parent();
 	for * sc, si: secs {
 		body_y := sc.y + ifx sc.flat then 0.0 else ST_HEADER_H;
