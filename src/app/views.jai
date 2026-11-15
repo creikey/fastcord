@@ -336,7 +336,9 @@ title_bar :: () {
 		left := row("left");
 		left.semantic_size = .[ui.px(side_w), ui.pct(1)];
 		{ ui.parent(left); defer ui.pop_parent();
-			spacer(.X, 85);
+			lead: float32 = 85; // the macOS traffic lights sit here
+			#if OS == .MACOS if platform.is_fullscreen() lead = 14; // they are gone in full screen
+			spacer(.X, lead);
 			for fwd: (bool.[false, true]) {
 				n := ifx fwd then app.view.fwd.count else app.view.back.count;
 				nb := ui.box(ifx fwd then "fwd" else "back", ifx n > 0 then ui.Box_Flag.Clickable else 0);
@@ -413,19 +415,20 @@ title_bar :: () {
 	}
 }
 
+// We own the window frame (macOS, platform_windows.jai, and Wayland without server-side decorations): the
+// title bar's empty space drags the window.
+window_hit :: (p: Vector2) -> platform.Window_Hit {
+	if p.y >= TITLE_BAR_H return .Client;
+	k := ui.hit_box(p);
+	if k == 0 return .Caption;
+	#if OS != .MACOS if k == caption_max_key return .Maximize;
+	return .Client;
+}
+
 #if OS != .MACOS {
 	CAPTION_BUTTON_W :: 46; // Windows 11's own caption buttons
 
 	caption_max_key: ui.Key;
-
-	// We own the window frame (platform_windows.jai, and Wayland without server-side decorations): the title
-	// bar's empty space drags the window.
-	window_hit :: (p: Vector2) -> platform.Window_Hit {
-		if p.y >= TITLE_BAR_H return .Client;
-		k := ui.hit_box(p);
-		if k == 0 return .Caption;
-		return ifx k == caption_max_key then .Maximize else .Client;
-	}
 
 	// Minimize, maximize or restore, and close, drawn as Windows draws them.
 	caption_buttons :: () {

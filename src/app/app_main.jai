@@ -373,7 +373,8 @@ main :: () {
 	streamer_start();
 	platform.set_exit_callback(() { settings_save(wait = true); app_exit(); });
 	platform.set_frame_callback(frame);
-	#if OS != .MACOS platform.set_window_hit_callback(window_hit);
+	platform.set_window_hit_callback(window_hit);
+	#if OS == .MACOS platform.set_title_bar_height(TITLE_BAR_H);
 	frame();
 	while !platform.should_quit() {
 		timeout: float64 = -1.0;

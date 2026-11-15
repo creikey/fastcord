@@ -174,6 +174,42 @@ set_fullscreen :: (on: bool) {
 }
 is_fullscreen :: () -> bool { return m.window && (msg(NSUInteger, m.window, "styleMask") & (1 << 14)) != 0; }
 
+// The window's content runs under the title bar and the app draws the bar itself (the traffic lights are
+// the system's, over it). The callback says whether a point (view coordinates) is the bar's empty space.
+Window_Hit :: enum u8 { Client; Caption; Maximize; }
+set_window_hit_callback :: (cb: (p: Vector2) -> Window_Hit) { m.hit = cb; }
+set_title_bar_height :: (h: float32) {
+    m.bar_h = h;
+    place_traffic_lights();
+}
+
+// AppKit centers the traffic lights in a 28pt bar and puts them back there on a resize; center them in
+// ours.
+place_traffic_lights :: () {
+    if !m.window || m.bar_h == 0 || is_fullscreen() return;
+    b: [3] Id;
+    for 0..2 {
+        b[it] = msg(Id, m.window, "standardWindowButton:", cast(NSUInteger) it); // close, miniaturize, zoom
+        if !b[it] return;
+    }
+    bar := msg(Id, b[0], "superview");
+    container := msg(Id, bar, "superview");
+    if !bar || !container return;
+    h := m.bar_h;
+    win := msg(NSRect, m.window, "frame");
+    msg(Void, container, "setFrame:", NSRect.{.{0, win.size.height - h}, .{win.size.width, h}});
+    msg(Void, bar, "setFrame:", NSRect.{.{0, 0}, .{win.size.width, h}});
+    for b {
+        f := msg(NSRect, it, "frame");
+        msg(Void, it, "setFrameOrigin:", NSPoint.{f.origin.x, (h - f.size.height) / 2});
+    }
+}
+
+win_place_buttons :: (self: Id, cmd: SEL, n: Id) #c_call {
+    c := s.ctx; push_context,defer_pop c;
+    place_traffic_lights();
+}
+
 // The occlusion state's visible bit: off while the window is minimized, on
 // another Space or wholly covered by other windows.
 os_window_visible :: () -> bool {
@@ -281,11 +317,13 @@ os_init :: (title: string, width: int, height: int) -> bool {
     msg(Void, m.app, "setDelegate:", objc.new_obj("FCAppDelegate"));
     build_menu(title);
 
-    style := cast(NSUInteger) (1 | 2 | 4 | 8); // titled, closable, miniaturizable, resizable
+    style := cast(NSUInteger) (1 | 2 | 4 | 8 | (1 << 15)); // titled, closable, miniaturizable, resizable, full size content
     rect := NSRect.{.{0, 0}, .{xx width, xx height}};
     m.window = msg(Id, msg(Id, cls("NSWindow"), "alloc"), "initWithContentRect:styleMask:backing:defer:", rect, style, cast(NSUInteger) 2, false);
     msg(Void, m.window, "setReleasedWhenClosed:", false);
-    msg(Void, m.window, "setTitle:", nsstr(title));
+    msg(Void, m.window, "setTitle:", nsstr(title)); // still names the window in Mission Control and the Window menu
+    msg(Void, m.window, "setTitleVisibility:", cast(NSInteger) 1 /*Hidden*/);
+    msg(Void, m.window, "setTitlebarAppearsTransparent:", true);
     msg(Void, m.window, "setAcceptsMouseMovedEvents:", true);
     msg(Void, m.window, "setRestorable:", false);
     msg(Void, m.window, "setTabbingMode:", cast(NSInteger) 2 /*disallowed*/);
@@ -533,6 +571,9 @@ m: struct {
     marked: string;             // IME marked text (heap)
     cursor_hidden: bool;
     pool: Id;                   // autorelease pool spanning one app frame
+    hit: (p: Vector2) -> Window_Hit;
+    bar_h: NSFloat;             // the app's title bar height, set by set_title_bar_height
+    caption_down: bool;         // the last left press went to the title bar (title_bar_press)
     normal: Window_Placement;   // the frame when neither zoomed nor full screen (maximized unused)
 };
 
@@ -812,6 +853,7 @@ register_classes :: () {
     add(v, "mouseExited:", view_mouse_exited, "v@:@");
     add(v, "scrollWheel:", view_scroll, "v@:@");
     add(v, "cursorUpdate:", view_cursor_update, "v@:@");
+    add(v, "mouseDownCanMoveWindow", view_no, "B@:"); // the title bar's drag is title_bar_press's
 
     // NSTextInputClient
     add(v, "hasMarkedText", ti_has_marked, "B@:");
@@ -853,6 +895,7 @@ register_classes :: () {
     add(w, "windowDidChangeScreen:", win_did_change_screen, "v@:@");
     add(w, "windowDidChangeBackingProperties:", win_did_change_screen, "v@:@");
     add(w, "windowDidChangeOcclusionState:", win_did_change_occlusion, "v@:@");
+    for string.["windowDidResize:", "windowDidExitFullScreen:", "windowDidBecomeMain:"] add(w, it.data, win_place_buttons, "v@:@");
     objc.register_class(w);
 
     // ---- FCAppDelegate
@@ -865,6 +908,7 @@ register_classes :: () {
 }
 
 view_yes :: (self: Id, cmd: SEL) -> bool #c_call { return true; }
+view_no :: (self: Id, cmd: SEL) -> bool #c_call { return false; }
 view_yes1 :: (self: Id, cmd: SEL, a: Id) -> bool #c_call { return true; }
 view_no1 :: (self: Id, cmd: SEL, a: Id) -> bool #c_call { return false; }
 view_update_layer :: (self: Id, cmd: SEL) #c_call {}
@@ -979,8 +1023,36 @@ view_flags_changed :: (self: Id, cmd: SEL, ev: Id) #c_call {
     push_event(.{kind = ifx mods & mod then .Key_Down else .Key_Up, key = k, mods = mods, time = time_now()});
 }
 
-view_mouse_down :: (self: Id, cmd: SEL, ev: Id) #c_call { c := s.ctx; push_context,defer_pop c; push_mouse(.Mouse_Down, ev); }
-view_mouse_up :: (self: Id, cmd: SEL, ev: Id) #c_call { c := s.ctx; push_context,defer_pop c; push_mouse(.Mouse_Up, ev); }
+view_mouse_down :: (self: Id, cmd: SEL, ev: Id) #c_call {
+    c := s.ctx; push_context,defer_pop c;
+    m.caption_down = title_bar_press(ev);
+    if !m.caption_down push_mouse(.Mouse_Down, ev);
+}
+
+view_mouse_up :: (self: Id, cmd: SEL, ev: Id) #c_call {
+    c := s.ctx; push_context,defer_pop c;
+    if m.caption_down {
+        m.caption_down = false; // a drag's own loop eats the release; a double click leaves it for us
+        return;
+    }
+    push_mouse(.Mouse_Up, ev);
+}
+
+// A left press on the title bar's empty space moves the window, and a double click does what System
+// Settings > Desktop & Dock > "Double-click a window's title bar to" says.
+title_bar_press :: (ev: Id) -> bool {
+    if !m.hit || is_fullscreen() || msg(NSInteger, ev, "buttonNumber") != 0 || (event_mods(ev) & .Ctrl) return false;
+    if m.hit(mouse_pos(ev)) != .Caption return false;
+    if msg(NSInteger, ev, "clickCount") < 2 {
+        msg(Void, m.window, "performWindowDragWithEvent:", ev);
+        return true;
+    }
+    d := msg(Id, msg(Id, cls("NSUserDefaults"), "standardUserDefaults"), "stringForKey:", nsstr("AppleActionOnDoubleClick"));
+    action := ifx d then to_jai_string(d, temp) else "Maximize";
+    if action == "Maximize" msg(Void, m.window, "zoom:", cast(Id) null);
+    else if action == "Minimize" msg(Void, m.window, "miniaturize:", cast(Id) null);
+    return true;
+}
 view_mouse_moved :: (self: Id, cmd: SEL, ev: Id) #c_call { c := s.ctx; push_context,defer_pop c; push_mouse(.Mouse_Move, ev); }
 view_cursor_update :: (self: Id, cmd: SEL, ev: Id) #c_call { c := s.ctx; push_context,defer_pop c; os_apply_cursor(); }
 
