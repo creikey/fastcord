@@ -4,9 +4,9 @@ HTTP/2 client: framing, HPACK, flow control, stream states and validation of eve
 sends (`src/http/h2.jai` binds it). Upstream's `lib/` sources and headers, unmodified (build files
 dropped), plus `COPYING`.
 
-- Upstream: https://github.com/nghttp2/nghttp2 v1.70.0
-- Source: https://github.com/nghttp2/nghttp2/releases/tag/v1.70.0, `nghttp2-1.70.0.tar.gz`
-- sha256 of the tarball: aa317e2cf9dca6afa0aed68f8fad6ff303ec6982e25a78c75c0b65e2b9b3ded5
+- Upstream: https://github.com/nghttp2/nghttp2 v1.71.0
+- Source: https://github.com/nghttp2/nghttp2/releases/tag/v1.71.0, `nghttp2-1.71.0.tar.gz`
+- sha256 of the tarball: 0cdd35ecec77919b4b7b245f87fe8d2216e3d62da854eb0838c594ff058042fc
   (matches the release's `checksums.txt`)
 - Licence: MIT (COPYING).
 
