@@ -58,6 +58,13 @@ xwing_generate :: () -> priv: [XWING_PRIVATE_BYTES]u8, pub: [XWING_PUBLIC_BYTES]
     assert(ok == 1);
     return priv, pub;
 }
+// xwing_public: the public key of a private key (its seed).
+xwing_public :: (priv: [XWING_PRIVATE_BYTES]u8) -> [XWING_PUBLIC_BYTES]u8 {
+    pub: [XWING_PUBLIC_BYTES]u8;
+    ok := fc_xwing_public(priv.data, pub.data);
+    assert(ok == 1);
+    return pub;
+}
 // hpke_seal encrypts plain to pub, in context.allocator. info names the purpose; ad is bound to the message
 // but not encrypted. Empty for a public key that isn't a valid X-Wing key.
 hpke_seal :: (pub: []u8, info: string, ad: []u8, plain: []u8) -> []u8 {
@@ -265,6 +272,7 @@ fc_hkdf_expand :: (prk: *u8, plen: u64, info: *u8, ilen: u64, out: *u8, olen: u6
 fc_pbkdf2_sha256 :: (pass: *u8, plen: u64, salt: *u8, slen: u64, iters: u32, out: *u8, olen: u64) -> s32 #foreign bssl;
 fc_scrypt :: (pass: *u8, plen: u64, salt: *u8, slen: u64, n: u64, r: u64, p: u64, max_mem: u64, out: *u8, olen: u64) -> s32 #foreign bssl;
 fc_xwing_generate :: (priv: *u8, pub: *u8) -> s32 #foreign bssl;
+fc_xwing_public :: (priv: *u8, pub: *u8) -> s32 #foreign bssl;
 fc_hpke_seal :: (pub: *u8, pub_len: u64, info: *u8, ilen: u64, ad: *u8, adlen: u64, in: *u8, inlen: u64, out: *u8) -> s32 #foreign bssl;
 fc_hpke_open :: (priv: *u8, info: *u8, ilen: u64, ad: *u8, adlen: u64, in: *u8, inlen: u64, out: *u8) -> s32 #foreign bssl;
 fc_aead_size :: () -> u64 #foreign bssl;

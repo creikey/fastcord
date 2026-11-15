@@ -4,10 +4,12 @@
 #import "File_Utilities";
 #import "Random";
 #import "String";
+crypto :: #import "crypto";
 e2e :: #import "e2e";
 fc_text :: #import "fc_text";
 keys :: #import "keys";
 sqlite :: #import "sqlite";
+vault :: #import "vault";
 #if OS == .WINDOWS {
 	msvcprt :: #library,system,no_dll,link_always "msvcprt";
 	ws2_32 :: #library,system,link_always "ws2_32"; // BoringSSL's socket BIOs come in with the AEADs.
@@ -1066,6 +1068,7 @@ make_fixture :: (release: string) {
 		if r.files.count l.file = r.files[0].name;
 		array_add(*fx_lines, l);
 	}
+	vault_make(a.d);
 	for * m stop(it.d);
 	if failed { print("make-fixture: % failed, nothing written\n", failed); exit(1); }
 
@@ -1107,12 +1110,14 @@ fixtures :: (dir: string) {
 		tag := tprint("%/fixtures/%", dir, release);
 		make_directory_if_it_does_not_exist(tag, recursive = true);
 		m: [3]Client;
+		had_vault: bool;
 		for * m {
 			path := tprint("%/%.db", tag, it_index);
 			check(copy_file(tprint("%/%.db", src, it_index), path), tprint("% copies", release));
 			// The fixture's clock stopped when it was made; its prekeys would otherwise expire under it.
 			now := to_milliseconds(current_time_consensus());
 			db := sqlite.open(path);
+			if it_index == 0 had_vault = query_count(db, "SELECT COUNT(*) FROM sqlite_master WHERE name = 'vault';") > 0;
 			sqlite.run(db, "UPDATE prekeys SET created = ?, answered = CASE answered WHEN 0 THEN 0 ELSE ? END;", now, now);
 			sqlite.close(db);
 			kf := read_entire_file(tprint("%/%.key", src, it_index));
@@ -1178,8 +1183,106 @@ fixtures :: (dir: string) {
 		check(hits.hits.count == 1 && hits.hits[0].author == a.party, tprint("% search reads stored texts", release));
 		load := ask(a, .Load, peer = b);
 		check(load.has_session && memcmp(load.peer_root.data, b.me.root.data, 32) == 0, tprint("% knows Bob's root", release));
+		vault_check(a.d, release, had_vault);
 		for * m stop(it.d);
 	}
+}
+
+// The transcript vault (src/vault) in Alice's database: a call that ended and one that was cut off, both
+// written through the app's jobs. Every later build must open them with the password, and go on writing.
+FIXTURE_VAULT_PASSWORD :: "fixture vault, ça va";
+FIXTURE_CALL :: vault.Line.[
+	.{kind = .Said, at_ms = 1_763_000_000_000, end_ms = 1_763_000_003_500, speaker = 0x1122_3344_5566_7788, who = "alice\x00", text = "the first line, ça va"},
+	.{kind = .Not_Recordable, at_ms = 1_763_000_004_000, speaker = 2, who = "bob"},
+	.{kind = .Fell_Behind, at_ms = 1_763_000_005_000, dropped_ms = 4_000},
+];
+FIXTURE_CALL_END :: 1_763_000_009_000;
+FIXTURE_HEAD :: vault.Head.{title = "fixture call", place = "fixture server", model = "base-en", started_ms = 1_762_999_999_000};
+NO_LINES: []vault.Line;
+
+Vault_Job :: struct { #as using job: e2e.Job; release: string; had: bool; ok: bool; }
+
+vault_make :: (d: *e2e.Db) {
+	j := New(Vault_Job);
+	j.run = (d: *e2e.Db, j: *e2e.Job) { vj := cast(*Vault_Job) j; _, vj.ok = vault.create(d.sql, FIXTURE_VAULT_PASSWORD); };
+	e2e.submit(d, j);
+	ended := vault.call_start(FIXTURE_HEAD);
+	cut := vault.call_start(.{title = "fixture cut off", started_ms = 1_763_000_010_000});
+	ws := (*vault.Write).[vault.write(ended, .[FIXTURE_CALL[0], FIXTURE_CALL[1]]), vault.write(cut, .[FIXTURE_CALL[0]]),
+		vault.write(ended, .[FIXTURE_CALL[2]]), vault.write(ended, NO_LINES, FIXTURE_CALL_END)];
+	for ws e2e.submit(d, it);
+	wait(ws[ws.count - 1]);
+	check(j.ok, "make the fixture's vault");
+	for ws { check(it.ok, "write the fixture's calls"); vault.free_write(it); }
+	vault.call_free(ended);
+	vault.call_free(cut);
+}
+
+vault_check :: (d: *e2e.Db, release: string, had: bool) {
+	j := New(Vault_Job);
+	j.release, j.had = release, had;
+	j.run = (d: *e2e.Db, j: *e2e.Job) {
+		vj := cast(*Vault_Job) j;
+		v, found := vault.newest(d.sql);
+		check(found == vj.had, tprint("% has a vault: %", vj.release, found));
+		if !found return;
+		seed, r := vault.unlock(d.sql, v, FIXTURE_VAULT_PASSWORD);
+		defer crypto.zero(*seed);
+		check(r == .Ok, tprint("% vault unlocks (%)", vj.release, r));
+		ended, eok := vault_read(d.sql, v, seed, FIXTURE_HEAD.title);
+		check(eok && ended.lines.count == FIXTURE_CALL.count + 1, tprint("% vault: the call has its lines and end", vj.release));
+		if eok && ended.lines.count == FIXTURE_CALL.count + 1 {
+			h := ended.head;
+			check(h.place == FIXTURE_HEAD.place && h.model == FIXTURE_HEAD.model && h.started_ms == FIXTURE_HEAD.started_ms, tprint("% vault: the head", vj.release));
+			for FIXTURE_CALL {
+				l := ended.lines[it_index];
+				check(l.kind == it.kind && l.at_ms == it.at_ms && l.end_ms == it.end_ms && l.speaker == it.speaker && l.who == it.who && l.text == it.text && l.dropped_ms == it.dropped_ms, tprint("% vault: line %", vj.release, it_index));
+			}
+			last := ended.lines[FIXTURE_CALL.count];
+			check(last.kind == .End && last.at_ms == FIXTURE_CALL_END, tprint("% vault: the end", vj.release));
+		}
+		cut, cok := vault_read(d.sql, v, seed, "fixture cut off");
+		check(cok && cut.lines.count == 1 && cut.lines[0].text == FIXTURE_CALL[0].text, tprint("% vault: the cut-off call has no end", vj.release));
+		c := vault.call_start(.{title = "after the update"});
+		w := vault.write(c, .[FIXTURE_CALL[1]], 1);
+		w.run(d, w);
+		after, aok := vault_read(d.sql, v, seed, "after the update");
+		check(w.ok && aok && after.lines.count == 2, tprint("% vault: a new call goes in", vj.release));
+		vault.free_write(w);
+		vault.call_free(c);
+		vj.ok = true;
+	};
+	e2e.submit(d, j);
+	wait(j);
+}
+
+Vault_Call :: struct { head: vault.Head; lines: [..]vault.Line; }
+
+// vault_read: the call with that title, false unless every record opened and decoded with no gap.
+vault_read :: (db: *sqlite.DB, v: vault.Vault, seed: vault.Seed, title: string) -> Vault_Call, bool {
+	out: Vault_Call;
+	listed, ok := vault.items(db, v);
+	if !ok return out, false;
+	for listed {
+		key, head, hok := vault.item_open(db, v, seed, it);
+		if !hok continue;
+		out.head, hok = vault.decode_head(head);
+		if !hok || out.head.title != title continue;
+		records, complete := vault.records(db, it.id, key);
+		for records {
+			l, lok := vault.decode_line(it.plain);
+			complete &&= lok;
+			array_add(*out.lines, l);
+		}
+		return out, complete;
+	}
+	return out, false;
+}
+
+query_count :: (db: *sqlite.DB, sql: string) -> s64 {
+	st := sqlite.prepare(db, sql);
+	defer sqlite.finalize(st);
+	return ifx sqlite.step(st) == .Row then sqlite.col_int(st, 0) else -1;
 }
 
 hex :: (s: string) -> string {

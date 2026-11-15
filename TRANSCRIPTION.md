@@ -138,29 +138,37 @@ When the later user-secret system arrives (the TODO item "Keys: one user secret"
 the password-and-scrypt step. It wraps the same vault seed under its own key hierarchy, so existing
 transcripts need nothing.
 
-### Format (in `fastcord.db`, added by `MIGRATIONS`)
+### Format (in `fastcord.db`, schema 14, `src/vault`; built 2026-11-15)
 
-- `vault`: one row per vault.
-  - `id`, `created_ms`, `version` = 1
-  - `pub` (X-Wing public key)
-  - `salt` (16 bytes) and the scrypt parameters
-  - `sealed_seed`: XChaCha20-Poly1305 under the KEK, with nonce, ciphertext and tag stored as `seal`
-    stores them. AD (the authenticated, unencrypted extra data) is `"fc-vault-v1 seed" || id || pub`.
-  - A wrong password fails the tag check, so no separate "check" value is needed.
-  - Rows are never deleted: "start over" adds a new vault and keeps the old one.
-- `vault_items`: one row per call.
-  - `id`, `vault`, `kind` (1 = transcript), `created_ms`
-  - `enc`: the HPKE encapsulation, 1120 bytes.
-  - `head`: HPKE base mode, X-Wing / HKDF-SHA256 / ChaCha20-Poly1305, with info `"fc-vault-v1 item"`
-    and AD `id || kind`. It seals the item key plus the call's details: channel and server name,
-    participants, model.
-- `vault_records`: one row per line, keyed `(item, seq)`.
-  - XChaCha20-Poly1305 under the item key, with a random 24-byte nonce and AD
-    `"fc-vault-v1 rec" || item || seq`.
-  - The plaintext is the line: time, user ID and name, then the text, or the "not transcribed" or
-    "fell behind" note.
-  - The call's last record has kind "end". A transcript without one says it ended unexpectedly
-    (fastcord quit or crashed mid-call).
+Built from `AT_REST.md`'s three pieces: a box (a value under a symmetric key), a drop (a value sealed to
+a public key) and a slot (one way to unlock a key).
+
+- `vault(id, created, version, pub)`: one row per vault, `version` = 1.
+  - `pub` is the X-Wing public key, 1216 bytes, in the clear so calls are sealed while locked.
+  - Rows are never deleted. "Start over" adds a vault; new calls go to the newest one.
+- `key_slots(store, id, kind, params, wrapped, created)`: the vault's 32-byte private seed behind a
+  `password` slot, with `store` = `"vault " || vault id`.
+  - `params` = version 1, log2 N (17), r (8), p (1), then a 16-byte salt.
+  - `wrapped` = a box under scrypt(password, salt), so a wrong password fails the tag check.
+  - Unlock also checks that the seed's public key is `pub`. A replaced `pub` (so calls since were
+    sealed to someone else's key) shows as "changed", not as a wrong password.
+- `vault_items(id, vault, kind, created, head)`: one row per call, `kind` 1 = transcript.
+  - `head` is a drop to `pub`: info `"fc-drop-v1 vault item"`, AD
+    `"fc-vault-v1 item" || lp(vault) || lp(id) || lp(kind)`.
+  - It seals the 32-byte item key, then the call's details: channel and server name, model, start.
+- `vault_records(item, seq, sealed)`: one row per line, a box under the item key, placed by
+  `box_ad("vault", "vault_records", "sealed", item || seq)`.
+- Records and heads are tagged fields: a tag byte, a u32 little-endian length, then the value.
+  - Integers are 8 bytes, little-endian.
+  - Readers skip tags they don't know, so F2's vector adds a field, not a version.
+  - A line holds its kind (said, not recordable, fell behind, end), start and end times, the speaker's
+    ID and name, the text, and the milliseconds not transcribed.
+  - `src/tests/vault.jai` pins a line's bytes.
+- The call's last record has kind "end". A transcript without one ended unexpectedly: fastcord quit
+  or crashed mid-call, or the database was cut.
+- Writes are `vault.Write` jobs on the database thread, one savepoint per frame's lines.
+  - The item is made at the first line, so a call where nobody spoke leaves nothing.
+  - A failed write drops the rest of that call, and the log says so without any text.
 
 Left in the clear: how many calls there are, when each started, and its number and size of lines. That
 is the same as `fastcord.db`'s E2E tables leave. Channel names, participants and text are all inside.
@@ -173,8 +181,9 @@ is the same as `fastcord.db`'s E2E tables leave. Channel names, participants and
 - The planned device sync carries `fastcord.db`, so transcripts would move with it.
 
 The vault tables don't use `db_key`, so the weak outer wrap doesn't matter to them. The tables name
-nothing about Discord, so `src/e2e`'s carrier rule still holds. Changing `src/e2e` needs a new release
-fixture (README).
+nothing about Discord, so `src/e2e`'s carrier rule still holds. The next release's E2E fixture
+(`make-fixture`) carries a vault with an ended call and a cut-off one, and every later build must open
+both (`src/tests/e2e.jai` `vault_check`).
 
 ### Flows
 
@@ -206,7 +215,7 @@ fixture (README).
 | A program running as you while fastcord is closed or locked | Stopped for past calls; same password-strength caveat |
 | A program running as you while unlocked, or a keylogger | Not stopped. It can read memory or the typed password, and nothing short of OS isolation stops it. |
 | A future quantum computer reading copied files | Stopped by X-Wing's ML-KEM half |
-| Someone editing the database | AEAD with AD catches forged, swapped or reordered records, and `seq` gaps or a missing "end" show cut ones. Deleting a whole call goes unnoticed. |
+| Someone editing the database | AEAD with AD catches forged, swapped or reordered records, and `seq` gaps or a missing "end" show cut ones. A replaced public key is caught at unlock. Deleting a whole call goes unnoticed. |
 
 ### Leaks to close in the same change
 
@@ -247,7 +256,8 @@ fixture (README).
 ## Order of work (2026-11-15)
 
 Done: the benchmark, the vendored engine, the tap, segmenter and worker, op 18 consent, settings, the
-pane, the stt test and fuzz targets. C1. Half of A2: a call with one person talking works; several
+pane, the stt test and fuzz targets. C1. C2: the app writes each call into the vault once one exists,
+and until C3's dialog makes one, calls still go to `.md` files. Half of A2: a call with one person talking works; several
 people are still to try. A1 waits until a Mac is at hand, and Linux is batched with it.
 
 Each step names what it needs. Steps in different lanes can run at the same time; within a lane, go

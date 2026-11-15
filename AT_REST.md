@@ -168,9 +168,11 @@ since its items are drops whose private key the running app doesn't hold while l
 
 ## Steps
 
-- **S1** (with C2): `box` and `drop` helpers in `src/keys`, with known-answer tests and fuzz targets
-  beside `scrypt` and `hpke` (every changed byte, place or version fails to open).
-- **S2** (with C3): the `slot` table and the `keystore` and `password` kinds. The token and key files
+- **S1** (with C2, done 2026-11-15): `box_seal`, `box_open` and the `password` slot in `src/keys`, the
+  `key_slots` table, and drops as `crypto.hpke_seal`, all used by the vault (`src/vault`). The `vault`
+  fuzz target edits the database under them (every changed byte, place or slot fails to open), and
+  `src/tests/vault.jai` covers the same by hand.
+- **S2** (with C3): the `keystore` slot kind. The token and key files
   move behind a `keystore` slot; `unwrap_secret` stops accepting unwrapped input once nothing writes
   it. Keychain and libsecret land here, which closes today's macOS and Linux gap.
 - **S3:** drafts and search history move into `fastcord.db`; whole-file encryption for

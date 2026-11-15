@@ -264,6 +264,16 @@ SQL,
 	// A Bottle's keys for readers we have no session with yet, given once one exists; and Hellos made only
 	// for that, whose sessions leave encryption off.
 	"CREATE TABLE bottle_gifts(digest BLOB NOT NULL, conversation BLOB NOT NULL, created INTEGER NOT NULL, PRIMARY KEY(digest, conversation)) WITHOUT ROWID; ALTER TABLE prekeys ADD COLUMN quiet INTEGER NOT NULL DEFAULT 0;",
+	// The vault (src/vault): a write-only store, its items sealed to its public key and its private key behind
+	// key slots (AT_REST.md), the ways to unlock a store's key. None of it uses the database key.
+	#string SQL
+CREATE TABLE vault(id BLOB PRIMARY KEY, created INTEGER NOT NULL, version INTEGER NOT NULL, pub BLOB NOT NULL) WITHOUT ROWID;
+CREATE TABLE key_slots(store BLOB NOT NULL, id BLOB NOT NULL, kind TEXT NOT NULL, params BLOB NOT NULL, wrapped BLOB NOT NULL, created INTEGER NOT NULL,
+	PRIMARY KEY(store, id)) WITHOUT ROWID;
+CREATE TABLE vault_items(id BLOB PRIMARY KEY, vault BLOB NOT NULL, kind INTEGER NOT NULL, created INTEGER NOT NULL, head BLOB NOT NULL) WITHOUT ROWID;
+CREATE INDEX vault_items_vault ON vault_items(vault, created);
+CREATE TABLE vault_records(item BLOB NOT NULL, seq INTEGER NOT NULL, sealed BLOB NOT NULL, PRIMARY KEY(item, seq)) WITHOUT ROWID;
+SQL,
 ];
 
 // The entries that wiped users' sessions and history, before E2E shipped in v0.6.2. Never add to this:

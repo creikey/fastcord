@@ -56,6 +56,7 @@ netio :: #import "netio";
 protobuf :: #import "protobuf";
 serve :: #import "serve";
 stt :: #import "stt";
+vault :: #import "vault";
 vector :: #import "vector";
 voice :: #import "voice";
 #load "../app/markdown.jai";
@@ -110,6 +111,7 @@ TARGETS :: Target.[
 	.{"stt", run_stt, "\x05\x01\x00\x03\x02\x01\x01\x01\x04\x02\x02\x00\x00\x00\x00\x03\x01", "", .Choices},
 	.{"scrypt", run_scrypt, "\x01\x0a\x01\x03\x01\x01\x08password\x04NaCl\x40", "", .Choices},
 	.{"hpke", run_hpke, "\x00\x07fc test\x06item 7\x01\x20the item key, 32 bytes long ....\x00", "", .Choices},
+	.{"vault", run_vault, "\x00\x05pass1\x01\x00\x02\x03\x03\x01\x02\x05\x03\x02\x01\x0f\x02\x0e\x07\x0f", "", .Choices},
 	.{"page", run_page, "<html><head><title>a &amp; b</title><meta property=\"og:title\" content='x'><meta name=description content=\"d\"></head>", "", .Bytes},
 ];
 
@@ -495,6 +497,423 @@ run_hpke :: (data: []u8) {
 		_, ok = crypto.hpke_open(bad_priv, bad_info, bad_ad, bad,, temp);
 		oracle(!ok, "hpke: attack % opened", attack);
 	}
+}
+
+// ---- The vault: items sealed to a public key, records boxed under item keys, a database that lies ----
+
+vault_db: *e2e.Db;
+
+Fz_Vault :: struct {
+	v: vault.Vault;        // As made, with its true public key.
+	password: string;
+	params, wrapped: []u8; // Its slot as made.
+}
+
+Fz_Item :: struct {
+	id: [16]u8;
+	key: [32]u8;
+	key_known: bool;   // A call's last write zeroes its key before the fuzzer sees it; its head gives it back.
+	kind: u8;
+	vault_i := -1;     // Until the item exists.
+	now_vault, now_kind: int; // What its row says now.
+	head: []u8;
+	head_sealed: []u8;
+	head_good: bool;   // False when sealed to a public key that wasn't the vault's.
+	plain: [..][]u8;   // Each record as written, by seq.
+	sealed: [..][]u8;  // Its sealed bytes as written, by seq.
+	open: bool;
+	item: vault.Item;  // While open.
+	call: *vault.Call; // A call written through the app's jobs.
+}
+
+// Items and records are written through both the plain calls and the app's Write jobs while the database
+// is edited under them: bytes flipped, rows swapped, moved, renumbered and deleted, public keys and slots
+// replaced. The check reads the database back and asks the model one thing per row: are the bytes there
+// now exactly what was written there? Those must open to exactly what was written, everything else must
+// fail, and a failure or gap makes the item incomplete. unlock must tell a wrong password from a replaced
+// public key, and a write must fail exactly when a row it needs is taken. The field codec round-trips.
+run_vault :: (data: []u8) {
+	if !vault_db {
+		started := atomic_swap(*input_started, 0);
+		defer atomic_swap(*input_started, started);
+		push_allocator(context.default_allocator);
+		vault_db = New(e2e.Db);
+		vault_db.path = copy_string(":memory:");
+		ok := e2e.open(vault_db);
+		oracle(ok, "vault: can't open a database: %", vault_db.error);
+	}
+	db := vault_db.sql;
+	for string.["vault", "key_slots", "vault_items", "vault_records"] sqlite.exec(db, tprint("DELETE FROM %;", it));
+	g := Gen.{b = data};
+	vs: [..]Fz_Vault;
+	vs.allocator = temp;
+	xs: [..]Fz_Item;
+	xs.allocator = temp;
+	while !done(*g) {
+		op := pick(*g, 16);
+		if op == {
+			case 0;
+				if vs.count == 3 continue;
+				f := array_add(*vs);
+				f.password = cast(string) gen_bytes(*g, pick(*g, 24));
+				ok: bool;
+				f.v, ok = vault.create(db, f.password, 1 + pick(*g, 4));
+				oracle(ok, "vault: create failed");
+				_, f.params, f.wrapped = fz_vault_now(db, f.v.id);
+				oracle(f.params.count == keys.SLOT_PARAMS_BYTES && f.wrapped.count == keys.BOX_OVERHEAD + 32, "vault: a slot of % and % bytes", f.params.count, f.wrapped.count);
+			case 1; #through;
+			case 2;
+				// An item through the plain calls, or a call through the app's jobs.
+				v, found := vault.newest(db);
+				vi := fz_vault_index(vs, v);
+				oracle(found == (vs.count > 0) && (!found || vi >= 0), "vault: newest found % of % vaults", found, vs.count);
+				x := array_add(*xs);
+				x.open = true;
+				if op == 2 {
+					head := vault.Head.{fz_text(*g), fz_text(*g), fz_text(*g), fz_s64(*g)};
+					x.call = vault.call_start(head);
+					x.head = vault.encode_head(head,, temp);
+					x.kind = vault.ITEM_TRANSCRIPT;
+					continue;
+				}
+				x.open = found;
+				if !found continue;
+				x.kind = cast(u8) pick(*g, 256);
+				x.head = gen_bytes(*g, pick(*g, 200));
+				ok: bool;
+				x.item, ok = vault.item_begin(db, v, x.kind, x.head);
+				oracle(ok, "vault: item_begin failed");
+				fz_item_made(db, vs, x, v, x.item.id, x.item.key, true);
+			case 3;
+				// An open item's next record, or a call's next lines (and sometimes its end).
+				x := fz_pick(*g, xs, open = true);
+				if !x continue;
+				if !x.call {
+					rec := ifx pick(*g, 2) then vault.encode_line(fz_line(*g),, temp) else gen_bytes(*g, pick(*g, 300));
+					before := x.item.seq;
+					taken := fz_taken(db, x.id, before, 1);
+					ok := vault.item_append(db, *x.item, rec);
+					oracle(ok == !taken, "vault: item_append got % with its row taken %", ok, taken);
+					if ok { array_add(*x.plain, rec); fz_sealed_since(db, x, before); }
+					continue;
+				}
+				lines: [..]vault.Line;
+				lines.allocator = temp;
+				for 1..pick(*g, 4) array_add(*lines, fz_line(*g));
+				end_ms := ifx pick(*g, 3) == 0 then fz_s64(*g) | 1 else 0;
+				c := x.call;
+				was_begun, before := c.begun, c.item.seq;
+				taken := was_begun && fz_taken(db, c.item.id, before, lines.count + cast(int) (end_ms != 0));
+				v, any := vault.newest(db);
+				w := vault.write(c, lines, end_ms);
+				w.run(vault_db, w);
+				if !was_begun && !lines.count oracle(w.ok && !c.begun, "vault: a call wrote % with nothing said", w.ok);
+				else if !was_begun oracle(w.ok == any && c.begun == any, "vault: a call's first write got % with % vaults", w.ok, vs.count);
+				else oracle(w.ok == !taken, "vault: a write got % with a row taken %", w.ok, taken);
+				oracle(c.failed == !w.ok, "vault: a failed write left the call going");
+				if w.ok && c.begun {
+					if !was_begun fz_item_made(db, vs, x, v, c.item.id, c.item.key, !end_ms);
+					for lines array_add(*x.plain, vault.encode_line(it,, temp));
+					if end_ms array_add(*x.plain, vault.encode_line(.{kind = .End, at_ms = end_ms},, temp));
+					fz_sealed_since(db, x, before);
+				}
+				vault.free_write(w);
+				if !c.failed && !end_ms continue;
+				vault.call_free(c);
+				x.call = null;
+				x.open = false;
+			case 4;
+				x := fz_pick(*g, xs, open = true);
+				if !x || x.call continue;
+				vault.item_close(*x.item);
+				x.open = false;
+
+			// The attacks: records, then heads, then vaults and slots.
+			case 5;
+				item, seq := fz_record_at(db, *g);
+				if !item.count continue;
+				b := fz_mangle(*g, fz_sealed_now(db, item, seq));
+				sqlite.run(db, "UPDATE vault_records SET sealed = ? WHERE item = ? AND seq = ?;", b, item, seq);
+			case 6;
+				// Two records trade places.
+				a, sa := fz_record_at(db, *g);
+				b, sb := fz_record_at(db, *g);
+				if !a.count continue;
+				ba, bb := fz_sealed_now(db, a, sa), fz_sealed_now(db, b, sb);
+				sqlite.run(db, "UPDATE vault_records SET sealed = ? WHERE item = ? AND seq = ?;", bb, a, sa);
+				sqlite.run(db, "UPDATE vault_records SET sealed = ? WHERE item = ? AND seq = ?;", ba, b, sb);
+			case 7;
+				// A record renumbered, or moved to another item, where the row is free.
+				item, seq := fz_record_at(db, *g);
+				if !item.count continue;
+				to := item;
+				o := fz_pick(*g, xs);
+				if pick(*g, 2) && o && o.vault_i >= 0 to = array_copy(o.id,, temp);
+				sqlite.run(db, "UPDATE OR IGNORE vault_records SET item = ?, seq = ? WHERE item = ? AND seq = ?;", to, pick(*g, 12), item, seq);
+			case 8;
+				item, seq := fz_record_at(db, *g);
+				if item.count sqlite.run(db, "DELETE FROM vault_records WHERE item = ? AND seq = ?;", item, seq);
+			case 9;
+				x := fz_pick(*g, xs);
+				if !x || x.vault_i < 0 continue;
+				id: []u8 = x.id;
+				b := fz_mangle(*g, fz_head_now(db, x.id));
+				sqlite.run(db, "UPDATE vault_items SET head = ? WHERE id = ?;", b, id);
+			case 10;
+				// Two heads trade places.
+				a, b := fz_pick(*g, xs), fz_pick(*g, xs);
+				if !a || a.vault_i < 0 || b.vault_i < 0 continue;
+				ha, hb := fz_head_now(db, a.id), fz_head_now(db, b.id);
+				ia, ib: []u8 = a.id, b.id;
+				sqlite.run(db, "UPDATE vault_items SET head = ? WHERE id = ?;", hb, ia);
+				sqlite.run(db, "UPDATE vault_items SET head = ? WHERE id = ?;", ha, ib);
+			case 11;
+				// An item's kind changed, or the item moved to another vault.
+				x := fz_pick(*g, xs);
+				if !x || x.vault_i < 0 continue;
+				id: []u8 = x.id;
+				if pick(*g, 2) {
+					x.now_kind = pick(*g, 300);
+					sqlite.run(db, "UPDATE vault_items SET kind = ? WHERE id = ?;", x.now_kind, id);
+				} else {
+					x.now_vault = pick(*g, vs.count);
+					to: []u8 = vs[x.now_vault].v.id;
+					sqlite.run(db, "UPDATE vault_items SET vault = ? WHERE id = ?;", to, id);
+				}
+			case 12;
+				// A vault's public key replaced with another's, or its own put back, so new items go to that key.
+				if !vs.count continue;
+				a, b := *vs[pick(*g, vs.count)], *vs[pick(*g, vs.count)];
+				id, pub: []u8 = a.v.id, b.v.pub;
+				sqlite.run(db, "UPDATE vault SET pub = ? WHERE id = ?;", pub, id);
+			case 13;
+				// A slot's version, salt or wrapped key changed, or put back. Never its cost, which could take seconds.
+				if !vs.count continue;
+				f := *vs[pick(*g, vs.count)];
+				params, wrapped := array_copy(f.params,, temp), array_copy(f.wrapped,, temp);
+				i := pick(*g, 17 + wrapped.count);
+				if i < 17 params[ifx i then 3 + i else 0] ^= cast(u8) (1 << pick(*g, 8));
+				else wrapped[i - 17] ^= cast(u8) (1 << pick(*g, 8));
+				if pick(*g, 4) == 0 params, wrapped = f.params, f.wrapped;
+				store := cast([]u8) join("vault ", to_string(f.v.id.data, 16),, temp);
+				sqlite.run(db, "UPDATE key_slots SET params = ?, wrapped = ? WHERE store = ?;", params, wrapped, store);
+			case 14;
+				fz_codec(*g);
+			case 15;
+				fz_vault_check(db, vs, xs);
+		}
+	}
+	fz_vault_check(db, vs, xs);
+	for xs if it.call vault.call_free(it.call);
+}
+
+fz_vault_check :: (db: *sqlite.DB, vs: []Fz_Vault, xs: []Fz_Item) {
+	for f, fi: vs {
+		pub_now, params_now, wrapped_now := fz_vault_now(db, f.v.id);
+		oracle(pub_now.count == crypto.XWING_PUBLIC_BYTES, "vault: a public key of % bytes", pub_now.count);
+		slot_good := crypto.constant_time_equal(params_now, f.params) && crypto.constant_time_equal(wrapped_now, f.wrapped);
+		pub_good := crypto.constant_time_equal(pub_now, f.v.pub);
+		v := f.v;
+		memcpy(v.pub.data, pub_now.data, pub_now.count);
+		want := ifx !slot_good then vault.Unlock_Result.Wrong_Password else ifx pub_good then .Ok else .Changed;
+		seed, got := vault.unlock(db, v, f.password);
+		defer crypto.zero(*seed);
+		oracle(got == want, "vault: unlock got %, want %", got, want);
+		took("unlock", got == .Ok);
+		_, wrong := vault.unlock(db, v, join(f.password, "!",, temp));
+		oracle(wrong == .Wrong_Password, "vault: a wrong password got %", wrong);
+		if got != .Ok continue;
+		listed, ok := vault.items(db, f.v,, temp);
+		oracle(ok, "vault: items failed");
+		n := 0;
+		for xs if it.vault_i >= 0 && it.now_vault == fi && it.now_kind <= 255 n += 1;
+		oracle(listed.count == n, "vault: % items listed, % in the vault", listed.count, n);
+		for row: listed {
+			x := fz_item_of(xs, row.id);
+			oracle(x && x.now_vault == fi && row.kind == x.now_kind, "vault: a listed item isn't this vault's");
+			key, head, opened := vault.item_open(db, f.v, seed, row,, temp);
+			want := x.head_good && x.vault_i == fi && x.now_kind == x.kind && crypto.constant_time_equal(fz_head_now(db, x.id), x.head_sealed);
+			oracle(opened == want, "vault: a head opened %, want %", opened, want);
+			if !took("head", opened) continue;
+			oracle(crypto.constant_time_equal(head, x.head), "vault: a head opened to other bytes");
+			if x.key_known oracle(crypto.constant_time_equal(key, x.key), "vault: a head opened to another key");
+			x.key, x.key_known = key, true;
+		}
+	}
+	for * x: xs {
+		if x.vault_i < 0 || !x.key_known continue;
+		got, complete := vault.records(db, x.id, x.key,, temp);
+		all := true;
+		for r: got {
+			want := r.seq >= 0 && r.seq < x.sealed.count && crypto.constant_time_equal(fz_sealed_now(db, x.id, r.seq), x.sealed[r.seq]);
+			oracle(r.ok == want, "vault: record % opened %, want %", r.seq, r.ok, want);
+			if r.ok oracle(crypto.constant_time_equal(r.plain, x.plain[r.seq]), "vault: record % opened to other bytes", r.seq);
+			all &&= r.ok && r.seq == it_index;
+		}
+		oracle(complete == all, "vault: complete is %, want %", complete, all);
+		took("complete", complete && got.count == x.plain.count);
+	}
+}
+
+// fz_codec: a Line round-trips, with unknown fields spliced in anywhere; random bytes never crash the
+// readers, and whatever fields() takes is exactly its own framing.
+fz_codec :: (g: *Gen) {
+	l := fz_line(g);
+	b := vault.encode_line(l,, temp);
+	fs, ok := vault.fields(b);
+	oracle(ok, "vault: an encoded line won't split");
+	more: [..]u8;
+	more.allocator = temp;
+	for fs {
+		while pick(g, 3) == 1 vault.field(*more, cast(u8) (8 + pick(g, 248)), gen_bytes(g, pick(g, 20)));
+		vault.field(*more, it.tag, it.value);
+	}
+	for i: 0..1 {
+		got, dok := vault.decode_line(ifx i then cast([]u8) more else b);
+		oracle(dok && fz_line_eq(got, l), "vault: a line didn't round-trip");
+	}
+	junk := ifx pick(g, 2) then gen_bytes(g, pick(g, 200)) else array_view(b, 0, pick(g, b.count + 1));
+	jf, jok := vault.fields(junk);
+	if took("fields", jok) {
+		again: [..]u8;
+		again.allocator = temp;
+		for jf vault.field(*again, it.tag, it.value);
+		oracle(crypto.constant_time_equal(again, junk), "vault: fields() isn't its own framing");
+	}
+	jl, lok := vault.decode_line(junk);
+	if took("decode_line", lok) {
+		jl2, lok2 := vault.decode_line(vault.encode_line(jl,, temp));
+		oracle(lok2 && fz_line_eq(jl, jl2), "vault: a decoded line doesn't re-encode to itself");
+	}
+	h := vault.Head.{fz_text(g), fz_text(g), fz_text(g), fz_s64(g)};
+	h2, hok := vault.decode_head(vault.encode_head(h,, temp));
+	oracle(hok && h2.title == h.title && h2.place == h.place && h2.model == h.model && h2.started_ms == h.started_ms, "vault: a head didn't round-trip");
+	vault.decode_head(junk);
+}
+
+fz_line :: (g: *Gen) -> vault.Line {
+	l: vault.Line;
+	l.kind = cast(vault.Line_Kind) (1 + pick(g, 4));
+	l.at_ms, l.end_ms, l.speaker, l.dropped_ms = fz_s64(g), fz_s64(g), cast,no_check(u64) fz_s64(g), fz_s64(g);
+	l.who, l.text = fz_text(g), fz_text(g);
+	return l;
+}
+
+fz_line_eq :: (a: vault.Line, b: vault.Line) -> bool {
+	return a.kind == b.kind && a.at_ms == b.at_ms && a.end_ms == b.end_ms && a.speaker == b.speaker && a.who == b.who && a.text == b.text && a.dropped_ms == b.dropped_ms;
+}
+
+// Mostly small numbers and zero, which encode drops, and sometimes any 64 bits.
+fz_s64 :: (g: *Gen) -> s64 {
+	if pick(g, 4) return pick(g, 3) * pick(g, 256);
+	v: s64;
+	for 0..7 v = (v << 8) | byte(g);
+	return v;
+}
+
+fz_text :: (g: *Gen) -> string { return cast(string) gen_bytes(g, ifx pick(g, 8) then pick(g, 30) else pick(g, 3000)); }
+
+fz_mangle :: (g: *Gen, b: []u8) -> []u8 {
+	out := array_copy(b,, temp);
+	k := pick(g, 8);
+	if k == 0 return array_view(out, 0, pick(g, out.count + 1));
+	if k == 1 return cast([]u8) join(cast(string) out, cast(string) gen_bytes(g, 1 + pick(g, 40)),, temp);
+	if k == 2 return gen_bytes(g, pick(g, 2000));
+	if out.count out[pick(g, out.count)] ^= cast(u8) (1 << pick(g, 8));
+	return out;
+}
+
+fz_pick :: (g: *Gen, xs: []Fz_Item, open := false) -> *Fz_Item {
+	if !xs.count return null;
+	x := *xs[pick(g, xs.count)];
+	if open && !x.open return null;
+	return x;
+}
+
+fz_item_of :: (xs: []Fz_Item, id: [16]u8) -> *Fz_Item {
+	for * xs if it.vault_i >= 0 && memcmp(it.id.data, id.data, 16) == 0 return it;
+	return null;
+}
+
+fz_vault_index :: (vs: []Fz_Vault, v: vault.Vault) -> int {
+	for vs if memcmp(it.v.id.data, v.id.data, 16) == 0 return it_index;
+	return -1;
+}
+
+// fz_item_made: an item now exists in the database, sealed to v's public key as it was read then.
+fz_item_made :: (db: *sqlite.DB, vs: []Fz_Vault, x: *Fz_Item, v: vault.Vault, id: [16]u8, key: [32]u8, key_known: bool) {
+	vi := fz_vault_index(vs, v);
+	oracle(vi >= 0, "vault: an item went to an unknown vault");
+	x.id, x.key, x.key_known = id, key, key_known;
+	x.vault_i, x.now_vault, x.now_kind = vi, vi, x.kind;
+	x.head_good = crypto.constant_time_equal(v.pub, vs[vi].v.pub);
+	x.head_sealed = fz_head_now(db, id);
+	oracle(x.head_sealed.count == x.head.count + 32 + crypto.HPKE_OVERHEAD, "vault: a head of % bytes", x.head_sealed.count);
+}
+
+fz_sealed_since :: (db: *sqlite.DB, x: *Fz_Item, before: s64) {
+	oracle(x.sealed.count == before, "vault: an item's seq is % after % records", before, x.sealed.count);
+	for seq: before..x.plain.count - 1 {
+		s := fz_sealed_now(db, x.id, seq);
+		oracle(s.count == x.plain[seq].count + keys.BOX_OVERHEAD, "vault: a record of % bytes sealed into %", x.plain[seq].count, s.count);
+		array_add(*x.sealed, s);
+	}
+}
+
+fz_taken :: (db: *sqlite.DB, id: [16]u8, from: s64, n: int) -> bool {
+	st := sqlite.prepare(db, "SELECT 1 FROM vault_records WHERE item = ? AND seq >= ? AND seq < ?;");
+	defer sqlite.finalize(st);
+	item: []u8 = id;
+	sqlite.bind_all(st, item, from, from + n);
+	return sqlite.step(st) == .Row;
+}
+
+fz_record_at :: (db: *sqlite.DB, g: *Gen) -> item: []u8, seq: s64 {
+	n := query_count(db, "SELECT COUNT(*) FROM vault_records;");
+	if !n return .[], 0;
+	st := sqlite.prepare(db, "SELECT item, seq FROM vault_records ORDER BY item, seq LIMIT 1 OFFSET ?;");
+	defer sqlite.finalize(st);
+	sqlite.bind_all(st, pick(g, n));
+	if sqlite.step(st) != .Row return .[], 0;
+	return array_copy(sqlite.col_blob(st, 0),, temp), sqlite.col_int(st, 1);
+}
+
+fz_sealed_now :: (db: *sqlite.DB, item: []u8, seq: s64) -> []u8 {
+	st := sqlite.prepare(db, "SELECT sealed FROM vault_records WHERE item = ? AND seq = ?;");
+	defer sqlite.finalize(st);
+	sqlite.bind_all(st, item, seq);
+	if sqlite.step(st) != .Row return .[];
+	return array_copy(sqlite.col_blob(st, 0),, temp);
+}
+
+fz_head_now :: (db: *sqlite.DB, id: [16]u8) -> []u8 {
+	st := sqlite.prepare(db, "SELECT head FROM vault_items WHERE id = ?;");
+	defer sqlite.finalize(st);
+	item: []u8 = id;
+	sqlite.bind_all(st, item);
+	if sqlite.step(st) != .Row return .[];
+	return array_copy(sqlite.col_blob(st, 0),, temp);
+}
+
+fz_vault_now :: (db: *sqlite.DB, id: [16]u8) -> pub: []u8, params: []u8, wrapped: []u8 {
+	pub, params, wrapped: []u8;
+	vid: []u8 = id;
+	st := sqlite.prepare(db, "SELECT pub FROM vault WHERE id = ?;");
+	sqlite.bind_all(st, vid);
+	if sqlite.step(st) == .Row pub = array_copy(sqlite.col_blob(st, 0),, temp);
+	sqlite.finalize(st);
+	st = sqlite.prepare(db, "SELECT params, wrapped FROM key_slots WHERE store = ?;");
+	store := cast([]u8) join("vault ", to_string(id.data, 16),, temp);
+	sqlite.bind_all(st, store);
+	if sqlite.step(st) == .Row params, wrapped = array_copy(sqlite.col_blob(st, 0),, temp), array_copy(sqlite.col_blob(st, 1),, temp);
+	sqlite.finalize(st);
+	return pub, params, wrapped;
+}
+
+query_count :: (db: *sqlite.DB, sql: string) -> int {
+	st := sqlite.prepare(db, sql);
+	defer sqlite.finalize(st);
+	return ifx sqlite.step(st) == .Row then sqlite.col_int(st, 0) else 0;
 }
 
 gen_bytes :: (g: *Gen, n: int) -> []u8 {

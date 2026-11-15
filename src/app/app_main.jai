@@ -398,6 +398,7 @@ app_exit :: () {
 	client_release(app.discord);
 	for hosted if it.client client_release(it.client, logout = true);
 	app.client, app.discord = null, null;
+	if transcript.active transcript_end(); // Its end record is queued before stop, which runs what's queued.
 	if e2e_db e2e.stop(e2e_db);
 	teardown_wait();
 	while e2e_db && !e2e.stopped(e2e_db) sleep_milliseconds(1);

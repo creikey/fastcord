@@ -26,6 +26,7 @@ imagefmt :: #import "imagefmt";
 keys :: #import "keys";
 serve :: #import "serve";
 stt :: #import "stt";
+vault :: #import "vault";
 locks :: #import "locks";
 lottie :: #import "lottie";
 media :: #import "media";

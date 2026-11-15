@@ -32,8 +32,13 @@ Transcribe :: struct {
 	// this call
 	active: bool;
 	channel: dc.Snowflake;
-	path: string; // heap: the call's transcript file
+	path: string; // heap: the call's transcript file, when there's no vault
 	lines: [..]Transcript_Line;
+	// Once a vault exists in fastcord.db, calls are sealed into it instead of written to files (src/vault).
+	vault_has: *vault.Has; // The startup question, until answered.
+	vault_known, vault_found: bool;
+	call: *vault.Call;     // This call's, until its last write is done.
+	writes: [..]*vault.Write;
 }
 
 Transcript_Line :: struct {
@@ -98,8 +103,27 @@ transcribe_frame :: () {
 		transcript.dl_id = "";
 	}
 	if transcript.dl || transcript.verify || transcript.check request_wake(platform.time_now() + 0.25);
+	if transcript.on && !transcript.vault_known && !transcript.vault_has && e2e_db {
+		transcript.vault_has = vault.has();
+		e2e.submit(e2e_db, transcript.vault_has);
+	}
+	if transcript.vault_has && e2e.is_done(transcript.vault_has) {
+		transcript.vault_found = transcript.vault_has.found && !transcript.vault_has.failed;
+		transcript.vault_known = true;
+		free(transcript.vault_has);
+		transcript.vault_has = null;
+	}
+	for transcript.writes if e2e.is_done(it) {
+		// Jobs run in order, so a call's last write is done only after all its others.
+		if it.end_ms {
+			if it.call.failed log_error("transcribe: a call's transcript couldn't be saved in full: %", ifx it.failed then e2e_db.error else "the database refused a write");
+			vault.call_free(it.call);
+		}
+		vault.free_write(it);
+		remove it;
+	}
 
-	want := transcript.on && transcript.present && stt.supported() && app.voice_channel != 0 && !voice_headless_quiet();
+	want := transcript.on && transcript.present && transcript.vault_known && stt.supported() && app.voice_channel != 0 && !voice_headless_quiet();
 	if want && (!transcript.active || transcript.channel != app.voice_channel) transcript_begin(m);
 	else if !want && transcript.active transcript_end();
 
@@ -109,6 +133,8 @@ transcribe_frame :: () {
 	if !got.count return;
 	b: String_Builder;
 	b.allocator = temp;
+	sealed: [..]vault.Line;
+	sealed.allocator = temp;
 	s := call_store();
 	ch := dc.channel_get(s, transcript.channel);
 	gid := ifx ch then ch.guild_id else 0;
@@ -123,13 +149,23 @@ transcribe_frame :: () {
 			if it.not_recordable l.note = copy_string(L("Not transcribed: their voice recording is off."));
 			else l.text = it.text;
 		}
+		if transcript.call {
+			kind := ifx it.dropped_ms then vault.Line_Kind.Fell_Behind else ifx it.not_recordable then .Not_Recordable else .Said;
+			array_add(*sealed, .{kind = kind, at_ms = it.start_ms, end_ms = it.end_ms, speaker = ifx it.dropped_ms then 0 else it.user_id, who = l.who, text = l.text, dropped_ms = it.dropped_ms});
+		}
 		if !l.text free(it.text);
 		t := to_calendar(APOLLO_TIME_FOR_JAN_1_1970 + milliseconds_to_apollo(l.at_ms), .LOCAL);
 		print_to_builder(*b, "**%:%:%** %: %\n\n", formatInt(t.hour, minimum_digits = 2), formatInt(t.minute, minimum_digits = 2), formatInt(t.second, minimum_digits = 2),
 			ifx l.who then l.who else "—", ifx l.text then l.text else tprint("_%_", l.note));
 	}
-	if transcript.path && !voice_headless_quiet() stt.append_file(transcript.path, builder_to_string(*b,, temp));
+	if transcript.call transcript_write(vault.write(transcript.call, sealed));
+	else if transcript.path && !voice_headless_quiet() stt.append_file(transcript.path, builder_to_string(*b,, temp));
 	app.ui.animating = true;
+}
+
+transcript_write :: (w: *vault.Write) {
+	e2e.submit(e2e_db, w);
+	array_add(*transcript.writes, w);
 }
 
 // Headless runs (tests, shots) transcribe like a real one but write no file.
@@ -150,6 +186,12 @@ transcript_begin :: (m: *stt.Model) {
 	stamp := tprint("%-%-% %%", t.year, formatInt(t.month_starting_at_0 + 1, minimum_digits = 2), formatInt(t.day_of_month_starting_at_0 + 1, minimum_digits = 2),
 		formatInt(t.hour, minimum_digits = 2), formatInt(t.minute, minimum_digits = 2));
 	free(transcript.path);
+	transcript.path = "";
+	if transcript.vault_found {
+		g := ifx ch then dc.guild_get(s, ch.guild_id) else null;
+		transcript.call = vault.call_start(.{title = name, place = ifx g then g.name else "", model = m.id, started_ms = unix_ms_now()});
+		return;
+	}
 	transcript.path = sprint("%/% %.md", app_data_dir("transcripts"), stamp, file_safe(name));
 	if !voice_headless_quiet() stt.append_file(transcript.path, tprint("# %\n\n%\n\n", name, tprint(L("Transcribed on this computer with %."), m.name)));
 }
@@ -157,7 +199,14 @@ transcript_begin :: (m: *stt.Model) {
 transcript_end :: () {
 	transcript.active = false;
 	stt.set_active(false);
+	if transcript.call {
+		NONE: []vault.Line;
+		transcript_write(vault.write(transcript.call, NONE, unix_ms_now()));
+		transcript.call = null; // Freed once that write is done.
+	}
 }
+
+unix_ms_now :: () -> s64 { return to_milliseconds(current_time_consensus() - APOLLO_TIME_FOR_JAN_1_1970); }
 
 // file_safe: a channel name as part of a file name on every OS.
 file_safe :: (s: string) -> string {

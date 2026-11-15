@@ -205,6 +205,17 @@ int fc_xwing_generate(uint8_t priv[XWING_PRIVATE_KEY_BYTES], uint8_t pub[XWING_P
     return ok;
 }
 
+int fc_xwing_public(const uint8_t priv[XWING_PRIVATE_KEY_BYTES], uint8_t pub[XWING_PUBLIC_KEY_BYTES]) {
+    EVP_HPKE_KEY k;
+    EVP_HPKE_KEY_zero(&k);
+    size_t pl = 0;
+    int ok = EVP_HPKE_KEY_init(&k, EVP_hpke_xwing(), priv, XWING_PRIVATE_KEY_BYTES) &&
+             EVP_HPKE_KEY_public_key(&k, pub, &pl, XWING_PUBLIC_KEY_BYTES) && pl == XWING_PUBLIC_KEY_BYTES;
+    EVP_HPKE_KEY_cleanup(&k);
+    OPENSSL_cleanse(&k, sizeof k);
+    return ok;
+}
+
 // out must hold XWING_CIPHERTEXT_BYTES + inlen + 16.
 int fc_hpke_seal(const uint8_t *pub, size_t pub_len, const uint8_t *info, size_t ilen, const uint8_t *ad, size_t adlen, const uint8_t *in, size_t inlen, uint8_t *out) {
     EVP_HPKE_CTX c;

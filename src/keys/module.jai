@@ -156,6 +156,91 @@ decode :: (b: []u8) -> Keypair, bool {
 wrap_secret :: wrap;
 unwrap_secret :: unwrap;
 
+// Boxes and key slots (AT_REST.md). A box is a value sealed under a store's 32-byte key: version 1, a random
+// 24-byte nonce, then XChaCha20-Poly1305's ciphertext and tag. Its AD (box_ad) names where the value lives,
+// so a box moved to another store, table, column or row won't open.
+BOX_OVERHEAD :: 1 + 24 + 16;
+
+box_ad :: (store: string, table: string, column: string, row: []u8) -> []u8 {
+	return lp_join("fc-box-v1", store, table, column, cast(string) row);
+}
+
+// box_seal is in context.allocator.
+box_seal :: (key: [32]u8, ad: []u8, plain: []u8) -> []u8 {
+	a: crypto.Aead;
+	ok := crypto.aead_init(*a, .XCHACHA20_POLY1305, key);
+	assert(ok);
+	defer crypto.aead_destroy(*a);
+	out := NewArray(BOX_OVERHEAD + plain.count, u8, false);
+	out[0] = 1;
+	crypto.random_bytes(array_view(out, 1, 24));
+	ok = crypto.seal(*a, array_view(out, 25, plain.count), array_view(out, 25 + plain.count, 16), array_view(out, 1, 24), ad, plain);
+	assert(ok);
+	return out;
+}
+
+// box_open is in context.allocator; false for a wrong key or AD, an unknown version or any changed byte.
+box_open :: (key: [32]u8, ad: []u8, b: []u8) -> []u8, bool {
+	if b.count < BOX_OVERHEAD || b[0] != 1 return .[], false;
+	a: crypto.Aead;
+	if !crypto.aead_init(*a, .XCHACHA20_POLY1305, key) return .[], false;
+	defer crypto.aead_destroy(*a);
+	n := b.count - BOX_OVERHEAD;
+	out := NewArray(n, u8, false);
+	if !crypto.open(*a, out, array_view(b, 1, 24), ad, array_view(b, 25, n), array_view(b, 25 + n, 16)) {
+		array_free(out);
+		return .[], false;
+	}
+	return out, true;
+}
+
+// A key slot is one way to unlock a store's key (AT_REST.md "Slots"). A password slot boxes the key under
+// scrypt(password, salt); its params are version 1, log2 N, r, p, then the 16-byte salt. The password is
+// used as typed, with no Unicode normalisation.
+SLOT_PASSWORD :: "password";
+SCRYPT_LOG2_N :: 17; // 128 MiB and about 0.4 s: never on the UI thread.
+SLOT_PARAMS_BYTES :: 4 + 16;
+
+// slot_password_make: params and the wrapped key, both in context.allocator. log2_n is lowered only by tests.
+slot_password_make :: (secret: []u8, password: string, store: string, id: []u8, log2_n := SCRYPT_LOG2_N) -> params: []u8, wrapped: []u8 {
+	params := NewArray(SLOT_PARAMS_BYTES, u8, false);
+	params[0], params[1], params[2], params[3] = 1, xx log2_n, 8, 1;
+	crypto.random_bytes(array_view(params, 4, 16));
+	kek: [32]u8;
+	defer crypto.zero(*kek);
+	ok := crypto.scrypt(xx password, array_view(params, 4, 16), 1 << log2_n, 8, 1, kek);
+	assert(ok);
+	return params, box_seal(kek, slot_ad(store, SLOT_PASSWORD, id), secret);
+}
+
+// slot_password_open: the key, in context.allocator, or false for a wrong password or a damaged slot.
+// params come from disk, so scrypt refuses any shape past 1 GiB.
+slot_password_open :: (params: []u8, wrapped: []u8, password: string, store: string, id: []u8) -> []u8, bool {
+	if params.count != SLOT_PARAMS_BYTES || params[0] != 1 || params[1] > 30 return .[], false;
+	kek: [32]u8;
+	defer crypto.zero(*kek);
+	if !crypto.scrypt(xx password, array_view(params, 4, 16), 1 << params[1], params[2], params[3], kek) return .[], false;
+	key, ok := box_open(kek, slot_ad(store, SLOT_PASSWORD, id), wrapped);
+	return key, ok;
+}
+
+slot_ad :: (store: string, kind: string, id: []u8) -> []u8 { return lp_join("fc-slot-v1", store, kind, cast(string) id); }
+
+// lp_join: a label, then each part as a u16 little-endian length and its bytes, in temp.
+lp_join :: (label: string, parts: ..string) -> []u8 {
+	n := label.count;
+	for parts { assert(it.count <= 0xFFFF); n += 2 + it.count; }
+	out := NewArray(n, u8, false,, temp);
+	memcpy(out.data, label.data, label.count);
+	at := label.count;
+	for parts {
+		out[at], out[at + 1] = cast(u8) (it.count & 0xFF), cast(u8) (it.count >> 8);
+		memcpy(out.data + at + 2, it.data, it.count);
+		at += 2 + it.count;
+	}
+	return out;
+}
+
 // Storage: <dir>/<root>.key, a second copy in <dir>/copy/, and <dir>/trash/ for removed keys.
 // fastcord never deletes a key file. dir lives beside <state>, never inside it, so resetting
 // settings or deleting <state> leaves the keys alone.
