@@ -1,17 +1,22 @@
 /* libjpeg-turbo build number */
 #define BUILD  "fastcord"
 
-/* How to hide global symbols. */
-#define HIDDEN  __attribute__((visibility("hidden")))
-
 /* Compiler's inline keyword */
 #undef inline
 
-/* How to obtain function inlining. */
+/* How to hide global symbols, obtain function inlining and thread-local storage. MSVC has no
+   symbol visibility, no __builtin_ctzl, and a 4-byte unsigned long. */
+#ifdef _MSC_VER
+#define HIDDEN
+#define INLINE  __forceinline
+#define THREAD_LOCAL  __declspec(thread)
+#define HAVE_INTRIN_H
+#else
+#define HIDDEN  __attribute__((visibility("hidden")))
 #define INLINE  __inline__ __attribute__((always_inline))
-
-/* How to obtain thread-local storage */
 #define THREAD_LOCAL  __thread
+#define HAVE_BUILTIN_CTZL
+#endif
 
 /* Define to the full name of this package. */
 #define PACKAGE_NAME  "libjpeg-turbo"
@@ -21,12 +26,6 @@
 
 /* The size of `size_t', as computed by sizeof. */
 #define SIZEOF_SIZE_T  8
-
-/* Define if your compiler has __builtin_ctzl() and sizeof(unsigned long) == sizeof(size_t). */
-#define HAVE_BUILTIN_CTZL
-
-/* Define to 1 if you have the <intrin.h> header file. */
-/* #undef HAVE_INTRIN_H */
 
 #if defined(_MSC_VER) && defined(HAVE_INTRIN_H)
 #if (SIZEOF_SIZE_T == 8)
