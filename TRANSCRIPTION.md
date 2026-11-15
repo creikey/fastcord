@@ -92,6 +92,9 @@ Requirement: a transcript's plain text exists only in fastcord's memory. On disk
 another program can't read without the user's help, and plain text reaches the disk only when the user
 exports it through fastcord.
 
+The vault is the first user of the general scheme in `AT_REST.md` (boxes, drops and key slots for every
+store, servers included): a write-only store with a password slot.
+
 ### What fastcord has today, and why it isn't enough
 
 - `fastcord.db` seals its secret columns per row with XChaCha20-Poly1305 under a random `db_key`
