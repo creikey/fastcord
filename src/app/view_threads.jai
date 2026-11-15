@@ -109,8 +109,9 @@ thread_summary_pill :: (m: *dc.Message) {
 // ---- forum channels ----
 
 // A forum: "Search or create a post..." filters the posts by title as you type, and New Post (or Enter)
-// opens the post form with the typed title: tags, the first message, Post. Sort (Recent Activity or
-// Date Posted) and a tag filter sit above the cards.
+// opens the post form with the typed title: tags, the first message, Post. Files pasted into the form or
+// dropped on the forum are staged on it and go with the post. Sort (Recent Activity or Date Posted) and a
+// tag filter sit above the cards.
 FORUM_POST_TAG :: cast(u64) 1 << 62; // Thread_Create tags of forum posts, apart from the threads browser's
 FORUM_REQUIRE_TAG :: 1 << 4; // channel flag: a post needs a tag
 
@@ -201,6 +202,7 @@ forum_view :: (ch: *dc.Channel) {
 			}
 			spacer(.X, 24);
 		}
+		if can_post && staged_count(ch.id) submit = true; // files dropped on the forum start a post
 		if submit && !st.creating {
 			st.creating = true;
 			ui.editor_set_text(*st.title, trim(ui.editor_text(*st.query)));
@@ -325,6 +327,7 @@ forum_post_created :: (r: *dc.Feature_Result) {
 	st.creating = false;
 	ui.editor_set_text(*st.query, ""); ui.editor_set_text(*st.title, ""); ui.editor_set_text(*st.body, "");
 	st.tags.count = 0;
+	attachments_posted(r.channel_id);
 	if ch select_channel(ch.guild_id, id);
 }
 
@@ -345,6 +348,7 @@ Forum_State :: struct {
 	tags: [..]dc.Snowflake; // the new post's
 	focus_title, focus_body: bool;
 	busy: bool;
+	uploading: bool; // Post waits for the staged files' uploads
 	tag: u64;
 	error: string;
 }
@@ -389,7 +393,8 @@ forum_post_form :: (ch: *dc.Channel, st: *Forum_State, tags: []dc.Forum_Tag) {
 	ui.parent(card); defer ui.pop_parent();
 	inset_begin(16, 16);
 	defer inset_end(16, 16);
-	field :: (id: string, ed: *ui.Editor, placeholder: string, focus: *bool, size: float32) -> ui.Edit_Result {
+	// Either field takes pasted files and bitmaps, staged on the forum like the composer's (uploads_bar).
+	field :: (id: string, ed: *ui.Editor, placeholder: string, focus: *bool, size: float32, forum: dc.Snowflake) -> ui.Edit_Result {
 		b := row(id, .Draw_Background | .Draw_Border | .Clickable);
 		b.semantic_size = .[ui.pct(1), ui.children()];
 		b.style.bg = T("--input-background-default");
@@ -399,13 +404,14 @@ forum_post_form :: (ch: *dc.Channel, st: *Forum_State, tags: []dc.Forum_Tag) {
 		b.hover_cursor = .IBeam;
 		if ui.signal(b).pressed || focus.* app.ui.focus = b.key;
 		focus.* = false;
+		if app.ui.focus == b.key && !modal_open() paste_attachments_key(forum);
 		ui.parent(b); defer ui.pop_parent();
 		spacer(.X, 12);
 		res := text_field("f", ed, placeholder, app.ui.focus == b.key, size, size + 4, 9);
 		spacer(.X, 12);
 		return res;
 	}
-	r1 := field("title", *st.title, L("Post title"), *st.focus_title, 16);
+	r1 := field("title", *st.title, L("Post title"), *st.focus_title, 16, ch.id);
 	t := ui.editor_text(*st.title);
 	cut := cut_runes(t, 100);
 	if cut.count < t.count ui.editor_set_text(*st.title, copy_string(cut,, temp));
@@ -427,7 +433,8 @@ forum_post_form :: (ch: *dc.Channel, st: *Forum_State, tags: []dc.Forum_Tag) {
 		}
 	}
 	spacer(.Y, 12);
-	r2 := field("body", *st.body, L("Enter a message to start the conversation!"), *st.focus_body, 16);
+	if staged_count(ch.id) { uploads_bar(ch.id); spacer(.Y, 12); }
+	r2 := field("body", *st.body, L("Enter a message to start the conversation!"), *st.focus_body, 16, ch.id);
 	if (r1 == .Changed || r2 == .Changed) && app.client != null && net_action() dc.typing_keystroke(app.client, ch.id);
 	if st.error {
 		spacer(.Y, 8);
@@ -436,7 +443,7 @@ forum_post_form :: (ch: *dc.Channel, st: *Forum_State, tags: []dc.Forum_Tag) {
 	spacer(.Y, 12);
 	title := trim(ui.editor_text(*st.title));
 	body := trim(ui.editor_text(*st.body));
-	ok := title != "" && body != "" && !st.busy && (!(ch.flags & FORUM_REQUIRE_TAG) || st.tags.count > 0 || !tags.count);
+	ok := title != "" && (body != "" || staged_count(ch.id) > 0) && !st.busy && (!(ch.flags & FORUM_REQUIRE_TAG) || st.tags.count > 0 || !tags.count);
 	btns := row("btns");
 	btns.semantic_size = .[ui.pct(1), ui.px(36)];
 	btns.style.child_gap = 8;
@@ -447,7 +454,7 @@ forum_post_form :: (ch: *dc.Channel, st: *Forum_State, tags: []dc.Forum_Tag) {
 	cancel.style.radius = all4(8);
 	cancel.style.bg_hot = T("--background-mod-subtle");
 	{ ui.parent(cancel); defer ui.pop_parent(); spacer(.X, 12); label(L("Cancel"), .Medium, 14, T("--text-default"), 18); spacer(.X, 12); }
-	if ui.signal(cancel).clicked st.creating = false; // what was typed stays for the next New Post
+	if ui.signal(cancel).clicked st.creating, st.busy, st.uploading = false, false, false; // what was typed stays for the next New Post
 	go := row("post", ifx ok then .Clickable | .Draw_Background | .Hot_Animation else .Draw_Background);
 	go.semantic_size = .[ui.children(), ui.px(36)];
 	go.style.radius = all4(8);
@@ -455,11 +462,25 @@ forum_post_form :: (ch: *dc.Channel, st: *Forum_State, tags: []dc.Forum_Tag) {
 	go.style.bg_hot = with_alpha(T("--background-brand"), 0.85);
 	{ ui.parent(go); defer ui.pop_parent(); spacer(.X, 16); label(ifx st.busy then L("Posting...") else L("Post"), .Medium, 14, .{1, 1, 1, 1}, 18); spacer(.X, 16); }
 	if ok && (ui.signal(go).clicked || r1 == .Submit || r2 == .Submit) && net_action() {
-		st.busy = true;
-		st.tag = FORUM_POST_TAG | (st.tag + 1);
+		st.busy, st.uploading = true, true;
 		free(st.error);
 		st.error = "";
-		dc.create_forum_post(app.client, ch.id, title, mentions_convert(emoji_convert_shortcodes(body, ch.id), ch), st.tags, st.tag);
+	}
+	// the post goes once its files are read and uploaded (they started uploading when staged)
+	if st.uploading && app.client {
+		atts, loaded := attachments_for_send(ch.id);
+		json, waiting, failed := "", !loaded, false;
+		if loaded && atts json, waiting, failed = dc.drafts_attachments_json(app.client, atts);
+		if failed {
+			st.busy, st.uploading = false, false;
+			st.error = copy_string(L("Something went wrong. Try again."));
+		} else if waiting {
+			request_wake(app.ui.time + 0.1);
+		} else {
+			st.uploading = false;
+			st.tag = FORUM_POST_TAG | (st.tag + 1);
+			dc.create_forum_post(app.client, ch.id, title, mentions_convert(emoji_convert_shortcodes(body, ch.id), ch), st.tags, st.tag, json);
+		}
 	}
 }
 

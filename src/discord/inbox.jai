@@ -75,9 +75,9 @@ create_thread :: (c: *Client, parent_id: Snowflake, name: string, location := "T
 }
 
 // create_forum_post: a forum's new post, POST /channels/{forum}/threads {name, auto_archive_duration,
-// applied_tags, message: {content}}; the reply is the post (a thread whose starter message shares its ID).
-// No capture yet (traffic/CLIENT_RULES.md "Forum posts").
-create_forum_post :: (c: *Client, forum_id: Snowflake, name: string, content: string, tags: []Snowflake, tag: u64) {
+// applied_tags, message: {content, attachments?}}; the reply is the post (a thread whose starter message
+// shares its ID). attachments: drafts_attachments_json's array. No capture yet (traffic/CLIENT_RULES.md "Forum posts").
+create_forum_post :: (c: *Client, forum_id: Snowflake, name: string, content: string, tags: []Snowflake, tag: u64, attachments := "") {
 	w: Json;
 	json_init(*w);
 	json_obj(*w);
@@ -90,6 +90,10 @@ create_forum_post :: (c: *Client, forum_id: Snowflake, name: string, content: st
 	json_key(*w, "message");
 	json_obj(*w);
 	json_kstr(*w, "content", content);
+	if attachments {
+		json_key(*w, "attachments");
+		json_raw(*w, attachments);
+	}
 	json_obj_end(*w);
 	json_obj_end(*w);
 	f_submit(c, .{op = .Thread_Create, tag = tag, channel_id = forum_id, method = "POST", path = channel_path(forum_id, "/threads"), body = json_string(*w)});

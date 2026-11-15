@@ -2809,25 +2809,7 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 			if ok ok = sqlite.run(s.db, "UPDATE thread_members SET joined = 1 WHERE thread = ? AND user = ?;", channel, user); // posting rejoins a thread
 			for ids if ok ok = sqlite.run(s.db, "INSERT OR IGNORE INTO mentions(message, user) SELECT ?, id FROM users WHERE id = ? AND left = 0;", id, it);
 			bad_file := false;
-			if atts.kind == .List for a: atts.list {
-				if !ok break;
-				field :: (name: string) -> string #expand {
-					f, _ := etf.map_get(`a.map, name);
-					return ifx f.kind == .String then f.s else "";
-				}
-				if a.kind != .Map { bad_file = true; break; }
-				spoiler, _ := etf.map_get(a.map, "is_spoiler");
-				name := field("filename");
-				description := field("description");
-				if !name || name.count > 255 || !text_ok(name) || contains(name, "/") || contains(name, "\\") || description.count > 1024 || !text_ok(description) { bad_file = true; break; }
-				if spoiler.kind == .Bool && spoiler.b && !begins_with(name, "SPOILER_") name = tprint("SPOILER_%", name);
-				key: [8]u8;
-				crypto.random_bytes(key);
-				ok = sqlite.run(s.db, "INSERT INTO attachments(id, message, key, filename, content_type, size, width, height, description, data) SELECT ?, ?, ?, ?, content_type, size, width, height, coalesce(?, ''), data FROM uploads WHERE token = ? AND user = ? AND channel = ? AND data IS NOT NULL;",
-					snowflake(s), id, hex(key,, temp), name, description, field("uploaded_filename"), user, channel);
-				if ok && sqlite.changes(s.db) != 1 { bad_file = true; break; }
-				ok = ok && sqlite.run(s.db, "DELETE FROM uploads WHERE token = ?;", field("uploaded_filename"));
-			}
+			if ok ok, bad_file = attach_uploads_locked(s, id, user, channel, atts);
 			if bad_file {
 				sqlite.exec(s.db, "ROLLBACK;");
 				return json_error(c, 400, 50035, "Invalid Form Body");
@@ -3107,9 +3089,15 @@ create_thread :: (c: *Conn, req: http.Request, user: s64, parent: s64, message: 
 	if has_after && after_v.kind != .Nil && !(after == 60 || after == 1440 || after == 4320 || after == 10080) return json_error(c, 400, 50035, "Invalid Form Body");
 	name := ifx raw.kind == .String then trim(raw.s) else "";
 	if !name || name.count > 100 || !text_ok(name) || (has_kind && !(kind_v.kind == .Int && kind_v.i == THREAD)) return json_error(c, 400, 50035, "Invalid Form Body");
-	content: etf.Value;
-	if post_v.kind == .Map content, _ = etf.map_get(post_v.map, "content");
-	if has_post && (content.kind != .String || !trim(content.s) || !text_ok(content.s, lines = true)) return json_error(c, 400, 50006, "Cannot send an empty message");
+	content, atts: etf.Value;
+	if post_v.kind == .Map {
+		content, _ = etf.map_get(post_v.map, "content");
+		atts, _ = etf.map_get(post_v.map, "attachments");
+	}
+	has_files := atts.kind == .List && atts.list.count > 0;
+	if (atts.kind != .Nil && atts.kind != .List) || (has_files && atts.list.count > MAX_UPLOADS) return json_error(c, 400, 50035, "Invalid Form Body");
+	if has_files && content.kind == .Nil content = etf.vstring("");
+	if has_post && (content.kind != .String || (!trim(content.s) && !has_files) || !text_ok(content.s, lines = true)) return json_error(c, 400, 50006, "Cannot send an empty message");
 	if has_post && utf16_units(content.s) > MAX_CONTENT return content_too_long(c);
 	thread, starter, member, post: etf.Value;
 	{
@@ -3121,6 +3109,7 @@ create_thread :: (c: *Conn, req: http.Request, user: s64, parent: s64, message: 
 		p := perms_of_locked(s, user);
 		perms := channel_perms_locked(s, *p, parent);
 		if !(perms & (ifx forum then P_SEND_MESSAGES else P_CREATE_PUBLIC_THREADS)) return json_error(c, 403, 50013, "Missing Permissions");
+		if has_files && !(perms & P_ATTACH_FILES) return json_error(c, 403, 50013, "Missing Permissions");
 		applied_v, _ := etf.map_get(v.map, "applied_tags");
 		applied := "";
 		if forum {
@@ -3147,16 +3136,24 @@ create_thread :: (c: *Conn, req: http.Request, user: s64, parent: s64, message: 
 			id = snowflake(s);
 		}
 		// A thread hides after its parent's Hide After Inactivity unless it names its own.
+		if !sqlite.exec(s.db, "BEGIN;") return json_error(c, 500, 0, "500: Internal Server Error");
 		made := sqlite.run(s.db, "INSERT INTO channels(id, name, position, type, parent, owner, tags, archive_after) VALUES(?1, ?2, 0, ?3, ?4, ?5, nullif(?6, ''), coalesce(nullif(?7, 0), (SELECT archive_after FROM channels WHERE id = ?4), 4320));",
 			id, name, THREAD, parent, user, applied, after);
-		if !made return json_error(c, 500, 0, "500: Internal Server Error");
-		if forum {
-			everyone := (contains(content.s, "@everyone") || contains(content.s, "@here")) && (perms & P_MENTION_EVERYONE) != 0;
-			ok := sqlite.run(s.db, "INSERT INTO messages(id, channel, author, content, everyone) VALUES(?1, ?1, ?, ?, ?);", id, user, content.s, cast(int) everyone);
+		ok, bad_file := made, false;
+		everyone := forum && (contains(content.s, "@everyone") || contains(content.s, "@here")) && (perms & P_MENTION_EVERYONE) != 0;
+		if forum && ok {
+			ok = sqlite.run(s.db, "INSERT INTO messages(id, channel, author, content, everyone) VALUES(?1, ?1, ?, ?, ?);", id, user, content.s, cast(int) everyone);
 			for mention_ids(content.s) if ok ok = sqlite.run(s.db, "INSERT OR IGNORE INTO mentions(message, user) SELECT ?, id FROM users WHERE id = ? AND left = 0;", id, it);
-			if !ok || !sqlite.run(s.db, COUNT_MENTIONS, id, user, cast(int) everyone, id) return json_error(c, 500, 0, "500: Internal Server Error");
-			post = message_locked(s, id, nested = false);
+			// the files were uploaded to the forum, where the post's message is written
+			if ok ok, bad_file = attach_uploads_locked(s, id, user, parent, atts);
+			ok = ok && !bad_file && sqlite.run(s.db, COUNT_MENTIONS, id, user, cast(int) everyone, id);
 		}
+		if !(ok && sqlite.exec(s.db, "COMMIT;")) {
+			sqlite.exec(s.db, "ROLLBACK;");
+			if bad_file return json_error(c, 400, 50035, "Invalid Form Body");
+			return json_error(c, 500, 0, "500: Internal Server Error");
+		}
+		if forum post = message_locked(s, id, nested = false);
 		thread = channel_locked(s, id);
 		member = thread_member_locked(s, id, user);
 		if message starter = message_locked(s, message);
@@ -3170,6 +3167,32 @@ create_thread :: (c: *Conn, req: http.Request, user: s64, parent: s64, message: 
 	etf.map_put(*m, "member", member);
 	if post.kind == .Map etf.map_put(*m, "message", post);
 	return json_reply(c, 201, etf.vmap(etf.map_done(*m)));
+}
+
+// attach_uploads_locked gives a new message the files the sender uploaded to channel
+// (attachments [{filename, uploaded_filename, description?, is_spoiler?}]), inside the caller's transaction.
+// bad: one is malformed or names no upload of theirs, and the caller rolls back.
+attach_uploads_locked :: (s: *Server, id: s64, user: s64, channel: s64, atts: etf.Value) -> ok: bool, bad: bool {
+	if atts.kind != .List return true, false;
+	for a: atts.list {
+		field :: (name: string) -> string #expand {
+			f, _ := etf.map_get(`a.map, name);
+			return ifx f.kind == .String then f.s else "";
+		}
+		if a.kind != .Map return true, true;
+		spoiler, _ := etf.map_get(a.map, "is_spoiler");
+		name := field("filename");
+		description := field("description");
+		if !name || name.count > 255 || !text_ok(name) || contains(name, "/") || contains(name, "\\") || description.count > 1024 || !text_ok(description) return true, true;
+		if spoiler.kind == .Bool && spoiler.b && !begins_with(name, "SPOILER_") name = tprint("SPOILER_%", name);
+		key: [8]u8;
+		crypto.random_bytes(key);
+		ok := sqlite.run(s.db, "INSERT INTO attachments(id, message, key, filename, content_type, size, width, height, description, data) SELECT ?, ?, ?, ?, content_type, size, width, height, coalesce(?, ''), data FROM uploads WHERE token = ? AND user = ? AND channel = ? AND data IS NOT NULL;",
+			snowflake(s), id, hex(key,, temp), name, description, field("uploaded_filename"), user, channel);
+		if ok && sqlite.changes(s.db) != 1 return true, true;
+		if !(ok && sqlite.run(s.db, "DELETE FROM uploads WHERE token = ?;", field("uploaded_filename"))) return false, false;
+	}
+	return true, false;
 }
 
 MAX_FORUM_TAGS :: 20; // As on Discord.

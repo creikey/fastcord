@@ -409,7 +409,8 @@
 - [ ] Chat: an age-gated channel still loads its messages behind the gate (the official mounts no chat until you agree), and age-restricted servers (`nsfw_level` 3) aren't gated (`nsfw_gated`).
 - [ ] Events: event cards lack the cover image and the recurring-event series picker; the details modal has no Interested tab (who RSVP'd).
   - Done: clicking an event invite card (in a server you're in) or a card in the Events list opens the event's details modal: its start, name, description, place, creator and actions (`details_modal`, `tests/ui/threads/event_details.txt`).
-- [ ] Forums: a new post can't carry files, and there's no gallery layout.
+- [ ] Forums: there's no gallery layout.
+  - Done: files on a new post (#64): an image or files pasted into the title or message field, or dropped on the forum (which opens the form), are staged and upload as in the composer, and Post sends them with the first message, on Discord and hosted servers (`forum_post_form`, `drafts_attachments_json`, serve `create_thread`; `tests/ui/forum_post.txt`).
   - Done: "Search or create a post..." filters by title, Enter or New Post opens the post form (title, tags, first message; Post opens the new post), a tag filter and Sort (Recent Activity, Date Posted), on Discord and hosted servers (`forum_view`, `forum_post_form`, `tests/ui/forum_post.txt`).
 - [ ] Forums: the search box, the tag filter and Sort: Date Posted only sift the posts already loaded, so an older archived post that matches shows only after scrolling to it. The client asks `/threads/search` again with `tag=`, `sort_by=creation_time` and the typed words (`forum_view`).
 - [ ] Bug (Windows): once, a headless live run with the camera on, while watching another camera, never exited after its final screenshot (`app_exit` after `video_shutdown`); five more runs of the same exit were clean. Take every thread's stack the next time it happens (lldb -p).

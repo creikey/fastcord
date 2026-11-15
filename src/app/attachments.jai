@@ -244,6 +244,26 @@ paste_attachments :: (channel_id: dc.Snowflake) -> bool {
 	return false;
 }
 
+// Cmd/Ctrl+V in a focused field that takes files: files or a bitmap on the clipboard are staged
+// instead of pasting text (the composer, a forum's new post).
+paste_attachments_key :: (channel_id: dc.Snowflake) {
+	for * e: app.ui.events {
+		if e.consumed || e.kind != .Key_Down || e.key != .V || (e.mods & (.Shift | .Alt)) || !(e.mods & PRIMARY_MOD) continue;
+		if paste_attachments(channel_id) e.consumed = true;
+	}
+}
+
+// A forum's new post landed with the staged files: they now belong to it, so clear the cards.
+attachments_posted :: (channel_id: dc.Snowflake) {
+	l := table_find_pointer(*att.by_channel, channel_id);
+	if !l return;
+	for * l.* {
+		if it.draft && app.client dc.upload_draft_release(app.client, it.draft);
+		staged_free(it);
+	}
+	l.count = 0;
+}
+
 // Remove (trash): the uploaded file is deleted from the bucket too.
 staged_remove :: (channel_id: dc.Snowflake, key: u64) {
 	l := staged_list(channel_id);

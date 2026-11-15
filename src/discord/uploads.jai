@@ -255,8 +255,27 @@ run_draft_upload :: (c: *Client, j: *Job) {
 DRAFT_RETRIES :: 2;
 
 run_draft_send :: (c: *Client, j: *Job) -> bool {
-	d := drafts_of(c);
 	atts := j.drafts;
+	json, waiting, failed := drafts_attachments_json(c, atts);
+	if waiting return true;
+	if failed {
+		for atts upload_draft_release(c, it.handle);
+		client_push_event(c, Event.{kind = .Rest, result = Rest_Result.{op = .Send_Message, channel_id = j.result.channel_id, nonce = j.result.nonce, ok = false}});
+		return false;
+	}
+	body := j.message_json(j, json);
+	r := api_call(c, "POST", j.path, body, "application/json", j.context_b64, .[], 3, 1);
+	// a failed send keeps its uploaded files for Retry (the app releases them once the message is gone)
+	if r.ok for atts upload_draft_release(c, it.handle);
+	j.result.op = .Send_Message;
+	push_result(c, j, r, body);
+	return false;
+}
+
+// drafts_attachments_json: where a send's drafts stand. Still uploading (a failed one with its bytes goes
+// again), failed, or done: the attachments array for the body (temp).
+drafts_attachments_json :: (c: *Client, atts: []Draft_Attachment) -> json: string, waiting: bool, failed: bool {
+	d := drafts_of(c);
 	uploaded := NewArray(atts.count, string,, temp);
 	mimes := NewArray(atts.count, string,, temp);
 	failed, waiting := false, false;
@@ -282,19 +301,8 @@ run_draft_send :: (c: *Client, j: *Job) -> bool {
 	locks.unlock(*d.mu);
 	// outside d.mu, as job_submit takes the job lock; each is Uploading again, so only its worker frees it
 	for again draft_submit(c, it);
-	if waiting return true;
-	if failed {
-		for atts upload_draft_release(c, it.handle);
-		client_push_event(c, Event.{kind = .Rest, result = Rest_Result.{op = .Send_Message, channel_id = j.result.channel_id, nonce = j.result.nonce, ok = false}});
-		return false;
-	}
-	body := j.message_json(j, attachments_json(atts, uploaded, mimes));
-	r := api_call(c, "POST", j.path, body, "application/json", j.context_b64, .[], 3, 1);
-	// a failed send keeps its uploaded files for Retry (the app releases them once the message is gone)
-	if r.ok for atts upload_draft_release(c, it.handle);
-	j.result.op = .Send_Message;
-	push_result(c, j, r, body);
-	return false;
+	if waiting || failed return "", waiting, failed;
+	return attachments_json(atts, uploaded, mimes), false, false;
 }
 
 // One file: POST /attachments for an upload URL, then preflight + PUT. Returns upload_filename.

@@ -1,5 +1,5 @@
-# A forum on a hosted server: the search box takes a title, Enter opens the post form with it, Post makes
-# the post and opens it; back in the forum its card shows, a search that misses hides it, and Sort
+# A forum on a hosted server: the search box takes a title, Enter opens the post form with it, a pasted
+# bitmap is staged on it, Post makes the post with the picture and opens it; back in the forum its card shows, a search that misses hides it, and Sort
 # switches to Date Posted.
 wait 5
 serve_join
@@ -20,10 +20,15 @@ key enter
 settle 1
 click_text "Enter a message to start the conversation!"
 type Where should we go?
+paste_image tests/scenarios/assets/test.png
+wait_attachments
+wait 5
+expect_attachments 1 image.png
 shot build/ui-forum_post-form.png
 click_text "Post"
 settle 3
 expect_visible "Where should we go?"
+shot build/ui-forum_post-post.png
 click_text "ideas"
 settle 3
 expect_visible "Lunch plans"

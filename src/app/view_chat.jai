@@ -3069,10 +3069,7 @@ composer :: (ch: *dc.Channel, cs: *Chat_State) {
 			input_focused := (app.ui.focus == box.key || app.ui.focus == sc.key || app.ui.focus == 0) && ma.editing == 0 && !sw.open && !modal_open();
 			// Cmd/Ctrl+V with files or a bitmap on the clipboard stages them instead of pasting text
 			if input_focused {
-				for * e: app.ui.events {
-					if e.consumed || e.kind != .Key_Down || e.key != .V || (e.mods & (.Shift | .Alt)) || !(e.mods & PRIMARY_MOD) continue;
-					if paste_attachments(ch.id) e.consumed = true;
-				}
+				paste_attachments_key(ch.id);
 				for * e: app.ui.events {
 					if e.consumed || e.kind != .Key_Down || e.key != .U || e.mods != PRIMARY_MOD | .Shift continue;
 					e.consumed = true;
