@@ -1,6 +1,6 @@
 // jai build.jai - <target>: see USAGE below.
 // Compiles the vendored C libraries (each vendor/<lib>/fc_<lib>.c, or the files listed in fc_<lib>.sources)
-// into build/, then the Jai program, then links everything. The C, and the macOS and Linux links, go through one pinned Zig that build/zig caches.
+// into build/, then the Jai program, then links everything. The C compiles with the host's clang; see cc.
 #import "Basic";
 #import "Compiler";
 #import "Process";
@@ -88,14 +88,13 @@ usage: jai build.jai - <target>
   <target> linux              any target cross-compiled for x86_64 Linux (from Windows or macOS)
 END
 
-// A trailing "linux" argument (implied on a Linux host) builds everything for x86_64 Linux: the C with `zig cc` against
-// glibc 2.17 (so one binary runs on every distro since 2014), the Jai with os_target = .LINUX.
+// A trailing "linux" argument (implied on a Linux host) builds everything for x86_64 Linux: the C with clang against
+// glibc 2.17 (so one binary runs on every distro since 2014; see SYSROOT), the Jai with os_target = .LINUX.
 LINUX := OS == .LINUX;
-GLIBC :: "x86_64-linux-gnu.2.17";
-// Native macOS compiles the C once per arch ("aarch64", "x86_64") and joins the two archives with lipo.
+// Native macOS compiles the C once per arch ("arm64", "x86_64") and joins the two archives with lipo.
 MAC_ARCH := "";
 OBJ :: () -> string {
-    if LINUX return "build/linux";
+    if LINUX return "build/linux-x86_64";
     if MAC_ARCH return tprint("build/mac-%", MAC_ARCH);
     return "build";
 }
@@ -212,7 +211,7 @@ compile :: (name: string, source := "", optimization := Optimization_Type.DEBUG,
     for o.import_path array_add(*import_path, it);
     o.import_path = import_path;
     if LINUX o.os_target = .LINUX;
-    // Windows links with the compiler's own linker step (MSVC libraries); macOS and Linux with zig
+    // Windows links with the compiler's own linker step (MSVC libraries); macOS with clang, Linux with linux_link
     o.use_custom_link_command = OS != .WINDOWS || LINUX;
     o.text_output_flags = 0;
     o.output_executable_name = name;
@@ -303,7 +302,7 @@ release :: (args: []string) -> bool {
         LINUX = true;
         defer LINUX = false;
         if !build_c() || !compile("fastcord-linux", root, .VERY_OPTIMIZED) return false;
-        if run_command("llvm-objcopy", "--strip-debug", "build/fastcord-linux", "build/fastcord-linux.stripped").exit_code != 0 return false;
+        if run_command(tprint("%\\llvm-objcopy.exe", LLVM_BIN), "--strip-debug", "build/fastcord-linux", "build/fastcord-linux.stripped").exit_code != 0 return false;
         if run_command(PYTHON, "-I", "tools/package_linux.py", "build/fastcord-linux.stripped", "dist/fastcord-linux-x86_64.tar.gz").exit_code != 0 return false;
         array_add(*assets, "dist/fastcord-linux-x86_64.tar.gz");
         // The same binary for a headless machine: -serve runs before any display library is opened
@@ -458,42 +457,63 @@ INFO_PLIST :: #string XML
 XML
 
 link :: (p: *Message_Phase, exe: string, cpu: CPU_Tag) -> bool {
-    a: [..]string;
-    if LINUX array_add(*a, ZIG, "c++", "-target", GLIBC, "-o", exe);
-    // zig cc, not c++: the C++ links against the SDK's libc++ (-lc++ below), whose headers the C compiled with
-    else array_add(*a, ZIG, "cc", "-target", ifx cpu == .X64 then "x86_64-macos.13.0" else "aarch64-macos.13.0",
-        tprint("--sysroot=%", MAC_SDK), "-F", "/System/Library/Frameworks", "-L", "/usr/lib", "-o", exe); // zig prefixes -F and -L with the sysroot
-    array_add(*a, ..p.compiler_generated_object_files);
+    objs: [..]string;
+    array_add(*objs, ..p.compiler_generated_object_files);
     for p.support_object_files {
-        if !it continue; // jai-linux can list empty paths, which zig refuses
-        // A native Linux build lists the system's C startup objects; zig links its own glibc 2.17 ones.
+        if !it continue; // jai-linux can list empty paths
+        // A native Linux build lists the system's C startup objects; linux_link takes the sysroot's.
         name := path_filename(it);
         if LINUX && (begins_with(name, "crt") || name == "Scrt1.o") continue;
-        array_add(*a, it);
+        array_add(*objs, it);
     }
-    for p.user_libraries array_add(*a, it);
-    // Jai lists "-lX" and "-framework", "X" pairs (a cross-compile names them "X.dll"); drop duplicates.
-    seen: [..]string;
+    array_add(*objs, ..p.user_libraries);
     libs := p.system_libraries;
+    if LINUX {
+        // linux_link links glibc's libraries and no others: the program opens everything else at run time.
+        // Jai names them "-lX", "libX.so.N" or, cross-compiling, "X.dll".
+        for libs {
+            name := path_strip_extension(path_filename(it));
+            if begins_with(name, "-l") name = slice(name, 2, name.count - 2);
+            if begins_with(name, "lib") name = slice(name, 3, name.count - 3);
+            if ends_with(name, ".so") name = slice(name, 0, name.count - 3);
+            if !array_find(string.["c", "m", "dl", "pthread"], name) { log_error("link: the Linux sysroot has no %", it); return false; }
+        }
+        return linux_link(exe, false, ..objs);
+    }
+    a: [..]string;
+    array_add(*a, "clang", "-arch", ifx cpu == .X64 then "x86_64" else "arm64", "-mmacosx-version-min=13.0", "-o", exe);
+    array_add(*a, ..objs);
+    // Jai lists "-lX" and "-framework", "X" pairs; drop duplicates.
+    seen: [..]string;
     for i: 0..libs.count-1 {
         if i > 0 && libs[i-1] == "-framework" continue;
         arg := ifx libs[i] == "-framework" then tprint("-framework %", libs[i+1]) else libs[i];
-        if LINUX && !begins_with(arg, "-") {
-            name := path_strip_extension(path_filename(arg));
-            if begins_with(name, "lib") name = slice(name, 3, name.count - 3);
-            if ends_with(name, ".so") name = slice(name, 0, name.count - 3);
-            arg = tprint("-l%", name);
-        }
         if array_find(seen, arg) continue;
         array_add(*seen, arg);
         if libs[i] == "-framework" array_add(*a, "-framework", libs[i+1]);
         else array_add(*a, arg);
     }
-    if LINUX array_add(*a, "-ldl", "-lpthread", "-lm", "-static-libgcc");
-    else array_add(*a, "-lc++");
-    r := run_command(..a);
-    return r.exit_code == 0;
+    array_add(*a, "-lc++");
+    return run_command(..a).exit_code == 0;
 }
+
+// linux_link links an x86_64 Linux executable, or with `shared` a shared library, with Jai's own lld against the
+// sysroot. --as-needed leaves a glibc library out of DT_NEEDED when nothing calls it.
+linux_link :: (out: string, shared: bool, objs: ..string) -> bool {
+    s :: (path: string) -> string { return tprint("%/%", SYSROOT, path); }
+    g :: (file: string) -> string { return tprint("%/%", GCC, file); }
+    a: [..]string;
+    array_add(*a, join(path_strip_filename(get_path_of_running_executable()), LLD,, temp), "-flavor", "ld.lld", "-m", "elf_x86_64", "--eh-frame-hdr", "-o", out);
+    if shared array_add(*a, "-shared", "-s", "--gc-sections", s("usr/lib64/crti.o"), g("crtbeginS.o"));
+    else array_add(*a, "-dynamic-linker", "/lib64/ld-linux-x86-64.so.2", s("usr/lib64/crt1.o"), s("usr/lib64/crti.o"), g("crtbegin.o"));
+    array_add(*a, ..objs);
+    array_add(*a, "--as-needed", g("libstdc++.a"), s("lib64/libm-2.17.so"), s("lib64/libdl-2.17.so"), s("lib64/libpthread-2.17.so"),
+        s("usr/lib64/libpthread_nonshared.a"), g("libgcc.a"), g("libgcc_eh.a"), s("lib64/libc-2.17.so"), s("usr/lib64/libc_nonshared.a"),
+        s("lib64/ld-2.17.so"), g(ifx shared then "crtendS.o" else "crtend.o"), s("usr/lib64/crtn.o"));
+    return run_command(..a).exit_code == 0;
+}
+// Jai's own lld, beside the compiler
+LLD :: #run ifx OS == .WINDOWS then "lld.exe" else ifx OS == .MACOS then "lld-macos" else "lld-linux";
 
 // Every object that goes into the vendor archive, or with `shared` ("vendor/<lib>/", one with a .shared file)
 // into that library's own shared library.
@@ -559,77 +579,92 @@ cflags :: (base: string) -> []string {
     return flags;
 }
 
-// The pinned Zig, downloaded once into build/zig and checked against ziglang.org's sha256.
-ZIG_VERSION :: "0.17.0";
-#if OS == .WINDOWS {
-    ZIG_HOST :: "x86_64-windows"; ZIG_ARCHIVE :: "zip";    ZIG_SHA256 :: "b5663f69581dcf391293fbf16c06cb80d81d806545ce618b4d0bab7f0eb8c428";
-} else #if OS == .MACOS && CPU == .ARM64 {
-    ZIG_HOST :: "aarch64-macos";  ZIG_ARCHIVE :: "tar.xz"; ZIG_SHA256 :: "b607e9b9234790a008116ae5bdb71c6243b84b9fb42a53a9e70fde41c06c536a";
-} else #if OS == .MACOS {
-    ZIG_HOST :: "x86_64-macos";   ZIG_ARCHIVE :: "tar.xz"; ZIG_SHA256 :: "4f9a1c5269aa17ebda5e6d3c2b89d6cbf36f7d2b22a0306e9ab98f25f95529c6";
-} else {
-    ZIG_HOST :: "x86_64-linux";   ZIG_ARCHIVE :: "tar.xz"; ZIG_SHA256 :: "1cbe9df9f27e6b78d14ccbca43b6703a404ef79ef1c463de901d7f088d4e2026";
-}
-ZIG_NAME :: #run tprint("zig-%-%", ZIG_HOST, ZIG_VERSION);
-#if OS == .WINDOWS ZIG :: #run tprint("build\\zig\\%\\zig.exe", ZIG_NAME);  // CreateProcess wants backslashes
-else               ZIG :: #run tprint("build/zig/%/zig", ZIG_NAME);
-
 // BoringSSL's Windows assembly is NASM source: the pinned NASM, its sha256 taken at pinning (nasm.us
 // publishes none).
 NASM_VERSION :: "3.01";
 NASM_SHA256 :: "e0ba5157007abc7b1a65118a96657a961ddf55f7e3f632ee035366dfce039ca4";
 NASM :: #run tprint("build\\nasm\\nasm-%\\nasm.exe", NASM_VERSION);
 
-// fetch downloads a pinned tool's archive once into dir, checks its sha256 and unpacks it.
-fetch :: (exe: string, dir: string, url: string, sha256: string) -> bool {
-    if file_exists(exe) return true;
-    make_directory_if_it_does_not_exist(dir);
+// The Linux build compiles against CentOS 7's glibc 2.17 and kernel headers, and links GCC 11's libstdc++ and
+// libgcc from CentOS 7's devtoolset-11 statically. The pinned packages come from vault.centos.org, their sha256
+// taken at pinning. Only the files the build uses are unpacked: the packages' symlinks would need privileges on Windows.
+SYSROOT :: "build/sysroot";
+GCC_DIR :: "opt/rh/devtoolset-11/root/usr/lib/gcc/x86_64-redhat-linux/11";
+GCC :: #run tprint("%/%", SYSROOT, GCC_DIR);
+fetch_sysroot :: () -> bool {
+    os :: (rpm: string) -> string { return tprint("https://vault.centos.org/7.9.2009/os/x86_64/Packages/%.x86_64.rpm", rpm); }
+    sclo :: (rpm: string) -> string { return tprint("https://vault.centos.org/7.9.2009/sclo/x86_64/rh/Packages/d/%.x86_64.rpm", rpm); }
+    in :: (path: string) -> string { return tprint("%/%", SYSROOT, path); }
+    g :: (file: string) -> string { return tprint("%/%", GCC_DIR, file); }
+    return fetch(in("lib64/libc-2.17.so"), SYSROOT, os("glibc-2.17-317.el7"), "49eb081de1ddd13f5440abdbb3b42cdd01d11b74d624793ae1b80a1cf432551b",
+            "lib64/libc-2.17.so", "lib64/libm-2.17.so", "lib64/libpthread-2.17.so", "lib64/libdl-2.17.so", "lib64/ld-2.17.so")
+        && fetch(in("usr/lib64/crt1.o"), SYSROOT, os("glibc-devel-2.17-317.el7"), "57e04523b12c9aa5a0632cbfa2ff13e33f1ecec5e6bd0b609a77d9c24cebf8c4",
+            "usr/lib64/crt1.o", "usr/lib64/crti.o", "usr/lib64/crtn.o", "usr/lib64/libc_nonshared.a", "usr/lib64/libpthread_nonshared.a", "usr/include/gnu/stubs-64.h")
+        && fetch(in("usr/include/stdio.h"), SYSROOT, os("glibc-headers-2.17-317.el7"), "b7e4e19b362cbd73e09e6ee5eff3d70dbeb7cc2c702a927b8f646f324d4ec4a3")
+        && fetch(in("usr/include/linux/version.h"), SYSROOT, os("kernel-headers-3.10.0-1160.el7"), "81b4e4f401d2402736ceba4627eaafd5b615c2cc45aa4d4f941ea79562045139")
+        && fetch(in(g("crtbegin.o")), SYSROOT, sclo("devtoolset-11-gcc-11.2.1-9.1.el7"), "7049c0fdcee4412cf0e2570e2ed90e4879019aa58b9c7d1112e85260ead0ec30",
+            g("crtbegin.o"), g("crtend.o"), g("crtbeginS.o"), g("crtendS.o"), g("libgcc.a"), g("libgcc_eh.a"))
+        && fetch(in(g("libstdc++.a")), SYSROOT, sclo("devtoolset-11-libstdc++-devel-11.2.1-9.1.el7"), "b42d3c7ff9f4da0f7fedd354051b002fe68dbb56dc59c713c61bdf92773b3d9c",
+            g("libstdc++.a"), "opt/rh/devtoolset-11/root/usr/include");
+}
+
+// fetch downloads a pinned archive once into dir, checks its sha256 and unpacks it: only `members`, when given.
+// The file `done` proves it is unpacked.
+fetch :: (done: string, dir: string, url: string, sha256: string, members: ..string) -> bool {
+    if file_exists(done) return true;
+    make_directory_if_it_does_not_exist(dir, recursive = true);
     archive := tprint("%/%", dir, path_filename(url));
-    print("downloading %\n", archive);
+    print("downloading %\n", url);
     if run_command("curl", "-fsSL", "-o", archive, url).exit_code != 0 return false;
-    #if OS == .WINDOWS r, out := run_command("certutil", "-hashfile", archive, "SHA256", capture_and_return_output = true);
-    else               r, out := run_command("shasum", "-a", "256", archive, capture_and_return_output = true);
+    #if OS == .WINDOWS    r, out := run_command("certutil", "-hashfile", archive, "SHA256", capture_and_return_output = true);
+    else #if OS == .MACOS r, out := run_command("shasum", "-a", "256", archive, capture_and_return_output = true);
+    else                  r, out := run_command("sha256sum", archive, capture_and_return_output = true);
     ok := r.exit_code == 0 && contains(to_lower_copy(out,, temp), sha256);
     if !ok log_error("% does not match sha256 %", archive, sha256);
-    // tar unpacks the Windows zip too (bsdtar ships with Windows 10+).
-    ok = ok && run_command("tar", "-xf", archive, "-C", dir).exit_code == 0 && file_exists(exe);
+    // bsdtar unpacks the Windows zip and the rpms too. It is the tar of macOS and Windows 10+; Linux names it bsdtar.
+    a: [..]string;
+    array_add(*a, ifx OS == .LINUX then "bsdtar" else "tar", "-xf", archive, "-C", dir);
+    array_add(*a, ..members);
+    ok = ok && run_command(..a).exit_code == 0 && file_exists(done);
     file_delete(archive);
     return ok;
 }
 
-// The C++ library headers come from the system the program links against, not zig's libc++ (which would need
-// linking too): the MSVC STL on Windows, the SDK's libc++ on macOS.
-MAC_SDK := "";
+// The C compiler is clang: Apple's on macOS, the Visual Studio component's on Windows (build_c finds it), the
+// system's on Linux. Every clang compiles for Linux as well.
+CLANG := "clang";
+LLVM_BIN := "";  // Windows: the directory of the Visual Studio clang and its llvm-lib and llvm-objcopy
 
-// Every C compile goes through zig cc.
 cc :: (a: *[..]string, cpp: bool) {
-    array_add(a, ZIG, ifx cpp then "c++" else "cc", "-c", "-O2");
+    array_add(a, CLANG, "-c", "-O2");
     // the autoconf names the network libraries test for their byte-order headers
-    if LINUX array_add(a, "-target", GLIBC, "-fPIC", "-DHAVE_ARPA_INET_H", "-DHAVE_NETINET_IN_H");
+    if LINUX array_add(a, "--target=x86_64-linux-gnu", tprint("--sysroot=%", SYSROOT), tprint("--gcc-install-dir=%", GCC), "-fPIC", "-DHAVE_ARPA_INET_H", "-DHAVE_NETINET_IN_H");
     else if OS == .WINDOWS {
-        array_add(a, "-target", "x86_64-windows-msvc", "-D_CRT_SECURE_NO_WARNINGS", "-fms-runtime-lib=dll"); // the DLL CRT, as Jai links
-        // Zig takes the newest VS's headers while Jai may link an older VS's msvcprt, which lacks the vectorized algorithm helpers.
-        if cpp array_add(a, "-nostdinc++", "-D_USE_STD_VECTOR_ALGORITHMS=0");
-    } else {
-        array_add(a, "-target", tprint("%-macos.13.0", MAC_ARCH), tprint("--sysroot=%", MAC_SDK));
-        // -I, not -isystem: zig puts a user -isystem after its own C headers, and libc++ must come first.
-        if cpp array_add(a, "-nostdinc++", "-I", tprint("%/usr/include/c++/v1", MAC_SDK));
-    }
+        array_add(a, "--target=x86_64-pc-windows-msvc", "-D_CRT_SECURE_NO_WARNINGS", "-fms-runtime-lib=dll"); // the DLL CRT, as Jai links
+        // clang takes the headers of the VS it finds, while Jai may link another VS's msvcprt, which can lack the vectorized algorithm helpers.
+        if cpp array_add(a, "-D_USE_STD_VECTOR_ALGORITHMS=0");
+    } else array_add(a, "-arch", MAC_ARCH, "-mmacosx-version-min=13.0");
     if cpp array_add(a, "-std=c++17", "-fno-exceptions", "-fno-rtti");
 }
 
 build_c :: () -> bool {
-    if !fetch(ZIG, "build/zig", tprint("https://ziglang.org/download/%/%.%", ZIG_VERSION, ZIG_NAME, ZIG_ARCHIVE), ZIG_SHA256) return false;
-    #if OS == .WINDOWS if !LINUX && !fetch(NASM, "build/nasm", tprint("https://www.nasm.us/pub/nasm/releasebuilds/%/win64/nasm-%-win64.zip", NASM_VERSION, NASM_VERSION), NASM_SHA256) return false;
+    #if OS == .WINDOWS {
+        if !LLVM_BIN {
+            r, out := run_command("C:\\Program Files (x86)\\Microsoft Visual Studio\\Installer\\vswhere.exe", "-latest", "-products", "*",
+                "-requires", "Microsoft.VisualStudio.Component.VC.Llvm.Clang", "-property", "installationPath", capture_and_return_output = true);
+            if r.exit_code != 0 || !trim(out) { log_error("build: install the Visual Studio component \"C++ Clang Compiler for Windows\""); return false; }
+            LLVM_BIN = copy_string(tprint("%\\VC\\Tools\\Llvm\\x64\\bin", trim(out)));
+            CLANG = copy_string(tprint("%\\clang.exe", LLVM_BIN));
+        }
+        if !LINUX && !fetch(NASM, "build/nasm", tprint("https://www.nasm.us/pub/nasm/releasebuilds/%/win64/nasm-%-win64.zip", NASM_VERSION, NASM_VERSION), NASM_SHA256) return false;
+    }
+    if LINUX && !fetch_sysroot() return false;
     #if OS == .MACOS if !LINUX {
-        r, out := run_command("xcrun", "--show-sdk-path", capture_and_return_output = true);
-        if r.exit_code != 0 return false;
-        MAC_SDK = copy_string(trim(out));
         // Each Jai program links its arch's slice of the universal archive.
-        for string.["aarch64", "x86_64"] { MAC_ARCH = it; if !build_c_target() return false; }
+        for string.["arm64", "x86_64"] { MAC_ARCH = it; if !build_c_target() return false; }
         MAC_ARCH = "";
         lib := VENDOR_LIB();
-        arm, x64 := "build/mac-aarch64/fc_vendor.a", "build/mac-x86_64/fc_vendor.a";
+        arm, x64 := "build/mac-arm64/fc_vendor.a", "build/mac-x86_64/fc_vendor.a";
         m, _, ok := file_modtime_and_size(lib);
         if ok && vendor_lib_target() == "mac" && file_modtime_and_size(arm) <= m && file_modtime_and_size(x64) <= m return true;
         file_delete(lib);
@@ -708,7 +743,7 @@ build_c_target :: () -> bool {
             cc(*a, !ends_with(f, ".c") && !ends_with(f, ".S"));
             array_add(*a, ..extra);
             // per-file SIMD (libwebp and WebRTC pick them at run time; WebRTC's x86 files don't guard themselves)
-            if MAC_ARCH != "aarch64" {
+            if MAC_ARCH != "arm64" {
                 if ends_with(f, "_sse41.c") array_add(*a, "-msse4.1");
                 if ends_with(f, "_avx2.c") array_add(*a, "-mavx2");
                 if ends_with(f, "_avx512.c") array_add(*a, "-mavx512f", "-mavx512vl");
@@ -733,11 +768,7 @@ build_c_target :: () -> bool {
         m, _, ok := file_modtime_and_size(so);
         for objs if file_modtime_and_size(it) > m ok = false;
         if ok continue;
-        a: [..]string;
-        array_add(*a, ZIG, "cc", "-target", GLIBC, "-shared", "-s", "-Wl,--gc-sections", "-o", so);
-        array_add(*a, ..objs);
-        array_add(*a, "-lm", "-lpthread");
-        if run_command(..a).exit_code != 0 return false;
+        if !linux_link(so, true, ..objs) return false;
     }
     // One archive for the Jai side: every module's `#library,no_dll "../../build/fc_vendor"`.
     lib := VENDOR_LIB();
@@ -747,11 +778,44 @@ build_c_target :: () -> bool {
     for objs { t := file_modtime_and_size(it); if t > m need = true; }
     if !need return true;
     file_delete(lib);
+    if LINUX return write_ar(lib, objs) && write_entire_file(VENDOR_TARGET, "linux");
     // the object list goes in a response file: it is longer than a Windows command line
     rsp := tprint("%.rsp", lib);
     write_entire_file(rsp, join(..objs, "\n"));
-    if run_command(ZIG, "ar", "rcs", lib, tprint("@%", rsp)).exit_code != 0 return false;
-    return !LINUX || write_entire_file(VENDOR_TARGET, "linux");
+    #if OS == .WINDOWS return run_command(tprint("%\\llvm-lib.exe", LLVM_BIN), tprint("/OUT:%", lib), tprint("@%", rsp)).exit_code == 0;
+    else return run_command("libtool", "-static", "-no_warning_for_no_symbols", "-o", lib, "-filelist", rsp).exit_code == 0;
+}
+
+// write_ar writes a GNU ar archive with no symbol index, which lld does not need: it reads each member's own
+// symbol table. Every name goes in the "//" member, so no name is limited to the header's 16 bytes.
+write_ar :: (path: string, objs: []string) -> bool {
+    field :: (b: *String_Builder, s: string, width: int) { append(b, s); for s.count+1..width append(b, " "); }
+    header :: (b: *String_Builder, name: string, size: int) {
+        field(b, name, 16); field(b, "0", 12); field(b, "0", 6); field(b, "0", 6); field(b, "644", 8); field(b, tprint("%", size), 10);
+        append(b, "`\n");
+    }
+    names: String_Builder;
+    for objs {
+        append(*names, path_filename(it));
+        append(*names, "/\n");
+    }
+    table := builder_to_string(*names);
+    b: String_Builder;
+    append(*b, "!<arch>\n");
+    header(*b, "//", table.count);
+    append(*b, table);
+    if table.count % 2 append(*b, "\n");
+    offset := 0;
+    for objs {
+        data, ok := read_entire_file(it);
+        if !ok return false;
+        header(*b, tprint("/%", offset), data.count);
+        offset += path_filename(it).count + 2;
+        append(*b, data);
+        if data.count % 2 append(*b, "\n");
+        free(data);
+    }
+    return write_entire_file(path, *b);
 }
 
 run_parallel :: (jobs: [][..]string) -> bool {

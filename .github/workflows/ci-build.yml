@@ -17,7 +17,6 @@ jobs:
     env:
       JAI_PASSWORD: ${{ secrets.JAI_PASSWORD }}
       GH_TOKEN: ${{ github.token }}
-      ZIG_GLOBAL_CACHE_DIR: ${{ github.workspace }}/build/zig-cache
     defaults:
       run:
         shell: bash
@@ -25,16 +24,15 @@ jobs:
       - uses: actions/checkout@v4
         if: env.JAI_PASSWORD != ''
 
-      # The pinned Zig, its cache and the vendored C's objects and archives; nothing from Jai or its outputs.
+      # The pinned NASM and Linux sysroot, and the vendored C's objects and archives; nothing from Jai or its outputs.
       - id: c-cache
         if: env.JAI_PASSWORD != ''
         uses: actions/cache@v4
         with:
           key: c-${{ runner.os }}-release-${{ hashFiles('vendor/**', 'build.jai') }}
           path: |
-            build/zig
-            build/zig-cache
             build/nasm
+            build/sysroot
             build/*.o
             build/*.stamp
             build/*.a
@@ -49,7 +47,7 @@ jobs:
       # proves they match vendor/ and build.jai.
       - name: Mark cached C current
         if: steps.c-cache.outputs.cache-hit == 'true'
-        run: find build -type f -not -path 'build/zig/*' -not -path 'build/zig-cache/*' -not -path 'build/nasm/*' -exec touch {} +
+        run: find build -type f -not -path 'build/nasm/*' -not -path 'build/sysroot/*' -exec touch {} +
 
       - name: Fetch Jai
         if: env.JAI_PASSWORD != ''
