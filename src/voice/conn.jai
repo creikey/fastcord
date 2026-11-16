@@ -225,6 +225,7 @@ Conn :: struct {
     ptt_pressed: bool;
     ptt_until_ms: s64;  // release delay end
     debug: bool;        // FASTCORD_VOICE_DEBUG=1: protocol trace on stderr (no secrets)
+    dbg_video_refused: int; // video frames DAVE refused, for that trace
 
     // video: our stream's SSRCs from READY, the codec SESSION_DESCRIPTION chose
     video_ssrc, rtx_ssrc: u32;
@@ -790,6 +791,10 @@ ws_session :: (c: *Conn, resume: bool) -> int {
 
 flush_dave :: (c: *Conn) {
     for DAVE.session_take_outgoing(*c.dave,, temp) {
+        if c.debug {
+            st := DAVE.session_status(*c.dave,, temp);
+            dbg(c, "~> dave op % (% bytes, transition %); now epoch % members %", it.op, it.data.count, it.transition_id, st.epoch, st.members);
+        }
         if it.op == DAVE.OP_MLS_KEY_PACKAGE || it.op == DAVE.OP_MLS_COMMIT_WELCOME
             send_binary(c, it.op, it.data);
         else if it.op == DAVE.OP_READY_FOR_TRANSITION || it.op == DAVE.OP_MLS_INVALID_COMMIT_WELCOME
@@ -1992,11 +1997,33 @@ on_video_packet :: (c: *Conn, h: Rtp_Header, codec: Video_Codec, payload: []u8, 
 
 NACK_INTERVAL_MS :: 30;
 
-video_frame_out :: (c: *Conn, ssrc: u32, uid: u64, codec: Video_Codec, au: []u8) {
+video_frame_out :: (c: *Conn, ssrc: u32, uid: u64, codec: Video_Codec, whole: []u8) {
+    // AV1: libdave's frame ends in an OBU with no size field, and its tag covers the frame that way
+    au := ifx codec == .AV1 then av1_without_last_size(whole) else whole;
     plain := NewArray(au.count, u8, false,, temp);
     fl, res := DAVE.session_decrypt(*c.dave, uid, au, plain);
-    if res == .Failed return;
+    if res == .Failed {
+        // FASTCORD_VOICE_DEBUG: why, for the first refused frames and then one in fifty
+        if c.debug {
+            c.dbg_video_refused += 1;
+            if c.dbg_video_refused <= 12 || c.dbg_video_refused % 50 == 0 {
+                sb: String_Builder;
+                n := au.count;
+                print_to_builder(*sb, "video: DAVE refused % frame #% from % (ssrc %), % bytes: %; head ", codec, c.dbg_video_refused, uid, ssrc, n, DAVE.session_decrypt_why(*c.dave, uid, au));
+                for b: array_view(au, 0, min(n, 40)) print_to_builder(*sb, "%", formatInt(b, base = 16, minimum_digits = 2));
+                print_to_builder(*sb, " tail ");
+                for b: array_view(au, max(n - 48, 0)) print_to_builder(*sb, "%", formatInt(b, base = 16, minimum_digits = 2));
+                if codec == .H264 || codec == .H265 {
+                    print_to_builder(*sb, " nals");
+                    for annexb_nals(au) print_to_builder(*sb, " %:%", nal_type(codec, au[it.start]), it.end - it.start);
+                }
+                dbg(c, "%", builder_to_string(*sb,, temp));
+            }
+        }
+        return;
+    }
     frame := array_view(plain, 0, fl);
+    if codec == .AV1 frame = av1_with_last_size(frame);  // the decoder's OBUs all have one
     key := is_keyframe(codec, frame);
     {
         locks.guard(*c.mu);

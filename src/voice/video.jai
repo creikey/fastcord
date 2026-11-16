@@ -606,6 +606,56 @@ av1_obu_add :: (rx: *Video_Rx, obu: []u8) -> bool {
     return true;
 }
 
+// av1_last_obu: where a frame's last OBU starts, its header's length (1 or 2) and its size field's (0 when
+// it has none and runs to the frame's end); false when the OBUs before it don't parse.
+av1_last_obu :: (au: []u8) -> start: int, hdr: int, size_field: int, ok: bool {
+    i := 0;
+    while i < au.count {
+        h := au[i];
+        hdr := 1 + cast(int) ((h >> 2) & 1);
+        if i + hdr > au.count return 0, 0, 0, false;
+        if !(h & 2) return i, hdr, 0, true;
+        n, j, ok := leb128(au, i + hdr);
+        if !ok || n > au.count - j return 0, 0, 0, false;
+        if j + n == au.count return i, hdr, j - (i + hdr), true;
+        i = j + n;
+    }
+    return 0, 0, 0, false;
+}
+
+// av1_without_last_size: the frame as libdave encrypted it. Its last OBU has no size field, since the
+// protocol's supplemental bytes are appended to it, where av1_obu_add wrote one; the frame's tag covers
+// the header byte without the flag. In temp, or au itself when there's nothing to take out.
+av1_without_last_size :: (au: []u8) -> []u8 {
+    start, hdr, sf, ok := av1_last_obu(au);
+    if !ok || !sf return au;
+    out := NewArray(au.count - sf, u8, false,, temp);
+    memcpy(out.data, au.data, start + hdr);
+    out[start] &= cast(u8) 0xfd;
+    memcpy(out.data + start + hdr, au.data + start + hdr + sf, au.count - start - hdr - sf);
+    return out;
+}
+
+// av1_with_last_size: the reverse, once decryption has taken the supplemental bytes off: every OBU sized,
+// as the decoder is given them. In temp, or au itself.
+av1_with_last_size :: (au: []u8) -> []u8 {
+    start, hdr, sf, ok := av1_last_obu(au);
+    if !ok || sf return au;
+    out: [..]u8;
+    out.allocator = temp;
+    array_reserve(*out, au.count + 8);
+    array_add(*out, ..array_view(au, 0, start + hdr));
+    out[start] |= 2;
+    n := au.count - start - hdr;
+    while true {
+        b := cast(u8) (n & 0x7f);
+        n >>= 7;
+        if n { array_add(*out, b | 0x80); } else { array_add(*out, b); break; }
+    }
+    array_add(*out, ..array_view(au, start + hdr));
+    return out;
+}
+
 // leb128 reads an AV1 leb128 at b[i] (at most 8 bytes, below 2^31): the value and the index after it.
 leb128 :: (b: []u8, i: int) -> value: int, next: int, ok: bool {
     v := 0;

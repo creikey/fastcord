@@ -591,6 +591,37 @@ session_decrypt :: (s: *Session, user: u64, frame: []u8, out: []u8) -> int, Decr
 	return 0, .Failed;
 }
 
+// session_decrypt_why: for a debug trace, why session_decrypt refuses this frame (a temporary string).
+session_decrypt_why :: (s: *Session, user: u64, frame: []u8) -> string {
+	locks.lock(*s.mu);
+	defer locks.unlock(*s.mu);
+	p, is_protocol := parse_protocol_frame(frame);
+	if !is_protocol {
+		n := frame.count;
+		if n < MIN_SUPPLEMENTAL return "not a protocol frame: too short";
+		if frame[n - 2] != 0xFA || frame[n - 1] != 0xFA return "not a protocol frame: no marker at its end";
+		return tprint("not a protocol frame: marker present, supplemental size % of % bytes, ranges or nonce unreadable", frame[n - 3], n);
+	}
+	epoch := s.executed_epoch;
+	d := table_find_pointer(*s.decryptors, user);
+	if !d return tprint("no decryptor for the user (epoch % members % nonce % ranges %)", epoch, s.roster.count, p.nonce, p.n_ranges);
+	now := s.now_ms();
+	expired, replayed, nokey, auth := 0;
+	out := NewArray(frame.count, u8, false,, temp);
+	for < i: 0..d.cryptors.count-1 {
+		c := *d.cryptors[i];
+		if c.expiry_ms != 0 && c.expiry_ms < now { expired += 1; continue; }
+		if !replay_check(*c.window, p.nonce) { replayed += 1; continue; }
+		key, kok := ratchet_get(*c.ratchet, p.nonce >> 24);
+		if !kok { nokey += 1; continue; }
+		_, ok := decrypt_frame(key, *p, out);
+		if !ok auth += 1;
+	}
+	clear := 0;
+	for array_view(p.ranges, 0, p.n_ranges) clear += it.size;
+	return tprint("epoch % members % nonce % ranges % clear % of % cryptors % (expired % replayed % no-key % wrong-tag %)", epoch, s.roster.count, p.nonce, p.n_ranges, clear, p.interleaved.count, d.cryptors.count, expired, replayed, nokey, auth);
+}
+
 // ---------------------------------------------------------------------------
 // Status
 

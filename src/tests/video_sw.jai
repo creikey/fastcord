@@ -33,6 +33,14 @@ main :: () {
             ok &= check(done, "% frame % reassembled from % packets", codec, n, pkts.count);
             if !done continue;
             if voice.is_keyframe(codec, out) keys += 1;
+            if codec == .AV1 {
+                // what DAVE's tag covers has no size field on the last OBU; the decoder gets it back
+                bare := voice.av1_without_last_size(out);
+                start, hdr, sf, lok := voice.av1_last_obu(bare);
+                ok &= check(lok && sf == 0 && bare.count < out.count && !(bare[start] & 2), "AV1 frame % last OBU unsized", n);
+                again := voice.av1_with_last_size(bare);
+                ok &= check(again.count == out.count && memcmp(again.data, out.data, out.count) == 0, "AV1 frame % last OBU's size restored", n);
+            }
             frames: [..]media.Video_Frame;
             ok &= check(media.sw_decode(dec, out, *frames), "% frame % decodes", codec, n);
             for * frames {
