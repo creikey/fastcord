@@ -265,7 +265,7 @@ in order. One lane, the critical path, decides when the feature is finished: **A
 
 | Step | What | Needs | Why here |
 |---|---|---|---|
-| **A1** | macOS and Linux builds of `vendor/whisper` (clang `-arch arm64`/`x86_64`, the Linux cross build) | none | A release builds all three platforms. Until this passes, any release may fail. Highest risk, smallest job. |
+| **A1** | macOS and Linux builds of `vendor/whisper` (the universal macOS build, the Linux cross build) | none | A release builds all three platforms. Until this passes, any release may fail. Highest risk, smallest job. |
 | **A2** | A real call with several people talking, run by a human: line quality, cut points, op 18 consent, CPU use | none | Agents may not join voice (AGENTS.md live runs). It checks that the feature is worth securing and searching. Findings may change the segmenter, not the steps below. |
 | **B1** | Stop plain files now: write nothing to disk until C2, with the pane only | none | A one-line stopgap so no more plain transcripts pile up. Skip it if C2 is days away. |
 | **C1** | Bind `EVP_PBE_scrypt` and single-shot HPKE (X-Wing) in `fc_boringssl.c` / `src/crypto`, with known-answer tests; move DAVE's pure-Jai scrypt onto it | none | Pure crypto with no UI, so it is testable on its own. Everything secret builds on it. |

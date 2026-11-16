@@ -1,6 +1,7 @@
 // Upstream's matched_filter_avx2.cc reads vector lanes MSVC's way (`v.m256_f32[i]`) whenever _MSC_VER is
 // set, and zig's clang sets it on Windows but has no such members. Its includes go first with _MSC_VER
-// intact, so only the file's own lane macros see it unset.
+// intact, so only the file's own lane macros see it unset. MSVC's cl (the `host` build) has those members.
+#if defined(__clang__)
 #include <immintrin.h>
 
 #include "modules/audio_processing/aec3/matched_filter.h"
@@ -10,3 +11,6 @@
 #undef _MSC_VER
 #include "modules/audio_processing/aec3/matched_filter_avx2.cc"
 #pragma pop_macro("_MSC_VER")
+#else
+#include "modules/audio_processing/aec3/matched_filter_avx2.cc"
+#endif

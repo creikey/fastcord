@@ -41,12 +41,15 @@ webview (but for Discord's captcha, below). Metal on macOS, Direct3D 11 on Windo
 
 ## Build and run
 
-Needs Jai (beta 0.2.030 or later, `jai` on `PATH`). The build downloads one pinned Zig into `build/zig` on
-first use and compiles all the C with `zig cc`; there is no other C compiler. Per OS it also needs:
-- macOS: the Xcode command line tools, for the SDK (headers, libc++, frameworks) and `lipo`.
-- Windows: the Visual Studio Build Tools (the MSVC headers and libraries).
-- Linux builds are cross-compiled from Windows or macOS with Zig (`zig cc` against glibc 2.17): append
-  `linux` to any target, e.g. `jai build.jai - dev linux` writes `build/fastcord-dev` for x86_64 Linux.
+Needs Jai (beta 0.2.030 or later, `jai` on `PATH`). Local builds (dev, debug, tests, tools) compile the C
+with the machine's own compiler: MSVC on Windows, clang on macOS, `cc`/`c++` on Linux. What ships (`app`,
+`release`) and every cross-build for Linux compile it with one pinned Zig, downloaded into `build/zig` on first
+use. Per OS it also needs:
+- macOS: the Xcode command line tools, for clang, the SDK (headers, libc++, frameworks), `libtool` and `lipo`.
+- Windows: the Visual Studio Build Tools (MSVC, its headers and libraries).
+- Linux: a C and C++ compiler (`cc`, `c++`) and `ar`. Linux builds are also cross-compiled from Windows or
+  macOS with Zig (`zig cc` against glibc 2.17): append `linux` to any target, e.g. `jai build.jai - dev linux`
+  writes `build/fastcord-dev` for x86_64 Linux.
 
 ```sh
 jai build.jai - dev       # build/fastcord-dev: optimised with symbols, for daily use
