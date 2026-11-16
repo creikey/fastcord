@@ -1,6 +1,9 @@
 // fastcord's build settings for WebRTC's sources, force-included by fc_webrtc.cflags: what upstream's
 // meson.build passes as -D flags, picked per target here since one flags file serves every platform.
 #pragma once
+// multi_channel_content_detector.h uses int64_t without including this; GCC's libstdc++ doesn't bring it in
+// through the headers it does include, where libc++ and MSVC's do.
+#include <stdint.h>
 #if defined(_WIN32)
 #define WEBRTC_WIN 1
 #define NOMINMAX 1

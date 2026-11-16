@@ -470,7 +470,7 @@ XML
 
 link :: (p: *Message_Phase, exe: string, cpu: CPU_Tag) -> bool {
     a: [..]string;
-    if HOST && LINUX array_add(*a, "c++", "-o", exe);
+    if HOST && LINUX array_add(*a, "c++", "-no-pie", "-o", exe);  // the Jai object is not position independent, and distros' gcc defaults to PIE
     else if HOST array_add(*a, "clang", "-arch", ifx cpu == .X64 then "x86_64" else "arm64", "-mmacosx-version-min=13.0", "-o", exe);
     else if LINUX array_add(*a, ZIG, "c++", "-target", GLIBC, "-o", exe);
     // zig cc, not c++: the C++ links against the SDK's libc++ (-lc++ below), whose headers the C compiled with
