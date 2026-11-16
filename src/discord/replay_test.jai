@@ -3937,6 +3937,19 @@ voice_state_stale_leave :: (t: *T) {
 	expect(t, vs != null && vs.channel_id == 5 && s.voice_elsewhere == 1, "another device's join takes the call");
 	vsu(*s, "5", "other");
 	expect_value(t, s.voice_elsewhere, 1);
+	// a user hops from one server's voice channel to another's with the same session: the first
+	// server's leave, arriving after the second's join, leaves them where they are
+	g :: (s: *Store, json: string) {
+		v, _ := etf.from_json(json,, temp);
+		store_apply_dispatch(s, "VOICE_STATE_UPDATE", v, 0);
+	}
+	g(*s, "{\"guild_id\":\"10\",\"channel_id\":\"12\",\"user_id\":\"8\",\"session_id\":\"hop\"}");
+	g(*s, "{\"guild_id\":\"20\",\"channel_id\":\"22\",\"user_id\":\"8\",\"session_id\":\"hop\"}");
+	g(*s, "{\"guild_id\":\"10\",\"channel_id\":null,\"user_id\":\"8\",\"session_id\":\"hop\"}");
+	vs = table_find_pointer(*s.voice_states, 8);
+	expect(t, vs != null && vs.guild_id == 20 && vs.channel_id == 22, "another server's leave is ignored");
+	g(*s, "{\"guild_id\":\"20\",\"channel_id\":null,\"user_id\":\"8\",\"session_id\":\"hop\"}");
+	expect(t, table_find_pointer(*s.voice_states, 8) == null, "their own server's leave removes them");
 }
 
 // HTTPUtils' per-URL hold: after a 429, requests queued for the URL go one per response, in order.

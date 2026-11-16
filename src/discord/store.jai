@@ -881,6 +881,8 @@ apply_voice_state :: (s: *Store, m: etf.Map, guild_hint: Snowflake = 0) {
 	// our account joined a call on another device: Discord keeps one call per user, so ours ended
 	if uid == s.me && cid && sid && sid != s.session_id && !(old && sid == old.session_id) s.voice_elsewhere += 1;
 	if cid == 0 && old && sid && old.session_id && sid != old.session_id return;
+	// nor does the leave from one server's channel, arriving after the join of another server's
+	if cid == 0 && old && gid != old.guild_id return;
 	if old free_str(old.session_id, s.allocator);
 	if cid == 0 {
 		table_remove(*s.voice_states, uid);
