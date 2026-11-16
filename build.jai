@@ -1,6 +1,6 @@
 // jai build.jai - <target>: see USAGE below.
 // Compiles the vendored C libraries (each vendor/<lib>/fc_<lib>.c, or the files listed in fc_<lib>.sources)
-// into build/, then the Jai program, then links everything. The C compiles with MSVC on Windows and clang elsewhere; see MSVC.
+// into build/, then the Jai program, then links everything. The C compiles with the host's clang; see cc.
 #import "Basic";
 #import "Compiler";
 #import "Process";
@@ -96,7 +96,7 @@ MAC_ARCH := "";
 OBJ :: () -> string {
     if LINUX return "build/linux-x86_64";
     if MAC_ARCH return tprint("build/mac-%", MAC_ARCH);
-    return "build/windows-x86_64";
+    return "build";
 }
 // Every module links "build/fc_vendor", so a Linux build on macOS and the macOS build share that path;
 // VENDOR_TARGET names which one it holds, and a build for the other target remakes it.
@@ -572,21 +572,11 @@ stale :: (out: string, dir: string) -> bool {
     return !ok || newest(dir) > m;
 }
 cflags :: (base: string) -> []string {
-    s := read_entire_file(tprint("%.cflags", base), log_errors = false);
-    // fc_<lib>.msvc.cflags adds what only cl needs
-    if MSVC() s = tprint("% %", s, read_entire_file(tprint("%.msvc.cflags", base), log_errors = false));
+    s, ok := read_entire_file(tprint("%.cflags", base), log_errors = false);
+    if !ok return .[];
     flags := break_command_into_strings(trim(s));
     for * flags it.* = patched(it.*);
-    if !MSVC() return flags;
-    // The .cflags files are clang's syntax. cl takes -I, -D and -w as they are; cc sets its own standard.
-    out: [..]string;
-    for flags {
-        if begins_with(it, "-W") || begins_with(it, "-std=") || it == "-pthread" || it == "-include" continue;
-        // cl resolves a forced include against the include path, not the working directory
-        if it_index > 0 && flags[it_index - 1] == "-include" array_add(*out, tprint("/FI%/%", get_working_directory(), it));
-        else array_add(*out, it);
-    }
-    return out;
+    return flags;
 }
 
 // BoringSSL's Windows assembly is NASM source: the pinned NASM, its sha256 taken at pinning (nasm.us
@@ -640,50 +630,29 @@ fetch :: (done: string, dir: string, url: string, sha256: string, members: ..str
     return ok;
 }
 
-// Windows compiles with MSVC: cl and lib from the Visual Studio Jai links with, so the headers match the CRT
-// it links. macOS and Linux compile with clang: Apple's, and the system's. A Linux build on Windows uses the
-// clang of the Visual Studio component "C++ Clang Compiler for Windows". build_c finds both.
-MSVC :: () -> bool { return OS == .WINDOWS && !LINUX; }
-MSVC_BIN := "";
-MSVC_INCLUDE: [..]string;
+// The C compiler is clang: Apple's on macOS, the Visual Studio component's on Windows (build_c finds it), the
+// system's on Linux. Every clang compiles for Linux as well.
 CLANG := "clang";
-LLVM_BIN := "";  // Windows: the directory of the Visual Studio clang and its llvm-objcopy
+LLVM_BIN := "";  // Windows: the directory of the Visual Studio clang and its llvm-lib and llvm-objcopy
 
 cc :: (a: *[..]string, cpp: bool) {
-    if MSVC() {
-        array_add(a, tprint("%\\cl.exe", MSVC_BIN), "/nologo", "/c", "/O2", "/MD", "/utf-8", "/Zc:preprocessor", "/D_CRT_SECURE_NO_WARNINGS"); // /MD: the DLL CRT, as Jai links
-        array_add(a, ..MSVC_INCLUDE);
-        if cpp array_add(a, "/std:c++17", "/EHs-c-", "/GR-", "/D_HAS_EXCEPTIONS=0");
-        else array_add(a, "/std:c17");
-        return;
-    }
     array_add(a, CLANG, "-c", "-O2");
     // the autoconf names the network libraries test for their byte-order headers
     if LINUX array_add(a, "--target=x86_64-linux-gnu", tprint("--sysroot=%", SYSROOT), tprint("--gcc-install-dir=%", GCC), "-fPIC", "-DHAVE_ARPA_INET_H", "-DHAVE_NETINET_IN_H");
-    else array_add(a, "-arch", MAC_ARCH, "-mmacosx-version-min=13.0");
+    else if OS == .WINDOWS {
+        array_add(a, "--target=x86_64-pc-windows-msvc", "-D_CRT_SECURE_NO_WARNINGS", "-fms-runtime-lib=dll"); // the DLL CRT, as Jai links
+        // clang takes the headers of the VS it finds, while Jai may link another VS's msvcprt, which can lack the vectorized algorithm helpers.
+        if cpp array_add(a, "-D_USE_STD_VECTOR_ALGORITHMS=0");
+    } else array_add(a, "-arch", MAC_ARCH, "-mmacosx-version-min=13.0");
     if cpp array_add(a, "-std=c++17", "-fno-exceptions", "-fno-rtti");
-}
-// cc_out names a compile's object file.
-cc_out :: (a: *[..]string, obj: string) {
-    if MSVC() array_add(a, tprint("/Fo%", obj));
-    else array_add(a, "-o", obj);
 }
 
 build_c :: () -> bool {
     #if OS == .WINDOWS {
-        if MSVC() && !MSVC_BIN {
-            lib, bin := WR.find_visual_studio_in_a_ridiculous_garbage_way();
-            kit := WR.find_windows_kit_root();
-            if !bin || !kit { log_error("build: install the Visual Studio Build Tools with the C++ tools"); return false; }
-            MSVC_BIN = copy_string(bin);
-            sdk := replace(kit, "Lib", "Include");
-            for string.[tprint("%\\..\\..\\include", lib), tprint("%\\ucrt", sdk), tprint("%\\um", sdk), tprint("%\\shared", sdk)]
-                array_add(*MSVC_INCLUDE, copy_string(tprint("/I%", it)));
-        }
-        if LINUX && !LLVM_BIN {
+        if !LLVM_BIN {
             r, out := run_command("C:\\Program Files (x86)\\Microsoft Visual Studio\\Installer\\vswhere.exe", "-latest", "-products", "*",
                 "-requires", "Microsoft.VisualStudio.Component.VC.Llvm.Clang", "-property", "installationPath", capture_and_return_output = true);
-            if r.exit_code != 0 || !trim(out) { log_error("build: building for Linux needs the Visual Studio component \"C++ Clang Compiler for Windows\""); return false; }
+            if r.exit_code != 0 || !trim(out) { log_error("build: install the Visual Studio component \"C++ Clang Compiler for Windows\""); return false; }
             LLVM_BIN = copy_string(tprint("%\\VC\\Tools\\Llvm\\x64\\bin", trim(out)));
             CLANG = copy_string(tprint("%\\clang.exe", LLVM_BIN));
         }
@@ -747,8 +716,7 @@ build_c_target :: () -> bool {
         a: [..]string;
         cc(*a, false);
         array_add(*a, ..cflags(path_strip_extension(src)));
-        cc_out(*a, obj);
-        array_add(*a, src);
+        array_add(*a, "-o", obj, src);
         array_add(*jobs, a);
     }
     for list: source_lists() {
@@ -780,23 +748,14 @@ build_c_target :: () -> bool {
                 array_add(*jobs, a);
                 continue;
             }
-            // BoringSSL's .S files are its macOS and Linux assembly, which cl cannot read; Windows assembles the .asm
-            if MSVC() && ends_with(f, ".S") continue;
             cc(*a, !ends_with(f, ".c") && !ends_with(f, ".S"));
             array_add(*a, ..extra);
             if (tag == "x86" || tag == "simd") && !arm {
-                // cl's /arch:AVX2 also allows FMA, F16C and BMI2, and ggml defines their macros for it.
-                if MSVC() array_add(*a, "/arch:AVX2");
-                else array_add(*a, "-mavx2", "-mfma", "-mf16c", "-mbmi2");
+                array_add(*a, "-mavx2", "-mfma", "-mf16c", "-mbmi2");
                 array_add(*a, "-DGGML_AVX", "-DGGML_AVX2", "-DGGML_FMA", "-DGGML_F16C", "-DGGML_BMI2", "-DGGML_SSE42");
             }
-            // per-file SIMD (libwebp and WebRTC pick them at run time; WebRTC's x86 files don't guard themselves).
-            // cl has the SSE4.1 intrinsics without a flag.
-            if MSVC() {
-                if ends_with(f, "_avx2.c") || ends_with(f, "_avx2.cc") array_add(*a, "/arch:AVX2");
-                if ends_with(f, "_avx512.c") array_add(*a, "/arch:AVX512");
-                if ends_with(f, "_neon.cc") continue;
-            } else if MAC_ARCH != "arm64" {
+            // per-file SIMD (libwebp and WebRTC pick them at run time; WebRTC's x86 files don't guard themselves)
+            if MAC_ARCH != "arm64" {
                 if ends_with(f, "_sse41.c") array_add(*a, "-msse4.1");
                 if ends_with(f, "_avx2.c") array_add(*a, "-mavx2");
                 if ends_with(f, "_avx512.c") array_add(*a, "-mavx512f", "-mavx512vl");
@@ -804,8 +763,7 @@ build_c_target :: () -> bool {
                 if ends_with(f, "_neon.cc") continue;
             } else if ends_with(f, "_avx2.cc") || ends_with(f, "_sse.cc") || ends_with(f, "_sse2.cc") continue;
             // named with their directory too: FFmpeg has both libavcodec/utils.c and libavutil/utils.c
-            cc_out(*a, tprint("%/%_%.o", dir, path_filename(trim_right(path_strip_filename(f), "/")), path_filename(f)));
-            array_add(*a, f);
+            array_add(*a, "-o", tprint("%/%_%.o", dir, path_filename(trim_right(path_strip_filename(f), "/")), path_filename(f)), f);
             array_add(*jobs, a);
         }
         array_add(*stamps, stamp);
@@ -836,7 +794,7 @@ build_c_target :: () -> bool {
     // the object list goes in a response file: it is longer than a Windows command line
     rsp := tprint("%.rsp", lib);
     write_entire_file(rsp, join(..objs, "\n"));
-    #if OS == .WINDOWS return run_command(tprint("%\\lib.exe", MSVC_BIN), "/NOLOGO", tprint("/OUT:%", lib), tprint("@%", rsp)).exit_code == 0;
+    #if OS == .WINDOWS return run_command(tprint("%\\llvm-lib.exe", LLVM_BIN), tprint("/OUT:%", lib), tprint("@%", rsp)).exit_code == 0;
     else return run_command("libtool", "-static", "-no_warning_for_no_symbols", "-o", lib, "-filelist", rsp).exit_code == 0;
 }
 

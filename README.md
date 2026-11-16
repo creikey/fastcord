@@ -41,16 +41,17 @@ webview (but for Discord's captcha, below). Metal on macOS, Direct3D 11 on Windo
 
 ## Build and run
 
-Needs Jai (beta 0.2.030 or later, `jai` on `PATH`). Per OS it also needs:
+Needs Jai (beta 0.2.030 or later, `jai` on `PATH`). The build compiles all the C with the host's clang. Per OS
+it also needs:
 - macOS: the Xcode command line tools, for clang, the SDK (headers, libc++, frameworks), `libtool` and `lipo`.
-- Windows: the Visual Studio Build Tools with the C++ tools. The C compiles with MSVC.
+- Windows: the Visual Studio Build Tools (the MSVC headers and libraries) with the "C++ Clang Compiler for
+  Windows" component.
 - Linux: clang, and `bsdtar` (libarchive) to unpack the sysroot.
 
 Any host also builds for x86_64 Linux: append `linux` to any target, e.g. `jai build.jai - dev linux` writes
-`build/fastcord-dev` for x86_64 Linux. The Linux build compiles with clang; on Windows that is the Visual Studio
-component "C++ Clang Compiler for Windows". It downloads a pinned CentOS 7 sysroot into `build/sysroot` on first
-use (glibc 2.17 and GCC 11's libstdc++, a 53 MB download), so one binary runs on every distribution since 2014.
-Jai's own lld links it.
+`build/fastcord-dev` for x86_64 Linux. The Linux build downloads a pinned CentOS 7 sysroot into `build/sysroot`
+on first use (glibc 2.17 and GCC 11's libstdc++, a 53 MB download), so one binary runs on every distribution since
+2014. Jai's own lld links it.
 
 ```sh
 jai build.jai - dev       # build/fastcord-dev: optimised with symbols, for daily use
