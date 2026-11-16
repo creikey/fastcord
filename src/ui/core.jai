@@ -336,6 +336,7 @@ State :: struct {
 	events: [..]Input_Event;
 	hot: Key; // the topmost hovered clickable box, decided at end of previous frame
 	active: Key; // box that received mouse down
+	active_at: int; // the index in this frame's events of the press that made it active, plus one; 0 if earlier
 	focus: Key; // keyboard focus
 	next_hot: Key;
 	cursor: Cursor;
@@ -403,6 +404,7 @@ begin :: (window: Vec2, dt: float32, time: float64, events: []Input_Event, pixel
 	if s.autoscroll && !s.autoscroll_seen s.autoscroll = 0;
 	s.autoscroll_seen = false;
 	s.press_pos_before = s.press_pos;
+	s.active_at = 0;
 	for e: events {
 		array_add(*s.events, e);
 		// Any click or Escape ends autoscroll, and does nothing else.
@@ -496,8 +498,8 @@ end :: () -> []Draw_Cmd {
 	s.stats.draw_cmds = s.draw.count;
 	a := *s.arenas[s.frame % 2];
 	if a.memory_base s.stats.arena_bytes = a.current_point - a.memory_base;
-	// Unhandled mouse-up clears active.
-	for s.events if it.kind == .Mouse_Up && it.button == .Left s.active = 0;
+	// An unhandled mouse-up clears active, unless a later press in the same frame made it so.
+	for s.events if it.kind == .Mouse_Up && it.button == .Left && it_index >= s.active_at - 1 s.active = 0;
 	if s.active != 0 && !s.mouse_down[Mouse_Button.Left] s.active = 0;
 	return s.draw;
 }
@@ -666,7 +668,7 @@ signal :: (b: *Box) -> Signal {
 				case .Mouse_Down;
 					if sig.hovering {
 						if e.button == .Left {
-							s.active = b.key;
+							s.active, s.active_at = b.key, it_index + 1;
 							sig.pressed = true;
 							if (b.flags & .Click_On_Release) == 0 {
 								sig.clicked = true;
@@ -866,7 +868,7 @@ scrollbar :: (host: *Box, kind: Scrollbar_Kind, off: *float32, target: *float32,
 	for * e: s.events {
 		if e.consumed || e.kind != .Mouse_Down || e.button != .Left || s.hot != bar.key continue;
 		y := e.pos.y - r.y0;
-		s.active = bar.key;
+		s.active, s.active_at = bar.key, it_index + 1;
 		e.consumed = true;
 		if y >= ty && y < ty + thumb_h {
 			bar.bar_page = 0;

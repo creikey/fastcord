@@ -1691,8 +1691,6 @@ run_drag :: (data: []u8) {
 		oracle(sig.dragging == active, "drag: dragging %, want %", sig.dragging, active);
 		if active && !released oracle(sig.drag_delta == state.mouse - press, "drag: delta %, want %", sig.drag_delta, state.mouse - press);
 		ui.end();
-		// A frame's mouse-up ends any press, even one made after it in the same frame.
-		for events if it.kind == .Mouse_Up && it.button == .Left active = false;
 		if !state.mouse_down[ui.Mouse_Button.Left] active = false;
 	}
 }
