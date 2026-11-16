@@ -7,9 +7,9 @@ VP8 decoding and encoding for call and Go Live video (`src/media/decode_sw.jai` 
 `vpx_scale` and `vpx_util`, without the per-CPU directories (`x86`, `arm`, `mips`, `ppc`, `loongarch`),
 the VP9 code and the tests.
 
-- Upstream: https://github.com/webmproject/libvpx v1.15.2
-- Source: https://github.com/webmproject/libvpx/archive/refs/tags/v1.15.2.tar.gz
-- sha256 of the tarball: 26fcd3db88045dee380e581862a6ef106f49b74b6396ee95c2993a260b4636aa
+- Upstream: https://github.com/webmproject/libvpx v1.17.0
+- Source: https://github.com/webmproject/libvpx/archive/refs/tags/v1.17.0.tar.gz
+- sha256 of the tarball: 1020f184046187baa2985dbde38e0691f49c44088bca7a1842b0236c6081dc0a
 - Licence: BSD 3-clause (`LICENSE`), with Google's patent grant (`PATENTS`).
 
 fastcord's files: `fc_libvpx.c` (the C interface: one frame in, its 4:2:0 picture out; an NV12 picture
