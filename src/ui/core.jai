@@ -245,7 +245,7 @@ Signal :: struct {
 	right_clicked: bool;
 	dragging: bool; // is the active box
 	mouse: Vec2;
-	drag_delta: Vec2;
+	drag_delta: Vec2; // while dragging, and on the release
 	keyboard_click: bool;
 }
 
@@ -330,7 +330,8 @@ State :: struct {
 	mouse: Vec2;
 	mouse_prev: Vec2;
 	mouse_down: [5]bool; // per Mouse_Button
-	press_pos: Vec2;
+	press_pos: Vec2; // the frame's last press
+	press_pos_before: Vec2; // press_pos as the frame began, so a release measures from its own press
 	swallow_up: bool; // a press already clicked; its release goes to nothing else
 	events: [..]Input_Event;
 	hot: Key; // the topmost hovered clickable box, decided at end of previous frame
@@ -401,6 +402,7 @@ begin :: (window: Vec2, dt: float32, time: float64, events: []Input_Event, pixel
 	s.events.count = 0;
 	if s.autoscroll && !s.autoscroll_seen s.autoscroll = 0;
 	s.autoscroll_seen = false;
+	s.press_pos_before = s.press_pos;
 	for e: events {
 		array_add(*s.events, e);
 		// Any click or Escape ends autoscroll, and does nothing else.
@@ -416,8 +418,7 @@ begin :: (window: Vec2, dt: float32, time: float64, events: []Input_Event, pixel
 			case .Mouse_Down;
 				s.mouse = e.pos;
 				s.mouse_down[e.button] = true;
-				s.press_pos = e.pos;
-				if e.button == .Left s.swallow_up = false;
+				if e.button == .Left { s.press_pos = e.pos; s.swallow_up = false; }
 			case .Mouse_Up;
 				s.mouse = e.pos;
 				s.mouse_down[e.button] = false;
@@ -657,7 +658,9 @@ signal :: (b: *Box) -> Signal {
 	if sig.hovering && b.hover_cursor != .Default s.cursor = b.hover_cursor;
 	if sig.hovering && clickable && b.hover_cursor == .Default s.cursor = .Pointer;
 	if clickable {
+		press := s.press_pos_before;
 		for * e: s.events {
+			if e.kind == .Mouse_Down && e.button == .Left press = e.pos;
 			if e.consumed continue;
 			if e.kind == {
 				case .Mouse_Down;
@@ -679,6 +682,7 @@ signal :: (b: *Box) -> Signal {
 				case .Mouse_Up;
 					if e.button == .Left && s.active == b.key {
 						sig.released = true;
+						sig.drag_delta = e.pos - press;
 						if (b.flags & .Click_On_Release) && contains(visible_rect(b), e.pos) sig.clicked = true;
 						s.swallow_up = false;
 						s.active = 0;
@@ -694,7 +698,7 @@ signal :: (b: *Box) -> Signal {
 		}
 	}
 	sig.dragging = s.active == b.key;
-	if sig.dragging sig.drag_delta = s.mouse - s.press_pos;
+	if sig.dragging && !sig.released sig.drag_delta = s.mouse - s.press_pos;
 
 	// scrolling: the innermost scrollable under the mouse takes the wheel and a middle click (autoscroll);
 	// one behind an open overlay doesn't

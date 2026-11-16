@@ -56,6 +56,7 @@ netio :: #import "netio";
 protobuf :: #import "protobuf";
 serve :: #import "serve";
 stt :: #import "stt";
+ui :: #import "ui";
 vault :: #import "vault";
 vector :: #import "vector";
 voice :: #import "voice";
@@ -89,6 +90,7 @@ TARGETS :: Target.[
 	.{"lottie", run_lottie, "{\"w\":64,\"h\":64,\"fr\":30,\"ip\":0,\"op\":30,\"layers\":[{\"ty\":4,\"ks\":{},\"shapes\":[{\"ty\":\"gr\",\"it\":[{\"ty\":\"rc\",\"p\":{\"k\":[32,32]},\"s\":{\"k\":[20,20]}},{\"ty\":\"fl\",\"c\":{\"k\":[1,0,0,1]},\"o\":{\"k\":100}}]}]}]}", "", .Json},
 	.{"demux", run_demux, "\0\0\0\x10ftypisom\0\0\0\0\0\0\0\x08moov", "tests/ui/media/clip.mp4 tests/data/aac_video.mp4 tests/data/moov_last.mp4 tests/data/vp8.ivf tests/data/av1.ivf tests/ui/media/dance.gif", .Bytes},
 	.{"store", run_store, "", "", .Choices},
+	.{"drag", run_drag, "", "", .Choices},
 	.{"markdown", run_markdown, "", "", .Choices},
 	.{"svg", run_svg, "<svg viewBox=\"0 0 24 24\"><g transform=\"rotate(45)\"><path fill=\"#f00\" d=\"M1 1L5 5C1 2 3 4 5 6z\"/><circle cx=\"3\" cy=\"3\" r=\"1\" opacity=\".5\"/></g></svg>", "tests/ui/emoji/media/15522480866a3e11.svg tests/ui/emoji/media/21f5a5ed99c27d76.svg tests/ui/emoji/media/8838f014a5d2ce59.svg", .Bytes},
 	.{"image", run_image, "\x89PNG\r\n\x1a\n\0\0\0\rIHDR\0\0\0\x01\0\0\0\x01\x08\x06\0\0\0", "tests/data/t_trns_gray.png tests/scenarios/assets/test.png tests/ui/attach/photo.jpg tests/ui/emoji/media/1546820603343016300.webp tests/ui/media/dance.gif", .Bytes},
@@ -1637,6 +1639,62 @@ check_store :: (s: *dc.Store) {
 		for g.channels oracle(table_find_pointer(*s.channels, it) != null, "store: guild % lists channel %, which isn't stored", g.id, it);
 	}
 	for s.private_channels oracle(table_find_pointer(*s.channels, it) != null, "store: private channel % isn't stored", it);
+}
+
+// ---- UI drags: a release reports how far the mouse moved since its own press ----
+
+// The picture-in-picture player tells a click (return to the call) from a drag (move it) by the
+// release's drag_delta, which once read zero and so turned every drag into a click.
+run_drag :: (data: []u8) {
+	g := Gen.{b = data};
+	state: ui.State;
+	ui.init(*state, .{});
+	defer ui.shutdown(*state);
+	AT :: ui.Vec2.{100, 100};
+	SIZE :: ui.Vec2.{320, 180};
+	active, left_down := false;
+	press: ui.Vec2;
+	events: [..]ui.Input_Event;
+	defer array_free(events);
+	n := 0;
+	while !done(*g) && n < 64 {
+		n += 1;
+		events.count = 0;
+		for 1..pick(*g, 5) {
+			// Near the box's edges, to the pixel, with half-pixel steps for the threshold.
+			pos := ui.Vec2.{AT.x - 8 + pick(*g, 340) + pick(*g, 2) * 0.5, AT.y - 8 + pick(*g, 200) + pick(*g, 2) * 0.5};
+			kind := ui.Input_Event_Kind.[.Mouse_Move, .Mouse_Move, .Mouse_Down, .Mouse_Up][pick(*g, 4)];
+			button := ifx pick(*g, 6) == 0 then ui.Mouse_Button.Right else .Left;
+			// A held button is never pressed again, nor a free one released.
+			if button == .Left && kind != .Mouse_Move {
+				kind = ifx left_down then .Mouse_Up else .Mouse_Down;
+				left_down = !left_down;
+			}
+			if replaying print("% % % %\n", kind, button, pos.x, pos.y);
+			array_add(*events, .{kind = kind, pos = pos, button = button, click_count = 1});
+		}
+		ui.begin(.{800, 600}, 1.0 / 60, n / 60.0, events);
+		hovering := state.hot != 0;
+		released := false;
+		delta: ui.Vec2;
+		for events {
+			if it.button != .Left continue;
+			if it.kind == .Mouse_Down && hovering { active = true; press = it.pos; }
+			if it.kind == .Mouse_Up && active { active = false; released = true; delta = it.pos - press; }
+		}
+		b := ui.box("pip", .Clickable | .Click_On_Release | .Floating_X | .Floating_Y | .Overlay);
+		b.semantic_size = .[ui.px(SIZE.x), ui.px(SIZE.y)];
+		b.fixed_pos = AT;
+		sig := ui.signal(b);
+		oracle(sig.released == released, "drag: released %, want %", sig.released, released);
+		if released oracle(sig.drag_delta == delta, "drag: release delta %, want %", sig.drag_delta, delta);
+		oracle(sig.dragging == active, "drag: dragging %, want %", sig.dragging, active);
+		if active && !released oracle(sig.drag_delta == state.mouse - press, "drag: delta %, want %", sig.drag_delta, state.mouse - press);
+		ui.end();
+		// A frame's mouse-up ends any press, even one made after it in the same frame.
+		for events if it.kind == .Mouse_Up && it.button == .Left active = false;
+		if !state.mouse_down[ui.Mouse_Button.Left] active = false;
+	}
 }
 
 run_store :: (data: []u8) {
