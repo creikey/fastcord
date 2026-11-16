@@ -10,7 +10,7 @@
 #import "Thread";
 #import "System";
 #import "Sort";
-#if OS == .WINDOWS { WR :: #import "Windows_Resources"; W :: #import "Windows"; }
+#if OS == .WINDOWS WR :: #import "Windows_Resources";
 
 #run build();
 
@@ -645,12 +645,14 @@ fetch :: (done: string, dir: string, url: string, sha256: string, members: ..str
 // clang of the Visual Studio component "C++ Clang Compiler for Windows". build_c finds both.
 MSVC :: () -> bool { return OS == .WINDOWS && !LINUX; }
 MSVC_BIN := "";
+MSVC_INCLUDE: [..]string;
 CLANG := "clang";
 LLVM_BIN := "";  // Windows: the directory of the Visual Studio clang and its llvm-objcopy
 
 cc :: (a: *[..]string, cpp: bool) {
     if MSVC() {
         array_add(a, tprint("%\\cl.exe", MSVC_BIN), "/nologo", "/c", "/O2", "/MD", "/utf-8", "/Zc:preprocessor", "/D_CRT_SECURE_NO_WARNINGS"); // /MD: the DLL CRT, as Jai links
+        array_add(a, ..MSVC_INCLUDE);
         if cpp array_add(a, "/std:c++17", "/EHs-c-", "/GR-", "/D_HAS_EXCEPTIONS=0");
         else array_add(a, "/std:c17");
         return;
@@ -674,11 +676,9 @@ build_c :: () -> bool {
             kit := WR.find_windows_kit_root();
             if !bin || !kit { log_error("build: install the Visual Studio Build Tools with the C++ tools"); return false; }
             MSVC_BIN = copy_string(bin);
-            // The system headers go in INCLUDE, as vcvars sets it: cl searches it after every /I, so a library's
-            // own header of the same name wins (dav1d's stdatomic.h for MSVC over MSVC's, which needs a flag).
             sdk := replace(kit, "Lib", "Include");
-            include := tprint("%\\..\\..\\include;%\\ucrt;%\\um;%\\shared", lib, sdk, sdk, sdk);
-            W.SetEnvironmentVariableA("INCLUDE", to_c_string(include,, temp));
+            for string.[tprint("%\\..\\..\\include", lib), tprint("%\\ucrt", sdk), tprint("%\\um", sdk), tprint("%\\shared", sdk)]
+                array_add(*MSVC_INCLUDE, copy_string(tprint("/I%", it)));
         }
         if LINUX && !LLVM_BIN {
             r, out := run_command("C:\\Program Files (x86)\\Microsoft Visual Studio\\Installer\\vswhere.exe", "-latest", "-products", "*",

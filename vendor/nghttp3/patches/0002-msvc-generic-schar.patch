@@ -6,12 +6,12 @@ diff -ru nghttp3.orig/lib/nghttp3_macro.h nghttp3/lib/nghttp3_macro.h
  #define NGHTTP3_MAX_VARINT ((1ULL << 62) - 1)
  
 +/*
-+ * fastcord: MSVC's cl (still in VS 2022 17.9) takes char and signed char
-+ * for one type in _Generic and rejects listing both.  Its char is signed, so
++ * fastcord: MSVC before VS 2022 treats char and signed char as one
++ * type in _Generic and rejects listing both.  Its char is signed, so
 + * drop the signed char association there.
 + */
 +#ifndef NGHTTP3_GENERIC_SCHAR
-+#  if defined(_MSC_VER) && !defined(__clang__)
++#  if defined(_MSC_VER) && _MSC_VER < 1930
 +#    define NGHTTP3_GENERIC_SCHAR(F)
 +#  else
 +#    define NGHTTP3_GENERIC_SCHAR(F) signed char: F,
