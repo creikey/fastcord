@@ -236,6 +236,7 @@ stream_thread :: (th: *Thread) -> s64 {
 				done += r;
 			}
 		}
+		if r < 0 && !s.capture atomic_add(*st.xruns, 1);
 		if r < 0 && fn.snd_pcm_recover(s.pcm, xx r, 1) < 0 {
 			fn.snd_pcm_close(s.pcm);
 			s.pcm = null;

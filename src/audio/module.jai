@@ -101,13 +101,17 @@ output_latency :: () -> float64 { return st.latency; }
 
 set_volume :: (v: float32) { atomic_store(*st.master_bits, f32_bits(max(v, 0))); }
 
-source_create :: () -> Source {
+// prebuffer_frames: live voice needs slack between its 20 ms writer and the device's clock.
+// Other sources keep immediate playback (0).
+source_create :: (prebuffer_frames: int = 0) -> Source {
 	for * sl: st.slots {
 		if sl.in_use continue;
 		sl.in_use = true;
 		atomic_store(*sl.played, 0);
 		atomic_store(*sl.paused, 0);
 		atomic_store(*sl.flush_req, 0);
+		sl.prebuffer_frames = clamp(prebuffer_frames, 0, SAMPLE_RATE);
+		sl.buffering = true;
 		atomic_store(*sl.volume_bits, f32_bits(1));
 		// Drop anything left from a previous user.
 		atomic_store(*sl.ring.r, atomic_load(*sl.ring.w));
@@ -195,6 +199,9 @@ update :: () {
 // sample at the ceiling, then recovers over ~100 ms, so loud passages duck instead of clipping.
 Limiter :: struct { gain: float32 = 1; }
 
+// Cumulative rebuffer transitions (including ends of speech) and device errors for the voice debug trace.
+stats :: () -> underruns: u64, xruns: u64 { return atomic_load(*st.underruns), atomic_load(*st.xruns); }
+
 limit :: (l: *Limiter, buf: []float32, channels: int) {
 	CEIL :: 0.98;
 	RELEASE :: 1.0 / (0.1 * SAMPLE_RATE);
@@ -222,7 +229,18 @@ mix :: (out: []float32) {
 		if atomic_load(*sl.paused) != 0 continue;
 		vol := bits_f32(atomic_load(*sl.volume_bits)) * master;
 		r := *sl.ring;
-		n := min(ring_readable(r), frames * CHANNELS);
+		available := ring_readable(r);
+		if sl.buffering {
+			if available < sl.prebuffer_frames * CHANNELS continue;
+			sl.buffering = false;
+		}
+		n := min(available, frames * CHANNELS);
+		if n < frames * CHANNELS && sl.prebuffer_frames > 0 {
+			// A live writer stalled (or stopped). Refill before restarting, rather than
+			// repeatedly alternating short pieces of voice and silence.
+			sl.buffering = true;
+			atomic_add(*st.underruns, 1);
+		}
 		if n == 0 continue;
 		any_data = true;
 		rd := atomic_load(*r.r);
@@ -315,6 +333,8 @@ Slot :: struct {
 	volume_bits: u32; // atomic f32
 	played: u64; // atomic: frames consumed by the device since create/flush
 	flush_req: u64; // atomic: writer's w position to drop up to (0 = none)
+	prebuffer_frames: int; // immutable while active: 0 for media, 40 ms for live voice
+	buffering: bool; // mixer only, apart from initialization before publishing active
 }
 
 State :: struct {
@@ -325,6 +345,8 @@ State :: struct {
 	master_bits: u32; // atomic f32
 	limiter: Limiter; // device thread
 	idle_frames: u64; // atomic, frames mixed with no source data
+	underruns: u64; // atomic: live sources that ran short and started rebuffering (includes ends of speech)
+	xruns: u64; // atomic: the output device ran dry (ALSA)
 	capture: Ring;
 	capturing: bool;
 	render: Ring; // the speaker mix, mono, while render_on
@@ -354,6 +376,7 @@ apply_flush :: (sl: *Slot) {
 	if f == 0 return;
 	if atomic_load(*sl.ring.r) < f atomic_store(*sl.ring.r, f);
 	atomic_store(*sl.played, 0);
+	sl.buffering = true;
 }
 
 start_output :: () {

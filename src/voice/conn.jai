@@ -209,6 +209,7 @@ Conn :: struct {
     echo_on, denoise_on, agc_on: bool;  // the voice processing switches (under mu)
     diag: struct {              // send side, summed for the debug trace every 2 s (audio thread)
         frames, padded, voiced, enc_drops: int;
+        underruns, xruns: u64;      // the audio module's totals at the last trace
         min_avail, max_avail: int;
         at_ms: s64;
     };
@@ -1424,18 +1425,32 @@ accurate_sleep_until :: (deadline: Apollo_Time) {
     while to_nanoseconds(deadline - current_time_monotonic()) > 0 {}
 }
 
-// diag_trace: the send side every 2 s (FASTCORD_VOICE_DEBUG=1), to tell a mic that stops
-// delivering from frames the VAD gates, DAVE drops or the socket refuses.
+// FASTCORD_VOICE_DEBUG: mic delivery, packet concealment and playback recovery every 2 s.
 diag_trace :: (c: *Conn) {
+    if c.info.stream return; // the main call reports the process-wide output counters
     now := now_ms();
-    if !c.diag.at_ms { c.diag = .{at_ms = now, min_avail = S64_MAX}; return; }
+    if !c.diag.at_ms {
+        under, xruns := audio.stats();
+        c.diag = .{at_ms = now, min_avail = S64_MAX, underruns = under, xruns = xruns};
+        return;
+    }
     if now - c.diag.at_ms < 2000 return;
     d := c.diag;
     st := DAVE.session_status(*c.dave,, temp);
     dbg(c, "send: mic frames=% padded=% avail=%..% voiced=% db=% | dave v% active=% epoch=% enc_drops=% | udp_errors=% errno=% rtt=%",
         d.frames, d.padded, d.min_avail, d.max_avail, d.voiced, cast(int) c.input_db, st.protocol_version, st.e2ee_active,
         st.epoch, d.enc_drops, atomic_load(*c.udp_errors), c.udp_errno, c.stats.rtt_ms);
-    c.diag = .{at_ms = now, min_avail = S64_MAX};
+    under, xruns := audio.stats();
+    sb: String_Builder;
+    {
+        locks.guard(*c.mu);
+        for u: c.users {
+            js := u.jb.stats;
+            print_to_builder(*sb, " [%] rx=% lost=% plc=% fec=% late=% drop=% target=%", u.user_id % 10000, js.received, js.lost, js.concealed, js.fec_recovered, js.late, js.dropped, js.target_frames);
+        }
+    }
+    dbg(c, "recv: out rebuffers=%(+%, includes speech ends) device_errors=%(+%) | jitter%", under, under - d.underruns, xruns, xruns - d.xruns, builder_to_string(*sb,, temp));
+    c.diag = .{at_ms = now, min_avail = S64_MAX, underruns = under, xruns = xruns};
 }
 
 // mic_frames_due: frames to send this 20 ms tick. The mic runs on the device's clock, so only
@@ -1612,7 +1627,7 @@ rx_tick :: (c: *Conn, out: []float32) {
         if c.opts.no_audio_devices {
             if c.opts.playback c.opts.playback(c.opts.callback_data, u.user_id, frames);
         } else {
-            if !u.source u.source = audio.source_create();
+            if !u.source u.source = audio.source_create(prebuffer_frames = 2 * SAMPLES_PER_FRAME);
             if u.source audio.source_write(u.source, frames);
         }
     }
