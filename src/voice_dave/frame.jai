@@ -266,32 +266,35 @@ decrypt_frame :: (key: []u8, p: *Parsed_Frame, pt_out: []u8) -> int, bool {
 }
 
 // ---------------------------------------------------------------------------
-// Replay window per (cryptor): accept each nonce once.
+// Replay window per (cryptor): accept each nonce once. A sender's audio and video share one nonce counter
+// (libdave's one Encryptor per connection), and a big video frame, paced out after it's sealed, arrives
+// behind many newer audio and simulcast frames. So, as libdave's CryptorManager (kMaxMissingNonces), any
+// unseen nonce among the last REPLAY_WINDOW is accepted, not only the last 64.
+
+REPLAY_WINDOW :: 1024;
 
 Replay_Window :: struct {
 	highest: u32;
-	bits: u64; // bit i => highest - i seen
+	bits: [REPLAY_WINDOW / 64]u64; // bit n % REPLAY_WINDOW => nonce n seen (n within the window)
 	any: bool;
 }
 
 replay_check :: (w: *Replay_Window, nonce: u32) -> bool {
 	if !w.any || nonce > w.highest return true;
-	d := w.highest - nonce;
-	if d >= 64 return false;
-	return (w.bits & ((cast(u64) 1) << d)) == 0;
+	if w.highest - nonce >= REPLAY_WINDOW return false;
+	i := nonce % REPLAY_WINDOW;
+	return (w.bits[i / 64] & ((cast(u64) 1) << (i % 64))) == 0;
 }
 
 replay_mark :: (w: *Replay_Window, nonce: u32) {
-	if !w.any {
-		w.any = true;
-		w.highest = nonce;
-		w.bits = 1;
-	} else if nonce > w.highest {
-		shift := nonce - w.highest;
-		w.bits = ifx shift < 64 then (w.bits << shift) else 0;
-		w.bits |= 1;
-		w.highest = nonce;
-	} else {
-		w.bits |= (cast(u64) 1) << (w.highest - nonce);
+	if w.any && nonce > w.highest {
+		// the slots of the nonces skipped over are unseen
+		for k: 1..min(nonce - w.highest, REPLAY_WINDOW) {
+			i := (w.highest + k) % REPLAY_WINDOW;
+			w.bits[i / 64] &= ~((cast(u64) 1) << (i % 64));
+		}
 	}
+	if !w.any || nonce > w.highest { w.any = true; w.highest = nonce; }
+	i := nonce % REPLAY_WINDOW;
+	w.bits[i / 64] |= (cast(u64) 1) << (i % 64);
 }

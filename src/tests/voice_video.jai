@@ -134,6 +134,20 @@ main :: () {
         ok &= check(memcmp(c.dave.group_id.data, want.data, want.count) == 0, "MLS group id (stream %, hosted %)", stream, hosted);
         voice.voice_disconnect(c);
     }
+    // A keyframe sealed before 300 audio and simulcast frames that overtake it still opens, once (libdave
+    // keeps 1000 missing nonces); one past the window, or a repeat, doesn't.
+    {
+        w: dave.Replay_Window;
+        dave.replay_mark(*w, 5000);
+        for 5001..5300 if it % 3 dave.replay_mark(*w, cast(u32) it);
+        ok &= check(dave.replay_check(*w, 5004) && !dave.replay_check(*w, 5003) && !dave.replay_check(*w, 5000), "replay window keeps missing nonces");
+        dave.replay_mark(*w, 5004);
+        ok &= check(!dave.replay_check(*w, 5004), "a nonce opens once");
+        dave.replay_mark(*w, 7000);
+        ok &= check(!dave.replay_check(*w, 5006) && dave.replay_check(*w, 6999) && !dave.replay_check(*w, 7000 - dave.REPLAY_WINDOW), "replay window's end");
+        dave.replay_mark(*w, 6999);
+        ok &= check(!dave.replay_check(*w, 6999) && dave.replay_check(*w, 6998), "slots reused past the window start unseen");
+    }
     print(ifx ok then "PASS\n" else "FAIL\n");
     if !ok exit(1);
 }
