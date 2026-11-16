@@ -170,8 +170,7 @@ call_pip :: () {
 	b.style.shadow_color = .{0, 0, 0, 0.4};
 	b.style.shadow_blur = 16;
 	sig := ui.signal(b);
-	pos := corner;
-	if sig.dragging pos += sig.drag_delta;
+	pos := corner + sig.drag_delta; // zero unless dragging or just released
 	b.fixed_pos = pos;
 	d := New(Tile_Draw,, temp);
 	d.* = .{img, false};
