@@ -1611,7 +1611,9 @@ send_opus :: (c: *Conn, opus: []u8, ts: u32, level: u8, voice: bool) {
 rx_tick :: (c: *Conn, out: []float32) {
     locks.guard(*c.mu);
     for u: c.users {
-        kind, data := jb_pop(*u.jb);
+        trimmed: []u8;
+        kind, data := jb_pop(*u.jb, *trimmed);
+        if trimmed.count c.codec.decode(u.decoder, trimmed, false, out); // advance history, discard the sound
         if kind == .None continue;
         n := c.codec.decode(u.decoder, data, kind == .Fec, out);  // .Plc: data is empty
         if n > 0 && kind != .Plc && c.opts.listen {

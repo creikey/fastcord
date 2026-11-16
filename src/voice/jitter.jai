@@ -86,9 +86,10 @@ jb_push :: (jb: *Jitter_Buffer, seq: u16, ts: u32, payload: []u8, arrival_ms: fl
     memcpy(s.data.data, payload.data, payload.count);
 }
 
-// jb_pop is called once per 20 ms playout tick. The returned view is valid
-// until the next push/pop.
-jb_pop :: (jb: *Jitter_Buffer) -> kind: Pop_Kind, data: []u8 {
+// Once per 20 ms tick. Both views last until the next push/pop. Decode trimmed
+// before data, but discard its PCM: skipping a compressed frame skips decoder history too.
+jb_pop :: (jb: *Jitter_Buffer, trimmed: *[]u8) -> kind: Pop_Kind, data: []u8 {
+    trimmed.* = .[];
     if jb.playing for * jb.slots if it.valid && seq_before(it.seq, jb.next_seq) {
         it.valid = false;
         jb.stats.late += 1;
@@ -121,9 +122,13 @@ jb_pop :: (jb: *Jitter_Buffer) -> kind: Pop_Kind, data: []u8 {
     // latency trim
     if buffered > jb.target + JB_SHRINK_SLACK {
         s := *jb.slots[jb.next_seq % JB_SLOTS];
-        if s.valid && s.seq == jb.next_seq s.valid = false;
-        jb.next_seq += 1;
-        jb.stats.dropped += 1;
+        if s.valid && s.seq == jb.next_seq {
+            trimmed.* = array_view(s.data, 0, s.len);
+            s.valid = false;
+            jb.next_seq += 1;
+            jb.stats.dropped += 1;
+        }
+        // If that packet is missing, let the normal FEC/PLC path advance decoder history.
     }
     s := *jb.slots[jb.next_seq % JB_SLOTS];
     cur := jb.next_seq;
