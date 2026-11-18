@@ -13,7 +13,9 @@
 #import "Sort";
 #if OS == .WINDOWS { WR :: #import "Windows_Resources"; W :: #import "Windows"; }
 
-#run build();
+// Stallable: build() calls Basic procedures, like string_to_int, that hold #runs of their own. If the
+// compiler reaches one before that #run has executed, a plain #run fails the build instead of waiting.
+#run,stallable build();
 
 build :: () {
     set_build_options_dc(.{do_output = false});
