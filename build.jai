@@ -393,14 +393,28 @@ ui_scripts :: () -> bool {
     sweep.name = "sweep";
     array_add(*sweep.args, BIN, "-shot:build/sweep.png", "-dpi:1", "-now:1793016000", "-sweep:tests/ui/sweep.txt");
     make_directory_if_it_does_not_exist("build/uires");
-    threads := NewArray(jobs.count, Thread);
+    // A few processes at a time: starting all 300-odd at once runs a 16 GB laptop out of memory.
+    WORKERS :: 4;
+    Pool :: struct { jobs: []Job; next: s64; mutex: Mutex; }
+    pool: Pool;
+    pool.jobs = jobs;
+    init(*pool.mutex);
+    threads: [WORKERS] Thread;
     for * threads {
         thread_init(it, (t: *Thread) -> s64 {
-            j := cast(*Job) t.data;
-            j.ok = run_logged(tprint("build/uires/%.log", j.name), ..j.args);
+            pool := cast(*Pool) t.data;
+            while true {
+                lock(*pool.mutex);
+                i := pool.next;
+                pool.next += 1;
+                unlock(*pool.mutex);
+                if i >= pool.jobs.count break;
+                j := *pool.jobs[i];
+                j.ok = run_logged(tprint("build/uires/%.log", j.name), ..j.args);
+            }
             return 0;
         });
-        it.data = *jobs[it_index];
+        it.data = *pool;
         thread_start(it);
     }
     ok := true;
