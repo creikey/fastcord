@@ -1312,6 +1312,8 @@ send_captcha :: (t: *T) {
 		return l.messages[i].pending, l.messages[i].failed;
 	}
 	nonce := send_message(c, R_TEXT, "behind a captcha");
+	// The answer comes after the recorded latency, which can outlast a 200 ms quiet window.
+	replay_drain(*run);
 	replay_settle(*run, 200);
 	p, f := pending(c, nonce);
 	expect(t, p && !f, "a captcha keeps the send pending");
@@ -1322,6 +1324,7 @@ send_captcha :: (t: *T) {
 	run.r.fail = "";
 	posts := r_count(*run, "POST", "/messages");
 	send_captcha_answer(c, "P1_solved");
+	replay_drain(*run);
 	replay_settle(*run, 200);
 	expect_value(t, r_count(*run, "POST", "/messages") - posts, 1);
 	wire := "";
@@ -1333,6 +1336,7 @@ send_captcha :: (t: *T) {
 	// closing it unsolved fails the send
 	run.r.fail = "/messages";
 	nonce = send_message(c, R_TEXT, "closed");
+	replay_drain(*run);
 	replay_settle(*run, 200);
 	send_captcha_take(c);
 	send_captcha_cancel(c);
