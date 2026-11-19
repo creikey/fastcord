@@ -43,12 +43,15 @@ webview (but for Discord's captcha, below). Metal on macOS, Direct3D 11 on Windo
 
 Needs Jai (beta 0.2.030 or later, `jai` on `PATH`). Local builds (dev, debug, tests, tools) compile the C
 with the machine's own compiler: MSVC on Windows, clang on macOS, `cc`/`c++` on Linux. What ships (`app`,
-`release`) and every cross-build for Linux compile it with one pinned Zig, downloaded into `build/zig` on first
-use. Per OS it also needs:
+`release`) and every cross-build for Linux compile it with one pinned [odin_cc](https://github.com/SamHSmith/odin_cc),
+downloaded into `build/odin_cc` on first use. odin_cc runs on Apple silicon Macs, x86_64 Windows and x86_64
+Linux (glibc 2.34+); an Intel Mac makes only local builds. Per OS it also needs:
 - macOS: the Xcode command line tools, for clang, the SDK (headers, libc++, frameworks), `libtool` and `lipo`.
+  odin_cc's linker cannot read the Xcode 27 SDK; the build then uses the command line tools' SDK if that one
+  is older (`MacOSX26.sdk` or earlier).
 - Windows: the Visual Studio Build Tools (MSVC, its headers and libraries).
-- Linux: a C and C++ compiler (`cc`, `c++`) and `ar`. Linux builds are also cross-compiled from Windows or
-  macOS with Zig (`zig cc` against glibc 2.17): append `linux` to any target, e.g. `jai build.jai - dev linux`
+- Linux: a C and C++ compiler (`cc`, `c++`), `ar`, and `unzip` (to unpack odin_cc). Linux builds are also
+  cross-compiled from Windows or macOS with odin_cc (`odin_cc cc` against glibc 2.17): append `linux` to any target, e.g. `jai build.jai - dev linux`
   writes `build/fastcord-dev` for x86_64 Linux.
 
 ```sh
