@@ -1,6 +1,6 @@
 // jai build.jai - <target>: see USAGE below.
 // Compiles the vendored C libraries (each vendor/<lib>/fc_<lib>.c, or the files listed in fc_<lib>.sources)
-// into build/, then the Jai program, then links everything. The C, and the macOS and Linux links, go through one pinned odin_cc that build/odin_cc caches,
+// into build/, then the Jai program, then links everything. The C, and the macOS and Linux links, go through pinned cross_cc v2 cached in build/cross_cc,
 // but for the local builds (see HOST).
 #import "Basic";
 #import "Compiler";
@@ -92,7 +92,7 @@ usage: jai build.jai - <target>
   <target> linux              any target cross-compiled for x86_64 Linux (from Windows or macOS)
 END
 
-// A trailing "linux" argument (implied on a Linux host) builds everything for x86_64 Linux: the C with `odin_cc cc` against
+// A trailing "linux" argument (implied on a Linux host) builds everything for x86_64 Linux: the C with `cross_cc cc` against
 // glibc 2.17 (so one binary runs on every distro since 2014), the Jai with os_target = .LINUX.
 LINUX := OS == .LINUX;
 GLIBC :: "x86_64-linux-gnu.2.17";
@@ -104,7 +104,7 @@ OBJ :: () -> string {
     if MAC_ARCH return tprint("build/mac-%", MAC_ARCH);
     return "build";
 }
-// Every module links "build/fc_vendor", so the odin_cc, host and Linux builds share that path; its .target file
+// Every module links "build/fc_vendor", so the cross_cc, host and Linux builds share that path; its .target file
 // names which one it holds, and a build for another remakes it.
 vendor_lib_target :: () -> string {
     s, ok := read_entire_file(tprint("%.target", VENDOR_LIB()), log_errors = false);
@@ -120,7 +120,7 @@ VENDOR_LIB :: () -> string {
 
 // Local builds (dev, debug, tests, tools) compile the C with this machine's own compiler, for the quickest
 // builds: MSVC's cl and lib on Windows (from the Visual Studio Jai links with), clang on macOS, cc on Linux,
-// for the host's CPU only. What ships (app, release) and every cross-build for Linux use the pinned odin_cc, so
+// for the host's CPU only. What ships (app, release) and every cross-build for Linux use pinned cross_cc v2, so
 // it is reproducible and built the same way from any host.
 HOST := false;
 MSVC :: () -> bool { return HOST && OS == .WINDOWS; }
@@ -225,7 +225,7 @@ compile :: (name: string, source := "", optimization := Optimization_Type.DEBUG,
     for o.import_path array_add(*import_path, it);
     o.import_path = import_path;
     if LINUX o.os_target = .LINUX;
-    // Windows links with the compiler's own linker step (MSVC libraries); macOS and Linux with odin_cc
+    // Windows links with the compiler's own linker step (MSVC libraries); macOS and Linux with cross_cc
     o.use_custom_link_command = OS != .WINDOWS || LINUX;
     o.text_output_flags = 0;
     o.output_executable_name = name;
@@ -488,14 +488,14 @@ link :: (p: *Message_Phase, exe: string, cpu: CPU_Tag) -> bool {
     a: [..]string;
     if HOST && LINUX array_add(*a, "c++", "-no-pie", "-o", exe);  // the Jai object is not position independent, and distros' gcc defaults to PIE
     else if HOST array_add(*a, "clang", "-arch", ifx cpu == .X64 then "x86_64" else "arm64", "-mmacosx-version-min=13.0", "-o", exe);
-    else if LINUX array_add(*a, ODIN_CC, "c++", "-target", GLIBC, "-o", exe);
-    // odin_cc cc, not c++: the C++ links against the SDK's libc++ (-lc++ below), whose headers the C compiled with
-    else array_add(*a, ODIN_CC, "cc", "-target", ifx cpu == .X64 then "x86_64-macos.13.0" else "aarch64-macos.13.0",
-        tprint("--sysroot=%", MAC_SDK), "-F", "/System/Library/Frameworks", "-L", "/usr/lib", "-o", exe); // odin_cc prefixes -F and -L with the sysroot
+    else if LINUX array_add(*a, CROSS, "c++", "-target", GLIBC, "-o", exe);
+    // cross_cc cc, not c++: the C++ links against the SDK's libc++ (-lc++ below), whose headers the C compiled with
+    else array_add(*a, CROSS, "cc", "-target", ifx cpu == .X64 then "x86_64-macos.13.0" else "aarch64-macos.13.0",
+        tprint("--sysroot=%", MAC_SDK), "-F", tprint("%/System/Library/Frameworks", MAC_SDK), "-L", tprint("%/usr/lib", MAC_SDK), "-o", exe);
     array_add(*a, ..p.compiler_generated_object_files);
     for p.support_object_files {
         if !it continue; // jai-linux can list empty paths, which the driver refuses
-        // A native Linux build lists the system's C startup objects; odin_cc, and the host's driver, link their own.
+        // A native Linux build lists the system's C startup objects; cross_cc, and the host's driver, link their own.
         name := path_filename(it);
         if LINUX && (begins_with(name, "crt") || name == "Scrt1.o") continue;
         array_add(*a, it);
@@ -519,7 +519,7 @@ link :: (p: *Message_Phase, exe: string, cpu: CPU_Tag) -> bool {
         else array_add(*a, arg);
     }
     if LINUX array_add(*a, "-ldl", "-lpthread", "-lm", "-static-libgcc");
-    else array_add(*a, "-lc++");
+    else array_add(*a, ifx HOST then "-lc++" else tprint("%/usr/lib/libc++.tbd", MAC_SDK)); // Link the SDK libc++ directly, not cross_cc's bundled runtime.
     r := run_command(..a);
     return r.exit_code == 0;
 }
@@ -569,7 +569,7 @@ obj_of :: (src: string) -> string { return tprint("%/%.o", OBJ(), path_strip_ext
 
 // Newest modification time under a directory (and this file), to decide what to rebuild.
 newest :: (dir: string) -> Apollo_Time {
-    t: Apollo_Time;
+    t := file_modtime_and_size("build.jai");
     visit_files(dir, true, *t, (info: *File_Visit_Info, t: *Apollo_Time) {
         m := file_modtime_and_size(info.full_name);
         if m > t.* t.* = m;
@@ -598,22 +598,22 @@ cflags :: (base: string) -> []string {
     return out;
 }
 
-// The pinned odin_cc (github.com/SamHSmith/odin_cc), downloaded once into build/odin_cc and checked against
-// the release's SHA256SUMS. macOS has only an Apple silicon build, which also serves release's x86_64 half
-// (this script under Rosetta); an Intel Mac can only make `host` builds.
-ODIN_CC_VERSION :: "v1";
+// The complete cross_cc v2 release for this host, verified before extraction.
+CROSS_VERSION :: "v2";
 #if OS == .WINDOWS {
-    ODIN_CC_HOST :: "windows-amd64"; ODIN_CC_SHA256 :: "b114470b98ba802b0ae37c21aa99fad74fbafb06c7a554cd8ded12f24d105d4f";
+    CROSS_HOST :: "windows-amd64"; CROSS_SHA256 :: "9320ddb34cb6c926561b5527d8f0eb4519b2b370f5b18c60822fd4bbf15c7262";
+} else #if OS == .MACOS && CPU == .ARM64 {
+    CROSS_HOST :: "darwin-arm64"; CROSS_SHA256 :: "64086d0cea2b4efeaf0564a2488798140445fa26f0dea1bd4a4441a43e662c99";
 } else #if OS == .MACOS {
-    ODIN_CC_HOST :: "darwin-arm64";  ODIN_CC_SHA256 :: "ff2eef374ffbf60a8151fe237adeaa43c500d56d83878423f1747095831faf80";
+    CROSS_HOST :: "darwin-amd64"; CROSS_SHA256 :: "9a8e0bdad60d977b4cf02ae3623410e1a5b583c1eba32715dc6ad4dabfbaec6e";
 } else {
-    ODIN_CC_HOST :: "linux-amd64";   ODIN_CC_SHA256 :: "77d379458fd04c3850856107adf7b017fed36bb57004f55818ae7d6907f09285";
+    CROSS_HOST :: "linux-amd64"; CROSS_SHA256 :: "33076163d525a199c46235d6d7504cd39415047f4afdfbbcdbe8b9818076803a";
 }
-ODIN_CC_URL :: #run tprint("https://github.com/SamHSmith/odin_cc/releases/download/%/odin_cc-%-%.zip", ODIN_CC_VERSION, ODIN_CC_VERSION, ODIN_CC_HOST);
-ODIN_CC_LIBC :: "build/odin_cc/libc.txt";  // Windows: the VS and SDK whose headers odin_cc compiles against (build_c).
-// The release unpacks to odin_cc-<host>/, which must stay whole: the executable finds its lib/ beside it.
-#if OS == .WINDOWS ODIN_CC :: #run tprint("build\\odin_cc\\odin_cc-%\\odin_cc.exe", ODIN_CC_HOST);  // CreateProcess wants backslashes
-else               ODIN_CC :: #run tprint("build/odin_cc/odin_cc-%/odin_cc", ODIN_CC_HOST);
+CROSS_DIR :: #run tprint("build/cross_cc/%", CROSS_VERSION);
+CROSS_NAME :: #run tprint("cross_cc-%", CROSS_HOST);
+CROSS_LIBC :: #run tprint("%/libc.txt", CROSS_DIR); // Windows: the same Visual Studio and SDK as Jai.
+#if OS == .WINDOWS CROSS :: #run tprint("build\\cross_cc\\%\\%\\cross_cc.exe", CROSS_VERSION, CROSS_NAME);
+else               CROSS :: #run tprint("%/%/cross_cc", CROSS_DIR, CROSS_NAME);
 
 // BoringSSL's Windows assembly is NASM source: the pinned NASM, its sha256 taken at pinning (nasm.us
 // publishes none).
@@ -624,7 +624,7 @@ NASM :: #run tprint("build\\nasm\\nasm-%\\nasm.exe", NASM_VERSION);
 // fetch downloads a pinned tool's archive once into dir, checks its sha256 and unpacks it.
 fetch :: (exe: string, dir: string, url: string, sha256: string) -> bool {
     if file_exists(exe) return true;
-    make_directory_if_it_does_not_exist(dir);
+    make_directory_if_it_does_not_exist(dir, recursive = true);
     archive := tprint("%/%", dir, path_filename(url));
     print("downloading %\n", archive);
     if run_command("curl", "-fsSL", "-o", archive, url).exit_code != 0 return false;
@@ -633,21 +633,18 @@ fetch :: (exe: string, dir: string, url: string, sha256: string) -> bool {
     else               r, out := run_command("shasum", "-a", "256", archive, capture_and_return_output = true);
     ok := r.exit_code == 0 && contains(to_lower_copy(out,, temp), sha256);
     if !ok log_error("% does not match sha256 %", archive, sha256);
-    // tar unpacks zips on macOS and Windows (bsdtar ships with Windows 10+); Linux's GNU tar cannot.
-    if ok {
-        #if OS == .LINUX r = run_command("unzip", "-q", "-o", archive, "-d", dir);
-        else             r = run_command("tar", "-xf", archive, "-C", dir);
-        ok = r.exit_code == 0 && file_exists(exe);
-    }
+    // Linux GNU tar cannot read ZIPs; Windows and macOS ship bsdtar.
+    #if OS == .LINUX ok = ok && run_command("unzip", "-q", "-o", archive, "-d", dir).exit_code == 0 && file_exists(exe);
+    else ok = ok && run_command("tar", "-xf", archive, "-C", dir).exit_code == 0 && file_exists(exe);
     file_delete(archive);
     return ok;
 }
 
-// The C++ library headers come from the system the program links against, not odin_cc's libc++ (which would need
+// The C++ library headers come from the system the program links against, not cross_cc's bundled libc++ (which would need
 // linking too): the MSVC STL on Windows, the SDK's libc++ on macOS.
 MAC_SDK := "";
 
-// Every C compile goes through odin_cc cc, but for `host`'s.
+// Every non-host C compile goes through cross_cc cc.
 cc :: (a: *[..]string, cpp: bool) {
     if MSVC() {
         array_add(a, tprint("%\\cl.exe", MSVC_BIN), "/nologo", "/c", "/O2", "/MD", "/utf-8", "/Zc:preprocessor", "/D_CRT_SECURE_NO_WARNINGS"); // /MD: the DLL CRT, as Jai links
@@ -661,16 +658,16 @@ cc :: (a: *[..]string, cpp: bool) {
         if cpp array_add(a, "-std=c++17", "-fno-exceptions", "-fno-rtti");
         return;
     }
-    array_add(a, ODIN_CC, ifx cpp then "c++" else "cc", "-c", "-O2");
+    array_add(a, CROSS, ifx cpp then "c++" else "cc", "-c", "-O2");
     // the autoconf names the network libraries test for their byte-order headers
     if LINUX array_add(a, "-target", GLIBC, "-fPIC", "-DHAVE_ARPA_INET_H", "-DHAVE_NETINET_IN_H");
     else if OS == .WINDOWS {
-        array_add(a, "-target", "x86_64-windows-msvc", "-D_CRT_SECURE_NO_WARNINGS", "-fms-runtime-lib=dll"); // the DLL CRT, as Jai links
+        array_add(a, "-target", "x86_64-windows-msvc", "--libc", CROSS_LIBC, "-D_CRT_SECURE_NO_WARNINGS", "-fms-runtime-lib=dll"); // the DLL CRT, as Jai links
         // No vectorized algorithm helpers: the objects stay linkable against an older VS's msvcprt.
         if cpp array_add(a, "-nostdinc++", "-D_USE_STD_VECTOR_ALGORITHMS=0");
     } else {
         array_add(a, "-target", tprint("%-macos.13.0", MAC_ARCH), tprint("--sysroot=%", MAC_SDK));
-        // -I, not -isystem: the driver puts a user -isystem after its own C headers, and libc++ must come first.
+        // The SDK libc++ headers must precede the bundled C headers.
         if cpp array_add(a, "-nostdinc++", "-I", tprint("%/usr/include/c++/v1", MAC_SDK));
     }
     if cpp array_add(a, "-std=c++17", "-fno-exceptions", "-fno-rtti");
@@ -682,7 +679,7 @@ cc_out :: (a: *[..]string, obj: string) {
 }
 
 build_c :: () -> bool {
-    if !HOST && !fetch(ODIN_CC, "build/odin_cc", ODIN_CC_URL, ODIN_CC_SHA256) return false;
+    if !HOST && !fetch(CROSS, CROSS_DIR, tprint("https://github.com/SamHSmith/cross_cc/releases/download/%/cross_cc-%-%.zip", CROSS_VERSION, CROSS_VERSION, CROSS_HOST), CROSS_SHA256) return false;
     #if OS == .WINDOWS if !LINUX && !MSVC_BIN {
         lib, bin := WR.find_visual_studio_in_a_ridiculous_garbage_way();
         kit := WR.find_windows_kit_root();
@@ -695,13 +692,11 @@ build_c :: () -> bool {
             include := tprint("%\\..\\..\\include;%\\ucrt;%\\um;%\\shared", lib, sdk, sdk, sdk);
             W.SetEnvironmentVariableA("INCLUDE", to_c_string(include,, temp));
         } else {
-            // odin_cc would take the newest VS's headers, but Jai links the libraries of the VS it finds, which can be
-            // older: VS 2022's STL then calls runtime functions VS 2019's msvcprt lacks. Point odin_cc at Jai's VS
-            // through ZIG_LIBC, the Zig libc file it reads.
+            // Use Jai's Visual Studio and SDK, not independently discovered or downloaded MSVC.
+            // Mixing VS versions can introduce STL calls missing from the runtime Jai links.
             libc := tprint("include_dir=%\\ucrt\nsys_include_dir=%\\..\\..\\include\ncrt_dir=%\\ucrt\\x64\nmsvc_lib_dir=%\nkernel32_lib_dir=%\\um\\x64\ncc_dir=\ndarwin_sdk_dir=\n",
                 sdk, lib, kit, lib, kit);
-            if !write_entire_file(ODIN_CC_LIBC, libc) return false;
-            W.SetEnvironmentVariableA("ZIG_LIBC", to_c_string(tprint("%/%", get_working_directory(), ODIN_CC_LIBC),, temp));
+            if !write_entire_file(CROSS_LIBC, libc) return false;
         }
     }
     #if OS == .WINDOWS if !LINUX && !fetch(NASM, "build/nasm", tprint("https://www.nasm.us/pub/nasm/releasebuilds/%/win64/nasm-%-win64.zip", NASM_VERSION, NASM_VERSION), NASM_SHA256) return false;
@@ -713,11 +708,11 @@ build_c :: () -> bool {
         r, out := run_command("xcrun", "--show-sdk-path", capture_and_return_output = true);
         if r.exit_code != 0 return false;
         MAC_SDK = copy_string(trim(out));
-        // odin_cc's linker (LLD 22) cannot read the library stubs of newer SDKs (Xcode 27's name an arm64e.x1
+        // cross_cc's linker (LLD 22) cannot read the library stubs of newer SDKs (Xcode 27's name an arm64e.x1
         // arch) and leaves libc undefined: take the Command Line Tools' SDK then, if it can read that one.
         if !mac_sdk_readable(MAC_SDK) {
             clt :: "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk";
-            if !mac_sdk_readable(clt) { log_error("build: % is too new for odin_cc's linker; install an older SDK (Xcode 26 or its Command Line Tools)", MAC_SDK); return false; }
+            if !mac_sdk_readable(clt) { log_error("build: % is too new for cross_cc's linker; install an older SDK (Xcode 26 or its Command Line Tools)", MAC_SDK); return false; }
             MAC_SDK = clt;
         }
         // Each Jai program links its arch's slice of the universal archive.
@@ -848,7 +843,7 @@ build_c_target :: () -> bool {
     for stamps write_entire_file(it, "");
     // The archive (and the .so) may hold another compiler's objects, from the last build of the other kind.
     shared_lib := !MAC_ARCH || HOST;
-    want := ifx HOST then "host" else ifx LINUX then "linux" else "odin_cc";
+    want := ifx HOST then "host" else ifx LINUX then "linux" else "cross_cc-v2";
     other := shared_lib && vendor_lib_target() != want;
     // vendor/<lib>/.shared names a shared library linked from that library's objects instead of the archive
     // (Linux only): FFmpeg's AAC decoder is LGPL, so the app opens libfc_aac.so with dlopen and a user can swap it.
@@ -862,7 +857,7 @@ build_c_target :: () -> bool {
         if ok && !other continue;
         a: [..]string;
         if HOST array_add(*a, "cc", "-shared", "-s", "-Wl,--gc-sections", "-o", so);
-        else array_add(*a, ODIN_CC, "cc", "-target", GLIBC, "-shared", "-s", "-Wl,--gc-sections", "-o", so);
+        else array_add(*a, CROSS, "cc", "-target", GLIBC, "-shared", "-s", "-Wl,--gc-sections", "-o", so);
         array_add(*a, ..objs);
         array_add(*a, "-lm", "-lpthread");
         if run_command(..a).exit_code != 0 return false;
@@ -881,7 +876,7 @@ build_c_target :: () -> bool {
     if MSVC() ok = run_command(tprint("%\\lib.exe", MSVC_BIN), "/NOLOGO", tprint("/OUT:%", lib), tprint("@%", rsp)).exit_code == 0;
     else if HOST && !LINUX ok = run_command("libtool", "-static", "-no_warning_for_no_symbols", "-o", lib, "-filelist", rsp).exit_code == 0;
     else if HOST ok = run_command("ar", "rcs", lib, tprint("@%", rsp)).exit_code == 0;
-    else ok = run_command(ODIN_CC, "ar", "rcs", lib, tprint("@%", rsp)).exit_code == 0;
+    else ok = run_command(CROSS, "ar", "rcs", lib, tprint("@%", rsp)).exit_code == 0;
     return ok && (!shared_lib || set_vendor_lib_target(want));
 }
 
