@@ -162,7 +162,6 @@
 3 days	3 दिन
 30 days	30 दिन
 30 minutes	30 मिनट
-3:00 PM	3:00 अपराह्न
 4 hours	4 घंटे
 5 Minutes	5 मिनट
 5 minutes	5 मिनट
@@ -598,7 +597,6 @@ DEFAULT KEYBINDS	डिफ़ॉल्ट कीबाइंड
 DM closed	DM बंद किया गया
 Danish	डेनिश
 Data & Privacy	डेटा और गोपनीयता
-Date	तारीख
 Deafen	डेफ़न करें
 Deafen Members	सदस्यों को डेफ़न करें
 Deauthorize	अनुमति हटाएँ
@@ -915,7 +913,6 @@ Insults and Slurs	अपमान और गालियाँ
 Integrations	इंटीग्रेशन
 Interested	दिलचस्पी है
 Invalid Invite	अमान्य इनवाइट
-Invalid date or time	अमान्य तारीख या समय
 Invisible	अदृश्य
 Invite	इनवाइट करें
 Invite Channel	इनवाइट चैनल
@@ -1106,6 +1103,7 @@ Mute Channel	चैनल म्यूट करें
 Mute Members	सदस्यों को म्यूट करें
 Mute New Events	नए इवेंट म्यूट करें
 Mute Server	सर्वर म्यूट करें
+Mute Stream	स्ट्रीम म्यूट करें
 Mute Thread	थ्रेड म्यूट करें
 Muted until %1, %2	%1, %2 तक म्यूट
 Muting a server prevents unread indicators and notifications from appearing unless you are mentioned.	सर्वर म्यूट करने पर अनपढ़े संकेत और नोटिफ़िकेशन नहीं दिखते, जब तक आपको मेंशन न किया जाए।
@@ -1576,6 +1574,7 @@ Stop Video	वीडियो रोकें
 Stop Watching	देखना बंद करें
 Storage	स्टोरेज
 Stream Settings	स्ट्रीम सेटिंग्स
+Stream Volume	स्ट्रीम वॉल्यूम
 Streamer Mode	स्ट्रीमर मोड
 Streamer Mode Enabled	स्ट्रीमर मोड चालू है
 Streamer Mode hides your personal info so others watching your stream can't see it.	स्ट्रीमर मोड आपकी निजी जानकारी छिपाता है ताकि आपकी स्ट्रीम देखने वाले उसे न देख सकें।

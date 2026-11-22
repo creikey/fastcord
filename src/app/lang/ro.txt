@@ -164,7 +164,6 @@
 3 days	3 zile
 30 days	30 de zile
 30 minutes	30 de minute
-3:00 PM	15:00
 4 hours	4 ore
 5 Minutes	5 minute
 5 minutes	5 minute
@@ -600,7 +599,6 @@ DEFAULT KEYBINDS	COMBINAȚII DE TASTE IMPLICITE
 DM closed	Mesaj direct închis
 Danish	Daneză
 Data & Privacy	Date și confidențialitate
-Date	Dată
 Deafen	Asurzește
 Deafen Members	Asurzește membri
 Deauthorize	Revocă autorizarea
@@ -917,7 +915,6 @@ Insults and Slurs	Insulte și injurii
 Integrations	Integrări
 Interested	Interesat
 Invalid Invite	Invitație nevalidă
-Invalid date or time	Dată sau oră nevalidă
 Invisible	Invizibil
 Invite	Invită
 Invite Channel	Canal de invitație
@@ -1109,6 +1106,7 @@ Mute Channel	Dezactivează sunetul canalului
 Mute Members	Pune membri pe mut
 Mute New Events	Dezactivează sunetul evenimentelor noi
 Mute Server	Dezactivează sunetul serverului
+Mute Stream	Pune transmisia pe mut
 Mute Thread	Dezactivează sunetul firului
 Muted until %1, %2	Sunet dezactivat până pe %1, %2
 Muting a server prevents unread indicators and notifications from appearing unless you are mentioned.	Dezactivarea sunetului unui server împiedică apariția indicatorilor de necitit și a notificărilor, cu excepția mențiunilor.
@@ -1579,6 +1577,7 @@ Stop Video	Oprește camera
 Stop Watching	Nu mai urmări
 Storage	Stocare
 Stream Settings	Setări transmisie
+Stream Volume	Volumul transmisiei
 Streamer Mode	Modul streamer
 Streamer Mode Enabled	Modul streamer activat
 Streamer Mode hides your personal info so others watching your stream can't see it.	Modul streamer îți ascunde informațiile personale, ca cei care îți urmăresc transmisia să nu le vadă.

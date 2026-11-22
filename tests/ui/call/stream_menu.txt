@@ -1,0 +1,23 @@
+# A right click on a stream we watch opens the stream's menu, not the streamer's: Stream Volume, Mute Stream
+# and Stop Watching, which goes back to Watch Stream.
+wait 5
+in_voice 1546820558950371411
+click_text "General"
+wait 10
+watching 181531813351522304
+wait 10
+rclick 670 180
+wait 3
+expect_visible "Stream Volume"
+expect_visible "Mute Stream"
+expect_not_visible "User Volume"
+shot build/ui-call_stream_menu.png
+key escape
+wait 3
+expect_not_visible "Stream Volume"
+rclick 670 180
+wait 3
+click 732 302
+wait 5
+expect_not_visible "Stream Volume"
+expect_visible "Watch Stream"

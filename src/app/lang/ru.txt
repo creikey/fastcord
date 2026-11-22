@@ -164,7 +164,6 @@
 3 days	3 дня
 30 days	30 дней
 30 minutes	30 минут
-3:00 PM	3:00 ПП
 4 hours	4 часа
 5 Minutes	5 минут
 5 minutes	5 минут
@@ -600,7 +599,6 @@ DEFAULT KEYBINDS	СОЧЕТАНИЯ КЛАВИШ ПО УМОЛЧАНИЮ
 DM closed	ЛС закрыты
 Danish	Датский
 Data & Privacy	Данные и конфиденциальность
-Date	Дата
 Deafen	Отключить звук
 Deafen Members	Отключать участникам звук
 Deauthorize	Отозвать доступ
@@ -917,7 +915,6 @@ Insults and Slurs	Оскорбления и ругательства
 Integrations	Интеграции
 Interested	Интересно
 Invalid Invite	Недействительное приглашение
-Invalid date or time	Неверная дата или время
 Invisible	Невидимый
 Invite	Пригласить
 Invite Channel	Канал для приглашения
@@ -1109,6 +1106,7 @@ Mute Channel	Заглушить канал
 Mute Members	Отключать участникам микрофон
 Mute New Events	Заглушить новые события
 Mute Server	Заглушить сервер
+Mute Stream	Заглушить трансляцию
 Mute Thread	Заглушить ветку
 Muted until %1, %2	Заглушено до %1, %2
 Muting a server prevents unread indicators and notifications from appearing unless you are mentioned.	На заглушённом сервере не появляются индикаторы непрочитанного и уведомления, кроме упоминаний.
@@ -1579,6 +1577,7 @@ Stop Video	Выключить видео
 Stop Watching	Перестать смотреть
 Storage	Хранилище
 Stream Settings	Настройки трансляции
+Stream Volume	Громкость трансляции
 Streamer Mode	Режим стримера
 Streamer Mode Enabled	Режим стримера включён
 Streamer Mode hides your personal info so others watching your stream can't see it.	Режим стримера скрывает ваши личные данные от зрителей трансляции.

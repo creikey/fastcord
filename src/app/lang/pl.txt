@@ -164,7 +164,6 @@
 3 days	3 dni
 30 days	30 dni
 30 minutes	30 minut
-3:00 PM	3:00 po poł.
 4 hours	4 godziny
 5 Minutes	5 minut
 5 minutes	5 minut
@@ -600,7 +599,6 @@ DEFAULT KEYBINDS	DOMYŚLNE SKRÓTY KLAWISZOWE
 DM closed	Zamknięto rozmowę
 Danish	Duński
 Data & Privacy	Dane i prywatność
-Date	Data
 Deafen	Wyłącz dźwięk
 Deafen Members	Wyłączanie dźwięku członkom
 Deauthorize	Cofnij autoryzację
@@ -917,7 +915,6 @@ Insults and Slurs	Obelgi i wyzwiska
 Integrations	Integracje
 Interested	Zainteresowany(-a)
 Invalid Invite	Nieprawidłowe zaproszenie
-Invalid date or time	Nieprawidłowa data lub godzina
 Invisible	Niewidoczny
 Invite	Zaproś
 Invite Channel	Kanał zaproszenia
@@ -1109,6 +1106,7 @@ Mute Channel	Wycisz kanał
 Mute Members	Wyciszanie członków
 Mute New Events	Wycisz nowe wydarzenia
 Mute Server	Wycisz serwer
+Mute Stream	Wycisz transmisję
 Mute Thread	Wycisz wątek
 Muted until %1, %2	Wyciszono do %1, %2
 Muting a server prevents unread indicators and notifications from appearing unless you are mentioned.	Wyciszenie serwera ukrywa wskaźniki nieprzeczytanych i powiadomienia, chyba że ktoś cię wspomni.
@@ -1579,6 +1577,7 @@ Stop Video	Wyłącz wideo
 Stop Watching	Przestań oglądać
 Storage	Pamięć
 Stream Settings	Ustawienia transmisji
+Stream Volume	Głośność transmisji
 Streamer Mode	Tryb streamera
 Streamer Mode Enabled	Tryb streamera włączony
 Streamer Mode hides your personal info so others watching your stream can't see it.	Tryb streamera ukrywa twoje dane osobowe, żeby widzowie transmisji ich nie zobaczyli.

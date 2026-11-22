@@ -17,6 +17,8 @@ Voice_Settings :: struct {
 	soundboard_mic: bool; // our sounds go out through the mic instead of Discord's soundboard
 	user_volume: Table(dc.Snowflake, float32); // 0..400 %
 	user_muted: Table(dc.Snowflake, bool);
+	stream_volume: Table(dc.Snowflake, float32); // a watched stream's sound, per streamer, apart from their voice
+	stream_muted: Table(dc.Snowflake, bool);
 	camera, camera_name: string; // heap: the chosen camera ("" = default)
 	camera_bg: video.Background; // our camera's background effect (video.background_set)
 	camera_image: string; // heap: its picture's path
@@ -33,6 +35,7 @@ Voice_Settings :: struct {
 	test_src: audio.Source;
 	reset_armed: bool; // Reset Voice Settings was clicked once
 	menu_user: dc.Snowflake; // a call participant's menu
+	menu_stream: bool; // the menu is for their stream we watch (Stream Volume, Mute Stream, Stop Watching)
 	menu_move: bool; // its Move To list is open
 	dd_anchor: ui.Rect; // open dropdown's rect (popup drawn from overlays)
 	menu_pos: ui.Vec2;
@@ -51,6 +54,8 @@ vs: Voice_Settings;
 vs_reset_for_test :: () {
 	deinit(*vs.user_volume);
 	deinit(*vs.user_muted);
+	deinit(*vs.stream_volume);
+	deinit(*vs.stream_muted);
 	vs = .{};
 	vs_init();
 }
@@ -82,6 +87,14 @@ voice_settings_restore :: (p: *Persisted_Voice) {
 		n, ok := dc.parse_u64(k);
 		if ok && v table_set(*vs.user_muted, cast(dc.Snowflake) n, true);
 	}
+	for v, k: p.stream_volume {
+		n, ok := dc.parse_u64(k);
+		if ok table_set(*vs.stream_volume, cast(dc.Snowflake) n, clamp(v, 0, 400));
+	}
+	for v, k: p.stream_muted {
+		n, ok := dc.parse_u64(k);
+		if ok && v table_set(*vs.stream_muted, cast(dc.Snowflake) n, true);
+	}
 }
 
 voice_settings_snapshot :: (p: *Persisted_Voice) {
@@ -104,6 +117,9 @@ voice_settings_snapshot :: (p: *Persisted_Voice) {
 	p.user_volume, p.user_muted = .{}, .{};
 	for v, k: vs.user_volume if v != 100 table_set(*p.user_volume, tprint("%", cast(u64) k), v);
 	for v, k: vs.user_muted if v table_set(*p.user_muted, tprint("%", cast(u64) k), true);
+	p.stream_volume, p.stream_muted = .{}, .{};
+	for v, k: vs.stream_volume if v != 100 table_set(*p.stream_volume, tprint("%", cast(u64) k), v);
+	for v, k: vs.stream_muted if v table_set(*p.stream_muted, tprint("%", cast(u64) k), true);
 }
 
 // voice_settings_frame: applies settings to the live connection / devices and
@@ -122,6 +138,13 @@ voice_settings_frame :: (conn: *voice.Conn, headless: bool, audio_ready: bool) {
 		voice.set_processing(conn, vs.echo, vs.noise, vs.agc);
 		for v, uid: vs.user_volume { voice.set_user_volume(conn, cast(u64)(uid), v / 100); }
 		for m, uid: vs.user_muted { voice.set_user_mute(conn, cast(u64)(uid), m); }
+	}
+	// each watched stream's sound comes on its own connection, under the streamer's id
+	for w: vid.watches if w.conn {
+		v := table_find_pointer(*vs.stream_volume, w.user);
+		_, m := table_find(*vs.stream_muted, w.user);
+		voice.set_user_volume(w.conn, cast(u64) w.user, ifx v then v.* / 100 else 1);
+		voice.set_user_mute(w.conn, cast(u64) w.user, m);
 	}
 	if audio_ready audio.set_volume(vs.output_volume / 100);
 
@@ -185,12 +208,17 @@ voice_settings_reset :: () {
 	audio.select_device(true, 0);
 	audio.select_device(false, 0);
 	keep_vol, keep_mute := vs.user_volume, vs.user_muted;
+	keep_svol, keep_smute := vs.stream_volume, vs.stream_muted;
 	vs.user_volume, vs.user_muted = .{}, .{};
+	vs.stream_volume, vs.stream_muted = .{}, .{};
 	vs_reset_for_test();
 	video.background_set(.None, "");
 	deinit(*vs.user_volume);
 	deinit(*vs.user_muted);
+	deinit(*vs.stream_volume);
+	deinit(*vs.stream_muted);
 	vs.user_volume, vs.user_muted = keep_vol, keep_mute;
+	vs.stream_volume, vs.stream_muted = keep_svol, keep_smute;
 }
 
 // The page's column follows the window like the other settings pages (at most 660); the paired
@@ -324,11 +352,12 @@ voice_settings_page :: () {
 }
 
 // ---------------------------------------------------------------------------
-// Right-click on a voice participant: volume 0-400 % and mute.
+// Right-click on a voice participant: volume 0-400 % and mute; on a stream we watch, the stream's own.
 
-open_voice_user_menu :: (uid: dc.Snowflake, at: ui.Vec2) {
+open_voice_user_menu :: (uid: dc.Snowflake, at: ui.Vec2, stream := false) {
 	vs_init();
 	vs.menu_user = uid;
+	vs.menu_stream = stream;
 	vs.menu_move = false;
 	vs.menu_pos = at;
 }
@@ -352,7 +381,7 @@ voice_user_menu :: () {
 	uid := vs.menu_user;
 	st := store();
 	v := table_find_pointer(*st.voice_states, uid);
-	if outside_pressed("vmenu_scrim") || !v {
+	if outside_pressed("vmenu_scrim") || !v || (vs.menu_stream && !watch_of(uid)) {
 		vs.menu_user = 0;
 		return;
 	}
@@ -363,6 +392,24 @@ voice_user_menu :: () {
 	if p.y + h > app.ui.window.y - 8 p.y = max(8.0, app.ui.window.y - 8 - h);
 	if p.x + W > app.ui.window.x - 8 p.x = app.ui.window.x - 8 - W;
 	menu.fixed_pos = p;
+	if vs.menu_stream {
+		// the stream's sound, apart from the streamer's voice, and leaving it
+		{ ui.parent(menu); defer ui.pop_parent();
+			spacer(.Y, 8);
+			menu_volume(L("Stream Volume"), *vs.stream_volume, uid, W);
+			_, m := table_find(*vs.stream_muted, uid);
+			if menu_item("smute", L("Mute Stream"), ifx m then .Check_On else .Check_Off).clicked table_set(*vs.stream_muted, uid, !m);
+			menu_sep("s0");
+			if menu_item("stopwatch", L("Stop Watching"), danger = true).clicked {
+				vs.menu_user = 0;
+				watch_stop(uid);
+				return;
+			}
+			spacer(.Y, 8);
+		}
+		for * e: app.ui.events { if e.kind == .Key_Down && e.key == .Escape { vs.menu_user = 0; e.consumed = true; } }
+		return;
+	}
 	perms := ifx v.guild_id then dc.channel_permissions(st, v.channel_id) else 0;
 	{ ui.parent(menu); defer ui.pop_parent();
 		spacer(.Y, 8);
@@ -373,20 +420,7 @@ voice_user_menu :: () {
 		}
 		if uid != st.me {
 			menu_sep("s0");
-			hdr := row("hdr");
-			hdr.semantic_size = .[ui.pct(1), ui.px(24)];
-			{ ui.parent(hdr); defer ui.pop_parent();
-				spacer(.X, 16);
-				label(L("User Volume"), .Medium, 14, T("--interactive-text-default"), 18);
-			}
-			sr := row("sl");
-			sr.semantic_size = .[ui.pct(1), ui.px(32)];
-			{ ui.parent(sr); defer ui.pop_parent();
-				spacer(.X, 16);
-				vp := table_find_pointer(*vs.user_volume, uid);
-				vol := ifx vp then vp.* else 100.0;
-				if slider("uvol", *vol, 0, 400, W - 32, percent(vol)) table_set(*vs.user_volume, uid, vol);
-			}
+			menu_volume(L("User Volume"), *vs.user_volume, uid, W);
 			_, m := table_find(*vs.user_muted, uid);
 			if menu_item("mute", L("Mute"), ifx m then .Check_On else .Check_Off).clicked table_set(*vs.user_muted, uid, !m);
 		}
@@ -430,6 +464,23 @@ voice_user_menu :: () {
 		spacer(.Y, 8);
 	}
 	for * e: app.ui.events { if e.kind == .Key_Down && e.key == .Escape { vs.menu_user = 0; e.consumed = true; } }
+}
+
+// menu_volume: a menu's volume title and its 0-400 % slider for uid's entry in t (100 when it has none).
+menu_volume :: (title: string, t: *Table(dc.Snowflake, float32), uid: dc.Snowflake, w: float32) {
+	hdr := row("hdr");
+	hdr.semantic_size = .[ui.pct(1), ui.px(24)];
+	{ ui.parent(hdr); defer ui.pop_parent();
+		spacer(.X, 16);
+		label(title, .Medium, 14, T("--interactive-text-default"), 18);
+	}
+	sr := row("sl");
+	sr.semantic_size = .[ui.pct(1), ui.px(32)];
+	ui.parent(sr); defer ui.pop_parent();
+	spacer(.X, 16);
+	vp := table_find_pointer(t, uid);
+	vol := ifx vp then vp.* else 100.0;
+	if slider("uvol", *vol, 0, 400, w - 32, percent(vol)) table_set(t, uid, vol);
 }
 
 // Headless runs (UI scripts, the control sweep) list fixed devices instead of

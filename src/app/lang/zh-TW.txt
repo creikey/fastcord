@@ -164,7 +164,6 @@
 3 days	3 天
 30 days	30 天
 30 minutes	30 分鐘
-3:00 PM	下午 3:00
 4 hours	4 小時
 5 Minutes	5 分鐘
 5 minutes	5 分鐘
@@ -600,7 +599,6 @@ DEFAULT KEYBINDS	預設快捷鍵
 DM closed	私訊已關閉
 Danish	丹麥文
 Data & Privacy	資料與隱私
-Date	日期
 Deafen	拒聽
 Deafen Members	拒聽成員
 Deauthorize	取消授權
@@ -917,7 +915,6 @@ Insults and Slurs	侮辱與歧視用語
 Integrations	整合
 Interested	有興趣
 Invalid Invite	無效的邀請
-Invalid date or time	無效的日期或時間
 Invisible	隱形
 Invite	邀請
 Invite Channel	邀請頻道
@@ -1109,6 +1106,7 @@ Mute Channel	將頻道靜音
 Mute Members	將成員靜音
 Mute New Events	將新活動靜音
 Mute Server	將伺服器靜音
+Mute Stream	靜音直播
 Mute Thread	將討論串靜音
 Muted until %1, %2	靜音至 %1 %2
 Muting a server prevents unread indicators and notifications from appearing unless you are mentioned.	將伺服器靜音後，除非你被提及，否則不會出現未讀標記和通知。
@@ -1579,6 +1577,7 @@ Stop Video	關閉視訊
 Stop Watching	停止觀看
 Storage	儲存空間
 Stream Settings	直播設定
+Stream Volume	直播音量
 Streamer Mode	實況模式
 Streamer Mode Enabled	已啟用實況模式
 Streamer Mode hides your personal info so others watching your stream can't see it.	實況模式會隱藏你的個人資訊，讓觀看你直播的人看不到。

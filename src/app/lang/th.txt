@@ -164,7 +164,6 @@
 3 days	3 วัน
 30 days	30 วัน
 30 minutes	30 นาที
-3:00 PM	3:00 หลังเที่ยง
 4 hours	4 ชั่วโมง
 5 Minutes	5 นาที
 5 minutes	5 นาที
@@ -600,7 +599,6 @@ DEFAULT KEYBINDS	ปุ่มลัดเริ่มต้น
 DM closed	ปิด DM แล้ว
 Danish	เดนมาร์ก
 Data & Privacy	ข้อมูลและความเป็นส่วนตัว
-Date	วันที่
 Deafen	ปิดการได้ยิน
 Deafen Members	ปิดการได้ยินของสมาชิก
 Deauthorize	ยกเลิกการอนุญาต
@@ -917,7 +915,6 @@ Insults and Slurs	คำดูถูกและคำเหยียด
 Integrations	การเชื่อมต่อ
 Interested	สนใจ
 Invalid Invite	คำเชิญไม่ถูกต้อง
-Invalid date or time	วันที่หรือเวลาไม่ถูกต้อง
 Invisible	ล่องหน
 Invite	เชิญ
 Invite Channel	ช่องคำเชิญ
@@ -1109,6 +1106,7 @@ Mute Channel	ปิดเสียงช่อง
 Mute Members	ปิดเสียงสมาชิก
 Mute New Events	ปิดเสียงกิจกรรมใหม่
 Mute Server	ปิดเสียงเซิร์ฟเวอร์
+Mute Stream	ปิดเสียงสตรีม
 Mute Thread	ปิดเสียงเธรด
 Muted until %1, %2	ปิดเสียงจนถึง %1, %2
 Muting a server prevents unread indicators and notifications from appearing unless you are mentioned.	การปิดเสียงเซิร์ฟเวอร์จะไม่แสดงตัวบ่งชี้ข้อความที่ยังไม่ได้อ่านและการแจ้งเตือน เว้นแต่คุณจะถูกกล่าวถึง
@@ -1579,6 +1577,7 @@ Stop Video	หยุดวิดีโอ
 Stop Watching	หยุดดู
 Storage	พื้นที่จัดเก็บ
 Stream Settings	การตั้งค่าสตรีม
+Stream Volume	ระดับเสียงสตรีม
 Streamer Mode	โหมดสตรีมเมอร์
 Streamer Mode Enabled	เปิดโหมดสตรีมเมอร์อยู่
 Streamer Mode hides your personal info so others watching your stream can't see it.	โหมดสตรีมเมอร์จะซ่อนข้อมูลส่วนตัวของคุณเพื่อไม่ให้คนที่ดูสตรีมเห็น

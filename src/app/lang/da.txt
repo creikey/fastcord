@@ -164,7 +164,6 @@
 3 days	3 dage
 30 days	30 dage
 30 minutes	30 minutter
-3:00 PM	15.00
 4 hours	4 timer
 5 Minutes	5 minutter
 5 minutes	5 minutter
@@ -600,7 +599,6 @@ DEFAULT KEYBINDS	STANDARDGENVEJSTASTER
 DM closed	DM lukket
 Danish	Dansk
 Data & Privacy	Data og privatliv
-Date	Dato
 Deafen	Gør døv
 Deafen Members	Gør medlemmer døve
 Deauthorize	Fjern godkendelse
@@ -917,7 +915,6 @@ Insults and Slurs	Fornærmelser og skældsord
 Integrations	Integrationer
 Interested	Interesseret
 Invalid Invite	Ugyldig invitation
-Invalid date or time	Ugyldig dato eller tid
 Invisible	Usynlig
 Invite	Inviter
 Invite Channel	Invitationskanal
@@ -1109,6 +1106,7 @@ Mute Channel	Slå lyd fra for kanal
 Mute Members	Gør medlemmer lydløse
 Mute New Events	Slå lyd fra for nye begivenheder
 Mute Server	Slå lyd fra for server
+Mute Stream	Slå lyd fra for stream
 Mute Thread	Slå lyd fra for tråd
 Muted until %1, %2	Lyd slået fra indtil %1, %2
 Muting a server prevents unread indicators and notifications from appearing unless you are mentioned.	Når du slår lyden fra for en server, vises ulæst-markeringer og notifikationer ikke, medmindre du bliver omtalt.
@@ -1579,6 +1577,7 @@ Stop Video	Stop video
 Stop Watching	Stop med at se
 Storage	Lagerplads
 Stream Settings	Streamindstillinger
+Stream Volume	Streamlydstyrke
 Streamer Mode	Streamertilstand
 Streamer Mode Enabled	Streamertilstand slået til
 Streamer Mode hides your personal info so others watching your stream can't see it.	Streamertilstand skjuler dine personlige oplysninger, så andre, der ser din stream, ikke kan se dem.

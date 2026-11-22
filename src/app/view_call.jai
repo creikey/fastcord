@@ -548,7 +548,7 @@ call_tile :: (t: Call_Tile, x: float32, y: float32, w: float32, h: float32) {
 	}
 	if t.absent { absent_tile(b, t.user, h); return; }
 	sig := ui.signal(b);
-	if sig.right_clicked open_voice_user_menu(t.user, app.ui.mouse);
+	if sig.right_clicked open_voice_user_menu(t.user, app.ui.mouse, stream = t.stream && t.user != s.me && watch_of(t.user) != null);
 	if sig.clicked && (!t.stream || watching) {
 		if cv.focus_user { cv.focus_user = 0; } else { cv.focus_user, cv.focus_stream = t.user, t.stream; }
 	}

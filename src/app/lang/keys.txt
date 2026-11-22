@@ -46,6 +46,8 @@
 % of %
 % reader|% readers
 % removed the custom group name.
+% s behind
+% s of speech not transcribed: this computer fell behind.
 % started a call.
 % still can't be reached. Its address may have changed: ask its owner for a new invite.
 % turned on encryption.
@@ -327,6 +329,7 @@ Allows members to view a record of who made which changes in this server.
 Allows members to view channels by default (excluding private channels).
 Allows members to view these channels by default. Disabling this for @everyone will make the category private.
 Allows members to view this channel by default. Disabling this for @everyone will make this channel private.
+Also people who turned off Allow my voice to be recorded.
 Always
 An emoji name, like smile
 An encrypted file couldn't be opened.|% encrypted files couldn't be opened.
@@ -440,6 +443,7 @@ By making a category private, only select members and roles will be able to view
 By making a channel private, only select members and roles will be able to view this channel.
 By making a channel private, only select members and roles will have access to view or connect to this channel.
 Bypass Slowmode
+CALL TRANSCRIPTION
 CAMERA
 CHANNEL
 CHANNEL OR CATEGORY
@@ -482,6 +486,7 @@ Chat Font Scaling
 Check your email for a login link
 Check your phone!
 Checking the file…
+Checking the model…
 Chinese, China
 Chinese, Taiwan
 Choose Image##ricon
@@ -744,6 +749,8 @@ Done
 Done##done
 Done##save
 Download
+Download Model (% MB)##trdl
+Downloading… % of % MB
 Drop a file here, or browse
 Duplicate Channel
 Duration
@@ -1077,6 +1084,7 @@ List view
 Lithuanian
 Live Now
 Loading full size
+Loading model…
 Loading sounds…
 Loading...
 Loading…
@@ -1187,6 +1195,8 @@ Messages will not be filtered for sensitive image-based media.
 Messaging Permissions
 Minimize to Tray
 Mobile Push Notifications
+Model
+Model downloaded.
 Moderation
 Moderators must have two-factor authentication enabled to ban, kick, or timeout members and delete messages.
 Moderators only##mod
@@ -1209,6 +1219,7 @@ Mute Channel
 Mute Members
 Mute New Events
 Mute Server
+Mute Stream
 Mute Thread
 Muted until %1, %2
 Muting a server prevents unread indicators and notifications from appearing unless you are mentioned.
@@ -1303,6 +1314,7 @@ Not encrypted: Discord can read this message
 Not end-to-end encrypted
 Not me, start over
 Not sure? You can 
+Not transcribed: their voice recording is off.
 Note
 Note (only visible to you)
 Note: Members with the "Mention @everyone, @here, and All Roles" permission will always be able to ping this role.
@@ -1348,6 +1360,7 @@ Open Logs Folder
 Open Media Link
 Open Server Insights##insights
 Open Settings##giperm
+Open Transcripts Folder
 Open discord.com##open
 Open in Browser
 Open in Browser##ob
@@ -1728,6 +1741,7 @@ Spanish
 Spanish, LATAM
 Speak
 Speak Message
+Speech becomes text on this computer. Nothing is sent anywhere.
 Spoiler Attachment
 Spoiler Content
 Stage
@@ -1748,6 +1762,7 @@ Stop Video
 Stop Watching
 Storage
 Stream Settings
+Stream Volume
 Streamer Mode
 Streamer Mode Enabled##smbadge
 Streamer Mode hides your personal info so others watching your stream can't see it.
@@ -1814,8 +1829,10 @@ That's too long to send encrypted.
 The Pin Is Stuck!
 The Update pill comes back after that.
 The badge chosen in the official client stays as it is.
+The download failed.
 The invite is invalid or has expired.
 The mention limit is between 1 and 50.
+The model didn't load.
 The most important updates from this channel will now show up directly in your server. Enjoy!
 The owner
 The related emoji must be one emoji.
@@ -1838,6 +1855,7 @@ This account needs a passkey or security key, which fastcord can't use. Log in w
 This bottle is damaged.
 This channel contains adult content that may not be suitable for all audiences. You must be 18 or older to view it.
 This channel doesn't have any pinned messages... yet.
+This computer's processor can't run the speech model (it needs AVX2).
 This device can't open this message.
 This device doesn't have its key.
 This device's encryption keys couldn't be unlocked, so earlier encrypted DMs can't be opened here.
@@ -1903,6 +1921,10 @@ Too fast! Wait a bit and try again.
 Too many uploads!
 Trait %
 Traits
+Transcribe Calls
+Transcribe Everyone
+Transcribed on this computer with %.
+Transcript
 Transfer Ownership
 Travel & Places
 Treat the token like a password: anyone who has it controls your account. fastcord keeps it only on this computer.
@@ -2061,6 +2083,7 @@ Welcome, %. We hope you brought pizza.
 What brings you here?
 What can people do in this server?
 What members may store, and what the server deletes on its own. Cleanup runs every hour, or now from Attachments.
+What people say will appear here.
 What question do you want to ask?
 What's cookin'?
 What's your event about?

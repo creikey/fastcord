@@ -164,7 +164,6 @@
 3 days	3 días
 30 days	30 días
 30 minutes	30 minutos
-3:00 PM	3:00 p. m.
 4 hours	4 horas
 5 Minutes	5 minutos
 5 minutes	5 minutos
@@ -600,7 +599,6 @@ DEFAULT KEYBINDS	ATAJOS PREDETERMINADOS
 DM closed	MD cerrado
 Danish	Danés
 Data & Privacy	Datos y privacidad
-Date	Fecha
 Deafen	Ensordecer
 Deafen Members	Ensordecer a miembros
 Deauthorize	Desautorizar
@@ -917,7 +915,6 @@ Insults and Slurs	Insultos y términos ofensivos
 Integrations	Integraciones
 Interested	Me interesa
 Invalid Invite	Invitación no válida
-Invalid date or time	Fecha u hora no válida
 Invisible	Invisible
 Invite	Invitar
 Invite Channel	Canal de invitación
@@ -1109,6 +1106,7 @@ Mute Channel	Silenciar canal
 Mute Members	Silenciar miembros
 Mute New Events	Silenciar eventos nuevos
 Mute Server	Silenciar servidor
+Mute Stream	Silenciar transmisión
 Mute Thread	Silenciar hilo
 Muted until %1, %2	Silenciado hasta el %1, %2
 Muting a server prevents unread indicators and notifications from appearing unless you are mentioned.	Al silenciar un servidor, no verás indicadores de no leídos ni notificaciones salvo que te mencionen.
@@ -1579,6 +1577,7 @@ Stop Video	Detener vídeo
 Stop Watching	Dejar de ver
 Storage	Almacenamiento
 Stream Settings	Ajustes de transmisión
+Stream Volume	Volumen de la transmisión
 Streamer Mode	Modo streamer
 Streamer Mode Enabled	Modo streamer activado
 Streamer Mode hides your personal info so others watching your stream can't see it.	El modo streamer oculta tu información personal para que no la vea quien siga tu transmisión.

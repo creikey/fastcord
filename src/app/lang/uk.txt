@@ -164,7 +164,6 @@
 3 days	3 дні
 30 days	30 днів
 30 minutes	30 хвилин
-3:00 PM	15:00
 4 hours	4 години
 5 Minutes	5 хвилин
 5 minutes	5 хвилин
@@ -600,7 +599,6 @@ DEFAULT KEYBINDS	ТИПОВІ СПОЛУЧЕННЯ КЛАВІШ
 DM closed	Листування закрито
 Danish	Данська
 Data & Privacy	Дані й приватність
-Date	Дата
 Deafen	Вимкнути звук
 Deafen Members	Вимикати звук учасникам
 Deauthorize	Скасувати авторизацію
@@ -917,7 +915,6 @@ Insults and Slurs	Образи й лайка
 Integrations	Інтеграції
 Interested	Цікавить
 Invalid Invite	Недійсне запрошення
-Invalid date or time	Неправильна дата чи час
 Invisible	Невидимий
 Invite	Запросити
 Invite Channel	Канал для запрошень
@@ -1109,6 +1106,7 @@ Mute Channel	Вимкнути канал
 Mute Members	Вимикати мікрофон учасникам
 Mute New Events	Вимкнути нові події
 Mute Server	Вимкнути сервер
+Mute Stream	Вимкнути звук трансляції
 Mute Thread	Вимкнути гілку
 Muted until %1, %2	Вимкнено до %1, %2
 Muting a server prevents unread indicators and notifications from appearing unless you are mentioned.	Вимкнений сервер не показує позначок непрочитаного й сповіщень, якщо тебе не згадали.
@@ -1579,6 +1577,7 @@ Stop Video	Вимкнути відео
 Stop Watching	Припинити перегляд
 Storage	Сховище
 Stream Settings	Налаштування трансляції
+Stream Volume	Гучність трансляції
 Streamer Mode	Режим стримера
 Streamer Mode Enabled	Режим стримера ввімкнено
 Streamer Mode hides your personal info so others watching your stream can't see it.	Режим стримера ховає твої особисті дані, щоб глядачі трансляції їх не побачили.

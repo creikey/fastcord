@@ -164,7 +164,6 @@
 3 days	3 дни
 30 days	30 дни
 30 minutes	30 минути
-3:00 PM	3:00 сл.об.
 4 hours	4 часа
 5 Minutes	5 минути
 5 minutes	5 минути
@@ -600,7 +599,6 @@ DEFAULT KEYBINDS	КЛАВИШНИ КОМБИНАЦИИ ПО ПОДРАЗБИРА
 DM closed	ЛС е затворено
 Danish	Датски
 Data & Privacy	Данни и поверителност
-Date	Дата
 Deafen	Оглуши
 Deafen Members	Оглушаване на членове
 Deauthorize	Премахни оторизацията
@@ -917,7 +915,6 @@ Insults and Slurs	Обиди и ругатни
 Integrations	Интеграции
 Interested	Интересувам се
 Invalid Invite	Невалидна покана
-Invalid date or time	Невалидна дата или час
 Invisible	Невидим
 Invite	Покани
 Invite Channel	Канал за покани
@@ -1109,6 +1106,7 @@ Mute Channel	Заглуши канала
 Mute Members	Заглушаване на членове
 Mute New Events	Заглуши новите събития
 Mute Server	Заглуши сървъра
+Mute Stream	Заглуши стрийма
 Mute Thread	Заглуши нишката
 Muted until %1, %2	Заглушено до %1, %2
 Muting a server prevents unread indicators and notifications from appearing unless you are mentioned.	Заглушаването на сървър спира индикаторите за непрочетено и известията, освен ако не си споменат.
@@ -1579,6 +1577,7 @@ Stop Video	Спри видеото
 Stop Watching	Спри гледането
 Storage	Хранилище
 Stream Settings	Настройки на стрийма
+Stream Volume	Сила на звука на стрийма
 Streamer Mode	Режим „Стриймър“
 Streamer Mode Enabled	Режим „Стриймър“ е включен
 Streamer Mode hides your personal info so others watching your stream can't see it.	Режим „Стриймър“ скрива личната ти информация, за да не я видят хората, които гледат стрийма ти.

@@ -164,7 +164,6 @@
 3 days	3 gün
 30 days	30 gün
 30 minutes	30 dakika
-3:00 PM	ÖS 3:00
 4 hours	4 saat
 5 Minutes	5 Dakika
 5 minutes	5 dakika
@@ -600,7 +599,6 @@ DEFAULT KEYBINDS	VARSAYILAN TUŞ ATAMALARI
 DM closed	DM kapatıldı
 Danish	Danca
 Data & Privacy	Veri ve Gizlilik
-Date	Tarih
 Deafen	Sağırlaştır
 Deafen Members	Üyeleri Sağırlaştır
 Deauthorize	Yetkiyi Kaldır
@@ -917,7 +915,6 @@ Insults and Slurs	Hakaret ve Aşağılayıcı Sözler
 Integrations	Entegrasyonlar
 Interested	İlgileniyorum
 Invalid Invite	Geçersiz Davet
-Invalid date or time	Geçersiz tarih veya saat
 Invisible	Görünmez
 Invite	Davet Et
 Invite Channel	Davet Kanalı
@@ -1109,6 +1106,7 @@ Mute Channel	Kanalı Sustur
 Mute Members	Üyeleri Sustur
 Mute New Events	Yeni Etkinlikleri Sustur
 Mute Server	Sunucuyu Sustur
+Mute Stream	Yayını Sustur
 Mute Thread	Alt Başlığı Sustur
 Muted until %1, %2	Şu zamana kadar susturuldu: %1, %2
 Muting a server prevents unread indicators and notifications from appearing unless you are mentioned.	Bir sunucuyu susturmak, senden bahsedilmedikçe okunmamış göstergelerinin ve bildirimlerin görünmesini engeller.
@@ -1579,6 +1577,7 @@ Stop Video	Videoyu Durdur
 Stop Watching	İzlemeyi Bırak
 Storage	Depolama
 Stream Settings	Yayın Ayarları
+Stream Volume	Yayın Ses Seviyesi
 Streamer Mode	Yayıncı Modu
 Streamer Mode Enabled	Yayıncı Modu Etkin
 Streamer Mode hides your personal info so others watching your stream can't see it.	Yayıncı Modu kişisel bilgilerini gizler, böylece yayınını izleyenler onları göremez.

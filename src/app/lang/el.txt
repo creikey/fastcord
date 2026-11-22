@@ -164,7 +164,6 @@
 3 days	3 ημέρες
 30 days	30 ημέρες
 30 minutes	30 λεπτά
-3:00 PM	3:00 μ.μ.
 4 hours	4 ώρες
 5 Minutes	5 λεπτά
 5 minutes	5 λεπτά
@@ -600,7 +599,6 @@ DEFAULT KEYBINDS	ΠΡΟΕΠΙΛΕΓΜΕΝΕΣ ΣΥΝΤΟΜΕΥΣΕΙΣ
 DM closed	Το ΑΜ έκλεισε
 Danish	Δανικά
 Data & Privacy	Δεδομένα και απόρρητο
-Date	Ημερομηνία
 Deafen	Κώφωση
 Deafen Members	Κώφωση μελών
 Deauthorize	Ανάκληση εξουσιοδότησης
@@ -917,7 +915,6 @@ Insults and Slurs	Προσβολές και υβριστικοί χαρακτη�
 Integrations	Ενσωματώσεις
 Interested	Ενδιαφέρομαι
 Invalid Invite	Μη έγκυρη πρόσκληση
-Invalid date or time	Μη έγκυρη ημερομηνία ή ώρα
 Invisible	Αόρατος
 Invite	Πρόσκληση
 Invite Channel	Κανάλι πρόσκλησης
@@ -1109,6 +1106,7 @@ Mute Channel	Σίγαση καναλιού
 Mute Members	Σίγαση μελών
 Mute New Events	Σίγαση νέων εκδηλώσεων
 Mute Server	Σίγαση διακομιστή
+Mute Stream	Σίγαση μετάδοσης
 Mute Thread	Σίγαση νήματος
 Muted until %1, %2	Σε σίγαση έως %1, %2
 Muting a server prevents unread indicators and notifications from appearing unless you are mentioned.	Η σίγαση ενός διακομιστή αποτρέπει την εμφάνιση ενδείξεων μη αναγνωσμένων και ειδοποιήσεων, εκτός αν σε αναφέρουν.
@@ -1579,6 +1577,7 @@ Stop Video	Διακοπή βίντεο
 Stop Watching	Διακοπή παρακολούθησης
 Storage	Αποθήκευση
 Stream Settings	Ρυθμίσεις μετάδοσης
+Stream Volume	Ένταση μετάδοσης
 Streamer Mode	Λειτουργία streamer
 Streamer Mode Enabled	Η Λειτουργία streamer είναι ενεργή
 Streamer Mode hides your personal info so others watching your stream can't see it.	Η Λειτουργία streamer κρύβει τα προσωπικά σου στοιχεία ώστε να μην τα βλέπουν όσοι παρακολουθούν τη μετάδοσή σου.

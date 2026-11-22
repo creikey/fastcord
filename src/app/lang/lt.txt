@@ -164,7 +164,6 @@
 3 days	3 dienos
 30 days	30 dienų
 30 minutes	30 minučių
-3:00 PM	15:00
 4 hours	4 valandos
 5 Minutes	5 minutės
 5 minutes	5 minutės
@@ -600,7 +599,6 @@ DEFAULT KEYBINDS	NUMATYTIEJI SPARTIEJI KLAVIŠAI
 DM closed	Pokalbis uždarytas
 Danish	Danų
 Data & Privacy	Duomenys ir privatumas
-Date	Data
 Deafen	Apkurtinti
 Deafen Members	Apkurtinti narius
 Deauthorize	Atšaukti įgaliojimą
@@ -917,7 +915,6 @@ Insults and Slurs	Įžeidimai ir keiksmai
 Integrations	Integracijos
 Interested	Domina
 Invalid Invite	Netinkamas pakvietimas
-Invalid date or time	Netinkama data ar laikas
 Invisible	Nematomas
 Invite	Pakviesti
 Invite Channel	Pakvietimo kanalas
@@ -1109,6 +1106,7 @@ Mute Channel	Nutildyti kanalą
 Mute Members	Nutildyti narius
 Mute New Events	Nutildyti naujus renginius
 Mute Server	Nutildyti serverį
+Mute Stream	Nutildyti transliaciją
 Mute Thread	Nutildyti giją
 Muted until %1, %2	Nutildyta iki %1, %2
 Muting a server prevents unread indicators and notifications from appearing unless you are mentioned.	Nutildžius serverį, neskaitytų žinučių žymos ir pranešimai nerodomi, nebent tave pamini.
@@ -1579,6 +1577,7 @@ Stop Video	Išjungti vaizdą
 Stop Watching	Nebežiūrėti
 Storage	Saugykla
 Stream Settings	Transliacijos nustatymai
+Stream Volume	Transliacijos garsumas
 Streamer Mode	Transliuotojo režimas
 Streamer Mode Enabled	Įjungtas transliuotojo režimas
 Streamer Mode hides your personal info so others watching your stream can't see it.	Transliuotojo režimas slepia tavo asmeninę informaciją, kad transliacijos žiūrovai jos nematytų.

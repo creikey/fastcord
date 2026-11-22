@@ -164,7 +164,6 @@
 3 days	3 ngày
 30 days	30 ngày
 30 minutes	30 phút
-3:00 PM	3:00 CH
 4 hours	4 giờ
 5 Minutes	5 phút
 5 minutes	5 phút
@@ -600,7 +599,6 @@ DEFAULT KEYBINDS	PHÍM TẮT MẶC ĐỊNH
 DM closed	Đã đóng tin nhắn trực tiếp
 Danish	Tiếng Đan Mạch
 Data & Privacy	Dữ liệu & quyền riêng tư
-Date	Ngày
 Deafen	Tắt âm thanh
 Deafen Members	Tắt âm thanh thành viên
 Deauthorize	Hủy ủy quyền
@@ -917,7 +915,6 @@ Insults and Slurs	Lăng mạ và miệt thị
 Integrations	Tích hợp
 Interested	Quan tâm
 Invalid Invite	Lời mời không hợp lệ
-Invalid date or time	Ngày hoặc giờ không hợp lệ
 Invisible	Vô hình
 Invite	Mời
 Invite Channel	Kênh mời
@@ -1109,6 +1106,7 @@ Mute Channel	Tắt thông báo kênh
 Mute Members	Tắt tiếng thành viên
 Mute New Events	Tắt thông báo sự kiện mới
 Mute Server	Tắt thông báo máy chủ
+Mute Stream	Tắt tiếng stream
 Mute Thread	Tắt thông báo chủ đề
 Muted until %1, %2	Đã tắt thông báo đến %1, %2
 Muting a server prevents unread indicators and notifications from appearing unless you are mentioned.	Tắt thông báo máy chủ sẽ ẩn chỉ báo chưa đọc và thông báo, trừ khi bạn được đề cập.
@@ -1579,6 +1577,7 @@ Stop Video	Tắt video
 Stop Watching	Ngừng xem
 Storage	Bộ nhớ
 Stream Settings	Cài đặt stream
+Stream Volume	Âm lượng stream
 Streamer Mode	Chế độ Stream
 Streamer Mode Enabled	Đã bật Chế độ Stream
 Streamer Mode hides your personal info so others watching your stream can't see it.	Chế độ Stream ẩn thông tin cá nhân của bạn để người xem stream không thấy được.

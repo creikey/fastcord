@@ -164,7 +164,6 @@
 3 days	3 dagen
 30 days	30 dagen
 30 minutes	30 minuten
-3:00 PM	15:00
 4 hours	4 uur
 5 Minutes	5 minuten
 5 minutes	5 minuten
@@ -600,7 +599,6 @@ DEFAULT KEYBINDS	STANDAARDSNELTOETSEN
 DM closed	DM gesloten
 Danish	Deens
 Data & Privacy	Gegevens en privacy
-Date	Datum
 Deafen	Doof maken
 Deafen Members	Leden doof maken
 Deauthorize	Autorisatie intrekken
@@ -917,7 +915,6 @@ Insults and Slurs	Beledigingen en scheldwoorden
 Integrations	Integraties
 Interested	Geïnteresseerd
 Invalid Invite	Ongeldige uitnodiging
-Invalid date or time	Ongeldige datum of tijd
 Invisible	Onzichtbaar
 Invite	Uitnodigen
 Invite Channel	Uitnodigingskanaal
@@ -1109,6 +1106,7 @@ Mute Channel	Kanaal dempen
 Mute Members	Leden dempen
 Mute New Events	Nieuwe evenementen dempen
 Mute Server	Server dempen
+Mute Stream	Stream dempen
 Mute Thread	Thread dempen
 Muted until %1, %2	Gedempt tot %1, %2
 Muting a server prevents unread indicators and notifications from appearing unless you are mentioned.	Als je een server dempt, zie je geen ongelezen-indicatoren en meldingen meer, tenzij je wordt vermeld.
@@ -1579,6 +1577,7 @@ Stop Video	Video stoppen
 Stop Watching	Kijken stoppen
 Storage	Opslag
 Stream Settings	Streaminstellingen
+Stream Volume	Streamvolume
 Streamer Mode	Streamermodus
 Streamer Mode Enabled	Streamermodus ingeschakeld
 Streamer Mode hides your personal info so others watching your stream can't see it.	Streamermodus verbergt je persoonlijke info, zodat kijkers van je stream die niet kunnen zien.

@@ -164,7 +164,6 @@
 3 days	3 dana
 30 days	30 dana
 30 minutes	30 minuta
-3:00 PM	3:00 popodne
 4 hours	4 sata
 5 Minutes	5 minuta
 5 minutes	5 minuta
@@ -600,7 +599,6 @@ DEFAULT KEYBINDS	ZADANI PREČACI
 DM closed	Izravna poruka zatvorena
 Danish	Danski
 Data & Privacy	Podaci i privatnost
-Date	Datum
 Deafen	Isključi zvuk
 Deafen Members	Isključivanje zvuka članovima
 Deauthorize	Opozovi ovlaštenje
@@ -917,7 +915,6 @@ Insults and Slurs	Uvrede i pogrdni izrazi
 Integrations	Integracije
 Interested	Zainteresiran
 Invalid Invite	Nevažeća pozivnica
-Invalid date or time	Nevažeći datum ili vrijeme
 Invisible	Nevidljiv
 Invite	Pozovi
 Invite Channel	Kanal za pozivnice
@@ -1109,6 +1106,7 @@ Mute Channel	Utišaj kanal
 Mute Members	Utišaj članove
 Mute New Events	Utišaj nove događaje
 Mute Server	Utišaj poslužitelj
+Mute Stream	Utišaj stream
 Mute Thread	Utišaj nit
 Muted until %1, %2	Utišano do %1, %2
 Muting a server prevents unread indicators and notifications from appearing unless you are mentioned.	Utišavanjem poslužitelja ne prikazuju se oznake nepročitanog ni obavijesti, osim ako te netko spomene.
@@ -1579,6 +1577,7 @@ Stop Video	Zaustavi video
 Stop Watching	Prestani gledati
 Storage	Pohrana
 Stream Settings	Postavke streama
+Stream Volume	Glasnoća streama
 Streamer Mode	Način za streamere
 Streamer Mode Enabled	Način za streamere uključen
 Streamer Mode hides your personal info so others watching your stream can't see it.	Način za streamere skriva tvoje osobne podatke kako ih ne bi vidjeli oni koji gledaju tvoj stream.

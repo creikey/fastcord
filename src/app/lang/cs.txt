@@ -164,7 +164,6 @@
 3 days	3 dny
 30 days	30 dní
 30 minutes	30 minut
-3:00 PM	15:00
 4 hours	4 hodiny
 5 Minutes	5 minut
 5 minutes	5 minut
@@ -600,7 +599,6 @@ DEFAULT KEYBINDS	VÝCHOZÍ KLÁVESOVÉ ZKRATKY
 DM closed	Konverzace zavřena
 Danish	Dánština
 Data & Privacy	Data a soukromí
-Date	Datum
 Deafen	Vypnout zvuk
 Deafen Members	Vypínat zvuk členům
 Deauthorize	Zrušit autorizaci
@@ -917,7 +915,6 @@ Insults and Slurs	Urážky a nadávky
 Integrations	Integrace
 Interested	Mám zájem
 Invalid Invite	Neplatná pozvánka
-Invalid date or time	Neplatné datum nebo čas
 Invisible	Neviditelný
 Invite	Pozvat
 Invite Channel	Kanál pro pozvánky
@@ -1109,6 +1106,7 @@ Mute Channel	Ztlumit kanál
 Mute Members	Ztlumit členy
 Mute New Events	Ztlumit nové události
 Mute Server	Ztlumit server
+Mute Stream	Ztlumit stream
 Mute Thread	Ztlumit vlákno
 Muted until %1, %2	Ztlumeno do %1, %2
 Muting a server prevents unread indicators and notifications from appearing unless you are mentioned.	Ztlumení serveru skryje ukazatele nepřečtených zpráv a oznámení, pokud nejsi zmíněn(a).
@@ -1579,6 +1577,7 @@ Stop Video	Vypnout video
 Stop Watching	Přestat sledovat
 Storage	Úložiště
 Stream Settings	Nastavení streamu
+Stream Volume	Hlasitost streamu
 Streamer Mode	Režim streamera
 Streamer Mode Enabled	Režim streamera zapnutý
 Streamer Mode hides your personal info so others watching your stream can't see it.	Režim streamera skryje tvé osobní údaje, aby je diváci tvého streamu neviděli.

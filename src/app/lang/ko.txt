@@ -164,7 +164,6 @@
 3 days	3일
 30 days	30일
 30 minutes	30분
-3:00 PM	오후 3:00
 4 hours	4시간
 5 Minutes	5분
 5 minutes	5분
@@ -600,7 +599,6 @@ DEFAULT KEYBINDS	기본 단축키
 DM closed	DM 닫힘
 Danish	덴마크어
 Data & Privacy	데이터 및 개인정보 보호
-Date	날짜
 Deafen	헤드셋 음소거
 Deafen Members	멤버 헤드셋 음소거하기
 Deauthorize	승인 취소
@@ -917,7 +915,6 @@ Insults and Slurs	모욕 및 비하 표현
 Integrations	연동
 Interested	관심 있음
 Invalid Invite	잘못된 초대
-Invalid date or time	날짜나 시간이 올바르지 않아요
 Invisible	오프라인 표시
 Invite	초대
 Invite Channel	초대 채널
@@ -1109,6 +1106,7 @@ Mute Channel	채널 음소거
 Mute Members	멤버 음소거하기
 Mute New Events	새 이벤트 음소거
 Mute Server	서버 음소거
+Mute Stream	방송 음소거
 Mute Thread	스레드 음소거
 Muted until %1, %2	%1 %2까지 음소거됨
 Muting a server prevents unread indicators and notifications from appearing unless you are mentioned.	서버를 음소거하면 멘션되지 않는 한 읽지 않음 표시와 알림이 나타나지 않아요.
@@ -1579,6 +1577,7 @@ Stop Video	비디오 중지
 Stop Watching	시청 중지
 Storage	저장 공간
 Stream Settings	방송 설정
+Stream Volume	방송 음량
 Streamer Mode	스트리머 모드
 Streamer Mode Enabled	스트리머 모드 활성화됨
 Streamer Mode hides your personal info so others watching your stream can't see it.	스트리머 모드는 방송을 보는 사람들이 내 개인 정보를 볼 수 없도록 숨겨요.

@@ -161,7 +161,6 @@
 3 days	3日
 30 days	30日
 30 minutes	30分
-3:00 PM	午後3:00
 4 hours	4時間
 5 Minutes	5分
 5 minutes	5分
@@ -597,7 +596,6 @@ DEFAULT KEYBINDS	デフォルトのキー割り当て
 DM closed	DMを閉じました
 Danish	デンマーク語
 Data & Privacy	データとプライバシー
-Date	日付
 Deafen	スピーカーミュート
 Deafen Members	メンバーのスピーカーをミュート
 Deauthorize	認証を解除
@@ -914,7 +912,6 @@ Insults and Slurs	侮辱・差別用語
 Integrations	連携サービス
 Interested	興味あり
 Invalid Invite	無効な招待
-Invalid date or time	日付または時刻が無効です
 Invisible	オフライン表示
 Invite	招待
 Invite Channel	招待チャンネル
@@ -1105,6 +1102,7 @@ Mute Channel	チャンネルをミュート
 Mute Members	メンバーをミュート
 Mute New Events	新しいイベントをミュート
 Mute Server	サーバーをミュート
+Mute Stream	配信をミュート
 Mute Thread	スレッドをミュート
 Muted until %1, %2	%1 %2までミュート中
 Muting a server prevents unread indicators and notifications from appearing unless you are mentioned.	サーバーをミュートすると、メンションされた場合を除き、未読表示や通知が表示されなくなります。
@@ -1575,6 +1573,7 @@ Stop Video	ビデオを停止
 Stop Watching	視聴をやめる
 Storage	ストレージ
 Stream Settings	配信設定
+Stream Volume	配信の音量
 Streamer Mode	配信モード
 Streamer Mode Enabled	配信モード有効
 Streamer Mode hides your personal info so others watching your stream can't see it.	配信モードでは個人情報を隠し、配信の視聴者に見られないようにします。

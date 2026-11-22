@@ -164,7 +164,6 @@
 3 days	3 dagar
 30 days	30 dagar
 30 minutes	30 minuter
-3:00 PM	15:00
 4 hours	4 timmar
 5 Minutes	5 minuter
 5 minutes	5 minuter
@@ -600,7 +599,6 @@ DEFAULT KEYBINDS	STANDARDKORTKOMMANDON
 DM closed	DM stängt
 Danish	Danska
 Data & Privacy	Data och sekretess
-Date	Datum
 Deafen	Döva
 Deafen Members	Döva medlemmar
 Deauthorize	Avauktorisera
@@ -917,7 +915,6 @@ Insults and Slurs	Förolämpningar och skällsord
 Integrations	Integrationer
 Interested	Intresserad
 Invalid Invite	Ogiltig inbjudan
-Invalid date or time	Ogiltigt datum eller tid
 Invisible	Osynlig
 Invite	Bjud in
 Invite Channel	Inbjudningskanal
@@ -1109,6 +1106,7 @@ Mute Channel	Tysta kanal
 Mute Members	Tysta medlemmar
 Mute New Events	Tysta nya evenemang
 Mute Server	Tysta server
+Mute Stream	Tysta stream
 Mute Thread	Tysta tråd
 Muted until %1, %2	Tystad till %1, %2
 Muting a server prevents unread indicators and notifications from appearing unless you are mentioned.	När du tystar en server visas inga olästa-markeringar eller aviseringar, om du inte blir nämnd.
@@ -1579,6 +1577,7 @@ Stop Video	Stäng av video
 Stop Watching	Sluta titta
 Storage	Lagring
 Stream Settings	Streaminställningar
+Stream Volume	Streamvolym
 Streamer Mode	Streamerläge
 Streamer Mode Enabled	Streamerläge på
 Streamer Mode hides your personal info so others watching your stream can't see it.	Streamerläget döljer din personliga info så att de som tittar på din stream inte kan se den.

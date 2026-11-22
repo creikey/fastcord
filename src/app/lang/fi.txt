@@ -164,7 +164,6 @@
 3 days	3 päivää
 30 days	30 päivää
 30 minutes	30 minuuttia
-3:00 PM	3.00 ip.
 4 hours	4 tuntia
 5 Minutes	5 minuuttia
 5 minutes	5 minuuttia
@@ -600,7 +599,6 @@ DEFAULT KEYBINDS	OLETUSPIKANÄPPÄIMET
 DM closed	Yksityisviesti suljettu
 Danish	Tanska
 Data & Privacy	Tiedot ja yksityisyys
-Date	Päivämäärä
 Deafen	Hiljennä kuulokkeet
 Deafen Members	Hiljennä jäsenten kuulokkeet
 Deauthorize	Peru valtuutus
@@ -917,7 +915,6 @@ Insults and Slurs	Loukkaukset ja herjaukset
 Integrations	Integraatiot
 Interested	Kiinnostunut
 Invalid Invite	Virheellinen kutsu
-Invalid date or time	Virheellinen päivämäärä tai aika
 Invisible	Näkymätön
 Invite	Kutsu
 Invite Channel	Kutsukanava
@@ -1109,6 +1106,7 @@ Mute Channel	Mykistä kanava
 Mute Members	Mykistä jäseniä
 Mute New Events	Mykistä uudet tapahtumat
 Mute Server	Mykistä palvelin
+Mute Stream	Mykistä striimi
 Mute Thread	Mykistä ketju
 Muted until %1, %2	Mykistetty %1, %2 asti
 Muting a server prevents unread indicators and notifications from appearing unless you are mentioned.	Palvelimen mykistäminen estää lukemattomien merkit ja ilmoitukset, ellei sinua mainita.
@@ -1579,6 +1577,7 @@ Stop Video	Lopeta video
 Stop Watching	Lopeta katselu
 Storage	Tallennustila
 Stream Settings	Striimin asetukset
+Stream Volume	Striimin äänenvoimakkuus
 Streamer Mode	Striimaajatila
 Streamer Mode Enabled	Striimaajatila käytössä
 Streamer Mode hides your personal info so others watching your stream can't see it.	Striimaajatila piilottaa henkilötietosi, jotta striimisi katsojat eivät näe niitä.
