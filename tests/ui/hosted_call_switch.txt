@@ -1,0 +1,20 @@
+# In a call on a self-hosted server, selecting another server and then the call's server again plays no
+# sound: the others in the call are judged on the call's connection, not the selected one.
+wait 5
+serve_join
+settle 3
+serve_join two
+settle 3
+click 36 157
+settle 2
+voice_member 4243 4242
+in_voice 4242
+settle 2
+expect_sounds user_join
+click 36 204
+settle 2
+expect_sounds
+click 36 157
+settle 2
+expect_sounds
+shot build/ui-hosted_call_switch.png

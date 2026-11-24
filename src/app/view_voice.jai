@@ -40,6 +40,12 @@ voice_client_gone :: (c: *dc.Client) {
 	vc.client = null;
 }
 
+// The script's in_voice: the call on the selected connection, with no op 4 or voice connection.
+voice_fake_join :: (cid: dc.Snowflake) {
+	app.voice_channel = cid;
+	vc.client = app.client;
+}
+
 // voice_join_channel: op 4 join (or move) and remember the guild for later op 4s.
 voice_join_channel :: (gid: dc.Snowflake, cid: dc.Snowflake) {
 	if app.voice_channel == cid && vc.client == app.client { return; }

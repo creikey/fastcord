@@ -98,9 +98,13 @@ sound_disabled :: (name: string) -> bool {
 // sound_play: SoundUtils.playSound(name, 0.4). Loads on first use.
 sound_play :: (name: string) {
 	if sound_disabled(name) return;
+	if platform.is_headless() array_add(*sounds_heard, copy_string(name));
 	hash, ok := sound_asset(pack_name(name));
 	if ok sound_play_url(tprint("https://discord.com/assets/%.mp3", hash), SOUND_VOLUME);
 }
+
+// Headless runs' sound_play names, for the script's expect_sounds.
+sounds_heard: [..]string;
 
 // sound_play_url: plays an mp3 or ogg file at volume (0..1, before the output volume), loading it on
 // first use; with conn, through that call's mic as well (voice.mix_in).
@@ -335,10 +339,10 @@ feed :: () {
 ring_sounds :: () {
 	incoming := dc.incoming_call(app.client) != 0;
 	outgoing := false;
-	call := ifx app.voice_channel then dc.call_get(app.client, app.voice_channel) else null;
+	call := ifx app.voice_channel then dc.call_get(call_client(), app.voice_channel) else null;
 	if call && call.ringing.count {
 		n := 0;
-		for v: store().voice_states if v.channel_id == app.voice_channel n += 1;
+		for v: call_store().voice_states if v.channel_id == app.voice_channel n += 1;
 		outgoing = n < 2;
 	}
 	for name: string.["call_ringing", "call_calling"] {
@@ -370,7 +374,7 @@ ring_sounds :: () {
 
 voice_members :: () {
 	ch := app.voice_channel;
-	s := store();
+	s := call_store();
 	if ch != snd.members_ch {
 		table_reset_keeping_memory(*snd.members);
 		snd.members_ch = ch;

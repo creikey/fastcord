@@ -791,7 +791,19 @@ script_command :: (path: string, f: []string, t: *float64, depth := 0) {
 		platform.set_headless_size(cast(int) num(f[1]), cast(int) num(f[2]));
 	case "in_voice";
 		// in_voice <channel id>: show the voice panel as if joined (fixtures have no voice connection)
-		app.voice_channel = dc.parse_snowflake(f[1]);
+		voice_fake_join(dc.parse_snowflake(f[1]));
+	case "voice_member";
+		// voice_member <user id> <channel id>: that user is in that voice channel, on the selected connection
+		uid := dc.parse_snowflake(f[1]);
+		table_set(*store().voice_states, uid, .{user_id = uid, channel_id = dc.parse_snowflake(f[2])});
+	case "expect_sounds";
+		// expect_sounds [names...]: exactly these sounds played since the last expect_sounds (or the start)
+		same := sounds_heard.count == f.count - 1;
+		if same for sounds_heard if it != f[it_index + 1] same = false;
+		if !same script_fail(path, "expect_sounds failed: %", sounds_heard);
+		for sounds_heard free(it);
+		array_reset_keeping_memory(*sounds_heard);
+		return;
 	case "install_offer";
 		// the Windows install bar (update.jai), shown on any OS; Install does nothing headless
 		inst.offer = true;
