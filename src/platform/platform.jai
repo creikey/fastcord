@@ -139,7 +139,8 @@ set_exit_callback :: (cb: ()) { s.exit_callback = cb; }
             b: u8 = 1;
             posix.write(quit_pipe[1], *b, 1);
         };
-        sa.sa_flags = posix.SA_RESTART; // other threads' blocking calls go on
+        #if OS == .ANDROID sa.sa_flags = 0x1000_0000; // SA_RESTART, which Jai's Android bindings lack
+        else sa.sa_flags = posix.SA_RESTART; // other threads' blocking calls go on
         posix.sigaction(posix.SIGINT, *sa, null);
         posix.sigaction(posix.SIGTERM, *sa, null);
         t := New(Thread);

@@ -21,7 +21,7 @@ Error :: enum u8 {
 // connect runs the handshake for host (SNI and the name the certificate must be valid for) on s, which the
 // returned stream owns from then on; on failure s is closed. h2: the server picked HTTP/2 (ALPN, Linux only).
 connect :: (s: netio.Stream, host: string) -> netio.Stream, Error, h2: bool {
-	#if OS == .LINUX {
+	#if OS == .LINUX || OS == .ANDROID {
 		st, err, h2 := rustls_connect(s, host);
 		return st, err, h2;
 	} else {
@@ -38,7 +38,7 @@ connect :: (s: netio.Stream, host: string) -> netio.Stream, Error, h2: bool {
 
 #scope_module
 
-#if OS == .LINUX #load "linux.jai";
+#if OS == .LINUX || OS == .ANDROID #load "linux.jai";
 else {
 
 READ_CHUNK :: 16 * 1024;

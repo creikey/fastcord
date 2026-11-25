@@ -33,6 +33,7 @@ verify_chain_os :: (chain: [][]u8, host: string) -> Error {
 #scope_file
 
 #import "POSIX";
+File_Utilities :: #import "File_Utilities";
 
 X509_STORE :: struct {}
 X509_STORE_CTX :: struct {}
@@ -67,6 +68,13 @@ trust_store :: () -> *X509_STORE {
 	store_loaded = true;
 	store = X509_STORE_new();
 	if !store return null;
+	#if OS == .ANDROID {
+		// Android names its roots by OpenSSL's old (MD5) subject hash, which BoringSSL's directory lookup
+		// doesn't use, so every file is loaded up front.
+		for File_Utilities.file_list("/system/etc/security/cacerts",, temp) X509_STORE_load_locations(store, temp_c_string(it), null);
+		ERR_clear_error();
+		return store;
+	}
 	file, dir := getenv("SSL_CERT_FILE"), getenv("SSL_CERT_DIR");
 	if file X509_STORE_load_locations(store, file, null);
 	else for CA_BUNDLES if X509_STORE_load_locations(store, temp_c_string(it), null) == 1 break;

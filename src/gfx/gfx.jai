@@ -82,8 +82,9 @@ Instance :: struct {
 
 // Each draw call binds up to TEX_SLOTS textures and instances pick one by slot, and clipping is per
 // instance, so a frame is a few draw calls rather than one per clip rect or texture change: per-draw
-// driver work was most of the render time.
-TEX_SLOTS :: 16;
+// driver work was most of the render time. Android's GLES guarantees only 16 fragment units: 15 slots
+// and the video's second plane.
+TEX_SLOTS :: #run ifx OS == .ANDROID then 15 else 16;
 
 Batch :: struct {
     first, count: u32;

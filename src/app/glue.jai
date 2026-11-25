@@ -21,7 +21,8 @@ app_data_dir :: (sub: string, allocator := temp) -> string {
 		xdg := env_var("XDG_DATA_HOME");
 		if begins_with(xdg, "/") return sprint("%/fastcord/%", xdg, sub,, allocator); // the spec ignores relative values
 		return sprint("%/.local/share/fastcord/%", env_var("HOME"), sub,, allocator);
-	} else return sprint("%/Library/Application Support/fastcord/%", env_var("HOME"), sub,, allocator);
+	} else #if OS == .ANDROID return sprint("%/%", platform.app_files_dir(), sub,, allocator);
+	else return sprint("%/Library/Application Support/fastcord/%", env_var("HOME"), sub,, allocator);
 }
 
 // Environment variable, "" when unset (not copied).
@@ -33,7 +34,7 @@ env_var :: (name: string) -> string {
 fonts_load :: () {
 	weights := gfx.Font_Weight.[.Regular, .Medium, .Semibold, .Bold, .Regular, .Regular];
 	for * fonts it.* = gfx.font_system("system", weights[it_index]);
-	fonts[Font_Id.Mono] = gfx.font_system(ifx OS == .WINDOWS then "Consolas" else ifx OS == .LINUX then "monospace" else "Menlo");
+	fonts[Font_Id.Mono] = gfx.font_system(ifx OS == .WINDOWS then "Consolas" else ifx OS == .LINUX || OS == .ANDROID then "monospace" else "Menlo");
 	fonts[Font_Id.Italic] = gfx.font_system("system", .Regular, italic = true);
 	// gg sans is fetched from discord.com/assets at runtime (as the official client does) and cached
 	// here; until then the system font stands in.

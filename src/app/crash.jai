@@ -25,7 +25,9 @@ crash_start :: () {
 		sa: posix.sigaction_t;
 		sa.sa_handler = on_signal;
 		// runs once, then the default action kills the process; Linux's SA_RESETHAND is the s32 sign bit
-		sa.sa_flags = cast,no_check(type_of(sa.sa_flags)) (posix.SA_RESETHAND | posix.SA_ONSTACK);
+		#if OS == .ANDROID FLAGS :: 0x8000_0000 | 0x0800_0000; // Jai's bindings lack them: the kernel's values
+		else FLAGS :: posix.SA_RESETHAND | posix.SA_ONSTACK;
+		sa.sa_flags = cast,no_check(type_of(sa.sa_flags)) FLAGS;
 		for s32.[posix.SIGSEGV, posix.SIGBUS, posix.SIGILL, posix.SIGFPE, posix.SIGABRT] posix.sigaction(it, *sa, null);
 	}
 }

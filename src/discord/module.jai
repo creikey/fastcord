@@ -60,7 +60,7 @@ zstd :: #import "zstd";
 #load "commands.jai";
 #load "procinfo.jai";
 #if OS == .MACOS #load "procinfo_darwin.jai";
-#if OS == .LINUX #load "procinfo_linux.jai";
+#if OS == .LINUX || OS == .ANDROID #load "procinfo_linux.jai";
 #if OS == .WINDOWS #load "procinfo_windows.jai";
 #load "quickswitch.jai";
 #load "ratelimit.jai";

@@ -54,6 +54,11 @@ includes its headers and runtime sources. Per OS it also needs:
   Linux builds are also cross-compiled from Windows or macOS with `cross_cc cc` against glibc 2.17:
   append `linux` to any target, e.g. `jai build.jai - dev linux`
   writes `build/fastcord-dev` for x86_64 Linux.
+- Android (early, see `TODO.md`): the Android SDK with the NDK, `platforms;android-34` and build-tools, found
+  through `ANDROID_HOME`. `jai build.jai - android` writes `build/android/fastcord-aarch64.apk` for phones,
+  `- android x64` `fastcord-x86_64.apk` for the emulator; `debug` builds it unoptimised in about a third of the
+  time. It runs on Android 13 and later; install with `adb install -r <apk>`. No Java or
+  Gradle: Jai's toolchain writes and signs the APK, with a debug key it makes in `build/android/.build_android`.
 
 ```sh
 jai build.jai - dev       # build/fastcord-dev: optimised with symbols, for daily use
@@ -67,7 +72,8 @@ Every build first compiles the vendored C (`vendor/`) into `build/fc_vendor.a` (
 about a minute the first time); `jai build.jai - c` does only that.
 
 `<state>` is `~/Library/Application Support/fastcord/state` (macOS), `%LOCALAPPDATA%\fastcord\state`
-(Windows) or `${XDG_DATA_HOME:-~/.local/share}/fastcord/state` (Linux). With no token (or a rejected one) the app
+(Windows), `${XDG_DATA_HOME:-~/.local/share}/fastcord/state` (Linux) or `/data/data/com.creikey.fastcord/files/state`
+(Android). With no token (or a rejected one) the app
 opens the login page: email or phone number and password (with the multi-factor step), or the QR code
 for the mobile app, as the official client does (`src/discord/auth.jai`, `remote_auth.jai`). When Discord answers either with a captcha, it opens in a small
 window with the system's web view and the request goes again once solved (`src/app/captcha.jai`;

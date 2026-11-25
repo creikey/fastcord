@@ -324,6 +324,7 @@ locks :: #import "locks";
 #if OS == .MACOS #load "darwin.jai";
 #if OS == .WINDOWS #load "windows.jai";
 #if OS == .LINUX #load "linux.jai";
+#if OS == .ANDROID #load "android.jai";
 
 Slot :: struct {
 	ring: Ring;

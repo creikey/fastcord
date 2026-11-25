@@ -180,6 +180,11 @@ open_camera :: (c: *Capture) -> s32, Mode {
 	return -1, .{};
 }
 
+#if OS == .ANDROID { // Jai's Android bindings lack it
+	ioctl_libc :: #system_library "libc";
+	ioctl :: (fd: s32, req: u64, arg: *void) -> s32 #foreign ioctl_libc;
+}
+
 xioctl :: (fd: s32, req: u64, arg: *void) -> s32 {
 	while true {
 		r := ioctl(fd, req, arg);

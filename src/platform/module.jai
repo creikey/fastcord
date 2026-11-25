@@ -23,3 +23,4 @@ locks :: #import "locks";
     #load "wayland_linux.jai";
     #load "webview_linux.jai";
 }
+#if OS == .ANDROID #load "platform_android.jai";

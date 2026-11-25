@@ -309,7 +309,7 @@ in vec2 v_p;
 in vec2 v_uv;
 in vec2 v_local;
 flat in vec4 v_dst, v_radii, v_params, v_c0, v_c1, v_c2, v_c3;
-uniform sampler2D texs[16];
+uniform sampler2D texs[TEX_N];
 uniform sampler2D tex2;
 layout(location = 0) out vec4 frag;
 
@@ -319,8 +319,11 @@ vec4 sample_slot(int slot, vec2 uv, out vec2 dims) {
 	vec4 s;
 	switch (slot) {
 	SLOT(0) SLOT(1) SLOT(2) SLOT(3) SLOT(4) SLOT(5) SLOT(6) SLOT(7)
-	SLOT(8) SLOT(9) SLOT(10) SLOT(11) SLOT(12) SLOT(13) SLOT(14)
-	default: dims = vec2(textureSize(texs[15], 0)); s = textureLod(texs[15], uv / dims, 0.0); break;
+	SLOT(8) SLOT(9) SLOT(10) SLOT(11) SLOT(12) SLOT(13)
+#if TEX_N > 15
+	SLOT(14)
+#endif
+	default: dims = vec2(textureSize(texs[TEX_N - 1], 0)); s = textureLod(texs[TEX_N - 1], uv / dims, 0.0); break;
 	}
 	return s;
 }

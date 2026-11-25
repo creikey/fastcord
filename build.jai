@@ -12,6 +12,7 @@
 #import "System";
 #import "Sort";
 #if OS == .WINDOWS { WR :: #import "Windows_Resources"; W :: #import "Windows"; }
+AT :: #import "Android/Toolchain";
 
 // Stallable: build() calls Basic procedures, like string_to_int, that hold #runs of their own. If the
 // compiler reaches one before that #run has executed, a plain #run fails the build instead of waiting.
@@ -22,7 +23,15 @@ build :: () {
     args := get_build_options().compile_time_command_line;
     if args.count && args[args.count-1] == "linux" { LINUX = true; args.count -= 1; }
     target := ifx args.count then args[0] else "app";
-    HOST = !array_find(string.["app", "release", "release_x64"], target) && (!LINUX || OS == .LINUX);
+    if target == "android" {
+        ANDROID = true;
+        for array_view(args, 1) {
+            if it == "x64" ANDROID_CPU = .X64;
+            if it == "debug" ANDROID_DEBUG = true;
+        }
+        if !android_paths() { compiler_set_workspace_status(.FAILED); return; }
+    }
+    HOST = !ANDROID && !array_find(string.["app", "release", "release_x64"], target) && (!LINUX || OS == .LINUX);
     make_directory_if_it_does_not_exist(OBJ(), recursive = true);
     if !build_c() { log_error("C build failed"); compiler_set_workspace_status(.FAILED); return; }
     APP :: "app :: #import \"app\"; main :: () { app.main(); }";
@@ -58,6 +67,7 @@ build :: () {
                 && compile("fastcord-dev", APP, .OPTIMIZED) && ui_scripts() && bench(.["bench"])
                 && run_command(PYTHON, "-I", "tools/check_secrets.py").exit_code == 0;
             print(ifx ok then "check-full: all passed\n" else "check-full: FAILED\n");
+        case "android"; ok = android();
         case "release"; ok = release(args);
         case "release_x64"; ok = compile("fastcord-x86_64", tprint("app :: #import \"app\"(VERSION = \"%\"); main :: () { app.main(); }", args[1]), .VERY_OPTIMIZED);
         case "og";
@@ -86,6 +96,7 @@ usage: jai build.jai - <target>
   fuzz mem <target> [seconds] the same with Basic's Memory_Debugger: double frees with stacks, leaks, poisoned temp
   fuzz ui [seconds]           the whole app headless and offline: hostile events on real fixtures, input on every view
   fuzz scale                  each text parser on repeated openers at two sizes; fails on superlinear time
+  android [x64] [debug]       build/android/fastcord-<cpu>.apk (arm64 for phones, x64 for the emulator); needs ANDROID_HOME with an NDK; debug: unoptimised, faster to build
   release <vX.Y.Z>            dist/: the Mac app on macOS, Windows + Linux on Windows (CI publishes them)
   og                          site/og.jpg (link preview) from tools/og/card.html
   c                           only the vendored C libraries
@@ -98,7 +109,17 @@ LINUX := OS == .LINUX;
 GLIBC :: "x86_64-linux-gnu.2.17";
 // Native macOS compiles the C once per arch ("aarch64", "x86_64") and joins the two archives with lipo.
 MAC_ARCH := "";
+// The android target builds the app for Android with the NDK's clang and Jai's Android toolchain.
+ANDROID := false;
+ANDROID_CPU := CPU_Tag.ARM64;
+ANDROID_DEBUG := false;
+// The C's minimum API level, the manifest's minSdkVersion. 33 (Android 13): Jai's Android toolchain links
+// against API 34's stubs, and its Input module and backtrace need API 33's symbols.
+ANDROID_MIN_API :: 33;
+NDK_BIN := "";
+NDK_EXE :: #run ifx OS == .WINDOWS then ".exe" else "";
 OBJ :: () -> string {
+    if ANDROID return tprint("build/android-%", android_arch());
     if HOST return "build/host";
     if LINUX return "build/linux";
     if MAC_ARCH return tprint("build/mac-%", MAC_ARCH);
@@ -113,7 +134,7 @@ vendor_lib_target :: () -> string {
 set_vendor_lib_target :: (target: string) -> bool { return write_entire_file(tprint("%.target", VENDOR_LIB()), target); }
 
 VENDOR_LIB :: () -> string {
-    #if OS == .WINDOWS if !LINUX return "build/fc_vendor.lib";
+    #if OS == .WINDOWS if !LINUX && !ANDROID return "build/fc_vendor.lib";
     if MAC_ARCH && !HOST return tprint("%/fc_vendor.a", OBJ());
     return "build/fc_vendor.a";
 }
@@ -226,8 +247,9 @@ compile :: (name: string, source := "", optimization := Optimization_Type.DEBUG,
     o.import_path = import_path;
     if LINUX o.os_target = .LINUX;
     // Windows links with the compiler's own linker step (MSVC libraries); macOS and Linux with cross_cc
-    o.use_custom_link_command = OS != .WINDOWS || LINUX;
+    o.use_custom_link_command = OS != .WINDOWS || LINUX || ANDROID;
     o.text_output_flags = 0;
+    if ANDROID o.text_output_flags = .OUTPUT_TIMING_INFO;
     o.output_executable_name = name;
     o.output_path = "build";
     o.cpu_target = cpu;
@@ -235,8 +257,19 @@ compile :: (name: string, source := "", optimization := Optimization_Type.DEBUG,
     // set_optimization turns split modules off for inlining, leaving LLVM one thread: dev builds 87 s -> 19 s,
     // bench latency unchanged, UI pass ~25% slower than unsplit
     if optimization == .OPTIMIZED o.llvm_options.enable_split_modules = true;
+    if ANDROID {
+        o.os_target = .ANDROID;
+        o.cpu_target = ANDROID_CPU;
+        o.output_type = .DYNAMIC_LIBRARY;
+        o.backend = .LLVM;
+        _, o.llvm_options.target_system_triple = AT.get_android_target_triple(ANDROID_CPU);
+        if ANDROID_CPU == .ARM64 o.llvm_options.target_system_features = "+lse"; // ARMv8.1 atomics, as Jai's toolchain assumes
+        o.output_path = android_lib_dir();
+        make_directory_if_it_does_not_exist(o.output_path, recursive = true);
+    }
     // `- module` and debug type-check every procedure, not only the ones called; dev and shipping drop the dead ones
-    if optimization == .DEBUG o.dead_code_elimination = .NONE;
+    // (Android keeps it: Jai's Socket has a procedure that doesn't compile for Android.)
+    if optimization == .DEBUG && !ANDROID o.dead_code_elimination = .NONE;
     o.cast_bounds_check = .OFF;      // integer casts truncate, as the wire encoders expect
     // An out-of-bounds index or null dereference stops the program instead of corrupting memory, in every
     // build: fastcord parses what any server and any user send. Loops the bench shows are hot take #no_abc.
@@ -251,13 +284,16 @@ compile :: (name: string, source := "", optimization := Optimization_Type.DEBUG,
     while true {
         m := compiler_wait_for_message();
         if m.kind == .ERROR ok = false;
-        if m.kind == .COMPLETE break;
+        if m.kind == .COMPLETE { if (cast(*Message_Complete) m).error_code != .NONE ok = false; break; }
         if coverage && m.kind == .TYPECHECKED cover(cast(*Message_Typechecked) m);
         if m.kind == .PHASE {
             p := cast(*Message_Phase) m;
             if p.phase == .READY_FOR_CUSTOM_LINK_COMMAND {
-                if !link(p, tprint("build/%", name), cpu) ok = false;
-                compiler_custom_link_command_is_complete(w);
+                if ANDROID AT.run_android_link_command(p, o, android_link_args()); // reports its own failure and completion
+                else {
+                    if !link(p, tprint("build/%", name), cpu) ok = false;
+                    compiler_custom_link_command_is_complete(w);
+                }
             }
         }
     }
@@ -265,7 +301,7 @@ compile :: (name: string, source := "", optimization := Optimization_Type.DEBUG,
     if coverage write_entire_file(tprint("build/%.blocks", name), builder_to_string(*cover_lines));
     // Every Windows build of the app gets the icon; the window loads it from the exe as resource 2. Right
     // after the link the exe can still be held open (EndUpdateResource fails with error 110), so retry.
-    #if OS == .WINDOWS if ok && !LINUX && begins_with(source, "app :: #import \"app\"") {
+    #if OS == .WINDOWS if ok && !LINUX && !ANDROID && begins_with(source, "app :: #import \"app\"") {
         for 1..30 {
             ok = WR.set_icon_by_filename(tprint("build/%.exe", name), "assets/fastcord.ico");
             if ok break;
@@ -273,6 +309,58 @@ compile :: (name: string, source := "", optimization := Optimization_Type.DEBUG,
         }
     }
     return ok;
+}
+
+// android [x64]: build/android/fastcord-<cpu>.apk, the app as a NativeActivity library (libfastcord.so),
+// optimised with symbols like dev. Jai's toolchain writes, signs and zips the APK itself (no Gradle, no Java);
+// it signs with a debug key it makes once in build/android/.build_android.
+android :: () -> bool {
+    root :: "app :: #import \"app\"; platform :: #import \"platform\"; main :: () { platform.stdio_to_logcat(); app.main(); } #import \"Android\"()(main);";
+    start := current_time_monotonic();
+    if !compile("fastcord", root, ifx ANDROID_DEBUG then .DEBUG else .OPTIMIZED) return false;
+    built := current_time_monotonic();
+    config: AT.Android_Project_Config;
+    config.app_name = "Fastcord";
+    config.app_id = "com.creikey.fastcord"; // @Todo: Settle the id before a release; changing it later loses users' data.
+    config.lib_name = "fastcord";
+    config.min_sdk_level = ANDROID_MIN_API;
+    config.permissions = .["android.permission.INTERNET"];
+    options: AT.Android_Build_Options;
+    options.mode = .ILL_WRITE_IT_AND_WELL_DO_IT_LIVE_FUCKING_THING_SUCKS;
+    options.cpu_target = ANDROID_CPU;
+    options.intermediate_path = "build/android/.build_android";
+    options.output_path = "build/android";
+    options.output_apk_name = tprint("fastcord-%", android_arch());
+    options.shared_library_path = android_lib_dir();
+    ok, apk := AT.android_generate_apk(options, config);
+    if ok print("apk: % (C and app %s, APK %s)\n", apk, to_float64_seconds(built - start), to_float64_seconds(current_time_monotonic() - built));
+    return ok;
+}
+
+android_arch :: () -> string { return ifx ANDROID_CPU == .ARM64 then "aarch64" else "x86_64"; }
+android_lib_dir :: () -> string { return tprint("build/android/lib/%", AT.get_android_project_jni_architecture_name(ANDROID_CPU)); }
+
+// The NDK's clang, from ANDROID_NDK_HOME or the newest NDK under ANDROID_HOME.
+android_paths :: () -> bool {
+    ok, ndk := AT.android_find_ndk_path(log_errors = true);
+    if !ok { log_error("android: set ANDROID_HOME to an Android SDK with an NDK (sdk/ndk/<version>)"); return false; }
+    host :: #run ifx OS == .WINDOWS then "windows-x86_64" else ifx OS == .MACOS then "darwin-x86_64" else "linux-x86_64";
+    NDK_BIN = sprint("%/toolchains/llvm/prebuilt/%/bin", ndk, host);
+    if !file_exists(join(NDK_BIN, "/clang", NDK_EXE,, temp)) { log_error("android: no clang in %", NDK_BIN); return false; }
+    return true;
+}
+
+// The NDK's C++ library and compiler runtime, which the vendored C++ and clang's helpers need: the app links
+// with ld.lld directly, so nothing adds them for it.
+android_link_args :: () -> []string {
+    triple := tprint("%-linux-android", android_arch());
+    toolchain := path_strip_filename(NDK_BIN);
+    a: [..]string;
+    array_add(*a, tprint("-L%sysroot/usr/lib/%", toolchain, triple), "-lc++_static", "-lc++abi", "--no-undefined");
+    for file_list(tprint("%lib/clang", toolchain), recursive = true) {
+        if path_filename(it) == tprint("libclang_rt.builtins-%-android.a", android_arch()) { array_add(*a, it); break; }
+    }
+    return a;
 }
 
 // release <vX.Y.Z>: the release archives this machine can build: on macOS dist/fastcord-macos.zip, a
@@ -557,19 +645,20 @@ source_lists :: () -> [..]string {
     }
     return out;
 }
-// A vendor/<lib>/.linux file marks a library only the Linux build uses (FreeType, HarfBuzz).
+// A vendor/<lib>/.linux file marks a library only the Linux and Android builds use (FreeType, HarfBuzz).
 vendor_dirs :: () -> [..]string {
     out: [..]string;
     visit_files("vendor", false, *out, (info: *File_Visit_Info, out: *[..]string) {
-        if LINUX || !file_exists(tprint("%/.linux", info.full_name)) array_add(out, copy_string(info.full_name));
+        if LINUX || ANDROID || !file_exists(tprint("%/.linux", info.full_name)) array_add(out, copy_string(info.full_name));
     }, visit_files = false, visit_directories = true);
     return out;
 }
 obj_of :: (src: string) -> string { return tprint("%/%.o", OBJ(), path_strip_extension(path_filename(src))); }
 
-// Newest modification time under a directory (and this file), to decide what to rebuild.
+// Newest modification time under a directory, to decide what to rebuild. Edits to this file don't count:
+// build_c_target compares the compile commands themselves, so only a change to a library's flags rebuilds it.
 newest :: (dir: string) -> Apollo_Time {
-    t := file_modtime_and_size("build.jai");
+    t: Apollo_Time;
     visit_files(dir, true, *t, (info: *File_Visit_Info, t: *Apollo_Time) {
         m := file_modtime_and_size(info.full_name);
         if m > t.* t.* = m;
@@ -652,6 +741,15 @@ cc :: (a: *[..]string, cpp: bool) {
         else array_add(a, "/std:c17");
         return;
     }
+    if ANDROID {
+        // No outline atomics: the app links with ld.lld directly, not through clang, which would add the
+        // __aarch64_* helpers they call.
+        array_add(a, join(NDK_BIN, "/", ifx cpp then "clang++" else "clang", NDK_EXE,, temp), tprint("--target=%-linux-android%", android_arch(), ANDROID_MIN_API),
+            "-c", "-O2", "-fPIC", "-DHAVE_ARPA_INET_H", "-DHAVE_NETINET_IN_H");
+        if ANDROID_CPU == .ARM64 array_add(a, "-mno-outline-atomics");
+        if cpp array_add(a, "-std=c++17", "-fno-exceptions", "-fno-rtti");
+        return;
+    }
     if HOST {
         if LINUX array_add(a, ifx cpp then "c++" else "cc", "-c", "-O2", "-fPIC", "-DHAVE_ARPA_INET_H", "-DHAVE_NETINET_IN_H");
         else array_add(a, "clang", "-c", "-O2", "-arch", ifx MAC_ARCH == "aarch64" then "arm64" else "x86_64", "-mmacosx-version-min=13.0");
@@ -679,6 +777,7 @@ cc_out :: (a: *[..]string, obj: string) {
 }
 
 build_c :: () -> bool {
+    if ANDROID return build_c_target();
     if !HOST && !fetch(CROSS, CROSS_DIR, tprint("https://github.com/SamHSmith/cross_cc/releases/download/%/cross_cc-%-%.zip", CROSS_VERSION, CROSS_VERSION, CROSS_HOST), CROSS_SHA256) return false;
     #if OS == .WINDOWS if !LINUX && !MSVC_BIN {
         lib, bin := WR.find_visual_studio_in_a_ridiculous_garbage_way();
@@ -769,24 +868,30 @@ build_c_target :: () -> bool {
     make_directory_if_it_does_not_exist(OBJ(), recursive = true);
     if !apply_patches() return false;
     jobs: [..][..]string;
-    stamps: [..]string;
+    // Each file holds the commands that built its objects, written once they all compiled: objects are
+    // current while their sources are older and the commands are unchanged.
+    stamps: [..]struct { path: string; commands: string; };
+    same :: (path: string, commands: string) -> bool {
+        text, ok := read_entire_file(path, log_errors = false);
+        return ok && text == commands;
+    }
     for src: c_units() {
         obj := obj_of(src);
-        if !stale(obj, path_strip_filename(src)) continue;
         a: [..]string;
         cc(*a, false);
         array_add(*a, ..cflags(path_strip_extension(src)));
         cc_out(*a, obj);
         array_add(*a, src);
+        command := join(..a, " ");
+        cmd := tprint("%.cmd", obj);
+        if !stale(obj, path_strip_filename(src)) && same(cmd, command) continue;
         array_add(*jobs, a);
+        array_add(*stamps, .{cmd, command});
     }
     for list: source_lists() {
-        // a stamp marks the list's objects as current
         stamp := tprint("%.stamp", list_dir(list));
-        if !stale(stamp, path_strip_filename(list)) continue;
         dir := list_dir(list);
-        make_directory_if_it_does_not_exist(dir, recursive = true);
-        for file_list(dir) file_delete(it);  // objects of files the list no longer names
+        list_jobs: [..][..]string;
         text := read_entire_file(list);
         extra := cflags(path_strip_extension(list));
         for line: split(text, "\n") {
@@ -796,7 +901,7 @@ build_c_target :: () -> bool {
             f := trim(line);
             tag := "";
             for string.["x86 ", "arm ", "simd "] if begins_with(f, it) { tag = trim(it); f = trim(advance(f, it.count)); }
-            arm := MAC_ARCH == "aarch64";
+            arm := MAC_ARCH == "aarch64" || (ANDROID && ANDROID_CPU == .ARM64);
             if (tag == "x86" && arm) || (tag == "arm" && !arm) continue;
             f = patched(f);
             if !f continue;
@@ -804,9 +909,9 @@ build_c_target :: () -> bool {
             // assembly guards itself by OS and CPU, so every file is built and the others come out empty
             if ends_with(f, ".asm") {
                 #if OS != .WINDOWS continue;
-                if LINUX continue;
+                if LINUX || ANDROID continue;
                 array_add(*a, NASM, "-f", "win64", "-o", tprint("%/%.o", dir, path_filename(f)), f);
-                array_add(*jobs, a);
+                array_add(*list_jobs, a);
                 continue;
             }
             // BoringSSL's .S files are its macOS and Linux assembly, which cl cannot read; Windows assembles the .asm
@@ -825,7 +930,7 @@ build_c_target :: () -> bool {
                 if ends_with(f, "_avx2.c") || ends_with(f, "_avx2.cc") array_add(*a, "/arch:AVX2");
                 if ends_with(f, "_avx512.c") array_add(*a, "/arch:AVX512");
                 if ends_with(f, "_neon.cc") continue;
-            } else if MAC_ARCH != "aarch64" {
+            } else if !arm {
                 if ends_with(f, "_sse41.c") array_add(*a, "-msse4.1");
                 if ends_with(f, "_avx2.c") array_add(*a, "-mavx2");
                 if ends_with(f, "_avx512.c") array_add(*a, "-mavx512f", "-mavx512vl");
@@ -835,21 +940,28 @@ build_c_target :: () -> bool {
             // named with their directory too: FFmpeg has both libavcodec/utils.c and libavutil/utils.c
             cc_out(*a, tprint("%/%_%.o", dir, path_filename(trim_right(path_strip_filename(f), "/")), path_filename(f)));
             array_add(*a, f);
-            array_add(*jobs, a);
+            array_add(*list_jobs, a);
         }
-        array_add(*stamps, stamp);
+        commands: String_Builder;
+        for list_jobs { append(*commands, join(..it, " ")); append(*commands, "\n"); }
+        all := builder_to_string(*commands);
+        if !stale(stamp, path_strip_filename(list)) && same(stamp, all) continue;
+        make_directory_if_it_does_not_exist(dir, recursive = true);
+        for file_list(dir) file_delete(it);  // objects of files the list no longer names
+        array_add(*jobs, ..list_jobs);
+        array_add(*stamps, .{stamp, all});
     }
     if !run_parallel(jobs) return false;
-    for stamps write_entire_file(it, "");
+    for stamps write_entire_file(it.path, it.commands);
     // The archive (and the .so) may hold another compiler's objects, from the last build of the other kind.
     shared_lib := !MAC_ARCH || HOST;
-    want := ifx HOST then "host" else ifx LINUX then "linux" else "cross_cc-v2";
+    want := ifx ANDROID then OBJ() else ifx HOST then "host" else ifx LINUX then "linux" else "cross_cc-v2";
     other := shared_lib && vendor_lib_target() != want;
     // vendor/<lib>/.shared names a shared library linked from that library's objects instead of the archive
     // (Linux only): FFmpeg's AAC decoder is LGPL, so the app opens libfc_aac.so with dlopen and a user can swap it.
     for dir: vendor_dirs() {
         name, shared := read_entire_file(tprint("%/.shared", dir), log_errors = false);
-        if !shared continue;
+        if !shared || ANDROID continue; // @Incomplete: Android has no AAC library yet (TODO.md, Android step 10).
         so := tprint("build/%", trim(name));
         objs := vendor_outputs(tprint("%/", dir));
         m, _, ok := file_modtime_and_size(so);
@@ -873,7 +985,8 @@ build_c_target :: () -> bool {
     // the object list goes in a response file: it is longer than a Windows command line
     rsp := tprint("%.rsp", lib);
     write_entire_file(rsp, join(..objs, "\n"));
-    if MSVC() ok = run_command(tprint("%\\lib.exe", MSVC_BIN), "/NOLOGO", tprint("/OUT:%", lib), tprint("@%", rsp)).exit_code == 0;
+    if ANDROID ok = run_command(join(NDK_BIN, "/llvm-ar", NDK_EXE,, temp), "rcs", lib, tprint("@%", rsp)).exit_code == 0;
+    else if MSVC() ok = run_command(tprint("%\\lib.exe", MSVC_BIN), "/NOLOGO", tprint("/OUT:%", lib), tprint("@%", rsp)).exit_code == 0;
     else if HOST && !LINUX ok = run_command("libtool", "-static", "-no_warning_for_no_symbols", "-o", lib, "-filelist", rsp).exit_code == 0;
     else if HOST ok = run_command("ar", "rcs", lib, tprint("@%", rsp)).exit_code == 0;
     else ok = run_command(CROSS, "ar", "rcs", lib, tprint("@%", rsp)).exit_code == 0;

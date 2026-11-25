@@ -110,7 +110,7 @@ thumb_add :: (is_window: bool, id: u32, rgba: []u8, w: int, h: int) {
 	#load "capture_windows.jai";
 	#load "encode_windows.jai";
 	#load "segment_d3d11_windows.jai";
-} else #if OS == .LINUX {
+} else #if OS == .LINUX || OS == .ANDROID { // Android: compiled, never started (SUPPORTED)
 	#load "capture_nv12.jai";
 	#load "capture_linux.jai";
 	#load "screen_linux.jai";
@@ -141,7 +141,7 @@ imagefmt :: #import "imagefmt";
 	mf :: #import "mf";
 }
 
-#if OS == .LINUX {
+#if OS == .LINUX || OS == .ANDROID {
 	#import "POSIX";
 	vendor :: #library,no_dll "../../build/fc_vendor";
 }

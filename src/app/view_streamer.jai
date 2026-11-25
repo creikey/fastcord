@@ -68,7 +68,7 @@ STREAMER_TOOLS :: Streamer_Tool.[
 ];
 
 // Node's process.platform; the table has no "linux" entries, so Linux detects nothing
-STREAMER_OS :: #run ifx OS == .MACOS then "darwin" else ifx OS == .LINUX then "linux" else "win32";
+STREAMER_OS :: #run ifx OS == .MACOS then "darwin" else ifx OS == .LINUX || OS == .ANDROID then "linux" else "win32";
 
 // streamer_tool_running: the first streaming tool among executable paths (or bare
 // file names), case-insensitive.

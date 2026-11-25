@@ -17,7 +17,7 @@ opus :: #import "opus";
 	#load "decode_darwin.jai";
 }
 #if OS == .WINDOWS #load "decode_windows.jai";
-#if OS == .LINUX #load "decode_linux.jai";
+#if OS == .LINUX || OS == .ANDROID #load "decode_linux.jai";
 #if OS != .MACOS {
 	yuv :: #import "yuv";
 	#load "frame_nv12.jai";

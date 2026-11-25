@@ -72,8 +72,9 @@ native_font_system :: (name: string, weight: Font_Weight, italic: bool) -> *void
         style := ifx bold then (ifx italic then "BoldItalic" else "Bold") else ifx italic then "Italic" else "Regular";
         dv := ifx bold then (ifx italic then "-BoldOblique" else "-Bold") else ifx italic then "-Oblique" else "";
         names: [3]string;
-        if mono  names = .[tprint("DejaVuSansMono%.ttf", dv), tprint("NotoSansMono-%.ttf", style), tprint("LiberationMono-%.ttf", style)];
-        else names = .[tprint("NotoSans-%.ttf", style), tprint("DejaVuSans%.ttf", dv), tprint("LiberationSans-%.ttf", style)];
+        // Android's own: Roboto (a variable font) and Droid Sans Mono.
+        if mono  names = .[tprint("DejaVuSansMono%.ttf", dv), tprint("NotoSansMono-%.ttf", style), ifx OS == .ANDROID then "DroidSansMono.ttf" else tprint("LiberationMono-%.ttf", style)];
+        else names = .[tprint("NotoSans-%.ttf", style), tprint("DejaVuSans%.ttf", dv), ifx OS == .ANDROID then "Roboto-Regular.ttf" else tprint("LiberationSans-%.ttf", style)];
         for names {
             path := known_path(it);
             if path { nf = open_file(path, 0, 0); break; }
@@ -422,7 +423,7 @@ known_path :: (name: string) -> string {
         ft.scanned = true;
         home := getenv("HOME");
         dirs: [4]string;
-        dirs[0] = "/usr/share/fonts";
+        dirs[0] = ifx OS == .ANDROID then "/system/fonts" else "/usr/share/fonts";
         dirs[1] = "/usr/local/share/fonts";
         if home {
             dirs[2] = tprint("%/.local/share/fonts", to_string(home));

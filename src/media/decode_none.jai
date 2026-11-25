@@ -18,7 +18,7 @@ Audio_Decoder :: struct {
 }
 
 audio_codec_supported :: (c: Codec) -> bool {
-	#if OS == .LINUX if c == .AAC return aac_load(); // libfc_aac.so may be missing
+	#if OS == .LINUX || OS == .ANDROID if c == .AAC return aac_load(); // libfc_aac.so may be missing
 	return c == .PCM || c == .MP3 || c == .Opus || c == .AAC;
 }
 

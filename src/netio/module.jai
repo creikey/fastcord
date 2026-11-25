@@ -137,7 +137,7 @@ listen_tcp :: (port: int) -> *Listener, Error {
 	setsockopt(sock, xx IPPROTO.IPV6, IPV6_V6ONLY, xx *zero, size_of(s32));
 	#if OS != .WINDOWS setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, *one, size_of(s32));
 	any: [16]u8;
-	if bind(sock, any, cast(u16) port) != 0 || listen(sock, 128) != 0 { close_and_reset(*sock); return null, .Dial; }
+	if bind6(sock, any, cast(u16) port) != 0 || listen(sock, 128) != 0 { close_and_reset(*sock); return null, .Dial; }
 	a: sockaddr_in6;
 	#if OS == .WINDOWS n: s32 = size_of(sockaddr_in6);
 	else n: socklen_t = size_of(sockaddr_in6);
@@ -201,7 +201,7 @@ listen_udp :: (port: int, timeout_ms: s64, host := "") -> *Udp, Error {
 	if sock == INVALID_SOCKET return null, .Dial;
 	zero: s32 = 0;
 	setsockopt(sock, xx IPPROTO.IPV6, IPV6_V6ONLY, xx *zero, size_of(s32));
-	if bind(sock, at, cast(u16) port) != 0 { close_and_reset(*sock); return null, .Dial; }
+	if bind6(sock, at, cast(u16) port) != 0 { close_and_reset(*sock); return null, .Dial; }
 	u := New(Udp);
 	u.sock = sock;
 	socket_timeout(sock, timeout_ms);
@@ -301,7 +301,21 @@ tcp_write :: (data: *void, src: []u8) -> Error {
 }
 
 // a closed peer is an error, not SIGPIPE: macOS sets SO_NOSIGPIPE at dial, Linux asks per send
-#if OS == .LINUX SEND_FLAGS :: MSG.NOSIGNAL; else SEND_FLAGS :: cast(MSG) 0;
+#if OS == .ANDROID TCP_NODELAY :: 1; // Jai's Android Socket bindings lack it.
+
+// Jai's Socket has no IPv6 bind for Android.
+bind6 :: (s: Socket, address: [16]u8, port: u16) -> s32 {
+	#if OS != .ANDROID return bind(s, address, port);
+	else {
+		a: sockaddr_in6;
+		a.sin6_family = AF_INET6;
+		a.sin6_addr.in6_u.u6_addr8 = address;
+		a.sin6_port = htons(port);
+		return bind(s, cast(*sockaddr) *a, size_of(sockaddr_in6));
+	}
+}
+
+#if OS == .LINUX || OS == .ANDROID SEND_FLAGS :: MSG.NOSIGNAL; else SEND_FLAGS :: cast(MSG) 0;
 
 tcp_close :: (data: *void) {
 	t := cast(*Tcp) data;

@@ -5,16 +5,17 @@
 #scope_module
 
 backend_init :: () -> bool {
-    lib := dlopen("libEGL.so.1", RTLD_NOW);
-    if lib == null { log_error("gfx: libEGL.so.1 not found"); return false; }
+    lib := dlopen(EGL_LIB, RTLD_NOW);
+    if lib == null { log_error("gfx: % not found", to_string(EGL_LIB)); return false; }
     if !load_procs(*egl, "egl", lib) return false;
     headless := platform.is_headless();
     if !open_display(headless) { log_error("gfx: no EGL display (0x%)", formatInt(egl.GetError(), base = 16)); return false; }
-    if !egl.BindAPI(EGL_OPENGL_API) { log_error("gfx: EGL has no desktop OpenGL"); return false; }
+    if !egl.BindAPI(EGL_API) { log_error("gfx: EGL has no % API", ifx GLES then "OpenGL ES" else "desktop OpenGL"); return false; }
 
     config := choose_config(headless);
     if config == null { log_error("gfx: no EGL config"); return false; }
-    ctx_attrs := s32.[EGL_CONTEXT_MAJOR_VERSION, 3, EGL_CONTEXT_MINOR_VERSION, 3,
+    #if GLES ctx_attrs := s32.[EGL_CONTEXT_MAJOR_VERSION, 3, EGL_NONE];
+    else ctx_attrs := s32.[EGL_CONTEXT_MAJOR_VERSION, 3, EGL_CONTEXT_MINOR_VERSION, 3,
         EGL_CONTEXT_OPENGL_PROFILE_MASK, EGL_CONTEXT_OPENGL_CORE_PROFILE_BIT, EGL_NONE];
     st.ctx = egl.CreateContext(st.dpy, config, null, ctx_attrs.data);
     if st.ctx == null { log_error("gfx: no OpenGL 3.3 core context (0x%)", formatInt(egl.GetError(), base = 16)); return false; }
@@ -27,7 +28,9 @@ backend_init :: () -> bool {
     // Wayland: the platform paces frames by the compositor's frame callbacks (present_begin); EGL's own
     // vsync wait would block forever while the window is hidden.
     if st.surface  egl.SwapInterval(st.dpy, xx ifx platform.is_wayland() then 0 else 1);
-    if !load_procs(*gl, "gl", null) return false;
+    // Android's eglGetProcAddress may not return core GLES entry points: they come from libGLESv3.
+    #if GLES  { if !load_procs(*gl, "gl", dlopen("libGLESv3.so", RTLD_NOW)) return false; }
+    else      { if !load_procs(*gl, "gl", null) return false; }
 
     units: s32;
     gl.GetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, *units);
@@ -59,11 +62,13 @@ backend_init :: () -> bool {
     gl.Enable(GL_BLEND);
     gl.BlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA); // premultiplied, colour and alpha alike (as D3D11)
     gl.Disable(GL_DITHER);
-    gl.Disable(GL_FRAMEBUFFER_SRGB);              // UNORM targets, no sRGB conversion (as D3D11)
+    #if !GLES gl.Disable(GL_FRAMEBUFFER_SRGB);              // UNORM targets, no sRGB conversion (as D3D11)
     gl.PixelStorei(GL_UNPACK_ALIGNMENT, 1);
     gl.PixelStorei(GL_PACK_ALIGNMENT, 1);
-    for * st.timers  gl.GenQueries(1, *it.query);
-    if units > SCENE_UNIT + 4  scene_init();
+    #if !GLES {
+        for * st.timers  gl.GenQueries(1, *it.query);
+        if units > SCENE_UNIT + 4  scene_init(); // @Incomplete: GLES 3.0 has no texture buffers, so no scenes on Android.
+    }
     return true;
 }
 
@@ -110,7 +115,7 @@ backend_submit :: (insts: []Instance, batches: []Batch, clear: Color, fb: [2]s32
     if !ensure_target(fb) return;
     for * st.timers timer_read(it);
     timer := *st.timers[g.frame_index % GPU_TIMERS];
-    if timer.pending  timer = null; // still in flight from GPU_TIMERS frames ago: skip timing this frame
+    if timer.pending || GLES  timer = null; // still in flight from GPU_TIMERS frames ago: skip timing this frame
     else gl.BeginQuery(GL_TIME_ELAPSED, timer.query);
     // Re-specifying the store each frame lets the driver orphan the old one (no wait on the GPU).
     if scenes.count {
@@ -208,6 +213,11 @@ dlsym :: (handle: *void, name: *u8) -> *void #foreign libc;
 RTLD_LAZY :: 1;
 RTLD_NOW :: 2;
 RTLD_NOLOAD :: 4;
+
+GLES :: OS == .ANDROID; // OpenGL ES 3.0 from the system's libEGL and libGLESv3
+EGL_LIB :: #run ifx GLES then "libEGL.so" else "libEGL.so.1";
+EGL_API :: #run ifx GLES then EGL_OPENGL_ES_API else EGL_OPENGL_API;
+EGL_RENDERABLE :: #run ifx GLES then EGL_OPENGL_ES3_BIT else EGL_OPENGL_BIT;
 
 INST_ATTRS :: size_of(Instance) / 16; // nine float4s, shader locations 0..8
 UPLOAD_UNIT :: TEX_SLOTS + 1;         // texture uploads bind here, away from the units draws use
@@ -428,7 +438,7 @@ open_display :: (headless: bool) -> bool {
 // with no alpha, which the compositor would blend with what is behind the window). Headless: any
 // desktop-GL config; it only describes the context, which never gets a surface.
 choose_config :: (headless: bool) -> *void {
-    attrs := s32.[EGL_SURFACE_TYPE, xx ifx headless then 0 else EGL_WINDOW_BIT, EGL_RENDERABLE_TYPE, EGL_OPENGL_BIT,
+    attrs := s32.[EGL_SURFACE_TYPE, xx ifx headless then 0 else EGL_WINDOW_BIT, EGL_RENDERABLE_TYPE, EGL_RENDERABLE,
         EGL_RED_SIZE, 8, EGL_GREEN_SIZE, 8, EGL_BLUE_SIZE, 8, EGL_NONE];
     configs: [64]*void;
     n: s32;
@@ -469,7 +479,10 @@ window_visual :: () -> u64 {
 link_program :: (vs_src: string, fs_src: string) -> u32 {
     compile :: (kind: u32, src: string) -> u32 {
         s := gl.CreateShader(kind);
-        text, count := src.data, cast(s32) src.count;
+        // GLES 3.0 reads the same GLSL under its own version line, with default precisions.
+        VERSION :: #run ifx GLES then "#version 300 es\nprecision highp float;\nprecision highp int;" else "#version 330 core";
+        glsl := replace(src, "#version 330 core", tprint("%\n#define TEX_N %", VERSION, TEX_SLOTS),, temp);
+        text, count := glsl.data, cast(s32) glsl.count;
         gl.ShaderSource(s, 1, *text, *count);
         gl.CompileShader(s);
         ok: s32;
@@ -511,6 +524,7 @@ load_procs :: (table: *$T, prefix: string, lib: *void) -> bool {
     for type_info(T).members {
         name := tprint("%1%2\0", prefix, it.name);
         p := ifx lib then dlsym(lib, name.data) else egl.GetProcAddress(name.data);
+        if p == null && GLES && (begins_with(it.name, "GetQueryObject") || it.name == "TexBuffer") continue; // timers and scenes, off on GLES
         if p == null { log_error("gfx: % missing", slice(name, 0, name.count - 1)); return false; }
         (cast(**void) (cast(*u8) table + it.offset_in_bytes)).* = p;
     }
@@ -617,6 +631,8 @@ EGL_RENDERABLE_TYPE :: 0x3040;
 EGL_WINDOW_BIT :: 0x0004;
 EGL_OPENGL_BIT :: 0x0008;
 EGL_OPENGL_API :: 0x30A2;
+EGL_OPENGL_ES_API :: 0x30A0;
+EGL_OPENGL_ES3_BIT :: 0x0040;
 EGL_CONTEXT_MAJOR_VERSION :: 0x3098;
 EGL_CONTEXT_MINOR_VERSION :: 0x30FB;
 EGL_CONTEXT_OPENGL_PROFILE_MASK :: 0x30FD;

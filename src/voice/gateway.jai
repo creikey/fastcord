@@ -61,7 +61,7 @@ codecs_json :: (no_hevc_decode: bool, hevc_encode := false) -> string {
 }
 
 CODECS_JSON ::#run ifx OS == .WINDOWS then replace(CODECS_DESKTOP, "\"rtx_payload_type\":104,\"encode\":true", "\"rtx_payload_type\":104,\"encode\":false")
-	else ifx OS == .LINUX then replace(CODECS_DESKTOP, "\"rtx_payload_type\":104,\"encode\":true,\"decode\":true", "\"rtx_payload_type\":104,\"encode\":false,\"decode\":false")
+	else ifx OS == .LINUX || OS == .ANDROID then replace(CODECS_DESKTOP, "\"rtx_payload_type\":104,\"encode\":true,\"decode\":true", "\"rtx_payload_type\":104,\"encode\":false,\"decode\":false")
 	else CODECS_DESKTOP;
 CODECS_DESKTOP :: "[{\"name\":\"opus\",\"type\":\"audio\",\"priority\":1000,\"payload_type\":120},{\"name\":\"AV1\",\"type\":\"video\",\"priority\":1000,\"payload_type\":101,\"rtx_payload_type\":102,\"encode\":false,\"decode\":true},{\"name\":\"H265\",\"type\":\"video\",\"priority\":2000,\"payload_type\":103,\"rtx_payload_type\":104,\"encode\":true,\"decode\":true},{\"name\":\"H264\",\"type\":\"video\",\"priority\":3000,\"payload_type\":105,\"rtx_payload_type\":106,\"encode\":true,\"decode\":true},{\"name\":\"VP8\",\"type\":\"video\",\"priority\":4000,\"payload_type\":107,\"rtx_payload_type\":108,\"encode\":true,\"decode\":true}]";
 

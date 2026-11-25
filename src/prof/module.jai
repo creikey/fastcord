@@ -271,6 +271,7 @@ symbol_at :: (addr: u64) -> Symbol { return symbolize(addr); }
 #if OS == .MACOS #load "sampler_darwin.jai";
 #if OS == .WINDOWS #load "sampler_windows.jai";
 #if OS == .LINUX #load "sampler_linux.jai";
+#if OS == .ANDROID #load "sampler_android.jai";
 
 Symbol :: struct {
 	procedure: string;

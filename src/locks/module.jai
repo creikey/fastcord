@@ -125,7 +125,7 @@ waiting_on :: (tid: int) -> Wait_Info {
 	current_thread_id :: () -> int { id: u64; pthread_threadid_np(null, *id); return cast(int) id; }
 } else #if OS == .WINDOWS {
 	current_thread_id :: () -> int { return cast(int) GetCurrentThreadId(); }
-} else #if OS == .LINUX {
+} else #if OS == .LINUX || OS == .ANDROID {
 	current_thread_id :: () -> int { return cast(int) syscall(SYS_gettid); } // glibc 2.17 has no gettid()
 }
 
@@ -223,7 +223,7 @@ wait :: (c: *Cond, m: *Mutex, timeout_ms: s64, what: string, loc: Source_Code_Lo
 		return WaitOnAddress(addr, *e, 4, ms) != 0;
 	}
 	futex_wake :: (addr: *u32, all: bool) { if all WakeByAddressAll(addr); else WakeByAddressSingle(addr); }
-} else #if OS == .LINUX {
+} else #if OS == .LINUX || OS == .ANDROID {
 	FUTEX_WAIT_PRIVATE :: 128;
 	FUTEX_WAKE_PRIVATE :: 129;
 

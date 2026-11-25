@@ -129,7 +129,7 @@ Options :: struct {
 parse_options :: () -> Options {
 	o := Options.{width = 1280, height = 720, dpi = 2, theme = .Dark, port = 4433};
 	args := get_command_line_arguments();
-	for a: array_view(args, 1) {
+	for a: array_view(args, min(args.count, 1)) { // Android passes none at all, not even the program
 		v: string;
 		flag :: (prefix: string) -> bool #expand {
 			if !begins_with(`a, prefix) return false;

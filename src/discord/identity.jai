@@ -126,7 +126,7 @@ DEFAULT_PLATFORM :: Platform_Info.{
 
 // host_platform: what the official client reports on this machine (procinfo_<os>.jai): the OS version and
 // architecture, the system locale and timezone. The offline tests always use DEFAULT_PLATFORM.
-#if OS == .LINUX host_platform :: linux_platform;
+#if OS == .LINUX || OS == .ANDROID host_platform :: linux_platform; // Android: until TODO.md's Android step 11 decides
 else #if OS == .WINDOWS host_platform :: windows_platform;
 else host_platform :: darwin_platform;
 
