@@ -4,6 +4,9 @@
 
 native_display :: () -> *void { return null; }
 native_window :: () -> *void { return android.android_app.window; }
+// Counts each new window and each lost one, so gfx rebuilds its surface even when a new window reuses an
+// old one's address.
+window_serial :: () -> int { return as.window_serial; }
 is_wayland :: () -> bool { return false; }
 present_begin :: () -> bool { return android.android_app.window != null; }
 draws_caption :: () -> bool { return false; }
@@ -137,6 +140,7 @@ os_webview_close :: () {}
 
 as: struct {
     focused := true;
+    window_serial: int;
     px_w, px_h: s32;
 };
 
@@ -155,7 +159,12 @@ handle_command :: (app: *android.Android_App, cmd: s32) {
     now := time_now();
     c := cast(android.APP_CMD) cmd;
     if c == {
-        case .INIT_WINDOW; #through;
+        case .INIT_WINDOW;
+            as.window_serial += 1;
+            update_size();
+            push_event(.{kind = .Resize, pos = s.size, time = now});
+        case .TERM_WINDOW;
+            as.window_serial += 1;
         case .WINDOW_RESIZED; #through;
         case .CONFIG_CHANGED; #through;
         case .CONTENT_RECT_CHANGED;

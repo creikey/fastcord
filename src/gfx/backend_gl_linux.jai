@@ -19,15 +19,18 @@ backend_init :: () -> bool {
         EGL_CONTEXT_OPENGL_PROFILE_MASK, EGL_CONTEXT_OPENGL_CORE_PROFILE_BIT, EGL_NONE];
     st.ctx = egl.CreateContext(st.dpy, config, null, ctx_attrs.data);
     if st.ctx == null { log_error("gfx: no OpenGL 3.3 core context (0x%)", formatInt(egl.GetError(), base = 16)); return false; }
-    if !headless {
+    st.config = config;
+    #if GLES {
+        if !android_surface() return false;
+    } else if !headless {
         st.surface = egl.CreateWindowSurface(st.dpy, config, cast(u64) platform.native_window(), null);
         if st.surface == null { log_error("gfx: eglCreateWindowSurface failed (0x%)", formatInt(egl.GetError(), base = 16)); return false; }
     }
     // Headless: no surface at all (EGL_KHR_surfaceless_context); frames go to the FBO from ensure_target.
-    if !egl.MakeCurrent(st.dpy, st.surface, st.surface, st.ctx) { log_error("gfx: eglMakeCurrent failed (0x%)", formatInt(egl.GetError(), base = 16)); return false; }
+    if !GLES && !egl.MakeCurrent(st.dpy, st.surface, st.surface, st.ctx) { log_error("gfx: eglMakeCurrent failed (0x%)", formatInt(egl.GetError(), base = 16)); return false; }
     // Wayland: the platform paces frames by the compositor's frame callbacks (present_begin); EGL's own
     // vsync wait would block forever while the window is hidden.
-    if st.surface  egl.SwapInterval(st.dpy, xx ifx platform.is_wayland() then 0 else 1);
+    if st.surface && !GLES  egl.SwapInterval(st.dpy, xx ifx platform.is_wayland() then 0 else 1);
     // Android's eglGetProcAddress may not return core GLES entry points: they come from libGLESv3.
     #if GLES  { if !load_procs(*gl, "gl", dlopen("libGLESv3.so", RTLD_NOW)) return false; }
     else      { if !load_procs(*gl, "gl", null) return false; }
@@ -92,6 +95,25 @@ backend_shutdown :: () {
     st = .{};
 }
 
+// Android takes the window away whenever the app leaves the screen and hands over a new one on return. The
+// context and everything in it survive; only the surface follows the window. Without a window the context
+// stays current with no surface (EGL_KHR_surfaceless_context), so textures can still be made.
+android_surface :: () -> bool {
+    #if GLES {
+        st.window_serial = platform.window_serial();
+        egl.MakeCurrent(st.dpy, null, null, st.ctx);
+        if st.surface  egl.DestroySurface(st.dpy, st.surface);
+        st.surface = null;
+        window := platform.native_window();
+        if !window return true;
+        st.surface = egl.CreateWindowSurface(st.dpy, st.config, cast(u64) window, null);
+        if st.surface == null { log_error("gfx: eglCreateWindowSurface failed (0x%)", formatInt(egl.GetError(), base = 16)); return false; }
+        if !egl.MakeCurrent(st.dpy, st.surface, st.surface, st.ctx) { log_error("gfx: eglMakeCurrent failed (0x%)", formatInt(egl.GetError(), base = 16)); return false; }
+        egl.SwapInterval(st.dpy, 1);
+    }
+    return true;
+}
+
 backend_scenes_supported :: () -> bool { return st.scene_program != 0; }
 
 backend_target_create :: (w: s32, h: s32) -> *void {
@@ -112,6 +134,10 @@ backend_scene_test :: (t: Texture, s: *vector.Scene) -> []u8 {
 
 backend_submit :: (insts: []Instance, batches: []Batch, clear: Color, fb: [2]s32, scenes: []Scene_Draw) {
     if fb[0] <= 0 || fb[1] <= 0 return;
+    #if GLES {
+        if st.window_serial != platform.window_serial() && !android_surface() return;
+        if !st.surface return;
+    }
     if !ensure_target(fb) return;
     for * st.timers timer_read(it);
     timer := *st.timers[g.frame_index % GPU_TIMERS];
@@ -232,7 +258,8 @@ Gpu_Timer :: struct {
 }
 
 st: struct {
-    dpy, ctx, surface: *void;
+    dpy, ctx, surface, config: *void;
+    window_serial: int;           // Android: platform.window_serial when the surface was made.
     program: u32;
     viewport_loc: s32;
     vao, inst_buf, sampler: u32;
