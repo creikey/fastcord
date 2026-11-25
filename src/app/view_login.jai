@@ -320,6 +320,13 @@ login_form :: () {
 	field_label("password_label", L("PASSWORD"), lg.password_error);
 	r2, k2 := login_input("password", *lg.password_ed, true, lg.password_error != "");
 	lg.field_keys = .[k1, k2];
+	// Tab / Shift+Tab: move between the two boxes (only two, so either key swaps them)
+	for * e: app.ui.events {
+		if e.consumed || e.kind != .Key_Down || e.key != .Tab || (e.mods & ~ui.Mod.Shift) continue;
+		if app.ui.focus != k1 && app.ui.focus != k2 continue;
+		e.consumed = true;
+		app.ui.focus = ifx app.ui.focus == k1 then k2 else k1;
+	}
 	spacer(.Y, 4);
 	if link(L("Forgot your password?")) { login_forgot(); }
 	spacer(.Y, 20);
